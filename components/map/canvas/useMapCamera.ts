@@ -22,6 +22,15 @@ const BOTTOM_SHEET_SELECTOR = ".mobileSharedSheet.open";
 // answer does not feel withheld. Matches the pub-select fly-to.
 const NEAR_ME_CAMERA_DURATION_MS = 700;
 
+// The correction after the sheet settles is a small adjustment, not a journey.
+const NEAR_ME_SETTLE_DURATION_MS = 300;
+
+/** Give up waiting for the sheet after this; a stuck sheet must not strand the camera. */
+const SHEET_SETTLE_TIMEOUT_MS = 900;
+
+/** Frames the sheet edge must hold still before its geometry is trusted. */
+const SHEET_SETTLE_STABLE_FRAMES = 4;
+
 /**
  * Top edge of an open bottom sheet, in map-container pixels, or null when no
  * sheet covers the map. Measured because a contextual sheet is content-height:
@@ -34,6 +43,44 @@ function measureBottomSheetTop(containerTop: number): number | null {
   const rect = sheet.getBoundingClientRect();
   if (rect.height <= 0) return null;
   return rect.top - containerTop;
+}
+
+/**
+ * Call back with the sheet's top edge once it stops moving.
+ *
+ * The sheet grows into place, so a reading taken on the frame it mounts is not
+ * the band the reader ends up looking at. Watching the edge needs no knowledge
+ * of the sheet's own transition, which is why it is done this way.
+ */
+function whenBottomSheetSettles(
+  containerTop: number,
+  done: (coverTop: number | null) => void,
+): void {
+  if (typeof requestAnimationFrame === "undefined") return;
+  const startedAt = performance.now();
+  let previous = measureBottomSheetTop(containerTop);
+  let stableFrames = 0;
+  // The sheet's travel is spring-driven, so it may not have moved at all on the
+  // frame it mounts. Waiting for a change first stops an early pair of equal
+  // readings passing as a settled sheet.
+  let moved = false;
+  const step = () => {
+    const current = measureBottomSheetTop(containerTop);
+    if (current === previous) {
+      stableFrames += 1;
+    } else {
+      moved = true;
+      stableFrames = 0;
+    }
+    previous = current;
+    if ((moved && stableFrames >= SHEET_SETTLE_STABLE_FRAMES)
+      || performance.now() - startedAt > SHEET_SETTLE_TIMEOUT_MS) {
+      done(current);
+      return;
+    }
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 type CameraRefs = {
@@ -157,33 +204,42 @@ export function useMapCamera(refs: CameraRefs) {
       const isPhone = window.matchMedia("(max-width: 640px)").matches;
       const container = map.getContainer().getBoundingClientRect();
       const viewport = { width: container.width, height: container.height };
-      const band = mapVisibleBand({
-        height: viewport.height,
-        topInset: isPhone ? PHONE_TOP_INSET : DESKTOP_TOP_INSET,
-        // Measured, not assumed: the phone sheet is sized by its own content.
-        coverTop: measureBottomSheetTop(container.top),
-        bottomInset: isPhone ? PHONE_BOTTOM_INSET : DESKTOP_BOTTOM_INSET,
-      });
-      const frame = nearMeCameraFrame({
-        location,
-        nearestVenueKm: nearestVenueKm(location, nearbyVenues),
-        viewport,
-        band,
-      });
+      const reach = nearestVenueKm(location, nearbyVenues);
+      const venueKey = nearbyVenues.map((venue) => venue.id).join(">");
       const locationKey = `${location.lat.toFixed(4)},${location.lng.toFixed(4)}`;
-      scheduleCamera("nearby", `nearby:${locationKey}:${nearbyVenues.map((venue) => venue.id).join(">")}`, (target) => target.easeTo({
-        center: frame.center,
-        zoom: frame.zoom,
-        offset: frame.offset,
-        // The move has one job: carry the reader's eye from the city to their
-        // own street. Ease-out starts fast, so the arrival reads as an answer
-        // rather than a slow pan. Reduced motion takes the same frame instantly.
-        duration: reducedRef.current ? 0 : NEAR_ME_CAMERA_DURATION_MS,
-        easing: easeOutCubic,
-        pitch: isPhone ? 28 : 34,
-        // Keep the current rotation (a fit would zero it otherwise).
-        bearing: target.getBearing(),
-      }));
+      const aim = (coverTop: number | null, duration: number) => {
+        const band = mapVisibleBand({
+          height: viewport.height,
+          topInset: isPhone ? PHONE_TOP_INSET : DESKTOP_TOP_INSET,
+          coverTop,
+          bottomInset: isPhone ? PHONE_BOTTOM_INSET : DESKTOP_BOTTOM_INSET,
+        });
+        const frame = nearMeCameraFrame({ location, nearestVenueKm: reach, viewport, band });
+        scheduleCamera("nearby", `nearby:${locationKey}:${band.bottom}:${venueKey}`, (target) => target.easeTo({
+          center: frame.center,
+          zoom: frame.zoom,
+          offset: frame.offset,
+          // The move has one job: carry the reader's eye from the city to their
+          // own street. Ease-out starts fast, so the arrival reads as an answer
+          // rather than a slow pan. Reduced motion takes the same frame instantly.
+          duration: reducedRef.current ? 0 : duration,
+          easing: easeOutCubic,
+          pitch: isPhone ? 28 : 34,
+          // Keep the current rotation (a fit would zero it otherwise).
+          bearing: target.getBearing(),
+        }));
+      };
+      // Aim now, so the answer is not withheld while the sheet slides up.
+      const first = measureBottomSheetTop(container.top);
+      aim(first, NEAR_ME_CAMERA_DURATION_MS);
+      // The sheet is still growing, so that first reading is not the band the
+      // reader ends up with. Re-aim once its edge stops moving. Re-aiming is
+      // safe mid-flight: the camera lane interrupts and eases on from where the
+      // move has already reached.
+      whenBottomSheetSettles(container.top, (settled) => {
+        if (settled === first) return;
+        aim(settled, NEAR_ME_SETTLE_DURATION_MS);
+      });
     },
     [mapRef, reducedRef, scheduleCamera],
   );

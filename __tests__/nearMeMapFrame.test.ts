@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, it, expect } from "vitest";
 
 import { haversineKm } from "@/lib/haversine";
@@ -134,7 +137,13 @@ describe("nearMeCameraFrame at Victoria", () => {
   });
 
   it("lifts the reader above the sheet rather than centring the canvas", () => {
-    expect(frame.offset[1]).toBeGreaterThan(0);
+    // MapLibre puts the target BELOW the container centre for a positive y, so
+    // lifting the reader into the band above the sheet is a negative offset.
+    expect(frame.offset[1]).toBeLessThan(0);
+    expect(PHONE.height / 2 + frame.offset[1]).toBeCloseTo(
+      (PHONE_BAND.top + PHONE_BAND.bottom) / 2,
+      0,
+    );
   });
 });
 
@@ -196,6 +205,29 @@ describe("nearMeCameraFrame where the ring is empty", () => {
     const visible = nearMeVisibleBounds(frame, PHONE, PHONE_BAND);
     expect(boundsContain(visible, thin)).toBe(true);
     expect(boundsWidthKm(visible)).toBeLessThan(4);
+  });
+});
+
+describe("the shipped near-me camera", () => {
+  const source = readFileSync(
+    join(process.cwd(), "components/map/canvas/useMapCamera.ts"),
+    "utf8",
+  );
+  const fitNearby = source.slice(source.indexOf("const fitNearby"));
+
+  it("frames the reader, never a bounds over venues", () => {
+    expect(fitNearby).toContain("nearMeCameraFrame");
+    expect(fitNearby).not.toContain("fitBounds");
+    expect(fitNearby).not.toContain("LngLatBounds");
+  });
+
+  it("measures the sheet rather than assuming a bottom inset", () => {
+    expect(fitNearby).toContain("measureBottomSheetTop");
+    expect(fitNearby).toContain("whenBottomSheetSettles");
+  });
+
+  it("still takes the reduced-motion jump", () => {
+    expect(fitNearby).toContain("reducedRef.current ? 0");
   });
 });
 
