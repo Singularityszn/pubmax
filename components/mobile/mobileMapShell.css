@@ -38,6 +38,10 @@
     right: var(--mobile-map-stack-right);
     z-index: var(--z-map-toolbar);
     display: grid;
+    /* Every row is bounded by the stack, never by its own content. A grid item
+       defaults to min-width:auto, so one wide row (the search panel) grew the
+       implicit column and dragged the top bar off-screen with it. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 6px;
     pointer-events: none;
   }
@@ -195,6 +199,7 @@
 
   .mobileMapSearchRow {
     pointer-events: auto;
+    min-width: 0;
     padding: 8px;
     border-radius: var(--radius-lg);
     background: var(--color-surface-raised);

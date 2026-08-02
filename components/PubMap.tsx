@@ -1946,6 +1946,13 @@ export default function PubMap({
     };
   }, []);
   const didMountSearchFlyRef = useRef(false);
+  // The phone search overlay covers the map with its own suggestion panel, so a
+  // camera move made while it is open is work nobody can see. It is also
+  // premature: "cam" matches Camden, Camberwell and Cambridge, and framing all
+  // of them zooms out to the whole city behind a panel the reader is still
+  // typing into. Hold the camera until the overlay closes. Picking a suggestion
+  // flies through its own path and does not need this one.
+  const searchOverlayOpen = mapOverlay === "search";
   useEffect(() => {
     if (ukPlaceArrival) return;
     // Leave first paint to arrival framing; only react to user-driven typing.
@@ -1957,6 +1964,11 @@ export default function PubMap({
     // field this effect runs again and the same move happens, deferred rather
     // than dropped.
     if (mapSearchFieldFocused) return;
+    // The phone overlay covers the map with its own suggestion panel, so a move
+    // made under it is work nobody can see. Focus does not answer this on its
+    // own: the overlay stays up after the field is blurred, which is exactly
+    // when the deferred move would fire behind it.
+    if (searchOverlayOpen) return;
     if (trimmedMapQuery.length < TYPED_SEARCH_MIN_QUERY) return;
     const handle = window.setTimeout(() => {
       const move = typedSearchCameraMove({
@@ -1977,7 +1989,7 @@ export default function PubMap({
       }
     }, 320);
     return () => window.clearTimeout(handle);
-  }, [mapSearchFieldFocused, trimmedMapQuery, selectVenue, ukPlaceArrival]);
+  }, [mapSearchFieldFocused, searchOverlayOpen, trimmedMapQuery, selectVenue, ukPlaceArrival]);
 
   // #397: a query restored from the URL (?q=) must fly to its matches exactly
   // like typed search does (#371). The typed-search effect above deliberately
