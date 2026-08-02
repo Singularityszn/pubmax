@@ -70,6 +70,12 @@ describe("typed search camera", () => {
     // The effect re-runs when focus leaves, which is what makes the move
     // deferred rather than dropped.
     expect(source).toContain("if (mapSearchFieldFocused) return;");
-    expect(source).toContain("[mapSearchFieldFocused, trimmedMapQuery, selectVenue, ukPlaceArrival]");
+    // Membership, not the whole bracketed list: the effect carries a second
+    // guard (the phone search overlay), and a closed list would read that
+    // legitimate addition as the focus dependency having gone.
+    const deps = /\}, \[([^\]]*)\]\);/.exec(
+      source.slice(source.indexOf("const searchOverlayOpen")),
+    )?.[1] ?? "";
+    expect(deps.split(",").map((dep) => dep.trim())).toContain("mapSearchFieldFocused");
   });
 });
