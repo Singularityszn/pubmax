@@ -446,6 +446,19 @@ export default function PubMapCanvas({
     () => (userLocation ? nearMeMapVenues(userLocation.lat, userLocation.lng, venues) : []),
     [userLocation, venues],
   );
+  const userLocationGeoJSON = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: "FeatureCollection",
+      features: userLocation
+        ? [{
+          type: "Feature",
+          properties: {},
+          geometry: { type: "Point", coordinates: [userLocation.lng, userLocation.lat] },
+        }]
+        : [],
+    }),
+    [userLocation],
+  );
   const cityBounds = useMemo(
     () => cityMaxBounds(getCity(cityId)),
     [cityId],
@@ -634,6 +647,12 @@ export default function PubMapCanvas({
   // Latest data lives in refs so buildScene can reseed sources after a
   // theme-driven setStyle wipes them.
   const pubsDataRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
+  // Empty until the reader grants a position, so a style rebuild always has a
+  // payload to hand the source.
+  const userLocationDataRef = useRef<GeoJSON.FeatureCollection>({
     type: "FeatureCollection",
     features: [],
   });
@@ -1360,6 +1379,7 @@ export default function PubMapCanvas({
         bandColor: bandColorRef.current,
         bandMemberIds: bandMemberIdsRef.current,
         pubsData: pubsDataRef.current,
+        userLocationData: userLocationDataRef.current,
         ukBaseData: ukBaseDataRef.current,
         tonightData: tonightDataRef.current,
         tonightVisible: tonightOverlayVisibleRef.current,
@@ -1396,6 +1416,7 @@ export default function PubMapCanvas({
               bandColor: bandColorRef.current,
               bandMemberIds: bandMemberIdsRef.current,
               pubsData: pubsDataRef.current,
+              userLocationData: userLocationDataRef.current,
               ukBaseData: ukBaseDataRef.current,
               tonightData: tonightDataRef.current,
               tonightVisible: tonightOverlayVisibleRef.current,
@@ -2718,22 +2739,18 @@ export default function PubMapCanvas({
     fitNearby(userLocation, nearbyMapVenues);
   }, [mapReady, userLocation, route.length, nearbyMapVenues, fitNearby]);
 
-  // DOM marker survives basemap style swaps and stays crisp above clustered
-  // symbols. Its pulse is CSS-only and reduced-motion aware.
+  // The reader's dot is a CANVAS layer under the pins (see buildUserLocation),
+  // not a DOM marker over them, so a pin the reader is standing on keeps its
+  // price readable. Feed the source; the layers themselves are built with the
+  // scene and survive a basemap style swap the same way every other layer does.
   useEffect(() => {
+    userLocationDataRef.current = userLocationGeoJSON;
     const map = mapRef.current;
-    if (!mapReady || !map || !userLocation) return;
-    const element = document.createElement("div");
-    element.className = "mapUserLocationMarker";
-    element.setAttribute("role", "img");
-    element.setAttribute("aria-label", "Your approximate location");
-    const marker = new maplibregl.Marker({ element, anchor: "center" })
-      .setLngLat([userLocation.lng, userLocation.lat])
-      .addTo(map);
-    return () => {
-      marker.remove();
-    };
-  }, [mapReady, userLocation]);
+    if (!mapReady || !map) return;
+    (map.getSource("user-location") as maplibregl.GeoJSONSource | undefined)?.setData(
+      userLocationGeoJSON,
+    );
+  }, [mapReady, userLocationGeoJSON]);
 
   // Frame the crawl only when the route identity changes *materially* — the
   // ordered list of stop ids. Filters that churn the route array or a mere
@@ -2998,6 +3015,18 @@ export default function PubMapCanvas({
       data-uk-base-count={ukBase.count}
     >
       <div ref={containerRef} className="maplibreMap" />
+      {/* The reader's dot is painted on the canvas, which says nothing to a
+          screen reader. This carries the same accessible name the old DOM
+          marker did, so the position stays announced while the pins keep the
+          pixels. It is also how a test can tell the map accepted a location. */}
+      {userLocation ? (
+        <span
+          className="sr-only"
+          role="img"
+          aria-label="Your approximate location"
+          data-user-location="shown"
+        />
+      ) : null}
       {softRetry ? (
         <div className="mapSoftRetry" role="status" data-kind={softRetry.kind}>
           <span className="mapSoftRetryMessage">{softRetry.message}</span>

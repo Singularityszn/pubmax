@@ -199,6 +199,8 @@ export type SceneCtx = {
   bandColor: string;
   bandMemberIds: string[];
   pubsData: GeoJSON.FeatureCollection;
+  /** The reader's granted position, empty when there is none — see buildUserLocation. */
+  userLocationData: GeoJSON.FeatureCollection;
   /** UK base pubs for the CURRENT viewport only — see buildUkBase. */
   ukBaseData: GeoJSON.FeatureCollection;
   tonightData: GeoJSON.FeatureCollection;
@@ -845,6 +847,54 @@ export function buildUkBase(ctx: SceneCtx) {
   });
 }
 
+/**
+ * The reader's own position.
+ *
+ * It lives on the CANVAS, under the pub layers, and that ordering is the whole
+ * point. As a DOM marker it floated above every symbol and outside MapLibre's
+ * collision index, so standing at a pub — the commonest success of Near me, the
+ * "0.0 km" row the sheet leads with — put an opaque disc straight over that
+ * pin's price. A pin's figure is a claim, and a half-covered claim reads as a
+ * render bug at the moment the reader trusts the map most.
+ *
+ * Drawn beneath the pins, the price wins the overlap and the halo still rings
+ * the pin, so the reader can see both where they are and what it costs. The dot
+ * is a circle, not a symbol, so the collision index never hides the reader
+ * themselves: it yields the FIGURE, never the position.
+ */
+export function buildUserLocation(ctx: SceneCtx) {
+  const { map, tokens, addLayerOnce, userLocationData } = ctx;
+  if (!map.getSource("user-location")) {
+    map.addSource("user-location", { type: "geojson", data: userLocationData });
+  }
+  addLayerOnce({
+    id: "user-location-halo",
+    type: "circle",
+    source: "user-location",
+    paint: {
+      "circle-color": tokens.userLocation,
+      "circle-opacity": 0.18,
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 12, 16, 22],
+      "circle-stroke-color": tokens.userLocation,
+      "circle-stroke-opacity": 0.45,
+      "circle-stroke-width": 1.5,
+    },
+  });
+  addLayerOnce({
+    id: "user-location-core",
+    type: "circle",
+    source: "user-location",
+    paint: {
+      "circle-color": tokens.userLocation,
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 5, 16, 7],
+      // The paper collar is what separates the dot from a dark basemap and from
+      // a pin it may be sitting on.
+      "circle-stroke-color": tokens.paper,
+      "circle-stroke-width": 2.5,
+    },
+  });
+}
+
 export function buildPubs(ctx: SceneCtx) {
   const { map, tokens, dark, textFont, addLayerOnce, pubsData, bandMemberIds, bandColor, selectedId } = ctx;
   // --- Pubs: clustered GeoJSON source + designed data-driven layers.
@@ -1366,6 +1416,8 @@ export function assembleScene(ctx: SceneCtx) {
   buildPois(ctx);
   buildRoute(ctx);
   buildBandCorridor(ctx);
+  // BEFORE the pub layers on purpose — see buildUserLocation.
+  buildUserLocation(ctx);
   buildUkBase(ctx);
   buildPubs(ctx);
   buildRouteStops(ctx);

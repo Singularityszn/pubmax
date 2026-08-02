@@ -620,7 +620,7 @@ test("/map reuses granted location after an explicit Near me action", async ({ p
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "Near me" }).click();
   await expect(page.getByRole("button", { name: "Nearby" })).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(".mapUserLocationMarker")).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("[data-user-location='shown']")).toBeAttached({ timeout: 20_000 });
 });
 
 test("/map keeps Manchester cluster markers mounted after granted location settles", async ({
@@ -640,7 +640,7 @@ test("/map keeps Manchester cluster markers mounted after granted location settl
   await expect(nearMe).toBeAttached({ timeout: 20_000 });
   await expect(nearMe).toBeEnabled({ timeout: 20_000 });
   await nearMe.evaluate((button: HTMLButtonElement) => button.click());
-  await expect(page.locator(".mapUserLocationMarker")).toBeVisible({
+  await expect(page.locator("[data-user-location='shown']")).toBeAttached({
     timeout: 20_000,
   });
   await page.waitForTimeout(2_000);
