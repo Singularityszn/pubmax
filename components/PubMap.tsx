@@ -1866,6 +1866,13 @@ export default function PubMap({
 
   const trimmedMapQuery = filters.query.trim();
   const didMountSearchFlyRef = useRef(false);
+  // The phone search overlay covers the map with its own suggestion panel, so a
+  // camera move made while it is open is work nobody can see. It is also
+  // premature: "cam" matches Camden, Camberwell and Cambridge, and framing all
+  // of them zooms out to the whole city behind a panel the reader is still
+  // typing into. Hold the camera until the overlay closes. Picking a suggestion
+  // flies through its own path and does not need this one.
+  const searchOverlayOpen = mapOverlay === "search";
   useEffect(() => {
     if (ukPlaceArrival) return;
     // Leave first paint to arrival framing; only react to user-driven typing.
@@ -1873,6 +1880,7 @@ export default function PubMap({
       didMountSearchFlyRef.current = true;
       return;
     }
+    if (searchOverlayOpen) return;
     // Too short to be a deliberate lookup; don't move the camera on a stray key.
     if (trimmedMapQuery.length < 2) return;
     const handle = window.setTimeout(() => {
@@ -1889,7 +1897,7 @@ export default function PubMap({
       }
     }, 320);
     return () => window.clearTimeout(handle);
-  }, [trimmedMapQuery, selectVenue, ukPlaceArrival]);
+  }, [trimmedMapQuery, selectVenue, ukPlaceArrival, searchOverlayOpen]);
 
   // #397: a query restored from the URL (?q=) must fly to its matches exactly
   // like typed search does (#371). The typed-search effect above deliberately
