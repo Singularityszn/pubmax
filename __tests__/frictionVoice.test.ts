@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -34,6 +34,46 @@ const SCRUBBED: ReadonlyArray<{ file: string; phrase: string }> = [
 ];
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
+
+// A control's text is read on its own, with nothing to explain it. A bare
+// numeral there names no thing, so a reader takes it for broken formatting
+// rather than a label: "0.0 options" beside "Step-free" shipped to production
+// and read as a formatting fault. A figure earns its place in button text only
+// when a unit or a currency symbol says what it counts.
+//
+// The scan reads the SOURCE of every app and component surface and takes the
+// static text child that sits immediately before a button-shaped closing tag.
+// Interpolated labels ({...}) are out of reach here and stay the owning
+// surface's own fence.
+const BUTTON_TAGS = ["button", "Button", "Chip", "IconButton"] as const;
+const BUTTON_TEXT = new RegExp(
+  String.raw`>([^<>{}\n]+)</(${BUTTON_TAGS.join("|")})>`,
+  "g",
+);
+// A decimal with no currency symbol and no leading digit in front of it.
+const BARE_DECIMAL = /(?<![£$€\d])\d+\.\d+/u;
+const NUMERAL_ONLY = /^[\d.,]+$/u;
+
+function tsxFilesIn(dir: string, found: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) {
+      tsxFilesIn(path, found);
+    } else if (path.endsWith(".tsx")) {
+      found.push(path);
+    }
+  }
+  return found;
+}
+
+function buttonTextLabels(source: string): string[] {
+  const labels: string[] = [];
+  for (const match of source.matchAll(BUTTON_TEXT)) {
+    const text = match[1].trim();
+    if (text) labels.push(text);
+  }
+  return labels;
+}
 
 describe("friction-state voice fence", () => {
   // Registers that must never return to these surfaces. "the upstream" is the
@@ -75,6 +115,29 @@ describe("friction-state voice fence", () => {
   it("Today's empty picks card hands the user an exit to the map", () => {
     const source = read("app/today/TodayClient.tsx");
     expect(source).toContain("Meanwhile, the map knows the cheap pints");
+  });
+
+  it("no button prints a bare numeral as its label", () => {
+    const offenders: string[] = [];
+    for (const file of [...tsxFilesIn("app"), ...tsxFilesIn("components")]) {
+      for (const label of buttonTextLabels(read(file))) {
+        if (NUMERAL_ONLY.test(label) || BARE_DECIMAL.test(label)) {
+          offenders.push(`${file}: "${label}"`);
+        }
+      }
+    }
+    expect(offenders, "a control label must name a thing, not print a figure").toEqual([]);
+  });
+
+  it("the bare-numeral fence catches the shape that shipped", () => {
+    const shipped = buttonTextLabels(
+      '<Chip aria-pressed={zeroProof} onClick={toggle}>0.0 options</Chip>',
+    );
+    expect(shipped).toEqual(["0.0 options"]);
+    expect(BARE_DECIMAL.test(shipped[0])).toBe(true);
+    // A price is a figure with a unit, so it stays allowed.
+    expect(BARE_DECIMAL.test("£6.00")).toBe(false);
+    expect(NUMERAL_ONLY.test("Build 3-stop route")).toBe(false);
   });
 
   it("the swept replacement copy stays em-dash free", () => {
