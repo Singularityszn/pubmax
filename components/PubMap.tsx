@@ -332,6 +332,19 @@ function currentSearch(): string {
   return typeof window === "undefined" ? "" : window.location.search;
 }
 
+// D4 — take `log=1` off the current history entry. Idempotent, so it can run
+// again after a popstate restores an entry that still carries the flag.
+function dropLogParamFromUrl(): void {
+  if (typeof window === "undefined") return;
+  if (!hasMapLogIntent(window.location.search)) return;
+  const query = clearMapLogIntentSearch(window.location.search);
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
+  );
+}
+
 // hasCrawlArrivalParams (pure §4.5 deep-link probe) now lives in @/lib/pubMap.
 
 function isMobileViewport(): boolean {
@@ -693,15 +706,23 @@ export default function PubMap({
   const clearLogIntent = useCallback(() => {
     setLogIntentFallbackVisible(false);
     setLogIntentCleared(true);
-    if (typeof window === "undefined") return;
-    if (!hasMapLogIntent(window.location.search)) return;
-    const query = clearMapLogIntentSearch(window.location.search);
-    window.history.replaceState(
-      window.history.state,
-      "",
-      `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
-    );
+    dropLogParamFromUrl();
   }, []);
+  // Closing the sheet POPS the selection entry (useMapSelectionHistory), and
+  // the clean entry underneath still carries `log=1` — it is an owned
+  // passthrough there too, written before the reader left the flow. So one
+  // strip is not enough: hold the URL clean for the rest of the session, on
+  // every render and on every history pop. Otherwise Back or a reload rearms
+  // the picker the reader just closed.
+  useEffect(() => {
+    if (!logIntentCleared) return;
+    dropLogParamFromUrl();
+  });
+  useEffect(() => {
+    if (!logIntentCleared || typeof window === "undefined") return;
+    window.addEventListener("popstate", dropLogParamFromUrl);
+    return () => window.removeEventListener("popstate", dropLogParamFromUrl);
+  }, [logIntentCleared]);
   const [tonightOverlayVisible, setTonightOverlayVisible] = useState(false);
   const [tonightDismissed, setTonightDismissed] = useState<boolean>(
     readTonightOverlayDismissed,
