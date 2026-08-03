@@ -250,7 +250,7 @@ export function MobilePlanActivation({
         <div className="mobilePlannerResult" role="status">
           <div className="mobilePlannerConfidence" data-level={result.confidence.level}>
             <ShieldCheck size={17} aria-hidden="true" />
-            <div><strong>{result.confidence.level === "high" ? "Higher confidence" : result.confidence.level === "medium" ? "Plan with checks" : "Low confidence, fully editable"}</strong><span>{result.budget.estimatedPerPersonPence === null ? "Some prices are missing. Check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Route warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
+            <div><strong>{result.confidence.level === "high" ? "Prices checked" : result.confidence.level === "medium" ? "Not all checked" : "Rough guess, yours to change"}</strong><span>{result.budget.estimatedPerPersonPence === null ? "Some prices are missing. Check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Route warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
           </div>
           <p className="mobilePlannerRouteTotal">{result.routeTotalLabel}</p>
           <p className="mobilePlannerNextStep">Route preview stays on this device. Lock it in on Plan when you want a shareable crew link.</p>

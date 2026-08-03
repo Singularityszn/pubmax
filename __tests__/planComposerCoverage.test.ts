@@ -22,7 +22,7 @@ describe("PlanComposer Night Area coverage states", () => {
   const groups = nightAreaSelectorGroups(new Date("2026-07-13T12:00:00.000Z"));
 
   it("keeps route-ready areas available in the context selector", () => {
-    const ready = groups.find((group) => group.label === "Higher confidence");
+    const ready = groups.find((group) => group.label === "Prices checked");
 
     expect(ready).toMatchObject({ disabled: false });
     expect(ready?.areas.map((area) => area.slug)).toEqual([
@@ -34,13 +34,13 @@ describe("PlanComposer Night Area coverage states", () => {
     expect(nightAreaOptionLabel(ready!.areas[0], false)).toBe("Clapham");
   });
 
-  it("keeps lower-confidence areas available with a warning label", () => {
-    const notReady = groups.find((group) => group.label === "Plan with warnings");
+  it("keeps unchecked areas available with an honest label", () => {
+    const notReady = groups.find((group) => group.label === "Not all checked");
     const barnes = notReady?.areas.find((area) => area.slug === "barnes");
 
     expect(notReady).toMatchObject({ disabled: false });
     expect(barnes).toBeDefined();
-    expect(nightAreaOptionLabel(barnes!, false)).toBe("Barnes - plan with warnings");
+    expect(nightAreaOptionLabel(barnes!, false)).toBe("Barnes - not all checked");
   });
 
   it("turns the structured route gate response into useful error copy", () => {
@@ -89,18 +89,18 @@ describe("PlanComposer Night Area coverage states", () => {
       tone: "ready",
     });
     expect(nightAreaCoverageSummary(getNightArea("shoreditch"), now)).toMatchObject({
-      label: "Plan with warnings",
+      label: "Not all checked",
       detail: "Some checks complete. Missing opening hours and route feasibility + 2 more.",
       tone: "capture",
     });
     expect(nightAreaCoverageSummary(getNightArea("barnes"), now)).toMatchObject({
-      label: "Plan with warnings",
+      label: "Not all checked",
       detail: "Checked with gaps. Missing opening hours and the route home.",
       tone: "review",
     });
     expect(nightAreaCoverageSummary(getNightArea("dalston"), now)).toMatchObject({
-      label: "Low confidence",
-      detail: "We haven't checked this area yet. The route stays editable.",
+      label: "Rough guess",
+      detail: "We haven't checked this area yet. The route stays yours to change.",
       tone: "discovery",
     });
   });

@@ -368,8 +368,10 @@ export type AreaCoverageLabel = { label: string; tone: AreaCoverageTone } | null
 
 /**
  * The honest evidence label the plan intake shows, condensed to a chip. Route
- * ready areas return null (no warning needed); everything else names the
- * confidence the same way lib/nightAreas coverage + the plan composer do.
+ * ready areas return null (no warning needed); everything else says, in pub
+ * words, how much of the area we have actually checked. VOICE.md rule 2 keeps
+ * the evidence stage names ("capture", "review", "confidence") in the tone,
+ * never in the label a thirsty reader sees.
  */
 export function areaCoverageLabel(
   area: NightArea,
@@ -378,15 +380,15 @@ export function areaCoverageLabel(
   if (isNightAreaRouteReady(area, now)) return null;
   switch (area.coverageStatus) {
     case "captured":
-      return { label: "Plan with warnings", tone: "capture" };
+      return { label: "Not all checked", tone: "capture" };
     case "reviewed":
-      return { label: "Plan with warnings", tone: "review" };
+      return { label: "Not all checked", tone: "review" };
     case "discovered":
-      return { label: "Low confidence", tone: "discovery" };
+      return { label: "Rough guess", tone: "discovery" };
     case "paused":
-      return { label: "Review expired", tone: "paused" };
+      return { label: "Gone stale", tone: "paused" };
     default:
-      return { label: "Plan with warnings", tone: "review" };
+      return { label: "Not all checked", tone: "review" };
   }
 }
 

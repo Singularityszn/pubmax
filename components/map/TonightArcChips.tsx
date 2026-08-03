@@ -61,9 +61,11 @@ export default function TonightArcChips({
         variant === "sheet" ? "tonightArcChips tonightArcChipsSheet" : "tonightArcChips"
       }
       role="group"
-      aria-label="Tonight arc venue types"
+      aria-label="Venue types on the map"
     >
-      <span className="tonightArcLabel">Tonight arc</span>
+      {/* No visible title. "Tonight arc" is this component's own name, and
+          VOICE.md rule 2 keeps internal names off a reader's screen. The chips
+          say what they do, so a title over them earned nothing. */}
       <div className="tonightArcRow">
         {chips.map((chip) => {
           const on = chip.kind === "club" ? false : visibility[chip.kind];
