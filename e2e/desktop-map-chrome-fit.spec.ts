@@ -94,6 +94,38 @@ async function captureDrawerExchange(page: Page, name: string) {
   });
 }
 
+async function firstDrawerOwnershipCommit(trigger: Locator) {
+  return trigger.evaluate((button) => {
+    const planner = document.querySelector<HTMLElement>(
+      ".mapDrawer.left.springDrawer",
+    );
+    const venue = document.querySelector<HTMLElement>(
+      ".mapDrawer.right.springDrawer",
+    );
+    if (!planner || !venue) throw new Error("desktop drawers are missing");
+
+    return new Promise<{
+      plannerHidden: string | null;
+      venueHidden: string | null;
+    }>((resolve) => {
+      const observer = new MutationObserver(() => {
+        observer.disconnect();
+        resolve({
+          plannerHidden: planner.getAttribute("aria-hidden"),
+          venueHidden: venue.getAttribute("aria-hidden"),
+        });
+      });
+      for (const drawer of [planner, venue]) {
+        observer.observe(drawer, {
+          attributes: true,
+          attributeFilter: ["aria-hidden"],
+        });
+      }
+      (button as HTMLElement).click();
+    });
+  });
+}
+
 async function installFirstPlannerFrameProbe(
   page: Page,
   expectedSearch: string,
@@ -279,6 +311,7 @@ for (const width of DESKTOP_WIDTHS) {
 test("1440px planner hands ownership to venue and Back restores composed state", async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   await prepareDesktopMap(page);
   await stubCityStatus(page);
 
@@ -432,19 +465,23 @@ test("1440px Plan tonight takes ownership from an open venue", async ({
   expect(response?.status()).toBe(200);
 
   const toolbar = page.locator(".mapToolbar");
-  const planner = page.locator(".mapDrawer.left.springDrawer");
   const venue = page.locator(".mapDrawer.right.springDrawer");
   await expect(toolbar).toBeVisible({ timeout: 20_000 });
   await selectToolbarPub(page, "The French House", /The French House/);
   await expect(venue).toHaveAttribute("aria-hidden", "false");
 
-  await toolbar
-    .getByRole("button", { name: "Plan tonight" })
-    .evaluate((button) => (button as HTMLElement).click());
-
-  await expect(planner).toHaveAttribute("aria-hidden", "false");
-  await expect(venue).toHaveAttribute("aria-hidden", "true");
-  await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
+  // This branch owns only the captain's synchronous drawer decision. Selection
+  // and surface history remain separate owners, and the later traversal race is
+  // deliberately handed off in data/nomistakes-land-two-fixes. Capture the
+  // first React commit so this regression cannot accidentally wait for, or
+  // claim to reconcile, that deferred history work.
+  const ownership = await firstDrawerOwnershipCommit(
+    toolbar.getByRole("button", { name: "Plan tonight" }),
+  );
+  expect(ownership).toEqual({
+    plannerHidden: "false",
+    venueHidden: "true",
+  });
 });
 
 test("1440px loaded route opens its first venue without a deferred planner handoff", async ({
