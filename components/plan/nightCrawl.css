@@ -67,16 +67,14 @@
 .nightCrawl__kicker {
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--nc-coral);
 }
 .nightCrawl__count {
   margin-top: 6px;
   font-family: var(--nc-data);
   font-size: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--nc-muted);
 }
 .nightCrawl__progress {
@@ -195,8 +193,7 @@
 .nightCrawl__eyebrow {
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--nc-coral);
 }
 .nightCrawl__heroName {
@@ -215,8 +212,7 @@
 .nightCrawl__crewLabel {
   font-family: var(--nc-data);
   font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--nc-muted);
   margin-bottom: 8px;
 }
@@ -419,8 +415,7 @@
 .nightCrawl__enterKicker {
   font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--brass-bright);
 }
 .nightCrawl__enterLede {

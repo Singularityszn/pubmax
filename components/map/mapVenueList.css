@@ -129,13 +129,22 @@
   }
 }
 
+/* The same three-column head every surface in this product wears: leading
+   Back, the name, trailing Home (components/ui/surface-nav.tsx). The leading
+   cell sits empty when the list opened straight off the map, because there
+   Back and Home are the same journey. */
 .mapVenueListHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
   gap: 8px;
-  padding: 12px 12px 10px 14px;
+  padding: 12px 10px 10px;
   border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.mapVenueListHeadMeta {
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .mapVenueListHeadMeta {

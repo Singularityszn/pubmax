@@ -1,5 +1,8 @@
+"use client";
+
 import { Waves } from "lucide-react";
 
+import { useTrailingEdgeFade } from "@/lib/useTrailingEdgeFade";
 import type { Venue } from "@/lib/venues";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import { venueKindNoun } from "@/lib/venueKindFilters";
@@ -34,6 +37,8 @@ export default function VenueInspectorHeader({
   onGrabDragMove,
   onGrabDragEnd,
 }: VenueInspectorHeaderProps) {
+  const { ref: tabStripRef, faded } = useTrailingEdgeFade<HTMLDivElement>();
+
   return (
     <>
       {/* The grab handle is the primary drag surface on mobile — a generous
@@ -78,7 +83,17 @@ export default function VenueInspectorHeader({
         longitude={venue.longitude}
       />
 
-      <div className="venueTabs" role="tablist" aria-label="Venue detail sections">
+      {/* The right-edge fade is drawn only while something really is off the
+          edge (lib/useTrailingEdgeFade.ts). A static mask left the last tab
+          half-faded at the end of the scroll on a 390px phone, and half opacity
+          is how this product draws a control a reader may not use. */}
+      <div
+        ref={tabStripRef}
+        className="venueTabs"
+        data-trailing-fade={faded ? "on" : "off"}
+        role="tablist"
+        aria-label="Venue detail sections"
+      >
         {TABS.map(({ key, label, shortLabel }) => {
           const active = tab === key;
           return (

@@ -43,17 +43,46 @@ export function mergeCrawlUrlSearch(
   return params.toString();
 }
 
-export function useCrawlUrlSync(state: CrawlUrlState): void {
+/**
+ * The address a clean arrival is allowed to keep, until the reader changes
+ * something themselves.
+ *
+ * A restored session put a previous visit's search back on the map, and the
+ * sync then wrote it to the address bar: a typed `/map` became `/map?q=Camden`,
+ * and a clean shared link mutated into somebody's stale search. The address the
+ * reader typed wins. `encodedAtMount` is what the restored state encodes to, so
+ * the first genuine change by the reader releases the hold and the sync resumes.
+ */
+export type CleanUrlHold = { encodedAtMount: string } | null;
+
+/** May the sync write `encoded` to the address bar yet? */
+export function crawlUrlWriteAllowed(
+  hold: CleanUrlHold,
+  encoded: string,
+): boolean {
+  return hold === null || encoded !== hold.encodedAtMount;
+}
+
+export function useCrawlUrlSync(
+  state: CrawlUrlState,
+  /** True when the reader arrived on a clean URL and a saved session was
+   *  restored over it. The address then stays clean until they act. */
+  holdCleanUrl = false,
+): void {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const hold = useRef<CleanUrlHold | undefined>(undefined);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const encoded = encodeCrawl(state);
+    if (hold.current === undefined) {
+      hold.current = holdCleanUrl ? { encodedAtMount: encoded } : null;
+    }
+    if (!crawlUrlWriteAllowed(hold.current, encoded)) return;
+    hold.current = null;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      const query = mergeCrawlUrlSearch(
-        encodeCrawl(state),
-        window.location.search,
-      );
+      const query = mergeCrawlUrlSearch(encoded, window.location.search);
       // Keep a clean pathname when nothing meaningful is encoded (no trailing `?`).
       const url = query
         ? `${window.location.pathname}?${query}${window.location.hash}`
@@ -67,5 +96,5 @@ export function useCrawlUrlSync(state: CrawlUrlState): void {
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [state]);
+  }, [holdCleanUrl, state]);
 }

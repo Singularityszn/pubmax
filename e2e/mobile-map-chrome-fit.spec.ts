@@ -82,7 +82,7 @@ async function openPhoneMap(
   // One bar: neither the old rail nor the map-floating category band.
   await expect(page.locator(".mobileMapRail")).toHaveCount(0);
   await expect(
-    page.getByRole("group", { name: "Tonight arc venue types" }),
+    page.getByRole("group", { name: "Venue types" }),
   ).toHaveCount(0);
   await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
   await expect(
@@ -243,9 +243,23 @@ for (const viewport of VIEWPORTS) {
       "map-edge controls share one right edge",
     ).toBe(Math.round(layout.utility.right));
 
-    // The bar never scrolls: every control is rendered, none is cut.
+    // Below 361px the wordmark leaves the bar on purpose, so the place name
+    // keeps a readable column (components/mobile/mobileMapShell.css). It is the
+    // one control the bar drops, and it must be dropped OUTRIGHT: a hidden
+    // element reports a zero box at 0,0, which is indistinguishable from a
+    // control shoved off the bar's left edge unless the spec says which it is.
+    const wordmark = layout.barControls.find(
+      (control) => control.label === "Open PUBMAXX landing page",
+    );
+    if (viewport.width <= 360) {
+      expect(wordmark?.width ?? 0, "the wordmark leaves the narrow bar").toBe(0);
+    } else {
+      expect(wordmark?.width ?? 0, "the wordmark stays on the bar").toBeGreaterThan(0);
+    }
+
+    // The bar never scrolls: every control it renders is whole, none is cut.
     expect(layout.barScrollWidth).toBeLessThanOrEqual(layout.barClientWidth);
-    for (const control of layout.barControls) {
+    for (const control of layout.barControls.filter((one) => one.width > 0)) {
       expect(control.left, `${control.label} left is visible`).toBeGreaterThanOrEqual(
         layout.topbar.left,
       );
@@ -307,7 +321,7 @@ for (const viewport of VIEWPORTS) {
     await expect(sheet).toHaveCount(1);
 
     // The venue-type toggles have exactly one home on a phone: this sheet.
-    const arc = sheet.getByRole("group", { name: "Tonight arc venue types" });
+    const arc = sheet.getByRole("group", { name: "Venue types" });
     await expect(arc).toHaveCount(1);
     const arcButtons = arc.locator(".tonightArcChip");
     expect(await arcButtons.count()).toBe(5);
@@ -445,7 +459,10 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
   ).toHaveAttribute("aria-pressed", "true");
   await page.waitForTimeout(500);
 
-  const closeFilters = filtersSheet.locator(".mobileSharedSheetClose");
+  // The sheet's way out is SurfaceNav's Home control now
+  // (components/ui/surface-nav.tsx); the bespoke close button it replaced is
+  // gone, and so is the class this used to tap.
+  const closeFilters = filtersSheet.locator(".surfaceNavHome");
   await tapRenderedCentre(
     page,
     closeFilters,
@@ -460,49 +477,64 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
   );
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
 
-  await page.evaluate(() => {
-    const testWindow = window as typeof window & {
-      __mobileMapCameraIntentCount?: number;
-    };
-    testWindow.__mobileMapCameraIntentCount = 0;
-    window.addEventListener("pubmax:camera-intent", () => {
-      testWindow.__mobileMapCameraIntentCount =
-        (testWindow.__mobileMapCameraIntentCount ?? 0) + 1;
-    });
-  });
+  // This used to guess where a pin was: a 20px grid of taps across the canvas,
+  // hunting for one that opened a sheet, abandoned after a fixed number of
+  // passes. Under parallel workers the map had not painted its pins before the
+  // scan ran out, so a timing loss read as a product defect. Ask the map
+  // instead. `paintedPinProbe.ts` answers with the viewport point of every pub
+  // mark the map is drawing right now, already checked to survive collision,
+  // to re-query to the same mark, and to carry no chrome on top of it.
+  const paintedMarks = () =>
+    page.evaluate(
+      () =>
+        (
+          window as typeof window & {
+            __pubmaxPaintedMapTapPoints?: () => Array<{
+              kind: "pin" | "cluster";
+              id: string;
+              x: number;
+              y: number;
+            }>;
+          }
+        ).__pubmaxPaintedMapTapPoints?.() ?? [],
+    );
 
-  let cameraIntentCount = 0;
-  let pinOpened = false;
-  for (let cameraStage = 0; cameraStage < 7 && !pinOpened; cameraStage += 1) {
-    let cameraAdvanced = false;
-    for (let y = 110; y <= 670 && !pinOpened && !cameraAdvanced; y += 20) {
-      for (let x = 20; x <= 300; x += 20) {
-        await page.mouse.click(x, y);
-        await page.waitForTimeout(40);
-        if (await venueSheet.count()) {
-          pinOpened = true;
-          break;
-        }
-        const nextCameraIntentCount = await page.evaluate(
-          () =>
-            (
-              window as typeof window & {
-                __mobileMapCameraIntentCount?: number;
-              }
-            ).__mobileMapCameraIntentCount ?? 0,
-        );
-        if (nextCameraIntentCount > cameraIntentCount) {
-          cameraIntentCount = nextCameraIntentCount;
-          cameraAdvanced = true;
-          break;
-        }
-      }
-    }
-    if (cameraAdvanced) {
-      await page.waitForTimeout(850);
-    }
-  }
-  expect(pinOpened, "a painted map pin receives its own tap").toBe(true);
+  await expect
+    .poll(async () => (await paintedMarks()).length, {
+      message: "the phone map paints a pub mark the reader can tap",
+      timeout: 60_000,
+    })
+    .toBeGreaterThan(0);
+
+  // The map opens with the pubs gathered, so the walk in is the reader's own:
+  // open a cluster until it hands over pins, then tap a pin. Every tap lands
+  // on a mark the map is painting at that moment, so nothing here is a guess -
+  // the loop only repeats because one cluster can open onto another.
+  let tappedPinId = "";
+  await expect
+    .poll(
+      async () => {
+        if (await venueSheet.count()) return true;
+        const marks = await paintedMarks();
+        const pin = marks.find((mark) => mark.kind === "pin");
+        const target = pin ?? marks[0];
+        if (!target) return false;
+        if (pin) tappedPinId = pin.id;
+        await page.mouse.click(target.x, target.y);
+        // A cluster answers with a camera move; a pin answers with the sheet.
+        await page.waitForTimeout(pin ? 400 : 900);
+        return (await venueSheet.count()) > 0;
+      },
+      { message: "a painted map pin receives its own tap", timeout: 90_000 },
+    )
+    .toBe(true);
   await expect(venueSheet).toHaveCount(1);
+  // The sheet belongs to the pin that was tapped, not to some other selection:
+  // an in-Map selection writes its venue to `?sel=` (lib/mapSelectionHistory).
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("sel"), {
+      message: "the sheet belongs to the pin that was tapped",
+    })
+    .toBe(tappedPinId);
   await page.waitForTimeout(1_200);
 });

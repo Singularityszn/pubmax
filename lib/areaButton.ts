@@ -19,6 +19,7 @@ import {
   isNightAreaRouteReady,
   type NightArea,
 } from "@/lib/nightAreas";
+import type { MapBounds } from "@/lib/slimShards";
 import type { Venue } from "@/lib/venues";
 
 /** Top of the area's pub list — the ten cheapest, mirroring the plan intake. */
@@ -110,6 +111,92 @@ export function areaUnderCentre(
     }
   }
   return containing ?? nearest;
+}
+
+/**
+ * How far the view may reach past the named area and still be "over" it,
+ * measured as a multiple of that area's own radius.
+ *
+ * A view four times the area's reach shows a region the area does not own, so
+ * the name would be a claim about ground the reader can see is elsewhere.
+ */
+const CLAIM_MAX_VIEW_RADIUS_MULTIPLE = 2;
+
+function boundsAreUsable(bounds: MapBounds): boolean {
+  return [bounds.west, bounds.east, bounds.south, bounds.north].every((edge) =>
+    Number.isFinite(edge),
+  );
+}
+
+function centreIsInView(area: NightArea, bounds: MapBounds): boolean {
+  return (
+    area.centre.lng >= bounds.west &&
+    area.centre.lng <= bounds.east &&
+    area.centre.lat >= bounds.south &&
+    area.centre.lat <= bounds.north
+  );
+}
+
+/** Half the visible diagonal: how far the view reaches from its own centre. */
+function viewReachKm(center: [number, number], bounds: MapBounds): number {
+  return Math.max(
+    haversineKm(center, [bounds.west, bounds.north]),
+    haversineKm(center, [bounds.east, bounds.north]),
+    haversineKm(center, [bounds.west, bounds.south]),
+    haversineKm(center, [bounds.east, bounds.south]),
+  );
+}
+
+/**
+ * The Night Area the VIEW may be named after, or null when it may name none.
+ *
+ * areaUnderCentre answers a different question: which area is closest, so a
+ * sheet always has pubs to list. A chip that PRINTS a place name makes a claim
+ * about what is on screen, and the nearest-area fallback made that claim false
+ * twice: "Camden" over a pub in North Finchley, "Balham" over a view holding
+ * Luton to Crawley. Three rules, all of which must hold:
+ *
+ *  1. Containment. The map centre sits inside the area's own region. No
+ *     nearest-area fallback, because "nearest" is not "over".
+ *  2. One heart. No other area's centre is on screen. A view holding two areas
+ *     spans them both, so it is neither of them.
+ *  3. Scale. The view reaches no further than CLAIM_MAX_VIEW_RADIUS_MULTIPLE
+ *     times the area's radius, which holds rule 2 honest in a city that models
+ *     one area.
+ *
+ * Null is not a failure. It is the honest answer for a wide view, and the
+ * caller prints the city name instead.
+ */
+export function areaClaimedByViewport(
+  cityId: CityId,
+  center: [number, number],
+  bounds: MapBounds | null | undefined,
+): NightArea | null {
+  if (!bounds || !boundsAreUsable(bounds)) return null;
+  const [lng, lat] = center;
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+  const areas = getNightAreasForCity(cityId);
+  if (areas.length === 0) return null;
+
+  let claimed: NightArea | null = null;
+  let claimedKm = Number.POSITIVE_INFINITY;
+  for (const area of areas) {
+    const km = haversineKm([lng, lat], [area.centre.lng, area.centre.lat]);
+    if (km <= area.radiusKm && km < claimedKm) {
+      claimed = area;
+      claimedKm = km;
+    }
+  }
+  if (!claimed) return null;
+
+  if (viewReachKm([lng, lat], bounds) > claimed.radiusKm * CLAIM_MAX_VIEW_RADIUS_MULTIPLE) {
+    return null;
+  }
+  for (const area of areas) {
+    if (area.slug === claimed.slug) continue;
+    if (centreIsInView(area, bounds)) return null;
+  }
+  return claimed;
 }
 
 /**
@@ -368,8 +455,10 @@ export type AreaCoverageLabel = { label: string; tone: AreaCoverageTone } | null
 
 /**
  * The honest evidence label the plan intake shows, condensed to a chip. Route
- * ready areas return null (no warning needed); everything else names the
- * confidence the same way lib/nightAreas coverage + the plan composer do.
+ * ready areas return null (no warning needed); everything else says, in pub
+ * words, how much of the area we have actually checked. VOICE.md rule 2 keeps
+ * the evidence stage names ("capture", "review", "confidence") in the tone,
+ * never in the label a thirsty reader sees.
  */
 export function areaCoverageLabel(
   area: NightArea,
@@ -378,15 +467,15 @@ export function areaCoverageLabel(
   if (isNightAreaRouteReady(area, now)) return null;
   switch (area.coverageStatus) {
     case "captured":
-      return { label: "Plan with warnings", tone: "capture" };
+      return { label: "Not all checked", tone: "capture" };
     case "reviewed":
-      return { label: "Plan with warnings", tone: "review" };
+      return { label: "Not all checked", tone: "review" };
     case "discovered":
-      return { label: "Low confidence", tone: "discovery" };
+      return { label: "Rough guess", tone: "discovery" };
     case "paused":
-      return { label: "Review expired", tone: "paused" };
+      return { label: "Gone stale", tone: "paused" };
     default:
-      return { label: "Plan with warnings", tone: "review" };
+      return { label: "Not all checked", tone: "review" };
   }
 }
 

@@ -154,7 +154,14 @@ const DARK = {
   residential: "#1b1712",
   // Greenspace/parks: dark DESATURATED green, distinct in hue from the warm
   // building brown so a park never reads as a block of buildings.
-  park: "#2d3f27",
+  //
+  // Held at 2.6:1 against `ground`, not the 1.75:1 it started at. Below about
+  // 2:1 the parks stop being geography a reader can navigate by: on a phone the
+  // whole map reads as one dark field, and the only landmarks are the labels.
+  // The ceiling is `--pint` (#18a76d, hue 156, sat 75%) — this stays a muted
+  // olive at hue 102, sat 29%, so a park can never be mistaken for a
+  // cheap-pint pin. Widen the LUMINANCE, never the saturation.
+  park: "#3f5c33",
   // Buildings (2-D footprint fill under the 3-D extrusion): one clear luminance
   // step above ground, warm gray-brown — harmonises with the --map-building-
   // emissive massing above it (buildScene) instead of fighting it.
@@ -164,7 +171,12 @@ const DARK = {
   buildingOutline: "rgba(150,140,126,0.32)",
   // Water: deep slate-blue, painted SOLID (not an alpha wash that near-black
   // ground would drown) so it reads as water at a glance.
-  water: "#16344e",
+  //
+  // Held at 2.7:1 against `ground`, not the 1.55:1 it started at. The Thames is
+  // the single strongest wayfinder London has, and at the old value it read as
+  // slightly-darker land on a phone at night. Blue is a whole hue family away
+  // from every price band, so luminance here costs the pins nothing.
+  water: "#255988",
   // Roads — three warm-gray tiers, all solid so they remain legible. Even a
   // major road stays below muted interface text and saturated pub markers.
   roadMajor: "#756f65",

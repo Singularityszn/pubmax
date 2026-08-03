@@ -17,6 +17,7 @@ import { MessageCircleQuestion, MapPin, Sparkles, X } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
 import { createAskSession, type AskCard } from "@/lib/conciergeAskClient";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import "./mapConciergeAsk.css";
 
@@ -55,6 +56,12 @@ export default function MapConciergeAsk({
   const collapse = useCallback(() => {
     setOpen(false);
   }, []);
+
+  // The panel is anchored to its own pill, so the way back is the trigger it
+  // came from and it does not join the surface trail. It still owed the reader
+  // a keyboard way out: the close glyph was the only exit, and the caret sits
+  // in a text field the moment it opens.
+  useDismissOnEscape(open, collapse);
 
   // All race-guard / timeout / error-curation logic lives in the pure session
   // (lib/conciergeAskClient.ts, unit-tested): latest ask wins, stale responses

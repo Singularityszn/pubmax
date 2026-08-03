@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 
 import { type CuratedCrawl } from "@/lib/curatedCrawls";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 // §4.5 onboarding overlay: a dismissible "Start with a story" card that offers
 // curated crawls on a clean first paint. It's the mobile onboarding (control
@@ -17,6 +18,9 @@ export function MapOnboardingOverlay({
   onLoadCrawl: (crawl: CuratedCrawl) => void;
   onDismiss: () => void;
 }) {
+  // The scrim and the close glyph both leave. Escape now does too, so the
+  // keyboard has the same way out the pointer has.
+  useDismissOnEscape(true, onDismiss);
   return (
     <div
       className="mapOnboarding"

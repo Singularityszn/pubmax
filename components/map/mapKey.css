@@ -105,11 +105,44 @@
   padding-top: 9px;
 }
 
+/* These rows are the only closed things in the key. `display: flex` drops the
+   browser's own disclosure triangle, so all three read as dead headings over
+   empty space: "Pin shapes", "Dots and rings", "Routes" and nothing under them
+   (design judgement 2026-08-01, finding 2.10). The chevron is the affordance,
+   and it turns to face the state it is in. */
 .mapKeyDetails summary {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   min-height: 44px;
   cursor: pointer;
+  list-style: none;
+}
+
+.mapKeyDetails summary::-webkit-details-marker {
+  display: none;
+}
+
+.mapKeyDetails summary::after {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-right: 3px;
+  border-right: 2px solid var(--ink-soft);
+  border-bottom: 2px solid var(--ink-soft);
+  content: "";
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.mapKeyDetails[open] summary::after {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mapKeyDetails summary::after {
+    transition: transform 140ms ease;
+  }
 }
 
 .mapKeyList {

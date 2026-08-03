@@ -32,7 +32,9 @@ describe("Pub Pal first meeting and onboarding", () => {
 
   it("keeps the chooser behind a useful route and opens the existing planner", () => {
     expect(experience).toContain("hasPalRouteActivation");
-    expect(experience).toContain("Route before character");
+    // The gate's own eyebrow. It says what the reader gets, not the internal
+    // ordering rule it used to name (VOICE.md rule 2).
+    expect(experience).toContain("Nothing to talk about yet");
     expect(experience).toContain('href="/map?plan=1"');
   });
 

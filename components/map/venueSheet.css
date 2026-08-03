@@ -212,11 +212,12 @@
   background: color-mix(in srgb, var(--brass) 6%, transparent);
 }
 
-/* Visible keyboard focus on tabs. */
+/* Visible keyboard focus on tabs. The outline sits INSIDE the tab: an offset
+   ring drew a second coral box around the selected pill, which is the shape
+   finding 2.16 was about. */
 .venueTab:focus-visible {
   outline: 2px solid var(--brass);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
+  outline-offset: -2px;
 }
 
 .venueTabPanel {
@@ -229,12 +230,15 @@
   box-shadow: none;
 }
 
+/* De-box: a photo is not an input, and its own fill already gives it an edge.
+   The coral-tinted border round an empty "No photo yet" placeholder drew a box
+   about the one thing the pub does not have (finding 2.16). */
 .venueBaselinePhoto {
   position: relative;
   aspect-ratio: 16 / 9;
   margin: 0 0 14px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
+  border: 0;
   border-radius: 18px;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--brass) 10%, var(--panel)), color-mix(in srgb, var(--river) 8%, var(--panel)));
@@ -365,9 +369,13 @@
   }
 }
 
-/* Hide planner grabber on desktop — left drawer stays a plain side panel. */
+/* Hide the planner GRABBER on desktop - the left drawer stays a plain side
+   panel with no drag. The head itself stays, because it carries the way out.
+   It used to be hidden whole, which left the planner's only exit a "View the
+   map" link buried in its body: the reader had to read the panel to leave it.
+   Every other surface keeps Back and Home at the top, in the same two cells. */
 @media (min-width: 641px) {
-  .plannerSheetHead {
+  .plannerSheetHead .venueSheetGrabZone {
     display: none;
   }
 }
@@ -584,6 +592,16 @@
   .mobileSharedSheet .venueInspector {
     padding-bottom: 8px;
   }
+
+  /* ONE handle. The portal sheet draws its own grab bar in the header and owns
+     the drag (PubMap passes no onGrabDrag* handlers on a phone), so the
+     inspector's bar rendered a SECOND handle, in a second colour, above the
+     photo — two bars promising two different drags, only one of which worked
+     (design judgement 2026-08-01, finding 2.16). Hidden here, not deleted: the
+     641–1023 inline drawer still drags by this one. */
+  .mobileSharedSheet .venueSheetGrabZone {
+    display: none;
+  }
 }
 
 /* ── Large-text / 200% zoom pass (user story 18) ─────────────────────────────
@@ -595,7 +613,6 @@
     flex-wrap: nowrap;
     max-height: none;
     scroll-snap-type: x proximity;
-    mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent);
   }
 
   .venueTab {
@@ -674,14 +691,30 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 }
 
+/* The strip is one group with one hairline, and it SCROLLS, so its overflowing
+   edge fades rather than clipping a label mid-word ("Last train" cut to
+   "Train" with a hard edge — design judgement 2026-08-01, finding 2.16). The
+   fade is a mask, so it works over any sheet material. */
 .venueTabs {
   gap: 4px;
   margin: 12px 0 10px;
   padding: 4px;
-  border: 1px solid color-mix(in srgb, var(--river) 24%, var(--line));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--river) 5%, var(--panel-raised));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel-raised) 82%, transparent);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The fade is a claim that a tab is hidden past the edge, so it is drawn only
+   while that is true: lib/useTrailingEdgeFade.ts sets this attribute and drops
+   it at the end of the scroll, and whenever the whole overflow is narrower than
+   the fade itself. Unconditional, this dimmed the last tab on every 390px
+   phone at every scroll position, and a half-faded tab reads as disabled.
+   The 28px here is the width that hook publishes; __tests__/venueTabsEdgeFade
+   .test.ts fails when the two drift apart. */
+.venueTabs[data-trailing-fade="on"] {
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
 }
 
 .venueTab {
@@ -690,8 +723,11 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   min-height: 44px;
   padding: 8px 13px;
   border: 0;
-  border-radius: 999px;
-  color: var(--ink-soft);
+  /* A PILL sized to its label, not a circle. The 999px radius on a 44px-tall
+     button turned a five-letter tab into a blob wider than its own word
+     (design judgement 2026-08-01, finding 2.16). */
+  border-radius: var(--radius);
+  color: var(--muted);
   border-bottom: 0;
   transition:
     background-color var(--duration-base) var(--ease-out),
@@ -703,15 +739,17 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 .venueTab:hover,
 .venueTab:not(.active):hover {
   color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
+  background: color-mix(in srgb, var(--brass) 8%, transparent);
 }
 
+/* Selection is the fill. Coral appears as a 2px underline only, so it marks
+   the tab without becoming the loudest object on the pub's own sheet
+   (DESIGN.md, The One Accent Rule). */
 .venueTab.active {
-  border-color: transparent;
-  border-bottom-color: transparent;
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 24%, transparent);
+  background: var(--panel-raised);
+  box-shadow: inset 0 -2px 0 var(--brass);
+  color: var(--ink);
+  font-weight: 800;
 }
 
 .venueBaselinePhoto::after {
@@ -1127,11 +1165,18 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
    desktop-plain side panel — is untouched. Everything here is presentation
    only: no gesture/tab logic changes, and nothing below 1024px is affected. */
 @media (min-width: 1024px) {
+  /* How much of the screen the open drawer owns. Published as a variable
+     because the map toolbar has to stay OUT of that lane (mapToolbar.css):
+     a bar centred on the whole viewport ran its right half under the sheet
+     and printed a ghost row through it. One source, so the two agree. */
+  .appShell {
+    --desktop-venue-drawer-width: min(640px, 46vw);
+  }
+
   .mapDrawer.right.open {
     /* Wide enough for the two-column Pints layout below without feeling like
        a full takeover — still clearly a docked side panel, not the map. */
-    width: 640px;
-    max-width: 46vw;
+    width: var(--desktop-venue-drawer-width);
   }
 
   /* The mobile bottom-sheet grab affordance has no meaning on a docked side

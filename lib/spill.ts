@@ -15,8 +15,11 @@ export const PRICE_STEP_GBP = 0.1;
 export const MIN_PRICE_GBP = 0.1;
 export const MAX_PRICE_GBP = 20;
 
-// Quick-add chips: the common price points a pint actually lands on.
-export const QUICK_ADD_PRICES_GBP = [4, 4.5, 5, 5.5, 6, 6.9] as const;
+// Quick-add chips: the common price points a pint actually lands on. Every
+// entry is a price a reader may tap and log, so it sits beside real figures and
+// carries no joke. "£6.9" was neither: it was the 69 gag, and it printed with
+// one decimal where a price has two.
+export const QUICK_ADD_PRICES_GBP = [4, 4.5, 5, 5.5, 6] as const;
 
 /** Round to the nearest penny — floating point addition (0.1 + 0.2, etc.)
  *  otherwise drifts the displayed price by fractions of a penny. */
@@ -51,6 +54,12 @@ export function stepPrice(current: string, direction: 1 | -1): string {
 export function formatPriceGbp(value: number): string {
   const rounded = roundToPenny(value);
   return String(rounded);
+}
+
+/** A quick-add chip's printed price. A preset stands beside real logged
+ *  figures, so it carries both pence: "4.50", never the input field's "4.5". */
+export function formatPriceChipGbp(value: number): string {
+  return clampPriceGbp(value).toFixed(2);
 }
 
 // ── "With" field → structured note suffix ───────────────────────────────────

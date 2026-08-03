@@ -14,6 +14,34 @@ import {
 } from "@/lib/mapBasemapTaste";
 import { applySelectionState, type SceneCtx } from "@/components/map/canvas/buildScene";
 
+function channels(hex: string): [number, number, number] {
+  const n = parseInt(hex.replace("#", ""), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
+
+/** WCAG relative luminance, so a token's separation is measured, not eyeballed. */
+function relativeLuminance(hex: string): number {
+  const [r, g, b] = channels(hex).map((c) =>
+    c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4,
+  );
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrast(a: string, b: string): number {
+  const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** HSL saturation as a percentage — the axis a park must NOT grow along. */
+function saturationPct(hex: string): number {
+  const [r, g, b] = channels(hex);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max === min) return 0;
+  const l = (max + min) / 2;
+  return ((max - min) / (l > 0.5 ? 2 - max - min : max + min)) * 100;
+}
+
 const tokens = {
   paper: "#f4efe4",
   panelRaised: "#ffffff",
@@ -153,9 +181,13 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     const dark = buildPalette(darkTokens, true);
     // Solid deep slate-blue (was a low-alpha --river wash that near-black ground
     // drowned). Blue channel dominates, clearly above the ground floor.
-    expect(dark.water).toBe("#16344e");
+    expect(dark.water).toBe("#255988");
     const n = parseInt(dark.water.slice(1), 16);
     expect(n & 255).toBeGreaterThan((n >> 16) & 255); // blue > red → reads blue
+    // The Thames is London's strongest wayfinder. Below about 2:1 against the
+    // night ground it reads as slightly-darker land on a phone, so the whole
+    // map becomes one dark field with only labels to navigate by.
+    expect(contrast(dark.water, dark.land)).toBeGreaterThan(2);
   });
 
   it("Wave A — dark park is a dark desaturated green, distinct from the building brown", () => {
@@ -164,8 +196,13 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     // Old formula washed --pint/--parkTint at low alpha; now a solid dark green
     // constant, hue-distinct from the warm building brown so parks never read
     // as building blocks.
-    expect(dark.park).toBe("#2d3f27");
+    expect(dark.park).toBe("#3f5c33");
     expect(dark.park).not.toBe(withAlpha(darkTokens.pint, 0.32));
+    // Parks must read as geography, not as a slightly different shade of night.
+    // Widen the LUMINANCE to earn that, never the saturation: a park that grows
+    // toward --pint starts reading as a cheap-pint pin.
+    expect(contrast(dark.park, dark.land)).toBeGreaterThan(2);
+    expect(saturationPct(dark.park)).toBeLessThan(45);
     const n = parseInt(dark.park.slice(1), 16);
     expect((n >> 8) & 255).toBeGreaterThan((n >> 16) & 255); // green > red → reads green
     expect((n >> 8) & 255).toBeGreaterThan(n & 255); // green > blue

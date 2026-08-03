@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
 
-import { IconButton } from "@/components/ui/icon-button";
+import SurfaceNav from "@/components/ui/surface-nav";
+import { homeActionLabel } from "@/lib/surfaceStack";
 import { useSheetHeightDrag } from "@/components/mobile/useSheetHeightDrag";
 import { SheetFooterContext } from "@/components/mobile/sheetFooterContext";
 import { useFocusTrap } from "@/lib/useFocusTrap";
@@ -33,18 +33,30 @@ export default function MobileSharedSheet({
   requestedSnap,
   onClose,
   closeLabel,
+  backLabel = null,
+  onBack,
+  homeTitle = "the map",
   children,
 }: {
   kind: MapSheetKind | null;
   title: string;
   initialSnap?: MapSheetDetent;
   requestedSnap?: MapSheetDetent;
+  /** Home: leave every open sheet and return to the map. */
   onClose: () => void;
   closeLabel?: string;
+  /**
+   * Back: return to the sheet that opened this one, with the state it held.
+   * Null when this sheet opened over the map, where Back and Home are the same
+   * journey and the leading slot stays empty (components/ui/surface-nav.tsx).
+   */
+  backLabel?: string | null;
+  onBack?: () => void;
+  /** What the host page calls its own top level, for the Home action's name. */
+  homeTitle?: string;
   children: React.ReactNode;
 }) {
   const titleId = useId();
-  const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const [footerEl, setFooterEl] = useState<HTMLElement | null>(null);
@@ -69,16 +81,35 @@ export default function MobileSharedSheet({
   const requestClose = useCallback(() => {
     requestDismiss(sheetRef.current?.getBoundingClientRect().height);
   }, [requestDismiss]);
+  // Escape steps back one level when there is a level to step back to, and
+  // leaves for the map otherwise. It is the keyboard's Back, so it may not do
+  // something the Back arrow beside it does not.
+  const onBackRef = useRef(onBack);
+  useEffect(() => {
+    onBackRef.current = onBack;
+  }, [onBack]);
+  const requestEscape = useCallback(() => {
+    const stepBack = onBackRef.current;
+    if (stepBack) stepBack();
+    else requestClose();
+  }, [requestClose]);
 
-  // On open: capture focus origin, reset to the requested opening snap, focus
-  // the close button, and wire Escape-to-close.
+  // On open: capture focus origin, reset to the requested opening snap, move
+  // focus into the sheet, and wire Escape-to-close.
+  //
+  // Focus lands on the SHEET, not on its close button. Focusing the close
+  // button put a visible focus ring on Dismiss for every reader the instant the
+  // sheet opened, which is what made it the loudest object on the surface
+  // (design judgement 2026-08-01, finding 2.16). The sheet itself is the
+  // labelled dialog, so focusing it still moves assistive technology inside and
+  // still starts the tab order at the top.
   useEffect(() => {
     if (!kind) return;
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     openAtSnap(initialSnap);
-    const frame = requestAnimationFrame(() => closeRef.current?.focus());
+    const frame = requestAnimationFrame(() => sheetRef.current?.focus({ preventScroll: true }));
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") requestClose();
+      if (event.key === "Escape") requestEscape();
     };
     window.addEventListener("keydown", onKey);
     return () => {
@@ -86,7 +117,7 @@ export default function MobileSharedSheet({
       window.removeEventListener("keydown", onKey);
       previousFocus.current?.focus({ preventScroll: true });
     };
-  }, [initialSnap, kind, openAtSnap, requestClose]);
+  }, [initialSnap, kind, openAtSnap, requestEscape]);
 
   // PubMap/MobileMapShell can request a snap change (e.g. a content-tab tap
   // expands the venue sheet to full). Only re-applies on change.
@@ -99,13 +130,17 @@ export default function MobileSharedSheet({
   useFocusTrap(Boolean(kind) && sheetSnap === "full", sheetRef);
 
   if (!kind || typeof document === "undefined") return null;
-  const closeButtonLabel =
-    closeLabel ??
-    (kind === "venue"
-      ? "Close venue detail"
-      : kind === "planner"
-        ? "Close planner"
-        : `Close ${title}`);
+  // At the first level Home IS this sheet's close, so it keeps the sheet's own
+  // name. Deeper down that name would be a lie: the control leaves every open
+  // sheet, not this one, so it says where the reader lands instead.
+  const closeButtonLabel = backLabel
+    ? homeActionLabel(homeTitle)
+    : closeLabel ??
+      (kind === "venue"
+        ? "Close venue detail"
+        : kind === "planner"
+          ? "Close planner"
+          : `Close ${title}`);
 
   const sectionStyle: React.CSSProperties = {
     maxHeight: `${Math.max(0, sheetHeight)}px`,
@@ -116,7 +151,13 @@ export default function MobileSharedSheet({
   };
 
   return createPortal(
-    <div className="mobileSheetPortal" data-sheet-kind={kind}>
+    <div
+      className="mobileSheetPortal"
+      data-sheet-kind={kind}
+      /* How deep the reader is. Present so a browser test can assert the trail
+         rather than infer it from which glyph happens to be drawn. */
+      data-surface-back={backLabel ?? ""}
+    >
       <button
         className="mobileSheetScrim"
         type="button"
@@ -130,6 +171,7 @@ export default function MobileSharedSheet({
         role={sheetSnap === "full" ? "dialog" : undefined}
         aria-modal={sheetSnap === "full" ? "true" : undefined}
         aria-labelledby={titleId}
+        tabIndex={-1}
         style={sectionStyle}
       >
         <header
@@ -152,10 +194,17 @@ export default function MobileSharedSheet({
           >
             <span className="mobileSharedSheetGrab" aria-hidden="true" />
           </button>
+          {/* The header grid is `44px 1fr 44px`, and the leading cell used to
+              sit empty while the trailing one held the only way out. SurfaceNav
+              fills both: Back on the left when a sheet opened over another
+              sheet, Home on the right always. */}
           <h2 id={titleId}>{title}</h2>
-          <IconButton ref={closeRef} className="mobileSharedSheetClose" aria-label={closeButtonLabel} onClick={requestClose}>
-            <X size={18} />
-          </IconButton>
+          {/* No `closeRef` here on purpose. SurfaceNav is borderless and quiet
+              already, so the de-box intent survives inside it, and the sheet
+              focuses ITSELF on open (see the open effect above) rather than the
+              Home control. Handing this a ref would put the accent ring back on
+              the way out the instant a sheet opened. */}
+          <SurfaceNav backLabel={backLabel} onBack={onBack} homeLabel={closeButtonLabel} onHome={requestClose} />
         </header>
         <div className="mobileSharedSheetBody">
           <SheetFooterContext.Provider value={footerEl}>{children}</SheetFooterContext.Provider>

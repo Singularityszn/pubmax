@@ -223,7 +223,7 @@ for (const width of [390, 320]) {
     // On a phone these toggles live in the Filters sheet (design judgement
     // 2026-08-01, finding 2.3); they no longer float over the map.
     await expect(
-      page.getByRole("group", { name: "Tonight arc venue types" }),
+      page.getByRole("group", { name: "Venue types" }),
     ).toHaveCount(0);
     await page
       .locator(".mobileMapTopbar")
@@ -233,7 +233,7 @@ for (const width of [390, 320]) {
       '.mobileSheetPortal[data-sheet-kind="filters"]',
     );
     const arc = filtersSheet.getByRole("group", {
-      name: "Tonight arc venue types",
+      name: "Venue types",
     });
     await expect(arc).toBeVisible({ timeout: 45_000 });
     const row = arc.locator(".tonightArcRow");
@@ -330,7 +330,7 @@ test("390px Tonight Arc hides Clubs reason outside the All lens", async ({
     .getByRole("button", { name: /^Filters/ })
     .click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
-  const arc = sheet.getByRole("group", { name: "Tonight arc venue types" });
+  const arc = sheet.getByRole("group", { name: "Venue types" });
   await expect(arc).toBeVisible({ timeout: 45_000 });
   const clubs = arc.getByRole("button", {
     name: "Clubs are not mapped yet",

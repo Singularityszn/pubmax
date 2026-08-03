@@ -14,6 +14,7 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
 import {
   boroughsWithPrices,
+  formatNearDistance,
   nearMeAnswerHeadline,
   rankBoroughCheapest,
   rankNearMe,
@@ -578,7 +579,11 @@ export default function NearMeNow({
   );
 }
 
+/** The one caption for the whole list. It heads the list; it never rides a row. */
+export const NEAR_ME_PRICE_CAPTION = "Cheapest pint";
+
 function NearMeCardBody({ card }: { card: NearMeCard }) {
+  const distance = formatNearDistance(card.distanceKm);
   return (
     <>
       <span className="nmnCardMain">
@@ -589,20 +594,26 @@ function NearMeCardBody({ card }: { card: NearMeCard }) {
             <span className="nmnCardWalk">
               <Footprints size={13} aria-hidden="true" />
               {card.walkMinutes} min
-              {card.distanceKm != null ? ` · ${card.distanceKm.toFixed(1)} km` : null}
+              {distance ? ` · ${distance}` : null}
             </span>
           ) : null}
         </span>
       </span>
       <span className="nmnCardPrice">
         <span className="nmnCardPriceValue">{formatPrice(card.cheapestPrice)}</span>
-        <span className="nmnCardPriceLabel">cheapest pint</span>
       </span>
     </>
   );
 }
 
-function NearMeCardList({
+/**
+ * The answer list. Rows are hairline-divided list items, not stacked raised
+ * boxes, and the price caption is printed ONCE as the list's own column header
+ * (design judgement 2026-08-01, finding 2.13). Repeating it on every row spent
+ * a full column saying the same thing five times, and it was the column that
+ * squeezed the pub's name into an ellipsis.
+ */
+export function NearMeCardList({
   cards,
   onOpen,
   onAccept,
@@ -618,6 +629,8 @@ function NearMeCardList({
 }) {
   if (cards.length === 0) return null;
   return (
+    <>
+    <p className="nmnListCaption">{NEAR_ME_PRICE_CAPTION}</p>
     <ul className="nmnList">
       {cards.map((card) =>
         onAccept ? (
@@ -643,6 +656,7 @@ function NearMeCardList({
         ),
       )}
     </ul>
+    </>
   );
 }
 

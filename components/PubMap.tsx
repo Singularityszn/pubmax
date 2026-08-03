@@ -1,6 +1,6 @@
 "use client";
 
-import { List, MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
+import { List, MapPinned, ShieldCheck, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -271,6 +271,7 @@ import {
 import {
   areaLabelOrigin,
   areaSheetOpenDelay,
+  areaClaimedByViewport,
   areaUnderCentre,
   planAreaSelect,
   type AreaDistanceFrom,
@@ -290,14 +291,24 @@ import {
 } from "@/lib/venueKindFilters";
 import { venueSheetLabels } from "@/lib/venueSheetLabels";
 import {
+  MAP_SHEET_TITLES,
   readMobileMapSession,
   withCityCameraAttitude,
   writeMobileMapSession,
   type MobileShellState,
   type MapOverlay,
+  type MapSheetKind,
   type MapViewportSnapshot,
   type NearbyMapResult,
 } from "@/lib/mobileShell";
+import {
+  EMPTY_MAP_SURFACE_STATE,
+  useMapSurfaceTrail,
+  type MapSurfaceId,
+  type MapSurfaceState,
+} from "@/components/map/pubmap/useMapSurfaceTrail";
+import SurfaceNav from "@/components/ui/surface-nav";
+import { homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
 import {
   filtersForCuratedCrawl,
   buildMapSeed,
@@ -621,6 +632,11 @@ export default function PubMap({
       ? withCityCameraAttitude(restoredMobileSession.viewport, city.mapView)
       : initialMapView,
   );
+  // The settled view's own edges, published by the canvas on every moveend. The
+  // centre alone cannot answer what the view is OVER, which is what a place
+  // name claims (see areaClaimedByViewport). Null until the map first settles,
+  // and a map that has not settled claims no place.
+  const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   const [poiHidden, setPoiHidden] = useState(defaultPoiHiddenForViewport);
   const [venueKindVisibility, setVenueKindVisibility] = useState(
     defaultVenueKindVisibility,
@@ -901,9 +917,18 @@ export default function PubMap({
   // useSheetDrag. Two instances: venue (right) and planner (left). A fling
   // past peek dismisses that sheet. "half" is the default resting snap;
   // open/pick handlers re-assert it below.
+  //
+  // A fling-dismiss is the gesture's Back: it leaves this sheet for whatever
+  // opened it, exactly as the Back arrow does, because two different backs is
+  // worse than one. The trail is assembled further down this component, so the
+  // gesture reaches it through a ref.
+  const surfaceBackRef = useRef<() => void>(() => {});
   const dismissSheet = useCallback(() => {
     setSelectedVenueId("");
-    setMapOverlay("none");
+    // The overlay is NOT cleared here. A venue opened over a sheet has to leave
+    // that sheet for the reader to come back to, and the surface trail
+    // (useMapSurfaceTrail) is what puts it back. selectVenue already closes any
+    // open sheet, so a venue opened straight off the map has none to disturb.
     closeComposer();
     // D4: closing the pub the reader came to log ENDS the Drop flow. Reopening
     // the picker here is what made `?log=1` a trap with no way out.
@@ -918,7 +943,7 @@ export default function PubMap({
     onSheetDragStart,
     onSheetDragMove,
     onSheetDragEnd,
-  } = useSheetDrag(dismissSheet);
+  } = useSheetDrag(() => surfaceBackRef.current());
 
   // Ref so fling-dismiss can call the same closePlanning as chrome buttons
   // without a hook ↔ callback cycle (useSheetDrag needs onDismiss up front).
@@ -934,9 +959,7 @@ export default function PubMap({
     onSheetDragStart: onPlannerSheetDragStart,
     onSheetDragMove: onPlannerSheetDragMove,
     onSheetDragEnd: onPlannerSheetDragEnd,
-  } = useSheetDrag(() => {
-    closePlanningRef.current();
-  });
+  } = useSheetDrag(() => surfaceBackRef.current());
 
   const closePlanning = useCallback(() => {
     setPlanningOpen(false);
@@ -1046,6 +1069,17 @@ export default function PubMap({
   // it — the map keeps working with whatever loaded.
   const handleMapBoundsChange = useCallback(
     (bounds: MapBounds) => {
+      // Same settled camera the place claim is measured against, so the name in
+      // the bar can never describe a view the reader has already left.
+      setMapBounds((current) =>
+        current &&
+        current.west === bounds.west &&
+        current.east === bounds.east &&
+        current.south === bounds.south &&
+        current.north === bounds.north
+          ? current
+          : bounds,
+      );
       const loader = slimLoaderRef.current;
       if (!loader) return;
       void loader
@@ -1460,7 +1494,10 @@ export default function PubMap({
     return map;
   }, [venues]);
 
-  // Keep the URL in sync so "Copy link" shares the current crawl.
+  // Keep the URL in sync so "Copy link" shares the current crawl. A restored
+  // session is held back from the address bar until the reader changes
+  // something: they typed a clean /map, and that address wins over stored
+  // state. Restoring the map itself is untouched.
   useCrawlUrlSync(
     useMemo(
       () => ({
@@ -1484,6 +1521,7 @@ export default function PubMap({
         activeCrawl?.id,
       ],
     ),
+    restoredMobileSession !== null,
   );
 
   // Load the venue's community Pint Drops whenever the inspected venue changes.
@@ -2349,12 +2387,21 @@ export default function PubMap({
     () => areaUnderCentre(cityId, mapViewport.center),
     [cityId, mapViewport.center],
   );
+  // The place the top bar is allowed to NAME. Narrower than centreArea, which
+  // answers "nearest area" for the sheet's pub list: a name printed in the bar
+  // is a claim about what is on screen, so a view spanning several areas earns
+  // no area name and the bar says the city instead.
+  const claimedArea = useMemo(
+    () => areaClaimedByViewport(cityId, mapViewport.center, mapBounds),
+    [cityId, mapBounds, mapViewport.center],
+  );
   // ...and whether that name is also where the READER is. A base-pub arrival
   // names a place from the URL, which nobody's location chose, so it stays a
-  // map claim whatever the browser later grants.
+  // map claim whatever the browser later grants. Measured against the CLAIMED
+  // area, so an unclaimed view can never read as "Your area: London".
   const areaChipOrigin = useMemo(
-    () => (ukPlaceArrival ? "map" : areaLabelOrigin(centreArea, userLocation)),
-    [centreArea, ukPlaceArrival, userLocation],
+    () => (ukPlaceArrival ? "map" : areaLabelOrigin(claimedArea, userLocation)),
+    [claimedArea, ukPlaceArrival, userLocation],
   );
   // Where the Area sheet's row distances are measured from. A granted location
   // is the reader's own point, and only then may a row say "away". With none,
@@ -2507,6 +2554,101 @@ export default function PubMap({
     setMapOverlay(next);
   }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen]);
 
+  // ── Where the reader is, and how they get out ────────────────────────────
+  // Every Map panel used to carry its own close and nothing else, so a reader
+  // who opened three of them could shut the top one and land somewhere they
+  // never chose. The trail (components/map/pubmap/useMapSurfaceTrail.ts) follows
+  // the one derived value for what is showing and gives every surface the same
+  // pair: Back to whatever opened it, Home to the Map.
+  const mapSurfaceId: MapSurfaceId =
+    coordinatedMobileOverlay !== "none"
+      ? coordinatedMobileOverlay
+      : mapListOpen
+        ? "venue-list"
+        : "none";
+  const mapSurfaceTitle =
+    mapSurfaceId === "venue"
+      ? basePubOpen
+        ? selectedBasePub?.name ?? "Pub detail"
+        : selectedVenue?.name ?? selectedVenueLabels.detailLabel
+      : mapSurfaceId === "planner"
+        ? "Plan tonight"
+        : mapSurfaceId === "venue-list"
+          ? "List view"
+          : mapSurfaceId === "search"
+            ? // Search is an inline row, not a sheet, so it has no entry in the
+              // sheet-title table. It is still a place a reader can be, and a
+              // Back that offered to return them to "Map controls" would name a
+              // surface they never opened.
+              "Search"
+            : MAP_SHEET_TITLES[mapSurfaceId as MapSheetKind] ?? "Map controls";
+  const mapSurfaceState: MapSurfaceState = {
+    venueTab: venueInitialTab,
+    venueId: selectedVenueId,
+    areaTargetKey: searchAreaTarget
+      ? searchAreaTarget.kind === "area"
+        ? `area:${searchAreaTarget.area.slug}`
+        : `place:${searchAreaTarget.name}`
+      : "",
+    areaTarget: searchAreaTarget,
+    layersTab: mobileLayersTab,
+  };
+  const closeEverySurface = useCallback(() => {
+    clearAreaSheetTimer();
+    setSearchAreaTarget(null);
+    clearLogIntent();
+    closeComposer();
+    setMapOverlay("none");
+    setSelectedVenueId("");
+    setPlanningOpen(false);
+    setMapListOpen(false);
+  }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen, setSelectedVenueId]);
+  const restoreMapSurface = useCallback(
+    (entry: SurfaceEntry<MapSurfaceState> | null) => {
+      closeEverySurface();
+      if (!entry) return;
+      const held = entry.state ?? EMPTY_MAP_SURFACE_STATE;
+      if (entry.id === "venue") {
+        // Restore the tab the reader left on, not the overview default.
+        setVenueInitialTab((held.venueTab || "overview") as TabKey);
+        setSelectedVenueId(held.venueId);
+        return;
+      }
+      if (entry.id === "planner") {
+        setPlanningOpen(true);
+        return;
+      }
+      if (entry.id === "venue-list") {
+        setMapListOpen(true);
+        return;
+      }
+      // A sheet. Its searched area target is part of what the reader had, so it
+      // is put back BEFORE the sheet opens; changeMapOverlay drops it on purpose
+      // and would undo the restore.
+      setMobileLayersTab(
+        (held.layersTab || "key") as "key" | "layers" | "prices" | "events" | "transit",
+      );
+      setSearchAreaTarget(
+        (held.areaTarget ?? null) as
+          | { kind: "area"; area: NightArea }
+          | ({ kind: "place" } & AreaSheetPlaceFocus)
+          | null,
+      );
+      setMapOverlay(entry.id as MapOverlay);
+    },
+    [closeEverySurface, setPlanningOpen, setSelectedVenueId],
+  );
+  const mapSurfaceTrail = useMapSurfaceTrail({
+    surfaceId: mapSurfaceId,
+    surfaceTitle: mapSurfaceTitle,
+    surfaceState: mapSurfaceState,
+    onRestore: restoreMapSurface,
+    onHome: closeEverySurface,
+  });
+  useLayoutEffect(() => {
+    surfaceBackRef.current = mapSurfaceTrail.back;
+  }, [mapSurfaceTrail.back]);
+
   useEffect(() => {
     // An uncovered-place arrival is a one-off destination, not a city session:
     // persisting its viewport under cityId reopened the town under full London
@@ -2643,24 +2785,32 @@ export default function PubMap({
         <MapPinned size={16} aria-hidden="true" />
         View {mapDisplayName} map
       </button> : null}
-      <ControlRail
-        mode={mode}
-        onModeChange={setMode}
-        filters={filters}
-        onFiltersChange={setFilters}
-        filteredVenues={filteredPubVenues}
-        builtCount={builtIds.length}
-        onClearBuilt={clearBuilt}
-        onLoadCrawl={loadCuratedCrawl}
-        onNearbyCrawl={startNearbyCrawl}
-        nearbyLoading={nearbyLoading}
-        nearbyError={nearbyError}
-        savedOnly={savedOnly}
-        onSavedOnlyChange={changeSavedOnly}
-        curatedCrawls={cityCuratedCrawls}
-        cityDisplayName={city.displayName}
-        cityId={cityId}
-      />
+      {/* One planner per surface. The rail is the DESKTOP planner: brand block,
+          mode toggle, search box, featured routes and the full filter stack. The
+          phone already owns every one of those in its own chrome (the one-bar
+          search overlay, the Filters sheet, the Near me control) and opens its
+          own "Describe your night" form above, so mounting the rail here stacked
+          a second planner under the first inside one bottom sheet. */}
+      {!mobileViewport ? (
+        <ControlRail
+          mode={mode}
+          onModeChange={setMode}
+          filters={filters}
+          onFiltersChange={setFilters}
+          filteredVenues={filteredPubVenues}
+          builtCount={builtIds.length}
+          onClearBuilt={clearBuilt}
+          onLoadCrawl={loadCuratedCrawl}
+          onNearbyCrawl={startNearbyCrawl}
+          nearbyLoading={nearbyLoading}
+          nearbyError={nearbyError}
+          savedOnly={savedOnly}
+          onSavedOnlyChange={changeSavedOnly}
+          curatedCrawls={cityCuratedCrawls}
+          cityDisplayName={city.displayName}
+          cityId={cityId}
+        />
+      ) : null}
       <RoutePanel
         mode={mode}
         crawlStyle={filters.crawlStyle}
@@ -3160,15 +3310,22 @@ export default function PubMap({
           onSelectVenue={selectVenue}
           onSelectUkBasePub={handleUkBasePubClick}
           onPrefetchVenue={prefetchVenueDetail}
+          backLabel={mapListOpen && mapSurfaceId === "venue-list" ? mapSurfaceTrail.backLabel : null}
+          onBack={mapSurfaceTrail.back}
+          onHome={mapSurfaceTrail.home}
+          homeTitle={`the ${mapDisplayName} map`}
         />
 
         {mobileShellReady ? (
         <MobileMapShell
-          cityLabel={ukPlaceArrival?.name ?? centreArea?.name ?? activeNightArea?.name ?? mapContextName}
+          cityLabel={ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName}
           cityLabelOrigin={areaChipOrigin}
           limitedCoverage={Boolean(ukPlaceArrival)}
           overlay={mobileShellState.overlay}
           onOverlayChange={changeMapOverlay}
+          backLabel={mapSurfaceTrail.backLabel}
+          onBack={mapSurfaceTrail.back}
+          onHome={mapSurfaceTrail.home}
           activeQuery={trimmedMapQuery}
           onClearQuery={clearMapQuery}
           onNearMe={showNearbyMap}
@@ -3483,8 +3640,10 @@ export default function PubMap({
           }
           initialSnap="half"
           requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}
-          onClose={detailOpen ? dismissSheet : closePlanning}
+          onClose={mapSurfaceTrail.home}
           closeLabel={detailOpen ? selectedVenueLabels.closeLabel : undefined}
+          backLabel={mapSurfaceTrail.backLabel}
+          onBack={mapSurfaceTrail.back}
         >
           {detailOpen ? venuePanel : plannerPanel}
         </Sheet>
@@ -3520,6 +3679,15 @@ export default function PubMap({
           <span className="venueSheetGrabZone" aria-hidden="true">
             <span className="venueSheetGrab" />
           </span>
+          {/* The planner used to have no way out of its own head at all: the
+              reader had to find "View the map" inside the body. Same pair, same
+              places, as every other surface. */}
+          <SurfaceNav
+            backLabel={mapSurfaceTrail.backLabel}
+            onBack={mapSurfaceTrail.back}
+            homeLabel={homeActionLabel(`the ${mapDisplayName} map`)}
+            onHome={mapSurfaceTrail.home}
+          />
         </div>
         {plannerPanel}
       </SpringDrawer> : null}
@@ -3555,15 +3723,21 @@ export default function PubMap({
           onPointerUp={onSheetDragEnd}
           onPointerCancel={onSheetDragEnd}
         >
-          <button
-            ref={drawerCloseButtonRef}
-            type="button"
-            className="drawerClose"
-            onClick={dismissSheet}
-            aria-label={selectedVenueLabels.closeLabel}
-          >
-            <X size={16} />
-          </button>
+          {/* Finding 2.16: this close used to be a bordered box that drew a
+              coral ring on hover, so the way out shouted louder than the pub's
+              name. SurfaceNav is quiet, and it brings the Back the venue sheet
+              never had. */}
+          <SurfaceNav
+            backLabel={mapSurfaceTrail.backLabel}
+            onBack={mapSurfaceTrail.back}
+            homeLabel={
+              mapSurfaceTrail.backLabel
+                ? homeActionLabel(`the ${mapDisplayName} map`)
+                : selectedVenueLabels.closeLabel
+            }
+            onHome={mapSurfaceTrail.home}
+            closeRef={drawerCloseButtonRef}
+          />
         </div>
         {venuePanel}
       </SpringDrawer> : null}

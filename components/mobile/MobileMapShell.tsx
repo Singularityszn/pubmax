@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Ellipsis, LocateFixed, LocateOff, Map as MapGlyph, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
-import { useCallback } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { IconButton } from "@/components/ui/icon-button";
@@ -72,7 +71,7 @@ function MapEdgeControls({
   );
 }
 
-export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCoverage, overlay, onOverlayChange, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
   /**
    * Whether that name is where the READER is, or only what the map is looking
@@ -86,6 +85,15 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
   limitedCoverage: boolean;
   overlay: MapOverlay;
   onOverlayChange: (overlay: MapOverlay) => void;
+  /**
+   * The way out, shared with every other surface in the product. Back returns
+   * to the sheet that opened this one; Home leaves them all for the map. Back
+   * is null when this sheet opened over the map, where the two are the same
+   * journey (components/ui/surface-nav.tsx).
+   */
+  backLabel: string | null;
+  onBack: () => void;
+  onHome: () => void;
   /** #395 R1: the live map search query (restored or typed), trimmed. Empty = no filter. */
   activeQuery: string;
   /** Clears the query and unfilters the map. */
@@ -124,7 +132,6 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
   /** The Area sheet body (cheapest pints here + go somewhere else). */
   areaContent: React.ReactNode;
 }) {
-  const closeSheet = useCallback(() => onOverlayChange("none"), [onOverlayChange]);
   // The glyph is half the claim. LocateFixed is this map's "you are here" mark
   // (the Near me chip wears it), so it may appear only when a granted location
   // sits inside the named area. Otherwise the chip wears the map itself.
@@ -292,7 +299,7 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
           </span>
         </button>
       ) : null}
-      <Sheet kind={sheetKind} title={sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" || sheetKind === "near-me" || sheetKind === "area" ? "full" : "half"} onClose={closeSheet}>{sheetContent}</Sheet>
+      <Sheet kind={sheetKind} title={sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" || sheetKind === "near-me" || sheetKind === "area" ? "full" : "half"} onClose={onHome} backLabel={backLabel} onBack={onBack}>{sheetContent}</Sheet>
     </>
   );
 }

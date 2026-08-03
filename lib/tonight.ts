@@ -66,13 +66,13 @@ const MONTHS = [
 /**
  * Honest provenance line. A valid `asOf` becomes "Checked 12 Jul" (formatted
  * from UTC parts so it never drifts by the viewer's timezone); anything
- * unparseable becomes an explicit "Freshness unknown" rather than a fabricated
- * date.
+ * unparseable says so in pub words rather than a fabricated date. VOICE.md
+ * rule 2 keeps the freshness spine's own enum out of the reader's line.
  */
 export function provenanceLabel(asOf?: string | null): string {
-  if (!asOf) return "Freshness unknown";
+  if (!asOf) return "No date on this yet";
   const d = new Date(asOf);
-  if (Number.isNaN(d.getTime())) return "Freshness unknown";
+  if (Number.isNaN(d.getTime())) return "No date on this yet";
   return `Checked ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
 }
 

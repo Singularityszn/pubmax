@@ -103,7 +103,11 @@ test.describe("Tonight trusted UI (flag off / shipped)", () => {
   test("renders honest unknown freshness, never request time", async ({ page }) => {
     await mockWhatsOn(page, { sourceFreshnessKind: "unknown", sourceObservedAt: null });
     await openTonight(page);
-    await expect(page.getByText(/Freshness unknown · via what’s-on/i)).toBeVisible();
+    // An undatable source leaves the interpunct chain and states the fact in
+    // its own sentence, so the header stops reading like debug output. Anchored
+    // on the line's own data attribute, not on that sentence.
+    await expect(page.locator('[data-tonight-provenance="coverage"]')).toHaveAttribute("data-tonight-dated", "no");
+    await expect(page.locator('[data-tonight-provenance="undated"]')).toBeVisible();
     await expect(page.getByText(/Checked 24 Jul/i)).toHaveCount(0);
   });
 });

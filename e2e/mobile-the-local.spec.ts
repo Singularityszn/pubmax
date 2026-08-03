@@ -26,8 +26,11 @@ test("mobile Describe your night builds one grounded route without camera flicke
   const submitted = (await generateRequest).postDataJSON() as { context: Record<string, unknown> };
   expect(submitted.context).not.toHaveProperty("nightArea");
   expect(submitted.context).not.toHaveProperty("atmosphere");
-  await expect(planner.getByText("Low confidence, fully editable")).toBeVisible();
-  await expect(planner.getByText("Price evidence is incomplete; check each stop before relying on the budget.")).toBeVisible();
+  // The confidence band is read off the surface's own `data-level`, not off the
+  // words beside it: that copy has now been rewritten twice.
+  await expect(planner.locator(".mobilePlannerConfidence")).toHaveAttribute("data-level", "low");
+  await expect(planner.getByText("Rough guess, yours to change")).toBeVisible();
+  await expect(planner.getByText("Some prices are missing. Check each stop before relying on the budget.")).toBeVisible();
   await expect(planner.locator(".mobilePlannerRouteTotal")).toContainText("min walk");
   await expect(planner.locator(".mobilePlannerEndings > div")).toHaveCount(3);
   await expect(planner.locator('.mobilePlannerEndings > div[data-recommended="true"]')).toHaveCount(1);

@@ -250,7 +250,7 @@
 .thamesHeroPinGlyph { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.4); border-radius: 16px; background: rgba(7,11,18,.68); box-shadow: 0 9px 30px rgba(0,0,0,.28); backdrop-filter: blur(10px); transition: transform 180ms ease; }
 .thamesHeroPinLink:hover .thamesHeroPinGlyph { transform: translateY(-3px) scale(1.04); }
 .thamesHeroPinMeta { padding: 7px 9px; display: grid; gap: 1px; border-radius: 11px; background: rgba(7,11,18,.76); backdrop-filter: blur(8px); }
-.thamesHeroPinCat { color: rgba(255,255,255,.7); font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.thamesHeroPinCat { color: rgba(255,255,255,.7); font-size: 8px; letter-spacing: .01em; }
 .thamesHeroPinPlace { font-size: 10px; font-weight: 700; white-space: nowrap; }
 .thamesHeroPinPrice { color: #fff; font: 700 10px/1.2 var(--font-data); }
 
@@ -293,7 +293,7 @@
 
 .lpMemorySection { padding: clamp(76px, 8vw, 124px) var(--lp-pad); background: var(--ink-deep); color: var(--color-on-inverse); }
 .lpMemoryCanvas { width: min(var(--lp-max), 100%); margin: 0 auto; display: grid; grid-template-columns: .92fr 1.08fr; gap: clamp(44px, 8vw, 110px); align-items: center; }
-.lpSectionLabel { margin: 0 0 18px; color: var(--brass-bright); font: 650 10px/1 var(--font-data); letter-spacing: .12em; text-transform: uppercase; }
+.lpSectionLabel { margin: 0 0 18px; color: var(--brass-bright); font: 650 var(--text-2xs)/1 var(--font-data); letter-spacing: .01em; }
 .lpMemoryCopy > p { color: color-mix(in srgb, var(--color-on-inverse) 70%, transparent); }
 .lpMemoryActions { margin-top: 28px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
 .lpMemorySection .lpButtonPrimary { background: var(--brass); color: var(--color-on-accent); }
@@ -333,7 +333,7 @@
 
 .lpCityChooser { padding: 28px var(--lp-pad) 90px; background: var(--paper); }
 .lpFinalCta { position: relative; min-height: 66vh; padding: 90px var(--lp-pad); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; background: var(--ink-deep); color: var(--color-on-inverse); }
-.lpFinalCta > p { margin: 0 0 20px; color: rgba(255,255,255,.7); font: 600 10px/1 var(--font-data); letter-spacing: .1em; text-transform: uppercase; }
+.lpFinalCta > p { margin: 0 0 20px; color: rgba(255,255,255,.7); font: 600 var(--text-2xs)/1 var(--font-data); letter-spacing: .01em; }
 .lpFinalCta h2 { max-width: 10ch; }
 .lpFinalCta .lpButton { margin-top: 30px; background: var(--brass); color: var(--color-on-accent); }
 .lpFinalLines { position: absolute; inset: 0; pointer-events: none; }
