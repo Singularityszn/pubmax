@@ -96,34 +96,42 @@ export function useSurfaceStack<S>({
   // it as the reader's back gesture and pop a second time.
   const selfMoveRef = useRef(0);
   useEffect(() => {
-    stackRef.current = stack;
     onRestoreRef.current = onRestore;
     onHomeRef.current = onHome;
-  }, [onHome, onRestore, stack]);
+  }, [onHome, onRestore]);
 
+  // Every mutator reads and writes stackRef, and only then renders. React may
+  // re-invoke a setState updater, so a history push written inside one runs
+  // again and again: opening two sheets left ten entries behind, and the
+  // reader's back gesture walked duplicates instead of leaving a sheet. The
+  // ref is the authority; setState only redraws.
   const open = useCallback((entry: SurfaceEntry<S>, options?: { pushHistory?: boolean }) => {
-    const pushHistory = options?.pushHistory !== false;
-    setStack((held) => {
-      const next = openSurface(held, entry);
-      if (pushHistory && syncHistory && typeof window !== "undefined" && next.length > held.length) {
-        window.history.pushState(
-          stampSurfaceHistory(window.history.state, next.length),
-          "",
-          `${window.location.pathname}${window.location.search}${window.location.hash}`,
-        );
-      }
-      return next;
-    });
+    const held = stackRef.current;
+    const next = openSurface(held, entry);
+    stackRef.current = next;
+    setStack(next);
+    if (options?.pushHistory === false) return;
+    if (!syncHistory || typeof window === "undefined") return;
+    if (next.length <= held.length) return;
+    window.history.pushState(
+      stampSurfaceHistory(window.history.state, next.length),
+      "",
+      `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    );
   }, [syncHistory]);
 
   const remember = useCallback((state: S) => {
-    setStack((held) => rememberSurfaceState(held, state));
+    const next = rememberSurfaceState(stackRef.current, state);
+    if (next === stackRef.current) return;
+    stackRef.current = next;
+    setStack(next);
   }, []);
 
   const back = useCallback(() => {
     const held = stackRef.current;
     if (!held.length) return;
     const next = backSurface(held);
+    stackRef.current = next;
     setStack(next);
     onRestoreRef.current(currentSurface(next));
     if (syncHistory && typeof window !== "undefined" && surfaceHistoryDepth(window.history.state) === held.length) {
@@ -134,7 +142,8 @@ export function useSurfaceStack<S>({
 
   const home = useCallback(() => {
     const held = stackRef.current;
-    setStack(homeSurface<S>());
+    stackRef.current = homeSurface<S>();
+    setStack(stackRef.current);
     if (onHomeRef.current) onHomeRef.current();
     else onRestoreRef.current(null);
     if (syncHistory && typeof window !== "undefined") {
