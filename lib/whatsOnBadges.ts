@@ -254,9 +254,9 @@ export function listingUrgency(row: WhatsOnRow, now: Date = new Date()): Listing
 }
 
 export function checkedLabel(iso?: string | null): string {
-  if (!iso) return "Freshness unknown";
+  if (!iso) return "No date on this yet";
   const ms = Date.parse(iso);
-  if (!Number.isFinite(ms)) return "Freshness unknown";
+  if (!Number.isFinite(ms)) return "No date on this yet";
   try {
     const formatted = new Intl.DateTimeFormat("en-GB", {
       timeZone: "Europe/London",
@@ -265,6 +265,6 @@ export function checkedLabel(iso?: string | null): string {
     }).format(new Date(ms));
     return `Checked ${formatted.replace(/,/g, "")}`;
   } catch {
-    return "Freshness unknown";
+    return "No date on this yet";
   }
 }

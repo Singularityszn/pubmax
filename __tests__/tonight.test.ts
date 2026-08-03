@@ -76,9 +76,9 @@ describe("provenanceLabel", () => {
   });
 
   it("labels missing/unparseable freshness honestly", () => {
-    expect(provenanceLabel(null)).toBe("Freshness unknown");
-    expect(provenanceLabel(undefined)).toBe("Freshness unknown");
-    expect(provenanceLabel("not-a-date")).toBe("Freshness unknown");
+    expect(provenanceLabel(null)).toBe("No date on this yet");
+    expect(provenanceLabel(undefined)).toBe("No date on this yet");
+    expect(provenanceLabel("not-a-date")).toBe("No date on this yet");
   });
 });
 

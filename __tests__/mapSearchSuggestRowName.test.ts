@@ -22,9 +22,13 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 const suggestCss = read("components/map/mapSearchSuggest.css");
 const suggest = read("components/map/MapSearchSuggest.tsx");
 
+// Anchored to a line start on purpose. Unanchored, the FIRST match for
+// `.mapSearchSuggestMeta` is the tail of `.mapSearchSuggest--overlay
+// .mapSearchSuggestMeta`, so the overlay variant shadows the plain rule and the
+// assertions below read a block they were never written about.
 function rule(selector: string): string {
   const match = suggestCss.match(
-    new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`),
+    new RegExp(`^${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`, "m"),
   );
   expect(match, `the ${selector} rule`).not.toBeNull();
   return match![1];

@@ -81,11 +81,15 @@ function coverageLabel(count: number): string {
 }
 
 // Honest source-freshness label (L13 contract): an unknown source is stated as
-// such, never the request instant dressed as a check. checkedLabel already maps a
-// null asOf to "Freshness unknown"; keying off the kind makes the intent explicit.
-function freshnessLabel(kind: TonightFreshnessKind, asOf: string | null): string {
-  return kind === "unknown" ? "Freshness unknown" : checkedLabel(asOf);
+// such, never the request instant dressed as a check. An undatable source drops
+// out of the interpunct chain and gets its own sentence below it (VOICE.md rule
+// 2), because a chain segment reading like an enum is what made this line look
+// like debug output. Keying off the kind makes the intent explicit.
+function freshnessLabel(kind: TonightFreshnessKind, asOf: string | null): string | null {
+  return kind === "unknown" ? null : checkedLabel(asOf);
 }
+
+const UNDATED_SOURCE_LINE = "We can’t date these listings yet.";
 
 // Deals/Music placement. Flag off keeps their shipped slot above the main list.
 // Flag on wraps them so CSS can place them: on desktop they populate the right
@@ -237,6 +241,9 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
 
   const ready = status === "ready";
   const empty = status === "empty";
+  // Null when the source cannot be dated; the header then prints the plain
+  // sentence instead of a dated chain segment.
+  const checked = freshnessLabel(sourceFreshnessKind, asOf);
   const errored = status === "error";
   const loading = status === "idle";
   // Unfiltered `rows.length`, not the kind-filtered `visible.length` — a thin
@@ -280,19 +287,24 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
           venue on the map.
         </p>
         {ready || empty ? (
-          <p className="tonightProvenance">
-            {coverageLabel(rows.length)}
-            <span aria-hidden="true"> · </span>
-            {/* One template literal so the separator spacing survives JSX
-                text-node splitting (the built output was eating the space before
-                the interpunct, rendering "unknown· via"). */}
-            {`${freshnessLabel(sourceFreshnessKind, asOf)} · via what’s-on`}
-            {/* The one quiet continuity line: when the order comes from a
-                remembered patch (not a live position), say which. */}
-            {ready && tonightNear?.patchLabel
-              ? ` · nearest ${tonightNear.patchLabel} first`
-              : null}
-          </p>
+          <>
+            <p className="tonightProvenance">
+              {coverageLabel(rows.length)}
+              <span aria-hidden="true"> · </span>
+              {/* One template literal so the separator spacing survives JSX
+                  text-node splitting (the built output was eating the space before
+                  the interpunct, rendering "unknown· via"). */}
+              {`${checked ? `${checked} · ` : ""}via what’s-on`}
+              {/* The one quiet continuity line: when the order comes from a
+                  remembered patch (not a live position), say which. */}
+              {ready && tonightNear?.patchLabel
+                ? ` · nearest ${tonightNear.patchLabel} first`
+                : null}
+            </p>
+            {checked ? null : (
+              <p className="tonightProvenance">{UNDATED_SOURCE_LINE}</p>
+            )}
+          </>
         ) : null}
       </header>
 

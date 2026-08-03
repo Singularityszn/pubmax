@@ -64,7 +64,10 @@ export default function TonightArcChips({
       /* Reader words, not the component's name. "Tonight arc" is what this file
          is called; it printed on the map and in the accessibility tree, which
          docs/VOICE.md rule 2 bans. The chips name the venue types themselves,
-         so the group needs no title above them, only this accessible name. */
+         so the group needs no title above them, only this accessible name.
+         Two lanes named this group at once. This one wins because it is the
+         shorter of the two and the group is already known to be on the map;
+         __tests__/voiceComplianceAudit.test.ts was amended to expect it. */
       aria-label="Venue types"
     >
       <div className="tonightArcRow">
