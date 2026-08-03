@@ -3068,7 +3068,12 @@ export default function PubMapCanvas({
           </button>
         </div>
       ) : null}
-      {/* Camera fit for the active city — not a city switcher (toolbar owns that). */}
+      {/* Camera fit for the active city — not a city switcher (toolbar owns that).
+          D7: this used to PRINT the city name, so the map carried two controls
+          both reading "London", a pill here and the toolbar's dropdown. The name
+          belongs to the switcher, which is the control that can change it. This
+          one says what it does; the accessible name still names the city, and
+          leads with the visible words so the two agree. */}
       <div className="mapCameraControls" aria-label="Map camera controls">
         <button
           type="button"
@@ -3078,7 +3083,7 @@ export default function PubMapCanvas({
           title={`Show all of ${cityDisplayName}`}
         >
           <MapPinned size={14} aria-hidden />
-          {cityDisplayName}
+          Show all
         </button>
         {/* D7: only render once there's a route to recenter — a disabled
             "No route" ghost chip sitting in the camera-controls stack reads
