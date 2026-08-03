@@ -82,7 +82,7 @@ async function openPhoneMap(
   // One bar: neither the old rail nor the map-floating category band.
   await expect(page.locator(".mobileMapRail")).toHaveCount(0);
   await expect(
-    page.getByRole("group", { name: "Tonight arc venue types" }),
+    page.getByRole("group", { name: "Venue types" }),
   ).toHaveCount(0);
   await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
   await expect(
@@ -307,7 +307,7 @@ for (const viewport of VIEWPORTS) {
     await expect(sheet).toHaveCount(1);
 
     // The venue-type toggles have exactly one home on a phone: this sheet.
-    const arc = sheet.getByRole("group", { name: "Tonight arc venue types" });
+    const arc = sheet.getByRole("group", { name: "Venue types" });
     await expect(arc).toHaveCount(1);
     const arcButtons = arc.locator(".tonightArcChip");
     expect(await arcButtons.count()).toBe(5);
