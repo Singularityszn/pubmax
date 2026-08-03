@@ -151,10 +151,13 @@
   background: var(--state-active-surface, color-mix(in srgb, var(--color-accent, var(--brass)) 12%, transparent));
 }
 
+/* The quiet labels (type, borough) drop under the name when the name needs the
+   line. The name never gives up its width to them. */
 .mapSearchSuggestRowMain {
   display: flex;
-  align-items: center;
-  gap: 7px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 7px;
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -164,12 +167,13 @@
   color: var(--color-text-muted, var(--muted));
 }
 
+/* The name is the row. It wraps to a second line rather than losing its end to
+   an ellipsis: "King's ..." and "Shore..." are not places a reader can pick. */
 .mapSearchSuggestRowName {
+  min-width: 0;
   font-size: 0.94rem;
   font-weight: 650;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .mapSearchSuggestBorough {
@@ -178,12 +182,15 @@
   color: var(--color-text-muted, var(--muted));
 }
 
+/* The price and the distance keep their width. A wrapping name asks for more
+   room than a truncated one did, and a shrinking meta cell squeezed the price
+   to nothing, so "£6.80" painted over the borough beside it. A figure a reader
+   trusts may never be cut or overlapped: the name wraps instead. */
 .mapSearchSuggestMeta {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 0 1 auto;
-  min-width: 0;
+  flex: none;
 }
 
 .mapSearchSuggestPrice {
@@ -215,22 +222,6 @@
   font-size: 0.74rem;
   color: var(--color-text-muted, var(--muted));
   white-space: nowrap;
-}
-
-.mapSearchSuggestCoverage {
-  flex: none;
-  padding: 1px 7px;
-  border-radius: 999px;
-  font-size: 0.66rem;
-  font-weight: 700;
-  background: color-mix(in srgb, var(--color-text-muted, var(--muted)) 16%, transparent);
-  color: var(--color-text-soft, var(--ink-soft, var(--ink)));
-}
-
-.mapSearchSuggestCoverage[data-tone="discovery"],
-.mapSearchSuggestCoverage[data-tone="paused"] {
-  background: color-mix(in srgb, var(--color-warn, #d16353) 18%, transparent);
-  color: var(--color-warn, #d16353);
 }
 
 .mapSearchSuggestEmpty {

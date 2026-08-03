@@ -61,8 +61,10 @@ export type AreaSuggestion = {
   distanceKm: number;
   /** "1.2 km away" (from the viewer) or "1.2 km from centre" — never faked. */
   distanceLabel: string;
-  /** Honest coverage chip for a modelled area; null for a locality or a plain
-   *  borough (a locality is a place, not a coverage promise). */
+  /** Honest coverage for a modelled area; null for a locality or a plain
+   *  borough (a locality is a place, not a coverage promise). The row never
+   *  prints it: it rides the pick to the area sheet, which is where a reader
+   *  asks about planning. */
   coverage: AreaCoverageLabel;
 };
 

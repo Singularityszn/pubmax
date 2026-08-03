@@ -292,11 +292,12 @@ export default function MapSearchSuggest({
                       {area.contextLabel ? (
                         <span className="mapSearchSuggestBorough">{area.contextLabel}</span>
                       ) : null}
-                      {area.coverage ? (
-                        <span className="mapSearchSuggestCoverage" data-tone={area.coverage.tone}>
-                          {area.coverage.label}
-                        </span>
-                      ) : null}
+                      {/* No coverage chip here. A suggestion row is a place to
+                          fly to, and the chip read "Plan with warnings" beside
+                          every second name: planning words a reader cannot act
+                          on, taking the width the name needs. The coverage still
+                          travels with the pick (activate below) and the area
+                          sheet says it there, where planning is the question. */}
                     </span>
                     {area.distanceLabel ? (
                       <span className="mapSearchSuggestDistance">{area.distanceLabel}</span>
