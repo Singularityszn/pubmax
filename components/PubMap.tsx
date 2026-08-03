@@ -617,9 +617,6 @@ export default function PubMap({
   const [selectedVenueId, setSelectedVenueId] = useState<string>(
     seed.selectedVenueId || restoredMobileSession?.selectedVenueId || "",
   );
-  const [pendingVenueAfterPlanner, setPendingVenueAfterPlanner] = useState<
-    string | null
-  >(null);
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
@@ -965,7 +962,6 @@ export default function PubMap({
   } = useSheetDrag(() => surfaceBackRef.current());
 
   const closePlanning = useCallback(() => {
-    setPendingVenueAfterPlanner(null);
     setPlanningOpen(false);
     setMapOverlay("none");
     setPlannerSheetSnap("half");
@@ -978,7 +974,6 @@ export default function PubMap({
   const claimMapDrawer = useCallback(
     (owner: "planner" | "venue") => {
       if (owner === "planner") {
-        setPendingVenueAfterPlanner(null);
         setSelectedVenueId("");
       } else {
         closePlanning();
@@ -1708,9 +1703,9 @@ export default function PubMap({
         setVenueInitialTab("pints");
         return;
       }
-      setPendingVenueAfterPlanner(firstStopId || null);
+      selectVenue(firstStopId);
     },
-    [openPlanning],
+    [openPlanning, selectVenue],
   );
 
   // Persist the favorite-pint choice as the user picks it (null = clear).
@@ -2604,7 +2599,6 @@ export default function PubMap({
     setMapOverlay("none");
     setSelectedVenueId("");
     setPlanningOpen(false);
-    setPendingVenueAfterPlanner(null);
     setMapListOpen(false);
   }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen, setSelectedVenueId]);
   const restoreMapSurface = useCallback(
@@ -2652,18 +2646,6 @@ export default function PubMap({
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
   }, [mapSurfaceTrail.back]);
-  useEffect(() => {
-    if (
-      !pendingVenueAfterPlanner ||
-      mapSurfaceTrail.currentSurfaceId !== "planner"
-    ) {
-      return;
-    }
-    // Selection must follow the committed planner trail in this same effect;
-    // deferring it can let another history transition overtake the handoff.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    selectVenue(pendingVenueAfterPlanner);
-  }, [mapSurfaceTrail.currentSurfaceId, pendingVenueAfterPlanner, selectVenue]);
 
   useEffect(() => {
     // An uncovered-place arrival is a one-off destination, not a city session:

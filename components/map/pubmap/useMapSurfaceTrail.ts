@@ -150,7 +150,6 @@ export function useMapSurfaceTrail({
     backLabel: stack.backLabel,
     back: useCallback(() => back(), [back]),
     home: useCallback(() => home(), [home]),
-    currentSurfaceId: (current?.id as MapSurfaceId | undefined) ?? null,
     holdsSurface: useCallback(
       (id: MapSurfaceId) => entries.some((entry) => entry.id === id),
       [entries],

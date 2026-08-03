@@ -336,7 +336,7 @@ test("1440px Plan tonight takes ownership from an open venue", async ({
   await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
 });
 
-test("1440px loaded route records planner before opening its first venue", async ({
+test("1440px loaded route opens its first venue without a deferred planner handoff", async ({
   page,
 }) => {
   await page.setViewportSize(DESKTOP);
@@ -371,29 +371,48 @@ test("1440px loaded route records planner before opening its first venue", async
 
   const onboarding = page.getByRole("dialog", { name: "Start with a story" });
   await expect(onboarding).toBeVisible({ timeout: 20_000 });
+
+  const planner = page.locator(".mapDrawer.left.springDrawer");
+  const venue = page.locator(".mapDrawer.right.springDrawer");
+  await page.evaluate(() => {
+    const plannerDrawer = document.querySelector(
+      ".mapDrawer.left.springDrawer",
+    );
+    if (!plannerDrawer) throw new Error("planner drawer missing");
+    const transitions: string[] = [];
+    new MutationObserver((records) => {
+      for (const record of records) {
+        if (record.type !== "attributes") continue;
+        transitions.push(record.oldValue ?? "missing");
+      }
+    }).observe(plannerDrawer, {
+      attributes: true,
+      attributeFilter: ["aria-hidden"],
+      attributeOldValue: true,
+    });
+    Object.assign(window, {
+      __pubmaxPlannerAriaHiddenTransitions: transitions,
+    });
+  });
+
   await onboarding
     .getByRole("button", {
       name: "Load the Victorian Soho crawl, 5 stops",
     })
     .click();
 
-  const planner = page.locator(".mapDrawer.left.springDrawer");
-  const venue = page.locator(".mapDrawer.right.springDrawer");
-  const backToPlanner = venue.getByRole("button", {
-    name: "Back to Plan tonight",
-  });
   await expect(venue).toHaveAttribute("aria-hidden", "false");
-  await expect(backToPlanner).toBeVisible();
-
-  await backToPlanner.click();
-
-  await expect(planner).toHaveAttribute("aria-hidden", "false");
-  await expect(venue).toHaveAttribute("aria-hidden", "true");
+  await expect(planner).toHaveAttribute("aria-hidden", "true");
   await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
-  await expect(
-    planner.getByRole("heading", { name: "Victorian Soho" }),
-  ).toBeVisible();
-  await expect(planner.locator("ol.routeList > li")).toHaveCount(5);
+  const plannerTransitions = await page.evaluate(
+    () =>
+      (
+        window as typeof window & {
+          __pubmaxPlannerAriaHiddenTransitions?: string[];
+        }
+      ).__pubmaxPlannerAriaHiddenTransitions ?? [],
+  );
+  expect(plannerTransitions).not.toContain("true");
 });
 
 test("1440px reduced motion swaps desktop drawer ownership immediately", async ({
