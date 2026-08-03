@@ -10,11 +10,15 @@
   background: var(--panel);
 }
 
+/* "New round here" is a sentence, not a category tag, so it stays in sentence
+   case. Set in caps it shouted, which is the one register this block must not
+   have: it sits above dated, sourced facts. Weight and colour carry the label
+   job that the capitals were doing. */
 .areaNewsEyebrow {
   margin: 0;
   font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   color: var(--muted);
 }
 
