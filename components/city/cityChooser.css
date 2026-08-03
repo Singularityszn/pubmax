@@ -125,10 +125,9 @@
   gap: 8px;
   margin: 0 0 12px;
   color: var(--brass);
-  font-size: 0.78rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
 .cityChooserEyebrow::before {
@@ -182,10 +181,9 @@
   display: block;
   margin: 0 0 7px;
   color: var(--brass-bright, var(--brass));
-  font-size: 0.74rem;
+  font-size: var(--text-2xs);
   font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
 .cityChooser--section .cityChooserSearchLabel,
