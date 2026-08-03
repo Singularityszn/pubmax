@@ -88,7 +88,7 @@ Start with empty first-run storage, wait for eligible location and status banner
 
 - [ ] **Step 3: Run against broken CSS**
 
-Run `npx playwright test e2e/desktop-map-chrome-fit.spec.ts --project=firefox-desktop-map-chrome-fit --workers=1`. Confirm both tests fail on exact measured edge or overlap assertions.
+Run `PW_FIREFOX_DESKTOP_MAP_CHROME_FIT=1 npx playwright test e2e/desktop-map-chrome-fit.spec.ts --project=firefox-desktop-map-chrome-fit --workers=1`. Confirm both tests fail on exact measured edge or overlap assertions.
 
 - [ ] **Step 4: Commit red-capable tests**
 
@@ -123,7 +123,7 @@ When city-suggest prompt is present, move status into a separate desktop lane. K
 
 - [ ] **Step 5: Run focused E2E green**
 
-Run `npx playwright test e2e/desktop-map-chrome-fit.spec.ts --project=firefox-desktop-map-chrome-fit --workers=1` and confirm both tests pass.
+Run `PW_FIREFOX_DESKTOP_MAP_CHROME_FIT=1 npx playwright test e2e/desktop-map-chrome-fit.spec.ts --project=firefox-desktop-map-chrome-fit --workers=1` and confirm both tests pass.
 
 - [ ] **Step 6: Commit implementation**
 

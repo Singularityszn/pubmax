@@ -11,6 +11,8 @@ const KEYLESS_PORT = Number(process.env.PW_KEYLESS_PORT ?? PORT + 1);
 const KEYLESS_BASE_URL = `http://localhost:${KEYLESS_PORT}`;
 const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 const SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === "1";
+const FIREFOX_DESKTOP_MAP_CHROME_FIT =
+  process.env.PW_FIREFOX_DESKTOP_MAP_CHROME_FIT === "1";
 const NEXT_DIST_DIR =
   process.env.PW_NEXT_DIST_DIR ?? (SCREENSHOT_RUN ? ".next" : ".next-e2e");
 const KEYLESS_NEXT_DIST_DIR =
@@ -87,12 +89,14 @@ export default defineConfig({
         "**/*.flag-on.spec.ts",
       ],
     },
-    {
-      name: "firefox-desktop-map-chrome-fit",
-      testMatch: "**/desktop-map-chrome-fit.spec.ts",
-      timeout: 60_000,
-      use: { ...devices["Desktop Firefox"] },
-    },
+    ...(FIREFOX_DESKTOP_MAP_CHROME_FIT
+      ? [{
+          name: "firefox-desktop-map-chrome-fit",
+          testMatch: "**/desktop-map-chrome-fit.spec.ts",
+          timeout: 60_000,
+          use: { ...devices["Desktop Firefox"] },
+        }]
+      : []),
     {
       name: "chromium-keyless",
       testMatch: "**/price-contribution-entry.spec.ts",
