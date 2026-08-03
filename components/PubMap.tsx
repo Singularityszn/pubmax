@@ -617,6 +617,9 @@ export default function PubMap({
   const [selectedVenueId, setSelectedVenueId] = useState<string>(
     seed.selectedVenueId || restoredMobileSession?.selectedVenueId || "",
   );
+  const [pendingVenueAfterPlanner, setPendingVenueAfterPlanner] = useState<
+    string | null
+  >(null);
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
@@ -962,6 +965,7 @@ export default function PubMap({
   } = useSheetDrag(() => surfaceBackRef.current());
 
   const closePlanning = useCallback(() => {
+    setPendingVenueAfterPlanner(null);
     setPlanningOpen(false);
     setMapOverlay("none");
     setPlannerSheetSnap("half");
@@ -971,11 +975,21 @@ export default function PubMap({
     closePlanningRef.current = closePlanning;
   }, [closePlanning]);
 
+  const claimMapDrawer = useCallback(
+    (owner: "planner" | "venue") => {
+      if (owner === "planner") {
+        setPendingVenueAfterPlanner(null);
+        setSelectedVenueId("");
+      } else {
+        closePlanning();
+      }
+    },
+    [closePlanning, setSelectedVenueId],
+  );
+
   const openPlanning = useCallback(() => {
-    // Mobile: mutual exclusion with the venue sheet (planner stacks above it
-    // in z-order; keeping both open made Escape/dismiss order confusing).
+    claimMapDrawer("planner");
     if (isMobileViewport()) {
-      setSelectedVenueId("");
       closeComposer();
       setSheetSnap("half");
       setSheetDragY(null);
@@ -985,11 +999,11 @@ export default function PubMap({
     setPlannerSheetSnap("half");
     setPlannerSheetDragY(null);
   }, [
+    claimMapDrawer,
     closeComposer,
     setPlannerSheetDragY,
     setPlannerSheetSnap,
     setPlanningOpen,
-    setSelectedVenueId,
     setSheetDragY,
     setSheetSnap,
   ]);
@@ -1575,14 +1589,14 @@ export default function PubMap({
       if (!isUkBaseId(id)) prefetchVenue(id);
       setTonightLaneOpen(false);
       setMapOverlay("none");
-      closePlanning();
+      claimMapDrawer("venue");
       setVenueInitialTab(initialTab);
       setSelectedVenueId(id);
       closeComposer();
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
       setSheetDragY(null);
     },
-    [closeComposer, closePlanning, setSelectedVenueId, setSheetSnap, setSheetDragY],
+    [claimMapDrawer, closeComposer, setSelectedVenueId, setSheetSnap, setSheetDragY],
   );
 
   // §4.8 Make it Stop 1 — the ONE Map intent-write. The caller only wires this
@@ -1691,23 +1705,12 @@ export default function PubMap({
     (firstStopId: string) => {
       openPlanning();
       if (isMobileViewport()) {
-        setSelectedVenueId("");
         setVenueInitialTab("pints");
-        closeComposer();
-        setSheetSnap("half");
-        setSheetDragY(null);
         return;
       }
-      selectVenue(firstStopId);
+      setPendingVenueAfterPlanner(firstStopId || null);
     },
-    [
-      closeComposer,
-      openPlanning,
-      selectVenue,
-      setSelectedVenueId,
-      setSheetDragY,
-      setSheetSnap,
-    ],
+    [openPlanning],
   );
 
   // Persist the favorite-pint choice as the user picks it (null = clear).
@@ -2601,6 +2604,7 @@ export default function PubMap({
     setMapOverlay("none");
     setSelectedVenueId("");
     setPlanningOpen(false);
+    setPendingVenueAfterPlanner(null);
     setMapListOpen(false);
   }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen, setSelectedVenueId]);
   const restoreMapSurface = useCallback(
@@ -2648,6 +2652,15 @@ export default function PubMap({
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
   }, [mapSurfaceTrail.back]);
+  useEffect(() => {
+    if (
+      !pendingVenueAfterPlanner ||
+      mapSurfaceTrail.currentSurfaceId !== "planner"
+    ) {
+      return;
+    }
+    selectVenue(pendingVenueAfterPlanner);
+  }, [mapSurfaceTrail.currentSurfaceId, pendingVenueAfterPlanner, selectVenue]);
 
   useEffect(() => {
     // An uncovered-place arrival is a one-off destination, not a city session:

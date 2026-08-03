@@ -308,6 +308,93 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   await captureDrawerExchange(page, "back-restored-planner");
 });
 
+test("1440px Plan tonight takes ownership from an open venue", async ({
+  page,
+}) => {
+  await prepareDesktopMap(page);
+  await stubCityStatus(page);
+
+  const response = await page.goto("/map?desktop-drawer-owner=planner", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(response?.status()).toBe(200);
+
+  const toolbar = page.locator(".mapToolbar");
+  const planner = page.locator(".mapDrawer.left.springDrawer");
+  const venue = page.locator(".mapDrawer.right.springDrawer");
+  await expect(toolbar).toBeVisible({ timeout: 20_000 });
+  await selectToolbarPub(page, "The French House", /The French House/);
+  await expect(venue).toHaveAttribute("aria-hidden", "false");
+
+  await toolbar
+    .getByRole("button", { name: "Plan tonight" })
+    .evaluate((button) => (button as HTMLElement).click());
+
+  await expect(planner).toHaveAttribute("aria-hidden", "false");
+  await expect(venue).toHaveAttribute("aria-hidden", "true");
+  await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
+});
+
+test("1440px loaded route records planner before opening its first venue", async ({
+  page,
+}) => {
+  await page.setViewportSize(DESKTOP);
+  await page.addInitScript(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem(
+      "pubmaxx:analytics-consent:v1",
+      "denied",
+    );
+    window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+  });
+  await stubCityStatus(page);
+  await page.route("**/api/whats-on**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        rows: [],
+        asOf: null,
+        sourceObservedAt: null,
+        sourceFreshnessKind: "unknown",
+      }),
+    }),
+  );
+
+  const response = await page.goto("/map?desktop-loaded-route=1440", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(response?.status()).toBe(200);
+
+  const onboarding = page.getByRole("dialog", { name: "Start with a story" });
+  await expect(onboarding).toBeVisible({ timeout: 20_000 });
+  await onboarding
+    .getByRole("button", {
+      name: "Load the Victorian Soho crawl, 5 stops",
+    })
+    .click();
+
+  const planner = page.locator(".mapDrawer.left.springDrawer");
+  const venue = page.locator(".mapDrawer.right.springDrawer");
+  const backToPlanner = venue.getByRole("button", {
+    name: "Back to Plan tonight",
+  });
+  await expect(venue).toHaveAttribute("aria-hidden", "false");
+  await expect(backToPlanner).toBeVisible();
+
+  await backToPlanner.click();
+
+  await expect(planner).toHaveAttribute("aria-hidden", "false");
+  await expect(venue).toHaveAttribute("aria-hidden", "true");
+  await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
+  await expect(
+    planner.getByRole("heading", { name: "Victorian Soho" }),
+  ).toBeVisible();
+  await expect(planner.locator("ol.routeList > li")).toHaveCount(5);
+});
+
 test("1440px reduced motion swaps desktop drawer ownership immediately", async ({
   page,
 }) => {
