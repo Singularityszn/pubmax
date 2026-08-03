@@ -30,11 +30,11 @@ Review location: `components/PubMap.tsx:1005` before the asynchronous coordinati
 
 The removed early-Back regression navigated directly to `/map`, so it did not establish a real predecessor before queuing two Back operations. It could pass even when the second traversal would leave the Map in a real journey.
 
-The retained regression at `e2e/desktop-map-chrome-fit.spec.ts:168-310` proves ordinary planner-to-venue ownership and composed-state restoration. It does not start from a root venue, queue selection-history release, or issue concurrent browser Back.
+The retained regression at `e2e/desktop-map-chrome-fit.spec.ts:279-421` proves ordinary planner-to-venue ownership and composed-state restoration. It does not start from a root venue, queue selection-history release, or issue concurrent browser Back.
 
-The retained regression at `e2e/desktop-map-chrome-fit.spec.ts:312-337` proves only synchronous venue-to-planner ownership: one drawer is open immediately after Plan tonight. It does not wait for or coordinate any browser-history traversal.
+The retained regression at `e2e/desktop-map-chrome-fit.spec.ts:423-448` proves only synchronous venue-to-planner ownership: one drawer is open immediately after Plan tonight. It does not wait for or coordinate any browser-history traversal.
 
-The loaded-route regression at `e2e/desktop-map-chrome-fit.spec.ts:339-416` now proves only that loading a route reaches the venue as one synchronous ownership batch, without a transient planner-open mutation. The previous loaded-route Back-restoration assertion was removed because it depended on the deferred planner-to-venue trail negotiation that this branch deliberately descoped. The replacement never presses Back, never establishes a predecessor, and cannot detect either concurrent history race quoted above.
+The loaded-route regression at `e2e/desktop-map-chrome-fit.spec.ts:450-527` now proves only that loading a route reaches the venue as one synchronous ownership batch, without a transient planner-open mutation. The previous loaded-route Back-restoration assertion was removed because it depended on the deferred planner-to-venue trail negotiation that this branch deliberately descoped. The replacement never presses Back, never establishes a predecessor, and cannot detect either concurrent history race quoted above.
 
 ## Requirements for a correct next-lane design
 
