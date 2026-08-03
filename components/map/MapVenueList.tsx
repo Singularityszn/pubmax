@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useCallback, useEffect, useId, useRef } from "react";
 import { List, MapPin, X } from "lucide-react";
 
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 import type { MapVenueListModel, UkBasePubListModel } from "@/lib/mapVenueList";
 import type { UkBasePub } from "@/lib/ukBasePubs";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import "./mapVenueList.css";
 
@@ -49,6 +50,13 @@ export default function MapVenueList({
   const firstCuratedId = model.rows[0]?.id;
   const firstBaseId = firstCuratedId ? undefined : ukBaseModel.rows[0]?.id;
 
+  // The list opens from a toggle that stays on screen beside it, so the way
+  // back is that toggle and it does not join the surface trail. Escape leaves
+  // it, because opening the list moves focus INTO the list and a keyboard
+  // reader had no way out but to tab to the close glyph.
+  const closeList = useCallback(() => onOpenChange(false), [onOpenChange]);
+  useDismissOnEscape(open, closeList);
+
   useEffect(() => {
     if (!open) {
       venueFocusAssignedRef.current = false;
@@ -88,7 +96,7 @@ export default function MapVenueList({
               type="button"
               className="mapVenueListClose"
               aria-label="Close venue list"
-              onClick={() => onOpenChange(false)}
+              onClick={closeList}
             >
               <X size={18} aria-hidden="true" />
             </button>

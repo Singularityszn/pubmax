@@ -154,6 +154,10 @@ function shellProps(overrides: Record<string, unknown> = {}) {
     momentContent: null,
     nearMeContent: null,
     areaContent: null,
+    // The one way out every surface carries (components/ui/surface-nav.tsx).
+    backLabel: null,
+    onBack: vi.fn(),
+    onHome: vi.fn(),
     ...overrides,
   };
 }
