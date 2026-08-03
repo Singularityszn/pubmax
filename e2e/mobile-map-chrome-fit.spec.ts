@@ -481,49 +481,51 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
   // hunting for one that opened a sheet, abandoned after a fixed number of
   // passes. Under parallel workers the map had not painted its pins before the
   // scan ran out, so a timing loss read as a product defect. Ask the map
-  // instead. `paintedPinProbe.ts` answers with the viewport point of every pin
-  // the map is drawing right now, already checked to survive collision, to
-  // re-query to the same pub, and to carry no chrome on top of it. Polling it
-  // waits for the real signal, and the tap then lands on a pin because a pin
-  // is known to be there.
-  const paintedPins = () =>
+  // instead. `paintedPinProbe.ts` answers with the viewport point of every pub
+  // mark the map is drawing right now, already checked to survive collision,
+  // to re-query to the same mark, and to carry no chrome on top of it.
+  const paintedMarks = () =>
     page.evaluate(
       () =>
         (
           window as typeof window & {
-            __pubmaxPaintedPinTapPoints?: () => Array<{
+            __pubmaxPaintedMapTapPoints?: () => Array<{
+              kind: "pin" | "cluster";
               id: string;
               x: number;
               y: number;
             }>;
           }
-        ).__pubmaxPaintedPinTapPoints?.() ?? [],
+        ).__pubmaxPaintedMapTapPoints?.() ?? [],
     );
 
   await expect
-    .poll(async () => (await paintedPins()).length, {
-      message: "the phone map paints a pin the reader can tap",
+    .poll(async () => (await paintedMarks()).length, {
+      message: "the phone map paints a pub mark the reader can tap",
       timeout: 60_000,
     })
     .toBeGreaterThan(0);
 
-  // One tap, on one known pin. The retry exists because the pins keep their
-  // own entrance ramp, so a pin can move between the read and the tap; every
-  // attempt still taps a pin the map is painting at that moment, and the first
-  // opened sheet ends it.
+  // The map opens with the pubs gathered, so the walk in is the reader's own:
+  // open a cluster until it hands over pins, then tap a pin. Every tap lands
+  // on a mark the map is painting at that moment, so nothing here is a guess -
+  // the loop only repeats because one cluster can open onto another.
   let tappedPinId = "";
   await expect
     .poll(
       async () => {
         if (await venueSheet.count()) return true;
-        const [pin] = await paintedPins();
-        if (!pin) return false;
-        tappedPinId = pin.id;
-        await page.mouse.click(pin.x, pin.y);
-        await page.waitForTimeout(400);
+        const marks = await paintedMarks();
+        const pin = marks.find((mark) => mark.kind === "pin");
+        const target = pin ?? marks[0];
+        if (!target) return false;
+        if (pin) tappedPinId = pin.id;
+        await page.mouse.click(target.x, target.y);
+        // A cluster answers with a camera move; a pin answers with the sheet.
+        await page.waitForTimeout(pin ? 400 : 900);
         return (await venueSheet.count()) > 0;
       },
-      { message: "a painted map pin receives its own tap", timeout: 30_000 },
+      { message: "a painted map pin receives its own tap", timeout: 90_000 },
     )
     .toBe(true);
   await expect(venueSheet).toHaveCount(1);

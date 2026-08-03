@@ -4,78 +4,109 @@ import type * as maplibregl from "maplibre-gl";
 // a grid of taps across the map, hoping one landed on a pin before the scan
 // gave up. Under worker contention it did not, and the guess read as a
 // product defect. This publishes the one answer a tap needs - the viewport
-// point of each pin the map is drawing RIGHT NOW - so the tap lands on a pin
-// because a pin is known to be there.
+// point of each pub mark the map is drawing RIGHT NOW - so the tap lands on a
+// mark because a mark is known to be there.
 //
-// It reads the live map and stores nothing, so it can never name a pin the
-// map has stopped drawing. A returned point has cleared three gates:
-//   1. the pin survived symbol collision (queryRenderedFeatures over the
-//      viewport returns placed symbols only, so an unpainted pin is absent);
-//   2. re-querying that point returns the same pub, which is what the click
-//      router in `interactions.ts` resolves first, so the tap opens the venue
-//      sheet rather than a cluster or a landmark card;
+// Clusters are answered beside pins because the map opens with the pubs
+// gathered: the way to a pin is to open a cluster, and a test that has to
+// find that cluster by touch is back to guessing.
+//
+// The probe reads the live map and stores nothing, so it can never name a
+// mark the map has stopped drawing. A returned point has cleared three gates:
+//   1. the mark survived symbol collision (queryRenderedFeatures over the
+//      viewport returns placed symbols only, so an unpainted mark is absent);
+//   2. re-querying that point returns the same mark, and for a pin that means
+//      the click router in `interactions.ts` resolves a pub there, so the tap
+//      opens the venue sheet rather than a landmark card;
 //   3. nothing in the app chrome covers it, so the map canvas - not a topbar
 //      button - receives the tap.
-export const PAINTED_PIN_PROBE_KEY = "__pubmaxPaintedPinTapPoints";
+export const PAINTED_MAP_PROBE_KEY = "__pubmaxPaintedMapTapPoints";
 
-/** A pin the map is painting, in viewport coordinates a tap can use. */
-export type PaintedPinTapPoint = { id: string; x: number; y: number };
+/** A pub mark the map is painting, in viewport coordinates a tap can use. */
+export type PaintedMapTapPoint = {
+  /** `pin` opens a venue sheet; `cluster` opens the pubs inside it. */
+  kind: "pin" | "cluster";
+  id: string;
+  x: number;
+  y: number;
+};
 
 type ProbeWindow = Window & {
-  [PAINTED_PIN_PROBE_KEY]?: () => PaintedPinTapPoint[];
+  [PAINTED_MAP_PROBE_KEY]?: () => PaintedMapTapPoint[];
 };
 
 // The click router treats a pub hit as the winner before every other layer, so
 // a point that hits either of these opens the venue sheet.
 const PIN_LAYERS = ["pubs-point-selected", "pubs-point"] as const;
+const CLUSTER_LAYER = "clusters";
 
-export function paintedPinTapPoints(map: maplibregl.Map): PaintedPinTapPoint[] {
-  const layers = PIN_LAYERS.filter((id) => Boolean(map.getLayer(id)));
-  if (!layers.length) return [];
+function markId(
+  feature: maplibregl.MapGeoJSONFeature,
+  kind: PaintedMapTapPoint["kind"],
+): string | null {
+  const raw = kind === "pin"
+    ? feature.properties?.id
+    : feature.properties?.cluster_id;
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "number") return String(raw);
+  return null;
+}
+
+export function paintedMapTapPoints(map: maplibregl.Map): PaintedMapTapPoint[] {
+  const pinLayers = PIN_LAYERS.filter((id) => Boolean(map.getLayer(id)));
+  const clusterLayers = [CLUSTER_LAYER].filter((id) => Boolean(map.getLayer(id)));
 
   const container = map.getContainer();
   const rect = container.getBoundingClientRect();
   const ownerDocument = container.ownerDocument;
   const canvas = map.getCanvas();
 
-  const points: PaintedPinTapPoint[] = [];
-  const seen = new Set<string>();
-  for (const feature of map.queryRenderedFeatures({ layers: [...layers] })) {
-    const id = feature.properties?.id;
-    if (typeof id !== "string" || seen.has(id)) continue;
-    seen.add(id);
+  const points: PaintedMapTapPoint[] = [];
+  const collect = (kind: PaintedMapTapPoint["kind"], layers: string[]) => {
+    if (!layers.length) return;
+    const seen = new Set<string>();
+    for (const feature of map.queryRenderedFeatures({ layers })) {
+      const id = markId(feature, kind);
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
 
-    const geometry = feature.geometry;
-    if (geometry.type !== "Point") continue;
-    const [lng, lat] = geometry.coordinates;
-    // No icon-anchor or icon-offset on the pin layers, so the projected
-    // coordinate is the icon's centre (buildScene.ts, `pubs-point`).
-    const point = map.project([lng, lat]);
+      const geometry = feature.geometry;
+      if (geometry.type !== "Point") continue;
+      const [lng, lat] = geometry.coordinates;
+      // No icon-anchor or icon-offset on the pin layers and no circle
+      // translate on the cluster layer, so the projected coordinate is the
+      // mark's centre (buildScene.ts).
+      const point = map.project([lng, lat]);
 
-    const hits = map.queryRenderedFeatures(point, { layers: [...layers] });
-    if (!hits.some((hit) => hit.properties?.id === id)) continue;
+      const hits = map.queryRenderedFeatures(point, { layers });
+      if (!hits.some((hit) => markId(hit, kind) === id)) continue;
 
-    const x = rect.left + point.x;
-    const y = rect.top + point.y;
-    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue;
-    const topmost = ownerDocument.elementFromPoint(x, y);
-    if (topmost !== canvas) continue;
+      const x = rect.left + point.x;
+      const y = rect.top + point.y;
+      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue;
+      if (ownerDocument.elementFromPoint(x, y) !== canvas) continue;
 
-    points.push({ id, x, y });
-  }
+      points.push({ kind, id, x, y });
+    }
+  };
+
+  // Pins first: where a pin and a cluster share a point the router opens the
+  // pub, so a caller taking the first point takes the shorter way in.
+  collect("pin", pinLayers);
+  collect("cluster", clusterLayers);
   return points;
 }
 
 /**
- * Publishes {@link paintedPinTapPoints} for the browser suite. Unconditional,
+ * Publishes {@link paintedMapTapPoints} for the browser suite. Unconditional,
  * like the `pubmax:pin-reveal` event beside it: the e2e run exercises a
  * production build, so a development-only hook would not exist where the test
  * needs it. Returns its own removal.
  */
 export function installPaintedPinProbe(map: maplibregl.Map): () => void {
   const probeWindow = window as ProbeWindow;
-  probeWindow[PAINTED_PIN_PROBE_KEY] = () => paintedPinTapPoints(map);
+  probeWindow[PAINTED_MAP_PROBE_KEY] = () => paintedMapTapPoints(map);
   return () => {
-    delete probeWindow[PAINTED_PIN_PROBE_KEY];
+    delete probeWindow[PAINTED_MAP_PROBE_KEY];
   };
 }
