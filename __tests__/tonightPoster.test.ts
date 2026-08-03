@@ -39,7 +39,7 @@ describe("buildTonightPosterModel", () => {
     const model = buildTonightPosterModel(null);
     expect(model.coverage).toBe("Nothing confirmed tonight yet");
     expect(model.titles).toEqual([]);
-    expect(model.provenance).toBe("Freshness unknown · via CityMCP London");
+    expect(model.provenance).toBe("No date on this yet · via CityMCP London");
   });
 
   it("skips blank titles when collecting teasers", () => {

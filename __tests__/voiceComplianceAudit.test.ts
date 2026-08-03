@@ -422,3 +422,122 @@ describe("VOICE.md compliance audit", () => {
     );
   });
 });
+
+// Design judgement 2026-08-01, finding 2.11. Every string below was printed on
+// a reader surface and named an internal thing: a component ("Tonight arc"), a
+// spine enum ("Freshness unknown"), an evidence stage ("Review expired"), or a
+// scoring band ("Low confidence"). VOICE.md rule 2 bans all four shapes, so the
+// fence names each removed literal rather than the class of literal, and a
+// reintroduction fails here instead of reaching a thirsty reader.
+describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
+  it("keeps the Tonight arc chips without their component name", () => {
+    const chips = read("components/map/TonightArcChips.tsx");
+    const chipsCss = read("components/map/tonightArcChips.css");
+
+    // Neither the visible title nor the accessible name may carry it: a screen
+    // reader user is a reader too.
+    expect(chips).not.toMatch(/>\s*Tonight arc\s*</u);
+    expect(chips).not.toContain('aria-label="Tonight arc');
+    expect(chips).toContain('aria-label="Venue types on the map"');
+    expect(chipsCss).not.toContain(".tonightArcLabel");
+  });
+
+  it("never prints the freshness spine's enum", () => {
+    for (const path of [
+      "lib/tonight.ts",
+      "lib/whatsOnBadges.ts",
+      "app/tonight/TonightClient.tsx",
+    ]) {
+      expect(read(path)).not.toContain("Freshness unknown");
+    }
+
+    // An undatable source states the fact plainly instead of sitting in the
+    // interpunct chain, which is what made the /tonight subtitle read as debug
+    // output rather than a sentence.
+    const tonight = read("app/tonight/TonightClient.tsx");
+    expect(tonight).toContain("We can’t date these listings yet.");
+    expect(read("lib/whatsOnBadges.ts")).toContain("No date on this yet");
+    expect(read("lib/tonight.ts")).toContain("No date on this yet");
+  });
+
+  it("names area coverage in pub words, not evidence stages or score bands", () => {
+    const areaButton = read("lib/areaButton.ts");
+    const composer = read("components/plan/PlanComposer.tsx");
+    const mobilePlan = read("components/plan/MobilePlanActivation.tsx");
+
+    for (const source of [areaButton, composer, mobilePlan]) {
+      expect(source).not.toContain("Low confidence");
+      expect(source).not.toContain("Higher confidence");
+      expect(source).not.toContain("Plan with warnings");
+      expect(source).not.toContain("Plan with checks");
+      expect(source).not.toContain("Review expired");
+    }
+    expect(composer).not.toContain("plan with warnings");
+
+    // The replacement set is one vocabulary across all three call sites.
+    expect(areaButton).toContain("Rough guess");
+    expect(areaButton).toContain("Not all checked");
+    expect(areaButton).toContain("Gone stale");
+    expect(composer).toContain("Prices checked");
+    expect(mobilePlan).toContain("Prices checked");
+  });
+
+  it("keeps the Plan result and Pub Pal free of product-speak", () => {
+    const composer = read("components/plan/PlanComposer.tsx");
+    const pal = read("components/pal/PalExperience.tsx");
+
+    expect(composer).not.toContain("Context changed");
+    expect(composer).toMatch(/You&rsquo;ve changed the night since we sorted it/u);
+    expect(pal).not.toContain("Optional by design");
+    expect(pal).not.toContain("Route before character");
+    expect(pal).toContain("Skip it if you like");
+    expect(pal).toContain("Nothing to talk about yet");
+  });
+});
+
+// Design judgement 2026-08-01, finding 2.12. DESIGN_SYSTEM.md retired tracked
+// all-caps labels: sentence case at ~0.01em, caps kept only for stamp chips
+// that read as a pressed mark. These are the eyebrow rules that broke it.
+describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
+  const EYEBROW_RULES: ReadonlyArray<readonly [string, readonly string[]]> = [
+    ["app/plan/plan.css", [
+      ".planPage__masthead",
+      ".planPage__eyebrow",
+      ".matchGroupPrefs__eyebrow",
+      ".planIntake__eyebrow",
+      ".planComposer__coverageGroups h3",
+      ".planComposer__stops legend",
+      ".invitePreview__detail dt",
+    ]],
+    ["app/tonight/tonight.css", [
+      ".tonightEyebrow",
+      ".tonightVibesLede",
+      ".tonightRowKind",
+    ]],
+    ["app/pal/pal.css", [".palEyebrow", ".palMemoryList__meta span"]],
+    ["components/pal/palChat.css", [".palChatEyebrow", ".palGlanceLabel"]],
+    ["components/emptyState.css", [".emptyStateEyebrow"]],
+    ["components/landing/landing.css", [".lpSectionLabel", ".thamesHeroPinCat"]],
+    ["components/landing/nightSignals.css", [".nsKicker"]],
+    ["components/plan/nightCrawl.css", [
+      ".nightCrawl__kicker",
+      ".nightCrawl__eyebrow",
+      ".nightCrawl__crewLabel",
+      ".nightCrawl__enterKicker",
+    ]],
+  ];
+
+  it.each(EYEBROW_RULES)("keeps %s eyebrows out of uppercase", (path, selectors) => {
+    const css = read(path);
+    for (const selector of selectors) {
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+      const rule = new RegExp(`${escaped}\\s*(?:,[^{]*)?\\{([^}]*)\\}`, "u");
+      const match = rule.exec(css);
+      expect(match, `${selector} not found in ${path}`).not.toBeNull();
+      // Wide tracking existed only to make caps legible. Both go together, so
+      // a rule that drops the caps and keeps 0.13em is still the retired look.
+      expect(match![1]).not.toContain("text-transform: uppercase");
+      expect(match![1]).not.toMatch(/letter-spacing:\s*0?\.(?:0[2-9]|[1-9])/u);
+    }
+  });
+});
