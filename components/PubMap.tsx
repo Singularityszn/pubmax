@@ -179,10 +179,7 @@ import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
-import {
-  useMapSelectionHistory,
-  type MapSelectionHistoryApi,
-} from "@/components/map/pubmap/useMapSelectionHistory";
+import { useMapSelectionHistory } from "@/components/map/pubmap/useMapSelectionHistory";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
@@ -623,19 +620,6 @@ export default function PubMap({
   const [pendingVenueAfterPlanner, setPendingVenueAfterPlanner] = useState<
     string | null
   >(null);
-  const [desktopDrawerHandoff, setDesktopDrawerHandoff] = useState<
-    "selection-history" | "surface-trail" | null
-  >(null);
-  const releaseSelectionForDrawerRef = useRef<
-    MapSelectionHistoryApi["releaseSelection"]
-  >((onSettled) => {
-    onSettled();
-    return false;
-  });
-  const cancelSelectionReleaseRef = useRef<
-    MapSelectionHistoryApi["cancelRelease"]
-  >(() => {});
-  const holdSurfaceHistoryPopRef = useRef<() => void>(() => {});
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
@@ -992,43 +976,28 @@ export default function PubMap({
   }, [closePlanning]);
 
   const claimMapDrawer = useCallback(
-    (owner: "planner" | "venue", onAcquired?: () => void) => {
+    (owner: "planner" | "venue") => {
       if (owner === "planner") {
         setPendingVenueAfterPlanner(null);
-        if (!isMobileViewport() && selectedVenueId) {
-          setDesktopDrawerHandoff("selection-history");
-          const traversingHistory = releaseSelectionForDrawerRef.current(() => {
-            setSelectedVenueId("");
-            setDesktopDrawerHandoff("surface-trail");
-            onAcquired?.();
-          });
-          if (traversingHistory) holdSurfaceHistoryPopRef.current();
-          return;
-        }
-        setDesktopDrawerHandoff(null);
         setSelectedVenueId("");
-        onAcquired?.();
       } else {
-        cancelSelectionReleaseRef.current();
-        setDesktopDrawerHandoff(null);
         closePlanning();
       }
     },
-    [closePlanning, selectedVenueId, setSelectedVenueId],
+    [closePlanning, setSelectedVenueId],
   );
 
   const openPlanning = useCallback(() => {
-    claimMapDrawer("planner", () => {
-      if (isMobileViewport()) {
-        closeComposer();
-        setSheetSnap("half");
-        setSheetDragY(null);
-      }
-      setMapOverlay("none");
-      setPlanningOpen(true);
-      setPlannerSheetSnap("half");
-      setPlannerSheetDragY(null);
-    });
+    claimMapDrawer("planner");
+    if (isMobileViewport()) {
+      closeComposer();
+      setSheetSnap("half");
+      setSheetDragY(null);
+    }
+    setMapOverlay("none");
+    setPlanningOpen(true);
+    setPlannerSheetSnap("half");
+    setPlannerSheetDragY(null);
   }, [
     claimMapDrawer,
     closeComposer,
@@ -1696,17 +1665,7 @@ export default function PubMap({
   // sheet. Owns the `sel` history entry; every close path funnels through the
   // selectedVenueId transition, so this single call covers button, Escape, and
   // fling dismissals as well as browser Back.
-  const mapSelectionHistory = useMapSelectionHistory({
-    arrivalSearch,
-    selectedVenueId,
-    selectionHint,
-    onBackClose: dismissSheet,
-  });
-  useLayoutEffect(() => {
-    releaseSelectionForDrawerRef.current =
-      mapSelectionHistory.releaseSelection;
-    cancelSelectionReleaseRef.current = mapSelectionHistory.cancelRelease;
-  }, [mapSelectionHistory.cancelRelease, mapSelectionHistory.releaseSelection]);
+  useMapSelectionHistory({ arrivalSearch, selectedVenueId, selectionHint, onBackClose: dismissSheet });
 
   // W3 cheap-round / vertical deep links: /map?src=whats-on-deal opens the
   // Tonight lane already filtered to that kind (exact allowlisted tokens only).
@@ -2638,7 +2597,6 @@ export default function PubMap({
     layersTab: mobileLayersTab,
   };
   const closeEverySurface = useCallback(() => {
-    cancelSelectionReleaseRef.current();
     clearAreaSheetTimer();
     setSearchAreaTarget(null);
     clearLogIntent();
@@ -2647,7 +2605,6 @@ export default function PubMap({
     setSelectedVenueId("");
     setPlanningOpen(false);
     setPendingVenueAfterPlanner(null);
-    setDesktopDrawerHandoff(null);
     setMapListOpen(false);
   }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen, setSelectedVenueId]);
   const restoreMapSurface = useCallback(
@@ -2694,27 +2651,7 @@ export default function PubMap({
   });
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
-    holdSurfaceHistoryPopRef.current =
-      mapSurfaceTrail.holdThroughNextHistoryPop;
-  }, [
-    mapSurfaceTrail.back,
-    mapSurfaceTrail.holdThroughNextHistoryPop,
-  ]);
-  useEffect(() => {
-    if (
-      desktopDrawerHandoff !== "surface-trail" ||
-      mapSurfaceTrail.currentSurfaceId !== "planner"
-    ) {
-      return;
-    }
-    let active = true;
-    queueMicrotask(() => {
-      if (active) setDesktopDrawerHandoff(null);
-    });
-    return () => {
-      active = false;
-    };
-  }, [desktopDrawerHandoff, mapSurfaceTrail.currentSurfaceId]);
+  }, [mapSurfaceTrail.back]);
   useEffect(() => {
     if (
       !pendingVenueAfterPlanner ||
@@ -2724,19 +2661,6 @@ export default function PubMap({
     }
     selectVenue(pendingVenueAfterPlanner);
   }, [mapSurfaceTrail.currentSurfaceId, pendingVenueAfterPlanner, selectVenue]);
-  const desktopDrawerOwner = desktopDrawerHandoff
-    ? "planner"
-    : detailOpen
-      ? "venue"
-      : planningOpen
-        ? "planner"
-        : "none";
-  const desktopDrawerHandoffState =
-    desktopDrawerHandoff ??
-    (desktopDrawerOwner === "none" ||
-    mapSurfaceTrail.currentSurfaceId === desktopDrawerOwner
-      ? "settled"
-      : "surface-trail");
 
   useEffect(() => {
     // An uncovered-place arrival is a one-off destination, not a city session:
@@ -3080,12 +3004,6 @@ export default function PubMap({
 
   return (
     <main
-      data-desktop-drawer-owner={
-        mobileViewport ? undefined : desktopDrawerOwner
-      }
-      data-desktop-drawer-handoff={
-        mobileViewport ? undefined : desktopDrawerHandoffState
-      }
       className={
         // The `sheet-full` marker only ever matters ≤640px (mapToolbar.css
         // gates every rule that reads it behind that same breakpoint) — it

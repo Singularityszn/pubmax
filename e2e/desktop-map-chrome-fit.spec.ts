@@ -12,6 +12,7 @@ const EXPECTED_PLANNER_RAIL_WIDTHS: Record<
   1600: 376,
 };
 const EDGE_GUTTER = 16;
+const SUBPIXEL_TOLERANCE = 0.5;
 const CAPTURE_DRAWER_EXCHANGE =
   process.env.PUBMAX_CAPTURE_DESKTOP_EXCHANGE === "1";
 
@@ -64,18 +65,6 @@ async function toolbarPubOption(page: Page, query: string, name: RegExp) {
 async function selectToolbarPub(page: Page, query: string, name: RegExp) {
   const option = await toolbarPubOption(page, query, name);
   await option.click();
-}
-
-async function expectSettledDesktopDrawer(
-  page: Page,
-  owner: "planner" | "venue",
-) {
-  const shell = page.locator(".appShell");
-  await expect(shell).toHaveAttribute("data-desktop-drawer-owner", owner);
-  await expect(shell).toHaveAttribute(
-    "data-desktop-drawer-handoff",
-    "settled",
-  );
 }
 
 async function indexedToolbarPubOption(
@@ -289,7 +278,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   ]);
   expect(venueOpen.x).toBeCloseTo(800, 0);
   expect(toolbarOpen.x + toolbarOpen.width).toBeLessThanOrEqual(
-    venueOpen.x - EDGE_GUTTER,
+    venueOpen.x - EDGE_GUTTER + SUBPIXEL_TOLERANCE,
   );
   expect(toolbarMid.x).toBeLessThan(toolbarBeforeOwnershipChange.x);
   expect(toolbarMid.x).toBeGreaterThan(toolbarOpen.x);
@@ -342,7 +331,6 @@ test("1440px Plan tonight takes ownership from an open venue", async ({
     .getByRole("button", { name: "Plan tonight" })
     .evaluate((button) => (button as HTMLElement).click());
 
-  await expectSettledDesktopDrawer(page, "planner");
   await expect(planner).toHaveAttribute("aria-hidden", "false");
   await expect(venue).toHaveAttribute("aria-hidden", "true");
   await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
@@ -399,7 +387,6 @@ test("1440px loaded route records planner before opening its first venue", async
 
   await backToPlanner.click();
 
-  await expectSettledDesktopDrawer(page, "planner");
   await expect(planner).toHaveAttribute("aria-hidden", "false");
   await expect(venue).toHaveAttribute("aria-hidden", "true");
   await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
@@ -407,37 +394,6 @@ test("1440px loaded route records planner before opening its first venue", async
     planner.getByRole("heading", { name: "Victorian Soho" }),
   ).toBeVisible();
   await expect(planner.locator("ol.routeList > li")).toHaveCount(5);
-});
-
-test("1440px early Back cannot overtake venue-to-planner settlement", async ({
-  page,
-}) => {
-  await prepareDesktopMap(page);
-  await stubCityStatus(page);
-
-  const response = await page.goto("/map?desktop-drawer-owner=early-back", {
-    waitUntil: "domcontentloaded",
-  });
-  expect(response?.status()).toBe(200);
-
-  const toolbar = page.locator(".mapToolbar");
-  const planner = page.locator(".mapDrawer.left.springDrawer");
-  const venue = page.locator(".mapDrawer.right.springDrawer");
-  await expect(toolbar).toBeVisible({ timeout: 20_000 });
-  await selectToolbarPub(page, "The French House", /The French House/);
-  await expectSettledDesktopDrawer(page, "venue");
-
-  await toolbar
-    .getByRole("button", { name: "Plan tonight" })
-    .evaluate((button) => {
-      (button as HTMLElement).click();
-      window.history.back();
-    });
-
-  await expectSettledDesktopDrawer(page, "planner");
-  await expect(planner).toHaveAttribute("aria-hidden", "false");
-  await expect(venue).toHaveAttribute("aria-hidden", "true");
-  await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
 });
 
 test("1440px reduced motion swaps desktop drawer ownership immediately", async ({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 import {
   browseSelectionUrl,
@@ -52,23 +52,17 @@ type MapSelectionHistoryArgs = {
   onBackClose: () => void;
 };
 
-export type MapSelectionHistoryApi = {
-  releaseSelection: (onSettled: () => void) => boolean;
-  cancelRelease: () => void;
-};
-
 export function useMapSelectionHistory({
   arrivalSearch,
   selectedVenueId,
   selectionHint = "",
   onBackClose,
-}: MapSelectionHistoryArgs): MapSelectionHistoryApi {
+}: MapSelectionHistoryArgs): void {
   // The last selectedVenueId we reconciled into history. Seeded by the arrival
   // effect so the first transition run is a no-op for a seeded selection.
   const prevRef = useRef<string>("");
   const checkpointedRef = useRef(false);
   const pendingBackRef = useRef(false);
-  const releaseSettledRef = useRef<(() => void) | null>(null);
   const onBackCloseRef = useRef(onBackClose);
   const selectedVenueIdRef = useRef(selectedVenueId);
   const selectionHintRef = useRef(selectionHint);
@@ -77,38 +71,6 @@ export function useMapSelectionHistory({
     selectedVenueIdRef.current = selectedVenueId;
     selectionHintRef.current = selectionHint;
   }, [onBackClose, selectedVenueId, selectionHint]);
-
-  const releaseSelection = useCallback((onSettled: () => void) => {
-    if (typeof window === "undefined") {
-      onSettled();
-      return false;
-    }
-    if (pendingBackRef.current) {
-      releaseSettledRef.current = onSettled;
-      return false;
-    }
-
-    const { pathname, search, hash } = window.location;
-    prevRef.current = "";
-    if (selectionSentinelVenueId(window.history.state) !== null) {
-      releaseSettledRef.current = onSettled;
-      pendingBackRef.current = true;
-      window.history.back();
-      return true;
-    }
-
-    window.history.replaceState(
-      window.history.state,
-      "",
-      cleanMapUrl(pathname, search, hash),
-    );
-    onSettled();
-    return false;
-  }, []);
-
-  const cancelRelease = useCallback(() => {
-    releaseSettledRef.current = null;
-  }, []);
 
   // 1) Arrival checkpoint — once, before useCrawlUrlSync's first (debounced)
   //    write. Empty deps: the frozen arrival is all this needs.
@@ -194,12 +156,6 @@ export function useMapSelectionHistory({
     const onPop = () => {
       if (pendingBackRef.current) {
         pendingBackRef.current = false;
-        const releaseSettled = releaseSettledRef.current;
-        releaseSettledRef.current = null;
-        if (releaseSettled) {
-          releaseSettled();
-          return;
-        }
         const queuedVenueId = selectedVenueIdRef.current;
         if (!queuedVenueId) return;
         const { pathname, search, hash } = window.location;
@@ -225,6 +181,4 @@ export function useMapSelectionHistory({
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
-
-  return { releaseSelection, cancelRelease };
 }
