@@ -122,18 +122,26 @@ export function useMapSurfaceTrail({
   // Keep the current surface's snapshot live, so Back restores what the reader
   // actually left rather than how the surface opened.
   useEffect(() => {
-    if (!current) return;
+    // Same guard as the title effect below: only the surface actually showing
+    // may write its state into the trail.
+    if (!current || current.id !== shown) return;
     if (sameState(recordedRef.current, surfaceState)) return;
     recordedRef.current = surfaceState;
     remember(surfaceState);
-  }, [current, remember, surfaceState]);
+  }, [current, remember, shown, surfaceState]);
 
   // A title that resolves late (a pub's name arriving with its detail) must
   // reach the entry, or Back would offer to return to "Pub detail".
+  //
+  // The id guard is load-bearing. For one render after a new surface opens,
+  // `current` is still the surface BELOW it while `surfaceTitle` already names
+  // the new one. Renaming on that render retitled the parent, and because
+  // openSurface treats a known id as a return it truncated the trail back to
+  // it — so the surface the reader had just opened lost its Back.
   useEffect(() => {
-    if (!current || current.title === surfaceTitle) return;
+    if (!current || current.id !== shown || current.title === surfaceTitle) return;
     open({ id: current.id, title: surfaceTitle, state: current.state ?? EMPTY_MAP_SURFACE_STATE });
-  }, [current, open, surfaceTitle]);
+  }, [current, open, shown, surfaceTitle]);
 
   const back = stack.back;
   const home = stack.home;

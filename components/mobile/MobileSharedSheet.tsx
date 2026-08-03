@@ -145,7 +145,13 @@ export default function MobileSharedSheet({
   };
 
   return createPortal(
-    <div className="mobileSheetPortal" data-sheet-kind={kind}>
+    <div
+      className="mobileSheetPortal"
+      data-sheet-kind={kind}
+      /* How deep the reader is. Present so a browser test can assert the trail
+         rather than infer it from which glyph happens to be drawn. */
+      data-surface-back={backLabel ?? ""}
+    >
       <button
         className="mobileSheetScrim"
         type="button"
