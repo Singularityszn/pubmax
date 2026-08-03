@@ -139,8 +139,12 @@ describe("UK place map arrival", () => {
 
     expect(pubMap).toContain("limitedCoverage={Boolean(ukPlaceArrival)}");
     expect(pubMap).toContain("ukPlaceArrival ? null : (");
+    // The arrival's own place name still wins the bar. What follows it is now
+    // the claim the VIEW earned (lib/areaButton.areaClaimedByViewport), which
+    // answers null for a view over no single area, so the city name is the
+    // fallback rather than the nearest area to the centre.
     expect(pubMap).toContain(
-      "cityLabel={ukPlaceArrival?.name ?? centreArea?.name ?? activeNightArea?.name ?? mapContextName}",
+      "cityLabel={ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName}",
     );
     expect(mobileShell).toContain("limitedCoverage: boolean;");
     expect(mobileShell).toContain("if (limitedCoverage)");

@@ -88,7 +88,7 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
   ).toHaveCount(0);
   await expect(
     sheet
-      .getByRole("group", { name: "Tonight arc venue types" })
+      .getByRole("group", { name: "Venue types" })
       .getByRole("button", { name: "Food", exact: true }),
   ).toBeVisible();
   await expect(filtersButton).toHaveAttribute(

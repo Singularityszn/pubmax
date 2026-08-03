@@ -61,9 +61,12 @@ export default function TonightArcChips({
         variant === "sheet" ? "tonightArcChips tonightArcChipsSheet" : "tonightArcChips"
       }
       role="group"
-      aria-label="Tonight arc venue types"
+      /* Reader words, not the component's name. "Tonight arc" is what this file
+         is called; it printed on the map and in the accessibility tree, which
+         docs/VOICE.md rule 2 bans. The chips name the venue types themselves,
+         so the group needs no title above them, only this accessible name. */
+      aria-label="Venue types"
     >
-      <span className="tonightArcLabel">Tonight arc</span>
       <div className="tonightArcRow">
         {chips.map((chip) => {
           const on = chip.kind === "club" ? false : visibility[chip.kind];
