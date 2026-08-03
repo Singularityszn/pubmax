@@ -458,6 +458,14 @@
      sheets, so NO --mobile-map-dock-clearance is reserved (that phantom band was
      the five-patch void). The only reserved bottom space is the safe-area inset,
      carried on the last element (footer for venue, body for the others). */
+  /* The sheet takes focus on open so assistive technology lands inside it, but
+     it is a container, not a control, so it never draws a focus ring of its
+     own. The controls inside keep theirs. */
+  .mobileSharedSheet.mapDrawer:focus,
+  .mobileSharedSheet.mapDrawer:focus-visible {
+    outline: none;
+  }
+
   .mobileSharedSheet.mapDrawer {
     --sheet-cap: 55dvh;
     display: flex;
@@ -520,7 +528,9 @@
      the circle as a plain outline, so it marks the button without building a
      second shape around it. */
   .mobileSharedSheetClose { grid-column: 3; }
-  .mobileSharedSheetClose:focus-visible { box-shadow: none; outline: 2px solid var(--color-accent); outline-offset: -3px; }
+  /* The radius is restated because the global :focus-visible rule sets
+     --radius-sm, which squared the circle the moment it took focus. */
+  .mobileSharedSheetClose:focus-visible { border-radius: var(--radius-pill); box-shadow: none; outline: 2px solid var(--color-accent); outline-offset: -3px; }
   .mobileSharedSheetBody {
     flex: 1 1 auto;
     min-height: 0;

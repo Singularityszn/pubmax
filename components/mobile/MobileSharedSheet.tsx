@@ -44,7 +44,6 @@ export default function MobileSharedSheet({
   children: React.ReactNode;
 }) {
   const titleId = useId();
-  const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const [footerEl, setFooterEl] = useState<HTMLElement | null>(null);
@@ -70,13 +69,20 @@ export default function MobileSharedSheet({
     requestDismiss(sheetRef.current?.getBoundingClientRect().height);
   }, [requestDismiss]);
 
-  // On open: capture focus origin, reset to the requested opening snap, focus
-  // the close button, and wire Escape-to-close.
+  // On open: capture focus origin, reset to the requested opening snap, move
+  // focus into the sheet, and wire Escape-to-close.
+  //
+  // Focus lands on the SHEET, not on its close button. Focusing the close
+  // button put a visible focus ring on Dismiss for every reader the instant the
+  // sheet opened, which is what made it the loudest object on the surface
+  // (design judgement 2026-08-01, finding 2.16). The sheet itself is the
+  // labelled dialog, so focusing it still moves assistive technology inside and
+  // still starts the tab order at the top.
   useEffect(() => {
     if (!kind) return;
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     openAtSnap(initialSnap);
-    const frame = requestAnimationFrame(() => closeRef.current?.focus());
+    const frame = requestAnimationFrame(() => sheetRef.current?.focus({ preventScroll: true }));
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") requestClose();
     };
@@ -130,6 +136,7 @@ export default function MobileSharedSheet({
         role={sheetSnap === "full" ? "dialog" : undefined}
         aria-modal={sheetSnap === "full" ? "true" : undefined}
         aria-labelledby={titleId}
+        tabIndex={-1}
         style={sectionStyle}
       >
         <header
@@ -160,7 +167,7 @@ export default function MobileSharedSheet({
               judgement 2026-08-01, finding 2.16). Dismiss is the quietest
               thing on a sheet, not the loudest. The keyboard focus ring stays;
               it is only ever drawn for keyboard users. */}
-          <IconButton ref={closeRef} variant="ghost" className="mobileSharedSheetClose" aria-label={closeButtonLabel} onClick={requestClose}>
+          <IconButton variant="ghost" className="mobileSharedSheetClose" aria-label={closeButtonLabel} onClick={requestClose}>
             <X size={18} />
           </IconButton>
         </header>
