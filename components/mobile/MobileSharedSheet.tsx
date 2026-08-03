@@ -153,7 +153,14 @@ export default function MobileSharedSheet({
             <span className="mobileSharedSheetGrab" aria-hidden="true" />
           </button>
           <h2 id={titleId}>{title}</h2>
-          <IconButton ref={closeRef} className="mobileSharedSheetClose" aria-label={closeButtonLabel} onClick={requestClose}>
+          {/* A plain circular ghost button. It used to be the `secondary`
+              variant, so it drew a bordered dark box, and the sheet focuses it
+              on open, which added the accent focus ring around that box - a
+              double-ringed bullseye louder than the venue's own name (design
+              judgement 2026-08-01, finding 2.16). Dismiss is the quietest
+              thing on a sheet, not the loudest. The keyboard focus ring stays;
+              it is only ever drawn for keyboard users. */}
+          <IconButton ref={closeRef} variant="ghost" className="mobileSharedSheetClose" aria-label={closeButtonLabel} onClick={requestClose}>
             <X size={18} />
           </IconButton>
         </header>

@@ -652,7 +652,13 @@
   .mobileVenuePeekSummary button { min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--radius); background: var(--color-accent); color: var(--color-on-accent-strong); font: inherit; font-size: var(--text-sm); font-weight: 800; }
   /* Empty-price cell doubles as the drop CTA: a quiet accent-tinted button that
      keeps the price column's stacked look but reads as tappable. */
-  .mobileVenuePeekSummary .mobileVenuePeekDrop { min-width: 0; display: grid; gap: 2px; justify-items: start; align-content: center; min-height: 44px; padding: 6px 10px; text-align: left; border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-border)); border-radius: var(--radius); background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface)); color: inherit; font: inherit; }
+  /* Three cells, ONE idiom. "No price yet." used to sit in a bordered, tinted
+     mono box beside a plain "Near me / for walk time" cell and a filled CTA -
+     three visual languages in one row, and the box shouted loudest about the
+     thing the pub does NOT have (design judgement 2026-08-01, finding 2.16).
+     It now reads exactly like its neighbour cell; the coral stays on the
+     "Be the first" line, which is the invitation. */
+  .mobileVenuePeekSummary .mobileVenuePeekDrop { min-width: 0; display: grid; gap: 2px; justify-items: start; align-content: center; min-height: 44px; padding: 6px 0; text-align: left; border: 0; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; }
   .mobileVenuePeekSummary .mobileVenuePeekDrop strong { white-space: normal; font-size: var(--text-base); line-height: 1.05; }
   .mobileVenuePeekSummary .mobileVenuePeekDrop small { color: var(--color-accent); font-weight: 700; }
 }
