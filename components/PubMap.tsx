@@ -1477,7 +1477,10 @@ export default function PubMap({
     return map;
   }, [venues]);
 
-  // Keep the URL in sync so "Copy link" shares the current crawl.
+  // Keep the URL in sync so "Copy link" shares the current crawl. A restored
+  // session is held back from the address bar until the reader changes
+  // something: they typed a clean /map, and that address wins over stored
+  // state. Restoring the map itself is untouched.
   useCrawlUrlSync(
     useMemo(
       () => ({
@@ -1501,6 +1504,7 @@ export default function PubMap({
         activeCrawl?.id,
       ],
     ),
+    restoredMobileSession !== null,
   );
 
   // Load the venue's community Pint Drops whenever the inspected venue changes.
