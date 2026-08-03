@@ -3266,6 +3266,10 @@ export default function PubMap({
           onSelectVenue={selectVenue}
           onSelectUkBasePub={handleUkBasePubClick}
           onPrefetchVenue={prefetchVenueDetail}
+          backLabel={mapListOpen && mapSurfaceId === "venue-list" ? mapSurfaceTrail.backLabel : null}
+          onBack={mapSurfaceTrail.back}
+          onHome={mapSurfaceTrail.home}
+          homeTitle={`the ${mapDisplayName} map`}
         />
 
         {mobileShellReady ? (

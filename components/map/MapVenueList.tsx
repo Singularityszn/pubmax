@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef } from "react";
-import { List, MapPin, X } from "lucide-react";
+import { List, MapPin } from "lucide-react";
 
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 import type { MapVenueListModel, UkBasePubListModel } from "@/lib/mapVenueList";
 import type { UkBasePub } from "@/lib/ukBasePubs";
+import SurfaceNav from "@/components/ui/surface-nav";
+import { homeActionLabel } from "@/lib/surfaceStack";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import "./mapVenueList.css";
@@ -29,6 +31,10 @@ export default function MapVenueList({
   onSelectVenue,
   onSelectUkBasePub,
   onPrefetchVenue,
+  backLabel = null,
+  onBack,
+  onHome,
+  homeTitle = "the map",
 }: {
   model: MapVenueListModel;
   ukBaseModel: UkBasePubListModel;
@@ -39,6 +45,11 @@ export default function MapVenueList({
   onSelectVenue: (id: string) => void;
   onSelectUkBasePub: (pub: UkBasePub) => void;
   onPrefetchVenue: (id: string) => void;
+  /** The way out, shared with every other surface. See MobileSharedSheet. */
+  backLabel?: string | null;
+  onBack?: () => void;
+  onHome?: () => void;
+  homeTitle?: string;
 }) {
   const panelId = useId();
   const total = model.total + ukBaseModel.total;
@@ -91,15 +102,13 @@ export default function MapVenueList({
                       : `${total} venue${total === 1 ? "" : "s"}`}
               </span>
             </div>
-            <button
-              ref={closeButtonRef}
-              type="button"
-              className="mapVenueListClose"
-              aria-label="Close venue list"
-              onClick={closeList}
-            >
-              <X size={18} aria-hidden="true" />
-            </button>
+            <SurfaceNav
+              backLabel={backLabel}
+              onBack={onBack}
+              homeLabel={backLabel ? homeActionLabel(homeTitle) : "Close venue list"}
+              onHome={onHome ?? closeList}
+              closeRef={closeButtonRef}
+            />
           </header>
 
           {model.coverageNote ? (
