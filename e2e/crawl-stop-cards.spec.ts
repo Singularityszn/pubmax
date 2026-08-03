@@ -14,7 +14,12 @@ import { test, expect, type Page } from "@playwright/test";
 
 const QUEENS_HEAD_ACTON_ST = "venue-1u82rds";
 const QUEENS_HEAD_THEOBALDS_RD = "venue-b85at0";
-const SEEDED_PUBS = `${QUEENS_HEAD_ACTON_ST},${QUEENS_HEAD_THEOBALDS_RD}`;
+const FRIEND_AT_HAND = "venue-yl1a48";
+// Three stops, so a middle card carries both a leg of its own and a journey.
+// With two stops the off-by-one hid itself: the only leg sat on card 1 while the
+// only journey was keyed to card 2, which has no leg block to print it in.
+const SEEDED_PUBS = [QUEENS_HEAD_ACTON_ST, QUEENS_HEAD_THEOBALDS_RD, FRIEND_AT_HAND].join(",");
+const SEEDED_STOP_COUNT = 3;
 
 async function mockJourney(page: Page, modes: string[], minutes: number): Promise<void> {
   await page.route("**/api/citymcp/journey**", (route) =>
@@ -48,7 +53,9 @@ async function openSeededCrawl(page: Page) {
   const routePanel = page.locator(".routePanel");
   await expect(routePanel).toBeVisible({ timeout: 45_000 });
   const stops = routePanel.locator("ol.routeList > li");
-  await expect.poll(async () => await stops.count(), { timeout: 20_000 }).toBe(2);
+  await expect
+    .poll(async () => await stops.count(), { timeout: 20_000 })
+    .toBe(SEEDED_STOP_COUNT);
   return { routePanel, stops };
 }
 
@@ -58,15 +65,19 @@ test.describe("crawl stop cards (D7)", () => {
     await mockJourney(page, ["walking"], 5);
     const { stops } = await openSeededCrawl(page);
 
-    const names = await stops.locator("strong").allInnerTexts();
-    expect(names[0].trim()).toBe(names[1].trim());
+    // The name's own text node — the heading also carries a Pint Drop count chip.
+    const names = await stops
+      .locator("strong")
+      .evaluateAll((nodes) => nodes.map((node) => (node.childNodes[0]?.textContent ?? "").trim()));
+    expect(names[0]).toBe(names[1]);
+    expect(names[0]).toBe("The Queens Head");
 
     const places = (await stops.locator("small").allInnerTexts()).map((text) => text.trim());
-    expect(places).toHaveLength(2);
+    expect(places).toHaveLength(SEEDED_STOP_COUNT);
     expect(places[0]).not.toBe(places[1]);
     // The area alone cannot separate them, so the street joins it — cased like
     // the place name it is, not like the search key it was recovered from.
-    for (const place of places) {
+    for (const place of places.slice(0, 2)) {
       expect(place).toContain("Camden");
       expect(place).toMatch(/^[A-Z]/);
     }
@@ -77,13 +88,16 @@ test.describe("crawl stop cards (D7)", () => {
     await mockJourney(page, ["walking"], 5);
     const { routePanel } = await openSeededCrawl(page);
 
+    // A route of N stops carries N-1 legs (lib/routeLegs.buildRouteLegs).
     const legs = routePanel.locator(".routeLeg");
-    await expect(legs).toHaveCount(1);
-    await expect(legs.first()).toContainText(/\d+\s*min\s*walk/);
+    await expect(legs).toHaveCount(SEEDED_STOP_COUNT - 1);
     await expect(routePanel.locator(".routeLegTransit")).toHaveCount(0);
 
-    const walkTimes = (await legs.first().innerText()).match(/\d+\s*min/g) ?? [];
-    expect(walkTimes).toHaveLength(1);
+    // Every card states one time, and states it once.
+    for (const text of await legs.allInnerTexts()) {
+      expect(text).toMatch(/\d+\s*min\s*walk/);
+      expect(text.match(/\d+\s*min/g) ?? []).toHaveLength(1);
+    }
   });
 
   test("a journey that uses transit still earns its own line", async ({ page }) => {
@@ -91,8 +105,9 @@ test.describe("crawl stop cards (D7)", () => {
     await mockJourney(page, ["walking", "bus", "walking"], 16);
     const { routePanel } = await openSeededCrawl(page);
 
+    // One per leg, each on the card whose own leg it measures.
     const transit = routePanel.locator(".routeLegTransit");
-    await expect(transit).toHaveCount(1);
+    await expect(transit).toHaveCount(SEEDED_STOP_COUNT - 1);
     await expect(transit.first()).toContainText("bus");
   });
 });

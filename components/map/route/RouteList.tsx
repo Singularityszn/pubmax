@@ -51,10 +51,15 @@ export default function RouteList({
         const dropCount = signal?.dropCount ?? 0;
         const leg = legSummary.legs[index];
         const onTheWay = onTheWayByLeg.get(index) ?? [];
+        // The card prints the leg FROM this stop, so its journey is keyed by the
+        // stop that leg arrives at. Reading key `index` gave the card the
+        // PREVIOUS leg's journey, and gave the first card none at all, so the
+        // two times under one card were two different legs.
+        //
         // The card already prints this leg's walk time. A walk-only TfL journey
         // is that same leg measured twice, so only a journey that uses another
         // mode earns a second line.
-        const journey = journeyByToIndex?.get(index);
+        const journey = journeyByToIndex?.get(index + 1);
         const transitJourney = journey && journeyAddsTransit(journey.modes) ? journey : null;
         return (
         <li key={venue.id} className={activeVenueId === venue.id ? "active" : ""}>
