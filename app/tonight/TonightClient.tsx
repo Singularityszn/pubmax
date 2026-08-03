@@ -288,7 +288,11 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
         </p>
         {ready || empty ? (
           <>
-            <p className="tonightProvenance">
+            {/* Both lines are named, so a browser test can ask which line it is
+                looking at instead of matching the sentence inside it. This
+                header's wording has been rewritten twice and took the specs
+                that read it down both times. */}
+            <p className="tonightProvenance" data-tonight-provenance="coverage" data-tonight-dated={checked ? "yes" : "no"}>
               {coverageLabel(rows.length)}
               <span aria-hidden="true"> · </span>
               {/* One template literal so the separator spacing survives JSX
@@ -302,7 +306,7 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
                 : null}
             </p>
             {checked ? null : (
-              <p className="tonightProvenance">{UNDATED_SOURCE_LINE}</p>
+              <p className="tonightProvenance" data-tonight-provenance="undated">{UNDATED_SOURCE_LINE}</p>
             )}
           </>
         ) : null}

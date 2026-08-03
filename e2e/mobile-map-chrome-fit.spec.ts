@@ -445,7 +445,10 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
   ).toHaveAttribute("aria-pressed", "true");
   await page.waitForTimeout(500);
 
-  const closeFilters = filtersSheet.locator(".mobileSharedSheetClose");
+  // The sheet's way out is SurfaceNav's Home control now
+  // (components/ui/surface-nav.tsx); the bespoke close button it replaced is
+  // gone, and so is the class this used to tap.
+  const closeFilters = filtersSheet.locator(".surfaceNavHome");
   await tapRenderedCentre(
     page,
     closeFilters,

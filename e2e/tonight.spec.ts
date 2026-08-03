@@ -70,7 +70,10 @@ test("unknown source freshness never displays request time as checked", async ({
   );
 
   await page.goto("/tonight");
-  await expect(page.getByText(/Freshness unknown · via what’s-on/i)).toBeVisible();
+  // The source cannot be dated, so the chain carries no dated segment and the
+  // plain sentence prints under it. Anchored on the line, not on its wording.
+  await expect(page.locator('[data-tonight-provenance="coverage"]')).toHaveAttribute("data-tonight-dated", "no");
+  await expect(page.locator('[data-tonight-provenance="undated"]')).toBeVisible();
   await expect(page.getByText(/Checked 15 Jul/i)).toHaveCount(0);
 });
 

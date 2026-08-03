@@ -531,17 +531,9 @@
   .mobileSharedSheetDetent:active .mobileSharedSheetGrab,
   .mobileSharedSheet.sheet-dragging .mobileSharedSheetGrab { background: color-mix(in srgb, var(--color-accent) 68%, var(--color-border)); }
   .mobileSharedSheetDetent:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -6px; border-radius: var(--radius); }
-  /* Plain 44px circular ghost. The sheet focuses this on open, and the shared
-     button ring is an OFFSET ring, so the offset painted a solid square in the
-     surface colour behind a coral ring: a bordered dark box inside a coral
-     ring, a double-ringed bullseye louder than the venue's own name (design
-     judgement 2026-08-01, finding 2.16). The keyboard cue stays, drawn INSIDE
-     the circle as a plain outline, so it marks the button without building a
-     second shape around it. */
-  .mobileSharedSheetClose { grid-column: 3; }
-  /* The radius is restated because the global :focus-visible rule sets
-     --radius-sm, which squared the circle the moment it took focus. */
-  .mobileSharedSheetClose:focus-visible { border-radius: var(--radius-pill); box-shadow: none; outline: 2px solid var(--color-accent); outline-offset: -3px; }
+  /* The sheet's way out is SurfaceNav now (components/ui/surfaceNav.css), which
+     places itself in this grid and owns its own quiet resting state and focus
+     ring. The bespoke close button that used to sit here is gone. */
   .mobileSharedSheetBody {
     flex: 1 1 auto;
     min-height: 0;
