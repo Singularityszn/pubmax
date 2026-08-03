@@ -206,6 +206,9 @@
   display: none;
 }
 
+/* De-box (design judgement 2026-08-01, finding 2.4): a drink category is a
+   glyph and a label, not a container. No border at rest; selection is the fill.
+   Six identical 1px boxes ranked nothing against each other. */
 .drinkShapeChip {
   flex: 0 0 auto;
   display: inline-flex;
@@ -214,8 +217,8 @@
   min-height: 34px;
   padding: 3px 9px 3px 6px;
   border-radius: var(--control-radius, 14px);
-  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
-  background: color-mix(in srgb, var(--panel-raised) 88%, transparent);
+  border: 0;
+  background: transparent;
   color: var(--ink-soft);
   font-size: 0.75rem;
   font-weight: 700;
@@ -236,21 +239,22 @@
 
 .drinkShapeChip:hover,
 .drinkShapeChip:focus-visible {
-  border-color: var(--brass);
   color: var(--ink);
-  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+  background: color-mix(in srgb, var(--brass) 9%, transparent);
 }
 
 .drinkShapeChip:focus-visible {
   outline: 2px solid var(--brass);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
+/* Selection is the raised fill. Coral belongs to the primary CTA and the
+   selected pin ring (DESIGN.md, The One Accent Rule), never to a filter chip. */
 .drinkShapeChip.isOn {
-  border-color: var(--brass);
-  background: linear-gradient(135deg, var(--brass), var(--brass-bright));
-  color: var(--color-on-accent);
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--brass) 28%, transparent);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-weight: 800;
+  box-shadow: var(--shadow-sm);
 }
 
 .drinkShapeChip > svg {

@@ -150,7 +150,12 @@ export default function DrinkShapeChips({
               aria-label={`${CATEGORY_META[cat].label}${on ? " (selected)" : ""}`}
               onClick={() => onFiltersChange(nextDrinkShapeFilters(filters, cat))}
             >
-              <DrinkGlyph category={cat} size={22} inheritColor={on} />
+              {/* The glyph keeps its own drink colour in BOTH states now that
+                  selection is a neutral fill, not a coral one. Inheriting the
+                  label colour on selection dropped the chosen drink to
+                  monochrome while the five unchosen ones stayed in colour,
+                  which read backwards. */}
+              <DrinkGlyph category={cat} size={22} />
               <span className="drinkShapeChipLabel">{categoryLabel(cat)}</span>
             </button>
           );

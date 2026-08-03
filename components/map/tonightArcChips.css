@@ -150,6 +150,58 @@
   flex-wrap: wrap;
 }
 
+/* In the sheet this is a section header, so it is sentence case and matches the
+   others. Uppercase is reserved for stamps (docs/DESIGN_SYSTEM.md); the
+   float-over-map variant keeps its caps micro-label, which IS a stamp. */
+.tonightArcChipsSheet .tonightArcLabel {
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+  text-transform: none;
+}
+
 .tonightArcChipsSheet .tonightArcChip {
   min-height: 44px;
+}
+
+/* De-box (design judgement 2026-08-01, finding 2.4): in the sheet these five
+   drew five hard pills, and the SELECTED ones drew the loudest edge of the lot
+   (--ink-soft is near-white in dark). Borders are for inputs; a toggle's
+   selection is its fill. Off = no fill, muted label. On = the raised fill, the
+   tick, and the weight. The float-over-map variant above keeps its edges: out
+   there a chip has no panel behind it to sit on. */
+.tonightArcChipsSheet .tonightArcChip {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  transition:
+    background-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out);
+}
+
+.tonightArcChipsSheet .tonightArcChip:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brass) 9%, transparent);
+}
+
+.tonightArcChipsSheet .tonightArcChip.isOn {
+  border: 0;
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.tonightArcChipsSheet .tonightArcChip[aria-disabled="true"] {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tonightArcChipsSheet .tonightArcChip {
+    transition: none;
+  }
 }
