@@ -52,11 +52,15 @@ for (const vp of VIEWPORTS) {
         await page.waitForTimeout(1500);
         await shot(page, `${tag}-3-third-surface`);
       } else {
+        // Desktop: the planner is the left drawer and the venue the right, so
+        // the deep stack is List view then a pub over it.
+        await page.locator(".surfaceNavHome").first().click();
+        await page.waitForTimeout(600);
         await page.getByRole("button", { name: "List view", exact: false }).first().click();
-        await page.waitForTimeout(900);
+        await page.waitForTimeout(1200);
         await shot(page, `${tag}-2-second-surface`);
         await page.locator(".mapVenueListItem").first().click();
-        await page.waitForTimeout(1500);
+        await page.waitForTimeout(2000);
         await shot(page, `${tag}-3-third-surface`);
       }
 
