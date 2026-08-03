@@ -75,13 +75,13 @@
   width: 100%;
 }
 
+/* Sentence case: uppercase is reserved for stamps (docs/DESIGN_SYSTEM.md). */
 .zonePickerInlineLabel {
   margin: 0;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ink-soft);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+  color: var(--ink);
 }
 
 .zoneChips {
@@ -130,6 +130,57 @@
   border-color: var(--state-active-border);
   background: var(--state-active-surface);
   color: var(--state-active-ink);
+}
+
+/* ── De-box: the MAP picker's zones are one segmented control ────────────────
+   Design judgement 2026-08-01, finding 2.4. Seven bordered squares read as
+   seven separate things; seven fare zones are ONE choice. Inside the picker
+   the group wears a single edge, the segments are divided by interior
+   hairlines, and selection is carried by the fill. Scoped to `.zonePicker` on
+   purpose: the /pubs gallery reuses the base chip idiom above and is not in
+   this lane's scope. */
+.zonePicker .zoneChips {
+  flex-wrap: nowrap;
+  gap: 0;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
+.zonePicker .zoneChip {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 6px;
+  border: 0;
+  border-left: 1px solid var(--line-soft);
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  transition:
+    background-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out);
+}
+
+.zonePicker .zoneChip:first-child {
+  border-left: 0;
+}
+
+.zonePicker .zoneChip:hover,
+.zonePicker .zoneChip:focus-visible {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent-action) 9%, transparent);
+}
+
+.zonePicker .zoneChip:focus-visible {
+  outline-offset: -2px;
+}
+
+.zonePicker .zoneChip.isOn {
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-weight: 800;
 }
 
 @media (prefers-reduced-motion: reduce) {

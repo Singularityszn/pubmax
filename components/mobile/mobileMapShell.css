@@ -458,6 +458,14 @@
      sheets, so NO --mobile-map-dock-clearance is reserved (that phantom band was
      the five-patch void). The only reserved bottom space is the safe-area inset,
      carried on the last element (footer for venue, body for the others). */
+  /* The sheet takes focus on open so assistive technology lands inside it, but
+     it is a container, not a control, so it never draws a focus ring of its
+     own. The controls inside keep theirs. */
+  .mobileSharedSheet.mapDrawer:focus,
+  .mobileSharedSheet.mapDrawer:focus-visible {
+    outline: none;
+  }
+
   .mobileSharedSheet.mapDrawer {
     --sheet-cap: 55dvh;
     display: flex;
@@ -513,7 +521,17 @@
   .mobileSharedSheetDetent:active .mobileSharedSheetGrab,
   .mobileSharedSheet.sheet-dragging .mobileSharedSheetGrab { background: color-mix(in srgb, var(--color-accent) 68%, var(--color-border)); }
   .mobileSharedSheetDetent:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -6px; border-radius: var(--radius); }
+  /* Plain 44px circular ghost. The sheet focuses this on open, and the shared
+     button ring is an OFFSET ring, so the offset painted a solid square in the
+     surface colour behind a coral ring: a bordered dark box inside a coral
+     ring, a double-ringed bullseye louder than the venue's own name (design
+     judgement 2026-08-01, finding 2.16). The keyboard cue stays, drawn INSIDE
+     the circle as a plain outline, so it marks the button without building a
+     second shape around it. */
   .mobileSharedSheetClose { grid-column: 3; }
+  /* The radius is restated because the global :focus-visible rule sets
+     --radius-sm, which squared the circle the moment it took focus. */
+  .mobileSharedSheetClose:focus-visible { border-radius: var(--radius-pill); box-shadow: none; outline: 2px solid var(--color-accent); outline-offset: -3px; }
   .mobileSharedSheetBody {
     flex: 1 1 auto;
     min-height: 0;
@@ -578,12 +596,24 @@
      would read as a peer of the category choice rather than a child of it. */
   .mobileMapFilters .drinkSubtypeChips { flex-wrap: wrap; overflow-x: visible; }
   .mobileMapFilters .drinkSubtypeChip { min-height: 44px; }
+  /* These two keep their edge on purpose: each wraps a <select>, and under the
+     de-box rule a border is what an INPUT gets (finding 2.4). They are the only
+     two borders the sheet is meant to have. */
   .mobileMapFilters .favoritePintPicker { display: grid !important; grid-template-columns: 1fr; }
   .mobileMapFilters .favoritePintControl { min-height: 44px; width: 100%; justify-content: space-between; }
-  .mobilePriceChoices { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; border: 0; }
-  .mobilePriceChoices legend { grid-column: 1 / -1; margin-bottom: 4px; color: var(--color-text-soft); font-size: var(--text-sm); font-weight: 700; }
-  .mobilePriceChoices button { min-height: 44px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: var(--text-sm); }
-  .mobilePriceChoices button.isActive { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface)); color: var(--color-accent); }
+  /* De-box: a trigger that opens a picker is not an input, so no box. */
+  .mobileMapFilters .personaLensTrigger { min-height: 44px; width: 100%; justify-content: flex-start; border: 0; border-radius: var(--radius); background: transparent; color: var(--color-text-soft); }
+  .mobileMapFilters .personaLensTrigger:hover { border: 0; background: color-mix(in srgb, var(--color-accent) 9%, transparent); color: var(--color-text); }
+  .mobileMapFilters .personaLensTrigger.isActive { border: 0; background: var(--color-surface-raised); color: var(--color-text); font-weight: 800; }
+  /* De-box (design judgement 2026-08-01, finding 2.4): four price caps are ONE
+     choice, so they are one segmented control - a single edge round the group,
+     interior hairlines, and the fill carries the selection. */
+  .mobilePriceChoices { display: grid; gap: 0; margin: 0; padding: 0; border: 0; }
+  .mobilePriceChoices legend { margin-bottom: 6px; color: var(--color-text); font-size: var(--text-sm); font-weight: 800; }
+  .mobilePriceChoicesGroup { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--color-border-soft); border-radius: var(--radius); }
+  .mobilePriceChoices button { min-height: 44px; border: 0; border-inline-start: 1px solid var(--color-border-soft); border-radius: 0; background: transparent; color: var(--color-text-muted); font: inherit; font-size: var(--text-sm); font-weight: 700; }
+  .mobilePriceChoices button:first-of-type { border-inline-start: 0; }
+  .mobilePriceChoices button.isActive { background: var(--color-surface-raised); color: var(--color-text); font-weight: 800; }
 
   .mobileSheetPortal .tonightLane,
   .mobileSheetPortal .mapLayersControl,
@@ -641,7 +671,13 @@
   .mobileVenuePeekSummary button { min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--radius); background: var(--color-accent); color: var(--color-on-accent-strong); font: inherit; font-size: var(--text-sm); font-weight: 800; }
   /* Empty-price cell doubles as the drop CTA: a quiet accent-tinted button that
      keeps the price column's stacked look but reads as tappable. */
-  .mobileVenuePeekSummary .mobileVenuePeekDrop { min-width: 0; display: grid; gap: 2px; justify-items: start; align-content: center; min-height: 44px; padding: 6px 10px; text-align: left; border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-border)); border-radius: var(--radius); background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface)); color: inherit; font: inherit; }
+  /* Three cells, ONE idiom. "No price yet." used to sit in a bordered, tinted
+     mono box beside a plain "Near me / for walk time" cell and a filled CTA -
+     three visual languages in one row, and the box shouted loudest about the
+     thing the pub does NOT have (design judgement 2026-08-01, finding 2.16).
+     It now reads exactly like its neighbour cell; the coral stays on the
+     "Be the first" line, which is the invitation. */
+  .mobileVenuePeekSummary .mobileVenuePeekDrop { min-width: 0; display: grid; gap: 2px; justify-items: start; align-content: center; min-height: 44px; padding: 6px 0; text-align: left; border: 0; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; }
   .mobileVenuePeekSummary .mobileVenuePeekDrop strong { white-space: normal; font-size: var(--text-base); line-height: 1.05; }
   .mobileVenuePeekSummary .mobileVenuePeekDrop small { color: var(--color-accent); font-weight: 700; }
 }

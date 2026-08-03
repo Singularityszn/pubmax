@@ -57,7 +57,6 @@ export default function MobileSharedSheet({
   children: React.ReactNode;
 }) {
   const titleId = useId();
-  const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const [footerEl, setFooterEl] = useState<HTMLElement | null>(null);
@@ -95,13 +94,20 @@ export default function MobileSharedSheet({
     else requestClose();
   }, [requestClose]);
 
-  // On open: capture focus origin, reset to the requested opening snap, focus
-  // the close button, and wire Escape-to-close.
+  // On open: capture focus origin, reset to the requested opening snap, move
+  // focus into the sheet, and wire Escape-to-close.
+  //
+  // Focus lands on the SHEET, not on its close button. Focusing the close
+  // button put a visible focus ring on Dismiss for every reader the instant the
+  // sheet opened, which is what made it the loudest object on the surface
+  // (design judgement 2026-08-01, finding 2.16). The sheet itself is the
+  // labelled dialog, so focusing it still moves assistive technology inside and
+  // still starts the tab order at the top.
   useEffect(() => {
     if (!kind) return;
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     openAtSnap(initialSnap);
-    const frame = requestAnimationFrame(() => closeRef.current?.focus());
+    const frame = requestAnimationFrame(() => sheetRef.current?.focus({ preventScroll: true }));
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") requestEscape();
     };
@@ -165,6 +171,7 @@ export default function MobileSharedSheet({
         role={sheetSnap === "full" ? "dialog" : undefined}
         aria-modal={sheetSnap === "full" ? "true" : undefined}
         aria-labelledby={titleId}
+        tabIndex={-1}
         style={sectionStyle}
       >
         <header
@@ -192,13 +199,12 @@ export default function MobileSharedSheet({
               fills both: Back on the left when a sheet opened over another
               sheet, Home on the right always. */}
           <h2 id={titleId}>{title}</h2>
-          <SurfaceNav
-            backLabel={backLabel}
-            onBack={onBack}
-            homeLabel={closeButtonLabel}
-            onHome={requestClose}
-            closeRef={closeRef}
-          />
+          {/* No `closeRef` here on purpose. SurfaceNav is borderless and quiet
+              already, so the de-box intent survives inside it, and the sheet
+              focuses ITSELF on open (see the open effect above) rather than the
+              Home control. Handing this a ref would put the accent ring back on
+              the way out the instant a sheet opened. */}
+          <SurfaceNav backLabel={backLabel} onBack={onBack} homeLabel={closeButtonLabel} onHome={requestClose} />
         </header>
         <div className="mobileSharedSheetBody">
           <SheetFooterContext.Provider value={footerEl}>{children}</SheetFooterContext.Provider>

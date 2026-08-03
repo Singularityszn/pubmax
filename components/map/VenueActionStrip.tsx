@@ -20,14 +20,25 @@ function ActionIcon({ kind }: { kind: VenueExternalAction["kind"] }) {
 type VenueActionStripProps = {
   venue: Venue;
   className?: string;
+  /**
+   * Which external actions this surface may print. Booking belongs to Overview
+   * ALONE: on the Drinks tab the search-tier fallback rendered as a dashed
+   * "Find booking" box floating above "We don't have this pub's drinks yet",
+   * where it answered a question nobody on that tab had asked (design
+   * judgement 2026-08-01, finding 2.16). Menu and website links stay, because
+   * a menu link IS what the Drinks tab is about.
+   */
+  omitKinds?: readonly VenueExternalAction["kind"][];
 };
 
 /**
  * Book / Menu / website CTAs for a selected venue. Renders nothing when no
  * external URLs exist — never a dead button.
  */
-export default function VenueActionStrip({ venue, className }: VenueActionStripProps) {
-  const actions = venueExternalActions(venue);
+export default function VenueActionStrip({ venue, className, omitKinds }: VenueActionStripProps) {
+  const actions = venueExternalActions(venue).filter(
+    (action) => !omitKinds?.includes(action.kind),
+  );
   if (actions.length === 0) return null;
 
   return (
