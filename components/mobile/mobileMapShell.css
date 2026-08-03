@@ -112,9 +112,17 @@
     pointer-events: none;
   }
 
+  /* MapLibre's own square group read as a bare dark box parked under the round
+     TfL chip, and it sat over cluster pins looking like debris rather than a
+     control. Every other floater in this lane is a 44px circle, so the compass
+     takes the same shape and the same surface. */
   .appShell .mapStage .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
     margin: 0;
-    border: 1px solid var(--line);
+    width: 44px;
+    height: 44px;
+    overflow: hidden;
+    border: 1px solid var(--ink-soft);
+    border-radius: 50%;
     background: var(--color-surface-raised);
     box-shadow: var(--map-overlay-shadow-tight);
   }
@@ -127,6 +135,8 @@
   .appShell .mapStage .maplibregl-ctrl-compass {
     width: 44px;
     height: 44px;
+    border-radius: 50%;
+    background: transparent;
     color: var(--ink-soft);
   }
 
