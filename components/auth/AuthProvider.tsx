@@ -155,7 +155,11 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Session restore only applies when Supabase public env is present. When it
+  // is not, there is nothing to wait for — derive `loading` false during render
+  // instead of setState-in-effect (which cascaded a second render on every
+  // mount and made the Sign in control flicker).
+  const [sessionLoading, setSessionLoading] = useState(true);
   const [canonicalIdentity, setCanonicalIdentity] =
     useState<IdentityHandleChangedDetail | null>(null);
   const [authCallbackError, setAuthCallbackError] = useState<string | null>(null);
@@ -166,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const rejectedContributionAuthRef =
     useRef<AccountAuthSnapshot | null>(null);
   const configured = isAuthConfigured();
+  const loading = configured && sessionLoading;
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
@@ -280,13 +285,24 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     }
     const callbackCapture = capturedCallback.current ?? Promise.resolve(null);
 
-    // No Supabase public env: there is no session to restore. Drop `loading`
-    // immediately so Clerk (or any other side-by-side identity control) can
-    // render on first paint rather than waiting for a client that will never
-    // exist. The rest of the effect still runs to scrub a leftover callback
-    // URL if the reader landed with one.
+    // No Supabase public env: `loading` is already derived false during render
+    // (`configured && sessionLoading`). Still scrub a leftover callback URL so
+    // a reader who landed with one is not stranded. setAuthCallbackError is
+    // gated on still-mounted so unmount does not setState after teardown.
     if (!configured) {
-      setLoading(false);
+      let active = true;
+      void callbackCapture.then((captured) => {
+        const callbackAttempt = captured?.attempt ?? null;
+        if (callbackAttempt?.attemptId) {
+          releaseBrowserAuthAttempt(callbackAttempt.attemptId);
+        }
+        captured?.releaseCoordination();
+        if (!active) return;
+        if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+      });
+      return () => {
+        active = false;
+      };
     }
 
     let active = true;
@@ -294,12 +310,14 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     // Session restoration is additive; it must never hold the anonymous app or
     // Pub Pal onboarding behind an infinite loading screen when the provider is
     // slow, blocked, or temporarily unavailable. This fail-soft boundary also
-    // covers the lazy supabase-js chunk import; loading stays true until the
-    // client resolves and a session (or its absence) is known, so the signed-in
-    // header never flickers signed-out → signed-in. A later auth event can still
-    // hydrate the session after this boundary.
+    // covers the lazy supabase-js chunk import; sessionLoading stays true until
+    // the client resolves and a session (or its absence) is known, so the
+    // signed-in header never flickers signed-out → signed-in. A later auth
+    // event can still hydrate the session after this boundary. All setState
+    // calls below run from async callbacks or event handlers — never the
+    // effect body — so react-hooks/set-state-in-effect stays clean.
     const loadingTimeout = window.setTimeout(() => {
-      if (active) setLoading(false);
+      if (active) setSessionLoading(false);
     }, 2500);
 
     // Lazy-load the browser client (dynamic import) off the critical path, then
@@ -310,7 +328,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       // Unconfigured / SSR-only: nothing to subscribe to.
       if (!supabase) {
         window.clearTimeout(loadingTimeout);
-        setLoading(false);
+        setSessionLoading(false);
         void callbackCapture.then((captured) => {
           const callbackAttempt = captured?.attempt ?? null;
           if (callbackAttempt?.attemptId) {
@@ -328,7 +346,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       const registration = supabase.auth.onAuthStateChange((event, nextSession) => {
         if (!active) return;
         const signedIn = updateSession(nextSession ?? null, event);
-        setLoading(false);
+        setSessionLoading(false);
         if (event === "SIGNED_IN" && nextSession?.user) {
           if (signedIn) trackEvent("user_signed_in");
         }
@@ -380,7 +398,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         if (exchangedSession) {
           window.clearTimeout(loadingTimeout);
           updateSession(exchangedSession);
-          setLoading(false);
+          setSessionLoading(false);
           if (callbackAttempt) {
             void claimSignupReferralFromAuthCallback({
               currentUrl: window.location.href,
@@ -403,11 +421,11 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
           if (!active) return;
           window.clearTimeout(loadingTimeout);
           updateSession(data.session ?? null);
-          setLoading(false);
+          setSessionLoading(false);
         } catch {
           if (!active) return;
           window.clearTimeout(loadingTimeout);
-          setLoading(false);
+          setSessionLoading(false);
         }
       })();
     });
@@ -417,7 +435,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       window.clearTimeout(loadingTimeout);
       subscription?.unsubscribe();
     };
-  }, [updateSession]);
+  }, [configured, updateSession]);
 
   const startGoogleOAuth = useCallback(async (): Promise<{ error: string | null }> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
