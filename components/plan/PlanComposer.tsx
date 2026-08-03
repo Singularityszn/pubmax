@@ -256,7 +256,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
 }
 
 export type NightAreaSelectorGroup = {
-  label: "Higher confidence" | "Plan with warnings";
+  label: "Prices checked" | "Not all checked";
   disabled: boolean;
   areas: NightArea[];
 };
@@ -264,12 +264,12 @@ export type NightAreaSelectorGroup = {
 export function nightAreaSelectorGroups(now = new Date()): NightAreaSelectorGroup[] {
   return [
     {
-      label: "Higher confidence",
+      label: "Prices checked",
       disabled: false,
       areas: NIGHT_AREAS.filter((area) => isNightAreaRouteReady(area, now)),
     },
     {
-      label: "Plan with warnings",
+      label: "Not all checked",
       disabled: false,
       areas: NIGHT_AREAS.filter((area) => !isNightAreaRouteReady(area, now)),
     },
@@ -277,7 +277,7 @@ export function nightAreaSelectorGroups(now = new Date()): NightAreaSelectorGrou
 }
 
 export function nightAreaOptionLabel(area: NightArea, disabled: boolean): string {
-  return disabled || !isNightAreaRouteReady(area) ? `${area.name} - plan with warnings` : area.name;
+  return disabled || !isNightAreaRouteReady(area) ? `${area.name} - not all checked` : area.name;
 }
 
 export function nightAreaMapHref(area: NightArea): string {
@@ -389,15 +389,15 @@ export function nightAreaCoverageSummary(
 
   switch (area.coverageStatus) {
     case "captured":
-      return { label: "Plan with warnings", detail: `Some checks complete. ${missingEvidenceDetail[0]?.toUpperCase()}${missingEvidenceDetail.slice(1)}`, tone: "capture" };
+      return { label: "Not all checked", detail: `Some checks complete. ${missingEvidenceDetail[0]?.toUpperCase()}${missingEvidenceDetail.slice(1)}`, tone: "capture" };
     case "discovered":
-      return { label: "Low confidence", detail: "We haven't checked this area yet. The route stays editable.", tone: "discovery" };
+      return { label: "Rough guess", detail: "We haven't checked this area yet. The route stays yours to change.", tone: "discovery" };
     case "reviewed":
-      return { label: "Plan with warnings", detail: `Checked with gaps. ${missingEvidenceDetail[0]?.toUpperCase()}${missingEvidenceDetail.slice(1)}`, tone: "review" };
+      return { label: "Not all checked", detail: `Checked with gaps. ${missingEvidenceDetail[0]?.toUpperCase()}${missingEvidenceDetail.slice(1)}`, tone: "review" };
     case "paused":
-      return { label: "Review expired", detail: "The last check expired. Planning stays available with warnings.", tone: "paused" };
+      return { label: "Gone stale", detail: "Prices here have gone stale. You can still plan, but check each stop.", tone: "paused" };
     default:
-      return { label: "Plan with warnings", detail: `Checks in progress. ${missingEvidenceDetail[0]?.toUpperCase()}${missingEvidenceDetail.slice(1)}`, tone: "review" };
+      return { label: "Not all checked", detail: `Checks in progress. ${missingEvidenceDetail[0]?.toUpperCase()}${missingEvidenceDetail.slice(1)}`, tone: "review" };
   }
 }
 
@@ -958,7 +958,7 @@ function PlanComposerForm({
           <div className="planComposer__routeStale" role="group" aria-labelledby="plan-route-stale-title">
             <div>
               <strong id="plan-route-stale-title">This route needs a refresh</strong>
-              <span>Context changed, so the preview may no longer fit the night you described.</span>
+              <span>You&rsquo;ve changed the night since we sorted it, so this preview may not fit any more.</span>
             </div>
             <button
               type="button"
@@ -1077,7 +1077,7 @@ function PlanComposerForm({
               </ul>
             </section>
             <section aria-labelledby="plan-coverage-progress">
-              <h3 id="plan-coverage-progress">Plan with warnings</h3>
+              <h3 id="plan-coverage-progress">Not all checked</h3>
               <ul>
                 {areasInProgress.map((area) => {
                   const summary = nightAreaCoverageSummary(area);

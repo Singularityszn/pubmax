@@ -135,8 +135,8 @@ describe("time + provenance helpers", () => {
 
   it("checkedLabel formats or reports unknown", () => {
     expect(checkedLabel("2026-07-12T09:00:00.000Z")).toBe("Checked 12 Jul");
-    expect(checkedLabel(null)).toBe("Freshness unknown");
-    expect(checkedLabel("nope")).toBe("Freshness unknown");
+    expect(checkedLabel(null)).toBe("No date on this yet");
+    expect(checkedLabel("nope")).toBe("No date on this yet");
   });
 
   it("checkedLabel uses the LONDON calendar day (23:xx UTC in BST rolls forward)", () => {

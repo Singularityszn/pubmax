@@ -48,9 +48,8 @@
 .palEyebrow {
   margin-bottom: .85rem !important;
   color: var(--pal-accent);
-  font: 650 .68rem/1 var(--font-data);
-  letter-spacing: .13em;
-  text-transform: uppercase;
+  font: 650 var(--text-2xs)/1 var(--font-data);
+  letter-spacing: .01em;
 }
 
 .palMeetingStage, .palHomeHero {
@@ -229,7 +228,7 @@
 .palField > small { color: var(--pal-soft); font-size: .76rem; }
 .palNameIdeas { margin-top: 1.15rem; display: grid; gap: .85rem; }
 .palNameIdeas > div { display: grid; grid-template-columns: 4.5rem 1fr; align-items: center; gap: .65rem; }
-.palNameIdeas > div > span { color: var(--pal-soft); font: 650 .66rem/1 var(--font-data); text-transform: uppercase; letter-spacing: .08em; }
+.palNameIdeas > div > span { color: var(--pal-soft); font: 650 var(--text-2xs)/1 var(--font-data); letter-spacing: .01em; }
 .palNameIdeas > div > div { display: flex; gap: .45rem; overflow-x: auto; scrollbar-width: none; }
 .palNameIdeas button { min-width: 3.8rem; min-height: 2.75rem; padding: 0 .8rem; border: 1px solid var(--pal-line); border-radius: 999px; background: var(--panel-raised); color: var(--pal-paper); cursor: pointer; }
 .palNameIdeas button:hover { border-color: var(--pal-accent); background: color-mix(in srgb, var(--pal-accent) 8%, var(--panel-raised)); }
@@ -285,7 +284,7 @@
 .palMemoryList { display: grid; gap: .7rem; margin: 0; padding: 0; list-style: none; }
 .palMemoryList > li { display: grid; grid-template-columns: minmax(8rem, .35fr) minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 1rem; border: 1px solid var(--pal-line); border-radius: .9rem; background: var(--panel-raised); }
 .palMemoryList__meta { display: grid; gap: .25rem; }
-.palMemoryList__meta span { color: var(--pal-accent); font: 700 .75rem var(--font-data); letter-spacing: .06em; text-transform: uppercase; }
+.palMemoryList__meta span { color: var(--pal-accent); font: 700 var(--text-2xs) var(--font-data); letter-spacing: .01em; }
 .palMemoryList__meta small { color: var(--pal-soft); text-transform: capitalize; }
 .palMemoryList > li > p { margin: 0; line-height: 1.5; }
 .palMemoryList__actions, .palMemoryList__edit > div { display: flex; flex-wrap: wrap; gap: .5rem; }

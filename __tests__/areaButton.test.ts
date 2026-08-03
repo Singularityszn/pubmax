@@ -312,15 +312,15 @@ describe("areaCoverageLabel + areaElsewhereOptions — honest evidence", () => {
 
   it("labels warned areas the way the plan intake does", () => {
     expect(areaCoverageLabel(getNightArea("shoreditch"), now)).toEqual({
-      label: "Plan with warnings",
+      label: "Not all checked",
       tone: "capture",
     });
     expect(areaCoverageLabel(getNightArea("dalston"), now)).toEqual({
-      label: "Low confidence",
+      label: "Rough guess",
       tone: "discovery",
     });
     expect(areaCoverageLabel(getNightArea("richmond"), now)).toEqual({
-      label: "Review expired",
+      label: "Gone stale",
       tone: "paused",
     });
   });

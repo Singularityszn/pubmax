@@ -740,7 +740,7 @@ export default function PalExperience() {
         <main className="palExperience palMeeting">
           <div className="palTopbar">
             <Link href="/map"><ArrowLeft size={17} /> Map</Link>
-            <span><LockKeyhole size={14} /> Optional by design</span>
+            <span><LockKeyhole size={14} /> Skip it if you like</span>
           </div>
           <section className="palMeetingStage" aria-labelledby="pal-activation-title">
             <div className="palMeetingPortrait">
@@ -748,7 +748,7 @@ export default function PalExperience() {
               <p className="palSpeech">Make one useful route first. Then I can meet you with real context.</p>
             </div>
             <div className="palMeetingCopy">
-              <p className="palEyebrow">Route before character</p>
+              <p className="palEyebrow">Nothing to talk about yet</p>
               <h1 id="pal-activation-title">First, describe your night.</h1>
               <p>Pub Pal is a companion to a plan, not a gate in front of one. Get three grounded stops, then choose the voice and form that fits you.</p>
               <div className="palMeetingActions">

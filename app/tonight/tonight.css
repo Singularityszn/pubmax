@@ -39,10 +39,9 @@
 
 .tonightEyebrow {
   margin: 0 0 6px;
-  font-size: 0.72rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--brass);
 }
 
@@ -252,10 +251,9 @@
 
 .tonightVibesLede {
   margin: 0 0 8px;
-  font-size: 0.78rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--ink-soft);
 }
 
@@ -393,10 +391,9 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.66rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--brass);
 }
 
