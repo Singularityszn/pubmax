@@ -354,6 +354,48 @@
   color: var(--color-on-accent);
 }
 
+/* An open venue drawer is its own map-chrome state (D3). The drawer owns the
+   right edge from 1024px up, so the bar keeps the map lane that is left and
+   drops the accessory controls that no longer fit in it — the same policy the
+   narrow band below already applies for the same reason.
+
+   Both halves of the defect came from ignoring that lane. The bar is centred on
+   the whole stage, so its right half ran UNDER the sheet and printed a ghost row
+   through it. And the toolbar chip that mapDesktopRail.css restores when the
+   rail unmounts (`:not(.detail-open)`) arrived in a nowrap row that was already
+   full: the search cell shrank, its 260px child kept its own width, and the
+   search input painted straight through the drink select's box. So the search
+   cell must be allowed to shrink to nothing here, and the weather verdict —
+   whose only reason to sit in the bar is to stand in for the unmounted rail —
+   has no home while the sheet is open rather than a home it does not fit. */
+@media (min-width: 1024px) {
+  /* Hug the controls that are left and re-centre on the free lane, so the bar
+     can neither reach the drawer nor stand half empty beside it. */
+  .appShell.detail-open .mapToolbar {
+    width: fit-content;
+    max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
+    left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
+  }
+
+  .appShell.detail-open .mapToolbar .mapToolbarDesktopExtras,
+  .appShell.detail-open .mapToolbar .conditionsChip,
+  .appShell.detail-open .mapToolbar .zonePicker {
+    display: none;
+  }
+
+  /* The search field may shrink with its own cell. Its resting 260px floor and
+     the input's 168px floor are what turned an overflowing row into controls
+     drawn on top of each other. */
+  .appShell.detail-open .mapToolbarSearch .mapSearchSuggest--toolbar {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .appShell.detail-open .mapToolbarSearch input {
+    min-width: 0;
+  }
+}
+
 /* Tablet and narrow desktop are their own map-chrome state. At this width the
    full desktop accessory row cannot coexist with search, Plan, and city. Keep
    those primary controls, let search take the remaining lane, and reserve a
