@@ -1417,23 +1417,6 @@ input[type="range"] {
   will-change: transform;
 }
 
-/* How much of the screen the open planner rail owns. Published for the same
-   reason the right drawer publishes --desktop-venue-drawer-width
-   (venueSheet.css): the map toolbar and the ambient banners have to stay OUT
-   of that lane, or a bar centred on the whole stage runs its left half under
-   the rail. One source, so the two sides agree. Declared at the same 1024px
-   cut as the right-edge pair, and applied to the rail itself so nothing can
-   drift from the value the chrome is told to clear. */
-@media (min-width: 1024px) {
-  .appShell {
-    --desktop-planner-rail-width: 376px;
-  }
-
-  .mapDrawer.left {
-    width: var(--desktop-planner-rail-width);
-  }
-}
-
 /* React owns spring presentation through this variable. The tablet sheet rules
    below use !important for their legacy dvh snaps, so the variable is repeated
    in that band with equal authority. */

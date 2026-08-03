@@ -48,13 +48,4 @@
     left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
     max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
   }
-
-  /* The same lane arithmetic mirrored on the left edge, for the open planner
-     rail. At 1024px the stage-centred banner reached back over the rail's own
-     edge, so this is the same defect the toolbar had, one row lower. */
-  .appShell.planning-open .cityStatusStack,
-  .appShell.planning-open .citySuggestBanner {
-    left: calc((100% + var(--desktop-planner-rail-width)) / 2);
-    max-width: calc(100% - var(--desktop-planner-rail-width) - 32px);
-  }
 }
