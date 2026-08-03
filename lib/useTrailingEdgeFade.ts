@@ -62,12 +62,13 @@ export function useTrailingEdgeFade<T extends HTMLElement>(): {
   const [faded, setFaded] = useState(false);
 
   useEffect(() => {
-    if (!strip) {
-      setFaded(false);
-      return;
-    }
+    if (!strip) return;
     const measure = () => setFaded(shouldFadeTrailingEdge(strip));
-    measure();
+    // The first measurement waits a frame rather than running inside the
+    // effect, so no state is set synchronously during commit. No mask is the
+    // safe state to hold for that frame: it shows a tab the reader can use,
+    // where the wrong direction dims one they can.
+    const frame = requestAnimationFrame(measure);
     // Both the content and the strip's own width move the answer: a tab label
     // changes with the viewport band, and the sheet resizes on rotation and on
     // a snap change. The observer catches those; the listener catches the
@@ -78,8 +79,10 @@ export function useTrailingEdgeFade<T extends HTMLElement>(): {
     observer?.observe(strip);
     for (const child of Array.from(strip.children)) observer?.observe(child);
     return () => {
+      cancelAnimationFrame(frame);
       strip.removeEventListener("scroll", measure);
       observer?.disconnect();
+      setFaded(false);
     };
   }, [strip]);
 
