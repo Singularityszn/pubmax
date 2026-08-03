@@ -22,19 +22,26 @@ split between two independent owners.
 
 These owners can each issue or interpret a traversal without knowing whether the other owner has a pending move. Local pop holds and settlement callbacks cannot make two independently queued history deltas atomic.
 
+Four review rounds exposed four timings of this one ownership defect. Each fix
+made one owner wait for, preserve, or reconcile state from the other, but neither
+owner became authoritative for the whole transition. That negotiation could
+observe the other system after a traversal; it could not serialize both history
+deltas before they ran. Closing one ordering therefore exposed another until the
+asynchronous coordination was removed from this lane.
+
 ## Review findings
 
 ### `early-back-overtakes-history-release`
 
-Review location: the removed asynchronous selection-history coordination.
+Review location: `components/map/pubmap/useMapSelectionHistory.ts:96` before the asynchronous coordination was removed.
 
 > Criterion "press Back at earliest possible moment before completion ... correct surface still wins" remains broken when Map has a real predecessor. `releaseSelection` queues one Back and the user queues another; each is an independent history delta, while `holdThroughNextHistoryPop` absorbs only the first pop. The second can leave Map or pop the newly written planner entry. Current regression never establishes a predecessor, so this path can pass accidentally. Serialize user Back at the selection-history owner and cover a prior-page arrival. See [HTML history traversal](https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-history-back).
 
 ### `settled-planner-back-loses-venue`
 
-Review location: the removed reconcile-after-transition drawer coordination.
+Review location: `components/PubMap.tsx:1005` before the asynchronous coordination was removed.
 
-> Criterion "Back always resolves against settled state" also fails after a root venue-to-planner handoff settles. The venue sentinel is popped while the removed reconciliation preserves `[venue]` in the surface stack; planner then pushes depth 2 over a clean depth-0 entry. Planner's rendered Back restores venue state and starts another asynchronous Back, but selection history pushes a venue sentinel before that pop and then dismisses venue when the pop lands on a non-sentinel entry. Reconcile retained parent depth at the shared selection/surface-history boundary, or deliberately make planner root and remove the impossible Back affordance.
+> Criterion "Back always resolves against settled state" also fails after a root venue-to-planner handoff settles. The venue sentinel is popped while line 1005 preserves `[venue]` in the surface stack; planner then pushes depth 2 over a clean depth-0 entry. Planner's rendered Back restores venue state and starts another asynchronous Back, but selection history pushes a venue sentinel before that pop and then dismisses venue when the pop lands on a non-sentinel entry. Reconcile retained parent depth at the shared selection/surface-history boundary, or deliberately make planner root and remove the impossible Back affordance.
 
 ## Why current regressions do not cover this
 
