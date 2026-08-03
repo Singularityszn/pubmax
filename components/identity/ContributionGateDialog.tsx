@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { trackEvent } from "@/lib/analytics";
 
 import "./contributionGate.css";
@@ -29,6 +30,10 @@ export function ContributionGateDialog({
   error,
   onClose,
 }: ContributionGateDialogProps): React.JSX.Element {
+  // A blocking dialog owes a keyboard way out. This one had a close button and
+  // nothing else, so a reader who reached it with the keyboard had to tab to
+  // the end of the dialog to leave.
+  useDismissOnEscape(true, onClose);
   return (
     <div className="contributionGateBackdrop" role="presentation">
       <section
