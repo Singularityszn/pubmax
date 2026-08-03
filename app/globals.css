@@ -1470,37 +1470,6 @@ input[type="range"] {
   }
 }
 
-.drawerClose {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel-raised);
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.drawerClose:hover {
-  color: var(--ink);
-  border-color: var(--brass);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .drawerClose {
-    transition:
-      color var(--duration-base) var(--ease-out),
-      border-color var(--duration-base) var(--ease-out),
-      transform var(--duration-press) var(--ease-out);
-  }
-  .drawerClose:active {
-    transform: scale(0.97);
-    --shared-press-scale: 1;
-  }
-}
-
 /* ── §4.5 curated-crawl onboarding overlay ─────────────────────────────────
    Sits above the drawers (z 500) + toolbar (z 520). Never blocks the map: the
    scrim and both close affordances dismiss it. Centered on desktop; on mobile

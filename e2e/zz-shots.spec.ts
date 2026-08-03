@@ -44,18 +44,18 @@ for (const vp of VIEWPORTS) {
       if (vp.width < 700) {
         // 2 deep: the accessible List view, opened from inside the sheet.
         await page.getByRole("tab", { name: "Layers" }).click();
-        await page.getByRole("button", { name: "List view", exact: false }).first().click();
+        await page.locator(".mobileSharedSheetBody").getByRole("button", { name: "List view" }).click();
         await page.waitForTimeout(900);
         await shot(page, `${tag}-2-second-surface`);
         // 3 deep: a pub, opened from the list.
-        await page.locator(".mapVenueListPanel button").nth(1).click();
+        await page.locator(".mapVenueListItem").first().click();
         await page.waitForTimeout(1500);
         await shot(page, `${tag}-3-third-surface`);
       } else {
         await page.getByRole("button", { name: "List view", exact: false }).first().click();
         await page.waitForTimeout(900);
         await shot(page, `${tag}-2-second-surface`);
-        await page.locator(".mapVenueListPanel button").nth(1).click();
+        await page.locator(".mapVenueListItem").first().click();
         await page.waitForTimeout(1500);
         await shot(page, `${tag}-3-third-surface`);
       }
