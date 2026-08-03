@@ -1417,6 +1417,19 @@ input[type="range"] {
   will-change: transform;
 }
 
+/* Desktop map chrome needs one measured source for the planner lane. The
+   drawer's rendered width is 376px at this breakpoint; toolbar and banners
+   consume this variable so their free-lane geometry cannot drift from it. */
+@media (min-width: 1024px) {
+  .appShell {
+    --desktop-planner-rail-width: 376px;
+  }
+
+  .mapDrawer.left {
+    width: var(--desktop-planner-rail-width);
+  }
+}
+
 /* React owns spring presentation through this variable. The tablet sheet rules
    below use !important for their legacy dvh snaps, so the variable is repeated
    in that band with equal authority. */

@@ -15,10 +15,11 @@
    Policy:
    1. Location owns first paint while available, so onboarding eligibility
       defers to it. While onboarding is open, status and Tonight do not render.
-   2. Otherwise closure/safety and city-suggest may occupy their existing
-      separate vertical slots together. Tonight-nearby yields to either one.
-      Each banner renders its root only when eligible and UNMOUNTS it on
-      dismissal, so removing both higher siblings releases Tonight normally. */
+   2. Otherwise location keeps the centred prompt slot. A simultaneous status
+      alert yields to the left map lane instead of building a centred banner
+      stack. Tonight-nearby yields to either one. Each banner renders its root
+      only when eligible and UNMOUNTS it on dismissal, so removing both higher
+      siblings releases Tonight normally. */
 
 @media (min-width: 641px) {
   /* 1. Onboarding open — suppress ambient status and Tonight. */
@@ -28,13 +29,23 @@
     display: none;
   }
 
-  /* 2. Status and location have separate vertical slots. Keep the opt-in
-     location control available while either can defer the lower Tonight card.
-     Keyed on element PRESENCE (eligibility), so dismissing both higher siblings
-     releases Tonight through its normal lifecycle. */
+  /* 2. Keep the opt-in location control available while either prompt defers
+     the lower Tonight card. Keyed on element PRESENCE (eligibility), so
+     dismissing both higher siblings releases Tonight normally. */
   .mapStage:has(.cityStatusBanner) .tonightLaneCollapsed,
   .mapStage:has(.citySuggestBanner) .tonightLaneCollapsed {
     display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Location owns first-run centre. The actionable status remains visible but
+     yields into Tonight's now-vacant left lane, so two eligible banners do not
+     form a stack across the map's focal point. */
+  .mapStage:has(.citySuggestBanner) .cityStatusStack {
+    left: 16px;
+    width: min(460px, 32vw);
+    transform: none;
   }
 }
 
@@ -47,5 +58,36 @@
   .appShell.detail-open .citySuggestBanner {
     left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
     max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
+  }
+
+  /* The planner owns the mirrored left edge. Keep both ambient banners inside
+     the remaining map lane using the same centre and width as the toolbar. */
+  .appShell.planning-open .cityStatusStack,
+  .appShell.planning-open .citySuggestBanner {
+    left: calc((100% + var(--desktop-planner-rail-width)) / 2);
+    max-width: calc(100% - var(--desktop-planner-rail-width) - 32px);
+  }
+
+  .appShell.planning-open .cityStatusStack {
+    transform: translateX(-50%);
+  }
+
+  /* A drawer leaves too little horizontal room for both prompts. Keep the
+     location prompt in the drawer-aware centre and move status to the bottom
+     of that same free lane instead of rebuilding the first-load stack. */
+  .appShell.detail-open .mapStage:has(.citySuggestBanner) .cityStatusStack {
+    top: auto;
+    bottom: 16px;
+    left: 16px;
+    width: min(460px, calc(100% - var(--desktop-venue-drawer-width) - 32px));
+    transform: none;
+  }
+
+  .appShell.planning-open .mapStage:has(.citySuggestBanner) .cityStatusStack {
+    top: auto;
+    bottom: 16px;
+    left: calc(var(--desktop-planner-rail-width) + 16px);
+    width: min(460px, calc(100% - var(--desktop-planner-rail-width) - 32px));
+    transform: none;
   }
 }
