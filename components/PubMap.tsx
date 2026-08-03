@@ -2545,7 +2545,13 @@ export default function PubMap({
         ? "Plan tonight"
         : mapSurfaceId === "venue-list"
           ? "List view"
-          : MAP_SHEET_TITLES[mapSurfaceId as MapSheetKind] ?? "Map controls";
+          : mapSurfaceId === "search"
+            ? // Search is an inline row, not a sheet, so it has no entry in the
+              // sheet-title table. It is still a place a reader can be, and a
+              // Back that offered to return them to "Map controls" would name a
+              // surface they never opened.
+              "Search"
+            : MAP_SHEET_TITLES[mapSurfaceId as MapSheetKind] ?? "Map controls";
   const mapSurfaceState: MapSurfaceState = {
     venueTab: venueInitialTab,
     venueId: selectedVenueId,

@@ -1443,17 +1443,28 @@ input[type="range"] {
   overflow: visible;
 }
 
+/* The same three-column head every surface wears: leading Back, the middle
+   (empty here, or the planner's grab handle), trailing Home. It used to be a
+   flex row pinned right, which put a Back arrow beside the close instead of at
+   the opposite edge where every other surface keeps it. */
 .mapDrawerHead {
   position: sticky;
   top: 0;
   z-index: 1;
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
   padding: 10px 12px 0;
   background: linear-gradient(
     var(--sheet-material),
     color-mix(in srgb, var(--sheet-material-solid) 38%, transparent)
   );
+}
+
+.mapDrawerHead .venueSheetGrabZone {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {

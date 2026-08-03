@@ -24,13 +24,20 @@
   cursor: pointer;
 }
 
+/* Both controls sit in the head's first row, whatever the host's markup order.
+   The title takes the middle cell before either control is parsed, so grid's
+   sparse auto-placement pushes a leading control that names only its COLUMN
+   onto a second row: the pub's name sat alone on one line with Back and Home
+   stranded under it. Naming the row keeps the head one row deep. */
 .surfaceNavBack {
   grid-column: 1;
+  grid-row: 1;
   justify-self: start;
 }
 
 .surfaceNavHome {
   grid-column: 3;
+  grid-row: 1;
   justify-self: end;
 }
 
