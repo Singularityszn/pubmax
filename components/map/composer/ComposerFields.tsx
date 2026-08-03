@@ -4,7 +4,7 @@ import { Mic, MicOff, Minus, Plus } from "lucide-react";
 import { VIBE_TAGS } from "@/lib/pintDropShared";
 import {
   VISIBILITIES,
-  formatPriceGbp,
+  formatPriceChipGbp,
   stepPrice,
   type Visibility,
 } from "@/lib/spill";
@@ -141,10 +141,10 @@ export function ComposerFields({
         </div>
         <div className="priceQuickAdds" role="group" aria-label="Quick-add price">
           {priceQuickAdds.map((price) => {
-            const label = formatPriceGbp(price);
+            const label = formatPriceChipGbp(price);
             const selected = dropForm.price === label;
             const isLastKnown =
-              typeof lastKnownPrice === "number" && formatPriceGbp(lastKnownPrice) === label;
+              typeof lastKnownPrice === "number" && formatPriceChipGbp(lastKnownPrice) === label;
             return (
               <button
                 key={price}

@@ -1156,11 +1156,18 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
    desktop-plain side panel — is untouched. Everything here is presentation
    only: no gesture/tab logic changes, and nothing below 1024px is affected. */
 @media (min-width: 1024px) {
+  /* How much of the screen the open drawer owns. Published as a variable
+     because the map toolbar has to stay OUT of that lane (mapToolbar.css):
+     a bar centred on the whole viewport ran its right half under the sheet
+     and printed a ghost row through it. One source, so the two agree. */
+  .appShell {
+    --desktop-venue-drawer-width: min(640px, 46vw);
+  }
+
   .mapDrawer.right.open {
     /* Wide enough for the two-column Pints layout below without feeling like
        a full takeover — still clearly a docked side panel, not the map. */
-    width: 640px;
-    max-width: 46vw;
+    width: var(--desktop-venue-drawer-width);
   }
 
   /* The mobile bottom-sheet grab affordance has no meaning on a docked side
