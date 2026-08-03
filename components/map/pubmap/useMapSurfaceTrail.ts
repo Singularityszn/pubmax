@@ -151,6 +151,7 @@ export function useMapSurfaceTrail({
     back: useCallback(() => back(), [back]),
     home: useCallback(() => home(), [home]),
     currentSurfaceId: (current?.id as MapSurfaceId | undefined) ?? null,
+    holdThroughNextHistoryPop: stack.holdThroughNextHistoryPop,
     holdsSurface: useCallback(
       (id: MapSurfaceId) => entries.some((entry) => entry.id === id),
       [entries],

@@ -71,6 +71,7 @@ export type SurfaceStackApi<S> = {
   back: () => void;
   /** Leave every open surface, from any depth. */
   home: () => void;
+  holdThroughNextHistoryPop: () => void;
 };
 
 export function useSurfaceStack<S>({
@@ -95,6 +96,7 @@ export function useSurfaceStack<S>({
   // A history move this hook made itself. The popstate listener must not treat
   // it as the reader's back gesture and pop a second time.
   const selfMoveRef = useRef(0);
+  const heldHistoryPopsRef = useRef(0);
   useEffect(() => {
     onRestoreRef.current = onRestore;
     onHomeRef.current = onHome;
@@ -155,11 +157,20 @@ export function useSurfaceStack<S>({
     }
   }, [syncHistory]);
 
+  const holdThroughNextHistoryPop = useCallback(() => {
+    if (!syncHistory || typeof window === "undefined") return;
+    heldHistoryPopsRef.current += 1;
+  }, [syncHistory]);
+
   // The reader's own back gesture. Landing on a shallower stamp than the stack
   // we hold means they stepped out of a surface, so the stack follows them.
   useEffect(() => {
     if (!syncHistory || typeof window === "undefined") return;
     const onPop = () => {
+      if (heldHistoryPopsRef.current > 0) {
+        heldHistoryPopsRef.current -= 1;
+        return;
+      }
       if (selfMoveRef.current > 0) {
         selfMoveRef.current -= 1;
         return;
@@ -186,9 +197,10 @@ export function useSurfaceStack<S>({
       backLabel: backActionLabel(stack),
       open,
       remember,
+      holdThroughNextHistoryPop,
       back,
       home,
     }),
-    [back, home, open, remember, stack],
+    [back, holdThroughNextHistoryPop, home, open, remember, stack],
   );
 }

@@ -66,6 +66,18 @@ async function selectToolbarPub(page: Page, query: string, name: RegExp) {
   await option.click();
 }
 
+async function expectSettledDesktopDrawer(
+  page: Page,
+  owner: "planner" | "venue",
+) {
+  const shell = page.locator(".appShell");
+  await expect(shell).toHaveAttribute("data-desktop-drawer-owner", owner);
+  await expect(shell).toHaveAttribute(
+    "data-desktop-drawer-handoff",
+    "settled",
+  );
+}
+
 async function indexedToolbarPubOption(
   page: Page,
   query: string,
@@ -330,6 +342,7 @@ test("1440px Plan tonight takes ownership from an open venue", async ({
     .getByRole("button", { name: "Plan tonight" })
     .evaluate((button) => (button as HTMLElement).click());
 
+  await expectSettledDesktopDrawer(page, "planner");
   await expect(planner).toHaveAttribute("aria-hidden", "false");
   await expect(venue).toHaveAttribute("aria-hidden", "true");
   await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
@@ -386,6 +399,7 @@ test("1440px loaded route records planner before opening its first venue", async
 
   await backToPlanner.click();
 
+  await expectSettledDesktopDrawer(page, "planner");
   await expect(planner).toHaveAttribute("aria-hidden", "false");
   await expect(venue).toHaveAttribute("aria-hidden", "true");
   await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
@@ -393,6 +407,37 @@ test("1440px loaded route records planner before opening its first venue", async
     planner.getByRole("heading", { name: "Victorian Soho" }),
   ).toBeVisible();
   await expect(planner.locator("ol.routeList > li")).toHaveCount(5);
+});
+
+test("1440px early Back cannot overtake venue-to-planner settlement", async ({
+  page,
+}) => {
+  await prepareDesktopMap(page);
+  await stubCityStatus(page);
+
+  const response = await page.goto("/map?desktop-drawer-owner=early-back", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(response?.status()).toBe(200);
+
+  const toolbar = page.locator(".mapToolbar");
+  const planner = page.locator(".mapDrawer.left.springDrawer");
+  const venue = page.locator(".mapDrawer.right.springDrawer");
+  await expect(toolbar).toBeVisible({ timeout: 20_000 });
+  await selectToolbarPub(page, "The French House", /The French House/);
+  await expectSettledDesktopDrawer(page, "venue");
+
+  await toolbar
+    .getByRole("button", { name: "Plan tonight" })
+    .evaluate((button) => {
+      (button as HTMLElement).click();
+      window.history.back();
+    });
+
+  await expectSettledDesktopDrawer(page, "planner");
+  await expect(planner).toHaveAttribute("aria-hidden", "false");
+  await expect(venue).toHaveAttribute("aria-hidden", "true");
+  await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
 });
 
 test("1440px reduced motion swaps desktop drawer ownership immediately", async ({
