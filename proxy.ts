@@ -1,5 +1,8 @@
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { NextRequest, ProxyConfig } from "next/server";
+
+import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 
 const CANONICAL_HOST = "pubmaxxing.com";
 
@@ -80,7 +83,12 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
 // security header (HSTS, nosniff, XFO, Permissions-Policy, COOP, Referrer)
 // still ships from next.config.mjs on `/:path*`; only the CSP moved here so it
 // can be built per-request with the live nonce.
-export function proxy(request: NextRequest) {
+//
+// This function is NOT the export Next.js runs — `proxy` at the bottom of this
+// file is, and it wraps this one with clerkMiddleware(). Keeping the security
+// logic as its own named function is what lets the redirect and CSP tests drive
+// it directly, with no Clerk key and no NextFetchEvent to fabricate.
+export function securityProxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (shouldRedirectVercelHost(request)) {
     const canonicalUrl = new URL(request.url);
@@ -120,7 +128,23 @@ export function proxy(request: NextRequest) {
   //   ours; the script is still consent-gated in the app (`beforeSend` cancels
   //   pre-consent pageviews — docs/OBSERVABILITY_CERTIFICATION.md), so allowing
   //   the origin does not widen what may be collected, only what may load.
-  const scriptSrc = `script-src 'self' 'nonce-${nonce}' https://va.vercel-scripts.com${isDev ? " 'unsafe-eval'" : ""}`;
+  //   Clerk adds its instance Frontend API host (which serves clerk-js), the
+  //   Cloudflare Turnstile challenge host and Clerk's abuse-protection hosts.
+  //   Every one of them is an exact origin derived from the publishable key or
+  //   named in lib/clerkIdentity.ts; NONE of them is 'unsafe-inline', and
+  //   nothing here relaxes the nonce contract above. With no Clerk key set,
+  //   `clerk.script` is empty and this line is byte-for-byte its old self.
+  const clerk = clerkCspSources();
+  const clerkScript = clerk.script.map((origin) => ` ${origin}`).join("");
+  const scriptSrc = `script-src 'self' 'nonce-${nonce}' https://va.vercel-scripts.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;
+
+  // frame-src did not exist before Clerk: framing fell through to `child-src
+  // blob:`, so blob: frames were the only ones allowed. Turnstile and Clerk's
+  // abuse protection both render in iframes, so the directive becomes explicit
+  // — and it KEEPS blob: so the fallback's existing permission is preserved
+  // rather than quietly revoked. It stays absent entirely when Clerk is off.
+  const clerkFrameSrc =
+    clerk.frame.length > 0 ? [`frame-src blob: ${clerk.frame.join(" ")}`] : [];
 
   // Every non-script directive below is copied VERBATIM from the previous
   // static CSP in next.config.mjs. See that file's history for the per-directive
@@ -147,11 +171,20 @@ export function proxy(request: NextRequest) {
     // and were removed so a future direct hotlink of unlicensed imagery fails
     // visibly instead of silently shipping. Do NOT re-add a third-party image
     // host here: route it through /api/image-proxy (and license it) instead.
-    "img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud",
+    // Clerk adds https://img.clerk.com here, its own account-avatar CDN. It is
+    // a first-party ACCOUNT image, not a third-party venue photo, so the
+    // "proxy-or-nothing" rule above is untouched: no venue imagery may join it.
+    `img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud${clerk.img.map((origin) => ` ${origin}`).join("")}`,
     "font-src 'self' data: https://tiles.openfreemap.org",
-    "connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co",
+    // Clerk adds its Frontend API host (session, sign-in and sign-up calls) and
+    // its abuse-protection hosts. Supabase's entries stay: both auth systems
+    // run side by side, and removing either would break the other's sign-in.
+    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
+    // Clerk also requires worker-src 'self' blob: — already true for MapLibre's
+    // tile workers and the offline service worker, so it needs no change here.
     "worker-src 'self' blob:",
     "child-src blob:",
+    ...clerkFrameSrc,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -173,6 +206,31 @@ export function proxy(request: NextRequest) {
   return response;
 }
 
+// THE SHIPPED ENTRY POINT. Clerk's quickstart says to create proxy.ts with
+// `export default clerkMiddleware()`; this file already existed, so Clerk is
+// COMPOSED with it via clerkMiddleware's handler form instead — Clerk runs
+// first, establishes the request's auth context, then calls securityProxy and
+// returns whatever it returns (a 308 canonical redirect, or the nonce'd
+// response). Neither the canonical-host redirect nor the CSP nonce is lost.
+//
+// WHY A NAMED `proxy` EXPORT AND NOT `export default`:
+// Next.js resolves the userland handler as `mod.proxy || mod.default`
+// (packages/next/src/build/templates/middleware.ts), so the NAMED export wins.
+// Leaving the old `export function proxy` in place beside a default Clerk
+// export would have made Next keep running the un-composed function and Clerk
+// would never have executed — silently, with no error anywhere.
+//
+// WHY THE TERNARY, AND WHY IT NEEDS BOTH KEYS: clerkMiddleware() throws
+// "@clerk/nextjs: Missing secretKey" on EVERY request when CLERK_SECRET_KEY is
+// absent, so gating on the publishable key alone would turn a half-configured
+// deployment into a site-wide 500 on pages that have nothing to do with
+// identity. Verified by running this app with only the publishable key set.
+// Requiring both keys means the worst half-configured case is browser-side
+// Clerk with no server session, and the site itself stays up.
+export const proxy = isClerkMiddlewareConfigured()
+  ? clerkMiddleware(async (_auth, request) => securityProxy(request))
+  : securityProxy;
+
 export const config = {
   matcher: [
     {
@@ -180,6 +238,11 @@ export const config = {
       has: [{ type: "host", value: ".+\\.vercel\\.app" }],
     },
     { source: "/:path+/" },
+    // Clerk's own frontend API routes. Clerk requires the matcher to cover this
+    // prefix so its handshake and session requests reach the middleware; it is
+    // listed ahead of the general rule below because that rule's `missing`
+    // prefetch clause must never be able to exclude a Clerk request.
+    { source: "/__clerk/:path*" },
     {
       source: "/((?!api|ingest|_next/static|_next/image|favicon.ico).*)",
       missing: [

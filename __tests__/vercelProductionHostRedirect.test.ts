@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { config, proxy } from "@/proxy";
+import { config, securityProxy } from "@/proxy";
 
 beforeEach(() => {
   vi.stubEnv("VERCEL_URL", "");
@@ -55,7 +55,7 @@ describe("Vercel production host canonicalisation", () => {
   it("permanently redirects production Vercel hosts with path and query intact", () => {
     vi.stubEnv("VERCEL_ENV", "production");
 
-    const response = proxy(
+    const response = securityProxy(
       request(
         "chengdu-pubmax69.vercel.app",
         "/map/where?sel=venue-xjf3n0&next=%2Fu%2Fyou",
@@ -78,7 +78,7 @@ describe("Vercel production host canonicalisation", () => {
     );
 
     expectCanonicalRedirect(
-      proxy(
+      securityProxy(
         request(
           "chengdu-pubmax69.vercel.app",
           "/map/where?sel=venue-xjf3n0&next=%2Fu%2Fyou",
@@ -96,7 +96,7 @@ describe("Vercel production host canonicalisation", () => {
     vi.stubEnv("VERCEL_ENV", "production");
 
     expectCanonicalRedirect(
-      proxy(request("chengdu-pubmax69.vercel.app", path)),
+      securityProxy(request("chengdu-pubmax69.vercel.app", path)),
       `https://pubmaxxing.com${path}`,
     );
   });
@@ -106,7 +106,7 @@ describe("Vercel production host canonicalisation", () => {
     const deploymentHost =
       "chengdu-auth-a1b2c3-pubmax69.vercel.app";
 
-    const response = proxy(
+    const response = securityProxy(
       request(deploymentHost, "/u/you", {
         "x-vercel-deployment-url": deploymentHost,
       }),
@@ -123,7 +123,7 @@ describe("Vercel production host canonicalisation", () => {
       "chengdu-git-auth-preview-pubmax69.vercel.app";
     vi.stubEnv("VERCEL_BRANCH_URL", branchHost);
 
-    const response = proxy(request(branchHost));
+    const response = securityProxy(request(branchHost));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();
@@ -134,7 +134,7 @@ describe("Vercel production host canonicalisation", () => {
     vi.stubEnv("VERCEL_ENV", "production");
 
     expectCanonicalRedirect(
-      proxy(request("chengdu-pubmax69.vercel.app")),
+      securityProxy(request("chengdu-pubmax69.vercel.app")),
       "https://pubmaxxing.com/u/you",
     );
   });
@@ -148,7 +148,7 @@ describe("Vercel production host canonicalisation", () => {
   ])("passes through canonical and local host %s", (host) => {
     vi.stubEnv("VERCEL_ENV", "production");
 
-    const response = proxy(request(host));
+    const response = securityProxy(request(host));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("location")).toBeNull();

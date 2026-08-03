@@ -8,7 +8,10 @@ import "./theme.css";
 import MobileTabBar from "@/components/nav/MobileTabBar";
 import DeferredShellExtras from "@/components/DeferredShellExtras";
 import OfflineReady from "@/components/OfflineReady";
+import { ClerkProvider } from "@clerk/nextjs";
+
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { clerkAppearance } from "@/lib/clerkAppearance";
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
 import PerformanceVitals from "@/components/PerformanceVitals";
 import JsonLd from "@/components/seo/JsonLd";
@@ -269,6 +272,24 @@ export default async function RootLayout({
         <JsonLd data={SITE_JSON_LD} nonce={nonce} />
       </head>
       <body>
+        {/* ClerkProvider is additive in exactly the same sense as AuthProvider
+            below, and it sits OUTSIDE it rather than replacing it: both identity
+            systems run side by side. Clerk gates no route either, so anonymous
+            browsing stays fully public.
+
+            Placement: inside <body>, never wrapping <html>. The nonce CSP in
+            proxy.ts forces dynamic rendering, and <head> already carries
+            nonce-stamped inline scripts that must not be reparented.
+
+            No `dynamic` prop on purpose: it would make ClerkProvider call
+            auth(), which requires the middleware to have run. The matcher in
+            proxy.ts deliberately skips prefetch requests, so that would throw
+            on a route the reader only hovered.
+
+            appearance re-skins Clerk's chrome in PUBMAXX design tokens, so the
+            dialog follows the theme toggle instead of arriving as stock Clerk
+            chrome. See lib/clerkAppearance.ts. */}
+        <ClerkProvider appearance={clerkAppearance}>
         {/* AuthProvider is additive: it establishes identity for signed-in users
             but never gates a route — anonymous browsing stays fully public. The
             session loads async client-side, so children render immediately. */}
@@ -306,6 +327,7 @@ export default async function RootLayout({
             <EntryBootStamp />
           </CommandPaletteProvider>
         </AuthProvider>
+        </ClerkProvider>
         {/* Vercel Web Analytics (R3) — consent-gated pageviews only. Product
             events use the separately allow-listed rail in lib/analytics.ts.
             Outside AuthProvider on purpose: it's app infra, not identity. */}

@@ -824,3 +824,78 @@
     animation: none;
   }
 }
+
+/* ── Clerk account controls ──────────────────────────────────────────────
+   Clerk sits inside the SAME surface as the Google / Apple / magic-link
+   options, so it borrows .authSignIn rather than shipping a second button
+   language. Only the layout, the lead emphasis and the caption are new.
+
+   The rule DESIGN.md §6 makes explicit and this block obeys: no new card, no
+   second accent. Coral already owns the primary action, so the lead button is
+   a weight and border change, not another colour. */
+.clerkAccount {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.clerkAccountActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.clerkAccountActions .authSignIn {
+  justify-content: center;
+  width: 100%;
+}
+
+/* NOTE ON PRESS FEEDBACK: these pills need none of their own. app/globals.css
+   already presses every <button> on :active via --press-scale, behind a
+   prefers-reduced-motion: no-preference gate, and __tests__/designCraftCss.test.ts
+   holds that to ONE scale owner per control. A local transform: scale() here
+   would be a second owner and would lose the reduced-motion gate with it. */
+
+/* The lead action. Coral is already the app's one accent, so emphasis here is
+   a firmer edge and a heavier label, never a second hue. */
+.clerkAccountPrimary {
+  border-color: var(--brass);
+  font-weight: 700;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .clerkAccountPrimary:hover {
+    background: var(--panel);
+    border-color: var(--brass-bright);
+  }
+}
+
+.clerkAccountPrimary:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* The honesty caption. It wraps and never truncates: a disclosure cut mid
+   sentence is a disclosure the reader never received. */
+.clerkAccountNote {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.clerkAccountSignedIn {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.clerkAccountNoteInline {
+  min-width: 0;
+}
+
