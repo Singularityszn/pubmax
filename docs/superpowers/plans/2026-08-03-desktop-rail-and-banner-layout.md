@@ -88,7 +88,7 @@ Start with empty first-run storage, wait for eligible location and status banner
 
 - [ ] **Step 3: Run against broken CSS**
 
-Run `npx playwright test e2e/desktop-map-chrome-fit.spec.ts --project=chromium --workers=1`. Confirm both tests fail on exact measured edge or overlap assertions.
+Run `npx playwright test e2e/desktop-map-chrome-fit.spec.ts --project=firefox-desktop-map-chrome-fit --workers=1`. Confirm both tests fail on exact measured edge or overlap assertions.
 
 - [ ] **Step 4: Commit red-capable tests**
 
@@ -123,7 +123,7 @@ When city-suggest prompt is present, move status into a separate desktop lane. K
 
 - [ ] **Step 5: Run focused E2E green**
 
-Run `npx playwright test e2e/desktop-map-chrome-fit.spec.ts --project=chromium --workers=1` and confirm both tests pass.
+Run `npx playwright test e2e/desktop-map-chrome-fit.spec.ts --project=firefox-desktop-map-chrome-fit --workers=1` and confirm both tests pass.
 
 - [ ] **Step 6: Commit implementation**
 
@@ -152,7 +152,7 @@ Run same E2E test against `origin/main`, restore branch, then rerun against fixe
 
 - [ ] **Step 3: Run required validation**
 
-Run `npx tsc --noEmit`, full `npm test`, and focused E2E. Confirm zero TypeScript errors and at least 7447 unit tests.
+Run `npx tsc --noEmit`, full `npm test`, and focused E2E. Confirm zero TypeScript errors and at least 7450 unit tests.
 
 - [ ] **Step 4: Clean tooling churn and inspect diff**
 

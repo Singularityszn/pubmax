@@ -88,6 +88,12 @@ export default defineConfig({
       ],
     },
     {
+      name: "firefox-desktop-map-chrome-fit",
+      testMatch: "**/desktop-map-chrome-fit.spec.ts",
+      timeout: 60_000,
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
       name: "chromium-keyless",
       testMatch: "**/price-contribution-entry.spec.ts",
       use: {
