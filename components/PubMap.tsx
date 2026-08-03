@@ -1575,7 +1575,7 @@ export default function PubMap({
       if (!isUkBaseId(id)) prefetchVenue(id);
       setTonightLaneOpen(false);
       setMapOverlay("none");
-      if (isMobileViewport()) closePlanning();
+      closePlanning();
       setVenueInitialTab(initialTab);
       setSelectedVenueId(id);
       closeComposer();
@@ -2687,7 +2687,7 @@ export default function PubMap({
           preSheetFocusRef.current = active;
         }
       }
-      drawerCloseButtonRef.current?.focus();
+      drawerCloseButtonRef.current?.focus({ preventScroll: true });
     } else if (preSheetFocusRef.current) {
       const target = preSheetFocusRef.current;
       const targetId = target.id;
@@ -3169,6 +3169,8 @@ export default function PubMap({
           onPersonaSelect={selectPersona}
           personaTonightCategory={personaTonightCategory}
           planningOpen={planningOpen}
+          detailOpen={detailOpen}
+          desktopLaneActive={railViewport}
           onTogglePlanning={togglePlanning}
           filters={filters}
           onFiltersChange={setFilters}
@@ -3660,6 +3662,8 @@ export default function PubMap({
         snap={plannerSheetSnap}
         dragOffsetY={plannerSheetDragY}
         releaseVelocityY={plannerSheetReleaseVelocity}
+        keepMounted={mapSurfaceTrail.holdsSurface("planner")}
+        fade
         className={
           "mapDrawer left" +
           (plannerSheetDragY !== null ? " sheet-dragging" : "")
@@ -3707,6 +3711,7 @@ export default function PubMap({
         snap={sheetSnap}
         dragOffsetY={sheetDragY}
         releaseVelocityY={sheetReleaseVelocity}
+        fade
         className={
           "mapDrawer right" +
           (sheetDragY !== null ? " sheet-dragging" : "")

@@ -44,6 +44,8 @@ type SpringDrawerProps = Omit<
   snap: SheetSnap;
   dragOffsetY: number | null;
   releaseVelocityY: number;
+  keepMounted?: boolean;
+  fade?: boolean;
   children: ReactNode;
 };
 
@@ -66,6 +68,8 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       snap,
       dragOffsetY,
       releaseVelocityY,
+      keepMounted = false,
+      fade = false,
       className,
       children,
       ...divProps
@@ -121,8 +125,8 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
     }, [children, open]);
 
     const clearRetainedChildren = useCallback(() => {
-      setRetainedChildren(null);
-    }, []);
+      if (!keepMounted) setRetainedChildren(null);
+    }, [keepMounted]);
 
     useLayoutEffect(() => {
       const mode = tabletSheet ? "vertical" : "horizontal";
@@ -198,16 +202,24 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       ? `translate3d(0, ${verticalValue}px, 0)`
       : `translate3d(${horizontalValue}%, 0, 0)`;
     const running = tabletSheet ? verticalRunning : horizontalRunning;
-    const presentationClassName = open || retainedChildren !== null
+    const presentationClassName = open || running || dragOffsetY !== null
       ? ` open sheet-${snap}`
       : "";
+    const opacity = fade && !tabletSheet
+      ? Math.max(0, 1 - Math.abs(horizontalValue) / 100)
+      : undefined;
     const style: SpringDrawerStyle = ready
       ? {
           "--drawer-spring-transform": transform,
           transform,
+          opacity,
           transition: "none",
           willChange:
-            running || dragOffsetY !== null ? "transform" : "auto",
+            running || dragOffsetY !== null
+              ? fade && !tabletSheet
+                ? "transform, opacity"
+                : "transform"
+              : "auto",
         }
       : { transition: "none", willChange: "auto" };
 

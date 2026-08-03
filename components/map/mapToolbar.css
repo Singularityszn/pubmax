@@ -374,7 +374,8 @@
   .appShell.detail-open .mapToolbar {
     width: fit-content;
     max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
-    left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
+    left: 50%;
+    transform: translateX(calc(-50% - (var(--desktop-venue-drawer-width) / 2)));
   }
 
   .appShell.detail-open .mapToolbar .mapToolbarDesktopExtras,
@@ -404,7 +405,8 @@
   .appShell.planning-open .mapToolbar {
     width: fit-content;
     max-width: calc(100% - var(--desktop-planner-rail-width) - 32px);
-    left: calc((100% + var(--desktop-planner-rail-width)) / 2);
+    left: 50%;
+    transform: translateX(calc(-50% + (var(--desktop-planner-rail-width) / 2)));
   }
 
   .appShell.planning-open .mapToolbar .mapToolbarDesktopExtras,

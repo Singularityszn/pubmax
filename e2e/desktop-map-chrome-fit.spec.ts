@@ -2,7 +2,18 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const DESKTOP = { width: 1440, height: 900 };
 const DESKTOP_WIDTHS = [1024, 1280, 1440, 1600] as const;
+const EXPECTED_PLANNER_RAIL_WIDTHS: Record<
+  (typeof DESKTOP_WIDTHS)[number],
+  number
+> = {
+  1024: 376,
+  1280: 376,
+  1440: 376,
+  1600: 376,
+};
 const EDGE_GUTTER = 16;
+const CAPTURE_DRAWER_EXCHANGE =
+  process.env.PUBMAX_CAPTURE_DESKTOP_EXCHANGE === "1";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -25,23 +36,68 @@ async function prepareDesktopMap(page: Page, width = DESKTOP.width) {
   });
 }
 
+async function stubCityStatus(page: Page) {
+  await page.route("**/api/citymcp/status**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        asOf: null,
+        weather: null,
+        tubeLines: [],
+        signals: [],
+      }),
+    }),
+  );
+}
+
+async function toolbarPubOption(page: Page, query: string, name: RegExp) {
+  const search = page
+    .locator(".mapToolbar")
+    .getByRole("combobox", { name: "Search pubs" });
+  await search.fill(query);
+  const option = page.getByRole("option", { name }).first();
+  await expect(option).toBeVisible({ timeout: 20_000 });
+  return option;
+}
+
+async function selectToolbarPub(page: Page, query: string, name: RegExp) {
+  const option = await toolbarPubOption(page, query, name);
+  await option.click();
+}
+
+async function indexedToolbarPubOption(
+  page: Page,
+  query: string,
+  index: number,
+) {
+  const search = page
+    .locator(".mapToolbar")
+    .getByRole("combobox", { name: "Search pubs" });
+  await search.fill(query);
+  await search.focus();
+  const option = page
+    .getByRole("group", { name: "Venues" })
+    .getByRole("option")
+    .nth(index);
+  await expect(option).toBeVisible({ timeout: 20_000 });
+  return option;
+}
+
+async function captureDrawerExchange(page: Page, name: string) {
+  if (!CAPTURE_DRAWER_EXCHANGE) return;
+  await page.screenshot({
+    path: `docs/evidence/desktop-rail-and-banners/drawer-exchange-${name}-firefox-1440.png`,
+    animations: "allow",
+  });
+}
+
 for (const width of DESKTOP_WIDTHS) {
   test(`${width}px open planner keeps toolbar search and Clear search beyond the rail edge`, async ({
     page,
   }) => {
     await prepareDesktopMap(page, width);
-    await page.route("**/api/citymcp/status**", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          asOf: null,
-          weather: null,
-          tubeLines: [],
-          signals: [],
-        }),
-      }),
-    );
+    await stubCityStatus(page);
 
     const response = await page.goto(`/map?desktop-rail-fit=${width}`, {
       waitUntil: "domcontentloaded",
@@ -72,6 +128,22 @@ for (const width of DESKTOP_WIDTHS) {
       renderedBox(clearSearch, "Clear search"),
     ]);
     const railRight = railBox.x + railBox.width;
+    const publishedRailWidth = await rail.evaluate((node) =>
+      Number.parseFloat(
+        getComputedStyle(node.closest(".appShell")!).getPropertyValue(
+          "--desktop-planner-rail-width",
+        ),
+      ),
+    );
+
+    expect(
+      railBox.width,
+      `${width}px planner rail matches measured Firefox contract`,
+    ).toBeCloseTo(EXPECTED_PLANNER_RAIL_WIDTHS[width], 2);
+    expect(
+      publishedRailWidth,
+      `${width}px planner rail publishes measured Firefox contract`,
+    ).toBe(EXPECTED_PLANNER_RAIL_WIDTHS[width]);
 
     expect(
       toolbarBox.x,
@@ -91,6 +163,183 @@ for (const width of DESKTOP_WIDTHS) {
     ).toBeLessThanOrEqual(width - EDGE_GUTTER);
   });
 }
+
+test("1440px planner hands ownership to venue and Back restores composed state", async ({
+  page,
+}) => {
+  await prepareDesktopMap(page);
+  await stubCityStatus(page);
+
+  const response = await page.goto("/map?desktop-drawer-exchange=1440", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(response?.status()).toBe(200);
+
+  const toolbar = page.locator(".mapToolbar");
+  await expect(toolbar).toBeVisible({ timeout: 20_000 });
+  await page.locator(".mapVenueListToggle").evaluate((button) => {
+    (button as HTMLElement).click();
+  });
+  const retargetVenue = page
+    .locator(".mapVenueListItem")
+    .filter({ hasNotText: "Three Sheets Soho" })
+    .first();
+  await expect(retargetVenue).toHaveCount(1, { timeout: 20_000 });
+  await toolbar
+    .getByRole("button", { name: "Plan tonight" })
+    .evaluate((button) => (button as HTMLElement).click());
+
+  const planner = page.locator(".mapDrawer.left.springDrawer");
+  const venue = page.locator(".mapDrawer.right.springDrawer");
+  const mapStage = page.locator(".mapStage");
+  await expect(planner).toHaveAttribute("aria-hidden", "false");
+  await expect(planner.locator("#railSearchInput")).toBeVisible();
+  await expect
+    .poll(async () => (await renderedBox(planner, "planner rail")).x)
+    .toBeCloseTo(0, 0);
+
+  const mapBefore = await renderedBox(mapStage, "map stage before exchange");
+
+  const firstVenueOption = await indexedToolbarPubOption(page, "Soho", 0);
+  const toolbarBeforeOwnershipChange = await renderedBox(
+    toolbar,
+    "toolbar before ownership change",
+  );
+  await captureDrawerExchange(page, "planner-open");
+  const ownershipChange = await firstVenueOption.evaluate((option) => {
+    const toolbar = document.querySelector<HTMLElement>(".mapToolbar");
+    if (!toolbar) throw new Error("desktop toolbar is missing");
+    const before = toolbar.getBoundingClientRect().x;
+    (option as HTMLElement).click();
+    return {
+      before,
+      after: toolbar.getBoundingClientRect().x,
+    };
+  });
+  expect(
+    Math.abs(ownershipChange.after - ownershipChange.before),
+  ).toBeLessThan(16);
+
+  await expect
+    .poll(async () => (await renderedBox(planner, "moving planner")).x, {
+      intervals: [16, 16, 16, 16],
+      timeout: 5_000,
+    })
+    .toBeLessThan(-1);
+  const [plannerMid, venueMid, toolbarMid] = await Promise.all([
+    renderedBox(planner, "planner during exchange"),
+    renderedBox(venue, "venue during exchange"),
+    renderedBox(toolbar, "toolbar during exchange"),
+  ]);
+  expect(plannerMid.x).toBeLessThan(0);
+  expect(plannerMid.x).toBeGreaterThan(-plannerMid.width);
+  expect(venueMid.x).toBeGreaterThan(800);
+  expect(venueMid.x).toBeLessThan(DESKTOP.width);
+  await captureDrawerExchange(page, "mid-exchange");
+
+  await expect(planner).toHaveAttribute("aria-hidden", "true");
+  await expect(venue).toHaveAttribute("aria-hidden", "false");
+
+  const venueBeforeRetarget = await renderedBox(
+    venue,
+    "venue before mid-spring retarget",
+  );
+  const retargetVenueName = await retargetVenue.evaluate((button) => {
+    const name = button
+      .querySelector<HTMLElement>(".mapVenueListItemName")
+      ?.innerText.trim();
+    if (!name) throw new Error("retarget venue name is missing");
+    (button as HTMLElement).click();
+    return name;
+  });
+  await page.waitForTimeout(16);
+  const venueAfterRetarget = await renderedBox(
+    venue,
+    "venue after mid-spring retarget",
+  );
+  expect(venueAfterRetarget.x).toBeLessThanOrEqual(
+    venueBeforeRetarget.x + 10,
+  );
+
+  await expect
+    .poll(() => page.locator(".mapDrawer.springDrawer.open").count(), {
+      message: "one desktop drawer owns the surface after exchange",
+    })
+    .toBe(1);
+  await expect(
+    venue.getByRole("heading", { name: retargetVenueName }).first(),
+  ).toBeVisible({ timeout: 20_000 });
+
+  const [mapAfter, venueOpen, toolbarOpen] = await Promise.all([
+    renderedBox(mapStage, "map stage after exchange"),
+    renderedBox(venue, "open venue drawer"),
+    renderedBox(toolbar, "toolbar beside venue"),
+  ]);
+  expect(venueOpen.x).toBeCloseTo(800, 0);
+  expect(toolbarOpen.x + toolbarOpen.width).toBeLessThanOrEqual(
+    venueOpen.x - EDGE_GUTTER,
+  );
+  expect(toolbarMid.x).toBeLessThan(toolbarBeforeOwnershipChange.x);
+  expect(toolbarMid.x).toBeGreaterThan(toolbarOpen.x);
+  expect(mapAfter).toEqual(mapBefore);
+  await captureDrawerExchange(page, "venue-open");
+  await expect(
+    venue.getByRole("button", { name: "Back to Plan tonight" }),
+  ).toBeVisible();
+  await expect(
+    venue.getByRole("button", { name: "Close and return to the London map" }),
+  ).toBeVisible();
+
+  await venue
+    .getByRole("button", { name: "Back to Plan tonight" })
+    .click();
+  await expect(planner).toHaveAttribute("aria-hidden", "false");
+  await expect(planner.locator("#railSearchInput")).toHaveValue(
+    "Soho",
+  );
+  await expect
+    .poll(() => page.locator(".mapDrawer.springDrawer.open").count(), {
+      message: "Back restores planner as sole desktop drawer",
+    })
+    .toBe(1);
+  await expect
+    .poll(async () => (await renderedBox(planner, "restored planner")).x)
+    .toBeCloseTo(0, 0);
+  await captureDrawerExchange(page, "back-restored-planner");
+});
+
+test("1440px reduced motion swaps desktop drawer ownership immediately", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await prepareDesktopMap(page);
+  await stubCityStatus(page);
+
+  const response = await page.goto("/map?desktop-drawer-exchange=reduced", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(response?.status()).toBe(200);
+
+  const toolbar = page.locator(".mapToolbar");
+  await expect(toolbar).toBeVisible({ timeout: 20_000 });
+  await toolbar.getByRole("button", { name: "Plan tonight" }).click();
+
+  const planner = page.locator(".mapDrawer.left.springDrawer");
+  const venue = page.locator(".mapDrawer.right.springDrawer");
+  await expect(planner).toHaveAttribute("aria-hidden", "false");
+  await selectToolbarPub(page, "The French House", /The French House/);
+
+  await expect(planner).toHaveAttribute("aria-hidden", "true");
+  await expect(venue).toHaveAttribute("aria-hidden", "false");
+  await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
+
+  const [plannerBox, venueBox] = await Promise.all([
+    renderedBox(planner, "reduced-motion planner"),
+    renderedBox(venue, "reduced-motion venue"),
+  ]);
+  expect(plannerBox.x).toBeCloseTo(-EXPECTED_PLANNER_RAIL_WIDTHS[1440], 0);
+  expect(venueBox.x).toBeCloseTo(800, 0);
+});
 
 for (const width of DESKTOP_WIDTHS) {
   test(`${width}px first-run location prompt owns centre while status yields to its left`, async ({

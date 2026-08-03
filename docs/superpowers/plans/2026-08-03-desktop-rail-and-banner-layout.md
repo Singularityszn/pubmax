@@ -4,7 +4,7 @@
 
 **Goal:** Keep desktop map chrome outside open planner rail and prevent eligible first-load banners from colliding.
 
-**Architecture:** Publish planner rail's measured rendered width once at desktop drawer breakpoint, then use that value to bound and centre toolbar and ambient banners in remaining map lane. Preserve each banner's eligibility and dismissal lifecycle while giving higher-priority location prompt its existing slot and moving status out of the central prompt lane.
+**Architecture:** Publish planner rail's measured rendered width once at desktop drawer breakpoint, then use that value to bound and centre toolbar and ambient banners in remaining map lane. Desktop planner and venue drawers exchange surface ownership through existing trail and spring primitives, retaining planner state only while trail can restore it. Preserve each banner's eligibility and dismissal lifecycle while giving higher-priority location prompt its existing slot and moving status out of the central prompt lane.
 
 **Tech Stack:** Next.js 16, React 19, CSS, Playwright, Vitest, TypeScript.
 
@@ -16,8 +16,21 @@
 - Regression coverage asserts rendered boxes and edges and must fail on `origin/main`.
 - Commit before and after screenshots beside each other.
 - `npx tsc --noEmit` must report zero errors.
-- Full unit suite must report at least 7447 passing tests.
+- Full unit suite must report at least 7450 passing tests.
 - Do not touch sibling lane files named in task brief.
+
+---
+
+## Firefox Measured Rail Contract
+
+| Desktop viewport | Rendered planner rail width |
+| --- | ---: |
+| 1024 by 900 | 376px |
+| 1280 by 900 | 376px |
+| 1440 by 900 | 376px |
+| 1600 by 900 | 376px |
+
+Measurements use `getBoundingClientRect().width` in Playwright Firefox. `--desktop-planner-rail-width` owns this contract and the rail, toolbar, and banner geometry consume it.
 
 ---
 

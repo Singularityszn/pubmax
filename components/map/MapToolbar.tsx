@@ -1,7 +1,13 @@
 "use client";
 
 import { Layers, Route, Wine } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import CitySwitcher from "@/components/map/CitySwitcher";
 import ConditionsChip from "@/components/desktop/ConditionsChip";
@@ -18,6 +24,7 @@ import type { DrinkCategory } from "@/lib/drinks";
 import type { PersonaDrink } from "@/lib/personaDrinks";
 import type { Filters } from "@/lib/venues";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import { useSpringValue } from "@/lib/useSpringValue";
 import type { ZonePintIndex } from "@/lib/zones";
 
 import "./mapToolbar.css";
@@ -45,6 +52,8 @@ type MapToolbarProps = {
   /** The DrinkCategory that fits tonight, for the persona fits-tonight sort. */
   personaTonightCategory: DrinkCategory | null;
   planningOpen: boolean;
+  detailOpen: boolean;
+  desktopLaneActive: boolean;
   onTogglePlanning: () => void;
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
@@ -77,6 +86,8 @@ export default function MapToolbar({
   onPersonaSelect,
   personaTonightCategory,
   planningOpen,
+  detailOpen,
+  desktopLaneActive,
   onTogglePlanning,
   filters,
   onFiltersChange,
@@ -95,6 +106,10 @@ export default function MapToolbar({
   // the reader asked for anything.
   const [lensOpen, setLensOpen] = useState(false);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const { value: laneOffset, animateTo: animateLaneOffset } = useSpringValue(0, {
+    response: 0.38,
+    dampingRatio: 1,
+  });
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
   // The banners below the toolbar dock against its rendered bottom edge. That
   // edge moves when the lens or drink panels open, so the toolbar publishes its
@@ -115,6 +130,34 @@ export default function MapToolbar({
       shell.style.removeProperty("--map-toolbar-resting-height");
     };
   }, []);
+  useLayoutEffect(() => {
+    const toolbar = toolbarRef.current;
+    const shell = toolbar?.closest<HTMLElement>(".appShell");
+    if (!toolbar || !shell || !desktopLaneActive) {
+      animateLaneOffset(0);
+      return;
+    }
+
+    const drawerSelector = detailOpen
+      ? ".mapDrawer.right"
+      : planningOpen
+        ? ".mapDrawer.left"
+        : null;
+    const drawer = drawerSelector
+      ? shell.querySelector<HTMLElement>(drawerSelector)
+      : null;
+    const sync = () => {
+      const width = drawer?.getBoundingClientRect().width ?? 0;
+      animateLaneOffset(
+        detailOpen ? -width / 2 : planningOpen ? width / 2 : 0,
+      );
+    };
+    sync();
+    if (!drawer || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(sync);
+    observer.observe(drawer);
+    return () => observer.disconnect();
+  }, [animateLaneOffset, desktopLaneActive, detailOpen, planningOpen]);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
     const sync = () => {
@@ -155,6 +198,14 @@ export default function MapToolbar({
     <div
       ref={toolbarRef}
       className="mapToolbar"
+      style={
+        desktopLaneActive
+          ? {
+              transform: `translateX(calc(-50% + ${laneOffset}px))`,
+              transition: "none",
+            }
+          : undefined
+      }
       // No search control on a base-pub-only arrival, so no search landmark:
       // navigating by landmark to a region with nothing to search is a dead end.
       role={searchContent ? "search" : undefined}
