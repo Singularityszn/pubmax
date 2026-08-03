@@ -4,6 +4,8 @@ import { Beer, Footprints, Navigation, TrainFront } from "lucide-react";
 
 import { formatPrice, type Venue } from "@/lib/venues";
 import { formatLeg, type OnTheWayPoi, type RouteLegsSummary } from "@/lib/routeLegs";
+import { journeyAddsTransit } from "@/lib/formatJourney";
+import { routeStopPlaceLabels } from "@/lib/routeStops";
 import type { CrawlJourneyLegSummary } from "@/components/map/useCrawlJourneys";
 
 type VenueSignals = Map<
@@ -30,6 +32,18 @@ export default function RouteList({
   journeyByToIndex,
   onSelectVenue,
 }: RouteListProps) {
+  // A place line per stop, widened only where two stops share a name (see
+  // lib/routeStops.ts). London has several Queens Heads.
+  const placeLabels = routeStopPlaceLabels(
+    route.map((venue) => ({
+      name: venue.name,
+      address: venue.address,
+      storyTag: venue.curation.storyTag,
+      primaryBorough: venue.primaryBorough,
+      visibleBoroughs: venue.visibleBoroughs,
+    })),
+  );
+
   return (
     <ol className="routeList">
       {route.map((venue, index) => {
@@ -37,6 +51,11 @@ export default function RouteList({
         const dropCount = signal?.dropCount ?? 0;
         const leg = legSummary.legs[index];
         const onTheWay = onTheWayByLeg.get(index) ?? [];
+        // The card already prints this leg's walk time. A walk-only TfL journey
+        // is that same leg measured twice, so only a journey that uses another
+        // mode earns a second line.
+        const journey = journeyByToIndex?.get(index);
+        const transitJourney = journey && journeyAddsTransit(journey.modes) ? journey : null;
         return (
         <li key={venue.id} className={activeVenueId === venue.id ? "active" : ""}>
           <button
@@ -63,12 +82,7 @@ export default function RouteList({
                 {formatPrice(signal?.latestContributorPrice ?? venue.cheapestPrice)}{" "}
                 · {venue.cheapestPint}
               </p>
-              <small>
-                {venue.curation.storyTag ||
-                  venue.primaryBorough ||
-                  venue.visibleBoroughs[0] ||
-                  "London"}
-              </small>
+              <small>{placeLabels[index]}</small>
             </div>
           </button>
           <a
@@ -89,10 +103,10 @@ export default function RouteList({
                   On the way: {onTheWay.map((m) => m.poi.name).join(", ")}
                 </p>
               ) : null}
-              {journeyByToIndex?.get(index) ? (
+              {transitJourney ? (
                 <p className="routeLegTransit" aria-label="TfL leg">
                   <TrainFront size={12} aria-hidden="true" />
-                  <span>{journeyByToIndex.get(index)!.summary}</span>
+                  <span>{transitJourney.summary}</span>
                 </p>
               ) : null}
             </div>
