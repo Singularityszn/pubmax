@@ -15,26 +15,33 @@ test("mobile planner explains planning confidence and evidence warnings", async 
   await expect(coverage).toBeVisible();
   await expect(coverage.locator("details")).not.toHaveAttribute("open", "");
 
-  await coverage.getByText("Night Area coverage", { exact: true }).click();
+  await coverage.getByText("Area coverage", { exact: true }).click();
 
   await expect(coverage).toContainText(
-    "Every area can still produce an editable route, with missing evidence shown before you rely on it.",
+    "See where prices and route details have been checked. An active warning can stop route planning until the area is checked again.",
   );
   await expect(coverage.getByRole("heading", { name: "Higher-confidence planning" })).toBeVisible();
-  await expect(coverage.getByRole("heading", { name: "Plan with warnings" })).toBeVisible();
+  await expect(coverage.getByRole("heading", { name: "Not all checked" })).toBeVisible();
+
+  // Each row is found by the coverage state it OWNS (`data-coverage-status`,
+  // written by PlanComposer), not by the badge wording beside it. The coverage
+  // vocabulary has now been renamed twice and each rename broke this spec
+  // silently, because a locator built on display copy tests the copy.
+  const row = (status: string) => coverage.locator(`li[data-coverage-status="${status}"]`);
+
   await expect(coverage.getByText("Clapham", { exact: true })).toBeVisible();
-  await expect(coverage.getByText("Route-ready", { exact: true }).first()).toBeVisible();
+  await expect(row("route_ready").first()).toContainText("Route-ready");
   await expect(coverage.getByText("Shoreditch", { exact: true })).toBeVisible();
-  await expect(coverage.getByText("Plan with warnings", { exact: true }).first()).toBeVisible();
-  await expect(coverage.getByText("Low confidence", { exact: true }).first()).toBeVisible();
-  await expect(coverage.getByText("Review expired", { exact: true })).toBeVisible();
-  await expect(coverage).toContainText("Captured coverage, missing opening hours and route feasibility + 2 more.");
+  await expect(row("captured").first()).toContainText("Not all checked");
+  await expect(row("discovered").first()).toContainText("Rough guess");
+  await expect(row("paused").first()).toContainText("Gone stale");
+  await expect(coverage).toContainText("Some checks complete. Missing opening hours and route feasibility + 2 more.");
   await expect(coverage.getByRole("link", { name: "Explore Shoreditch pubs on the map" })).toHaveAttribute(
     "href",
     "/map?q=Shoreditch",
   );
   await expect(coverage.getByText("Last checked 13 Jul 2026 · review through 1 Jan 2027.", { exact: true }).first()).toBeVisible();
-  await expect(coverage.getByText("No reviewed snapshot yet.", { exact: true }).first()).toBeVisible();
+  await expect(coverage.getByText("Not checked yet.", { exact: true }).first()).toBeVisible();
   await expect(coverage.getByText("Last checked 1 Jan 2026 · review expired 1 Jun 2026.", { exact: true })).toBeVisible();
 });
 

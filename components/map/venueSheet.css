@@ -613,7 +613,6 @@
     flex-wrap: nowrap;
     max-height: none;
     scroll-snap-type: x proximity;
-    mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent);
   }
 
   .venueTab {
@@ -704,6 +703,16 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   border-radius: var(--radius-lg);
   background: transparent;
   box-shadow: none;
+}
+
+/* The fade is a claim that a tab is hidden past the edge, so it is drawn only
+   while that is true: lib/useTrailingEdgeFade.ts sets this attribute and drops
+   it at the end of the scroll, and whenever the whole overflow is narrower than
+   the fade itself. Unconditional, this dimmed the last tab on every 390px
+   phone at every scroll position, and a half-faded tab reads as disabled.
+   The 28px here is the width that hook publishes; __tests__/venueTabsEdgeFade
+   .test.ts fails when the two drift apart. */
+.venueTabs[data-trailing-fade="on"] {
   mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
   -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
 }
