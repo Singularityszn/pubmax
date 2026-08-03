@@ -477,49 +477,62 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
   );
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
 
-  await page.evaluate(() => {
-    const testWindow = window as typeof window & {
-      __mobileMapCameraIntentCount?: number;
-    };
-    testWindow.__mobileMapCameraIntentCount = 0;
-    window.addEventListener("pubmax:camera-intent", () => {
-      testWindow.__mobileMapCameraIntentCount =
-        (testWindow.__mobileMapCameraIntentCount ?? 0) + 1;
-    });
-  });
+  // This used to guess where a pin was: a 20px grid of taps across the canvas,
+  // hunting for one that opened a sheet, abandoned after a fixed number of
+  // passes. Under parallel workers the map had not painted its pins before the
+  // scan ran out, so a timing loss read as a product defect. Ask the map
+  // instead. `paintedPinProbe.ts` answers with the viewport point of every pin
+  // the map is drawing right now, already checked to survive collision, to
+  // re-query to the same pub, and to carry no chrome on top of it. Polling it
+  // waits for the real signal, and the tap then lands on a pin because a pin
+  // is known to be there.
+  const paintedPins = () =>
+    page.evaluate(
+      () =>
+        (
+          window as typeof window & {
+            __pubmaxPaintedPinTapPoints?: () => Array<{
+              id: string;
+              x: number;
+              y: number;
+            }>;
+          }
+        ).__pubmaxPaintedPinTapPoints?.() ?? [],
+    );
 
-  let cameraIntentCount = 0;
-  let pinOpened = false;
-  for (let cameraStage = 0; cameraStage < 7 && !pinOpened; cameraStage += 1) {
-    let cameraAdvanced = false;
-    for (let y = 110; y <= 670 && !pinOpened && !cameraAdvanced; y += 20) {
-      for (let x = 20; x <= 300; x += 20) {
-        await page.mouse.click(x, y);
-        await page.waitForTimeout(40);
-        if (await venueSheet.count()) {
-          pinOpened = true;
-          break;
-        }
-        const nextCameraIntentCount = await page.evaluate(
-          () =>
-            (
-              window as typeof window & {
-                __mobileMapCameraIntentCount?: number;
-              }
-            ).__mobileMapCameraIntentCount ?? 0,
-        );
-        if (nextCameraIntentCount > cameraIntentCount) {
-          cameraIntentCount = nextCameraIntentCount;
-          cameraAdvanced = true;
-          break;
-        }
-      }
-    }
-    if (cameraAdvanced) {
-      await page.waitForTimeout(850);
-    }
-  }
-  expect(pinOpened, "a painted map pin receives its own tap").toBe(true);
+  await expect
+    .poll(async () => (await paintedPins()).length, {
+      message: "the phone map paints a pin the reader can tap",
+      timeout: 60_000,
+    })
+    .toBeGreaterThan(0);
+
+  // One tap, on one known pin. The retry exists because the pins keep their
+  // own entrance ramp, so a pin can move between the read and the tap; every
+  // attempt still taps a pin the map is painting at that moment, and the first
+  // opened sheet ends it.
+  let tappedPinId = "";
+  await expect
+    .poll(
+      async () => {
+        if (await venueSheet.count()) return true;
+        const [pin] = await paintedPins();
+        if (!pin) return false;
+        tappedPinId = pin.id;
+        await page.mouse.click(pin.x, pin.y);
+        await page.waitForTimeout(400);
+        return (await venueSheet.count()) > 0;
+      },
+      { message: "a painted map pin receives its own tap", timeout: 30_000 },
+    )
+    .toBe(true);
   await expect(venueSheet).toHaveCount(1);
+  // The sheet belongs to the pin that was tapped, not to some other selection:
+  // an in-Map selection writes its venue to `?sel=` (lib/mapSelectionHistory).
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("sel"), {
+      message: "the sheet belongs to the pin that was tapped",
+    })
+    .toBe(tappedPinId);
   await page.waitForTimeout(1_200);
 });

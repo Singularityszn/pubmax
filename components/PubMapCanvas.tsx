@@ -98,6 +98,7 @@ import { applySelectionMute } from "@/lib/mapBasemapTaste";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
 } from "@/components/map/canvas/interactions";
+import { installPaintedPinProbe } from "@/components/map/canvas/paintedPinProbe";
 import { useMapCamera } from "@/components/map/canvas/useMapCamera";
 import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DURATION_MS } from "@/components/map/canvas/easing";
 import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
@@ -2198,6 +2199,9 @@ export default function PubMapCanvas({
       tonightOpportunitiesRef,
       cinematic,
     });
+    // The browser suite's counterpart to that hit test: it publishes where the
+    // painted pins are so a tap can land on one (paintedPinProbe.ts).
+    const removePaintedPinProbe = installPaintedPinProbe(map);
     wireHoverPrefetch(map, { onVenuePrefetchRef });
     wirePubHover(map, { hoverCapableRef, setHoveredVenue });
     wireCursor(map);
@@ -2331,6 +2335,7 @@ export default function PubMapCanvas({
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       donutSync.destroy();
+      removePaintedPinProbe();
       {
         const fallback = (map as maplibregl.Map & { __pubmaxTransitFallback?: number })
           .__pubmaxTransitFallback;
