@@ -137,17 +137,6 @@
   flex-wrap: wrap;
 }
 
-/* In the sheet this is a section header, so it is sentence case and matches the
-   others. Uppercase is reserved for stamps (docs/DESIGN_SYSTEM.md); the
-   float-over-map variant keeps its caps micro-label, which IS a stamp. */
-.tonightArcChipsSheet .tonightArcLabel {
-  color: var(--ink);
-  font-size: 0.85rem;
-  font-weight: 800;
-  letter-spacing: -0.005em;
-  text-transform: none;
-}
-
 .tonightArcChipsSheet .tonightArcChip {
   min-height: 44px;
 }
