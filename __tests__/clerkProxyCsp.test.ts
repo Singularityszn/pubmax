@@ -48,6 +48,21 @@ function directive(policy: string, name: string): string | undefined {
 }
 
 describe("Clerk publishable key decoding", () => {
+  it("decodes with atob when Buffer is absent (browser path)", () => {
+    // The client gate calls clerkFrontendApiOrigin during render. A Buffer-only
+    // decode returns null in the browser and hides every Clerk control.
+    const realBuffer = globalThis.Buffer;
+    // @ts-expect-error intentional temporary deletion for the browser path
+    delete globalThis.Buffer;
+    try {
+      expect(typeof globalThis.Buffer).toBe("undefined");
+      expect(clerkFrontendApiOrigin(PUBLISHABLE_KEY)).toBe(FRONTEND_API);
+      expect(isClerkConfigured(PUBLISHABLE_KEY)).toBe(true);
+    } finally {
+      globalThis.Buffer = realBuffer;
+    }
+  });
+
   it("derives the instance Frontend API origin from the key", () => {
     expect(clerkFrontendApiOrigin(PUBLISHABLE_KEY)).toBe(FRONTEND_API);
   });
@@ -311,6 +326,34 @@ describe("the middleware gate needs BOTH keys", () => {
     vi.stubEnv("CLERK_SECRET_KEY", "sk_test_not_a_real_key");
 
     expect(isClerkMiddlewareConfigured()).toBe(true);
+  });
+
+  it("exports the plain security proxy and serves pages when the secret is missing", async () => {
+    // The boolean gate above is necessary but not enough: the ship risk is that
+    // proxy.ts still calls clerkMiddleware() at module load and that throw
+    // becomes a site-wide 500. Re-import under a half-configured env and drive
+    // the named export Next actually runs, so a future refactor that "knows"
+    // isClerkMiddlewareConfigured but still constructs clerkMiddleware cannot
+    // pass.
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
+    vi.stubEnv("CLERK_SECRET_KEY", "");
+    vi.resetModules();
+
+    const mod = await import("@/proxy");
+    // Identity equality is the contract: half-configured deploys must not wrap
+    // securityProxy in clerkMiddleware (whose type would also demand a second
+    // NextFetchEvent argument Next never passes in our unit tests).
+    expect(mod.proxy).toBe(mod.securityProxy);
+
+    const response = mod.securityProxy(
+      new NextRequest("https://pubmaxxing.com/map", {
+        headers: { host: "pubmaxxing.com" },
+      }),
+    );
+
+    expect(response).toBeInstanceOf(Response);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Security-Policy")).toContain("script-src");
   });
 });
 

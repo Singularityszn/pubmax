@@ -102,9 +102,17 @@ export function clerkFrontendApiOrigin(
     : null;
   if (!payload) return null;
 
+  // Decode on BOTH runtimes. Node has Buffer; the browser has atob. The client
+  // gate (SignInButton / ClerkAccountControls) calls this during render, so a
+  // Buffer-only decode used to return null in the browser, hide every Clerk
+  // control, and leave a reader with no way to make an account when Supabase
+  // was also off. The payload is ASCII (host + `$`), so atob is exact.
   let decoded: string;
   try {
-    decoded = Buffer.from(payload, "base64").toString("utf8");
+    decoded =
+      typeof Buffer !== "undefined"
+        ? Buffer.from(payload, "base64").toString("utf8")
+        : atob(payload);
   } catch {
     return null;
   }

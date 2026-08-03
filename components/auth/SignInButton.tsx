@@ -188,10 +188,17 @@ export default function SignInButton({
   // deployment with a Clerk key and no Supabase env used to render nothing at
   // all, which left a signed-out reader with no way to make an account.
   const clerkConfigured = isClerkConfigured();
+  // Clerk is browser-side identity: it does not wait on the Supabase session
+  // restore. Holding the whole control behind `loading` used to hide the only
+  // way in when Supabase was off (or slow) and Clerk was on — the reader saw a
+  // nav with no Sign in at all. Once Clerk is configured, show the control even
+  // while the Supabase half is still resolving; Supabase-only hosts keep the
+  // flash guard below.
   if (!configured && !clerkConfigured) return null;
 
   // Avoid a flash of the wrong state while the first getSession() resolves.
-  if (loading) return null;
+  // Skip the wait when Clerk can already answer — see gate comment above.
+  if (loading && !clerkConfigured) return null;
 
   if (user) {
     const meta = (user.user_metadata ?? {}) as Record<string, unknown>;

@@ -280,6 +280,15 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     }
     const callbackCapture = capturedCallback.current ?? Promise.resolve(null);
 
+    // No Supabase public env: there is no session to restore. Drop `loading`
+    // immediately so Clerk (or any other side-by-side identity control) can
+    // render on first paint rather than waiting for a client that will never
+    // exist. The rest of the effect still runs to scrub a leftover callback
+    // URL if the reader landed with one.
+    if (!configured) {
+      setLoading(false);
+    }
+
     let active = true;
     let subscription: { unsubscribe: () => void } | null = null;
     // Session restoration is additive; it must never hold the anonymous app or

@@ -1,0 +1,31 @@
+{
+  "base": "http://localhost:3127",
+  "email": "pubmax.crew+clerk_test_msdhxwvh@example.com",
+  "userId": "user_3HPliTizA5FLHp3pqcyBiJ73NxX",
+  "note": "Instance sign_up.mode=waitlist so Create account shows the waitlist. User created via Backend API; browser sign-in uses email+password (and OTP if shown).",
+  "shots": [
+    "01-signed-out.png",
+    "02-sign-up-waitlist.png",
+    "03-signed-in.png",
+    "04-signed-out-again.png",
+    "05-signed-in-again.png"
+  ],
+  "consoleErrors": [
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/environment?__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&_method=PATCH&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/client?__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/client/sign_ins?__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/client/sign_ins/sia_3HPljsUbUaIPJUYjbQI5eltTmqK/prepare_second_factor?__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/client/sign_ins/sia_3HPljsUbUaIPJUYjbQI5eltTmqK/attempt_second_factor?__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/client/sessions/sess_3HPlk1DNG76EI06iB1xLV9nMROT/touch?__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/me/organization_suggestions?status=pending&status=accepted&limit=10&offset=0&__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&_clerk_session_id=sess_3HPlk1DNG76EI06iB1xLV9nMROT&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/me/organization_invitations?status=pending&limit=10&offset=0&__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&_clerk_session_id=sess_3HPlk1DNG76EI06iB1xLV9nMROT&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/me/organization_memberships?paginated=true&limit=10&offset=0&__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&_clerk_session_id=sess_3HPlk1DNG76EI06iB1xLV9nMROT&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/me/organization_creation_defaults?__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&_clerk_session_id=sess_3HPlk1DNG76EI06iB1xLV9nMROT&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/organizations?__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&_clerk_session_id=sess_3HPlk1DNG76EI06iB1xLV9nMROT&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/client/sessions/sess_3HPlk1DNG76EI06iB1xLV9nMROT/touch?__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/client/sessions?__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&_method=DELETE&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/client/sign_ins?__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]",
+    "[JavaScript Error: \"Cookie “_cfuvid” has been rejected for invalid domain.\" {file: \"https://rare-trout-29.clerk.accounts.dev/v1/client/sessions/sess_3HPllhQ5o0JZK8j9C9LFItRIiEh/touch?__clerk_api_version=2026-05-12&_clerk_js_version=6.25.13&__clerk_db_jwt=dvb_3HPliqn7tuzzlBkSlSLvbcFZi4i\" line: 0}]"
+  ],
+  "at": "2026-08-03T17:22:26.300Z"
+}
