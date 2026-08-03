@@ -20,7 +20,7 @@ function priceAndZeroProof(venue: ConciergeVenue, context: NightContext): ScoreA
   if (context.zeroProof) {
     if (venue.amenities.nonAlcoholic === true) {
       score += 3;
-      reasons.push("confirmed 0.0 option in the Venue Dataset");
+      reasons.push("confirmed alcohol-free option in the Venue Dataset");
     } else score -= 2;
   }
   return { score, reasons };
