@@ -23,8 +23,11 @@ const suggestCss = read("components/map/mapSearchSuggest.css");
 const suggest = read("components/map/MapSearchSuggest.tsx");
 
 function rule(selector: string): string {
+  // Anchor to a line start so a compound rule for the same class, such as
+  // `.mapSearchSuggest--overlay .mapSearchSuggestMeta`, cannot shadow the
+  // plain rule this fence reads.
   const match = suggestCss.match(
-    new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`),
+    new RegExp(`(?:^|\\n)${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`),
   );
   expect(match, `the ${selector} rule`).not.toBeNull();
   return match![1];
