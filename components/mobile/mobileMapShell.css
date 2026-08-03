@@ -512,7 +512,15 @@
   .mobileSharedSheetDetent:active .mobileSharedSheetGrab,
   .mobileSharedSheet.sheet-dragging .mobileSharedSheetGrab { background: color-mix(in srgb, var(--color-accent) 68%, var(--color-border)); }
   .mobileSharedSheetDetent:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -6px; border-radius: var(--radius); }
+  /* Plain 44px circular ghost. The sheet focuses this on open, and the shared
+     button ring is an OFFSET ring, so the offset painted a solid square in the
+     surface colour behind a coral ring: a bordered dark box inside a coral
+     ring, a double-ringed bullseye louder than the venue's own name (design
+     judgement 2026-08-01, finding 2.16). The keyboard cue stays, drawn INSIDE
+     the circle as a plain outline, so it marks the button without building a
+     second shape around it. */
   .mobileSharedSheetClose { grid-column: 3; }
+  .mobileSharedSheetClose:focus-visible { box-shadow: none; outline: 2px solid var(--color-accent); outline-offset: -3px; }
   .mobileSharedSheetBody {
     flex: 1 1 auto;
     min-height: 0;
@@ -589,11 +597,11 @@
   /* De-box (design judgement 2026-08-01, finding 2.4): four price caps are ONE
      choice, so they are one segmented control - a single edge round the group,
      interior hairlines, and the fill carries the selection. */
-  .mobilePriceChoices { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 0; padding: 0; border: 0; }
-  .mobilePriceChoices legend { grid-column: 1 / -1; margin-bottom: 6px; color: var(--color-text); font-size: var(--text-sm); font-weight: 800; }
-  .mobilePriceChoices button { min-height: 44px; border: 1px solid var(--color-border-soft); border-inline-start-width: 0; border-radius: 0; background: transparent; color: var(--color-text-muted); font: inherit; font-size: var(--text-sm); font-weight: 700; }
-  .mobilePriceChoices button:first-of-type { border-inline-start-width: 1px; border-start-start-radius: var(--radius); border-end-start-radius: var(--radius); }
-  .mobilePriceChoices button:last-of-type { border-start-end-radius: var(--radius); border-end-end-radius: var(--radius); }
+  .mobilePriceChoices { display: grid; gap: 0; margin: 0; padding: 0; border: 0; }
+  .mobilePriceChoices legend { margin-bottom: 6px; color: var(--color-text); font-size: var(--text-sm); font-weight: 800; }
+  .mobilePriceChoicesGroup { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--color-border-soft); border-radius: var(--radius); }
+  .mobilePriceChoices button { min-height: 44px; border: 0; border-inline-start: 1px solid var(--color-border-soft); border-radius: 0; background: transparent; color: var(--color-text-muted); font: inherit; font-size: var(--text-sm); font-weight: 700; }
+  .mobilePriceChoices button:first-of-type { border-inline-start: 0; }
   .mobilePriceChoices button.isActive { background: var(--color-surface-raised); color: var(--color-text); font-weight: 800; }
 
   .mobileSheetPortal .tonightLane,

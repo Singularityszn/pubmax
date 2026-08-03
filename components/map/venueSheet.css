@@ -212,11 +212,12 @@
   background: color-mix(in srgb, var(--brass) 6%, transparent);
 }
 
-/* Visible keyboard focus on tabs. */
+/* Visible keyboard focus on tabs. The outline sits INSIDE the tab: an offset
+   ring drew a second coral box around the selected pill, which is the shape
+   finding 2.16 was about. */
 .venueTab:focus-visible {
   outline: 2px solid var(--brass);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
+  outline-offset: -2px;
 }
 
 .venueTabPanel {
@@ -229,12 +230,15 @@
   box-shadow: none;
 }
 
+/* De-box: a photo is not an input, and its own fill already gives it an edge.
+   The coral-tinted border round an empty "No photo yet" placeholder drew a box
+   about the one thing the pub does not have (finding 2.16). */
 .venueBaselinePhoto {
   position: relative;
   aspect-ratio: 16 / 9;
   margin: 0 0 14px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
+  border: 0;
   border-radius: 18px;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--brass) 10%, var(--panel)), color-mix(in srgb, var(--river) 8%, var(--panel)));
