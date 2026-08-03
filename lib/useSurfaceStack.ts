@@ -58,8 +58,13 @@ export type SurfaceStackApi<S> = {
   canGoBack: boolean;
   /** The Back action's accessible name, or null when the parent is home. */
   backLabel: string | null;
-  /** Open a surface over the current one. */
-  open: (entry: SurfaceEntry<S>) => void;
+  /**
+   * Open a surface over the current one. `pushHistory: false` for a surface
+   * whose history entry another owner already pushes (the Map's venue selection
+   * owns `sel`); the stack still follows a Back that pops it, it just does not
+   * add a second entry the reader would have to press Back through twice.
+   */
+  open: (entry: SurfaceEntry<S>, options?: { pushHistory?: boolean }) => void;
   /** Update the current surface's remembered state without moving. */
   remember: (state: S) => void;
   /** Step back one level, restoring the parent's state. */
@@ -96,10 +101,11 @@ export function useSurfaceStack<S>({
     onHomeRef.current = onHome;
   }, [onHome, onRestore, stack]);
 
-  const open = useCallback((entry: SurfaceEntry<S>) => {
+  const open = useCallback((entry: SurfaceEntry<S>, options?: { pushHistory?: boolean }) => {
+    const pushHistory = options?.pushHistory !== false;
     setStack((held) => {
       const next = openSurface(held, entry);
-      if (syncHistory && typeof window !== "undefined" && next.length > held.length) {
+      if (pushHistory && syncHistory && typeof window !== "undefined" && next.length > held.length) {
         window.history.pushState(
           stampSurfaceHistory(window.history.state, next.length),
           "",
