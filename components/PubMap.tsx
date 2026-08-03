@@ -2659,6 +2659,9 @@ export default function PubMap({
     ) {
       return;
     }
+    // Selection must follow the committed planner trail in this same effect;
+    // deferring it can let another history transition overtake the handoff.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     selectVenue(pendingVenueAfterPlanner);
   }, [mapSurfaceTrail.currentSurfaceId, pendingVenueAfterPlanner, selectVenue]);
 
