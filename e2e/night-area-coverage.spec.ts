@@ -1,4 +1,15 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+
+/**
+ * /plan opens on the step-by-step intake (components/plan/PlanIntake.tsx) and
+ * keeps the composer body behind it. These tests are about the composer, so
+ * they take the intake's own way past it. Without this they only ever saw step
+ * 1 of 5, which is what made every assertion below look like a broken planner.
+ */
+async function openComposer(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Describe instead" }).click();
+  await expect(page.getByLabel("Describe the night")).toBeVisible();
+}
 
 test("mobile planner explains planning confidence and evidence warnings", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -10,6 +21,7 @@ test("mobile planner explains planning confidence and evidence warnings", async 
 
   const response = await page.goto("/plan");
   expect(response?.status()).toBe(200);
+  await openComposer(page);
 
   const coverage = page.locator(".planComposer__coverage");
   await expect(coverage).toBeVisible();
@@ -68,6 +80,7 @@ test("mobile planner announces concierge progress while it finds a route", async
   const response = await page.goto("/plan");
   expect(response?.status()).toBe(200);
   await page.waitForLoadState("networkidle").catch(() => undefined);
+  await openComposer(page);
 
   const concierge = page.locator(".planComposer__concierge");
   const description = page.getByLabel("Describe the night");
@@ -121,6 +134,7 @@ test("mobile planner keeps the inferred Night Area context editable", async ({ p
 
   const response = await page.goto("/plan");
   expect(response?.status()).toBe(200);
+  await openComposer(page);
   await page.getByLabel("Describe the night").fill("A calm night in Clapham for four");
   await page.getByRole("button", { name: "Plan my night" }).click();
 

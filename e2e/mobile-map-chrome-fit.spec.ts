@@ -243,9 +243,23 @@ for (const viewport of VIEWPORTS) {
       "map-edge controls share one right edge",
     ).toBe(Math.round(layout.utility.right));
 
-    // The bar never scrolls: every control is rendered, none is cut.
+    // Below 361px the wordmark leaves the bar on purpose, so the place name
+    // keeps a readable column (components/mobile/mobileMapShell.css). It is the
+    // one control the bar drops, and it must be dropped OUTRIGHT: a hidden
+    // element reports a zero box at 0,0, which is indistinguishable from a
+    // control shoved off the bar's left edge unless the spec says which it is.
+    const wordmark = layout.barControls.find(
+      (control) => control.label === "Open PUBMAXX landing page",
+    );
+    if (viewport.width <= 360) {
+      expect(wordmark?.width ?? 0, "the wordmark leaves the narrow bar").toBe(0);
+    } else {
+      expect(wordmark?.width ?? 0, "the wordmark stays on the bar").toBeGreaterThan(0);
+    }
+
+    // The bar never scrolls: every control it renders is whole, none is cut.
     expect(layout.barScrollWidth).toBeLessThanOrEqual(layout.barClientWidth);
-    for (const control of layout.barControls) {
+    for (const control of layout.barControls.filter((one) => one.width > 0)) {
       expect(control.left, `${control.label} left is visible`).toBeGreaterThanOrEqual(
         layout.topbar.left,
       );

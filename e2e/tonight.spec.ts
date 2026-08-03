@@ -25,8 +25,11 @@ test("the /tonight screen mounts with an honest header and provenance", async ({
   expect(response?.status()).toBe(200);
 
   await expect(page.getByTestId("tonight-screen")).toBeVisible();
+  // Without a shared location the screen speaks for the whole city, and says
+  // so: "near you" is the heading it earns only once it has a locality basis
+  // (tonightHeading in lib/tonight.ts).
   await expect(
-    page.getByRole("heading", { name: /what.?s on near you/i }),
+    page.getByRole("heading", { name: /what.?s on across London tonight/i }),
   ).toBeVisible();
 
   // The screen resolves to exactly one of: list, empty, error status. Wait for
@@ -223,7 +226,10 @@ test("a failed listings request can be retried", async ({ page }) => {
 
   await page.goto("/tonight");
   await page.getByRole("button", { name: "Retry listings" }).click();
-  await expect(page.getByText(/Nothing confirmed in London tonight yet/)).toBeVisible();
+  // The retry succeeded and returned no rows, so the honest coverage line is
+  // an empty night, not an error. The screen keeps its own coverageLabel
+  // (app/tonight/TonightClient.tsx); the spine's wording is a different lane.
+  await expect(page.getByText(/Quiet night/)).toBeVisible();
   expect(requests).toBe(2);
 });
 
