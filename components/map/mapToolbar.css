@@ -396,6 +396,39 @@
   }
 }
 
+/* The same state, mirrored on the LEFT edge. The open planner rail owns that
+   edge from 1024px up (globals.css publishes --desktop-planner-rail-width), and
+   it is lifted above the bar while planning, so a bar centred on the whole
+   stage put its first cell — the search field — UNDER the rail, with only the
+   Clear search button poking out past the rail's edge. Same lane arithmetic as
+   the drawer above, only the free lane is now the one to the RIGHT of the rail,
+   so the centre moves out by half the rail instead of in by half the drawer. */
+@media (min-width: 1024px) {
+  .appShell.planning-open .mapToolbar {
+    width: fit-content;
+    max-width: calc(100% - var(--desktop-planner-rail-width) - 32px);
+    left: calc((100% + var(--desktop-planner-rail-width)) / 2);
+  }
+
+  /* The rail keeps its own copy of the weather verdict and the zone controls
+     while it is open, so the bar's accessory row is duplicated chrome here as
+     well as chrome that no longer fits. */
+  .appShell.planning-open .mapToolbar .mapToolbarDesktopExtras,
+  .appShell.planning-open .mapToolbar .conditionsChip,
+  .appShell.planning-open .mapToolbar .zonePicker {
+    display: none;
+  }
+
+  .appShell.planning-open .mapToolbarSearch .mapSearchSuggest--toolbar {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .appShell.planning-open .mapToolbarSearch input {
+    min-width: 0;
+  }
+}
+
 /* Tablet and narrow desktop are their own map-chrome state. At this width the
    full desktop accessory row cannot coexist with search, Plan, and city. Keep
    those primary controls, let search take the remaining lane, and reserve a
