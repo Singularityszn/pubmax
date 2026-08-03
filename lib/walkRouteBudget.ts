@@ -22,7 +22,7 @@
 // cached for a few minutes), so an exhausted Friday night costs ZERO durable
 // reads per request. The dominant debounced map-redraw sends one request with
 // at most one uncached leg, i.e. one durable read; a cold full route does one
-// per uncached leg (bounded by MAX_STOPS - 1).
+// per uncached leg (bounded by WALK_ROUTE_MAX_STOPS - 1).
 //
 // DEGRADED MODE (documented, inherited from isLimited):
 //   • Supabase configured + durable RPC answers -> the true GLOBAL cap holds.
