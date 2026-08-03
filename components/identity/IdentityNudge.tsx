@@ -29,6 +29,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { trackEvent } from "@/lib/analytics";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { isValidEmail } from "@/lib/emailSubscribers";
 import {
   IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS,
@@ -114,6 +115,11 @@ export default function IdentityNudge(): React.JSX.Element | null {
   useEffect(() => {
     if (canShow) claimPromptBudget(IDENTITY_SURFACE);
   }, [canShow]);
+
+  // A blocking dialog owes a keyboard way out. Escape does what the dismiss
+  // button does, including recording that the reader was asked. Called above
+  // the early return so the hook order never changes.
+  useDismissOnEscape(canShow && Boolean(trigger), dismissAuthNudge);
 
   if (!canShow || !trigger) return null;
 

@@ -264,7 +264,9 @@ test("inline drawers keep spring ownership and content through responsive exits"
   ).toBe("none");
   await expect(tabletDrawer.locator(".venueInspector")).toHaveCount(1);
 
-  await tabletDrawer.locator(".drawerClose").click();
+  // The drawer's way out is the shared SurfaceNav pair now, not a bespoke
+  // close (components/ui/surface-nav.tsx).
+  await tabletDrawer.locator(".surfaceNavHome").click();
   await expect(tabletDrawer).toHaveAttribute("aria-hidden", "true");
   // The selected venue may clear immediately, but its rendered content stays
   // in the exiting drawer until the close spring rests.

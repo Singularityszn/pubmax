@@ -365,9 +365,13 @@
   }
 }
 
-/* Hide planner grabber on desktop — left drawer stays a plain side panel. */
+/* Hide the planner GRABBER on desktop - the left drawer stays a plain side
+   panel with no drag. The head itself stays, because it carries the way out.
+   It used to be hidden whole, which left the planner's only exit a "View the
+   map" link buried in its body: the reader had to read the panel to leave it.
+   Every other surface keeps Back and Home at the top, in the same two cells. */
 @media (min-width: 641px) {
-  .plannerSheetHead {
+  .plannerSheetHead .venueSheetGrabZone {
     display: none;
   }
 }
