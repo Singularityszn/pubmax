@@ -223,6 +223,45 @@ for the pressed-ink utility (see below) — it flips its highlight edge (cream
 in light, amber in dark) so the letterpress effect reads correctly against
 either surface.
 
+### Edges: the de-box rule
+
+**Borders are for inputs. Fills are for selection. Hairlines are for
+structure. Nothing else gets an edge.**
+
+A border is a strong signal, so it has one job: it says "type into me" or
+"pick from me". Anything that is not an input earns its grouping some other
+way, and the choice is made in this order:
+
+1. **A fill.** This is how selection reads. A selected control takes
+   `--panel-raised` with `--ink` text; an unselected one takes no fill at all
+   and `--muted` text. Never invert that: an unselected control drawn louder
+   than the selected one tells the eye the wrong thing.
+2. **A hairline.** `--line-soft` divides list rows and separates the segments
+   inside one control. A group of segments wears at most ONE edge, around the
+   group, never one per segment.
+3. **Spacing.** A heading with controls under it is already a section. It does
+   not need a card.
+4. **Nothing.** Most containers are in this row.
+
+Coral (`--brass`) is not a selection colour. It belongs to the primary CTA,
+the selected pin ring, and at most a 2px underline on an active tab. See
+DESIGN.md, The One Accent Rule.
+
+Two traps this repo has hit:
+
+- **This app ships no Tailwind preflight.** A `<button>` with no explicit
+  `border`/`background` inherits the user agent's `2px outset buttonborder` on
+  `buttonface`. Every new button primitive must set `border-0 bg-transparent`
+  at its base, or it draws the heaviest chrome in the app for free.
+- **The global `:focus-visible` rule sets `border-radius: var(--radius-sm)`.**
+  A round control has to restate its own radius on focus, or it squares off the
+  moment it is focused. Prefer `outline-offset: -2px` on anything already
+  inside a bordered group, so focus marks the control rather than building a
+  second shape around it.
+
+`__tests__/deBoxSegmentedControl.test.ts` pins the segmented-control half of
+this. Origin: design judgement 2026-08-01, findings 2.4, 2.5, 2.13 and 2.16.
+
 ### Sheet material
 
 Sheets and drawers use one translucent neutral material over the map, with
