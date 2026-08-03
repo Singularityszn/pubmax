@@ -28,6 +28,24 @@ export type WalkLeg = {
   source: WalkRouteSource;
 };
 
+// The /api/walk-route budget dials live here, not in the route module. Next's
+// generated route types allow a route file to export only its HTTP handlers and
+// the known segment-config fields, so a plain constant exported beside GET fails
+// the type check as soon as those types are generated (`npm run dev`, webpack,
+// writes .next/dev/types/app/api/walk-route/route.ts). A shared module is the
+// place a caller and a test may both read them from.
+
+// Per-client budget for the ORS fan-out. 20/min comfortably covers the map's
+// debounced route redraws on stop edits while capping a single client far below
+// the daily ORS quota if the endpoint is hammered directly.
+export const WALK_ROUTE_RATE_LIMIT = 20;
+export const WALK_ROUTE_RATE_WINDOW_MS = 60_000;
+
+// A crawl is 4-7 stops; cap the routable set so a crafted query can't fan out
+// into an unbounded burst of ORS calls. Extra stops are dropped, not rejected
+// (fail-soft): the returned line still covers the first WALK_ROUTE_MAX_STOPS.
+export const WALK_ROUTE_MAX_STOPS = 12;
+
 // Round coordinates to ~1m (5dp is ~1.1m at the equator) for a stable cache key.
 // The same ordered stop pair keys to the same leg across reversed/edited routes,
 // so a crawl's N-1 legs share the cache and router calls stay far under quota.

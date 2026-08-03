@@ -13,8 +13,8 @@
 // reads and caches routed geometry, it is not a user-content write.
 //
 // RATE LIMIT: this endpoint is public and, with a key set, ONE request fans out
-// to up to MAX_STOPS-1 ORS calls. So it carries the house per-client limiter
-// (lib/pintDrops isLimited, keyed on the hashed client IP, same seam as
+// to up to WALK_ROUTE_MAX_STOPS-1 ORS calls. So it carries the house per-client
+// limiter (lib/pintDrops isLimited, keyed on the hashed client IP, same seam as
 // /api/plans/generate) at WALK_ROUTE_RATE_LIMIT requests per
 // WALK_ROUTE_RATE_WINDOW_MS — 20/min per client, enough for the debounced map
 // route effect but far below what would drain ORS quota. Over budget ⇒ a flat
@@ -43,6 +43,9 @@ import {
   routeSource,
   stopPairs,
   straightLegCoordinates,
+  WALK_ROUTE_MAX_STOPS,
+  WALK_ROUTE_RATE_LIMIT,
+  WALK_ROUTE_RATE_WINDOW_MS,
   type LngLat,
   type WalkLeg,
 } from "@/lib/walkRoute";
@@ -54,16 +57,10 @@ assertServerEnv();
 
 export const runtime = "nodejs";
 
-// Per-client budget for the ORS fan-out. 20/min comfortably covers the map's
-// debounced route redraws on stop edits while capping a single client far below
-// the daily ORS quota if the endpoint is hammered directly.
-export const WALK_ROUTE_RATE_LIMIT = 20;
-export const WALK_ROUTE_RATE_WINDOW_MS = 60_000;
-
-// A crawl is 4-7 stops; cap the routable set so a crafted query can't fan out
-// into an unbounded burst of ORS calls. Extra stops are dropped, not rejected
-// (fail-soft): the returned line still covers the first MAX_STOPS.
-export const MAX_STOPS = 12;
+// The rate-limit and stop-cap values, and the reasoning behind each, live in
+// lib/walkRoute.ts. Next's generated route types allow a route module to export
+// only its handlers and the known segment-config fields, so a constant exported
+// here fails the type check.
 
 const EMPTY_LINE: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
 
@@ -100,7 +97,7 @@ export async function GET(request: Request): Promise<Response> {
     return publicApiError("Too many requests.", "RATE_LIMITED", 429, { retryable: true });
   }
   const url = new URL(request.url);
-  const stops = parseStops(url.searchParams.get("stops")).slice(0, MAX_STOPS);
+  const stops = parseStops(url.searchParams.get("stops")).slice(0, WALK_ROUTE_MAX_STOPS);
   if (stops.length < 2) {
     return jsonNoStore({ line: EMPTY_LINE, source: "straight", legs: [] });
   }

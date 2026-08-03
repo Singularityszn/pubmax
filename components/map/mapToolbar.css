@@ -374,7 +374,8 @@
   .appShell.detail-open .mapToolbar {
     width: fit-content;
     max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
-    left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
+    left: 50%;
+    transform: translateX(calc(-50% - (var(--desktop-venue-drawer-width) / 2)));
   }
 
   .appShell.detail-open .mapToolbar .mapToolbarDesktopExtras,
@@ -392,6 +393,34 @@
   }
 
   .appShell.detail-open .mapToolbarSearch input {
+    min-width: 0;
+  }
+}
+
+/* Mirror the right-drawer free-lane geometry on the left. The planner owns its
+   measured desktop lane, so the toolbar hugs remaining controls to its right;
+   duplicated rail controls yield and search may shrink without painting under
+   the drawer. */
+@media (min-width: 1024px) {
+  .appShell.planning-open .mapToolbar {
+    width: fit-content;
+    max-width: calc(100% - var(--desktop-planner-rail-width) - 32px);
+    left: 50%;
+    transform: translateX(calc(-50% + (var(--desktop-planner-rail-width) / 2)));
+  }
+
+  .appShell.planning-open .mapToolbar .mapToolbarDesktopExtras,
+  .appShell.planning-open .mapToolbar .conditionsChip,
+  .appShell.planning-open .mapToolbar .zonePicker {
+    display: none;
+  }
+
+  .appShell.planning-open .mapToolbarSearch .mapSearchSuggest--toolbar {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .appShell.planning-open .mapToolbarSearch input {
     min-width: 0;
   }
 }

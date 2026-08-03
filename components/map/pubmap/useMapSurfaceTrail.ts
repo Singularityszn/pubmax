@@ -145,10 +145,15 @@ export function useMapSurfaceTrail({
 
   const back = stack.back;
   const home = stack.home;
+  const entries = stack.stack;
   return {
     backLabel: stack.backLabel,
     back: useCallback(() => back(), [back]),
     home: useCallback(() => home(), [home]),
+    holdsSurface: useCallback(
+      (id: MapSurfaceId) => entries.some((entry) => entry.id === id),
+      [entries],
+    ),
     depth: stack.depth,
   };
 }

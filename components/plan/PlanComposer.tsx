@@ -998,7 +998,9 @@ function PlanComposerForm({
             </select></label>
             <label htmlFor="plan-context-budget-limit">Max per person<input id="plan-context-budget-limit" aria-describedby="plan-route-status" type="number" inputMode="decimal" min="5" max="500" step="1" value={nightContext.budgetLimitPence === null ? "" : nightContext.budgetLimitPence / 100} onChange={(event) => updateNightContext({ budgetLimitPence: event.target.value ? Math.round(Number(event.target.value) * 100) : null })} /></label>
             <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={nightContext.zeroProof ? "zero-proof" : "any"} onChange={(event) => updateNightContext({ zeroProof: event.target.value === "zero-proof" })}>
-              <option value="any">Any drinks</option><option value="zero-proof">0.0 options</option>
+              {/* "0.0 options" read as broken number formatting, not as a drink.
+                  The option names the drink the way the rest of the app does. */}
+              <option value="any">Any drinks</option><option value="zero-proof">Alcohol-free</option>
             </select></label>
           </fieldset>
         ) : null}

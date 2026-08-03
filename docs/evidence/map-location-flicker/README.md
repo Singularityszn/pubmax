@@ -119,7 +119,9 @@ not MapLibre source reconciliation. The deterministic pre-fix journey clicked
 the attached control through the DOM whether or not CSS painted it, and the
 renderer loop then persisted independently at cluster zoom. Correlation with
 the flicker was not measured because the full journey did not run in every
-context. Treat the 7-of-8 control defect as separate work.
+context. That control defect was resolved later as separate work; its evidence
+and current-owner pointers live in the
+[`map-near-me-control` record](../map-near-me-control/README.md).
 
 ## Design craft observation
 

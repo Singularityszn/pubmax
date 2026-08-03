@@ -971,11 +971,20 @@ export default function PubMap({
     closePlanningRef.current = closePlanning;
   }, [closePlanning]);
 
+  const claimMapDrawer = useCallback(
+    (owner: "planner" | "venue") => {
+      if (owner === "planner") {
+        setSelectedVenueId("");
+      } else {
+        closePlanning();
+      }
+    },
+    [closePlanning, setSelectedVenueId],
+  );
+
   const openPlanning = useCallback(() => {
-    // Mobile: mutual exclusion with the venue sheet (planner stacks above it
-    // in z-order; keeping both open made Escape/dismiss order confusing).
+    claimMapDrawer("planner");
     if (isMobileViewport()) {
-      setSelectedVenueId("");
       closeComposer();
       setSheetSnap("half");
       setSheetDragY(null);
@@ -985,11 +994,11 @@ export default function PubMap({
     setPlannerSheetSnap("half");
     setPlannerSheetDragY(null);
   }, [
+    claimMapDrawer,
     closeComposer,
     setPlannerSheetDragY,
     setPlannerSheetSnap,
     setPlanningOpen,
-    setSelectedVenueId,
     setSheetDragY,
     setSheetSnap,
   ]);
@@ -1575,14 +1584,14 @@ export default function PubMap({
       if (!isUkBaseId(id)) prefetchVenue(id);
       setTonightLaneOpen(false);
       setMapOverlay("none");
-      if (isMobileViewport()) closePlanning();
+      claimMapDrawer("venue");
       setVenueInitialTab(initialTab);
       setSelectedVenueId(id);
       closeComposer();
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
       setSheetDragY(null);
     },
-    [closeComposer, closePlanning, setSelectedVenueId, setSheetSnap, setSheetDragY],
+    [claimMapDrawer, closeComposer, setSelectedVenueId, setSheetSnap, setSheetDragY],
   );
 
   // §4.8 Make it Stop 1 — the ONE Map intent-write. The caller only wires this
@@ -1691,23 +1700,12 @@ export default function PubMap({
     (firstStopId: string) => {
       openPlanning();
       if (isMobileViewport()) {
-        setSelectedVenueId("");
         setVenueInitialTab("pints");
-        closeComposer();
-        setSheetSnap("half");
-        setSheetDragY(null);
         return;
       }
       selectVenue(firstStopId);
     },
-    [
-      closeComposer,
-      openPlanning,
-      selectVenue,
-      setSelectedVenueId,
-      setSheetDragY,
-      setSheetSnap,
-    ],
+    [openPlanning, selectVenue],
   );
 
   // Persist the favorite-pint choice as the user picks it (null = clear).
@@ -2687,7 +2685,7 @@ export default function PubMap({
           preSheetFocusRef.current = active;
         }
       }
-      drawerCloseButtonRef.current?.focus();
+      drawerCloseButtonRef.current?.focus({ preventScroll: true });
     } else if (preSheetFocusRef.current) {
       const target = preSheetFocusRef.current;
       const targetId = target.id;
@@ -3169,6 +3167,8 @@ export default function PubMap({
           onPersonaSelect={selectPersona}
           personaTonightCategory={personaTonightCategory}
           planningOpen={planningOpen}
+          detailOpen={detailOpen}
+          desktopLaneActive={railViewport}
           onTogglePlanning={togglePlanning}
           filters={filters}
           onFiltersChange={setFilters}
@@ -3660,6 +3660,8 @@ export default function PubMap({
         snap={plannerSheetSnap}
         dragOffsetY={plannerSheetDragY}
         releaseVelocityY={plannerSheetReleaseVelocity}
+        keepMounted={mapSurfaceTrail.holdsSurface("planner")}
+        fade
         className={
           "mapDrawer left" +
           (plannerSheetDragY !== null ? " sheet-dragging" : "")
@@ -3707,6 +3709,7 @@ export default function PubMap({
         snap={sheetSnap}
         dragOffsetY={sheetDragY}
         releaseVelocityY={sheetReleaseVelocity}
+        fade
         className={
           "mapDrawer right" +
           (sheetDragY !== null ? " sheet-dragging" : "")

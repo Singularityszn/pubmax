@@ -1,11 +1,17 @@
 # Desktop Near me control
 
+This records the 29 July 2026 investigation and its captured layout. Current
+concurrent-banner staging is owned by `components/map/mapBannerStaging.css` and
+covered by `e2e/map-near-me.spec.ts` plus
+`e2e/desktop-map-chrome-fit.spec.ts`; measurements below are historical
+evidence, not the current layout contract.
+
 ## Result
 
 Fresh desktop location control went from 0 of 50 painted after city status
-arrival to 50 of 50 visible and actionable at 10 seconds. Exact final layout
-then passed another 20 of 20 runs with city status present and an 8px gap
-between banners.
+arrival to 50 of 50 visible and actionable at 10 seconds. That revision's
+stacked layout then passed another 20 of 20 runs with city status present and
+an 8px gap between banners.
 
 Geolocation permission stayed `prompt` in every measured run. No run clicked
 the control or granted permission before measurement.
@@ -121,24 +127,11 @@ No such observation occurred in the post-fix matrices. Playwright regression
 coverage also performs a real trial click, so a future occluder fails even when
 computed CSS says visible.
 
-## Fix
+## Fix at capture time
 
-- `mapBannerStaging.css` keeps location independent of status while both
-  continue to defer the lower Tonight card.
-- Shared prompt eligibility reserves the desktop Map prompt moment for location,
-  so curated onboarding, the tour, consent, and other budgeted prompts stand
-  down until location is unavailable or dismissed.
-- `mapToolbar.css` publishes the closed desktop toolbar height: 145px from
-  641 through 900, and 181px above 900.
-- `citySuggestBanner.css` places location 12px below that block.
-- `cityStatusBanner.css` places status 8px below location and keeps its detail
-  sheet on the same anchor and inside the remaining viewport height.
-- `e2e/map-near-me.spec.ts` supplies deterministic severe city status with
-  separate fresh browser contexts at 800 and 1600, forces empty and degraded
-  Tonight results, sets consent-decided and tour-unseen state, then checks
-  attachment, accessible name, trial-click actionability, absence of prompt
-  overlays, permission `prompt`, 44px height, viewport bounds, banner separation,
-  and the expanded status-sheet viewport budget.
+Implementation details for the current layout live in the owner stylesheet and
+regressions linked above. This evidence preserves the diagnosis and measured
+result without maintaining a second copy of the staging rules.
 
 No copy, map density, clustering, collision, pin renderer, venue-list keyboard
 path, drawer focus, or call-to-action colour changed.
@@ -157,7 +150,7 @@ at a fixed 10 seconds:
 | **Total** | **50/50** | **`prompt` 50/50** | **control 50/50** |
 
 Visual QA then moved only city status farther away from the already-actionable
-control. Exact final layout ran another 20 times:
+control. The captured stacked layout ran another 20 times:
 
 | Viewport | Actionable | 8px status gap |
 | --- | ---: | ---: |

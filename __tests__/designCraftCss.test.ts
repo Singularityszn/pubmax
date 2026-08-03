@@ -83,12 +83,15 @@ describe("responsive spring ownership", () => {
       "onRest: open ? undefined : clearRetainedChildren",
     );
     expect(springDrawerSource).toContain(
-      'const presentationClassName = open || retainedChildren !== null',
+      "const presentationClassName = open || running || dragOffsetY !== null",
     );
     expect(springDrawerSource).toContain(
       'className={`springDrawer ${className ?? ""}${presentationClassName}`.trim()}',
     );
     expect(springDrawerSource).toContain("inert={open ? undefined : true}");
+    expect(springDrawerSource).toContain(
+      "if (!keepMounted) setRetainedChildren(null)",
+    );
     expect(springDrawerSource).toContain("sheetClosedTranslateY");
     expect(springDrawerSource).toContain(
       "window.getComputedStyle(drawerRef.current).bottom",

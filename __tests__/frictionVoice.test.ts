@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 // Friction-state voice fence (2026-07-19 taste sweep). Empty, denied, and
@@ -38,21 +39,40 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 // A control's text is read on its own, with nothing to explain it. A bare
 // numeral there names no thing, so a reader takes it for broken formatting
 // rather than a label: "0.0 options" beside "Step-free" shipped to production
-// and read as a formatting fault. A figure earns its place in button text only
+// and read as a formatting fault. A figure earns its place in control text only
 // when a unit or a currency symbol says what it counts.
 //
+// A dropdown row is read the same way, so the scan covers `option` as well as
+// the button shapes. The chip fix alone left the desktop planner's own drinks
+// dropdown still offering "0.0 options": one surface fixed, its sibling missed,
+// because the fence could not see it.
+//
 // The scan reads the SOURCE of every app and component surface and takes the
-// static text child that sits immediately before a button-shaped closing tag.
+// static text child that sits immediately before a control-shaped closing tag.
 // Interpolated labels ({...}) are out of reach here and stay the owning
 // surface's own fence.
-const BUTTON_TAGS = ["button", "Button", "Chip", "IconButton"] as const;
-const BUTTON_TEXT = new RegExp(
-  String.raw`>([^<>{}\n]+)</(${BUTTON_TAGS.join("|")})>`,
+const CONTROL_TAGS = ["button", "Button", "Chip", "IconButton", "option"] as const;
+const CONTROL_TEXT = new RegExp(
+  String.raw`>([^<>{}\n]+)</(${CONTROL_TAGS.join("|")})>`,
   "g",
 );
 // A decimal with no currency symbol and no leading digit in front of it.
 const BARE_DECIMAL = /(?<![£$€\d])\d+\.\d+/u;
 const NUMERAL_ONLY = /^[\d.,]+$/u;
+const ZERO_POINT_ZERO = /(?<!\d)0[.,]0%?(?!\d)/u;
+const READER_COPY_ATTRIBUTES = new Set([
+  "alt",
+  "aria-label",
+  "aria-roledescription",
+  "label",
+  "placeholder",
+  "title",
+]);
+
+type ReaderFacingCopy = {
+  text: string;
+  line: number;
+};
 
 function tsxFilesIn(dir: string, found: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -66,13 +86,64 @@ function tsxFilesIn(dir: string, found: string[] = []): string[] {
   return found;
 }
 
-function buttonTextLabels(source: string): string[] {
+function controlTextLabels(source: string): string[] {
   const labels: string[] = [];
-  for (const match of source.matchAll(BUTTON_TEXT)) {
+  for (const match of source.matchAll(CONTROL_TEXT)) {
     const text = match[1].trim();
     if (text) labels.push(text);
   }
   return labels;
+}
+
+function readerFacingStaticCopy(source: string): ReaderFacingCopy[] {
+  const sourceFile = ts.createSourceFile(
+    "surface.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const copy: ReaderFacingCopy[] = [];
+  const record = (text: string, node: ts.Node) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    copy.push({
+      text: trimmed,
+      line: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+        .line + 1,
+    });
+  };
+
+  const walk = (node: ts.Node): void => {
+    if (ts.isJsxText(node)) {
+      record(node.getText(sourceFile), node);
+    } else if (
+      ts.isStringLiteralLike(node) &&
+      ts.isJsxExpression(node.parent) &&
+      !ts.isJsxAttribute(node.parent.parent)
+    ) {
+      record(node.text, node);
+    } else if (
+      ts.isJsxAttribute(node) &&
+      READER_COPY_ATTRIBUTES.has(node.name.getText(sourceFile))
+    ) {
+      const initializer = node.initializer;
+      if (initializer && ts.isStringLiteral(initializer)) {
+        record(initializer.text, initializer);
+      } else if (
+        initializer &&
+        ts.isJsxExpression(initializer) &&
+        initializer.expression &&
+        ts.isStringLiteralLike(initializer.expression)
+      ) {
+        record(initializer.expression.text, initializer.expression);
+      }
+    }
+    ts.forEachChild(node, walk);
+  };
+
+  walk(sourceFile);
+  return copy;
 }
 
 describe("friction-state voice fence", () => {
@@ -117,10 +188,10 @@ describe("friction-state voice fence", () => {
     expect(source).toContain("Meanwhile, the map knows the cheap pints");
   });
 
-  it("no button prints a bare numeral as its label", () => {
+  it("no button or dropdown row prints a bare numeral as its label", () => {
     const offenders: string[] = [];
     for (const file of [...tsxFilesIn("app"), ...tsxFilesIn("components")]) {
-      for (const label of buttonTextLabels(read(file))) {
+      for (const label of controlTextLabels(read(file))) {
         if (NUMERAL_ONLY.test(label) || BARE_DECIMAL.test(label)) {
           offenders.push(`${file}: "${label}"`);
         }
@@ -129,8 +200,38 @@ describe("friction-state voice fence", () => {
     expect(offenders, "a control label must name a thing, not print a figure").toEqual([]);
   });
 
+  it("no static reader-facing copy uses 0.0 vocabulary", () => {
+    const offenders: string[] = [];
+    for (const file of [...tsxFilesIn("app"), ...tsxFilesIn("components")]) {
+      for (const copy of readerFacingStaticCopy(read(file))) {
+        if (ZERO_POINT_ZERO.test(copy.text)) {
+          offenders.push(`${file}:${copy.line}: "${copy.text}"`);
+        }
+      }
+    }
+    expect(
+      offenders,
+      "reader-facing copy must name alcohol-free choices in words",
+    ).toEqual([]);
+  });
+
+  it("the 0.0 fence reaches accessible attributes and nested visible text", () => {
+    const shipped = readerFacingStaticCopy(`
+      <Link aria-label="Explore 0.0 drinks">
+        <Amenity label={"0.0% beer"} />
+        <span><strong>0.0</strong></span>
+      </Link>
+    `).map(({ text }) => text);
+    expect(shipped).toEqual([
+      "Explore 0.0 drinks",
+      "0.0% beer",
+      "0.0",
+    ]);
+    expect(shipped.every((text) => ZERO_POINT_ZERO.test(text))).toBe(true);
+  });
+
   it("the bare-numeral fence catches the shape that shipped", () => {
-    const shipped = buttonTextLabels(
+    const shipped = controlTextLabels(
       '<Chip aria-pressed={zeroProof} onClick={toggle}>0.0 options</Chip>',
     );
     expect(shipped).toEqual(["0.0 options"]);
@@ -138,6 +239,29 @@ describe("friction-state voice fence", () => {
     // A price is a figure with a unit, so it stays allowed.
     expect(BARE_DECIMAL.test("£6.00")).toBe(false);
     expect(NUMERAL_ONLY.test("Build 3-stop route")).toBe(false);
+  });
+
+  it("the fence reaches the dropdown row the chip fix missed", () => {
+    const shipped = controlTextLabels(
+      '<option value="zero-proof">0.0 options</option>',
+    );
+    expect(shipped).toEqual(["0.0 options"]);
+    expect(BARE_DECIMAL.test(shipped[0])).toBe(true);
+  });
+
+  // The drinks control asks one question on two surfaces. The phone asks it with
+  // a chip and the desktop planner with a dropdown row, so both have to name the
+  // drink the same way or the same reader meets two answers.
+  it("the phone chip and the desktop drinks row name the same drink", () => {
+    const chip = read("components/plan/MobilePlanActivation.tsx");
+    const composer = read("components/plan/PlanComposer.tsx");
+    const account = read("components/profile/PubmaxxAccountHub.tsx");
+    expect(controlTextLabels(chip)).toContain("Alcohol-free");
+    expect(controlTextLabels(composer)).toContain("Alcohol-free");
+    expect(controlTextLabels(account)).toContain("Prefer alcohol-free");
+    for (const source of [chip, composer, account]) {
+      expect(source).not.toMatch(/>0\.0 options</);
+    }
   });
 
   it("the swept replacement copy stays em-dash free", () => {

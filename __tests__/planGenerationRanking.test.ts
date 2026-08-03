@@ -40,6 +40,23 @@ const AFTER_WORK_GROUP: NightContext = {
 };
 
 describe("Plan generation ranking evidence", () => {
+  it("generates the named alcohol-free drink in the route reason", () => {
+    const alcoholFreeVenue = venue(true);
+    alcoholFreeVenue.amenities.nonAlcoholic = true;
+
+    const result = scoreVenueForPlan(
+      alcoholFreeVenue,
+      { ...AFTER_WORK_GROUP, zeroProof: true },
+      0.5,
+      [],
+      [],
+      null,
+    );
+
+    expect(result.reasons).toContain("confirmed alcohol-free option in the Venue Dataset");
+    expect(result.reasons.join(" ")).not.toContain("0.0");
+  });
+
   it("does not let canonical status imply after-work reliability or group capacity", () => {
     const canonical = scoreVenueForPlan(venue(true), AFTER_WORK_GROUP, 0.5, [], [], null);
     const nonCanonical = scoreVenueForPlan(venue(false), AFTER_WORK_GROUP, 0.5, [], [], null);

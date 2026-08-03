@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetWalkRouteStore } from "@/lib/walkRouteStore";
-import { encodeStops, type LngLat, type WalkLegDistance } from "@/lib/walkRoute";
+import { encodeStops, WALK_ROUTE_RATE_LIMIT, type LngLat, type WalkLegDistance } from "@/lib/walkRoute";
 
 // The route module runs assertServerEnv() at import scope (the house pattern).
 // On Vercel vitest reads as production without test-scoped Supabase vars, so the
@@ -39,7 +39,7 @@ const consumeOrsBudget = vi.hoisted(() => vi.fn<() => Promise<boolean>>(() => Pr
 
 vi.mock("@/lib/walkRouteBudget", () => ({ consumeOrsBudget }));
 
-import { GET, WALK_ROUTE_RATE_LIMIT } from "@/app/api/walk-route/route";
+import { GET } from "@/app/api/walk-route/route";
 
 const A: LngLat = [-0.1005, 51.5136];
 const B: LngLat = [-0.0975, 51.5142];

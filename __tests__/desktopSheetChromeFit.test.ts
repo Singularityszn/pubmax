@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 const toolbarCss = read("components/map/mapToolbar.css");
+const toolbarSource = read("components/map/MapToolbar.tsx");
 const sheetCss = read("components/map/venueSheet.css");
 const bannerCss = read("components/map/mapBannerStaging.css");
 const searchCss = read("components/map/mapSearchSuggest.css");
@@ -37,8 +38,9 @@ describe("desktop venue sheet chrome fit", () => {
     expect(rule).toMatch(
       /max-width:\s*calc\(100% - var\(--desktop-venue-drawer-width\) - 32px\)/,
     );
-    expect(rule).toMatch(
-      /left:\s*calc\(\(100% - var\(--desktop-venue-drawer-width\)\) \/ 2\)/,
+    expect(rule).toMatch(/left:\s*50%/);
+    expect(toolbarSource).toMatch(
+      /desktopLaneActive\s*\?\s*{\s*transform:\s*`translateX\(calc\(-50% \+ \$\{laneOffset}px\)\)`/,
     );
   });
 
