@@ -60,6 +60,23 @@ export function walkMinutesFromKm(km: number): number {
   return Math.max(1, Math.round((km * 1000) / WALK_METRES_PER_MIN));
 }
 
+/** Under this, a rounded kilometre figure stops being a measurement. */
+export const RIGHT_HERE_MAX_KM = 0.1;
+
+/**
+ * The distance a row prints, or null when there is no fix.
+ *
+ * A tenth-of-a-kilometre figure runs out of resolution before the walk does:
+ * anything under 100 m rounds to "0.0 km", which reads as a measured zero
+ * rather than as "you are standing at it" (design judgement 2026-08-01,
+ * finding 2.13). Inside that ring the row says so in words instead.
+ */
+export function formatNearDistance(km: number | undefined | null): string | null {
+  if (typeof km !== "number" || !Number.isFinite(km) || km < 0) return null;
+  if (km < RIGHT_HERE_MAX_KM) return "right here";
+  return `${km.toFixed(1)} km`;
+}
+
 // The minimal venue shape the ranker needs — SlimVenue satisfies it directly,
 // so the answer surface feeds the slim index straight in without a mapping pass.
 export type PricedPoint = {

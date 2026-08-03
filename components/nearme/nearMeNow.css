@@ -142,14 +142,34 @@
   color: var(--muted);
 }
 
-/* — Answer cards — */
+/* — Answer rows —
+   De-box (design judgement 2026-08-01, finding 2.13): five raised grey boxes
+   stacked at one weight ranked nothing, and the repeated per-row caption ate
+   the column that then truncated the pub's name. Rows are now hairline-divided
+   list items: structure comes from the divider and the spacing, the name gets
+   the width back, and the price stays the one right-aligned mono stamp. */
+.nmnListCaption {
+  margin: 0 0 2px;
+  padding-inline: var(--space-2);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
 .nmnList {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  border-top: 1px solid var(--line-soft);
+}
+
+.nmnList > li {
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .nmnCard {
@@ -159,18 +179,17 @@
   gap: var(--space-3);
   width: 100%;
   min-height: 64px;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--panel-raised);
-  box-shadow: var(--shadow-sm);
+  padding: var(--space-3) var(--space-2);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
   text-align: left;
   cursor: pointer;
-  transition: transform 160ms ease-out, border-color 160ms ease-out;
+  transition: transform 160ms ease-out, background-color 160ms ease-out;
 }
 
 .nmnCard:hover {
-  border-color: color-mix(in srgb, var(--line) 55%, var(--brass) 45%);
+  background: color-mix(in srgb, var(--brass) 7%, transparent);
 }
 
 .nmnCard:active {
@@ -230,13 +249,6 @@
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--pint);
-}
-
-.nmnCardPriceLabel {
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
 }
 
 /* — Explicit acceptance (intent-write on) —

@@ -17,6 +17,9 @@ import { menuHubTiles } from "@/lib/menuHub";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 
+/** The Drinks tab prints menu and website links, never a booking CTA. */
+const BOOKING_ONLY_ON_OVERVIEW = ["book"] as const;
+
 export default function VenueMenuTab({
   venue,
   tab,
@@ -77,7 +80,8 @@ export default function VenueMenuTab({
     >
       {menuView.mode === "hub" ? (
         <>
-          <VenueActionStrip venue={venue} />
+          {/* Booking lives on Overview only (finding 2.16). */}
+          <VenueActionStrip venue={venue} omitKinds={BOOKING_ONLY_ON_OVERVIEW} />
           <MenuCategoryGrid
             tiles={hubTiles}
             venueKind={venue.kind}
