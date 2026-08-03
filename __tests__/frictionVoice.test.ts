@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 // Friction-state voice fence (2026-07-19 taste sweep). Empty, denied, and
@@ -58,6 +59,20 @@ const CONTROL_TEXT = new RegExp(
 // A decimal with no currency symbol and no leading digit in front of it.
 const BARE_DECIMAL = /(?<![£$€\d])\d+\.\d+/u;
 const NUMERAL_ONLY = /^[\d.,]+$/u;
+const ZERO_POINT_ZERO = /(?<!\d)0[.,]0%?(?!\d)/u;
+const READER_COPY_ATTRIBUTES = new Set([
+  "alt",
+  "aria-label",
+  "aria-roledescription",
+  "label",
+  "placeholder",
+  "title",
+]);
+
+type ReaderFacingCopy = {
+  text: string;
+  line: number;
+};
 
 function tsxFilesIn(dir: string, found: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -78,6 +93,57 @@ function controlTextLabels(source: string): string[] {
     if (text) labels.push(text);
   }
   return labels;
+}
+
+function readerFacingStaticCopy(source: string): ReaderFacingCopy[] {
+  const sourceFile = ts.createSourceFile(
+    "surface.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const copy: ReaderFacingCopy[] = [];
+  const record = (text: string, node: ts.Node) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    copy.push({
+      text: trimmed,
+      line: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+        .line + 1,
+    });
+  };
+
+  const walk = (node: ts.Node): void => {
+    if (ts.isJsxText(node)) {
+      record(node.getText(sourceFile), node);
+    } else if (
+      ts.isStringLiteralLike(node) &&
+      ts.isJsxExpression(node.parent) &&
+      !ts.isJsxAttribute(node.parent.parent)
+    ) {
+      record(node.text, node);
+    } else if (
+      ts.isJsxAttribute(node) &&
+      READER_COPY_ATTRIBUTES.has(node.name.getText(sourceFile))
+    ) {
+      const initializer = node.initializer;
+      if (initializer && ts.isStringLiteral(initializer)) {
+        record(initializer.text, initializer);
+      } else if (
+        initializer &&
+        ts.isJsxExpression(initializer) &&
+        initializer.expression &&
+        ts.isStringLiteralLike(initializer.expression)
+      ) {
+        record(initializer.expression.text, initializer.expression);
+      }
+    }
+    ts.forEachChild(node, walk);
+  };
+
+  walk(sourceFile);
+  return copy;
 }
 
 describe("friction-state voice fence", () => {
@@ -132,6 +198,36 @@ describe("friction-state voice fence", () => {
       }
     }
     expect(offenders, "a control label must name a thing, not print a figure").toEqual([]);
+  });
+
+  it("no static reader-facing copy uses 0.0 vocabulary", () => {
+    const offenders: string[] = [];
+    for (const file of [...tsxFilesIn("app"), ...tsxFilesIn("components")]) {
+      for (const copy of readerFacingStaticCopy(read(file))) {
+        if (ZERO_POINT_ZERO.test(copy.text)) {
+          offenders.push(`${file}:${copy.line}: "${copy.text}"`);
+        }
+      }
+    }
+    expect(
+      offenders,
+      "reader-facing copy must name alcohol-free choices in words",
+    ).toEqual([]);
+  });
+
+  it("the 0.0 fence reaches accessible attributes and nested visible text", () => {
+    const shipped = readerFacingStaticCopy(`
+      <Link aria-label="Explore 0.0 drinks">
+        <Amenity label={"0.0% beer"} />
+        <span><strong>0.0</strong></span>
+      </Link>
+    `).map(({ text }) => text);
+    expect(shipped).toEqual([
+      "Explore 0.0 drinks",
+      "0.0% beer",
+      "0.0",
+    ]);
+    expect(shipped.every((text) => ZERO_POINT_ZERO.test(text))).toBe(true);
   });
 
   it("the bare-numeral fence catches the shape that shipped", () => {

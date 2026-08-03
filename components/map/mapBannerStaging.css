@@ -36,15 +36,17 @@
   .mapStage:has(.citySuggestBanner) .tonightLaneCollapsed {
     display: none;
   }
-}
 
-@media (min-width: 1024px) {
   /* Location owns first-run centre. The actionable status remains visible but
      yields into Tonight's now-vacant left lane, so two eligible banners do not
      form a stack across the map's focal point. */
+  .mapStage:has(.citySuggestBanner) .citySuggestBanner {
+    max-width: min(420px, calc(100vw - 384px));
+  }
+
   .mapStage:has(.citySuggestBanner) .cityStatusStack {
     left: 16px;
-    width: min(460px, 32vw);
+    width: min(460px, max(160px, calc(50vw - 242px)));
     transform: none;
   }
 }

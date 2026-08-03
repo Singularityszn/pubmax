@@ -106,10 +106,15 @@ export default function MapToolbar({
   // the reader asked for anything.
   const [lensOpen, setLensOpen] = useState(false);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
-  const { value: laneOffset, animateTo: animateLaneOffset } = useSpringValue(0, {
+  const {
+    value: laneOffset,
+    animateTo: animateLaneOffset,
+    jumpTo: jumpLaneOffset,
+  } = useSpringValue(0, {
     response: 0.38,
     dampingRatio: 1,
   });
+  const laneSyncReadyRef = useRef(false);
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
   // The banners below the toolbar dock against its rendered bottom edge. That
   // edge moves when the lens or drink panels open, so the toolbar publishes its
@@ -133,8 +138,10 @@ export default function MapToolbar({
   useLayoutEffect(() => {
     const toolbar = toolbarRef.current;
     const shell = toolbar?.closest<HTMLElement>(".appShell");
-    if (!toolbar || !shell || !desktopLaneActive) {
-      animateLaneOffset(0);
+    if (!toolbar || !shell) return;
+    if (!desktopLaneActive) {
+      laneSyncReadyRef.current = false;
+      jumpLaneOffset(0);
       return;
     }
 
@@ -146,18 +153,28 @@ export default function MapToolbar({
     const drawer = drawerSelector
       ? shell.querySelector<HTMLElement>(drawerSelector)
       : null;
-    const sync = () => {
+    const sync = (immediate = false) => {
       const width = drawer?.getBoundingClientRect().width ?? 0;
-      animateLaneOffset(
-        detailOpen ? -width / 2 : planningOpen ? width / 2 : 0,
-      );
+      const target = detailOpen ? -width / 2 : planningOpen ? width / 2 : 0;
+      if (immediate) {
+        jumpLaneOffset(target);
+      } else {
+        animateLaneOffset(target);
+      }
     };
-    sync();
+    sync(!laneSyncReadyRef.current);
+    laneSyncReadyRef.current = true;
     if (!drawer || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(sync);
+    const observer = new ResizeObserver(() => sync());
     observer.observe(drawer);
     return () => observer.disconnect();
-  }, [animateLaneOffset, desktopLaneActive, detailOpen, planningOpen]);
+  }, [
+    animateLaneOffset,
+    desktopLaneActive,
+    detailOpen,
+    jumpLaneOffset,
+    planningOpen,
+  ]);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
     const sync = () => {
