@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -12,6 +12,7 @@ import {
   defaultMaxLoad,
   loadKeyFile,
   parseFreeMemoryPercent,
+  providerSafeEnvironment,
   publishPreparedChanges,
   redactSecrets,
   renderLaunchAgents,
@@ -83,6 +84,28 @@ describe("local refresh resource gate", () => {
 });
 
 describe("local refresh key loading", () => {
+  it("removes provider secrets from external command environments without mutating input", () => {
+    const environment: NodeJS.ProcessEnv = {
+      NODE_ENV: "test",
+      PATH: "/usr/bin:/bin",
+      SAFE_MARKER: "preserved",
+      EXA_API_KEY: "exa-secret",
+      BROWSERBASE_API_KEY: "browserbase-secret",
+      TAVILY_API_KEY: "tavily-secret",
+      TICKETMASTER_API_KEY: "ticketmaster-secret",
+      SKIDDLE_API_KEY: "skiddle-secret",
+    };
+
+    const safeEnvironment = providerSafeEnvironment(environment);
+
+    expect(safeEnvironment).toEqual({
+      NODE_ENV: "test",
+      PATH: "/usr/bin:/bin",
+      SAFE_MARKER: "preserved",
+    });
+    expect(environment).toHaveProperty("EXA_API_KEY", "exa-secret");
+  });
+
   it("loads a mode-0600 env file and redacts every loaded value", () => {
     const directory = temporaryDirectory();
     const keyFile = join(directory, "keys.env");
@@ -268,6 +291,205 @@ describe("local refresh PR summary", () => {
 });
 
 describe("local refresh publication", () => {
+  it("fails before branch creation or push when gh-axi is unavailable", async () => {
+    const repository = temporaryDirectory();
+    const remote = temporaryDirectory();
+    execFileSync("git", ["init", "-q", "--bare", "--initial-branch=main", remote]);
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: repository });
+    mkdirSync(join(repository, "public/data/drink_price_updates"), { recursive: true });
+    const latest = join(repository, "public/data/drink_price_updates/latest.json");
+    writeFileSync(latest, JSON.stringify({ updates: [{ venueKey: "alpha", priceGbp: 5.5 }] }));
+    execFileSync("git", ["add", "."], { cwd: repository });
+    execFileSync(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", "initial"],
+      { cwd: repository },
+    );
+    execFileSync("git", ["remote", "add", "origin", remote], { cwd: repository });
+    execFileSync("git", ["push", "-q", "-u", "origin", "main"], { cwd: repository });
+    const originalMain = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: repository,
+      encoding: "utf8",
+    }).trim();
+    writeFileSync(latest, JSON.stringify({ updates: [{ venueKey: "alpha", priceGbp: 5.75 }] }));
+    const missingGhAxi = join(repository, "missing-gh-axi");
+
+    await expect(
+      publishPreparedChanges({
+        worktree: repository,
+        mode: "prices",
+        dryRun: false,
+        summary: {
+          newPubs: 0,
+          newPriceRows: 0,
+          priceChanges: 1,
+          refreshedPriceRows: 0,
+          newDeals: 0,
+          newEvents: 0,
+          locationFixes: 0,
+          enrichmentChanges: 0,
+        },
+        log: () => undefined,
+        ghAxiPath: missingGhAxi,
+        timestamp: "2026-08-05T10:00:00.000Z",
+      }),
+    ).rejects.toThrow(
+      `gh-axi is not executable at ${missingGhAxi}; refusing to push without review PR capability`,
+    );
+
+    expect(
+      execFileSync("git", ["branch", "--format=%(refname:short)"], {
+        cwd: repository,
+        encoding: "utf8",
+      }).trim(),
+    ).toBe("main");
+    expect(
+      execFileSync("git", ["--git-dir", remote, "for-each-ref", "--format=%(refname:short) %(objectname)", "refs/heads"], {
+        encoding: "utf8",
+      }).trim(),
+    ).toBe(`main ${originalMain}`);
+  });
+
+  it("validates one changed row, opens a review PR, and leaves remote main unmerged", async () => {
+    const repository = temporaryDirectory();
+    const remote = temporaryDirectory();
+    const gitEnvironmentCapture = join(repository, "git-environment.json");
+    const ghEnvironmentCapture = join(repository, "gh-environment.json");
+    const providerKeyNames = [
+      "EXA_API_KEY",
+      "BROWSERBASE_API_KEY",
+      "TAVILY_API_KEY",
+      "TICKETMASTER_API_KEY",
+      "SKIDDLE_API_KEY",
+    ];
+    execFileSync("git", ["init", "-q", "--bare", "--initial-branch=main", remote]);
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: repository });
+    mkdirSync(join(repository, "public/data/drink_price_updates"), { recursive: true });
+    const latest = join(repository, "public/data/drink_price_updates/latest.json");
+    writeFileSync(
+      latest,
+      JSON.stringify({ updates: [{ venueKey: "alpha", drinkName: "Lager", priceGbp: 5.5 }] }),
+    );
+    writeFileSync(
+      join(repository, "validate-fixture.cjs"),
+      `const fs = require("node:fs");
+const data = JSON.parse(fs.readFileSync("public/data/drink_price_updates/latest.json", "utf8"));
+if (data.updates.length !== 1 || data.updates[0].priceGbp !== 5.75) process.exit(1);
+fs.writeFileSync("validation.marker", "validated one changed row\\n");
+`,
+    );
+    writeFileSync(
+      join(repository, "package.json"),
+      JSON.stringify({ scripts: { "validate-data": "node validate-fixture.cjs" } }),
+    );
+    execFileSync("git", ["add", "."], { cwd: repository });
+    execFileSync(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", "initial"],
+      { cwd: repository },
+    );
+    execFileSync("git", ["remote", "add", "origin", remote], { cwd: repository });
+    execFileSync("git", ["push", "-q", "-u", "origin", "main"], { cwd: repository });
+    const originalMain = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: repository,
+      encoding: "utf8",
+    }).trim();
+
+    const captureScript = (capturePath: string) => `#!/usr/bin/env node
+const fs = require("node:fs");
+const names = ${JSON.stringify(providerKeyNames)};
+fs.writeFileSync(${JSON.stringify(capturePath)}, JSON.stringify({
+  args: process.argv.slice(2),
+  visibleProviderKeys: names.filter((name) => Object.hasOwn(process.env, name)),
+}));
+`;
+    const prePushHook = join(repository, ".git/hooks/pre-push");
+    writeFileSync(prePushHook, captureScript(gitEnvironmentCapture));
+    chmodSync(prePushHook, 0o755);
+    const fakeGhAxi = join(repository, "fake-gh-axi");
+    writeFileSync(fakeGhAxi, captureScript(ghEnvironmentCapture));
+    chmodSync(fakeGhAxi, 0o755);
+
+    writeFileSync(
+      latest,
+      JSON.stringify({ updates: [{ venueKey: "alpha", drinkName: "Lager", priceGbp: 5.75 }] }),
+    );
+    writeFileSync(join(repository, "unapproved-output.txt"), "must not be staged\n");
+    const externalEnvironment = {
+      ...process.env,
+      EXA_API_KEY: "exa-secret",
+      BROWSERBASE_API_KEY: "browserbase-secret",
+      TAVILY_API_KEY: "tavily-secret",
+      TICKETMASTER_API_KEY: "ticketmaster-secret",
+      SKIDDLE_API_KEY: "skiddle-secret",
+    };
+
+    await validatePreparedData({
+      worktree: repository,
+      environment: externalEnvironment,
+      log: () => undefined,
+    });
+    expect(readFileSync(join(repository, "validation.marker"), "utf8")).toBe(
+      "validated one changed row\n",
+    );
+
+    const result = await publishPreparedChanges({
+      worktree: repository,
+      mode: "prices",
+      dryRun: false,
+      summary: {
+        newPubs: 0,
+        newPriceRows: 0,
+        priceChanges: 1,
+        refreshedPriceRows: 0,
+        newDeals: 0,
+        newEvents: 0,
+        locationFixes: 0,
+        enrichmentChanges: 0,
+      },
+      log: () => undefined,
+      ghAxiPath: fakeGhAxi,
+      timestamp: "2026-08-05T11:00:00.000Z",
+      environment: externalEnvironment,
+    });
+
+    expect(result).toEqual({
+      status: "published",
+      changedFiles: ["public/data/drink_price_updates/latest.json"],
+      branch: "automation/local-refresh-prices-20260805t110000z",
+    });
+    const gitCapture = JSON.parse(readFileSync(gitEnvironmentCapture, "utf8"));
+    expect(gitCapture.visibleProviderKeys).toEqual([]);
+    const ghCapture = JSON.parse(readFileSync(ghEnvironmentCapture, "utf8"));
+    expect(ghCapture.visibleProviderKeys).toEqual([]);
+    expect(ghCapture.args.slice(0, 2)).toEqual(["pr", "create"]);
+    expect(ghCapture.args).toContain("automation/local-refresh-prices-20260805t110000z");
+    expect(ghCapture.args).not.toContain("merge");
+
+    const reviewRef = "refs/heads/automation/local-refresh-prices-20260805t110000z";
+    expect(
+      execFileSync("git", ["--git-dir", remote, "rev-parse", "refs/heads/main"], {
+        encoding: "utf8",
+      }).trim(),
+    ).toBe(originalMain);
+    const reviewCommitAndParent = execFileSync(
+      "git",
+      ["--git-dir", remote, "rev-list", "--parents", "-n", "1", reviewRef],
+      { encoding: "utf8" },
+    )
+      .trim()
+      .split(" ");
+    expect(reviewCommitAndParent).toHaveLength(2);
+    expect(reviewCommitAndParent[1]).toBe(originalMain);
+    expect(
+      execFileSync(
+        "git",
+        ["--git-dir", remote, "diff-tree", "--no-commit-id", "--name-only", "-r", reviewRef],
+        { encoding: "utf8" },
+      ).trim(),
+    ).toBe("public/data/drink_price_updates/latest.json");
+  });
+
   it("returns quietly without creating a branch when tracked data is unchanged", async () => {
     const repository = temporaryDirectory();
     execFileSync("git", ["init", "-q", "-b", "main"], { cwd: repository });

@@ -22,6 +22,7 @@ export function defaultMaxLoad(logicalCpuCount: number): number;
 export function loadKeyFile(path: string): Record<string, string>;
 export function redactSecrets(text: string, values: string[]): string;
 export function keyReadinessError(mode: "prices" | "events", keys: Record<string, string>): string | null;
+export function providerSafeEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
 export function captureRefreshSnapshot(root: string): RefreshSnapshot;
 export function baseRefForRun(dryRun: boolean): "HEAD" | "origin/main";
 export function commandsForMode(
@@ -52,6 +53,7 @@ export function publishPreparedChanges(input: {
   log?: (message: string) => void;
   ghAxiPath?: string;
   timestamp?: string;
+  environment?: NodeJS.ProcessEnv;
 }): Promise<
   | { status: "no-change"; changedFiles: string[] }
   | { status: "dry-run"; changedFiles: string[]; diff: string }

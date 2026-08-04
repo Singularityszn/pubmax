@@ -2,8 +2,10 @@
 
 import { execFileSync, spawn } from "node:child_process";
 import {
+  accessSync,
   appendFileSync,
   chmodSync,
+  constants as fsConstants,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -29,6 +31,9 @@ const ALLOWED_REFRESH_PATHS = [
 const MODULE_PATH = fileURLToPath(import.meta.url);
 const REPO_ROOT = join(dirname(MODULE_PATH), "..", "..");
 const LABELS = ["com.pubmax.refresh-prices", "com.pubmax.refresh-events"];
+const PRICE_PROVIDER_KEYS = ["EXA_API_KEY", "BROWSERBASE_API_KEY", "TAVILY_API_KEY"];
+const EVENT_PROVIDER_KEYS = ["TICKETMASTER_API_KEY", "SKIDDLE_API_KEY"];
+const PROVIDER_SECRET_ENV_KEYS = [...PRICE_PROVIDER_KEYS, ...EVENT_PROVIDER_KEYS];
 
 export function parseFreeMemoryPercent(output) {
   const match = String(output).match(/System-wide memory free percentage:\s*(\d+(?:\.\d+)?)%/);
@@ -72,18 +77,23 @@ export function redactSecrets(text, values) {
 
 export function keyReadinessError(mode, keys) {
   if (mode === "prices") {
-    const required = ["EXA_API_KEY", "BROWSERBASE_API_KEY", "TAVILY_API_KEY"];
-    const missing = required.filter((key) => !keys[key]);
+    const missing = PRICE_PROVIDER_KEYS.filter((key) => !keys[key]);
     return missing.length
       ? `prices refresh requires EXA_API_KEY, BROWSERBASE_API_KEY, and TAVILY_API_KEY in the protected key file; missing ${missing.join(", ")}`
       : null;
   }
   if (mode === "events") {
-    return keys.TICKETMASTER_API_KEY || keys.SKIDDLE_API_KEY
+    return EVENT_PROVIDER_KEYS.some((key) => keys[key])
       ? null
       : "events refresh requires TICKETMASTER_API_KEY or an approved SKIDDLE_API_KEY in the protected key file";
   }
   throw new Error(`Unknown refresh mode: ${mode}`);
+}
+
+export function providerSafeEnvironment(environment) {
+  const safe = { ...environment };
+  for (const key of PROVIDER_SECRET_ENV_KEYS) delete safe[key];
+  return safe;
 }
 
 function normalise(value) {
@@ -363,12 +373,15 @@ function git(worktree, args, options = {}) {
   return execFileSync("git", args, {
     cwd: worktree,
     encoding: "utf8",
+    env: options.environment ?? providerSafeEnvironment(process.env),
     stdio: options.stdio ?? ["ignore", "pipe", "pipe"],
   });
 }
 
-function changedRefreshFiles(worktree) {
-  const output = git(worktree, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
+function changedRefreshFiles(worktree, environment) {
+  const output = git(worktree, ["status", "--porcelain=v1", "-z", "--untracked-files=all"], {
+    environment,
+  });
   const entries = output.split("\0").filter(Boolean);
   const files = [];
   for (let index = 0; index < entries.length; index += 1) {
@@ -412,27 +425,31 @@ export async function publishPreparedChanges({
   log = console.log,
   ghAxiPath,
   timestamp = new Date().toISOString(),
+  environment = process.env,
 }) {
+  const externalCommandEnvironment = providerSafeEnvironment(environment);
   if (!Object.values(summary).some((count) => count > 0)) {
     log("No semantic refresh data changed. No branch or PR created.");
     return { status: "no-change", changedFiles: [] };
   }
-  const changedFiles = changedRefreshFiles(worktree);
+  const changedFiles = changedRefreshFiles(worktree, externalCommandEnvironment);
   if (changedFiles.length === 0) {
     log("No refresh data changed. No branch or PR created.");
     return { status: "no-change", changedFiles: [] };
   }
 
-  git(worktree, ["add", "--", ...changedFiles]);
+  git(worktree, ["add", "--", ...changedFiles], { environment: externalCommandEnvironment });
   try {
-    git(worktree, ["diff", "--cached", "--quiet"]);
+    git(worktree, ["diff", "--cached", "--quiet"], { environment: externalCommandEnvironment });
     log("No staged refresh data changed. No branch or PR created.");
     return { status: "no-change", changedFiles: [] };
   } catch {
     // A non-zero status is the expected signal that a staged diff exists.
   }
 
-  const diff = git(worktree, ["diff", "--cached", "--stat"]);
+  const diff = git(worktree, ["diff", "--cached", "--stat"], {
+    environment: externalCommandEnvironment,
+  });
   log(summaryMarkdown(mode, summary, changedFiles));
   log(diff.trimEnd());
 
@@ -441,10 +458,20 @@ export async function publishPreparedChanges({
     return { status: "dry-run", changedFiles, diff };
   }
 
+  if (!ghAxiPath) throw new Error("gh-axi path is required to open a review PR.");
+  try {
+    accessSync(ghAxiPath, fsConstants.X_OK);
+  } catch {
+    throw new Error(`gh-axi is not executable at ${ghAxiPath}; refusing to push without review PR capability.`);
+  }
+
   const stamp = timestamp.replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z").toLowerCase();
   const branch = `automation/local-refresh-${mode}-${stamp}`;
   if (branch === "main" || branch === "master") throw new Error("Refusing to publish the default branch.");
-  git(worktree, ["switch", "-c", branch], { stdio: "inherit" });
+  git(worktree, ["switch", "-c", branch], {
+    environment: externalCommandEnvironment,
+    stdio: "inherit",
+  });
   git(
     worktree,
     [
@@ -456,15 +483,18 @@ export async function publishPreparedChanges({
       "-m",
       `chore(data): refresh London ${mode}`,
     ],
-    { stdio: "inherit" },
+    { environment: externalCommandEnvironment, stdio: "inherit" },
   );
-  git(worktree, ["push", "-u", "origin", branch], { stdio: "inherit" });
+  git(worktree, ["push", "-u", "origin", branch], {
+    environment: externalCommandEnvironment,
+    stdio: "inherit",
+  });
 
-  if (!ghAxiPath) throw new Error("gh-axi path is required to open a review PR.");
   const body = summaryMarkdown(mode, summary, changedFiles);
   const title = mode === "prices" ? "Refresh London pub prices" : "Refresh London events";
   execFileSync(ghAxiPath, ["pr", "create", "--base", "main", "--head", branch, "--title", title, "--body", body], {
     cwd: worktree,
+    env: externalCommandEnvironment,
     stdio: "inherit",
   });
   return { status: "published", changedFiles, branch };
@@ -621,6 +651,7 @@ export async function runScheduledRefresh({
 
   let runDirectory;
   let worktree;
+  let externalCommandEnvironment = providerSafeEnvironment(environmentWithNodePath(environment));
   try {
     const keys = loadKeyFile(keysFile);
     secretValues.push(...Object.values(keys));
@@ -631,6 +662,7 @@ export async function runScheduledRefresh({
     }
 
     const childEnvironment = environmentWithNodePath({ ...environment, ...keys });
+    externalCommandEnvironment = providerSafeEnvironment(childEnvironment);
     runDirectory = mkdtempSync(join(logDirectory, `.run-${mode}-`));
     worktree = join(runDirectory, "worktree");
 
@@ -638,7 +670,7 @@ export async function runScheduledRefresh({
       executable: "git",
       args: ["fetch", "origin", "main", "--prune"],
       cwd: repoRoot,
-      environment: childEnvironment,
+      environment: externalCommandEnvironment,
       log,
     });
     const baseRef = baseRefForRun(dryRun);
@@ -646,7 +678,7 @@ export async function runScheduledRefresh({
       executable: "git",
       args: ["worktree", "add", "--detach", worktree, baseRef],
       cwd: repoRoot,
-      environment: childEnvironment,
+      environment: externalCommandEnvironment,
       log,
     });
     log(`Prepared disposable worktree from ${baseRef}.`);
@@ -665,6 +697,7 @@ export async function runScheduledRefresh({
       summary,
       log,
       ghAxiPath: join(homeDir, ".local/bin/gh-axi"),
+      environment: childEnvironment,
     });
     return { ...result, summary, logPath };
   } catch (error) {
@@ -675,6 +708,7 @@ export async function runScheduledRefresh({
       try {
         execFileSync("git", ["worktree", "remove", "--force", worktree], {
           cwd: repoRoot,
+          env: externalCommandEnvironment,
           stdio: "ignore",
         });
       } catch (error) {

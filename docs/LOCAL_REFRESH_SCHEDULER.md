@@ -13,7 +13,7 @@ launchd uses local calendar time. If the Mac sleeps through a calendar firing, l
 
 Every run checks one-minute load and macOS memory pressure before doing work. Default load ceiling is 75% of logical CPU capacity with a floor of `4.0`; free memory floor is `25%`. A shared lock prevents price and event jobs overlapping. Existing acquisition scripts run one at a time.
 
-Secrets load at runtime from `~/karan-agent-workspace/data/keys.env`. Scheduler refuses any mode other than `0600`, never puts keys in a plist or command argument, and redacts loaded values from captured child-process output. Monday prices require `EXA_API_KEY`, `BROWSERBASE_API_KEY`, and `TAVILY_API_KEY`. Daily events require `TICKETMASTER_API_KEY` or a `SKIDDLE_API_KEY` whose commercial use has written approval. Current key inventory lacks both event-provider keys, so event job reports `TICKETMASTER_API_KEY` or approved `SKIDDLE_API_KEY` and leaves event data untouched.
+Secrets load at runtime from `~/karan-agent-workspace/data/keys.env`. Scheduler refuses any mode other than `0600`, never puts keys in a plist or command argument, and redacts loaded values from captured child-process output. Provider keys remain available to acquisition and validation commands, but are removed from every Git and `gh-axi` subprocess environment. Monday prices require `EXA_API_KEY`, `BROWSERBASE_API_KEY`, and `TAVILY_API_KEY`. Daily events require `TICKETMASTER_API_KEY` or a `SKIDDLE_API_KEY` whose commercial use has written approval. Current key inventory lacks both event-provider keys, so event job reports `TICKETMASTER_API_KEY` or approved `SKIDDLE_API_KEY` and leaves event data untouched.
 
 Price acquisition chooses provider by work type in `scripts/lib/localRefreshProviders.mjs`:
 
@@ -83,5 +83,7 @@ Render plists for inspection without installing:
 node scripts/local-refresh/scheduler.mjs render-launchd --output-dir .local-refresh-launchd
 plutil -lint .local-refresh-launchd/*.plist
 ```
+
+Target-account lint, load, list, unload, and cleanup output is recorded in [`docs/proof/local-refresh-scheduler/launchd-validation-2026-08-05.md`](./proof/local-refresh-scheduler/launchd-validation-2026-08-05.md).
 
 Do not run `install` from a disposable task worktree. Its absolute path disappears when worktree is removed.
