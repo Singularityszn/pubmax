@@ -4,9 +4,9 @@
 //   Back over an open Venue closes the sheet and reveals a clean Map; a second
 //   Back leaves the Map. This module is the PURE core — the sentinel shape, the
 //   URL builders that preserve owned non-selection params, and the transition
-//   decider. The client hook (components/map/pubmap/useMapSelectionHistory.ts)
-//   applies these against window.history; keeping the decisions here makes the
-//   whole contract unit-testable with no DOM.
+//   decider. The Map surface navigation owner applies these URL rules beside
+//   its complete surface snapshot; keeping them here makes URL decisions
+//   unit-testable with no DOM.
 //
 // Server-safe: no window/DOM/React.
 

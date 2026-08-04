@@ -92,7 +92,10 @@ export default defineConfig({
     ...(FIREFOX_DESKTOP_MAP_CHROME_FIT
       ? [{
           name: "firefox-desktop-map-chrome-fit",
-          testMatch: "**/desktop-map-chrome-fit.spec.ts",
+          testMatch: [
+            "**/desktop-map-chrome-fit.spec.ts",
+            "**/map-surface-history.spec.ts",
+          ],
           timeout: 60_000,
           use: { ...devices["Desktop Firefox"] },
         }]
@@ -305,7 +308,7 @@ export default defineConfig({
         stdout: "pipe",
         stderr: "pipe",
       },
-      ...(!SCREENSHOT_RUN
+      ...(!SCREENSHOT_RUN && !FIREFOX_DESKTOP_MAP_CHROME_FIT
         ? [{
             command:
               `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${KEYLESS_PORT}`,
