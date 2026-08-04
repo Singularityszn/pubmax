@@ -1,8 +1,8 @@
 /**
  * Effective RLS session tests.
  *
- * Spins up a throwaway local Postgres, applies the wave-2 policy set, and
- * proves deny/allow with real roles:
+ * Spins up throwaway local Postgres and PostgREST, applies the wave-2 policy
+ * set, and proves deny/allow with real roles and HTTP requests:
  *   anonymous  → DENIED
  *   owner      → ALLOWED (where product allows)
  *   other user → DENIED
@@ -10,7 +10,7 @@
  *
  * When PostgreSQL 16+ binaries are absent (e.g. Vercel build hosts), every
  * test is SKIPPED with a loud reason — never reported as pass. CI job
- * `rls-session` installs Postgres 16 and runs this suite for real.
+ * `rls-session` installs Postgres 16 plus PostgREST 14 and runs this suite.
  *
  * Never applies migrations to a live Supabase project.
  */
@@ -22,6 +22,10 @@ type Session = {
     opts?: { asRole?: string | null; sub?: string | null },
   ) => { ok: boolean; out: string; err: string };
   sqlFile: (path: string) => void;
+  rest: (
+    path: string,
+    opts: { method?: string; sub?: string | null; headers?: Record<string, string> },
+  ) => Promise<{ status: number; body: unknown; text: string }>;
   stop: () => Promise<void>;
   rollbackPath: string;
 };
@@ -42,7 +46,6 @@ beforeAll(async () => {
   if (missing) {
     skipReason = missing;
     // Loud, visible in CI/Vercel logs — a SKIP is not a green pass.
-    // eslint-disable-next-line no-console
     console.error(
       [
         "",
@@ -115,19 +118,21 @@ beforeAll(async () => {
 
     insert into public.rounds (id, code) values ('e2000000-0000-4000-8000-000000000001', 'ABCD');
 
-    -- Night story graph: alice hosts a published public story with one moment;
-    -- a second moment is owner-private (not on the story). Used to prove
-    -- DELETE isolation on night_story_moments / night_moments / night_stories.
+    -- Night story graph: alice hosts published and draft stories. Bob owns
+    -- the moments joined to them, proving a moment author cannot mutate the
+    -- host-owned join through a published-row read policy.
     insert into public.night_memories (id, owner_id, title) values
       ('aa000000-0000-4000-8000-000000000001', '${OWNER}', 'Alice night');
     insert into public.night_moments (id, memory_id, owner_id, kind, caption) values
-      ('ab000000-0000-4000-8000-000000000001', 'aa000000-0000-4000-8000-000000000001', '${OWNER}', 'event', 'pub moment'),
-      ('ab000000-0000-4000-8000-000000000002', 'aa000000-0000-4000-8000-000000000001', '${OWNER}', 'event', 'private moment');
+      ('ab000000-0000-4000-8000-000000000001', 'aa000000-0000-4000-8000-000000000001', '${OTHER}', 'event', 'published moment'),
+      ('ab000000-0000-4000-8000-000000000002', 'aa000000-0000-4000-8000-000000000001', '${OWNER}', 'event', 'private moment'),
+      ('ab000000-0000-4000-8000-000000000003', 'aa000000-0000-4000-8000-000000000001', '${OTHER}', 'event', 'draft story moment');
     insert into public.night_stories (id, memory_id, host_editor_id, title, status, visibility, published_at) values
       ('ac000000-0000-4000-8000-000000000001', 'aa000000-0000-4000-8000-000000000001', '${OWNER}', 'Published night', 'published', 'public', now()),
       ('ac000000-0000-4000-8000-000000000002', 'aa000000-0000-4000-8000-000000000001', '${OWNER}', 'Draft night', 'draft', 'private', null);
     insert into public.night_story_moments (story_id, moment_id, position) values
-      ('ac000000-0000-4000-8000-000000000001', 'ab000000-0000-4000-8000-000000000001', 0);
+      ('ac000000-0000-4000-8000-000000000001', 'ab000000-0000-4000-8000-000000000001', 0),
+      ('ac000000-0000-4000-8000-000000000002', 'ab000000-0000-4000-8000-000000000003', 0);
   `;
   const r = session!.sql(seed);
   if (!r.ok) {
@@ -203,11 +208,46 @@ function rowSurvivesDelete(
   opts: { asRole?: string | null; sub?: string | null },
 ): boolean {
   const s = requireSession();
-  // Best-effort client delete. Privilege denial or RLS filter both leave the row.
-  s.sql(`delete from public.${table} where ${where}`, opts);
+  // Privilege denial or an RLS-filtered zero-row DELETE both protect the row.
+  // Any other SQL error means the test did not exercise DELETE successfully.
+  const deleted = s.sql(`delete from public.${table} where ${where}`, opts);
+  if (!deleted.ok && !/permission denied/i.test(deleted.err)) {
+    throw new Error(`delete ${table}: ${deleted.err}`);
+  }
   const left = s.sql(`select count(*)::text from public.${table} where ${where}`);
   if (!left.ok) throw new Error(`post-delete count ${table}: ${left.err}`);
   return Number(left.out) === 1;
+}
+
+async function expectHiddenThroughPostgrest({
+  table,
+  filter,
+  sqlWhere,
+  sub,
+}: {
+  table: string;
+  filter: string;
+  sqlWhere: string;
+  sub: string;
+}) {
+  const s = requireSession();
+  const selected = await s.rest(`/rest/v1/${table}?${filter}`, { sub });
+  expect(selected.status).toBe(200);
+  expect(selected.body).toEqual([]);
+
+  const deleted = await s.rest(`/rest/v1/${table}?${filter}`, {
+    method: "DELETE",
+    sub,
+    headers: { Prefer: "return=representation" },
+  });
+  expect([200, 401, 403]).toContain(deleted.status);
+  if (deleted.status === 200) expect(deleted.body).toEqual([]);
+
+  const remaining = s.sql(
+    `select count(*)::text from public.${table} where ${sqlWhere}`,
+  );
+  expect(remaining.ok).toBe(true);
+  expect(Number(remaining.out)).toBe(1);
 }
 
 describe("visit_reports — effective RLS", () => {
@@ -502,6 +542,37 @@ describe("night_story_moments / night_stories / night_moments — write isolatio
     ).toBe(true);
   });
 
+  it("lets a moment author read but not delete its published story join through PostgREST", async () => {
+    const filter =
+      "story_id=eq.ac000000-0000-4000-8000-000000000001&moment_id=eq.ab000000-0000-4000-8000-000000000001&select=story_id,moment_id";
+    const s = requireSession();
+    const selected = await s.rest(`/rest/v1/night_story_moments?${filter}`, {
+      sub: OTHER,
+    });
+    expect(selected.status).toBe(200);
+    expect(selected.body).toEqual([
+      {
+        story_id: "ac000000-0000-4000-8000-000000000001",
+        moment_id: "ab000000-0000-4000-8000-000000000001",
+      },
+    ]);
+
+    const deleted = await s.rest(`/rest/v1/night_story_moments?${filter}`, {
+      method: "DELETE",
+      sub: OTHER,
+      headers: { Prefer: "return=representation" },
+    });
+    expect(deleted.status).toBe(200);
+    expect(deleted.body).toEqual([]);
+
+    const remaining = s.sql(
+      `select count(*)::text from public.night_story_moments
+       where story_id = '${PUBLISHED_STORY}' and moment_id = '${STORY_MOMENT}'`,
+    );
+    expect(remaining.ok).toBe(true);
+    expect(Number(remaining.out)).toBe(1);
+  });
+
   it("denies non-host DELETE on a published story moment (moderation record / join survives)", () => {
     // Gate defect: FOR ALL + published USING let any authenticated user delete.
     expect(
@@ -518,7 +589,7 @@ describe("night_story_moments / night_stories / night_moments — write isolatio
        where story_id = '${PUBLISHED_STORY}' and moment_id = '${STORY_MOMENT}'`,
       { asRole: "authenticated", sub: OWNER },
     );
-    expect(hostDelete.ok).toBe(true);
+    expect(hostDelete.ok, hostDelete.err).toBe(true);
     // Restore for later assertions in this file.
     const restore = requireSession().sql(
       `insert into public.night_story_moments (story_id, moment_id, position)
@@ -557,6 +628,48 @@ describe("night_story_moments / night_stories / night_moments — write isolatio
       }),
     ).toBe(false);
   });
+});
+
+describe("hidden rows through PostgREST", () => {
+  it.each([
+    {
+      table: "night_moments",
+      filter: "id=eq.ab000000-0000-4000-8000-000000000002&select=id",
+      sqlWhere: "id = 'ab000000-0000-4000-8000-000000000002'",
+      sub: OTHER,
+    },
+    {
+      table: "night_stories",
+      filter: "id=eq.ac000000-0000-4000-8000-000000000002&select=id",
+      sqlWhere: "id = 'ac000000-0000-4000-8000-000000000002'",
+      sub: OTHER,
+    },
+    {
+      table: "night_story_moments",
+      filter:
+        "story_id=eq.ac000000-0000-4000-8000-000000000002&moment_id=eq.ab000000-0000-4000-8000-000000000003&select=story_id,moment_id",
+      sqlWhere:
+        "story_id = 'ac000000-0000-4000-8000-000000000002' and moment_id = 'ab000000-0000-4000-8000-000000000003'",
+      sub: OTHER,
+    },
+    {
+      table: "community_prices",
+      filter: "id=eq.f1000000-0000-4000-8000-000000000002&select=id",
+      sqlWhere: "id = 'f1000000-0000-4000-8000-000000000002'",
+      sub: OWNER,
+    },
+    {
+      table: "visit_reports",
+      filter: "id=eq.e1000000-0000-4000-8000-000000000004&select=id",
+      sqlWhere: "id = 'e1000000-0000-4000-8000-000000000004'",
+      sub: OWNER,
+    },
+  ])(
+    "$table cannot be observed or deleted by its protected actor",
+    async (testCase) => {
+      await expectHiddenThroughPostgrest(testCase);
+    },
+  );
 });
 
 describe("rollback path", () => {

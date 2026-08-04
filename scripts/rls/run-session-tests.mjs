@@ -26,6 +26,12 @@ const { missingPostgresReason } = await import(
 const missing = missingPostgresReason();
 
 function printLoudSkip(reason) {
+  const reasonLines = reason.split(/\s+/).reduce((lines, word) => {
+    const current = lines.at(-1) ?? "";
+    if (!current || `${current} ${word}`.length > 60) lines.push(word);
+    else lines[lines.length - 1] = `${current} ${word}`;
+    return lines;
+  }, []);
   const lines = [
     "",
     "╔══════════════════════════════════════════════════════════════════════╗",
@@ -36,14 +42,10 @@ function printLoudSkip(reason) {
     "║  They were NOT executed. A green CI step with this banner still means║",
     "║  zero policy proofs ran on this host.                                ║",
     "╠══════════════════════════════════════════════════════════════════════╣",
-    `║  Reason: ${reason.slice(0, 60).padEnd(60)}║`,
+    `║  Reason: ${(reasonLines.shift() ?? "").padEnd(60)}║`,
   ];
-  // Wrap remaining reason if long.
-  let rest = reason.slice(60);
-  while (rest.length > 0) {
-    const chunk = rest.slice(0, 68);
-    rest = rest.slice(68);
-    lines.push(`║  ${chunk.padEnd(68)}║`);
+  for (const reasonLine of reasonLines) {
+    lines.push(`║          ${reasonLine.padEnd(60)}║`);
   }
   lines.push(
     "╠══════════════════════════════════════════════════════════════════════╣",
@@ -52,9 +54,8 @@ function printLoudSkip(reason) {
     "╚══════════════════════════════════════════════════════════════════════╝",
     "",
   );
-  // stdout: always visible in CI logs even when reporters mute stderr.
+  // stdout stays visible in CI logs even when test reporters mute stderr.
   process.stdout.write(lines.join("\n") + "\n");
-  process.stderr.write(lines.join("\n") + "\n");
 }
 
 if (missing) {
