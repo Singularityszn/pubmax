@@ -13,6 +13,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { clerkAppearance } from "@/lib/clerkAppearance";
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
+import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 import PerformanceVitals from "@/components/PerformanceVitals";
 import JsonLd from "@/components/seo/JsonLd";
 import DailyActivityPulse from "@/components/DailyActivityPulse";
@@ -101,7 +102,10 @@ const dataMono = JetBrains_Mono({
 // enforced by __tests__/fontPartyContainment.test.ts.
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://pubmaxxing.com"),
+  // Single-owner production origin (lib/siteUrlConfig.mjs). Relative
+  // alternates.canonical on every indexable page resolve here, so a preview
+  // host cannot advertise itself as the product URL.
+  metadataBase: new URL(PRODUCTION_SITE_ORIGIN),
   // Large image previews in search results; without this Google caps result
   // thumbnails at the small default and often shows none at all.
   robots: {
@@ -130,7 +134,7 @@ export const metadata: Metadata = {
     title: "PUBMAXX: listed pint prices on an interactive map",
     description:
       "Listed pint prices on an interactive map. Plan a crawl with your mates.",
-    url: "https://pubmaxxing.com",
+    url: PRODUCTION_SITE_ORIGIN,
     siteName: "PUBMAXX",
     type: "website",
     images: [
