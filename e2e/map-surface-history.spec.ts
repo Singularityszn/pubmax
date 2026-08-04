@@ -239,7 +239,15 @@ test.describe("one Map surface history owner", () => {
     for (const theme of ["light", "dark"] as const) {
       await prepareMap(page, PHONE);
       await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
-      await openMap(page, `/map?history-proof=${theme}-390`);
+      await openMap(page, `/map?sel=venue-xjf3n0&history-proof=${theme}-390`);
+      await expect(
+        page
+          .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
+          .getByRole("heading", { name: "Arnos Arms" }),
+      ).toBeVisible({ timeout: 30_000 });
+      await expect(
+        page.locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileSharedSheet'),
+      ).not.toHaveClass(/sheet-settling/, { timeout: 30_000 });
       await page.screenshot({
         path: testInfo.outputPath(`history-owner-390-${theme}-firefox.png`),
         animations: "disabled",
@@ -252,6 +260,9 @@ test.describe("one Map surface history owner", () => {
         .getByRole("button", { name: "Plan tonight" })
         .click();
       await expectSoleDrawer(page, "planner");
+      await expect(
+        planner(page).getByText("Victorian Soho", { exact: true }),
+      ).toBeVisible({ timeout: 30_000 });
       await page.screenshot({
         path: testInfo.outputPath(`history-owner-1440-${theme}-firefox.png`),
         animations: "disabled",
