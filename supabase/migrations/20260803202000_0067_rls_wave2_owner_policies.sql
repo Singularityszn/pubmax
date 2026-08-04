@@ -1,12 +1,16 @@
 -- RLS wave 2: owner-keyed tables with a clear auth.uid() / profile link.
--- Mirrors existing API ownership. Reverse: drop the named policies; revoke
--- the authenticated grants this file adds (service_role grants stay).
+-- Mirrors existing API ownership. Reverse: see
+-- supabase/migrations/rollback/20260803200000_rls_wave2_rollback.sql
 
 begin;
 
 -- ── private_account_identities ──────────────────────────────────────────────
+-- Owner-scoped SELECT is fine for a signed-in client. Direct INSERT / UPDATE /
+-- DELETE skip onboarding, immutable date-of-birth and field rules in
+-- lib/privateIdentityStore.ts — those writes stay service-role only.
+
 revoke all on table public.private_account_identities from public, anon, authenticated;
-grant select, insert, update, delete on table public.private_account_identities to authenticated;
+grant select on table public.private_account_identities to authenticated;
 grant all on table public.private_account_identities to service_role;
 
 drop policy if exists private_account_identities_owner_select on public.private_account_identities;
@@ -15,20 +19,8 @@ create policy private_account_identities_owner_select
   using (user_id = (select auth.uid()));
 
 drop policy if exists private_account_identities_owner_insert on public.private_account_identities;
-create policy private_account_identities_owner_insert
-  on public.private_account_identities for insert to authenticated
-  with check (user_id = (select auth.uid()));
-
 drop policy if exists private_account_identities_owner_update on public.private_account_identities;
-create policy private_account_identities_owner_update
-  on public.private_account_identities for update to authenticated
-  using (user_id = (select auth.uid()))
-  with check (user_id = (select auth.uid()));
-
 drop policy if exists private_account_identities_owner_delete on public.private_account_identities;
-create policy private_account_identities_owner_delete
-  on public.private_account_identities for delete to authenticated
-  using (user_id = (select auth.uid()));
 
 drop policy if exists private_account_identities_anon_deny on public.private_account_identities;
 create policy private_account_identities_anon_deny
@@ -386,18 +378,21 @@ create policy night_story_publish_proposals_anon_deny
   using (false) with check (false);
 
 -- ── structured_visit_reports ────────────────────────────────────────────────
+-- Visit Report API returns visible rows only (hidden is a separate moderator
+-- lane). Owner exception for hidden rows is looser than the product filter —
+-- status = 'visible' is the only authenticated SELECT predicate.
+
 revoke all on table public.structured_visit_reports from anon, authenticated;
 grant select on table public.structured_visit_reports to authenticated;
 grant all on table public.structured_visit_reports to service_role;
 
 drop policy if exists structured_visit_reports_visible_or_owner_select
   on public.structured_visit_reports;
-create policy structured_visit_reports_visible_or_owner_select
+drop policy if exists structured_visit_reports_visible_select
+  on public.structured_visit_reports;
+create policy structured_visit_reports_visible_select
   on public.structured_visit_reports for select to authenticated
-  using (
-    status = 'visible'
-    or public.rls_owns_handle(handle)
-  );
+  using (status = 'visible');
 
 drop policy if exists structured_visit_reports_anon_deny on public.structured_visit_reports;
 create policy structured_visit_reports_anon_deny

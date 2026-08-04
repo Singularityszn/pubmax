@@ -5,14 +5,16 @@
 --   plans*          — private working state; owner or linked crew only
 --   conversations / messages — participant only (handle or user_id)
 --   saved_pubs      — owning profile only
---   community_prices — non-hidden sheet rows for any signed-in reader;
---                      own rows (actor = profile:<id>) for the contributor;
+--   community_prices — non-hidden sheet rows for any signed-in reader only;
+--                      hidden never leaves the filter (freshestPerCategory);
 --                      writes and moderation stay service-role
---   visit_reports   — visible rows for any signed-in reader; own handle for
---                      the author (hidden/pending stay out of others' view)
+--   visit_reports   — same gate as canViewOnPublicSurface: status=visible,
+--                      public/anonymous for any signed-in reader, friends for
+--                      author + author's followers, legacy for author only.
+--                      Hidden/pending never readable via PostgREST.
 --
 -- Anon stays denied on every table here. Service role bypasses RLS.
--- Reverse: drop each policy named below; revoke the grants this file adds.
+-- Reverse: see supabase/migrations/rollback/20260803200000_rls_wave2_rollback.sql
 
 begin;
 
@@ -186,9 +188,12 @@ create policy saved_pubs_anon_deny
 -- community_prices
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Sheet shows every non-hidden observation (corroboration is a map authority
--- question, not a row visibility question). Actor tokens and moderation
--- columns stay out of the client column grant. Writes, reports and hides
--- stay on the service-role route.
+-- question, not a row visibility question). A hidden row is filtered from the
+-- sheet, the corroboration count and the map candidate together
+-- (freshestPerCategory) — so PostgREST must not surface it either, including
+-- to the contributing actor. Actor tokens and moderation columns stay out of
+-- the client column grant. Writes, reports and hides stay on the service-role
+-- route.
 
 revoke all on table public.community_prices from anon, authenticated;
 
@@ -200,8 +205,7 @@ grant select (
   submitted_at,
   contributor_handle,
   corroborated_at,
-  contradicted_at,
-  hidden_at
+  contradicted_at
 ) on table public.community_prices to authenticated;
 
 grant all on table public.community_prices to service_role;
@@ -211,10 +215,7 @@ create policy community_prices_visible_select
   on public.community_prices
   for select
   to authenticated
-  using (
-    hidden_at is null
-    or actor = public.rls_current_price_actor()
-  );
+  using (hidden_at is null);
 
 drop policy if exists community_prices_anon_deny on public.community_prices;
 create policy community_prices_anon_deny
@@ -227,9 +228,10 @@ create policy community_prices_anon_deny
 -- ═══════════════════════════════════════════════════════════════════════════
 -- visit_reports (Pint Drops)
 -- ═══════════════════════════════════════════════════════════════════════════
--- Visible drops are public product content for a signed-in reader. Hidden /
--- pending rows are only for the author (own handle) or the service-role
--- moderator path. Photo keys stay usable; Storage itself is private + signed.
+-- Same gate as app/p/[id] + canViewOnPublicSurface: only status='visible'
+-- rows; public/anonymous for any signed-in reader; friends for author and the
+-- author's followers; legacy for author only. Hidden/pending never leave the
+-- service-role path. Photo keys stay usable; Storage itself is private + signed.
 
 revoke all on table public.visit_reports from anon, authenticated;
 
@@ -237,13 +239,13 @@ grant select on table public.visit_reports to authenticated;
 grant all on table public.visit_reports to service_role;
 
 drop policy if exists visit_reports_visible_or_owner_select on public.visit_reports;
-create policy visit_reports_visible_or_owner_select
+drop policy if exists visit_reports_public_surface_select on public.visit_reports;
+create policy visit_reports_public_surface_select
   on public.visit_reports
   for select
   to authenticated
   using (
-    status = 'visible'
-    or public.rls_owns_handle(handle)
+    public.rls_can_read_visit_report(status, visibility, handle)
   );
 
 drop policy if exists visit_reports_anon_deny on public.visit_reports;

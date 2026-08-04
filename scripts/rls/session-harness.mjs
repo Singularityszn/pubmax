@@ -1,0 +1,240 @@
+/**
+ * Throwaway local Postgres for effective RLS session tests.
+ * Starts an ephemeral cluster, applies fixture + wave-2 migrations, exposes
+ * a SQL runner. Never touches a live Supabase project.
+ */
+import { spawn, execFileSync } from "node:child_process";
+import {
+  existsSync,
+  mkdtempSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { setTimeout as sleep } from "node:timers/promises";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = join(__dirname, "../..");
+const MIGRATIONS_DIR = join(REPO_ROOT, "supabase/migrations");
+
+const WAVE2 = [
+  "20260803200000_0065_rls_wave2_helpers.sql",
+  "20260803201000_0066_rls_wave2_priority_policies.sql",
+  "20260803202000_0067_rls_wave2_owner_policies.sql",
+  "20260803203000_0068_rls_wave2_service_role_only.sql",
+  "20260803204000_0069_rls_wave2_rpc_hardening.sql",
+];
+
+function findPgBin(name) {
+  const candidates = [
+    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
+    `/opt/homebrew/opt/postgresql@17/bin/${name}`,
+    `/usr/local/opt/postgresql@16/bin/${name}`,
+    `/opt/homebrew/bin/${name}`,
+    name,
+  ];
+  for (const c of candidates) {
+    try {
+      if (c === name) {
+        execFileSync("which", [name], { stdio: "pipe" });
+        return name;
+      }
+      if (existsSync(c)) return c;
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
+
+async function pickPort() {
+  const { createServer } = await import("node:net");
+  return new Promise((resolve, reject) => {
+    const s = createServer();
+    s.listen(0, "127.0.0.1", () => {
+      const addr = s.address();
+      const port = typeof addr === "object" && addr ? addr.port : 0;
+      s.close(() => resolve(port));
+    });
+    s.on("error", reject);
+  });
+}
+
+export async function startRlsSession() {
+  const initdb = findPgBin("initdb");
+  const postgres = findPgBin("postgres");
+  const psql = findPgBin("psql");
+  const createdb = findPgBin("createdb");
+  if (!initdb || !postgres || !psql) {
+    throw new Error(
+      "PostgreSQL 16+ binaries not found (initdb/postgres/psql). Install postgresql@16 to run effective RLS tests.",
+    );
+  }
+
+  const dataDir = mkdtempSync(join(tmpdir(), "pubmax-rls-"));
+  const port = await pickPort();
+  const logFile = join(dataDir, "postgres.log");
+
+  execFileSync(
+    initdb,
+    ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"],
+    { stdio: "pipe" },
+  );
+
+  // Keep the cluster tiny and local-only.
+  writeFileSync(
+    join(dataDir, "postgresql.auto.conf"),
+    [
+      "listen_addresses = '127.0.0.1'",
+      `port = ${port}`,
+      "max_connections = 20",
+      "shared_buffers = 16MB",
+      "fsync = off",
+      "full_page_writes = off",
+      "synchronous_commit = off",
+    ].join("\n") + "\n",
+  );
+
+  const proc = spawn(
+    postgres,
+    ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, LC_ALL: "C" },
+    },
+  );
+  const logChunks = [];
+  proc.stdout?.on("data", (b) => logChunks.push(b.toString()));
+  proc.stderr?.on("data", (b) => logChunks.push(b.toString()));
+
+  // Wait until accepting connections.
+  let ready = false;
+  for (let i = 0; i < 50; i++) {
+    try {
+      execFileSync(
+        psql,
+        ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres", "-d", "postgres", "-c", "select 1"],
+        { stdio: "pipe" },
+      );
+      ready = true;
+      break;
+    } catch {
+      await sleep(100);
+    }
+  }
+  if (!ready) {
+    proc.kill("SIGKILL");
+    throw new Error(`Postgres failed to start:\n${logChunks.join("")}`);
+  }
+
+  const dbName = "pubmax_rls";
+  execFileSync(
+    psql,
+    ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres", "-d", "postgres", "-c", `create database ${dbName}`],
+    { stdio: "pipe" },
+  );
+
+  function sql(statement, { asRole = null, sub = null } = {}) {
+    // Single connection: set JWT claim + role, run statement, reset.
+    // Tag the result so SET/RESET noise does not pollute parsing.
+    const claim = sub ? sub.replace(/'/g, "''") : "";
+    const full = [
+      `select set_config('request.jwt.claim.sub', '${claim}', false);`,
+      asRole ? `set role ${asRole};` : "set role none;",
+      // Wrap caller SQL so the only RESULT: line is the answer we parse.
+      // Caller may be multi-statement (seed); for those we skip wrapping.
+      statement.includes("RESULT:") || statement.trim().startsWith("insert ") ||
+      statement.trim().startsWith("create ") || statement.includes(";\n")
+        ? statement
+        : `select 'RESULT:' || coalesce((${statement.replace(/;\s*$/, "")})::text, '');`,
+      "reset role;",
+      "select set_config('request.jwt.claim.sub', '', false);",
+    ].join("\n");
+    try {
+      const out = execFileSync(
+        psql,
+        [
+          "-h", "127.0.0.1",
+          "-p", String(port),
+          "-U", "postgres",
+          "-d", dbName,
+          "-v", "ON_ERROR_STOP=1",
+          "-t",
+          "-A",
+          "-c", full,
+        ],
+        { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] },
+      );
+      const lines = out.split("\n").map((l) => l.trim()).filter(Boolean);
+      const resultLine = [...lines].reverse().find((l) => l.startsWith("RESULT:"));
+      return {
+        ok: true,
+        out: resultLine ? resultLine.slice("RESULT:".length) : out.trim(),
+        raw: out.trim(),
+        err: "",
+      };
+    } catch (e) {
+      const err = (e.stderr?.toString?.() || e.message || String(e)).trim();
+      return { ok: false, out: (e.stdout?.toString?.() || "").trim(), err };
+    }
+  }
+
+  function sqlFile(path) {
+    execFileSync(
+      psql,
+      [
+        "-h", "127.0.0.1",
+        "-p", String(port),
+        "-U", "postgres",
+        "-d", dbName,
+        "-v", "ON_ERROR_STOP=1",
+        "-f", path,
+      ],
+      { stdio: "pipe" },
+    );
+  }
+
+  // Apply fixture + wave-2 migrations. 0067/0068 touch tables not in the
+  // fixture (notifications, night_*, etc.) — wrap those in a tolerant runner
+  // that skips missing-table errors by applying a reduced policy set for the
+  // tables we actually test.
+  sqlFile(join(__dirname, "session-fixture.sql"));
+  sqlFile(join(MIGRATIONS_DIR, WAVE2[0])); // helpers always apply
+  sqlFile(join(MIGRATIONS_DIR, WAVE2[1])); // priority policies
+
+  // 0067 has many tables; apply only the sections we need via a reduced file.
+  sqlFile(join(__dirname, "session-owner-policies.sql"));
+
+  // 0068 service-role-only for rounds* (and the drop of public reads)
+  sqlFile(join(__dirname, "session-service-role.sql"));
+
+  async function stop() {
+    try {
+      proc.kill("SIGTERM");
+    } catch {
+      /* ignore */
+    }
+    await sleep(200);
+    try {
+      proc.kill("SIGKILL");
+    } catch {
+      /* ignore */
+    }
+    try {
+      rmSync(dataDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return {
+    port,
+    dataDir,
+    sql,
+    sqlFile,
+    stop,
+    rollbackPath: join(MIGRATIONS_DIR, "rollback/20260803200000_rls_wave2_rollback.sql"),
+  };
+}

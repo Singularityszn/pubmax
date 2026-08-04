@@ -141,12 +141,76 @@ as $$
   end;
 $$;
 
+-- True when the caller's linked profile follows the profile that currently
+-- claims p_handle (or an alias that points at that profile).
+-- Mirrors qualifiesForFriends in lib/pintDrops.ts: a friends-only Pint Drop is
+-- visible to the AUTHOR'S FOLLOWERS (viewer follows author), not mutual-only
+-- and not "people the author follows".
+create or replace function public.rls_follows_handle(p_handle text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_handle is not null
+    and length(btrim(p_handle)) > 0
+    and (select auth.uid()) is not null
+    and exists (
+      select 1
+      from public.follows f
+      join public.profiles me
+        on me.id = f.follower_id
+       and me.user_id = (select auth.uid())
+      join public.profiles author
+        on author.id = f.followee_id
+      where (
+          lower(author.handle) = lower(btrim(p_handle))
+          or exists (
+            select 1
+            from public.profile_handle_aliases a
+            where a.profile_id = author.id
+              and lower(a.handle) = lower(btrim(p_handle))
+          )
+        )
+    );
+$$;
+
+-- Pint Drop / visit_reports public-surface gate.
+-- Matches canViewOnPublicSurface + status filter in lib/pintDrops.ts and
+-- getPintDropById: only status='visible' rows leave the API boundary, and
+-- friends/legacy lanes stay gated. Hidden and pending never read through
+-- PostgREST (including for the author) — the service-role store owns those.
+create or replace function public.rls_can_read_visit_report(
+  p_status text,
+  p_visibility text,
+  p_handle text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_status = 'visible'
+    and (
+      coalesce(nullif(btrim(p_visibility), ''), 'public') in ('public', 'anonymous')
+      or public.rls_owns_handle(p_handle)
+      or (
+        coalesce(nullif(btrim(p_visibility), ''), 'public') = 'friends'
+        and public.rls_follows_handle(p_handle)
+      )
+    );
+$$;
+
 revoke all on function public.rls_current_profile_id() from public, anon;
 revoke all on function public.rls_owns_profile(uuid) from public, anon;
 revoke all on function public.rls_owns_handle(text) from public, anon;
 revoke all on function public.rls_is_plan_participant(uuid) from public, anon;
 revoke all on function public.rls_is_conversation_participant(uuid) from public, anon;
 revoke all on function public.rls_current_price_actor() from public, anon;
+revoke all on function public.rls_follows_handle(text) from public, anon;
+revoke all on function public.rls_can_read_visit_report(text, text, text) from public, anon;
 
 grant execute on function public.rls_current_profile_id() to authenticated, service_role;
 grant execute on function public.rls_owns_profile(uuid) to authenticated, service_role;
@@ -154,5 +218,7 @@ grant execute on function public.rls_owns_handle(text) to authenticated, service
 grant execute on function public.rls_is_plan_participant(uuid) to authenticated, service_role;
 grant execute on function public.rls_is_conversation_participant(uuid) to authenticated, service_role;
 grant execute on function public.rls_current_price_actor() to authenticated, service_role;
+grant execute on function public.rls_follows_handle(text) to authenticated, service_role;
+grant execute on function public.rls_can_read_visit_report(text, text, text) to authenticated, service_role;
 
 commit;

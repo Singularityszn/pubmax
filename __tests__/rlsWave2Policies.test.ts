@@ -1,9 +1,9 @@
 /**
- * RLS wave 2 — migration contract tests.
+ * RLS wave 2 — migration contract tests (SQL text shape).
  *
- * These assert the SQL policies express deny/allow for anonymous, owner, and
- * other signed-in users. They do not open a live Postgres; house style is to
- * pin the migration text (see apiOnlySocialReadsMigration.test.ts).
+ * Pins policy predicates and grants in the migration files. Effective
+ * deny/allow against a real Postgres session lives in
+ * __tests__/rlsWave2Session.test.ts — do not treat this file as an RLS proof.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -52,6 +52,8 @@ describe("RLS wave 2 helpers", () => {
     expect(N_HELPERS).toContain("create or replace function public.rls_is_plan_participant");
     expect(N_HELPERS).toContain("create or replace function public.rls_is_conversation_participant");
     expect(N_HELPERS).toContain("create or replace function public.rls_current_price_actor");
+    expect(N_HELPERS).toContain("create or replace function public.rls_follows_handle");
+    expect(N_HELPERS).toContain("create or replace function public.rls_can_read_visit_report");
     expect(N_HELPERS).toContain("security definer");
     expect(N_HELPERS).toContain("auth.uid()");
     // Helpers must not take a user id parameter a client could forge.
@@ -158,7 +160,7 @@ describe("saved_pubs — anon deny, owner allow, other deny", () => {
   });
 });
 
-describe("community_prices — anon deny, owner/visible allow, other limited", () => {
+describe("community_prices — anon deny, non-hidden only, no author hidden leak", () => {
   it("denies anon entirely", () => {
     expect(policyBody(PRIORITY, "community_prices_anon_deny")).toContain("using (false)");
     expect(N_PRIORITY).not.toMatch(
@@ -166,17 +168,17 @@ describe("community_prices — anon deny, owner/visible allow, other limited", (
     );
   });
 
-  it("allows authenticated select of non-hidden rows or own actor rows", () => {
+  it("allows authenticated select only when hidden_at is null (no actor exception)", () => {
     const body = policyBody(PRIORITY, "community_prices_visible_select");
     expect(body).toContain("for select");
     expect(body).toContain("to authenticated");
     expect(body).toContain("hidden_at is null");
-    expect(body).toContain("actor = public.rls_current_price_actor()");
-    // Other users cannot read hidden rows: only null hidden_at OR own actor.
+    // Hidden must not leak to the contributing actor via PostgREST.
+    expect(body).not.toContain("rls_current_price_actor");
     expect(body).not.toContain("using (true)");
   });
 
-  it("does not grant the actor column to authenticated (token stays API-only)", () => {
+  it("does not grant actor or moderation columns to authenticated", () => {
     const grant = PRIORITY.match(
       /grant select\s*\(([^)]*)\)\s*on table public\.community_prices to authenticated/i,
     );
@@ -185,12 +187,9 @@ describe("community_prices — anon deny, owner/visible allow, other limited", (
     expect(cols).toContain("venue_id");
     expect(cols).toContain("price_pennies");
     expect(cols).not.toMatch(/\bactor\b/);
+    expect(cols).not.toContain("hidden_at");
     expect(cols).not.toContain("moderator_note");
     expect(cols).not.toContain("report_reason");
-  });
-
-  it("owner actor is profile:<id> matching contributionIdentity.server.ts", () => {
-    expect(N_HELPERS).toContain("'profile:' || public.rls_current_profile_id()::text");
   });
 
   it("does not allow authenticated insert/update/delete (submit/hide stay service-role)", () => {
@@ -200,18 +199,28 @@ describe("community_prices — anon deny, owner/visible allow, other limited", (
   });
 });
 
-describe("visit_reports — anon deny, visible/owner allow, other cannot see hidden", () => {
+describe("visit_reports — friends-gated public-surface select", () => {
   it("denies anon", () => {
     expect(policyBody(PRIORITY, "visit_reports_anon_deny")).toContain("using (false)");
   });
 
-  it("allows authenticated select when visible OR own handle", () => {
-    const body = policyBody(PRIORITY, "visit_reports_visible_or_owner_select");
+  it("uses rls_can_read_visit_report (not bare status=visible or owner exception)", () => {
+    const body = policyBody(PRIORITY, "visit_reports_public_surface_select");
     expect(body).toContain("for select");
     expect(body).toContain("to authenticated");
-    expect(body).toContain("status = 'visible'");
-    expect(body).toContain("rls_owns_handle(handle)");
+    expect(body).toContain("rls_can_read_visit_report(status, visibility, handle)");
+    // Old leaky shape must not return.
+    expect(N_PRIORITY).not.toMatch(
+      /status = 'visible'\s+or\s+public\.rls_owns_handle\(handle\)/,
+    );
     expect(body).not.toContain("using (true)");
+  });
+
+  it("helper requires status=visible and friends follower gate", () => {
+    expect(N_HELPERS).toContain("p_status = 'visible'");
+    expect(N_HELPERS).toContain("rls_follows_handle");
+    expect(N_HELPERS).toContain("'public', 'anonymous'");
+    expect(N_HELPERS).toContain("= 'friends'");
   });
 
   it("does not allow authenticated write (composer is service-role API)", () => {
@@ -281,10 +290,29 @@ describe("service-role-only tables and rounds closure", () => {
 });
 
 describe("owner-keyed extras", () => {
-  it("binds private_account_identities and notifications to the caller", () => {
-    expect(N_OWNER).toContain(
-      "user_id = (select auth.uid())",
+  it("binds private_account_identities to owner SELECT only (no client write)", () => {
+    const body = policyBody(OWNER, "private_account_identities_owner_select");
+    expect(body).toContain("for select");
+    expect(body).toContain("user_id = (select auth.uid())");
+    expect(N_OWNER).toMatch(
+      /grant select on table public\.private_account_identities to authenticated/,
     );
+    expect(N_OWNER).not.toMatch(
+      /grant select, insert, update, delete on table public\.private_account_identities to authenticated/,
+    );
+    // drop policy if exists remains (idempotent cleanup); create must not.
+    expect(N_OWNER).not.toMatch(
+      /create\s+policy\s+private_account_identities_owner_insert/i,
+    );
+    expect(N_OWNER).not.toMatch(
+      /create\s+policy\s+private_account_identities_owner_update/i,
+    );
+    expect(N_OWNER).not.toMatch(
+      /create\s+policy\s+private_account_identities_owner_delete/i,
+    );
+  });
+
+  it("binds notifications to the recipient handle", () => {
     expect(N_OWNER).toContain("rls_owns_handle(recipient_handle)");
   });
 
@@ -293,94 +321,52 @@ describe("owner-keyed extras", () => {
     expect(N_OWNER).toContain("create policy pub_pals_owner_all");
     expect(N_OWNER).toContain("create policy night_memories_owner_all");
   });
+
+  it("structured_visit_reports allows only status=visible (no owner hidden leak)", () => {
+    const body = policyBody(OWNER, "structured_visit_reports_visible_select");
+    expect(body).toContain("status = 'visible'");
+    expect(body).not.toContain("rls_owns_handle");
+  });
 });
 
-describe("coverage inventory (honest partial report)", () => {
+describe("rollback path is shipped", () => {
+  it("includes a runnable rollback script restoring prior rounds policies", () => {
+    const rollback = readFileSync(
+      join(MIGRATIONS_DIR, "rollback/20260803200000_rls_wave2_rollback.sql"),
+      "utf8",
+    );
+    const n = normalize(rollback);
+    expect(n).toContain("create policy rounds_public_read");
+    expect(n).toContain("using (true)");
+    expect(n).toContain("drop function if exists public.rls_can_read_visit_report");
+    expect(n).toContain("visit_reports_public_read");
+  });
+});
+
+describe("coverage inventory (honest)", () => {
   /**
-   * The 68 advisor tables at branch base (RLS on, zero policies). Wave 2
-   * either installs a real ownership policy or an explicit client_deny.
+   * REAL session-tested policies: exercised by rlsWave2Session.test.ts against
+   * a throwaway Postgres with anon / owner / other / friend roles.
    */
-  const ADVISOR_TABLES_AT_BASE = [
-    "analytics_event_receipts",
-    "area_demand",
-    "check_ins",
-    "community_price_reports",
-    "community_prices",
-    "conversations",
-    "crawl_story_stops",
-    "drink_ratings",
-    "drinks",
-    "email_subscribers",
-    "external_social_accounts",
-    "feed_freshness",
-    "follows",
-    "messages",
-    "night_memories",
-    "night_moment_consents",
-    "night_moments",
-    "night_stories",
-    "night_story_contributors",
-    "night_story_moments",
-    "night_story_publish_proposals",
-    "notifications",
-    "operator_proposals",
-    "pint_drop_comments",
-    "pint_drop_reactions",
-    "pint_drop_reports",
-    "plan_actions",
-    "plan_completions",
-    "plan_constraints",
-    "plan_crew_members",
-    "plan_invites",
-    "plan_route_proposals",
-    "plan_stops",
-    "plan_vibe_vote_requests",
-    "plan_vibe_votes",
-    "plan_vote_requests",
-    "plan_votes",
-    "plans",
-    "price_confirms",
-    "private_account_identities",
-    "pro_feature_unlock_ledger",
-    "profile_handle_aliases",
-    "pub_heritage",
-    "pub_pal_mastery_events",
-    "pub_pal_memories",
-    "pub_pal_voice_usage",
-    "pub_pals",
-    "pub_presence",
-    "push_tokens",
-    "rate_limits",
-    "referral_edges",
-    "referral_erasure_blocks",
-    "referral_invite_codes",
-    "referral_qualification_events",
-    "round_price_line_charges",
-    "round_spends",
-    "round_stops",
-    "saved_list_follows",
-    "saved_lists",
-    "saved_pubs",
-    "social_oauth_states",
-    "structured_visit_reports",
-    "venue_operators",
-    "venue_ratings",
+  const REAL_SESSION_TESTED = [
     "visit_reports",
-    "walk_route_legs",
-    "weather_recommendations",
-    "weather_snapshots",
+    "community_prices",
+    "private_account_identities",
+    "plans",
+    "messages",
+    "saved_pubs",
+    "structured_visit_reports",
+    "rounds",
   ] as const;
 
-  const OWNERSHIP_OR_PARTICIPANT = new Set([
-    "plans",
+  /**
+   * Policy declared in wave-2 SQL, but NOT proven with a real session in this
+   * branch. A name in a migration is not an RLS proof.
+   */
+  const POLICY_DECLARED_UNTESTED = [
     "plan_stops",
     "plan_crew_members",
     "conversations",
-    "messages",
-    "saved_pubs",
-    "community_prices",
-    "visit_reports",
-    "private_account_identities",
     "notifications",
     "saved_lists",
     "saved_list_follows",
@@ -397,54 +383,81 @@ describe("coverage inventory (honest partial report)", () => {
     "night_story_contributors",
     "night_story_moments",
     "night_story_publish_proposals",
-    "structured_visit_reports",
     "external_social_accounts",
     "profile_handle_aliases",
+    "profiles",
     "drinks",
     "pub_heritage",
-  ]);
+    "crawl_stories",
+    "night_signal_claims",
+    "round_members",
+    "round_stops",
+    "round_spends",
+    "round_price_line_charges",
+    "plan_invites",
+    "plan_constraints",
+    "plan_route_proposals",
+    "plan_votes",
+    "plan_vote_requests",
+    "plan_vibe_votes",
+    "plan_vibe_vote_requests",
+    "plan_actions",
+    "plan_completions",
+    "community_price_reports",
+    "pint_drop_reports",
+    "pint_drop_reactions",
+    "pint_drop_comments",
+    "crawl_story_stops",
+    "rate_limits",
+    "push_tokens",
+    "social_oauth_states",
+    "analytics_event_receipts",
+    "email_subscribers",
+    "feed_freshness",
+    "weather_snapshots",
+    "weather_recommendations",
+    "area_demand",
+    "walk_route_legs",
+    "venue_operators",
+    "operator_proposals",
+    "referral_invite_codes",
+    "referral_erasure_blocks",
+    "referral_edges",
+    "referral_qualification_events",
+    "pro_feature_unlock_ledger",
+    "drink_ratings",
+    "venue_ratings",
+    "pub_presence",
+    "price_confirms",
+  ] as const;
 
-  it("lists 68 advisor tables and covers each in wave 2 SQL", () => {
-    expect(ADVISOR_TABLES_AT_BASE).toHaveLength(68);
-
-    for (const table of ADVISOR_TABLES_AT_BASE) {
-      // Covered either by a named policy/grant on public.<table>, or by the
-      // dynamic client_deny list entry '<table>' in 0068.
-      const mentioned =
-        N_ALL.includes(`public.${table}`) ||
-        N_ALL.includes(`'${table}'`) ||
-        N_ALL.includes(`${table}_anon_deny`) ||
-        N_ALL.includes(`${table}_owner`) ||
-        N_ALL.includes(`${table}_participant`) ||
-        N_ALL.includes(`${table}_visible`) ||
-        N_ALL.includes(`${table}_author`) ||
-        N_ALL.includes(`${table}_recipient`) ||
-        N_ALL.includes(`${table}_party`) ||
-        N_ALL.includes(`${table}_host`) ||
-        N_ALL.includes(table);
-      expect(mentioned, `wave 2 must mention ${table}`).toBe(true);
-    }
+  it("names the real session-tested tables (honest floor, not a false 68)", () => {
+    expect(REAL_SESSION_TESTED).toEqual([
+      "visit_reports",
+      "community_prices",
+      "private_account_identities",
+      "plans",
+      "messages",
+      "saved_pubs",
+      "structured_visit_reports",
+      "rounds",
+    ]);
+    // 8 real proofs. Everything else is declared-untested.
+    expect(REAL_SESSION_TESTED).toHaveLength(8);
+    expect(POLICY_DECLARED_UNTESTED.length).toBeGreaterThan(40);
   });
 
-  it("documents which tables got ownership policies vs explicit client_deny", () => {
-    const ownership = ADVISOR_TABLES_AT_BASE.filter((t) =>
-      OWNERSHIP_OR_PARTICIPANT.has(t),
-    );
-    const denyOnly = ADVISOR_TABLES_AT_BASE.filter(
-      (t) => !OWNERSHIP_OR_PARTICIPANT.has(t),
-    );
-    // Pin the split so a future edit that silently moves a private table into
-    // "public" without a product reason fails this suite.
-    expect(ownership.length).toBeGreaterThanOrEqual(30);
-    expect(denyOnly.length).toBeGreaterThanOrEqual(30);
-    expect(ownership.length + denyOnly.length).toBe(68);
+  it("does not claim coverage from a bare table-name mention", () => {
+    // Guard against the previous false-positive inventory: a name in a comment
+    // must not satisfy a "covered" check. This suite only pins REAL_SESSION_TESTED
+    // and the declared-untested list — never N_ALL.includes(table).
+    expect(REAL_SESSION_TESTED).not.toContain("analytics_event_receipts");
   });
 
   it("does not apply migrations (files only) and leaves auth settings untouched", () => {
     expect(N_ALL).not.toContain("alter system");
     expect(N_ALL).not.toContain("auth.config");
     expect(N_ALL).not.toContain("leaked_password");
-    // No destructive data ops.
     expect(ALL).not.toMatch(/\btruncate\b|\bdrop table\b/i);
   });
 
@@ -459,5 +472,8 @@ describe("coverage inventory (honest partial report)", () => {
     ]) {
       expect(names).toContain(f);
     }
+    expect(readdirSync(join(MIGRATIONS_DIR, "rollback"))).toContain(
+      "20260803200000_rls_wave2_rollback.sql",
+    );
   });
 });

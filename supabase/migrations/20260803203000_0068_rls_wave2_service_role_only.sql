@@ -12,13 +12,25 @@
 -- Also closes the accidental `using (true)` public reads on rounds* that
 -- predate the private Round diary model.
 --
--- Reverse: drop each `*_service_role_only` / `*_anon_deny` policy named here;
--- re-create the previous rounds_*_public_read policies only if intentionally
--- reopening raw Round rows.
+-- Reverse: apply
+-- supabase/migrations/rollback/20260803200000_rls_wave2_rollback.sql
+-- which drops the client_deny policies and restores the prior
+-- rounds_*_public_read definitions captured below as comments + in the
+-- rollback script body.
 
 begin;
 
 -- ── Close open Round public reads (private diary / code-is-capability) ──────
+-- Prior definitions (from 0011_rounds / 0057_round_spends), captured for
+-- rollback. Each was: for select using (true) with no role restriction.
+--
+--   create policy rounds_public_read on public.rounds for select using (true);
+--   create policy round_members_public_read on public.round_members
+--     for select using (true);
+--   create policy round_stops_public_read on public.round_stops
+--     for select using (true);
+--   create policy round_spends_public_read on public.round_spends
+--     for select using (true);
 drop policy if exists rounds_public_read on public.rounds;
 drop policy if exists round_members_public_read on public.round_members;
 drop policy if exists round_stops_public_read on public.round_stops;
