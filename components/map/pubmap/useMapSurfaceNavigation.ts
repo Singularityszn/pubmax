@@ -210,6 +210,13 @@ export function useMapSurfaceNavigation({
     const onPop = (event: PopStateEvent) => {
       const landed = readMapSurfaceHistory<MapSurfaceState>(event.state);
       const next = landed ?? (ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>);
+      if (landed !== null && !selectedVenueId(next)) {
+        const { pathname, search, hash } = window.location;
+        const cleanUrl = cleanMapUrl(pathname, search, hash);
+        if (currentBrowserUrl() !== cleanUrl) {
+          window.history.replaceState(event.state, "", cleanUrl);
+        }
+      }
       publishStack(next);
       onRestoreRef.current(currentSurface(next));
     };
