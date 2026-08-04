@@ -3,7 +3,7 @@
  * Entry point for `npm run test:rls`.
  *
  * When PostgreSQL binaries are absent, prints an UNMISSABLE skip banner to
- * stdout (not only stderr — Vitest can swallow console.error under the
+ * stdout (not only stderr - Vitest can swallow console.error under the
  * default reporter) and exits 0. A skip is not a pass: the banner names the
  * suite, the reason, and that fact.
  *
@@ -35,7 +35,7 @@ function printLoudSkip(reason) {
   const lines = [
     "",
     "╔══════════════════════════════════════════════════════════════════════╗",
-    "║  RLS SESSION SUITE SKIPPED — THIS IS NOT A PASS                      ║",
+    "║  RLS SESSION SUITE SKIPPED - THIS IS NOT A PASS                      ║",
     "║  Suite: __tests__/rlsWave2Session.test.ts  (npm run test:rls)        ║",
     "╠══════════════════════════════════════════════════════════════════════╣",
     "║  Effective RLS tests need local PostgreSQL 16+ (initdb/postgres/psql)║",
@@ -49,7 +49,7 @@ function printLoudSkip(reason) {
   }
   lines.push(
     "╠══════════════════════════════════════════════════════════════════════╣",
-    "║  Real proofs run on CI job `rls-session` (Postgres 16 service).      ║",
+    "║  Provision PostgreSQL 16 + PostgREST 14, then rerun locally.         ║",
     "║  Do not treat this skip as evidence that RLS policies are correct.   ║",
     "╚══════════════════════════════════════════════════════════════════════╝",
     "",

@@ -37,9 +37,9 @@ grant select (
   id, plan_id, name, status, user_id, joined_at, updated_at
 ) on table public.plan_crew_members to authenticated;
 
-grant all on table public.plans to service_role;
-grant all on table public.plan_stops to service_role;
-grant all on table public.plan_crew_members to service_role;
+grant select, insert, update, delete on table public.plans to service_role;
+grant select, insert, update, delete on table public.plan_stops to service_role;
+grant select, insert, update, delete on table public.plan_crew_members to service_role;
 
 drop policy if exists plans_participant_select on public.plans;
 create policy plans_participant_select
@@ -99,8 +99,8 @@ revoke all on table public.messages from anon, authenticated;
 grant select on table public.conversations to authenticated;
 grant select on table public.messages to authenticated;
 
-grant all on table public.conversations to service_role;
-grant all on table public.messages to service_role;
+grant select, insert, update, delete on table public.conversations to service_role;
+grant select, insert, update, delete on table public.messages to service_role;
 
 drop policy if exists conversations_participant_select on public.conversations;
 create policy conversations_participant_select
@@ -145,7 +145,7 @@ create policy messages_anon_deny
 
 revoke all on table public.saved_pubs from anon, authenticated;
 grant select, insert, update, delete on table public.saved_pubs to authenticated;
-grant all on table public.saved_pubs to service_role;
+grant select, insert, update, delete on table public.saved_pubs to service_role;
 
 drop policy if exists saved_pubs_owner_select on public.saved_pubs;
 create policy saved_pubs_owner_select
@@ -208,7 +208,7 @@ grant select (
   contradicted_at
 ) on table public.community_prices to authenticated;
 
-grant all on table public.community_prices to service_role;
+grant select, insert, update, delete on table public.community_prices to service_role;
 
 drop policy if exists community_prices_visible_select on public.community_prices;
 create policy community_prices_visible_select
@@ -236,7 +236,7 @@ create policy community_prices_anon_deny
 revoke all on table public.visit_reports from anon, authenticated;
 
 grant select on table public.visit_reports to authenticated;
-grant all on table public.visit_reports to service_role;
+grant select, insert, update, delete on table public.visit_reports to service_role;
 
 drop policy if exists visit_reports_visible_or_owner_select on public.visit_reports;
 drop policy if exists visit_reports_public_surface_select on public.visit_reports;

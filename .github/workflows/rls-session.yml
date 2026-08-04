@@ -1,8 +1,8 @@
 # Effective RLS session tests against real PostgreSQL 16 and PostgREST 14.
 #
-# The main `npm run ci` gate (Vercel) skips these tests loudly when
-# initdb/postgres/psql are absent — a skip is not a pass. This job is the
-# place they run for real on every push and pull request.
+# The main `npm run ci` gate skips these tests loudly when local database
+# binaries are absent. This job is configured for push and pull-request proof,
+# but local proof remains required when GitHub cannot allocate a runner.
 name: RLS session tests
 
 on:

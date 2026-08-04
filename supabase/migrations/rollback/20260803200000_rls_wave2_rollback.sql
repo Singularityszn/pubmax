@@ -5,7 +5,6 @@
 --
 -- Restores:
 --   • prior rounds_*_public_read policies (using (true)) dropped by 0068
---   • prior visit_reports_public_read (status = 'visible') from 0001
 --   • public catalogue reads (drinks, pub_heritage, crawl_stories, night signals)
 --   • drops every wave-2 policy (including 0067 renames: mastery select/insert,
 --     night_stories host_or_public/host_write, contributors party/host_write,
@@ -13,6 +12,7 @@
 --   • drops every rls_* helper body wave 2 introduced
 --   • revokes authenticated/anon grants this wave added
 --   • restores pre-0069 PUBLIC execute on refresh_community_price_quality
+--   • restores client and service-role privileges to their immediate pre-wave state
 --
 -- Does NOT drop tables or data. Does NOT re-open private_account_identities
 -- writes (pre-wave-2 had no client grants either).
@@ -133,6 +133,43 @@ begin
   end loop;
 end $$;
 
+-- Restore client table privileges present immediately before wave 2. Older
+-- Supabase projects granted DML on new public tables by default; later
+-- migrations narrowed selected read surfaces to column grants.
+do $$
+declare
+  t text;
+  default_dml_tables text[] := array[
+    'check_ins', 'community_price_reports', 'community_prices',
+    'conversations', 'drink_ratings', 'email_subscribers', 'follows',
+    'messages', 'notifications', 'pint_drop_reports', 'price_confirms',
+    'pub_presence', 'rate_limits', 'round_members', 'round_stops', 'rounds',
+    'saved_list_follows', 'saved_lists', 'saved_pubs', 'venue_ratings',
+    'visit_reports'
+  ];
+  default_write_tables text[] := array[
+    'crawl_stories', 'crawl_story_stops', 'drinks', 'pint_drop_comments',
+    'pint_drop_reactions', 'profiles', 'pub_heritage'
+  ];
+begin
+  foreach t in array default_dml_tables loop
+    if to_regclass('public.' || t) is not null then
+      execute format(
+        'grant select, insert, update, delete on table public.%I to anon, authenticated',
+        t
+      );
+    end if;
+  end loop;
+  foreach t in array default_write_tables loop
+    if to_regclass('public.' || t) is not null then
+      execute format(
+        'grant insert, update, delete on table public.%I to anon, authenticated',
+        t
+      );
+    end if;
+  end loop;
+end $$;
+
 -- ── Restore pre-wave-2 Round public reads (0011 / 0057) ─────────────────────
 do $$
 begin
@@ -151,18 +188,6 @@ begin
   if to_regclass('public.round_spends') is not null then
     drop policy if exists round_spends_public_read on public.round_spends;
     create policy round_spends_public_read on public.round_spends for select using (true);
-  end if;
-end $$;
-
--- ── Restore pre-wave-2 visit_reports public read (0001) ─────────────────────
-do $$
-begin
-  if to_regclass('public.visit_reports') is not null then
-    drop policy if exists visit_reports_public_read on public.visit_reports;
-    create policy visit_reports_public_read
-      on public.visit_reports
-      for select
-      using (status = 'visible');
   end if;
 end $$;
 
@@ -199,7 +224,12 @@ begin
         and reviewed_at <= now()
         and expires_at > now()
       );
-    grant select on table public.night_signal_claims to anon, authenticated;
+    grant select (
+      id, kind, entity_type, entity_id, claim, source_url, publisher,
+      published_at, observed_at, expires_at, confidence, review_state,
+      verification, route_effect, corroborating_sources, reviewed_at,
+      review_authority, created_at
+    ) on public.night_signal_claims to anon, authenticated;
   end if;
 end $$;
 
@@ -209,6 +239,8 @@ do $$
 begin
   if to_regprocedure('public.refresh_community_price_quality()') is not null then
     grant execute on function public.refresh_community_price_quality() to public;
+    revoke execute on function public.refresh_community_price_quality()
+      from service_role;
   end if;
 end $$;
 

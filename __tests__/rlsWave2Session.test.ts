@@ -17,6 +17,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 type Session = {
+  appliedForwardMigrations: string[];
+  preWaveCatalogSnapshot: string;
+  catalogSnapshot: () => string;
   sql: (
     statement: string,
     opts?: { asRole?: string | null; sub?: string | null },
@@ -29,6 +32,14 @@ type Session = {
   stop: () => Promise<void>;
   rollbackPath: string;
 };
+
+const EXPECTED_WAVE2_MIGRATIONS = [
+  "20260803200000_0065_rls_wave2_helpers.sql",
+  "20260803201000_0066_rls_wave2_priority_policies.sql",
+  "20260803202000_0067_rls_wave2_owner_policies.sql",
+  "20260803203000_0068_rls_wave2_service_role_only.sql",
+  "20260803204000_0069_rls_wave2_rpc_hardening.sql",
+];
 
 const OWNER = "11111111-1111-1111-1111-111111111111";
 const OTHER = "22222222-2222-2222-2222-222222222222";
@@ -70,6 +81,12 @@ beforeAll(async () => {
 
   // Seed identities and rows as table owner (bypasses RLS).
   const seed = `
+    insert into auth.users (id) values
+      ('${OWNER}'),
+      ('${OTHER}'),
+      ('${FRIEND}'),
+      ('${STRANGER}');
+
     insert into public.profiles (id, user_id, handle) values
       ('a1111111-1111-1111-1111-111111111111', '${OWNER}', 'alice'),
       ('b2222222-2222-2222-2222-222222222222', '${OTHER}', 'bob'),
@@ -92,15 +109,15 @@ beforeAll(async () => {
       ('e1000000-0000-4000-8000-000000000005', 'v1', 'alice', 5.50, 'pending', 'public');
 
     insert into public.community_prices (id, venue_id, drink_category, price_pennies, actor, contributor_handle, hidden_at) values
-      ('f1000000-0000-4000-8000-000000000001', 'v1', 'beer', 550, 'profile:a1111111-1111-1111-1111-111111111111', 'alice', null),
+      ('f1000000-0000-4000-8000-000000000001', 'v1', 'beer', 550, 'profile:22222222-2222-2222-2222-222222222222', 'bob', null),
       ('f1000000-0000-4000-8000-000000000002', 'v1', 'beer', 600, 'profile:a1111111-1111-1111-1111-111111111111', 'alice', now());
 
     insert into public.private_account_identities (user_id, date_of_birth, full_name) values
       ('${OWNER}', '1990-01-01', 'Alice Example');
 
-    insert into public.plans (id, title, owner_user_id) values
-      ('a1000000-0000-4000-8000-000000000001', 'Alice plan', '${OWNER}'),
-      ('a1000000-0000-4000-8000-000000000002', 'Bob plan', '${OTHER}');
+    insert into public.plans (id, title, start_time, owner_user_id) values
+      ('a1000000-0000-4000-8000-000000000001', 'Alice plan', now(), '${OWNER}'),
+      ('a1000000-0000-4000-8000-000000000002', 'Bob plan', now(), '${OTHER}');
 
     insert into public.conversations (id, handle_a, handle_b, user_id_a, user_id_b) values
       ('b1000000-0000-4000-8000-000000000001', 'alice', 'cara', '${OWNER}', '${FRIEND}');
@@ -112,11 +129,12 @@ beforeAll(async () => {
       ('c1000000-0000-4000-8000-000000000001', 'a1111111-1111-1111-1111-111111111111', 'v1'),
       ('c1000000-0000-4000-8000-000000000002', 'b2222222-2222-2222-2222-222222222222', 'v2');
 
-    insert into public.structured_visit_reports (id, venue_id, handle, note, status) values
-      ('d1000000-0000-4000-8000-000000000001', 'v1', 'alice', 'visible visit', 'visible'),
-      ('d1000000-0000-4000-8000-000000000002', 'v1', 'alice', 'hidden visit', 'hidden');
+    insert into public.structured_visit_reports (id, venue_id, handle, visited_at, note, status) values
+      ('d1000000-0000-4000-8000-000000000001', 'v1', 'alice', current_date, 'visible visit', 'visible'),
+      ('d1000000-0000-4000-8000-000000000002', 'v1', 'alice', current_date - 1, 'hidden visit', 'hidden');
 
-    insert into public.rounds (id, code) values ('e2000000-0000-4000-8000-000000000001', 'ABCD');
+    insert into public.rounds (id, code, title, created_by_handle) values
+      ('e2000000-0000-4000-8000-000000000001', 'ABCD', 'Alice round', 'alice');
 
     -- Night story graph: alice hosts published and draft stories. Bob owns
     -- the moments joined to them, proving a moment author cannot mutate the
@@ -200,7 +218,7 @@ function tryWrite(
 /**
  * Attempt a DELETE as a client role, then count remaining rows as table owner
  * (bypasses RLS). RLS that filters the row out of DELETE returns success with
- * 0 rows affected — so "ok" alone is not proof the moderation record survived.
+ * 0 rows affected - so "ok" alone is not proof the moderation record survived.
  */
 function rowSurvivesDelete(
   table: string,
@@ -249,6 +267,41 @@ async function expectHiddenThroughPostgrest({
   expect(remaining.ok).toBe(true);
   expect(Number(remaining.out)).toBe(1);
 }
+
+describe("migration execution", () => {
+  it("applies every exact wave-2 migration file", () => {
+    expect(requireSession().appliedForwardMigrations).toEqual(
+      EXPECTED_WAVE2_MIGRATIONS,
+    );
+  });
+});
+
+describe("private Pint Drop storage", () => {
+  it("denies direct client reads and permits service-role reads", () => {
+    const s = requireSession();
+    const seeded = s.sql(`
+      insert into storage.objects (bucket_id, name, owner_id)
+      values ('pint-drops', 'v1/drop-1/pint.jpg', '${OWNER}')
+    `);
+    expect(seeded.ok, seeded.err).toBe(true);
+
+    for (const role of ["anon", "authenticated"]) {
+      const read = s.sql(
+        "select count(*)::text from storage.objects where bucket_id = 'pint-drops'",
+        { asRole: role, sub: role === "authenticated" ? OWNER : null },
+      );
+      expect(read.ok, read.err).toBe(true);
+      expect(Number(read.out)).toBe(0);
+    }
+
+    const serviceRead = s.sql(
+      "select count(*)::text from storage.objects where bucket_id = 'pint-drops'",
+      { asRole: "service_role" },
+    );
+    expect(serviceRead.ok, serviceRead.err).toBe(true);
+    expect(Number(serviceRead.out)).toBe(1);
+  });
+});
 
 describe("visit_reports — effective RLS", () => {
   it("denies anonymous on every drop", () => {
@@ -526,7 +579,7 @@ describe("structured_visit_reports + rounds — effective RLS", () => {
   });
 });
 
-describe("night_story_moments / night_stories / night_moments — write isolation", () => {
+describe("night_story_moments / night_stories / night_moments - write isolation", () => {
   const PUBLISHED_STORY = "ac000000-0000-4000-8000-000000000001";
   const DRAFT_STORY = "ac000000-0000-4000-8000-000000000002";
   const STORY_MOMENT = "ab000000-0000-4000-8000-000000000001";
@@ -673,23 +726,9 @@ describe("hidden rows through PostgREST", () => {
 });
 
 describe("rollback path", () => {
-  it("applies the wave-2 rollback script without error", () => {
+  it("restores the complete pre-wave policy and privilege catalog", () => {
     const s = requireSession();
-    // Apply against the same throwaway cluster — proves the script is runnable.
     expect(() => s.sqlFile(s.rollbackPath)).not.toThrow();
-    // After rollback, prior rounds public read is restored.
-    const r = s.sql(
-      `select count(*)::text from pg_policies where tablename = 'rounds' and policyname = 'rounds_public_read'`,
-    );
-    expect(r.ok).toBe(true);
-    expect(Number(r.out)).toBe(1);
-    // Wave-2 helpers must be gone so they cannot be left half-applied.
-    const helpers = s.sql(
-      `select count(*)::text from pg_proc p
-       join pg_namespace n on n.oid = p.pronamespace
-       where n.nspname = 'public' and p.proname like 'rls_%'`,
-    );
-    expect(helpers.ok).toBe(true);
-    expect(Number(helpers.out)).toBe(0);
+    expect(s.catalogSnapshot()).toBe(s.preWaveCatalogSnapshot);
   });
 });

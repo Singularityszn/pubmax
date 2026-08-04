@@ -8,6 +8,7 @@ import { createHmac } from "node:crypto";
 import {
   existsSync,
   mkdtempSync,
+  readdirSync,
   writeFileSync,
   rmSync,
 } from "node:fs";
@@ -27,6 +28,10 @@ const WAVE2 = [
   "20260803203000_0068_rls_wave2_service_role_only.sql",
   "20260803204000_0069_rls_wave2_rpc_hardening.sql",
 ];
+
+const PRE_WAVE_MIGRATIONS = readdirSync(MIGRATIONS_DIR)
+  .filter((name) => name.endsWith(".sql") && name < WAVE2[0])
+  .sort();
 
 function findPgBin(name) {
   const candidates = [
@@ -263,19 +268,113 @@ export async function startRlsSession() {
     );
   }
 
-  // Apply fixture + wave-2 migrations. 0067/0068 touch tables not in the
-  // fixture (notifications, night_*, etc.) — wrap those in a tolerant runner
-  // that skips missing-table errors by applying a reduced policy set for the
-  // tables we actually test.
+  function catalogSnapshot() {
+    const statement = `
+      select payload::text
+      from (
+        select jsonb_build_object(
+          'kind', 'policy',
+          'schema', schemaname,
+          'table', tablename,
+          'name', policyname,
+          'permissive', permissive,
+          'roles', roles,
+          'command', cmd,
+          'using', qual,
+          'check', with_check
+        ) as payload
+        from pg_policies
+        where schemaname in ('public', 'storage')
+
+        union all
+
+        select jsonb_build_object(
+          'kind', 'table_privilege',
+          'schema', table_schema,
+          'table', table_name,
+          'grantee', grantee,
+          'privilege', privilege_type
+        )
+        from information_schema.table_privileges
+        where table_schema in ('public', 'storage')
+          and grantee in ('PUBLIC', 'anon', 'authenticated', 'service_role')
+
+        union all
+
+        select jsonb_build_object(
+          'kind', 'column_privilege',
+          'schema', n.nspname,
+          'table', c.relname,
+          'column', a.attname,
+          'grantee', case when acl.grantee = 0 then 'PUBLIC'
+            else pg_get_userbyid(acl.grantee) end,
+          'privilege', acl.privilege_type
+        )
+        from pg_attribute a
+        join pg_class c on c.oid = a.attrelid
+        join pg_namespace n on n.oid = c.relnamespace
+        cross join lateral aclexplode(a.attacl) acl
+        where n.nspname in ('public', 'storage')
+          and case when acl.grantee = 0 then 'PUBLIC'
+            else pg_get_userbyid(acl.grantee) end
+            in ('PUBLIC', 'anon', 'authenticated', 'service_role')
+
+        union all
+
+        select jsonb_build_object(
+          'kind', 'routine_privilege',
+          'schema', routine_schema,
+          'routine', routine_name,
+          'grantee', grantee,
+          'privilege', privilege_type
+        )
+        from information_schema.routine_privileges
+        where routine_schema = 'public'
+          and grantee in ('PUBLIC', 'anon', 'authenticated', 'service_role')
+
+        union all
+
+        select jsonb_build_object(
+          'kind', 'function',
+          'name', p.proname,
+          'arguments', pg_get_function_identity_arguments(p.oid),
+          'definition', pg_get_functiondef(p.oid)
+        )
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public'
+      ) catalog
+      order by payload::text
+    `;
+    return execFileSync(
+      psql,
+      [
+        "-h", "127.0.0.1",
+        "-p", String(port),
+        "-U", "postgres",
+        "-d", dbName,
+        "-v", "ON_ERROR_STOP=1",
+        "-t",
+        "-A",
+        "-c", statement,
+      ],
+      { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] },
+    ).trim();
+  }
+
+  // Supabase-owned roles/schemas come from the fixture. Application schema and
+  // prior policies come from exact repository history, then every wave file is
+  // applied unchanged. This keeps migrations as the single policy owner.
   sqlFile(join(__dirname, "session-fixture.sql"));
-  sqlFile(join(MIGRATIONS_DIR, WAVE2[0])); // helpers always apply
-  sqlFile(join(MIGRATIONS_DIR, WAVE2[1])); // priority policies
-
-  // 0067 has many tables; apply only the sections we need via a reduced file.
-  sqlFile(join(__dirname, "session-owner-policies.sql"));
-
-  // 0068 service-role-only for rounds* (and the drop of public reads)
-  sqlFile(join(__dirname, "session-service-role.sql"));
+  for (const migration of PRE_WAVE_MIGRATIONS) {
+    sqlFile(join(MIGRATIONS_DIR, migration));
+  }
+  const preWaveCatalogSnapshot = catalogSnapshot();
+  const appliedForwardMigrations = [];
+  for (const migration of WAVE2) {
+    sqlFile(join(MIGRATIONS_DIR, migration));
+    appliedForwardMigrations.push(migration);
+  }
 
   const postgrest = findPostgrestBin();
   if (!postgrest) {
@@ -380,6 +479,9 @@ export async function startRlsSession() {
   }
 
   return {
+    appliedForwardMigrations,
+    preWaveCatalogSnapshot,
+    catalogSnapshot,
     port,
     dataDir,
     sql,

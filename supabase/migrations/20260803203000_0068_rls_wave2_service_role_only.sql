@@ -105,7 +105,10 @@ begin
     end if;
 
     execute format('revoke all on table public.%I from anon, authenticated', t);
-    execute format('grant all on table public.%I to service_role', t);
+    execute format(
+      'grant select, insert, update, delete on table public.%I to service_role',
+      t
+    );
 
     execute format('drop policy if exists %I on public.%I', t || '_client_deny', t);
     execute format(
@@ -149,7 +152,7 @@ create policy crawl_stories_public_read
   using (visibility in ('public', 'unlisted'));
 
 grant select on table public.crawl_stories to anon, authenticated;
-grant all on table public.crawl_stories to service_role;
+grant select, insert, update, delete on table public.crawl_stories to service_role;
 
 -- night_signal_claims: approved current claims only (from 0034).
 drop policy if exists night_signal_claims_client_deny on public.night_signal_claims;
@@ -166,7 +169,11 @@ create policy "Public reads current approved night signal claims"
     and expires_at > now()
   );
 
-grant select on table public.night_signal_claims to anon, authenticated;
-grant all on table public.night_signal_claims to service_role;
+grant select (
+  id, kind, entity_type, entity_id, claim, source_url, publisher, published_at,
+  observed_at, expires_at, confidence, review_state, verification, route_effect,
+  corroborating_sources, reviewed_at, review_authority, created_at
+) on public.night_signal_claims to anon, authenticated;
+grant select, insert, update, delete on table public.night_signal_claims to service_role;
 
 commit;
