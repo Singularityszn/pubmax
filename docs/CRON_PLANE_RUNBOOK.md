@@ -6,8 +6,10 @@ Night Signal candidates, and a rotating UK city pub-enrichment sweep. It is
 additive and fail-soft — every piece degrades loud-but-soft (log + skip) and
 never fabricates data.
 
-> **GitHub Actions is retired.** This plane replaces it. Do not add or suggest a
-> `.github/workflows/*` schedule — Actions billing is dead and out of scope.
+> **GitHub Actions is retired.** Vercel owns server-safe refresh work. File-producing
+> acquisition runs through the Mac's local launchd scheduler and review PRs; see
+> [`LOCAL_REFRESH_SCHEDULER.md`](./LOCAL_REFRESH_SCHEDULER.md). Do not add or suggest
+> a `.github/workflows/*` schedule because Actions cannot allocate a runner.
 
 ---
 
@@ -121,8 +123,8 @@ instead of the frozen `generatedAt` of the committed baseline file.
 
 **Alternatives for a true full ingest** (pick when it matters):
 
-1. **Local / manual** `npm run whats-on-refresh` and `npm run refresh:events`,
-   committed via the existing `--open-pr` flow (what happens today).
+1. **Local launchd acquisition** through the review-gated job documented in
+   [`LOCAL_REFRESH_SCHEDULER.md`](./LOCAL_REFRESH_SCHEDULER.md).
 2. A **separate long-running worker** (a small container / a Supabase Edge
    Function with a writable target) that scrapes and writes rows to a durable
    table the store reads — the same store seam weather now uses. This is the
