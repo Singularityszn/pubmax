@@ -204,33 +204,30 @@ test.describe("one Map surface history owner", () => {
 
   test("phone fling-dismiss leaves venue sheet for Map", async ({ page }) => {
     await prepareMap(page, PHONE);
-    await openMap(page);
-    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
-    await page.getByRole("button", { name: "More map controls" }).click();
-    const layersSheet = page.locator(
-      '.mobileSheetPortal[data-sheet-kind="layers"]:visible',
-    );
-    await expect(layersSheet).toBeVisible();
-    await layersSheet.getByRole("tab", { name: "Layers" }).click();
-    await layersSheet
-      .getByRole("button", { name: "List view of venues on the map" })
-      .click();
-    await expect(page.locator(".mapVenueListPanel")).toBeVisible();
-    const firstVenue = page.locator(".mapVenueListItem").first();
-    await expect(firstVenue).toBeVisible({ timeout: 20_000 });
-    await firstVenue.click();
+    await openMap(page, "/map?sel=venue-xjf3n0");
 
     const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
     await expect(portal).toBeVisible({ timeout: 20_000 });
-    const dragTarget = portal.locator(".mobileSharedSheetHeader h2");
-    const box = await dragTarget.boundingBox();
-    expect(box).not.toBeNull();
-    if (!box) throw new Error("phone sheet header has no rendered box");
-    const x = box.x + box.width / 2;
-    const y = box.y + Math.min(12, box.height / 2);
+    const sheet = portal.locator(".mobileSharedSheet");
+    const dragTarget = portal.locator(".mobileSharedSheetHeader");
+    const [headerBox, sheetBox] = await Promise.all([
+      dragTarget.boundingBox(),
+      sheet.boundingBox(),
+    ]);
+    expect(headerBox).not.toBeNull();
+    expect(sheetBox).not.toBeNull();
+    if (!headerBox || !sheetBox) throw new Error("phone sheet has no rendered box");
+    const x = headerBox.x + 18;
+    const y = headerBox.y + headerBox.height - 10;
+    const dismissDistance = sheetBox.height - PHONE.height * 0.11 + 24;
     await page.mouse.move(x, y);
     await page.mouse.down();
-    await page.mouse.move(x, Math.min(PHONE.height - 8, y + 360), { steps: 2 });
+    await page.mouse.move(
+      x,
+      Math.min(PHONE.height - 8, y + dismissDistance),
+      { steps: 2 },
+    );
+    await expect(sheet).toHaveClass(/sheet-dragging/);
     await page.mouse.up();
 
     await expect(portal).toHaveCount(0, { timeout: 20_000 });
