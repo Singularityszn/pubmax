@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { NEW_RESERVED_CONTRIBUTOR_HANDLE_INPUTS } from "@/__tests__/fixtures/reservedContributorHandles";
+
 vi.mock("@/lib/authServer", () => ({
   callerUserId: vi.fn(),
 }));
@@ -121,4 +123,22 @@ describe("gateHandleAction — shared route ownership seam", () => {
     const row = await memoryProfileStore.getByHandle("fresh");
     expect(row?.userId).toBe("user-new");
   });
+
+  it.each(NEW_RESERVED_CONTRIBUTOR_HANDLE_INPUTS)(
+    "refuses reserved contributor handle %j on authenticated account link",
+    async (handle) => {
+      vi.mocked(callerUserId).mockResolvedValue("user-new");
+      const gate = await gateHandleAction(
+        new Request("http://localhost/api/x", { method: "POST" }),
+        handle,
+      );
+
+      expect(gate).toEqual({
+        allowed: false,
+        status: 409,
+        error: "That handle is not available.",
+      });
+      expect(await memoryProfileStore.getByHandle(handle)).toBeNull();
+    },
+  );
 });
