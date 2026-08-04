@@ -48,6 +48,30 @@ describe("GET /api/last-train", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("coarsens a viewer point before forwarding it to TfL", async () => {
+    global.fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ stopPoints: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const res = await GET(
+      new Request(
+        "http://localhost/api/last-train?lat=51.50741234&lng=-0.12785678",
+        { headers: { "x-forwarded-for": "198.51.100.29" } },
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    const stopPointCall = vi.mocked(global.fetch).mock.calls
+      .map(([input]) => String(input))
+      .find((url) => url.includes("/StopPoint?"));
+    expect(stopPointCall).toContain("lat=51.507&lon=-0.128");
+    expect(stopPointCall).not.toContain("51.50741234");
+    expect(stopPointCall).not.toContain("-0.12785678");
+  });
+
   it("fails closed for non-London coordinates instead of querying TfL or London static stations", async () => {
     global.fetch = vi.fn(async () => new Response("should not be called", { status: 500 }));
 
