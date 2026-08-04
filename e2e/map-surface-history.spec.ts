@@ -123,7 +123,7 @@ test.describe("one Map surface history owner", () => {
     await expectSoleDrawer(page, "venue");
   });
 
-  test("loaded crawl Back restores populated planner", async ({ page }) => {
+  test("loaded crawl browser Back restores populated planner", async ({ page }) => {
     await page.setViewportSize(DESKTOP);
     await page.addInitScript(() => {
       window.localStorage.clear();
@@ -144,9 +144,7 @@ test.describe("one Map surface history owner", () => {
       .click();
 
     await expectSoleDrawer(page, "venue");
-    await venue(page)
-      .getByRole("button", { name: "Back to Plan tonight" })
-      .click();
+    await page.goBack();
 
     await expectSoleDrawer(page, "planner");
     await expect(planner(page).locator(".routeList > li")).toHaveCount(5);
