@@ -32,6 +32,7 @@ export default function MobileSharedSheet({
   initialSnap = "half",
   requestedSnap,
   onClose,
+  onDismiss = onClose,
   closeLabel,
   backLabel = null,
   onBack,
@@ -44,6 +45,8 @@ export default function MobileSharedSheet({
   requestedSnap?: MapSheetDetent;
   /** Home: leave every open sheet and return to the map. */
   onClose: () => void;
+  /** Gesture dismiss: Back to parent when one exists, otherwise Home. */
+  onDismiss?: () => void;
   closeLabel?: string;
   /**
    * Back: return to the sheet that opened this one, with the state it held.
@@ -60,11 +63,11 @@ export default function MobileSharedSheet({
   const sheetRef = useRef<HTMLElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const [footerEl, setFooterEl] = useState<HTMLElement | null>(null);
-  const onCloseRef = useRef(onClose);
+  const onDismissRef = useRef(onDismiss);
   useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
-  const finishClose = useCallback(() => onCloseRef.current(), []);
+    onDismissRef.current = onDismiss;
+  }, [onDismiss]);
+  const finishDismiss = useCallback(() => onDismissRef.current(), []);
 
   const {
     sheetSnap,
@@ -77,7 +80,7 @@ export default function MobileSharedSheet({
     onSheetDragStart,
     onSheetDragMove,
     onSheetDragEnd,
-  } = useSheetHeightDrag(finishClose);
+  } = useSheetHeightDrag(finishDismiss);
   const requestClose = useCallback(() => {
     requestDismiss(sheetRef.current?.getBoundingClientRect().height);
   }, [requestDismiss]);

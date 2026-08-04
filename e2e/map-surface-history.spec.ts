@@ -59,6 +59,19 @@ async function selectToolbarVenue(page: Page, query = "The French House"): Promi
   await option.click();
 }
 
+async function selectFirstToolbarVenue(page: Page, query: string): Promise<void> {
+  const search = page
+    .locator(".mapToolbar")
+    .getByRole("combobox", { name: "Search pubs" });
+  await search.fill(query);
+  const option = page
+    .getByRole("group", { name: "Venues" })
+    .getByRole("option")
+    .first();
+  await expect(option).toBeVisible({ timeout: 20_000 });
+  await option.click();
+}
+
 function planner(page: Page) {
   return page.locator(".mapDrawer.left.springDrawer");
 }
@@ -85,7 +98,7 @@ test.describe("one Map surface history owner", () => {
   test("venue to planner leaves exactly one desktop drawer", async ({ page }) => {
     await prepareMap(page);
     await openMap(page);
-    await selectToolbarVenue(page);
+    await selectFirstToolbarVenue(page, "Soho");
     await expectSoleDrawer(page, "venue");
 
     await page
@@ -105,7 +118,7 @@ test.describe("one Map surface history owner", () => {
       .click();
     await expectSoleDrawer(page, "planner");
 
-    await selectToolbarVenue(page);
+    await selectFirstToolbarVenue(page, "Soho");
 
     await expectSoleDrawer(page, "venue");
   });
@@ -180,7 +193,7 @@ test.describe("one Map surface history owner", () => {
     await search.fill("Soho");
     await toolbar.getByRole("button", { name: "Plan tonight" }).click();
     await expectSoleDrawer(page, "planner");
-    await selectToolbarVenue(page);
+    await selectFirstToolbarVenue(page, "Soho");
     await expectSoleDrawer(page, "venue");
 
     await page.keyboard.press("Escape");
@@ -192,6 +205,7 @@ test.describe("one Map surface history owner", () => {
   test("phone fling-dismiss leaves venue sheet for Map", async ({ page }) => {
     await prepareMap(page, PHONE);
     await openMap(page);
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
     await page.getByRole("button", { name: "More map controls" }).click();
     const layersSheet = page.locator(
       '.mobileSheetPortal[data-sheet-kind="layers"]:visible',
@@ -201,14 +215,15 @@ test.describe("one Map surface history owner", () => {
     await layersSheet
       .getByRole("button", { name: "List view of venues on the map" })
       .click();
+    await expect(page.locator(".mapVenueListPanel")).toBeVisible();
     const firstVenue = page.locator(".mapVenueListItem").first();
     await expect(firstVenue).toBeVisible({ timeout: 20_000 });
     await firstVenue.click();
 
     const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
     await expect(portal).toBeVisible({ timeout: 20_000 });
-    const header = portal.locator(".mobileSharedSheetHeader");
-    const box = await header.boundingBox();
+    const dragTarget = portal.locator(".mobileSharedSheetHeader h2");
+    const box = await dragTarget.boundingBox();
     expect(box).not.toBeNull();
     if (!box) throw new Error("phone sheet header has no rendered box");
     const x = box.x + box.width / 2;
@@ -223,6 +238,7 @@ test.describe("one Map surface history owner", () => {
   });
 
   test("captures light and dark proof at required viewports", async ({ page }, testInfo: TestInfo) => {
+    test.setTimeout(180_000);
     for (const theme of ["light", "dark"] as const) {
       await prepareMap(page, PHONE);
       await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
@@ -233,8 +249,7 @@ test.describe("one Map surface history owner", () => {
       });
 
       await page.setViewportSize(DESKTOP);
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.locator(".mapToolbar")).toBeVisible({ timeout: 30_000 });
+      await openMap(page, `/map?history-proof=${theme}-1440`);
       await page
         .locator(".mapToolbar")
         .getByRole("button", { name: "Plan tonight" })

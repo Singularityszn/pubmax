@@ -1,26 +1,22 @@
 import { useEffect } from "react";
-import type { Dispatch, SetStateAction } from "react";
-
 type KeyboardShortcutArgs = {
   planningOpen: boolean;
-  closePlanning: () => void;
-  closeComposer: () => void;
-  setSelectedVenueId: Dispatch<SetStateAction<string>>;
+  selectedVenueId: string;
+  onBack: () => void;
   /** D4 — the Drop pub picker is topmost, and Escape must be a way out of it. */
   logIntentFallbackVisible: boolean;
   dismissLogIntent: () => void;
 };
 
-// Keyboard shortcuts: "/" focuses search (unless already typing), Esc clears
-// the selected venue. The effect only adds/removes a DOM listener — the handler
+// Keyboard shortcuts: "/" focuses search (unless already typing), Esc asks the
+// Map navigation owner to step Back. The effect only adds/removes a DOM listener - the handler
 // calls setState, which is allowed (react-hooks/set-state-in-effect forbids
 // setState in the effect BODY, not in listeners it registers).
 // Extracted verbatim from PubMap (F1).
 export function useMapKeyboardShortcuts({
   planningOpen,
-  closePlanning,
-  closeComposer,
-  setSelectedVenueId,
+  selectedVenueId,
+  onBack,
   logIntentFallbackVisible,
   dismissLogIntent,
 }: KeyboardShortcutArgs) {
@@ -49,27 +45,16 @@ export function useMapKeyboardShortcuts({
           dismissLogIntent();
           return;
         }
-        if (planningOpen) {
-          closePlanning();
-          return;
-        }
-        setSelectedVenueId((current) => {
-          if (!current) return current;
-          closeComposer();
-          // Closing the pub ends the Drop flow, same as the sheet's own X.
-          dismissLogIntent();
-          return "";
-        });
+        if (planningOpen || selectedVenueId) onBack();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
-    closeComposer,
-    closePlanning,
     dismissLogIntent,
     logIntentFallbackVisible,
+    onBack,
     planningOpen,
-    setSelectedVenueId,
+    selectedVenueId,
   ]);
 }

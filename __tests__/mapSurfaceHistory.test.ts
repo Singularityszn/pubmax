@@ -7,6 +7,7 @@ import {
   stampMapSurfaceHistory,
 } from "@/lib/mapSurfaceHistory";
 import type { SurfaceStack } from "@/lib/surfaceStack";
+import { mergeCrawlUrlSearch } from "@/components/map/useCrawlUrl";
 
 type Held = { venueId: string; tab: string };
 
@@ -88,6 +89,17 @@ describe("Map surface history snapshot", () => {
         },
       }),
     ).toBeNull();
+  });
+});
+
+describe("Map surface URL ownership", () => {
+  it("preserves landed selection against a stale crawl-state write", () => {
+    expect(
+      mergeCrawlUrlSearch(
+        "q=The+French+House",
+        "?q=The+French+House&sel=venue-french-house",
+      ),
+    ).toBe("q=The+French+House&sel=venue-french-house");
   });
 });
 

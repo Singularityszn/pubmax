@@ -179,7 +179,6 @@ import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
-import { useMapSelectionHistory } from "@/components/map/pubmap/useMapSelectionHistory";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
@@ -303,10 +302,10 @@ import {
 } from "@/lib/mobileShell";
 import {
   EMPTY_MAP_SURFACE_STATE,
-  useMapSurfaceTrail,
+  useMapSurfaceNavigation,
   type MapSurfaceId,
   type MapSurfaceState,
-} from "@/components/map/pubmap/useMapSurfaceTrail";
+} from "@/components/map/pubmap/useMapSurfaceNavigation";
 import SurfaceNav from "@/components/ui/surface-nav";
 import { homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
 import {
@@ -736,8 +735,8 @@ export default function PubMap({
     setLogIntentCleared(true);
     dropLogParamFromUrl();
   }, []);
-  // Closing the sheet POPS the selection entry (useMapSelectionHistory), and
-  // the clean entry underneath still carries `log=1` — it is an owned
+  // Closing the sheet pops the Map surface entry, and the clean entry
+  // underneath still carries `log=1` - it is an owned
   // passthrough there too, written before the reader left the flow. So one
   // strip is not enough: hold the URL clean for the rest of the session, on
   // every render and on every history pop. Otherwise Back or a reload rearms
@@ -923,17 +922,10 @@ export default function PubMap({
   // worse than one. The trail is assembled further down this component, so the
   // gesture reaches it through a ref.
   const surfaceBackRef = useRef<() => void>(() => {});
-  const dismissSheet = useCallback(() => {
-    setSelectedVenueId("");
-    // The overlay is NOT cleared here. A venue opened over a sheet has to leave
-    // that sheet for the reader to come back to, and the surface trail
-    // (useMapSurfaceTrail) is what puts it back. selectVenue already closes any
-    // open sheet, so a venue opened straight off the map has none to disturb.
-    closeComposer();
-    // D4: closing the pub the reader came to log ENDS the Drop flow. Reopening
-    // the picker here is what made `?log=1` a trap with no way out.
-    clearLogIntent();
-  }, [clearLogIntent, closeComposer, setSelectedVenueId]);
+  const surfaceOpenRef = useRef<
+    (entry: SurfaceEntry<MapSurfaceState>) => void
+  >(() => {});
+  const surfaceStateRef = useRef<MapSurfaceState>(EMPTY_MAP_SURFACE_STATE);
   const {
     sheetSnap,
     setSheetSnap,
@@ -983,6 +975,11 @@ export default function PubMap({
   );
 
   const openPlanning = useCallback(() => {
+    surfaceOpenRef.current({
+      id: "planner",
+      title: "Plan tonight",
+      state: surfaceStateRef.current,
+    });
     claimMapDrawer("planner");
     if (isMobileViewport()) {
       closeComposer();
@@ -1566,6 +1563,15 @@ export default function PubMap({
       origin: PlanningIntentSource | null = null,
     ) => {
       if (!id) return;
+      surfaceOpenRef.current({
+        id: "venue",
+        title: "Pub detail",
+        state: {
+          ...surfaceStateRef.current,
+          venueId: id,
+          venueTab: initialTab,
+        },
+      });
       if (typeof document !== "undefined") {
         const active = document.activeElement;
         if (
@@ -1655,12 +1661,6 @@ export default function PubMap({
   // ?sel= client-nav sync — verbatim in components/map/pubmap/useSelParamSync.ts.
   const selParam = searchParams?.get("sel") ?? "";
   useSelParamSync({ selParam, selectedVenueId, selectVenue });
-
-  // §4.6 selection-history sentinel: exact Back/close contract for the Venue
-  // sheet. Owns the `sel` history entry; every close path funnels through the
-  // selectedVenueId transition, so this single call covers button, Escape, and
-  // fling dismissals as well as browser Back.
-  useMapSelectionHistory({ arrivalSearch, selectedVenueId, selectionHint, onBackClose: dismissSheet });
 
   // W3 cheap-round / vertical deep links: /map?src=whats-on-deal opens the
   // Tonight lane already filtered to that kind (exact allowlisted tokens only).
@@ -2137,13 +2137,12 @@ export default function PubMap({
     setFallbackVisible: setLogIntentFallbackVisible,
   });
 
-  // Keyboard shortcuts: "/" focuses search, Esc clears selection / closes the
-  // planner (see components/map/pubmap/useMapKeyboardShortcuts.ts).
+  // Keyboard shortcuts: "/" focuses search. Escape enters the same Back owner
+  // as browser, button, and gesture navigation.
   useMapKeyboardShortcuts({
     planningOpen,
-    closePlanning,
-    closeComposer,
-    setSelectedVenueId,
+    selectedVenueId,
+    onBack: () => surfaceBackRef.current(),
     logIntentFallbackVisible,
     dismissLogIntent: clearLogIntent,
   });
@@ -2555,9 +2554,9 @@ export default function PubMap({
   // ── Where the reader is, and how they get out ────────────────────────────
   // Every Map panel used to carry its own close and nothing else, so a reader
   // who opened three of them could shut the top one and land somewhere they
-  // never chose. The trail (components/map/pubmap/useMapSurfaceTrail.ts) follows
-  // the one derived value for what is showing and gives every surface the same
-  // pair: Back to whatever opened it, Home to the Map.
+  // never chose. One navigation owner records direct open intents, follows the
+  // derived visible surface as a safety net, and gives every panel one Back and
+  // Home contract.
   const mapSurfaceId: MapSurfaceId =
     coordinatedMobileOverlay !== "none"
       ? coordinatedMobileOverlay
@@ -2580,17 +2579,20 @@ export default function PubMap({
               // surface they never opened.
               "Search"
             : MAP_SHEET_TITLES[mapSurfaceId as MapSheetKind] ?? "Map controls";
-  const mapSurfaceState: MapSurfaceState = {
-    venueTab: venueInitialTab,
-    venueId: selectedVenueId,
-    areaTargetKey: searchAreaTarget
-      ? searchAreaTarget.kind === "area"
-        ? `area:${searchAreaTarget.area.slug}`
-        : `place:${searchAreaTarget.name}`
-      : "",
-    areaTarget: searchAreaTarget,
-    layersTab: mobileLayersTab,
-  };
+  const mapSurfaceState = useMemo<MapSurfaceState>(
+    () => ({
+      venueTab: venueInitialTab,
+      venueId: selectedVenueId,
+      areaTargetKey: searchAreaTarget
+        ? searchAreaTarget.kind === "area"
+          ? `area:${searchAreaTarget.area.slug}`
+          : `place:${searchAreaTarget.name}`
+        : "",
+      areaTarget: searchAreaTarget,
+      layersTab: mobileLayersTab,
+    }),
+    [mobileLayersTab, searchAreaTarget, selectedVenueId, venueInitialTab],
+  );
   const closeEverySurface = useCallback(() => {
     clearAreaSheetTimer();
     setSearchAreaTarget(null);
@@ -2636,16 +2638,20 @@ export default function PubMap({
     },
     [closeEverySurface, setPlanningOpen, setSelectedVenueId],
   );
-  const mapSurfaceTrail = useMapSurfaceTrail({
+  const mapSurfaceTrail = useMapSurfaceNavigation({
+    arrivalSearch,
     surfaceId: mapSurfaceId,
     surfaceTitle: mapSurfaceTitle,
     surfaceState: mapSurfaceState,
+    selectionHint,
     onRestore: restoreMapSurface,
     onHome: closeEverySurface,
   });
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
-  }, [mapSurfaceTrail.back]);
+    surfaceOpenRef.current = mapSurfaceTrail.open;
+    surfaceStateRef.current = mapSurfaceState;
+  }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.open]);
 
   useEffect(() => {
     // An uncovered-place arrival is a one-off destination, not a city session:
@@ -3641,6 +3647,7 @@ export default function PubMap({
           initialSnap="half"
           requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}
           onClose={mapSurfaceTrail.home}
+          onDismiss={mapSurfaceTrail.backLabel ? mapSurfaceTrail.back : mapSurfaceTrail.home}
           closeLabel={detailOpen ? selectedVenueLabels.closeLabel : undefined}
           backLabel={mapSurfaceTrail.backLabel}
           onBack={mapSurfaceTrail.back}
