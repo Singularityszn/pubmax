@@ -203,7 +203,7 @@ export function useMapSurfaceNavigation({
       return;
     }
     open(shown);
-  }, [open, publishStack, surfaceId, surfaceState, surfaceTitle]);
+  }, [open, surfaceId, surfaceState, surfaceTitle]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -237,7 +237,6 @@ export function useMapSurfaceNavigation({
       home,
       open,
       holdsSurface: (id: MapSurfaceId) => stack.some((entry) => entry.id === id),
-      depth: stack.length,
     }),
     [back, home, open, stack],
   );
