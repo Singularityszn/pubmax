@@ -1,68 +1,32 @@
-name: CI
+# Effective RLS session tests against real PostgreSQL 16 and PostgREST 14.
+#
+# The main `npm run ci` gate skips these tests loudly when local database
+# binaries are absent. This job is configured for push and pull-request proof,
+# but local proof remains required when GitHub cannot allocate a runner.
+name: RLS session tests
 
 on:
-  # GitHub-hosted Actions still fail before job allocation on this private
-  # repo (`startup_failure` with zero jobs — verified on push run 28893076008,
-  # 2026-07-07). Vercel is the automatic CI/CD gate; keep this workflow
-  # manual-only so every merge doesn't produce a red non-code failure.
-  # Re-enable push/pull_request triggers once runner allocation is fixed.
+  push:
+    branches: [main, "fm/**"]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: rls-session-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Verify and build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      # Build-time data gate: every bundled dataset is validated with the same
-      # rules the app uses, and a truncated pint dataset fails the run.
-      - name: Validate data
-        run: npm run validate-data
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      # Coverage gate: vitest fails the step if coverage drops below the
-      # thresholds in vitest.config.ts, so a merge that regresses coverage
-      # is blocked.
-      # RLS session tests skip loudly here when Postgres is absent — they must
-      # never fail this job and never report as passed. See rls-session job
-      # below and .github/workflows/rls-session.yml for the real run.
-      - name: Unit tests (coverage gate)
-        run: npm run coverage
-
-      - name: Production build
-        run: npm run build
-
-  # Real RLS proofs need Postgres 16 binaries and PostgREST 14.
-  # Kept separate from `build` so Vercel-style hosts without a database can
-  # still green `npm run ci` while this job fails if sessions regress.
   rls-session:
     name: Effective RLS (Postgres 16 + PostgREST 14)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
+    # Postgres 16 service: health-gated so steps only start when ready.
+    # The harness also uses local initdb from postgresql-16 for an ephemeral
+    # cluster; the service pins the CI environment to Postgres 16.
     services:
       postgres:
         image: postgres:16
@@ -77,6 +41,7 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,4 +76,7 @@ jobs:
       - name: Run effective RLS session tests
         run: npm run test:rls
         env:
+          # Fail the job if any test is unexpectedly skipped (binaries present).
+          # Vitest still reports intentional skips only when binaries are missing;
+          # with postgresql-16 on PATH they must all run and pass.
           CI: true
