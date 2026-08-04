@@ -14,6 +14,7 @@ import {
   upsertSaved,
   isSaved,
   groupByList,
+  savedKey,
   type SavedPub,
 } from "@/lib/savedPubs";
 
@@ -29,6 +30,12 @@ function saved(overrides: Partial<SavedPub> = {}): SavedPub {
     ...overrides,
   };
 }
+
+describe("savedKey", () => {
+  it("uses an escaped NUL delimiter without breaking the browser bundle", () => {
+    expect(savedKey("venue-1", "Want to Visit")).toBe("venue-1\u0000Want to Visit");
+  });
+});
 
 describe("normalizeHandle", () => {
   it("lowercases and strips a leading @", () => {
