@@ -87,6 +87,7 @@ The community layer ships alive: hand-written Pint Drops and Featured crawls are
 - **`teach.md`** — full repo tour: architecture, data model, map lifecycle, backend, trust boundaries, with `file:line` anchors.
 - **`docs/DEPLOYMENT.md`** — reproducible Vercel + Supabase + OpenRouter runbook.
 - **[`docs/CRON_PLANE_RUNBOOK.md`](docs/CRON_PLANE_RUNBOOK.md)** - scheduler, auth, failure posture, and honest freshness boundaries.
+- **[`docs/LOCAL_REFRESH_SCHEDULER.md`](docs/LOCAL_REFRESH_SCHEDULER.md)** - local launchd acquisition, resource gates, logs, and review-PR operation.
 - **[`docs/WAYFINDER_LIVE_DATA.md`](docs/WAYFINDER_LIVE_DATA.md)** - source, cadence, gate, and staleness policy for every data class.
 - **[`docs/NIGHT_OUT_PLACE_INGEST.md`](docs/NIGHT_OUT_PLACE_INGEST.md)** - provenance and freshness contract for automated place discovery and hand-curated venue packs.
 - **[`docs/REFERRALS.md`](docs/REFERRALS.md)** - private attribution, qualification, and permanent-grant integrity boundary.
