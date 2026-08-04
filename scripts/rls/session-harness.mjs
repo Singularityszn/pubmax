@@ -33,6 +33,10 @@ function findPgBin(name) {
     `/opt/homebrew/opt/postgresql@17/bin/${name}`,
     `/usr/local/opt/postgresql@16/bin/${name}`,
     `/opt/homebrew/bin/${name}`,
+    // Debian/Ubuntu packages (CI: apt install postgresql-16)
+    `/usr/lib/postgresql/16/bin/${name}`,
+    `/usr/lib/postgresql/17/bin/${name}`,
+    `/usr/bin/${name}`,
     name,
   ];
   for (const c of candidates) {
@@ -45,6 +49,35 @@ function findPgBin(name) {
     } catch {
       /* try next */
     }
+  }
+  return null;
+}
+
+/**
+ * When Postgres binaries are missing, return a loud skip reason.
+ * Callers must SKIP (not pass, not fail) effective RLS tests when this is set.
+ * A skipped RLS test must never read as a passed one.
+ */
+export function missingPostgresReason() {
+  // Escape hatch to prove the loud-skip path without uninstalling Postgres
+  // (Vercel and other hosts without a DB hit the real probe below).
+  if (process.env.PUBMAX_RLS_NO_PG === "1") {
+    return (
+      "PostgreSQL 16+ binaries not found (initdb/postgres/psql). " +
+      "Install postgresql@16 to run effective RLS tests. " +
+      "CI job rls-session installs Postgres 16 and runs them for real. " +
+      "(PUBMAX_RLS_NO_PG=1 forced this skip.)"
+    );
+  }
+  const initdb = findPgBin("initdb");
+  const postgres = findPgBin("postgres");
+  const psql = findPgBin("psql");
+  if (!initdb || !postgres || !psql) {
+    return (
+      "PostgreSQL 16+ binaries not found (initdb/postgres/psql). " +
+      "Install postgresql@16 to run effective RLS tests. " +
+      "CI job rls-session installs Postgres 16 and runs them for real."
+    );
   }
   return null;
 }
@@ -63,15 +96,13 @@ async function pickPort() {
 }
 
 export async function startRlsSession() {
+  const missing = missingPostgresReason();
+  if (missing) {
+    throw new Error(missing);
+  }
   const initdb = findPgBin("initdb");
   const postgres = findPgBin("postgres");
   const psql = findPgBin("psql");
-  const createdb = findPgBin("createdb");
-  if (!initdb || !postgres || !psql) {
-    throw new Error(
-      "PostgreSQL 16+ binaries not found (initdb/postgres/psql). Install postgresql@16 to run effective RLS tests.",
-    );
-  }
 
   const dataDir = mkdtempSync(join(tmpdir(), "pubmax-rls-"));
   const port = await pickPort();

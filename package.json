@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:rls": "vitest run __tests__/rlsWave2Session.test.ts",
     "test:e2e": "playwright test",
     "gate:playwright": "node scripts/assert-playwright-gate.mjs",
     "gate:e2e-skips": "node scripts/assert-no-conditional-e2e-skips.mjs e2e",

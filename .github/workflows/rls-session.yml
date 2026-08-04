@@ -1,0 +1,73 @@
+# Effective RLS session tests against a real PostgreSQL 16.
+#
+# The main `npm run ci` gate (Vercel) skips these tests loudly when
+# initdb/postgres/psql are absent — a skip is not a pass. This job is the
+# place they run for real on every push and pull request.
+name: RLS session tests
+
+on:
+  push:
+    branches: [main, "fm/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rls-session-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rls-session:
+    name: Effective RLS (Postgres 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Postgres 16 service: health-gated so steps only start when ready.
+    # The harness also uses local initdb from postgresql-16 for an ephemeral
+    # cluster; the service pins the CI environment to Postgres 16.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install PostgreSQL 16 server tools (initdb/postgres/psql)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+          initdb --version
+          postgres --version
+          psql --version
+
+      - name: Run effective RLS session tests
+        run: npm run test:rls
+        env:
+          # Fail the job if any test is unexpectedly skipped (binaries present).
+          # Vitest still reports intentional skips only when binaries are missing;
+          # with postgresql-16 on PATH they must all run and pass.
+          CI: true

@@ -330,16 +330,50 @@ describe("owner-keyed extras", () => {
 });
 
 describe("rollback path is shipped", () => {
+  const ROLLBACK = readFileSync(
+    join(MIGRATIONS_DIR, "rollback/20260803200000_rls_wave2_rollback.sql"),
+    "utf8",
+  );
+  const N_ROLLBACK = normalize(ROLLBACK);
+
   it("includes a runnable rollback script restoring prior rounds policies", () => {
-    const rollback = readFileSync(
-      join(MIGRATIONS_DIR, "rollback/20260803200000_rls_wave2_rollback.sql"),
-      "utf8",
-    );
-    const n = normalize(rollback);
-    expect(n).toContain("create policy rounds_public_read");
-    expect(n).toContain("using (true)");
-    expect(n).toContain("drop function if exists public.rls_can_read_visit_report");
-    expect(n).toContain("visit_reports_public_read");
+    expect(N_ROLLBACK).toContain("create policy rounds_public_read");
+    expect(N_ROLLBACK).toContain("using (true)");
+    expect(N_ROLLBACK).toContain("drop function if exists public.rls_can_read_visit_report");
+    expect(N_ROLLBACK).toContain("visit_reports_public_read");
+  });
+
+  it("drops every forward policy the 0067 renames (not only legacy owner_all names)", () => {
+    // Gate failure: rollback listed pre-rename names only, so seven wave-2
+    // policies survived a down migration. Names must appear as SQL string
+    // literals in the drop inventory.
+    const mustDrop = [
+      "pub_pal_mastery_events_owner_select",
+      "pub_pal_mastery_events_owner_insert",
+      "night_stories_host_or_public_select",
+      "night_stories_host_write",
+      "night_story_contributors_party_select",
+      "night_story_contributors_host_write",
+      "night_story_publish_proposals_party_all",
+    ] as const;
+    for (const name of mustDrop) {
+      expect(ROLLBACK, `rollback must drop ${name}`).toContain(`'${name}'`);
+    }
+  });
+
+  it("drops every rls_* helper body wave 2 introduced", () => {
+    for (const fn of [
+      "rls_can_read_visit_report",
+      "rls_follows_handle",
+      "rls_current_price_actor",
+      "rls_is_conversation_participant",
+      "rls_is_plan_participant",
+      "rls_owns_handle",
+      "rls_owns_profile",
+      "rls_current_profile_id",
+    ]) {
+      expect(N_ROLLBACK).toContain(`drop function if exists public.${fn}`);
+    }
   });
 });
 

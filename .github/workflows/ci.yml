@@ -47,8 +47,59 @@ jobs:
       # Coverage gate: vitest fails the step if coverage drops below the
       # thresholds in vitest.config.ts, so a merge that regresses coverage
       # is blocked.
+      # RLS session tests skip loudly here when Postgres is absent — they must
+      # never fail this job and never report as passed. See rls-session job
+      # below and .github/workflows/rls-session.yml for the real run.
       - name: Unit tests (coverage gate)
         run: npm run coverage
 
       - name: Production build
         run: npm run build
+
+  # Real RLS proofs need Postgres 16 binaries (initdb/postgres/psql).
+  # Kept separate from `build` so Vercel-style hosts without a database can
+  # still green `npm run ci` while this job fails if sessions regress.
+  rls-session:
+    name: Effective RLS (Postgres 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install PostgreSQL 16 server tools (initdb/postgres/psql)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+          initdb --version
+          postgres --version
+          psql --version
+
+      - name: Run effective RLS session tests
+        run: npm run test:rls
+        env:
+          CI: true

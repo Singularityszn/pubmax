@@ -6,7 +6,13 @@
 -- Restores:
 --   • prior rounds_*_public_read policies (using (true)) dropped by 0068
 --   • prior visit_reports_public_read (status = 'visible') from 0001
---   • drops wave-2 helpers, policies, and authenticated grants this wave added
+--   • public catalogue reads (drinks, pub_heritage, crawl_stories, night signals)
+--   • drops every wave-2 policy (including 0067 renames: mastery select/insert,
+--     night_stories host_or_public/host_write, contributors party/host_write,
+--     publish_proposals party_all) plus legacy owner_all names if present
+--   • drops every rls_* helper body wave 2 introduced
+--   • revokes authenticated/anon grants this wave added
+--   • restores pre-0069 PUBLIC execute on refresh_community_price_quality
 --
 -- Does NOT drop tables or data. Does NOT re-open private_account_identities
 -- writes (pre-wave-2 had no client grants either).
@@ -54,14 +60,23 @@ begin
           'check_ins_author_delete',
           'pub_pals_owner_all',
           'pub_pal_memories_owner_all',
+          -- 0067 creates select+insert (not a single owner_all) for mastery events.
+          'pub_pal_mastery_events_owner_select',
+          'pub_pal_mastery_events_owner_insert',
           'pub_pal_mastery_events_owner_all',
           'pub_pal_voice_usage_owner_all',
           'night_memories_owner_all',
           'night_moments_owner_all',
           'night_moment_consents_owner_all',
+          -- 0067 renames host/party policies (legacy owner_all/host_all kept for safety).
+          'night_stories_host_or_public_select',
+          'night_stories_host_write',
           'night_stories_owner_all',
+          'night_story_contributors_party_select',
+          'night_story_contributors_host_write',
           'night_story_contributors_host_all',
           'night_story_moments_host_all',
+          'night_story_publish_proposals_party_all',
           'night_story_publish_proposals_host_all',
           'structured_visit_reports_visible_select',
           'structured_visit_reports_visible_or_owner_select',
@@ -99,8 +114,14 @@ declare
     'community_prices', 'visit_reports',
     'private_account_identities', 'notifications',
     'saved_lists', 'saved_list_follows', 'follows', 'check_ins',
+    'pub_pals', 'pub_pal_memories', 'pub_pal_mastery_events', 'pub_pal_voice_usage',
+    'night_memories', 'night_moments', 'night_moment_consents',
+    'night_stories', 'night_story_contributors', 'night_story_moments',
+    'night_story_publish_proposals',
     'structured_visit_reports', 'external_social_accounts',
-    'profile_handle_aliases', 'profiles'
+    'profile_handle_aliases', 'profiles',
+    'drinks', 'pub_heritage', 'crawl_stories', 'night_signal_claims',
+    'rounds', 'round_members', 'round_stops', 'round_spends'
   ];
 begin
   foreach t in array tables loop
@@ -155,6 +176,37 @@ begin
     drop policy if exists "pub_heritage public read" on public.pub_heritage;
     create policy "pub_heritage public read" on public.pub_heritage for select using (true);
     grant select on table public.pub_heritage to anon, authenticated;
+  end if;
+  if to_regclass('public.crawl_stories') is not null then
+    drop policy if exists crawl_stories_public_read on public.crawl_stories;
+    create policy crawl_stories_public_read
+      on public.crawl_stories
+      for select
+      using (visibility in ('public', 'unlisted'));
+    grant select on table public.crawl_stories to anon, authenticated;
+  end if;
+  if to_regclass('public.night_signal_claims') is not null then
+    drop policy if exists "Public reads current approved night signal claims"
+      on public.night_signal_claims;
+    create policy "Public reads current approved night signal claims"
+      on public.night_signal_claims
+      for select
+      using (
+        review_state = 'approved'
+        and observed_at <= now()
+        and reviewed_at <= now()
+        and expires_at > now()
+      );
+    grant select on table public.night_signal_claims to anon, authenticated;
+  end if;
+end $$;
+
+-- ── Restore pre-wave-2 EXECUTE on refresh RPC (0069 reverse) ────────────────
+-- Wave 2 revoked PUBLIC/anon/authenticated. Prior default was PUBLIC execute.
+do $$
+begin
+  if to_regprocedure('public.refresh_community_price_quality()') is not null then
+    grant execute on function public.refresh_community_price_quality() to public;
   end if;
 end $$;
 

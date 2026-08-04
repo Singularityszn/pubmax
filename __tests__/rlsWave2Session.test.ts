@@ -8,9 +8,13 @@
  *   other user → DENIED
  *   hidden / friends-gated rows → DENIED to everyone they should be
  *
+ * When PostgreSQL 16+ binaries are absent (e.g. Vercel build hosts), every
+ * test is SKIPPED with a loud reason — never reported as pass. CI job
+ * `rls-session` installs Postgres 16 and runs this suite for real.
+ *
  * Never applies migrations to a live Supabase project.
  */
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 type Session = {
   sql: (
@@ -28,19 +32,37 @@ const FRIEND = "33333333-3333-3333-3333-333333333333";
 const STRANGER = "44444444-4444-4444-4444-444444444444";
 
 let session: Session | null = null;
-let skipped = false;
-let skipReason = "";
+/** Set only when Postgres binaries are genuinely missing. Loud skip, not pass. */
+let skipReason: string | null = null;
 
 beforeAll(async () => {
+  // @ts-expect-error — plain .mjs harness, no declaration file (see scripts/rls/).
+  const mod = await import("../scripts/rls/session-harness.mjs");
+  const missing: string | null = mod.missingPostgresReason();
+  if (missing) {
+    skipReason = missing;
+    // Loud, visible in CI/Vercel logs — a SKIP is not a green pass.
+    // eslint-disable-next-line no-console
+    console.error(
+      [
+        "",
+        "══════════════════════════════════════════════════════════════",
+        "SKIPPING RLS session tests (not a pass)",
+        `Reason: ${missing}`,
+        "CI job `rls-session` runs these with PostgreSQL 16.",
+        "══════════════════════════════════════════════════════════════",
+        "",
+      ].join("\n"),
+    );
+    return;
+  }
+
   try {
-    // @ts-expect-error — plain .mjs harness, no declaration file (see scripts/rls/).
-    const mod = await import("../scripts/rls/session-harness.mjs");
     session = (await mod.startRlsSession()) as Session;
   } catch (e) {
-    skipped = true;
-    skipReason = e instanceof Error ? e.message : String(e);
-    // Fail hard — effective RLS tests are required, not optional.
-    throw new Error(`RLS session harness failed to start: ${skipReason}`);
+    const msg = e instanceof Error ? e.message : String(e);
+    // Binaries present but cluster failed — fail hard, do not skip.
+    throw new Error(`RLS session harness failed to start: ${msg}`);
   }
 
   // Seed identities and rows as table owner (bypasses RLS).
@@ -103,13 +125,31 @@ afterAll(async () => {
   if (session) await session.stop();
 });
 
+// Every test skips with the same loud reason when Postgres is absent.
+// Vitest reports these as skipped, never as passed.
+beforeEach((ctx) => {
+  if (skipReason) {
+    ctx.skip(true, skipReason);
+  }
+});
+
+function requireSession(): Session {
+  if (skipReason) {
+    throw new Error(`unreachable: test should have been skipped: ${skipReason}`);
+  }
+  if (!session) {
+    throw new Error("RLS session not started");
+  }
+  return session;
+}
+
 function count(
   table: string,
   where: string,
   opts: { asRole?: string | null; sub?: string | null },
 ): number {
   // Scalar expression so the harness can wrap it as RESULT:<n>.
-  const r = session!.sql(
+  const r = requireSession().sql(
     `select count(*)::text from public.${table} where ${where}`,
     opts,
   );
@@ -134,7 +174,7 @@ function tryWrite(
   statement: string,
   opts: { asRole?: string | null; sub?: string | null },
 ): boolean {
-  const r = session!.sql(statement, opts);
+  const r = requireSession().sql(statement, opts);
   return r.ok;
 }
 
@@ -386,13 +426,22 @@ describe("structured_visit_reports + rounds — effective RLS", () => {
 
 describe("rollback path", () => {
   it("applies the wave-2 rollback script without error", () => {
+    const s = requireSession();
     // Apply against the same throwaway cluster — proves the script is runnable.
-    expect(() => session!.sqlFile(session!.rollbackPath)).not.toThrow();
+    expect(() => s.sqlFile(s.rollbackPath)).not.toThrow();
     // After rollback, prior rounds public read is restored.
-    const r = session!.sql(
+    const r = s.sql(
       `select count(*)::text from pg_policies where tablename = 'rounds' and policyname = 'rounds_public_read'`,
     );
     expect(r.ok).toBe(true);
     expect(Number(r.out)).toBe(1);
+    // Wave-2 helpers must be gone so they cannot be left half-applied.
+    const helpers = s.sql(
+      `select count(*)::text from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname like 'rls_%'`,
+    );
+    expect(helpers.ok).toBe(true);
+    expect(Number(helpers.out)).toBe(0);
   });
 });
