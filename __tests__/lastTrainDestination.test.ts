@@ -39,8 +39,9 @@ describe("lastTrainDestination", () => {
   });
 
   it("builds fetch URLs without destination (client-only privacy)", () => {
-    expect(lastTrainFetchUrl(51.5, -0.12)).toBe("/api/last-train?lat=51.5&lng=-0.12");
-    expect(lastTrainFetchUrl(51.5, -0.12)).not.toContain("destination");
+    const url = lastTrainFetchUrl(51.50741234, -0.12785678);
+    expect(url).toBe("/api/last-train?lat=51.507&lng=-0.128");
+    expect(url).not.toContain("destination");
   });
 });
 

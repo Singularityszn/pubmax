@@ -6,8 +6,8 @@
 // eyebrow follows the viewer's own time of day (the same band the greeting
 // above is built from), because a card headed "this morning" at half past
 // midnight is the kind of small lie that makes a whole page feel automated. The
-// area comes from the remembered patch (central London default), rounded before
-// it leaves the device, and the same /api/tfl-disruption route + describeDisruption
+// area comes from the remembered patch (central London default), whose public
+// centre is already coarse, and the same /api/tfl-disruption route + describeDisruption
 // copy the get-home strip already uses do the work.
 //
 // It keeps the underlying component's restraint: silent unless there is something
@@ -23,7 +23,6 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, TrainFront } from "lucide-react";
 
 import { TUBE_WHEN_LABEL, type DaySlot } from "@/lib/dayGreeting";
-import { roundCoord } from "@/lib/geo";
 import { readRememberedArea } from "@/lib/nightPatches";
 import type { PatchDisruption } from "@/lib/tflDisruption";
 
@@ -37,8 +36,7 @@ export default function TodayTubeCard({ slot }: { slot: DaySlot }) {
 
   useEffect(() => {
     const centre = rememberedAreaCentre(readRememberedArea());
-    const lat = roundCoord(centre.lat);
-    const lng = roundCoord(centre.lng);
+    const { lat, lng } = centre;
     const controller = new AbortController();
     fetch(`/api/tfl-disruption?lat=${lat}&lng=${lng}`, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))

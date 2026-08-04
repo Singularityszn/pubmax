@@ -10,13 +10,13 @@
 // there is something material to say. React 19 rules mirror the get-home strip:
 // the fetch fires in an effect keyed on the rounded point, state settles only in
 // the async resolution/catch, and an AbortController cancels on unmount / move.
-// Privacy: the point is rounded (roundCoord, ~110m) before it leaves the device,
+// Privacy: the point is rounded (coarsenViewerPoint, ~110m) before it leaves the device,
 // exactly as the last-train fetch already does.
 
 import { useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 
-import { roundCoord } from "@/lib/geo";
+import { coarsenViewerPoint } from "@/lib/geo";
 import type { PatchDisruption } from "@/lib/tflDisruption";
 
 import "./disruptionLine.css";
@@ -27,8 +27,7 @@ type DisruptionResponse = { disruption?: PatchDisruption | null };
 
 export default function DisruptionLine({ lat, lng }: Props) {
   const [disruption, setDisruption] = useState<PatchDisruption | null>(null);
-  const rlat = roundCoord(lat);
-  const rlng = roundCoord(lng);
+  const { lat: rlat, lng: rlng } = coarsenViewerPoint({ lat, lng });
 
   useEffect(() => {
     const controller = new AbortController();
