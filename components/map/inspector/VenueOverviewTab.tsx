@@ -374,7 +374,7 @@ export default function VenueOverviewTab({
         <Amenity active={venue.hasStory} label="Heritage" />
         <Amenity active={Boolean(venue.curation.writerPick)} label="Writer's pick" />
         <Amenity active={venue.amenities.beerGarden} label="Beer garden" />
-        <Amenity active={venue.amenities.nonAlcoholic} label="Alcohol-free beer" />
+        <Amenity active={venue.amenities.nonAlcoholic} label="0.0% beer" />
         <Amenity active={venue.amenities.liveSports} label="Live sports" />
         <Amenity active={venue.amenities.food} label="Serves food" />
         <Amenity active={venue.amenities.cocktails} label="Cocktails" />

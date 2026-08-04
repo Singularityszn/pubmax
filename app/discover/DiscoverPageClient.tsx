@@ -446,7 +446,7 @@ export default function DiscoverPageClient({
                   style={{ color: "var(--pint)" }}
                   aria-hidden="true"
                 >
-                  Free
+                  0.0
                 </span>
                 <span className="catShowcase__labelWrap">
                   <span className="catShowcase__label">Low / No</span>

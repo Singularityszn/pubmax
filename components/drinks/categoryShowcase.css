@@ -271,11 +271,6 @@
   /* Widen the fade so the clipped card reads as an intentional "more here"
      cue (and so it sits under the 44px arrows), not an accident. */
   .catShowcase--explore .catShowcase__grid {
-    /* Reserve the fade/arrow lanes as real scroll gutters. Without this the
-       first card began 17px into a 44px fade and its swatch sat under Prev,
-       leaving the Discover replacement badge visible only as "ee". */
-    padding: 2px 46px 6px;
-    scroll-padding-inline: 46px;
     -webkit-mask-image: linear-gradient(
       to right,
       transparent,

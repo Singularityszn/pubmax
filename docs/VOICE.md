@@ -53,7 +53,6 @@ Empty states, errors, the morning after, the return visit: each earns a human li
 - **No em dashes. Anywhere in product copy.** Use a full stop, a comma, or a colon. (Enforced tree-wide by `__tests__/emDashLaw.test.ts`, the em-dash law below. Never reintroduce one.)
 - **No exclamation marks.** A Londoner doesn't oversell. One confident line beats a shouted one.
 - **No fake counts, no invented data.** If a number isn't real, don't show it. "No price logged here yet" beats "0 observations". (Taste doctrine.)
-- **Name alcohol-free choices in words.** Controls and prose say "alcohol-free", never bare "0.0" category shorthand that reads like broken number formatting. A real drink name may keep its branded wording.
 - **British spelling.** _colour, favourite, realise, licence, metre, cancelled._ Never _color, favorite, realize._
 - **No begging.** No "please try again", no "check back later", no "don't miss out".
 

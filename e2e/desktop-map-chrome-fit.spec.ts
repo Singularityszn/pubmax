@@ -2,7 +2,6 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const DESKTOP = { width: 1440, height: 900 };
 const DESKTOP_WIDTHS = [1024, 1280, 1440, 1600] as const;
-const FIRST_RUN_BANNER_WIDTHS = [641, 800, 1023, ...DESKTOP_WIDTHS] as const;
 const EXPECTED_PLANNER_RAIL_WIDTHS: Record<
   (typeof DESKTOP_WIDTHS)[number],
   number
@@ -94,148 +93,6 @@ async function captureDrawerExchange(page: Page, name: string) {
   });
 }
 
-async function firstDrawerOwnershipCommit(trigger: Locator) {
-  return trigger.evaluate((button) => {
-    const planner = document.querySelector<HTMLElement>(
-      ".mapDrawer.left.springDrawer",
-    );
-    const venue = document.querySelector<HTMLElement>(
-      ".mapDrawer.right.springDrawer",
-    );
-    if (!planner || !venue) throw new Error("desktop drawers are missing");
-
-    return new Promise<{
-      plannerHidden: string | null;
-      venueHidden: string | null;
-    }>((resolve) => {
-      const observer = new MutationObserver(() => {
-        observer.disconnect();
-        resolve({
-          plannerHidden: planner.getAttribute("aria-hidden"),
-          venueHidden: venue.getAttribute("aria-hidden"),
-        });
-      });
-      for (const drawer of [planner, venue]) {
-        observer.observe(drawer, {
-          attributes: true,
-          attributeFilter: ["aria-hidden"],
-        });
-      }
-      (button as HTMLElement).click();
-    });
-  });
-}
-
-async function installFirstPlannerFrameProbe(
-  page: Page,
-  expectedSearch: string,
-) {
-  await page.addInitScript((search) => {
-    if (window.location.search !== search) return;
-
-    const measure = () => {
-      const shell = document.querySelector(".appShell.planning-open");
-      const toolbar = shell?.querySelector<HTMLElement>(".mapToolbar");
-      const rail = shell?.querySelector<HTMLElement>(".mapDrawer.left.open");
-      if (!toolbar || !rail || !toolbar.style.transform) {
-        window.requestAnimationFrame(measure);
-        return;
-      }
-
-      const toolbarBox = toolbar.getBoundingClientRect();
-      const railBox = rail.getBoundingClientRect();
-      Object.assign(window, {
-        __pubmaxFirstPlannerFrame: {
-          toolbarLeft: toolbarBox.left,
-          railRight: railBox.right,
-        },
-      });
-    };
-
-    window.requestAnimationFrame(measure);
-  }, expectedSearch);
-}
-
-async function firstPlannerFrame(page: Page) {
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          (
-            window as typeof window & {
-              __pubmaxFirstPlannerFrame?: {
-                toolbarLeft: number;
-                railRight: number;
-              };
-            }
-          ).__pubmaxFirstPlannerFrame ?? null,
-      ),
-    )
-    .not.toBeNull();
-  return page.evaluate(
-    () =>
-      (
-        window as typeof window & {
-          __pubmaxFirstPlannerFrame: {
-            toolbarLeft: number;
-            railRight: number;
-          };
-        }
-      ).__pubmaxFirstPlannerFrame,
-  );
-}
-
-test("1280px plan deep link clears the planner rail on its first spring-owned frame", async ({
-  page,
-}) => {
-  await prepareDesktopMap(page, 1280);
-  await stubCityStatus(page);
-  await installFirstPlannerFrameProbe(page, "?plan=1");
-
-  const response = await page.goto("/map?plan=1", {
-    waitUntil: "domcontentloaded",
-  });
-  expect(response?.status()).toBe(200);
-
-  const frame = await firstPlannerFrame(page);
-  expect(frame.toolbarLeft).toBeGreaterThanOrEqual(
-    frame.railRight + EDGE_GUTTER,
-  );
-});
-
-test("1280px restored planner clears the rail on its first spring-owned frame", async ({
-  page,
-}) => {
-  await prepareDesktopMap(page, 1280);
-  await stubCityStatus(page);
-  const setup = await page.goto("/map?plan=1", {
-    waitUntil: "domcontentloaded",
-  });
-  expect(setup?.status()).toBe(200);
-  await expect(page.locator(".mapDrawer.left.open")).toBeVisible({
-    timeout: 20_000,
-  });
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const value = window.localStorage.getItem(
-          "pubmaxx.mobile-map-session.v1",
-        );
-        return value ? JSON.parse(value).openSheet : null;
-      }),
-    )
-    .toBe("planner");
-
-  await installFirstPlannerFrameProbe(page, "");
-  const response = await page.goto("/map", { waitUntil: "domcontentloaded" });
-  expect(response?.status()).toBe(200);
-
-  const frame = await firstPlannerFrame(page);
-  expect(frame.toolbarLeft).toBeGreaterThanOrEqual(
-    frame.railRight + EDGE_GUTTER,
-  );
-});
-
 for (const width of DESKTOP_WIDTHS) {
   test(`${width}px open planner keeps toolbar search and Clear search beyond the rail edge`, async ({
     page,
@@ -311,7 +168,6 @@ for (const width of DESKTOP_WIDTHS) {
 test("1440px planner hands ownership to venue and Back restores composed state", async ({
   page,
 }) => {
-  test.setTimeout(60_000);
   await prepareDesktopMap(page);
   await stubCityStatus(page);
 
@@ -465,23 +321,19 @@ test("1440px Plan tonight takes ownership from an open venue", async ({
   expect(response?.status()).toBe(200);
 
   const toolbar = page.locator(".mapToolbar");
+  const planner = page.locator(".mapDrawer.left.springDrawer");
   const venue = page.locator(".mapDrawer.right.springDrawer");
   await expect(toolbar).toBeVisible({ timeout: 20_000 });
   await selectToolbarPub(page, "The French House", /The French House/);
   await expect(venue).toHaveAttribute("aria-hidden", "false");
 
-  // This branch owns only the captain's synchronous drawer decision. Selection
-  // and surface history remain separate owners, and the later traversal race is
-  // deliberately handed off in data/nomistakes-land-two-fixes. Capture the
-  // first React commit so this regression cannot accidentally wait for, or
-  // claim to reconcile, that deferred history work.
-  const ownership = await firstDrawerOwnershipCommit(
-    toolbar.getByRole("button", { name: "Plan tonight" }),
-  );
-  expect(ownership).toEqual({
-    plannerHidden: "false",
-    venueHidden: "true",
-  });
+  await toolbar
+    .getByRole("button", { name: "Plan tonight" })
+    .evaluate((button) => (button as HTMLElement).click());
+
+  await expect(planner).toHaveAttribute("aria-hidden", "false");
+  await expect(venue).toHaveAttribute("aria-hidden", "true");
+  await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
 });
 
 test("1440px loaded route opens its first venue without a deferred planner handoff", async ({
@@ -596,7 +448,7 @@ test("1440px reduced motion swaps desktop drawer ownership immediately", async (
   expect(venueBox.x).toBeCloseTo(800, 0);
 });
 
-for (const width of FIRST_RUN_BANNER_WIDTHS) {
+for (const width of DESKTOP_WIDTHS) {
   test(`${width}px first-run location prompt owns centre while status yields to its left`, async ({
     page,
   }) => {

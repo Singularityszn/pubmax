@@ -1,7 +1,6 @@
 # Desktop feature parity — gap audit & phased plan
 
-**Status:** **HISTORICAL SNAPSHOT** (gap audit as of 2026-07-23; current behavior lives in source)
-
+**Status:** **FINAL** (collision-aware plan complete — stop here; no implementation waves)  
 **Date:** 2026-07-23  
 **Away-mode supervisor:** Local commit on this docs branch only. **Do not push, open PR, or merge** without owner review. **Do not start Waves D1–D6.**  
 **Isolation (mandatory):** this plan lives **only** on a dedicated git worktree / branch so it does not pollute `main` or other cmux agent trees.

@@ -4,30 +4,13 @@ Status: next-lane input, intentionally not fixed in `nomistakes-land-two-fixes`.
 
 ## Ownership conflict
 
-Desktop drawer mutual exclusion is synchronous in `claimMapDrawer`, called by
-`openPlanning` and `selectVenue` in `components/PubMap.tsx`: opening the planner
-clears venue selection, while opening a venue closes the planner. Loaded-route
-activation calls those same direct owners through `showLoadedRoute`; it has no
-pending selection or reconcile-after-transition effect. Browser history remains
-split between two independent owners.
+Desktop drawer mutual exclusion is synchronous at `components/PubMap.tsx:974-993` and `components/PubMap.tsx:1562-1589`: opening the planner clears venue selection, while opening a venue closes the planner. Loaded-route activation uses the same direct ownership calls at `components/PubMap.tsx:1699-1708`; it has no pending selection or reconcile-after-transition effect. Browser history remains split between two independent owners.
 
-- `useMapSelectionHistory` owns the venue selection sentinel. Its `back`
-  transition calls `window.history.back()`, then its `popstate` listener
-  reconciles the result.
-- `useSurfaceStack` separately calls `window.history.back()` for surface Back.
-  Its own `popstate` listener derives trail depth from the entry that wins the
-  traversal.
-- `useMapSurfaceTrail` follows the visible surface and deliberately opens a
-  venue without pushing a second history entry.
+- `components/map/pubmap/useMapSelectionHistory.ts:55` owns the venue selection sentinel. Its close transition calls `window.history.back()` at `components/map/pubmap/useMapSelectionHistory.ts:134`, then reconciles the resulting `popstate` at `components/map/pubmap/useMapSelectionHistory.ts:156`.
+- `lib/useSurfaceStack.ts:139` separately calls `window.history.back()` for surface Back. Its listener at `lib/useSurfaceStack.ts:162` derives trail depth from the entry that wins the traversal.
+- `components/map/pubmap/useMapSurfaceTrail.ts:103` follows the visible surface and deliberately opens a venue without pushing a second history entry at `components/map/pubmap/useMapSurfaceTrail.ts:118`.
 
 These owners can each issue or interpret a traversal without knowing whether the other owner has a pending move. Local pop holds and settlement callbacks cannot make two independently queued history deltas atomic.
-
-Four review rounds exposed four timings of this one ownership defect. Each fix
-made one owner wait for, preserve, or reconcile state from the other, but neither
-owner became authoritative for the whole transition. That negotiation could
-observe the other system after a traversal; it could not serialize both history
-deltas before they ran. Closing one ordering therefore exposed another until the
-asynchronous coordination was removed from this lane.
 
 ## Review findings
 
@@ -47,23 +30,11 @@ Review location: `components/PubMap.tsx:1005` before the asynchronous coordinati
 
 The removed early-Back regression navigated directly to `/map`, so it did not establish a real predecessor before queuing two Back operations. It could pass even when the second traversal would leave the Map in a real journey.
 
-The retained `1440px planner hands ownership to venue and Back restores composed
-state` regression proves ordinary planner-to-venue ownership and composed-state
-restoration. It does not start from a root venue, queue selection-history
-release, or issue concurrent browser Back.
+The retained regression at `e2e/desktop-map-chrome-fit.spec.ts:168-310` proves ordinary planner-to-venue ownership and composed-state restoration. It does not start from a root venue, queue selection-history release, or issue concurrent browser Back.
 
-The retained `1440px Plan tonight takes ownership from an open venue` regression
-proves only synchronous venue-to-planner ownership: one drawer owns the first
-React commit after Plan tonight. It does not wait for or coordinate any
-browser-history traversal.
+The retained regression at `e2e/desktop-map-chrome-fit.spec.ts:312-337` proves only synchronous venue-to-planner ownership: one drawer is open immediately after Plan tonight. It does not wait for or coordinate any browser-history traversal.
 
-The `1440px loaded route opens its first venue without a deferred planner
-handoff` regression proves only that loading a route reaches the venue as one
-synchronous ownership batch, without a transient planner-open mutation. The
-previous loaded-route Back-restoration assertion was removed because it
-depended on the deferred planner-to-venue trail negotiation that this branch
-deliberately descoped. The replacement never presses Back, never establishes a
-predecessor, and cannot detect either concurrent history race quoted above.
+The loaded-route regression at `e2e/desktop-map-chrome-fit.spec.ts:339-416` now proves only that loading a route reaches the venue as one synchronous ownership batch, without a transient planner-open mutation. The previous loaded-route Back-restoration assertion was removed because it depended on the deferred planner-to-venue trail negotiation that this branch deliberately descoped. The replacement never presses Back, never establishes a predecessor, and cannot detect either concurrent history race quoted above.
 
 ## Requirements for a correct next-lane design
 
