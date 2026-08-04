@@ -1,9 +1,10 @@
 /**
- * Throwaway local Postgres for effective RLS session tests.
- * Starts an ephemeral cluster, applies fixture + wave-2 migrations, exposes
- * a SQL runner. Never touches a live Supabase project.
+ * Throwaway local Postgres and PostgREST for effective RLS session tests.
+ * Starts an ephemeral cluster, applies fixture + wave-2 migrations, and
+ * exposes SQL and HTTP runners. Never touches a live Supabase project.
  */
 import { spawn, execFileSync } from "node:child_process";
+import { createHmac } from "node:crypto";
 import {
   existsSync,
   mkdtempSync,
@@ -51,6 +52,42 @@ function findPgBin(name) {
     }
   }
   return null;
+}
+
+function findPostgrestBin() {
+  const candidates = [
+    process.env.POSTGREST_BIN,
+    "/opt/homebrew/bin/postgrest",
+    "/usr/local/bin/postgrest",
+    "/usr/bin/postgrest",
+    "postgrest",
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    try {
+      if (candidate === "postgrest") {
+        execFileSync("which", [candidate], { stdio: "pipe" });
+        return candidate;
+      }
+      if (existsSync(candidate)) return candidate;
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
+
+function jwt(secret, sub) {
+  const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  const header = encode({ alg: "HS256", typ: "JWT" });
+  const payload = encode({
+    role: "authenticated",
+    sub,
+    exp: Math.floor(Date.now() / 1000) + 300,
+  });
+  const signature = createHmac("sha256", secret)
+    .update(`${header}.${payload}`)
+    .digest("base64url");
+  return `${header}.${payload}.${signature}`;
 }
 
 /**
@@ -106,8 +143,6 @@ export async function startRlsSession() {
 
   const dataDir = mkdtempSync(join(tmpdir(), "pubmax-rls-"));
   const port = await pickPort();
-  const logFile = join(dataDir, "postgres.log");
-
   execFileSync(
     initdb,
     ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"],
@@ -174,12 +209,13 @@ export async function startRlsSession() {
     const full = [
       `select set_config('request.jwt.claim.sub', '${claim}', false);`,
       asRole ? `set role ${asRole};` : "set role none;",
-      // Wrap caller SQL so the only RESULT: line is the answer we parse.
-      // Caller may be multi-statement (seed); for those we skip wrapping.
-      statement.includes("RESULT:") || statement.trim().startsWith("insert ") ||
-      statement.trim().startsWith("create ") || statement.includes(";\n")
-        ? statement
-        : `select 'RESULT:' || coalesce((${statement.replace(/;\s*$/, "")})::text, '');`,
+      // Wrap scalar SELECTs so the only RESULT: line is the answer we parse.
+      // Writes must execute as writes: wrapping DELETE in SELECT both errors and
+      // can make a row-survival test pass without exercising its policy.
+      statement.trimStart().toLowerCase().startsWith("select ") &&
+      !statement.includes(";\n")
+        ? `select 'RESULT:' || coalesce((${statement.replace(/;\s*$/, "")})::text, '');`
+        : `${statement.replace(/;\s*$/, "")};`,
       "reset role;",
       "select set_config('request.jwt.claim.sub', '', false);",
     ].join("\n");
@@ -241,13 +277,96 @@ export async function startRlsSession() {
   // 0068 service-role-only for rounds* (and the drop of public reads)
   sqlFile(join(__dirname, "session-service-role.sql"));
 
+  const postgrest = findPostgrestBin();
+  if (!postgrest) {
+    proc.kill("SIGKILL");
+    rmSync(dataDir, { recursive: true, force: true });
+    throw new Error(
+      "PostgreSQL is available but PostgREST is not. Install PostgREST 14 or set POSTGREST_BIN; HTTP-boundary RLS proofs may not be skipped.",
+    );
+  }
+
+  const restPort = await pickPort();
+  const jwtSecret = "pubmax-rls-session-only-secret-32-bytes-minimum";
+  const restLogs = [];
+  const restProc = spawn(postgrest, [], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      // Homebrew PostgREST links libpq from its standalone formula. Test hosts
+      // may only have versioned PostgreSQL, whose compatible libpq lives here.
+      DYLD_LIBRARY_PATH:
+        process.env.DYLD_LIBRARY_PATH || join(dirname(dirname(initdb)), "lib"),
+      PGRST_DB_URI: `postgres://postgres@127.0.0.1:${port}/${dbName}`,
+      PGRST_DB_SCHEMAS: "public",
+      PGRST_DB_ANON_ROLE: "anon",
+      PGRST_JWT_SECRET: jwtSecret,
+      PGRST_SERVER_HOST: "127.0.0.1",
+      PGRST_SERVER_PORT: String(restPort),
+      PGRST_DB_CHANNEL_ENABLED: "false",
+    },
+  });
+  restProc.stdout?.on("data", (chunk) => restLogs.push(chunk.toString()));
+  restProc.stderr?.on("data", (chunk) => restLogs.push(chunk.toString()));
+
+  const restBaseUrl = `http://127.0.0.1:${restPort}`;
+  let restReady = false;
+  for (let i = 0; i < 100; i++) {
+    try {
+      const response = await fetch(restBaseUrl);
+      if (response.ok) {
+        restReady = true;
+        break;
+      }
+    } catch {
+      /* wait for listener and schema cache */
+    }
+    await sleep(100);
+  }
+  if (!restReady) {
+    restProc.kill("SIGKILL");
+    proc.kill("SIGKILL");
+    rmSync(dataDir, { recursive: true, force: true });
+    throw new Error(`PostgREST failed to start:\n${restLogs.join("")}`);
+  }
+
+  async function rest(path, { method = "GET", sub = null, headers = {} } = {}) {
+    const upstreamPath = path.replace(/^\/rest\/v1/, "") || "/";
+    const requestHeaders = { ...headers };
+    if (sub) requestHeaders.Authorization = `Bearer ${jwt(jwtSecret, sub)}`;
+    const response = await fetch(`${restBaseUrl}${upstreamPath}`, {
+      method,
+      headers: requestHeaders,
+    });
+    const text = await response.text();
+    let body = null;
+    if (text) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text;
+      }
+    }
+    return { status: response.status, body, text };
+  }
+
   async function stop() {
+    try {
+      restProc.kill("SIGTERM");
+    } catch {
+      /* ignore */
+    }
     try {
       proc.kill("SIGTERM");
     } catch {
       /* ignore */
     }
     await sleep(200);
+    try {
+      restProc.kill("SIGKILL");
+    } catch {
+      /* ignore */
+    }
     try {
       proc.kill("SIGKILL");
     } catch {
@@ -265,6 +384,7 @@ export async function startRlsSession() {
     dataDir,
     sql,
     sqlFile,
+    rest,
     stop,
     rollbackPath: join(MIGRATIONS_DIR, "rollback/20260803200000_rls_wave2_rollback.sql"),
   };

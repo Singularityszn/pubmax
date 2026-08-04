@@ -56,11 +56,11 @@ jobs:
       - name: Production build
         run: npm run build
 
-  # Real RLS proofs need Postgres 16 binaries (initdb/postgres/psql).
+  # Real RLS proofs need Postgres 16 binaries and PostgREST 14.
   # Kept separate from `build` so Vercel-style hosts without a database can
   # still green `npm run ci` while this job fails if sessions regress.
   rls-session:
-    name: Effective RLS (Postgres 16)
+    name: Effective RLS (Postgres 16 + PostgREST 14)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -90,14 +90,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install PostgreSQL 16 server tools (initdb/postgres/psql)
+      - name: Install PostgreSQL 16 and PostgREST 14
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-16
           echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+          curl --fail --location --silent --show-error \
+            --output "$RUNNER_TEMP/postgrest.tar.xz" \
+            https://github.com/PostgREST/postgrest/releases/download/v14.16/postgrest-v14.16-linux-static-x86-64.tar.xz
+          echo "36b8ae140f188cfcd6003494805bf35a41e895f88c12be9183d60f91782145c6  $RUNNER_TEMP/postgrest.tar.xz" \
+            | sha256sum --check
+          tar --extract --xz --file "$RUNNER_TEMP/postgrest.tar.xz" --directory "$RUNNER_TEMP"
+          chmod +x "$RUNNER_TEMP/postgrest"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
           initdb --version
           postgres --version
           psql --version
+          "$RUNNER_TEMP/postgrest" --version
 
       - name: Run effective RLS session tests
         run: npm run test:rls
