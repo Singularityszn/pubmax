@@ -76,6 +76,8 @@ begin
           'night_story_contributors_host_write',
           'night_story_contributors_host_all',
           'night_story_moments_host_all',
+          'night_story_moments_host_or_published_select',
+          'night_story_moments_host_write',
           'night_story_publish_proposals_party_all',
           'night_story_publish_proposals_host_all',
           'structured_visit_reports_visible_select',

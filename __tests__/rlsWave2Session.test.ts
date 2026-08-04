@@ -114,6 +114,20 @@ beforeAll(async () => {
       ('d1000000-0000-4000-8000-000000000002', 'v1', 'alice', 'hidden visit', 'hidden');
 
     insert into public.rounds (id, code) values ('e2000000-0000-4000-8000-000000000001', 'ABCD');
+
+    -- Night story graph: alice hosts a published public story with one moment;
+    -- a second moment is owner-private (not on the story). Used to prove
+    -- DELETE isolation on night_story_moments / night_moments / night_stories.
+    insert into public.night_memories (id, owner_id, title) values
+      ('aa000000-0000-4000-8000-000000000001', '${OWNER}', 'Alice night');
+    insert into public.night_moments (id, memory_id, owner_id, kind, caption) values
+      ('ab000000-0000-4000-8000-000000000001', 'aa000000-0000-4000-8000-000000000001', '${OWNER}', 'event', 'pub moment'),
+      ('ab000000-0000-4000-8000-000000000002', 'aa000000-0000-4000-8000-000000000001', '${OWNER}', 'event', 'private moment');
+    insert into public.night_stories (id, memory_id, host_editor_id, title, status, visibility, published_at) values
+      ('ac000000-0000-4000-8000-000000000001', 'aa000000-0000-4000-8000-000000000001', '${OWNER}', 'Published night', 'published', 'public', now()),
+      ('ac000000-0000-4000-8000-000000000002', 'aa000000-0000-4000-8000-000000000001', '${OWNER}', 'Draft night', 'draft', 'private', null);
+    insert into public.night_story_moments (story_id, moment_id, position) values
+      ('ac000000-0000-4000-8000-000000000001', 'ab000000-0000-4000-8000-000000000001', 0);
   `;
   const r = session!.sql(seed);
   if (!r.ok) {
@@ -176,6 +190,24 @@ function tryWrite(
 ): boolean {
   const r = requireSession().sql(statement, opts);
   return r.ok;
+}
+
+/**
+ * Attempt a DELETE as a client role, then count remaining rows as table owner
+ * (bypasses RLS). RLS that filters the row out of DELETE returns success with
+ * 0 rows affected — so "ok" alone is not proof the moderation record survived.
+ */
+function rowSurvivesDelete(
+  table: string,
+  where: string,
+  opts: { asRole?: string | null; sub?: string | null },
+): boolean {
+  const s = requireSession();
+  // Best-effort client delete. Privilege denial or RLS filter both leave the row.
+  s.sql(`delete from public.${table} where ${where}`, opts);
+  const left = s.sql(`select count(*)::text from public.${table} where ${where}`);
+  if (!left.ok) throw new Error(`post-delete count ${table}: ${left.err}`);
+  return Number(left.out) === 1;
 }
 
 describe("visit_reports — effective RLS", () => {
@@ -253,6 +285,16 @@ describe("visit_reports — effective RLS", () => {
       ).toBe(false);
     }
   });
+
+  it("keeps a hidden drop undeletable by its author (moderation record survives)", () => {
+    expect(
+      rowSurvivesDelete(
+        "visit_reports",
+        "id = 'e1000000-0000-4000-8000-000000000004'",
+        { asRole: "authenticated", sub: OWNER },
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("community_prices — effective RLS", () => {
@@ -282,6 +324,16 @@ describe("community_prices — effective RLS", () => {
         sub: OTHER,
       }),
     ).toBe(false);
+  });
+
+  it("keeps a hidden price undeletable by its contributing actor", () => {
+    expect(
+      rowSurvivesDelete(
+        "community_prices",
+        "id = 'f1000000-0000-4000-8000-000000000002'",
+        { asRole: "authenticated", sub: OWNER },
+      ),
+    ).toBe(true);
   });
 });
 
@@ -416,10 +468,93 @@ describe("structured_visit_reports + rounds — effective RLS", () => {
     ).toBe(false);
   });
 
+  it("keeps a hidden structured visit report undeletable by its author", () => {
+    expect(
+      rowSurvivesDelete(
+        "structured_visit_reports",
+        "id = 'd1000000-0000-4000-8000-000000000002'",
+        { asRole: "authenticated", sub: OWNER },
+      ),
+    ).toBe(true);
+  });
+
   it("denies client roles on rounds (service-role only)", () => {
     expect(canSelect("rounds", "true", { asRole: "anon" })).toBe(false);
     expect(
       canSelect("rounds", "true", { asRole: "authenticated", sub: OWNER }),
+    ).toBe(false);
+  });
+});
+
+describe("night_story_moments / night_stories / night_moments — write isolation", () => {
+  const PUBLISHED_STORY = "ac000000-0000-4000-8000-000000000001";
+  const DRAFT_STORY = "ac000000-0000-4000-8000-000000000002";
+  const STORY_MOMENT = "ab000000-0000-4000-8000-000000000001";
+  const PRIVATE_MOMENT = "ab000000-0000-4000-8000-000000000002";
+
+  it("lets any authenticated reader select moments on a published public story", () => {
+    expect(
+      canSelect(
+        "night_story_moments",
+        `story_id = '${PUBLISHED_STORY}' and moment_id = '${STORY_MOMENT}'`,
+        { asRole: "authenticated", sub: OTHER },
+      ),
+    ).toBe(true);
+  });
+
+  it("denies non-host DELETE on a published story moment (moderation record / join survives)", () => {
+    // Gate defect: FOR ALL + published USING let any authenticated user delete.
+    expect(
+      rowSurvivesDelete(
+        "night_story_moments",
+        `story_id = '${PUBLISHED_STORY}' and moment_id = '${STORY_MOMENT}'`,
+        { asRole: "authenticated", sub: OTHER },
+      ),
+    ).toBe(true);
+    // Host may still remove the join row (product path is service-role, but
+    // the host write policy is intentional).
+    const hostDelete = requireSession().sql(
+      `delete from public.night_story_moments
+       where story_id = '${PUBLISHED_STORY}' and moment_id = '${STORY_MOMENT}'`,
+      { asRole: "authenticated", sub: OWNER },
+    );
+    expect(hostDelete.ok).toBe(true);
+    // Restore for later assertions in this file.
+    const restore = requireSession().sql(
+      `insert into public.night_story_moments (story_id, moment_id, position)
+       values ('${PUBLISHED_STORY}', '${STORY_MOMENT}', 0)
+       on conflict do nothing`,
+    );
+    expect(restore.ok).toBe(true);
+  });
+
+  it("denies non-host DELETE on a draft night story and a private night moment", () => {
+    expect(
+      rowSurvivesDelete("night_stories", `id = '${DRAFT_STORY}'`, {
+        asRole: "authenticated",
+        sub: OTHER,
+      }),
+    ).toBe(true);
+    expect(
+      rowSurvivesDelete("night_moments", `id = '${PRIVATE_MOMENT}'`, {
+        asRole: "authenticated",
+        sub: OTHER,
+      }),
+    ).toBe(true);
+  });
+
+  it("denies non-owner SELECT of a private night moment and draft story", () => {
+    expect(
+      canSelect("night_moments", `id = '${PRIVATE_MOMENT}'`, {
+        asRole: "authenticated",
+        sub: OTHER,
+      }),
+    ).toBe(false);
+    expect(
+      canSelect("night_stories", `id = '${DRAFT_STORY}'`, {
+        asRole: "authenticated",
+        sub: OTHER,
+      }),
     ).toBe(false);
   });
 });
