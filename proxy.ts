@@ -6,6 +6,16 @@ import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentit
 
 const CANONICAL_HOST = "pubmaxxing.com";
 
+// Preview and development deploys must never be indexed. VERCEL_ENV is the
+// authority (preview hostnames change every deployment). Production keeps no
+// extra robots header so the crawl invitation in app/robots.ts stands alone.
+function applyNonProductionRobotsTag(response: NextResponse): NextResponse {
+  if (process.env.VERCEL_ENV !== "production") {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
+  return response;
+}
+
 function normalizeHostname(host: string | null | undefined): string | null {
   const normalizedHost = host?.trim().toLowerCase();
   if (!normalizedHost) return null;
@@ -95,18 +105,24 @@ export function securityProxy(request: NextRequest) {
     canonicalUrl.protocol = "https:";
     canonicalUrl.host = CANONICAL_HOST;
     canonicalUrl.port = "";
-    return NextResponse.redirect(canonicalUrl, 308);
+    // Permanent host redirects still get the tag when not production so a
+    // preview artifact never answers without noindex, even mid-redirect.
+    return applyNonProductionRobotsTag(
+      NextResponse.redirect(canonicalUrl, 308),
+    );
   }
   if (pathname === "/ingest" || pathname.startsWith("/ingest/")) {
-    return NextResponse.next();
+    return applyNonProductionRobotsTag(NextResponse.next());
   }
   if (pathname.length > 1 && pathname.endsWith("/")) {
     const canonicalUrl = new URL(request.url);
     canonicalUrl.pathname = pathname.slice(0, -1);
-    return NextResponse.redirect(canonicalUrl, 308);
+    return applyNonProductionRobotsTag(
+      NextResponse.redirect(canonicalUrl, 308),
+    );
   }
   if (shouldSkipContentSecurityPolicy(request)) {
-    return NextResponse.next();
+    return applyNonProductionRobotsTag(NextResponse.next());
   }
 
   // Crypto-random, base64-encoded nonce (a fresh UUID per request).
@@ -203,7 +219,7 @@ export function securityProxy(request: NextRequest) {
   });
   // And on the RESPONSE header so the browser actually enforces it.
   response.headers.set("Content-Security-Policy", contentSecurityPolicy);
-  return response;
+  return applyNonProductionRobotsTag(response);
 }
 
 // THE SHIPPED ENTRY POINT. Clerk's quickstart says to create proxy.ts with

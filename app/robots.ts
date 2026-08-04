@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
+
 // Wave S1.1 — robots policy. PUBMAXX WANTS to be crawled, by search engines and
 // by AI assistants alike: our moat is unique, dated, provenance-first facts
 // (3,000+ tracked pint prices, 346 cited historic pubs), and the growth thesis
@@ -27,10 +29,14 @@ import type { MetadataRoute } from "next";
 //   /activity,
 //   /auth
 //
+// Preview / development deployments (anything other than VERCEL_ENV=production)
+// are NOT the product. They get a total disallow plus X-Robots-Tag from
+// proxy.ts so a share link or lifted deployment protection cannot create a
+// second indexed copy of pubmaxxing.com. The check is the Vercel env var, not
+// the hostname — preview hosts change every deployment.
+//
 // The nonce CSP (proxy.ts) forces dynamic rendering, so this file is served
 // per-request rather than statically — fine for a robots response.
-
-const SITE_URL = "https://pubmaxxing.com";
 
 // Explicitly-named AI + search crawlers we welcome. Listing them documents the
 // "be AI-visible" decision; the policy each gets is the same as the wildcard.
@@ -57,7 +63,24 @@ const DISALLOW = [
   "/auth",
 ];
 
+function isProductionDeployment(
+  vercelEnv: string | undefined = process.env.VERCEL_ENV,
+): boolean {
+  return vercelEnv === "production";
+}
+
 export default function robots(): MetadataRoute.Robots {
+  // Non-production: block every path. No sitemap, no host, no AI allow list —
+  // a preview must never look crawlable even if protection is off.
+  if (!isProductionDeployment()) {
+    return {
+      rules: {
+        userAgent: "*",
+        disallow: "/",
+      },
+    };
+  }
+
   return {
     rules: [
       { userAgent: "*", allow: "/", disallow: DISALLOW },
@@ -69,7 +92,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: DISALLOW,
       })),
     ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
-    host: SITE_URL,
+    sitemap: `${PRODUCTION_SITE_ORIGIN}/sitemap.xml`,
+    host: PRODUCTION_SITE_ORIGIN,
   };
 }
