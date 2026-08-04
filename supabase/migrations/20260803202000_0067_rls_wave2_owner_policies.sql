@@ -327,9 +327,18 @@ create policy night_story_contributors_anon_deny
   on public.night_story_contributors for all to anon
   using (false) with check (false);
 
+-- Published/unlisted stories may be READs for any signed-in client. Writes
+-- (including DELETE) stay host-only. A prior FOR ALL policy put the published
+-- predicate in USING, so PostgreSQL allowed any authenticated user to DELETE
+-- join rows on a published story (WITH CHECK is not used for DELETE). Split
+-- so a published-row predicate never rides a write verb.
 drop policy if exists night_story_moments_host_all on public.night_story_moments;
-create policy night_story_moments_host_all
-  on public.night_story_moments for all to authenticated
+drop policy if exists night_story_moments_host_or_published_select
+  on public.night_story_moments;
+drop policy if exists night_story_moments_host_write on public.night_story_moments;
+
+create policy night_story_moments_host_or_published_select
+  on public.night_story_moments for select to authenticated
   using (
     exists (
       select 1 from public.night_stories s
@@ -340,6 +349,15 @@ create policy night_story_moments_host_all
       where s.id = story_id
         and s.status = 'published'
         and s.visibility in ('public', 'unlisted')
+    )
+  );
+
+create policy night_story_moments_host_write
+  on public.night_story_moments for all to authenticated
+  using (
+    exists (
+      select 1 from public.night_stories s
+      where s.id = story_id and s.host_editor_id = (select auth.uid())
     )
   )
   with check (

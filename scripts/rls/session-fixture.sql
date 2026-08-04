@@ -220,6 +220,50 @@ create table if not exists public.round_spends (
 );
 alter table public.round_spends enable row level security;
 
+-- Night memories / stories / moments (minimal columns for RLS delete tests)
+create table if not exists public.night_memories (
+  id uuid primary key,
+  owner_id uuid not null,
+  title text not null default 'memory',
+  visibility text not null default 'private',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.night_memories enable row level security;
+
+create table if not exists public.night_moments (
+  id uuid primary key,
+  memory_id uuid not null references public.night_memories(id) on delete cascade,
+  owner_id uuid not null,
+  kind text not null default 'event',
+  caption text not null default 'moment',
+  visibility text not null default 'private',
+  created_at timestamptz not null default now()
+);
+alter table public.night_moments enable row level security;
+
+create table if not exists public.night_stories (
+  id uuid primary key,
+  memory_id uuid not null references public.night_memories(id) on delete cascade,
+  host_editor_id uuid not null,
+  title text not null default 'story',
+  summary text not null default '',
+  status text not null default 'draft',
+  visibility text not null default 'private',
+  published_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.night_stories enable row level security;
+
+create table if not exists public.night_story_moments (
+  story_id uuid not null references public.night_stories(id) on delete cascade,
+  moment_id uuid not null references public.night_moments(id) on delete cascade,
+  position integer not null default 0,
+  primary key (story_id, moment_id)
+);
+alter table public.night_story_moments enable row level security;
+
 -- Prior public-read policies that wave 2 closes (so 0068 has something to drop)
 create policy rounds_public_read on public.rounds for select using (true);
 create policy round_members_public_read on public.round_members for select using (true);
