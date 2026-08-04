@@ -107,7 +107,6 @@ describe("Map surface open decision", () => {
   it("pushes a surface not yet in trail", () => {
     expect(mapSurfaceOpenTransition([planner], venue)).toEqual({
       kind: "push",
-      delta: 0,
       stack: [planner, venue],
     });
   });
@@ -121,16 +120,14 @@ describe("Map surface open decision", () => {
 
     expect(mapSurfaceOpenTransition([planner, venue], nextVenue)).toEqual({
       kind: "replace",
-      delta: 0,
       stack: [planner, nextVenue],
     });
   });
 
-  it("traverses directly to known parent", () => {
+  it("writes a fresh entry when reopening a known parent", () => {
     expect(mapSurfaceOpenTransition([planner, venue], planner)).toEqual({
-      kind: "traverse",
-      delta: -1,
-      stack: [planner],
+      kind: "push",
+      stack: [venue, planner],
     });
   });
 });

@@ -128,11 +128,6 @@ export function useMapSurfaceNavigation({
     (entry: SurfaceEntry<MapSurfaceState>) => {
       if (!initialisedRef.current || typeof window === "undefined") return;
       const transition = mapSurfaceOpenTransition(stackRef.current, entry);
-      if (transition.kind === "traverse") {
-        window.history.go(transition.delta);
-        return;
-      }
-
       publishStack(transition.stack);
       const state = stampMapSurfaceHistory(
         window.history.state,

@@ -66,8 +66,7 @@ export function stampMapSurfaceHistory<S>(
 }
 
 export type MapSurfaceOpenTransition<S> = {
-  kind: "push" | "replace" | "traverse";
-  delta: number;
+  kind: "push" | "replace";
   stack: SurfaceStack<S>;
 };
 
@@ -78,14 +77,13 @@ export function mapSurfaceOpenTransition<S>(
   const existingIndex = stack.findIndex((held) => held.id === entry.id);
   const next = openSurface(stack, entry);
   if (existingIndex < 0) {
-    return { kind: "push", delta: 0, stack: next };
+    return { kind: "push", stack: next };
   }
   if (existingIndex === stack.length - 1) {
-    return { kind: "replace", delta: 0, stack: next };
+    return { kind: "replace", stack: next };
   }
   return {
-    kind: "traverse",
-    delta: existingIndex - (stack.length - 1),
-    stack: next,
+    kind: "push",
+    stack: [...stack.filter((held) => held.id !== entry.id), entry],
   };
 }
