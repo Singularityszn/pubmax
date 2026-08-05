@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development and test-driven-development. Complete tasks in order. Each implementation task needs a fresh implementer, focused review, and verification evidence.
 
-**Goal:** Ship a mobile-first invite beta where verified adults can post freely, build mutual friendships, organise a safe pub crawl, and preserve consent-driven memories without turning venue observations into ratings.
+**Goal:** Ship a mobile-first invite beta where verified adults can post freely, build mutual friendships, organise a consent-based pub crawl with an explicit safe-home handoff, and preserve consent-driven memories without turning venue observations into ratings.
 
 **Architecture:** `/social` is the canonical responsive shell. Server-owned policy gates separate safe public previews from verified-adult Social reads and writes. A new durable Social post model reuses stable profile ownership, moderation, media, and follow seams without overloading Pint Drops, Visit Reports, or Night Memories. Crew planning and safe-home state remain separate domains linked by identifiers and explicit transitions.
 
@@ -41,7 +41,7 @@
 
 - [x] Record route, identity, age, visibility, moderation, retention, deletion, analytics, and beta-exit contracts in `docs/social/SOCIAL_BETA_CONTRACT.md`.
 - [x] Record assets, trust boundaries, abuse cases, controls, and release evidence in `docs/social/SOCIAL_THREAT_MODEL.md`.
-- [x] Create umbrella [#728](https://github.com/Singularityszn/pubmax/issues/728) with Tasks 2-9 as linked child issues [#729](https://github.com/Singularityszn/pubmax/issues/729), [#730](https://github.com/Singularityszn/pubmax/issues/730), [#731](https://github.com/Singularityszn/pubmax/issues/731), [#732](https://github.com/Singularityszn/pubmax/issues/732), [#733](https://github.com/Singularityszn/pubmax/issues/733), [#734](https://github.com/Singularityszn/pubmax/issues/734), [#735](https://github.com/Singularityszn/pubmax/issues/735), and [#736](https://github.com/Singularityszn/pubmax/issues/736). Child bodies carry their safety dependencies.
+- [x] Create umbrella [#728](https://github.com/Singularityszn/pubmax/issues/728) with Tasks 2-9 as linked child issues [#729](https://github.com/Singularityszn/pubmax/issues/729), [#730](https://github.com/Singularityszn/pubmax/issues/730), [#731](https://github.com/Singularityszn/pubmax/issues/731), [#732](https://github.com/Singularityszn/pubmax/issues/732), [#733](https://github.com/Singularityszn/pubmax/issues/733), [#734](https://github.com/Singularityszn/pubmax/issues/734), [#735](https://github.com/Singularityszn/pubmax/issues/735), and [#736](https://github.com/Singularityszn/pubmax/issues/736). GitHub blocked-by metadata records their safety dependencies; child bodies explain each relationship.
 - [x] Make named moderation primary and backup a blocking launch control. Both roles remain unassigned, so every invite-beta flag stays off outside deterministic test environments.
 
 Task 1 changes no data practice. Do not edit `/privacy` or `/terms` until implementation changes the practice they describe.
@@ -57,6 +57,7 @@ Task 1 changes no data practice. Do not edit `/privacy` or `/terms` until implem
 - Create: `__tests__/socialAccessRoute.test.ts`
 - Create: forward and rollback migrations for private verification state
 - Modify narrowly: `lib/authServer.ts`, `lib/clerkIdentity.ts`, `proxy.ts`
+- Modify with the Yoti data-practice change: `app/privacy/page.tsx`, `app/terms/page.tsx`
 
 - [ ] Define `SocialAccessState`: `preview`, `sign_in_required`, `age_verification_required`, `verified`, `suspended`.
 - [ ] Store Yoti subject reference, provider, decision, verified-at, expiry, and audit state server-side. Store no public date of birth or age badge.
@@ -64,6 +65,7 @@ Task 1 changes no data practice. Do not edit `/privacy` or `/terms` until implem
 - [ ] Require both Clerk and legacy Supabase sessions for account migration. Make retries idempotent and auditable.
 - [ ] Freeze legacy unverified handles and remove first-touch claim paths.
 - [ ] Gate protected Social APIs through one server policy seam.
+- [ ] Update `/privacy` and `/terms` in the same implementation change that adds Yoti processing or stores Yoti verification references.
 
 ### Task 3: Durable Social post domain and API
 
@@ -134,7 +136,7 @@ Task 1 changes no data practice. Do not edit `/privacy` or `/terms` until implem
 - [ ] Convert a completed loop into a draft Night Story only after contributor consent checks.
 - [ ] Import Google Maps saved places first through explicit user export or OAuth consent.
 - [ ] Keep unmatched imported places private until the owner deliberately links or shares them.
-- [ ] Add account export and complete erasure across Social, crews, media, notifications, verification references, and analytics identifiers.
+- [ ] Add account export and complete erasure across Social, crews, media, notifications, verification references, imported places, provider connection metadata, and analytics identifiers. Never export provider credentials. Revoke upstream grants and delete credentials on erasure.
 
 ### Task 9: Beta rollout, measurement, and release gate
 
