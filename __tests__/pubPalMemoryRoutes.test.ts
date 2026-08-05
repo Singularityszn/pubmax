@@ -71,13 +71,13 @@ describe("Pub Pal memory ownership HTTP contract", () => {
     expect(deleted.status).toBe(200);
     const replay = await DELETE_MEMORY(auth(`/api/pub-pal/memories/${memory.id}`, undefined, "pal-owner", "DELETE"), ctx(memory.id));
     expect(replay.status).toBe(404);
-    expect((await LIST_MEMORIES(auth("/api/pub-pal/memories"))).json()).resolves.toMatchObject({ memories: [] });
+    await expect((await LIST_MEMORIES(auth("/api/pub-pal/memories"))).json()).resolves.toMatchObject({ memories: [] });
   });
 
   it("deleting the Pal removes its confirmed memory context in keyless mode", async () => {
     await createPal();
     await CREATE_MEMORY(auth("/api/pub-pal/memories", { kind: "drink_preference", value: "Zero-proof first" }));
     expect((await DELETE_PAL(auth("/api/pub-pal", undefined, "pal-owner", "DELETE"))).status).toBe(200);
-    expect((await LIST_MEMORIES(auth("/api/pub-pal/memories"))).json()).resolves.toMatchObject({ memories: [] });
+    await expect((await LIST_MEMORIES(auth("/api/pub-pal/memories"))).json()).resolves.toMatchObject({ memories: [] });
   });
 });

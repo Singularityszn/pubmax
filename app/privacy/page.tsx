@@ -200,6 +200,21 @@ export default function PrivacyPage() {
           to OpenAI for moderation before they can appear.
         </p>
         <p className="legalBody">
+          Cheers, comments, private saves, reposts and quote posts are tied to
+          your stable Social profile. Saves are private and have no public
+          count. Comments and quote-post text enter the same kind of private
+          queue, go to OpenAI for omni moderation, and stay held until a usable
+          decision returns. In-app notifications store the people and source
+          records involved, not a copy of protected post or comment text.
+        </p>
+        <p className="legalBody">
+          Blocks remove interactions from both people&rsquo;s Social reads.
+          Feature requests keep an append-only staff status and response
+          history. Reports from readers join a private review queue and do not hide content.
+          A named staff member must hide or restore a comment or quote,
+          and that decision keeps a private audit record.
+        </p>
+        <p className="legalBody">
           A Recommendation is your short opinion that one pub suits one kind of
           weather. Writing one needs a signed-in account, a claimed public
           handle and a completed private profile. We store your public PUBMAXX

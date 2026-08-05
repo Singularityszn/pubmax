@@ -94,11 +94,11 @@ Task 1 changes no data practice. Do not edit `/privacy` or `/terms` until implem
 - Create interaction domain, store, API, migrations, and tests under `lib/` and `app/api/social/`
 - Reuse existing follows, notifications, and moderation seams where contracts match
 
-- [ ] Add Cheers, comments, saves, reposts, and quote posts with idempotent writes and pagination.
-- [ ] Let authors choose comment policy and lock comments later.
-- [ ] Treat saves as private. Never use engagement for paid or popularity ranking.
-- [ ] Render feature requests as a dedicated post kind with staff status and response history.
-- [ ] Notify through in-app delivery first. Web push remains opt-in.
+- [x] Add Cheers, comments, saves, reposts, and quote posts with idempotent writes and pagination.
+- [x] Let authors choose comment policy and lock comments later.
+- [x] Treat saves as private. Never use engagement for paid or popularity ranking.
+- [x] Render feature requests as a dedicated post kind with staff status and response history.
+- [x] Notify through in-app delivery first. Web push remains opt-in.
 
 ### Task 5: Canonical mobile-first `/social` shell
 
