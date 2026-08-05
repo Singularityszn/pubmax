@@ -38,6 +38,54 @@
   animation: a2hsFadeIn var(--duration-slow) var(--ease-out-strong) both;
 }
 
+/* Android can invoke a native install surface, so its offer stays a compact,
+   non-modal card. Only the card receives pointers; map controls around it stay
+   visible and usable. iOS keeps the instructional modal and scrim above. */
+.a2hsSheet--android {
+  position: fixed;
+  z-index: var(--z-overlay-top);
+  right: var(--space-4);
+  bottom: calc(
+    var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--space-3)
+  );
+  left: var(--space-4);
+  width: auto;
+  max-width: 27rem;
+  margin-inline: auto;
+  padding: var(--space-4);
+}
+
+.a2hsSheet--android .a2hsEyebrow {
+  margin-bottom: var(--space-1);
+}
+
+.a2hsSheet--android .a2hsTitle {
+  margin-bottom: var(--space-2);
+  padding-right: 44px;
+  font-size: var(--text-lg);
+}
+
+.a2hsSheet--android .a2hsBody {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.a2hsSheet--android .a2hsActions {
+  gap: var(--space-2);
+}
+
+.a2hsSheet--android .a2hsPrimary {
+  padding-inline: var(--space-4);
+}
+
+.a2hsSheet--android .a2hsNever {
+  margin-top: 0;
+}
+
+.a2hsSheet--android.isClosing {
+  animation: a2hsFadeOut var(--duration-base) var(--ease-out-strong) both;
+}
+
 .a2hsClose {
   position: absolute;
   top: var(--space-3);
@@ -208,6 +256,10 @@
     animation: a2hsSheetIn var(--duration-slow) var(--ease-out-strong) both;
   }
   .a2hsScrim.isClosing .a2hsSheet {
+    animation: a2hsSheetOut var(--duration-base) var(--ease-out-strong) both;
+  }
+
+  .a2hsSheet--android.isClosing {
     animation: a2hsSheetOut var(--duration-base) var(--ease-out-strong) both;
   }
 
