@@ -131,6 +131,14 @@ export default function TermsPage() {
       <section className="legalSection" aria-labelledby="posts">
         <h2 id="posts" className="legalH2">What you post</h2>
         <p className="legalBody">
+          Social post text goes to OpenAI for omni moderation after we store
+          it. The post stays held from feeds and direct reads until OpenAI
+          returns a decision. If that check is unavailable or gives no usable
+          decision, the post remains held. Future Social post photos are not
+          accepted yet. When ownership-checked photo posting opens, those
+          photos will also go to OpenAI for moderation before they can appear.
+        </p>
+        <p className="legalBody">
           Prices, notes, photos, plans, stories: you keep ownership of all
           of it. By posting it you give us permission to store it, show it in the
           app, and use it as part of the price and heritage data the map is built

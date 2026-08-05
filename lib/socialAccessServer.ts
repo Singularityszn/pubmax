@@ -10,6 +10,7 @@ import {
   type SocialAccessState,
   type SocialProductAccount,
 } from "@/lib/socialAccess";
+import type { SocialPostActor } from "@/lib/socialPostStore";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
 type ClerkSessionVerification =
@@ -19,6 +20,7 @@ type ClerkSessionVerification =
 
 type AccountAccessRecord = {
   account: SocialProductAccount | null;
+  profile: { id: string; handle: string } | null;
   verification: SocialAdultVerification | null;
 };
 
@@ -45,7 +47,8 @@ export type SocialAccessServerDependencies = {
 };
 
 export type SocialAccessResolution =
-  | { available: true; state: SocialAccessState }
+  | { available: true; state: Exclude<SocialAccessState, "verified"> }
+  | { available: true; state: "verified"; actor: SocialPostActor }
   | {
       available: false;
       state: "preview";
@@ -93,14 +96,15 @@ async function readAccountAccess(
   const admin = requireSupabaseAdmin();
   const { data: accountRows, error: accountError } = await admin
     .from("private_social_accounts")
-    .select("id,clerk_user_id,ownership_state")
+    .select("id,clerk_user_id,profile_id,ownership_state")
     .eq("clerk_user_id", clerkUserId)
     .limit(1);
   if (accountError) throw new Error(accountError.message);
   const accountRow = rowObject((accountRows ?? [])[0]);
-  if (!accountRow) return { account: null, verification: null };
+  if (!accountRow) return { account: null, profile: null, verification: null };
   if (
     typeof accountRow.id !== "string" ||
+    typeof accountRow.profile_id !== "string" ||
     accountRow.clerk_user_id !== clerkUserId ||
     !["active", "suspended"].includes(String(accountRow.ownership_state))
   ) {
@@ -113,6 +117,18 @@ async function readAccountAccess(
     ownershipState:
       accountRow.ownership_state === "suspended" ? "suspended" : "active",
   };
+  const { data: profileRows, error: profileError } = await admin
+    .from("profiles")
+    .select("id,handle")
+    .eq("id", accountRow.profile_id)
+    .limit(1);
+  if (profileError) throw new Error(profileError.message);
+  const profileRow = rowObject((profileRows ?? [])[0]);
+  if (
+    !profileRow || profileRow.id !== accountRow.profile_id ||
+    typeof profileRow.handle !== "string" || !profileRow.handle.trim()
+  ) throw new Error("Invalid Social profile ownership state.");
+  const profile = { id: profileRow.id as string, handle: profileRow.handle.trim() };
   const { data: verificationRows, error: verificationError } = await admin
     .from("private_social_age_verifications")
     .select(
@@ -124,7 +140,7 @@ async function readAccountAccess(
     .limit(1);
   if (verificationError) throw new Error(verificationError.message);
   const verificationRow = rowObject((verificationRows ?? [])[0]);
-  if (!verificationRow) return { account, verification: null };
+  if (!verificationRow) return { account, profile, verification: null };
   if (
     verificationRow.product_account_id !== account.id ||
     verificationRow.provider !== "yoti" ||
@@ -149,7 +165,7 @@ async function readAccountAccess(
     verifiedAt: verificationRow.verified_at,
     expiresAt: verificationRow.expires_at,
   };
-  return { account, verification };
+  return { account, profile, verification };
 }
 
 async function migrateAccounts(
@@ -218,22 +234,79 @@ export async function resolveSocialAccess(
     return { available: true, state: "sign_in_required" };
   }
   try {
-    const { account, verification } = await dependencies.readAccountAccess(
+    const { account, profile, verification } = await dependencies.readAccountAccess(
       clerk.userId,
     );
+    const state = decideSocialAccess({
+      betaEnabled: true,
+      clerkUserId: clerk.userId,
+      account,
+      verification,
+      now: dependencies.now(),
+    });
+    if (state === "verified") {
+      if (!account || !profile || account.id === "" || profile.id === "" || profile.handle === "") {
+        return unavailableAccess();
+      }
+      return {
+        available: true,
+        state,
+        actor: { accountId: account.id, profileId: profile.id, handle: profile.handle },
+      };
+    }
     return {
       available: true,
-      state: decideSocialAccess({
-        betaEnabled: true,
-        clerkUserId: clerk.userId,
-        account,
-        verification,
-        now: dependencies.now(),
-      }),
+      state,
     };
   } catch {
     return unavailableAccess();
   }
+}
+
+export type VerifiedSocialActorResolution =
+  | { ok: true; actor: SocialPostActor }
+  | {
+      ok: false;
+      status: 401 | 403 | 503;
+      code:
+        | "SOCIAL_BETA_DISABLED"
+        | "SOCIAL_SIGN_IN_REQUIRED"
+        | "SOCIAL_ADULT_VERIFICATION_REQUIRED"
+        | "SOCIAL_ACCOUNT_SUSPENDED"
+        | "SOCIAL_ACCESS_UNAVAILABLE";
+      error: string;
+      retryable?: true;
+    };
+
+export async function requireVerifiedSocialActor(
+  dependencies: SocialAccessServerDependencies = defaultDependencies,
+): Promise<VerifiedSocialActorResolution> {
+  const access = await resolveSocialAccess(dependencies);
+  if (!access.available) {
+    return {
+      ok: false,
+      status: 503,
+      code: access.code,
+      error: access.error,
+      retryable: true,
+    };
+  }
+  if (access.state === "verified") return { ok: true, actor: access.actor };
+  if (access.state === "preview") {
+    return { ok: false, status: 403, code: "SOCIAL_BETA_DISABLED", error: "Social is not open yet." };
+  }
+  if (access.state === "sign_in_required") {
+    return { ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED", error: "Sign in to use Social." };
+  }
+  if (access.state === "suspended") {
+    return { ok: false, status: 403, code: "SOCIAL_ACCOUNT_SUSPENDED", error: "Social access is suspended." };
+  }
+  return {
+    ok: false,
+    status: 403,
+    code: "SOCIAL_ADULT_VERIFICATION_REQUIRED",
+    error: "Adult verification is needed for Social.",
+  };
 }
 
 function unavailableMigration(): SocialAccountMigrationResolution {
