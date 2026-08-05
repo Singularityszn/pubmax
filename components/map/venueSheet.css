@@ -1074,7 +1074,11 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 }
 
-@media (max-width: 390px) {
+/* Keep every section discoverable at the common 400px and 430px phone widths.
+   The roomier tab spacing above leaves only a sliver of Train visible at 400px,
+   which reads as clipped copy instead of another control. Horizontal scrolling
+   stays available for narrower or large-text layouts. */
+@media (max-width: 430px) {
   .venueTabs {
     gap: 2px;
   }
