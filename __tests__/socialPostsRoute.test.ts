@@ -8,16 +8,36 @@ const state = vi.hoisted(() => ({
     actor: { accountId: "account-a", profileId: "profile-a", handle: "alice" },
   } as unknown,
   calls: [] as Array<{ name: string; args: unknown[] }>,
+  limitCalls: [] as unknown[][],
   read: null as unknown,
   limited: false,
+  frozen: false,
+  accessCalls: 0,
 }));
 
 vi.mock("@/lib/pintDrops", () => ({
-  isLimited: async () => state.limited,
+  isLimited: async (...args: unknown[]) => {
+    state.limitCalls.push(args);
+    return state.limited;
+  },
+}));
+
+vi.mock("@/lib/supabase", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/supabase")>(),
+  hashActor: () => "salted-profile-digest",
+}));
+
+vi.mock("@/lib/opsFreeze", () => ({
+  socialFreezeResponse: () => state.frozen
+    ? Response.json({ code: "SOCIAL_FROZEN" }, { status: 503 })
+    : null,
 }));
 
 vi.mock("@/lib/socialAccessServer", () => ({
-  requireVerifiedSocialActor: async () => state.access,
+  requireVerifiedSocialActor: async () => {
+    state.accessCalls += 1;
+    return state.access;
+  },
 }));
 
 vi.mock("@/lib/socialPostStore", async (importOriginal) => {
@@ -70,8 +90,11 @@ function request(path: string, method = "GET", body?: unknown): Request {
 beforeEach(() => {
   state.access = { ok: true, actor };
   state.calls = [];
+  state.limitCalls = [];
   state.read = null;
   state.limited = false;
+  state.frozen = false;
+  state.accessCalls = 0;
 });
 
 describe("/api/social/posts", () => {
@@ -95,6 +118,22 @@ describe("/api/social/posts", () => {
       name: "feed",
       args: [actor, { lane: "nearby", area: "camden", cursor: null, limit: 20 }],
     }]);
+    expect(state.limitCalls[0]).toEqual([
+      "social-post-feed:salted-profile-digest:nearby:camden",
+      "social-post-feed:salted-profile-digest:nearby:camden",
+      60,
+      60_000,
+    ]);
+  });
+
+  it("rate-limits verified feed reads before storage", async () => {
+    state.limited = true;
+    const response = await list(request("/api/social/posts?lane=discover"));
+    expect(response.status).toBe(429);
+    expect(state.calls).toEqual([]);
+    expect(state.limitCalls[0]?.[0]).toBe(
+      "social-post-feed:salted-profile-digest:discover:all",
+    );
   });
 
   it("rejects an unlisted nearby area before storage", async () => {
@@ -148,6 +187,20 @@ describe("/api/social/posts", () => {
     }));
     expect(response.status).toBe(429);
     expect(state.calls).toEqual([]);
+    expect(JSON.stringify(state.limitCalls)).not.toContain("profile-a");
+    expect(state.limitCalls[0]?.[0]).toBe("social-post-create:salted-profile-digest");
+  });
+
+  it("freezes creation before identity, limiting, or storage work", async () => {
+    state.frozen = true;
+    const response = await POST(request("/api/social/posts", "POST", {
+      kind: "standard", visibility: "public", body: "Hello",
+      commentPolicy: "open", hashtags: [],
+    }));
+    expect(response.status).toBe(503);
+    expect(state.accessCalls).toBe(0);
+    expect(state.limitCalls).toEqual([]);
+    expect(state.calls).toEqual([]);
   });
 });
 
@@ -194,6 +247,22 @@ describe("/api/social/posts/[postId]", () => {
       body: "Changed",
     }), context);
     expect(response.status).toBe(429);
+    expect(state.calls).toEqual([]);
+    expect(JSON.stringify(state.limitCalls)).not.toContain("profile-a");
+    expect(state.limitCalls[0]?.[0]).toBe("social-post-edit:salted-profile-digest");
+  });
+
+  it("freezes edits and removals before identity, limiting, or storage work", async () => {
+    state.frozen = true;
+    const edited = await PATCH(request("/api/social/posts/post-1", "PATCH", {
+      body: "Changed",
+    }), context);
+    const removed = await PATCH(request("/api/social/posts/post-1", "PATCH", {
+      action: "remove",
+    }), context);
+    expect([edited.status, removed.status]).toEqual([503, 503]);
+    expect(state.accessCalls).toBe(0);
+    expect(state.limitCalls).toEqual([]);
     expect(state.calls).toEqual([]);
   });
 });

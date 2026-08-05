@@ -59,6 +59,7 @@ create index social_posts_author_feed_idx
 create table public.social_post_moderation_jobs (
   post_id uuid primary key references public.social_posts(id) on delete cascade,
   revision integer not null check (revision >= 0),
+  moderation_claim text not null,
   state text not null default 'pending' check (state in ('pending', 'processing', 'done', 'error')),
   attempts integer not null default 0 check (attempts >= 0),
   next_attempt_at timestamptz not null default now(),
@@ -80,11 +81,20 @@ set search_path = public
 as $$
 begin
   if new.moderation_state = 'pending' then
-    insert into public.social_post_moderation_jobs(post_id, revision)
-    values (new.id, new.revision)
+    insert into public.social_post_moderation_jobs(post_id, revision, moderation_claim)
+    values (
+      new.id,
+      new.revision,
+      new.body || case
+        when cardinality(new.hashtags) > 0
+          then E'\n\n#' || array_to_string(new.hashtags, ' #')
+        else ''
+      end
+    )
     on conflict (post_id) do update set
       state = 'pending',
       revision = excluded.revision,
+      moderation_claim = excluded.moderation_claim,
       attempts = 0,
       next_attempt_at = now(),
       lease_until = null,
@@ -100,8 +110,10 @@ after insert on public.social_posts
 for each row execute function public.queue_social_post_moderation();
 
 create trigger social_posts_queue_moderation_update
-after update of moderation_state on public.social_posts
-for each row execute function public.queue_social_post_moderation();
+after update of revision on public.social_posts
+for each row
+when (old.revision is distinct from new.revision)
+execute function public.queue_social_post_moderation();
 
 create function public.social_post_readable(
   p_post public.social_posts,
@@ -209,8 +221,61 @@ begin
 end;
 $$;
 
+create function public.edit_social_post(
+  p_post_id uuid,
+  p_author_profile_id uuid,
+  p_expected_revision integer,
+  p_kind text,
+  p_visibility text,
+  p_body text,
+  p_area_slug text,
+  p_venue_id text,
+  p_hashtags text[],
+  p_comment_policy text,
+  p_photo_media_id uuid,
+  p_photo_alt_text text,
+  p_content_changed boolean
+)
+returns setof public.social_posts
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return query
+  update public.social_posts post
+  set kind = p_kind,
+      visibility = p_visibility,
+      body = p_body,
+      area_slug = p_area_slug,
+      venue_id = p_venue_id,
+      hashtags = p_hashtags,
+      comment_policy = p_comment_policy,
+      photo_media_id = p_photo_media_id,
+      photo_alt_text = p_photo_alt_text,
+      feature_status = case
+        when p_kind = 'feature_request' then coalesce(post.feature_status, 'submitted')
+        else null
+      end,
+      feature_staff_response = case
+        when p_kind = 'feature_request' then post.feature_staff_response
+        else null
+      end,
+      revision = post.revision + case when p_content_changed then 1 else 0 end,
+      edited_at = case when p_content_changed then now() else post.edited_at end,
+      moderation_state = case when p_content_changed then 'pending' else post.moderation_state end,
+      moderated_at = case when p_content_changed then null else post.moderated_at end,
+      updated_at = now()
+  where post.id = p_post_id
+    and post.author_profile_id = p_author_profile_id
+    and post.status = 'visible'
+    and post.revision = p_expected_revision
+  returning post.*;
+end;
+$$;
+
 create function public.claim_social_post_moderation_jobs(p_limit integer default 20)
-returns table(post_id uuid, revision integer, body text, attempts integer)
+returns table(post_id uuid, revision integer, moderation_claim text, attempts integer)
 language plpgsql
 security definer
 set search_path = public
@@ -242,9 +307,9 @@ begin
     where job.post_id = candidates.post_id
     returning job.post_id, job.revision, job.attempts
   )
-  select claimed.post_id, claimed.revision, post.body, claimed.attempts
+  select claimed.post_id, claimed.revision, job.moderation_claim, claimed.attempts
   from claimed
-  join public.social_posts post on post.id = claimed.post_id;
+  join public.social_post_moderation_jobs job on job.post_id = claimed.post_id;
 end;
 $$;
 
@@ -289,6 +354,44 @@ begin
 end;
 $$;
 
+create function public.requeue_social_post_moderation_errors(p_limit integer default 20)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  requeued_count integer;
+begin
+  if p_limit < 1 or p_limit > 50 then
+    raise exception 'invalid moderation requeue batch size';
+  end if;
+  with candidates as (
+    select job.post_id
+    from public.social_post_moderation_jobs job
+    join public.social_posts post on post.id = job.post_id
+    where job.state = 'error'
+      and post.moderation_state = 'pending'
+    order by job.updated_at, job.created_at
+    for update of job skip locked
+    limit p_limit
+  ), requeued as (
+    update public.social_post_moderation_jobs job
+    set state = 'pending',
+        attempts = 0,
+        next_attempt_at = now(),
+        lease_until = null,
+        last_error_code = null,
+        updated_at = now()
+    from candidates
+    where job.post_id = candidates.post_id
+    returning job.post_id
+  )
+  select count(*)::integer into requeued_count from requeued;
+  return requeued_count;
+end;
+$$;
+
 alter table public.social_posts enable row level security;
 alter table public.social_post_moderation_jobs enable row level security;
 
@@ -302,15 +405,24 @@ revoke all on function public.social_post_readable(public.social_posts, uuid) fr
 revoke all on function public.read_social_post(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.read_social_post_feed(uuid, text, text, timestamptz, uuid, integer)
   from public, anon, authenticated;
+revoke all on function public.edit_social_post(
+  uuid, uuid, integer, text, text, text, text, text, text[], text, uuid, text, boolean
+) from public, anon, authenticated;
 revoke all on function public.claim_social_post_moderation_jobs(integer)
   from public, anon, authenticated;
 revoke all on function public.complete_social_post_moderation_job(uuid, integer, text, text, timestamptz)
+  from public, anon, authenticated;
+revoke all on function public.requeue_social_post_moderation_errors(integer)
   from public, anon, authenticated;
 
 grant execute on function public.social_post_readable(public.social_posts, uuid) to service_role;
 grant execute on function public.read_social_post(uuid, uuid) to service_role;
 grant execute on function public.read_social_post_feed(uuid, text, text, timestamptz, uuid, integer)
   to service_role;
+grant execute on function public.edit_social_post(
+  uuid, uuid, integer, text, text, text, text, text, text[], text, uuid, text, boolean
+) to service_role;
 grant execute on function public.claim_social_post_moderation_jobs(integer) to service_role;
 grant execute on function public.complete_social_post_moderation_job(uuid, integer, text, text, timestamptz)
   to service_role;
+grant execute on function public.requeue_social_post_moderation_errors(integer) to service_role;

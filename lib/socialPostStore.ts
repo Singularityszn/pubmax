@@ -3,6 +3,7 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { followStore } from "@/lib/followStore";
 import { profileStore } from "@/lib/profileStore";
 import {
+  socialPostModerationClaim,
   socialPostDTO,
   type SocialPost,
   type SocialPostDTO,
@@ -48,6 +49,7 @@ export type SocialPostModerationResult = {
   approved: number;
   needsReview: number;
   retried: number;
+  terminalErrors: number;
 };
 
 export class SocialPostStoreError extends Error {
@@ -56,6 +58,7 @@ export class SocialPostStoreError extends Error {
       | "INVALID_CURSOR"
       | "NOT_FOUND"
       | "FORBIDDEN"
+      | "EDIT_CONFLICT"
       | "INVALID_POST",
     message: string,
   ) {
@@ -87,6 +90,7 @@ export type SocialPostStore = {
     adapter: SocialPostModerationAdapter,
     limit?: number,
   ): Promise<SocialPostModerationResult>;
+  requeueTerminalModeration(limit?: number): Promise<number>;
 };
 
 const DEFAULT_LIMIT = 20;
@@ -378,26 +382,35 @@ export function createMemorySocialPostStore(options: {
       return makePage([...rows.values()], viewer, input, graph);
     },
     async processModerationQueue(adapter, limit = 20) {
-      const result: SocialPostModerationResult = { processed: 0, approved: 0, needsReview: 0, retried: 0 };
+      const result: SocialPostModerationResult = {
+        processed: 0,
+        approved: 0,
+        needsReview: 0,
+        retried: 0,
+        terminalErrors: 0,
+      };
       const currentTime = now().getTime();
       const pending = [...jobs.values()]
         .filter((job) => job.nextAttemptAt <= currentTime)
         .slice(0, Math.min(Math.max(limit, 1), 50));
-      for (const job of pending) {
+      await Promise.all(pending.map(async (job) => {
         const post = rows.get(job.postId);
         if (!post || post.moderationState !== "pending") {
           jobs.delete(job.postId);
-          continue;
+          return;
         }
         result.processed += 1;
         try {
-          const moderation = await adapter.moderate({ postId: post.id, text: post.body });
+          const moderation = await adapter.moderate({
+            postId: post.id,
+            text: socialPostModerationClaim(post),
+          });
           const currentPost = rows.get(post.id);
           const currentJob = jobs.get(post.id);
           if (
             !currentPost || !currentJob || currentPost.revision !== job.revision ||
             currentJob.revision !== job.revision || currentPost.moderationState !== "pending"
-          ) continue;
+          ) return;
           rows.set(post.id, {
             ...currentPost,
             moderationState: moderation.decision,
@@ -408,7 +421,7 @@ export function createMemorySocialPostStore(options: {
           else result.needsReview += 1;
         } catch (error) {
           const currentJob = jobs.get(post.id);
-          if (!currentJob || currentJob.revision !== job.revision) continue;
+          if (!currentJob || currentJob.revision !== job.revision) return;
           const attempts = job.attempts + 1;
           const retryable = moderationFailureIsRetryable(error) && attempts < 8;
           jobs.set(post.id, {
@@ -419,9 +432,26 @@ export function createMemorySocialPostStore(options: {
               : Number.POSITIVE_INFINITY,
           });
           if (retryable) result.retried += 1;
+          else result.terminalErrors += 1;
         }
-      }
+      }));
       return result;
+    },
+    async requeueTerminalModeration(limit = 20) {
+      const boundedLimit = Math.min(Math.max(limit, 1), 50);
+      let requeued = 0;
+      for (const job of jobs.values()) {
+        if (requeued >= boundedLimit) break;
+        const post = rows.get(job.postId);
+        if (job.nextAttemptAt !== Number.POSITIVE_INFINITY || post?.moderationState !== "pending") continue;
+        jobs.set(job.postId, {
+          ...job,
+          attempts: 0,
+          nextAttemptAt: now().getTime(),
+        });
+        requeued += 1;
+      }
+      return requeued;
     },
   };
 }
@@ -505,26 +535,30 @@ export const supabaseSocialPostStore: SocialPostStore = {
       if (merged.kind === "feature_request" && !merged.body) throw new SocialPostStoreError("INVALID_POST", "Add words to a feature request.");
       if (merged.visibility === "public" && merged.venueId) throw new SocialPostStoreError("INVALID_POST", "Exact venue posts are for friends or private posts.");
       const actualContentChange = contentChanged && contentActuallyChanged(current, merged);
-      const now = new Date().toISOString();
-      const { data, error } = await requireSupabaseAdmin()
-        .from("social_posts")
-        .update({
-          ...postWrite(merged, undefined, current.featureRequest),
-          ...(actualContentChange ? {
-            revision: current.revision + 1,
-            edited_at: now,
-            moderation_state: "pending",
-            moderated_at: null,
-          } : {}),
-          updated_at: now,
-        })
-        .eq("id", id)
-        .eq("author_profile_id", actor.profileId)
-        .eq("status", "visible")
-        .select("*")
-        .single();
+      const { data, error } = await requireSupabaseAdmin().rpc("edit_social_post", {
+        p_post_id: id,
+        p_author_profile_id: actor.profileId,
+        p_expected_revision: current.revision,
+        p_kind: merged.kind,
+        p_visibility: merged.visibility,
+        p_body: merged.body,
+        p_area_slug: merged.area,
+        p_venue_id: merged.venueId,
+        p_hashtags: merged.hashtags,
+        p_comment_policy: merged.commentPolicy,
+        p_photo_media_id: merged.photo?.mediaId ?? null,
+        p_photo_alt_text: merged.photo?.altText ?? null,
+        p_content_changed: actualContentChange,
+      });
       if (error) throw error;
-      return socialPostDTO(fromRow(data));
+      const updated = (data ?? [])[0];
+      if (!updated) {
+        throw new SocialPostStoreError(
+          "EDIT_CONFLICT",
+          "This post changed before your edit was saved. Reload it and try again.",
+        );
+      }
+      return socialPostDTO(fromRow(updated));
     }, () => memorySocialPostStore.edit(id, actor, changes, contentChanged), true);
   },
   async remove(id, actor) {
@@ -583,25 +617,24 @@ export const supabaseSocialPostStore: SocialPostStore = {
         p_limit: Math.min(Math.max(limit, 1), 50),
       });
       if (error) throw error;
-      const result: SocialPostModerationResult = { processed: 0, approved: 0, needsReview: 0, retried: 0 };
-      for (const value of data ?? []) {
+      const result: SocialPostModerationResult = {
+        processed: 0,
+        approved: 0,
+        needsReview: 0,
+        retried: 0,
+        terminalErrors: 0,
+      };
+      const settlements = await Promise.allSettled((data ?? []).map(async (value: unknown) => {
         const job = rowObject(value);
         const postId = String(job.post_id);
         const revision = Number(job.revision);
         result.processed += 1;
+        let moderation: Awaited<ReturnType<SocialPostModerationAdapter["moderate"]>>;
         try {
-          const moderation = await adapter.moderate({ postId, text: typeof job.body === "string" ? job.body : "" });
-          const completion = await requireSupabaseAdmin().rpc("complete_social_post_moderation_job", {
-            p_post_id: postId,
-            p_revision: revision,
-            p_decision: moderation.decision,
-            p_error_code: null,
-            p_retry_at: null,
+          moderation = await adapter.moderate({
+            postId,
+            text: typeof job.moderation_claim === "string" ? job.moderation_claim : "",
           });
-          if (completion.error) throw completion.error;
-          if (completion.data !== true) continue;
-          if (moderation.decision === "approved") result.approved += 1;
-          else result.needsReview += 1;
         } catch (moderationError) {
           const attempts = Number(job.attempts ?? 1);
           const retryable = moderationFailureIsRetryable(moderationError) && attempts < 8;
@@ -614,12 +647,39 @@ export const supabaseSocialPostStore: SocialPostStore = {
             p_retry_at: retryable ? retryAt : null,
           });
           if (completion.error) throw completion.error;
-          if (completion.data !== true) continue;
+          if (completion.data !== true) return;
           if (retryable) result.retried += 1;
+          else result.terminalErrors += 1;
+          return;
         }
+        const completion = await requireSupabaseAdmin().rpc("complete_social_post_moderation_job", {
+          p_post_id: postId,
+          p_revision: revision,
+          p_decision: moderation.decision,
+          p_error_code: null,
+          p_retry_at: null,
+        });
+        if (completion.error) throw completion.error;
+        if (completion.data !== true) return;
+        if (moderation.decision === "approved") result.approved += 1;
+        else result.needsReview += 1;
+      }));
+      const failedItems = settlements.filter((settlement) => settlement.status === "rejected");
+      if (failedItems.length > 0) {
+        throw new Error(`${failedItems.length} Social post moderation item(s) could not persist.`);
       }
       return result;
     }, () => memorySocialPostStore.processModerationQueue(adapter, limit), true);
+  },
+  async requeueTerminalModeration(limit = 20) {
+    return durableOrMemory(async () => {
+      const { data, error } = await requireSupabaseAdmin().rpc(
+        "requeue_social_post_moderation_errors",
+        { p_limit: Math.min(Math.max(limit, 1), 50) },
+      );
+      if (error) throw error;
+      return Number(data ?? 0);
+    }, () => memorySocialPostStore.requeueTerminalModeration(limit), true);
   },
 };
 

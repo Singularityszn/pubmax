@@ -1,8 +1,10 @@
 import { assertServerEnv } from "@/lib/serverEnv";
 import { isLimited } from "@/lib/pintDrops";
+import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
 import { validateSocialPostEdit } from "@/lib/socialPosts";
+import { hashActor } from "@/lib/supabase";
 
 assertServerEnv();
 
@@ -24,7 +26,10 @@ function accessError(access: Exclude<Awaited<ReturnType<typeof requireVerifiedSo
 
 function storeError(error: unknown): Response {
   if (error instanceof SocialPostStoreError) {
-    const status = error.code === "FORBIDDEN" ? 403 : error.code === "NOT_FOUND" ? 404 : 400;
+    const status = error.code === "FORBIDDEN" ? 403
+      : error.code === "NOT_FOUND" ? 404
+        : error.code === "EDIT_CONFLICT" ? 409
+          : 400;
     return privateJson({ code: error.code, error: error.message }, { status });
   }
   return privateJson(
@@ -53,6 +58,8 @@ export async function GET(_request: Request, context: Context): Promise<Response
 }
 
 export async function PATCH(request: Request, context: Context): Promise<Response> {
+  const frozen = socialFreezeResponse();
+  if (frozen) return frozen;
   const access = await requireVerifiedSocialActor();
   if (!access.ok) return accessError(access);
   const { postId } = await context.params;
@@ -65,7 +72,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   }
   if (input && typeof input === "object" && !Array.isArray(input) &&
     Object.keys(input).length === 1 && (input as { action?: unknown }).action === "remove") {
-    const limitKey = `social-post-edit:${access.actor.profileId}`;
+    const limitKey = `social-post-edit:${hashActor(access.actor.profileId)}`;
     if (await isLimited(limitKey, limitKey)) {
       return privateJson(
         { code: "RATE_LIMITED", error: "Too many Social post changes. Slow down.", retryable: true },
@@ -91,7 +98,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
       { status: 409 },
     );
   }
-  const limitKey = `social-post-edit:${access.actor.profileId}`;
+  const limitKey = `social-post-edit:${hashActor(access.actor.profileId)}`;
   if (await isLimited(limitKey, limitKey)) {
     return privateJson(
       { code: "RATE_LIMITED", error: "Too many Social post changes. Slow down.", retryable: true },

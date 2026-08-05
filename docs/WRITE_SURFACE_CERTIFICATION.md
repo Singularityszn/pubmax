@@ -97,16 +97,21 @@ moderation state, revision or timestamp is accepted from the request body.
 - **Authority:** `requireVerifiedSocialActor` derives the verified Social actor.
   The stable profile ID owns the row. The product account ID never enters the
   response or post table.
-- **Abuse control:** A durable limiter is keyed to the stable profile ID, not a
-  client handle or account ID.
+- **Abuse control:** Durable create and feed-read limiters use the shared salted
+  digest of the stable profile ID, never the raw profile ID, handle or account
+  ID. Feed reads partition budgets by lane and listed nearby area.
 - **Validation:** Kind, visibility, text, listed area, hashtags and comment
   policy use `validateSocialPostCreate`. Public posts cannot carry an exact
   venue. Raw object keys and every client-supplied ownership, timestamp,
   revision or moderation field are rejected. Photo references remain closed
   until the ownership-checked upload task ships.
 - **Moderation:** Durable creation starts in pending moderation and the same
-  database write queues an OpenAI moderation job. Pending content cannot reach
-  direct reads or any feed. A protected cron drains and retries the queue.
+  database write queues an OpenAI moderation job carrying body plus normalised
+  hashtags. Pending content cannot reach direct reads or any feed. A protected
+  cron drains isolated leased jobs with bounded provider timeouts. Terminal
+  holds are counted and only an authenticated operator action can requeue them.
+- **Freeze:** The Social freeze guard runs before identity, limiter or storage
+  work and pauses creation while reads stay available.
 - **Failure:** Invalid input returns 400, unavailable photo upload returns 409,
   unavailable identity or durable storage fails closed, and no fake success is
   returned.
@@ -118,14 +123,18 @@ moderation state, revision or timestamp is accepted from the request body.
   and the store matches the row against that stable profile ID. No
   account ID or author field is accepted from the body.
 - **Abuse control:** Edit and recoverable removal share a durable limiter keyed
-  to the stable profile ID.
+  to the shared salted digest of the stable profile ID.
 - **Validation:** Strict edit validation rejects status, revision, timestamp,
   moderation and raw storage fields. A real text, kind, hashtag or future photo
   change increments the server revision and returns the row to pending
-  moderation. Visibility-only changes do not claim a content edit.
+  moderation. A transactional compare-and-swap RPC owns that revision so two
+  concurrent edits cannot share a moderation claim. Visibility-only changes do
+  not claim a content edit.
 - **Removal:** `{ action: "remove" }` changes status to `removed`. It is a
   recoverable state change, never a delete, and removed content is excluded from
   direct reads and every feed.
+- **Freeze:** The Social freeze guard runs before identity, limiter or storage
+  work for edits and removals.
 - **Failure:** A post outside stable profile ownership returns 403 or 404. A
   hidden, removed or moderation-held post never appears through the item read.
 

@@ -11,6 +11,14 @@ export async function GET(request: Request): Promise<Response> {
   const denied = assertCronRequest(request);
   if (denied) return denied;
   try {
+    const action = new URL(request.url).searchParams.get("action");
+    if (action === "requeue-terminal") {
+      const requeued = await socialPostStore().requeueTerminalModeration(20);
+      return jsonNoStore({ ok: true, requeued });
+    }
+    if (action !== null) {
+      return jsonNoStore({ ok: false, error: "Unknown moderation action." }, { status: 400 });
+    }
     const result = await socialPostStore().processModerationQueue(
       new OpenAISocialPostModerationAdapter(),
       20,
