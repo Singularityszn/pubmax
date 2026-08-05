@@ -3,99 +3,106 @@
 ## Status
 
 Complete. Social remains behind existing preview and verified-adult access. No
-migration was applied to a hosted database and no push was performed.
+migration was applied to a hosted database. No push or deployment was performed.
 
 ## Delivered
 
-- Added mobile-first text and photo creation with area, exact friends-only
-  Venue, visibility, hashtags, feature requests, alt text, and photo tags.
-- Added strict bounded JSON and multipart parsing before image work. JPEG, PNG,
-  and WebP input is normalised to bounded private JPEG media. Object paths omit
-  profile, account, and handle identifiers.
-- Added idempotent create and remove requests. Exact photo retries reuse one
-  deterministic media identity. Changed retries return conflict without
-  deleting a winning object.
+- Added a mobile-first, text-first Social composer with optional photo, Night
+  Area, Mutual-only exact Venue, visibility, hashtags, comment policy, and
+  feature-request post kind.
+- Added bounded JSON and multipart parsing before image work. JPEG, PNG, and
+  WebP input is normalised to bounded private JPEG media. Storage Object paths
+  omit account, profile, and handle identifiers.
 - Added account-bound local text and IndexedDB photo drafts. Failed submissions
-  keep the same request key. Account switches isolate drafts, and two open tabs
-  warn through BroadcastChannel.
-- Added explicit tag proposal, approval, decline, withdrawal, and cancellation.
-  Identity projection re-checks current blocks. Consent events remain
-  append-only after media cleanup.
-- Added full compare-and-swap editing, immutable digest audit, edited markers,
-  existing alt-text correction, photo replacement, and photo removal. Comment
-  policy uses the same revision and audit owner.
-- Added revision and media-bound moderation completion, named staff held review,
-  owner outbox, signed delivery budgets, protected Venue lookup budgets, and a
-  30-day detached-media cleanup in the scheduled moderation route.
-- Migration 0074 refuses legacy non-null Task 3 photo references before making
-  partial state. Rollback restores Task 3 rules and leaves profiles and blocks.
+  keep the request key. Account switches isolate drafts. Two open tabs warn
+  through BroadcastChannel.
+- Added idempotent create and remove requests. Exact photo replays use a stored
+  owner, key, and digest decision, skip upload, and reach the durable
+  idempotency RPC. Changed replays conflict. Generation-specific Storage Object
+  keys and token-bound cleanup prevent stale workers from deleting retry media.
+- Added explicit Photo Tag Proposal approval, decline, withdrawal,
+  cancellation, and audience-change re-consent. Consent reads omit Social Post
+  body text. Approved withdrawal remains reachable when a post or photo is not
+  publishable. Each lane preserves data and exposes retry on HTTP or network
+  failure.
+- Added compare-and-swap editing, edited markers, immutable digest audit, exact
+  media lifecycle audit, existing alt-text correction, photo replacement, and
+  photo removal.
+- Added revision-bound moderation, named staff held review, a paged owner
+  outbox, honest visibility labels, signed private delivery budgets, and
+  protected Venue lookup budgets.
+- Added an independent `/api/cron/purge-social-media` cleanup route for failed
+  uploads and detached media. Privacy copy states the staging and deletion
+  windows.
+- Migration 0074 refuses legacy non-null Task 3 photo references before it
+  creates partial state. Rollback restores Task 3 rules and leaves profiles and
+  blocks intact.
 
-## Review fixes
+## Release review closure
 
-Closed every Critical, Important, Minor, and missing-contract item in
-`task-6-core-review.md`. Full-suite review also found two stale certification
-fences: mutation inventory omitted tag and staff moderation routes, and cron
-response proof omitted the cleanup count. Both now have direct tests.
+Independent review rounds closed all Critical and Important findings. Final
+product paths passed exact replay, cleanup ABA fencing, consent body privacy,
+audience re-consent, withdrawal reachability, outbox pagination, media audit,
+retention disclosure, and mobile proof checks. The last closure package removed
+stale cached proof names and records current verification below.
 
 ## Verification
 
-Focused TypeScript and Task 6 tests:
-
-```sh
-npm run typecheck
-npx vitest run __tests__/socialComposerMigration.test.ts __tests__/socialPostSubmission.test.ts __tests__/socialPostStore.test.ts __tests__/socialPostsRoute.test.ts __tests__/socialInteractionsRoute.test.ts __tests__/socialPostMedia.test.ts __tests__/socialReadProtectionRoutes.test.ts __tests__/boundedRequest.test.ts __tests__/socialShellUi.test.ts --maxWorkers=1
-```
-
-Result: TypeScript passed. Nine files and 77 tests passed. The real PostgreSQL
-migration suite contributed 9 passes for forward refusal, CAS races, tag consent,
-moderation locks, idempotent removal, detached-media evidence preservation, and
-rollback.
-
-Mutation certification and scheduled cleanup:
-
-```sh
-npx vitest run __tests__/writeSurfaceCertification.test.ts --maxWorkers=1
-npx vitest run __tests__/socialPostModerationRoute.test.ts --maxWorkers=1
-```
-
-Result: 7/7 and 4/4 passed.
+Focused closure suite: 13 files and 127 tests passed. Real PostgreSQL forward
+and rollback proof passed 18/18, including exact photo replay without new
+upload metadata, cleanup generation fencing, consent state, and rollback.
 
 Full unit suite:
 
 ```sh
-npm test -- --maxWorkers=1
+npm test
 ```
 
-Result: 785 files and 7,893 tests passed in 285.14 seconds.
+Result: 792 files and 7,928 tests passed in 109.80 seconds.
+
+Static checks:
+
+```sh
+npm run typecheck
+npm run lint
+git diff --check
+```
+
+Result: typecheck passed. Lint passed with zero errors and 33 existing warnings.
+Diff check passed. Worktree was clean.
 
 Production build:
 
 ```sh
-NEXT_DIST_DIR=.next-task6 npm run build
+NEXT_DIST_DIR=.next-task6-ui-r4 npm run build
 ```
 
-Result: passed. Existing `lib/ogBrand.tsx` Edge-runtime warnings remain.
+Result: 473 pages built. Existing `lib/ogBrand.tsx` Edge-runtime warnings remain.
 
 Production browser proof:
 
 ```sh
-PW_SCREENSHOTS=1 PW_SOCIAL_COMPOSER_PROOF=1 PW_NEXT_DIST_DIR=.next-task6 npx playwright test e2e/social-composer.spec.ts --project=chromium
+PW_SCREENSHOTS=1 PW_SOCIAL_COMPOSER_PROOF=1 PW_NEXT_DIST_DIR=.next-task6-ui-r4 npx playwright test e2e/social-composer.spec.ts --project=chromium --workers=1
 ```
 
-Result: 10/10 passed in 19.2 seconds. Coverage includes text and photo posting,
-failed photo draft reload, stable retries, account-switch isolation, two-tab
-warning, Venue selection, tag approval and withdrawal, alt-text correction,
-photo removal, stale-edit recovery, edit reopen, focus containment, Escape focus
-return, axe, no horizontal overflow, light and dark themes, and 320, 390, 430,
-and 1280 px widths.
+Result: 14/14 passed with Axe. Coverage includes text and photo posting, failed
+draft recovery, exact retries, account and tab isolation, Venue selection,
+Photo Tag Proposal consent and withdrawal, per-lane failure retry, alt-text
+correction, photo removal, stale-edit recovery, owner outbox pagination, focus
+containment, Escape return, reduced motion, no horizontal overflow, light and
+dark themes, and 320, 390, 430, and 1280 px widths.
 
 ## Proof
 
 Screenshots and command index: `docs/proof/social-composer/README.md`.
 
-## Concerns
+Both 390 px outbox proof files use final uncached names. Each shows the complete
+header, action, 44 px control, and all six fixed mobile tabs.
+
+## Release conditions
 
 - Captain must apply migration 0074 after migrations 0072 and 0073.
 - Social beta remains off until release owners assign moderation providers and
   approve access policy.
-- Detached photo deletion depends on the existing scheduled moderation route.
+- Scheduled deletion depends on `/api/cron/purge-social-media` running with its
+  configured cron secret.

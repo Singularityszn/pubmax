@@ -117,11 +117,11 @@ Task 1 changes no data practice. Do not edit `/privacy` or `/terms` until implem
 
 ### Task 6: Composer, media, consent, and feature requests
 
-- [ ] Build text-first mobile composer with optional photo, area, friends-only venue, visibility, hashtags, and post kind.
-- [ ] Reuse private media storage and signed delivery. Validate type, size, ownership, and moderation state.
-- [ ] Add explicit tag proposals. Tagged people approve before their identity appears on a published photo.
-- [ ] Allow edits with an edited marker and immutable audit metadata.
-- [ ] Preserve drafts locally when upload or moderation dependencies fail.
+- [x] Build text-first mobile composer with optional photo, area, friends-only venue, visibility, hashtags, and post kind.
+- [x] Reuse private media storage and signed delivery. Validate type, size, ownership, and moderation state.
+- [x] Add explicit tag proposals. Tagged people approve before their identity appears on a published photo.
+- [x] Allow edits with an edited marker and immutable audit metadata.
+- [x] Preserve drafts locally when upload or moderation dependencies fail.
 
 ### Task 7: Crew Pages and complete night loop
 
