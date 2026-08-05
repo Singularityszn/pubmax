@@ -1,3 +1,5 @@
+import { coarsenViewerPoint } from "@/lib/geo";
+
 // Session-only Last Pint destination label (user stories 14–15, 23).
 //
 // The drinker's "heading home to …" target never leaves the browser session:
@@ -43,9 +45,10 @@ export function writeLastTrainDestination(
 
 /** Build the Last Pint fetch URL. Destination stays client-only — never sent. */
 export function lastTrainFetchUrl(lat: number, lng: number): string {
+  const egressPoint = coarsenViewerPoint({ lat, lng });
   const params = new URLSearchParams();
-  params.set("lat", String(lat));
-  params.set("lng", String(lng));
+  params.set("lat", String(egressPoint.lat));
+  params.set("lng", String(egressPoint.lng));
   return `/api/last-train?${params.toString()}`;
 }
 

@@ -13,6 +13,7 @@
 // { summary: null } and the strip renders nothing.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { coarsenViewerPoint } from "@/lib/geo";
 import { resolveTonightConditions } from "@/lib/tonightConditionsRoute";
 
 function finiteCoord(value: string | null, min: number, max: number): number | null {
@@ -27,7 +28,12 @@ export async function GET(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const lat = finiteCoord(url.searchParams.get("lat"), -90, 90);
     const lng = finiteCoord(url.searchParams.get("lng"), -180, 180);
-    const point: [number, number] | null = lat !== null && lng !== null ? [lng, lat] : null;
+    const viewerPoint = lat !== null && lng !== null
+      ? coarsenViewerPoint({ lat, lng })
+      : null;
+    const point: [number, number] | null = viewerPoint
+      ? [viewerPoint.lng, viewerPoint.lat]
+      : null;
 
     const summary = await resolveTonightConditions({ point, now: new Date() });
     return jsonNoStore({ summary });

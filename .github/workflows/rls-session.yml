@@ -59,7 +59,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-16
+          # GITHUB_PATH reaches later steps only, so export it here too or the
+          # version checks at the end of this step run without the binaries.
           echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+          export PATH="/usr/lib/postgresql/16/bin:$PATH"
           curl --fail --location --silent --show-error \
             --output "$RUNNER_TEMP/postgrest.tar.xz" \
             https://github.com/PostgREST/postgrest/releases/download/v14.16/postgrest-v14.16-linux-static-x86-64.tar.xz
@@ -68,6 +71,7 @@ jobs:
           tar --extract --xz --file "$RUNNER_TEMP/postgrest.tar.xz" --directory "$RUNNER_TEMP"
           chmod +x "$RUNNER_TEMP/postgrest"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP:$PATH"
           initdb --version
           postgres --version
           psql --version

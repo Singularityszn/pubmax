@@ -24,7 +24,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "30 July 2026";
+const LAST_UPDATED = "4 August 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -263,14 +263,15 @@ export default function PrivacyPage() {
         <p className="legalBody">
           &ldquo;Find my pint&rdquo; asks your browser for your location and
           ranks nearby pubs there, so those coordinates never leave your
-          device. Other location features work like this:
+          device. Viewer coordinates never leave your device at full precision.
+          Other location features work like this:
         </p>
         <ul className="legalList">
           <li>
             <strong>What&rsquo;s on:</strong>{" "}sharing location on the map or
-            Tonight sends the coordinates supplied by your browser, without
-            rounding them first, to our <code>/api/whats-on</code> route so it
-            can rank listings near you.
+            Tonight rounds your point to three decimal places, roughly 70 to
+            110 metres in London, before sending it to our
+            {" "}<code>/api/whats-on</code> route so it can rank listings near you.
           </li>
           <li>
             <strong>Conditions and getting home:</strong>{" "}Tonight rounds your
@@ -582,9 +583,9 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Rate-limit records:</strong>{" "}durable limiter rows are
-            keyed to salted hashes, never raw IP addresses. Hit timestamps
-            outside that window are pruned when the hashed key is next used;
-            the key row remains.
+            keyed to salted hashes, never raw IP addresses. Each row expires at
+            the end of its limiter window and is deleted the next time the
+            durable limiter runs. The longest current window is seven days.
           </li>
           <li>
             <strong>Push subscriptions:</strong>{" "}if you turned notifications

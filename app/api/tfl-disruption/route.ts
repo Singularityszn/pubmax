@@ -17,6 +17,7 @@ import {
   fetchLineStatuses,
 } from "@/lib/tflDisruption";
 import { CITIES, pointInCityBounds } from "@/lib/cities";
+import { coarsenViewerPoint } from "@/lib/geo";
 import { nearestNightPatch } from "@/lib/nightPatches";
 
 export const runtime = "nodejs";
@@ -42,12 +43,13 @@ export async function GET(request: Request): Promise<Response> {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return json({ error: "Add valid lat and lng coordinates.", disruption: null }, 400);
   }
-  if (!pointInCityBounds(lat, lng, CITIES.london)) {
+  const viewerPoint = coarsenViewerPoint({ lat, lng });
+  if (!pointInCityBounds(viewerPoint.lat, viewerPoint.lng, CITIES.london)) {
     // The patch relevance table is London-only; anywhere else is honestly silent.
     return json({ disruption: null, generatedAt: new Date().toISOString() });
   }
 
-  const patch = nearestNightPatch(lat, lng);
+  const patch = nearestNightPatch(viewerPoint.lat, viewerPoint.lng);
   if (!patch) {
     return json({ disruption: null, generatedAt: new Date().toISOString() });
   }
