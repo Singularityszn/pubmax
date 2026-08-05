@@ -5,12 +5,16 @@ import PriceBadge from "@/components/PriceBadge";
 import {
   formatAbv,
   groupDrinksByCategory,
+  isDemoDrinkProvenance,
   type Drink,
   type DrinkCategory,
   type DrinkProvenance,
 } from "@/lib/drinks";
 import { firstHttp } from "@/lib/httpUrl";
-import { FRESH_WITHIN_DAYS } from "@/lib/priceConfidence";
+import {
+  DRINK_PRICE_UPDATE_STALENESS_BUDGET_DAYS,
+  PINT_DATASET_STALENESS_BUDGET_DAYS,
+} from "@/lib/dataFreshness";
 import { DrinkGlyph } from "./DrinkGlyph";
 
 import "./drinkMenu.css";
@@ -19,18 +23,19 @@ const DAY_MS = 86_400_000;
 
 function drinkMenuObservationMeta(
   observedAt: string,
+  freshnessBudgetDays: number,
   now: number = Date.now(),
 ): { label: "Seen" | "Last seen"; formattedDate: string } | null {
   const observedAtMs = Date.parse(observedAt);
   if (!Number.isFinite(observedAtMs)) return null;
-  const stale = now - observedAtMs > FRESH_WITHIN_DAYS * DAY_MS;
+  const stale = now - observedAtMs > freshnessBudgetDays * DAY_MS;
   return {
     label: stale ? "Last seen" : "Seen",
     formattedDate: new Intl.DateTimeFormat("en-GB", {
       day: "numeric",
       month: "short",
       year: "numeric",
-      timeZone: "UTC",
+      timeZone: "Europe/London",
     }).format(new Date(observedAtMs)),
   };
 }
@@ -51,13 +56,9 @@ function drinkMenuObservationMeta(
 // anything else shows its source so a new permissible source (Wikidata, a chain
 // site) is never silently relabelled.
 function provenanceLabel(prov: DrinkProvenance): string {
-  if (isDemoProvenance(prov)) return "Demo";
+  if (isDemoDrinkProvenance(prov)) return "Demo";
   if (isUnattributedPrice(prov)) return "Publisher not recorded";
   return prov.source;
-}
-
-function isDemoProvenance(prov: DrinkProvenance): boolean {
-  return prov.source === "seed" || prov.source.toLowerCase().includes("demo");
 }
 
 function isUnattributedPrice(prov: DrinkProvenance): boolean {
@@ -66,7 +67,7 @@ function isUnattributedPrice(prov: DrinkProvenance): boolean {
 
 function ProvChip({ prov }: { prov: DrinkProvenance }) {
   const label = provenanceLabel(prov);
-  const kind = isDemoProvenance(prov) ? "demo" : "sourced";
+  const kind = isDemoDrinkProvenance(prov) ? "demo" : "sourced";
   const className = `drinkProvChip ${kind}`;
   const title = `${label} · ${prov.licence}`;
   const sourceUrl = firstHttp(prov.sourceUrl);
@@ -104,9 +105,14 @@ function drinkMeta(drink: Drink): string {
 
 function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
   const meta = drinkMeta(drink);
-  const observation = isDemoProvenance(drink.provenance)
+  const observation = isDemoDrinkProvenance(drink.provenance)
     ? null
-    : drinkMenuObservationMeta(drink.provenance.observedAt);
+    : drinkMenuObservationMeta(
+        drink.provenance.observedAt,
+        drink.provenance.lane === "dataset" || drink.provenance.source === "app-dataset"
+          ? PINT_DATASET_STALENESS_BUDGET_DAYS
+          : DRINK_PRICE_UPDATE_STALENESS_BUDGET_DAYS,
+      );
   return (
     <li className="drinkRow">
       <div className="drinkRowMain">

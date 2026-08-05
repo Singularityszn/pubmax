@@ -21,6 +21,26 @@ export const PINT_DATASET_FILE = "pint_prices_app_dataset.json";
 
 /** Registry id of the bundled pint-price dataset entry (the stamp we read). */
 const PINT_DATASET_REGISTRY_ID = "pint_prices";
+const DRINK_PRICE_UPDATE_REGISTRY_ID = "drink_price_updates";
+
+const registry = freshnessRegistry as unknown as FreshnessRegistry;
+
+function stalenessBudgetDays(id: string): number {
+  const hours = registry.datasets.find((dataset) => dataset.id === id)?.stalenessBudgetHours;
+  if (typeof hours !== "number" || !Number.isFinite(hours) || hours <= 0) {
+    throw new Error(
+      `data/freshness_registry.json: '${id}' is missing a positive staleness budget`,
+    );
+  }
+  return hours / 24;
+}
+
+export const PINT_DATASET_STALENESS_BUDGET_DAYS = stalenessBudgetDays(
+  PINT_DATASET_REGISTRY_ID,
+);
+export const DRINK_PRICE_UPDATE_STALENESS_BUDGET_DAYS = stalenessBudgetDays(
+  DRINK_PRICE_UPDATE_REGISTRY_ID,
+);
 
 /**
  * Resolve the pint dataset's collection stamp from the freshness registry —
@@ -43,7 +63,6 @@ const PINT_DATASET_REGISTRY_ID = "pint_prices";
  * hand-editing this file.
  */
 function resolvePintDatasetObservedAt(): Date {
-  const registry = freshnessRegistry as unknown as FreshnessRegistry;
   const entry = registry.datasets.find((d) => d.id === PINT_DATASET_REGISTRY_ID);
   const observedAt = entry ? resolveObservedAt(entry.stamp, undefined) : null;
   if (observedAt === null) {

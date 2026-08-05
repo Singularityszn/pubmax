@@ -22,6 +22,7 @@ import type { Provenance } from "@/lib/curation";
 import { demoContentEnabled } from "@/lib/demoContent";
 import {
   alcoholTypeForDrink,
+  isDemoDrinkSource,
   isDrinkCategory,
   type Drink,
   type DrinkCategory,
@@ -169,9 +170,7 @@ function visibleDrinkPriceUpdates(
   updates: readonly DrinkPriceUpdate[],
 ): DrinkPriceUpdate[] {
   if (demoContentEnabled()) return [...updates];
-  return updates.filter(
-    (update) => !update.source.label.toLowerCase().includes("demo"),
-  );
+  return updates.filter((update) => !isDemoDrinkSource(update.source.label));
 }
 
 export function drinkFromPriceUpdate(update: DrinkPriceUpdate): Drink {

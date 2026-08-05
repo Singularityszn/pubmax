@@ -14,105 +14,22 @@ import {
   type FeedItem,
   type PintDropDTO,
 } from "@/lib/feed";
+import { type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import {
-  REACTION_KEYS,
-  type ReactionKey,
-  type ReactionSummary,
-} from "@/lib/reactions";
+  loadProfileReactionSummaries,
+  profileLocalReactionSummary,
+  writeProfileLocalReactions,
+  type ProfileReactionSummaryMap,
+} from "@/lib/profileReactionSummaries";
+
+export { loadProfileReactionSummaries } from "@/lib/profileReactionSummaries";
 
 const EMPTY_SUMMARY: ReactionSummary = { counts: {}, mine: [] };
 
-type SummaryMap = Record<string, ReactionSummary>;
-
-const REACTION_SUMMARY_BATCH_SIZE = 100;
-
-type ProfileReactionSummaryLoad = {
-  summaries: SummaryMap;
-  localOnlyIds: Set<string>;
-  aborted: boolean;
-};
-
-const LOCAL_PREFIX = "pubmax:profile:reactions:";
-
-function readLocalMine(id: string): ReactionKey[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(LOCAL_PREFIX + id);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((v): v is ReactionKey =>
-      (REACTION_KEYS as readonly string[]).includes(String(v)),
-    );
-  } catch {
-    return [];
-  }
-}
-
-function writeLocalMine(id: string, mine: ReactionKey[]): void {
-  try {
-    window.localStorage.setItem(LOCAL_PREFIX + id, JSON.stringify(mine));
-  } catch {
-    // Storage full / disabled — reaction still flips in memory this session.
-  }
-}
-
-function localSummary(mine: ReactionKey[]): ReactionSummary {
-  const counts: Partial<Record<ReactionKey, number>> = {};
-  for (const key of mine) counts[key] = 1;
-  return { counts, mine };
-}
+type SummaryMap = ProfileReactionSummaryMap;
 
 function toggleMine(mine: ReactionKey[], reaction: ReactionKey): ReactionKey[] {
   return mine.includes(reaction) ? mine.filter((k) => k !== reaction) : [...mine, reaction];
-}
-
-export async function loadProfileReactionSummaries(
-  ids: readonly string[],
-  actorId: string,
-  signal?: AbortSignal,
-): Promise<ProfileReactionSummaryLoad> {
-  const uniqueIds = Array.from(new Set(ids));
-  const batches: string[][] = [];
-  for (let start = 0; start < uniqueIds.length; start += REACTION_SUMMARY_BATCH_SIZE) {
-    batches.push(uniqueIds.slice(start, start + REACTION_SUMMARY_BATCH_SIZE));
-  }
-
-  const results = await Promise.all(
-    batches.map(async (batch) => {
-      if (signal?.aborted) return { batch, aborted: true } as const;
-      const query = `ids=${encodeURIComponent(batch.join(","))}&actor=${encodeURIComponent(actorId)}`;
-      try {
-        const response = await fetch(`/api/pint-drops/reactions?${query}`, { signal });
-        if (!response.ok) throw new Error(String(response.status));
-        const data = (await response.json()) as { summaries?: SummaryMap };
-        if (signal?.aborted) return { batch, aborted: true } as const;
-        return { batch, summaries: data.summaries ?? {} } as const;
-      } catch {
-        if (signal?.aborted) return { batch, aborted: true } as const;
-        return { batch, failed: true } as const;
-      }
-    }),
-  );
-
-  if (signal?.aborted || results.some((result) => "aborted" in result)) {
-    return { summaries: {}, localOnlyIds: new Set(), aborted: true };
-  }
-
-  const summaries: SummaryMap = {};
-  const localOnlyIds = new Set<string>();
-  for (const result of results) {
-    if ("failed" in result) {
-      for (const id of result.batch) {
-        localOnlyIds.add(id);
-        summaries[id] = localSummary(readLocalMine(id));
-      }
-      continue;
-    }
-    Object.assign(summaries, result.summaries);
-  }
-
-  return { summaries, localOnlyIds, aborted: false };
 }
 
 const PROVENANCE_OK = new Set<Provenance>(["demo", "contributor", "sourced", "anecdote"]);
@@ -186,7 +103,7 @@ export default function ProfileTimeline({
     let settled = false;
     loadProfileReactionSummaries(fresh, actorId, controller.signal)
       .then((result) => {
-        if (result.aborted) return;
+        if (result.aborted || controller.signal.aborted) return;
         settled = true;
         for (const id of result.localOnlyIds) localOnly.current.add(id);
         setSummaries((prev) => {
@@ -210,8 +127,8 @@ export default function ProfileTimeline({
       setSummaries((prev) => {
         const current = prev[dropId] ?? EMPTY_SUMMARY;
         const mine = toggleMine(current.mine, reaction);
-        writeLocalMine(dropId, mine);
-        return { ...prev, [dropId]: localSummary(mine) };
+        writeProfileLocalReactions(dropId, mine);
+        return { ...prev, [dropId]: profileLocalReactionSummary(mine) };
       });
       return;
     }
@@ -236,8 +153,8 @@ export default function ProfileTimeline({
         localOnly.current.add(dropId);
         setSummaries((prev) => {
           const current = prev[dropId] ?? EMPTY_SUMMARY;
-          writeLocalMine(dropId, current.mine);
-          return { ...prev, [dropId]: localSummary(current.mine) };
+          writeProfileLocalReactions(dropId, current.mine);
+          return { ...prev, [dropId]: profileLocalReactionSummary(current.mine) };
         });
         return;
       }
