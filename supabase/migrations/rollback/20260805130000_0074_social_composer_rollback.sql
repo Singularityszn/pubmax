@@ -21,8 +21,12 @@ drop function if exists public.edit_social_post_with_media(uuid,uuid,integer,tex
 drop function if exists public.create_social_post_idempotent(uuid,text,text,text,text,text,text,text[],text,uuid,text,text,integer,integer,integer,text,text[],text,text);
 drop function if exists public.create_social_post(uuid,text,text,text,text,text,text,text[],text,uuid,text,text,integer,integer,integer,text,text[]);
 drop function if exists public.social_post_exact_venue_allowed(public.social_posts,uuid);
-drop function if exists public.claim_social_post_media_upload_cleanup(uuid,uuid);
+drop function if exists public.reserve_social_post_media_upload(uuid,uuid,text,integer,integer,integer);
+drop function if exists public.claim_social_post_media_upload_cleanup(uuid,uuid,uuid);
 drop function if exists public.claim_social_post_media_upload_cleanup_batch(integer,timestamptz);
+drop function if exists public.finalize_social_post_media_upload_cleanup(uuid,uuid,uuid);
+drop function if exists public.claim_social_post_media_cleanup_batch(integer);
+drop function if exists public.finalize_social_post_media_cleanup(uuid,uuid,uuid);
 drop function if exists public.social_post_digest(public.social_posts);
 
 drop trigger if exists social_post_tag_proposal_guard on public.social_post_tag_proposals;
@@ -46,6 +50,7 @@ alter table public.social_post_moderation_jobs drop column media_id, drop column
 drop table public.social_post_moderation_actions;
 drop table public.social_post_tag_events;
 drop table public.social_post_tag_proposals;
+drop table public.social_post_media_lifecycle_events;
 drop table public.social_post_edit_audit;
 drop table public.social_post_create_requests;
 drop table public.social_post_remove_requests;

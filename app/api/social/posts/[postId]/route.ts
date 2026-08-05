@@ -47,6 +47,18 @@ function validId(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+async function readPatchInput(request: Request): Promise<{ input: unknown; photo: File | null }> {
+  if (!(request.headers.get("Content-Type") ?? "").startsWith("multipart/form-data")) {
+    return { input: await boundedJson(request), photo: null };
+  }
+  const form = await boundedFormData(request, SOCIAL_PHOTO_MAX_BYTES + 64 * 1024);
+  if ([...form.keys()].some((key) => key !== "post" && key !== "photo") || form.getAll("post").length !== 1 || form.getAll("photo").length > 1) throw new Error();
+  const post = form.get("post");
+  const photo = form.get("photo");
+  if (typeof post !== "string" || (photo !== null && !(photo instanceof File))) throw new Error();
+  return { input: JSON.parse(post), photo: photo as File | null };
+}
+
 export async function GET(_request: Request, context: Context): Promise<Response> {
   const access = await requireVerifiedSocialActor();
   if (!access.ok) return accessError(access);
@@ -79,14 +91,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   let input: unknown;
   let photo: File | null = null;
   try {
-    if ((request.headers.get("Content-Type") ?? "").startsWith("multipart/form-data")) {
-      const form = await boundedFormData(request, SOCIAL_PHOTO_MAX_BYTES + 64 * 1024);
-      if ([...form.keys()].some((key) => key !== "post" && key !== "photo") || form.getAll("post").length !== 1 || form.getAll("photo").length > 1) throw new Error();
-      const post = form.get("post");
-      const part = form.get("photo");
-      if (typeof post !== "string" || (part !== null && !(part instanceof File))) throw new Error();
-      input = JSON.parse(post); photo = part as File | null;
-    } else input = await boundedJson(request);
+    ({ input, photo } = await readPatchInput(request));
   } catch {
     return privateJson({ code: "MALFORMED_REQUEST", error: "Request body is not valid JSON." }, { status: 400 });
   }
@@ -143,7 +148,14 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
     if (photo) {
       const prepared = await prepareSocialPhoto(photo);
       reserved = await reserveSocialPhotoUpload(access.actor.profileId, prepared);
-      uploaded = await uploadPreparedSocialPhoto(access.actor.profileId, prepared, undefined, reserved.mediaId);
+      uploaded = await uploadPreparedSocialPhoto(
+        access.actor.profileId,
+        prepared,
+        undefined,
+        reserved.mediaId,
+        reserved.objectKey,
+        reserved.generation,
+      );
       changes = { ...changes, photo: { mediaId: uploaded.mediaId, altText: validation.photoAltText! } };
     } else if (validation.removePhoto) changes = { ...changes, photo: null };
     const editOptions = uploaded
@@ -161,8 +173,10 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
       audit: { fromRevision: validation.expectedRevision, toRevision: post.revision },
     });
   } catch (error) {
+    if (reserved) {
+      await reconcileSocialPhotoUpload(access.actor.profileId, reserved.mediaId, reserved.generation).catch(() => false);
+    }
     if (error instanceof SocialPhotoError) {
-      if (reserved) await reconcileSocialPhotoUpload(access.actor.profileId, reserved.mediaId).catch(() => false);
       return privateJson({ code: error.code, error: error.message }, { status: error.code === "STORAGE_UNAVAILABLE" ? 503 : 400 });
     }
     return storeError(error);

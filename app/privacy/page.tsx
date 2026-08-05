@@ -203,6 +203,12 @@ export default function PrivacyPage() {
           data on this device until you post or clear the draft.
         </p>
         <p className="legalBody">
+          Failed or interrupted Social photo uploads can stay temporarily in
+          private server storage so an exact retry cannot damage another upload. They become
+          eligible for deletion after 24 hours. A daily scheduled cleanup
+          removes them. Storage or database outages can delay that cleanup.
+        </p>
+        <p className="legalBody">
           Cheers, comments, private saves, reposts and quote posts are tied to
           your stable Social profile. Saves are private and have no public
           count. Comments and quote-post text enter the same kind of private
@@ -219,8 +225,10 @@ export default function PrivacyPage() {
         </p>
         <p className="legalBody">
           Social edits keep revision numbers, changed-field names and content
-          digests for conflict handling and abuse review. A removed photo stops
-          being delivered. Detached photo files enter a 30-day deletion queue. A scheduled server cleanup removes
+          digests for conflict handling and abuse review. A private removal
+          audit keeps the media ID, post, actor, detachment action and retention
+          deadline. A removed photo stops being delivered. Detached photo files
+          enter a 30-day deletion queue. A scheduled server cleanup removes
           the private file and its media row after that date. Signed photo links expire after three minutes.
         </p>
         <p className="legalBody">

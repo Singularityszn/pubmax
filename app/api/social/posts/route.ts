@@ -162,6 +162,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   let uploaded: UploadedSocialPhoto | null = null;
   let reserved: UploadedSocialPhoto | null = null;
+  let requestDigest = socialPostRequestDigest(fields, null, []);
   try {
     if (submitted.photo) {
       const prepared = await prepareSocialPhoto(submitted.photo);
@@ -171,13 +172,19 @@ export async function POST(request: Request): Promise<Response> {
         photo: { mediaId, altText: validation.photoAltText! },
       };
       const digest = socialPostRequestDigest(fields, prepared.sha256, validation.tagHandles);
+      requestDigest = digest;
       const prior = await readSocialPostCreateRequest(access.actor.profileId, idempotencyKey);
       if (prior && prior.digest !== digest) throw new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That post request key was already used for different content.");
-      if (prior?.mediaId === mediaId) {
-        uploaded = { ...prepared, mediaId, objectKey: `social/${mediaId}/image.jpg` };
-      } else {
+      if (!prior) {
         reserved = await reserveSocialPhotoUpload(access.actor.profileId, prepared, mediaId);
-        uploaded = await uploadPreparedSocialPhoto(access.actor.profileId, prepared, undefined, mediaId);
+        uploaded = await uploadPreparedSocialPhoto(
+          access.actor.profileId,
+          prepared,
+          undefined,
+          reserved.mediaId,
+          reserved.objectKey,
+          reserved.generation,
+        );
       }
     }
     const post = uploaded
@@ -192,16 +199,16 @@ export async function POST(request: Request): Promise<Response> {
           },
           tagHandles: validation.tagHandles,
           idempotencyKey,
-          requestDigest: socialPostRequestDigest(fields, uploaded.sha256, validation.tagHandles),
+          requestDigest,
         })
       : await socialPostStore().create(access.actor, fields, {
           idempotencyKey,
-          requestDigest: socialPostRequestDigest(fields, null, []),
+          requestDigest,
         });
     return privateJson({ post: await projectSocialVenueName(post, resolvedVenue) }, { status: 201 });
   } catch (error) {
     if (reserved) {
-      await reconcileSocialPhotoUpload(access.actor.profileId, reserved.mediaId).catch(() => false);
+      await reconcileSocialPhotoUpload(access.actor.profileId, reserved.mediaId, reserved.generation).catch(() => false);
     }
     if (error instanceof SocialPhotoError) {
       const unavailable = error.code === "STORAGE_UNAVAILABLE";
