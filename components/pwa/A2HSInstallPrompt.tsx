@@ -95,7 +95,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
   const platformRef = useRef<A2hsPlatform>("unsupported");
   const finalizedRef = useRef(false);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
-  const cardRef = useRef<HTMLDivElement | null>(null);
+  const cardRef = useRef<HTMLElement | null>(null);
 
   // Play the exit animation, then run the terminal side effect and unmount.
   // Idempotent via finalizedRef, with a 0ms path under reduced motion.
@@ -228,13 +228,13 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
   }, [surface]);
 
   const onKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
+    (e: React.KeyboardEvent<HTMLElement>) => {
       if (e.key === "Escape") {
         e.stopPropagation();
         close(true);
         return;
       }
-      if (e.key !== "Tab") return;
+      if (surface !== "ios" || e.key !== "Tab") return;
       const card = cardRef.current;
       if (!card) return;
       const focusables = card.querySelectorAll<HTMLElement>(
@@ -254,10 +254,99 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
         first.focus();
       }
     },
-    [close],
+    [close, surface],
   );
 
   if (!surface) return null;
+
+  const sheet = (
+    <section
+      ref={cardRef}
+      className={`a2hsSheet a2hsSheet--${surface}${closing ? " isClosing" : ""}`}
+      role={surface === "ios" ? "dialog" : "region"}
+      aria-modal={surface === "ios" ? "true" : undefined}
+      aria-labelledby="a2hsTitle"
+      aria-describedby="a2hsBody"
+      tabIndex={-1}
+      onKeyDown={onKeyDown}
+    >
+      <button
+        type="button"
+        className="a2hsClose pressable"
+        onClick={() => close(true)}
+        aria-label="Not now"
+      >
+        <X size={18} aria-hidden="true" />
+      </button>
+
+      <p className="a2hsEyebrow">Add to home screen</p>
+      <h2 id="a2hsTitle" className="a2hsTitle">
+        Put PUBMAXX on your home screen
+      </h2>
+
+      {surface === "android" ? (
+        <>
+          <p id="a2hsBody" className="a2hsBody">
+            One tap to listed pint prices near you.
+          </p>
+          <div className="a2hsActions">
+            <button type="button" className="a2hsSecondary pressable" onClick={() => close(true)}>
+              Not now
+            </button>
+            <button type="button" className="a2hsPrimary pressable" onClick={onAndroidInstall}>
+              Add to home screen
+            </button>
+          </div>
+          <button type="button" className="a2hsNever" onClick={onNeverAsk}>
+            Don&apos;t ask again
+          </button>
+        </>
+      ) : (
+        <>
+          <p id="a2hsBody" className="a2hsBody">
+            One tap to tonight, and once it&apos;s installed, PUBMAXX can send you
+            price-drop and last-orders alerts. Works in Safari.
+          </p>
+          <ol className="a2hsSteps">
+            <li className="a2hsStep">
+              <span className="a2hsStepIcon" aria-hidden="true">
+                <Share size={18} />
+              </span>
+              <span>
+                Tap <strong>Share</strong> in Safari&apos;s toolbar.
+              </span>
+            </li>
+            <li className="a2hsStep">
+              <span className="a2hsStepIcon" aria-hidden="true">
+                <Plus size={18} />
+              </span>
+              <span>
+                Choose <strong>Add to Home Screen</strong>.
+              </span>
+            </li>
+            <li className="a2hsStep">
+              <span className="a2hsStepNum" aria-hidden="true">
+                3
+              </span>
+              <span>
+                Tap <strong>Add</strong>. PUBMAXX lands on your home screen.
+              </span>
+            </li>
+          </ol>
+          <div className="a2hsActions">
+            <button type="button" className="a2hsPrimary pressable" onClick={() => close(true)}>
+              Got it
+            </button>
+          </div>
+          <button type="button" className="a2hsNever" onClick={onNeverAsk}>
+            Don&apos;t ask again
+          </button>
+        </>
+      )}
+    </section>
+  );
+
+  if (surface === "android") return sheet;
 
   return (
     <div
@@ -265,91 +354,8 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close(true);
       }}
-      onKeyDown={onKeyDown}
     >
-      <div
-        ref={cardRef}
-        className={`a2hsSheet${closing ? " isClosing" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="a2hsTitle"
-        aria-describedby="a2hsBody"
-        tabIndex={-1}
-      >
-        <button
-          type="button"
-          className="a2hsClose pressable"
-          onClick={() => close(true)}
-          aria-label="Not now"
-        >
-          <X size={18} aria-hidden="true" />
-        </button>
-
-        <p className="a2hsEyebrow">Add to home screen</p>
-        <h2 id="a2hsTitle" className="a2hsTitle">
-          Put PUBMAXX on your home screen
-        </h2>
-
-        {surface === "android" ? (
-          <>
-            <p id="a2hsBody" className="a2hsBody">
-              One tap to listed pint prices near you.
-            </p>
-            <div className="a2hsActions">
-              <button type="button" className="a2hsSecondary pressable" onClick={() => close(true)}>
-                Not now
-              </button>
-              <button type="button" className="a2hsPrimary pressable" onClick={onAndroidInstall}>
-                Add to home screen
-              </button>
-            </div>
-            <button type="button" className="a2hsNever" onClick={onNeverAsk}>
-              Don&apos;t ask again
-            </button>
-          </>
-        ) : (
-          <>
-            <p id="a2hsBody" className="a2hsBody">
-              One tap to tonight, and once it&apos;s installed, PUBMAXX can send you
-              price-drop and last-orders alerts. Works in Safari.
-            </p>
-            <ol className="a2hsSteps">
-              <li className="a2hsStep">
-                <span className="a2hsStepIcon" aria-hidden="true">
-                  <Share size={18} />
-                </span>
-                <span>
-                  Tap <strong>Share</strong> in Safari&apos;s toolbar.
-                </span>
-              </li>
-              <li className="a2hsStep">
-                <span className="a2hsStepIcon" aria-hidden="true">
-                  <Plus size={18} />
-                </span>
-                <span>
-                  Choose <strong>Add to Home Screen</strong>.
-                </span>
-              </li>
-              <li className="a2hsStep">
-                <span className="a2hsStepNum" aria-hidden="true">
-                  3
-                </span>
-                <span>
-                  Tap <strong>Add</strong>. PUBMAXX lands on your home screen.
-                </span>
-              </li>
-            </ol>
-            <div className="a2hsActions">
-              <button type="button" className="a2hsPrimary pressable" onClick={() => close(true)}>
-                Got it
-              </button>
-            </div>
-            <button type="button" className="a2hsNever" onClick={onNeverAsk}>
-              Don&apos;t ask again
-            </button>
-          </>
-        )}
-      </div>
+      {sheet}
     </div>
   );
 }
