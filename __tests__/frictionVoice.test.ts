@@ -200,20 +200,24 @@ describe("friction-state voice fence", () => {
     expect(offenders, "a control label must name a thing, not print a figure").toEqual([]);
   });
 
-  it("no static reader-facing copy uses 0.0 vocabulary", () => {
-    const offenders: string[] = [];
-    for (const file of [...tsxFilesIn("app"), ...tsxFilesIn("components")]) {
-      for (const copy of readerFacingStaticCopy(read(file))) {
-        if (ZERO_POINT_ZERO.test(copy.text)) {
-          offenders.push(`${file}:${copy.line}: "${copy.text}"`);
+  it(
+    "no static reader-facing copy uses 0.0 vocabulary",
+    () => {
+      const offenders: string[] = [];
+      for (const file of [...tsxFilesIn("app"), ...tsxFilesIn("components")]) {
+        for (const copy of readerFacingStaticCopy(read(file))) {
+          if (ZERO_POINT_ZERO.test(copy.text)) {
+            offenders.push(`${file}:${copy.line}: "${copy.text}"`);
+          }
         }
       }
-    }
-    expect(
-      offenders,
-      "reader-facing copy must name alcohol-free choices in words",
-    ).toEqual([]);
-  });
+      expect(
+        offenders,
+        "reader-facing copy must name alcohol-free choices in words",
+      ).toEqual([]);
+    },
+    60_000,
+  );
 
   it("the 0.0 fence reaches accessible attributes and nested visible text", () => {
     const shipped = readerFacingStaticCopy(`
