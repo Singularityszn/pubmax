@@ -35,6 +35,19 @@ beforeEach(() => {
 });
 
 describe("plan collaboration capabilities", () => {
+  it("returns not found for a capability-bound call on a missing keyless Plan", async () => {
+    await expect(planCollaborationStore().addConstraint(
+      "11111111-1111-4111-8111-111111111111",
+      "missing-member-token",
+      {
+        kind: "budget",
+        value: "Under twenty pounds",
+        priority: "required",
+        idempotencyKey: "missing-plan-constraint",
+      },
+    )).resolves.toEqual({ ok: false, error: "not_found" });
+  });
+
   it("creates one-time expiring invites only for the host", async () => {
     const { id, host, guest } = await members();
     const store = planCollaborationStore();

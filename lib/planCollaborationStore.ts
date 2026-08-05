@@ -75,7 +75,7 @@ export type PlanCollaborationError = "invalid" | "not_found" | "forbidden" | "ex
 type Failure = { ok: false; error: PlanCollaborationError };
 type StoredInvite = PlanInvite & { tokenHash: string };
 
-class SocialCrewBoundPlanError extends Error {}
+class LegacyPlanNotFoundError extends Error {}
 
 async function legacyPlanBoundary(planId: string): Promise<Failure | null> {
   const result = await planStateResult(planId);
@@ -220,7 +220,7 @@ function vibeKey(planId: string, memberId: string): string {
 async function member(planId: string, token: unknown, role?: PlanMemberRole) {
   const boundary = await legacyPlanBoundary(planId);
   if (boundary) {
-    if (boundary.error === "not_found") throw new SocialCrewBoundPlanError();
+    if (boundary.error === "not_found") throw new LegacyPlanNotFoundError();
     throw new Error("plan collaboration Plan lookup failed");
   }
   const result = await planMemberIdentityResult(planId, token);
@@ -815,26 +815,31 @@ const supabaseStore: PlanCollaborationStore = {
   },
 };
 
-const safeSupabaseStore = new Proxy(supabaseStore, {
-  get(target, property, receiver) {
-    const value = Reflect.get(target, property, receiver) as unknown;
-    if (typeof value !== "function") return value;
-    return async (...args: unknown[]) => {
-      try {
-        return await Reflect.apply(value, target, args);
-      } catch (error) {
-        if (error instanceof SocialCrewBoundPlanError) {
-          return { ok: false, error: "not_found" };
+function safeStore(store: PlanCollaborationStore): PlanCollaborationStore {
+  return new Proxy(store, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver) as unknown;
+      if (typeof value !== "function") return value;
+      return async (...args: unknown[]) => {
+        try {
+          return await Reflect.apply(value, target, args);
+        } catch (error) {
+          if (error instanceof LegacyPlanNotFoundError) {
+            return { ok: false, error: "not_found" };
+          }
+          console.error("[plan-collaboration] store failed:", error instanceof Error ? error.message : error);
+          return { ok: false, error: "error" };
         }
-        console.error("[plan-collaboration] configured store failed:", error instanceof Error ? error.message : error);
-        return { ok: false, error: "error" };
-      }
-    };
-  },
-}) as PlanCollaborationStore;
+      };
+    },
+  }) as PlanCollaborationStore;
+}
+
+const safeMemoryStore = safeStore(memoryStore);
+const safeSupabaseStore = safeStore(supabaseStore);
 
 export function planCollaborationStore(): PlanCollaborationStore {
-  return selectStore(memoryStore, safeSupabaseStore);
+  return selectStore(safeMemoryStore, safeSupabaseStore);
 }
 
 export function __resetPlanCollaboration(): void {
