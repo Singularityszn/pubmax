@@ -26,6 +26,21 @@ create table public.social_post_media (
   )
 );
 
+create table public.social_post_media_uploads (
+  media_id uuid primary key,
+  owner_profile_id uuid not null references public.profiles(id) on delete cascade,
+  object_key text not null unique,
+  sha256 text not null check (sha256 ~ '^[0-9a-f]{64}$'),
+  width integer not null check (width between 1 and 1200),
+  height integer not null check (height between 1 and 1200),
+  byte_size integer not null check (byte_size > 0 and byte_size <= 10485760),
+  state text not null default 'staged' check (state in ('staged','cleanup')),
+  created_at timestamptz not null default now(),
+  constraint social_post_media_upload_private_path_check check (
+    object_key = 'social/' || media_id::text || '/image.jpg'
+  )
+);
+
 do $$ begin
   if exists (select 1 from public.social_posts where photo_media_id is not null) then
     raise exception '0074 requires Task 3 photo_media_id rows to be null before private media migration';
@@ -39,7 +54,8 @@ create unique index social_posts_one_media_attachment_idx
   on public.social_posts(photo_media_id) where photo_media_id is not null;
 
 alter table public.social_post_moderation_jobs
-  add column media_id uuid references public.social_post_media(id) on delete restrict;
+  add column media_id uuid references public.social_post_media(id) on delete restrict,
+  add column lease_token uuid;
 
 create table public.social_post_edit_audit (
   id uuid primary key default gen_random_uuid(),
@@ -74,6 +90,9 @@ create table public.social_post_tag_proposals (
     check (state in ('proposed', 'approved', 'declined', 'withdrawn', 'cancelled')),
   created_at timestamptz not null default now(),
   decided_at timestamptz,
+  audience_visibility text check (audience_visibility in ('public', 'friends', 'private')),
+  audience_revision integer check (audience_revision >= 0),
+  audience_shown_at timestamptz,
   unique (post_id, media_id, target_profile_id),
   check (author_profile_id <> target_profile_id)
 );
@@ -166,6 +185,35 @@ begin
 end;
 $$;
 
+create function public.claim_social_post_media_upload_cleanup(
+  p_owner_profile_id uuid,p_media_id uuid
+)
+returns text language plpgsql security definer set search_path=public as $$
+declare v_object_key text;
+begin
+  update public.social_post_media_uploads set state='cleanup'
+  where media_id=p_media_id and owner_profile_id=p_owner_profile_id and state in ('staged','cleanup')
+  returning object_key into v_object_key;
+  return v_object_key;
+end; $$;
+
+create function public.claim_social_post_media_upload_cleanup_batch(
+  p_limit integer,p_staged_before timestamptz
+)
+returns table(media_id uuid,object_key text)
+language plpgsql security definer set search_path=public as $$
+begin
+  if p_limit<1 or p_limit>100 then raise exception 'invalid media cleanup batch'; end if;
+  return query with candidates as (
+    select upload.media_id from public.social_post_media_uploads upload
+    where upload.state='cleanup' or (upload.state='staged' and upload.created_at<=p_staged_before)
+    order by upload.created_at,upload.media_id for update skip locked limit p_limit
+  )
+  update public.social_post_media_uploads upload set state='cleanup'
+  from candidates where upload.media_id=candidates.media_id
+  returning upload.media_id,upload.object_key;
+end; $$;
+
 create trigger social_posts_photo_owner_guard
 before insert or update of photo_media_id, author_profile_id on public.social_posts
 for each row execute function public.guard_social_post_photo_owner();
@@ -239,6 +287,7 @@ begin
       attempts = 0,
       next_attempt_at = now(),
       lease_until = null,
+      lease_token = null,
       last_error_code = null,
       updated_at = now();
   end if;
@@ -362,6 +411,7 @@ as $$
 declare
   v_post public.social_posts;
   v_target record;
+  v_upload public.social_post_media_uploads;
   v_tag_count integer;
 begin
   if (p_media_id is null) <> (p_object_key is null)
@@ -373,8 +423,15 @@ begin
   end if;
   if cardinality(coalesce(p_tag_handles, '{}')) > 10 then raise exception 'invalid Social tags'; end if;
   if p_media_id is not null then
+    select * into v_upload from public.social_post_media_uploads upload
+      where upload.media_id=p_media_id and upload.owner_profile_id=p_author_profile_id
+        and upload.object_key=p_object_key and upload.sha256=p_sha256 and upload.width=p_width
+        and upload.height=p_height and upload.byte_size=p_byte_size and upload.state='staged'
+      for update;
+    if v_upload.media_id is null then raise exception 'invalid Social photo reservation'; end if;
     insert into public.social_post_media(id,owner_profile_id,object_key,sha256,width,height,byte_size)
     values (p_media_id,p_author_profile_id,p_object_key,p_sha256,p_width,p_height,p_byte_size);
+    delete from public.social_post_media_uploads where media_id=p_media_id;
   end if;
   insert into public.social_posts(
     author_profile_id,author_handle,kind,visibility,body,area_slug,venue_id,hashtags,
@@ -503,17 +560,23 @@ returns boolean language plpgsql security definer set search_path=public as $$
 declare v_post public.social_posts;
 begin
   perform pg_advisory_xact_lock(hashtextextended(p_author_profile_id::text || ':remove:' || p_idempotency_key,0));
-  if exists(select 1 from public.social_post_remove_requests where author_profile_id=p_author_profile_id and idempotency_key=p_idempotency_key and post_id=p_post_id) then return true; end if;
+  if exists(select 1 from public.social_post_remove_requests where author_profile_id=p_author_profile_id and idempotency_key=p_idempotency_key) then
+    if exists(select 1 from public.social_post_remove_requests where author_profile_id=p_author_profile_id and idempotency_key=p_idempotency_key and post_id=p_post_id) then return true; end if;
+    raise exception 'idempotency conflict';
+  end if;
   select * into v_post from public.social_posts where id=p_post_id and author_profile_id=p_author_profile_id
     and status='visible' and revision=p_expected_revision for update;
   if v_post.id is null then return false; end if;
   insert into public.social_post_tag_events(proposal_id,actor_profile_id,action)
     select id,p_author_profile_id,'cancel' from public.social_post_tag_proposals where post_id=p_post_id and state in ('proposed','approved');
   update public.social_post_tag_proposals set state='cancelled',decided_at=now() where post_id=p_post_id and state in ('proposed','approved');
-  update public.social_post_media set attachment_state='detached',retention_expires_at=now()+interval '30 days',updated_at=now() where id=v_post.photo_media_id;
   update public.social_posts set status='removed',photo_media_id=null,photo_alt_text=null,revision=revision+1,edited_at=now(),updated_at=now() where id=p_post_id;
+  delete from public.social_post_moderation_jobs where post_id=p_post_id;
+  update public.social_post_media set attachment_state='detached',retention_expires_at=now()+interval '30 days',updated_at=now() where id=v_post.photo_media_id;
   insert into public.social_post_edit_audit(post_id,actor_profile_id,from_revision,to_revision,changed_fields,previous_digest,next_digest)
-    select p_post_id,p_author_profile_id,v_post.revision,v_post.revision+1,array['status'],public.social_post_digest(v_post),public.social_post_digest(post)
+    select p_post_id,p_author_profile_id,v_post.revision,v_post.revision+1,
+      array['status'] || case when v_post.photo_media_id is null then '{}'::text[] else array['photo','photoAltText'] end,
+      public.social_post_digest(v_post),public.social_post_digest(post)
     from public.social_posts post where id=p_post_id;
   insert into public.social_post_remove_requests values(p_author_profile_id,p_idempotency_key,p_post_id,now());
   return true;
@@ -527,13 +590,20 @@ create function public.edit_social_post_with_media(
   p_height integer, p_byte_size integer, p_tag_handles text[]
 )
 returns setof public.social_posts language plpgsql security definer set search_path=public as $$
-declare v_post public.social_posts; v_target record;
+declare v_post public.social_posts; v_target record; v_upload public.social_post_media_uploads;
 begin
   if p_photo_media_id is null or p_object_key is null or p_sha256 is null
     or p_width is null or p_height is null or p_byte_size is null or p_photo_alt_text is null
     or cardinality(coalesce(p_tag_handles,'{}')) > 10 then raise exception 'invalid Social photo edit'; end if;
+  select * into v_upload from public.social_post_media_uploads upload
+    where upload.media_id=p_photo_media_id and upload.owner_profile_id=p_author_profile_id
+      and upload.object_key=p_object_key and upload.sha256=p_sha256 and upload.width=p_width
+      and upload.height=p_height and upload.byte_size=p_byte_size and upload.state='staged'
+    for update;
+  if v_upload.media_id is null then raise exception 'invalid Social photo reservation'; end if;
   insert into public.social_post_media(id,owner_profile_id,object_key,sha256,width,height,byte_size)
   values(p_photo_media_id,p_author_profile_id,p_object_key,p_sha256,p_width,p_height,p_byte_size);
+  delete from public.social_post_media_uploads where media_id=p_photo_media_id;
   select * into v_post from public.edit_social_post(p_post_id,p_author_profile_id,p_expected_revision,
     p_kind,p_visibility,p_body,p_area_slug,p_venue_id,p_hashtags,p_comment_policy,
     p_photo_media_id,p_photo_alt_text,p_content_changed);
@@ -555,7 +625,7 @@ end; $$;
 
 drop function public.claim_social_post_moderation_jobs(integer);
 create function public.claim_social_post_moderation_jobs(p_limit integer default 20)
-returns table(post_id uuid, revision integer, media_id uuid, object_key text, moderation_claim text, attempts integer)
+returns table(post_id uuid, revision integer, media_id uuid, object_key text, moderation_claim text, attempts integer, lease_token uuid)
 language plpgsql
 security definer
 set search_path = public
@@ -566,18 +636,18 @@ begin
   with candidates as (
     select job.post_id from public.social_post_moderation_jobs job
     join public.social_posts post on post.id=job.post_id
-    where post.moderation_state='pending' and (
+    where post.status='visible' and post.moderation_state='pending' and (
       (job.state='pending' and job.next_attempt_at<=now())
       or (job.state='processing' and job.lease_until<now())
     ) order by job.next_attempt_at,job.created_at for update of job skip locked limit p_limit
   ), claimed as (
     update public.social_post_moderation_jobs job set state='processing',attempts=job.attempts+1,
-      lease_until=now()+interval '5 minutes',updated_at=now()
+      lease_until=now()+interval '5 minutes',lease_token=gen_random_uuid(),updated_at=now()
     from candidates where job.post_id=candidates.post_id
-    returning job.post_id,job.revision,job.media_id,job.moderation_claim,job.attempts
+    returning job.post_id,job.revision,job.media_id,job.moderation_claim,job.attempts,job.lease_token
   )
   select claimed.post_id,claimed.revision,claimed.media_id,media.object_key,
-    claimed.moderation_claim,claimed.attempts
+    claimed.moderation_claim,claimed.attempts,claimed.lease_token
   from claimed left join public.social_post_media media on media.id=claimed.media_id;
 end;
 $$;
@@ -587,6 +657,7 @@ create function public.complete_social_post_moderation_job(
   p_post_id uuid,
   p_revision integer,
   p_media_id uuid,
+  p_lease_token uuid,
   p_decision text default null,
   p_error_code text default null,
   p_retry_at timestamptz default null
@@ -600,7 +671,8 @@ declare v_job public.social_post_moderation_jobs; v_post public.social_posts; v_
 begin
   if p_decision in ('approved','needs_review') then
     select * into v_job from public.social_post_moderation_jobs job where job.post_id=p_post_id
-      and job.revision=p_revision and job.media_id is not distinct from p_media_id and job.state='processing' for update;
+      and job.revision=p_revision and job.media_id is not distinct from p_media_id
+      and job.lease_token=p_lease_token and job.state='processing' for update;
     if v_job.post_id is null then return false; end if;
     select * into v_post from public.social_posts post where post.id=p_post_id and post.revision=p_revision
       and post.moderation_state='pending' and post.photo_media_id is not distinct from p_media_id for update;
@@ -609,9 +681,9 @@ begin
       select * into v_media from public.social_post_media where id=p_media_id and attachment_state='active' for update;
       if v_media.id is null then return false; end if;
     end if;
-    update public.social_post_moderation_jobs set state='done',lease_until=null,last_error_code=null,updated_at=now()
+    update public.social_post_moderation_jobs set state='done',lease_until=null,lease_token=null,last_error_code=null,updated_at=now()
     where post_id=v_job.post_id and revision=v_job.revision
-      and media_id is not distinct from v_job.media_id and state='processing';
+      and media_id is not distinct from v_job.media_id and lease_token=p_lease_token and state='processing';
     if not found then return false; end if;
     update public.social_posts set moderation_state=p_decision,moderated_at=now(),updated_at=now() where id=p_post_id;
     if p_media_id is not null then update public.social_post_media set moderation_state=p_decision,updated_at=now() where id=p_media_id; end if;
@@ -620,24 +692,31 @@ begin
   if p_decision is not null then raise exception 'invalid moderation decision'; end if;
   update public.social_post_moderation_jobs set
     state=case when p_retry_at is null then 'error' else 'pending' end,
-    next_attempt_at=coalesce(p_retry_at,next_attempt_at),lease_until=null,
+    next_attempt_at=coalesce(p_retry_at,next_attempt_at),lease_until=null,lease_token=null,
     last_error_code=left(coalesce(p_error_code,'provider_error'),80),updated_at=now()
-  where post_id=p_post_id and revision=p_revision and media_id is not distinct from p_media_id and state='processing';
+  where post_id=p_post_id and revision=p_revision and media_id is not distinct from p_media_id
+    and lease_token=p_lease_token and state='processing';
   return found;
 end;
 $$;
 
-create function public.act_social_post_tag(p_actor uuid,p_proposal_id uuid,p_action text)
+create function public.act_social_post_tag(
+  p_actor uuid,p_proposal_id uuid,p_action text,p_expected_audience_revision integer default null
+)
 returns boolean
 language plpgsql
 security definer
 set search_path = public
 as $$
-declare v_proposal public.social_post_tag_proposals; v_next text;
+declare v_proposal public.social_post_tag_proposals; v_post public.social_posts; v_next text;
 begin
   select * into v_proposal from public.social_post_tag_proposals where id=p_proposal_id for update;
   if v_proposal.id is null then raise exception 'tag not found'; end if;
+  select * into v_post from public.social_posts where id=v_proposal.post_id for update;
+  if v_post.id is null then raise exception 'tag not found'; end if;
   if p_action in ('approve','decline') and p_actor=v_proposal.target_profile_id and v_proposal.state='proposed' then
+    if p_action='approve' and (p_expected_audience_revision is null or v_post.revision<>p_expected_audience_revision)
+      then raise exception 'tag audience changed'; end if;
     v_next := case when p_action='approve' then 'approved' else 'declined' end;
   elsif p_action='withdraw' and p_actor=v_proposal.target_profile_id and v_proposal.state='approved' then
     v_next := 'withdrawn';
@@ -650,7 +729,11 @@ begin
   else raise exception 'tag action not allowed'; end if;
   if p_action='approve' and public.social_interaction_blocked(v_proposal.author_profile_id,v_proposal.target_profile_id)
     then raise exception 'tag action not allowed'; end if;
-  update public.social_post_tag_proposals set state=v_next,decided_at=now() where id=v_proposal.id;
+  update public.social_post_tag_proposals set state=v_next,decided_at=now(),
+    audience_visibility=case when p_action='approve' then v_post.visibility else audience_visibility end,
+    audience_revision=case when p_action='approve' then v_post.revision else audience_revision end,
+    audience_shown_at=case when p_action='approve' then now() else audience_shown_at end
+  where id=v_proposal.id;
   insert into public.social_post_tag_events(proposal_id,actor_profile_id,action)
   values (v_proposal.id,p_actor,p_action);
   return true;
@@ -669,6 +752,7 @@ as $$
   join public.profiles profile on profile.id=proposal.target_profile_id
   where proposal.post_id=p_post_id and proposal.state='approved'
     and post.photo_media_id=proposal.media_id
+    and proposal.audience_visibility=post.visibility
     and public.social_post_readable(post,p_viewer)
     and not public.social_interaction_blocked(p_viewer,post.author_profile_id)
     and not public.social_interaction_blocked(p_viewer,proposal.target_profile_id)
@@ -688,25 +772,43 @@ as $$
   join public.profiles profile on profile.id=proposal.target_profile_id
   where proposal.post_id=any(p_post_ids) and proposal.state='approved'
     and post.photo_media_id=proposal.media_id
+    and proposal.audience_visibility=post.visibility
     and public.social_post_readable(post,p_viewer)
     and not public.social_interaction_blocked(p_viewer,post.author_profile_id)
     and not public.social_interaction_blocked(p_viewer,proposal.target_profile_id)
     and not public.social_interaction_blocked(post.author_profile_id,proposal.target_profile_id);
 $$;
 
-create function public.read_social_tag_inbox(p_viewer uuid,p_limit integer default 20)
-returns table(proposal_id uuid,post_id uuid,media_id uuid,author_handle text,state text,created_at timestamptz)
+create function public.read_social_tag_inbox(
+  p_viewer uuid,p_lane text,p_before_created_at timestamptz default null,
+  p_before_id uuid default null,p_limit integer default 20
+)
+returns table(
+  proposal_id uuid,post_id uuid,media_id uuid,author_handle text,state text,
+  body text,visibility text,photo_alt_text text,audience_visibility text,
+  review_revision integer,audience_revision integer,audience_shown_at timestamptz,created_at timestamptz
+)
 language plpgsql
 stable
 security definer
 set search_path = public
 as $$
 begin
-  if p_limit<1 or p_limit>50 then raise exception 'invalid tag inbox size'; end if;
-  return query select proposal.id,proposal.post_id,proposal.media_id,post.author_handle,proposal.state,proposal.created_at
-  from public.social_post_tag_proposals proposal join public.social_posts post on post.id=proposal.post_id
-  where proposal.target_profile_id=p_viewer and proposal.state in ('proposed','approved')
-    and post.photo_media_id=proposal.media_id and not public.social_interaction_blocked(p_viewer,post.author_profile_id)
+  if p_lane not in ('proposed','approved') or p_limit<1 or p_limit>51
+    or ((p_before_created_at is null) <> (p_before_id is null))
+  then raise exception 'invalid tag inbox request'; end if;
+  return query select proposal.id,proposal.post_id,proposal.media_id,post.author_handle,proposal.state,
+    post.body,post.visibility,post.photo_alt_text,proposal.audience_visibility,
+    post.revision,proposal.audience_revision,proposal.audience_shown_at,proposal.created_at
+  from public.social_post_tag_proposals proposal
+  join public.social_posts post on post.id=proposal.post_id
+  join public.social_post_media media on media.id=proposal.media_id
+  where proposal.target_profile_id=p_viewer and proposal.state=p_lane
+    and post.status='visible' and post.moderation_state='approved'
+    and media.moderation_state='approved' and media.attachment_state='active'
+    and post.photo_media_id=proposal.media_id
+    and (p_before_created_at is null or (proposal.created_at,proposal.id)<(p_before_created_at,p_before_id))
+    and not public.social_interaction_blocked(p_viewer,post.author_profile_id)
   order by proposal.created_at desc,proposal.id desc limit p_limit;
 end;
 $$;
@@ -721,11 +823,19 @@ as $$
   select media.object_key from public.social_post_media media
   join public.social_posts post on post.photo_media_id=media.id
   where media.id=p_media_id and media.moderation_state='approved' and media.attachment_state='active'
-    and public.social_post_readable(post,p_viewer)
+    and post.status='visible' and (
+      public.social_post_readable(post,p_viewer)
+      or exists (select 1 from public.social_post_tag_proposals proposal
+        where proposal.post_id=post.id and proposal.media_id=media.id
+          and proposal.target_profile_id=p_viewer and proposal.state in ('proposed','approved'))
+    )
     and not public.social_interaction_blocked(p_viewer,post.author_profile_id);
 $$;
 
-create function public.read_social_post_outbox(p_owner uuid,p_limit integer default 50)
+create function public.read_social_post_outbox(
+  p_owner uuid,p_before_created_at timestamptz default null,
+  p_before_id uuid default null,p_limit integer default 20
+)
 returns setof public.social_posts
 language plpgsql
 stable
@@ -733,10 +843,11 @@ security definer
 set search_path = public
 as $$
 begin
-  if p_limit<1 or p_limit>50 then raise exception 'invalid outbox size'; end if;
+  if p_limit<1 or p_limit>51 or ((p_before_created_at is null) <> (p_before_id is null))
+    then raise exception 'invalid outbox request'; end if;
   return query select post.* from public.social_posts post
   where post.author_profile_id=p_owner and post.status='visible'
-    and post.moderation_state in ('pending','needs_review')
+    and (p_before_created_at is null or (post.created_at,post.id)<(p_before_created_at,p_before_id))
   order by post.created_at desc,post.id desc limit p_limit;
 end;
 $$;
@@ -790,6 +901,7 @@ end;
 $$;
 
 alter table public.social_post_media enable row level security;
+alter table public.social_post_media_uploads enable row level security;
 alter table public.social_post_edit_audit enable row level security;
 alter table public.social_post_create_requests enable row level security;
 alter table public.social_post_remove_requests enable row level security;
@@ -797,10 +909,10 @@ alter table public.social_post_tag_proposals enable row level security;
 alter table public.social_post_tag_events enable row level security;
 alter table public.social_post_moderation_actions enable row level security;
 
-revoke all on table public.social_post_media,public.social_post_edit_audit,public.social_post_create_requests,public.social_post_remove_requests,
+revoke all on table public.social_post_media,public.social_post_media_uploads,public.social_post_edit_audit,public.social_post_create_requests,public.social_post_remove_requests,
   public.social_post_tag_proposals,public.social_post_tag_events,public.social_post_moderation_actions
   from public,anon,authenticated;
-grant select,insert,update,delete on table public.social_post_media,public.social_post_edit_audit,public.social_post_create_requests,public.social_post_remove_requests,
+grant select,insert,update,delete on table public.social_post_media,public.social_post_media_uploads,public.social_post_edit_audit,public.social_post_create_requests,public.social_post_remove_requests,
   public.social_post_tag_proposals,public.social_post_tag_events,public.social_post_moderation_actions
   to service_role;
 
@@ -809,31 +921,35 @@ revoke all on function public.guard_social_post_photo_owner() from public,anon,a
 revoke all on function public.guard_social_post_tag_proposal() from public,anon,authenticated;
 revoke all on function public.social_post_digest(public.social_posts) from public,anon,authenticated;
 revoke all on function public.social_post_exact_venue_allowed(public.social_posts,uuid) from public,anon,authenticated;
+revoke all on function public.claim_social_post_media_upload_cleanup(uuid,uuid) from public,anon,authenticated;
+revoke all on function public.claim_social_post_media_upload_cleanup_batch(integer,timestamptz) from public,anon,authenticated;
 revoke all on function public.create_social_post(uuid,text,text,text,text,text,text,text[],text,uuid,text,text,integer,integer,integer,text,text[]) from public,anon,authenticated;
 revoke all on function public.create_social_post_idempotent(uuid,text,text,text,text,text,text,text[],text,uuid,text,text,integer,integer,integer,text,text[],text,text) from public,anon,authenticated;
 revoke all on function public.remove_social_post_idempotent(uuid,uuid,integer,text) from public,anon,authenticated;
 revoke all on function public.edit_social_post_with_media(uuid,uuid,integer,text,text,text,text,text,text[],text,uuid,text,boolean,text,text,integer,integer,integer,text[]) from public,anon,authenticated;
-revoke all on function public.complete_social_post_moderation_job(uuid,integer,uuid,text,text,timestamptz) from public,anon,authenticated;
-revoke all on function public.act_social_post_tag(uuid,uuid,text) from public,anon,authenticated;
+revoke all on function public.complete_social_post_moderation_job(uuid,integer,uuid,uuid,text,text,timestamptz) from public,anon,authenticated;
+revoke all on function public.act_social_post_tag(uuid,uuid,text,integer) from public,anon,authenticated;
 revoke all on function public.read_social_post_tags(uuid,uuid) from public,anon,authenticated;
 revoke all on function public.read_social_post_tags_many(uuid,uuid[]) from public,anon,authenticated;
-revoke all on function public.read_social_tag_inbox(uuid,integer) from public,anon,authenticated;
+revoke all on function public.read_social_tag_inbox(uuid,text,timestamptz,uuid,integer) from public,anon,authenticated;
 revoke all on function public.read_social_post_media(uuid,uuid) from public,anon,authenticated;
-revoke all on function public.read_social_post_outbox(uuid,integer) from public,anon,authenticated;
+revoke all on function public.read_social_post_outbox(uuid,timestamptz,uuid,integer) from public,anon,authenticated;
 revoke all on function public.read_social_post_moderation_queue(uuid,integer) from public,anon,authenticated;
 revoke all on function public.moderate_social_post(uuid,uuid,uuid,text) from public,anon,authenticated;
 revoke execute on function public.set_social_comment_policy(uuid,uuid,text) from service_role;
 
 grant execute on function public.social_post_digest(public.social_posts),
   public.social_post_exact_venue_allowed(public.social_posts,uuid),
+  public.claim_social_post_media_upload_cleanup(uuid,uuid),
+  public.claim_social_post_media_upload_cleanup_batch(integer,timestamptz),
   public.create_social_post(uuid,text,text,text,text,text,text,text[],text,uuid,text,text,integer,integer,integer,text,text[]),
   public.create_social_post_idempotent(uuid,text,text,text,text,text,text,text[],text,uuid,text,text,integer,integer,integer,text,text[],text,text),
   public.remove_social_post_idempotent(uuid,uuid,integer,text),
   public.edit_social_post_with_media(uuid,uuid,integer,text,text,text,text,text,text[],text,uuid,text,boolean,text,text,integer,integer,integer,text[]),
-  public.complete_social_post_moderation_job(uuid,integer,uuid,text,text,timestamptz),
-  public.act_social_post_tag(uuid,uuid,text),public.read_social_post_tags(uuid,uuid),
+  public.complete_social_post_moderation_job(uuid,integer,uuid,uuid,text,text,timestamptz),
+  public.act_social_post_tag(uuid,uuid,text,integer),public.read_social_post_tags(uuid,uuid),
   public.read_social_post_tags_many(uuid,uuid[]),
-  public.read_social_tag_inbox(uuid,integer),public.read_social_post_media(uuid,uuid),
-  public.read_social_post_outbox(uuid,integer),public.read_social_post_moderation_queue(uuid,integer),
+  public.read_social_tag_inbox(uuid,text,timestamptz,uuid,integer),public.read_social_post_media(uuid,uuid),
+  public.read_social_post_outbox(uuid,timestamptz,uuid,integer),public.read_social_post_moderation_queue(uuid,integer),
   public.moderate_social_post(uuid,uuid,uuid,text)
   to service_role;

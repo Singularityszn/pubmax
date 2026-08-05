@@ -4,7 +4,8 @@ import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import {
   prepareSocialPhoto,
-  removeSocialPhotoObject,
+  reconcileSocialPhotoUpload,
+  reserveSocialPhotoUpload,
   SOCIAL_PHOTO_MAX_BYTES,
   SocialPhotoError,
   uploadPreparedSocialPhoto,
@@ -13,7 +14,7 @@ import {
 import { socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
 import { parseSocialCreateSubmission } from "@/lib/socialPostSubmission";
-import { resolveSocialVenueId } from "@/lib/socialPostVenue.server";
+import { projectSocialVenueName, projectSocialVenueNames, resolveSocialVenueId, type SocialVenueResolution } from "@/lib/socialPostVenue.server";
 import { isSocialPostArea, type SocialPostFields } from "@/lib/socialPosts";
 import { hashActor } from "@/lib/supabase";
 import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
@@ -113,9 +114,9 @@ export async function GET(request: Request): Promise<Response> {
       : new Map();
     return privateJson({
       ...page,
-      posts: page.posts.map((post) => post.photo
+      posts: await projectSocialVenueNames(page.posts.map((post) => post.photo
         ? { ...post, photo: { ...post.photo, tags: tags.get(post.id) ?? [] } }
-        : post),
+        : post)),
     });
   } catch (error) {
     return storeError(error);
@@ -145,6 +146,7 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
   let fields: SocialPostFields = { ...validation.post, photo: null };
+  let resolvedVenue: Extract<SocialVenueResolution, { ok: true }> | null = null;
   if (fields.venueId) {
     const venue = await resolveSocialVenueId(fields.venueId);
     if (!venue.ok) {
@@ -156,9 +158,10 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
     fields = { ...fields, venueId: venue.venueId };
+    resolvedVenue = venue;
   }
   let uploaded: UploadedSocialPhoto | null = null;
-  let uploadedOwned = false;
+  let reserved: UploadedSocialPhoto | null = null;
   try {
     if (submitted.photo) {
       const prepared = await prepareSocialPhoto(submitted.photo);
@@ -173,8 +176,8 @@ export async function POST(request: Request): Promise<Response> {
       if (prior?.mediaId === mediaId) {
         uploaded = { ...prepared, mediaId, objectKey: `social/${mediaId}/image.jpg` };
       } else {
+        reserved = await reserveSocialPhotoUpload(access.actor.profileId, prepared, mediaId);
         uploaded = await uploadPreparedSocialPhoto(access.actor.profileId, prepared, undefined, mediaId);
-        uploadedOwned = true;
       }
     }
     const post = uploaded
@@ -195,14 +198,11 @@ export async function POST(request: Request): Promise<Response> {
           idempotencyKey,
           requestDigest: socialPostRequestDigest(fields, null, []),
         });
-    return privateJson({ post }, { status: 201 });
+    return privateJson({ post: await projectSocialVenueName(post, resolvedVenue) }, { status: 201 });
   } catch (error) {
-    let removeUpload = Boolean(uploaded && uploadedOwned);
-    if (removeUpload && error instanceof SocialPostStoreError && error.code === "IDEMPOTENCY_CONFLICT") {
-      const winner = await readSocialPostCreateRequest(access.actor.profileId, idempotencyKey).catch(() => null);
-      removeUpload = winner?.mediaId !== uploaded?.mediaId;
+    if (reserved) {
+      await reconcileSocialPhotoUpload(access.actor.profileId, reserved.mediaId).catch(() => false);
     }
-    if (uploaded && removeUpload) await removeSocialPhotoObject(uploaded.objectKey);
     if (error instanceof SocialPhotoError) {
       const unavailable = error.code === "STORAGE_UNAVAILABLE";
       return privateJson(

@@ -10,17 +10,19 @@ alter table public.social_notifications add constraint social_notifications_kind
 
 drop function if exists public.moderate_social_post(uuid,uuid,uuid,text);
 drop function if exists public.read_social_post_moderation_queue(uuid,integer);
-drop function if exists public.read_social_post_outbox(uuid,integer);
+drop function if exists public.read_social_post_outbox(uuid,timestamptz,uuid,integer);
 drop function if exists public.read_social_post_media(uuid,uuid);
-drop function if exists public.read_social_tag_inbox(uuid,integer);
+drop function if exists public.read_social_tag_inbox(uuid,text,timestamptz,uuid,integer);
 drop function if exists public.read_social_post_tags(uuid,uuid);
 drop function if exists public.read_social_post_tags_many(uuid,uuid[]);
-drop function if exists public.act_social_post_tag(uuid,uuid,text);
+drop function if exists public.act_social_post_tag(uuid,uuid,text,integer);
 drop function if exists public.remove_social_post_idempotent(uuid,uuid,integer,text);
 drop function if exists public.edit_social_post_with_media(uuid,uuid,integer,text,text,text,text,text,text[],text,uuid,text,boolean,text,text,integer,integer,integer,text[]);
 drop function if exists public.create_social_post_idempotent(uuid,text,text,text,text,text,text,text[],text,uuid,text,text,integer,integer,integer,text,text[],text,text);
 drop function if exists public.create_social_post(uuid,text,text,text,text,text,text,text[],text,uuid,text,text,integer,integer,integer,text,text[]);
 drop function if exists public.social_post_exact_venue_allowed(public.social_posts,uuid);
+drop function if exists public.claim_social_post_media_upload_cleanup(uuid,uuid);
+drop function if exists public.claim_social_post_media_upload_cleanup_batch(integer,timestamptz);
 drop function if exists public.social_post_digest(public.social_posts);
 
 drop trigger if exists social_post_tag_proposal_guard on public.social_post_tag_proposals;
@@ -28,7 +30,7 @@ drop function if exists public.guard_social_post_tag_proposal();
 drop trigger if exists social_posts_photo_owner_guard on public.social_posts;
 drop function if exists public.guard_social_post_photo_owner();
 
-drop function public.complete_social_post_moderation_job(uuid,integer,uuid,text,text,timestamptz);
+drop function public.complete_social_post_moderation_job(uuid,integer,uuid,uuid,text,text,timestamptz);
 drop function public.claim_social_post_moderation_jobs(integer);
 
 update public.social_posts set
@@ -39,7 +41,7 @@ where (visibility = 'public' and venue_id is not null) or photo_media_id is not 
 
 alter table public.social_posts drop constraint social_posts_photo_media_fk;
 drop index public.social_posts_one_media_attachment_idx;
-alter table public.social_post_moderation_jobs drop column media_id;
+alter table public.social_post_moderation_jobs drop column media_id, drop column lease_token;
 
 drop table public.social_post_moderation_actions;
 drop table public.social_post_tag_events;
@@ -48,6 +50,7 @@ drop table public.social_post_edit_audit;
 drop table public.social_post_create_requests;
 drop table public.social_post_remove_requests;
 drop table public.social_post_media;
+drop table public.social_post_media_uploads;
 drop function public.reject_social_append_only_change();
 
 alter table public.social_posts add constraint social_posts_public_venue_check
@@ -89,7 +92,8 @@ security definer
 set search_path = public
 as $$
   select post.* from public.social_posts post
-  where post.id=p_post_id and public.social_post_readable(post,p_viewer_profile_id);
+  where post.id=p_post_id and public.social_post_readable(post,p_viewer_profile_id)
+    and not public.social_interaction_blocked(p_viewer_profile_id,post.author_profile_id);
 $$;
 
 create or replace function public.read_social_post_feed(
@@ -113,6 +117,7 @@ begin
   then raise exception 'invalid social feed request'; end if;
   return query select post.* from public.social_posts post
   where public.social_post_readable(post,p_viewer_profile_id)
+    and not public.social_interaction_blocked(p_viewer_profile_id,post.author_profile_id)
     and (p_before_created_at is null or (post.created_at,post.id)<(p_before_created_at,p_before_id))
     and case p_lane
       when 'discover' then post.visibility='public'

@@ -20,10 +20,12 @@ const state = vi.hoisted(() => ({
   } as unknown,
   removedObjects: [] as string[],
   createError: null as Error | null,
+  removeError: null as Error | null,
   createRequestReads: 0,
   createWinnerMediaId: null as string | null,
   lastUploadedMediaId: null as string | null,
   createPrior: null as { digest: string; mediaId: string | null } | null,
+  approvedTags: new Map<string, Array<{ handle: string }>>(),
 }));
 
 vi.mock("@/lib/pintDrops", () => ({
@@ -68,8 +70,15 @@ vi.mock("@/lib/socialPostMedia.server", () => ({
     state.lastUploadedMediaId = requestedMediaId ?? "11111111-1111-4111-8111-111111111112";
     return { ...prepared, mediaId: state.lastUploadedMediaId, objectKey: `social/${state.lastUploadedMediaId}/image.jpg` };
   },
-  removeSocialPhotoObject: async (key: string) => {
-    state.removedObjects.push(key);
+  reserveSocialPhotoUpload: async (_owner: string, prepared: Record<string, unknown>, requestedMediaId?: string) => {
+    const mediaId = requestedMediaId ?? "11111111-1111-4111-8111-111111111112";
+    return { ...prepared, mediaId, objectKey: `social/${mediaId}/image.jpg` };
+  },
+  reconcileSocialPhotoUpload: async (_owner: string, mediaId: string) => {
+    const winner = state.createWinnerMediaId === "uploaded" ? state.lastUploadedMediaId : state.createWinnerMediaId;
+    if (winner === mediaId) return false;
+    state.removedObjects.push(`social/${mediaId}/image.jpg`);
+    return true;
   },
   signSocialPhotoObject: async () => null,
   SocialPhotoError: class SocialPhotoError extends Error {
@@ -88,6 +97,12 @@ vi.mock("@/lib/socialPostCreateRequest.server", () => ({
   },
 }));
 
+vi.mock("@/lib/socialPostConsentStore", () => ({
+  socialPostConsentStore: {
+    approvedTags: async () => state.approvedTags,
+  },
+}));
+
 vi.mock("@/lib/socialPostStore", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/socialPostStore")>();
   return {
@@ -96,9 +111,14 @@ vi.mock("@/lib/socialPostStore", async (importOriginal) => {
       create: async (...args: unknown[]) => {
         state.calls.push({ name: "create", args });
         if (state.createError) throw state.createError;
+        const fields = args[1] as { venueId?: string | null };
         return {
           id: "post-1", body: "Hello", moderationState: "pending",
           author: { handle: "alice" },
+          venueId: fields.venueId ?? null,
+          venueName: null,
+          venueProjected: Boolean(fields.venueId),
+          ownedByViewer: true,
         };
       },
       feed: async (...args: unknown[]) => {
@@ -115,6 +135,7 @@ vi.mock("@/lib/socialPostStore", async (importOriginal) => {
       },
       remove: async (...args: unknown[]) => {
         state.calls.push({ name: "remove", args });
+        if (state.removeError) throw state.removeError;
         return true;
       },
     }),
@@ -153,10 +174,12 @@ beforeEach(() => {
   };
   state.removedObjects = [];
   state.createError = null;
+  state.removeError = null;
   state.createRequestReads = 0;
   state.createWinnerMediaId = null;
   state.lastUploadedMediaId = null;
   state.createPrior = null;
+  state.approvedTags = new Map();
 });
 
 describe("/api/social/posts", () => {
@@ -262,6 +285,9 @@ describe("/api/social/posts", () => {
     }));
     expect(response.status).toBe(201);
     expect(state.calls[0]?.args[1]).toMatchObject({ venueId: "venue-canonical" });
+    await expect(response.json()).resolves.toMatchObject({
+      post: { venueId: "venue-canonical", venueName: "The Venue", ownedByViewer: true },
+    });
 
     state.calls = [];
     state.venueLookup = {
@@ -361,6 +387,25 @@ describe("/api/social/posts", () => {
     expect(state.removedObjects).toEqual([]);
   });
 
+  it("does not delete committed media when create commits before its response fails", async () => {
+    state.createError = new Error("response lost after commit");
+    state.createWinnerMediaId = "uploaded";
+    const form = new FormData();
+    form.set("post", JSON.stringify({
+      kind: "standard", visibility: "private", body: "Committed", commentPolicy: "locked",
+      photoAltText: "A committed photo",
+    }));
+    form.set("photo", new File([Buffer.from([0xff, 0xd8, 0xff])], "night.jpg", { type: "image/jpeg" }));
+
+    const response = await POST(new Request("http://localhost/api/social/posts", {
+      method: "POST", headers: { "Idempotency-Key": "commit-then-error-key" }, body: form,
+    }));
+
+    expect(response.status).toBe(503);
+    expect(state.removedObjects).toEqual([]);
+    expect(state.createRequestReads).toBe(1);
+  });
+
   it("reuses an exact photo replay without uploading again", async () => {
     const key = "exact-photo-retry-key";
     const mediaId = socialPhotoMediaId(actor.profileId, key, "a".repeat(64));
@@ -429,6 +474,23 @@ describe("/api/social/posts/[postId]", () => {
     expect(state.calls[0]).toEqual({ name: "read", args: [postId, actor] });
   });
 
+  it("projects approved photo tags on a direct post read", async () => {
+    state.read = {
+      id: postId,
+      photo: { mediaId: "media-a", altText: "At the pub" },
+      venueId: null,
+      venueName: null,
+      venueProjected: false,
+      ownedByViewer: false,
+    };
+    state.approvedTags = new Map([[postId, [{ handle: "bob" }]]]);
+    const response = await read(request(`/api/social/posts/${postId}`), context);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      post: { photo: { tags: [{ handle: "bob" }] } },
+    });
+  });
+
   it("edits through the stable internal actor and reuses strict validation", async () => {
     const response = await PATCH(request("/api/social/posts/post-1", "PATCH", {
       expectedRevision: 4,
@@ -469,6 +531,18 @@ describe("/api/social/posts/[postId]", () => {
     }), context);
     expect(removed.status).toBe(200);
     expect(state.calls[0]).toEqual({ name: "remove", args: [postId, actor, 4, "remove-post-key-1234"] });
+  });
+
+  it("returns conflict when a remove request key belongs to another post", async () => {
+    state.removeError = new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That removal key belongs to another post.");
+    const response = await PATCH(new Request("http://localhost/api/social/posts/post-1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "Idempotency-Key": "cross-post-remove-key" },
+      body: JSON.stringify({ action: "remove", expectedRevision: 4 }),
+    }), context);
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
   });
 
   it("rate-limits item changes by stable profile authority", async () => {

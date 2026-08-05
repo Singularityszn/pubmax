@@ -28,8 +28,7 @@ export async function GET(request: Request): Promise<Response> {
       new OpenAISocialPostModerationAdapter(),
       20,
     );
-    const purged = await purgeDetachedSocialPhotos(50);
-    return jsonNoStore({ ok: true, ...result, purged });
+    return jsonNoStore({ ok: true, ...result });
   } catch {
     return jsonNoStore(
       { ok: false, error: "Social post moderation queue is unavailable.", retryable: true },

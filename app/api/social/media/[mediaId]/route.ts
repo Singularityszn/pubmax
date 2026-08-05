@@ -5,6 +5,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { hashActor } from "@/lib/supabase";
 
 type Context = { params: Promise<{ mediaId: string }> };
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function missing(): Response {
   return Response.json({ code: "NOT_FOUND", error: "Photo not found." }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
@@ -16,7 +17,7 @@ export async function GET(_request: Request, context: Context): Promise<Response
   const limitKey = `social-media-sign:${hashActor(access.actor.profileId)}`;
   if (await isLimited(limitKey, limitKey, 120, 60_000)) return missing();
   const { mediaId } = await context.params;
-  if (!/^[0-9a-f-]{36}$/i.test(mediaId)) return missing();
+  if (!UUID.test(mediaId)) return missing();
   try {
     const objectKey = await socialPostConsentStore.mediaObjectKey(access.actor, mediaId);
     if (!objectKey) return missing();
