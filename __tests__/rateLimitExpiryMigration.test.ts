@@ -8,7 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 const MIGRATION_PATH = join(
   process.cwd(),
-  "supabase/migrations/20260804120000_0065_rate_limit_expiry.sql",
+  "supabase/migrations/20260804120000_0070_rate_limit_expiry.sql",
 );
 
 type PostgresSession = {

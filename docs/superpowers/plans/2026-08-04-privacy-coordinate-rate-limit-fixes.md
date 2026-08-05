@@ -57,7 +57,7 @@ Expected: all pass.
 ### Task 2: Durable rate-limit expiry
 
 **Files:**
-- Create: `supabase/migrations/20260804120000_0065_rate_limit_expiry.sql`
+- Create: `supabase/migrations/20260804120000_0070_rate_limit_expiry.sql`
 - Create: `__tests__/rateLimitExpiryMigration.test.ts`
 
 **Interfaces:**

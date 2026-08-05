@@ -58,7 +58,7 @@ Expected: all pass.
 - Replace: `__tests__/rateLimitExpiryMigration.test.ts`
 
 **Interfaces:**
-- Consumes: `supabase/migrations/20260804120000_0065_rate_limit_expiry.sql` as executable SQL.
+- Consumes: `supabase/migrations/20260804120000_0070_rate_limit_expiry.sql` as executable SQL.
 - Produces: runtime assertions for `prune_expired_rate_limits`, `check_rate_limit`, and `charge_round_price_line` deletion behavior.
 
 - [ ] **Step 1: Replace source regex checks with PostgreSQL behavior tests**
