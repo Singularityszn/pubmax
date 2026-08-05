@@ -28,18 +28,25 @@
  *  - merges sourced rows into public/data/drink_price_updates/latest.json.
  *  - writes a per-venue result log JSON to data/osm/outer_price_harvest_log.json.
  *
- * Requires FIRECRAWL_API_KEY in the environment (never commit it).
+ * Requires EXA_API_KEY and TAVILY_API_KEY in the environment (never commit them).
  *
  * Usage:
- *   FIRECRAWL_API_KEY=... node scripts/harvest_outer_london_prices.mjs \
+ *   node scripts/harvest_outer_london_prices.mjs \
  *     [--limit N] [--budget N] [--dry-run]
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { extractPintPrices } from "./lib/tavilyPubEnrichment.mjs";
+import {
+  assertProviderCredentials,
+  discoverRefreshPages,
+  fetchRefreshPage,
+} from "./lib/localRefreshProviders.mjs";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const MODULE_PATH = fileURLToPath(import.meta.url);
+const ROOT = join(dirname(MODULE_PATH), "..");
 const APP_PATH = join(ROOT, "public/data/pint_prices_app_dataset.json");
 const DRINK_UPDATES_DIR = join(ROOT, "public/data/drink_price_updates");
 const LATEST_PATH = join(DRINK_UPDATES_DIR, "latest.json");
@@ -49,9 +56,6 @@ function logPathArg() {
   return i !== -1 && process.argv[i + 1] ? join(ROOT, process.argv[i + 1]) : DEFAULT_LOG_PATH;
 }
 const LOG_PATH = logPathArg();
-
-const API = "https://api.firecrawl.dev/v2/scrape";
-const KEY = process.env.FIRECRAWL_API_KEY;
 
 // Chains proven to publish NO per-drink prices on their public web pages
 // (prices live only in native Order & Pay apps / image-only menus). Skipped to
@@ -105,65 +109,32 @@ function venueGroupingKey(row) {
   ].join("|");
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-async function scrape(url, { withJson = false } = {}) {
-  const formats = withJson
-    ? [
-        "markdown",
-        "links",
-        {
-          type: "json",
-          prompt:
-            "Extract ONLY draught beer, lager, cider, ale or stout served by the PINT with an explicit published price in GBP shown on this page. Exclude food, wine, spirits, cocktails, bottles and cans. If no draught pint prices are published, return an empty array.",
-          schema: {
-            type: "object",
-            properties: {
-              draughtPints: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    drinkName: { type: "string" },
-                    priceGbp: { type: "number" },
-                  },
-                  required: ["drinkName", "priceGbp"],
-                },
-              },
-            },
-          },
-        },
-      ]
-    : ["markdown", "links"];
-  const body = { url, formats, onlyMainContent: false, waitFor: 4000, timeout: 30000 };
-  let attempt = 0;
-  for (;;) {
-    try {
-      const res = await fetch(API, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (res.status === 429 || res.status >= 500) {
-        if (attempt >= 3) return { ok: false, error: `http ${res.status}` };
-        await sleep(2 ** attempt * 1500);
-        attempt += 1;
-        continue;
-      }
-      const j = await res.json();
-      if (!j.success) return { ok: false, error: j.error || "no success" };
-      return {
-        ok: true,
-        markdown: j.data?.markdown || "",
-        links: j.data?.links || [],
-        json: j.data?.json || null,
-      };
-    } catch (err) {
-      if (attempt >= 3) return { ok: false, error: String(err.message || err) };
-      await sleep(2 ** attempt * 1500);
-      attempt += 1;
+export function priorPublishedSourceFor(row, priorEntries) {
+  for (let index = priorEntries.length - 1; index >= 0; index -= 1) {
+    const entry = priorEntries[index];
+    if (
+      entry.result === "priced" &&
+      entry.website === row.website &&
+      typeof entry.sourceUrl === "string" &&
+      /^https?:\/\//i.test(entry.sourceUrl)
+    ) {
+      return entry.sourceUrl;
     }
   }
+  return row.website;
+}
+
+async function scrape(url) {
+  const page = await fetchRefreshPage({ job: "plain-page", url });
+  return {
+    ...page,
+    json: {
+      draughtPints: extractPintPrices(page.markdown).map(({ drinkName, priceGbp }) => ({
+        drinkName,
+        priceGbp,
+      })),
+    },
+  };
 }
 
 /** All £ values present verbatim in the page text (as a Set of "3.80" strings). */
@@ -191,10 +162,7 @@ function bestDrinkLink(links, baseHost) {
 }
 
 function main() {
-  if (!KEY) {
-    console.error("FIRECRAWL_API_KEY not set — refusing to run.");
-    process.exit(1);
-  }
+  assertProviderCredentials(["pub-discovery", "plain-page"]);
   const limit = Number(arg("--limit", "0")) || 0;
   const budget = Number(arg("--budget", "280")) || 280;
   const dryRun = arg("--dry-run", false) === true;
@@ -204,10 +172,13 @@ function main() {
   const resume = arg("--resume", false) === true;
   let priorKeep = [];
   let reblockedUrls = new Set();
-  if (resume) {
+  let priorEntries = [];
+  if (existsSync(LOG_PATH)) {
     const prior = JSON.parse(readFileSync(LOG_PATH, "utf8"));
-    const entries = Array.isArray(prior) ? prior : prior.log || [];
-    for (const e of entries) {
+    priorEntries = Array.isArray(prior) ? prior : prior.log || [];
+  }
+  if (resume) {
+    for (const e of priorEntries) {
       if (e.result === "blocked" && /Insufficient credits/i.test(String(e.reason || ""))) {
         reblockedUrls.add(e.website);
       } else {
@@ -222,6 +193,11 @@ function main() {
   //   venue group carries no numeric price anywhere.
   const scope = arg("--scope", "osm");
   const app = JSON.parse(readFileSync(APP_PATH, "utf8"));
+  const previouslyPricedWebsites = new Set(
+    priorEntries
+      .filter((entry) => entry.result === "priced" && entry.website)
+      .map((entry) => entry.website),
+  );
 
   let osmRows;
   if (scope === "non-osm") {
@@ -243,7 +219,9 @@ function main() {
     }
   } else {
     osmRows = app.filter(
-      (r) => String(r.source_datasets || "").includes("outer_london_osm") && r.price_gbp == null,
+      (r) =>
+        String(r.source_datasets || "").includes("outer_london_osm") &&
+        (r.price_gbp == null || previouslyPricedWebsites.has(r.website)),
     );
   }
 
@@ -287,7 +265,12 @@ function main() {
     log.push(...priorKeep);
   }
   const activeTargets = resume ? targets.filter((r) => reblockedUrls.has(r.website)) : targets;
-  const queue = limit ? activeTargets.slice(0, limit) : activeTargets;
+  const orderedTargets = activeTargets.toSorted((left, right) => {
+    const leftKnown = previouslyPricedWebsites.has(left.website) ? 0 : 1;
+    const rightKnown = previouslyPricedWebsites.has(right.website) ? 0 : 1;
+    return leftKnown - rightKnown;
+  });
+  const queue = limit ? orderedTargets.slice(0, limit) : orderedTargets;
   console.log(
     `Independents to sweep: ${queue.length} (of ${targets.length}); chains logged: ${log.length}; budget ${budget} requests`,
   );
@@ -308,16 +291,13 @@ function main() {
       const h = host(row.website);
       const rec = { borough: row.primary_borough, pub: row.pub_name, website: row.website, host: h };
 
-      // 1) homepage scrape (markdown + links + json extraction in one call).
-      const home = await scrape(row.website, { withJson: true });
+      // 1) revisit the exact prior evidence page, or start from the official homepage.
+      const initialUrl = priorPublishedSourceFor(row, priorEntries);
+      const home = await scrape(initialUrl);
       requests += 1;
-      if (!home.ok) {
-        log.push({ ...rec, result: "blocked", reason: home.error, requests: 1 });
-        continue;
-      }
 
       let md = home.markdown;
-      let pageUrl = row.website;
+      let pageUrl = initialUrl;
       let extracted = home.json?.draughtPints || [];
 
       // 2) if the homepage has no validated pint, follow a drinks/menu link.
@@ -325,12 +305,20 @@ function main() {
       const homeHasSignal = DRAUGHT_KW.test(md) && homePounds.size > 0;
       let usedSecond = false;
       if ((!extracted.length || !homeHasSignal) && requests < budget) {
-        const link = bestDrinkLink(home.links, h);
-        if (link && link !== row.website) {
-          const drink = await scrape(link, { withJson: true });
+        let link = bestDrinkLink(home.links, h);
+        if (!link) {
+          const discoveries = await discoverRefreshPages({
+            query: `${row.pub_name} drinks menu pint price`,
+            includeDomains: [h],
+            numResults: 3,
+          });
+          link = discoveries.map((result) => result.url).find((url) => /drink|menu|tap|beer/i.test(url)) ?? null;
+        }
+        if (link && link !== initialUrl) {
+          const drink = await scrape(link);
           requests += 1;
           usedSecond = true;
-          if (drink.ok && (DRAUGHT_KW.test(drink.markdown) || (drink.json?.draughtPints || []).length)) {
+          if (DRAUGHT_KW.test(drink.markdown) || (drink.json?.draughtPints || []).length) {
             md = drink.markdown;
             pageUrl = link;
             extracted = drink.json?.draughtPints || [];
@@ -455,4 +443,9 @@ function main() {
   })();
 }
 
-main();
+if (process.argv[1] === MODULE_PATH) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}
