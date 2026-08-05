@@ -124,6 +124,39 @@ describe("stable Social relationships", () => {
     ).resolves.toBe("self");
   });
 
+  it.each([
+    ["", ""],
+    ["alice", "alice"],
+    ["alice", BOB_PROFILE_ID],
+    [ALICE_PROFILE_ID, "bob"],
+  ])(
+    "rejects malformed profile IDs before self or storage authority",
+    async (firstProfileId, secondProfileId) => {
+      const queryRelationship = vi.fn(async () => "mutual");
+
+      await expect(
+        socialRelationshipBetweenProfiles(firstProfileId, secondProfileId, {
+          queryRelationship,
+        }),
+      ).resolves.toBe("unavailable");
+      expect(queryRelationship).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects self authority from an adapter for distinct profiles", async () => {
+    const dependencies: SocialRelationshipServerDependencies = {
+      queryRelationship: async () => "self",
+    };
+
+    await expect(
+      socialRelationshipBetweenProfiles(
+        ALICE_PROFILE_ID,
+        BOB_PROFILE_ID,
+        dependencies,
+      ),
+    ).resolves.toBe("unavailable");
+  });
+
   it("returns unavailable when relationship storage fails", async () => {
     const dependencies: SocialRelationshipServerDependencies = {
       queryRelationship: async () => {
@@ -167,6 +200,14 @@ describe("stable Social relationships", () => {
         },
       },
     ]);
+  });
+
+  it("rejects self authority from the scalar RPC for distinct profiles", async () => {
+    supabase.data = "self";
+
+    await expect(
+      socialRelationshipBetweenProfiles(ALICE_PROFILE_ID, BOB_PROFILE_ID),
+    ).resolves.toBe("unavailable");
   });
 
   it("fails closed when the scalar RPC reports an error", async () => {
