@@ -3,11 +3,10 @@
 // single seam by the API route (isSupabaseConfigured), exactly like
 // lib/pintDropsStore.ts.
 //
-// A profile handle becomes account-owned when `userId` is set; older demo
-// profiles may remain unlinked until an authenticated account claims them.
-// `ensure` can still create those lightweight rows for legacy social paths, but
-// it never overwrites user-edited fields. Only `update` changes existing public
-// profile columns.
+// A profile handle becomes account-owned when `userId` is set. Older demo
+// profiles remain unlinked and cannot be claimed by first touch. `ensure` can
+// still create lightweight rows for legacy social paths, but it never
+// overwrites user-edited fields. Only `update` changes public profile columns.
 
 import { normalizeHandle } from "@/lib/profiles";
 import { isReservedContributorHandle } from "@/lib/pubmaxxIdentity";
@@ -19,9 +18,8 @@ export type ProfileRecord = {
   id: string;
   handle: string;
   // The linked Supabase Auth user id, or undefined while a legacy/demo profile
-  // remains unlinked. Contributor onboarding claims an exact unlinked handle in
-  // place; legacy account-link paths use linkUser. NEVER serialized to the
-  // public /u/[handle] read - it is an internal ownership key only.
+  // remains unlinked. NEVER serialized to the public /u/[handle] read. It is an
+  // internal ownership key only.
   userId?: string;
   displayName?: string;
   avatarUrl?: string;
@@ -105,13 +103,8 @@ export type ProfileStore = {
    */
   softDelete(handle: string): Promise<ProfileRecord | null>;
   /**
-   * Link an authenticated user id onto a handle's row (account migration, story
-   * 32): ensures the row exists, then stamps user_id when it is unset. Idempotent
-   * — re-linking the SAME user is a no-op that returns the row; attempting to
-   * re-link a row already owned by a DIFFERENT user throws (the ownership check
-   * at the API seam rejects that before we ever get here). All the handle's
-   * prior activity (drops/saves/follows) is already handle-keyed, so linking the
-   * row IS the migration — nothing is copied.
+   * Create a new account-owned handle. Repeating the same handle and user is
+   * idempotent. Any existing unlinked row or different owner is unavailable.
    */
   linkUser(handle: string, userId: string): Promise<ProfileRecord>;
 };
@@ -246,31 +239,23 @@ export const supabaseProfileStore: ProfileStore = {
     if (isReservedContributorHandle(key)) {
       throw new Error("That handle is not available.");
     }
-    const existing = await this.ensure(key);
-    // Already linked to this user → nothing to do (idempotent).
-    if (existing.userId === userId) return existing;
-    // Linked to someone else → refuse. The API seam's ownership check rejects
-    // this before we get here; throwing is the last line of defence.
-    if (existing.userId && existing.userId !== userId) {
-      throw new Error("Handle is already linked to another account.");
-    }
+    const existing = await this.getByHandle(key);
+    if (existing?.userId === userId) return existing;
+    if (existing) throw new Error("That handle is not available.");
     const { data, error } = await admin()
       .from(TABLE)
-      .update({ user_id: userId, updated_at: new Date().toISOString() })
-      .eq("handle", key)
-      // Only stamp when still unlinked — a concurrent link by another user loses
-      // this race and returns 0 rows, which we surface as a conflict below.
-      .is("user_id", null)
+      .insert({ handle: key, user_id: userId })
       .select("*")
       .limit(1);
-    if (error) throw new Error(error.message);
-    const linked = (data ?? [])[0];
-    if (linked) return fromRow(linked as Record<string, unknown>);
-    // 0 rows: someone linked it between our read and write. Re-read; if it is now
-    // ours, fine; otherwise it belongs to someone else.
-    const after = await this.getByHandle(key);
-    if (after?.userId === userId) return after;
-    throw new Error("Handle is already linked to another account.");
+    if (error) {
+      if (isUniqueViolation(error)) {
+        const after = await this.getByHandle(key);
+        if (after?.userId === userId) return after;
+        throw new Error("That handle is not available.");
+      }
+      throw new Error(error.message);
+    }
+    return fromRow((data ?? [])[0] as Record<string, unknown>);
   },
 };
 
@@ -350,15 +335,19 @@ export const memoryProfileStore: ProfileStore = {
     if (isReservedContributorHandle(key)) {
       throw new Error("That handle is not available.");
     }
-    const existing = await this.ensure(key);
-    if (existing.userId === userId) return existing;
-    if (existing.userId && existing.userId !== userId) {
-      throw new Error("Handle is already linked to another account.");
+    const existing = memoryProfiles.get(key);
+    if (existing?.userId === userId) return existing;
+    if (existing) throw new Error("That handle is not available.");
+    if (await this.getByUserId(userId)) {
+      throw new Error("That account already has a handle.");
     }
+    const now = new Date().toISOString();
     const next: ProfileRecord = {
-      ...existing,
+      id: memoryId(key),
+      handle: key,
       userId,
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
     memoryProfiles.set(key, next);
     return next;

@@ -259,6 +259,9 @@ export const config = {
     // listed ahead of the general rule below because that rule's `missing`
     // prefetch clause must never be able to exclude a Clerk request.
     { source: "/__clerk/:path*" },
+    // Protected Social APIs resolve Clerk sessions server-side. Other APIs stay
+    // outside Clerk middleware so keyless product routes keep their old path.
+    { source: "/api/social/:path*" },
     {
       source: "/((?!api|ingest|_next/static|_next/image|favicon.ico).*)",
       missing: [

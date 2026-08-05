@@ -148,15 +148,11 @@ export async function GET(
 //   • We resolve the caller's VERIFIED auth uid from their bearer token
 //     (callerUserId → Supabase auth.getUser). No token / invalid token → null
 //     (anonymous), never a trusted uid.
-//   • decideProfileWrite(rowUserId, callerUserId): an UNLINKED handle stays
-//     editable by anyone (the demo/self-asserted-handle stance is preserved); a
-//     LINKED handle is editable ONLY by its matching authenticated owner — a
+//   • An unlinked legacy handle keeps anonymous demo edits, but an authenticated
+//     write cannot turn it into account ownership. A genuinely new handle can
+//     be created and linked. A LINKED handle is editable only by its owner, so a
 //     non-owner (anonymous OR a different account) gets 403. This is the security
 //     win: once claimed, a handle can't be hijacked.
-//   • First authenticated touch LINKS the caller onto the handle (shouldLinkUser
-//     → store.linkUser) — this is also the account migration (story 32): every
-//     drop/save/follow is already handle-keyed, so stamping user_id claims them
-//     all with no data copy.
 //
 // Regardless of auth we still apply the full server-side trust boundary below
 // (strip HTML/control chars, cap lengths, validate the avatar URL) and
@@ -205,9 +201,8 @@ export async function PATCH(
 
   try {
     const store = profileStore();
-    // Ensure a row exists before patching (a handle that has only claimed, never
-    // dropped a pint, may have no row yet). gateHandleAction already linked on
-    // first authenticated touch when needed.
+    // Ensure a lightweight anonymous row exists before an anonymous demo edit.
+    // An authenticated new-handle write was already created by the gate.
     await store.ensure(handle);
     const profile = await store.update(handle, built.patch);
     return jsonNoStore({ profile: toPublicProfile(profile) }, { status: 200 });

@@ -24,7 +24,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "4 August 2026";
+const LAST_UPDATED = "5 August 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -115,8 +115,8 @@ export default function PrivacyPage() {
           account and is the only identity shown with contributions. Handle
           is needed to finish signup. Date of birth is needed to finish signup
           too. Full name and sex are optional. We collect and store date of
-          birth, full name and sex as private account details for product analytics and
-          social features. They are never shown on prices,
+          birth, full name and sex as private details for existing account tools.
+          Social adult access does not use them. They are never shown on prices,
           reports, signals, Recommendations, leaderboards or the public
           contributor record.
         </p>
@@ -128,6 +128,22 @@ export default function PrivacyPage() {
           public handle and handle-keyed contribution history. You can
           ask us to delete other account data. We don&rsquo;t use date of birth to
           block an account or contribution.
+        </p>
+        <p className="legalBody">
+          Social uses a separate Clerk sign-in session. We keep a private product
+          account record joining its Clerk user ID to your stable profile and,
+          if you move an existing account, your Supabase account ID. Moving one
+          needs both signed-in sessions in the same request. We don&rsquo;t match
+          accounts by email, public handle or anything typed into a form.
+        </p>
+        <p className="legalBody">
+          Full Social access is for verified adults aged 18+. Yoti runs the
+          adult check. We keep the provider name, Yoti subject reference,
+          over-18 decision, time checked, expiry and audit status against your
+          private product account. We don&rsquo;t store identity documents,
+          selfies, Yoti&rsquo;s raw response, an estimated age or a date of birth
+          from that check. None of this appears on your profile as an age or
+          verification badge.
         </p>
         <p className="legalBody">
           Your public profile may also contain a display name, avatar, home
@@ -184,8 +200,8 @@ export default function PrivacyPage() {
           under its public handle. Historic Recommendations written under an
           unlinked, self-asserted handle can remain visible. They are excluded
           only while their stored handle does not resolve to a public profile.
-          If that handle is later linked, they count under that profile without
-          changing the historic row. Writing another under the same handle for
+          They stay unlinked and excluded from identity-backed counts. Writing
+          another under the same handle for
           the same pub and condition replaces the one you already had. The
           weather never writes a Recommendation. It only decides which of the
           ones people wrote match right now.
@@ -220,9 +236,9 @@ export default function PrivacyPage() {
           The private profile key exists so one account can replace its own
           earlier entry instead of stacking duplicates, and can&rsquo;t confirm
           itself by changing devices or handles. Legacy contributions made
-          under a self-declared handle stay with that profile when the first
-          authenticated account claims it. Older rows that had no handle remain
-          anonymous. Reader reports about a price still use a salted hash for
+          under a self-declared handle stay historic and cannot be claimed by
+          first touch. Older rows that had no handle remain anonymous. Reader
+          reports about a price still use a salted hash for
           abuse controls; we never store the raw IP address.
         </p>
 
@@ -459,6 +475,23 @@ export default function PrivacyPage() {
             </dd>
           </div>
           <div className="legalRow">
+            <dt>Clerk</dt>
+            <dd>
+              Product sign-in for Social. Clerk keeps its own session and user
+              ID. PUBMAXX joins that ID to a private product account on our
+              server. It doesn&rsquo;t turn a Clerk session into a Supabase account.
+            </dd>
+          </div>
+          <div className="legalRow">
+            <dt>Yoti</dt>
+            <dd>
+              Hosted 18+ age checking for Social. Yoti receives what its hosted
+              check needs and returns the authoritative result to our server.
+              PUBMAXX keeps only the reference, decision, check time, expiry and
+              audit status described above.
+            </dd>
+          </div>
+          <div className="legalRow">
             <dt>Vercel</dt>
             <dd>
               Hosting and CDN. Serves every page, and keeps short-lived request
@@ -551,6 +584,14 @@ export default function PrivacyPage() {
             personal content attached to it within 30 days.
           </li>
           <li>
+            <strong>Social account and adult-check records:</strong>{" "}the
+            private Clerk and Supabase account link, Yoti reference, decision,
+            check time, expiry and audit status stay with the Social account.
+            An expired or revoked decision stops Social access but remains in
+            the private audit record until the Social account is deleted, unless
+            a narrower legal or moderation hold applies.
+          </li>
+          <li>
             <strong>Community prices and venue reports:</strong>{" "}the report
             itself stays, so later readers can see what people said and when.
             Each row records the venue, either a drink and its price or one
@@ -638,8 +679,10 @@ export default function PrivacyPage() {
       <section className="legalSection" aria-labelledby="age">
         <h2 id="age" className="legalH2">Age and access</h2>
         <p className="legalBody">
-          PUBMAXX doesn&rsquo;t block accounts or contributions based on age. Pubs
-          remain responsible for deciding who they serve.
+          The map and existing contribution tools don&rsquo;t use age to block an
+          account. Full Social access is different: it needs a current Yoti 18+
+          decision bound to your private product account. Pubs remain
+          responsible for deciding who they serve.
         </p>
       </section>
 
