@@ -30,7 +30,7 @@ Proof frames:
 - `430-dark.png`
 - `1280-light.png`
 - `1280-dark.png`
-- `390-light-outbox-load-more.png` - 44px control for older owner posts
+- `390-light-outbox-load-more-final.png` - 44px control for older owner posts
 - `390-light-outbox-pagination-final.png` - accumulated Friends, Public, and Private rows
 
 All frames show final custom photo control. Native file input remains visually
