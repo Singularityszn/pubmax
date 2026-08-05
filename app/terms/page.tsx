@@ -134,9 +134,10 @@ export default function TermsPage() {
           Social post text goes to OpenAI for omni moderation after we store
           it. The post stays held from feeds and direct reads until OpenAI
           returns a decision. If that check is unavailable or gives no usable
-          decision, the post remains held. Future Social post photos are not
-          accepted yet. When ownership-checked photo posting opens, those
-          photos will also go to OpenAI for moderation before they can appear.
+          decision, the post remains held. Social photos are resized, stripped
+          of embedded metadata, kept private, and sent with the post text to
+          OpenAI for moderation. Photo tags need the tagged person&rsquo;s approval
+          and can be withdrawn. Signed photo delivery links are short lived.
         </p>
         <p className="legalBody">
           Comments and quote posts also stay held until an OpenAI moderation

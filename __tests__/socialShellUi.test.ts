@@ -22,6 +22,7 @@ const protectedPost: SocialPostDTO = {
   body: "A protected post body",
   area: "camden",
   venueId: "venue-a",
+  venueProjected: true,
   hashtags: ["quietpint"],
   commentPolicy: "open",
   photo: null,
@@ -93,7 +94,7 @@ describe("verified Social post card", () => {
   it("does not render exact Venue context from an invalid public DTO", () => {
     const html = renderToStaticMarkup(
       createElement(SocialPostCard, {
-        post: { ...protectedPost, visibility: "public" },
+        post: { ...protectedPost, visibility: "public", venueProjected: false },
       }),
     );
 
@@ -101,6 +102,17 @@ describe("verified Social post card", () => {
     expect(html).toContain("Camden");
     expect(html).not.toContain("Open venue");
     expect(html).not.toContain('href="/map?sel=venue-a"');
+  });
+
+  it("renders exact Venue context on a public DTO authorised for a mutual friend", () => {
+    const html = renderToStaticMarkup(
+      createElement(SocialPostCard, {
+        post: { ...protectedPost, visibility: "public", venueProjected: true },
+      }),
+    );
+
+    expect(html).toContain("Open venue");
+    expect(html).toContain('href="/map?sel=venue-a"');
   });
 });
 

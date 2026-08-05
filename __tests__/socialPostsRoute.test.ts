@@ -13,6 +13,13 @@ const state = vi.hoisted(() => ({
   limited: false,
   frozen: false,
   accessCalls: 0,
+  venueLookup: {
+    status: "found",
+    canonicalId: "venue-canonical",
+    venue: { id: "venue-canonical", name: "The Venue", borough: "Camden", lat: 0, lng: 0, kind: "pub" },
+  } as unknown,
+  removedObjects: [] as string[],
+  createError: null as Error | null,
 }));
 
 vi.mock("@/lib/pintDrops", () => ({
@@ -40,6 +47,34 @@ vi.mock("@/lib/socialAccessServer", () => ({
   },
 }));
 
+vi.mock("@/lib/venueIndex", () => ({
+  lookupCanonicalVenue: async () => state.venueLookup,
+}));
+
+vi.mock("@/lib/socialPostMedia.server", () => ({
+  prepareSocialPhoto: async () => ({
+    bytes: Buffer.from("normalised"),
+    contentType: "image/jpeg",
+    width: 640,
+    height: 480,
+    byteSize: 10,
+    sha256: "a".repeat(64),
+  }),
+  uploadPreparedSocialPhoto: async (_owner: string, prepared: Record<string, unknown>) => ({
+    ...prepared,
+    mediaId: "11111111-1111-4111-8111-111111111112",
+    objectKey: "social/profile-a/11111111-1111-4111-8111-111111111112/image.jpg",
+  }),
+  removeSocialPhotoObject: async (key: string) => {
+    state.removedObjects.push(key);
+  },
+  signSocialPhotoObject: async () => null,
+  SocialPhotoError: class SocialPhotoError extends Error {
+    code = "INVALID_TYPE";
+  },
+  SOCIAL_PHOTO_MAX_BYTES: 10 * 1024 * 1024,
+}));
+
 vi.mock("@/lib/socialPostStore", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/socialPostStore")>();
   return {
@@ -47,6 +82,7 @@ vi.mock("@/lib/socialPostStore", async (importOriginal) => {
     socialPostStore: () => ({
       create: async (...args: unknown[]) => {
         state.calls.push({ name: "create", args });
+        if (state.createError) throw state.createError;
         return {
           id: "post-1", body: "Hello", moderationState: "pending",
           author: { handle: "alice" },
@@ -95,6 +131,13 @@ beforeEach(() => {
   state.limited = false;
   state.frozen = false;
   state.accessCalls = 0;
+  state.venueLookup = {
+    status: "found",
+    canonicalId: "venue-canonical",
+    venue: { id: "venue-canonical", name: "The Venue", borough: "Camden", lat: 0, lng: 0, kind: "pub" },
+  };
+  state.removedObjects = [];
+  state.createError = null;
 });
 
 describe("/api/social/posts", () => {
@@ -164,7 +207,7 @@ describe("/api/social/posts", () => {
     expect(state.calls).toHaveLength(1);
   });
 
-  it("reserves photo references until ownership-checked upload ships", async () => {
+  it("rejects caller-supplied media references", async () => {
     const response = await POST(request("/api/social/posts", "POST", {
       kind: "standard",
       visibility: "friends",
@@ -175,8 +218,104 @@ describe("/api/social/posts", () => {
         altText: "A pub sign",
       },
     }));
-    expect(response.status).toBe(409);
-    expect(await response.json()).toMatchObject({ code: "PHOTO_UPLOAD_NOT_AVAILABLE" });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "INVALID_POST" });
+  });
+
+  it("canonicalises a public pub Venue and rejects a non-pub Venue", async () => {
+    const response = await POST(request("/api/social/posts", "POST", {
+      kind: "standard",
+      visibility: "public",
+      body: "At the Venue",
+      venueId: "venue-alias",
+      commentPolicy: "open",
+      hashtags: [],
+    }));
+    expect(response.status).toBe(201);
+    expect(state.calls[0]?.args[1]).toMatchObject({ venueId: "venue-canonical" });
+
+    state.calls = [];
+    state.venueLookup = {
+      status: "found",
+      canonicalId: "bar-canonical",
+      venue: { id: "bar-canonical", name: "A Bar", borough: "Camden", lat: 0, lng: 0, kind: "bar" },
+    };
+    const rejected = await POST(request("/api/social/posts", "POST", {
+      kind: "standard",
+      visibility: "friends",
+      body: "At the bar",
+      venueId: "bar-alias",
+      commentPolicy: "open",
+      hashtags: [],
+    }));
+    expect(rejected.status).toBe(400);
+    expect(await rejected.json()).toMatchObject({ code: "INVALID_VENUE" });
+    expect(state.calls).toEqual([]);
+  });
+
+  it("accepts multipart photo create without caller media keys", async () => {
+    const form = new FormData();
+    form.set("post", JSON.stringify({
+      kind: "standard",
+      visibility: "friends",
+      body: "",
+      commentPolicy: "friends",
+      photoAltText: "Friends outside a pub",
+      tagHandles: ["bob"],
+    }));
+    form.set("photo", new File([Buffer.from([0xff, 0xd8, 0xff])], "night.jpg", { type: "image/jpeg" }));
+
+    const response = await POST(new Request("http://localhost/api/social/posts", {
+      method: "POST",
+      body: form,
+    }));
+
+    expect(response.status).toBe(201);
+    expect(state.calls[0]).toEqual({
+      name: "create",
+      args: [
+        actor,
+        expect.objectContaining({
+          body: "",
+          photo: {
+            mediaId: "11111111-1111-4111-8111-111111111112",
+            altText: "Friends outside a pub",
+          },
+        }),
+        {
+          media: {
+            mediaId: "11111111-1111-4111-8111-111111111112",
+            objectKey: "social/profile-a/11111111-1111-4111-8111-111111111112/image.jpg",
+            sha256: "a".repeat(64),
+            width: 640,
+            height: 480,
+            byteSize: 10,
+          },
+          tagHandles: ["bob"],
+        },
+      ],
+    });
+    expect(JSON.stringify(state.calls[0])).not.toContain("normalised");
+  });
+
+  it("removes an uploaded object when atomic create fails", async () => {
+    state.createError = new Error("database unavailable");
+    const form = new FormData();
+    form.set("post", JSON.stringify({
+      kind: "standard",
+      visibility: "friends",
+      body: "Photo",
+      commentPolicy: "friends",
+      photoAltText: "A pub sign",
+    }));
+    form.set("photo", new File([Buffer.from([0xff, 0xd8, 0xff])], "night.jpg", { type: "image/jpeg" }));
+
+    const response = await POST(new Request("http://localhost/api/social/posts", { method: "POST", body: form }));
+
+    expect(response.status).toBe(503);
+    expect(state.removedObjects).toEqual([
+      "social/profile-a/11111111-1111-4111-8111-111111111112/image.jpg",
+    ]);
   });
 
   it("rate-limits creation by stable profile authority", async () => {
@@ -224,12 +363,13 @@ describe("/api/social/posts/[postId]", () => {
 
   it("edits through the stable internal actor and reuses strict validation", async () => {
     const response = await PATCH(request("/api/social/posts/post-1", "PATCH", {
+      expectedRevision: 4,
       body: "Changed",
     }), context);
     expect(response.status).toBe(200);
     expect(state.calls[0]).toEqual({
       name: "edit",
-      args: [postId, actor, { body: "Changed" }, true],
+      args: [postId, actor, 4, { body: "Changed" }, true],
     });
   });
 
@@ -244,6 +384,7 @@ describe("/api/social/posts/[postId]", () => {
   it("rate-limits item changes by stable profile authority", async () => {
     state.limited = true;
     const response = await PATCH(request("/api/social/posts/post-1", "PATCH", {
+      expectedRevision: 0,
       body: "Changed",
     }), context);
     expect(response.status).toBe(429);
@@ -255,6 +396,7 @@ describe("/api/social/posts/[postId]", () => {
   it("freezes edits and removals before identity, limiting, or storage work", async () => {
     state.frozen = true;
     const edited = await PATCH(request("/api/social/posts/post-1", "PATCH", {
+      expectedRevision: 0,
       body: "Changed",
     }), context);
     const removed = await PATCH(request("/api/social/posts/post-1", "PATCH", {

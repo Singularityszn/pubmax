@@ -3,7 +3,9 @@ import { isLimited } from "@/lib/pintDrops";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
-import { validateSocialPostEdit } from "@/lib/socialPosts";
+import { prepareSocialPhoto, removeSocialPhotoObject, SocialPhotoError, uploadPreparedSocialPhoto, type UploadedSocialPhoto } from "@/lib/socialPostMedia.server";
+import { parseSocialEditSubmission } from "@/lib/socialPostSubmission";
+import { resolveSocialVenueId } from "@/lib/socialPostVenue.server";
 import { hashActor } from "@/lib/supabase";
 
 assertServerEnv();
@@ -65,8 +67,15 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   const { postId } = await context.params;
   if (!validId(postId)) return privateJson({ code: "NOT_FOUND", error: "Post not found." }, { status: 404 });
   let input: unknown;
+  let photo: File | null = null;
   try {
-    input = await request.json();
+    if ((request.headers.get("Content-Type") ?? "").startsWith("multipart/form-data")) {
+      const form = await request.formData();
+      const post = form.get("post");
+      const part = form.get("photo");
+      if (typeof post !== "string" || (part !== null && !(part instanceof File))) throw new Error();
+      input = JSON.parse(post); photo = part as File | null;
+    } else input = await request.json();
   } catch {
     return privateJson({ code: "MALFORMED_REQUEST", error: "Request body is not valid JSON." }, { status: 400 });
   }
@@ -88,15 +97,9 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
       return storeError(error);
     }
   }
-  const validation = validateSocialPostEdit(input);
+  const validation = parseSocialEditSubmission(input, photo !== null);
   if (!validation.ok) {
     return privateJson({ code: validation.code, error: validation.error }, { status: 400 });
-  }
-  if (validation.value.photo) {
-    return privateJson(
-      { code: "PHOTO_UPLOAD_NOT_AVAILABLE", error: "Photo posts are not open yet." },
-      { status: 409 },
-    );
   }
   const limitKey = `social-post-edit:${hashActor(access.actor.profileId)}`;
   if (await isLimited(limitKey, limitKey)) {
@@ -105,15 +108,34 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
       { status: 429 },
     );
   }
+  let uploaded: UploadedSocialPhoto | null = null;
   try {
-    const post = await socialPostStore().edit(
-      postId,
-      access.actor,
-      validation.value,
-      validation.contentChanged,
-    );
+    let changes = validation.changes;
+    if (changes.venueId) {
+      const venue = await resolveSocialVenueId(changes.venueId);
+      if (!venue.ok) {
+        return privateJson(
+          venue.unavailable
+            ? { code: "VENUE_LOOKUP_UNAVAILABLE", error: "Venue search is unavailable right now.", retryable: true }
+            : { code: "INVALID_VENUE", error: "Choose a pub from Venue search." },
+          { status: venue.unavailable ? 503 : 400 },
+        );
+      }
+      changes = { ...changes, venueId: venue.venueId };
+    }
+    if (photo) {
+      uploaded = await uploadPreparedSocialPhoto(access.actor.profileId, await prepareSocialPhoto(photo));
+      changes = { ...changes, photo: { mediaId: uploaded.mediaId, altText: validation.photoAltText! } };
+    } else if (validation.removePhoto) changes = { ...changes, photo: null };
+    const post = uploaded
+      ? await socialPostStore().edit(postId, access.actor, validation.expectedRevision, changes,
+          validation.moderationSensitive, { media: uploaded, tagHandles: validation.tagHandles })
+      : await socialPostStore().edit(postId, access.actor, validation.expectedRevision, changes,
+          validation.moderationSensitive);
     return privateJson({ post });
   } catch (error) {
+    if (uploaded) await removeSocialPhotoObject(uploaded.objectKey);
+    if (error instanceof SocialPhotoError) return privateJson({ code: error.code, error: error.message }, { status: error.code === "STORAGE_UNAVAILABLE" ? 503 : 400 });
     return storeError(error);
   }
 }

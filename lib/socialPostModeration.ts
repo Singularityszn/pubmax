@@ -21,7 +21,7 @@ export class OpenAISocialPostModerationAdapter implements SocialPostModerationAd
     this.timeoutMs = options.timeoutMs ?? DEFAULT_MODERATION_TIMEOUT_MS;
   }
 
-  async moderate(input: { postId: string; text: string }): Promise<{
+  async moderate(input: { postId: string; text: string; imageUrl?: string }): Promise<{
     decision: "approved" | "needs_review";
   }> {
     if (!this.apiKey) {
@@ -37,7 +37,15 @@ export class OpenAISocialPostModerationAdapter implements SocialPostModerationAd
           Authorization: `Bearer ${this.apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ model: "omni-moderation-latest", input: input.text }),
+        body: JSON.stringify({
+          model: "omni-moderation-latest",
+          input: input.imageUrl
+            ? [
+                { type: "text", text: input.text },
+                { type: "image_url", image_url: { url: input.imageUrl } },
+              ]
+            : input.text,
+        }),
         signal: controller.signal,
       });
     } catch {

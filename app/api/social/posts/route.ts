@@ -2,8 +2,19 @@ import { assertServerEnv } from "@/lib/serverEnv";
 import { isLimited } from "@/lib/pintDrops";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
+import {
+  prepareSocialPhoto,
+  removeSocialPhotoObject,
+  SOCIAL_PHOTO_MAX_BYTES,
+  SocialPhotoError,
+  uploadPreparedSocialPhoto,
+  type UploadedSocialPhoto,
+} from "@/lib/socialPostMedia.server";
 import { socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
-import { isSocialPostArea, validateSocialPostCreate } from "@/lib/socialPosts";
+import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
+import { parseSocialCreateSubmission } from "@/lib/socialPostSubmission";
+import { resolveSocialVenueId } from "@/lib/socialPostVenue.server";
+import { isSocialPostArea, type SocialPostFields } from "@/lib/socialPosts";
 import { hashActor } from "@/lib/supabase";
 
 assertServerEnv();
@@ -17,9 +28,27 @@ function privateJson(body: unknown, init: ResponseInit = {}): Response {
   return Response.json(body, { ...init, headers });
 }
 
-async function body(request: Request): Promise<unknown | null> {
+async function submissionBody(request: Request): Promise<{
+  input: unknown;
+  photo: File | null;
+} | null> {
   try {
-    return await request.json();
+    const contentType = request.headers.get("Content-Type") ?? "";
+    if (!contentType.toLowerCase().startsWith("multipart/form-data")) {
+      return { input: await request.json(), photo: null };
+    }
+    const contentLength = Number(request.headers.get("Content-Length"));
+    if (Number.isFinite(contentLength) && contentLength > SOCIAL_PHOTO_MAX_BYTES + 64 * 1024) {
+      return null;
+    }
+    const form = await request.formData();
+    if ([...form.keys()].some((key) => key !== "post" && key !== "photo")) return null;
+    const postParts = form.getAll("post");
+    const photoParts = form.getAll("photo");
+    if (postParts.length !== 1 || typeof postParts[0] !== "string" || photoParts.length > 1) return null;
+    const photo = photoParts[0] ?? null;
+    if (photo !== null && !(photo instanceof File)) return null;
+    return { input: JSON.parse(postParts[0]), photo };
   } catch {
     return null;
   }
@@ -79,7 +108,16 @@ export async function GET(request: Request): Promise<Response> {
       cursor: params.get("cursor"),
       limit,
     });
-    return privateJson(page);
+    const photoPostIds = page.posts.filter((post) => post.photo).map((post) => post.id);
+    const tags = photoPostIds.length > 0
+      ? await socialPostConsentStore.approvedTags(access.actor, photoPostIds)
+      : new Map();
+    return privateJson({
+      ...page,
+      posts: page.posts.map((post) => post.photo
+        ? { ...post, photo: { ...post.photo, tags: tags.get(post.id) ?? [] } }
+        : post),
+    });
   } catch (error) {
     return storeError(error);
   }
@@ -90,19 +128,13 @@ export async function POST(request: Request): Promise<Response> {
   if (frozen) return frozen;
   const access = await requireVerifiedSocialActor();
   if (!access.ok) return accessError(access);
-  const input = await body(request);
-  if (input === null) {
-    return privateJson({ code: "MALFORMED_REQUEST", error: "Request body is not valid JSON." }, { status: 400 });
+  const submitted = await submissionBody(request);
+  if (submitted === null) {
+    return privateJson({ code: "MALFORMED_REQUEST", error: "Post request is not valid." }, { status: 400 });
   }
-  const validation = validateSocialPostCreate(input);
+  const validation = parseSocialCreateSubmission(submitted.input, submitted.photo !== null);
   if (!validation.ok) {
     return privateJson({ code: validation.code, error: validation.error }, { status: 400 });
-  }
-  if (validation.value.photo) {
-    return privateJson(
-      { code: "PHOTO_UPLOAD_NOT_AVAILABLE", error: "Photo posts are not open yet." },
-      { status: 409 },
-    );
   }
   const limitKey = `social-post-create:${hashActor(access.actor.profileId)}`;
   if (await isLimited(limitKey, limitKey)) {
@@ -111,10 +143,54 @@ export async function POST(request: Request): Promise<Response> {
       { status: 429 },
     );
   }
+  let fields: SocialPostFields = { ...validation.post, photo: null };
+  if (fields.venueId) {
+    const venue = await resolveSocialVenueId(fields.venueId);
+    if (!venue.ok) {
+      return privateJson(
+        venue.unavailable
+          ? { code: "VENUE_LOOKUP_UNAVAILABLE", error: "Venue search is unavailable right now.", retryable: true }
+          : { code: "INVALID_VENUE", error: "Choose a pub from Venue search." },
+        { status: venue.unavailable ? 503 : 400 },
+      );
+    }
+    fields = { ...fields, venueId: venue.venueId };
+  }
+  let uploaded: UploadedSocialPhoto | null = null;
   try {
-    const post = await socialPostStore().create(access.actor, validation.value);
+    if (submitted.photo) {
+      uploaded = await uploadPreparedSocialPhoto(
+        access.actor.profileId,
+        await prepareSocialPhoto(submitted.photo),
+      );
+      fields = {
+        ...fields,
+        photo: { mediaId: uploaded.mediaId, altText: validation.photoAltText! },
+      };
+    }
+    const post = uploaded
+      ? await socialPostStore().create(access.actor, fields, {
+          media: {
+            mediaId: uploaded.mediaId,
+            objectKey: uploaded.objectKey,
+            sha256: uploaded.sha256,
+            width: uploaded.width,
+            height: uploaded.height,
+            byteSize: uploaded.byteSize,
+          },
+          tagHandles: validation.tagHandles,
+        })
+      : await socialPostStore().create(access.actor, fields);
     return privateJson({ post }, { status: 201 });
   } catch (error) {
+    if (uploaded) await removeSocialPhotoObject(uploaded.objectKey);
+    if (error instanceof SocialPhotoError) {
+      const unavailable = error.code === "STORAGE_UNAVAILABLE";
+      return privateJson(
+        { code: error.code, error: error.message, ...(unavailable ? { retryable: true } : {}) },
+        { status: unavailable ? 503 : 400 },
+      );
+    }
     return storeError(error);
   }
 }
