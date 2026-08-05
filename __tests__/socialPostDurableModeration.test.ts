@@ -11,8 +11,8 @@ vi.mock("@/lib/supabase", () => ({
       if (name === "claim_social_post_moderation_jobs") {
         return {
           data: [
-            { post_id: "post-1", revision: 0, moderation_claim: "First", attempts: 1 },
-            { post_id: "post-2", revision: 0, moderation_claim: "Second", attempts: 1 },
+            { post_id: "post-1", revision: 0, moderation_claim: "First", attempts: 1, lease_token: "lease-1" },
+            { post_id: "post-2", revision: 0, moderation_claim: "Second", attempts: 1, lease_token: "lease-2" },
           ],
           error: null,
         };

@@ -3,12 +3,13 @@ import { isLimited } from "@/lib/pintDrops";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
-import { prepareSocialPhoto, removeSocialPhotoObject, SocialPhotoError, uploadPreparedSocialPhoto, type UploadedSocialPhoto } from "@/lib/socialPostMedia.server";
+import { prepareSocialPhoto, reconcileSocialPhotoUpload, reserveSocialPhotoUpload, SocialPhotoError, uploadPreparedSocialPhoto, type UploadedSocialPhoto } from "@/lib/socialPostMedia.server";
 import { parseSocialEditSubmission } from "@/lib/socialPostSubmission";
-import { resolveSocialVenueId } from "@/lib/socialPostVenue.server";
+import { projectSocialVenueName, resolveSocialVenueId } from "@/lib/socialPostVenue.server";
 import { hashActor } from "@/lib/supabase";
 import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
 import { SOCIAL_PHOTO_MAX_BYTES } from "@/lib/socialPostMedia.server";
+import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
 
 assertServerEnv();
 
@@ -32,7 +33,7 @@ function storeError(error: unknown): Response {
   if (error instanceof SocialPostStoreError) {
     const status = error.code === "FORBIDDEN" ? 403
       : error.code === "NOT_FOUND" ? 404
-        : error.code === "EDIT_CONFLICT" ? 409
+        : error.code === "EDIT_CONFLICT" || error.code === "IDEMPOTENCY_CONFLICT" ? 409
           : 400;
     return privateJson({ code: error.code, error: error.message }, { status });
   }
@@ -53,8 +54,15 @@ export async function GET(_request: Request, context: Context): Promise<Response
   if (!validId(postId)) return privateJson({ code: "NOT_FOUND", error: "Post not found." }, { status: 404 });
   try {
     const post = await socialPostStore().read(postId, access.actor);
+    const tags = post?.photo
+      ? (await socialPostConsentStore.approvedTags(access.actor, [post.id])).get(post.id) ?? []
+      : [];
     return post
-      ? privateJson({ post })
+      ? privateJson({
+          post: await projectSocialVenueName(post.photo
+            ? { ...post, photo: { ...post.photo, tags } }
+            : post),
+        })
       : privateJson({ code: "NOT_FOUND", error: "Post not found." }, { status: 404 });
   } catch (error) {
     return storeError(error);
@@ -117,6 +125,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
     );
   }
   let uploaded: UploadedSocialPhoto | null = null;
+  let reserved: UploadedSocialPhoto | null = null;
   try {
     let changes = validation.changes;
     if (changes.venueId) {
@@ -132,7 +141,9 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
       changes = { ...changes, venueId: venue.venueId };
     }
     if (photo) {
-      uploaded = await uploadPreparedSocialPhoto(access.actor.profileId, await prepareSocialPhoto(photo));
+      const prepared = await prepareSocialPhoto(photo);
+      reserved = await reserveSocialPhotoUpload(access.actor.profileId, prepared);
+      uploaded = await uploadPreparedSocialPhoto(access.actor.profileId, prepared, undefined, reserved.mediaId);
       changes = { ...changes, photo: { mediaId: uploaded.mediaId, altText: validation.photoAltText! } };
     } else if (validation.removePhoto) changes = { ...changes, photo: null };
     const editOptions = uploaded
@@ -146,12 +157,14 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
       : await socialPostStore().edit(postId, access.actor, validation.expectedRevision, changes,
           validation.moderationSensitive);
     return privateJson({
-      post,
+      post: await projectSocialVenueName(post),
       audit: { fromRevision: validation.expectedRevision, toRevision: post.revision },
     });
   } catch (error) {
-    if (uploaded) await removeSocialPhotoObject(uploaded.objectKey);
-    if (error instanceof SocialPhotoError) return privateJson({ code: error.code, error: error.message }, { status: error.code === "STORAGE_UNAVAILABLE" ? 503 : 400 });
+    if (error instanceof SocialPhotoError) {
+      if (reserved) await reconcileSocialPhotoUpload(access.actor.profileId, reserved.mediaId).catch(() => false);
+      return privateJson({ code: error.code, error: error.message }, { status: error.code === "STORAGE_UNAVAILABLE" ? 503 : 400 });
+    }
     return storeError(error);
   }
 }

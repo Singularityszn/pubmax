@@ -149,13 +149,17 @@ describe("Social post validation", () => {
       updatedAt: "2026-08-05T12:00:00.000Z",
     };
 
-    expect(socialPostDTO(post, { exactVenue: false })).toMatchObject({
+    expect(socialPostDTO(post, { exactVenue: false, viewerProfileId: "other-profile" })).toMatchObject({
       venueId: null,
+      venueName: null,
       venueProjected: false,
+      ownedByViewer: false,
     });
-    expect(socialPostDTO(post, { exactVenue: true })).toMatchObject({
+    expect(socialPostDTO(post, { exactVenue: true, viewerProfileId: post.authorProfileId, venueName: "The Venue" })).toMatchObject({
       venueId: "venue-1",
+      venueName: "The Venue",
       venueProjected: true,
+      ownedByViewer: true,
     });
   });
 });

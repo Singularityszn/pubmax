@@ -59,10 +59,9 @@ describe("Social post moderation worker", () => {
       needsReview: 0,
       retried: 1,
       terminalErrors: 1,
-      purged: 4,
     });
     expect(state.calls).toBe(1);
-    expect(state.purgeCalls).toBe(1);
+    expect(state.purgeCalls).toBe(0);
   });
 
   it("requeues terminal holds only through the authenticated operator action", async () => {

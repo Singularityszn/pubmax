@@ -27,6 +27,21 @@ function fields(overrides: Record<string, unknown> = {}) {
 }
 
 describe("Social post store visibility and feeds", () => {
+  it("fences keyless removal by revision and request key, then cancels moderation", async () => {
+    const store = createMemorySocialPostStore();
+    const first = await store.create(alice, fields({ body: "First" }));
+    const second = await store.create(alice, fields({ body: "Second" }));
+    await expect(store.remove(first.id, alice, 9, "remove-key-123456")).resolves.toBe(false);
+    await expect(store.remove(first.id, alice, 0, "remove-key-123456")).resolves.toBe(true);
+    await expect(store.remove(second.id, alice, 0, "remove-key-123456"))
+      .rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
+    const claims: string[] = [];
+    await store.processModerationQueue({
+      moderate: async ({ postId }) => { claims.push(postId); return { decision: "approved" }; },
+    });
+    expect(claims).toEqual([second.id]);
+  });
+
   it("holds durable submissions until deterministic moderation approves them", async () => {
     const store = createMemorySocialPostStore();
     const post = await store.create(alice, fields({ hashtags: ["#Camden", "Night_Out"] }));

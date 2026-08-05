@@ -52,6 +52,8 @@ export type SocialPostDTO = Omit<
   "authorProfileId" | "authorHandle" | "status" | "moderatedAt"
 > & {
   author: { handle: string };
+  ownedByViewer: boolean;
+  venueName: string | null;
   venueProjected: boolean;
 };
 
@@ -222,7 +224,11 @@ export function validateSocialPostEdit(input: unknown): SocialPostEditValidation
 
 export function socialPostDTO(
   post: SocialPost,
-  projection: { exactVenue: boolean } = { exactVenue: false },
+  projection: {
+    exactVenue: boolean;
+    viewerProfileId?: string | null;
+    venueName?: string | null;
+  } = { exactVenue: false },
 ): SocialPostDTO {
   const exactVenue = Boolean(post.venueId && projection.exactVenue);
   return {
@@ -232,6 +238,7 @@ export function socialPostDTO(
     body: post.body,
     area: post.area,
     venueId: exactVenue ? post.venueId : null,
+    venueName: exactVenue ? projection.venueName ?? null : null,
     venueProjected: exactVenue,
     hashtags: [...post.hashtags],
     commentPolicy: post.commentPolicy,
@@ -245,6 +252,7 @@ export function socialPostDTO(
     createdAt: post.createdAt,
     updatedAt: post.updatedAt,
     author: { handle: post.authorHandle },
+    ownedByViewer: post.authorProfileId === projection.viewerProfileId,
   };
 }
 
