@@ -43,7 +43,9 @@
    visible and usable. iOS keeps the instructional modal and scrim above. */
 .a2hsSheet--android {
   position: fixed;
-  z-index: var(--z-overlay-top);
+  /* Mobile venue sheets share --z-overlay-top and may portal in later. Keep
+     this actionable card above them without adding a page-wide pointer layer. */
+  z-index: calc(var(--z-overlay-top) + 1);
   right: var(--space-4);
   bottom: calc(
     var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--space-3)

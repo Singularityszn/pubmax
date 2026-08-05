@@ -4,13 +4,13 @@
 // sheet that offers to put PUBMAXX on the home screen — but only AFTER PROVEN
 // VALUE (a second-visit-day or a first completed night), never on first touch.
 // All the policy lives in the pure gate lib/a2hsPrompt.ts; this component is
-// the DOM shell around it: capture the platform, capture Android's
-// beforeinstallprompt, and — when the gate says yes and the shared session
+// the DOM shell around it: detect the platform, consume Android's event from
+// the early root owner, and, when the gate says yes and the shared session
 // prompt-budget is free — show one honest sheet.
 //
 // Two paths:
-//  - Android/Chromium: capture `beforeinstallprompt`, suppress the default
-//    mini-infobar, and fire it from our own Install button on accept.
+//  - Android/Chromium: A2HSTracking captures `beforeinstallprompt`, suppresses
+//    the default mini-infobar, and retains it until this lazy surface arrives.
 //  - iOS Safari: there is NO install API. We show the manual Share → Add to
 //    Home Screen steps, honestly labelled Safari-only.
 //
@@ -25,7 +25,13 @@
 // are marked `POST-#301` below so the wiring is a one-line follow-up once #301
 // lands.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Share, Plus, X } from "lucide-react";
 
 import {
@@ -45,17 +51,16 @@ import { completedCrawlCount } from "@/lib/crawlCompletion";
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
 import { hasSeenTour } from "@/lib/firstRunTour";
 import { dayBucketFromDate } from "@/lib/a2hsPrompt";
+import {
+  consumeA2hsInstallPrompt,
+  getA2hsInstallPrompt,
+  subscribeA2hsAppInstalled,
+  subscribeA2hsInstallPrompt,
+} from "@/lib/a2hsInstallEvent";
 import "./a2hsInstallPrompt.css";
 
 const BUDGET_SURFACE = "a2hs";
 const EXIT_MS = 240;
-
-/** The Android install event — not in the standard DOM lib typings. */
-interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[];
-  prompt: () => Promise<void>;
-  readonly userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-}
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
@@ -90,8 +95,12 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
   const [mounted, setMounted] = useState(false);
   const [surface, setSurface] = useState<A2hsSurface | null>(null);
   const [closing, setClosing] = useState(false);
+  const deferredPrompt = useSyncExternalStore(
+    subscribeA2hsInstallPrompt,
+    getA2hsInstallPrompt,
+    () => null,
+  );
 
-  const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
   const platformRef = useRef<A2hsPlatform>("unsupported");
   const finalizedRef = useRef(false);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
@@ -125,7 +134,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
   );
 
   const onAndroidInstall = useCallback(() => {
-    const evt = deferredPromptRef.current;
+    const evt = consumeA2hsInstallPrompt();
     if (!evt) {
       close(true);
       return;
@@ -134,7 +143,6 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
       .prompt()
       .then(() => {
         void evt.userChoice.then((choice) => {
-          deferredPromptRef.current = null;
           if (choice.outcome === "accepted") {
             // POST-#301: emit `pwa_install_completed` ({ platform: 'android' }).
             finalize(() => writeA2hsState(registerInstalled(readA2hsState())));
@@ -167,14 +175,14 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
       state: readA2hsState(),
       todayBucket: dayBucketFromDate(new Date()),
       planCompleted: completedCrawlCount() > 0,
-      androidPromptReady: deferredPromptRef.current !== null,
+      androidPromptReady: deferredPrompt !== null,
     });
     // POST-#301: when eligible, emit `pwa_install_prompt_available`
     // ({ platform }) here.
     if (!decision.show || !decision.surface) return;
     if (!claimPromptBudget(BUDGET_SURFACE)) return; // a sibling won the race
     setSurface(decision.surface);
-  }, [surface]);
+  }, [deferredPrompt, surface]);
 
   // Flip the mount gate off the sync effect body (repo convention for
   // react-hooks/set-state-in-effect). Records today's visit day as a side
@@ -187,35 +195,14 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
     });
   }, []);
 
-  // Capture Android's beforeinstallprompt (suppress the default infobar) and
-  // the appinstalled signal, for the whole lifetime of the component.
+  // A2HSTracking owns native install events in the early root bundle. This
+  // lazy surface only reacts to its internal completion handoff.
   useEffect(() => {
-    const onBeforeInstall = (event: Event) => {
-      event.preventDefault();
-      deferredPromptRef.current = event as BeforeInstallPromptEvent;
-      evaluate();
-    };
     const onInstalled = () => {
-      // POST-#301: emit `pwa_install_completed` ({ platform: 'android' }) here.
-      writeA2hsState(registerInstalled(readA2hsState()));
-      deferredPromptRef.current = null;
       close(false);
     };
-    window.addEventListener("beforeinstallprompt", onBeforeInstall);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
-  }, [evaluate, close]);
-
-  // The browser install event is one-shot. Publish readiness only after the
-  // listener exists and platform detection has completed, so late-loaded shell
-  // extras have a deterministic handoff instead of asking callers to guess.
-  useEffect(() => {
-    if (!mounted) return;
-    window.dispatchEvent(new Event("pubmax:a2hs-listener-ready"));
-  }, [mounted]);
+    return subscribeA2hsAppInstalled(onInstalled);
+  }, [close]);
 
   // First eligibility check once mounted (iOS has no event to wait for).
   useEffect(() => {
@@ -277,6 +264,15 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
       aria-describedby="a2hsBody"
       tabIndex={-1}
       onKeyDown={onKeyDown}
+      onFocusCapture={(event) => {
+        const previous = event.relatedTarget;
+        if (
+          previous instanceof HTMLElement &&
+          !event.currentTarget.contains(previous)
+        ) {
+          restoreFocusRef.current = previous;
+        }
+      }}
     >
       <button
         type="button"
@@ -305,7 +301,6 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
               type="button"
               className="a2hsPrimary pressable"
               onClick={onAndroidInstall}
-              aria-label="Add to home screen"
             >
               Install
             </button>
