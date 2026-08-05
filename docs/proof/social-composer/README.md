@@ -8,13 +8,15 @@ Browser fixtures pass the same verified actor boundary without enabling Social b
 PW_SCREENSHOTS=1 PW_SOCIAL_COMPOSER_PROOF=1 PW_NEXT_DIST_DIR=.next-task6 npx playwright test e2e/social-composer.spec.ts --project=chromium
 ```
 
-Result: 10/10 passed in 19.2 seconds against isolated production output.
+Result: 12/12 passed against isolated production output.
 
 Coverage includes text and photo posting, failed photo draft reload, stable
-idempotency keys, account-switch text and Blob isolation, two-tab warning,
-friends-only Venue selection, feature kind, tag approval and withdrawal,
-alt-text correction, photo removal, edit conflict recovery, edit reopen, focus
-containment, Escape focus return, axe, and no horizontal overflow.
+idempotency keys, account-switch text and Blob isolation, two-sided tab warning,
+explicit draft clearing, accessible Venue selection, all visibility and comment
+choices, immediate owner outbox state, feature kind, informed tag approval,
+audience-conflict review, paged withdrawal, photo preview and removal, alt-text
+correction, edit conflict recovery, edit reopen, focus containment, Escape focus
+return, axe, and no horizontal overflow.
 
 Proof frames:
 

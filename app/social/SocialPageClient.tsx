@@ -76,10 +76,6 @@ function parseAccessState(value: unknown): SocialAccessState | null {
     : null;
 }
 
-function parseViewerHandle(value: unknown): string | null {
-  return isRecord(value) && typeof value.viewerHandle === "string" ? value.viewerHandle : null;
-}
-
 function parseDraftScope(value: unknown): string | null {
   return isRecord(value) && typeof value.draftScope === "string" && /^[A-Za-z0-9_-]{43}$/.test(value.draftScope)
     ? value.draftScope : null;
@@ -95,6 +91,8 @@ function parsePostPage(value: unknown): SocialPostPage | null {
       typeof candidate.body !== "string" ||
       typeof candidate.createdAt !== "string" ||
       typeof candidate.author.handle !== "string" ||
+      typeof candidate.ownedByViewer !== "boolean" ||
+      (candidate.venueName !== null && typeof candidate.venueName !== "string") ||
       !Array.isArray(candidate.hashtags)
     )
       return null;
@@ -329,8 +327,8 @@ export default function SocialPageClient({
   heritageCrawls,
 }: SocialPageClientProps) {
   const [access, setAccess] = useState<AccessLoadState>("checking");
-  const [viewerHandle, setViewerHandle] = useState<string | null>(null);
   const [draftScope, setDraftScope] = useState<string | null>(null);
+  const [submittedPost, setSubmittedPost] = useState<SocialPostDTO | null>(null);
   const [accessAttempt, setAccessAttempt] = useState(0);
   const [feedAttempt, setFeedAttempt] = useState(0);
   const [feedStatus, setFeedStatus] = useState<FeedLoadState>("idle");
@@ -362,9 +360,9 @@ export default function SocialPageClient({
         const body = await response.json();
         const state = parseAccessState(body);
         if (!state) throw new Error("Social access malformed");
-        return { state, viewerHandle: parseViewerHandle(body), draftScope: parseDraftScope(body) };
+        return { state, draftScope: parseDraftScope(body) };
       })
-      .then((result) => { setAccess(result.state); setViewerHandle(result.viewerHandle); setDraftScope(result.draftScope); })
+      .then((result) => { setAccess(result.state); setDraftScope(result.draftScope); })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError")
           return;
@@ -501,9 +499,15 @@ export default function SocialPageClient({
         <h1 className="socialTitle">Social</h1>
         <div className="socialLayout">
           <aside className="socialControlRail" aria-label="Social views">
-            {showPostsControls && draftScope ? <SocialComposer key={draftScope} draftScope={draftScope} onSaved={() => setFeedAttempt((value) => value + 1)} /> : null}
+            {showPostsControls && draftScope ? <SocialComposer key={draftScope} draftScope={draftScope} onSaved={(saved) => {
+              if (saved) setSubmittedPost(saved);
+              setFeedAttempt((value) => value + 1);
+            }} /> : null}
             {showPostsControls ? <SocialTagInbox /> : null}
-            {showPostsControls ? <SocialOutbox /> : null}
+            {showPostsControls ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
+              if (updated) setSubmittedPost(updated);
+              setFeedAttempt((value) => value + 1);
+            }} /> : null}
             <nav className="socialSwitcher" aria-label="Social view">
               <Link href="/social" aria-current={isPosts ? "page" : undefined}>
                 Posts
@@ -587,7 +591,7 @@ export default function SocialPageClient({
               ) : (
                 <div className="socialPostList">
                   {posts.map((post) => (
-                    <SocialPostCard key={post.id} post={post} canEdit={post.author.handle === viewerHandle} draftScope={draftScope}
+                    <SocialPostCard key={post.id} post={post} canEdit={post.ownedByViewer} draftScope={draftScope}
                       onEdited={(updated) => updated
                         ? setPosts((current) => chronological(current.map((item) => item.id === updated.id ? updated : item)))
                         : setFeedAttempt((value) => value + 1)} />
