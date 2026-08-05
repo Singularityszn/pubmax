@@ -80,12 +80,12 @@ Task 1 changes no data practice. Do not edit `/privacy` or `/terms` until implem
 - Create: route tests
 - Create: forward and rollback migrations
 
-- [ ] Model text, photo references, optional area, friends-only venue context, hashtags, edit history marker, and feature-request metadata.
-- [ ] Enforce per-post visibility on every read path. Friendship is mutual follow state.
-- [ ] Expose chronological `following`, `nearby`, and `discover` lanes with bounded cursors.
-- [ ] Create and edit only through verified product ownership. Delete is recoverable moderation state, not provenance loss.
-- [ ] Run OpenAI omni moderation after submission. Queue results without blocking safe local tests.
-- [ ] Keep Visit Reports and venue observations outside post scoring.
+- [x] Model text, photo references, optional area, friends-only venue context, hashtags, edit history marker, and feature-request metadata.
+- [x] Enforce per-post visibility on every read path. Friendship is mutual follow state.
+- [x] Expose chronological `following`, `nearby`, and `discover` lanes with bounded cursors.
+- [x] Create and edit only through verified product ownership. Delete is recoverable moderation state, not provenance loss.
+- [x] Run OpenAI omni moderation after submission. Queue results without blocking safe local tests.
+- [x] Keep Visit Reports and venue observations outside post scoring.
 
 ### Task 4: Social interactions and governance
 
