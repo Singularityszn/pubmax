@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import { TrainFront } from "lucide-react";
 
 import DisruptionLine from "@/components/transport/DisruptionLine";
-import { roundCoord } from "@/lib/geo";
+import { coarsenViewerPoint } from "@/lib/geo";
 import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
 import type { LastTrainResult } from "@/lib/tfl";
 
@@ -27,11 +27,12 @@ type Props = {
 
 export default function TonightGetHomeStrip({ origin }: Props) {
   const [summary, setSummary] = useState<GetHomeSummary | null>(null);
+  const originLat = origin.lat;
+  const originLng = origin.lng;
 
   useEffect(() => {
     const controller = new AbortController();
-    const lat = roundCoord(origin.lat);
-    const lng = roundCoord(origin.lng);
+    const { lat, lng } = coarsenViewerPoint({ lat: originLat, lng: originLng });
     fetch(`/api/last-train?lat=${lat}&lng=${lng}`, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))
       .then((body: LastTrainResult | null) => {
@@ -42,7 +43,7 @@ export default function TonightGetHomeStrip({ origin }: Props) {
         if (!controller.signal.aborted) setSummary(null);
       });
     return () => controller.abort();
-  }, [origin.lat, origin.lng]);
+  }, [originLat, originLng]);
 
   // The get-home summary and the disruption line are independent: a material
   // disruption can matter even when we have no last-train time to show, and vice

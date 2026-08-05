@@ -6,10 +6,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { formatJourneySummary } from "@/lib/formatJourney";
+import { coarsenViewerPoint } from "@/lib/geo";
 import { walkLabel as formatWalkLabel, walkMinutes as estimateWalkMinutes } from "@/lib/tonight";
 import {
   optimalJourney,
-  privacyRoundedJourneyPoint,
   type JourneyPoint,
   type VenueJourney,
   type VenueJourneyLeg,
@@ -107,8 +107,8 @@ function requestKey(
   ) {
     return "";
   }
-  const roundedUser = privacyRoundedJourneyPoint(user);
-  const roundedVenue = privacyRoundedJourneyPoint(venue);
+  const roundedUser = coarsenViewerPoint(user);
+  const roundedVenue = coarsenViewerPoint(venue);
   return `${roundedUser.lat},${roundedUser.lng}:${roundedVenue.lat},${roundedVenue.lng}`;
 }
 
@@ -158,8 +158,8 @@ export function useVenueJourney(
       }),
     );
 
-    const roundedUser = privacyRoundedJourneyPoint({ lat: userLat, lng: userLng });
-    const roundedVenue = privacyRoundedJourneyPoint({ lat: venueLat, lng: venueLng });
+    const roundedUser = coarsenViewerPoint({ lat: userLat, lng: userLng });
+    const roundedVenue = coarsenViewerPoint({ lat: venueLat, lng: venueLng });
 
     // Viewer coordinates are private request data: keep them out of URLs,
     // browser history, proxy logs, and shared CDN caches. Public venue-to-venue

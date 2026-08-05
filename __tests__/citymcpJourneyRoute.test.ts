@@ -202,8 +202,8 @@ describe("POST /api/citymcp/journey", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        fromLat: Number(FROM_LAT),
-        fromLng: Number(FROM_LNG),
+        fromLat: 51.51234567,
+        fromLng: -0.10456789,
         toLat: Number(TO_LAT),
         toLng: Number(TO_LNG),
         limit: 3,
@@ -224,7 +224,7 @@ describe("POST /api/citymcp/journey", () => {
       .mock.calls[0]!;
     const upstream = JSON.parse(String(init.body));
     expect(upstream.params.arguments).toEqual({
-      from: "51.51200,-0.10400",
+      from: "51.51200,-0.10500",
       to: "51.51000,-0.12100",
     });
   });

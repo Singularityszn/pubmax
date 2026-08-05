@@ -227,6 +227,30 @@ describe("Tavily pub enrichment governance", () => {
     ]);
   });
 
+  it("extracts the pint column from a multiline official menu table", () => {
+    expect(
+      extractPintPrices(
+        [
+          "Draft Beer",
+          "Half pint | Pint",
+          "Estrella Damm",
+          "_£4.00 | £6.80_",
+          "Guinness Microdraught Pint",
+          "_£6.80_",
+          "Ciders",
+          "STRAWBERRY & LIME",
+          "_£6.00_",
+          "ASPALL DRAUGHT CYDER",
+          "_£6.00_",
+        ].join("\n\n"),
+      ),
+    ).toEqual([
+      { drinkName: "Estrella Damm", priceGbp: 6.8, servingSize: "pint" },
+      { drinkName: "Guinness Microdraught", priceGbp: 6.8, servingSize: "pint" },
+      { drinkName: "ASPALL DRAUGHT CYDER", priceGbp: 6, servingSize: "pint" },
+    ]);
+  });
+
   it("never attributes half-pint prices to a pint serving", () => {
     expect(extractPintPrices("Half pint £2.60")).toEqual([]);
     expect(extractPintPrices("Bitter half £2.60 / pint £4.90")).toEqual([]);
