@@ -325,15 +325,6 @@
   opacity: 1;
 }
 
-.socialComposer textarea {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 160px;
-  margin: 0;
-  padding: 12px;
-  resize: none;
-}
-
 .socialComposer label {
   display: grid;
   gap: 6px;
@@ -357,6 +348,17 @@
   font: inherit;
   font-size: 1rem;
   line-height: 1.25;
+}
+
+.socialComposer .socialComposerBody textarea {
+  min-height: 160px;
+  margin: 0;
+  padding: 12px;
+  resize: none;
+}
+
+.socialComposer label > select {
+  padding-right: 40px;
 }
 
 .socialComposer :is(textarea, input, select):focus-visible {
@@ -521,6 +523,9 @@
 .socialComposer .socialPhotoPicker {
   position: relative;
   min-height: 44px;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  align-items: center;
   place-content: center;
   padding: 0 14px;
   border: 1px solid var(--social-control-border);
@@ -528,6 +533,11 @@
   background: color-mix(in srgb, var(--river) 11%, var(--panel-raised));
   color: color-mix(in srgb, var(--river) 85%, var(--ink));
   cursor: pointer;
+}
+
+.socialPhotoCue {
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 .socialPhotoPicker:active {
@@ -754,6 +764,10 @@
 
   .socialBoundary {
     min-height: 300px;
+  }
+
+  .socialComposer .socialComposerBody textarea {
+    min-height: 96px;
   }
 
   .socialDiscoverBody

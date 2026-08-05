@@ -93,8 +93,9 @@ function PhotoEditor({
   return (
     <>
       <label className="socialPhotoPicker">
+        <span className="socialPhotoCue" aria-hidden="true">+</span>
         <span>{photo ? photo.name : post?.photo && !removePhoto ? "Replace photo" : "Add photo"}</span>
-        <input ref={fileInputRef} aria-label="Photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => onPhoto(event.currentTarget.files?.[0] ?? null)} />
+        <input ref={fileInputRef} aria-label="Add photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => onPhoto(event.currentTarget.files?.[0] ?? null)} />
       </label>
       {previewSource ? (
         <figure className="socialComposerPhotoPreview">
@@ -582,8 +583,8 @@ export default function SocialComposer({
               </button>
             ) : null}
 
-            <label className="socialPostBody">
-              Post
+            <label className="socialComposerBody">
+              Write post
               <textarea
                 ref={bodyRef}
                 maxLength={2000}
