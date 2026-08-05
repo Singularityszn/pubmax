@@ -139,6 +139,15 @@ export default function TermsPage() {
           photos will also go to OpenAI for moderation before they can appear.
         </p>
         <p className="legalBody">
+          Comments and quote posts also stay held until an OpenAI moderation
+          decision. Post authors choose who may comment and can lock comments
+          later. Saves are private. Reposts and quotes never make their source
+          visible to someone who cannot read it. Feature requests keep staff
+          status and response history without becoming a vote. Social feeds
+          stay chronological, not popularity-ranked, and no interaction can buy
+          reach or change a pub or price ranking.
+        </p>
+        <p className="legalBody">
           Prices, notes, photos, plans, stories: you keep ownership of all
           of it. By posting it you give us permission to store it, show it in the
           app, and use it as part of the price and heritage data the map is built
