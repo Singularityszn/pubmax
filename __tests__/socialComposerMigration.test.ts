@@ -101,6 +101,7 @@ const ALICE = "11111111-1111-4111-8111-111111111111";
 const BOB = "22222222-2222-4222-8222-222222222222";
 const CAROL = "33333333-3333-4333-8333-333333333333";
 const MEDIA = "44444444-4444-4444-8444-444444444444";
+const MEDIA_REPLAY = "55555555-5555-4555-8555-555555555555";
 const MEDIA_TWO = "66666666-6666-4666-8666-666666666666";
 const MEDIA_REPLACED = "77777777-7777-4777-8777-777777777777";
 const MEDIA_CLEANUP = "99999999-9999-4999-8999-999999999999";
@@ -186,6 +187,28 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
     expect(db.sql(call("b".repeat(64)))).toBe(retryPostId);
     expect(db.sql(`select count(*) from public.social_posts where id='${retryPostId}'`)).toBe("1");
     expect(() => db.sql(call("c".repeat(64)))).toThrow(/idempotency conflict/i);
+  });
+
+  it("returns a committed photo replay before validating absent upload metadata", () => {
+    const db = database!;
+    const digest = "9".repeat(64);
+    const objectKey = db.sql(`select object_key from public.reserve_social_post_media_upload(
+      '${ALICE}','${MEDIA_REPLAY}','${"5".repeat(64)}',640,480,900
+    )`);
+    const created = db.sql(`select id from public.create_social_post_idempotent(
+      '${ALICE}','alice','standard','friends','Photo replay',null,null,array[]::text[],'open',
+      '${MEDIA_REPLAY}','${objectKey}','${"5".repeat(64)}',640,480,900,'Same photo',array[]::text[],
+      'photo-replay-key-1234','${digest}'
+    )`);
+
+    expect(db.sql(`select id from public.create_social_post_idempotent(
+      '${ALICE}','alice','standard','friends','Photo replay',null,null,array[]::text[],'open',
+      null,null,null,null,null,null,'Same photo',array[]::text[],
+      'photo-replay-key-1234','${digest}'
+    )`)).toBe(created);
+    expect(db.sql(`select count(*) from public.social_posts where id='${created}'`)).toBe("1");
+    expect(db.sql(`select count(*) from public.social_post_media where id='${MEDIA_REPLAY}'`)).toBe("1");
+    db.sql(`update public.social_post_moderation_jobs set state='done' where post_id='${created}'`);
   });
 
   it("atomically assigns abandoned upload cleanup against a concurrent create", () => {

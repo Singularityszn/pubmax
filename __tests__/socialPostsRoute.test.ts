@@ -420,6 +420,7 @@ describe("/api/social/posts", () => {
     expect(response.status).toBe(201);
     expect(state.lastUploadedMediaId).toBeNull();
     expect((state.calls[0]?.args[1] as { photo: { mediaId: string } }).photo.mediaId).toBe(mediaId);
+    expect(state.calls[0]?.args[2]).toMatchObject({ replayExistingMedia: true });
   });
 
   it("removes a losing different-photo upload after an idempotency conflict", async () => {
