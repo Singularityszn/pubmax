@@ -262,46 +262,313 @@
   display: grid;
   place-items: end center;
   background: color-mix(in srgb, #000 54%, transparent);
+  overscroll-behavior: contain;
 }
 
 .socialComposer {
   box-sizing: border-box;
   width: min(100%, 680px);
   max-height: 100svh;
-  padding: 16px max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  padding: max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
   border-radius: 20px 20px 0 0;
   background: var(--panel-raised);
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .socialComposer header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
   display: grid;
   grid-template-columns: 72px 1fr 72px;
   align-items: center;
+  background: var(--panel-raised);
 }
 
-.socialComposer h2 { margin: 0; text-align: center; font-size: 1.1rem; }
-.socialComposer header button { min-height: 44px; border: 0; background: transparent; color: var(--river); font: inherit; font-weight: 800; }
-.socialComposer textarea { box-sizing: border-box; width: 100%; min-height: 160px; margin: 12px 0; padding: 12px; resize: vertical; }
-.socialComposer label { display: grid; gap: 6px; margin-top: 12px; font-size: .8125rem; font-weight: 750; }
+.socialComposer h2 {
+  margin: 0;
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+.socialComposer button {
+  min-height: 44px;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.socialComposer header button {
+  border: 0;
+  background: transparent;
+  color: var(--river);
+}
+
+.socialComposer textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 160px;
+  margin: 12px 0 0;
+  padding: 12px;
+  resize: vertical;
+}
+
+.socialComposer label {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  font-weight: 750;
+}
+
+.socialComposer textarea,
 .socialComposer input,
-.socialComposer select { box-sizing: border-box; width: 100%; min-height: 44px; padding: 8px 10px; }
-.socialVenueResults { margin: 0; padding: 0; list-style: none; border: 1px solid var(--line); }
-.socialVenueResults button { width: 100%; min-height: 44px; border: 0; background: var(--panel-raised); color: var(--ink); text-align: left; }
-.socialTagInbox { padding: 12px; border: 1px solid var(--line); border-radius: 14px; }
-.socialTagInbox h2 { margin: 0 0 8px; font-size: 1rem; }
-.socialTagInbox div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.socialTagInbox button { min-height: 44px; }
-.socialOutbox { padding: 12px; border: 1px solid var(--line); border-radius: 14px; }
-.socialOutbox h2 { margin: 0 0 8px; font-size: 1rem; }
-.socialOutbox ul { margin: 0; padding-left: 20px; }
+.socialComposer select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.socialComposer :is(button, textarea, input, select):focus-visible,
+.socialComposerFeedback:focus-visible {
+  outline: 3px solid var(--river);
+  outline-offset: 2px;
+}
+
+.socialComposerFeedback {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--brick) 68%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--brick) 9%, var(--panel-raised));
+  scroll-margin-top: 64px;
+}
+
+.socialComposerFeedback p {
+  margin: 0;
+}
+
+.socialComposerFeedback button {
+  width: fit-content;
+  min-width: 120px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  background: var(--panel-raised);
+  color: var(--ink);
+}
+
+.socialClearDraft {
+  width: fit-content;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--river);
+}
+
+.socialVenueResults {
+  margin: 4px 0 0;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-raised);
+  list-style: none;
+}
+
+.socialVenueResults button {
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: var(--panel-raised);
+  color: var(--ink);
+  text-align: left;
+}
+
+.socialVenueResults button[aria-selected="true"],
+.socialVenueResults button:hover {
+  background: color-mix(in srgb, var(--river) 10%, var(--panel-raised));
+}
+
+.socialTagInbox,
+.socialOutbox {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.socialTagInbox h2,
+.socialOutbox h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.socialTagInbox div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.socialTagInbox button,
+.socialTagMore {
+  min-height: 44px;
+  border-radius: 10px;
+}
+
+.socialTagLane,
+.socialTagItem {
+  display: grid;
+  gap: 8px;
+}
+
+.socialTagLane + .socialTagLane {
+  margin-top: 14px;
+}
+
+.socialTagItem + .socialTagItem {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.socialTagItem figure,
+.socialTagItem p {
+  margin: 0;
+}
+
+.socialTagItem img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.socialTagMore {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+
+.socialOutbox ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.socialOutboxItem {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.socialOutboxItem p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .socialEditButton,
-.socialRemovePhoto { min-height: 44px; margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--ink); }
-.socialPhotoPicker { position: relative; min-height: 44px; place-content: center; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--river) 7%, var(--panel-raised)); color: var(--ink); cursor: pointer; }
-.socialPhotoPicker input { position: absolute; width: 1px; min-height: 1px; margin: -1px; padding: 0; overflow: hidden; border: 0; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-.socialPhotoPicker:focus-within { outline: 3px solid var(--river); outline-offset: 2px; }
-.socialSelectedVenue { display: flex; min-height: 44px; margin-top: 12px; padding: 0 10px; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 10px; }
-.socialSelectedVenue button { min-height: 44px; border: 0; background: transparent; color: var(--river); font: inherit; font-weight: 800; }
+.socialRemovePhoto {
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+}
+
+.socialPhotoPicker {
+  position: relative;
+  min-height: 44px;
+  place-content: center;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--river) 7%, var(--panel-raised));
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.socialPhotoPicker input {
+  position: absolute;
+  width: 1px;
+  min-height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.socialPhotoPicker:focus-within {
+  outline: 3px solid var(--river);
+  outline-offset: 2px;
+}
+
+.socialComposerPhotoPreview {
+  margin: 10px 0 0;
+}
+
+.socialComposerPhotoPreview img {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+.socialSelectedVenue {
+  display: flex;
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 0 4px 0 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.socialSelectedVenue span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.socialSelectedVenue button {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--river);
+}
+
+.socialComposerConcurrent {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+}
 
 @media (min-width: 700px) {
   .socialComposerBackdrop { place-items: center; }

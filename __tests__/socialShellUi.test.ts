@@ -34,6 +34,8 @@ const protectedPost: SocialPostDTO = {
   createdAt: "2026-08-05T12:00:00.000Z",
   updatedAt: "2026-08-05T12:00:00.000Z",
   author: { handle: "alice" },
+  ownedByViewer: true,
+  venueName: "The Test Arms",
 };
 
 describe("Social access boundary", () => {
