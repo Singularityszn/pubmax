@@ -59,13 +59,13 @@ Task 1 changes no data practice. Do not edit `/privacy` or `/terms` until implem
 - Modify narrowly: `lib/authServer.ts`, `lib/clerkIdentity.ts`, `proxy.ts`
 - Modify with the Yoti data-practice change: `app/privacy/page.tsx`, `app/terms/page.tsx`
 
-- [ ] Define `SocialAccessState`: `preview`, `sign_in_required`, `age_verification_required`, `verified`, `suspended`.
-- [ ] Store Yoti subject reference, provider, decision, verified-at, expiry, and audit state server-side. Store no public date of birth or age badge.
-- [ ] Bind verified state to stable product account ownership, not a client-supplied handle.
-- [ ] Require both Clerk and legacy Supabase sessions for account migration. Make retries idempotent and auditable.
-- [ ] Freeze legacy unverified handles and remove first-touch claim paths.
-- [ ] Gate protected Social APIs through one server policy seam.
-- [ ] Update `/privacy` and `/terms` in the same implementation change that adds Yoti processing or stores Yoti verification references.
+- [x] Define `SocialAccessState`: `preview`, `sign_in_required`, `age_verification_required`, `verified`, `suspended`.
+- [x] Store Yoti subject reference, provider, decision, verified-at, expiry, and audit state server-side. Store no public date of birth or age badge.
+- [x] Bind verified state to stable product account ownership, not a client-supplied handle.
+- [x] Require both Clerk and legacy Supabase sessions for account migration. Make retries idempotent and auditable.
+- [x] Freeze legacy unverified handles and remove first-touch claim paths.
+- [x] Gate protected Social APIs through one server policy seam.
+- [x] Update `/privacy` and `/terms` in the same implementation change that adds Yoti processing or stores Yoti verification references.
 
 ### Task 3: Durable Social post domain and API
 
