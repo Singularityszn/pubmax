@@ -24,10 +24,14 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/profileReactionSummaries", () => ({
-  loadProfileReactionSummaries: harness.loader,
-  profileLocalReactionSummary: (mine: string[]) => ({ counts: {}, mine }),
-  writeProfileLocalReactions: vi.fn(),
+vi.mock("@/lib/reactionClient", () => ({
+  loadReactionSummaries: harness.loader,
+  localReactionSummary: (mine: string[]) => ({ counts: {}, mine }),
+  toggleReactionMine: (mine: string[], reaction: string) =>
+    mine.includes(reaction)
+      ? mine.filter((value) => value !== reaction)
+      : [...mine, reaction],
+  writeLocalReactions: vi.fn(),
 }));
 
 import ProfileTimeline from "@/components/profile/ProfileTimeline";
@@ -59,7 +63,7 @@ describe("ProfileTimeline reaction effect cleanup", () => {
   it("does not consume a successful loader result after cleanup aborts its effect", async () => {
     let resolveLoad!: (value: {
       summaries: Record<string, unknown>;
-      localOnlyIds: Set<string>;
+      retryableIds: Set<string>;
       aborted: boolean;
     }) => void;
     harness.loader.mockReturnValue(
@@ -73,7 +77,7 @@ describe("ProfileTimeline reaction effect cleanup", () => {
 
     resolveLoad({
       summaries: { "drop-1": { counts: { cheers: 1 }, mine: [] } },
-      localOnlyIds: new Set(["drop-1"]),
+      retryableIds: new Set(["drop-1"]),
       aborted: false,
     });
     cleanup?.();

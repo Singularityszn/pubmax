@@ -87,6 +87,7 @@ const MENU_UPDATES: DrinkPriceUpdate[] = [
       licence: "First-party demo fixture for UI coverage; not a live venue price.",
     },
     observedAt: "2026-07-06T12:00:00.000Z",
+    lane: "demo",
   },
   {
     venueKey: PROSPECT_KEY,
@@ -99,6 +100,7 @@ const MENU_UPDATES: DrinkPriceUpdate[] = [
       licence: "All rights reserved; first-party publisher.",
     },
     observedAt: "2026-07-11T13:06:21.340Z",
+    lane: "publisher",
   },
 ];
 

@@ -13,7 +13,6 @@
 // Account onboarding owns handle selection after sign-in. Provider email and
 // browser-local handles are never promoted to account identity automatically.
 
-import { useAuth as useClerkAuth, useClerk } from "@clerk/nextjs";
 import {
   createContext,
   useCallback,
@@ -41,12 +40,10 @@ import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
 import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import {
   guardSocialAuthProvider,
-  loadClerkSocialAuthProviders,
   loadSocialAuthProviders,
   NO_SOCIAL_AUTH_PROVIDERS,
   type SocialAuthProviderAvailability,
 } from "@/lib/authProviderAvailability";
-import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
 import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
@@ -181,27 +178,7 @@ export function AuthProvider({
   const rejectedContributionAuthRef =
     useRef<AccountAuthSnapshot | null>(null);
   const configured = isAuthConfigured();
-  const clerkSessionAvailable = isClerkProductSessionAvailable(
-    session?.user,
-    clerkIntegrationConfigured,
-  );
-  const clerk = useClerk();
-  const { isLoaded: clerkLoaded } = useClerkAuth();
   const loading = configured && sessionLoading;
-  const loadConfiguredSocialProviders = useCallback(async () => {
-    if (!clerkSessionAvailable) return loadSocialAuthProviders();
-    const clerkApi = clerk as unknown as {
-      environment?: unknown;
-    };
-    const browserClerk =
-      typeof window === "undefined"
-        ? undefined
-        : (window as Window & { Clerk?: { environment?: unknown } }).Clerk;
-    return loadClerkSocialAuthProviders(
-      globalThis.fetch,
-      browserClerk?.environment ?? clerkApi.environment,
-    );
-  }, [clerk, clerkSessionAvailable]);
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
@@ -248,10 +225,9 @@ export function AuthProvider({
   >(null);
 
   useEffect(() => {
-    if (!configured && !clerkSessionAvailable) return;
-    if (clerkSessionAvailable && !clerkLoaded) return;
+    if (!configured) return;
     let active = true;
-    void loadConfiguredSocialProviders().then((availability) => {
+    void loadSocialAuthProviders().then((availability) => {
       if (active) {
         setSocialProviders(availability ?? NO_SOCIAL_AUTH_PROVIDERS);
       }
@@ -259,12 +235,7 @@ export function AuthProvider({
     return () => {
       active = false;
     };
-  }, [
-    clerkLoaded,
-    clerkSessionAvailable,
-    configured,
-    loadConfiguredSocialProviders,
-  ]);
+  }, [configured]);
   const capturedCallback = useRef<Promise<CapturedAuthCallback | null> | undefined>(undefined);
 
   useEffect(() => {
@@ -524,53 +495,25 @@ export function AuthProvider({
     }
   }, []);
 
-  /**
-   * Clerk owns this click when configured. Its account is deliberately kept
-   * separate from the Supabase session, which remains the PUBMAXX User ID.
-   */
-  const startClerkOAuth = useCallback(async (): Promise<{ error: string | null }> => {
-    if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
-    try {
-      clerk.openSignIn({
-        oauthFlow: "redirect",
-        fallbackRedirectUrl: window.location.href,
-        forceRedirectUrl: window.location.href,
-      });
-      return { error: null };
-    } catch {
-      return { error: "Sign-in could not be started. Try again." };
-    }
-  }, [clerk]);
-
   const signInWithGoogle = useCallback(async (): Promise<{ error: string | null }> => {
     const guarded = await guardSocialAuthProvider(
       "google",
-      clerkSessionAvailable ? startClerkOAuth : startSupabaseGoogleOAuth,
-      loadConfiguredSocialProviders,
+      startSupabaseGoogleOAuth,
+      loadSocialAuthProviders,
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
-  }, [
-    clerkSessionAvailable,
-    loadConfiguredSocialProviders,
-    startClerkOAuth,
-    startSupabaseGoogleOAuth,
-  ]);
+  }, [startSupabaseGoogleOAuth]);
 
   const signInWithApple = useCallback(async (): Promise<{ error: string | null }> => {
     const guarded = await guardSocialAuthProvider(
       "apple",
-      clerkSessionAvailable ? startClerkOAuth : startSupabaseAppleOAuth,
-      loadConfiguredSocialProviders,
+      startSupabaseAppleOAuth,
+      loadSocialAuthProviders,
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
-  }, [
-    clerkSessionAvailable,
-    loadConfiguredSocialProviders,
-    startClerkOAuth,
-    startSupabaseAppleOAuth,
-  ]);
+  }, [startSupabaseAppleOAuth]);
 
   const signInWithEmail = useCallback(
     async (email: string, next?: string): Promise<MagicLinkResult> => {

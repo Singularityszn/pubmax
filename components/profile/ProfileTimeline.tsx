@@ -16,21 +16,17 @@ import {
 } from "@/lib/feed";
 import { type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import {
-  loadProfileReactionSummaries,
-  profileLocalReactionSummary,
-  writeProfileLocalReactions,
-  type ProfileReactionSummaryMap,
-} from "@/lib/profileReactionSummaries";
-
-export { loadProfileReactionSummaries } from "@/lib/profileReactionSummaries";
+  loadReactionSummaries,
+  localReactionSummary,
+  toggleReactionMine,
+  writeLocalReactions,
+  type ReactionSummaryMap,
+} from "@/lib/reactionClient";
+import { postReactionToggle } from "@/lib/optimisticToggle";
 
 const EMPTY_SUMMARY: ReactionSummary = { counts: {}, mine: [] };
 
-type SummaryMap = ProfileReactionSummaryMap;
-
-function toggleMine(mine: ReactionKey[], reaction: ReactionKey): ReactionKey[] {
-  return mine.includes(reaction) ? mine.filter((k) => k !== reaction) : [...mine, reaction];
-}
+type SummaryMap = ReactionSummaryMap;
 
 const PROVENANCE_OK = new Set<Provenance>(["demo", "contributor", "sourced", "anecdote"]);
 
@@ -101,11 +97,11 @@ export default function ProfileTimeline({
 
     const controller = new AbortController();
     let settled = false;
-    loadProfileReactionSummaries(fresh, actorId, controller.signal)
+    loadReactionSummaries(fresh, actorId, controller.signal)
       .then((result) => {
         if (result.aborted || controller.signal.aborted) return;
         settled = true;
-        for (const id of result.localOnlyIds) localOnly.current.add(id);
+        for (const id of result.retryableIds) loadedIds.delete(id);
         setSummaries((prev) => {
           return { ...prev, ...result.summaries };
         });
@@ -126,9 +122,9 @@ export default function ProfileTimeline({
     if (localOnly.current.has(dropId)) {
       setSummaries((prev) => {
         const current = prev[dropId] ?? EMPTY_SUMMARY;
-        const mine = toggleMine(current.mine, reaction);
-        writeProfileLocalReactions(dropId, mine);
-        return { ...prev, [dropId]: profileLocalReactionSummary(mine) };
+        const mine = toggleReactionMine(current.mine, reaction);
+        writeLocalReactions(dropId, mine);
+        return { ...prev, [dropId]: localReactionSummary(mine) };
       });
       return;
     }
@@ -136,35 +132,28 @@ export default function ProfileTimeline({
     setSummaries((prev) => {
       const current = prev[dropId] ?? EMPTY_SUMMARY;
       const on = current.mine.includes(reaction);
-      const mine = toggleMine(current.mine, reaction);
+      const mine = toggleReactionMine(current.mine, reaction);
       const counts = { ...current.counts };
       counts[reaction] = Math.max(0, (counts[reaction] ?? 0) + (on ? -1 : 1));
       if (counts[reaction] === 0) delete counts[reaction];
       return { ...prev, [dropId]: { counts, mine } };
     });
 
-    try {
-      const res = await fetch("/api/pint-drops/reactions", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: dropId, reaction, actor: actorId }),
+    const outcome = await postReactionToggle({ id: dropId, reaction, actor: actorId });
+    if (outcome.kind === "unknown-drop") {
+      localOnly.current.add(dropId);
+      setSummaries((prev) => {
+        const current = prev[dropId] ?? EMPTY_SUMMARY;
+        writeLocalReactions(dropId, current.mine);
+        return { ...prev, [dropId]: localReactionSummary(current.mine) };
       });
-      if (res.status === 404) {
-        localOnly.current.add(dropId);
-        setSummaries((prev) => {
-          const current = prev[dropId] ?? EMPTY_SUMMARY;
-          writeProfileLocalReactions(dropId, current.mine);
-          return { ...prev, [dropId]: profileLocalReactionSummary(current.mine) };
-        });
-        return;
-      }
-      if (!res.ok) return;
-      const data = (await res.json()) as { summary?: ReactionSummary };
-      if (data.summary) {
-        setSummaries((prev) => ({ ...prev, [dropId]: data.summary! }));
-      }
-    } catch {
-      // Keep optimistic flip; next load reconciles.
+      return;
+    }
+    if (outcome.kind === "confirmed" && outcome.summary) {
+      setSummaries((prev) => ({
+        ...prev,
+        [dropId]: outcome.summary as ReactionSummary,
+      }));
     }
   }, [actorId]);
 

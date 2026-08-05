@@ -237,7 +237,7 @@ export async function DELETE(
     return jsonNoStore({ error: "Profile storage is not configured." }, { status: 503 });
   }
 
-  const gate = await gateHandleAction(request, handle, { claimOnUnlinked: false });
+  const gate = await gateHandleAction(request, handle);
   if (!gate.allowed) {
     return jsonNoStore({ error: gate.error }, { status: gate.status });
   }

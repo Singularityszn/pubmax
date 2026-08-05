@@ -3,7 +3,10 @@ import "server-only";
 import { promises as fs } from "fs";
 import path from "path";
 
-import { parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
+import {
+  parseDrinkPriceUpdates,
+  visibleDrinkPriceUpdates,
+} from "@/lib/drinkPriceUpdates";
 import {
   buildSightings,
   freshSightings,
@@ -56,7 +59,9 @@ async function build(): Promise<SightingDTO[]> {
     const raw = JSON.parse(
       await fs.readFile(/* turbopackIgnore: true */ file, "utf8"),
     ) as unknown;
-    const updates = parseDrinkPriceUpdates(raw, generatedAtOf(raw));
+    const updates = visibleDrinkPriceUpdates(
+      parseDrinkPriceUpdates(raw, generatedAtOf(raw)),
+    );
     if (updates.length === 0) return [];
 
     const index = await getVenueIndex();
