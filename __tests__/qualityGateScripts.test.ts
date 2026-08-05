@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -106,10 +106,17 @@ describe("Playwright isolated build configuration", () => {
 
   it("keeps isolated build directories outside lint and git inputs", () => {
     const eslintSource = readFileSync(path.join(ROOT, "eslint.config.mjs"), "utf8");
-    const gitignore = readFileSync(path.join(ROOT, ".gitignore"), "utf8");
+    const gitignorePath = path.join(ROOT, ".gitignore");
 
     expect(eslintSource).toContain('".next-*/**"');
-    expect(gitignore).toContain(".next-*/");
+    if (existsSync(gitignorePath)) {
+      expect(readFileSync(gitignorePath, "utf8")).toContain(".next-*/");
+    } else {
+      // Vercel source archives omit repository-control dotfiles. Local and
+      // GitHub CI still assert the .gitignore contract above; an archive with
+      // no Git metadata has no Git input for an isolated build to enter.
+      expect(existsSync(path.join(ROOT, ".git"))).toBe(false);
+    }
   });
 });
 

@@ -1,4 +1,5 @@
-import { execFileSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // Party-accent containment gate (docs/VIBE_LAYER_SPEC_2026-07-19.md, "Accent
@@ -27,16 +28,26 @@ const BANNED_PREFIXES = [
   "app/discover",
 ];
 
+function codeFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return codeFiles(path);
+    return entry.isFile() ? [path] : [];
+  });
+}
+
+function filesContaining(pattern: RegExp): string[] {
+  const root = process.cwd();
+  return ["app", "components", "lib"]
+    .flatMap((directory) => codeFiles(join(root, directory)))
+    .filter((file) => pattern.test(readFileSync(file, "utf8")))
+    .map((file) => relative(root, file));
+}
+
 function trackedFilesReferencingToken(): string[] {
-  // Scoped to code surfaces on purpose: only code can leak the accent onto a
-  // banned surface, and docs referencing the token by name must not trip the
-  // family budget (a handoff note once turned main red exactly this way).
-  const out = execFileSync(
-    "git",
-    ["grep", "-l", "--", "--font-party", "app", "components", "lib"],
-    { encoding: "utf8", cwd: process.cwd() },
-  );
-  return out.split("\n").filter(Boolean);
+  // Scan shipped code directly. Deployment archives intentionally omit .git,
+  // while this containment gate must run identically in local and Vercel CI.
+  return filesContaining(/--font-party/);
 }
 
 // A "component family" is the directory under components/ (or the app route
@@ -71,26 +82,14 @@ describe("party accent containment (vibe layer spec)", () => {
 
   it("keeps the killed register out of the tracked tree's product strings", () => {
     // Spec kill-list: these terms are banned everywhere, not just chips.
-    // git grep -w keeps this honest (no substring hits inside larger words).
+    // Word boundaries keep this honest (no substring hits inside larger words).
     // lib/vibeChips.ts is the kill-list's one canonical DEFINITION site (its
     // KILLED_VIBE_TERMS constant powers the chip-surface tests) — the terms
     // appearing there are the ban itself, not product copy, so it is the one
     // sanctioned hit. Anything else is a leak.
     const KILL_LIST_DEFINITION_SITE = "lib/vibeChips.ts";
     for (const term of ["turnt", "bussin"]) {
-      let hits = "";
-      try {
-        hits = execFileSync(
-          "git",
-          ["grep", "-liw", "--", term, "components", "app", "lib"],
-          { encoding: "utf8", cwd: process.cwd() },
-        );
-      } catch {
-        // git grep exits 1 on zero matches — the passing case.
-      }
-      const leaks = hits
-        .split("\n")
-        .filter(Boolean)
+      const leaks = filesContaining(new RegExp(`\\b${term}\\b`, "i"))
         .filter((file) => file !== KILL_LIST_DEFINITION_SITE);
       expect(leaks, `killed term "${term}" found`).toEqual([]);
     }
