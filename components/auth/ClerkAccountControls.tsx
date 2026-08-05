@@ -25,6 +25,7 @@
 
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { isClerkConfigured } from "@/lib/clerkIdentity";
 
 export default function ClerkAccountControls({
@@ -37,9 +38,11 @@ export default function ClerkAccountControls({
 }: {
   className?: string;
 }): React.JSX.Element | null {
-  // No key, no dead control. Mirrors SignInButton's `configured` gate exactly,
-  // so an unconfigured deployment shows nothing rather than a button that fails.
-  if (!isClerkConfigured()) return null;
+  // Clerk does not establish the Supabase session that owns PUBMAXX identity.
+  // Keep its secondary account controls behind an established product session
+  // until that provider bridge exists end to end.
+  const { user } = useAuth();
+  if (!user || !isClerkConfigured()) return null;
 
   const classes = ["clerkAccount", className].filter(Boolean).join(" ");
 

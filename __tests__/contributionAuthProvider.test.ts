@@ -7,7 +7,7 @@ const providerState = vi.hoisted(() => ({
   session: {
     access_token: "shared-session",
     user: { id: "account-a" },
-  },
+  } as { access_token: string; user: { id: string } } | null,
   supabaseOAuth: vi.fn(),
 }));
 
@@ -220,6 +220,10 @@ function Consumer({ name }: { name: string }): ReactNode {
 
 beforeEach(() => {
   consumers.clear();
+  providerState.session = {
+    access_token: "shared-session",
+    user: { id: "account-a" },
+  };
   clerkState.configured = true;
   clerkState.openSignIn.mockReset();
   providerState.supabaseOAuth.mockReset();
@@ -333,13 +337,14 @@ describe("shared contribution auth invalidation", () => {
     const auth = consumers.get("social")?.auth;
     expect(auth).toBeDefined();
     const clerkLoadCallsBeforeClick = authAvailability.loadClerk.mock.calls.length;
+    const supabaseLoadCallsBeforeClick = authAvailability.loadSupabase.mock.calls.length;
 
     await commitReactWork(async () => {
       await auth?.signInWithGoogle();
     });
 
     expect(authAvailability.guard).toHaveBeenCalledWith("google", expect.any(Function), expect.any(Function));
-    expect(authAvailability.loadSupabase).not.toHaveBeenCalled();
+    expect(authAvailability.loadSupabase.mock.calls.length).toBe(supabaseLoadCallsBeforeClick);
 
     const start = authAvailability.guard.mock.calls[0]?.[1] as (() => Promise<unknown>) | undefined;
     const load = authAvailability.guard.mock.calls[0]?.[2] as (() => Promise<unknown>) | undefined;
@@ -352,6 +357,37 @@ describe("shared contribution auth invalidation", () => {
       fallbackRedirectUrl: "http://localhost/map",
       forceRedirectUrl: "http://localhost/map",
     });
+  });
+
+  it("keeps the Supabase path without a product session even when Clerk is configured", async () => {
+    providerState.session = null;
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+
+    await commitReactWork(async () => {
+      root?.render(createElement(AuthProvider, null, createElement(Consumer, { name: "social" })));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const auth = consumers.get("social")?.auth;
+    expect(auth).toBeDefined();
+    await commitReactWork(async () => {
+      await auth?.signInWithGoogle();
+    });
+
+    const start = authAvailability.guard.mock.calls[0]?.[1] as (() => Promise<unknown>) | undefined;
+    const load = authAvailability.guard.mock.calls[0]?.[2] as (() => Promise<unknown>) | undefined;
+    await load?.();
+    await start?.();
+
+    expect(authAvailability.loadSupabase).toHaveBeenCalled();
+    expect(authAvailability.loadClerk).not.toHaveBeenCalled();
+    expect(providerState.supabaseOAuth).toHaveBeenCalledWith({
+      provider: "google",
+      options: { redirectTo: "http://localhost/auth-callback" },
+    });
+    expect(clerkState.openSignIn).not.toHaveBeenCalled();
   });
 
   it("keeps the Supabase path when Clerk is unconfigured", async () => {

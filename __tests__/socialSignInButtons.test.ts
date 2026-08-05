@@ -15,7 +15,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
 }));
 vi.mock("@/components/auth/ClerkAccountControls", () => ({
-  default: () => null,
+  default: () => "Clerk account controls",
 }));
 vi.mock("@/lib/clerkIdentity", () => ({
   isClerkConfigured: () => clerkState.configured,
@@ -121,7 +121,7 @@ describe("signed-out sign-in surface", () => {
     expect(html).not.toContain("Continue with Apple");
   });
 
-  it("renders Clerk social providers when Supabase is unconfigured", () => {
+  it("hides Clerk login when no product Supabase session exists", () => {
     clerkState.configured = true;
     authState.current = {
       user: null,
@@ -137,8 +137,10 @@ describe("signed-out sign-in surface", () => {
 
     const html = renderToStaticMarkup(createElement(SignInButton));
 
-    expect(html).toContain('aria-label="Continue with Google"');
+    expect(html).toBe("");
+    expect(html).not.toContain('aria-label="Continue with Google"');
     expect(html).not.toContain("Continue with Apple");
     expect(html).not.toContain("Continue with email");
+    expect(html).not.toContain("Clerk account controls");
   });
 });
