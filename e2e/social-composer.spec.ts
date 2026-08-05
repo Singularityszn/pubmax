@@ -82,8 +82,8 @@ test("verified composer preserves failed photo draft, records consent choices, a
 
   await page.getByRole("button", { name: "New post" }).click();
   let dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("textbox", { name: "Post", exact: true })).toBeFocused();
-  await dialog.getByRole("textbox", { name: "Post", exact: true }).fill("Photo draft survives reload");
+  await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toBeFocused();
+  await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Photo draft survives reload");
   const venueCombobox = dialog.getByRole("combobox", { name: "Venue - Friends only" });
   await venueCombobox.fill("Proof");
   await expect(venueCombobox).toHaveAttribute("aria-expanded", "true");
@@ -93,7 +93,7 @@ test("verified composer preserves failed photo draft, records consent choices, a
   await venueCombobox.press("Enter");
   await expect(dialog.getByLabel("Selected Venue")).toContainText("The Proof Arms");
   await dialog.getByLabel("Post type").selectOption("feature_request");
-  await dialog.getByLabel("Photo", { exact: true }).setInputFiles({ name: "proof.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
+  await dialog.getByLabel("Add photo", { exact: true }).setInputFiles({ name: "proof.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
   await expect(dialog.getByRole("img", { name: "Selected photo preview" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Remove selected photo" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Post", exact: true })).toBeDisabled();
@@ -107,7 +107,7 @@ test("verified composer preserves failed photo draft, records consent choices, a
   await page.reload();
   await page.getByRole("button", { name: "New post" }).click();
   dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("textbox", { name: "Post", exact: true })).toHaveValue("Photo draft survives reload");
+  await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Photo draft survives reload");
   await expect(dialog.getByLabel("Photo description")).toBeVisible();
   await expect(dialog.getByLabel("Photo description")).toHaveValue("Friends outside The Proof Arms");
   await page.getByRole("button", { name: "Post", exact: true }).click();
@@ -117,7 +117,7 @@ test("verified composer preserves failed photo draft, records consent choices, a
 
   await page.getByRole("button", { name: "New post" }).click();
   dialog = page.getByRole("dialog");
-  await dialog.getByRole("textbox", { name: "Post", exact: true }).fill("Text-only post");
+  await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Text-only post");
   await dialog.getByRole("button", { name: "Post", exact: true }).click();
   await expect(dialog).toHaveCount(0);
   expect(createAttempts).toBe(3);
@@ -128,13 +128,13 @@ test("verified composer preserves failed photo draft, records consent choices, a
   await expect(dialog.getByLabel("Selected Venue")).toContainText("The Proof Arms");
   await expect(dialog.getByRole("button", { name: "Remove venue" })).toBeVisible();
   await expect(dialog.getByLabel("Photo description")).toHaveValue("Friends outside");
-  await dialog.getByLabel("Photo", { exact: true }).setInputFiles({ name: "replacement.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
+  await dialog.getByLabel("Add photo", { exact: true }).setInputFiles({ name: "replacement.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
   await expect(dialog.getByRole("img", { name: "Selected photo preview" })).toBeVisible();
   await dialog.getByRole("button", { name: "Remove selected photo" }).click();
   await expect(dialog.getByRole("img", { name: "Friends outside" })).toBeVisible();
   await expect(dialog.getByLabel("Photo description")).toHaveValue("Friends outside");
   await dialog.getByLabel("Photo description").fill("Corrected friends outside");
-  await dialog.getByRole("textbox", { name: "Post", exact: true }).fill("Edited draft survives");
+  await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Edited draft survives");
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(dialog.getByRole("alert")).toContainText("Post changed. Your draft is still here.");
   await expect(dialog.getByRole("alert")).toBeFocused();
@@ -147,7 +147,7 @@ test("verified composer preserves failed photo draft, records consent choices, a
   expect(editPayloads[1]).toMatchObject({ expectedRevision: 2, photoAltText: "Corrected friends outside" });
   await page.getByRole("button", { name: "Edit post" }).click();
   dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("textbox", { name: "Post", exact: true })).toHaveValue("Edited draft survives");
+  await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Edited draft survives");
   await expect(dialog.getByLabel("Selected Venue")).toBeVisible();
   await expect(dialog.getByLabel("Photo description")).toHaveValue("Corrected friends outside");
   await dialog.getByRole("button", { name: "Remove photo" }).click();
@@ -168,25 +168,25 @@ test("account-bound drafts isolate text and photo while two tabs warn", async ({
   await context.route("**/api/social/posts?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [], nextCursor: null }) }));
   await page.goto("/social"); await page.getByRole("button", { name: "New post" }).click();
   let dialog = page.getByRole("dialog");
-  await dialog.getByRole("textbox", { name: "Post", exact: true }).fill("Alice private draft");
-  await dialog.getByLabel("Photo", { exact: true }).setInputFiles({ name: "alice.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
+  await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Alice private draft");
+  await dialog.getByLabel("Add photo", { exact: true }).setInputFiles({ name: "alice.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
   await dialog.getByLabel("Photo description").fill("Alice photo");
   await page.waitForTimeout(400);
   const second = await context.newPage(); await second.goto("/social"); await second.getByRole("button", { name: "New post" }).click();
-  await expect(second.getByRole("textbox", { name: "Post", exact: true })).toHaveValue("Alice private draft");
+  await expect(second.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Alice private draft");
   await expect(second.getByLabel("Photo description")).toHaveValue("Alice photo");
   await expect(page.getByText("This draft is open in another tab.")).toBeVisible();
   await expect(second.getByText("This draft is open in another tab.")).toBeVisible();
   await second.getByRole("button", { name: "Remove selected photo" }).click();
   await expect(second.getByLabel("Photo description")).toHaveCount(0);
   await second.getByRole("button", { name: "Clear draft" }).click();
-  await expect(second.getByRole("textbox", { name: "Post", exact: true })).toHaveValue("");
+  await expect(second.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("");
   await second.reload(); await second.getByRole("button", { name: "New post" }).click();
-  await expect(second.getByRole("textbox", { name: "Post", exact: true })).toHaveValue("");
+  await expect(second.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("");
   await expect(second.getByLabel("Photo description")).toHaveCount(0);
   scope = "b".repeat(43); await second.reload(); await second.getByRole("button", { name: "New post" }).click();
   dialog = second.getByRole("dialog");
-  await expect(dialog.getByRole("textbox", { name: "Post", exact: true })).toHaveValue("");
+  await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("");
   await expect(dialog.getByLabel("Photo description")).toHaveCount(0);
 });
 
@@ -225,7 +225,7 @@ test("private visibility and comment policy survive create, owner outbox, and ed
   await page.goto("/social");
   await page.getByRole("button", { name: "New post" }).click();
   let dialog = page.getByRole("dialog");
-  await dialog.getByRole("textbox", { name: "Post", exact: true }).fill("Private plan");
+  await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Private plan");
   await dialog.getByLabel("Visibility").selectOption("private");
   await dialog.getByLabel("Comments").selectOption("locked");
   await dialog.getByRole("button", { name: "Post", exact: true }).click();
@@ -239,7 +239,7 @@ test("private visibility and comment policy survive create, owner outbox, and ed
   dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel("Visibility")).toHaveValue("private");
   await expect(dialog.getByLabel("Comments")).toHaveValue("locked");
-  await dialog.getByRole("textbox", { name: "Post", exact: true }).fill("Private plan updated");
+  await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Private plan updated");
   await dialog.getByRole("button", { name: "Save" }).click();
   expect(editPayloads[0]).toMatchObject({ visibility: "private", commentPolicy: "locked" });
 

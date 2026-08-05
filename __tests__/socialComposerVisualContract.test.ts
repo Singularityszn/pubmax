@@ -158,14 +158,20 @@ describe("Social composer visual contract", () => {
     }
   });
 
-  it("ships one focus ring, a visible body label, safe spacing, and legible actions", () => {
+  it("ships one focus ring, a dedicated body label, safe spacing, and legible actions", () => {
     expect(composerSource).toMatch(
-      /<label className="socialPostBody">\s*Post\s*<textarea/,
+      /<label className="socialComposerBody">\s*Write post\s*<textarea/,
     );
+    expect(composerSource).toMatch(
+      /<span className="socialPhotoCue" aria-hidden="true">\+<\/span>\s*<span>\{photo \?/,
+    );
+    expect(composerSource).toMatch(/<input[^>]+aria-label="Add photo"[^>]+type="file"/);
     expect(socialCss).toMatch(
       /padding:[\s\S]*?calc\(24px \+ env\(safe-area-inset-bottom, 0px\)\)/,
     );
-    expect(block(socialCss, ".socialComposer textarea")).toMatch(
+    expect(
+      block(socialCss, ".socialComposer .socialComposerBody textarea"),
+    ).toMatch(
       /resize:\s*none/,
     );
     expect(socialCss).not.toMatch(/resize:\s*vertical/);
@@ -177,6 +183,30 @@ describe("Social composer visual contract", () => {
     );
     expect(block(socialCss, ".socialComposer .socialPhotoPicker")).toMatch(
       /border:\s*1px solid var\(--social-control-border\)[\s\S]*background:\s*color-mix\(in srgb, var\(--river\) \d+%, var\(--panel-raised\)\)[\s\S]*color:\s*color-mix\(in srgb, var\(--river\) \d+%, var\(--ink\)\)/,
+    );
+  });
+
+  it("keeps the body text-first after shared control rules at every viewport", () => {
+    const sharedControls = socialCss.indexOf(
+      ".socialComposer textarea,\n.socialComposer input,\n.socialComposer select",
+    );
+    const bodyRule = socialCss.indexOf(
+      ".socialComposer .socialComposerBody textarea",
+    );
+    expect(sharedControls).toBeGreaterThan(-1);
+    expect(bodyRule, "body height must override shared control sizing").toBeGreaterThan(
+      sharedControls,
+    );
+    expect(
+      block(socialCss, ".socialComposer .socialComposerBody textarea"),
+    ).toMatch(/min-height:\s*160px/);
+
+    const phone = mediaBlock(socialCss, "(max-width: 640px)");
+    expect(
+      block(phone, ".socialComposer .socialComposerBody textarea"),
+    ).toMatch(/min-height:\s*96px/);
+    expect(block(socialCss, ".socialComposer label > select")).toMatch(
+      /padding-right:\s*(?:3[2-9]|[4-9]\d)px/,
     );
   });
 
