@@ -119,10 +119,19 @@ test.describe("Android install prompt", () => {
       "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36",
   });
 
-  test("is a compact non-modal card while map stays visible and interactive", async ({ page }) => {
-    await page.addInitScript(() => {
+  async function openInstallCard(page: Page, legacyMode: boolean = false) {
+    await page.addInitScript(({ legacy }) => {
+      window.addEventListener("pubmax:a2hs-listener-ready", () => {
+        document.documentElement.setAttribute("data-a2hs-listener-ready", "1");
+      }, { once: true });
       localStorage.setItem("pubmax-tour-v1-done", "1");
       localStorage.setItem("pubmax:analytics-consent:v1", "denied");
+      localStorage.setItem("pubmax-legacy", legacy ? "1" : "0");
+      if (legacy) {
+        const applyLegacy = () => document.documentElement?.setAttribute("data-legacy", "1");
+        if (document.documentElement) applyLegacy();
+        else window.addEventListener("DOMContentLoaded", applyLegacy, { once: true });
+      }
       localStorage.setItem(
         "pubmax:a2hs:v1",
         JSON.stringify({
@@ -133,7 +142,7 @@ test.describe("Android install prompt", () => {
         }),
       );
       sessionStorage.clear();
-    });
+    }, { legacy: legacyMode });
     await page.goto(`/map?sel=${VENUE_ID}`);
 
     const map = page.getByRole("region", { name: "Interactive pub map of London" });
@@ -141,6 +150,11 @@ test.describe("Android install prompt", () => {
     await expect(map).toBeVisible({ timeout: 45_000 });
     await expect(expandSheet).toBeVisible();
     await expandSheet.focus();
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-a2hs-listener-ready",
+      "1",
+      { timeout: 10_000 },
+    );
     await page.evaluate(() => {
       const event = new Event("beforeinstallprompt", { cancelable: true });
       Object.defineProperties(event, {
@@ -153,8 +167,71 @@ test.describe("Android install prompt", () => {
       window.dispatchEvent(event);
     });
 
-    const card = page.getByRole("region", { name: "Put PUBMAXX on your home screen" });
+    const card = page.locator(".a2hsSheet--android");
     await expect(card).toBeVisible({ timeout: 10_000 });
+    return { card, map, expandSheet };
+  }
+
+  for (const viewport of PHONE_VIEWPORTS) {
+    test(`${viewport.width}px card stays within 30% without internal scrolling`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const { card } = await openInstallCard(page);
+
+      const cardBox = await card.boundingBox();
+      expect(cardBox).not.toBeNull();
+      expect(cardBox!.height).toBeLessThanOrEqual(viewport.height * 0.3);
+      expect(
+        await card.evaluate((element) => element.scrollHeight - element.clientHeight),
+      ).toBeLessThanOrEqual(1);
+
+      const install = card.getByRole("button", { name: "Add to home screen" });
+      const close = card.getByRole("button", { name: "Not now", exact: true }).first();
+      const [installBox, closeBox] = await Promise.all([
+        install.boundingBox(),
+        close.boundingBox(),
+      ]);
+      expect(installBox).not.toBeNull();
+      expect(closeBox).not.toBeNull();
+      expect(installBox!.height).toBeGreaterThanOrEqual(44);
+      expect(closeBox!.height).toBeGreaterThanOrEqual(44);
+      const neverAsk = card.getByRole("button", { name: "Don't ask again" });
+      const neverAskBox = await neverAsk.boundingBox();
+      expect(neverAskBox).not.toBeNull();
+      expect(neverAskBox!.height).toBeGreaterThanOrEqual(44);
+      await expect(card.locator("#a2hsTitle")).toHaveText("Install PUBMAXX");
+      await expect(card.locator("#a2hsBody")).toHaveText(
+        "Listed pint prices, one tap away.",
+      );
+    });
+  }
+
+  test("320px Legacy Mode card stays within 30% with enlarged text", async ({ page }) => {
+    const viewport = PHONE_VIEWPORTS[0];
+    await page.setViewportSize(viewport);
+    const { card } = await openInstallCard(page, true);
+    await expect(page.locator("html")).toHaveAttribute("data-legacy", "1");
+
+    const cardBox = await card.boundingBox();
+    expect(cardBox).not.toBeNull();
+    expect(cardBox!.height).toBeLessThanOrEqual(viewport.height * 0.3);
+    expect(
+      await card.evaluate((element) => element.scrollHeight - element.clientHeight),
+    ).toBeLessThanOrEqual(1);
+    for (const button of [
+      card.getByRole("button", { name: "Add to home screen" }),
+      card.getByRole("button", { name: "Not now", exact: true }).first(),
+      card.getByRole("button", { name: "Don't ask again" }),
+    ]) {
+      const box = await button.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+    }
+  });
+
+  test("is a compact non-modal card while map stays visible and interactive", async ({ page }) => {
+    const { card, map, expandSheet } = await openInstallCard(page);
+    await expect(card).toHaveAttribute("role", "region");
+    await expect(card).toHaveAttribute("aria-labelledby", "a2hsTitle");
     await expect(page.locator(".a2hsScrim")).toHaveCount(0);
     await expect(page.locator('[role="dialog"][aria-modal="true"]')).toHaveCount(0);
     await expect(map).toBeVisible();
@@ -202,6 +279,52 @@ test.describe("Android install prompt", () => {
 
     await expandSheet.click();
     await expect(page.getByRole("button", { name: "Collapse sheet" })).toBeVisible();
+  });
+});
+
+test.describe("iOS install instructions", () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+    userAgent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+  });
+
+  test("retains the full modal Safari instruction sheet", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.addEventListener("pubmax:a2hs-listener-ready", () => {
+        document.documentElement.setAttribute("data-a2hs-listener-ready", "1");
+      }, { once: true });
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmax:analytics-consent:v1", "denied");
+      localStorage.setItem(
+        "pubmax:a2hs:v1",
+        JSON.stringify({
+          firstDayBucket: 1,
+          secondDayBucket: 2,
+          declinedDayBucket: null,
+          outcome: "none",
+        }),
+      );
+      sessionStorage.clear();
+    });
+    await page.goto(`/map?sel=${VENUE_ID}`);
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-a2hs-listener-ready",
+      "1",
+      { timeout: 45_000 },
+    );
+
+    const dialog = page.getByRole("dialog", {
+      name: "Put PUBMAXX on your home screen",
+    });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveAttribute("aria-modal", "true");
+    await expect(page.locator(".a2hsScrim")).toBeVisible();
+    await expect(dialog.locator(".a2hsSteps > li")).toHaveCount(3);
+    await expect(dialog).toContainText("Works in Safari");
+    await expect(dialog.getByRole("button", { name: "Got it" })).toBeVisible();
   });
 });
 

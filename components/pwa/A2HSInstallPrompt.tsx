@@ -209,6 +209,14 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
     };
   }, [evaluate, close]);
 
+  // The browser install event is one-shot. Publish readiness only after the
+  // listener exists and platform detection has completed, so late-loaded shell
+  // extras have a deterministic handoff instead of asking callers to guess.
+  useEffect(() => {
+    if (!mounted) return;
+    window.dispatchEvent(new Event("pubmax:a2hs-listener-ready"));
+  }, [mounted]);
+
   // First eligibility check once mounted (iOS has no event to wait for).
   useEffect(() => {
     if (mounted) evaluate();
@@ -281,25 +289,27 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
 
       <p className="a2hsEyebrow">Add to home screen</p>
       <h2 id="a2hsTitle" className="a2hsTitle">
-        Put PUBMAXX on your home screen
+        {surface === "android" ? "Install PUBMAXX" : "Put PUBMAXX on your home screen"}
       </h2>
 
       {surface === "android" ? (
         <>
           <p id="a2hsBody" className="a2hsBody">
-            One tap to listed pint prices near you.
+            Listed pint prices, one tap away.
           </p>
           <div className="a2hsActions">
-            <button type="button" className="a2hsSecondary pressable" onClick={() => close(true)}>
-              Not now
+            <button type="button" className="a2hsNever" onClick={onNeverAsk}>
+              Don&apos;t ask again
             </button>
-            <button type="button" className="a2hsPrimary pressable" onClick={onAndroidInstall}>
-              Add to home screen
+            <button
+              type="button"
+              className="a2hsPrimary pressable"
+              onClick={onAndroidInstall}
+              aria-label="Add to home screen"
+            >
+              Install
             </button>
           </div>
-          <button type="button" className="a2hsNever" onClick={onNeverAsk}>
-            Don&apos;t ask again
-          </button>
         </>
       ) : (
         <>
