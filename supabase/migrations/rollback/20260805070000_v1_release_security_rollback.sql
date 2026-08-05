@@ -3,6 +3,120 @@
 
 begin;
 
+-- Restore the helper catalog to its exact post-0069 public-schema state.
+-- ALTER FUNCTION keeps the original OIDs and updates policy dependencies.
+alter function pubmax_private.rls_current_profile_id()
+  set schema public;
+alter function pubmax_private.rls_owns_profile(uuid)
+  set schema public;
+alter function pubmax_private.rls_owns_handle(text)
+  set schema public;
+alter function pubmax_private.rls_is_plan_participant(uuid)
+  set schema public;
+alter function pubmax_private.rls_is_conversation_participant(uuid)
+  set schema public;
+alter function pubmax_private.rls_current_price_actor()
+  set schema public;
+alter function pubmax_private.rls_follows_handle(text)
+  set schema public;
+alter function pubmax_private.rls_can_read_visit_report(text, text, text)
+  set schema public;
+
+create or replace function public.rls_is_conversation_participant(
+  p_conversation_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_conversation_id is not null
+    and (select auth.uid()) is not null
+    and exists (
+      select 1
+      from public.conversations c
+      where c.id = p_conversation_id
+        and (
+          c.user_id_a = (select auth.uid())
+          or c.user_id_b = (select auth.uid())
+          or public.rls_owns_handle(c.handle_a)
+          or public.rls_owns_handle(c.handle_b)
+        )
+    );
+$$;
+
+create or replace function public.rls_current_price_actor()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when public.rls_current_profile_id() is null then null
+    else 'profile:' || public.rls_current_profile_id()::text
+  end;
+$$;
+
+create or replace function public.rls_can_read_visit_report(
+  p_status text,
+  p_visibility text,
+  p_handle text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_status = 'visible'
+    and (
+      coalesce(nullif(btrim(p_visibility), ''), 'public') in ('public', 'anonymous')
+      or public.rls_owns_handle(p_handle)
+      or (
+        coalesce(nullif(btrim(p_visibility), ''), 'public') = 'friends'
+        and public.rls_follows_handle(p_handle)
+      )
+    );
+$$;
+
+revoke execute on function public.rls_current_profile_id()
+  from public, anon;
+revoke execute on function public.rls_owns_profile(uuid)
+  from public, anon;
+revoke execute on function public.rls_owns_handle(text)
+  from public, anon;
+revoke execute on function public.rls_is_plan_participant(uuid)
+  from public, anon;
+revoke execute on function public.rls_is_conversation_participant(uuid)
+  from public, anon;
+revoke execute on function public.rls_current_price_actor()
+  from public, anon;
+revoke execute on function public.rls_follows_handle(text)
+  from public, anon;
+revoke execute on function public.rls_can_read_visit_report(text, text, text)
+  from public, anon;
+
+grant execute on function public.rls_current_profile_id()
+  to authenticated, service_role;
+grant execute on function public.rls_owns_profile(uuid)
+  to authenticated, service_role;
+grant execute on function public.rls_owns_handle(text)
+  to authenticated, service_role;
+grant execute on function public.rls_is_plan_participant(uuid)
+  to authenticated, service_role;
+grant execute on function public.rls_is_conversation_participant(uuid)
+  to authenticated, service_role;
+grant execute on function public.rls_current_price_actor()
+  to authenticated, service_role;
+grant execute on function public.rls_follows_handle(text)
+  to authenticated, service_role;
+grant execute on function public.rls_can_read_visit_report(text, text, text)
+  to authenticated, service_role;
+
+drop schema pubmax_private;
+
 drop policy if exists night_memories_owner_select on public.night_memories;
 create policy night_memories_owner_all
   on public.night_memories for all to authenticated

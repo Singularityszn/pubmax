@@ -277,6 +277,32 @@ export async function startRlsSession() {
       select payload::text
       from (
         select jsonb_build_object(
+          'kind', 'schema',
+          'schema', nspname,
+          'owner', pg_get_userbyid(nspowner)
+        ) as payload
+        from pg_namespace
+        where nspname in ('public', 'storage', 'pubmax_private')
+
+        union all
+
+        select jsonb_build_object(
+          'kind', 'schema_privilege',
+          'schema', n.nspname,
+          'grantee', case when acl.grantee = 0 then 'PUBLIC'
+            else pg_get_userbyid(acl.grantee) end,
+          'privilege', acl.privilege_type,
+          'grantable', acl.is_grantable
+        )
+        from pg_namespace n
+        cross join lateral aclexplode(
+          coalesce(n.nspacl, acldefault('n', n.nspowner))
+        ) acl
+        where n.nspname in ('public', 'storage', 'pubmax_private')
+
+        union all
+
+        select jsonb_build_object(
           'kind', 'policy',
           'schema', schemaname,
           'table', tablename,
@@ -333,20 +359,21 @@ export async function startRlsSession() {
           'privilege', privilege_type
         )
         from information_schema.routine_privileges
-        where routine_schema = 'public'
+        where routine_schema in ('public', 'pubmax_private')
           and grantee in ('PUBLIC', 'anon', 'authenticated', 'service_role')
 
         union all
 
         select jsonb_build_object(
           'kind', 'function',
+          'schema', n.nspname,
           'name', p.proname,
           'arguments', pg_get_function_identity_arguments(p.oid),
           'definition', pg_get_functiondef(p.oid)
         )
         from pg_proc p
         join pg_namespace n on n.oid = p.pronamespace
-        where n.nspname = 'public'
+        where n.nspname in ('public', 'pubmax_private')
       ) catalog
       order by payload::text
     `;
@@ -366,6 +393,34 @@ export async function startRlsSession() {
     ).trim();
   }
 
+  function helperOids(schema) {
+    const statement = `
+      select coalesce(
+        jsonb_object_agg(p.proname, p.oid::text order by p.proname),
+        '{}'::jsonb
+      )::text
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = '${schema.replaceAll("'", "''")}'
+        and left(p.proname, 4) = 'rls_'
+    `;
+    const encoded = execFileSync(
+      psql,
+      [
+        "-h", "127.0.0.1",
+        "-p", String(port),
+        "-U", "postgres",
+        "-d", dbName,
+        "-v", "ON_ERROR_STOP=1",
+        "-t",
+        "-A",
+        "-c", statement,
+      ],
+      { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] },
+    ).trim();
+    return JSON.parse(encoded);
+  }
+
   // Supabase-owned roles/schemas come from the fixture. Application schema and
   // prior policies come from exact repository history, then every wave file is
   // applied unchanged. This keeps migrations as the single policy owner.
@@ -380,6 +435,7 @@ export async function startRlsSession() {
     appliedForwardMigrations.push(migration);
   }
   const preV1CatalogSnapshot = catalogSnapshot();
+  const preV1HelperOids = helperOids("public");
   for (const migration of V1_RELEASE) {
     sqlFile(join(MIGRATIONS_DIR, migration));
     appliedForwardMigrations.push(migration);
@@ -411,7 +467,7 @@ export async function startRlsSession() {
       PGRST_JWT_SECRET: jwtSecret,
       PGRST_SERVER_HOST: "127.0.0.1",
       PGRST_SERVER_PORT: String(restPort),
-      PGRST_DB_CHANNEL_ENABLED: "false",
+      PGRST_DB_CHANNEL_ENABLED: "true",
     },
   });
   restProc.stdout?.on("data", (chunk) => restLogs.push(chunk.toString()));
@@ -458,6 +514,23 @@ export async function startRlsSession() {
     return { status: response.status, body, text };
   }
 
+  async function reloadPostgrestSchema() {
+    const loadedCount = () =>
+      (restLogs.join("").match(/schema cache loaded/gi) || []).length;
+    const before = loadedCount();
+    const notified = sql("select pg_notify('pgrst', 'reload schema')");
+    if (!notified.ok) {
+      throw new Error(`PostgREST schema reload notification failed: ${notified.err}`);
+    }
+    for (let i = 0; i < 50; i++) {
+      if (loadedCount() > before) return;
+      await sleep(100);
+    }
+    throw new Error(
+      `PostgREST did not reload its schema cache:\n${restLogs.join("")}`,
+    );
+  }
+
   async function stop() {
     try {
       restProc.kill("SIGTERM");
@@ -491,12 +564,14 @@ export async function startRlsSession() {
     appliedForwardMigrations,
     preWaveCatalogSnapshot,
     preV1CatalogSnapshot,
+    preV1HelperOids,
     catalogSnapshot,
     port,
     dataDir,
     sql,
     sqlFile,
     rest,
+    reloadPostgrestSchema,
     stop,
     rollbackPath: join(MIGRATIONS_DIR, "rollback/20260803200000_rls_wave2_rollback.sql"),
     v1RollbackPath: join(

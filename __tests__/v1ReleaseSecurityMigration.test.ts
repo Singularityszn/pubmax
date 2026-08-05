@@ -31,6 +31,17 @@ const PROTECTED_TABLES = [
 const WRITE_PRIVILEGES = ["insert", "update", "delete"] as const;
 const SERVICE_PRIVILEGES = ["select", ...WRITE_PRIVILEGES] as const;
 
+const RLS_HELPERS = [
+  "rls_current_profile_id()",
+  "rls_owns_profile(uuid)",
+  "rls_owns_handle(text)",
+  "rls_is_plan_participant(uuid)",
+  "rls_is_conversation_participant(uuid)",
+  "rls_current_price_actor()",
+  "rls_follows_handle(text)",
+  "rls_can_read_visit_report(text, text, text)",
+] as const;
+
 function readIfPresent(path: string): string {
   return existsSync(path) ? readFileSync(path, "utf8") : "";
 }
@@ -200,6 +211,46 @@ describe("V1 release security migration", () => {
     expect(N_FORWARD).toContain(
       "grant execute on function public.release_pub_pal_voice_trial(uuid, date) to service_role",
     );
+  });
+
+  it.each(RLS_HELPERS)("moves %s to an unexposed schema with ALTER FUNCTION", (helper) => {
+    expect(N_FORWARD).toContain(
+      `alter function public.${helper} set schema pubmax_private`,
+    );
+    expect(normalize(ROLLBACK)).toContain(
+      `alter function pubmax_private.${helper} set schema public`,
+    );
+  });
+
+  it("repairs only the three wrappers with private-qualified dependencies", () => {
+    expect(N_FORWARD).toContain(
+      "create or replace function pubmax_private.rls_is_conversation_participant",
+    );
+    expect(N_FORWARD).toContain("pubmax_private.rls_owns_handle(c.handle_a)");
+    expect(N_FORWARD).toContain(
+      "create or replace function pubmax_private.rls_current_price_actor",
+    );
+    expect(N_FORWARD).toContain("pubmax_private.rls_current_profile_id()");
+    expect(N_FORWARD).toContain(
+      "create or replace function pubmax_private.rls_can_read_visit_report",
+    );
+    expect(N_FORWARD).toContain("pubmax_private.rls_follows_handle(p_handle)");
+  });
+
+  it("limits the private schema and helper ACLs to policy roles", () => {
+    expect(N_FORWARD).toContain("create schema if not exists pubmax_private");
+    expect(N_FORWARD).toContain(
+      "revoke all on schema pubmax_private from public, anon, authenticated, service_role",
+    );
+    expect(N_FORWARD).toContain(
+      "grant usage on schema pubmax_private to authenticated, service_role",
+    );
+    expect(N_FORWARD).toContain("from public, anon");
+    expect(N_FORWARD).toContain("to authenticated, service_role");
+
+    const normalizedRollback = normalize(ROLLBACK);
+    expect(normalizedRollback).toContain("drop schema pubmax_private");
+    expect(normalizedRollback).not.toContain("drop schema pubmax_private cascade");
   });
 
   it("rollback restores the exact protected-table policy and privilege catalogs", () => {

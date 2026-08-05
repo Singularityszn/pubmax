@@ -40,7 +40,13 @@ returns uuid
 language sql
 stable
 as $$
-  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
+  select nullif(
+    coalesce(
+      nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub',
+      current_setting('request.jwt.claim.sub', true)
+    ),
+    ''
+  )::uuid;
 $$;
 grant execute on function auth.uid() to anon, authenticated, service_role;
 
