@@ -16,13 +16,13 @@ Do **not** load Impeccable together with Anthropic’s generic frontend-design s
 
 ---
 
-## Newly installed / refreshed (this branch)
+## Installed / refreshed
 
 ### Impeccable
 
 | Path | Source | When to use for PubMax |
 |------|--------|------------------------|
-| `skills/impeccable/` | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) · [impeccable.style](https://impeccable.style) | Design / redesign / polish / audit / critique / harden / Live Mode. Run `/impeccable init` (product register for planner). Pre-ship: audit + clarify + harden. Detector scripts under `skills/impeccable/scripts/`. Local Cursor hooks: `npx impeccable install --providers=cursor --scope=project` (`.cursor/` is gitignored). |
+| `skills/impeccable/` | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) · [impeccable.style](https://impeccable.style) | Impeccable v4.0.4. Design / redesign / polish / audit / critique / harden / Live Mode. Run `/impeccable init` (product register for planner). Pre-ship: audit + clarify + harden. Detector scripts under `skills/impeccable/scripts/`. Local Cursor hooks: `npx impeccable install --providers=cursor --scope=project` (`.cursor/` is gitignored). |
 
 ### Layers (product design depth)
 
@@ -61,7 +61,7 @@ Install: `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design
 | `skills/apple-design/` | same | Fluid, physical motion patterns on the web. |
 | `skills/animation-vocabulary/` | same | Name a motion effect from a vague description. |
 | `skills/review-animations/` | same | Review motion code against a high craft bar. |
-| `skills/emilkowalski-skills/` | same (vendored pack) | Full pack mirror of the four skills above. |
+| `skills/emilkowalski-skills/` | same (vendored pack) | Full pack mirror, including newer `find-animation-opportunities`, `improve-animations`, `pick-ui-library`, and `prototype`. |
 
 ### Refactoring UI (atomic)
 
