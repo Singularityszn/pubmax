@@ -266,12 +266,17 @@
 }
 
 .socialComposer {
+  --social-control-border: color-mix(
+    in srgb,
+    var(--ink-soft) 60%,
+    var(--panel-raised)
+  );
   box-sizing: border-box;
   width: min(100%, 680px);
   max-height: 100svh;
   padding: max(16px, env(safe-area-inset-top))
     max(16px, env(safe-area-inset-right))
-    max(24px, env(safe-area-inset-bottom))
+    calc(24px + env(safe-area-inset-bottom, 0px))
     max(16px, env(safe-area-inset-left));
   border-radius: 20px 20px 0 0;
   background: var(--panel-raised);
@@ -310,11 +315,21 @@
   color: var(--river);
 }
 
+.socialComposer header button:disabled {
+  color: color-mix(
+    in srgb,
+    var(--ink-soft) 82%,
+    var(--panel-raised)
+  );
+  cursor: not-allowed;
+  opacity: 1;
+}
+
 .socialComposer textarea {
   box-sizing: border-box;
   width: 100%;
   min-height: 160px;
-  margin: 12px 0 0;
+  margin: 0;
   padding: 12px;
   resize: vertical;
 }
@@ -335,7 +350,7 @@
   width: 100%;
   min-height: 44px;
   padding: 9px 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--social-control-border);
   border-radius: 12px;
   background: var(--panel-raised);
   color: var(--ink);
@@ -344,9 +359,15 @@
   line-height: 1.25;
 }
 
-.socialComposer :is(button, textarea, input, select):focus-visible,
+.socialComposer :is(textarea, input, select):focus-visible {
+  border-color: var(--river);
+  outline: 2px solid var(--river);
+  outline-offset: 0;
+}
+
+.socialComposer button:focus-visible,
 .socialComposerFeedback:focus-visible {
-  outline: 3px solid var(--river);
+  outline: 2px solid var(--river);
   outline-offset: 2px;
 }
 
@@ -523,8 +544,9 @@
 }
 
 .socialPhotoPicker:focus-within {
-  outline: 3px solid var(--river);
-  outline-offset: 2px;
+  border-color: var(--river);
+  outline: 2px solid var(--river);
+  outline-offset: 0;
 }
 
 .socialComposerPhotoPreview {
@@ -728,6 +750,10 @@
 
   .socialBoundary {
     min-height: 300px;
+  }
+
+  .socialComposer textarea {
+    resize: none;
   }
 
   .socialDiscoverBody
