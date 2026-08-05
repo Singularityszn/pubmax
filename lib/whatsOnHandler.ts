@@ -1,5 +1,6 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isWhatsOnLimited } from "@/lib/citymcpRateLimit";
+import { coarsenViewerPoint } from "@/lib/geo";
 import { isWhatsOnKind, type WhatsOnKind } from "@/lib/whatsOn";
 import {
   loadWhatsOn,
@@ -42,7 +43,7 @@ function parseNear(raw: string | null): { lat: number; lng: number } | undefined
   const [lat, lng] = parts;
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return undefined;
-  return { lat, lng };
+  return coarsenViewerPoint({ lat, lng });
 }
 
 // Handler with injectable store deps.

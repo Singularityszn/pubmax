@@ -5,7 +5,7 @@
 // Follows the TonightGetHomeStrip pattern (lib/tfl.ts via /api/last-train,
 // reduced by summariseGetHome), but owns its own location prompt because the
 // morning brief has no shared location state to lean on. Location is optional
-// and one-shot: a rounded point (nearest ~110m, roundCoord) leaves the device
+// and one-shot: a rounded point (nearest ~110m, coarsenViewerPoint) leaves the device
 // only to find the nearest station and last train, and is never stored.
 //
 // React 19 rules: the fetch fires in an effect keyed on the rounded origin,
@@ -18,7 +18,7 @@ import { useCallback, useEffect, useState } from "react";
 import { LocateFixed, TrainFront, X } from "lucide-react";
 
 import DisruptionLine from "@/components/transport/DisruptionLine";
-import { roundCoord } from "@/lib/geo";
+import { coarsenViewerPoint } from "@/lib/geo";
 import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
 import type { LastTrainResult } from "@/lib/tfl";
 
@@ -31,8 +31,9 @@ export default function TodayGetThereStrip() {
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
   const [result, setResult] = useState<Result>(null);
 
-  const lat = origin ? roundCoord(origin.lat) : null;
-  const lng = origin ? roundCoord(origin.lng) : null;
+  const egressPoint = origin ? coarsenViewerPoint(origin) : null;
+  const lat = egressPoint?.lat ?? null;
+  const lng = egressPoint?.lng ?? null;
 
   const requestLocation = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {

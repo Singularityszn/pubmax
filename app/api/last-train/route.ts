@@ -55,6 +55,7 @@ import {
   type NextDepartures,
 } from "@/lib/tfl";
 import { CITIES, pointInCityBounds } from "@/lib/cities";
+import { coarsenViewerPoint } from "@/lib/geo";
 import { haversineKm } from "@/lib/haversine";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import { nearestStaticStation } from "@/lib/staticStations";
@@ -102,14 +103,15 @@ const STATION_CACHE_TTL_MS = 30 * 60_000;
 const TIMETABLE_CACHE_TTL_MS = 6 * 60 * 60_000;
 
 async function nearestStation(lat: number, lng: number): Promise<StopPoint | null> {
-  const key = `${lat.toFixed(4)}:${lng.toFixed(4)}`;
+  const egressPoint = coarsenViewerPoint({ lat, lng });
+  const key = `${egressPoint.lat.toFixed(3)}:${egressPoint.lng.toFixed(3)}`;
   return cachedLastTrainValue(
     "stations",
     key,
     STATION_CACHE_TTL_MS,
     async () => {
       const stopUrl =
-        `/StopPoint?lat=${lat}&lon=${lng}` +
+        `/StopPoint?lat=${egressPoint.lat}&lon=${egressPoint.lng}` +
         `&stopTypes=${STOP_TYPES}&radius=${STATION_RADIUS_M}&modes=${MODES}`;
       const stops = await tflGet<StopPointResponse>(stopUrl, { retries: 1 });
       return stops?.stopPoints?.[0] ?? null;

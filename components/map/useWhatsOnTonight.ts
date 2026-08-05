@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { coarsenViewerPoint } from "@/lib/geo";
 import { isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
 import {
   summariseWhatsOnByVenue,
@@ -92,10 +93,11 @@ export async function loadWhatsOnTonight(
   opts.signal?.addEventListener("abort", onOuterAbort, { once: true });
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const near =
+    const validNear =
       opts.near && Number.isFinite(opts.near.lat) && Number.isFinite(opts.near.lng)
-        ? `&near=${opts.near.lat},${opts.near.lng}`
-        : "";
+        ? coarsenViewerPoint(opts.near)
+        : null;
+    const near = validNear ? `&near=${validNear.lat},${validNear.lng}` : "";
     const res = await fetchImpl(`/api/whats-on?window=tonight&limit=60${near}`, {
       signal: controller.signal,
       headers: { accept: "application/json" },

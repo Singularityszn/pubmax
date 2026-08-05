@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { RESERVED_CONTRIBUTOR_HANDLE_INPUTS } from "@/__tests__/fixtures/reservedContributorHandles";
 import {
   memoryProfileStore,
   __resetMemoryProfiles,
@@ -187,7 +188,7 @@ describe("profileStore.update — empty patch is a read", () => {
 });
 
 describe("profileStore.softDelete + getHandleByUserId", () => {
-  it.each(["karan", "sarah", "carol", "erin"])(
+  it.each(RESERVED_CONTRIBUTOR_HANDLE_INPUTS)(
     "refuses to link reserved handle %s at the store boundary",
     async (handle) => {
       await expect(
