@@ -3,9 +3,20 @@
 import { useEffect } from "react";
 
 import { trackEvent } from "@/lib/analytics";
+import {
+  isBeforeInstallPromptEvent,
+  publishA2hsAppInstalled,
+  storeA2hsInstallPrompt,
+} from "@/lib/a2hsInstallEvent";
+import {
+  readA2hsState,
+  registerInstalled,
+  writeA2hsState,
+} from "@/lib/a2hsPrompt";
 
 /**
- * Add-to-Home-Screen install funnel (Wave M metrics). Renders nothing.
+ * Early Add-to-Home-Screen event owner and install funnel tracker. Renders
+ * nothing, but mounts in the root bundle before the lazy install surface.
  *
  * - `beforeinstallprompt` (Android/Chrome only — not in the standard DOM
  *   event map, so it's attached/removed with an EventListener cast) fires
@@ -22,10 +33,15 @@ export default function A2HSTracking() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const onBeforeInstallPrompt = () => {
+    const onBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      if (!isBeforeInstallPromptEvent(event)) return;
+      storeA2hsInstallPrompt(event);
       trackEvent("pwa_install_prompt_available");
     };
     const onAppInstalled = () => {
+      writeA2hsState(registerInstalled(readA2hsState()));
+      publishA2hsAppInstalled();
       trackEvent("pwa_install_completed");
     };
 

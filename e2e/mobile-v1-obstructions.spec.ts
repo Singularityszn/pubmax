@@ -121,9 +121,6 @@ test.describe("Android install prompt", () => {
 
   async function openInstallCard(page: Page, legacyMode: boolean = false) {
     await page.addInitScript(({ legacy }) => {
-      window.addEventListener("pubmax:a2hs-listener-ready", () => {
-        document.documentElement.setAttribute("data-a2hs-listener-ready", "1");
-      }, { once: true });
       localStorage.setItem("pubmax-tour-v1-done", "1");
       localStorage.setItem("pubmax:analytics-consent:v1", "denied");
       localStorage.setItem("pubmax-legacy", legacy ? "1" : "0");
@@ -142,6 +139,38 @@ test.describe("Android install prompt", () => {
         }),
       );
       sessionStorage.clear();
+
+      const nativeAddEventListener = window.addEventListener.bind(window);
+      let installListenerCount = 0;
+      window.addEventListener = ((
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions,
+      ) => {
+        nativeAddEventListener(type, listener, options);
+        if (type !== "beforeinstallprompt") return;
+
+        installListenerCount += 1;
+        document.documentElement.setAttribute(
+          "data-a2hs-native-owner-count",
+          String(installListenerCount),
+        );
+        if (installListenerCount !== 1) return;
+
+        const event = new Event("beforeinstallprompt", { cancelable: true });
+        Object.defineProperties(event, {
+          platforms: { value: ["web"] },
+          prompt: { value: () => Promise.resolve() },
+          userChoice: {
+            value: Promise.resolve({ outcome: "dismissed", platform: "web" }),
+          },
+        });
+        window.dispatchEvent(event);
+        document.documentElement.setAttribute(
+          "data-a2hs-early-event-prevented",
+          event.defaultPrevented ? "1" : "0",
+        );
+      }) as typeof window.addEventListener;
     }, { legacy: legacyMode });
     await page.goto(`/map?sel=${VENUE_ID}`);
 
@@ -151,21 +180,14 @@ test.describe("Android install prompt", () => {
     await expect(expandSheet).toBeVisible();
     await expandSheet.focus();
     await expect(page.locator("html")).toHaveAttribute(
-      "data-a2hs-listener-ready",
+      "data-a2hs-early-event-prevented",
       "1",
       { timeout: 10_000 },
     );
-    await page.evaluate(() => {
-      const event = new Event("beforeinstallprompt", { cancelable: true });
-      Object.defineProperties(event, {
-        platforms: { value: ["web"] },
-        prompt: { value: () => Promise.resolve() },
-        userChoice: {
-          value: Promise.resolve({ outcome: "dismissed", platform: "web" }),
-        },
-      });
-      window.dispatchEvent(event);
-    });
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-a2hs-native-owner-count",
+      "1",
+    );
 
     const card = page.locator(".a2hsSheet--android");
     await expect(card).toBeVisible({ timeout: 10_000 });
@@ -184,7 +206,7 @@ test.describe("Android install prompt", () => {
         await card.evaluate((element) => element.scrollHeight - element.clientHeight),
       ).toBeLessThanOrEqual(1);
 
-      const install = card.getByRole("button", { name: "Add to home screen" });
+      const install = card.getByRole("button", { name: "Install", exact: true });
       const close = card.getByRole("button", { name: "Not now", exact: true }).first();
       const [installBox, closeBox] = await Promise.all([
         install.boundingBox(),
@@ -218,7 +240,7 @@ test.describe("Android install prompt", () => {
       await card.evaluate((element) => element.scrollHeight - element.clientHeight),
     ).toBeLessThanOrEqual(1);
     for (const button of [
-      card.getByRole("button", { name: "Add to home screen" }),
+      card.getByRole("button", { name: "Install", exact: true }),
       card.getByRole("button", { name: "Not now", exact: true }).first(),
       card.getByRole("button", { name: "Don't ask again" }),
     ]) {
@@ -241,7 +263,7 @@ test.describe("Android install prompt", () => {
     expect(cardBox!.height).toBeLessThanOrEqual(844 * 0.3);
     expect(cardBox!.y).toBeGreaterThan(844 * 0.45);
 
-    const install = card.getByRole("button", { name: "Add to home screen" });
+    const install = card.getByRole("button", { name: "Install", exact: true });
     const close = card.getByRole("button", { name: "Not now", exact: true }).first();
     const [installBox, closeBox] = await Promise.all([
       install.boundingBox(),
@@ -254,16 +276,21 @@ test.describe("Android install prompt", () => {
 
     const expandBox = await expandSheet.boundingBox();
     expect(expandBox).not.toBeNull();
-    expect(
-      await page.evaluate(({ x, y }) => {
+    await expect
+      .poll(() => page.evaluate(({ x, y }) => {
         const hit = document.elementFromPoint(x, y);
-        return hit?.closest("button")?.getAttribute("aria-label");
+        return {
+          ariaLabel: hit?.closest("button")?.getAttribute("aria-label") ?? null,
+          className: hit instanceof HTMLElement ? hit.className : null,
+          tagName: hit?.tagName ?? null,
+        };
       }, {
         x: expandBox!.x + expandBox!.width / 2,
         y: expandBox!.y + expandBox!.height / 2,
-      }),
-      "Android card must not install a pointer-blocking page layer",
-    ).toBe("Expand sheet");
+      }), {
+        message: "Android card must not install a pointer-blocking page layer",
+      })
+      .toMatchObject({ ariaLabel: "Expand sheet" });
 
     await close.click();
     await expect(card).toBeHidden();
@@ -293,9 +320,6 @@ test.describe("iOS install instructions", () => {
 
   test("retains the full modal Safari instruction sheet", async ({ page }) => {
     await page.addInitScript(() => {
-      window.addEventListener("pubmax:a2hs-listener-ready", () => {
-        document.documentElement.setAttribute("data-a2hs-listener-ready", "1");
-      }, { once: true });
       localStorage.setItem("pubmax-tour-v1-done", "1");
       localStorage.setItem("pubmax:analytics-consent:v1", "denied");
       localStorage.setItem(
@@ -310,11 +334,6 @@ test.describe("iOS install instructions", () => {
       sessionStorage.clear();
     });
     await page.goto(`/map?sel=${VENUE_ID}`);
-    await expect(page.locator("html")).toHaveAttribute(
-      "data-a2hs-listener-ready",
-      "1",
-      { timeout: 45_000 },
-    );
 
     const dialog = page.getByRole("dialog", {
       name: "Put PUBMAXX on your home screen",
