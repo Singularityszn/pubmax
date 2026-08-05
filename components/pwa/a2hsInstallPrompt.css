@@ -52,33 +52,44 @@
   width: auto;
   max-width: 27rem;
   margin-inline: auto;
-  padding: var(--space-4);
+  padding: var(--space-3);
 }
 
 .a2hsSheet--android .a2hsEyebrow {
-  margin-bottom: var(--space-1);
+  display: none;
 }
 
 .a2hsSheet--android .a2hsTitle {
-  margin-bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin-bottom: var(--space-1);
   padding-right: 44px;
-  font-size: var(--text-lg);
+  font-size: var(--text-md);
+  line-height: 1.1;
 }
 
 .a2hsSheet--android .a2hsBody {
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
   font-size: var(--text-sm);
+  line-height: 1.3;
 }
 
 .a2hsSheet--android .a2hsActions {
+  align-items: stretch;
   gap: var(--space-2);
 }
 
 .a2hsSheet--android .a2hsPrimary {
-  padding-inline: var(--space-4);
+  flex: 1 1 0;
+  padding-inline: var(--space-3);
 }
 
 .a2hsSheet--android .a2hsNever {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
   margin-top: 0;
 }
 
