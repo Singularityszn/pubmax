@@ -1,5 +1,5 @@
 import { execFile, execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -8,37 +8,24 @@ import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
-const FORWARD = join(ROOT, "supabase/migrations/20260805140000_0075_social_crews.sql");
+const MIGRATIONS = join(ROOT, "supabase/migrations");
+const FORWARD_NAME = "20260805140000_0075_social_crews.sql";
+const FORWARD = join(MIGRATIONS, FORWARD_NAME);
 const ROLLBACK = join(ROOT, "supabase/migrations/rollback/20260805140000_0075_social_crews_rollback.sql");
-const PREREQUISITES = [
-  "20260712130423_0024_plans.sql",
-  "20260715091442_0026_planned_nights.sql",
-  "20260715091533_0027_pub_pal_and_plan_completion.sql",
-  "20260715133000_0028_night_memories.sql",
-  "20260715174107_0030_canonical_plan_routes.sql",
-  "20260716123000_0031_plan_collaboration.sql",
-  "20260716150000_0032_night_story_draft_atomic.sql",
-  "20260716200000_0035_plan_write_idempotency.sql",
-  "20260717065012_0038_plan_ending_selection.sql",
-  "20260717071841_plan_completion_arrival_ending_selection.sql",
-  "20260719130000_0044_plan_vibe_votes.sql",
-  "20260724120000_0053_grounded_one_stop_plan.sql",
-  "20260805100000_0071_social_identity_assurance.sql",
-  "20260805110000_0072_social_posts.sql",
-  "20260805120000_0073_social_interactions.sql",
-  "20260805130000_0074_social_composer.sql",
-].map((name) => join(ROOT, "supabase/migrations", name));
+const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
+const PREREQUISITES = readdirSync(MIGRATIONS)
+  .filter((name) => name.endsWith(".sql") && name < FORWARD_NAME)
+  .sort()
+  .map((name) => join(MIGRATIONS, name));
 
 function binary(name: "initdb" | "postgres" | "psql"): string | null {
   for (const path of [
     `/opt/homebrew/opt/postgresql@16/bin/${name}`,
-    `/opt/homebrew/opt/postgresql@17/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-    name,
+    `/usr/local/opt/postgresql@16/bin/${name}`,
+    `/usr/lib/postgresql/16/bin/${name}`,
   ]) {
     try {
-      if (path === name) execFileSync("which", [name], { stdio: "pipe" });
-      else if (!existsSync(path)) continue;
+      if (!existsSync(path)) continue;
       return path;
     } catch {}
   }
@@ -52,6 +39,14 @@ type Database = {
   concurrentResults(statements: readonly string[]): Promise<string[]>;
   stop(): Promise<void>;
 };
+
+function authenticatedSql(db: Database, userId: string, statement: string): string {
+  return db.sql(`begin;
+    set local role authenticated;
+    set local "request.jwt.claim.sub"='${userId}';
+    ${statement};
+    rollback`);
+}
 
 async function freePort(): Promise<number> {
   const { createServer } = await import("node:net");
@@ -130,6 +125,10 @@ const LEGACY_GUEST = "66666666-6666-4666-8666-666666666666";
 const LEGACY_GUEST_HASH = "2".repeat(64);
 const LEGACY_INVITE = "77777777-7777-4777-8777-777777777777";
 const LEGACY_INVITE_HASH = "3".repeat(64);
+const LEGACY_CONSTRAINT = "81818181-8181-4181-8181-818181818181";
+const LEGACY_PROPOSAL = "82828282-8282-4282-8282-828282828282";
+const LEGACY_VOTE = "83838383-8383-4383-8383-838383838383";
+const LEGACY_VIBE_VOTE = "84848484-8484-4484-8484-848484848484";
 const DIGEST_A = "a".repeat(64);
 const DIGEST_B = "b".repeat(64);
 
@@ -146,7 +145,7 @@ function catalog(db: Database): string {
       union all
       select 'column|' || c.relname || '|' || a.attnum::text || '|' || a.attname || '|' ||
              pg_catalog.format_type(a.atttypid,a.atttypmod) || '|' || a.attnotnull::text || '|' ||
-             coalesce(pg_get_expr(d.adbin,d.adrelid),'')
+             coalesce(pg_get_expr(d.adbin,d.adrelid),'') || '|' || coalesce(a.attacl::text,'')
       from pg_attribute a join pg_class c on c.oid=a.attrelid
       join pg_namespace n on n.oid=c.relnamespace
       left join pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum
@@ -184,31 +183,7 @@ let carolInvitationId = "";
 beforeAll(async () => {
   if (!existsSync(FORWARD)) throw new Error(`Missing migration: ${FORWARD}`);
   database = await startDatabase();
-  database.sql(`
-    create schema auth;
-    create role anon noinherit;
-    create role authenticated noinherit;
-    create role service_role noinherit bypassrls;
-    create publication supabase_realtime;
-    create table auth.users(id uuid primary key);
-    create table public.profiles(
-      id uuid primary key, user_id uuid unique references auth.users(id),
-      handle text not null unique, created_at timestamptz not null default now(),
-      updated_at timestamptz not null default now()
-    );
-    create table public.profile_handle_aliases(
-      profile_id uuid not null references public.profiles(id), handle text primary key,
-      is_current boolean not null default true
-    );
-    create table public.follows(
-      id uuid primary key default gen_random_uuid(),
-      follower_id uuid not null references public.profiles(id),
-      followee_id uuid not null references public.profiles(id),
-      unique(follower_id,followee_id)
-    );
-    create table public.visit_reports(id uuid primary key);
-    create table public.crawl_stories(id uuid primary key);
-  `);
+  database.apply(SESSION_FIXTURE);
   for (const migration of PREREQUISITES) database.apply(migration);
   database.sql(`
     insert into auth.users(id) values ('${ALICE_USER}'),('${BOB_USER}'),('${CAROL_USER}');
@@ -222,16 +197,34 @@ beforeAll(async () => {
       ('${CAROL_ACCOUNT}','clerk-carol','${CAROL_USER}','${CAROL_PROFILE}');
     insert into public.follows(follower_id,followee_id) values
       ('${ALICE_PROFILE}','${BOB_PROFILE}'),('${BOB_PROFILE}','${ALICE_PROFILE}');
-    insert into public.plans(id,title,start_time,status) values
-      ('${PLAN}','Social night',now()+interval '1 day','ready');
+    insert into public.plans(id,title,start_time,status,owner_user_id) values
+      ('${PLAN}','Social night',now()+interval '1 day','ready','${ALICE_USER}');
     insert into public.plan_stops(plan_id,venue_id,venue_name,position)
       values('${PLAN}','venue-one','Venue One',0);
-    insert into public.plan_crew_members(id,plan_id,name,token_hash,status,joined_at,updated_at,can_collaborate)
+    insert into public.plan_crew_members(id,plan_id,name,token_hash,status,joined_at,updated_at,can_collaborate,user_id)
       values
-      ('${HOST_MEMBER}','${PLAN}','Alice','${HOST_TOKEN_HASH}','in',now()-interval '2 minutes',now(),true),
-      ('${LEGACY_GUEST}','${PLAN}','Legacy guest','${LEGACY_GUEST_HASH}','in',now()-interval '1 minute',now(),true);
+      ('${HOST_MEMBER}','${PLAN}','Alice','${HOST_TOKEN_HASH}','in',now()-interval '2 minutes',now(),true,'${ALICE_USER}'),
+      ('${LEGACY_GUEST}','${PLAN}','Legacy guest','${LEGACY_GUEST_HASH}','in',now()-interval '1 minute',now(),true,null);
     insert into public.plan_invites(id,plan_id,created_by_member_id,token_hash,idempotency_key,created_at,expires_at)
       values('${LEGACY_INVITE}','${PLAN}','${HOST_MEMBER}','${LEGACY_INVITE_HASH}','legacy-invite',now(),now()+interval '1 day');
+    insert into public.plan_constraints(id,plan_id,member_id,kind,value,priority,idempotency_key,created_at)
+      values('${LEGACY_CONSTRAINT}','${PLAN}','${HOST_MEMBER}','budget','Under twenty pounds','required','legacy-constraint',now());
+    insert into public.plan_route_proposals(
+      id,plan_id,proposed_by_member_id,expected_route_revision,stops,reason,
+      resolved_constraint_ids,unresolved_constraint_ids,status,idempotency_key,created_at
+    ) values(
+      '${LEGACY_PROPOSAL}','${PLAN}','${HOST_MEMBER}',1,
+      '[{"venueId":"venue-one","venueName":"Venue One","position":0}]'::jsonb,
+      'Legacy proposal','[]'::jsonb,'["${LEGACY_CONSTRAINT}"]'::jsonb,'pending','legacy-proposal',now()
+    );
+    insert into public.plan_votes(id,plan_id,proposal_id,member_id,value,idempotency_key,created_at)
+      values('${LEGACY_VOTE}','${PLAN}','${LEGACY_PROPOSAL}','${HOST_MEMBER}','approve','legacy-vote',now());
+    insert into public.plan_vote_requests(plan_id,member_id,idempotency_key,vote_id,value,created_at)
+      values('${PLAN}','${HOST_MEMBER}','legacy-vote','${LEGACY_VOTE}','approve',now());
+    insert into public.plan_vibe_votes(id,plan_id,member_id,vibe,idempotency_key,created_at,updated_at)
+      values('${LEGACY_VIBE_VOTE}','${PLAN}','${HOST_MEMBER}','quiet','legacy-vibe',now(),now());
+    insert into public.plan_vibe_vote_requests(plan_id,member_id,idempotency_key,vibe,created_at)
+      values('${PLAN}','${HOST_MEMBER}','legacy-vibe','quiet',now());
   `);
   beforeCatalog = catalog(database);
   database.apply(FORWARD);
@@ -240,6 +233,19 @@ beforeAll(async () => {
 afterAll(async () => database?.stop());
 
 describe("Social Crew migration foundation", () => {
+  it("runs the actual prerequisite catalog on PostgreSQL 16", () => {
+    const db = database!;
+    expect(db.sql("select current_setting('server_version_num')::int / 10000")).toBe("16");
+    expect(PREREQUISITES.map((path) => path.split("/").at(-1))).toEqual(expect.arrayContaining([
+      "20260803200000_0065_rls_wave2_helpers.sql",
+      "20260803201000_0066_rls_wave2_priority_policies.sql",
+      "20260803202000_0067_rls_wave2_owner_policies.sql",
+      "20260803203000_0068_rls_wave2_service_role_only.sql",
+      "20260803204000_0069_rls_wave2_rpc_hardening.sql",
+      "20260804120000_0070_rate_limit_expiry.sql",
+    ]));
+  });
+
   it("creates service-only RLS tables, bindings, constraints, and revoked RPCs", () => {
     const db = database!;
     expect(db.sql(`select string_agg(relname,',' order by relname) from pg_class
@@ -272,6 +278,14 @@ describe("Social Crew migration foundation", () => {
     db.sql(`delete from public.social_blocks where blocker_profile_id='${BOB_PROFILE}' and blocked_profile_id='${ALICE_PROFILE}'`);
   });
 
+  it("preserves authenticated participant reads for an unbound Plan", () => {
+    const db = database!;
+    expect(authenticatedSql(db, ALICE_USER, `select count(id) from public.plans where id='${PLAN}'`)).toBe("1");
+    expect(authenticatedSql(db, ALICE_USER, `select count(id) from public.plan_stops where plan_id='${PLAN}'`)).toBe("1");
+    expect(authenticatedSql(db, ALICE_USER, `select count(id) from public.plan_crew_members where plan_id='${PLAN}'`)).toBe("2");
+    expect(db.sql("select has_column_privilege('authenticated','public.plans','social_owner_account_id','select')")).toBe("f");
+  });
+
   it("binds a host once, revokes legacy invites, rotates every capability, and replays exactly", () => {
     const db = database!;
     const created = json(db.sql(callCreate()));
@@ -288,13 +302,199 @@ describe("Social Crew migration foundation", () => {
     expect(json(db.sql(callCreate(DIGEST_B)))).toEqual({ ok: false, code: "idempotency_conflict" });
   });
 
+  it("makes Crew-bound Plans absent to authenticated Plan RLS reads", () => {
+    const db = database!;
+    expect(authenticatedSql(db, ALICE_USER, `select count(id) from public.plans where id='${PLAN}'`)).toBe("0");
+    expect(authenticatedSql(db, ALICE_USER, `select count(id) from public.plan_stops where plan_id='${PLAN}'`)).toBe("0");
+    expect(authenticatedSql(db, ALICE_USER, `select count(id) from public.plan_crew_members where plan_id='${PLAN}'`)).toBe("0");
+    expect(db.sql("select has_column_privilege('authenticated','public.plans','id','select')")).toBe("t");
+    expect(db.sql("select has_column_privilege('authenticated','public.plans','social_owner_account_id','select')")).toBe("f");
+  });
+
+  it("rejects every direct legacy collaboration table mutation after conversion", () => {
+    const db = database!;
+    const inserts = new Map<string, string>([
+      ["plan_invites", `insert into public.plan_invites(id,plan_id,created_by_member_id,token_hash,idempotency_key,created_at,expires_at)
+        values(gen_random_uuid(),'${PLAN}','${HOST_MEMBER}','${"9".repeat(64)}','blocked-invite',now(),now()+interval '1 hour')`],
+      ["plan_constraints", `insert into public.plan_constraints(id,plan_id,member_id,kind,value,priority,idempotency_key,created_at)
+        values(gen_random_uuid(),'${PLAN}','${HOST_MEMBER}','budget','Blocked','required','blocked-constraint',now())`],
+      ["plan_route_proposals", `insert into public.plan_route_proposals(id,plan_id,proposed_by_member_id,expected_route_revision,stops,reason,resolved_constraint_ids,unresolved_constraint_ids,status,idempotency_key,created_at)
+        values(gen_random_uuid(),'${PLAN}','${HOST_MEMBER}',1,'[]'::jsonb,'Blocked','[]'::jsonb,'[]'::jsonb,'pending','blocked-proposal',now())`],
+      ["plan_votes", `insert into public.plan_votes(id,plan_id,proposal_id,member_id,value,idempotency_key,created_at)
+        values(gen_random_uuid(),'${PLAN}','${LEGACY_PROPOSAL}','${HOST_MEMBER}','reject','blocked-vote',now())`],
+      ["plan_vote_requests", `insert into public.plan_vote_requests(plan_id,member_id,idempotency_key,vote_id,value,created_at)
+        values('${PLAN}','${HOST_MEMBER}','blocked-vote-request','${LEGACY_VOTE}','approve',now())`],
+      ["plan_vibe_votes", `insert into public.plan_vibe_votes(id,plan_id,member_id,vibe,idempotency_key,created_at,updated_at)
+        values(gen_random_uuid(),'${PLAN}','${LEGACY_GUEST}','quiet','blocked-vibe',now(),now())`],
+      ["plan_vibe_vote_requests", `insert into public.plan_vibe_vote_requests(plan_id,member_id,idempotency_key,vibe,created_at)
+        values('${PLAN}','${LEGACY_GUEST}','blocked-vibe-request','quiet',now())`],
+    ]);
+
+    for (const [table, insert] of inserts) {
+      expect(() => db.sql(`begin; set local role service_role; ${insert}; commit`), `${table} INSERT`)
+        .toThrow(/permission denied/);
+      expect(() => db.sql(`begin; set local role service_role; update public.${table} set plan_id=plan_id where plan_id='${PLAN}'; commit`), `${table} UPDATE`)
+        .toThrow(/permission denied/);
+      expect(() => db.sql(`begin; set local role service_role; delete from public.${table} where plan_id='${PLAN}'; commit`), `${table} DELETE`)
+        .toThrow(/permission denied/);
+    }
+  });
+
+  it("linearizes conversion before a racing atomic legacy collaboration create", async () => {
+    const db = database!;
+    const plan = "85858585-8585-4585-8585-858585858585";
+    const host = "86868686-8686-4686-8686-868686868686";
+    const token = "8".repeat(64);
+    db.sql(`
+      insert into public.plans(id,title,start_time,status) values('${plan}','Trigger race',now()+interval '1 day','ready');
+      insert into public.plan_crew_members(id,plan_id,name,token_hash,status,joined_at,updated_at,can_collaborate)
+        values('${host}','${plan}','Alice','${token}','in',now(),now(),true)
+    `);
+
+    const results = await db.concurrentResults([
+      `begin;
+       select public.create_social_crew_atomic('${ALICE_ACCOUNT}','${plan}','${token}','private','trigger-race-key-01','${DIGEST_A}');
+       select pg_sleep(0.5);
+       commit;`,
+      `begin;
+       select pg_sleep(0.2);
+       select public.create_plan_invite_atomic(
+         '${plan}',gen_random_uuid(),'${host}','${"7".repeat(64)}','racing-invite',now(),now()+interval '1 hour'
+       );
+       commit;`,
+    ]);
+
+    expect(results[0]).toContain('"code": "created"');
+    expect(results[1]).toContain('"code": "not_found"');
+    expect(db.sql(`select count(*) from public.plan_invites where plan_id='${plan}'`)).toBe("0");
+  });
+
+  it("linearizes an atomic legacy revoke before conversion without an inverted lock order", async () => {
+    const db = database!;
+    const plan = "86868686-8686-4686-8686-868686868680";
+    const host = "86868686-8686-4686-8686-868686868681";
+    const invite = "86868686-8686-4686-8686-868686868682";
+    const token = "3".repeat(64);
+    db.sql(`
+      insert into public.plans(id,title,start_time,status) values('${plan}','RPC race',now()+interval '1 day','ready');
+      insert into public.plan_crew_members(id,plan_id,name,token_hash,status,joined_at,updated_at,can_collaborate)
+        values('${host}','${plan}','Alice','${token}','in',now(),now(),true);
+      insert into public.plan_invites(id,plan_id,created_by_member_id,token_hash,idempotency_key,created_at,expires_at)
+        values('${invite}','${plan}','${host}','${"2".repeat(64)}','rpc-race-invite',now(),now()+interval '1 hour')
+    `);
+
+    const results = await db.concurrentResults([
+      `begin;
+       set local deadlock_timeout='50ms';
+       set local statement_timeout='10s';
+       select public.revoke_plan_invite_atomic('${plan}','${invite}',now());
+       select pg_sleep(0.5);
+       commit;`,
+      `begin;
+       set local deadlock_timeout='50ms';
+       set local statement_timeout='10s';
+       select pg_sleep(0.2);
+       select public.create_social_crew_atomic('${ALICE_ACCOUNT}','${plan}','${token}','private','rpc-race-key-0001','${DIGEST_A}');
+       commit;`,
+    ]);
+
+    expect(results[0]).toContain('"code": "revoked"');
+    expect(results[1]).toContain('"code": "created"');
+    expect(db.sql(`select revoked_at is not null from public.plan_invites where id='${invite}'`)).toBe("t");
+  });
+
+  it("denies a legacy invitation update before it can invert conversion lock order", async () => {
+    const db = database!;
+    const plan = "87878787-8787-4787-8787-878787878787";
+    const host = "89898989-8989-4989-8989-898989898989";
+    const invite = "90909090-9090-4090-8090-909090909090";
+    const token = "6".repeat(64);
+    db.sql(`
+      insert into public.plans(id,title,start_time,status) values('${plan}','Update race',now()+interval '1 day','ready');
+      insert into public.plan_crew_members(id,plan_id,name,token_hash,status,joined_at,updated_at,can_collaborate)
+        values('${host}','${plan}','Alice','${token}','in',now(),now(),true);
+      insert into public.plan_invites(id,plan_id,created_by_member_id,token_hash,idempotency_key,created_at,expires_at)
+        values('${invite}','${plan}','${host}','${"5".repeat(64)}','update-race-invite',now(),now()+interval '1 hour')
+    `);
+
+    const results = await db.concurrentResults([
+      `begin;
+       set local deadlock_timeout='50ms';
+       set local statement_timeout='10s';
+       set local role service_role;
+       do $block$
+       begin
+         perform id from public.plan_invites where id='${invite}' for update;
+         perform pg_sleep(0.5);
+         update public.plan_invites set revoked_at=now() where id='${invite}';
+         raise exception 'legacy collaboration direct update escaped';
+       exception when insufficient_privilege then
+         null;
+       end
+       $block$;
+       reset role;
+       select 'direct-denied';
+       commit;`,
+      `begin;
+       set local deadlock_timeout='50ms';
+       set local statement_timeout='10s';
+       select pg_sleep(0.2);
+       select public.create_social_crew_atomic('${ALICE_ACCOUNT}','${plan}','${token}','private','update-race-key-01','${DIGEST_A}');
+       commit;`,
+    ]);
+
+    expect(results[0]).toContain("direct-denied");
+    expect(results[1]).toContain('"code": "created"');
+    expect(db.sql(`select revoked_at is not null from public.plan_invites where id='${invite}'`)).toBe("t");
+  });
+
   it("makes all old Plan mutation families absent after conversion", () => {
     const db = database!;
     const unboundPlan = "88888888-8888-4888-8888-888888888888";
     db.sql(`insert into public.plans(id,title,start_time,status) values('${unboundPlan}','Legacy night',now()+interval '1 day','ready')`);
     db.sql(`insert into public.plan_crew_members(id,plan_id,name,token_hash,status,joined_at,updated_at,can_collaborate)
       values(gen_random_uuid(),'${unboundPlan}','Host','${"7".repeat(64)}','in',now(),now(),true)`);
+    const unboundHost = db.sql(`select id from public.plan_crew_members where plan_id='${unboundPlan}' order by joined_at,id limit 1`);
+    const unboundInvite = "91919191-9191-4191-8191-919191919191";
+    const consumedInvite = "92929292-9292-4292-8292-929292929292";
+    const unboundConstraint = "93939393-9393-4393-8393-939393939393";
+    const unboundProposal = "94949494-9494-4494-8494-949494949494";
+    expect(json(db.sql(`select public.create_plan_invite_atomic(
+      '${unboundPlan}','${unboundInvite}','${unboundHost}','invite-hash-one','invite-create-key',now(),now()+interval '1 hour'
+    )`))).toMatchObject({ code: "created", row: { id: unboundInvite } });
+    expect(json(db.sql(`select public.revoke_plan_invite_atomic('${unboundPlan}','${unboundInvite}',now())`)))
+      .toMatchObject({ code: "revoked", row: { id: unboundInvite } });
+    expect(json(db.sql(`select public.create_plan_invite_atomic(
+      '${unboundPlan}','${consumedInvite}','${unboundHost}','invite-hash-two','invite-consume-key',now(),now()+interval '1 hour'
+    )`))).toMatchObject({ code: "created", row: { id: consumedInvite } });
+    expect(json(db.sql(`select public.consume_plan_invite_atomic('${unboundPlan}','invite-hash-two',now())`)))
+      .toMatchObject({ code: "consumed", row: { id: consumedInvite } });
+    expect(json(db.sql(`select public.add_plan_constraint_atomic(
+      '${unboundPlan}','${unboundConstraint}','${unboundHost}','budget','Under twenty pounds','required','constraint-create-key',now()
+    )`))).toMatchObject({ code: "created", row: { id: unboundConstraint } });
+    expect(json(db.sql(`select public.create_plan_route_proposal_atomic(
+      '${unboundPlan}','${unboundProposal}','${unboundHost}',1,'[]'::jsonb,'Keep it close','[]'::jsonb,
+      '["${unboundConstraint}"]'::jsonb,'proposal-create-key',now()
+    )`))).toMatchObject({ code: "created", row: { id: unboundProposal } });
+    expect(json(db.sql(`select public.resolve_plan_constraint_atomic(
+      '${unboundPlan}','${unboundConstraint}','${unboundHost}',
+      '{"proposalId":"${unboundProposal}","routeRevision":1,"sources":[]}'::jsonb,'constraint-resolve-key',now()
+    )`))).toMatchObject({ code: "resolved", row: { id: unboundConstraint } });
     expect(db.sql(`select public.join_plan_idempotent_atomic('${unboundPlan}',gen_random_uuid(),'Guest','${"8".repeat(64)}',now(),false,'${"9".repeat(64)}','${"0".repeat(64)}')`)).toBe("joined");
+    expect(json(db.sql(`select public.create_plan_invite_atomic(
+      '${PLAN}',gen_random_uuid(),'${HOST_MEMBER}','blocked-hash','blocked-create-key',now(),now()+interval '1 hour'
+    )`))).toEqual({ code: "not_found" });
+    expect(json(db.sql(`select public.revoke_plan_invite_atomic('${PLAN}','${LEGACY_INVITE}',now())`))).toEqual({ code: "not_found" });
+    expect(json(db.sql(`select public.consume_plan_invite_atomic('${PLAN}','${LEGACY_INVITE_HASH}',now())`))).toEqual({ code: "not_found" });
+    expect(json(db.sql(`select public.add_plan_constraint_atomic(
+      '${PLAN}',gen_random_uuid(),'${HOST_MEMBER}','budget','Blocked','required','blocked-constraint-key',now()
+    )`))).toEqual({ code: "not_found" });
+    expect(json(db.sql(`select public.resolve_plan_constraint_atomic(
+      '${PLAN}','${LEGACY_CONSTRAINT}','${HOST_MEMBER}','{}'::jsonb,'blocked-resolve-key',now()
+    )`))).toEqual({ code: "not_found" });
+    expect(json(db.sql(`select public.create_plan_route_proposal_atomic(
+      '${PLAN}',gen_random_uuid(),'${HOST_MEMBER}',1,'[]'::jsonb,'Blocked','[]'::jsonb,'[]'::jsonb,'blocked-proposal-key',now()
+    )`))).toEqual({ code: "not_found" });
     expect(db.sql(`select public.join_plan_atomic('${PLAN}',gen_random_uuid(),'Mallory','${"4".repeat(64)}',now(),false)`)).toBe("f");
     expect(db.sql(`select public.join_plan_idempotent_atomic('${PLAN}',gen_random_uuid(),'Mallory','${"4".repeat(64)}',now(),false,'${"5".repeat(64)}','${"6".repeat(64)}')`)).toBe("not_found");
     expect(db.sql(`select public.redeem_plan_invite_atomic('${PLAN}','${LEGACY_INVITE_HASH}',gen_random_uuid(),'Mallory','${"4".repeat(64)}',now())`)).toBe("not_found");

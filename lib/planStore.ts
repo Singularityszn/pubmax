@@ -199,7 +199,9 @@ async function readSupabasePlanState(
   return {
     plan: planFromRow(planRow as Record<string, unknown>),
     stops: (stopRows ?? []).map((row) => stopFromRow(row as Record<string, unknown>)),
-    crew: (memberRows ?? []).map((row) => memberFromRow(row as Record<string, unknown>)),
+    crew: socialOwnerAccountId === null
+      ? (memberRows ?? []).map((row) => memberFromRow(row as Record<string, unknown>))
+      : [],
     context: (planRow as Record<string, unknown>).night_context as NightContext | null ?? null,
     actions: (actionRows ?? []).map((row) => ({
       id: String(row.id),
@@ -719,8 +721,23 @@ export type PlanMemberIdentityResult = { ok: true; identity: PlanMemberIdentity 
 export type PlanCompletionLookupResult = { ok: true; completion: PlanCompletionDTO | null } | { ok: false; error: "error" };
 export type PlanStateLookupResult = { ok: true; plan: PlanState | null } | { ok: false; error: "error" };
 
+async function supabaseLegacyPlanExists(id: string): Promise<{ ok: true; exists: boolean } | { ok: false; error: "error" }> {
+  try {
+    const { data, error } = await requireSupabaseAdmin().from(PLANS).select("id")
+      .eq("id", id)
+      .is("social_owner_account_id", null)
+      .maybeSingle();
+    return error ? { ok: false, error: "error" } : { ok: true, exists: Boolean(data) };
+  } catch {
+    return { ok: false, error: "error" };
+  }
+}
+
 async function supabasePlanMemberIdentityResult(id: string, rawToken: string): Promise<PlanMemberIdentityResult> {
   try {
+    const boundary = await supabaseLegacyPlanExists(id);
+    if (!boundary.ok) return boundary;
+    if (!boundary.exists) return { ok: true, identity: null };
     const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
       .select("id,token_hash,joined_at,can_collaborate")
       .eq("plan_id", id)
@@ -810,6 +827,9 @@ export async function planCompletionResult(id: string): Promise<PlanCompletionLo
   if (!isPlanId(id)) return { ok: true, completion: null };
   if (!isSupabaseConfigured()) return { ok: true, completion: await memoryPlanStore.getCompletion(id) };
   try {
+    const boundary = await supabaseLegacyPlanExists(id);
+    if (!boundary.ok) return boundary;
+    if (!boundary.exists) return { ok: true, completion: null };
     const { data, error } = await requireSupabaseAdmin().from(COMPLETIONS)
       .select(PLAN_COMPLETION_SELECT)
       .eq("plan_id", id)

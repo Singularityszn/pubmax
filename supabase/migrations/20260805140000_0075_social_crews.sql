@@ -10,9 +10,281 @@ alter table public.plan_crew_members
   add column social_account_id uuid
     references public.private_social_accounts(id) on delete restrict;
 
+-- Browser Plan access remains available for legacy Plans only. The 0065
+-- helper is the single policy seam used by Plans, Stops, and members.
+create or replace function public.rls_is_plan_participant(p_plan_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_plan_id is not null
+    and (select auth.uid()) is not null
+    and exists (
+      select 1
+      from public.plans pl
+      where pl.id = p_plan_id
+        and pl.social_owner_account_id is null
+        and (
+          pl.owner_user_id = (select auth.uid())
+          or exists (
+            select 1
+            from public.plan_crew_members m
+            where m.plan_id = p_plan_id
+              and m.user_id = (select auth.uid())
+          )
+        )
+    );
+$$;
+
+-- 0066 granted table-wide SELECT before the private Social owner column
+-- existed. Retain its prior column surface without exposing the new account ID.
+revoke select on table public.plans from authenticated;
+grant select (
+  id, title, start_time, owner_user_id, created_at, status, night_context,
+  ending, route_revision, creation_key_hash, creation_request_hash,
+  anchor_venue_id, anchor_source, plan_outcome, route_ready_at
+) on table public.plans to authenticated;
+
 create unique index plan_crew_members_social_account_idx
   on public.plan_crew_members(plan_id, social_account_id)
   where social_account_id is not null;
+
+-- Legacy collaboration mutations now enter through Plan-first RPCs. Removing
+-- direct service-role DML prevents child-first lock order from racing Crew
+-- conversion. Existing vote and decision RPCs are wrapped later in this file.
+revoke insert, update, delete on table
+  public.plan_invites,
+  public.plan_constraints,
+  public.plan_route_proposals,
+  public.plan_votes,
+  public.plan_vote_requests,
+  public.plan_vibe_votes,
+  public.plan_vibe_vote_requests
+from service_role;
+
+create function public.create_plan_invite_atomic(
+  p_plan_id uuid,
+  p_invite_id uuid,
+  p_created_by_member_id uuid,
+  p_token_hash text,
+  p_idempotency_key text,
+  p_created_at timestamptz,
+  p_expires_at timestamptz
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_owner uuid;
+  v_invite public.plan_invites%rowtype;
+begin
+  select social_owner_account_id into v_owner
+  from public.plans where id=p_plan_id for update;
+  if not found or v_owner is not null then return jsonb_build_object('code','not_found'); end if;
+  if not exists (
+    select 1 from public.plan_crew_members
+    where id=p_created_by_member_id and plan_id=p_plan_id and status='in'
+  ) then return jsonb_build_object('code','not_found'); end if;
+  select * into v_invite from public.plan_invites
+  where plan_id=p_plan_id and created_by_member_id=p_created_by_member_id
+    and idempotency_key=p_idempotency_key;
+  if found then return jsonb_build_object('code','replayed','row',to_jsonb(v_invite)); end if;
+  insert into public.plan_invites(
+    id,plan_id,created_by_member_id,role,token_hash,idempotency_key,
+    created_at,expires_at,revoked_at,redeemed_at
+  ) values(
+    p_invite_id,p_plan_id,p_created_by_member_id,'guest',p_token_hash,p_idempotency_key,
+    p_created_at,p_expires_at,null,null
+  ) returning * into v_invite;
+  return jsonb_build_object('code','created','row',to_jsonb(v_invite));
+end;
+$$;
+
+create function public.revoke_plan_invite_atomic(
+  p_plan_id uuid,
+  p_invite_id uuid,
+  p_revoked_at timestamptz
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_owner uuid;
+  v_invite public.plan_invites%rowtype;
+begin
+  select social_owner_account_id into v_owner
+  from public.plans where id=p_plan_id for update;
+  if not found or v_owner is not null then return jsonb_build_object('code','not_found'); end if;
+  select * into v_invite from public.plan_invites
+  where id=p_invite_id and plan_id=p_plan_id for update;
+  if not found then return jsonb_build_object('code','not_found'); end if;
+  if v_invite.revoked_at is null then
+    update public.plan_invites set revoked_at=p_revoked_at where id=v_invite.id
+    returning * into v_invite;
+    return jsonb_build_object('code','revoked','row',to_jsonb(v_invite));
+  end if;
+  return jsonb_build_object('code','replayed','row',to_jsonb(v_invite));
+end;
+$$;
+
+create function public.consume_plan_invite_atomic(
+  p_plan_id uuid,
+  p_token_hash text,
+  p_redeemed_at timestamptz
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_owner uuid;
+  v_start_time timestamptz;
+  v_invite public.plan_invites%rowtype;
+begin
+  select social_owner_account_id,start_time into v_owner,v_start_time
+  from public.plans where id=p_plan_id for update;
+  if not found or v_owner is not null then return jsonb_build_object('code','not_found'); end if;
+  select * into v_invite from public.plan_invites
+  where plan_id=p_plan_id and token_hash=p_token_hash for update;
+  if not found then return jsonb_build_object('code','not_found'); end if;
+  if v_invite.revoked_at is not null then return jsonb_build_object('code','revoked'); end if;
+  if v_invite.expires_at <= p_redeemed_at then return jsonb_build_object('code','expired'); end if;
+  if v_start_time + interval '8 hours' <= p_redeemed_at then return jsonb_build_object('code','expired'); end if;
+  if v_invite.redeemed_at is not null then return jsonb_build_object('code','replayed'); end if;
+  update public.plan_invites set redeemed_at=p_redeemed_at where id=v_invite.id
+  returning * into v_invite;
+  return jsonb_build_object('code','consumed','row',to_jsonb(v_invite));
+end;
+$$;
+
+create function public.add_plan_constraint_atomic(
+  p_plan_id uuid,
+  p_constraint_id uuid,
+  p_member_id uuid,
+  p_kind text,
+  p_value text,
+  p_priority text,
+  p_idempotency_key text,
+  p_created_at timestamptz
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_owner uuid;
+  v_constraint public.plan_constraints%rowtype;
+begin
+  select social_owner_account_id into v_owner
+  from public.plans where id=p_plan_id for update;
+  if not found or v_owner is not null then return jsonb_build_object('code','not_found'); end if;
+  if not exists (
+    select 1 from public.plan_crew_members
+    where id=p_member_id and plan_id=p_plan_id and status='in'
+  ) then return jsonb_build_object('code','not_found'); end if;
+  select * into v_constraint from public.plan_constraints
+  where plan_id=p_plan_id and member_id=p_member_id and idempotency_key=p_idempotency_key;
+  if found then return jsonb_build_object('code','replayed','row',to_jsonb(v_constraint)); end if;
+  insert into public.plan_constraints(
+    id,plan_id,member_id,kind,value,priority,idempotency_key,created_at
+  ) values(
+    p_constraint_id,p_plan_id,p_member_id,p_kind,p_value,p_priority,p_idempotency_key,p_created_at
+  ) returning * into v_constraint;
+  return jsonb_build_object('code','created','row',to_jsonb(v_constraint));
+end;
+$$;
+
+create function public.resolve_plan_constraint_atomic(
+  p_plan_id uuid,
+  p_constraint_id uuid,
+  p_resolved_by_member_id uuid,
+  p_resolution_evidence jsonb,
+  p_resolution_idempotency_key text,
+  p_resolved_at timestamptz
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_owner uuid;
+  v_constraint public.plan_constraints%rowtype;
+begin
+  select social_owner_account_id into v_owner
+  from public.plans where id=p_plan_id for update;
+  if not found or v_owner is not null then return jsonb_build_object('code','not_found'); end if;
+  if not exists (
+    select 1 from public.plan_crew_members
+    where id=p_resolved_by_member_id and plan_id=p_plan_id and status='in'
+  ) then return jsonb_build_object('code','not_found'); end if;
+  select * into v_constraint from public.plan_constraints
+  where id=p_constraint_id and plan_id=p_plan_id for update;
+  if not found then return jsonb_build_object('code','not_found'); end if;
+  if v_constraint.resolved_at is not null then
+    return jsonb_build_object('code','replayed','row',to_jsonb(v_constraint));
+  end if;
+  update public.plan_constraints set
+    resolved_at=p_resolved_at,
+    resolved_by_member_id=p_resolved_by_member_id,
+    resolution_evidence=p_resolution_evidence,
+    resolution_idempotency_key=p_resolution_idempotency_key
+  where id=v_constraint.id returning * into v_constraint;
+  return jsonb_build_object('code','resolved','row',to_jsonb(v_constraint));
+end;
+$$;
+
+create function public.create_plan_route_proposal_atomic(
+  p_plan_id uuid,
+  p_proposal_id uuid,
+  p_proposed_by_member_id uuid,
+  p_expected_route_revision integer,
+  p_stops jsonb,
+  p_reason text,
+  p_resolved_constraint_ids jsonb,
+  p_unresolved_constraint_ids jsonb,
+  p_idempotency_key text,
+  p_created_at timestamptz
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_owner uuid;
+  v_proposal public.plan_route_proposals%rowtype;
+begin
+  select social_owner_account_id into v_owner
+  from public.plans where id=p_plan_id for update;
+  if not found or v_owner is not null then return jsonb_build_object('code','not_found'); end if;
+  if not exists (
+    select 1 from public.plan_crew_members
+    where id=p_proposed_by_member_id and plan_id=p_plan_id and status='in'
+  ) then return jsonb_build_object('code','not_found'); end if;
+  select * into v_proposal from public.plan_route_proposals
+  where plan_id=p_plan_id and proposed_by_member_id=p_proposed_by_member_id
+    and idempotency_key=p_idempotency_key;
+  if found then return jsonb_build_object('code','replayed','row',to_jsonb(v_proposal)); end if;
+  insert into public.plan_route_proposals(
+    id,plan_id,proposed_by_member_id,expected_route_revision,stops,reason,
+    resolved_constraint_ids,unresolved_constraint_ids,status,idempotency_key,
+    decision_idempotency_key,created_at,decided_at
+  ) values(
+    p_proposal_id,p_plan_id,p_proposed_by_member_id,p_expected_route_revision,p_stops,p_reason,
+    p_resolved_constraint_ids,p_unresolved_constraint_ids,'pending',p_idempotency_key,
+    null,p_created_at,null
+  ) returning * into v_proposal;
+  return jsonb_build_object('code','created','row',to_jsonb(v_proposal));
+end;
+$$;
+
+revoke all on function
+  public.create_plan_invite_atomic(uuid,uuid,uuid,text,text,timestamptz,timestamptz),
+  public.revoke_plan_invite_atomic(uuid,uuid,timestamptz),
+  public.consume_plan_invite_atomic(uuid,text,timestamptz),
+  public.add_plan_constraint_atomic(uuid,uuid,uuid,text,text,text,text,timestamptz),
+  public.resolve_plan_constraint_atomic(uuid,uuid,uuid,jsonb,text,timestamptz),
+  public.create_plan_route_proposal_atomic(uuid,uuid,uuid,integer,jsonb,text,jsonb,jsonb,text,timestamptz)
+from public, anon, authenticated;
+grant execute on function
+  public.create_plan_invite_atomic(uuid,uuid,uuid,text,text,timestamptz,timestamptz),
+  public.revoke_plan_invite_atomic(uuid,uuid,timestamptz),
+  public.consume_plan_invite_atomic(uuid,text,timestamptz),
+  public.add_plan_constraint_atomic(uuid,uuid,uuid,text,text,text,text,timestamptz),
+  public.resolve_plan_constraint_atomic(uuid,uuid,uuid,jsonb,text,timestamptz),
+  public.create_plan_route_proposal_atomic(uuid,uuid,uuid,integer,jsonb,text,jsonb,jsonb,text,timestamptz)
+to service_role;
 
 create table public.social_crews (
   id uuid primary key default gen_random_uuid(),

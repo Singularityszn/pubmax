@@ -9,6 +9,7 @@ const fixture = vi.hoisted(() => ({
     plan_stops: [] as Row[],
     plan_crew_members: [] as Row[],
     plan_actions: [] as Row[],
+    plan_completions: [] as Row[],
   },
 }));
 
@@ -50,6 +51,8 @@ import {
   __resetMemoryPlans,
   memoryPlanStore,
   planStateResult,
+  planCompletionResult,
+  planMemberIdentityResult,
   socialBoundPlanStateResult,
   supabasePlanStore,
 } from "@/lib/planStore";
@@ -88,6 +91,18 @@ function seedBoundPlan(): void {
     updated_at: "2026-08-05T12:00:00.000Z",
   }];
   fixture.rows.plan_actions = [];
+  fixture.rows.plan_completions = [{
+    id: "44444444-4444-4444-8444-444444444444",
+    plan_id: PLAN_ID,
+    ending: "get_home",
+    terminal_venue_id: null,
+    ending_selection: null,
+    final_pint_drop_id: null,
+    route_revision: 1,
+    route_snapshot: [],
+    qualifying_arrival: null,
+    completed_at: "2026-08-05T23:00:00.000Z",
+  }];
 }
 
 beforeEach(() => {
@@ -138,12 +153,20 @@ describe("legacy Plan boundary for Social Crews", () => {
     expect(result.plan?.stops).toEqual([
       { venueId: "venue-one", venueName: "Venue One", position: 0 },
     ]);
+    expect(result.plan?.crew).toEqual([]);
     await expect(
       socialBoundPlanStateResult(
         PLAN_ID,
         "99999999-9999-4999-8999-999999999999",
       ),
     ).resolves.toEqual({ ok: true, plan: null });
+  });
+
+  it("makes legacy member identity and completion reads absent", async () => {
+    await expect(planMemberIdentityResult(PLAN_ID, "old-token"))
+      .resolves.toEqual({ ok: true, identity: null });
+    await expect(planCompletionResult(PLAN_ID))
+      .resolves.toEqual({ ok: true, completion: null });
   });
 
   it("never falls back to keyless Plan memory for a Social read", async () => {

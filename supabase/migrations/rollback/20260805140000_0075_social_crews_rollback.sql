@@ -1,5 +1,22 @@
 -- Restore the pre-0075 Plan RPCs before removing the Social Crew schema.
 
+drop function if exists public.create_plan_invite_atomic(uuid,uuid,uuid,text,text,timestamptz,timestamptz);
+drop function if exists public.revoke_plan_invite_atomic(uuid,uuid,timestamptz);
+drop function if exists public.consume_plan_invite_atomic(uuid,text,timestamptz);
+drop function if exists public.add_plan_constraint_atomic(uuid,uuid,uuid,text,text,text,text,timestamptz);
+drop function if exists public.resolve_plan_constraint_atomic(uuid,uuid,uuid,jsonb,text,timestamptz);
+drop function if exists public.create_plan_route_proposal_atomic(uuid,uuid,uuid,integer,jsonb,text,jsonb,jsonb,text,timestamptz);
+
+grant insert, update, delete on table
+  public.plan_invites,
+  public.plan_constraints,
+  public.plan_route_proposals,
+  public.plan_votes,
+  public.plan_vote_requests,
+  public.plan_vibe_votes,
+  public.plan_vibe_vote_requests
+to service_role;
+
 drop function if exists public.join_plan_atomic(uuid,uuid,text,text,timestamptz,boolean);
 alter function public._0075_join_plan_atomic(uuid,uuid,text,text,timestamptz,boolean) rename to join_plan_atomic;
 
@@ -83,6 +100,38 @@ drop table if exists public.social_crew_invitations;
 drop table if exists public.social_crew_members;
 drop table if exists public.social_crews;
 
+revoke select (
+  id, title, start_time, owner_user_id, created_at, status, night_context,
+  ending, route_revision, creation_key_hash, creation_request_hash,
+  anchor_venue_id, anchor_source, plan_outcome, route_ready_at
+) on table public.plans from authenticated;
+
+create or replace function public.rls_is_plan_participant(p_plan_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_plan_id is not null
+    and (select auth.uid()) is not null
+    and (
+      exists (
+        select 1
+        from public.plans pl
+        where pl.id = p_plan_id
+          and pl.owner_user_id = (select auth.uid())
+      )
+      or exists (
+        select 1
+        from public.plan_crew_members m
+        where m.plan_id = p_plan_id
+          and m.user_id = (select auth.uid())
+      )
+    );
+$$;
+
 drop index if exists public.plan_crew_members_social_account_idx;
 alter table public.plan_crew_members drop column if exists social_account_id;
 alter table public.plans drop column if exists social_owner_account_id;
+grant select on table public.plans to authenticated;
