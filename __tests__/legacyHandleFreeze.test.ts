@@ -12,6 +12,7 @@ import {
 import { gateHandleAction } from "@/lib/profileOwnership";
 import {
   __resetMemoryProfiles,
+  __seedMemoryLegacyProfile,
   memoryProfileStore,
 } from "@/lib/profileStore";
 
@@ -24,7 +25,7 @@ beforeEach(() => {
 
 describe("legacy handle freeze", () => {
   it("keeps an existing unlinked handle unavailable and unowned", async () => {
-    const legacy = await memoryProfileStore.ensure("old_timer");
+    const legacy = __seedMemoryLegacyProfile("old_timer");
 
     await expect(
       memoryIdentityHandleStore.availability("old_timer"),
@@ -42,7 +43,7 @@ describe("legacy handle freeze", () => {
   });
 
   it("refuses first-touch linking of an existing unlinked handle", async () => {
-    await memoryProfileStore.ensure("old_timer");
+    __seedMemoryLegacyProfile("old_timer");
 
     const gate = await gateHandleAction(
       new Request("http://localhost/api/messages", { method: "POST" }),
@@ -73,5 +74,31 @@ describe("legacy handle freeze", () => {
     expect(await memoryProfileStore.getByHandle("fresh_person")).toMatchObject({
       userId: "user-1",
     });
+  });
+
+  it("lets canonical onboarding finish a newly ensured ephemeral row", async () => {
+    const ephemeral = await memoryProfileStore.ensure("fresh_person");
+
+    await expect(
+      memoryIdentityHandleStore.availability("fresh_person"),
+    ).resolves.toEqual({ handle: "fresh_person", available: true });
+    await expect(
+      memoryIdentityHandleStore.claim("user-1", "fresh_person"),
+    ).resolves.toMatchObject({
+      ok: true,
+      profileId: ephemeral.id,
+      handle: "fresh_person",
+    });
+  });
+
+  it("keeps a current owner idempotent after the alias cache is lost", async () => {
+    const first = await memoryIdentityHandleStore.claim("user-1", "fresh_person");
+    expect(first).toMatchObject({ ok: true, handle: "fresh_person" });
+
+    __resetMemoryIdentityHandles();
+
+    await expect(
+      memoryIdentityHandleStore.claim("user-1", "fresh_person"),
+    ).resolves.toEqual(first);
   });
 });

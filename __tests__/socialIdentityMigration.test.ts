@@ -34,6 +34,7 @@ function postgresBinary(name: "initdb" | "postgres" | "psql"): string | null {
 type Database = {
   sql(statement: string): string;
   apply(path: string): void;
+  concurrent(statements: readonly string[]): Promise<void>;
   stop(): Promise<void>;
 };
 
@@ -103,12 +104,37 @@ async function startDatabase(): Promise<Database> {
        profile_id uuid not null references public.profiles(id),
        handle text primary key,
        is_current boolean not null default true
-     );`,
+     );
+     insert into public.profiles(handle) values ('pre_migration_shape');`,
   ]);
   return {
     sql: (statement) => run(["-t", "-A", "-c", statement]),
     apply: (path) => {
       run(["-f", path]);
+    },
+    concurrent: async (statements) => {
+      await Promise.all(
+        statements.map(
+          (statement) =>
+            new Promise<void>((resolve, reject) => {
+              const client = spawn(
+                psql,
+                [...connection, "-v", "ON_ERROR_STOP=1", "-c", statement],
+                { stdio: ["ignore", "pipe", "pipe"] },
+              );
+              let stderr = "";
+              client.stderr.setEncoding("utf8");
+              client.stderr.on("data", (chunk: string) => {
+                stderr += chunk;
+              });
+              client.once("error", reject);
+              client.once("exit", (code) => {
+                if (code === 0) resolve();
+                else reject(new Error(stderr || `psql exited ${code}`));
+              });
+            }),
+        ),
+      );
     },
     async stop() {
       if (server.exitCode === null) {
@@ -161,6 +187,38 @@ afterAll(async () => {
 });
 
 describe("social identity migration runtime", () => {
+  it("backfills legacy provenance and lets only an ephemeral row finish linking", () => {
+    const db = database!;
+    db.sql(`
+      insert into auth.users(id) values
+        ('77777777-7777-4777-8777-777777777777'),
+        ('88888888-8888-4888-8888-888888888888');
+      insert into public.profiles(handle, account_link_state)
+      values ('ephemeral_shape', 'ephemeral');
+    `);
+
+    expect(
+      db.sql("select account_link_state from public.profiles where handle='pre_migration_shape'"),
+    ).toBe("legacy_unlinked");
+    expect(
+      JSON.parse(
+        db.sql(`select public.claim_pubmaxx_handle(
+          '77777777-7777-4777-8777-777777777777', 'pre_migration_shape'
+        )`),
+      ),
+    ).toMatchObject({ ok: false, code: "taken" });
+    expect(
+      JSON.parse(
+        db.sql(`select public.claim_pubmaxx_handle(
+          '88888888-8888-4888-8888-888888888888', 'ephemeral_shape'
+        )`),
+      ),
+    ).toMatchObject({ ok: true, handle: "ephemeral_shape" });
+    expect(
+      db.sql("select account_link_state from public.profiles where handle='ephemeral_shape'"),
+    ).toBe("account_owned");
+  });
+
   it("binds both server-derived identities once and rejects confused-session replay", () => {
     const db = database!;
     db.sql(`
@@ -223,6 +281,76 @@ describe("social identity migration runtime", () => {
           and table_name='private_social_age_verifications'`),
     ).toBe(
       "id,product_account_id,provider,yoti_subject_reference,decision,verified_at,expires_at,audit_state,created_at,updated_at",
+    );
+  });
+
+  it("resolves crossed existing-account migrations without deadlock", async () => {
+    const db = database!;
+    const functionDefinition = db.sql(`select pg_get_functiondef(
+      'public.migrate_social_product_account(text,uuid)'::regprocedure
+    )`);
+    expect(functionDefinition).toMatch(/order by lock_key/i);
+    expect(functionDefinition).toMatch(/order by id[\s\S]*for update/i);
+    db.sql(`
+      insert into auth.users(id) values
+        ('99999999-9999-4999-8999-999999999991'),
+        ('99999999-9999-4999-8999-999999999992');
+      insert into public.profiles(user_id, handle, account_link_state) values
+        ('99999999-9999-4999-8999-999999999991', 'crossed_one', 'account_owned'),
+        ('99999999-9999-4999-8999-999999999992', 'crossed_two', 'account_owned');
+    `);
+    expect(
+      JSON.parse(db.sql(`select public.migrate_social_product_account(
+        'clerk-crossed-one', '99999999-9999-4999-8999-999999999991'
+      )`)),
+    ).toMatchObject({ ok: true, migrated: true });
+    expect(
+      JSON.parse(db.sql(`select public.migrate_social_product_account(
+        'clerk-crossed-two', '99999999-9999-4999-8999-999999999992'
+      )`)),
+    ).toMatchObject({ ok: true, migrated: true });
+
+    const startsAt = new Date(Date.now() + 3_000).toISOString();
+    const transaction = (clerkUserId: string, supabaseUserId: string) => `
+      begin;
+      set local deadlock_timeout = '50ms';
+      set local statement_timeout = '10s';
+      select pg_sleep(greatest(0, extract(epoch from timestamptz '${startsAt}' - clock_timestamp())));
+      do $block$
+      begin
+        for attempt in 1..20 loop
+          perform public.migrate_social_product_account(
+            '${clerkUserId}', '${supabaseUserId}'
+          );
+        end loop;
+      end
+      $block$;
+      commit;
+    `;
+
+    await expect(
+      db.concurrent(
+        Array.from({ length: 12 }, (_, index) =>
+          index % 2 === 0
+            ? transaction(
+                "clerk-crossed-one",
+                "99999999-9999-4999-8999-999999999992",
+              )
+            : transaction(
+                "clerk-crossed-two",
+                "99999999-9999-4999-8999-999999999991",
+              ),
+        ),
+      ),
+    ).resolves.toBeUndefined();
+    expect(
+      db.sql(`select clerk_user_id || ':' || supabase_user_id::text
+        from public.private_social_accounts
+        where clerk_user_id like 'clerk-crossed-%'
+        order by clerk_user_id`),
+    ).toBe(
+      "clerk-crossed-one:99999999-9999-4999-8999-999999999991\n" +
+        "clerk-crossed-two:99999999-9999-4999-8999-999999999992",
     );
   });
 

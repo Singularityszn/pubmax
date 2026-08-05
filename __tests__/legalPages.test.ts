@@ -105,7 +105,7 @@ describe("legal content pages", () => {
     expect(terms).not.toMatch(/optional anonymous analytics/i);
   });
 
-  it("discloses Social cross-provider ownership and Yoti adult checks", () => {
+  it("discloses Social ownership and the planned Yoti evidence foundation", () => {
     for (const page of [privacy, terms]) {
       expect(page).toMatch(/Clerk/);
       expect(page).toMatch(/Yoti/);
@@ -120,6 +120,16 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/selfies/);
     expect(terms).toMatch(/both signed-in sessions/);
     expect(terms).toMatch(/doesn&rsquo;t use your email or handle to join\s+them/);
+  });
+
+  it("describes Yoti as deferred service-only evidence plumbing", () => {
+    expect(privacy).toMatch(/does not currently start a Yoti check/i);
+    expect(privacy).toMatch(/service-only evidence fields/i);
+    expect(terms).toMatch(/Yoti integration is not active/i);
+    expect(privacy).not.toMatch(/Yoti runs the\s+adult check/i);
+    expect(privacy).not.toMatch(/Hosted 18\+ age checking/i);
+    expect(privacy).not.toMatch(/returns the authoritative result/i);
+    expect(terms).not.toMatch(/until Yoti returns a current\s+18\+ decision/i);
   });
 
   it("states both 12-month analytics retention clocks on both legal pages", () => {
@@ -341,7 +351,7 @@ describe("legal content pages", () => {
     expect(terms).toMatch(
       /map and existing contribution tools don&rsquo;t use age to block an\s+account/i,
     );
-    expect(terms).toMatch(/Full Social access is for verified adults aged 18\+/);
+    expect(terms).toMatch(/full Social access is for verified adults aged 18\+/i);
     expect(terms).toMatch(/Pubs\s+decide who they serve/i);
     expect(terms).toMatch(/drinkaware\.co\.uk/);
   });

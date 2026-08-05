@@ -25,6 +25,7 @@ import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryPrivateIdentities } from "@/lib/privateIdentityStore";
 import {
   __resetMemoryProfiles,
+  __seedMemoryLegacyProfile,
   memoryProfileStore,
 } from "@/lib/profileStore";
 
@@ -139,7 +140,7 @@ describe("/api/identity/onboarding", () => {
 
   it("keeps a legacy unlinked handle frozen", async () => {
     authState.userId = "user-1";
-    const legacy = await memoryProfileStore.ensure("old_timer");
+    const legacy = __seedMemoryLegacyProfile("old_timer");
 
     const response = await POST(
       request("POST", {

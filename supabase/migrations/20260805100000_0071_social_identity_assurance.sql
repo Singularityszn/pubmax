@@ -3,6 +3,27 @@
 -- join is this service-role-only account record. No date of birth, document,
 -- image, provider payload or provider credential belongs here.
 
+-- Pre-existing unlinked rows came from self-declared handles and are frozen.
+-- A recognised `ensure` after this migration writes `ephemeral`, which keeps
+-- the established ensure-then-link transition available without confusing it
+-- with legacy ownership. Account writers set `account_owned` explicitly.
+alter table public.profiles
+  add column account_link_state text;
+
+update public.profiles
+   set account_link_state = case
+     when user_id is null then 'legacy_unlinked'
+     else 'account_owned'
+   end;
+
+alter table public.profiles
+  alter column account_link_state set default 'legacy_unlinked',
+  alter column account_link_state set not null,
+  add constraint profiles_account_link_state_check
+    check (account_link_state in (
+      'legacy_unlinked', 'ephemeral', 'account_owned'
+    ));
+
 create table public.private_social_accounts (
   id uuid primary key default gen_random_uuid(),
   clerk_user_id text not null unique,
@@ -87,16 +108,26 @@ declare
   v_profile public.profiles%rowtype;
   v_clerk_account public.private_social_accounts%rowtype;
   v_supabase_account public.private_social_accounts%rowtype;
+  v_locked_account public.private_social_accounts%rowtype;
   v_account public.private_social_accounts%rowtype;
+  v_lock_key bigint;
 begin
   if v_clerk_user_id = '' or p_supabase_user_id is null then
     return jsonb_build_object('ok', false, 'code', 'ownership_conflict');
   end if;
 
-  perform pg_advisory_xact_lock(hashtextextended('clerk:' || v_clerk_user_id, 0));
-  perform pg_advisory_xact_lock(
-    hashtextextended('supabase:' || p_supabase_user_id::text, 0)
-  );
+  -- Every migration orders both identity locks by their numeric key. Crossed
+  -- requests therefore cannot acquire one identity each and wait on the other.
+  for v_lock_key in
+    select lock_key
+      from (values
+        (hashtextextended('clerk:' || v_clerk_user_id, 0)),
+        (hashtextextended('supabase:' || p_supabase_user_id::text, 0))
+      ) as identity_locks(lock_key)
+     order by lock_key
+  loop
+    perform pg_advisory_xact_lock(v_lock_key);
+  end loop;
 
   select * into v_profile
     from public.profiles
@@ -107,17 +138,24 @@ begin
     return jsonb_build_object('ok', false, 'code', 'legacy_profile_not_found');
   end if;
 
-  select * into v_clerk_account
-    from public.private_social_accounts
-   where clerk_user_id = v_clerk_user_id
-   limit 1
-   for update;
-
-  select * into v_supabase_account
-    from public.private_social_accounts
-   where supabase_user_id = p_supabase_user_id
-   limit 1
-   for update;
+  -- Lock every existing product account involved in one id order, then assign
+  -- its role. Separate Clerk-first and Supabase-first selects can deadlock when
+  -- two already-bound accounts are crossed concurrently.
+  for v_locked_account in
+    select *
+      from public.private_social_accounts
+     where clerk_user_id = v_clerk_user_id
+        or supabase_user_id = p_supabase_user_id
+     order by id
+     for update
+  loop
+    if v_locked_account.clerk_user_id = v_clerk_user_id then
+      v_clerk_account := v_locked_account;
+    end if;
+    if v_locked_account.supabase_user_id = p_supabase_user_id then
+      v_supabase_account := v_locked_account;
+    end if;
+  end loop;
 
   if v_clerk_account.id is not null then
     if v_supabase_account.id is not null
@@ -233,16 +271,41 @@ begin
 
   select * into v_profile from public.profiles
    where lower(handle) = v_handle limit 1 for update;
-  if found or exists (
+  if found and (
+    v_profile.user_id is not null
+    or v_profile.account_link_state <> 'ephemeral'
+  ) then
+    return jsonb_build_object('ok', false, 'code', 'taken',
+      'error', 'That handle is already taken.');
+  end if;
+  if found and exists (
+    select 1 from public.profile_handle_aliases
+     where lower(handle) = v_handle and profile_id <> v_profile.id
+  ) then
+    return jsonb_build_object('ok', false, 'code', 'taken',
+      'error', 'That handle is already taken.');
+  end if;
+  if not found and exists (
     select 1 from public.profile_handle_aliases where lower(handle) = v_handle
   ) then
     return jsonb_build_object('ok', false, 'code', 'taken',
       'error', 'That handle is already taken.');
   end if;
 
-  insert into public.profiles(user_id, handle)
-  values (p_user_id, v_handle)
-  returning * into v_profile;
+  if found then
+    update public.profiles
+       set user_id = p_user_id,
+           account_link_state = 'account_owned',
+           updated_at = now()
+     where id = v_profile.id
+       and user_id is null
+       and account_link_state = 'ephemeral'
+     returning * into v_profile;
+  else
+    insert into public.profiles(user_id, handle, account_link_state)
+    values (p_user_id, v_handle, 'account_owned')
+    returning * into v_profile;
+  end if;
   insert into public.profile_handle_aliases(profile_id, handle, is_current)
   values (v_profile.id, v_handle, true);
   return jsonb_build_object('ok', true, 'profile_id', v_profile.id,

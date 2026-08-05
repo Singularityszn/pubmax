@@ -1,4 +1,5 @@
 import { assertServerEnv } from "@/lib/serverEnv";
+import { verifyCallerAuth } from "@/lib/authServer";
 import {
   migrateSocialProductAccount,
   resolveSocialAccess,
@@ -21,7 +22,11 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const migration = await migrateSocialProductAccount(request);
+  // This route resolves the legacy account authority itself so write-surface
+  // certification can see the boundary. The protected server seam separately
+  // verifies Clerk and applies the beta policy before any migration write.
+  const supabase = await verifyCallerAuth(request);
+  const migration = await migrateSocialProductAccount(supabase);
   if (!migration.ok) {
     return privateJson(
       {
