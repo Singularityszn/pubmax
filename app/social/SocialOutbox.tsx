@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { SocialPostDTO } from "@/lib/socialPosts";
 
@@ -35,7 +35,12 @@ function mergeItems(
 function stateLabel(item: OutboxItem): string {
   if (item.moderationState === "needs_review") return "Held for review";
   if (item.moderationState === "pending") return "Moderation pending";
-  return "Private";
+  if (!isPost(item)) return "Moderation approved";
+  return {
+    private: "Private",
+    friends: "Friends",
+    public: "Public",
+  }[item.visibility];
 }
 
 export default function SocialOutbox({
@@ -48,28 +53,67 @@ export default function SocialOutbox({
   onPostChanged: (post?: SocialPostDTO) => void;
 }) {
   const [items, setItems] = useState<OutboxItem[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadPage = useCallback(async (
+    cursor: string | null = null,
+    signal?: AbortSignal,
+  ) => {
+    if (cursor) setLoadingMore(true);
+    else setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (cursor) {
+        params.set("cursor", cursor);
+        params.set("limit", "20");
+      }
+      const response = await fetch(
+        `/api/social/outbox${params.size ? `?${params}` : ""}`,
+        { cache: "no-store", signal },
+      );
+      if (!response.ok) throw new Error("Outbox read failed");
+      const value = (await response.json()) as {
+        posts?: OutboxItem[];
+        nextCursor?: string | null;
+      };
+      if (signal?.aborted) return;
+      setItems((current) => mergeItems(current, value.posts ?? []));
+      setNextCursor(value.nextCursor ?? null);
+    } catch {
+      if (signal?.aborted) return;
+      setError(cursor
+        ? "Older posts are unavailable right now."
+        : "Posts are unavailable right now.");
+    } finally {
+      if (!signal?.aborted) {
+        if (cursor) setLoadingMore(false);
+        else setLoading(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    void fetch("/api/social/outbox", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : { posts: [] }))
-      .then((value: { posts?: OutboxItem[] }) => {
-        if (!active) return;
-        setItems((current) => mergeItems(current, value.posts ?? []));
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [submittedPost?.id, submittedPost?.revision]);
+    const controller = new AbortController();
+    void Promise.resolve().then(() => loadPage(null, controller.signal));
+    return () => controller.abort();
+  }, [loadPage, submittedPost?.id, submittedPost?.revision]);
 
   const visibleItems = submittedPost
     ? mergeItems(items, [submittedPost])
     : items;
-  if (visibleItems.length === 0) return null;
+  if (visibleItems.length === 0 && !error) return null;
   return (
-    <section className="socialOutbox" aria-labelledby="social-outbox-title">
+    <section
+      className="socialOutbox"
+      aria-labelledby="social-outbox-title"
+      aria-busy={loading || loadingMore}
+    >
       <h2 id="social-outbox-title">Outbox</h2>
+      {error ? <p role="alert">{error}</p> : null}
       <ul>
         {visibleItems.map((item) => (
           <li key={item.id} className="socialOutboxItem">
@@ -99,6 +143,18 @@ export default function SocialOutbox({
           </li>
         ))}
       </ul>
+      {nextCursor ? (
+        <button
+          className="socialOutboxMore"
+          type="button"
+          aria-busy={loadingMore}
+          aria-label="Load more"
+          disabled={loadingMore}
+          onClick={() => void loadPage(nextCursor)}
+        >
+          {loadingMore ? "Loading…" : "Load more"}
+        </button>
+      ) : null}
     </section>
   );
 }

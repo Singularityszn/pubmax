@@ -40,7 +40,8 @@ test("verified composer preserves failed photo draft, records consent choices, a
       const approved = tagActions.some((action) => action.action === "approve") && !tagActions.some((action) => action.action === "withdraw");
       const proposals = approvedLane === approved ? [{
         id: "tag-1", postId: POST_ID, mediaId: basePost.photo!.mediaId, authorHandle: "bob",
-        state: approved ? "approved" : "proposed", body: "Original night", visibility: "friends",
+        state: approved ? "approved" : "proposed", visibility: "friends",
+        body: "POST BODY MUST STAY PRIVATE",
         photoAltText: "Friends outside", reviewRevision: 4, audienceAtApproval: null,
         createdAt: "2026-08-05T19:00:00.000Z",
       }] : [];
@@ -72,6 +73,7 @@ test("verified composer preserves failed photo draft, records consent choices, a
   const tagReview = page.getByRole("region", { name: "Tags to review" });
   await expect(tagReview.getByRole("img", { name: "Friends outside" })).toBeVisible();
   await expect(tagReview.getByText("Friends audience", { exact: true })).toBeVisible();
+  await expect(page.getByText("POST BODY MUST STAY PRIVATE", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Approve" }).click();
   await expect(page.getByRole("button", { name: "Withdraw" })).toBeVisible();
   await page.getByRole("button", { name: "Withdraw" }).click();
@@ -249,6 +251,82 @@ test("private visibility and comment policy survive create, owner outbox, and ed
   await expect(dialog.getByLabel("Comments").locator("option")).toHaveText(["Open", "Friends", "Locked"]);
 });
 
+test("owner outbox pages older posts without duplicates and labels approved visibility", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockVerified(page);
+  await page.route("**/api/social/tags**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: [], nextCursor: null }) }));
+  await page.route("**/api/social/posts?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [], nextCursor: null }) }));
+
+  const friendsPost = { ...basePost, id: "77777777-7777-4777-8777-777777777777", body: "Friends first page", visibility: "friends" };
+  const publicPost = { ...basePost, id: "88888888-8888-4888-8888-888888888888", body: "Public second page", visibility: "public", createdAt: "2026-08-05T17:00:00.000Z" };
+  const privatePost = { ...basePost, id: "99999999-9999-4999-8999-999999999999", body: "Private older post", visibility: "private", createdAt: "2026-08-05T16:00:00.000Z" };
+  let pageTwoAttempts = 0;
+  await page.route("**/api/social/outbox**", async (route) => {
+    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+    if (!cursor) {
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [friendsPost], nextCursor: "page-2" }) });
+    }
+    pageTwoAttempts += 1;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    if (pageTwoAttempts === 1) {
+      return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Unavailable" }) });
+    }
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [friendsPost, publicPost, privatePost], nextCursor: null }) });
+  });
+
+  await page.goto("/social");
+  const outbox = page.getByRole("region", { name: "Outbox" });
+  await expect(outbox.getByText("Friends", { exact: true })).toBeVisible();
+  const loadMore = outbox.getByRole("button", { name: "Load more" });
+  expect((await loadMore.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  if (process.env.PW_SOCIAL_COMPOSER_PROOF === "1") {
+    await page.waitForTimeout(1_000);
+    await page.evaluate(() => document.getAnimations().forEach((animation) => animation.cancel()));
+    await page.evaluate(() => new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    }));
+    const directory = join(process.cwd(), "docs/proof/social-composer");
+    mkdirSync(directory, { recursive: true });
+    await page.screenshot({ animations: "disabled", fullPage: false });
+    await page.screenshot({
+      path: join(directory, "390-light-outbox-load-more.png"),
+      animations: "disabled",
+      fullPage: false,
+    });
+  }
+  await loadMore.click();
+  await expect(loadMore).toHaveAttribute("aria-busy", "true");
+  await expect(outbox.getByRole("alert")).toHaveText("Older posts are unavailable right now.");
+  await loadMore.click();
+  await expect(outbox.getByText("Public", { exact: true })).toBeVisible();
+  await expect(outbox.getByText("Private", { exact: true })).toBeVisible();
+  await expect(outbox.getByText("Friends first page", { exact: true })).toHaveCount(1);
+  await expect(outbox.getByText("Private older post", { exact: true })).toBeVisible();
+  if (process.env.PW_SOCIAL_COMPOSER_PROOF === "1") {
+    // Force Chromium to rebuild its mobile compositor surface after the outbox
+    // grows. Without the resize, a screenshot can retain clipped tiles from the
+    // shorter first-page frame even after layout and animations have settled.
+    await page.setViewportSize({ width: 391, height: 844 });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(1_000);
+    await page.evaluate(() => document.getAnimations().forEach((animation) => animation.cancel()));
+    await page.evaluate(() => new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    }));
+    const directory = join(process.cwd(), "docs/proof/social-composer");
+    mkdirSync(directory, { recursive: true });
+    await page.screenshot({ animations: "disabled", fullPage: false });
+    await page.screenshot({
+      path: join(directory, "390-light-outbox-pagination.png"),
+      animations: "disabled",
+      fullPage: false,
+    });
+  }
+  await outbox.getByRole("button", { name: "Edit private post" }).click();
+  await expect(page.getByRole("dialog").getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Private older post");
+});
+
 test("photo tag review fences audience changes and pages approved withdrawals", async ({ page }) => {
   await mockVerified(page);
   await page.route("**/api/social/posts?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [], nextCursor: null }) }));
@@ -258,7 +336,7 @@ test("photo tag review fences audience changes and pages approved withdrawals", 
   const proposal = () => ({
     id: "44444444-4444-4444-8444-444444444444", postId: POST_ID,
     mediaId: basePost.photo!.mediaId, authorHandle: "bob", state: "proposed",
-    body: "Tag review", visibility: reviewRevision === 1 ? "friends" : "private",
+    visibility: reviewRevision === 1 ? "friends" : "private",
     photoAltText: "Friends outside", reviewRevision, audienceAtApproval: null,
     createdAt: "2026-08-05T19:00:00.000Z",
   });
@@ -270,12 +348,27 @@ test("photo tag review fences audience changes and pages approved withdrawals", 
     if (route.request().method() === "GET") {
       const url = new URL(route.request().url());
       if (url.searchParams.get("lane") === "approved") {
+        if (actions.some((action) => action.action === "withdraw")) {
+          return route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: [], nextCursor: null }) });
+        }
         const next = url.searchParams.get("cursor");
         return route.fulfill({ contentType: "application/json", body: JSON.stringify(next
-          ? { proposals: [approved("66666666-6666-4666-8666-666666666666", "dee")], nextCursor: null }
+          ? { proposals: [{
+              ...approved("66666666-6666-4666-8666-666666666666", "dee"),
+              mediaId: null,
+              photoAltText: null,
+            }], nextCursor: null }
           : { proposals: [approved("55555555-5555-4555-8555-555555555555", "cee")], nextCursor: "approved-next" }) });
       }
-      return route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: [proposal()], nextCursor: null }) });
+      const proposals = [proposal()];
+      if (actions.some((action) => action.action === "withdraw")) {
+        proposals.push({
+          ...approved("55555555-5555-4555-8555-555555555555", "cee"),
+          state: "proposed",
+          visibility: "private",
+        });
+      }
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals, nextCursor: null }) });
     }
     const body = await route.request().postDataJSON() as Record<string, unknown>;
     actions.push(body);
@@ -289,14 +382,20 @@ test("photo tag review fences audience changes and pages approved withdrawals", 
   await page.goto("/social");
   const approvedLane = page.getByRole("region", { name: "Approved tags" });
   await approvedLane.getByRole("button", { name: "Load more" }).click();
-  await expect(approvedLane.getByText("@dee")).toBeVisible();
-  await approvedLane.getByText("@dee").locator("..").getByRole("button", { name: "Withdraw" }).click();
+  const detachedTag = approvedLane.getByText("@dee").locator("..");
+  await expect(detachedTag).toBeVisible();
+  await expect(detachedTag.getByRole("img")).toHaveCount(0);
+  await detachedTag.getByRole("button", { name: "Withdraw" }).click();
 
   const proposedLane = page.getByRole("region", { name: "Tags to review" });
-  await proposedLane.getByRole("button", { name: "Approve" }).click();
+  await expect(approvedLane).toHaveCount(0);
+  const returnedTag = proposedLane.getByText("@cee").locator("..");
+  await expect(returnedTag.getByText("Private audience", { exact: true })).toBeVisible();
+  const bobTag = proposedLane.getByText("@bob").locator("..");
+  await bobTag.getByRole("button", { name: "Approve" }).click();
   await expect(page.getByText("Photo tag changed. Review it again.", { exact: true })).toBeVisible();
-  await expect(proposedLane.getByText("Private audience", { exact: true })).toBeVisible();
-  await proposedLane.getByRole("button", { name: "Approve" }).click();
+  await expect(bobTag.getByText("Private audience", { exact: true })).toBeVisible();
+  await bobTag.getByRole("button", { name: "Approve" }).click();
   expect(actions).toContainEqual({ proposalId: "44444444-4444-4444-8444-444444444444", action: "approve", expectedAudienceRevision: 1 });
   expect(actions).toContainEqual({ proposalId: "44444444-4444-4444-8444-444444444444", action: "approve", expectedAudienceRevision: 2 });
   expect(actions).toContainEqual({ proposalId: "66666666-6666-4666-8666-666666666666", action: "withdraw" });
