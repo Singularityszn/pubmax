@@ -115,6 +115,12 @@ afterEach(() => {
 });
 
 describe("demo content kill switch", () => {
+  it("documents the explicit public-release value", () => {
+    const example = readFileSync(join(process.cwd(), ".env.example"), "utf8");
+    expect(example).toContain("NEXT_PUBLIC_DEMO_CONTENT=");
+    expect(example).toContain("Set the literal value `off` in BOTH");
+  });
+
   it("test baseline is hermetic: ambient deployment env cannot flip the flag", () => {
     // vitest.setup.ts strips NEXT_PUBLIC_DEMO_CONTENT (Production sets it to
     // "off" and `npm run ci` runs vitest inside that build). If this fails,

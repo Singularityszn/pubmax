@@ -76,22 +76,32 @@ Do not promote this branch to production until Captain applies migration
 `20260805070000_0070_v1_release_security.sql` to Supabase project
 `iankajxliutqogqkmvdg`.
 
+Before building the release preview, set `NEXT_PUBLIC_DEMO_CONTENT=off` in both
+the Vercel Preview and Production environments. This public build-time setting
+needs a fresh deployment. Confirm the preview contains no seeded Pint Drops,
+ambient presence, menu seeds, or demo menu overlays before promotion.
+
 Current production migration history stops at `0069`. Agents must ship and test
 SQL only. After Captain applies `0070`, release operator must confirm:
 
 1. Migration appears in production history.
 2. Supabase security advisor no longer reports public exposure of the eight
    `rls_*` helpers.
-3. Preview smoke tests pass for authentication, map, Today, Tonight, profile,
+3. Pull request head matches the locally verified release commit and all required
+   checks pass for that exact SHA.
+4. Preview smoke tests pass for authentication, map, Today, Tonight, profile,
    Night Crawl, voice-token denial, and Android install-card behaviour.
-4. Pull request checks are green before merge and Vercel production promotion.
+5. Preview source and runtime inspection confirm
+   `NEXT_PUBLIC_DEMO_CONTENT=off` was compiled into the deployment.
 
 ## Follow-up, not a V1 promotion blocker
 
-- Production feeds `price_updates`, `weather`, and `whats_on` currently report
+- The 5 August local data gate reports `price_updates`, `weather`, and `whats_on`
   stale. Existing issue [#635](https://github.com/Singularityszn/pubmax/issues/635)
-  tracks scheduler repair. Surfaces already disclose degraded freshness rather
-  than presenting stale material as current.
+  tracks the overlapping scheduler failure for `price_updates` and
+  `night_signals`; weather and what's-on need separate operational follow-up.
+  Surfaces disclose degraded freshness rather than presenting stale material as
+  current.
 - Supabase leaked-password protection becomes mandatory if password sign-in is
   introduced. Current shipped auth uses magic-link OTP and OAuth, not password
   authentication.
