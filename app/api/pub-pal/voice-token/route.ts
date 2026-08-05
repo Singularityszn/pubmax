@@ -1,9 +1,35 @@
 import { callerUserId } from "@/lib/authServer";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { log } from "@/lib/log";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 const usage = new Map<string, { count: number; month: string }>();
 const MONTHLY_TRIAL_SESSIONS = 10;
+const RELEASE_ERROR_MAX_LENGTH = 160;
+
+function releaseErrorMessage(error: unknown): string {
+  const message =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === "object" && "message" in error
+        ? String(error.message)
+        : String(error);
+  return message.slice(0, RELEASE_ERROR_MAX_LENGTH);
+}
+
+function logReleaseFailure(input: {
+  ownerId: string;
+  usageMonth: string;
+  reason: "rpc_error" | "rpc_exception" | "not_released";
+  error: unknown;
+}): void {
+  log("error", "pub_pal.voice_quota_release_failed", {
+    ownerId: input.ownerId,
+    usageMonth: input.usageMonth,
+    reason: input.reason,
+    error: releaseErrorMessage(input.error),
+  });
+}
 
 export async function POST(request: Request): Promise<Response> {
   const userId = await callerUserId(request);
@@ -56,12 +82,32 @@ export async function POST(request: Request): Promise<Response> {
     if (!providerAllocated) {
       if (admin) {
         try {
-          await admin.rpc("release_pub_pal_voice_trial", {
+          const { data, error } = await admin.rpc("release_pub_pal_voice_trial", {
             p_owner_id: userId,
             p_month: usageMonth,
           });
-        } catch {
-          // Provider failure still owns the response if quota compensation fails.
+          if (error) {
+            logReleaseFailure({
+              ownerId: userId,
+              usageMonth,
+              reason: "rpc_error",
+              error,
+            });
+          } else if (data !== true) {
+            logReleaseFailure({
+              ownerId: userId,
+              usageMonth,
+              reason: "not_released",
+              error: "Reservation row was not released.",
+            });
+          }
+        } catch (error) {
+          logReleaseFailure({
+            ownerId: userId,
+            usageMonth,
+            reason: "rpc_exception",
+            error,
+          });
         }
       } else {
         meter.count = Math.max(0, meter.count - 1);

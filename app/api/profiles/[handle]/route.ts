@@ -10,8 +10,7 @@
 
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
-import { callerUserId } from "@/lib/authServer";
-import { decideProfileWrite, gateHandleAction } from "@/lib/profileOwnership";
+import { gateHandleAction } from "@/lib/profileOwnership";
 import {
   profileStore,
   type ProfilePatch,
@@ -238,21 +237,16 @@ export async function DELETE(
     return jsonNoStore({ error: "Profile storage is not configured." }, { status: 503 });
   }
 
-  const caller = await callerUserId(request);
+  const gate = await gateHandleAction(request, handle, { claimOnUnlinked: false });
+  if (!gate.allowed) {
+    return jsonNoStore({ error: gate.error }, { status: gate.status });
+  }
 
   try {
     const store = profileStore();
     const existing = await store.getByHandle(handle);
     if (!existing) {
       return jsonNoStore({ error: "Profile not found." }, { status: 404 });
-    }
-
-    const decision = decideProfileWrite(existing.userId, caller);
-    if (!decision.allowed) {
-      return jsonNoStore(
-        { error: "This handle belongs to a signed-in account. Sign in as its owner to delete it." },
-        { status: decision.status },
-      );
     }
 
     if (existing.userId) {

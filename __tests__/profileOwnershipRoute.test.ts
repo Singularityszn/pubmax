@@ -68,6 +68,16 @@ describe("PATCH /api/profiles/[handle] — ownership gate", () => {
     expect(body.profile.displayName).toBe("Cheap Pint Ken");
   });
 
+  it.each(["karan", "admin"])(
+    "REJECTS anonymous edit of reserved handle %s",
+    async (handle) => {
+      const res = await patch(handle, { displayName: "Impostor" });
+
+      expect(res.status).toBe(409);
+      expect(await memoryProfileStore.getByHandle(handle)).toBeNull();
+    },
+  );
+
   it("REJECTS an anonymous edit of a handle LINKED to a user (403, no hijack)", async () => {
     // Pre-claim the handle for a real account.
     await memoryProfileStore.linkUser("ken", "user-abc");
@@ -121,6 +131,16 @@ describe("DELETE /api/profiles/[handle] — soft-delete ownership gate", () => {
     expect(res.status).toBe(403);
     const row = await memoryProfileStore.getByHandle("ken");
     expect(row?.displayName).toBe("Ken");
+  });
+
+  it("REJECTS anonymous delete of a reserved handle before unlinked allowance", async () => {
+    await memoryProfileStore.ensure("admin");
+    await memoryProfileStore.update("admin", { displayName: "Reserved" });
+
+    const res = await del("admin");
+
+    expect(res.status).toBe(409);
+    expect((await memoryProfileStore.getByHandle("admin"))?.displayName).toBe("Reserved");
   });
 
   it("404s when the handle has no profile row", async () => {

@@ -65,6 +65,18 @@ export function isClerkConfigured(
 }
 
 /**
+ * Whether Clerk may expose a visible account control. Clerk is secondary until
+ * it can establish the Supabase session that owns PUBMAXX identity, so a valid
+ * publishable key alone is never a visible sign-in path.
+ */
+export function isClerkProductSessionAvailable(
+  productUser: unknown,
+  publishableKey: string | undefined = readClerkPublishableKey(),
+): boolean {
+  return Boolean(productUser) && isClerkConfigured(publishableKey);
+}
+
+/**
  * Whether clerkMiddleware() may run. SERVER-ONLY: it reads CLERK_SECRET_KEY, so
  * it must never be called from a client component.
  *
