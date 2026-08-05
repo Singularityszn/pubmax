@@ -17,6 +17,7 @@ import {
   type CityJourney,
 } from "@/lib/citymcp/client";
 import { isCityMcpLimited } from "@/lib/citymcpRateLimit";
+import { coarsenViewerPoint } from "@/lib/geo";
 import { withRouteTiming } from "@/lib/routeObservability";
 
 export const runtime = "nodejs";
@@ -82,7 +83,7 @@ type JourneyInput = {
 async function respondWithJourney(
   request: Request,
   input: JourneyInput,
-  options: { cache: boolean; exposePoints: boolean },
+  options: { cache: boolean; exposePoints: boolean; viewerOrigin: boolean },
 ): Promise<Response> {
   if (await isCityMcpLimited(request)) {
     return jsonResponse(
@@ -125,7 +126,10 @@ async function respondWithJourney(
     );
   }
 
-  const from = formatJourneyPoint(fromLat, fromLng);
+  const fromPoint = options.viewerOrigin
+    ? coarsenViewerPoint({ lat: fromLat, lng: fromLng })
+    : { lat: fromLat, lng: fromLng };
+  const from = formatJourneyPoint(fromPoint.lat, fromPoint.lng);
   const to = formatJourneyPoint(toLat, toLng);
   const limit = parseLimit(input.limit);
 
@@ -170,7 +174,7 @@ async function getHandler(request: Request): Promise<Response> {
       toLng: params.get("toLng"),
       limit: params.get("limit"),
     },
-    { cache: true, exposePoints: true },
+    { cache: true, exposePoints: true, viewerOrigin: false },
   );
 }
 
@@ -192,6 +196,6 @@ async function postHandler(request: Request): Promise<Response> {
   return respondWithJourney(
     request,
     input,
-    { cache: false, exposePoints: false },
+    { cache: false, exposePoints: false, viewerOrigin: true },
   );
 }

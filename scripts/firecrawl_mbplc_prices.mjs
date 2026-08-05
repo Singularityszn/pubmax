@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Firecrawl-powered Mitchells & Butlers (Nicholson's) drink price harvester.
+ * Mitchells & Butlers (Nicholson's) drink price harvester using local refresh providers.
  *
  * Merges into public/data/drink_price_updates/latest.json (preserves Greene King rows).
  *
@@ -8,7 +8,6 @@
  *   node scripts/firecrawl_mbplc_prices.mjs [--limit N] [--brand nicholsons]
  */
 
-import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -25,6 +24,11 @@ import {
   resolveVenueKeyFromPubName,
   slugFromMbplcDrinksUrl,
 } from "./lib/venueMatch.mjs";
+import {
+  assertProviderCredentials,
+  discoverRefreshPages,
+  fetchRefreshPage,
+} from "./lib/localRefreshProviders.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -221,19 +225,16 @@ function resolveNicholsonsVenueKey(url, markdown, indexes) {
   return resolveVenueKeyFromHints(hints, indexes);
 }
 
-// --- firecrawl --------------------------------------------------------------
+// Keep this cache path stable. Downstream merge scripts treat it as an input contract.
 
-function scrapeMenu(url, outPath) {
+async function scrapeMenu(url, outPath) {
   if (existsSync(outPath)) {
     return readFileSync(outPath, "utf8");
   }
   mkdirSync(dirname(outPath), { recursive: true });
-  execFileSync(
-    "npx",
-    ["-y", "firecrawl-cli@latest", "scrape", url, "-o", outPath, "--wait-for", "3000"],
-    { stdio: "inherit", cwd: ROOT, env: process.env },
-  );
-  return readFileSync(outPath, "utf8");
+  const page = await fetchRefreshPage({ job: "rendered-menu", url });
+  writeFileSync(outPath, `${page.markdown.trim()}\n`);
+  return page.markdown;
 }
 
 function parseArgs(argv) {
@@ -262,12 +263,31 @@ function loadExistingUpdates() {
 async function main() {
   const { limit, urlsFile } = parseArgs(process.argv);
   const observedAt = new Date().toISOString();
+  assertProviderCredentials(["pub-discovery", "rendered-menu"]);
 
-  const urls = readFileSync(urlsFile, "utf8")
+  const knownUrls = readFileSync(urlsFile, "utf8")
     .split(/\r?\n/)
     .map((l) => l.trim())
-    .filter((l) => l.startsWith("http"))
-    .slice(0, limit);
+    .filter((l) => l.startsWith("http"));
+  const discoveries = await discoverRefreshPages({
+    query: "new London Nicholson's pub official drinks menu prices",
+    includeDomains: ["nicholsonspubs.co.uk"],
+    numResults: Math.min(10, Math.max(1, limit)),
+  });
+  const discoveredUrls = discoveries
+    .map((result) => result.url)
+    .filter((url) => {
+      try {
+        const parsed = new URL(url);
+        return parsed.hostname.endsWith("nicholsonspubs.co.uk") && /\/drinks\/?$/i.test(parsed.pathname);
+      } catch {
+        return false;
+      }
+    });
+  const candidates = limit > 1 && discoveredUrls.length
+    ? [discoveredUrls[0], ...knownUrls]
+    : knownUrls;
+  const urls = [...new Set(candidates)].slice(0, limit);
 
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
   const indexes = buildVenueIndexes(dataset);
@@ -281,14 +301,8 @@ async function main() {
   for (const url of urls) {
     const slug = slugFromMbplcDrinksUrl(url) ?? "unknown";
     const cachePath = join(MENU_CACHE, `${slug}.md`);
-    let markdown;
-    try {
-      markdown = scrapeMenu(url, cachePath);
-      scraped += 1;
-    } catch (err) {
-      console.warn(`SKIP scrape failed ${url}:`, err.message ?? err);
-      continue;
-    }
+    const markdown = await scrapeMenu(url, cachePath);
+    scraped += 1;
 
     const venueKey = resolveNicholsonsVenueKey(url, markdown, indexes);
     if (!venueKey) {
