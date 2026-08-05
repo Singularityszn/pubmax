@@ -5,10 +5,9 @@ import { loadHeritageCrawls } from "@/lib/heritageCrawls";
 
 import DiscoverPageClient from "./DiscoverPageClient";
 
-// /discover is the canonical of the /drinks → /discover 308 redirect, so it
-// pins its own canonical URL (Wave S1.4).
+// Compatibility shell only. next.config redirects this route before render.
 export const metadata: Metadata = {
-  alternates: { canonical: "/discover" },
+  alternates: { canonical: "/social?tab=discover" },
 };
 
 export default async function DiscoverPage() {

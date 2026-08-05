@@ -3,9 +3,8 @@ import type { Metadata } from "next";
 import FeedPageClient from "./FeedPageClient";
 import { loadFeedSightings } from "./feedSightings.server";
 
-// Server shell for /feed so the route carries real metadata (the client
-// component can't export it). Stories is a public browse surface (like
-// /discover), so it is indexable with its own canonical + Open Graph.
+// Compatibility implementation for tests and reusable legacy components.
+// next.config redirects /feed to canonical Social before this route renders.
 // A PIN on how this route already renders, not a change of mode: the root
 // layout awaits headers() outside any Suspense boundary and nothing enables PPR,
 // so every route in the app is dynamic today. The ambient sightings below carry
@@ -21,11 +20,11 @@ const FEED_DESCRIPTION =
 export const metadata: Metadata = {
   title: FEED_TITLE,
   description: FEED_DESCRIPTION,
-  alternates: { canonical: "/feed" },
+  alternates: { canonical: "/social" },
   openGraph: {
     title: FEED_TITLE,
     description: FEED_DESCRIPTION,
-    url: "/feed",
+    url: "/social",
     siteName: "PUBMAXX",
     type: "website",
     images: ["/og.png"],

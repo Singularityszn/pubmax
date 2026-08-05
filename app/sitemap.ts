@@ -7,28 +7,28 @@ import { loadHistoricPubs } from "@/lib/historic";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 
-// Wave S1.2 — dynamic sitemap. Enumerates every token-free, crawlable surface so
+// Wave S1.2 dynamic sitemap. Enumerates every token-free, crawlable surface so
 // search + AI crawlers discover the whole graph (the map-first UI otherwise hides
 // most of it from bots). Scope is provenance-first and honest:
 //
 //  Included:
-//   - static hubs: /, /map, /borough, /historic, /discover, /pubs, /tonight,
-//     /choose-city, /crawls, /feed
+//   - static hubs: /, /map, /borough, /historic, /social, /pubs, /tonight,
+//     /choose-city, /crawls
 //   - /map/{city} for every enabled non-London city (London is /map)
 //   - /borough/{slug} for every borough present in the price dataset
 //   - /landmark/{id} for every curated landmark
 //   - /historic/{slug} for every cited historic pub (static, self-canonical SEO
-//     pages — the heritage moat)
-//   - /ledger/{id} for every venue (the canonical, token-free venue permalink —
+//     pages, the heritage moat)
+//   - /ledger/{id} for every venue (the canonical, token-free venue permalink,
 //     the price moat; PRD S1.2 "all venue detail permalinks")
 //
 //  Excluded (by design):
-//   - /drinks — 308-redirects to /discover (canonical); a redirecting URL must
-//     not be advertised.
+//   - /feed, /stories, /discover and /drinks redirect to Social; redirecting
+//     URLs must not be advertised.
 //   - anything auth/token/UGC-scoped: /p/, /rounds/, /plan/, /bar-tab/,
 //     /messages, /profile, /activity, /auth, /admin, /api/ (see app/robots.ts).
-//   - curated crawls: they have NO token-free canonical page URL — they only
-//     exist as /map deep-links (curatedCrawlMapHref → /map?mode=build&pubs=…),
+//   - curated crawls: they have no token-free canonical page URL. They only
+//     exist as /map deep-links (curatedCrawlMapHref to /map?mode=build&pubs=…),
 //     and user Crawl Stories (/crawls/[slug]) are draft-gated UGC. So no
 //     per-crawl sitemap URL exists to include (the /crawls index is listed).
 //
@@ -124,11 +124,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/borough", priority: 0.8, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/pint-index", priority: 0.8, changeFrequency: "monthly", lastModified: pintIndexPublished },
     { path: "/historic", priority: 0.8, changeFrequency: "weekly", lastModified: historicModified },
-    { path: "/discover", priority: 0.7, changeFrequency: "weekly", lastModified: now },
+    { path: "/social", priority: 0.7, changeFrequency: "daily", lastModified: now },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
     { path: "/crawls", priority: 0.6, changeFrequency: "weekly", lastModified: now },
-    { path: "/feed", priority: 0.5, changeFrequency: "daily", lastModified: now },
     { path: "/choose-city", priority: 0.5, changeFrequency: "monthly", lastModified: now },
     { path: "/about", priority: 0.5, changeFrequency: "monthly", lastModified: now },
     // Static, token-free content pages a reader (or a crawler checking the site

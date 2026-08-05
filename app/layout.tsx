@@ -235,14 +235,14 @@ export default async function RootLayout({
         <script src="/theme-init.js" />
         {/* IDEAS B5 — Speculation Rules: declaratively prerender the LIKELY next
             page while the user browses the explore-London loop, so tapping
-            through borough/discover surfaces is instant. Conservative by design:
+            through borough/Social surfaces is instant. Conservative by design:
               - eagerness "moderate" (hover/pointerdown intent) for prerender, so
                 the browser only spends bandwidth/compute on links the user is
                 actually about to click — avoids the over-prerendering + early
                 analytics/side-effect risk flagged in B5.
               - candidates are href-prefix scoped to same-origin, GET-only,
                 static-ish surfaces: /borough/* (borough chapters), /crawls,
-                /discover. EXPLICITLY excludes /map (heavy WebGL — a prerendered
+                /social. EXPLICITLY excludes /map (heavy WebGL; a prerendered
                 MapLibre canvas is wasteful and janky) and every route with side
                 effects (auth, composer, /api).
             This is a JSON data block, NOT executable JavaScript: the browser
@@ -261,8 +261,8 @@ export default async function RootLayout({
               prerender: [
                 {
                   source: "list",
-                  /* Wave I3: include /feed (Stories) — light RSC, no WebGL. */
-                  urls: ["/crawls", "/discover", "/feed"],
+                  /* Social owns the chronological and public discovery surfaces. */
+                  urls: ["/crawls", "/social", "/social?tab=discover"],
                   eagerness: "moderate",
                 },
                 {

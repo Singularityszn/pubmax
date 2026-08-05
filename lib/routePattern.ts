@@ -44,6 +44,7 @@ export const ROUTE_PATTERNS = [
   "/recap/[storyId]",
   "/rounds",
   "/rounds/[code]",
+  "/social",
   "/today",
   "/tonight",
   "/u/[handle]",

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import {
@@ -202,11 +202,13 @@ function heritageCrawlCards(crawls: CuratedCrawl[]): EditorialCardData[] {
 type DiscoverPageClientProps = {
   rivalry: CityRivalryEntry[];
   heritageCrawls: CuratedCrawl[];
+  embedded?: boolean;
 };
 
-export default function DiscoverPageClient({
+export function DiscoverBody({
   rivalry,
   heritageCrawls,
+  embedded = false,
 }: DiscoverPageClientProps) {
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
@@ -229,6 +231,9 @@ export default function DiscoverPageClient({
   const [tonight, setTonight] = useState<TonightEntry[]>([]);
   const analysisRef = useRef<HTMLElement | null>(null);
   const revealRootRef = useRef<HTMLElement | null>(null);
+  const setRevealRoot = useCallback((node: HTMLElement | null) => {
+    revealRootRef.current = node;
+  }, []);
 
   // Editorial stays London-authored; drink/food chips still follow preferred city.
   const editorial = buildEditorial();
@@ -387,11 +392,16 @@ export default function DiscoverPageClient({
     return () => window.removeEventListener("scroll", armReveal);
   }, []);
 
-  return (
-    <main className="discoverPage" ref={revealRootRef}>
-      <SiteNav active="discover" />
+  const Root = embedded ? "div" : "main";
 
-      <header className="discoverHead">
+  return (
+    <Root
+      className={embedded ? "discoverPage discoverPageEmbedded" : "discoverPage"}
+      ref={setRevealRoot}
+    >
+      {!embedded ? <SiteNav active="discover" /> : null}
+
+      {!embedded ? <header className="discoverHead">
         <p className="discoverEyebrow">Pint stories</p>
         <h1 className="discoverTitle">Pint prices, pub stories and routes worth walking.</h1>
         <p className="discoverLede">
@@ -405,14 +415,14 @@ export default function DiscoverPageClient({
           <Link href="/tonight" className="discoverHubLink">
             What&rsquo;s on tonight →
           </Link>
-          <Link href="/feed" className="discoverHubLink">
-            Tonight&apos;s pint stories →
+          <Link href="/social" className="discoverHubLink">
+            Social →
           </Link>
           <Link href="/crawls" className="discoverHubLink">
             Crawl stories →
           </Link>
         </nav>
-      </header>
+      </header> : null}
 
       <NightAreaCoverage />
 
@@ -685,6 +695,10 @@ export default function DiscoverPageClient({
           </div>
         </section>
       )}
-    </main>
+    </Root>
   );
+}
+
+export default function DiscoverPageClient(props: DiscoverPageClientProps) {
+  return <DiscoverBody {...props} />;
 }

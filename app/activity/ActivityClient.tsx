@@ -201,8 +201,8 @@ export default function ActivityClient(): React.JSX.Element {
             title="Nothing's landed yet."
             body="When someone follows you, cheers a Pint Drop, leaves a comment or saves one of your crawls, it turns up here. Go give them a reason to."
             action={
-              <Link href="/feed" className="activityCta">
-                Browse the feed
+              <Link href="/social" className="activityCta">
+                Open Social
               </Link>
             }
           />
