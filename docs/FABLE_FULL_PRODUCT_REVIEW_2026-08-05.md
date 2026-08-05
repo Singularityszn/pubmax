@@ -145,6 +145,30 @@ Full-page screenshots were captured for non-map templates. Map templates passed 
 - Tonight and Pint Index produce double-branded titles.
 - Landing DOM includes redundant wordmark text for some non-AX extraction paths.
 
+### Live Computer Use pass on production
+
+A second hands-on pass used real Chrome against production, first at a 400px responsive viewport and then in the full desktop window. It covered the primary Today, Tonight, Plan, Map, venue-detail, Drinks, and Stories journeys. This pass supplements the 92-case route matrix with interaction and visual-composition evidence.
+
+Strong live evidence:
+
+- Mobile Map is the clearest expression of the product. Search, map movement, price markers, venue selection, and the detail sheet form a coherent discovery loop.
+- Desktop Map uses the canvas well. Search and planning controls stay compact while the venue detail rail preserves map context.
+- Mobile Plan communicates state changes clearly across area, time, group size, budget, and access needs. The resulting summary remains editable.
+- Desktop Plan scales into a deliberate editorial composition instead of stretching the mobile form.
+- Weather, price, source, route, and last-train language is generally concise and honest.
+
+Corrections confirmed in the live product:
+
+- Mobile Today contains a very tall empty panel between Getting Home and nearby-price content. The fixed tab bar then overlaps lower historic-pub cards during scrolling.
+- Mobile Map presents an install prompt covering roughly 40% of the initial map viewport. Installation is secondary to first discovery and should wait until the user has received value.
+- At 400px, venue-detail navigation shows five tabs while `Last train` is offscreen without a clear overflow cue. Provenance and practical-detail type is also too small for a primary mobile surface.
+- The Drinks menu presents a sourced price and source link but no observation date. Users cannot tell whether a £4.20 row is current or merely historical.
+- Desktop Tonight, Today, and the empty Stories state occupy small content islands surrounded by large unused canvas. Map and Plan already demonstrate the stronger responsive standard these pages should follow.
+- Production root currently resolves to Tonight, so there is no distinct top-level product-introduction journey for a first-time desktop visitor.
+- Production titles still expose double branding, including `Tonight in London · PUBMAXXING | PUBMAXX` and `Today in London · PUBMAXXING | PUBMAXX`.
+
+Recommended design slice, separate from Fable's shipped product work: repair Today mobile flow and tab-bar clearance first, then make venue tabs and provenance readable, then give desktop Today, Tonight, and Stories purposeful two-column or contextual compositions. Do not redesign Map or Plan before these weaker surfaces reach the same standard.
+
 ## Verification results
 
 | Check | Result |
@@ -198,8 +222,9 @@ Owners should claim disjoint slices in a live ledger before starting.
 4. Price age, demo-off, and offline-copy truth fixes.
 5. Profile reaction batching and accessibility P1 fixes.
 6. Screenshot runner repair plus ready-state assertions.
+7. Mobile Today dead-panel and bottom-clearance repair, plus a non-obstructive Map install prompt.
 
-Acceptance: negative security tests, targeted browser tests, production-off demo test, stale-price test, full `npm run verify`, production build, and core screenshot matrix.
+Acceptance: negative security tests, targeted browser tests, production-off demo test, stale-price test, full `npm run verify`, production build, and core screenshot matrix at 320px, 390px, and 430px with no covered actions or hidden cards.
 
 ### Wave 1: operate trust loop, days 7 to 30
 
@@ -210,9 +235,10 @@ Do not rebuild scheduler code from PR #721. Operate it.
 3. Review first generated price refresh PR.
 4. Publish artifact age and underlying row-age distributions.
 5. Measure existing funnel: venue accepted, plan accepted, saved, arrived, completed.
-6. Correct desktop Tonight composition and shared shell safe-area ownership.
+6. Make all venue-sheet tabs reachable at 400px and raise provenance/date text to a readable trust-caption size.
+7. Correct desktop Today, Tonight, and empty Stories composition in route-owned components. Leave Map, Plan, and shared desktop navigation alone.
 
-Acceptance: at least one current non-demo observation with source, licence, and date; two weeks of consent-gated funnel data; no duplicate navigation system.
+Acceptance: at least one current non-demo observation with source, licence, and date; `Last train` reachable at 400px; two weeks of consent-gated funnel data; no duplicate navigation system.
 
 ### Wave 2: close the night-out loop, days 30 to 60
 
