@@ -18,7 +18,7 @@
 import { useEffect, useState } from "react";
 import { CloudSun } from "lucide-react";
 
-import { roundCoord } from "@/lib/geo";
+import { coarsenViewerPoint } from "@/lib/geo";
 import type { TonightConditionsSummary } from "@/lib/tonightConditions";
 
 import "./tonightConditions.css";
@@ -32,8 +32,9 @@ type ConditionsResponse = { summary: TonightConditionsSummary | null };
 export default function TonightConditionsStrip({ origin }: Props) {
   const [summary, setSummary] = useState<TonightConditionsSummary | null>(null);
 
-  const lat = origin ? roundCoord(origin.lat) : null;
-  const lng = origin ? roundCoord(origin.lng) : null;
+  const egressPoint = origin ? coarsenViewerPoint(origin) : null;
+  const lat = egressPoint?.lat ?? null;
+  const lng = egressPoint?.lng ?? null;
 
   useEffect(() => {
     const controller = new AbortController();

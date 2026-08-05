@@ -55,16 +55,16 @@ describe("loadWhatsOnTonight near param", () => {
     json: async () => ({ rows: [], asOf: null }),
   } as unknown as Response;
 
-  it("appends near=lat,lng when a point is supplied", async () => {
+  it("coarsens a viewer point before appending near=lat,lng", async () => {
     let url = "";
     await loadWhatsOnTonight({
-      near: { lat: 51.5136, lng: -0.1365 },
+      near: { lat: 51.51361234, lng: -0.1365789 },
       fetchImpl: async (input) => {
         url = String(input);
         return okResponse;
       },
     });
-    expect(url).toBe("/api/whats-on?window=tonight&limit=60&near=51.5136,-0.1365");
+    expect(url).toBe("/api/whats-on?window=tonight&limit=60&near=51.514,-0.137");
   });
 
   it("omits near entirely when absent — the pre-seam request, byte for byte", async () => {
