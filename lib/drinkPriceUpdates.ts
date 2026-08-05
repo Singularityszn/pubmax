@@ -33,6 +33,8 @@ import {
 // is the canonical grouping key (lib/venues.ts venueGroupingKey) so an update
 // targets exactly the same venue the app groups by — no fuzzy name matching.
 // `drinkName` + `category` identify the specific menu row within that venue.
+export type DrinkPriceUpdateLane = "publisher" | "demo";
+
 export type DrinkPriceUpdate = {
   venueKey: string;
   drinkName: string;
@@ -45,6 +47,8 @@ export type DrinkPriceUpdate = {
   servingSize?: string;
   source: { label: string; url: string; licence: string };
   observedAt: string; // ISO-8601
+  /** Semantic display lane, resolved once when raw overlay data is parsed. */
+  lane: DrinkPriceUpdateLane;
 };
 
 // The provenance a refreshed drink price is stamped with. A sourced
@@ -114,7 +118,7 @@ function isValidObservedAt(value: unknown, now: number): value is string {
 
 // Hand-rolled row guard — drop malformed rows rather than throw. `now` is
 // injectable for deterministic tests.
-export function isValidDrinkPriceUpdate(value: unknown, now: number = Date.now()): value is DrinkPriceUpdate {
+export function isValidDrinkPriceUpdate(value: unknown, now: number = Date.now()): boolean {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;
   if (!isNonEmptyString(row.venueKey)) return false;
@@ -137,6 +141,9 @@ export function isValidDrinkPriceUpdate(value: unknown, now: number = Date.now()
   // (governance: every fact is {source, licence, observedAt}).
   if (!isNonEmptyString(src.licence)) return false;
   if (!isValidObservedAt(row.observedAt, now)) return false;
+  if (row.lane !== undefined && row.lane !== "publisher" && row.lane !== "demo") {
+    return false;
+  }
   return true;
 }
 
@@ -153,6 +160,7 @@ function updateProvenance(update: DrinkPriceUpdate): DrinkProvenance {
     sourceUrl: update.source.url,
     licence: update.source.licence,
     observedAt: update.observedAt,
+    lane: update.lane === "demo" ? "demo" : "drink-price-update",
   };
 }
 
@@ -166,11 +174,11 @@ function stableDrinkId(update: DrinkPriceUpdate): string {
   return `drink-${(hash >>> 0).toString(36)}`;
 }
 
-function visibleDrinkPriceUpdates(
+export function visibleDrinkPriceUpdates(
   updates: readonly DrinkPriceUpdate[],
 ): DrinkPriceUpdate[] {
   if (demoContentEnabled()) return [...updates];
-  return updates.filter((update) => !isDemoDrinkSource(update.source.label));
+  return updates.filter((update) => update.lane !== "demo");
 }
 
 export function drinkFromPriceUpdate(update: DrinkPriceUpdate): Drink {
@@ -243,8 +251,17 @@ export function parseDrinkPriceUpdates(raw: unknown, now: number = Date.now()): 
       ? (raw as { updates: unknown[] }).updates
       : [];
   const newestByKey = new Map<string, DrinkPriceUpdate>();
-  for (const row of rows) {
-    if (!isValidDrinkPriceUpdate(row, now)) continue;
+  for (const candidate of rows) {
+    if (!isValidDrinkPriceUpdate(candidate, now)) continue;
+    const rawRow = candidate as Omit<DrinkPriceUpdate, "lane"> & {
+      lane?: DrinkPriceUpdateLane;
+    };
+    const row: DrinkPriceUpdate = {
+      ...rawRow,
+      lane:
+        rawRow.lane ??
+        (isDemoDrinkSource(rawRow.source.label) ? "demo" : "publisher"),
+    };
     const key = rowKey(row.venueKey, row.drinkName, row.category);
     const existing = newestByKey.get(key);
     if (!existing || Date.parse(row.observedAt) > Date.parse(existing.observedAt)) {

@@ -35,6 +35,7 @@ function update(overrides: Partial<DrinkPriceUpdate> = {}): DrinkPriceUpdate {
       licence: "Attributed use only.",
     },
     observedAt: "2026-07-15T00:00:00.000Z",
+    lane: "publisher",
     ...overrides,
   };
 }

@@ -36,13 +36,16 @@ import {
 } from "@/lib/optimisticSpillPost";
 import { postReactionToggle } from "@/lib/optimisticToggle";
 import { normalizeHandle } from "@/lib/profiles";
+import {
+  loadReactionSummaries,
+  localReactionSummary,
+  toggleReactionMine,
+  writeLocalReactions,
+  type ReactionSummaryMap,
+} from "@/lib/reactionClient";
 import { currentMode, MODE_DEFAULT_LANE } from "@/lib/viewMode";
 import { countSpillingNow, subscribeToNewDrops } from "@/lib/realtime";
-import {
-  REACTION_KEYS,
-  type ReactionKey,
-  type ReactionSummary,
-} from "@/lib/reactions";
+import { type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import "./feed.css";
 
@@ -53,8 +56,6 @@ type LoadState = "loading" | "ready" | "error";
 // A per-drop reaction summary map (counts + which the viewer used), keyed by
 // drop id. Missing keys render as "no reactions yet" — the card treats absence
 // and an empty summary identically.
-type SummaryMap = Record<string, ReactionSummary>;
-
 const EMPTY_SUMMARY: ReactionSummary = { counts: {}, mine: [] };
 
 function mergeLocalOptimisticItems(current: FeedItem[]): FeedItem[] {
@@ -77,50 +78,6 @@ function mergeLocalOptimisticItems(current: FeedItem[]): FeedItem[] {
         !(item.optimistic?.clientRequestId && localClientIds.has(item.optimistic.clientRequestId)),
     ),
   ];
-}
-
-// ── Demo-seed local fallback ──────────────────────────────────────────────────
-// Reactions on a persisted drop live in the durable backend. Demo/seed drops
-// aren't in visit_reports, so the toggle route answers 404 (UnknownDropError);
-// for those we keep a localStorage-only toggle so a sample card still feels
-// alive and NEVER crashes. Once a drop id is known-local we skip the network for
-// it entirely. The stored value is just the viewer's own `mine` list; counts for
-// a local drop are derived from that (each of the viewer's reactions counts 1).
-const LOCAL_PREFIX = "pubmax:feed:reactions:";
-
-function readLocalMine(id: string): ReactionKey[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(LOCAL_PREFIX + id);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((v): v is ReactionKey =>
-      (REACTION_KEYS as readonly string[]).includes(v as string),
-    );
-  } catch {
-    return [];
-  }
-}
-
-function writeLocalMine(id: string, mine: ReactionKey[]): void {
-  try {
-    window.localStorage.setItem(LOCAL_PREFIX + id, JSON.stringify(mine));
-  } catch {
-    // Storage full / denied — the in-memory toggle already updated this session.
-  }
-}
-
-// A local drop's summary is derived purely from the viewer's own selections:
-// each reaction they picked shows a count of 1 (there is no shared backend).
-function localSummary(mine: ReactionKey[]): ReactionSummary {
-  const counts: Partial<Record<ReactionKey, number>> = {};
-  for (const key of mine) counts[key] = 1;
-  return { counts, mine };
-}
-
-function toggleMine(mine: ReactionKey[], key: ReactionKey): ReactionKey[] {
-  return mine.includes(key) ? mine.filter((k) => k !== key) : [...mine, key];
 }
 
 export default function FeedPageClient({
@@ -165,7 +122,7 @@ export default function FeedPageClient({
   // Durable reactions: one summary map for every drop the viewer has seen. The
   // batch-GET fills it for a freshly-revealed page; a toggle reconciles a single
   // entry from the POST response (or from the local fallback for demo seeds).
-  const [summaries, setSummaries] = useState<SummaryMap>({});
+  const [summaries, setSummaries] = useState<ReactionSummaryMap>({});
   // Drop ids the backend rejected as unknown (demo seeds) — their toggles stay
   // local-only from then on, so we don't re-hit the network for a known 404.
   const localOnly = useRef<Set<string>>(new Set());
@@ -554,11 +511,9 @@ export default function FeedPageClient({
     return { visible: acc, nextCursor: pageCursor };
   }, [filtered, pagesLoaded]);
 
-  // Batch-load reaction summaries for whatever is now on screen, in ONE request
-  // for the newly-visible ids. Fires whenever the visible set grows (load more,
-  // filter change). setState only runs inside the async callback (never the
-  // effect body); AbortController cancels an in-flight batch on unmount/change.
-  // Demo-seed local summaries are seeded from localStorage in the same pass.
+  // Batch-load reaction summaries for whatever is now on screen. Shared client
+  // keeps every request inside the route's 100-id cap and distinguishes a
+  // retryable read failure from a confirmed local-only demo drop.
   const visibleIds = useMemo(() => visible.map((i) => i.id), [visible]);
   useEffect(() => {
     const fresh = visibleIds.filter((id) => !summarizedIds.current.has(id));
@@ -567,35 +522,19 @@ export default function FeedPageClient({
     for (const id of fresh) summarizedIds.current.add(id);
 
     const controller = new AbortController();
-    const query = `ids=${encodeURIComponent(fresh.join(","))}&actor=${encodeURIComponent(actorId)}`;
-    fetch(`/api/pint-drops/reactions?${query}`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((data: { summaries?: SummaryMap }) => {
-        const server = data.summaries ?? {};
-        setSummaries((prev) => {
-          const next = { ...prev };
-          for (const id of fresh) {
-            // A summary the backend didn't return is a demo seed → derive its
-            // summary from any local-only reactions the viewer has stored.
-            if (server[id]) next[id] = server[id];
-            else next[id] = localSummary(readLocalMine(id));
-          }
-          return next;
-        });
+    loadReactionSummaries(fresh, actorId, controller.signal)
+      .then((result) => {
+        if (result.aborted || controller.signal.aborted) return;
+        for (const id of result.retryableIds) summarizedIds.current.delete(id);
+        setSummaries((prev) => ({ ...prev, ...result.summaries }));
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
           return; // expected on unmount / change — not an error to surface
         }
-        // Reactions are best-effort: on failure fall back to any local state so
-        // the cards still render their reaction row (never a crash). Let these
-        // ids be re-requested on the next pass.
+        // Unexpected client failure stays retryable. Network and response
+        // failures are represented by loadReactionSummaries itself.
         for (const id of fresh) summarizedIds.current.delete(id);
-        setSummaries((prev) => {
-          const next = { ...prev };
-          for (const id of fresh) if (!next[id]) next[id] = localSummary(readLocalMine(id));
-          return next;
-        });
       });
     return () => controller.abort();
   }, [visibleIds, actorId]);
@@ -647,9 +586,9 @@ export default function FeedPageClient({
       if (localOnly.current.has(dropId)) {
         setSummaries((prev) => {
           const current = prev[dropId] ?? EMPTY_SUMMARY;
-          const mine = toggleMine(current.mine, reaction);
-          writeLocalMine(dropId, mine);
-          return { ...prev, [dropId]: localSummary(mine) };
+          const mine = toggleReactionMine(current.mine, reaction);
+          writeLocalReactions(dropId, mine);
+          return { ...prev, [dropId]: localReactionSummary(mine) };
         });
         return true;
       }
@@ -659,7 +598,7 @@ export default function FeedPageClient({
       setSummaries((prev) => {
         const current = prev[dropId] ?? EMPTY_SUMMARY;
         const on = current.mine.includes(reaction);
-        optimisticMine = toggleMine(current.mine, reaction);
+        optimisticMine = toggleReactionMine(current.mine, reaction);
         const counts = { ...current.counts };
         counts[reaction] = Math.max(0, (counts[reaction] ?? 0) + (on ? -1 : 1));
         if (counts[reaction] === 0) delete counts[reaction];
@@ -674,8 +613,11 @@ export default function FeedPageClient({
         // Unknown drop (demo seed): keep the optimistic toggle, persist it
         // locally, and mark the id local-only for future toggles.
         localOnly.current.add(dropId);
-        writeLocalMine(dropId, optimisticMine);
-        setSummaries((prev) => ({ ...prev, [dropId]: localSummary(optimisticMine) }));
+        writeLocalReactions(dropId, optimisticMine);
+        setSummaries((prev) => ({
+          ...prev,
+          [dropId]: localReactionSummary(optimisticMine),
+        }));
         return true;
       }
       if (outcome.kind === "confirmed") {
@@ -693,7 +635,7 @@ export default function FeedPageClient({
       setSummaries((prev) => {
         const current = prev[dropId] ?? EMPTY_SUMMARY;
         const on = current.mine.includes(reaction);
-        const mine = toggleMine(current.mine, reaction);
+        const mine = toggleReactionMine(current.mine, reaction);
         const counts = { ...current.counts };
         counts[reaction] = Math.max(0, (counts[reaction] ?? 0) + (on ? -1 : 1));
         if (counts[reaction] === 0) delete counts[reaction];

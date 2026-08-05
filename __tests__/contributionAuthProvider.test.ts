@@ -11,24 +11,11 @@ const providerState = vi.hoisted(() => ({
   supabaseOAuth: vi.fn(),
 }));
 
-const clerkState = vi.hoisted(() => {
-  const openSignIn = vi.fn();
-  return {
-    configured: true,
-    openSignIn,
-    clerk: { loaded: true, openSignIn },
-  };
-});
+const clerkState = vi.hoisted(() => ({ configured: true }));
 
 const authAvailability = vi.hoisted(() => ({
   guard: vi.fn(),
   loadSupabase: vi.fn(async () => ({ google: false, apple: false })),
-  loadClerk: vi.fn(async () => ({ google: true, apple: false })),
-}));
-
-vi.mock("@clerk/nextjs", () => ({
-  useAuth: () => ({ isLoaded: true }),
-  useClerk: () => clerkState.clerk,
 }));
 
 vi.mock("@/components/identity/AccountOnboarding", () => ({
@@ -59,7 +46,6 @@ vi.mock("@/lib/authClient", () => ({
 vi.mock("@/lib/authProviderAvailability", () => ({
   guardSocialAuthProvider: authAvailability.guard,
   loadSocialAuthProviders: authAvailability.loadSupabase,
-  loadClerkSocialAuthProviders: authAvailability.loadClerk,
   NO_SOCIAL_AUTH_PROVIDERS: { google: false, apple: false },
 }));
 vi.mock("@/lib/authRedirect", () => ({
@@ -221,7 +207,6 @@ beforeEach(() => {
     user: { id: "account-a" },
   };
   clerkState.configured = true;
-  clerkState.openSignIn.mockReset();
   providerState.supabaseOAuth.mockReset();
   providerState.supabaseOAuth.mockResolvedValue({ error: null });
   authAvailability.guard.mockReset();
@@ -230,7 +215,6 @@ beforeEach(() => {
     result: { error: null },
   });
   authAvailability.loadSupabase.mockClear();
-  authAvailability.loadClerk.mockClear();
   const document = new TestDocument();
   const window = {
     document,
@@ -321,7 +305,7 @@ describe("shared contribution auth invalidation", () => {
     expect(weatherActionCalled).toBe(false);
   });
 
-  it("uses Clerk capability and click handling when Clerk is configured", async () => {
+  it("keeps generic social sign-in on Supabase when Clerk account controls are available", async () => {
     const container = globalThis.document.createElement("div");
     root = createRoot(container);
 
@@ -339,7 +323,6 @@ describe("shared contribution auth invalidation", () => {
 
     const auth = consumers.get("social")?.auth;
     expect(auth).toBeDefined();
-    const clerkLoadCallsBeforeClick = authAvailability.loadClerk.mock.calls.length;
     const supabaseLoadCallsBeforeClick = authAvailability.loadSupabase.mock.calls.length;
 
     await commitReactWork(async () => {
@@ -347,18 +330,17 @@ describe("shared contribution auth invalidation", () => {
     });
 
     expect(authAvailability.guard).toHaveBeenCalledWith("google", expect.any(Function), expect.any(Function));
-    expect(authAvailability.loadSupabase.mock.calls.length).toBe(supabaseLoadCallsBeforeClick);
-
     const start = authAvailability.guard.mock.calls[0]?.[1] as (() => Promise<unknown>) | undefined;
     const load = authAvailability.guard.mock.calls[0]?.[2] as (() => Promise<unknown>) | undefined;
     await load?.();
     await start?.();
 
-    expect(authAvailability.loadClerk.mock.calls.length).toBe(clerkLoadCallsBeforeClick + 1);
-    expect(clerkState.openSignIn).toHaveBeenCalledWith({
-      oauthFlow: "redirect",
-      fallbackRedirectUrl: "http://localhost/map",
-      forceRedirectUrl: "http://localhost/map",
+    expect(authAvailability.loadSupabase.mock.calls.length).toBe(
+      supabaseLoadCallsBeforeClick + 1,
+    );
+    expect(providerState.supabaseOAuth).toHaveBeenCalledWith({
+      provider: "google",
+      options: { redirectTo: "http://localhost/auth-callback" },
     });
   });
 
@@ -391,12 +373,10 @@ describe("shared contribution auth invalidation", () => {
     await start?.();
 
     expect(authAvailability.loadSupabase).toHaveBeenCalled();
-    expect(authAvailability.loadClerk).not.toHaveBeenCalled();
     expect(providerState.supabaseOAuth).toHaveBeenCalledWith({
       provider: "google",
       options: { redirectTo: "http://localhost/auth-callback" },
     });
-    expect(clerkState.openSignIn).not.toHaveBeenCalled();
   });
 
   it("keeps the Supabase path when only the Clerk publishable key is present", async () => {
@@ -427,7 +407,6 @@ describe("shared contribution auth invalidation", () => {
     });
 
     expect(authAvailability.guard).toHaveBeenCalledWith("google", expect.any(Function), expect.any(Function));
-    expect(authAvailability.loadClerk).not.toHaveBeenCalled();
 
     const start = authAvailability.guard.mock.calls[0]?.[1] as (() => Promise<unknown>) | undefined;
     const load = authAvailability.guard.mock.calls[0]?.[2] as (() => Promise<unknown>) | undefined;
@@ -439,6 +418,5 @@ describe("shared contribution auth invalidation", () => {
       provider: "google",
       options: { redirectTo: "http://localhost/auth-callback" },
     });
-    expect(clerkState.openSignIn).not.toHaveBeenCalled();
   });
 });
