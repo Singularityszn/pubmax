@@ -123,3 +123,22 @@
 - [x] Make every client visibility decision consume the server-derived boolean and product session.
 - [x] Run focused tests, typecheck, focused ESLint, and `git diff --check`.
 - [x] Commit round-two fix and update the Task 1 release report with exact evidence.
+
+### Task 7: Round-Three Compact Signed-In Account Disclosure
+
+**Files:**
+- Modify: `components/auth/SignInButton.tsx`
+- Modify: `app/auth/auth.css`
+- Create: `__tests__/signInButtonLayout.test.ts`
+
+**Interfaces:**
+- Consumes: existing `compact` host mode, signed-in product user, two-key Clerk availability, and compact auth menu state.
+- Produces: one bounded account trigger in compact headers; signed-out Clerk controls and disclosure copy render only inside the absolute account popover.
+
+- [x] Add mounted red coverage proving compact signed-in headers initially contain one trigger and no Clerk action column.
+- [x] Add mounted interaction coverage proving the trigger opens Clerk controls under `.authMenu`, outside header flow.
+- [x] Add non-compact coverage proving standalone signed-in account controls remain visible.
+- [x] Route the signed-in compact branch through the existing disclosure state before rendering full controls.
+- [x] Add only the account-popover CSS needed for a full-width sign-out row and readable identity summary.
+- [x] Run focused tests, typecheck, focused ESLint, and `git diff --check`.
+- [x] Commit round-three fix and update the Task 1 release report with exact evidence.
