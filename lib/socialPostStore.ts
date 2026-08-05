@@ -69,6 +69,7 @@ export type SocialPostCreateOptions = {
   tagHandles?: string[];
   idempotencyKey?: string;
   requestDigest?: string;
+  replayExistingMedia?: boolean;
 };
 export type SocialPostEditOptions = SocialPostCreateOptions & { existingPhotoAltText?: string };
 
@@ -587,11 +588,17 @@ export const supabaseSocialPostStore: SocialPostStore = {
   async create(actor, fields, createOptions = {}) {
     return durableOrMemory(async () => {
       const media = createOptions.media;
-      if (fields.photo && (!media || media.mediaId !== fields.photo.mediaId)) {
+      const idempotent = Boolean(createOptions.idempotencyKey && createOptions.requestDigest);
+      const replayExistingMedia = Boolean(
+        createOptions.replayExistingMedia && idempotent && fields.photo && !media,
+      );
+      if (fields.photo && !replayExistingMedia && (!media || media.mediaId !== fields.photo.mediaId)) {
         throw new SocialPostStoreError("INVALID_POST", "Photo ownership is not valid.");
       }
       if (!fields.photo && media) throw new SocialPostStoreError("INVALID_POST", "Photo ownership is not valid.");
-      const idempotent = Boolean(createOptions.idempotencyKey && createOptions.requestDigest);
+      if (createOptions.replayExistingMedia && !replayExistingMedia) {
+        throw new SocialPostStoreError("INVALID_POST", "Photo ownership is not valid.");
+      }
       const { data, error } = await requireSupabaseAdmin().rpc(idempotent ? "create_social_post_idempotent" : "create_social_post", {
         p_author_profile_id: actor.profileId,
         p_author_handle: actor.handle,

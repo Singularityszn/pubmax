@@ -162,6 +162,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   let uploaded: UploadedSocialPhoto | null = null;
   let reserved: UploadedSocialPhoto | null = null;
+  let replayExistingMedia = false;
   let requestDigest = socialPostRequestDigest(fields, null, []);
   try {
     if (submitted.photo) {
@@ -175,6 +176,7 @@ export async function POST(request: Request): Promise<Response> {
       requestDigest = digest;
       const prior = await readSocialPostCreateRequest(access.actor.profileId, idempotencyKey);
       if (prior && prior.digest !== digest) throw new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That post request key was already used for different content.");
+      replayExistingMedia = prior !== null;
       if (!prior) {
         reserved = await reserveSocialPhotoUpload(access.actor.profileId, prepared, mediaId);
         uploaded = await uploadPreparedSocialPhoto(
@@ -204,6 +206,7 @@ export async function POST(request: Request): Promise<Response> {
       : await socialPostStore().create(access.actor, fields, {
           idempotencyKey,
           requestDigest,
+          ...(replayExistingMedia ? { replayExistingMedia: true } : {}),
         });
     return privateJson({ post: await projectSocialVenueName(post, resolvedVenue) }, { status: 201 });
   } catch (error) {
