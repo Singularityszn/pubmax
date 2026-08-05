@@ -182,6 +182,25 @@
   white-space: pre-wrap;
 }
 
+.socialPostPhoto {
+  margin: 14px 0;
+}
+
+.socialPostPhoto img {
+  display: block;
+  width: 100%;
+  max-height: 560px;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+.socialPostPhoto figcaption,
+.socialPostEdited {
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
 .socialPostKind {
   width: fit-content;
   margin: 12px 0 0;
@@ -234,6 +253,49 @@
 .socialButton:disabled {
   cursor: progress;
   opacity: 0.72;
+}
+
+.socialComposerBackdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: end center;
+  background: color-mix(in srgb, #000 54%, transparent);
+}
+
+.socialComposer {
+  box-sizing: border-box;
+  width: min(100%, 680px);
+  max-height: 100svh;
+  padding: 16px max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  border-radius: 20px 20px 0 0;
+  background: var(--panel-raised);
+  overflow: auto;
+}
+
+.socialComposer header {
+  display: grid;
+  grid-template-columns: 72px 1fr 72px;
+  align-items: center;
+}
+
+.socialComposer h2 { margin: 0; text-align: center; font-size: 1.1rem; }
+.socialComposer header button { min-height: 44px; border: 0; background: transparent; color: var(--river); font: inherit; font-weight: 800; }
+.socialComposer textarea { box-sizing: border-box; width: 100%; min-height: 160px; margin: 12px 0; padding: 12px; resize: vertical; }
+.socialComposer label { display: grid; gap: 6px; margin-top: 12px; font-size: .8125rem; font-weight: 750; }
+.socialComposer input,
+.socialComposer select { box-sizing: border-box; width: 100%; min-height: 44px; padding: 8px 10px; }
+.socialVenueResults { margin: 0; padding: 0; list-style: none; border: 1px solid var(--line); }
+.socialVenueResults button { width: 100%; min-height: 44px; border: 0; background: var(--panel-raised); color: var(--ink); text-align: left; }
+.socialTagInbox { padding: 12px; border: 1px solid var(--line); border-radius: 14px; }
+.socialTagInbox h2 { margin: 0 0 8px; font-size: 1rem; }
+.socialTagInbox div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.socialTagInbox button { min-height: 44px; }
+
+@media (min-width: 700px) {
+  .socialComposerBackdrop { place-items: center; }
+  .socialComposer { border-radius: 20px; }
 }
 
 .socialLoadMore {

@@ -139,8 +139,8 @@ describe("legal content pages", () => {
       expect(page).toMatch(/omni moderation/i);
       expect(page).toMatch(/held[^]*decision/i);
     }
-    expect(privacy).toMatch(/future Social post photos/i);
-    expect(privacy).toMatch(/photos will also go\s+to OpenAI for moderation/i);
+    expect(privacy).toMatch(/Social photos are normalised/i);
+    expect(privacy).toMatch(/short-lived signed copy[^]*OpenAI/i);
     expect(privacy).toMatch(/moderation queue/i);
   });
 

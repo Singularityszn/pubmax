@@ -91,6 +91,54 @@ describe("Social post store visibility and feeds", () => {
     await expect(store.read(friendPost.id, alice)).resolves.toBeNull();
   });
 
+  it("projects a public Venue to author and current mutual friends but not strangers or blocked readers", async () => {
+    const store = createMemorySocialPostStore({
+      relationships: async (viewer) => viewer.profileId === bob.profileId
+        ? {
+            followingProfileIds: new Set([alice.profileId]),
+            mutualProfileIds: new Set([alice.profileId]),
+            blockedProfileIds: new Set<string>(),
+          }
+        : viewer.profileId === carol.profileId
+          ? {
+              followingProfileIds: new Set([alice.profileId]),
+              mutualProfileIds: new Set([alice.profileId]),
+              blockedProfileIds: new Set([alice.profileId]),
+            }
+          : {
+              followingProfileIds: new Set<string>(),
+              mutualProfileIds: new Set<string>(),
+              blockedProfileIds: new Set<string>(),
+            },
+    });
+    const post = await store.create(alice, fields({ visibility: "public", venueId: "venue-1" }));
+    await store.processModerationQueue({ moderate: async () => ({ decision: "approved" }) });
+
+    await expect(store.read(post.id, alice)).resolves.toMatchObject({
+      venueId: "venue-1",
+      venueProjected: true,
+    });
+    await expect(store.read(post.id, bob)).resolves.toMatchObject({
+      venueId: "venue-1",
+      venueProjected: true,
+    });
+    await expect(store.read(post.id, carol)).resolves.toBeNull();
+
+    const strangerStore = createMemorySocialPostStore({
+      relationships: async () => ({
+        followingProfileIds: new Set<string>(),
+        mutualProfileIds: new Set<string>(),
+        blockedProfileIds: new Set<string>(),
+      }),
+    });
+    const strangerPost = await strangerStore.create(alice, fields({ visibility: "public", venueId: "venue-1" }));
+    await strangerStore.processModerationQueue({ moderate: async () => ({ decision: "approved" }) });
+    await expect(strangerStore.read(strangerPost.id, carol)).resolves.toMatchObject({
+      venueId: null,
+      venueProjected: false,
+    });
+  });
+
   it("returns discover, nearby, and following lanes newest-first with scoped cursors", async () => {
     let tick = Date.parse("2026-08-05T18:00:00.000Z");
     const store = createMemorySocialPostStore({
@@ -123,13 +171,24 @@ describe("Social post store visibility and feeds", () => {
       .map((post) => post.body)).toEqual(["newer friends", "older public"]);
   });
 
-  it("requeues real edits, increments revision, and never exposes account IDs", async () => {
+  it("uses compare-and-swap for every reader-visible edit and moderates only sensitive changes", async () => {
     const store = createMemorySocialPostStore();
     const post = await store.create(alice, fields());
     await store.processModerationQueue({ moderate: async () => ({ decision: "approved" }) });
-    const edited = await store.edit(post.id, alice, { body: "Changed" }, true);
+    const visibilityEdit = await store.edit(post.id, alice, 0, { visibility: "friends" }, false);
 
-    expect(edited).toMatchObject({ body: "Changed", revision: 1, moderationState: "pending" });
+    expect(visibilityEdit).toMatchObject({
+      visibility: "friends",
+      revision: 1,
+      moderationState: "approved",
+      editedAt: expect.any(String),
+    });
+    await expect(store.edit(post.id, alice, 0, { area: "shoreditch" }, false))
+      .rejects.toMatchObject({ code: "EDIT_CONFLICT" });
+
+    const edited = await store.edit(post.id, alice, 1, { body: "Changed" }, true);
+
+    expect(edited).toMatchObject({ body: "Changed", revision: 2, moderationState: "pending" });
     expect(JSON.stringify(edited)).not.toContain(alice.accountId);
     await expect(store.read(post.id, bob)).resolves.toBeNull();
   });
@@ -139,7 +198,7 @@ describe("Social post store visibility and feeds", () => {
     const post = await store.create(alice, fields({ body: "Same words" }));
     await store.processModerationQueue({ moderate: async () => ({ decision: "approved" }) });
 
-    const unchanged = await store.edit(post.id, alice, { body: "Same words" }, true);
+    const unchanged = await store.edit(post.id, alice, 0, { body: "Same words" }, true);
     expect(unchanged).toMatchObject({
       revision: 0,
       editedAt: null,
@@ -158,7 +217,7 @@ describe("Social post store visibility and feeds", () => {
       }),
     });
     while (!release) await Promise.resolve();
-    await store.edit(post.id, alice, { body: "Second version" }, true);
+    await store.edit(post.id, alice, 0, { body: "Second version" }, true);
     release();
     await moderation;
 

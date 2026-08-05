@@ -4,9 +4,14 @@ import { OpenAISocialPostModerationAdapter } from "@/lib/socialPostModeration";
 
 describe("OpenAI Social post moderation adapter", () => {
   it("uses the direct Moderations API and exact required model", async () => {
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({
-      results: [{ flagged: false }],
-    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    let sentInit: RequestInit | undefined;
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      sentInit = init;
+      return new Response(JSON.stringify({ results: [{ flagged: false }] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
     const adapter = new OpenAISocialPostModerationAdapter({ apiKey: "test-key", fetcher });
 
     await expect(adapter.moderate({ postId: "post-1", text: "Evening" }))
@@ -18,6 +23,35 @@ describe("OpenAI Social post moderation adapter", () => {
         body: JSON.stringify({ model: "omni-moderation-latest", input: "Evening" }),
       }),
     );
+  });
+
+  it("sends canonical text and the normalised private image in one multimodal decision", async () => {
+    let sentInit: RequestInit | undefined;
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      sentInit = init;
+      return new Response(JSON.stringify({ results: [{ flagged: false }] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    const adapter = new OpenAISocialPostModerationAdapter({ apiKey: "test-key", fetcher });
+
+    await adapter.moderate({
+      postId: "post-1",
+      text: "Evening\n\n#camden\n\nPhoto: Friends outside a pub",
+      imageUrl: "https://storage.test/signed-image",
+    });
+
+    const body = JSON.parse(String(sentInit?.body));
+    expect(body).toEqual({
+      model: "omni-moderation-latest",
+      input: [
+        { type: "text", text: "Evening\n\n#camden\n\nPhoto: Friends outside a pub" },
+        { type: "image_url", image_url: { url: "https://storage.test/signed-image" } },
+      ],
+    });
+    expect(JSON.stringify(body)).not.toContain("profile-");
+    expect(JSON.stringify(body)).not.toContain("@alice");
   });
 
   it("returns needs-review for flagged content and throws on outage or malformed results", async () => {

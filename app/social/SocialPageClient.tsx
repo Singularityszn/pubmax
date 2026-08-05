@@ -20,6 +20,8 @@ import type { SocialPostDTO } from "@/lib/socialPosts";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import "./social.css";
+import SocialComposer from "./SocialComposer";
+import SocialTagInbox from "./SocialTagInbox";
 
 export type SocialBoundaryState =
   Exclude<SocialAccessState, "verified"> | "unavailable";
@@ -155,7 +157,7 @@ export function SocialAccessBoundary({
 
 export function SocialPostCard({ post }: { post: SocialPostDTO }) {
   const area = post.area ? getNightArea(post.area) : null;
-  const exactVenueId = post.visibility === "public" ? null : post.venueId;
+  const exactVenueId = post.venueProjected ? post.venueId : null;
   const when = relativeTime(post.createdAt);
   return (
     <article className="socialPostCard">
@@ -167,6 +169,15 @@ export function SocialPostCard({ post }: { post: SocialPostDTO }) {
         <p className="socialPostKind">Feature request</p>
       ) : null}
       <p className="socialPostBody">{post.body}</p>
+      {post.photo ? (
+        <figure className="socialPostPhoto">
+          {/* eslint-disable-next-line @next/next/no-img-element -- private signed delivery route. */}
+          <img src={`/api/social/media/${post.photo.mediaId}`} alt={post.photo.altText} />
+          {post.photo.tags && post.photo.tags.length > 0 ? (
+            <figcaption>{post.photo.tags.map((tag) => `@${tag.handle}`).join(" ")}</figcaption>
+          ) : null}
+        </figure>
+      ) : null}
       {area || exactVenueId ? (
         <p className="socialPostPlace">
           {area ? <span>{area.name}</span> : null}
@@ -182,6 +193,7 @@ export function SocialPostCard({ post }: { post: SocialPostDTO }) {
           ))}
         </p>
       ) : null}
+      {post.editedAt ? <p className="socialPostEdited">Edited</p> : null}
     </article>
   );
 }
@@ -473,6 +485,8 @@ export default function SocialPageClient({
         <h1 className="socialTitle">Social</h1>
         <div className="socialLayout">
           <aside className="socialControlRail" aria-label="Social views">
+            {showPostsControls ? <SocialComposer onCreated={() => setFeedAttempt((value) => value + 1)} /> : null}
+            {showPostsControls ? <SocialTagInbox /> : null}
             <nav className="socialSwitcher" aria-label="Social view">
               <Link href="/social" aria-current={isPosts ? "page" : undefined}>
                 Posts

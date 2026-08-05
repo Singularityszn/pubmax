@@ -434,7 +434,7 @@ export function createMemorySocialInteractionStore(options: {
       const source = await visiblePost(postId, actor);
       if (!source) throw new SocialInteractionStoreError("NOT_FOUND", "Post not found.");
       if (source.authorProfileId !== actor.profileId) throw new SocialInteractionStoreError("FORBIDDEN", "Only the author can change comments.");
-      await posts.edit(postId, actor as SocialPostActor, { commentPolicy: policy }, false);
+      await posts.edit(postId, actor as SocialPostActor, source.post.revision, { commentPolicy: policy }, false);
     },
 
     async createQuote(actor, postId, input) {
