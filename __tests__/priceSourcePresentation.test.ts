@@ -6,6 +6,7 @@ import DrinkMenu from "@/components/drinks/DrinkMenu";
 import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { Drink } from "@/lib/drinks";
+import { venueDrinkMenu } from "@/lib/drinkMenu";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue, VenuePrice } from "@/lib/venues";
 
@@ -248,6 +249,45 @@ describe("baseline price-source presentation", () => {
       `<time dateTime="${observedAt}">21 Jul 2026</time>`,
     );
     expect(html).not.toMatch(/\b(current|tonight)\b/i);
+  });
+
+  it("uses the dataset lane's 3 July collection stamp and 90-day freshness budget", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-01T12:00:00.000Z"));
+    const html = renderToStaticMarkup(
+      createElement(DrinkMenu, {
+        drinks: venueDrinkMenu("venue-test", [price("")], () => []),
+        venueName: "The Test Arms",
+      }),
+    );
+
+    expect(html).toContain("Seen");
+    expect(html).not.toContain("Last seen");
+    expect(html).toContain(
+      '<time dateTime="2026-07-03T12:00:00.000Z">3 Jul 2026</time>',
+    );
+  });
+
+  it("formats a late UTC observation on its Europe/London calendar day", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-05T12:00:00.000Z"));
+    const observedAt = "2026-08-01T23:30:00.000Z";
+    const html = renderToStaticMarkup(
+      createElement(DrinkMenu, {
+        drinks: [
+          drink(
+            "Pint Prices",
+            "https://www.pint-prices.com/pub/the-test-arms",
+            observedAt,
+          ),
+        ],
+        venueName: "The Test Arms",
+      }),
+    );
+
+    expect(html).toContain(
+      `<time dateTime="${observedAt}">2 Aug 2026</time>`,
+    );
   });
 
   it("states the missing publisher beside an Overview baseline price", () => {

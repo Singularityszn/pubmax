@@ -126,7 +126,7 @@ describe("classifyActionOutcome + optimistic reconciliation", () => {
     expect(classifyActionOutcome(201)).toBe("confirmed");
   });
 
-  it("maps a network drop and 5xx to offline (queued look)", () => {
+  it("maps a network drop and 5xx to an offline failure", () => {
     expect(classifyActionOutcome("network")).toBe("offline");
     expect(classifyActionOutcome(503)).toBe("offline");
   });

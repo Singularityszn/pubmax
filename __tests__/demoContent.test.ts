@@ -1,8 +1,14 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { afterEach, describe, expect, it } from "vitest";
 
 import { ambientPresenceCurve } from "@/lib/ambientPresence";
 import { demoContentEnabled } from "@/lib/demoContent";
-import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
+import {
+  parseDrinkPriceUpdates,
+  type DrinkPriceUpdate,
+} from "@/lib/drinkPriceUpdates";
 import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import type { VenuePrice } from "@/lib/venues";
 import { venueMenuForInspector } from "@/lib/venueMenu";
@@ -12,6 +18,15 @@ const original = process.env[FLAG];
 const SEEDED_VENUE_ID = "venue-16pnwmm";
 const PROSPECT_KEY =
   "prospect of whitby|57 wapping wall, e1w 3sh|51.50710|-0.05113";
+const SHIPPED_MENU_UPDATES = parseDrinkPriceUpdates(
+  JSON.parse(
+    readFileSync(
+      join(process.cwd(), "public/data/drink_price_updates/latest.json"),
+      "utf8",
+    ),
+  ) as unknown,
+  Date.parse("2026-08-05T12:00:00.000Z"),
+);
 
 function prospectPrice(): VenuePrice {
   return {
@@ -146,6 +161,18 @@ describe("demo content kill switch", () => {
       menu.some((drink) => drink.provenance.source.toLowerCase().includes("demo")),
     ).toBe(false);
     expect(menu.some((drink) => drink.name === "Publisher Pinot")).toBe(true);
+  });
+
+  it("off removes demo rows from the shipped drink-price artifact", () => {
+    process.env[FLAG] = "off";
+
+    const menu = venueMenuForInspector(
+      { id: SEEDED_VENUE_ID, prices: [prospectPrice()] },
+      SHIPPED_MENU_UPDATES,
+    );
+
+    expect(menu.some((drink) => drink.name === "Lucky Saint 0.5%")).toBe(false);
+    expect(menu.some((drink) => drink.provenance.source.includes("demo"))).toBe(false);
   });
 
   it("on preserves seeded menu drinks and demo overlays", () => {

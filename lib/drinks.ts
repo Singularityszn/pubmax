@@ -51,7 +51,17 @@ export type DrinkProvenance = {
   licence: string;
   // ISO-8601 timestamp the fact was observed/seeded.
   observedAt: string;
+  /** Explicit where a publisher label alone cannot identify the price lane. */
+  lane?: "dataset" | "drink-price-update" | "demo";
 };
+
+export function isDemoDrinkSource(source: string): boolean {
+  return source === "seed" || source.toLocaleLowerCase("en-GB").includes("demo");
+}
+
+export function isDemoDrinkProvenance(provenance: DrinkProvenance): boolean {
+  return provenance.lane === "demo" || isDemoDrinkSource(provenance.source);
+}
 
 export type AlcoholType = "alcoholic" | "low-no" | "unknown";
 
@@ -267,6 +277,7 @@ export function legacyPricesToDrinks(
         ...(namedSource ? { sourceUrl: namedSource.url } : {}),
         licence: namedSource ? "not stated in record" : "first-party",
         observedAt,
+        lane: "dataset",
       },
     });
   }
