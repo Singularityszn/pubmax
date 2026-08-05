@@ -33,5 +33,5 @@ Proof frames:
 - `390-light-outbox-load-more-final.png` - 44px control for older owner posts
 - `390-light-outbox-pagination-final.png` - accumulated Friends, Public, and Private rows
 
-All frames show final custom photo control. Native file input remains visually
-hidden and keyboard focus appears on its labelled control.
+All composer frames show final custom photo control. Native file input remains
+visually hidden and keyboard focus appears on its labelled control.
