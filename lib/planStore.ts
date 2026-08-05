@@ -170,6 +170,48 @@ function memberFromRow(row: Record<string, unknown>): CrewMemberDTO {
   };
 }
 
+async function readSupabasePlanState(
+  id: string,
+  socialOwnerAccountId: string | null,
+): Promise<PlanState | null> {
+  const admin = requireSupabaseAdmin();
+  let planQuery = admin.from(PLANS)
+    .select("id,title,start_time,created_at,status,route_revision,night_context,ending,anchor_venue_id,anchor_source,plan_outcome,route_ready_at,social_owner_account_id")
+    .eq("id", id);
+  planQuery = socialOwnerAccountId === null
+    ? planQuery.is("social_owner_account_id", null)
+    : planQuery.eq("social_owner_account_id", socialOwnerAccountId);
+  const { data: planRow, error } = await planQuery.maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!planRow) return null;
+  const [
+    { data: stopRows, error: stopsError },
+    { data: memberRows, error: membersError },
+    { data: actionRows, error: actionsError },
+  ] = await Promise.all([
+    admin.from(STOPS).select("venue_id,venue_name,position").eq("plan_id", id).order("position"),
+    admin.from(MEMBERS).select("id,name,status,joined_at,updated_at").eq("plan_id", id).order("joined_at").order("id"),
+    admin.from(ACTIONS).select("id,type,stop_position,ending,created_at").eq("plan_id", id).order("created_at"),
+  ]);
+  if (stopsError || membersError || actionsError) {
+    throw new Error(stopsError?.message ?? membersError?.message ?? actionsError?.message);
+  }
+  return {
+    plan: planFromRow(planRow as Record<string, unknown>),
+    stops: (stopRows ?? []).map((row) => stopFromRow(row as Record<string, unknown>)),
+    crew: (memberRows ?? []).map((row) => memberFromRow(row as Record<string, unknown>)),
+    context: (planRow as Record<string, unknown>).night_context as NightContext | null ?? null,
+    actions: (actionRows ?? []).map((row) => ({
+      id: String(row.id),
+      type: row.type as PlanActionDTO["type"],
+      stopPosition: row.stop_position as number | null,
+      ending: row.ending as CrawlEnding | null,
+      createdAt: String(row.created_at),
+    })),
+    ending: (planRow as Record<string, unknown>).ending as CrawlEnding | null ?? null,
+  };
+}
+
 export const supabasePlanStore: PlanStore = {
   async create(input, options = {}) {
     const clean = cleanCreatePlan(input);
@@ -215,25 +257,7 @@ export const supabasePlanStore: PlanStore = {
   async get(id) {
     if (!isPlanId(id)) return null;
     try {
-      const admin = requireSupabaseAdmin();
-      const { data: planRow, error } = await admin.from(PLANS)
-        .select("id,title,start_time,created_at,status,route_revision,night_context,ending,anchor_venue_id,anchor_source,plan_outcome,route_ready_at").eq("id", id).maybeSingle();
-      if (error) throw new Error(error.message);
-      if (!planRow) return null;
-      const [{ data: stopRows, error: stopsError }, { data: memberRows, error: membersError }, { data: actionRows, error: actionsError }] = await Promise.all([
-        admin.from(STOPS).select("venue_id,venue_name,position").eq("plan_id", id).order("position"),
-        admin.from(MEMBERS).select("id,name,status,joined_at,updated_at").eq("plan_id", id).order("joined_at").order("id"),
-        admin.from(ACTIONS).select("id,type,stop_position,ending,created_at").eq("plan_id", id).order("created_at"),
-      ]);
-      if (stopsError || membersError || actionsError) throw new Error(stopsError?.message ?? membersError?.message ?? actionsError?.message);
-      return {
-        plan: planFromRow(planRow as Record<string, unknown>),
-        stops: (stopRows ?? []).map((row) => stopFromRow(row as Record<string, unknown>)),
-        crew: (memberRows ?? []).map((row) => memberFromRow(row as Record<string, unknown>)),
-        context: (planRow as Record<string, unknown>).night_context as NightContext | null ?? null,
-        actions: (actionRows ?? []).map((row) => ({ id: String(row.id), type: row.type as PlanActionDTO["type"], stopPosition: row.stop_position as number | null, ending: row.ending as CrawlEnding | null, createdAt: String(row.created_at) })),
-        ending: (planRow as Record<string, unknown>).ending as CrawlEnding | null ?? null,
-      };
+      return await readSupabasePlanState(id, null);
     } catch (error) {
       console.error("[plans] read failed:", error instanceof Error ? error.message : error);
       return null;
@@ -281,6 +305,9 @@ export const supabasePlanStore: PlanStore = {
     if (!isPlanId(id) || typeof rawToken !== "string" || !isCrewPresenceStatus(rawStatus)) {
       return { ok: false, error: "invalid" };
     }
+    const lookup = await planStateResult(id);
+    if (!lookup.ok) return { ok: false, error: "error" };
+    if (!lookup.plan) return { ok: false, error: "not_found" };
     try {
       const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
         .update({ status: rawStatus, updated_at: new Date().toISOString() })
@@ -296,6 +323,9 @@ export const supabasePlanStore: PlanStore = {
   },
   async update(id, rawToken, update) {
     if (!isPlanId(id) || typeof rawToken !== "string") return { ok: false, error: "invalid" };
+    const legacyLookup = await planStateResult(id);
+    if (!legacyLookup.ok) return { ok: false, error: "error" };
+    if (!legacyLookup.plan) return { ok: false, error: "not_found" };
     const admin = requireSupabaseAdmin();
     if (update.stops) {
       const stops = cleanReplacementStops(update.stops);
@@ -342,14 +372,14 @@ export const supabasePlanStore: PlanStore = {
     // Completion is intentionally not an ordinary action write: it must insert
     // the ending action, completion record, and terminal status atomically.
     if (action.type === "ending") return { ok: false, error: "invalid" };
-    const identityResult = await planMemberIdentityResult(id, rawToken);
-    if (!identityResult.ok) return { ok: false, error: "error" };
-    const identity = identityResult.identity;
-    if (!identity?.collaborationAuthorized || (action.type === "swapped" && identity.role !== "host")) return { ok: false, error: "forbidden" };
     const currentResult = await planStateResult(id);
     if (!currentResult.ok) return { ok: false, error: "error" };
     const current = currentResult.plan;
     if (!current) return { ok: false, error: "not_found" };
+    const identityResult = await planMemberIdentityResult(id, rawToken);
+    if (!identityResult.ok) return { ok: false, error: "error" };
+    const identity = identityResult.identity;
+    if (!identity?.collaborationAuthorized || (action.type === "swapped" && identity.role !== "host")) return { ok: false, error: "forbidden" };
     if (!Number.isInteger(action.stopPosition)
       || !current.stops.some((stop) => stop.position === action.stopPosition)) {
       return { ok: false, error: "invalid" };
@@ -391,6 +421,9 @@ export const supabasePlanStore: PlanStore = {
         input.expectedRouteRevision < 1 || !cleanEndingSelection(input.endingSelection, input.ending)) {
       return { ok: false, error: "invalid" };
     }
+    const legacyLookup = await planStateResult(id);
+    if (!legacyLookup.ok) return { ok: false, error: "error" };
+    if (!legacyLookup.plan) return { ok: false, error: "not_found" };
     const identityResult = await planMemberIdentityResult(id, rawToken);
     if (!identityResult.ok) return { ok: false, error: "error" };
     if (identityResult.identity?.role !== "host") return { ok: false, error: "forbidden" };
@@ -740,11 +773,33 @@ export async function planStateResult(id: string): Promise<PlanStateLookupResult
   if (!isPlanId(id)) return { ok: true, plan: null };
   if (!isSupabaseConfigured()) return { ok: true, plan: await memoryPlanStore.get(id) };
   try {
-    const { data, error } = await requireSupabaseAdmin().from(PLANS).select("id").eq("id", id).maybeSingle();
+    const { data, error } = await requireSupabaseAdmin().from(PLANS).select("id")
+      .eq("id", id)
+      .is("social_owner_account_id", null)
+      .maybeSingle();
     if (error) return { ok: false, error: "error" };
     if (!data) return { ok: true, plan: null };
     const plan = await supabasePlanStore.get(id);
     return plan ? { ok: true, plan } : { ok: false, error: "error" };
+  } catch {
+    return { ok: false, error: "error" };
+  }
+}
+
+/** Reads a Crew-bound Plan only after Social authority supplied its stable owner account. */
+export async function socialBoundPlanStateResult(
+  id: string,
+  expectedOwnerAccountId: string,
+): Promise<PlanStateLookupResult> {
+  if (!isPlanId(id) || !isPlanId(expectedOwnerAccountId)) {
+    return { ok: true, plan: null };
+  }
+  if (!isSupabaseConfigured()) return { ok: false, error: "error" };
+  try {
+    return {
+      ok: true,
+      plan: await readSupabasePlanState(id, expectedOwnerAccountId),
+    };
   } catch {
     return { ok: false, error: "error" };
   }
