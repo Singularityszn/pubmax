@@ -10,6 +10,7 @@ import {
   nightCrawlIdempotencyScope,
   nightCrawlStack,
   outcomeKeepsOptimistic,
+  reconcileNightCrawlAction,
   stopDisposition,
 } from "@/lib/nightCrawl";
 import type { PlanActionDTO, PlanStopDTO } from "@/lib/plan";
@@ -137,11 +138,54 @@ describe("classifyActionOutcome + optimistic reconciliation", () => {
     expect(classifyActionOutcome(404)).toBe("rejected");
   });
 
-  it("keeps the optimistic advance only for confirmed and offline", () => {
+  it("keeps the optimistic advance only for a confirmed write", () => {
     expect(outcomeKeepsOptimistic("confirmed")).toBe(true);
-    expect(outcomeKeepsOptimistic("offline")).toBe(true);
+    expect(outcomeKeepsOptimistic("offline")).toBe(false);
     expect(outcomeKeepsOptimistic("rejected")).toBe(false);
     expect(outcomeKeepsOptimistic("forbidden")).toBe(false);
+  });
+
+  it.each([
+    ["arrived", "network"],
+    ["skipped", 503],
+    ["arrived", 400],
+  ] as const)(
+    "rolls back a failed %s action, clears its optimistic mark, and shows honest retry copy",
+    (type, statusOrError) => {
+      const outcome = classifyActionOutcome(statusOrError);
+      const result = reconcileNightCrawlAction({
+        outcome,
+        type,
+        venueName: "The Bull & Last",
+        stopPosition: 0,
+        previousCursor: 0,
+        optimisticCursor: 1,
+        optimistic: { 0: type },
+      });
+
+      expect(result).toEqual({
+        cursor: 0,
+        optimistic: {},
+        note: {
+          text: "That did not save. Try again when you have signal.",
+          tone: outcome,
+        },
+      });
+    },
+  );
+
+  it("keeps the advance but clears the temporary mark after confirmation", () => {
+    expect(
+      reconcileNightCrawlAction({
+        outcome: "confirmed",
+        type: "arrived",
+        venueName: "The Bull & Last",
+        stopPosition: 0,
+        previousCursor: 0,
+        optimisticCursor: 1,
+        optimistic: { 0: "arrived" },
+      }),
+    ).toEqual({ cursor: 1, optimistic: {}, note: null });
   });
 });
 
@@ -160,13 +204,17 @@ describe("nightCrawlActionNote (value-first, no apology-first, plain British)", 
     }
   });
 
-  it("offline copy promises a sync, rejected copy invites another tap", () => {
-    expect(nightCrawlActionNote("arrived", "X", "offline")).toMatch(/sync/i);
-    expect(nightCrawlActionNote("skipped", "X", "rejected")).toMatch(/another tap/i);
-    expect(nightCrawlActionNote("arrived", "X", "forbidden")).toMatch(/crew/i);
+  it("all failed writes use the same honest retry copy and never promise a sync", () => {
+    for (const outcome of ["offline", "rejected", "forbidden"] as const) {
+      const note = nightCrawlActionNote("arrived", "X", outcome);
+      expect(note).toBe("That did not save. Try again when you have signal.");
+      expect(note).not.toMatch(/will sync/i);
+    }
   });
 
-  it("falls back to a generic name when the venue name is blank", () => {
-    expect(nightCrawlActionNote("arrived", "  ", "rejected")).toContain("this stop");
+  it("does not imply an action succeeded when the venue name is blank", () => {
+    expect(nightCrawlActionNote("arrived", "  ", "rejected")).toBe(
+      "That did not save. Try again when you have signal.",
+    );
   });
 });

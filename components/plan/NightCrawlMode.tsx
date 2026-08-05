@@ -13,9 +13,8 @@
 // Actions: We-are-here / Skip post through the existing /api/plans/[id]/actions
 // endpoint with a persistent idempotency key (lib/planMutationKey). The tap flips
 // the stack optimistically (the done row marks, the cursor advances) and the
-// outcome reconciles honestly — a confirmed write adopts the canonical plan, a
-// rejection rolls the advance back, a signal drop keeps the queued-look advance
-// and says it'll sync. No offline outbox (that's a later lane).
+// outcome reconciles honestly - a confirmed write adopts the canonical plan;
+// any failed write restores the prior stop because there is no offline outbox.
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
@@ -32,11 +31,11 @@ import {
   advanceNightCrawl,
   classifyActionOutcome,
   isFinalStop,
-  nightCrawlActionNote,
   nightCrawlActionPayload,
   nightCrawlHero,
   nightCrawlIdempotencyScope,
   nightCrawlStack,
+  reconcileNightCrawlAction,
   type NightCrawlActionType,
 } from "@/lib/nightCrawl";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
@@ -189,15 +188,6 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     setOpen(false);
   }, [collapseKey]);
 
-  const clearOptimistic = useCallback((position: number) => {
-    setOptimistic((prev) => {
-      if (!(position in prev)) return prev;
-      const next = { ...prev };
-      delete next[position];
-      return next;
-    });
-  }, []);
-
   const runAction = useCallback(
     async (type: NightCrawlActionType) => {
       if (busy || !hero) return;
@@ -207,12 +197,24 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       setBusy(type);
       setNote(null);
       // Optimistic: the done row marks and the cursor advances on the same frame.
-      setOptimistic((prev) => ({ ...prev, [stopPosition]: type }));
-      setActivePlanStopIndex(advanceNightCrawl(cursor, stops.length));
+      const optimisticState = { ...optimistic, [stopPosition]: type };
+      const optimisticCursor = advanceNightCrawl(cursor, stops.length);
+      setOptimistic(optimisticState);
+      setActivePlanStopIndex(optimisticCursor);
 
-      const rollback = () => {
-        clearOptimistic(stopPosition);
-        setActivePlanStopIndex(previousCursor);
+      const reconcile = (outcome: ReturnType<typeof classifyActionOutcome>) => {
+        const settled = reconcileNightCrawlAction({
+          outcome,
+          type,
+          venueName: heroName,
+          stopPosition,
+          previousCursor,
+          optimisticCursor,
+          optimistic: optimisticState,
+        });
+        setOptimistic(settled.optimistic);
+        setActivePlanStopIndex(settled.cursor);
+        setNote(settled.note);
       };
 
       let token = memberToken;
@@ -221,8 +223,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
         token = parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot(planId)).token;
       }
       if (!token) {
-        rollback();
-        setNote({ text: nightCrawlActionNote(type, heroName, "forbidden"), tone: "forbidden" });
+        reconcile("forbidden");
         setBusy(null);
         return;
       }
@@ -251,18 +252,11 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
         if (body && typeof body === "object" && Array.isArray((body as PlanState).stops)) {
           setPlan(body as PlanState);
         }
-        clearOptimistic(stopPosition);
-        setNote(null);
-      } else if (outcome === "offline") {
-        // Keep the queued-look advance; the persisted key makes a later retry safe.
-        setNote({ text: nightCrawlActionNote(type, heroName, "offline"), tone: "offline" });
-      } else {
-        rollback();
-        setNote({ text: nightCrawlActionNote(type, heroName, outcome), tone: outcome });
       }
+      reconcile(outcome);
       setBusy(null);
     },
-    [busy, hero, cursor, stops.length, memberToken, planId, clearOptimistic],
+    [busy, hero, cursor, stops.length, memberToken, planId, optimistic],
   );
 
   if (!activeNow) return null;

@@ -121,10 +121,17 @@ export function nightCrawlIdempotencyScope(planId: string, type: NightCrawlActio
 //               the optimistic advance back so the hero honestly returns.
 //   forbidden → 403; the viewer isn't a checked-in crew member — roll back and
 //               point them at joining, never fake the check-in.
-//   offline   → network drop or 5xx; KEEP the optimistic advance (queued look,
-//               consistent with the app's existing optimistic behaviour) and
-//               tell the viewer it'll sync — we do NOT build an offline outbox.
+//   offline   → network drop or 5xx; roll back because no offline outbox exists.
 export type NightCrawlOutcome = "confirmed" | "rejected" | "forbidden" | "offline";
+
+export type NightCrawlActionReconciliation = {
+  cursor: number;
+  optimistic: Record<number, NightCrawlActionType>;
+  note: {
+    text: string;
+    tone: Exclude<NightCrawlOutcome, "confirmed">;
+  } | null;
+};
 
 export function classifyActionOutcome(statusOrError: number | "network"): NightCrawlOutcome {
   if (statusOrError === "network") return "offline";
@@ -134,29 +141,57 @@ export function classifyActionOutcome(statusOrError: number | "network"): NightC
   return "rejected";
 }
 
-/** Whether an outcome keeps the optimistic advance (offline queued-look) or not. */
+/** Whether an outcome keeps the optimistic advance. Only a saved write may. */
 export function outcomeKeepsOptimistic(outcome: NightCrawlOutcome): boolean {
-  return outcome === "confirmed" || outcome === "offline";
+  return outcome === "confirmed";
 }
 
 /**
- * Value-first, plain-British feedback for a resolved tap. Leads with where the
- * crew now stands (never "Sorry"), then the honest next step. Confirmed taps
- * need no note — the stack speaks for itself — so this only covers the three
- * unresolved outcomes.
+ * Honest feedback for a failed tap. Confirmed taps need no note because the
+ * stack speaks for itself.
  */
 export function nightCrawlActionNote(
   type: NightCrawlActionType,
   venueName: string,
   outcome: Exclude<NightCrawlOutcome, "confirmed">,
 ): string {
-  const name = venueName.trim() || "this stop";
-  const deed = type === "arrived" ? "check-in" : "skip";
-  if (outcome === "offline") {
-    return `Marked on your phone. This ${deed} will sync when the signal's back.`;
+  void type;
+  void venueName;
+  void outcome;
+  return "That did not save. Try again when you have signal.";
+}
+
+/** Resolve temporary action state after the write returns. */
+export function reconcileNightCrawlAction({
+  outcome,
+  type,
+  venueName,
+  stopPosition,
+  previousCursor,
+  optimisticCursor,
+  optimistic,
+}: {
+  outcome: NightCrawlOutcome;
+  type: NightCrawlActionType;
+  venueName: string;
+  stopPosition: number;
+  previousCursor: number;
+  optimisticCursor: number;
+  optimistic: Readonly<Record<number, NightCrawlActionType>>;
+}): NightCrawlActionReconciliation {
+  const settledOptimistic = { ...optimistic };
+  delete settledOptimistic[stopPosition];
+
+  if (outcome === "confirmed") {
+    return { cursor: optimisticCursor, optimistic: settledOptimistic, note: null };
   }
-  if (outcome === "forbidden") {
-    return `Join tonight's crew to check the night in. Your place in the crawl is unchanged.`;
-  }
-  return `Still at ${name}. That ${deed} didn't save, give it another tap.`;
+
+  return {
+    cursor: previousCursor,
+    optimistic: settledOptimistic,
+    note: {
+      text: nightCrawlActionNote(type, venueName, outcome),
+      tone: outcome,
+    },
+  };
 }

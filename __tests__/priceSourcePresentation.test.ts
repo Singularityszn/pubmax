@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import DrinkMenu from "@/components/drinks/DrinkMenu";
 import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
@@ -12,7 +12,7 @@ import type { Venue, VenuePrice } from "@/lib/venues";
 const noop = () => {};
 const OBSERVED = "2026-07-01T12:00:00.000Z";
 
-function drink(source: string, sourceUrl?: string): Drink {
+function drink(source: string, sourceUrl?: string, observedAt = OBSERVED): Drink {
   return {
     id: `beer-${source}`,
     category: "beer",
@@ -22,10 +22,14 @@ function drink(source: string, sourceUrl?: string): Drink {
       source,
       sourceUrl,
       licence: "first-party",
-      observedAt: OBSERVED,
+      observedAt,
     },
   };
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function price(pubUrl: string): VenuePrice {
   return {
@@ -201,6 +205,49 @@ describe("baseline price-source presentation", () => {
     expect(html).toContain(`href="${sourceUrl}"`);
     expect(html).toContain(">Pint Prices</a>");
     expect(html).not.toContain("Publisher not recorded");
+  });
+
+  it("shows a sourced menu price's publisher and formatted observation date", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-05T12:00:00.000Z"));
+    const sourceUrl = "https://www.pint-prices.com/pub/the-test-arms";
+    const observedAt = "2026-08-01T12:00:00.000Z";
+    const html = renderToStaticMarkup(
+      createElement(DrinkMenu, {
+        drinks: [drink("Pint Prices", sourceUrl, observedAt)],
+        venueName: "The Test Arms",
+      }),
+    );
+
+    expect(html).toContain(">Pint Prices</a>");
+    expect(html).toContain("Seen");
+    expect(html).toContain(
+      `<time dateTime="${observedAt}">1 Aug 2026</time>`,
+    );
+  });
+
+  it("labels a sourced menu price beyond the freshness budget as last seen", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-05T12:00:00.000Z"));
+    const observedAt = "2026-07-21T12:00:00.000Z";
+    const html = renderToStaticMarkup(
+      createElement(DrinkMenu, {
+        drinks: [
+          drink(
+            "Pint Prices",
+            "https://www.pint-prices.com/pub/the-test-arms",
+            observedAt,
+          ),
+        ],
+        venueName: "The Test Arms",
+      }),
+    );
+
+    expect(html).toContain("Last seen");
+    expect(html).toContain(
+      `<time dateTime="${observedAt}">21 Jul 2026</time>`,
+    );
+    expect(html).not.toMatch(/\b(current|tonight)\b/i);
   });
 
   it("states the missing publisher beside an Overview baseline price", () => {
