@@ -48,6 +48,21 @@ async function joinInvited(host: Awaited<ReturnType<typeof createPlan>>, name = 
 }
 
 describe("Plan collaboration HTTP contract", () => {
+  it("returns 404 for a capability-bound request on a missing keyless Plan", async () => {
+    const missingPlanId = "11111111-1111-4111-8111-111111111111";
+    const response = await ADD_CONSTRAINT(new Request(`${URL}/${missingPlanId}/constraints`, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer missing-member-token",
+        "idempotency-key": "missing-plan-constraint",
+      },
+      body: JSON.stringify({ kind: "budget", value: "Under twenty pounds", priority: "required" }),
+    }), ctx(missingPlanId));
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "PLAN_COLLAB_NOT_FOUND", retryable: false });
+  });
+
   it("issues a host-only invite and rejects replay when it is joined twice", async () => {
     const host = await createPlan();
     expect(host.role).toBe("host");
