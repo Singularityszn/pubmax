@@ -19,6 +19,7 @@
 //   • Concurrent claim of the same unlinked handle returns 409 (linkUser race).
 
 import { callerUserId } from "@/lib/authServer";
+import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { profileStore } from "@/lib/profileStore";
 
 export type OwnershipDecision =
@@ -103,6 +104,15 @@ export async function gateHandleAction(
       allowed: false,
       status: 400,
       error: "Add a handle.",
+    };
+  }
+
+  const assessment = assessPubmaxxHandle(key);
+  if (!assessment.ok && assessment.reason === "reserved") {
+    return {
+      allowed: false,
+      status: 409,
+      error: assessment.error,
     };
   }
 

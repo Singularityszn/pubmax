@@ -26,7 +26,7 @@
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { isClerkConfigured } from "@/lib/clerkIdentity";
+import { isClerkProductSessionAvailable } from "@/lib/clerkIdentity";
 
 export default function ClerkAccountControls({
   /**
@@ -42,7 +42,7 @@ export default function ClerkAccountControls({
   // Keep its secondary account controls behind an established product session
   // until that provider bridge exists end to end.
   const { user } = useAuth();
-  if (!user || !isClerkConfigured()) return null;
+  if (!isClerkProductSessionAvailable(user)) return null;
 
   const classes = ["clerkAccount", className].filter(Boolean).join(" ");
 

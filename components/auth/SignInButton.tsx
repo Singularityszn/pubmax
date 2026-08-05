@@ -22,7 +22,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import ClerkAccountControls from "@/components/auth/ClerkAccountControls";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
-import { isClerkConfigured } from "@/lib/clerkIdentity";
+import { isClerkProductSessionAvailable } from "@/lib/clerkIdentity";
 import { trackEvent } from "@/lib/analytics";
 import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
@@ -186,7 +186,7 @@ export default function SignInButton({
   // Clerk does not mint the Supabase session that owns PUBMAXX identity. Its
   // secondary controls stay behind an established product session until that
   // provider bridge exists end to end.
-  const clerkConfigured = isClerkConfigured() && Boolean(user);
+  const clerkConfigured = isClerkProductSessionAvailable(user);
   if (!configured && !clerkConfigured) return null;
 
   // Avoid a flash of the wrong state while the first getSession() resolves.
@@ -224,6 +224,7 @@ export default function SignInButton({
         >
           Sign out
         </button>
+        {clerkConfigured ? <ClerkAccountControls /> : null}
       </div>
     );
   }
@@ -257,7 +258,6 @@ export default function SignInButton({
   const options = (
     <div className="authOptions">
       {supabaseOptions}
-      <ClerkAccountControls />
     </div>
   );
 
@@ -311,7 +311,6 @@ export default function SignInButton({
                 ) : null}
               </>
             ) : null}
-            <ClerkAccountControls />
           </div>
         ) : null}
       </div>

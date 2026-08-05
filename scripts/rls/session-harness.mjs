@@ -1,7 +1,8 @@
 /**
  * Throwaway local Postgres and PostgREST for effective RLS session tests.
- * Starts an ephemeral cluster, applies fixture + wave-2 migrations, and
- * exposes SQL and HTTP runners. Never touches a live Supabase project.
+ * Starts an ephemeral cluster, applies fixture + security migrations through
+ * the V1 release boundary, and exposes SQL and HTTP runners. Never touches a
+ * live Supabase project.
  */
 import { spawn, execFileSync } from "node:child_process";
 import { createHmac } from "node:crypto";
@@ -27,6 +28,9 @@ const WAVE2 = [
   "20260803202000_0067_rls_wave2_owner_policies.sql",
   "20260803203000_0068_rls_wave2_service_role_only.sql",
   "20260803204000_0069_rls_wave2_rpc_hardening.sql",
+];
+const V1_RELEASE = [
+  "20260805070000_0070_v1_release_security.sql",
 ];
 
 const PRE_WAVE_MIGRATIONS = readdirSync(MIGRATIONS_DIR)
@@ -375,6 +379,11 @@ export async function startRlsSession() {
     sqlFile(join(MIGRATIONS_DIR, migration));
     appliedForwardMigrations.push(migration);
   }
+  const preV1CatalogSnapshot = catalogSnapshot();
+  for (const migration of V1_RELEASE) {
+    sqlFile(join(MIGRATIONS_DIR, migration));
+    appliedForwardMigrations.push(migration);
+  }
 
   const postgrest = findPostgrestBin();
   if (!postgrest) {
@@ -481,6 +490,7 @@ export async function startRlsSession() {
   return {
     appliedForwardMigrations,
     preWaveCatalogSnapshot,
+    preV1CatalogSnapshot,
     catalogSnapshot,
     port,
     dataDir,
@@ -489,5 +499,9 @@ export async function startRlsSession() {
     rest,
     stop,
     rollbackPath: join(MIGRATIONS_DIR, "rollback/20260803200000_rls_wave2_rollback.sql"),
+    v1RollbackPath: join(
+      MIGRATIONS_DIR,
+      "rollback/20260805070000_v1_release_security_rollback.sql",
+    ),
   };
 }

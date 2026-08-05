@@ -18,7 +18,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 }));
 
 vi.mock("@/lib/clerkIdentity", () => ({
-  isClerkConfigured: () => true,
+  isClerkProductSessionAvailable: (user: unknown) => Boolean(user),
 }));
 
 import ClerkAccountControls from "@/components/auth/ClerkAccountControls";

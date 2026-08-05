@@ -46,7 +46,7 @@ import {
   NO_SOCIAL_AUTH_PROVIDERS,
   type SocialAuthProviderAvailability,
 } from "@/lib/authProviderAvailability";
-import { isClerkConfigured } from "@/lib/clerkIdentity";
+import { isClerkProductSessionAvailable } from "@/lib/clerkIdentity";
 import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
 import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
@@ -173,7 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const rejectedContributionAuthRef =
     useRef<AccountAuthSnapshot | null>(null);
   const configured = isAuthConfigured();
-  const clerkConfigured = isClerkConfigured() && Boolean(session?.user);
+  const clerkConfigured = isClerkProductSessionAvailable(session?.user);
   const clerk = useClerk();
   const { isLoaded: clerkLoaded } = useClerkAuth();
   const loading = configured && sessionLoading;

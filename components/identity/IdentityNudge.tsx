@@ -28,7 +28,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
-import { isClerkConfigured } from "@/lib/clerkIdentity";
+import { isClerkProductSessionAvailable } from "@/lib/clerkIdentity";
 import { trackEvent } from "@/lib/analytics";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { isValidEmail } from "@/lib/emailSubscribers";
@@ -75,7 +75,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
     signInWithEmail,
     cancelAuthAttempt,
   } = useAuth();
-  const clerkConfigured = isClerkConfigured();
+  const clerkConfigured = isClerkProductSessionAvailable(user);
 
   // Local email-capture state (hooks run unconditionally, before any early
   // return). `status` drives the honest, no-fake-success flow:

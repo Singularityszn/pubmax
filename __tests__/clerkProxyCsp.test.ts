@@ -19,6 +19,7 @@ import {
   clerkFrontendApiOrigin,
   isClerkConfigured,
   isClerkMiddlewareConfigured,
+  isClerkProductSessionAvailable,
 } from "@/lib/clerkIdentity";
 import { config, securityProxy } from "@/proxy";
 
@@ -48,6 +49,12 @@ function directive(policy: string, name: string): string | undefined {
 }
 
 describe("Clerk publishable key decoding", () => {
+  it("requires both Clerk configuration and a product session for visible controls", () => {
+    expect(isClerkProductSessionAvailable(null, PUBLISHABLE_KEY)).toBe(false);
+    expect(isClerkProductSessionAvailable({ id: "account-a" }, PUBLISHABLE_KEY)).toBe(true);
+    expect(isClerkProductSessionAvailable({ id: "account-a" }, undefined)).toBe(false);
+  });
+
   it("decodes with atob when Buffer is absent (browser path)", () => {
     // The client gate calls clerkFrontendApiOrigin during render. A Buffer-only
     // decode returns null in the browser and hides every Clerk control.

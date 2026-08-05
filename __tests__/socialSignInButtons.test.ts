@@ -18,7 +18,8 @@ vi.mock("@/components/auth/ClerkAccountControls", () => ({
   default: () => "Clerk account controls",
 }));
 vi.mock("@/lib/clerkIdentity", () => ({
-  isClerkConfigured: () => clerkState.configured,
+  isClerkProductSessionAvailable: (user: unknown) =>
+    clerkState.configured && Boolean(user),
 }));
 
 afterEach(() => {
@@ -142,5 +143,31 @@ describe("signed-out sign-in surface", () => {
     expect(html).not.toContain("Continue with Apple");
     expect(html).not.toContain("Continue with email");
     expect(html).not.toContain("Clerk account controls");
+  });
+});
+
+describe("signed-in account surface", () => {
+  it("makes gated Clerk secondary controls reachable from a product session", () => {
+    clerkState.configured = true;
+    authState.current = {
+      user: {
+        id: "account-a",
+        email: "reader@example.com",
+        user_metadata: {},
+      },
+      loading: false,
+      configured: true,
+      socialProviders: { google: false, apple: false },
+      signInWithGoogle: vi.fn(),
+      signInWithApple: vi.fn(),
+      signInWithEmail: vi.fn(),
+      cancelAuthAttempt: vi.fn(),
+      signOut: vi.fn(),
+    };
+
+    const html = renderToStaticMarkup(createElement(SignInButton));
+
+    expect(html).toContain("reader@example.com");
+    expect(html).toContain("Clerk account controls");
   });
 });

@@ -32,7 +32,8 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 
 vi.mock("@/lib/clerkIdentity", () => ({
-  isClerkConfigured: () => clerkState.configured,
+  isClerkProductSessionAvailable: (user: unknown) =>
+    clerkState.configured && Boolean(user),
 }));
 
 vi.mock("@/components/identity/AccountOnboarding", () => ({
