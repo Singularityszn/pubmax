@@ -8,6 +8,31 @@ const providerState = vi.hoisted(() => ({
     access_token: "shared-session",
     user: { id: "account-a" },
   },
+  supabaseOAuth: vi.fn(),
+}));
+
+const clerkState = vi.hoisted(() => {
+  const openSignIn = vi.fn();
+  return {
+    configured: true,
+    openSignIn,
+    clerk: { loaded: true, openSignIn },
+  };
+});
+
+const authAvailability = vi.hoisted(() => ({
+  guard: vi.fn(),
+  loadSupabase: vi.fn(async () => ({ google: false, apple: false })),
+  loadClerk: vi.fn(async () => ({ google: true, apple: false })),
+}));
+
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({ isLoaded: true }),
+  useClerk: () => clerkState.clerk,
+}));
+
+vi.mock("@/lib/clerkIdentity", () => ({
+  isClerkConfigured: () => clerkState.configured,
 }));
 
 vi.mock("@/components/identity/AccountOnboarding", () => ({
@@ -29,19 +54,25 @@ vi.mock("@/lib/authClient", () => ({
       onAuthStateChange: () => ({
         data: { subscription: { unsubscribe: vi.fn() } },
       }),
+      signInWithOAuth: providerState.supabaseOAuth,
       signOut: vi.fn(),
     },
   }),
   isAuthConfigured: () => true,
 }));
 vi.mock("@/lib/authProviderAvailability", () => ({
-  guardSocialAuthProvider: vi.fn(),
-  loadSocialAuthProviders: async () => ({ google: false, apple: false }),
+  guardSocialAuthProvider: authAvailability.guard,
+  loadSocialAuthProviders: authAvailability.loadSupabase,
+  loadClerkSocialAuthProviders: authAvailability.loadClerk,
   NO_SOCIAL_AUTH_PROVIDERS: { google: false, apple: false },
 }));
 vi.mock("@/lib/authRedirect", () => ({
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT: "pubmax:auth-fragment-restored",
-  beginCanonicalAuthAttempt: vi.fn(),
+  beginCanonicalAuthAttempt: vi.fn(async () => ({
+    ok: true,
+    id: "attempt-id",
+    callbackUrl: "http://localhost/auth-callback",
+  })),
   cancelAuthAttempt: vi.fn(),
   releaseAuthAttempt: vi.fn(),
   scrubAuthCallback: async () => null,
@@ -53,7 +84,7 @@ vi.mock("@/lib/identityClient", () => ({
 }));
 vi.mock("@/lib/referralClaimClient", () => ({
   claimSignupReferralFromAuthCallback: vi.fn(),
-  withReferralSignupProof: vi.fn(),
+  withReferralSignupProof: vi.fn((attempt) => attempt),
 }));
 
 import {
@@ -189,6 +220,17 @@ function Consumer({ name }: { name: string }): ReactNode {
 
 beforeEach(() => {
   consumers.clear();
+  clerkState.configured = true;
+  clerkState.openSignIn.mockReset();
+  providerState.supabaseOAuth.mockReset();
+  providerState.supabaseOAuth.mockResolvedValue({ error: null });
+  authAvailability.guard.mockReset();
+  authAvailability.guard.mockResolvedValue({
+    availability: { google: true, apple: false },
+    result: { error: null },
+  });
+  authAvailability.loadSupabase.mockClear();
+  authAvailability.loadClerk.mockClear();
   const document = new TestDocument();
   const window = {
     document,
@@ -276,5 +318,71 @@ describe("shared contribution auth invalidation", () => {
 
     expect(consumers.get("weather")?.auth.contributionAuth).toBeNull();
     expect(weatherActionCalled).toBe(false);
+  });
+
+  it("uses Clerk capability and click handling when Clerk is configured", async () => {
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+
+    await commitReactWork(async () => {
+      root?.render(createElement(AuthProvider, null, createElement(Consumer, { name: "social" })));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const auth = consumers.get("social")?.auth;
+    expect(auth).toBeDefined();
+    const clerkLoadCallsBeforeClick = authAvailability.loadClerk.mock.calls.length;
+
+    await commitReactWork(async () => {
+      await auth?.signInWithGoogle();
+    });
+
+    expect(authAvailability.guard).toHaveBeenCalledWith("google", expect.any(Function), expect.any(Function));
+    expect(authAvailability.loadSupabase).not.toHaveBeenCalled();
+
+    const start = authAvailability.guard.mock.calls[0]?.[1] as (() => Promise<unknown>) | undefined;
+    const load = authAvailability.guard.mock.calls[0]?.[2] as (() => Promise<unknown>) | undefined;
+    await load?.();
+    await start?.();
+
+    expect(authAvailability.loadClerk.mock.calls.length).toBe(clerkLoadCallsBeforeClick + 1);
+    expect(clerkState.openSignIn).toHaveBeenCalledWith({
+      oauthFlow: "redirect",
+      fallbackRedirectUrl: "http://localhost/map",
+      forceRedirectUrl: "http://localhost/map",
+    });
+  });
+
+  it("keeps the Supabase path when Clerk is unconfigured", async () => {
+    clerkState.configured = false;
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+
+    await commitReactWork(async () => {
+      root?.render(createElement(AuthProvider, null, createElement(Consumer, { name: "social" })));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const supabaseLoadCallsBeforeClick = authAvailability.loadSupabase.mock.calls.length;
+    await commitReactWork(async () => {
+      await consumers.get("social")?.auth.signInWithGoogle();
+    });
+
+    expect(authAvailability.guard).toHaveBeenCalledWith("google", expect.any(Function), expect.any(Function));
+    expect(authAvailability.loadClerk).not.toHaveBeenCalled();
+
+    const start = authAvailability.guard.mock.calls[0]?.[1] as (() => Promise<unknown>) | undefined;
+    const load = authAvailability.guard.mock.calls[0]?.[2] as (() => Promise<unknown>) | undefined;
+    await load?.();
+    await start?.();
+
+    expect(authAvailability.loadSupabase.mock.calls.length).toBe(supabaseLoadCallsBeforeClick + 1);
+    expect(providerState.supabaseOAuth).toHaveBeenCalledWith({
+      provider: "google",
+      options: { redirectTo: "http://localhost/auth-callback" },
+    });
+    expect(clerkState.openSignIn).not.toHaveBeenCalled();
   });
 });
