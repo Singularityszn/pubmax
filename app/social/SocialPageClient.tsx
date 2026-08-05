@@ -155,6 +155,7 @@ export function SocialAccessBoundary({
 
 export function SocialPostCard({ post }: { post: SocialPostDTO }) {
   const area = post.area ? getNightArea(post.area) : null;
+  const exactVenueId = post.visibility === "public" ? null : post.venueId;
   const when = relativeTime(post.createdAt);
   return (
     <article className="socialPostCard">
@@ -166,11 +167,11 @@ export function SocialPostCard({ post }: { post: SocialPostDTO }) {
         <p className="socialPostKind">Feature request</p>
       ) : null}
       <p className="socialPostBody">{post.body}</p>
-      {area || post.venueId ? (
+      {area || exactVenueId ? (
         <p className="socialPostPlace">
           {area ? <span>{area.name}</span> : null}
-          {post.venueId ? (
-            <Link href={venueMapUrl(post.venueId)}>Open venue</Link>
+          {exactVenueId ? (
+            <Link href={venueMapUrl(exactVenueId)}>Open venue</Link>
           ) : null}
         </p>
       ) : null}

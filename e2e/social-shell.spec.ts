@@ -29,6 +29,7 @@ const longFeaturePost = {
     "2026-08-05T19:00:00.000Z",
   ),
   kind: "feature_request",
+  visibility: "friends",
   venueId: "venue-proof-long",
   hashtags: ["accessiblepubnights", "camdenafterdark", "lasttrainplanning"],
   featureRequest: { status: "submitted" },
@@ -116,6 +117,34 @@ test("preview shows one safe boundary and never requests or leaks protected post
   await expect(
     page.locator('main nav[aria-label="Site navigation"]'),
   ).toHaveCount(0);
+});
+
+test("invalid public post DTO cannot render exact Venue context", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockAccess(page, "verified");
+  await mockActivity(page);
+  await page.route("**/api/social/posts?**", async (route) => {
+    await fulfil(route, [
+      {
+        ...post(
+          "invalid-public-venue",
+          "Public area context remains visible",
+          "2026-08-05T19:00:00.000Z",
+        ),
+        venueId: "venue-must-not-render",
+      },
+    ]);
+  });
+
+  await page.goto("/social");
+  await expect(
+    page.getByText("Public area context remains visible"),
+  ).toBeVisible();
+  await expect(page.getByText("Camden", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open venue" })).toHaveCount(0);
+  await expect(page.locator('a[href*="venue-must-not-render"]')).toHaveCount(0);
 });
 
 test("verified lanes stay chronological, wait for Nearby area, paginate explicitly, and keep cursor out of URL", async ({
