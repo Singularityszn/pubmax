@@ -154,7 +154,24 @@ export default function ProfileTimeline({
         ...prev,
         [dropId]: outcome.summary as ReactionSummary,
       }));
+      return true;
     }
+
+    if (outcome.kind === "confirmed") return true;
+
+    // Network/503. Reverse the optimistic flip against the latest local state
+    // and report failure so FeedCard can show its save-failure prompt. Keeping
+    // the optimistic state here makes a failed reaction look durable.
+    setSummaries((prev) => {
+      const current = prev[dropId] ?? EMPTY_SUMMARY;
+      const on = current.mine.includes(reaction);
+      const mine = toggleReactionMine(current.mine, reaction);
+      const counts = { ...current.counts };
+      counts[reaction] = Math.max(0, (counts[reaction] ?? 0) + (on ? -1 : 1));
+      if (counts[reaction] === 0) delete counts[reaction];
+      return { ...prev, [dropId]: { counts, mine } };
+    });
+    return false;
   }, [actorId]);
 
   return (
