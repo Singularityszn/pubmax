@@ -28,6 +28,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
+import { isClerkConfigured } from "@/lib/clerkIdentity";
 import { trackEvent } from "@/lib/analytics";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { isValidEmail } from "@/lib/emailSubscribers";
@@ -74,6 +75,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
     signInWithEmail,
     cancelAuthAttempt,
   } = useAuth();
+  const clerkConfigured = isClerkConfigured();
 
   // Local email-capture state (hooks run unconditionally, before any early
   // return). `status` drives the honest, no-fake-success flow:
@@ -108,7 +110,12 @@ export default function IdentityNudge(): React.JSX.Element | null {
   // offer when auth is unconfigured — no dead buttons. The grace gate keeps it
   // off the first paint.
   const canShow =
-    Boolean(trigger) && graced && !loading && !user && configured && hasPromptBudgetFor(IDENTITY_SURFACE);
+    Boolean(trigger) &&
+    graced &&
+    !loading &&
+    !user &&
+    (configured || clerkConfigured) &&
+    hasPromptBudgetFor(IDENTITY_SURFACE);
 
   // Claim the shared one-prompt-per-session budget at the moment it shows
   // (docs/PROMPT_ORCHESTRATION.md). Idempotent for this surface.
@@ -219,12 +226,14 @@ export default function IdentityNudge(): React.JSX.Element | null {
           className="identityNudgeProviders"
         />
         {authError ? <p className="authError" role="alert">{authError}</p> : null}
-        <MagicLinkForm
-          disabled={authBusy}
-          hasSocialProviders={hasSocialProviders}
-          signInWithEmail={signInWithEmail}
-          cancelAuthAttempt={cancelAuthAttempt}
-        />
+        {configured ? (
+          <MagicLinkForm
+            disabled={authBusy}
+            hasSocialProviders={hasSocialProviders}
+            signInWithEmail={signInWithEmail}
+            cancelAuthAttempt={cancelAuthAttempt}
+          />
+        ) : null}
 
         {/* The lighter path: leave just an email for the weekly pint digest.
             One field, one CTA, one stated purpose. Replaced by an honest

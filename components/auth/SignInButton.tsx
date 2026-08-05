@@ -10,9 +10,9 @@
 // IdP redirect URI is always https://<project-ref>.supabase.co/auth/v1/callback.
 // Canonical callback and Supabase URL allowlist are owned by that checklist.
 //
-// Provider buttons appear only after Supabase's public settings endpoint says
+// Provider buttons appear only after the configured identity provider says
 // that provider is enabled. The selected provider is checked again on click,
-// so stale capability state cannot strand someone on a raw Supabase error.
+// so stale capability state cannot strand someone on a raw provider error.
 // ──────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -236,18 +236,21 @@ export default function SignInButton({
   }
 
   const hasSocialProviders = socialProviders.google || socialProviders.apple;
-  // The Supabase half renders only while Supabase is configured. Without that
-  // guard, relaxing the gate above would surface a magic-link form whose submit
-  // can only answer "Sign-in is not configured." — a dead control, which is
-  // exactly what the original `!configured` early return existed to prevent.
-  const supabaseOptions = configured ? (
-    <>
+  // Magic links belong to Supabase. Social buttons belong to whichever
+  // configured identity provider owns the capability read.
+  const socialOptions = (fullLabels = false) =>
+    configured || clerkConfigured ? (
       <SocialSignInButtons
         availability={socialProviders}
         disabled={busy !== null}
         onGoogle={onSignInGoogle}
         onApple={onSignInApple}
+        fullLabels={fullLabels}
       />
+    ) : null;
+  const supabaseOptions = configured ? (
+    <>
+      {socialOptions()}
       <MagicLinkForm
         disabled={busy !== null}
         hasSocialProviders={hasSocialProviders}
@@ -255,7 +258,9 @@ export default function SignInButton({
         cancelAuthAttempt={cancelAuthAttempt}
       />
     </>
-  ) : null;
+  ) : (
+    socialOptions()
+  );
   const options = (
     <div className="authOptions">
       {supabaseOptions}
@@ -300,21 +305,17 @@ export default function SignInButton({
         </button>
         {menuOpen ? (
           <div className="authMenu" id={menuId} aria-label="Sign in options" ref={menuRef}>
-            {configured ? (
+            {configured || clerkConfigured ? (
               <>
-                <SocialSignInButtons
-                  availability={socialProviders}
-                  disabled={busy !== null}
-                  onGoogle={onSignInGoogle}
-                  onApple={onSignInApple}
-                  fullLabels
-                />
-                <MagicLinkForm
-                  disabled={busy !== null}
-                  hasSocialProviders={hasSocialProviders}
-                  signInWithEmail={signInWithEmail}
-                  cancelAuthAttempt={cancelAuthAttempt}
-                />
+                {socialOptions(true)}
+                {configured ? (
+                  <MagicLinkForm
+                    disabled={busy !== null}
+                    hasSocialProviders={hasSocialProviders}
+                    signInWithEmail={signInWithEmail}
+                    cancelAuthAttempt={cancelAuthAttempt}
+                  />
+                ) : null}
               </>
             ) : null}
             <ClerkAccountControls />
