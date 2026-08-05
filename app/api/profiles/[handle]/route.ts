@@ -218,7 +218,8 @@ export async function PATCH(
 // Soft-delete a profile (clear editable fields). Same ownership gate as PATCH:
 // unlinked handles stay deletable by anyone (demo); linked handles require the
 // matching authenticated owner. We deliberately do NOT hard-delete the row —
-// follows and handle-keyed activity would cascade — see ProfileStore.softDelete.
+// follows and handle-keyed activity would cascade — see
+// ProfileStore.softDeleteForCaller.
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ handle: string }> },
@@ -237,25 +238,32 @@ export async function DELETE(
     return jsonNoStore({ error: "Profile storage is not configured." }, { status: 503 });
   }
 
-  const gate = await gateHandleAction(request, handle, { claimOnUnlinked: false });
+  const gate = await gateHandleAction(request, handle);
   if (!gate.allowed) {
     return jsonNoStore({ error: gate.error }, { status: gate.status });
   }
 
   try {
     const store = profileStore();
-    const existing = await store.getByHandle(handle);
-    if (!existing) {
+    const deletion = await store.softDeleteForCaller(handle, gate.callerUserId);
+    if (deletion.status === "not-found") {
       return jsonNoStore({ error: "Profile not found." }, { status: 404 });
     }
-
-    if (existing.userId) {
-      await privateIdentityStore().erase(existing.userId);
+    if (deletion.status === "forbidden") {
+      return jsonNoStore(
+        {
+          error:
+            "This handle belongs to a signed-in account. Sign in as its owner to continue.",
+        },
+        { status: 403 },
+      );
     }
-    const profile = await store.softDelete(handle);
 
-    if (existing.userId) {
-      await referralStore().eraseAccount(existing.userId);
+    const { ownerUserId, profile } = deletion;
+
+    if (ownerUserId) {
+      await privateIdentityStore().erase(ownerUserId);
+      await referralStore().eraseAccount(ownerUserId);
     }
 
     // Redaction on account deletion (Wayfinder 5.5): mark this account's Story
@@ -264,9 +272,9 @@ export async function DELETE(
     // destroying the rest of anyone's Story. Additive, and fail-soft: a marking
     // hiccup must not fail the delete the caller already succeeded at, but it is
     // logged loudly so the owner can reconcile.
-    if (existing.userId) {
+    if (ownerUserId) {
       try {
-        const marked = await markContributorsDepartedByProfileId(existing.userId);
+        const marked = await markContributorsDepartedByProfileId(ownerUserId);
         if (marked > 0) {
           console.info(
             `[redaction] account deletion for @${handle}: marked ${marked} Story contribution(s) departed`,

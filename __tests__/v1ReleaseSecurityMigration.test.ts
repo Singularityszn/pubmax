@@ -196,7 +196,13 @@ describe("V1 release security migration", () => {
     expect(authenticatedWrites).toEqual([]);
   });
 
-  it("keeps voice reservation compensation service-role only", () => {
+  it("keeps voice reservation and compensation service-role only", () => {
+    expect(N_FORWARD).toContain(
+      "revoke all on function public.consume_pub_pal_voice_trial(uuid, date, integer) from public, anon, authenticated",
+    );
+    expect(N_FORWARD).toContain(
+      "grant execute on function public.consume_pub_pal_voice_trial(uuid, date, integer) to service_role",
+    );
     expect(N_FORWARD).toContain(
       "create or replace function public.release_pub_pal_voice_trial",
     );
@@ -210,6 +216,9 @@ describe("V1 release security migration", () => {
     );
     expect(N_FORWARD).toContain(
       "grant execute on function public.release_pub_pal_voice_trial(uuid, date) to service_role",
+    );
+    expect(normalize(ROLLBACK)).toContain(
+      "revoke execute on function public.consume_pub_pal_voice_trial(uuid, date, integer) from service_role",
     );
   });
 

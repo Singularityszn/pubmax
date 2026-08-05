@@ -187,7 +187,7 @@ describe("profileStore.update — empty patch is a read", () => {
   });
 });
 
-describe("profileStore.softDelete + getHandleByUserId", () => {
+describe("profileStore.softDeleteForCaller + getHandleByUserId", () => {
   it.each(RESERVED_CONTRIBUTOR_HANDLE_INPUTS)(
     "refuses to link reserved handle %s at the store boundary",
     async (handle) => {
@@ -208,14 +208,15 @@ describe("profileStore.softDelete + getHandleByUserId", () => {
     });
     await memoryProfileStore.linkUser("ken", "user-abc");
 
-    const cleared = await memoryProfileStore.softDelete("ken");
-    expect(cleared).not.toBeNull();
-    expect(cleared!.handle).toBe("ken");
-    expect(cleared!.userId).toBe("user-abc");
-    expect(cleared!.displayName).toBeUndefined();
-    expect(cleared!.bio).toBeUndefined();
-    expect(cleared!.homeCity).toBeUndefined();
-    expect(cleared!.avatarUrl).toBeUndefined();
+    const cleared = await memoryProfileStore.softDeleteForCaller("ken", "user-abc");
+    expect(cleared.status).toBe("deleted");
+    if (cleared.status !== "deleted") throw new Error("Expected profile deletion.");
+    expect(cleared.profile.handle).toBe("ken");
+    expect(cleared.profile.userId).toBe("user-abc");
+    expect(cleared.profile.displayName).toBeUndefined();
+    expect(cleared.profile.bio).toBeUndefined();
+    expect(cleared.profile.homeCity).toBeUndefined();
+    expect(cleared.profile.avatarUrl).toBeUndefined();
   });
 
   it("resolves a linked handle by user id", async () => {
