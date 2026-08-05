@@ -76,7 +76,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
     }
     if (memoryAliases.has(handle)) return { handle, available: false, reason: "taken" };
     const legacy = await profileStore().getByHandle(handle);
-    return legacy?.userId
+    return legacy
       ? { handle, available: false, reason: "taken" }
       : { handle, available: true };
   },
@@ -120,7 +120,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
         };
       }
       const existingHandle = await profiles.getByHandle(handle);
-      if (existingHandle?.userId && existingHandle.userId !== ownerId) {
+      if (existingHandle) {
         return { ok: false, code: "taken", error: "That handle is already taken." };
       }
       const profile = await profiles.linkUser(handle, ownerId);
@@ -239,18 +239,7 @@ export const supabaseIdentityHandleStore: IdentityHandleStore = {
     const alias = (data ?? [])[0] as
       | { profile_id?: unknown; is_current?: unknown }
       | undefined;
-    if (!alias?.profile_id) return { handle, available: true };
-    if (alias.is_current !== true) {
-      return { handle, available: false, reason: "taken" };
-    }
-    const { data: profiles, error: profileError } = await requireSupabaseAdmin()
-      .from("profiles")
-      .select("user_id")
-      .eq("id", String(alias.profile_id))
-      .limit(1);
-    if (profileError) throw new Error(profileError.message);
-    const profile = (profiles ?? [])[0] as { user_id?: unknown } | undefined;
-    return profile?.user_id
+    return alias?.profile_id
       ? { handle, available: false, reason: "taken" }
       : { handle, available: true };
   },

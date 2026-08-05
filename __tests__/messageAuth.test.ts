@@ -40,7 +40,7 @@ describe("requireLinkedActor (Wave I2)", () => {
     expect(gate).toEqual({ ok: true, handle: "ken", userId: "user-ken" });
   });
 
-  it("allows an asserted handle for first-touch claim when JWT has no link yet", async () => {
+  it("returns an asserted new handle when JWT has no linked profile yet", async () => {
     authState.userId = "user-new";
     const gate = await requireLinkedActor(new Request("http://localhost"), "ken");
     expect(gate).toEqual({ ok: true, handle: "ken", userId: "user-new" });

@@ -168,14 +168,17 @@ describe("DELETE /api/profiles/[handle] — soft-delete ownership gate", () => {
   });
 });
 
-describe("profileStore.linkUser — account migration (story 32)", () => {
-  it("stamps user_id on an existing handle without touching its other fields", async () => {
+describe("profileStore.linkUser — new account handles", () => {
+  it("refuses to stamp ownership onto an existing unlinked handle", async () => {
     await memoryProfileStore.ensure("ken");
     await memoryProfileStore.update("ken", { displayName: "Ken" });
 
-    const linked = await memoryProfileStore.linkUser("ken", "user-abc");
-    expect(linked.userId).toBe("user-abc");
-    expect(linked.displayName).toBe("Ken"); // prior activity preserved, not copied
+    await expect(
+      memoryProfileStore.linkUser("ken", "user-abc"),
+    ).rejects.toThrow("not available");
+    expect(await memoryProfileStore.getByHandle("ken")).toMatchObject({
+      displayName: "Ken",
+    });
   });
 
   it("is idempotent for the same user", async () => {
