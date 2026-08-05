@@ -208,17 +208,58 @@ export default function SignInButton({
       (typeof meta.avatar_url === "string" && meta.avatar_url) ||
       (typeof meta.picture === "string" && meta.picture) ||
       "";
+    const avatarControl = avatar ? (
+      // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar; no next/image loader configured for it
+      <img className="authAvatar" src={avatar} alt="" width={28} height={28} />
+    ) : (
+      <span className="authAvatarFallback" aria-hidden="true">
+        {initials(name)}
+      </span>
+    );
+
+    if (compact) {
+      return (
+        <div className="authUser authUserNav" ref={rootRef}>
+          <div className="authCompact">
+            <button
+              type="button"
+              ref={triggerRef}
+              className="authCompactTrigger"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-expanded={menuOpen}
+              aria-controls={menuId}
+              aria-haspopup="true"
+              aria-label={`Account options for ${name}`}
+            >
+              {avatarControl}
+              <span className="authCompactLabel" aria-hidden="true">
+                Account
+              </span>
+            </button>
+            {menuOpen ? (
+              <div className="authMenu" id={menuId} aria-label="Account options" ref={menuRef}>
+                <div className="authAccountSummary">
+                  <span className="authName">{name}</span>
+                </div>
+                <button
+                  type="button"
+                  className="authSignOut"
+                  onClick={onSignOut}
+                  disabled={busy !== null}
+                >
+                  Sign out
+                </button>
+                {clerkSessionAvailable ? <ClerkAccountControls /> : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="authUser">
-        {avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar; no next/image loader configured for it
-          <img className="authAvatar" src={avatar} alt="" width={28} height={28} />
-        ) : (
-          <span className="authAvatarFallback" aria-hidden="true">
-            {initials(name)}
-          </span>
-        )}
+        {avatarControl}
         <span className="authName">{name}</span>
         <button
           type="button"
