@@ -49,7 +49,7 @@ async function seedStory(author = "ken"): Promise<string> {
 describe("linked-handle ownership — forged body/query handle is rejected", () => {
   it("403s crawl PATCH/DELETE when the author handle is linked and the caller is anonymous", async () => {
     const slug = await seedStory("ken");
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     const patch = await PATCH_CRAWL(
       new Request(`http://localhost/api/crawls/${slug}`, {
         method: "PATCH",
@@ -70,7 +70,7 @@ describe("linked-handle ownership — forged body/query handle is rejected", () 
   });
 
   it("401s messages inbox GET/POST for a linked handle without JWT (Wave I2)", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     const get = await GET_MESSAGES(new Request("http://localhost/api/messages?handle=ken"));
     expect(get.status).toBe(401);
 
@@ -84,7 +84,7 @@ describe("linked-handle ownership — forged body/query handle is rejected", () 
   });
 
   it("403s notifications GET/POST for a linked handle without JWT", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     await notificationsStore().emit({
       recipientHandle: "ken",
       actorHandle: "ale",
@@ -104,7 +104,7 @@ describe("linked-handle ownership — forged body/query handle is rejected", () 
   });
 
   it("403s ratings POST for a linked handle without JWT", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     const res = await POST_RATINGS(
       new Request("http://localhost/api/ratings", {
         method: "POST",
@@ -115,7 +115,7 @@ describe("linked-handle ownership — forged body/query handle is rejected", () 
   });
 
   it("403s saved-pubs POST for a linked handle without JWT", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     const res = await POST_SAVED(
       new Request("http://localhost/api/saved-pubs", {
         method: "POST",
@@ -126,7 +126,7 @@ describe("linked-handle ownership — forged body/query handle is rejected", () 
   });
 
   it("403s rounds create for a linked handle without JWT", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     const res = await POST_ROUNDS(
       new Request("http://localhost/api/rounds", {
         method: "POST",

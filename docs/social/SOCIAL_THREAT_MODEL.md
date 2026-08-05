@@ -67,7 +67,8 @@ Controls:
 - Resolve Clerk, stable product ownership, verified-adult state, suspension, and friendship on the server for every protected request.
 - Require proof of both Clerk and legacy Supabase sessions for migration.
 - Make migration retries idempotent and auditable.
-- Freeze legacy unverified handles and forbid first-touch claims.
+- Keep every unowned handle frozen against account ownership and forbid
+  first-touch claims.
 - Bind Yoti state to stable ownership, not handle or client identifier.
 - Re-check verification expiry and suspension on direct reads, writes, media grants, notifications, exports, and long-lived crawl connections.
 

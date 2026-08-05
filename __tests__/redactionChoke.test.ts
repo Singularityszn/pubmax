@@ -28,8 +28,7 @@ import { __resetMemoryProfiles, profileStore } from "@/lib/profileStore";
 // the host's caption. Returns the ids so each test can drive a departure and
 // assert the gate erases the friend without destroying the host's Story.
 async function publishStoryWithFriend() {
-  const friend = await profileStore().ensure("jordanx");
-  await profileStore().linkUser("jordanx", "friend");
+  const friend = await profileStore().createOwned("jordanx", "friend");
   await profileStore().update("jordanx", { displayName: "Jordan" });
   void friend;
 

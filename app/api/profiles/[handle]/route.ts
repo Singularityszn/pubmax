@@ -41,15 +41,10 @@ function stores() {
 // the display-facing fields are exposed.
 function toPublicProfile(
   profile: ProfileRecord | null,
-): Omit<ProfileRecord, "userId" | "accountLinkState"> | null {
+): Omit<ProfileRecord, "userId"> | null {
   if (!profile) return null;
-  const {
-    userId: _userId,
-    accountLinkState: _accountLinkState,
-    ...rest
-  } = profile;
+  const { userId: _userId, ...rest } = profile;
   void _userId;
-  void _accountLinkState;
   return rest;
 }
 

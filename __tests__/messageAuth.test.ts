@@ -34,7 +34,7 @@ describe("requireLinkedActor (Wave I2)", () => {
   });
 
   it("returns the linked handle when JWT owns a profile", async () => {
-    await memoryProfileStore.linkUser("ken", "user-ken");
+    await memoryProfileStore.createOwned("ken", "user-ken");
     authState.userId = "user-ken";
     const gate = await requireLinkedActor(new Request("http://localhost"), "mallory");
     expect(gate).toEqual({ ok: true, handle: "ken", userId: "user-ken" });
@@ -59,7 +59,7 @@ describe("requireLinkedActor (Wave I2)", () => {
 
 describe("resolveMessageHandle", () => {
   it("prefers the auth-linked handle over the asserted one", async () => {
-    await memoryProfileStore.linkUser("ken", "user-ken");
+    await memoryProfileStore.createOwned("ken", "user-ken");
     authState.userId = "user-ken";
     const handle = await resolveMessageHandle(new Request("http://localhost"), "mallory");
     expect(handle).toBe("ken");

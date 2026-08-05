@@ -84,8 +84,8 @@ cherry-pick divergence); consolidated 16 PRDs into THIS doc (rest archived). Goi
 
 ### D · Auth ownership (unblocks the social product — needs the user to enable Google in Supabase)
 Link `auth.uid()` → `profiles.user_id`; gate profile/crawl-story edits + drop deletes on ownership
-(RLS `auth.uid()` policies); keep anonymous read + demo contribute; **migrate** a device handle's
-prior drops/saves/follows to the account on first sign-in.
+(RLS `auth.uid()` policies); keep anonymous read + demo contribute; create only an absent handle
+as account-owned. Existing unowned handle data is never re-attributed on sign-in.
 
 ### E · Social depth (all four north-stars)
 - **Pint Passport (Letterboxd):** render the computed `profileStats`/`computeBadges` (pubs, boroughs,

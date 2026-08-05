@@ -4,6 +4,8 @@ import type { CallerAuthVerification } from "@/lib/authServer";
 import { isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 import {
   decideSocialAccess,
+  isSocialInviteBetaEnabled,
+  SOCIAL_BETA_DISABLED,
   type SocialAdultVerification,
   type SocialAccessState,
   type SocialProductAccount,
@@ -185,7 +187,9 @@ async function migrateAccounts(
 }
 
 const defaultDependencies: SocialAccessServerDependencies = {
-  betaEnabled: process.env.SOCIAL_INVITE_BETA_ENABLED === "1",
+  betaEnabled: isSocialInviteBetaEnabled(
+    process.env.SOCIAL_INVITE_BETA_ENABLED,
+  ),
   now: () => new Date(),
   verifyClerkSession,
   readAccountAccess,
@@ -247,12 +251,7 @@ export async function migrateSocialProductAccount(
   dependencies: SocialAccessServerDependencies = defaultDependencies,
 ): Promise<SocialAccountMigrationResolution> {
   if (!dependencies.betaEnabled) {
-    return {
-      ok: false,
-      status: 403,
-      code: "SOCIAL_BETA_DISABLED",
-      error: "Social account migration is not available in preview.",
-    };
+    return SOCIAL_BETA_DISABLED;
   }
   const clerk = await dependencies.verifyClerkSession();
   if (clerk.status === "unavailable" || supabase.status === "unavailable") {

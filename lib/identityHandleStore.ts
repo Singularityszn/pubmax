@@ -76,7 +76,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
     }
     if (memoryAliases.has(handle)) return { handle, available: false, reason: "taken" };
     const profile = await profileStore().getByHandle(handle);
-    return profile && profile.accountLinkState !== "ephemeral"
+    return profile
       ? { handle, available: false, reason: "taken" }
       : { handle, available: true };
   },
@@ -100,8 +100,8 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
     if (collision && collision.ownerId !== ownerId) {
       return { ok: false, code: "taken", error: "That handle is already taken." };
     }
+    const profiles = profileStore();
     try {
-      const profiles = profileStore();
       const existingOwner = await profiles.getByUserId(ownerId);
       if (existingOwner) {
         const alias: MemoryAlias = {
@@ -128,13 +128,10 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
         };
       }
       const existingHandle = await profiles.getByHandle(handle);
-      if (
-        existingHandle &&
-        existingHandle.accountLinkState !== "ephemeral"
-      ) {
+      if (existingHandle) {
         return { ok: false, code: "taken", error: "That handle is already taken." };
       }
-      const profile = await profiles.linkUser(handle, ownerId);
+      const profile = await profiles.createOwned(handle, ownerId);
       const alias: MemoryAlias = {
         profileId: profile.id,
         ownerId,
@@ -145,8 +142,21 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
       memoryAliases.set(handle, alias);
       currentByOwner.set(ownerId, alias);
       return { ok: true, profileId: profile.id, handle, claimed: true };
-    } catch {
-      return { ok: false, code: "storage", error: "Profile storage is unavailable." };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/already has a handle/i.test(message)) {
+        const current = await profiles.getByUserId(ownerId);
+        return {
+          ok: false,
+          code: "already_has_handle",
+          error: current
+            ? `Your PUBMAXX handle is @${current.handle}. Rename it instead.`
+            : "Your account already has a PUBMAXX handle. Rename it instead.",
+        };
+      }
+      return /not available/i.test(message)
+        ? { ok: false, code: "taken", error: "That handle is already taken." }
+        : { ok: false, code: "storage", error: "Profile storage is unavailable." };
     }
   },
 
@@ -241,7 +251,8 @@ export const supabaseIdentityHandleStore: IdentityHandleStore = {
     if (isReservedContributorHandle(handle)) {
       return { handle, available: false, reason: "taken" };
     }
-    const { data, error } = await requireSupabaseAdmin()
+    const admin = requireSupabaseAdmin();
+    const { data, error } = await admin
       .from("profile_handle_aliases")
       .select("profile_id,is_current")
       .eq("handle", handle)
@@ -250,7 +261,16 @@ export const supabaseIdentityHandleStore: IdentityHandleStore = {
     const alias = (data ?? [])[0] as
       | { profile_id?: unknown; is_current?: unknown }
       | undefined;
-    return alias?.profile_id
+    if (alias?.profile_id) {
+      return { handle, available: false, reason: "taken" };
+    }
+    const { data: profiles, error: profileError } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("handle", handle)
+      .limit(1);
+    if (profileError) throw new Error(profileError.message);
+    return (profiles ?? []).length > 0
       ? { handle, available: false, reason: "taken" }
       : { handle, available: true };
   },

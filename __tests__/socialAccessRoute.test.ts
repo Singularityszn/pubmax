@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
@@ -18,10 +18,14 @@ const state = vi.hoisted(() => ({
     },
   } as unknown,
   migrationAuthority: null as unknown,
+  authVerifierCalls: 0,
 }));
 
 vi.mock("@/lib/authServer", () => ({
-  verifyCallerAuth: async () => state.auth,
+  verifyCallerAuth: async () => {
+    state.authVerifierCalls += 1;
+    return state.auth;
+  },
 }));
 
 vi.mock("@/lib/socialAccessServer", () => ({
@@ -39,6 +43,7 @@ function request(method = "GET"): Request {
 }
 
 beforeEach(() => {
+  vi.stubEnv("SOCIAL_INVITE_BETA_ENABLED", "1");
   state.access = { available: true, state: "sign_in_required" };
   state.migration = {
     ok: true,
@@ -54,6 +59,11 @@ beforeEach(() => {
     },
   };
   state.migrationAuthority = null;
+  state.authVerifierCalls = 0;
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("/api/social/access", () => {
@@ -91,6 +101,7 @@ describe("/api/social/access", () => {
   });
 
   it("preserves the disabled-beta write refusal", async () => {
+    vi.stubEnv("SOCIAL_INVITE_BETA_ENABLED", "0");
     state.migration = {
       ok: false,
       status: 403,
@@ -105,6 +116,8 @@ describe("/api/social/access", () => {
       code: "SOCIAL_BETA_DISABLED",
       error: "Social account migration is not available in preview.",
     });
+    expect(state.authVerifierCalls).toBe(0);
+    expect(state.migrationAuthority).toBeNull();
   });
 
   it("preserves migration conflict and dependency status", async () => {

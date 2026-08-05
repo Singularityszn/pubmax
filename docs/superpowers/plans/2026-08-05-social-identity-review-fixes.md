@@ -4,7 +4,7 @@
 
 **Goal:** Resolve all five Task 2 review findings without reopening first-touch claims or breaking established profile creation flows.
 
-**Architecture:** Migration 0071 will classify pre-existing unlinked profiles as frozen legacy rows and rows created after the migration as ephemeral until account linkage. Memory and Supabase stores will enforce the same state transition. The Social migration route will expose an explicit account authority boundary and beta-write gate, while the account migration RPC acquires identity and account locks in deterministic order.
+**Architecture:** Every unowned profile remains frozen. Authenticated new handles are created with `user_id` set atomically, without a claimable intermediate state. The Social migration route exposes an explicit account authority boundary and beta-write gate, while the account migration RPC acquires identity and account locks in deterministic order.
 
 **Tech Stack:** Next.js 16 route handlers, TypeScript, Vitest, PostgreSQL 16, Supabase service-role RPCs.
 
@@ -32,12 +32,12 @@
 - Test: `__tests__/socialIdentityMigration.test.ts`
 
 **Interfaces:**
-- Consumes: `ProfileStore.ensure(handle)` and `ProfileStore.linkUser(handle, userId)`.
-- Produces: durable `profiles.account_link_state` values `legacy_unlinked`, `ephemeral`, and `account_owned`; test-only legacy memory seeding.
+- Consumes: `ProfileStore.ensure(handle)`, `ProfileStore.createOwned(handle, userId)`, and current-owner-only `ProfileStore.linkUser(handle, userId)`.
+- Produces: atomic absent-handle ownership and frozen generic profile rows.
 
-- [ ] Add red tests proving ensure-then-link succeeds, seeded legacy rows remain frozen, and same-owner retry survives alias-cache loss.
+- [ ] Add red tests proving generic ensure cannot transfer ownership, atomic owned creation succeeds, and same-owner retry survives alias-cache loss.
 - [ ] Run focused tests and capture expected failures from blanket existing-row rejection.
-- [ ] Add the minimal provenance state and transition rules to both stores and SQL.
+- [ ] Add the atomic creation transition to both stores and SQL without a second ownership state.
 - [ ] Run all profile, ownership, visibility, and deletion/redaction callers green.
 
 ### Task 2: Gate and certify Social migration writes
@@ -51,7 +51,7 @@
 - Modify: `docs/WRITE_SURFACE_CERTIFICATION.md`
 
 **Interfaces:**
-- Consumes: `callerAuthIdentity(request)` as route-level verified Supabase authority.
+- Consumes: `verifyCallerAuth(request)` as route-level verified Supabase authority.
 - Produces: migration helper accepting only server-derived Clerk and Supabase identities; `SOCIAL_BETA_DISABLED` refusal before any identity or storage work.
 
 - [ ] Add red tests proving disabled beta performs no migration work and the write route is certified.
