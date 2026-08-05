@@ -66,18 +66,20 @@ vi.mock("@/lib/socialPostMedia.server", () => ({
     byteSize: 10,
     sha256: "a".repeat(64),
   }),
-  uploadPreparedSocialPhoto: async (_owner: string, prepared: Record<string, unknown>, _storage: unknown, requestedMediaId?: string) => {
+  uploadPreparedSocialPhoto: async (_owner: string, prepared: Record<string, unknown>, _storage: unknown, requestedMediaId?: string, requestedObjectKey?: string, requestedGeneration?: string) => {
     state.lastUploadedMediaId = requestedMediaId ?? "11111111-1111-4111-8111-111111111112";
-    return { ...prepared, mediaId: state.lastUploadedMediaId, objectKey: `social/${state.lastUploadedMediaId}/image.jpg` };
+    const generation = requestedGeneration ?? "22222222-2222-4222-8222-222222222222";
+    return { ...prepared, mediaId: state.lastUploadedMediaId, generation, objectKey: requestedObjectKey ?? `social/${state.lastUploadedMediaId}/${generation}/image.jpg` };
   },
   reserveSocialPhotoUpload: async (_owner: string, prepared: Record<string, unknown>, requestedMediaId?: string) => {
     const mediaId = requestedMediaId ?? "11111111-1111-4111-8111-111111111112";
-    return { ...prepared, mediaId, objectKey: `social/${mediaId}/image.jpg` };
+    const generation = "22222222-2222-4222-8222-222222222222";
+    return { ...prepared, mediaId, generation, objectKey: `social/${mediaId}/${generation}/image.jpg` };
   },
-  reconcileSocialPhotoUpload: async (_owner: string, mediaId: string) => {
+  reconcileSocialPhotoUpload: async (_owner: string, mediaId: string, generation: string) => {
     const winner = state.createWinnerMediaId === "uploaded" ? state.lastUploadedMediaId : state.createWinnerMediaId;
     if (winner === mediaId) return false;
-    state.removedObjects.push(`social/${mediaId}/image.jpg`);
+    state.removedObjects.push(`social/${mediaId}/${generation}/image.jpg`);
     return true;
   },
   signSocialPhotoObject: async () => null,
@@ -341,7 +343,7 @@ describe("/api/social/posts", () => {
         {
           media: {
             mediaId: expect.any(String),
-            objectKey: expect.stringMatching(/^social\/[0-9a-f-]+\/image\.jpg$/),
+            objectKey: expect.stringMatching(/^social\/[0-9a-f-]+\/[0-9a-f-]+\/image\.jpg$/),
             sha256: "a".repeat(64),
             width: 640,
             height: 480,
@@ -372,7 +374,7 @@ describe("/api/social/posts", () => {
 
     expect(response.status).toBe(503);
     expect(state.removedObjects).toEqual([
-      expect.stringMatching(/^social\/[0-9a-f-]+\/image\.jpg$/),
+      expect.stringMatching(/^social\/[0-9a-f-]+\/[0-9a-f-]+\/image\.jpg$/),
     ]);
   });
 

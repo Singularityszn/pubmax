@@ -58,7 +58,6 @@ describe("Social post consent and private read store", () => {
       media_id: "media-a",
       author_handle: "bob",
       state: "proposed",
-      body: "Private photo",
       visibility: "private",
       photo_alt_text: "Bob beside the bar",
       review_revision: 4,
@@ -79,7 +78,6 @@ describe("Social post consent and private read store", () => {
         mediaId: "media-a",
         authorHandle: "bob",
         state: "proposed",
-        body: "Private photo",
         visibility: "private",
         photoAltText: "Bob beside the bar",
         reviewRevision: 4,
@@ -107,7 +105,6 @@ describe("Social post consent and private read store", () => {
       media_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       author_handle: "bob",
       state: "proposed",
-      body: "Private photo",
       visibility: "private",
       photo_alt_text: "Bob beside the bar",
       review_revision: 2,
@@ -135,6 +132,37 @@ describe("Social post consent and private read store", () => {
     await expect(store.tagInbox(viewer, {
       lane: "proposed", limit: 1, cursor: `${first.nextCursor}x`,
     })).rejects.toThrow(/page is not valid/i);
+  });
+
+  it("keeps approved withdrawal rows after their moderated photo is unavailable", async () => {
+    state.rows.set("read_social_tag_inbox", [{
+      proposal_id: "11111111-1111-4111-8111-111111111111",
+      post_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      media_id: null,
+      author_handle: "bob",
+      state: "approved",
+      visibility: "friends",
+      photo_alt_text: null,
+      review_revision: 5,
+      audience_visibility: "friends",
+      audience_revision: 3,
+      audience_shown_at: "2026-08-05T10:00:00.000Z",
+      created_at: "2026-08-05T09:00:00.000Z",
+    }]);
+
+    const page = await createSocialPostConsentStore().tagInbox(viewer, {
+      lane: "approved",
+      limit: 20,
+    });
+
+    expect(page.proposals[0]).toMatchObject({
+      id: "11111111-1111-4111-8111-111111111111",
+      mediaId: null,
+      photoAltText: null,
+      state: "approved",
+      audienceAtApproval: { visibility: "friends", revision: 3 },
+    });
+    expect(page.proposals[0]).not.toHaveProperty("body");
   });
 
   it("returns full stable-owned posts in the owner lane", async () => {

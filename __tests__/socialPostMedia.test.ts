@@ -5,7 +5,7 @@ import {
   prepareSocialPhoto,
   SocialPhotoError,
   uploadPreparedSocialPhoto,
-  purgeDetachedSocialPhotoRows,
+  purgeClaimedSocialPhotoRows,
   signSocialPhotoObject,
 } from "@/lib/socialPostMedia.server";
 
@@ -69,7 +69,7 @@ describe("Social post private photo processing", () => {
 
     expect(result.mediaId).toMatch(/^[0-9a-f-]{36}$/);
     expect(result.objectKey).toBe(
-      `social/${result.mediaId}/image.jpg`,
+      `social/${result.mediaId}/${result.generation}/image.jpg`,
     );
     expect(result.objectKey).not.toContain("11111111-1111-4111-8111-111111111111");
     expect(uploads).toHaveLength(1);
@@ -103,13 +103,42 @@ describe("Social post private photo processing", () => {
   it("retries catalog deletion safely after object deletion succeeds", async () => {
     const removed: string[][] = [];
     let attempts = 0;
-    const rows = [{ id: "media-a", object_key: "social/media-a/image.jpg" }];
-    const run = () => purgeDetachedSocialPhotoRows(rows, async (keys) => { removed.push(keys); }, async () => {
+    const rows = [{
+      mediaId: "media-a",
+      generation: "generation-a",
+      objectKey: "social/media-a/generation-a/image.jpg",
+      cleanupToken: "token-a",
+    }];
+    const run = () => purgeClaimedSocialPhotoRows(rows, async (key) => { removed.push([key]); }, async () => {
       attempts += 1;
       if (attempts === 1) throw new Error("database unavailable");
+      return true;
     });
     await expect(run()).rejects.toThrow("database unavailable");
     await expect(run()).resolves.toBe(1);
-    expect(removed).toEqual([["social/media-a/image.jpg"], ["social/media-a/image.jpg"]]);
+    expect(removed).toEqual([
+      ["social/media-a/generation-a/image.jpg"],
+      ["social/media-a/generation-a/image.jpg"],
+    ]);
+  });
+
+  it("continues a claimed cleanup batch after one item fails", async () => {
+    const claims = ["a", "b"].map((suffix) => ({
+      mediaId: `media-${suffix}`,
+      generation: `generation-${suffix}`,
+      objectKey: `social/media-${suffix}/generation-${suffix}/image.jpg`,
+      cleanupToken: `token-${suffix}`,
+    }));
+    const finalized: string[] = [];
+    await expect(purgeClaimedSocialPhotoRows(
+      claims,
+      async () => undefined,
+      async (claim) => {
+        finalized.push(claim.mediaId);
+        if (claim.mediaId === "media-a") throw new Error("first finalizer unavailable");
+        return true;
+      },
+    )).rejects.toThrow("first finalizer unavailable");
+    expect(finalized).toEqual(["media-a", "media-b"]);
   });
 });

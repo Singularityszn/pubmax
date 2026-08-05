@@ -11,10 +11,9 @@ export type SocialPostTagProposal = {
   postId: string;
   authorHandle: string;
   state: "proposed" | "approved";
-  mediaId: string;
-  body: string;
+  mediaId: string | null;
   visibility: SocialPostVisibility;
-  photoAltText: string;
+  photoAltText: string | null;
   reviewRevision: number;
   audienceAtApproval: {
     visibility: SocialPostVisibility;
@@ -153,13 +152,15 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
       })).map((item) => {
         if (
           typeof item.proposal_id !== "string" || typeof item.post_id !== "string" ||
-          typeof item.media_id !== "string" || typeof item.author_handle !== "string" ||
+          (item.media_id !== null && typeof item.media_id !== "string") || typeof item.author_handle !== "string" ||
           (item.state !== "proposed" && item.state !== "approved") ||
-          typeof item.body !== "string" ||
           (item.visibility !== "public" && item.visibility !== "friends" && item.visibility !== "private") ||
-          typeof item.photo_alt_text !== "string" || !Number.isInteger(item.review_revision) ||
+          (item.photo_alt_text !== null && typeof item.photo_alt_text !== "string") || !Number.isInteger(item.review_revision) ||
           typeof item.created_at !== "string"
         ) throw new SocialPostConsentStoreError("Social consent data is unavailable.");
+        if (item.state === "proposed" && (item.media_id === null || item.photo_alt_text === null)) {
+          throw new SocialPostConsentStoreError("Social consent data is unavailable.");
+        }
         const hasAudience = item.audience_visibility !== null || item.audience_revision !== null || item.audience_shown_at !== null;
         if ((item.state === "approved") !== hasAudience) {
           throw new SocialPostConsentStoreError("Social consent data is unavailable.");
@@ -174,7 +175,6 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
           mediaId: item.media_id,
           authorHandle: item.author_handle,
           state: item.state as "proposed" | "approved",
-          body: item.body,
           visibility: item.visibility as SocialPostVisibility,
           photoAltText: item.photo_alt_text,
           reviewRevision: Number(item.review_revision),

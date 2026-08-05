@@ -106,6 +106,7 @@ const MEDIA_REPLACED = "77777777-7777-4777-8777-777777777777";
 const MEDIA_CLEANUP = "99999999-9999-4999-8999-999999999999";
 let postId = "";
 let retryPostId = "";
+let mediaObjectKey = "";
 
 beforeAll(async () => {
   database = await startDatabase();
@@ -139,18 +140,20 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
     expect(() => db.applyTransactional(FORWARD)).toThrow(/requires Task 3 photo_media_id rows to be null/i);
     db.sql(`delete from public.social_posts where id='${legacy}'`);
     db.apply(FORWARD);
-    db.sql(`insert into public.social_post_media_uploads(media_id,owner_profile_id,object_key,sha256,width,height,byte_size)
-      values('${MEDIA}','${ALICE}','social/${MEDIA}/image.jpg','${"a".repeat(64)}',1200,800,12345)`);
+    mediaObjectKey = db.sql(`select object_key from public.reserve_social_post_media_upload(
+      '${ALICE}','${MEDIA}','${"a".repeat(64)}',1200,800,12345
+    )`);
     postId = db.sql(`select id from public.create_social_post(
       '${ALICE}','alice','standard','public','Photo night','camden','venue-canonical',
-      array['night'],'friends','${MEDIA}','social/${MEDIA}/image.jpg',
+      array['night'],'friends','${MEDIA}','${mediaObjectKey}',
       '${"a".repeat(64)}',1200,800,12345,'Alice and Bob outside the Venue',array['bob']
     )`);
     expect(db.sql(`select photo_media_id from public.social_posts where id='${postId}'`)).toBe(MEDIA);
     expect(db.sql(`select owner_profile_id || ':' || moderation_state from public.social_post_media where id='${MEDIA}'`))
       .toBe(`${ALICE}:pending`);
     expect(db.sql(`select count(*) from public.social_post_media_uploads where media_id='${MEDIA}'`)).toBe("0");
-    expect(db.sql(`select coalesce(public.claim_social_post_media_upload_cleanup('${ALICE}','${MEDIA}'),'committed')`))
+    expect(db.sql(`select coalesce((select object_key from public.claim_social_post_media_upload_cleanup(
+      '${ALICE}','${MEDIA}',(select generation from public.social_post_media where id='${MEDIA}'))),'committed')`))
       .toBe("committed");
     expect(db.sql(`select media_id || ':' || moderation_claim from public.social_post_moderation_jobs where post_id='${postId}'`))
       .toBe(`${MEDIA}:Photo night\n\n#night\n\nPhoto: Alice and Bob outside the Venue`);
@@ -187,18 +190,62 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
 
   it("atomically assigns abandoned upload cleanup against a concurrent create", () => {
     const db = database!;
-    db.sql(`insert into public.social_post_media_uploads(media_id,owner_profile_id,object_key,sha256,width,height,byte_size,created_at)
-      values('${MEDIA_CLEANUP}','${ALICE}','social/${MEDIA_CLEANUP}/image.jpg','${"8".repeat(64)}',300,200,500,now()-interval '2 days')`);
-    expect(db.sql(`select public.claim_social_post_media_upload_cleanup('${ALICE}','${MEDIA_CLEANUP}')`))
-      .toBe(`social/${MEDIA_CLEANUP}/image.jpg`);
+    const objectKey = db.sql(`select object_key from public.reserve_social_post_media_upload(
+      '${ALICE}','${MEDIA_CLEANUP}','${"8".repeat(64)}',300,200,500
+    )`);
+    db.sql(`update public.social_post_media_uploads set created_at=now()-interval '2 days' where media_id='${MEDIA_CLEANUP}'`);
+    const generation = db.sql(`select generation from public.social_post_media_uploads where media_id='${MEDIA_CLEANUP}'`);
+    expect(db.sql(`select object_key from public.claim_social_post_media_upload_cleanup('${ALICE}','${MEDIA_CLEANUP}','${generation}')`))
+      .toBe(objectKey);
     expect(db.sql(`select state from public.social_post_media_uploads where media_id='${MEDIA_CLEANUP}'`)).toBe("cleanup");
     expect(() => db.sql(`select id from public.create_social_post(
       '${ALICE}','alice','standard','private','Too late',null,null,array[]::text[],'locked',
-      '${MEDIA_CLEANUP}','social/${MEDIA_CLEANUP}/image.jpg','${"8".repeat(64)}',300,200,500,'Too late',array[]::text[]
+      '${MEDIA_CLEANUP}','${objectKey}','${"8".repeat(64)}',300,200,500,'Too late',array[]::text[]
     )`)).toThrow(/invalid Social photo reservation/i);
+    db.sql(`update public.social_post_media_uploads set cleanup_lease_until=now()-interval '1 second' where media_id='${MEDIA_CLEANUP}'`);
     expect(db.sql(`select media_id from public.claim_social_post_media_upload_cleanup_batch(10,now()-interval '1 day')
       where media_id='${MEDIA_CLEANUP}'`)).toBe(MEDIA_CLEANUP);
-    db.sql(`delete from public.social_post_media_uploads where media_id='${MEDIA_CLEANUP}' and state='cleanup'`);
+    db.sql(`select public.finalize_social_post_media_upload_cleanup(
+      '${MEDIA_CLEANUP}','${generation}',(select cleanup_token from public.social_post_media_uploads where media_id='${MEDIA_CLEANUP}')
+    )`);
+  });
+
+  it("fences upload cleanup by generation and lease across an exact retry", () => {
+    const db = database!;
+    const media = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const first = db.sql(`select generation::text || '|' || object_key from public.reserve_social_post_media_upload(
+      '${ALICE}','${media}','${"7".repeat(64)}',320,240,700
+    )`);
+    const [generationA, objectA] = first.split("|");
+    const claimA = db.sql(`select generation::text || '|' || object_key || '|' || cleanup_token::text
+      from public.claim_social_post_media_upload_cleanup('${ALICE}','${media}','${generationA}')`);
+    const [, claimedObjectA, tokenA] = claimA.split("|");
+    expect(claimedObjectA).toBe(objectA);
+    db.sql(`update public.social_post_media_uploads set cleanup_lease_until=now()-interval '1 second'
+      where media_id='${media}' and generation='${generationA}'`);
+    const claimB = db.sql(`select generation::text || '|' || object_key || '|' || cleanup_token::text
+      from public.claim_social_post_media_upload_cleanup_batch(10,now()-interval '1 day') where media_id='${media}'`);
+    const [, claimedObjectB, tokenB] = claimB.split("|");
+    expect(claimedObjectB).toBe(objectA);
+    expect(tokenB).not.toBe(tokenA);
+    expect(db.sql(`select public.finalize_social_post_media_upload_cleanup('${media}','${generationA}','${tokenB}')`)).toBe("t");
+
+    const retry = db.sql(`select generation::text || '|' || object_key from public.reserve_social_post_media_upload(
+      '${ALICE}','${media}','${"7".repeat(64)}',320,240,700
+    )`);
+    const [generationB, objectB] = retry.split("|");
+    expect(generationB).not.toBe(generationA);
+    expect(objectB).not.toBe(objectA);
+    const retriedPost = db.sql(`select id from public.create_social_post(
+      '${ALICE}','alice','standard','private','Retry after cleanup',null,null,array[]::text[],'locked',
+      '${media}','${objectB}','${"7".repeat(64)}',320,240,700,'A pub table',array[]::text[]
+    )`);
+    expect(db.sql(`select object_key from public.social_post_media where id='${media}'`)).toBe(objectB);
+    expect(db.sql(`select public.finalize_social_post_media_upload_cleanup('${media}','${generationA}','${tokenA}')`)).toBe("f");
+    expect(db.sql(`select object_key from public.social_post_media where id='${media}'`)).toBe(objectB);
+    db.sql(`delete from public.social_post_moderation_jobs where post_id='${retriedPost}';
+      update public.social_posts set photo_media_id=null,photo_alt_text=null where id='${retriedPost}';
+      delete from public.social_post_media where id='${media}'`);
   });
 
   it("races comment-policy edits through one CAS and immutable digest audit", async () => {
@@ -284,21 +331,96 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
     db.sql(`update public.social_post_media set moderation_state='approved',attachment_state='active' where id='${MEDIA}'`);
     expect(db.sql(`select count(*) from public.read_social_post('${postId}','${BOB}')`)).toBe("0");
     expect(db.sql(`select object_key from public.read_social_post_media('${BOB}','${MEDIA}')`))
-      .toBe(`social/${MEDIA}/image.jpg`);
+      .toBe(mediaObjectKey);
     expect(db.sql(`select author_handle || ':' || visibility || ':' || photo_alt_text
       from public.read_social_tag_inbox('${BOB}','approved',null,null,1)`))
       .toBe("alice:private:Alice and Bob outside the Venue");
+    expect(db.sql(`select (to_jsonb(inbox) ? 'body')::text from
+      public.read_social_tag_inbox('${BOB}','approved',null,null,1) inbox`)).toBe("false");
+  });
+
+  it("requires fresh tag consent after every audience change", () => {
+    const db = database!;
+    const media = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const reservation = db.sql(`select object_key from public.reserve_social_post_media_upload(
+      '${ALICE}','${media}','${"6".repeat(64)}',500,400,900
+    )`);
+    const taggedPost = db.sql(`select id from public.create_social_post(
+      '${ALICE}','alice','standard','friends','Audience change',null,null,array[]::text[],'friends',
+      '${media}','${reservation}','${"6".repeat(64)}',500,400,900,'Alice and Bob',array['bob']
+    )`);
+    db.sql(`update public.social_posts set moderation_state='approved' where id='${taggedPost}';
+      update public.social_post_media set moderation_state='approved' where id='${media}'`);
+    const proposal = db.sql(`select id from public.social_post_tag_proposals where post_id='${taggedPost}'`);
+    expect(db.sql(`select public.act_social_post_tag('${BOB}','${proposal}','approve',0)`)).toBe("t");
+    expect(db.sql(`select count(*) from public.edit_social_post(
+      '${taggedPost}','${ALICE}',0,'standard','public','Audience change',null,null,array[]::text[],'friends',
+      '${media}','Alice and Bob',false
+    )`)).toBe("1");
+    expect(db.sql(`select state || ':' || (audience_visibility is null) || ':' || (audience_revision is null)
+      from public.social_post_tag_proposals where id='${proposal}'`)).toBe("proposed:true:true");
+    expect(db.sql(`select string_agg(action,',' order by created_at,id) from public.social_post_tag_events where proposal_id='${proposal}'`))
+      .toBe("propose,approve,audience_change");
+    expect(db.sql(`select count(*) from public.read_social_tag_inbox('${BOB}','proposed',null,null,20) where proposal_id='${proposal}'`)).toBe("1");
+    expect(db.sql(`select public.act_social_post_tag('${BOB}','${proposal}','approve',1)`)).toBe("t");
+    expect(db.sql(`select count(*) from public.edit_social_post(
+      '${taggedPost}','${ALICE}',1,'standard','private','Audience change',null,null,array[]::text[],'friends',
+      '${media}','Alice and Bob',false
+    )`)).toBe("1");
+    expect(db.sql(`select state || ':' || coalesce(audience_visibility,'cleared')
+      from public.social_post_tag_proposals where id='${proposal}'`)).toBe("proposed:cleared");
+  });
+
+  it("keeps approved withdrawal management through moderation, hiding, detachment, and purge", () => {
+    const db = database!;
+    const media = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    const reservation = db.sql(`select object_key from public.reserve_social_post_media_upload(
+      '${ALICE}','${media}','${"5".repeat(64)}',500,400,900
+    )`);
+    const taggedPost = db.sql(`select id from public.create_social_post(
+      '${ALICE}','alice','standard','friends','Withdrawal history',null,null,array[]::text[],'friends',
+      '${media}','${reservation}','${"5".repeat(64)}',500,400,900,'Alice and Bob',array['bob']
+    )`);
+    db.sql(`update public.social_posts set moderation_state='approved' where id='${taggedPost}';
+      update public.social_post_media set moderation_state='approved' where id='${media}'`);
+    const proposal = db.sql(`select id from public.social_post_tag_proposals where post_id='${taggedPost}'`);
+    db.sql(`select public.act_social_post_tag('${BOB}','${proposal}','approve',0)`);
+    for (const moderation of ["pending", "needs_review"] as const) {
+      db.sql(`update public.social_posts set moderation_state='${moderation}' where id='${taggedPost}'`);
+      expect(db.sql(`select count(*) || ':' || bool_and(media_id is null)::text
+        from public.read_social_tag_inbox('${BOB}','approved',null,null,20)
+        where proposal_id='${proposal}'`)).toBe("1:true");
+      expect(db.sql(`select count(*) from public.read_social_post_media('${BOB}','${media}')`)).toBe("0");
+    }
+    db.sql(`select public.set_social_block('${BOB}','${ALICE}',true)`);
+    expect(db.sql(`select count(*) || ':' || bool_and(media_id is null)::text
+      from public.read_social_tag_inbox('${BOB}','approved',null,null,20)
+      where proposal_id='${proposal}'`)).toBe("1:true");
+    db.sql(`select public.set_social_block('${BOB}','${ALICE}',false)`);
+    db.sql(`update public.social_posts set status='hidden' where id='${taggedPost}'`);
+    expect(db.sql(`select count(*) from public.read_social_tag_inbox('${BOB}','approved',null,null,20)
+      where proposal_id='${proposal}'`)).toBe("1");
+    db.sql(`delete from public.social_post_moderation_jobs where post_id='${taggedPost}';
+      update public.social_posts set photo_media_id=null,photo_alt_text=null where id='${taggedPost}';
+      update public.social_post_media set attachment_state='detached',retention_expires_at=now()-interval '1 second' where id='${media}'`);
+    expect(db.sql(`select count(*) from public.read_social_tag_inbox('${BOB}','approved',null,null,20)
+      where proposal_id='${proposal}'`)).toBe("1");
+    db.sql(`delete from public.social_post_media where id='${media}'`);
+    expect(db.sql(`select count(*) || ':' || bool_and(media_id is null)::text from
+      public.read_social_tag_inbox('${BOB}','approved',null,null,20) where proposal_id='${proposal}'`)).toBe("1:true");
+    expect(db.sql(`select public.act_social_post_tag('${BOB}','${proposal}','withdraw')`)).toBe("t");
   });
 
   it("reaches approved consent older than the first page", () => {
     const db = database!;
     db.sql(`do $$
-      declare i integer; v_media uuid; v_post uuid;
+      declare i integer; v_media uuid; v_generation uuid; v_post uuid;
       begin
         for i in 1..55 loop
           v_media := gen_random_uuid();
-          insert into public.social_post_media(id,owner_profile_id,object_key,sha256,width,height,byte_size,moderation_state)
-          values(v_media,'${ALICE}','social/' || v_media::text || '/image.jpg','${"9".repeat(64)}',200,200,400,'approved');
+          v_generation := gen_random_uuid();
+          insert into public.social_post_media(id,generation,owner_profile_id,object_key,sha256,width,height,byte_size,moderation_state)
+          values(v_media,v_generation,'${ALICE}','social/' || v_media::text || '/' || v_generation::text || '/image.jpg','${"9".repeat(64)}',200,200,400,'approved');
           insert into public.social_posts(author_profile_id,author_handle,kind,visibility,body,comment_policy,
             photo_media_id,photo_alt_text,moderation_state,created_at,updated_at)
           values('${ALICE}','alice','standard','private','Approved history ' || i,'locked',v_media,'History photo','approved',
@@ -328,11 +450,12 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
     const states = ["pending", "needs_review", "approved"] as const;
     for (let index = 0; index < states.length; index += 1) {
       const media = `88888888-8888-4888-8${index}88-88888888888${index}`;
-      db.sql(`insert into public.social_post_media_uploads(media_id,owner_profile_id,object_key,sha256,width,height,byte_size)
-        values('${media}','${ALICE}','social/${media}/image.jpg','${String(index + 1).repeat(64)}',400,300,800)`);
+      const objectKey = db.sql(`select object_key from public.reserve_social_post_media_upload(
+        '${ALICE}','${media}','${String(index + 1).repeat(64)}',400,300,800
+      )`);
       const created = db.sql(`select id from public.create_social_post(
         '${ALICE}','alice','standard','private','Remove ${states[index]}',null,null,array[]::text[],'locked',
-        '${media}','social/${media}/image.jpg','${String(index + 1).repeat(64)}',400,300,800,'Remove me',array[]::text[]
+        '${media}','${objectKey}','${String(index + 1).repeat(64)}',400,300,800,'Remove me',array[]::text[]
       )`);
       db.sql(`update public.social_posts set moderation_state='${states[index]}' where id='${created}';
         update public.social_post_media set moderation_state='${states[index]}' where id='${media}'`);
@@ -340,10 +463,19 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
       expect(db.sql(`select count(*) from public.social_post_moderation_jobs where post_id='${created}'`)).toBe("0");
       expect(db.sql(`select array_to_string(changed_fields,',') from public.social_post_edit_audit where post_id='${created}'`))
         .toBe("status,photo,photoAltText");
-      db.sql(`update public.social_post_media set retention_expires_at=now()-interval '1 second' where id='${media}';
-        delete from public.social_post_media where id='${media}'`);
+      expect(db.sql(`select media_id || ':' || post_id || ':' || actor_profile_id || ':' || action || ':' || (retention_expires_at is not null)
+        from public.social_post_media_lifecycle_events where media_id='${media}'`))
+        .toBe(`${media}:${created}:${ALICE}:detached:true`);
+      db.sql(`update public.social_post_media set retention_expires_at=now()-interval '1 second' where id='${media}'`);
+      const cleanup = db.sql(`select generation::text || '|' || cleanup_token::text
+        from public.claim_social_post_media_cleanup_batch(10) where media_id='${media}'`);
+      const [generation, cleanupToken] = cleanup.split("|");
+      expect(db.sql(`select public.finalize_social_post_media_cleanup('${media}','${generation}','${cleanupToken}')`)).toBe("t");
       expect(db.sql(`select count(*) from public.social_post_media where id='${media}'`)).toBe("0");
+      expect(db.sql(`select string_agg(action,',' order by created_at,id) from public.social_post_media_lifecycle_events where media_id='${media}'`))
+        .toBe("detached,purged");
     }
+    expect(() => db.sql(`delete from public.social_post_media_lifecycle_events where action='detached'`)).toThrow(/append-only/i);
   });
 
   it("does not claim moderation work for a non-visible post", () => {
@@ -373,20 +505,22 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
 
   it("records cancellation and proposal events and notifications on photo replacement", () => {
     const db = database!;
-    db.sql(`insert into public.social_post_media_uploads(media_id,owner_profile_id,object_key,sha256,width,height,byte_size)
-      values('${MEDIA_REPLACED}','${ALICE}','social/${MEDIA_REPLACED}/image.jpg','${"f".repeat(64)}',800,600,1000)`);
+    const replacedObjectKey = db.sql(`select object_key from public.reserve_social_post_media_upload(
+      '${ALICE}','${MEDIA_REPLACED}','${"f".repeat(64)}',800,600,1000
+    )`);
     const replacementPost = db.sql(`select id from public.create_social_post(
       '${ALICE}','alice','standard','public','Replacement proof',null,null,array[]::text[],'open',
-      '${MEDIA_REPLACED}','social/${MEDIA_REPLACED}/image.jpg','${"f".repeat(64)}',800,600,1000,'Old photo',array['carol']
+      '${MEDIA_REPLACED}','${replacedObjectKey}','${"f".repeat(64)}',800,600,1000,'Old photo',array['carol']
     )`);
     db.sql(`insert into public.social_post_create_requests(author_profile_id,idempotency_key,request_digest,post_id,media_id)
       values('${ALICE}','media-request-key-1234','${"e".repeat(64)}','${replacementPost}','${MEDIA_REPLACED}')`);
     const oldProposal = db.sql(`select id from public.social_post_tag_proposals where post_id='${replacementPost}' and target_profile_id='${CAROL}'`);
-    db.sql(`insert into public.social_post_media_uploads(media_id,owner_profile_id,object_key,sha256,width,height,byte_size)
-      values('${MEDIA_TWO}','${ALICE}','social/${MEDIA_TWO}/image.jpg','${"d".repeat(64)}',800,600,1000)`);
+    const replacementObjectKey = db.sql(`select object_key from public.reserve_social_post_media_upload(
+      '${ALICE}','${MEDIA_TWO}','${"d".repeat(64)}',800,600,1000
+    )`);
     expect(db.sql(`select count(*) from public.edit_social_post_with_media(
       '${replacementPost}','${ALICE}',0,'standard','public','Replacement proof',null,null,array[]::text[],'open',
-      '${MEDIA_TWO}','Replacement photo',true,'social/${MEDIA_TWO}/image.jpg','${"d".repeat(64)}',800,600,1000,array['bob'])`)).toBe("1");
+      '${MEDIA_TWO}','Replacement photo',true,'${replacementObjectKey}','${"d".repeat(64)}',800,600,1000,array['bob'])`)).toBe("1");
     expect(db.sql(`select state from public.social_post_tag_proposals where id='${oldProposal}'`)).toBe("cancelled");
     expect(db.sql(`select string_agg(action,',' order by created_at,id) from public.social_post_tag_events where proposal_id='${oldProposal}'`)).toBe("propose,cancel");
     expect(db.sql(`select count(*) from public.social_post_tag_events event join public.social_post_tag_proposals proposal on proposal.id=event.proposal_id
@@ -405,8 +539,12 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
     const db = database!;
     db.apply(ROLLBACK);
     expect(db.sql("select to_regclass('public.social_post_media') is null")).toBe("t");
+    expect(db.sql("select to_regclass('public.social_post_media_lifecycle_events') is null")).toBe("t");
     expect(db.sql("select to_regclass('public.social_post_edit_audit') is null")).toBe("t");
     expect(db.sql("select to_regclass('public.social_post_tag_proposals') is null")).toBe("t");
+    expect(db.sql("select to_regprocedure('public.reserve_social_post_media_upload(uuid,uuid,text,integer,integer,integer)') is null")).toBe("t");
+    expect(db.sql("select to_regprocedure('public.finalize_social_post_media_upload_cleanup(uuid,uuid,uuid)') is null")).toBe("t");
+    expect(db.sql("select to_regprocedure('public.finalize_social_post_media_cleanup(uuid,uuid,uuid)') is null")).toBe("t");
     expect(() => db.sql(`insert into public.social_posts(
       author_profile_id,author_handle,kind,visibility,body,venue_id,comment_policy
     ) values ('${ALICE}','alice','standard','public','Public Venue','venue-canonical','open')`)).toThrow();
