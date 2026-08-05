@@ -10,6 +10,11 @@ export type SocialRelationshipResolution =
   | SocialRelationshipState
   | "unavailable";
 
+type StoredSocialRelationshipState = Exclude<
+  SocialRelationshipState,
+  "self"
+>;
+
 export type SocialRelationshipServerDependencies = {
   queryRelationship: (
     firstProfileId: string,
@@ -31,11 +36,16 @@ const defaultDependencies: SocialRelationshipServerDependencies = {
   },
 };
 
-function isSocialRelationshipState(
+function isProfileId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+function isStoredSocialRelationshipState(
   value: unknown,
-): value is SocialRelationshipState {
+): value is StoredSocialRelationshipState {
   return (
-    value === "self" ||
     value === "mutual" ||
     value === "not_mutual" ||
     value === "blocked"
@@ -47,13 +57,16 @@ export async function socialRelationshipBetweenProfiles(
   secondProfileId: string,
   dependencies: SocialRelationshipServerDependencies = defaultDependencies,
 ): Promise<SocialRelationshipResolution> {
+  if (!isProfileId(firstProfileId) || !isProfileId(secondProfileId)) {
+    return "unavailable";
+  }
   if (firstProfileId === secondProfileId) return "self";
   try {
     const relationship = await dependencies.queryRelationship(
       firstProfileId,
       secondProfileId,
     );
-    return isSocialRelationshipState(relationship)
+    return isStoredSocialRelationshipState(relationship)
       ? relationship
       : "unavailable";
   } catch {
