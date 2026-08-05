@@ -68,8 +68,15 @@ describe("Clerk publishable key decoding", () => {
     );
     expect(layout).not.toContain("process.env.CLERK_SECRET_KEY");
 
+    const authProvider = readFileSync(
+      join(process.cwd(), "components/auth/AuthProvider.tsx"),
+      "utf8",
+    );
+    expect(authProvider).toContain("clerkIntegrationConfigured: boolean");
+    expect(authProvider).not.toContain("@/lib/clerkIdentity");
+    expect(authProvider).not.toContain("@/lib/clerkAvailability");
+
     for (const clientPath of [
-      "components/auth/AuthProvider.tsx",
       "components/auth/ClerkAccountControls.tsx",
       "components/auth/SignInButton.tsx",
     ]) {
