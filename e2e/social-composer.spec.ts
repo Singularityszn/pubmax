@@ -318,7 +318,7 @@ test("owner outbox pages older posts without duplicates and labels approved visi
     mkdirSync(directory, { recursive: true });
     await page.screenshot({ animations: "disabled", fullPage: false });
     await page.screenshot({
-      path: join(directory, "390-light-outbox-pagination.png"),
+      path: join(directory, "390-light-outbox-pagination-final.png"),
       animations: "disabled",
       fullPage: false,
     });
@@ -399,6 +399,60 @@ test("photo tag review fences audience changes and pages approved withdrawals", 
   expect(actions).toContainEqual({ proposalId: "44444444-4444-4444-8444-444444444444", action: "approve", expectedAudienceRevision: 1 });
   expect(actions).toContainEqual({ proposalId: "44444444-4444-4444-8444-444444444444", action: "approve", expectedAudienceRevision: 2 });
   expect(actions).toContainEqual({ proposalId: "66666666-6666-4666-8666-666666666666", action: "withdraw" });
+});
+
+test("photo tag lanes expose read failures, retry, and preserve approved withdrawals", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockVerified(page);
+  await page.route("**/api/social/posts?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [], nextCursor: null }) }));
+  await page.route("**/api/social/outbox", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [], nextCursor: null }) }));
+
+  const proposed = {
+    id: "44444444-4444-4444-8444-444444444444", postId: POST_ID,
+    mediaId: basePost.photo!.mediaId, authorHandle: "bob", state: "proposed",
+    visibility: "friends", photoAltText: "Friends outside", reviewRevision: 1,
+    audienceAtApproval: null, createdAt: "2026-08-05T19:00:00.000Z",
+  };
+  const approved = {
+    ...proposed, id: "55555555-5555-4555-8555-555555555555",
+    authorHandle: "cee", state: "approved", mediaId: null, photoAltText: null,
+    audienceAtApproval: { visibility: "friends", revision: 1, shownAt: "2026-08-05T19:02:00.000Z" },
+  };
+  let proposedReads = 0;
+  let approvedReads = 0;
+  await page.route("**/api/social/tags**", async (route) => {
+    if (route.request().method() === "POST") {
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true }) });
+    }
+    const lane = new URL(route.request().url()).searchParams.get("lane");
+    if (lane === "proposed") {
+      proposedReads += 1;
+      if (proposedReads === 1) return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Unavailable" }) });
+      if (proposedReads === 2) return route.abort("connectionrefused");
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: [proposed], nextCursor: null }) });
+    }
+    approvedReads += 1;
+    if (approvedReads === 2) return route.abort("connectionrefused");
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: approvedReads === 1 ? [approved] : [], nextCursor: null }) });
+  });
+
+  await page.goto("/social");
+  const proposedLane = page.getByRole("region", { name: "Tags to review" });
+  const approvedLane = page.getByRole("region", { name: "Approved tags" });
+  await expect(proposedLane.getByRole("alert")).toHaveText("Tags to review are unavailable right now.");
+  const proposedRetry = proposedLane.getByRole("button", { name: "Retry tags to review" });
+  expect((await proposedRetry.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  await proposedRetry.click();
+  await expect(proposedLane.getByRole("alert")).toBeVisible();
+  await proposedRetry.click();
+  await expect(proposedLane.getByText("@bob")).toBeVisible();
+
+  const approvedTag = approvedLane.getByText("@cee").locator("..");
+  await approvedTag.getByRole("button", { name: "Withdraw" }).click();
+  await expect(approvedLane.getByRole("alert")).toHaveText("Approved tags are unavailable right now.");
+  await expect(approvedTag.getByRole("button", { name: "Withdraw" })).toBeVisible();
+  await approvedLane.getByRole("button", { name: "Retry approved tags" }).click();
+  await expect(approvedLane).toHaveCount(0);
 });
 
 for (const viewport of [{ width: 320, height: 720 }, { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1280, height: 900 }]) {

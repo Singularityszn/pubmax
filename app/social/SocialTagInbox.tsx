@@ -20,9 +20,25 @@ type Proposal = {
   } | null;
 };
 type Lane = "proposed" | "approved";
-type LaneState = { items: Proposal[]; nextCursor: string | null };
+type LaneState = {
+  items: Proposal[];
+  nextCursor: string | null;
+  loading: boolean;
+  error: string | null;
+  retryCursor: string | null;
+};
 
-const EMPTY_LANE: LaneState = { items: [], nextCursor: null };
+const EMPTY_LANE: LaneState = {
+  items: [],
+  nextCursor: null,
+  loading: false,
+  error: null,
+  retryCursor: null,
+};
+const LANE_LABEL: Record<Lane, string> = {
+  proposed: "Tags to review",
+  approved: "Approved tags",
+};
 const AUDIENCE_LABEL: Record<SocialPostVisibility, string> = {
   private: "Private audience",
   friends: "Friends audience",
@@ -45,26 +61,44 @@ export default function SocialTagInbox() {
 
   const loadLane = useCallback(
     async (lane: Lane, cursor: string | null = null) => {
-      const params = new URLSearchParams({ lane, limit: "20" });
-      if (cursor) params.set("cursor", cursor);
-      const response = await fetch(`/api/social/tags?${params}`, {
-        cache: "no-store",
-      });
-      const value = response.ok
-        ? ((await response.json()) as {
-            proposals?: Proposal[];
-            nextCursor?: string | null;
-          })
-        : { proposals: [], nextCursor: null };
       setLanes((current) => ({
         ...current,
-        [lane]: {
-          items: cursor
-            ? mergeProposals(current[lane].items, value.proposals ?? [])
-            : value.proposals ?? [],
-          nextCursor: value.nextCursor ?? null,
-        },
+        [lane]: { ...current[lane], loading: true, error: null },
       }));
+      const params = new URLSearchParams({ lane, limit: "20" });
+      if (cursor) params.set("cursor", cursor);
+      try {
+        const response = await fetch(`/api/social/tags?${params}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("Tag lane read failed");
+        const value = (await response.json()) as {
+          proposals?: Proposal[];
+          nextCursor?: string | null;
+        };
+        setLanes((current) => ({
+          ...current,
+          [lane]: {
+            items: cursor
+              ? mergeProposals(current[lane].items, value.proposals ?? [])
+              : value.proposals ?? [],
+            nextCursor: value.nextCursor ?? null,
+            loading: false,
+            error: null,
+            retryCursor: null,
+          },
+        }));
+      } catch {
+        setLanes((current) => ({
+          ...current,
+          [lane]: {
+            ...current[lane],
+            loading: false,
+            error: `${LANE_LABEL[lane]} are unavailable right now.`,
+            retryCursor: cursor,
+          },
+        }));
+      }
     },
     [],
   );
@@ -110,17 +144,26 @@ export default function SocialTagInbox() {
     }
   }
 
-  const hasItems = lanes.proposed.items.length > 0 || lanes.approved.items.length > 0;
-  if (!hasItems && !error) return null;
+  const hasLaneContent = (Object.keys(lanes) as Lane[]).some((lane) =>
+    lanes[lane].items.length > 0 || lanes[lane].loading || lanes[lane].error,
+  );
+  if (!hasLaneContent && !error) return null;
   return (
     <section className="socialTagInbox" aria-labelledby="social-tags-title">
       <h2 id="social-tags-title">Photo tags</h2>
       {error ? <p role="alert">{error}</p> : null}
       {(["proposed", "approved"] as const).map((lane) => {
         const state = lanes[lane];
-        if (state.items.length === 0) return null;
+        if (state.items.length === 0 && !state.loading && !state.error) return null;
         return (
-          <section key={lane} className="socialTagLane" aria-label={lane === "proposed" ? "Tags to review" : "Approved tags"}>
+          <section
+            key={lane}
+            className="socialTagLane"
+            aria-label={LANE_LABEL[lane]}
+            aria-busy={state.loading}
+          >
+            {state.loading ? <p role="status">Loading {LANE_LABEL[lane].toLowerCase()}…</p> : null}
+            {state.error ? <p role="alert">{state.error}</p> : null}
             {state.items.map((item) => {
               const audience = item.state === "approved"
                 ? item.audienceAtApproval?.visibility ?? item.visibility
@@ -169,6 +212,15 @@ export default function SocialTagInbox() {
                 </article>
               );
             })}
+            {state.error ? (
+              <button
+                className="socialTagRetry"
+                type="button"
+                onClick={() => void loadLane(lane, state.retryCursor)}
+              >
+                Retry {LANE_LABEL[lane].toLowerCase()}
+              </button>
+            ) : null}
             {state.nextCursor ? (
               <button
                 className="socialTagMore"
