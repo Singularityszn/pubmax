@@ -40,4 +40,31 @@ describe("OpenAI Social post moderation adapter", () => {
     });
     await expect(malformed.moderate({ postId: "post-1", text: "Held" })).rejects.toThrow();
   });
+
+  it("aborts a moderation request after its bounded timeout", async () => {
+    const observedSignals: AbortSignal[] = [];
+    const adapter = new OpenAISocialPostModerationAdapter({
+      apiKey: "test-key",
+      timeoutMs: 5,
+      fetcher: (_url, init) => new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal as AbortSignal;
+        observedSignals.push(signal);
+        signal.addEventListener(
+          "abort",
+          () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
+          { once: true },
+        );
+      }),
+    });
+
+    const outcome = await Promise.race([
+      adapter.moderate({ postId: "post-1", text: "Held" })
+        .then(() => "approved", (error: unknown) =>
+          error && typeof error === "object" && "retryable" in error ? "retryable" : "failed"),
+      new Promise<string>((resolve) => setTimeout(() => resolve("not_aborted"), 100)),
+    ]);
+
+    expect(outcome).toBe("retryable");
+    expect(observedSignals.at(0)?.aborted).toBe(true);
+  });
 });

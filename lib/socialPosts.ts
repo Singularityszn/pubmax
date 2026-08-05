@@ -247,3 +247,10 @@ export function socialPostDTO(post: SocialPost): SocialPostDTO {
     author: { handle: post.authorHandle },
   };
 }
+
+export function socialPostModerationClaim(
+  post: Pick<SocialPostFields, "body" | "hashtags">,
+): string {
+  if (post.hashtags.length === 0) return post.body;
+  return `${post.body}\n\n${post.hashtags.map((tag) => `#${tag}`).join(" ")}`;
+}

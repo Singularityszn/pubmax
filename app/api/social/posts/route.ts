@@ -1,10 +1,15 @@
 import { assertServerEnv } from "@/lib/serverEnv";
 import { isLimited } from "@/lib/pintDrops";
+import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
 import { isSocialPostArea, validateSocialPostCreate } from "@/lib/socialPosts";
+import { hashActor } from "@/lib/supabase";
 
 assertServerEnv();
+
+const FEED_RATE_LIMIT = 60;
+const FEED_RATE_WINDOW_MS = 60_000;
 
 function privateJson(body: unknown, init: ResponseInit = {}): Response {
   const headers = new Headers(init.headers);
@@ -30,7 +35,10 @@ function accessError(access: Exclude<Awaited<ReturnType<typeof requireVerifiedSo
 
 function storeError(error: unknown): Response {
   if (error instanceof SocialPostStoreError) {
-    const status = error.code === "FORBIDDEN" ? 403 : error.code === "NOT_FOUND" ? 404 : 400;
+    const status = error.code === "FORBIDDEN" ? 403
+      : error.code === "NOT_FOUND" ? 404
+        : error.code === "EDIT_CONFLICT" ? 409
+          : 400;
     return privateJson({ code: error.code, error: error.message }, { status });
   }
   return privateJson(
@@ -56,6 +64,14 @@ export async function GET(request: Request): Promise<Response> {
   if (lane === "nearby" && !isSocialPostArea(area)) {
     return privateJson({ code: "INVALID_AREA", error: "Choose a listed area." }, { status: 400 });
   }
+  const areaScope = lane === "nearby" ? area : "all";
+  const feedKey = `social-post-feed:${hashActor(access.actor.profileId)}:${lane}:${areaScope}`;
+  if (await isLimited(feedKey, feedKey, FEED_RATE_LIMIT, FEED_RATE_WINDOW_MS)) {
+    return privateJson(
+      { code: "RATE_LIMITED", error: "Too many Social feed requests. Slow down.", retryable: true },
+      { status: 429 },
+    );
+  }
   try {
     const page = await socialPostStore().feed(access.actor, {
       lane,
@@ -70,6 +86,8 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const frozen = socialFreezeResponse();
+  if (frozen) return frozen;
   const access = await requireVerifiedSocialActor();
   if (!access.ok) return accessError(access);
   const input = await body(request);
@@ -86,7 +104,7 @@ export async function POST(request: Request): Promise<Response> {
       { status: 409 },
     );
   }
-  const limitKey = `social-post-create:${access.actor.profileId}`;
+  const limitKey = `social-post-create:${hashActor(access.actor.profileId)}`;
   if (await isLimited(limitKey, limitKey)) {
     return privateJson(
       { code: "RATE_LIMITED", error: "Too many Social posts. Slow down.", retryable: true },

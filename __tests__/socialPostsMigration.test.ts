@@ -1,8 +1,9 @@
-import { execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { execFile, execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
+import { promisify } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -25,7 +26,14 @@ function binary(name: "initdb" | "postgres" | "psql"): string | null {
   return null;
 }
 
-type Database = { sql(statement: string): string; apply(path: string): void; stop(): Promise<void> };
+const execFileAsync = promisify(execFile);
+
+type Database = {
+  sql(statement: string): string;
+  sqlAsync(statement: string): Promise<string>;
+  apply(path: string): void;
+  stop(): Promise<void>;
+};
 let database: Database | null = null;
 
 async function freePort(): Promise<number> {
@@ -72,6 +80,12 @@ async function startDatabase(): Promise<Database> {
   }).trim();
   return {
     sql: (statement) => run(["-q", "-t", "-A", "-c", statement]),
+    async sqlAsync(statement) {
+      const { stdout } = await execFileAsync(psql, [
+        ...connection, "-v", "ON_ERROR_STOP=1", "-q", "-t", "-A", "-c", statement,
+      ], { encoding: "utf8" });
+      return stdout.trim();
+    },
     apply: (path) => run(["-f", path]),
     async stop() {
       if (server.exitCode === null) {
@@ -122,6 +136,8 @@ describe("Social posts migration forward and rollback", () => {
     ) returning id`);
     expect(db.sql(`select moderation_state from public.social_posts where id='${postId}'`)).toBe("pending");
     expect(db.sql(`select state from public.social_post_moderation_jobs where post_id='${postId}'`)).toBe("pending");
+    expect(db.sql(`select moderation_claim from public.social_post_moderation_jobs where post_id='${postId}'`))
+      .toBe("Camden night\n\n#camden");
     expect(db.sql("select revision from public.claim_social_post_moderation_jobs(1)")).toBe("0");
     db.sql(`update public.social_posts set
       body='Camden night edited', revision=1, moderation_state='pending'
@@ -136,6 +152,41 @@ describe("Social posts migration forward and rollback", () => {
       '${postId}', 1, 'approved', null, null
     )`)).toBe("t");
     expect(db.sql(`select moderation_state from public.social_posts where id='${postId}'`)).toBe("approved");
+    const heldId = db.sql(`insert into public.social_posts(
+      author_profile_id,author_handle,kind,visibility,body,hashtags,comment_policy
+    ) values (
+      '11111111-1111-4111-8111-111111111111','alice','standard','private',
+      'Held terminal',array['held'],'open'
+    ) returning id`);
+    db.sql("select count(*) from public.claim_social_post_moderation_jobs(1)");
+    expect(db.sql(`select public.complete_social_post_moderation_job(
+      '${heldId}', 0, null, 'bad_configuration', null
+    )`)).toBe("t");
+    expect(db.sql(`select state from public.social_post_moderation_jobs where post_id='${heldId}'`))
+      .toBe("error");
+    expect(db.sql(`select count(*) from public.edit_social_post(
+      '${heldId}',
+      '11111111-1111-4111-8111-111111111111',
+      0,
+      'standard',
+      'private',
+      'Held terminal',
+      null,
+      null,
+      array['held'],
+      'locked',
+      null,
+      null,
+      false
+    )`)).toBe("1");
+    expect(db.sql(`select state || ':' || last_error_code
+      from public.social_post_moderation_jobs where post_id='${heldId}'`))
+      .toBe("error:bad_configuration");
+    expect(db.sql("select public.requeue_social_post_moderation_errors(20)")).toBe("1");
+    expect(db.sql(`select state from public.social_post_moderation_jobs where post_id='${heldId}'`))
+      .toBe("pending");
+    expect(db.sql(`select moderation_state from public.social_posts where id='${heldId}'`))
+      .toBe("pending");
     expect(db.sql("select has_table_privilege('anon','public.social_posts','select')")).toBe("f");
     expect(db.sql("select has_table_privilege('service_role','public.social_posts','select')")).toBe("t");
   });
@@ -167,6 +218,34 @@ describe("Social posts migration forward and rollback", () => {
       (select id from public.social_posts where body='private'),
       '22222222-2222-4222-8222-222222222222'
     )`)).toBe("0");
+  });
+
+  it("lets only one concurrent durable edit own a revision and moderation claim", async () => {
+    const db = database!;
+    const postId = db.sql(`insert into public.social_posts(
+      author_profile_id,author_handle,kind,visibility,body,area_slug,hashtags,comment_policy,moderation_state
+    ) values (
+      '11111111-1111-4111-8111-111111111111','alice','standard','friends',
+      'Original','camden',array['original'],'open','approved'
+    ) returning id`);
+    const editCall = (body: string, hashtag: string) => `
+      select count(*) from public.edit_social_post(
+        '${postId}', '11111111-1111-4111-8111-111111111111', 0,
+        'standard', 'friends', '${body}', 'camden', null,
+        array['${hashtag}'], 'open', null, null, true
+      )`;
+
+    const first = db.sqlAsync(`begin; ${editCall("First edit", "first")}; select pg_sleep(1); commit`);
+    const second = db.sqlAsync(editCall("Second edit", "second"));
+    const outcomes = (await Promise.all([first, second]))
+      .flatMap((output) => output.split("\n").filter((line) => line === "0" || line === "1"))
+      .sort();
+
+    expect(outcomes).toEqual(["0", "1"]);
+    expect(db.sql(`select revision || ':' || moderation_state from public.social_posts where id='${postId}'`))
+      .toBe("1:pending");
+    expect(db.sql(`select count(*) from public.social_post_moderation_jobs where post_id='${postId}' and revision=1`))
+      .toBe("1");
   });
 
   it("rolls back Task 3 state without touching the profile graph", () => {

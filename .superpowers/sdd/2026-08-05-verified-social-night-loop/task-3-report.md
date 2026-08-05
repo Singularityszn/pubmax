@@ -1,6 +1,7 @@
 # Task 3 report: verified Social posts
 
-Status: complete in commit `2ead21b38`.
+Status: review round 1 complete. Original implementation is commit
+`2ead21b38`; fixes are in the repository commit containing this report update.
 
 ## Delivered
 
@@ -41,6 +42,31 @@ Photo upload itself remains closed by design for Task 3. Photo-bearing create
 or edit requests return `PHOTO_UPLOAD_NOT_AVAILABLE` until the later ownership
 and upload task ships.
 
+## Review round 1 fixes
+
+All seven review findings are closed:
+
+- Durable edits now use a transactional revision compare-and-swap RPC. A real
+  PostgreSQL concurrency test proves one of two same-revision edits wins and
+  only its exact revision and moderation claim are queued.
+- Create, edit and recoverable removal call the Social freeze guard before
+  identity, limiter or storage work.
+- Moderation receives one canonical claim made from body plus normalised
+  hashtags. Durable jobs preserve that exact text.
+- Create, edit, removal and feed limit keys use the shared salted actor digest.
+  Raw stable profile IDs never enter the limiter key.
+- OpenAI moderation has a 10-second abort timeout. Leased batch items run in
+  isolated concurrent promises, so one held or failed request cannot block the
+  rest of the batch.
+- Worker results count terminal errors. Held posts remain pending and cannot be
+  read. Authenticated cron action `?action=requeue-terminal` can requeue a
+  bounded terminal batch after configuration repair and never auto-approves it.
+  Metadata-only edits preserve terminal state and active leases. Completion
+  persistence failures finish unaffected batch items, then fail the drain
+  instead of returning a false `ok` result.
+- Feed GET requests have a 60-per-minute budget partitioned by actor digest,
+  lane and nearby area.
+
 ## TDD and self-review evidence
 
 Red evidence captured before each implementation seam:
@@ -58,13 +84,13 @@ Red evidence captured before each implementation seam:
 - Self-review regression tests exposed own-private posts in Following and
   non-UUID paths reaching durable storage.
 
-Each red test turned green after the narrow implementation change. Final
-focused result:
+Each review finding received a failing regression test before its implementation
+change. Final review-round focused result:
 
 ```text
-Test Files  8 passed (8)
-Tests       66 passed (66)
-Duration    8.28s
+Test Files  9 passed (9)
+Tests       50 passed (50)
+Duration    35.75s
 ```
 
 This includes a real local PostgreSQL 16 run that applies migration `0072`,
@@ -72,20 +98,19 @@ exercises constraints, durable job revision races, all feed visibility lanes,
 service-only grants, then applies rollback and proves profile/follow state is
 untouched.
 
-Additional verification:
+Review-round verification:
 
-- `__tests__/writeSurfaceCertification.test.ts`: 6 passed.
-- `npm run typecheck`: exit 0 after final self-review changes.
+- Real PostgreSQL migration and concurrency proof: 4 passed.
+- `npm run typecheck`: exit 0.
 - Changed-file ESLint: exit 0 with no output.
 - Full `npm run lint`: exit 0, 0 errors and 29 pre-existing warnings.
 - `git diff --check`: exit 0 before commit.
 
-One full repository test run completed with 761 files and 7,705 tests passing,
-plus 25 failures across 8 unrelated files. Failures were setup and 20-second
-timeouts under load in existing validation, plan, UK-base, tracing, postcode,
-ESLint-scope and RLS suites. All Task 3 suites passed inside that run. Per
-coordination instruction, no duplicate full-suite run was launched; the final
-single-worker Task 3 run above is authoritative for this slice.
+One full single-worker repository run completed with 768 of 769 files and 7,772
+of 7,774 tests passing. Both failures were unrelated 20-second subprocess
+timeouts in `validateDrinkPriceUpdatesScript.test.ts` during concurrent
+repository coverage load. Their exact isolated rerun passed 2 of 2 in 14.03s.
+Every Task 3 suite passed inside the full run.
 
 ## Deployment note
 

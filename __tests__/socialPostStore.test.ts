@@ -29,13 +29,18 @@ function fields(overrides: Record<string, unknown> = {}) {
 describe("Social post store visibility and feeds", () => {
   it("holds durable submissions until deterministic moderation approves them", async () => {
     const store = createMemorySocialPostStore();
-    const post = await store.create(alice, fields());
+    const post = await store.create(alice, fields({ hashtags: ["#Camden", "Night_Out"] }));
+    const claims: string[] = [];
 
     expect(post.moderationState).toBe("pending");
     await expect(store.read(post.id, bob)).resolves.toBeNull();
     expect(await store.processModerationQueue({
-      moderate: async () => ({ decision: "approved" }),
-    })).toEqual({ processed: 1, approved: 1, needsReview: 0, retried: 0 });
+      moderate: async ({ text }) => {
+        claims.push(text);
+        return { decision: "approved" };
+      },
+    })).toEqual({ processed: 1, approved: 1, needsReview: 0, retried: 0, terminalErrors: 0 });
+    expect(claims).toEqual(["A post\n\n#camden #night_out"]);
     await expect(store.read(post.id, bob)).resolves.toMatchObject({
       id: post.id,
       author: { handle: "alice" },
@@ -48,7 +53,7 @@ describe("Social post store visibility and feeds", () => {
 
     expect(await store.processModerationQueue({
       moderate: async () => { throw new Error("offline"); },
-    })).toEqual({ processed: 1, approved: 0, needsReview: 0, retried: 1 });
+    })).toEqual({ processed: 1, approved: 0, needsReview: 0, retried: 1, terminalErrors: 0 });
     await expect(store.read(post.id, bob)).resolves.toBeNull();
   });
 
@@ -58,10 +63,14 @@ describe("Social post store visibility and feeds", () => {
     const error = Object.assign(new Error("bad credentials"), { retryable: false });
     expect(await store.processModerationQueue({
       moderate: async () => { throw error; },
-    })).toEqual({ processed: 1, approved: 0, needsReview: 0, retried: 0 });
+    })).toEqual({ processed: 1, approved: 0, needsReview: 0, retried: 0, terminalErrors: 1 });
     await expect(store.read(post.id, bob)).resolves.toBeNull();
     expect(await store.processModerationQueue({ moderate: async () => ({ decision: "approved" }) }))
-      .toEqual({ processed: 0, approved: 0, needsReview: 0, retried: 0 });
+      .toEqual({ processed: 0, approved: 0, needsReview: 0, retried: 0, terminalErrors: 0 });
+    await expect(store.requeueTerminalModeration()).resolves.toBe(1);
+    await expect(store.read(post.id, bob)).resolves.toBeNull();
+    expect(await store.processModerationQueue({ moderate: async () => ({ decision: "approved" }) }))
+      .toEqual({ processed: 1, approved: 1, needsReview: 0, retried: 0, terminalErrors: 0 });
   });
 
   it("applies public, mutual-friend, private, hidden, and removed gates on direct reads", async () => {
@@ -157,6 +166,31 @@ describe("Social post store visibility and feeds", () => {
     expect(await store.processModerationQueue({ moderate: async () => ({ decision: "approved" }) }))
       .toMatchObject({ approved: 1 });
     await expect(store.read(post.id, bob)).resolves.toMatchObject({ body: "Second version" });
+  });
+
+  it("isolates leased moderation items so one held request cannot block the next", async () => {
+    const store = createMemorySocialPostStore();
+    await store.create(alice, fields({ body: "Held first" }));
+    await store.create(alice, fields({ body: "Starts second" }));
+    let releaseFirst: (() => void) | undefined;
+    let secondStarted = false;
+    const processing = store.processModerationQueue({
+      moderate: ({ text }) => text.startsWith("Held first")
+        ? new Promise((resolve) => {
+            releaseFirst = () => resolve({ decision: "approved" });
+          })
+        : Promise.resolve().then(() => {
+            secondStarted = true;
+            return { decision: "approved" as const };
+          }),
+    });
+    while (!releaseFirst) await Promise.resolve();
+    await Promise.resolve();
+    const startedBeforeRelease = secondStarted;
+    releaseFirst();
+    await processing;
+
+    expect(startedBeforeRelease).toBe(true);
   });
 });
 
