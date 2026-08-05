@@ -18,6 +18,19 @@ function block(css: string, selector: string): string {
   return css.slice(start, end);
 }
 
+function mediaBlock(css: string, query: string): string {
+  const start = css.indexOf(`@media ${query}`);
+  expect(start, `@media ${query} must exist`).toBeGreaterThan(-1);
+  const openingBrace = css.indexOf("{", start);
+  let depth = 0;
+  for (let index = openingBrace; index < css.length; index += 1) {
+    if (css[index] === "{") depth += 1;
+    if (css[index] === "}") depth -= 1;
+    if (depth === 0) return css.slice(start, index + 1);
+  }
+  throw new Error(`@media ${query} must have balanced braces`);
+}
+
 function token(source: string, name: string): string {
   const match = new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, "i").exec(source);
   expect(match, `${name} must be a plain hex in this block`).toBeTruthy();
@@ -69,6 +82,21 @@ function shippedControlBorderWeight(): number {
   return Number(match![1]);
 }
 
+function shippedPhotoWeights(): { surface: number; ink: number } {
+  const picker = block(socialCss, ".socialComposer .socialPhotoPicker");
+  const surface =
+    /background:\s*color-mix\(in srgb, var\(--river\) (\d+)%, var\(--panel-raised\)\)/.exec(
+      picker,
+    );
+  const ink =
+    /color:\s*color-mix\(in srgb, var\(--river\) (\d+)%, var\(--ink\)\)/.exec(
+      picker,
+    );
+  expect(surface, "photo action must ship a restrained river surface").toBeTruthy();
+  expect(ink, "photo action must ship a readable river action colour").toBeTruthy();
+  return { surface: Number(surface![1]), ink: Number(ink![1]) };
+}
+
 describe("Social composer visual contract", () => {
   it("keeps every unfocused form boundary at 3:1 in both shipped themes", () => {
     const lightRoot = block(globalsCss, ":root");
@@ -100,21 +128,66 @@ describe("Social composer visual contract", () => {
     }
   });
 
-  it("ships one focus ring, a visible body label, mobile-safe spacing, and legible disabled action", () => {
+  it("keeps Add photo action text at 4.5:1 on its shipped tint", () => {
+    const lightRoot = block(globalsCss, ":root");
+    const lightBody = block(
+      globalsCss,
+      'html:not([data-theme="dark"]) body',
+    );
+    const dark = block(themeCss, 'html[data-theme="dark"]');
+    const weights = shippedPhotoWeights();
+    const themes = [
+      {
+        name: "light",
+        river: token(lightRoot, "--river"),
+        ink: token(lightRoot, "--ink"),
+        panel: token(lightBody, "--panel-raised"),
+      },
+      {
+        name: "dark",
+        river: token(dark, "--river"),
+        ink: token(dark, "--ink"),
+        panel: token(dark, "--panel-raised"),
+      },
+    ];
+
+    for (const theme of themes) {
+      const surface = mixSrgb(theme.river, theme.panel, weights.surface);
+      const ink = mixSrgb(theme.river, theme.ink, weights.ink);
+      expect(contrast(ink, surface), theme.name).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("ships one focus ring, a visible body label, safe spacing, and legible actions", () => {
     expect(composerSource).toMatch(
       /<label className="socialPostBody">\s*Post\s*<textarea/,
     );
     expect(socialCss).toMatch(
       /padding:[\s\S]*?calc\(24px \+ env\(safe-area-inset-bottom, 0px\)\)/,
     );
-    expect(socialCss).toMatch(
-      /@media \(max-width: 640px\)[\s\S]*?\.socialComposer textarea\s*{[^}]*resize:\s*none/,
+    expect(block(socialCss, ".socialComposer textarea")).toMatch(
+      /resize:\s*none/,
     );
+    expect(socialCss).not.toMatch(/resize:\s*vertical/);
     expect(socialCss).toMatch(
       /\.socialComposer :is\(textarea, input, select\):focus-visible\s*{[^}]*outline-offset:\s*0/,
     );
     expect(socialCss).toMatch(
       /\.socialComposer header button:disabled\s*{[^}]*opacity:\s*1/,
     );
+    expect(block(socialCss, ".socialComposer .socialPhotoPicker")).toMatch(
+      /border:\s*1px solid var\(--social-control-border\)[\s\S]*background:\s*color-mix\(in srgb, var\(--river\) \d+%, var\(--panel-raised\)\)[\s\S]*color:\s*color-mix\(in srgb, var\(--river\) \d+%, var\(--ink\)\)/,
+    );
+  });
+
+  it("makes the narrow composer a square-cornered full-height sheet", () => {
+    const narrow = mediaBlock(socialCss, "(max-width: 360px)");
+    expect(narrow).toMatch(
+      /\.socialComposerBackdrop\s*{[^}]*place-items:\s*stretch/,
+    );
+    const composer = block(narrow, ".socialComposer");
+    expect(composer).toMatch(/\n\s*width:\s*100%;/);
+    expect(composer).toMatch(/\n\s*height:\s*100svh;/);
+    expect(composer).toMatch(/\n\s*border-radius:\s*0;/);
   });
 });
