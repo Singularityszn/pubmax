@@ -87,7 +87,7 @@ describe("Social post store visibility and feeds", () => {
     await expect(store.read(friendPost.id, carol)).resolves.toBeNull();
     await expect(store.read(privatePost.id, bob)).resolves.toBeNull();
     await expect(store.read(privatePost.id, alice)).resolves.not.toBeNull();
-    await store.remove(friendPost.id, alice);
+    await store.remove(friendPost.id, alice, friendPost.revision, "remove-test-key-1234");
     await expect(store.read(friendPost.id, alice)).resolves.toBeNull();
   });
 
@@ -205,6 +205,17 @@ describe("Social post store visibility and feeds", () => {
       moderationState: "approved",
     });
     await expect(store.read(post.id, bob)).resolves.not.toBeNull();
+  });
+
+  it("edits an existing photo description through CAS and moderation", async () => {
+    const store = createMemorySocialPostStore();
+    const post = await store.create(alice, {
+      ...fields(),
+      photo: { mediaId: "11111111-1111-4111-8111-111111111111", altText: "Old description" },
+    });
+    await store.processModerationQueue({ moderate: async () => ({ decision: "approved" }) });
+    const edited = await store.edit(post.id, alice, 0, {}, true, { existingPhotoAltText: "Corrected description" });
+    expect(edited).toMatchObject({ photo: { altText: "Corrected description" }, revision: 1, moderationState: "pending" });
   });
 
   it("cannot approve a newer edit with an older in-flight moderation result", async () => {

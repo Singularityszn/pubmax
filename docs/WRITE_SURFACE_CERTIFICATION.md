@@ -177,6 +177,31 @@ moderation state, revision or timestamp is accepted from the request body.
   migration 0073 is unavailable. Rollback removes only Task 4 tables and RPCs,
   leaving Social posts, profiles and follows intact.
 
+### `app/api/social/tags` - verified photo-tag consent (route 79)
+
+- **Route / method:** `POST app/api/social/tags/route.ts`.
+- **Authority:** `requireVerifiedSocialActor` derives stable profile authority.
+  Proposal IDs do not grant authority. The target can approve or decline, and
+  the photo author can cancel. An approved target can withdraw later.
+- **Consent:** identity appears only while proposal state is approved and the
+  current block graph still permits the author-target edge. Each state change
+  appends an immutable consent event.
+- **Failure:** malformed requests return 400. Wrong actors, blocked edges and
+  invalid state transitions use one denied response without exposing proposal
+  state.
+
+### `app/api/admin/social-posts` - named staff Social moderation (route 80)
+
+- **Route / method:** `POST app/api/admin/social-posts/route.ts`.
+- **Authority:** `requireVerifiedSocialActor` derives stable profile authority.
+  The durable moderation transaction also requires an active named moderator
+  role. Client data cannot assert staff identity or role.
+- **Moderation:** approval binds post, revision and private media. Hide keeps
+  provenance and appends the named staff action. Neither action deletes the
+  post, media audit, or tag consent history.
+- **Failure:** missing named staff authority and held-row mismatches use a
+  private denied response. No partial moderation result is returned.
+
 ### `app/api/push-tokens` — native/web push registration (route 61)
 
 - **Route / method:** `POST app/api/push-tokens/route.ts` (Capacitor shell via

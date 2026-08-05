@@ -121,7 +121,7 @@ export const supabaseSocialPhotoStorage: SocialPhotoStorage = {
     }
     const { error } = await requireSupabaseAdmin()
       .storage.from(STORAGE_BUCKET)
-      .upload(path, bytes, { contentType, upsert: false });
+      .upload(path, bytes, { contentType, upsert: true });
     if (error) throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
   },
   async remove(paths) {
@@ -141,9 +141,11 @@ export async function uploadPreparedSocialPhoto(
   ownerProfileId: string,
   prepared: PreparedSocialPhoto,
   storage: SocialPhotoStorage = supabaseSocialPhotoStorage,
+  requestedMediaId?: string,
 ): Promise<UploadedSocialPhoto> {
-  const mediaId = randomUUID();
-  const objectKey = `social/${ownerProfileId}/${mediaId}/image.jpg`;
+  const mediaId = requestedMediaId ?? randomUUID();
+  void ownerProfileId;
+  const objectKey = `social/${mediaId}/image.jpg`;
   await storage.upload(objectKey, prepared.bytes, prepared.contentType);
   return { ...prepared, mediaId, objectKey };
 }
@@ -164,4 +166,38 @@ export async function signSocialPhotoObject(
   storage: SocialPhotoStorage = supabaseSocialPhotoStorage,
 ): Promise<string | null> {
   return storage.sign(objectKey, SOCIAL_MEDIA_SIGNED_TTL_SECONDS);
+}
+
+export async function purgeDetachedSocialPhotos(limit = 50): Promise<number> {
+  if (!isSupabaseConfigured()) return 0;
+  const admin = requireSupabaseAdmin();
+  const { data, error } = await admin.from("social_post_media").select("id,object_key")
+    .eq("attachment_state", "detached")
+    .lte("retention_expires_at", new Date().toISOString()).limit(Math.min(Math.max(limit, 1), 100));
+  if (error) throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Photo cleanup is unavailable.");
+  const rows = (data ?? []).filter((item): item is { id: string; object_key: string } =>
+    typeof item.id === "string" && typeof item.object_key === "string");
+  if (rows.length === 0) return 0;
+  return purgeDetachedSocialPhotoRows(
+    rows,
+    async (keys) => {
+      const { error: removeError } = await admin.storage.from(STORAGE_BUCKET).remove(keys);
+      if (removeError) throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Photo cleanup is unavailable.");
+    },
+    async (ids) => {
+      const { error: deleteError } = await admin.from("social_post_media").delete().in("id", ids);
+      if (deleteError) throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Photo cleanup is unavailable.");
+    },
+  );
+}
+
+export async function purgeDetachedSocialPhotoRows(
+  rows: Array<{ id: string; object_key: string }>,
+  removeObjects: (keys: string[]) => Promise<void>,
+  deleteRows: (ids: string[]) => Promise<void>,
+): Promise<number> {
+  if (rows.length === 0) return 0;
+  await removeObjects(rows.map((item) => item.object_key));
+  await deleteRows(rows.map((item) => item.id));
+  return rows.length;
 }

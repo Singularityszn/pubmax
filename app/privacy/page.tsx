@@ -220,9 +220,8 @@ export default function PrivacyPage() {
         <p className="legalBody">
           Social edits keep revision numbers, changed-field names and content
           digests for conflict handling and abuse review. A removed photo stops
-          being delivered. A private evidence copy may remain while a report,
-          appeal, legal hold or safety review is open, then is deleted under the
-          applicable retention schedule. Signed photo links expire after three minutes.
+          being delivered. Detached photo files enter a 30-day deletion queue. A scheduled server cleanup removes
+          the private file and its media row after that date. Signed photo links expire after three minutes.
         </p>
         <p className="legalBody">
           A Recommendation is your short opinion that one pub suits one kind of
@@ -663,8 +662,9 @@ export default function PrivacyPage() {
             else you posted.
           </li>
           <li>
-            <strong>Hidden or reported content:</strong>{" "}photos attached to a
-            removed post are purged from storage when the post is taken down.
+            <strong>Hidden or reported content:</strong>{" "}a detached Social
+            photo stops being delivered immediately and enters the 30-day
+            deletion queue.
           </li>
           <li>
             <strong>Analytics events:</strong>{" "}PostHog deletes analytics

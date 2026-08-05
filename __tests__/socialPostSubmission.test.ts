@@ -82,5 +82,22 @@ describe("Social post submission boundary", () => {
       expectedRevision: 7,
       photo: { mediaId: "11111111-1111-4111-8111-111111111111" },
     }, false)).toMatchObject({ ok: false, code: "INVALID_POST" });
+    expect(parseSocialEditSubmission({
+      expectedRevision: 7,
+      body: "Words",
+      tagHandles: ["bob"],
+    }, false)).toMatchObject({ ok: false, code: "INVALID_TAGS" });
+    expect(parseSocialEditSubmission({
+      expectedRevision: 7,
+      photoAltText: "  Corrected description  ",
+    }, false)).toEqual({
+      ok: true,
+      expectedRevision: 7,
+      changes: {},
+      moderationSensitive: true,
+      removePhoto: false,
+      photoAltText: "Corrected description",
+      tagHandles: [],
+    });
   });
 });

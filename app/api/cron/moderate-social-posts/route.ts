@@ -2,6 +2,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { assertCronRequest } from "@/lib/cronAuth";
 import { OpenAISocialPostModerationAdapter } from "@/lib/socialPostModeration";
 import { socialPostStore } from "@/lib/socialPostStore";
+import { purgeDetachedSocialPhotos } from "@/lib/socialPostMedia.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +17,10 @@ export async function GET(request: Request): Promise<Response> {
       const requeued = await socialPostStore().requeueTerminalModeration(20);
       return jsonNoStore({ ok: true, requeued });
     }
+    if (action === "purge-detached-media") {
+      const purged = await purgeDetachedSocialPhotos(50);
+      return jsonNoStore({ ok: true, purged });
+    }
     if (action !== null) {
       return jsonNoStore({ ok: false, error: "Unknown moderation action." }, { status: 400 });
     }
@@ -23,7 +28,8 @@ export async function GET(request: Request): Promise<Response> {
       new OpenAISocialPostModerationAdapter(),
       20,
     );
-    return jsonNoStore({ ok: true, ...result });
+    const purged = await purgeDetachedSocialPhotos(50);
+    return jsonNoStore({ ok: true, ...result, purged });
   } catch {
     return jsonNoStore(
       { ok: false, error: "Social post moderation queue is unavailable.", retryable: true },

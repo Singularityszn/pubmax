@@ -5,6 +5,8 @@ import {
   prepareSocialPhoto,
   SocialPhotoError,
   uploadPreparedSocialPhoto,
+  purgeDetachedSocialPhotoRows,
+  signSocialPhotoObject,
 } from "@/lib/socialPostMedia.server";
 
 async function imageFile(
@@ -51,7 +53,7 @@ describe("Social post private photo processing", () => {
       .rejects.toMatchObject({ code: "INVALID_DIMENSIONS" });
   });
 
-  it("creates the media ID and private owner path on the server", async () => {
+  it("creates an identifier-free private media path on the server", async () => {
     const uploads: Array<{ path: string; contentType: string; bytes: Buffer }> = [];
     const result = await uploadPreparedSocialPhoto(
       "11111111-1111-4111-8111-111111111111",
@@ -67,8 +69,9 @@ describe("Social post private photo processing", () => {
 
     expect(result.mediaId).toMatch(/^[0-9a-f-]{36}$/);
     expect(result.objectKey).toBe(
-      `social/11111111-1111-4111-8111-111111111111/${result.mediaId}/image.jpg`,
+      `social/${result.mediaId}/image.jpg`,
     );
+    expect(result.objectKey).not.toContain("11111111-1111-4111-8111-111111111111");
     expect(uploads).toHaveLength(1);
     expect(uploads[0]).toMatchObject({
       path: result.objectKey,
@@ -77,10 +80,36 @@ describe("Social post private photo processing", () => {
     expect(uploads[0]?.bytes.equals(result.bytes)).toBe(true);
   });
 
+  it("keeps the stable owner identifier out of moderation signed URLs", async () => {
+    const owner = "11111111-1111-4111-8111-111111111111";
+    const uploaded = await uploadPreparedSocialPhoto(owner, await prepareSocialPhoto(await imageFile("jpeg", 100, 100)), {
+      upload: async () => undefined, remove: async () => undefined,
+      sign: async (path) => `https://storage.test/${path}`,
+    });
+    const signed = await signSocialPhotoObject(uploaded.objectKey, {
+      upload: async () => undefined, remove: async () => undefined,
+      sign: async (path) => `https://storage.test/${path}`,
+    });
+    expect(signed).not.toContain(owner);
+  });
+
   it("uses typed safe failures", () => {
     expect(new SocialPhotoError("INVALID_TYPE", "Bad photo")).toMatchObject({
       code: "INVALID_TYPE",
       message: "Bad photo",
     });
+  });
+
+  it("retries catalog deletion safely after object deletion succeeds", async () => {
+    const removed: string[][] = [];
+    let attempts = 0;
+    const rows = [{ id: "media-a", object_key: "social/media-a/image.jpg" }];
+    const run = () => purgeDetachedSocialPhotoRows(rows, async (keys) => { removed.push(keys); }, async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error("database unavailable");
+    });
+    await expect(run()).rejects.toThrow("database unavailable");
+    await expect(run()).resolves.toBe(1);
+    expect(removed).toEqual([["social/media-a/image.jpg"], ["social/media-a/image.jpg"]]);
   });
 });

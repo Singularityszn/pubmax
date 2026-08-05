@@ -292,6 +292,16 @@
 .socialTagInbox h2 { margin: 0 0 8px; font-size: 1rem; }
 .socialTagInbox div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .socialTagInbox button { min-height: 44px; }
+.socialOutbox { padding: 12px; border: 1px solid var(--line); border-radius: 14px; }
+.socialOutbox h2 { margin: 0 0 8px; font-size: 1rem; }
+.socialOutbox ul { margin: 0; padding-left: 20px; }
+.socialEditButton,
+.socialRemovePhoto { min-height: 44px; margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--ink); }
+.socialPhotoPicker { position: relative; min-height: 44px; place-content: center; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--river) 7%, var(--panel-raised)); color: var(--ink); cursor: pointer; }
+.socialPhotoPicker input { position: absolute; width: 1px; min-height: 1px; margin: -1px; padding: 0; overflow: hidden; border: 0; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.socialPhotoPicker:focus-within { outline: 3px solid var(--river); outline-offset: 2px; }
+.socialSelectedVenue { display: flex; min-height: 44px; margin-top: 12px; padding: 0 10px; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.socialSelectedVenue button { min-height: 44px; border: 0; background: transparent; color: var(--river); font: inherit; font-weight: 800; }
 
 @media (min-width: 700px) {
   .socialComposerBackdrop { place-items: center; }

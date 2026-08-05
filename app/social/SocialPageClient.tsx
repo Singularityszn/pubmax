@@ -22,6 +22,7 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import "./social.css";
 import SocialComposer from "./SocialComposer";
 import SocialTagInbox from "./SocialTagInbox";
+import SocialOutbox from "./SocialOutbox";
 
 export type SocialBoundaryState =
   Exclude<SocialAccessState, "verified"> | "unavailable";
@@ -48,7 +49,7 @@ type ActivityLoadState = "idle" | "loading" | "ready" | "unavailable";
 
 type SocialActivityItem = {
   id: string;
-  kind: "cheer" | "comment" | "repost" | "quote" | "feature_update";
+  kind: "cheer" | "comment" | "repost" | "quote" | "feature_update" | "tag_proposal";
   readAt: string | null;
   createdAt: string;
 };
@@ -73,6 +74,15 @@ function parseAccessState(value: unknown): SocialAccessState | null {
   return ACCESS_STATES.has(value.state as SocialAccessState)
     ? (value.state as SocialAccessState)
     : null;
+}
+
+function parseViewerHandle(value: unknown): string | null {
+  return isRecord(value) && typeof value.viewerHandle === "string" ? value.viewerHandle : null;
+}
+
+function parseDraftScope(value: unknown): string | null {
+  return isRecord(value) && typeof value.draftScope === "string" && /^[A-Za-z0-9_-]{43}$/.test(value.draftScope)
+    ? value.draftScope : null;
 }
 
 function parsePostPage(value: unknown): SocialPostPage | null {
@@ -101,6 +111,7 @@ const ACTIVITY_KINDS = new Set<SocialActivityItem["kind"]>([
   "repost",
   "quote",
   "feature_update",
+  "tag_proposal",
 ]);
 
 function parseActivityPage(value: unknown): SocialActivityItem[] | null {
@@ -155,7 +166,7 @@ export function SocialAccessBoundary({
   );
 }
 
-export function SocialPostCard({ post }: { post: SocialPostDTO }) {
+export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: { post: SocialPostDTO; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void }) {
   const area = post.area ? getNightArea(post.area) : null;
   const exactVenueId = post.venueProjected ? post.venueId : null;
   const when = relativeTime(post.createdAt);
@@ -194,6 +205,7 @@ export function SocialPostCard({ post }: { post: SocialPostDTO }) {
         </p>
       ) : null}
       {post.editedAt ? <p className="socialPostEdited">Edited</p> : null}
+      {canEdit && draftScope && onEdited ? <SocialComposer key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
     </article>
   );
 }
@@ -264,6 +276,7 @@ const ACTIVITY_LABEL: Record<SocialActivityItem["kind"], string> = {
   repost: "repost",
   quote: "quote",
   feature_update: "feature update",
+  tag_proposal: "photo tag",
 };
 
 export function SocialContextRail({
@@ -316,6 +329,8 @@ export default function SocialPageClient({
   heritageCrawls,
 }: SocialPageClientProps) {
   const [access, setAccess] = useState<AccessLoadState>("checking");
+  const [viewerHandle, setViewerHandle] = useState<string | null>(null);
+  const [draftScope, setDraftScope] = useState<string | null>(null);
   const [accessAttempt, setAccessAttempt] = useState(0);
   const [feedAttempt, setFeedAttempt] = useState(0);
   const [feedStatus, setFeedStatus] = useState<FeedLoadState>("idle");
@@ -344,11 +359,12 @@ export default function SocialPageClient({
     })
       .then(async (response) => {
         if (!response.ok) throw new Error("Social access unavailable");
-        const state = parseAccessState(await response.json());
+        const body = await response.json();
+        const state = parseAccessState(body);
         if (!state) throw new Error("Social access malformed");
-        return state;
+        return { state, viewerHandle: parseViewerHandle(body), draftScope: parseDraftScope(body) };
       })
-      .then(setAccess)
+      .then((result) => { setAccess(result.state); setViewerHandle(result.viewerHandle); setDraftScope(result.draftScope); })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError")
           return;
@@ -485,8 +501,9 @@ export default function SocialPageClient({
         <h1 className="socialTitle">Social</h1>
         <div className="socialLayout">
           <aside className="socialControlRail" aria-label="Social views">
-            {showPostsControls ? <SocialComposer onCreated={() => setFeedAttempt((value) => value + 1)} /> : null}
+            {showPostsControls && draftScope ? <SocialComposer key={draftScope} draftScope={draftScope} onSaved={() => setFeedAttempt((value) => value + 1)} /> : null}
             {showPostsControls ? <SocialTagInbox /> : null}
+            {showPostsControls ? <SocialOutbox /> : null}
             <nav className="socialSwitcher" aria-label="Social view">
               <Link href="/social" aria-current={isPosts ? "page" : undefined}>
                 Posts
@@ -570,7 +587,10 @@ export default function SocialPageClient({
               ) : (
                 <div className="socialPostList">
                   {posts.map((post) => (
-                    <SocialPostCard key={post.id} post={post} />
+                    <SocialPostCard key={post.id} post={post} canEdit={post.author.handle === viewerHandle} draftScope={draftScope}
+                      onEdited={(updated) => updated
+                        ? setPosts((current) => chronological(current.map((item) => item.id === updated.id ? updated : item)))
+                        : setFeedAttempt((value) => value + 1)} />
                   ))}
                 </div>
               )}

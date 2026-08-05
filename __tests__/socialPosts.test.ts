@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   socialPostDTO,
+  socialPostModerationClaim,
   validateSocialPostCreate,
   validateSocialPostEdit,
 } from "@/lib/socialPosts";
 
 describe("Social post validation", () => {
+  it("uses the same canonical photo-only moderation claim as SQL", () => {
+    expect(socialPostModerationClaim({ body: "", hashtags: [], photo: { mediaId: "media", altText: "Friends outside" } }))
+      .toBe("Photo: Friends outside");
+  });
   it("normalises a standard post without accepting ownership or moderation fields", () => {
     expect(validateSocialPostCreate({
       kind: "standard",

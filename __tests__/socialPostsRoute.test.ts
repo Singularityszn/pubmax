@@ -20,6 +20,10 @@ const state = vi.hoisted(() => ({
   } as unknown,
   removedObjects: [] as string[],
   createError: null as Error | null,
+  createRequestReads: 0,
+  createWinnerMediaId: null as string | null,
+  lastUploadedMediaId: null as string | null,
+  createPrior: null as { digest: string; mediaId: string | null } | null,
 }));
 
 vi.mock("@/lib/pintDrops", () => ({
@@ -60,11 +64,10 @@ vi.mock("@/lib/socialPostMedia.server", () => ({
     byteSize: 10,
     sha256: "a".repeat(64),
   }),
-  uploadPreparedSocialPhoto: async (_owner: string, prepared: Record<string, unknown>) => ({
-    ...prepared,
-    mediaId: "11111111-1111-4111-8111-111111111112",
-    objectKey: "social/profile-a/11111111-1111-4111-8111-111111111112/image.jpg",
-  }),
+  uploadPreparedSocialPhoto: async (_owner: string, prepared: Record<string, unknown>, _storage: unknown, requestedMediaId?: string) => {
+    state.lastUploadedMediaId = requestedMediaId ?? "11111111-1111-4111-8111-111111111112";
+    return { ...prepared, mediaId: state.lastUploadedMediaId, objectKey: `social/${state.lastUploadedMediaId}/image.jpg` };
+  },
   removeSocialPhotoObject: async (key: string) => {
     state.removedObjects.push(key);
   },
@@ -73,6 +76,16 @@ vi.mock("@/lib/socialPostMedia.server", () => ({
     code = "INVALID_TYPE";
   },
   SOCIAL_PHOTO_MAX_BYTES: 10 * 1024 * 1024,
+}));
+
+vi.mock("@/lib/socialPostCreateRequest.server", () => ({
+  readSocialPostCreateRequest: async () => {
+    state.createRequestReads += 1;
+    if (state.createPrior) return state.createPrior;
+    return state.createRequestReads > 1 && state.createWinnerMediaId
+      ? { digest: "f".repeat(64), mediaId: state.createWinnerMediaId === "uploaded" ? state.lastUploadedMediaId : state.createWinnerMediaId }
+      : null;
+  },
 }));
 
 vi.mock("@/lib/socialPostStore", async (importOriginal) => {
@@ -98,7 +111,7 @@ vi.mock("@/lib/socialPostStore", async (importOriginal) => {
       },
       edit: async (...args: unknown[]) => {
         state.calls.push({ name: "edit", args });
-        return { id: "post-1", body: "Changed", revision: 1, moderationState: "pending" };
+        return { id: "post-1", body: "Changed", revision: Number(args[2]) + 1, moderationState: "pending" };
       },
       remove: async (...args: unknown[]) => {
         state.calls.push({ name: "remove", args });
@@ -110,6 +123,8 @@ vi.mock("@/lib/socialPostStore", async (importOriginal) => {
 
 import { GET as list, POST } from "@/app/api/social/posts/route";
 import { GET as read, PATCH } from "@/app/api/social/posts/[postId]/route";
+import { SocialPostStoreError } from "@/lib/socialPostStore";
+import { socialPhotoMediaId, socialPostRequestDigest } from "@/lib/socialPostIdempotency.server";
 
 const actor = { accountId: "account-a", profileId: "profile-a", handle: "alice" };
 
@@ -117,7 +132,7 @@ function request(path: string, method = "GET", body?: unknown): Request {
   return new Request(`http://localhost${path}`, {
     method,
     ...(body === undefined ? {} : {
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(method === "POST" ? { "Idempotency-Key": "test-social-post-key" } : {}) },
       body: JSON.stringify(body),
     }),
   });
@@ -138,9 +153,23 @@ beforeEach(() => {
   };
   state.removedObjects = [];
   state.createError = null;
+  state.createRequestReads = 0;
+  state.createWinnerMediaId = null;
+  state.lastUploadedMediaId = null;
+  state.createPrior = null;
 });
 
 describe("/api/social/posts", () => {
+  it("does not require a write key for feed reads but rejects missing create keys", async () => {
+    expect((await list(request("/api/social/posts?lane=discover"))).status).toBe(200);
+    const response = await POST(new Request("http://localhost/api/social/posts", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "standard", visibility: "friends", body: "Words", commentPolicy: "open" }),
+    }));
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: "INVALID_IDEMPOTENCY_KEY" });
+  });
+
   it("requires verified Social access for every feed read", async () => {
     state.access = {
       ok: false,
@@ -267,6 +296,7 @@ describe("/api/social/posts", () => {
 
     const response = await POST(new Request("http://localhost/api/social/posts", {
       method: "POST",
+      headers: { "Idempotency-Key": "test-social-photo-key" },
       body: form,
     }));
 
@@ -278,20 +308,22 @@ describe("/api/social/posts", () => {
         expect.objectContaining({
           body: "",
           photo: {
-            mediaId: "11111111-1111-4111-8111-111111111112",
+            mediaId: expect.any(String),
             altText: "Friends outside a pub",
           },
         }),
         {
           media: {
-            mediaId: "11111111-1111-4111-8111-111111111112",
-            objectKey: "social/profile-a/11111111-1111-4111-8111-111111111112/image.jpg",
+            mediaId: expect.any(String),
+            objectKey: expect.stringMatching(/^social\/[0-9a-f-]+\/image\.jpg$/),
             sha256: "a".repeat(64),
             width: 640,
             height: 480,
             byteSize: 10,
           },
           tagHandles: ["bob"],
+          idempotencyKey: "test-social-photo-key",
+          requestDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
         },
       ],
     });
@@ -310,12 +342,48 @@ describe("/api/social/posts", () => {
     }));
     form.set("photo", new File([Buffer.from([0xff, 0xd8, 0xff])], "night.jpg", { type: "image/jpeg" }));
 
-    const response = await POST(new Request("http://localhost/api/social/posts", { method: "POST", body: form }));
+    const response = await POST(new Request("http://localhost/api/social/posts", { method: "POST", headers: { "Idempotency-Key": "test-social-photo-key" }, body: form }));
 
     expect(response.status).toBe(503);
     expect(state.removedObjects).toEqual([
-      "social/profile-a/11111111-1111-4111-8111-111111111112/image.jpg",
+      expect.stringMatching(/^social\/[0-9a-f-]+\/image\.jpg$/),
     ]);
+  });
+
+  it("does not delete a winning replay photo after an idempotency conflict", async () => {
+    state.createError = new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That post request key was already used for different content.");
+    state.createWinnerMediaId = "uploaded";
+    const form = new FormData();
+    form.set("post", JSON.stringify({ kind: "standard", visibility: "friends", body: "Changed text", commentPolicy: "open", photoAltText: "Same photo" }));
+    form.set("photo", new File([Buffer.from([0xff, 0xd8, 0xff])], "night.jpg", { type: "image/jpeg" }));
+    const response = await POST(new Request("http://localhost/api/social/posts", { method: "POST", headers: { "Idempotency-Key": "same-photo-retry-key" }, body: form }));
+    expect(response.status).toBe(409);
+    expect(state.removedObjects).toEqual([]);
+  });
+
+  it("reuses an exact photo replay without uploading again", async () => {
+    const key = "exact-photo-retry-key";
+    const mediaId = socialPhotoMediaId(actor.profileId, key, "a".repeat(64));
+    const fields = { kind: "standard" as const, visibility: "friends" as const, body: "Same", area: null, venueId: null, hashtags: [], commentPolicy: "open" as const, photo: { mediaId, altText: "Same photo" } };
+    state.createPrior = { digest: socialPostRequestDigest(fields, "a".repeat(64), []), mediaId };
+    const form = new FormData();
+    form.set("post", JSON.stringify({ kind: "standard", visibility: "friends", body: "Same", commentPolicy: "open", photoAltText: "Same photo" }));
+    form.set("photo", new File([Buffer.from([0xff, 0xd8, 0xff])], "same.jpg", { type: "image/jpeg" }));
+    const response = await POST(new Request("http://localhost/api/social/posts", { method: "POST", headers: { "Idempotency-Key": key }, body: form }));
+    expect(response.status).toBe(201);
+    expect(state.lastUploadedMediaId).toBeNull();
+    expect((state.calls[0]?.args[1] as { photo: { mediaId: string } }).photo.mediaId).toBe(mediaId);
+  });
+
+  it("removes a losing different-photo upload after an idempotency conflict", async () => {
+    state.createError = new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That post request key was already used for different content.");
+    state.createWinnerMediaId = "99999999-9999-4999-8999-999999999999";
+    const form = new FormData();
+    form.set("post", JSON.stringify({ kind: "standard", visibility: "friends", body: "Changed", commentPolicy: "open", photoAltText: "Different photo" }));
+    form.set("photo", new File([Buffer.from([0xff, 0xd8, 0xff])], "other.jpg", { type: "image/jpeg" }));
+    const response = await POST(new Request("http://localhost/api/social/posts", { method: "POST", headers: { "Idempotency-Key": "different-photo-key" }, body: form }));
+    expect(response.status).toBe(409);
+    expect(state.removedObjects).toHaveLength(1);
   });
 
   it("rate-limits creation by stable profile authority", async () => {
@@ -367,18 +435,40 @@ describe("/api/social/posts/[postId]", () => {
       body: "Changed",
     }), context);
     expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      audit: { fromRevision: 4, toRevision: 5 },
+    });
     expect(state.calls[0]).toEqual({
       name: "edit",
       args: [postId, actor, 4, { body: "Changed" }, true],
     });
   });
 
+  it("edits existing photo alt text without accepting a client media reference", async () => {
+    const response = await PATCH(request("/api/social/posts/post-1", "PATCH", {
+      expectedRevision: 4,
+      photoAltText: "Corrected description",
+    }), context);
+    expect(response.status).toBe(200);
+    expect(state.calls[0]).toEqual({
+      name: "edit",
+      args: [postId, actor, 4, {}, true, { existingPhotoAltText: "Corrected description" }],
+    });
+  });
+
   it("removes recoverably without a DELETE route or client status", async () => {
     const response = await PATCH(request("/api/social/posts/post-1", "PATCH", {
       action: "remove",
+      expectedRevision: 4,
     }), context);
-    expect(response.status).toBe(200);
-    expect(state.calls[0]).toEqual({ name: "remove", args: [postId, actor] });
+    expect(response.status).toBe(400);
+    const removed = await PATCH(new Request("http://localhost/api/social/posts/post-1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "Idempotency-Key": "remove-post-key-1234" },
+      body: JSON.stringify({ action: "remove", expectedRevision: 4 }),
+    }), context);
+    expect(removed.status).toBe(200);
+    expect(state.calls[0]).toEqual({ name: "remove", args: [postId, actor, 4, "remove-post-key-1234"] });
   });
 
   it("rate-limits item changes by stable profile authority", async () => {

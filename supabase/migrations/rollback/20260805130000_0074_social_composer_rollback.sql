@@ -1,6 +1,8 @@
 -- Restore Task 3/4 Social post shape. Task 6 private media and consent rows are
 -- removed. Existing posts remain, with Task 6-only Venue/photo fields cleared.
 
+grant execute on function public.set_social_comment_policy(uuid,uuid,text) to service_role;
+
 delete from public.social_notifications where kind = 'tag_proposal';
 alter table public.social_notifications drop constraint social_notifications_kind_check;
 alter table public.social_notifications add constraint social_notifications_kind_check
@@ -14,6 +16,9 @@ drop function if exists public.read_social_tag_inbox(uuid,integer);
 drop function if exists public.read_social_post_tags(uuid,uuid);
 drop function if exists public.read_social_post_tags_many(uuid,uuid[]);
 drop function if exists public.act_social_post_tag(uuid,uuid,text);
+drop function if exists public.remove_social_post_idempotent(uuid,uuid,integer,text);
+drop function if exists public.edit_social_post_with_media(uuid,uuid,integer,text,text,text,text,text,text[],text,uuid,text,boolean,text,text,integer,integer,integer,text[]);
+drop function if exists public.create_social_post_idempotent(uuid,text,text,text,text,text,text,text[],text,uuid,text,text,integer,integer,integer,text,text[],text,text);
 drop function if exists public.create_social_post(uuid,text,text,text,text,text,text,text[],text,uuid,text,text,integer,integer,integer,text,text[]);
 drop function if exists public.social_post_exact_venue_allowed(public.social_posts,uuid);
 drop function if exists public.social_post_digest(public.social_posts);
@@ -40,6 +45,8 @@ drop table public.social_post_moderation_actions;
 drop table public.social_post_tag_events;
 drop table public.social_post_tag_proposals;
 drop table public.social_post_edit_audit;
+drop table public.social_post_create_requests;
+drop table public.social_post_remove_requests;
 drop table public.social_post_media;
 drop function public.reject_social_append_only_change();
 
@@ -215,4 +222,3 @@ grant execute on function public.read_social_post(uuid,uuid),
   public.claim_social_post_moderation_jobs(integer),
   public.complete_social_post_moderation_job(uuid,integer,text,text,timestamptz)
   to service_role;
-drop function if exists public.edit_social_post_with_media(uuid,uuid,integer,text,text,text,text,text,text[],text,uuid,text,boolean,text,text,integer,integer,integer,text[]);

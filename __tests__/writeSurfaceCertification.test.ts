@@ -112,10 +112,11 @@ describe("mutating API surface certification", () => {
     // caller, and neither exposes an invite edge. Account onboarding replaces
     // the earlier identity claim POST, so removing the superseded
     // contribution-age route returns the inventory to 74. The protected Social
-    // account-migration POST adds route 75. The
+    // account-migration POST adds route 75. Task 6 adds verified tag-consent
+    // POST route 79 and named-staff Social post moderation POST route 80. The
     // deliberate merge-coordination point: any branch adding a mutating route
     // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(78);
+    expect(mutationRoutes).toHaveLength(80);
   });
 
   it("certifies both verified Social post write routes", () => {
