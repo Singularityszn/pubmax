@@ -139,23 +139,26 @@ export function parseSocialEditSubmission(
     return { ok: false, code: "INVALID_POST", error: "Post changes are not valid." };
   }
   const tagHandles = tags(raw.tagHandles);
-  if (!tagHandles || (removePhoto && tagHandles.length > 0)) {
+  if (!tagHandles || (!hasPhoto && tagHandles.length > 0)) {
     return { ok: false, code: "INVALID_TAGS", error: "Photo tags need an attached photo." };
   }
   const photoAltText = cleanAlt(raw.photoAltText);
   if (hasPhoto && !photoAltText) {
     return { ok: false, code: "PHOTO_ALT_REQUIRED", error: "Add photo alt text." };
   }
-  if (!hasPhoto && raw.photoAltText !== undefined) {
-    return { ok: false, code: "INVALID_POST", error: "Post changes are not valid." };
+  if (!hasPhoto && raw.photoAltText !== undefined && (!photoAltText || removePhoto)) {
+    return { ok: false, code: photoAltText ? "INVALID_POST" : "PHOTO_ALT_REQUIRED", error: photoAltText ? "Post changes are not valid." : "Add photo alt text." };
   }
-  const validation = validateSocialPostEdit(base(raw, EDIT_KEYS));
-  if (!validation.ok) return validation;
+  const baseInput = base(raw, EDIT_KEYS);
+  const validation = validateSocialPostEdit(baseInput);
+  const altOnly = !hasPhoto && Boolean(photoAltText) && Object.keys(baseInput).every((key) => key === "expectedRevision") &&
+    Number.isInteger(raw.expectedRevision) && Number(raw.expectedRevision) >= 0;
+  if (!validation.ok && !altOnly) return validation;
   return {
     ok: true,
-    expectedRevision: validation.expectedRevision,
-    changes: validation.value,
-    moderationSensitive: validation.moderationSensitive || hasPhoto || removePhoto,
+    expectedRevision: validation.ok ? validation.expectedRevision : Number(raw.expectedRevision),
+    changes: validation.ok ? validation.value : {},
+    moderationSensitive: (validation.ok && validation.moderationSensitive) || hasPhoto || removePhoto || Boolean(photoAltText),
     removePhoto,
     photoAltText,
     tagHandles,

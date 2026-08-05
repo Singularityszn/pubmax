@@ -2,9 +2,30 @@
 
 Checked 5 August 2026.
 
-- TypeScript and ESLint pass.
-- PostgreSQL migration tests apply 0074, exercise viewer-specific Venue projection, tag consent, private media reads, CAS edits, and restore the pre-migration schema with rollback.
-- Focused Vitest coverage checks 320 px-safe shell structure, multipart photo creation, failed-write storage cleanup, metadata stripping, dimension limits, multimodal moderation, strict request shapes, and consent store RPC boundaries.
-- Manual browser proof still needs a verified beta account because Social stays disabled in default and keyless environments.
+Browser fixtures pass the same verified actor boundary without enabling Social beta.
 
-Required release proof: run verified-account Playwright at 320, 390, and 430 px in light and dark modes. Check keyboard focus, no horizontal overflow, text-only posting, photo posting, draft reload, failed-submit recovery, Venue projection, tag approval and withdrawal, and edit conflict recovery.
+```sh
+PW_SCREENSHOTS=1 PW_SOCIAL_COMPOSER_PROOF=1 PW_NEXT_DIST_DIR=.next-task6 npx playwright test e2e/social-composer.spec.ts --project=chromium
+```
+
+Result: 10/10 passed in 19.2 seconds against isolated production output.
+
+Coverage includes text and photo posting, failed photo draft reload, stable
+idempotency keys, account-switch text and Blob isolation, two-tab warning,
+friends-only Venue selection, feature kind, tag approval and withdrawal,
+alt-text correction, photo removal, edit conflict recovery, edit reopen, focus
+containment, Escape focus return, axe, and no horizontal overflow.
+
+Proof frames:
+
+- `320-light.png`
+- `320-dark.png`
+- `390-light.png`
+- `390-dark.png`
+- `430-light.png`
+- `430-dark.png`
+- `1280-light.png`
+- `1280-dark.png`
+
+All frames show final custom photo control. Native file input remains visually
+hidden and keyboard focus appears on its labelled control.

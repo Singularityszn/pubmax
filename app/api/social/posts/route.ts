@@ -16,6 +16,9 @@ import { parseSocialCreateSubmission } from "@/lib/socialPostSubmission";
 import { resolveSocialVenueId } from "@/lib/socialPostVenue.server";
 import { isSocialPostArea, type SocialPostFields } from "@/lib/socialPosts";
 import { hashActor } from "@/lib/supabase";
+import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
+import { socialPhotoMediaId, socialPostRequestDigest, validSocialPostIdempotencyKey } from "@/lib/socialPostIdempotency.server";
+import { readSocialPostCreateRequest } from "@/lib/socialPostCreateRequest.server";
 
 assertServerEnv();
 
@@ -35,13 +38,9 @@ async function submissionBody(request: Request): Promise<{
   try {
     const contentType = request.headers.get("Content-Type") ?? "";
     if (!contentType.toLowerCase().startsWith("multipart/form-data")) {
-      return { input: await request.json(), photo: null };
+      return { input: await boundedJson(request), photo: null };
     }
-    const contentLength = Number(request.headers.get("Content-Length"));
-    if (Number.isFinite(contentLength) && contentLength > SOCIAL_PHOTO_MAX_BYTES + 64 * 1024) {
-      return null;
-    }
-    const form = await request.formData();
+    const form = await boundedFormData(request, SOCIAL_PHOTO_MAX_BYTES + 64 * 1024);
     if ([...form.keys()].some((key) => key !== "post" && key !== "photo")) return null;
     const postParts = form.getAll("post");
     const photoParts = form.getAll("photo");
@@ -66,7 +65,7 @@ function storeError(error: unknown): Response {
   if (error instanceof SocialPostStoreError) {
     const status = error.code === "FORBIDDEN" ? 403
       : error.code === "NOT_FOUND" ? 404
-        : error.code === "EDIT_CONFLICT" ? 409
+        : error.code === "EDIT_CONFLICT" || error.code === "IDEMPOTENCY_CONFLICT" ? 409
           : 400;
     return privateJson({ code: error.code, error: error.message }, { status });
   }
@@ -128,6 +127,8 @@ export async function POST(request: Request): Promise<Response> {
   if (frozen) return frozen;
   const access = await requireVerifiedSocialActor();
   if (!access.ok) return accessError(access);
+  const idempotencyKey = request.headers.get("Idempotency-Key");
+  if (!validSocialPostIdempotencyKey(idempotencyKey)) return privateJson({ code: "INVALID_IDEMPOTENCY_KEY", error: "Post request key is not valid." }, { status: 400 });
   const submitted = await submissionBody(request);
   if (submitted === null) {
     return privateJson({ code: "MALFORMED_REQUEST", error: "Post request is not valid." }, { status: 400 });
@@ -157,16 +158,24 @@ export async function POST(request: Request): Promise<Response> {
     fields = { ...fields, venueId: venue.venueId };
   }
   let uploaded: UploadedSocialPhoto | null = null;
+  let uploadedOwned = false;
   try {
     if (submitted.photo) {
-      uploaded = await uploadPreparedSocialPhoto(
-        access.actor.profileId,
-        await prepareSocialPhoto(submitted.photo),
-      );
+      const prepared = await prepareSocialPhoto(submitted.photo);
+      const mediaId = socialPhotoMediaId(access.actor.profileId, idempotencyKey, prepared.sha256);
       fields = {
         ...fields,
-        photo: { mediaId: uploaded.mediaId, altText: validation.photoAltText! },
+        photo: { mediaId, altText: validation.photoAltText! },
       };
+      const digest = socialPostRequestDigest(fields, prepared.sha256, validation.tagHandles);
+      const prior = await readSocialPostCreateRequest(access.actor.profileId, idempotencyKey);
+      if (prior && prior.digest !== digest) throw new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That post request key was already used for different content.");
+      if (prior?.mediaId === mediaId) {
+        uploaded = { ...prepared, mediaId, objectKey: `social/${mediaId}/image.jpg` };
+      } else {
+        uploaded = await uploadPreparedSocialPhoto(access.actor.profileId, prepared, undefined, mediaId);
+        uploadedOwned = true;
+      }
     }
     const post = uploaded
       ? await socialPostStore().create(access.actor, fields, {
@@ -179,11 +188,21 @@ export async function POST(request: Request): Promise<Response> {
             byteSize: uploaded.byteSize,
           },
           tagHandles: validation.tagHandles,
+          idempotencyKey,
+          requestDigest: socialPostRequestDigest(fields, uploaded.sha256, validation.tagHandles),
         })
-      : await socialPostStore().create(access.actor, fields);
+      : await socialPostStore().create(access.actor, fields, {
+          idempotencyKey,
+          requestDigest: socialPostRequestDigest(fields, null, []),
+        });
     return privateJson({ post }, { status: 201 });
   } catch (error) {
-    if (uploaded) await removeSocialPhotoObject(uploaded.objectKey);
+    let removeUpload = Boolean(uploaded && uploadedOwned);
+    if (removeUpload && error instanceof SocialPostStoreError && error.code === "IDEMPOTENCY_CONFLICT") {
+      const winner = await readSocialPostCreateRequest(access.actor.profileId, idempotencyKey).catch(() => null);
+      removeUpload = winner?.mediaId !== uploaded?.mediaId;
+    }
+    if (uploaded && removeUpload) await removeSocialPhotoObject(uploaded.objectKey);
     if (error instanceof SocialPhotoError) {
       const unavailable = error.code === "STORAGE_UNAVAILABLE";
       return privateJson(

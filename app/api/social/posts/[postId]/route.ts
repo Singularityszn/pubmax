@@ -7,6 +7,8 @@ import { prepareSocialPhoto, removeSocialPhotoObject, SocialPhotoError, uploadPr
 import { parseSocialEditSubmission } from "@/lib/socialPostSubmission";
 import { resolveSocialVenueId } from "@/lib/socialPostVenue.server";
 import { hashActor } from "@/lib/supabase";
+import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
+import { SOCIAL_PHOTO_MAX_BYTES } from "@/lib/socialPostMedia.server";
 
 assertServerEnv();
 
@@ -70,17 +72,20 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   let photo: File | null = null;
   try {
     if ((request.headers.get("Content-Type") ?? "").startsWith("multipart/form-data")) {
-      const form = await request.formData();
+      const form = await boundedFormData(request, SOCIAL_PHOTO_MAX_BYTES + 64 * 1024);
+      if ([...form.keys()].some((key) => key !== "post" && key !== "photo") || form.getAll("post").length !== 1 || form.getAll("photo").length > 1) throw new Error();
       const post = form.get("post");
       const part = form.get("photo");
       if (typeof post !== "string" || (part !== null && !(part instanceof File))) throw new Error();
       input = JSON.parse(post); photo = part as File | null;
-    } else input = await request.json();
+    } else input = await boundedJson(request);
   } catch {
     return privateJson({ code: "MALFORMED_REQUEST", error: "Request body is not valid JSON." }, { status: 400 });
   }
   if (input && typeof input === "object" && !Array.isArray(input) &&
-    Object.keys(input).length === 1 && (input as { action?: unknown }).action === "remove") {
+    Object.keys(input).every((key) => key === "action" || key === "expectedRevision") &&
+    (input as { action?: unknown }).action === "remove" &&
+    Number.isInteger((input as { expectedRevision?: unknown }).expectedRevision)) {
     const limitKey = `social-post-edit:${hashActor(access.actor.profileId)}`;
     if (await isLimited(limitKey, limitKey)) {
       return privateJson(
@@ -89,7 +94,10 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
       );
     }
     try {
-      const removed = await socialPostStore().remove(postId, access.actor);
+      const idempotencyKey = request.headers.get("Idempotency-Key");
+      if (!idempotencyKey || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) return privateJson({ code: "INVALID_IDEMPOTENCY_KEY", error: "Post request key is not valid." }, { status: 400 });
+      const removed = await socialPostStore().remove(postId, access.actor,
+        Number((input as { expectedRevision: number }).expectedRevision), idempotencyKey);
       return removed
         ? privateJson({ ok: true })
         : privateJson({ code: "NOT_FOUND", error: "Post not found." }, { status: 404 });
@@ -127,12 +135,20 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
       uploaded = await uploadPreparedSocialPhoto(access.actor.profileId, await prepareSocialPhoto(photo));
       changes = { ...changes, photo: { mediaId: uploaded.mediaId, altText: validation.photoAltText! } };
     } else if (validation.removePhoto) changes = { ...changes, photo: null };
-    const post = uploaded
+    const editOptions = uploaded
+      ? { media: uploaded, tagHandles: validation.tagHandles }
+      : validation.photoAltText
+        ? { existingPhotoAltText: validation.photoAltText }
+        : undefined;
+    const post = editOptions
       ? await socialPostStore().edit(postId, access.actor, validation.expectedRevision, changes,
-          validation.moderationSensitive, { media: uploaded, tagHandles: validation.tagHandles })
+          validation.moderationSensitive, editOptions)
       : await socialPostStore().edit(postId, access.actor, validation.expectedRevision, changes,
           validation.moderationSensitive);
-    return privateJson({ post });
+    return privateJson({
+      post,
+      audit: { fromRevision: validation.expectedRevision, toRevision: post.revision },
+    });
   } catch (error) {
     if (uploaded) await removeSocialPhotoObject(uploaded.objectKey);
     if (error instanceof SocialPhotoError) return privateJson({ code: error.code, error: error.message }, { status: error.code === "STORAGE_UNAVAILABLE" ? 503 : 400 });

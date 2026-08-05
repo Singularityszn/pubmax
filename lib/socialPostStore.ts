@@ -13,6 +13,7 @@ import { requireSupabaseAdmin, requiresSupabaseStore } from "@/lib/supabase";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
+import { socialMemoryBlockedProfiles } from "@/lib/socialBlockMemory";
 
 export type SocialPostActor = {
   accountId: string;
@@ -66,8 +67,10 @@ export type SocialPostWriteMedia = {
 export type SocialPostCreateOptions = {
   media?: SocialPostWriteMedia;
   tagHandles?: string[];
+  idempotencyKey?: string;
+  requestDigest?: string;
 };
-export type SocialPostEditOptions = SocialPostCreateOptions;
+export type SocialPostEditOptions = SocialPostCreateOptions & { existingPhotoAltText?: string };
 
 export class SocialPostStoreError extends Error {
   constructor(
@@ -76,6 +79,7 @@ export class SocialPostStoreError extends Error {
       | "NOT_FOUND"
       | "FORBIDDEN"
       | "EDIT_CONFLICT"
+      | "IDEMPOTENCY_CONFLICT"
       | "INVALID_POST",
     message: string,
   ) {
@@ -102,7 +106,7 @@ export type SocialPostStore = {
     moderationSensitive: boolean,
     options?: SocialPostEditOptions,
   ): Promise<SocialPostDTO>;
-  remove(id: string, actor: SocialPostActor): Promise<boolean>;
+  remove(id: string, actor: SocialPostActor, expectedRevision: number, idempotencyKey: string): Promise<boolean>;
   read(id: string, viewer: SocialPostActor): Promise<SocialPostDTO | null>;
   feed(viewer: SocialPostActor, input: SocialPostFeedInput): Promise<SocialPostFeedPage>;
   processModerationQueue(
@@ -270,6 +274,7 @@ async function defaultRelationships(actor: SocialPostActor): Promise<SocialPostR
   return {
     followingProfileIds: new Set(following.flatMap((profile) => profile ? [profile.id] : [])),
     mutualProfileIds: new Set(mutual.flatMap((profile) => profile ? [profile.id] : [])),
+    blockedProfileIds: socialMemoryBlockedProfiles(actor.profileId),
   };
 }
 
@@ -383,7 +388,7 @@ export function createMemorySocialPostStore(options: {
       });
       return socialPostDTO(post, { exactVenue: true });
     },
-    async edit(id, actor, expectedRevision, changes, moderationSensitive) {
+    async edit(id, actor, expectedRevision, changes, moderationSensitive, editOptions) {
       const current = rows.get(id);
       if (!current || current.status !== "visible") throw new SocialPostStoreError("NOT_FOUND", "Post not found.");
       if (current.authorProfileId !== actor.profileId) throw new SocialPostStoreError("FORBIDDEN", "That post is not yours.");
@@ -398,8 +403,13 @@ export function createMemorySocialPostStore(options: {
         venueId: "venueId" in changes ? changes.venueId ?? null : current.venueId,
         hashtags: changes.hashtags ?? current.hashtags,
         commentPolicy: changes.commentPolicy ?? current.commentPolicy,
-        photo: "photo" in changes ? changes.photo ?? null : current.photo,
+        photo: "photo" in changes
+          ? changes.photo ?? null
+          : editOptions?.existingPhotoAltText && current.photo
+            ? { ...current.photo, altText: editOptions.existingPhotoAltText }
+            : current.photo,
       };
+      if (editOptions?.existingPhotoAltText && !current.photo) throw new SocialPostStoreError("INVALID_POST", "That post has no photo description to edit.");
       if (!mergedFields.body && !mergedFields.photo) throw new SocialPostStoreError("INVALID_POST", "Add some words or a photo.");
       if (mergedFields.kind === "feature_request" && !mergedFields.body) throw new SocialPostStoreError("INVALID_POST", "Add words to a feature request.");
       const anyChange = current.kind !== mergedFields.kind ||
@@ -440,8 +450,9 @@ export function createMemorySocialPostStore(options: {
     },
     async remove(id, actor) {
       const post = rows.get(id);
-      if (!post || post.status !== "visible") return false;
+      if (!post) return false;
       if (post.authorProfileId !== actor.profileId) throw new SocialPostStoreError("FORBIDDEN", "That post is not yours.");
+      if (post.status === "removed") return true;
       rows.set(id, { ...post, status: "removed", updatedAt: now().toISOString() });
       return true;
     },
@@ -544,30 +555,6 @@ export function createMemorySocialPostStore(options: {
 
 export const memorySocialPostStore = createMemorySocialPostStore();
 
-function postWrite(
-  fields: SocialPostFields,
-  actor?: SocialPostActor,
-  featureRequest?: SocialPost["featureRequest"],
-) {
-  const feature = fields.kind === "feature_request"
-    ? featureRequest ?? { status: "submitted" as const, staffResponse: null }
-    : null;
-  return {
-    ...(actor ? { author_profile_id: actor.profileId, author_handle: actor.handle } : {}),
-    kind: fields.kind,
-    visibility: fields.visibility,
-    body: fields.body,
-    area_slug: fields.area,
-    venue_id: fields.venueId,
-    hashtags: fields.hashtags,
-    comment_policy: fields.commentPolicy,
-    photo_media_id: fields.photo?.mediaId ?? null,
-    photo_alt_text: fields.photo?.altText ?? null,
-    feature_status: feature?.status ?? null,
-    feature_staff_response: feature?.staffResponse ?? null,
-  };
-}
-
 async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => Promise<T>, write: boolean): Promise<T> {
   try {
     return await operation();
@@ -591,7 +578,8 @@ export const supabaseSocialPostStore: SocialPostStore = {
         throw new SocialPostStoreError("INVALID_POST", "Photo ownership is not valid.");
       }
       if (!fields.photo && media) throw new SocialPostStoreError("INVALID_POST", "Photo ownership is not valid.");
-      const { data, error } = await requireSupabaseAdmin().rpc("create_social_post", {
+      const idempotent = Boolean(createOptions.idempotencyKey && createOptions.requestDigest);
+      const { data, error } = await requireSupabaseAdmin().rpc(idempotent ? "create_social_post_idempotent" : "create_social_post", {
         p_author_profile_id: actor.profileId,
         p_author_handle: actor.handle,
         p_kind: fields.kind,
@@ -609,8 +597,12 @@ export const supabaseSocialPostStore: SocialPostStore = {
         p_byte_size: media?.byteSize ?? null,
         p_photo_alt_text: fields.photo?.altText ?? null,
         p_tag_handles: createOptions.tagHandles ?? [],
+        ...(idempotent ? { p_idempotency_key: createOptions.idempotencyKey, p_request_digest: createOptions.requestDigest } : {}),
       });
-      if (error) throw error;
+      if (error) {
+        if (/idempotency conflict/i.test(error.message)) throw new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That post request key was already used for different content.");
+        throw error;
+      }
       const created = (data ?? [])[0];
       if (!created) throw new Error("Social post was not created.");
       return socialPostDTO(fromRow(created), { exactVenue: true });
@@ -636,8 +628,13 @@ export const supabaseSocialPostStore: SocialPostStore = {
         venueId: "venueId" in changes ? changes.venueId ?? null : current.venueId,
         hashtags: changes.hashtags ?? current.hashtags,
         commentPolicy: changes.commentPolicy ?? current.commentPolicy,
-        photo: "photo" in changes ? changes.photo ?? null : current.photo,
+        photo: "photo" in changes
+          ? changes.photo ?? null
+          : options?.existingPhotoAltText && current.photo
+            ? { ...current.photo, altText: options.existingPhotoAltText }
+            : current.photo,
       };
+      if (options?.existingPhotoAltText && !current.photo) throw new SocialPostStoreError("INVALID_POST", "That post has no photo description to edit.");
       if (!merged.body && !merged.photo) throw new SocialPostStoreError("INVALID_POST", "Add some words or a photo.");
       if (merged.kind === "feature_request" && !merged.body) throw new SocialPostStoreError("INVALID_POST", "Add words to a feature request.");
       if (current.revision !== expectedRevision) {
@@ -665,7 +662,12 @@ export const supabaseSocialPostStore: SocialPostStore = {
           p_tag_handles: options?.tagHandles ?? [],
         } : {}),
       });
-      if (error) throw error;
+      if (error) {
+        if (/edit conflict/i.test(error.message)) {
+          throw new SocialPostStoreError("EDIT_CONFLICT", "This post changed before your edit was saved. Reload it and try again.");
+        }
+        throw error;
+      }
       const updated = (data ?? [])[0];
       if (!updated) {
         throw new SocialPostStoreError(
@@ -674,20 +676,17 @@ export const supabaseSocialPostStore: SocialPostStore = {
         );
       }
       return socialPostDTO(fromRow(updated), { exactVenue: true });
-    }, () => memorySocialPostStore.edit(id, actor, expectedRevision, changes, moderationSensitive), true);
+    }, () => memorySocialPostStore.edit(id, actor, expectedRevision, changes, moderationSensitive, options), true);
   },
-  async remove(id, actor) {
+  async remove(id, actor, expectedRevision, idempotencyKey) {
     return durableOrMemory(async () => {
-      const { data, error } = await requireSupabaseAdmin()
-        .from("social_posts")
-        .update({ status: "removed", updated_at: new Date().toISOString() })
-        .eq("id", id)
-        .eq("author_profile_id", actor.profileId)
-        .eq("status", "visible")
-        .select("id");
+      const { data, error } = await requireSupabaseAdmin().rpc("remove_social_post_idempotent", {
+        p_post_id: id, p_author_profile_id: actor.profileId, p_expected_revision: expectedRevision,
+        p_idempotency_key: idempotencyKey,
+      });
       if (error) throw error;
-      return (data ?? []).length === 1;
-    }, () => memorySocialPostStore.remove(id, actor), true);
+      return data === true;
+    }, () => memorySocialPostStore.remove(id, actor, expectedRevision, idempotencyKey), true);
   },
   async applyFeatureRequestUpdate(id, status, staffResponse) {
     return durableOrMemory(async () => {

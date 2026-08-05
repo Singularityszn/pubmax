@@ -132,6 +132,19 @@ describe("Social interactions route", () => {
     expect(vi.mocked(isLimited).mock.calls[0]?.[0]).toMatch(/^social-interaction:[a-f0-9]{64}$/);
   });
 
+  it("returns the exact edit conflict when comment-policy CAS loses", async () => {
+    const { SocialInteractionStoreError } = await import("@/lib/socialInteractionStore");
+    store.setCommentPolicy.mockRejectedValueOnce(new SocialInteractionStoreError("EDIT_CONFLICT", "Post changed before comment policy was saved."));
+    const { PUT } = await import("@/app/api/social/interactions/route");
+    const response = await PUT(new Request(URL, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "comment_policy", postId: "11111111-1111-4111-8111-111111111111", policy: "locked" }),
+    }));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ code: "EDIT_CONFLICT", error: "Post changed before comment policy was saved." });
+  });
+
   it("keeps reporting and moderation safety floors open during a Social freeze", async () => {
     const { socialFreezeResponse } = await import("@/lib/opsFreeze");
     vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
