@@ -26,13 +26,15 @@ Task 5 browser proof for canonical `/social`.
 Production build used isolated output:
 
 ```sh
-NEXT_DIST_DIR=.next-task5-final3 npm run build
+NEXT_DIST_DIR=.next-task5-fix1 npm run build
 ```
 
 Browser suite used that production server:
 
 ```sh
-PW_SKIP_WEBSERVER=1 PW_PORT=32113 npx playwright test e2e/social-shell.spec.ts --project=chromium --workers=1
+PW_SKIP_WEBSERVER=1 PW_PORT=32115 PW_SOCIAL_PROOF=1 npx playwright test e2e/social-shell.spec.ts --project=chromium --workers=1
 ```
 
-Result: 10 passed. Suite covers safe preview boundaries, protected request isolation, chronological pagination, refresh and Back state, stale request cancellation, direct redirects, URL fail-closed behaviour, keyboard navigation, axe, theme and viewport fit, and generic authorised Activity rows.
+Result: 11 passed. Suite covers safe preview boundaries, public exact Venue suppression, protected request isolation, chronological pagination, refresh and Back state, stale request cancellation, direct redirects, URL fail-closed behaviour, keyboard navigation, axe, theme and viewport fit, and generic authorised Activity rows.
+
+The `1280-light.png`, `1280-dark.png`, `1440-light.png`, and `1440-dark.png` frames were regenerated from this build after Activity continuation removal. Direct inspection confirms that each Activity card contains only the generic row and time. No frame contains `Open Activity`.

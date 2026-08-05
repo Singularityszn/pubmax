@@ -43,3 +43,94 @@ Screenshots and command index: `docs/proof/social-shell/README.md`.
 - Social remains behind existing preview and verification policy. This task does not enable beta access.
 - Empty and unavailable Activity results hide the desktop rail. This avoids dead chrome while Task 6 owns richer interactions.
 - No migration or privacy practice changed.
+
+## Fix round 1
+
+### Findings and root cause
+
+- `longFeaturePost` inherited `visibility: "public"` while adding an exact `venueId`. This test fixture could not pass the Social post validator and gave false proof for the Venue action.
+- `SocialPostCard` trusted the DTO shape and rendered exact Venue context whenever `venueId` was present. A malformed or legacy public DTO could therefore expose exact Venue context even though write validation rejects that state.
+- Four desktop feed frames were captured before removal of the legacy `/activity` continuation and no longer matched final source.
+
+### RED
+
+Unit seam:
+
+```sh
+npx vitest run __tests__/socialShellUi.test.ts
+```
+
+Result: 1 failed and 10 passed. The new public DTO test received `Open venue` and `/map?sel=venue-a`.
+
+Browser seam against the prior isolated production build:
+
+```sh
+PW_SKIP_WEBSERVER=1 PW_PORT=32114 npx playwright test e2e/social-shell.spec.ts --project=chromium --workers=1 --grep "invalid public post DTO"
+```
+
+Result: 1 failed. Browser expected zero `Open venue` links and received one.
+
+### GREEN
+
+- `SocialPostCard` now derives exact Venue context only for non-public DTOs. Public Night Area context remains visible.
+- `longFeaturePost` now uses `visibility: "friends"`, which is a valid exact Venue state.
+- `__tests__/socialShellUi.test.ts` covers public exact Venue suppression and existing friends-only Venue rendering.
+- `e2e/social-shell.spec.ts` covers malformed public DTO suppression in a browser and keeps exact Venue proof on the friends-only fixture.
+
+Commands and results:
+
+```sh
+npx vitest run __tests__/socialShellUi.test.ts
+```
+
+Result: 11 passed.
+
+```sh
+npx vitest run __tests__/socialShellUi.test.ts __tests__/socialCanonicalLinks.test.ts
+```
+
+Result: 2 files and 17 tests passed.
+
+```sh
+npm run typecheck
+npm run lint
+```
+
+Result: both passed.
+
+```sh
+NEXT_DIST_DIR=.next-task5-fix1 npm run build
+```
+
+Result: passed. Existing `lib/ogBrand.tsx` Edge-runtime warnings remain.
+
+```sh
+npm test -- --maxWorkers=1
+```
+
+Result: 779 files and 7,851 tests passed in 260.85 seconds.
+
+```sh
+PW_SKIP_WEBSERVER=1 PW_PORT=32115 npx playwright test e2e/social-shell.spec.ts --project=chromium --workers=1
+```
+
+Result: 11 passed in 18.2 seconds. This final run includes public Venue suppression, Activity continuation absence, keyboard, axe, history, viewport, and theme checks.
+
+### Regenerated proof
+
+Regenerated from `.next-task5-fix1` and inspected directly:
+
+- `docs/proof/social-shell/1280-light.png`
+- `docs/proof/social-shell/1280-dark.png`
+- `docs/proof/social-shell/1440-light.png`
+- `docs/proof/social-shell/1440-dark.png`
+
+Each Activity card contains only generic `New comment` and time. No frame contains `Open Activity` or a legacy `/activity` continuation.
+
+### Final diff check
+
+```sh
+git diff --check
+```
+
+Result: exit 0 with no output.

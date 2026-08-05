@@ -89,6 +89,19 @@ describe("verified Social post card", () => {
     expect(html).not.toContain("Presence");
     expect(html).not.toContain("<button");
   });
+
+  it("does not render exact Venue context from an invalid public DTO", () => {
+    const html = renderToStaticMarkup(
+      createElement(SocialPostCard, {
+        post: { ...protectedPost, visibility: "public" },
+      }),
+    );
+
+    expect(html).toContain(protectedPost.body);
+    expect(html).toContain("Camden");
+    expect(html).not.toContain("Open venue");
+    expect(html).not.toContain('href="/map?sel=venue-a"');
+  });
 });
 
 describe("desktop Social rail", () => {
