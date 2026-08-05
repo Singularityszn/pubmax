@@ -582,15 +582,17 @@ export default function SocialComposer({
               </button>
             ) : null}
 
-            <textarea
-              ref={bodyRef}
-              aria-label="Post"
-              maxLength={2000}
-              value={draft.body}
-              onChange={(event) =>
-                setDraft({ ...draft, body: event.currentTarget.value })
-              }
-            />
+            <label className="socialPostBody">
+              Post
+              <textarea
+                ref={bodyRef}
+                maxLength={2000}
+                value={draft.body}
+                onChange={(event) =>
+                  setDraft({ ...draft, body: event.currentTarget.value })
+                }
+              />
+            </label>
 
             <PhotoEditor
               post={post} draft={draft} photo={photo} previewSource={previewSource}
