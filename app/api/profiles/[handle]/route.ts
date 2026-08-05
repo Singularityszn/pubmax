@@ -40,10 +40,17 @@ function stores() {
 // Public projection of a profile row: strips the internal ownership key
 // (user_id) so it never crosses the wire on the public /u/[handle] read. Only
 // the display-facing fields are exposed.
-function toPublicProfile(profile: ProfileRecord | null): Omit<ProfileRecord, "userId"> | null {
+function toPublicProfile(
+  profile: ProfileRecord | null,
+): Omit<ProfileRecord, "userId" | "accountLinkState"> | null {
   if (!profile) return null;
-  const { userId: _userId, ...rest } = profile;
+  const {
+    userId: _userId,
+    accountLinkState: _accountLinkState,
+    ...rest
+  } = profile;
   void _userId;
+  void _accountLinkState;
   return rest;
 }
 

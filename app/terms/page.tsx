@@ -73,8 +73,9 @@ export default function TermsPage() {
         <h2 id="age" className="legalH2">Age and alcohol</h2>
         <p className="legalBody">
           The map and existing contribution tools don&rsquo;t use age to block an
-          account. Full Social access is for verified adults aged 18+ and needs
-          a current Yoti adult-check decision. Pubs decide who they serve.
+          account. Social remains in preview. Yoti integration is not active.
+          If enabled later, full Social access is for verified adults aged 18+
+          and will need a current adult-check decision. Pubs decide who they serve.
           Nothing in the app is designed to encourage you to drink more. Know
           your limits, and know the facts at{" "}
           <a
@@ -114,10 +115,11 @@ export default function TermsPage() {
           Social also uses a Clerk product session. If you move an existing
           Supabase-backed account into Social, you need both signed-in sessions
           in the same request. PUBMAXX doesn&rsquo;t use your email or handle to join
-          them. Full Social content stays closed until Yoti returns a current
-          18+ decision for the private product account. Your date of birth,
-          documents and verification status aren&rsquo;t public profile fields or
-          badges.
+          them. Full Social content stays closed while the feature is in
+          preview. Yoti integration is not active. If enabled later, access will
+          also require a current 18+ decision for the private product account.
+          Your date of birth, documents and verification status aren&rsquo;t public
+          profile fields or badges.
           Keep your sign-in to yourself, use a handle that isn&rsquo;t someone
           else&rsquo;s identity, and don&rsquo;t hand the account to anyone
           else. You can stop using it whenever you like, and ask us to delete

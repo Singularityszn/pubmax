@@ -26,7 +26,11 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { DELETE, PATCH } from "@/app/api/profiles/[handle]/route";
-import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
+import {
+  __resetMemoryProfiles,
+  __seedMemoryLegacyProfile,
+  memoryProfileStore,
+} from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/profiles";
 
@@ -130,7 +134,7 @@ describe("DELETE /api/profiles/[handle] — soft-delete ownership gate", () => {
 
 describe("profileStore.linkUser — new account handles", () => {
   it("refuses to stamp ownership onto an existing unlinked handle", async () => {
-    await memoryProfileStore.ensure("ken");
+    __seedMemoryLegacyProfile("ken");
     await memoryProfileStore.update("ken", { displayName: "Ken" });
 
     await expect(
@@ -138,6 +142,18 @@ describe("profileStore.linkUser — new account handles", () => {
     ).rejects.toThrow("not available");
     expect(await memoryProfileStore.getByHandle("ken")).toMatchObject({
       displayName: "Ken",
+    });
+  });
+
+  it("links a row created by the established ensure-then-link flow", async () => {
+    const ensured = await memoryProfileStore.ensure("fresh");
+
+    const linked = await memoryProfileStore.linkUser("fresh", "user-new");
+
+    expect(linked).toMatchObject({
+      id: ensured.id,
+      handle: "fresh",
+      userId: "user-new",
     });
   });
 

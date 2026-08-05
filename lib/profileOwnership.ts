@@ -98,12 +98,18 @@ export async function gateHandleAction(
 
   try {
     const store = profileStore();
-    // A read never creates account ownership. A write can link only when there
-    // is no row at all, never when an unlinked legacy row already exists.
+    // A read never creates account ownership. A write can finish a recognised
+    // ephemeral ensure-then-link flow, but never claim a pre-0071 legacy row.
     const existing = await store.getByHandle(key);
     const rowUserId = existing?.userId ?? null;
     const linkNewHandle = !["GET", "HEAD"].includes(request.method.toUpperCase());
-    if (existing && !rowUserId && caller && linkNewHandle) {
+    if (
+      existing &&
+      !rowUserId &&
+      existing.accountLinkState !== "ephemeral" &&
+      caller &&
+      linkNewHandle
+    ) {
       return {
         allowed: false,
         status: 409,

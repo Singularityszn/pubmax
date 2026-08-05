@@ -9,11 +9,27 @@ const state = vi.hoisted(() => ({
     productAccountId: "account-1",
     migrated: true,
   } as unknown,
+  auth: {
+    status: "verified",
+    identity: {
+      id: "legacy-account-1",
+      email: null,
+      createdAt: null,
+    },
+  } as unknown,
+  migrationAuthority: null as unknown,
+}));
+
+vi.mock("@/lib/authServer", () => ({
+  verifyCallerAuth: async () => state.auth,
 }));
 
 vi.mock("@/lib/socialAccessServer", () => ({
   resolveSocialAccess: async () => state.access,
-  migrateSocialProductAccount: async () => state.migration,
+  migrateSocialProductAccount: async (authority: unknown) => {
+    state.migrationAuthority = authority;
+    return state.migration;
+  },
 }));
 
 import { GET, POST } from "@/app/api/social/access/route";
@@ -29,6 +45,15 @@ beforeEach(() => {
     productAccountId: "account-1",
     migrated: true,
   };
+  state.auth = {
+    status: "verified",
+    identity: {
+      id: "legacy-account-1",
+      email: null,
+      createdAt: null,
+    },
+  };
+  state.migrationAuthority = null;
 });
 
 describe("/api/social/access", () => {
@@ -62,6 +87,24 @@ describe("/api/social/access", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(await response.json()).toEqual({ migrated: true });
+    expect(state.migrationAuthority).toEqual(state.auth);
+  });
+
+  it("preserves the disabled-beta write refusal", async () => {
+    state.migration = {
+      ok: false,
+      status: 403,
+      code: "SOCIAL_BETA_DISABLED",
+      error: "Social account migration is not available in preview.",
+    };
+
+    const response = await POST(request("POST"));
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      code: "SOCIAL_BETA_DISABLED",
+      error: "Social account migration is not available in preview.",
+    });
   });
 
   it("preserves migration conflict and dependency status", async () => {

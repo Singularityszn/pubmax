@@ -6,6 +6,10 @@ drop table if exists public.private_social_age_verifications;
 drop table if exists public.private_social_account_audit;
 drop table if exists public.private_social_accounts;
 
+alter table public.profiles
+  drop constraint if exists profiles_account_link_state_check,
+  drop column if exists account_link_state;
+
 create or replace function public.claim_pubmaxx_handle(
   p_user_id uuid,
   p_handle text

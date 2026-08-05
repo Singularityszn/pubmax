@@ -137,12 +137,15 @@ export default function PrivacyPage() {
           accounts by email, public handle or anything typed into a form.
         </p>
         <p className="legalBody">
-          Full Social access is for verified adults aged 18+. Yoti runs the
-          adult check. We keep the provider name, Yoti subject reference,
-          over-18 decision, time checked, expiry and audit status against your
-          private product account. We don&rsquo;t store identity documents,
-          selfies, Yoti&rsquo;s raw response, an estimated age or a date of birth
-          from that check. None of this appears on your profile as an age or
+          Full Social access is intended for verified adults aged 18+. This
+          release does not currently start a Yoti check or receive a Yoti
+          result. It has service-only evidence fields ready to hold the provider
+          name, Yoti subject reference, over-18 decision, time checked, expiry
+          and audit status against a private product account if that integration
+          is enabled later. We don&rsquo;t store identity documents, selfies,
+          Yoti&rsquo;s raw response, an estimated age or a date of birth in those
+          fields.
+          None of that evidence would appear on your profile as an age or
           verification badge.
         </p>
         <p className="legalBody">
@@ -464,7 +467,8 @@ export default function PrivacyPage() {
         <h2 id="third" className="legalH2">Who else touches it</h2>
         <p className="legalBody">
           We keep the list short on purpose. Each of these acts as a processor
-          for us, or is only reached when you actively use the feature.
+          for us, is only reached when you actively use the feature, or is named
+          as a planned processor that receives nothing today.
         </p>
         <dl className="legalRows">
           <div className="legalRow">
@@ -485,10 +489,12 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>Yoti</dt>
             <dd>
-              Hosted 18+ age checking for Social. Yoti receives what its hosted
-              check needs and returns the authoritative result to our server.
-              PUBMAXX keeps only the reference, decision, check time, expiry and
-              audit status described above.
+              Planned 18+ age-check provider for Social. PUBMAXX does not
+              currently send data to Yoti or receive a result from it. If the
+              integration is enabled later, this notice will describe what the
+              hosted check receives before processing starts. PUBMAXX&rsquo;s
+              service-only evidence shape is limited to the reference,
+              decision, check time, expiry and audit status described above.
             </dd>
           </div>
           <div className="legalRow">
@@ -585,11 +591,12 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Social account and adult-check records:</strong>{" "}the
-            private Clerk and Supabase account link, Yoti reference, decision,
-            check time, expiry and audit status stay with the Social account.
-            An expired or revoked decision stops Social access but remains in
-            the private audit record until the Social account is deleted, unless
-            a narrower legal or moderation hold applies.
+            private Clerk and Supabase account link stays with the Social
+            account. No Yoti evidence is recorded while that integration is
+            inactive. If it is enabled later, a recorded reference, decision,
+            check time, expiry and audit status would stay with the Social
+            account until deletion, unless a narrower legal or moderation hold
+            applies.
           </li>
           <li>
             <strong>Community prices and venue reports:</strong>{" "}the report
@@ -680,9 +687,10 @@ export default function PrivacyPage() {
         <h2 id="age" className="legalH2">Age and access</h2>
         <p className="legalBody">
           The map and existing contribution tools don&rsquo;t use age to block an
-          account. Full Social access is different: it needs a current Yoti 18+
-          decision bound to your private product account. Pubs remain
-          responsible for deciding who they serve.
+          account. Social remains in preview, and PUBMAXX does not currently run
+          a Yoti check. If the integration is enabled later, full Social access
+          will need a current 18+ decision bound to your private product
+          account. Pubs remain responsible for deciding who they serve.
         </p>
       </section>
 

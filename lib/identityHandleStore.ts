@@ -75,8 +75,8 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
       return { handle, available: false, reason: "taken" };
     }
     if (memoryAliases.has(handle)) return { handle, available: false, reason: "taken" };
-    const legacy = await profileStore().getByHandle(handle);
-    return legacy
+    const profile = await profileStore().getByHandle(handle);
+    return profile && profile.accountLinkState !== "ephemeral"
       ? { handle, available: false, reason: "taken" }
       : { handle, available: true };
   },
@@ -103,7 +103,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
     try {
       const profiles = profileStore();
       const existingOwner = await profiles.getByUserId(ownerId);
-      if (existingOwner && existingOwner.handle !== handle) {
+      if (existingOwner) {
         const alias: MemoryAlias = {
           profileId: existingOwner.id,
           ownerId,
@@ -113,6 +113,14 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
         };
         memoryAliases.set(existingOwner.handle, alias);
         currentByOwner.set(ownerId, alias);
+        if (existingOwner.handle === handle) {
+          return {
+            ok: true,
+            profileId: existingOwner.id,
+            handle,
+            claimed: true,
+          };
+        }
         return {
           ok: false,
           code: "already_has_handle",
@@ -120,7 +128,10 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
         };
       }
       const existingHandle = await profiles.getByHandle(handle);
-      if (existingHandle) {
+      if (
+        existingHandle &&
+        existingHandle.accountLinkState !== "ephemeral"
+      ) {
         return { ok: false, code: "taken", error: "That handle is already taken." };
       }
       const profile = await profiles.linkUser(handle, ownerId);

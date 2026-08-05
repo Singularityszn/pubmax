@@ -29,7 +29,7 @@ type Boundary = "rate_limit" | "account" | "capability" | "moderator" | "confirm
 
 const BOUNDARY_PATTERNS: Record<Boundary, RegExp> = {
   rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited)\b/,
-  account: /\b(?:callerUserId|callerAuthIdentity|resolveContributionIdentity)\b/,
+  account: /\b(?:callerUserId|callerAuthIdentity|verifyCallerAuth|resolveContributionIdentity)\b/,
   capability: /\b(?:planMemberCapability|memberToken|requireRoundOwnership)\b/,
   moderator: /\b(?:isModerator|isAdminAuthorized|verifyAdminToken)\b/,
   confirmation: /\b(?:consumePublishConfirmation|confirmationToken)\b/,
@@ -111,10 +111,11 @@ describe("mutating API surface certification", () => {
     // signup-only attribution claim. Neither accepts an account id from the
     // caller, and neither exposes an invite edge. Account onboarding replaces
     // the earlier identity claim POST, so removing the superseded
-    // contribution-age route returns the inventory to 74. The
+    // contribution-age route returns the inventory to 74. The protected Social
+    // account-migration POST adds route 75. The
     // deliberate merge-coordination point: any branch adding a mutating route
     // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(74);
+    expect(mutationRoutes).toHaveLength(75);
   });
 
   it("gives every mutating route an abuse or authority boundary", () => {

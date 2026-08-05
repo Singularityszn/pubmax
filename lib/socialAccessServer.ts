@@ -1,9 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 
-import {
-  verifyCallerAuth,
-  type CallerAuthVerification,
-} from "@/lib/authServer";
+import type { CallerAuthVerification } from "@/lib/authServer";
 import { isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 import {
   decideSocialAccess,
@@ -39,7 +36,6 @@ export type SocialAccessServerDependencies = {
   betaEnabled: boolean;
   now: () => Date;
   verifyClerkSession: () => Promise<ClerkSessionVerification>;
-  verifySupabaseSession: (request: Request) => Promise<CallerAuthVerification>;
   readAccountAccess: (clerkUserId: string) => Promise<AccountAccessRecord>;
   migrateAccounts: (
     input: AccountMigrationInput,
@@ -60,9 +56,10 @@ export type SocialAccountMigrationResolution =
   | { ok: true; productAccountId: string; migrated: boolean }
   | {
       ok: false;
-      status: 401 | 409 | 503;
+      status: 401 | 403 | 409 | 503;
       code:
         | "BOTH_SESSIONS_REQUIRED"
+        | "SOCIAL_BETA_DISABLED"
         | "LEGACY_ACCOUNT_NOT_FOUND"
         | "ACCOUNT_OWNERSHIP_CONFLICT"
         | "ACCOUNT_MIGRATION_UNAVAILABLE";
@@ -191,7 +188,6 @@ const defaultDependencies: SocialAccessServerDependencies = {
   betaEnabled: process.env.SOCIAL_INVITE_BETA_ENABLED === "1",
   now: () => new Date(),
   verifyClerkSession,
-  verifySupabaseSession: verifyCallerAuth,
   readAccountAccess,
   migrateAccounts,
 };
@@ -247,13 +243,18 @@ function unavailableMigration(): SocialAccountMigrationResolution {
 }
 
 export async function migrateSocialProductAccount(
-  request: Request,
+  supabase: CallerAuthVerification,
   dependencies: SocialAccessServerDependencies = defaultDependencies,
 ): Promise<SocialAccountMigrationResolution> {
-  const [clerk, supabase] = await Promise.all([
-    dependencies.verifyClerkSession(),
-    dependencies.verifySupabaseSession(request),
-  ]);
+  if (!dependencies.betaEnabled) {
+    return {
+      ok: false,
+      status: 403,
+      code: "SOCIAL_BETA_DISABLED",
+      error: "Social account migration is not available in preview.",
+    };
+  }
+  const clerk = await dependencies.verifyClerkSession();
   if (clerk.status === "unavailable" || supabase.status === "unavailable") {
     return unavailableMigration();
   }
