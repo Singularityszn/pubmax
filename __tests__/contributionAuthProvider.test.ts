@@ -31,11 +31,6 @@ vi.mock("@clerk/nextjs", () => ({
   useClerk: () => clerkState.clerk,
 }));
 
-vi.mock("@/lib/clerkIdentity", () => ({
-  isClerkProductSessionAvailable: (user: unknown) =>
-    clerkState.configured && Boolean(user),
-}));
-
 vi.mock("@/components/identity/AccountOnboarding", () => ({
   default: () => null,
 }));
@@ -272,6 +267,7 @@ afterEach(async () => {
     document: previousDocument,
     IS_REACT_ACT_ENVIRONMENT: false,
   });
+  vi.unstubAllEnvs();
 });
 
 describe("shared contribution auth invalidation", () => {
@@ -283,7 +279,7 @@ describe("shared contribution auth invalidation", () => {
       root?.render(
         createElement(
           AuthProvider,
-          null,
+          { clerkIntegrationConfigured: clerkState.configured },
           createElement(Consumer, { name: "visit" }),
           createElement(Consumer, { name: "weather" }),
         ),
@@ -330,7 +326,13 @@ describe("shared contribution auth invalidation", () => {
     root = createRoot(container);
 
     await commitReactWork(async () => {
-      root?.render(createElement(AuthProvider, null, createElement(Consumer, { name: "social" })));
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: clerkState.configured },
+          createElement(Consumer, { name: "social" }),
+        ),
+      );
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -366,7 +368,13 @@ describe("shared contribution auth invalidation", () => {
     root = createRoot(container);
 
     await commitReactWork(async () => {
-      root?.render(createElement(AuthProvider, null, createElement(Consumer, { name: "social" })));
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: clerkState.configured },
+          createElement(Consumer, { name: "social" }),
+        ),
+      );
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -391,18 +399,29 @@ describe("shared contribution auth invalidation", () => {
     expect(clerkState.openSignIn).not.toHaveBeenCalled();
   });
 
-  it("keeps the Supabase path when Clerk is unconfigured", async () => {
+  it("keeps the Supabase path when only the Clerk publishable key is present", async () => {
+    vi.stubEnv(
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+      "pk_test_cmFyZS10cm91dC0yOS5jbGVyay5hY2NvdW50cy5kZXYk",
+    );
     clerkState.configured = false;
     const container = globalThis.document.createElement("div");
     root = createRoot(container);
 
     await commitReactWork(async () => {
-      root?.render(createElement(AuthProvider, null, createElement(Consumer, { name: "social" })));
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: clerkState.configured },
+          createElement(Consumer, { name: "social" }),
+        ),
+      );
       await Promise.resolve();
       await Promise.resolve();
     });
 
     const supabaseLoadCallsBeforeClick = authAvailability.loadSupabase.mock.calls.length;
+    expect(consumers.get("social")?.auth.clerkIntegrationConfigured).toBe(false);
     await commitReactWork(async () => {
       await consumers.get("social")?.auth.signInWithGoogle();
     });

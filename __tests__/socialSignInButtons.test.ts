@@ -9,7 +9,6 @@ import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 const authState = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
 }));
-const clerkState = vi.hoisted(() => ({ configured: false }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
@@ -17,14 +16,10 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 vi.mock("@/components/auth/ClerkAccountControls", () => ({
   default: () => "Clerk account controls",
 }));
-vi.mock("@/lib/clerkIdentity", () => ({
-  isClerkProductSessionAvailable: (user: unknown) =>
-    clerkState.configured && Boolean(user),
-}));
 
 afterEach(() => {
-  clerkState.configured = false;
   authState.current = {};
+  vi.unstubAllEnvs();
 });
 
 const noop = async () => {};
@@ -123,11 +118,12 @@ describe("signed-out sign-in surface", () => {
   });
 
   it("hides Clerk login when no product Supabase session exists", () => {
-    clerkState.configured = true;
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_test_cmFyZS10cm91dC0yOS5jbGVyay5hY2NvdW50cy5kZXYk");
     authState.current = {
       user: null,
       loading: false,
       configured: false,
+      clerkIntegrationConfigured: false,
       socialProviders: { google: true, apple: false },
       signInWithGoogle: vi.fn(),
       signInWithApple: vi.fn(),
@@ -147,8 +143,8 @@ describe("signed-out sign-in surface", () => {
 });
 
 describe("signed-in account surface", () => {
-  it("makes gated Clerk secondary controls reachable from a product session", () => {
-    clerkState.configured = true;
+  it("hides Clerk controls when a publishable key exists without the server key", () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_test_cmFyZS10cm91dC0yOS5jbGVyay5hY2NvdW50cy5kZXYk");
     authState.current = {
       user: {
         id: "account-a",
@@ -157,6 +153,7 @@ describe("signed-in account surface", () => {
       },
       loading: false,
       configured: true,
+      clerkIntegrationConfigured: false,
       socialProviders: { google: false, apple: false },
       signInWithGoogle: vi.fn(),
       signInWithApple: vi.fn(),
@@ -168,6 +165,29 @@ describe("signed-in account surface", () => {
     const html = renderToStaticMarkup(createElement(SignInButton));
 
     expect(html).toContain("reader@example.com");
+    expect(html).not.toContain("Clerk account controls");
+  });
+
+  it("makes Clerk secondary controls reachable only after the server confirms both keys", () => {
+    authState.current = {
+      user: {
+        id: "account-a",
+        email: "reader@example.com",
+        user_metadata: {},
+      },
+      loading: false,
+      configured: true,
+      clerkIntegrationConfigured: true,
+      socialProviders: { google: false, apple: false },
+      signInWithGoogle: vi.fn(),
+      signInWithApple: vi.fn(),
+      signInWithEmail: vi.fn(),
+      cancelAuthAttempt: vi.fn(),
+      signOut: vi.fn(),
+    };
+
+    const html = renderToStaticMarkup(createElement(SignInButton));
+
     expect(html).toContain("Clerk account controls");
   });
 });

@@ -9,6 +9,8 @@
 
 import { NextRequest } from "next/server";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -19,8 +21,8 @@ import {
   clerkFrontendApiOrigin,
   isClerkConfigured,
   isClerkMiddlewareConfigured,
-  isClerkProductSessionAvailable,
 } from "@/lib/clerkIdentity";
+import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { config, securityProxy } from "@/proxy";
 
 /**
@@ -49,10 +51,32 @@ function directive(policy: string, name: string): string | undefined {
 }
 
 describe("Clerk publishable key decoding", () => {
-  it("requires both Clerk configuration and a product session for visible controls", () => {
-    expect(isClerkProductSessionAvailable(null, PUBLISHABLE_KEY)).toBe(false);
-    expect(isClerkProductSessionAvailable({ id: "account-a" }, PUBLISHABLE_KEY)).toBe(true);
-    expect(isClerkProductSessionAvailable({ id: "account-a" }, undefined)).toBe(false);
+  it("requires server-confirmed two-key configuration and a product session for visible controls", () => {
+    expect(isClerkProductSessionAvailable(null, true)).toBe(false);
+    expect(isClerkProductSessionAvailable({ id: "account-a" }, true)).toBe(true);
+    expect(isClerkProductSessionAvailable({ id: "account-a" }, false)).toBe(false);
+  });
+
+  it("passes only the server-derived two-key boolean into the client auth provider", () => {
+    const layout = readFileSync(join(process.cwd(), "app/layout.tsx"), "utf8");
+
+    expect(layout).toContain(
+      "const clerkIntegrationConfigured = isClerkMiddlewareConfigured();",
+    );
+    expect(layout).toContain(
+      "<AuthProvider clerkIntegrationConfigured={clerkIntegrationConfigured}>",
+    );
+    expect(layout).not.toContain("process.env.CLERK_SECRET_KEY");
+
+    for (const clientPath of [
+      "components/auth/AuthProvider.tsx",
+      "components/auth/ClerkAccountControls.tsx",
+      "components/auth/SignInButton.tsx",
+    ]) {
+      const clientSource = readFileSync(join(process.cwd(), clientPath), "utf8");
+      expect(clientSource).toContain("@/lib/clerkAvailability");
+      expect(clientSource).not.toContain("@/lib/clerkIdentity");
+    }
   });
 
   it("decodes with atob when Buffer is absent (browser path)", () => {
@@ -311,8 +335,8 @@ describe("the middleware gate needs BOTH keys", () => {
   it("stays off with only the publishable key", () => {
     // Observed, not theorised: running this app with only the publishable key
     // set made clerkMiddleware() throw "@clerk/nextjs: Missing secretKey" on
-    // every request, so every page 500'd, not only sign-in. The browser half
-    // still turns on, because clerk-js needs no secret.
+    // every request, so every page 500'd, not only sign-in. Public-key CSP
+    // support may still turn on, but visible controls must remain off.
     vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
     vi.stubEnv("CLERK_SECRET_KEY", "");
 

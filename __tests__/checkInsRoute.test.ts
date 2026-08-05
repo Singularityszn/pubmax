@@ -61,10 +61,10 @@ beforeEach(() => {
 
 describe("POST /api/check-ins", () => {
   it("creates a check-in (201) for a valid body", async () => {
-    const res = await POST(postBody({ handle: "karan", areaSlug: "shoreditch", note: "out" }));
+    const res = await POST(postBody({ handle: "reader", areaSlug: "shoreditch", note: "out" }));
     expect(res.status).toBe(201);
     const data = (await res.json()) as { checkIn?: { handle: string; areaSlug: string } };
-    expect(data.checkIn?.handle).toBe("karan");
+    expect(data.checkIn?.handle).toBe("reader");
     expect(data.checkIn?.areaSlug).toBe("shoreditch");
   });
 
@@ -84,7 +84,7 @@ describe("POST /api/check-ins", () => {
   });
 
   it("400s an unknown area", async () => {
-    const res = await POST(postBody({ handle: "karan", areaSlug: "atlantis" }));
+    const res = await POST(postBody({ handle: "reader", areaSlug: "atlantis" }));
     expect(res.status).toBe(400);
   });
 });
@@ -92,12 +92,12 @@ describe("POST /api/check-ins", () => {
 describe("GET /api/check-ins", () => {
   it("returns a mutual friend's check-in for the viewer", async () => {
     const s = followStore();
-    await s.follow("karan", "amy");
-    await s.follow("amy", "karan");
+    await s.follow("reader", "amy");
+    await s.follow("amy", "reader");
     await POST(postBody({ handle: "amy", areaSlug: "brixton" }));
 
     vi.mocked(resolveViewerFromRequest).mockResolvedValue({
-      handle: "karan",
+      handle: "reader",
       authenticated: true,
     });
     const res = await GET(new Request("http://localhost/api/check-ins"));
@@ -109,7 +109,7 @@ describe("GET /api/check-ins", () => {
   it("does not return a non-mutual's check-in", async () => {
     await POST(postBody({ handle: "stranger", areaSlug: "brixton" }));
     vi.mocked(resolveViewerFromRequest).mockResolvedValue({
-      handle: "karan",
+      handle: "reader",
       authenticated: true,
     });
     const res = await GET(new Request("http://localhost/api/check-ins"));
@@ -118,17 +118,17 @@ describe("GET /api/check-ins", () => {
   });
 
   it("scope=area returns only area-public check-ins", async () => {
-    await POST(postBody({ handle: "karan", areaSlug: "camden", visibility: "friends" }));
+    await POST(postBody({ handle: "reader", areaSlug: "camden", visibility: "friends" }));
     await POST(postBody({ handle: "amy", areaSlug: "camden", visibility: "area" }));
     const res = await GET(new Request("http://localhost/api/check-ins?scope=area"));
     const data = (await res.json()) as { checkIns: { handle: string; visibility: string }[] };
     expect(data.checkIns.every((c) => c.visibility === "area")).toBe(true);
     expect(data.checkIns.map((c) => c.handle)).toContain("amy");
-    expect(data.checkIns.map((c) => c.handle)).not.toContain("karan");
+    expect(data.checkIns.map((c) => c.handle)).not.toContain("reader");
   });
 
   it("an anonymous viewer sees nothing", async () => {
-    await POST(postBody({ handle: "karan", areaSlug: "camden" }));
+    await POST(postBody({ handle: "reader", areaSlug: "camden" }));
     const res = await GET(new Request("http://localhost/api/check-ins"));
     const data = (await res.json()) as { checkIns: unknown[] };
     expect(data.checkIns).toEqual([]);
@@ -137,8 +137,8 @@ describe("GET /api/check-ins", () => {
   it("ignores spoofed ?viewer= in production (friends lane stays closed)", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const s = followStore();
-    await s.follow("karan", "amy");
-    await s.follow("amy", "karan");
+    await s.follow("reader", "amy");
+    await s.follow("amy", "reader");
     await POST(postBody({ handle: "amy", areaSlug: "brixton" }));
 
     // No JWT-linked profile — only a spoofed query handle.
@@ -146,7 +146,7 @@ describe("GET /api/check-ins", () => {
       handle: null,
       authenticated: false,
     });
-    const res = await GET(new Request("http://localhost/api/check-ins?viewer=karan"));
+    const res = await GET(new Request("http://localhost/api/check-ins?viewer=reader"));
     expect(res.status).toBe(200);
     const data = (await res.json()) as { checkIns: unknown[] };
     expect(data.checkIns).toEqual([]);
