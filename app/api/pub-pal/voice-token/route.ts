@@ -12,9 +12,31 @@ export async function POST(request: Request): Promise<Response> {
   const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim();
   if (!apiKey || !agentId) return jsonNoStore({ error: "Voice is not configured yet.", fallback: "text" }, { status: 503 });
   const month = new Date().toISOString().slice(0, 7);
+  const usageMonth = `${month}-01`;
+  const supabaseConfigured = isSupabaseConfigured();
   const current = usage.get(userId);
   const meter = current?.month === month ? current : { count: 0, month };
-  if (!isSupabaseConfigured() && meter.count >= MONTHLY_TRIAL_SESSIONS) return jsonNoStore({ error: "Your trial voice allowance is used for this month.", fallback: "text", remaining: 0 }, { status: 429 });
+  if (!supabaseConfigured && meter.count >= MONTHLY_TRIAL_SESSIONS) return jsonNoStore({ error: "Your trial voice allowance is used for this month.", fallback: "text", remaining: 0 }, { status: 429 });
+
+  const admin = supabaseConfigured ? requireSupabaseAdmin() : null;
+  if (admin) {
+    try {
+      const { data, error } = await admin.rpc("consume_pub_pal_voice_trial", {
+        p_owner_id: userId,
+        p_month: usageMonth,
+        p_limit: MONTHLY_TRIAL_SESSIONS,
+      });
+      if (error) return jsonNoStore({ error: "Voice allowance could not be checked.", fallback: "text" }, { status: 503 });
+      if (data === false) return jsonNoStore({ error: "Your trial voice allowance is used for this month.", fallback: "text", remaining: 0 }, { status: 429 });
+    } catch {
+      return jsonNoStore({ error: "Voice allowance could not be checked.", fallback: "text" }, { status: 503 });
+    }
+  } else {
+    meter.count += 1;
+    usage.set(userId, meter);
+  }
+
+  let providerAllocated = false;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8_000);
   try {
@@ -25,13 +47,26 @@ export async function POST(request: Request): Promise<Response> {
     if (!response.ok) return jsonNoStore({ error: "Voice service is temporarily unavailable.", fallback: "text" }, { status: 502 });
     const body = await response.json() as { signed_url?: string };
     if (!body.signed_url) return jsonNoStore({ error: "Voice service returned no session.", fallback: "text" }, { status: 502 });
-    if (isSupabaseConfigured()) {
-      const { data, error } = await requireSupabaseAdmin().rpc("consume_pub_pal_voice_trial", { p_owner_id: userId, p_month: `${month}-01`, p_limit: MONTHLY_TRIAL_SESSIONS });
-      if (error) return jsonNoStore({ error: "Voice allowance could not be checked.", fallback: "text" }, { status: 503 });
-      if (data === false) return jsonNoStore({ error: "Your trial voice allowance is used for this month.", fallback: "text", remaining: 0 }, { status: 429 });
-    } else { meter.count += 1; usage.set(userId, meter); }
-    return jsonNoStore({ signedUrl: body.signed_url, connectionType: "websocket", remaining: isSupabaseConfigured() ? null : MONTHLY_TRIAL_SESSIONS - meter.count, retention: "zero", mutationPolicy: "propose_then_confirm" });
+    providerAllocated = true;
+    return jsonNoStore({ signedUrl: body.signed_url, connectionType: "websocket", remaining: supabaseConfigured ? null : MONTHLY_TRIAL_SESSIONS - meter.count, retention: "zero", mutationPolicy: "propose_then_confirm" });
   } catch {
     return jsonNoStore({ error: "Voice service did not respond in time.", fallback: "text" }, { status: 504 });
-  } finally { clearTimeout(timeout); }
+  } finally {
+    clearTimeout(timeout);
+    if (!providerAllocated) {
+      if (admin) {
+        try {
+          await admin.rpc("release_pub_pal_voice_trial", {
+            p_owner_id: userId,
+            p_month: usageMonth,
+          });
+        } catch {
+          // Provider failure still owns the response if quota compensation fails.
+        }
+      } else {
+        meter.count = Math.max(0, meter.count - 1);
+        usage.set(userId, meter);
+      }
+    }
+  }
 }

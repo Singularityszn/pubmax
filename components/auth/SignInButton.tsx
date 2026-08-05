@@ -183,21 +183,14 @@ export default function SignInButton({
     setBusy(null);
   }, [signOut]);
 
-  // Hide entirely when NEITHER identity system is configured — no dead button.
-  // Clerk is checked as well as Supabase because the two are independent: a
-  // deployment with a Clerk key and no Supabase env used to render nothing at
-  // all, which left a signed-out reader with no way to make an account.
-  const clerkConfigured = isClerkConfigured();
-  // Clerk is browser-side identity: it does not wait on the Supabase session
-  // restore. Holding the whole control behind `loading` used to hide the only
-  // way in when Supabase was off (or slow) and Clerk was on — the reader saw a
-  // nav with no Sign in at all. Once Clerk is configured, show the control even
-  // while the Supabase half is still resolving; Supabase-only hosts keep the
-  // flash guard below.
+  // Clerk does not mint the Supabase session that owns PUBMAXX identity. Its
+  // secondary controls stay behind an established product session until that
+  // provider bridge exists end to end.
+  const clerkConfigured = isClerkConfigured() && Boolean(user);
   if (!configured && !clerkConfigured) return null;
 
   // Avoid a flash of the wrong state while the first getSession() resolves.
-  // Skip the wait when Clerk can already answer — see gate comment above.
+  // Skip the wait only for an already established product session.
   if (loading && !clerkConfigured) return null;
 
   if (user) {

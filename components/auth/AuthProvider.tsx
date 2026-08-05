@@ -173,7 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const rejectedContributionAuthRef =
     useRef<AccountAuthSnapshot | null>(null);
   const configured = isAuthConfigured();
-  const clerkConfigured = isClerkConfigured();
+  const clerkConfigured = isClerkConfigured() && Boolean(session?.user);
   const clerk = useClerk();
   const { isLoaded: clerkLoaded } = useClerkAuth();
   const loading = configured && sessionLoading;
