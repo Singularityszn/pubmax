@@ -29,7 +29,7 @@ type Boundary = "rate_limit" | "account" | "capability" | "moderator" | "confirm
 
 const BOUNDARY_PATTERNS: Record<Boundary, RegExp> = {
   rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited)\b/,
-  account: /\b(?:callerUserId|callerAuthIdentity|verifyCallerAuth|resolveContributionIdentity)\b/,
+  account: /\b(?:callerUserId|callerAuthIdentity|verifyCallerAuth|resolveContributionIdentity|requireVerifiedSocialActor)\b/,
   capability: /\b(?:planMemberCapability|memberToken|requireRoundOwnership)\b/,
   moderator: /\b(?:isModerator|isAdminAuthorized|verifyAdminToken)\b/,
   confirmation: /\b(?:consumePublishConfirmation|confirmationToken)\b/,
@@ -115,7 +115,24 @@ describe("mutating API surface certification", () => {
     // account-migration POST adds route 75. The
     // deliberate merge-coordination point: any branch adding a mutating route
     // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(75);
+    expect(mutationRoutes).toHaveLength(77);
+  });
+
+  it("certifies both verified Social post write routes", () => {
+    const create = CERTIFICATION.match(
+      /### `app\/api\/social\/posts`[\s\S]*?(?=\n### )/,
+    )?.[0] ?? "";
+    const item = CERTIFICATION.match(
+      /### `app\/api\/social\/posts\/\[postId\]`[\s\S]*?(?=\n### |\s*$)/,
+    )?.[0] ?? "";
+
+    for (const section of [create, item]) {
+      expect(section).toMatch(/verified Social actor/i);
+      expect(section).toMatch(/stable profile/i);
+      expect(section).toMatch(/account ID/i);
+    }
+    expect(create).toMatch(/pending moderation/i);
+    expect(item).toMatch(/recoverable/i);
   });
 
   it("gives every mutating route an abuse or authority boundary", () => {
