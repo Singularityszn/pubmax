@@ -1,4 +1,5 @@
 import { withAuthFetchTimeout } from "@/lib/authFetch";
+import { clerkFrontendApiOrigin } from "@/lib/clerkIdentity";
 
 export type SocialAuthProvider = "google" | "apple";
 
@@ -13,6 +14,26 @@ type AuthStartResult = { error: string | null };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function availabilityFromClerkEnvironment(
+  environment: unknown,
+): SocialAuthProviderAvailability | null {
+  if (!isRecord(environment) || !isRecord(environment.userSettings)) return null;
+  const social = environment.userSettings.social;
+  if (!isRecord(social)) return null;
+
+  const enabledStrategies = new Set(
+    Object.entries(social).flatMap(([key, value]) => {
+      if (!isRecord(value) || value.enabled !== true) return [];
+      return [typeof value.strategy === "string" ? value.strategy : key];
+    }),
+  );
+
+  return {
+    google: enabledStrategies.has("oauth_google"),
+    apple: enabledStrategies.has("oauth_apple"),
+  };
 }
 
 /**
@@ -48,6 +69,46 @@ export async function loadSocialAuthProviders(
       google: payload.external.google === true,
       apple: payload.external.apple === true,
     };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read Clerk's public instance environment for enabled OAuth strategies. Clerk
+ * exposes the configured social set through user_settings.social, so provider
+ * availability follows dashboard changes without a second application list.
+ */
+export async function loadClerkSocialAuthProviders(
+  fetchImpl: typeof fetch = globalThis.fetch,
+  clerkEnvironment?: unknown,
+): Promise<SocialAuthProviderAvailability | null> {
+  if (clerkEnvironment !== undefined) {
+    return availabilityFromClerkEnvironment(clerkEnvironment);
+  }
+
+  const frontendApi = clerkFrontendApiOrigin();
+  if (!frontendApi) return null;
+
+  let environmentUrl: string;
+  try {
+    environmentUrl = new URL("/v1/environment", frontendApi).toString();
+  } catch {
+    return null;
+  }
+
+  try {
+    const response = await withAuthFetchTimeout(fetchImpl)(environmentUrl, {
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+
+    const payload: unknown = await response.json();
+    return availabilityFromClerkEnvironment(
+      isRecord(payload) && isRecord(payload.user_settings)
+        ? { userSettings: payload.user_settings }
+        : null,
+    );
   } catch {
     return null;
   }

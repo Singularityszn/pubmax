@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SignInButton from "@/components/auth/SignInButton";
@@ -9,10 +9,22 @@ import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 const authState = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
 }));
+const clerkState = vi.hoisted(() => ({ configured: false }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
 }));
+vi.mock("@/components/auth/ClerkAccountControls", () => ({
+  default: () => null,
+}));
+vi.mock("@/lib/clerkIdentity", () => ({
+  isClerkConfigured: () => clerkState.configured,
+}));
+
+afterEach(() => {
+  clerkState.configured = false;
+  authState.current = {};
+});
 
 const noop = async () => {};
 
@@ -107,5 +119,26 @@ describe("signed-out sign-in surface", () => {
     expect(html).toContain("Or continue with email");
     expect(html).toContain("Email me a link");
     expect(html).not.toContain("Continue with Apple");
+  });
+
+  it("renders Clerk social providers when Supabase is unconfigured", () => {
+    clerkState.configured = true;
+    authState.current = {
+      user: null,
+      loading: false,
+      configured: false,
+      socialProviders: { google: true, apple: false },
+      signInWithGoogle: vi.fn(),
+      signInWithApple: vi.fn(),
+      signInWithEmail: vi.fn(),
+      cancelAuthAttempt: vi.fn(),
+      signOut: vi.fn(),
+    };
+
+    const html = renderToStaticMarkup(createElement(SignInButton));
+
+    expect(html).toContain('aria-label="Continue with Google"');
+    expect(html).not.toContain("Continue with Apple");
+    expect(html).not.toContain("Continue with email");
   });
 });

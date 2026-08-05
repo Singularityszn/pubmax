@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   guardSocialAuthProvider,
+  loadClerkSocialAuthProviders,
   loadSocialAuthProviders,
 } from "@/lib/authProviderAvailability";
 
@@ -20,6 +21,95 @@ function settingsResponse(external: Record<string, boolean>): Response {
     headers: { "content-type": "application/json" },
   });
 }
+
+function clerkEnvironmentResponse(
+  social: Record<string, Record<string, unknown>>,
+): Response {
+  return new Response(JSON.stringify({ user_settings: { social } }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function clerkPublishableKey(): string {
+  return `pk_test_${Buffer.from("rare-trout-29.clerk.accounts.dev$").toString("base64")}`;
+}
+
+describe("Clerk social auth provider availability", () => {
+  it("prefers the Clerk SDK environment over a direct request", async () => {
+    const fetchImpl = vi.fn<typeof fetch>();
+
+    await expect(
+      loadClerkSocialAuthProviders(fetchImpl, {
+        userSettings: {
+          social: {
+            oauth_google: { enabled: true, strategy: "oauth_google" },
+          },
+        },
+      }),
+    ).resolves.toEqual({ google: true, apple: false });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("reads enabled social strategies from Clerk's environment", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", clerkPublishableKey());
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      clerkEnvironmentResponse({
+        oauth_google: { enabled: true, strategy: "oauth_google" },
+        oauth_apple: { enabled: false, strategy: "oauth_apple" },
+      }),
+    );
+
+    await expect(loadClerkSocialAuthProviders(fetchImpl)).resolves.toEqual({
+      google: true,
+      apple: false,
+    });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://rare-trout-29.clerk.accounts.dev/v1/environment",
+      expect.objectContaining({
+        cache: "no-store",
+        signal: expect.any(AbortSignal),
+      }),
+    );
+  });
+
+  it("shows Apple automatically when Clerk enables oauth_apple", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", clerkPublishableKey());
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      clerkEnvironmentResponse({
+        oauth_google: { enabled: true },
+        oauth_apple: { enabled: true },
+      }),
+    );
+
+    await expect(loadClerkSocialAuthProviders(fetchImpl)).resolves.toEqual({
+      google: true,
+      apple: true,
+    });
+  });
+
+  it.each([
+    ["an HTTP failure", vi.fn<typeof fetch>().mockResolvedValue(new Response("no", { status: 503 }))],
+    ["a network failure", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline"))],
+    [
+      "a malformed payload",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(JSON.stringify({ user_settings: { social: null } }), { status: 200 }),
+      ),
+    ],
+  ])("fails closed for %s", async (_label, fetchImpl) => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", clerkPublishableKey());
+
+    await expect(loadClerkSocialAuthProviders(fetchImpl)).resolves.toBeNull();
+  });
+
+  it("does not request Clerk environment when its publishable key is absent", async () => {
+    const fetchImpl = vi.fn<typeof fetch>();
+
+    await expect(loadClerkSocialAuthProviders(fetchImpl)).resolves.toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
 
 describe("Supabase social auth provider availability", () => {
   it("reads live settings with the public key and maps Google and Apple", async () => {
