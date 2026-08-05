@@ -99,3 +99,27 @@
 - [ ] Run `npm run typecheck`, focused ESLint, and `git diff --check`.
 - [ ] Review final diff for stale comments, dead paths, and generated-file churn.
 - [ ] Commit fixes and update release report with exact commands and exits.
+
+### Task 6: Round-Two Clerk Configuration Boundary
+
+**Files:**
+- Modify: `app/layout.tsx`
+- Modify: `components/auth/AuthProvider.tsx`
+- Modify: `components/auth/ClerkAccountControls.tsx`
+- Modify: `components/auth/SignInButton.tsx`
+- Modify: `components/identity/IdentityNudge.tsx`
+- Modify: `lib/clerkIdentity.ts`
+- Create: `lib/clerkAvailability.ts`
+- Modify or create: focused Clerk and identity-nudge component tests under `__tests__/`
+
+**Interfaces:**
+- Consumes: server-only two-key Clerk configuration, product Supabase session, and existing auth context.
+- Produces: one safe `clerkIntegrationConfigured` boolean for client visibility, while Clerk session copy remains distinct from PUBMAXX identity.
+
+- [x] Add red tests proving publishable-key-only configuration cannot expose Clerk controls.
+- [x] Add component-level Identity Nudge coverage without mocking the availability boundary.
+- [x] Add copy assertions that distinguish a Clerk session from PUBMAXX User ID and handle.
+- [x] Derive the two-key boolean in the server layout and pass it through AuthProvider without exposing the secret.
+- [x] Make every client visibility decision consume the server-derived boolean and product session.
+- [x] Run focused tests, typecheck, focused ESLint, and `git diff --check`.
+- [x] Commit round-two fix and update the Task 1 release report with exact evidence.

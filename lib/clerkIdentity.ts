@@ -65,18 +65,6 @@ export function isClerkConfigured(
 }
 
 /**
- * Whether Clerk may expose a visible account control. Clerk is secondary until
- * it can establish the Supabase session that owns PUBMAXX identity, so a valid
- * publishable key alone is never a visible sign-in path.
- */
-export function isClerkProductSessionAvailable(
-  productUser: unknown,
-  publishableKey: string | undefined = readClerkPublishableKey(),
-): boolean {
-  return Boolean(productUser) && isClerkConfigured(publishableKey);
-}
-
-/**
  * Whether clerkMiddleware() may run. SERVER-ONLY: it reads CLERK_SECRET_KEY, so
  * it must never be called from a client component.
  *
@@ -114,11 +102,10 @@ export function clerkFrontendApiOrigin(
     : null;
   if (!payload) return null;
 
-  // Decode on BOTH runtimes. Node has Buffer; the browser has atob. The client
-  // gate (SignInButton / ClerkAccountControls) calls this during render, so a
-  // Buffer-only decode used to return null in the browser, hide every Clerk
-  // control, and leave a reader with no way to make an account when Supabase
-  // was also off. The payload is ASCII (host + `$`), so atob is exact.
+  // Decode on both runtimes. Node has Buffer; browsers have atob. Keeping this
+  // public-key parser runtime-neutral lets security-policy callers validate a
+  // key without depending on a Node-only global. The payload is ASCII (host +
+  // `$`), so atob is exact.
   let decoded: string;
   try {
     decoded =

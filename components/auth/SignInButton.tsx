@@ -22,7 +22,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import ClerkAccountControls from "@/components/auth/ClerkAccountControls";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
-import { isClerkProductSessionAvailable } from "@/lib/clerkIdentity";
+import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
 import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
@@ -56,6 +56,7 @@ export default function SignInButton({
     user,
     loading,
     configured,
+    clerkIntegrationConfigured,
     socialProviders,
     signInWithGoogle,
     signInWithApple,
@@ -186,12 +187,15 @@ export default function SignInButton({
   // Clerk does not mint the Supabase session that owns PUBMAXX identity. Its
   // secondary controls stay behind an established product session until that
   // provider bridge exists end to end.
-  const clerkConfigured = isClerkProductSessionAvailable(user);
-  if (!configured && !clerkConfigured) return null;
+  const clerkSessionAvailable = isClerkProductSessionAvailable(
+    user,
+    clerkIntegrationConfigured,
+  );
+  if (!configured && !clerkSessionAvailable) return null;
 
   // Avoid a flash of the wrong state while the first getSession() resolves.
   // Skip the wait only for an already established product session.
-  if (loading && !clerkConfigured) return null;
+  if (loading && !clerkSessionAvailable) return null;
 
   if (user) {
     const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
@@ -224,7 +228,7 @@ export default function SignInButton({
         >
           Sign out
         </button>
-        {clerkConfigured ? <ClerkAccountControls /> : null}
+        {clerkSessionAvailable ? <ClerkAccountControls /> : null}
       </div>
     );
   }
@@ -233,7 +237,7 @@ export default function SignInButton({
   // Magic links belong to Supabase. Social buttons belong to whichever
   // configured identity provider owns the capability read.
   const socialOptions = (fullLabels = false) =>
-    configured || clerkConfigured ? (
+    configured || clerkSessionAvailable ? (
       <SocialSignInButtons
         availability={socialProviders}
         disabled={busy !== null}
@@ -298,7 +302,7 @@ export default function SignInButton({
         </button>
         {menuOpen ? (
           <div className="authMenu" id={menuId} aria-label="Sign in options" ref={menuRef}>
-            {configured || clerkConfigured ? (
+            {configured || clerkSessionAvailable ? (
               <>
                 {socialOptions(true)}
                 {configured ? (

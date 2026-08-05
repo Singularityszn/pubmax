@@ -12,6 +12,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { clerkAppearance } from "@/lib/clerkAppearance";
+import { isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 import PerformanceVitals from "@/components/PerformanceVitals";
@@ -195,6 +196,9 @@ export default async function RootLayout({
   // speculation-rules block below — inline speculation rules are gated by
   // script-src, so under the nonce policy they need the nonce to be honoured.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  // Server-only two-key check. Client components receive only this boolean,
+  // never CLERK_SECRET_KEY or a value derived from its contents.
+  const clerkIntegrationConfigured = isClerkMiddlewareConfigured();
   return (
     <html
       lang="en"
@@ -297,7 +301,7 @@ export default async function RootLayout({
         {/* AuthProvider is additive: it establishes identity for signed-in users
             but never gates a route — anonymous browsing stays fully public. The
             session loads async client-side, so children render immediately. */}
-        <AuthProvider>
+        <AuthProvider clerkIntegrationConfigured={clerkIntegrationConfigured}>
           {/* Global ⌘K / Ctrl+K command palette (feature N1). A client provider
               mounted at the root so the shortcut works from any page; it owns the
               open/close state and renders the dialog only while open. Wraps
