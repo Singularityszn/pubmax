@@ -7,12 +7,11 @@ import type { SocialPostVisibility } from "@/lib/socialPosts";
 type Proposal = {
   id: string;
   postId: string;
-  mediaId: string;
+  mediaId: string | null;
   authorHandle: string;
   state: "proposed" | "approved";
-  body: string;
   visibility: SocialPostVisibility;
-  photoAltText: string;
+  photoAltText: string | null;
   reviewRevision: number;
   audienceAtApproval: {
     visibility: SocialPostVisibility;
@@ -97,7 +96,7 @@ export default function SocialTagInbox() {
       if (!response.ok) {
         if (action === "approve") {
           setError("Photo tag changed. Review it again.");
-          await loadLane("proposed");
+          await Promise.all([loadLane("proposed"), loadLane("approved")]);
         } else {
           setError("Photo tag choice was not saved.");
         }
@@ -123,18 +122,21 @@ export default function SocialTagInbox() {
         return (
           <section key={lane} className="socialTagLane" aria-label={lane === "proposed" ? "Tags to review" : "Approved tags"}>
             {state.items.map((item) => {
-              const audience = item.audienceAtApproval?.visibility ?? item.visibility;
+              const audience = item.state === "approved"
+                ? item.audienceAtApproval?.visibility ?? item.visibility
+                : item.visibility;
               return (
                 <article key={item.id} className="socialTagItem">
                   <strong>@{item.authorHandle}</strong>
-                  <figure>
-                    {/* eslint-disable-next-line @next/next/no-img-element -- private consent-review delivery route. */}
-                    <img
-                      src={`/api/social/media/${item.mediaId}`}
-                      alt={item.photoAltText}
-                    />
-                  </figure>
-                  {item.body ? <p>{item.body}</p> : null}
+                  {item.mediaId && item.photoAltText ? (
+                    <figure>
+                      {/* eslint-disable-next-line @next/next/no-img-element -- private consent-review delivery route. */}
+                      <img
+                        src={`/api/social/media/${item.mediaId}`}
+                        alt={item.photoAltText}
+                      />
+                    </figure>
+                  ) : null}
                   <p>{AUDIENCE_LABEL[audience]}</p>
                   <div>
                     {lane === "proposed" ? (
