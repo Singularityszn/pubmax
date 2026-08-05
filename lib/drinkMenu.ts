@@ -3,6 +3,7 @@ import {
   type Drink,
   type LegacyPintPrice,
 } from "@/lib/drinks";
+import { demoContentEnabled } from "@/lib/demoContent";
 import { demoDrinksFor } from "@/lib/drinkSeeds";
 
 // The venue Menu read path (PRD E1). ONE pure function that composes a venue's
@@ -34,7 +35,7 @@ export function venueDrinkMenu(
   seeds: (id: string) => Drink[] = demoDrinksFor,
 ): Drink[] {
   const beer = legacyPricesToDrinks(legacyPrices, LEGACY_OBSERVED_AT);
-  const seeded = seeds(venueId);
+  const seeded = demoContentEnabled() ? seeds(venueId) : [];
   // Beer (legacy pints) first, then the seeded non-beer menu. Dedupe by id so a
   // re-run or an overlapping source never doubles a row.
   const seen = new Set<string>();

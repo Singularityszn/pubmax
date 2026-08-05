@@ -10,9 +10,30 @@ import {
   type DrinkProvenance,
 } from "@/lib/drinks";
 import { firstHttp } from "@/lib/httpUrl";
+import { FRESH_WITHIN_DAYS } from "@/lib/priceConfidence";
 import { DrinkGlyph } from "./DrinkGlyph";
 
 import "./drinkMenu.css";
+
+const DAY_MS = 86_400_000;
+
+function drinkMenuObservationMeta(
+  observedAt: string,
+  now: number = Date.now(),
+): { label: "Seen" | "Last seen"; formattedDate: string } | null {
+  const observedAtMs = Date.parse(observedAt);
+  if (!Number.isFinite(observedAtMs)) return null;
+  const stale = now - observedAtMs > FRESH_WITHIN_DAYS * DAY_MS;
+  return {
+    label: stale ? "Last seen" : "Seen",
+    formattedDate: new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(observedAtMs)),
+  };
+}
 
 // The venue Menu (PRD E1): a venue's drinks grouped by category, each section
 // carrying its own colour token (lib/categoryColors.ts — E5 owns the canonical
@@ -83,6 +104,9 @@ function drinkMeta(drink: Drink): string {
 
 function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
   const meta = drinkMeta(drink);
+  const observation = isDemoProvenance(drink.provenance)
+    ? null
+    : drinkMenuObservationMeta(drink.provenance.observedAt);
   return (
     <li className="drinkRow">
       <div className="drinkRowMain">
@@ -111,6 +135,14 @@ function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
           {formatPrice(drink.priceGbp)}
         </PriceBadge>
         <ProvChip prov={drink.provenance} />
+        {observation ? (
+          <span className="drinkObservationAge">
+            {observation.label}{" "}
+            <time dateTime={drink.provenance.observedAt}>
+              {observation.formattedDate}
+            </time>
+          </span>
+        ) : null}
       </div>
     </li>
   );

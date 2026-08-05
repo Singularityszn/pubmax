@@ -19,6 +19,7 @@
 // instead of poisoning the drinks layer.
 
 import type { Provenance } from "@/lib/curation";
+import { demoContentEnabled } from "@/lib/demoContent";
 import {
   alcoholTypeForDrink,
   isDrinkCategory,
@@ -164,6 +165,15 @@ function stableDrinkId(update: DrinkPriceUpdate): string {
   return `drink-${(hash >>> 0).toString(36)}`;
 }
 
+function visibleDrinkPriceUpdates(
+  updates: readonly DrinkPriceUpdate[],
+): DrinkPriceUpdate[] {
+  if (demoContentEnabled()) return [...updates];
+  return updates.filter(
+    (update) => !update.source.label.toLowerCase().includes("demo"),
+  );
+}
+
 export function drinkFromPriceUpdate(update: DrinkPriceUpdate): Drink {
   return {
     id: stableDrinkId(update),
@@ -185,7 +195,9 @@ export function applyDrinkPriceUpdatesToMenu(
   existingDrinks: Drink[],
   updates: DrinkPriceUpdate[],
 ): Drink[] {
-  const scoped = updates.filter((update) => update.venueKey === venueKey);
+  const scoped = visibleDrinkPriceUpdates(updates).filter(
+    (update) => update.venueKey === venueKey,
+  );
   if (scoped.length === 0) return existingDrinks;
   const byKey = new Map(
     scoped.map((update) => [rowKey(update.venueKey, update.drinkName, update.category), update] as const),
@@ -273,7 +285,9 @@ export function mergeDrinkPriceUpdates<T extends DrinkMenuRow>(
   keyFor: (row: T) => string,
 ): PricedDrinkMenuRow<T>[] {
   const byKey = new Map(
-    updates.map((u) => [rowKey(u.venueKey, u.drinkName, u.category), u] as const),
+    visibleDrinkPriceUpdates(updates).map(
+      (u) => [rowKey(u.venueKey, u.drinkName, u.category), u] as const,
+    ),
   );
   return existingDrinks.map((row) => {
     const update = byKey.get(rowKey(keyFor(row), row.drinkName, row.category));
