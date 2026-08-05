@@ -2,117 +2,127 @@
 
 ## Status
 
-Round 1 review findings resolved. Original implementation commit `731d2a0b`
-and corrective implementation commit `736aee1f` now provide the five-state
-Social access policy, protected product-account ownership, dual-session account
-migration, legacy-handle provenance, private assurance evidence storage, and
-exact Social API middleware scope.
+Round 2 review findings resolved. Original implementation commit `731d2a0b`,
+round 1 correction `736aee1f`, and round 1 evidence commit `e53cccd83` provide
+the five-state Social access policy, protected product-account ownership,
+dual-session migration, private assurance evidence storage, and exact Social
+API middleware scope. Round 2 correction `ecddfe6f` replaces creation-time
+ownership provenance with atomic account-owned handle creation and moves the
+disabled-beta gate ahead of both identity providers.
 
 Social remains preview-only by default. Yoti integration is not active. This
-task ships only the service-only evidence schema and fail-closed policy that a
+task ships only service-only evidence storage and fail-closed policy that a
 future authenticated provider integration may populate.
 
 ## Architecture
 
-- `lib/socialAccess.ts` owns the pure `preview`, `sign_in_required`,
-  `age_verification_required`, `verified`, and `suspended` states. A stored
-  evidence row can satisfy `verified` only when it belongs to the current
-  product account, has the expected provider and decision, is current, is not
-  future-dated, and has not expired.
-- `lib/socialAccessServer.ts` owns Clerk session verification, private account
-  reads, the beta write policy, and the service-role migration RPC. Identity or
-  storage uncertainty fails closed.
-- `POST /api/social/access` owns dual-session migration because this protected
-  route is the one request boundary where both independent authorities can be
-  proven. The route derives the Supabase identity with
-  `verifyCallerAuth(request)`. Clerk middleware context is verified separately
-  in the server policy seam. No handle, email, account ID, or other ownership
-  proxy is accepted from the body. Only those server-derived identifiers reach
-  the transactional RPC.
-- Migration `0071` adds service-only product ownership, audit, and minimal
-  Yoti-shaped evidence tables. It also gives `profiles` durable
-  `account_link_state` provenance: pre-migration unlinked rows become
-  `legacy_unlinked`, recognised new `ensure` rows are `ephemeral`, and completed
-  links become `account_owned`.
+- `profiles.user_id` is the sole profile ownership authority. Generic
+  `ensure(handle)` creates an unowned row that can never become account-owned.
+  No creation timestamp or transient state grants ownership.
+- `ProfileStore.createOwned(handle, userId)` is the only new-ownership
+  operation. Memory creates the record without suspending between its absence
+  check and insert. Supabase delegates to the service-only
+  `claim_pubmaxx_handle` transaction, which locks the handle, refuses every
+  existing profile, and inserts an absent handle with `user_id` already set.
+- `ProfileStore.linkUser(handle, userId)` confirms current ownership only. Same
+  owner retry succeeds; absent, unowned, and differently owned rows refuse.
+- Canonical onboarding uses the atomic operation. Memory and Supabase
+  availability treat aliases and raw profile rows as taken, so an unaliased
+  generic row is never advertised as claimable.
+- `POST /api/social/access` evaluates the shared invite-beta policy before
+  calling `verifyCallerAuth(request)`. When enabled, Supabase identity is
+  verified at the route and Clerk identity is verified separately in the
+  protected server seam. No handle, email, account ID, or ownership proxy is
+  accepted from the body.
+- Migration `0071` adds only service-private Social account, audit, and minimal
+  Yoti-shaped evidence tables plus hardened account and handle RPCs. It does
+  not add a second profile ownership state.
 - `proxy.ts` matches only `/api/social/:path*`. Half-configured Clerk still uses
   the plain security proxy. `lib/clerkIdentity.ts` remains untouched because PR
   #726 owns it.
 
-## Round 1 findings resolved
+## Review findings resolved
 
-1. Legal and report language now says Yoti processing is deferred. Privacy and
-   terms describe only current service-only evidence fields and the conditional
-   data practice if provider integration is enabled later. They no longer claim
-   a hosted check, callback, or result is operating.
-2. Account migration returns `SOCIAL_BETA_DISABLED` with status 403 while the
-   invite beta is off. The policy returns before Clerk verification or the
-   migration store call.
-3. Established `ensure()` then `linkUser()` flows work again. Durable provenance
-   freezes pre-0071 legacy rows without treating newly created ephemeral rows as
-   legacy. Memory and Supabase paths share the same state transitions. All
-   previously failing profile deletion, redaction, and visibility callers pass.
-4. `migrate_social_product_account` sorts both advisory identity locks by key
-   and every involved product-account row by UUID before locking. The real
-   PostgreSQL regression launches 12 synchronized psql clients, alternates both
-   crossed mappings, performs 20 calls per transaction, and verifies the two
-   original bindings remain unchanged without deadlock or timeout.
-5. Memory handle claims reconstruct ownership from the durable profile row after
-   alias-cache loss. Retrying the same owner and handle remains idempotent.
+Round 1:
+
+1. Privacy, terms, and this report say Yoti processing is deferred. No surface
+   claims a hosted check, callback, or authoritative result currently runs.
+2. Disabled Social migration returns 403 and performs no Clerk or storage work.
+3. Profile, redaction, deletion, and visibility callers use explicit trusted
+   account fixtures rather than relying on generic profile creation.
+4. `migrate_social_product_account` acquires advisory identity locks and
+   existing product-account row locks in deterministic order. Twelve crossed
+   clients exercise the deployed function concurrently.
+5. Memory handle claims reconstruct same-owner identity from the durable
+   profile row after alias-cache loss.
+
+Round 2:
+
+1. Generic `ensure` rows are permanently unowned. Authenticated ownership is
+   created atomically only for absent handles. The rejected `ephemeral`
+   authority and its redundant database column are gone.
+2. Disabled POST returns before Supabase verification as well as before Clerk
+   and storage work.
+3. Supabase availability now checks raw profiles after aliases, closing the
+   false-available response for generic rows.
+4. Concurrent same-handle, same-owner/different-handle, and generic-ensure
+   races run against PostgreSQL. Unique user-ID races preserve
+   `already_has_handle`; handle collisions preserve `taken`.
+5. Gate conflicts use errors emitted by the real atomic operation. A caller
+   that already owns another handle receives 409 rather than a storage 503.
 
 ## TDD evidence
 
-Red evidence captured before each correction:
+Red evidence captured before corrections:
 
-- Baseline `npm test`: 13 failures across five files. Two write-surface
-  certification failures plus 11 profile/redaction/visibility failures exposed
-  the blanket existing-row refusal.
-- Profile regression set: 7 failures across four files, including the missing
-  legacy fixture seam, broken ensure-then-link behavior, and alias-cache-loss
-  retry.
-- Beta policy test called identity dependencies instead of returning the
-  required preview refusal. Route test passed a `Request` rather than explicit
-  verified authority. Certification reported the new route uncovered and the
-  inventory off by one.
-- Migration provenance tests failed because `account_link_state` did not exist.
-- Deployed PostgreSQL function-definition assertion failed because neither
-  advisory nor account-row lock acquisition had a declared sorted order.
-- Legal test failed on the live claims that Yoti ran a hosted adult check and
-  returned a result.
-- Self-review parity test failed because memory onboarding still reported a
-  newly ensured ephemeral handle as taken.
+- Initial round 2 attack set: 7 failures and 16 passes. A generic ensured row
+  transferred to an attacker, `createOwned` did not exist, absent `linkUser`
+  created ownership, and disabled POST invoked the Supabase verifier.
+- PostgreSQL accepted the rejected `ephemeral` state.
+- Supabase availability returned `available: true` for an unaliased profile.
+- Concurrent different-handle claims for one owner returned `taken` instead of
+  `already_has_handle` in memory and PostgreSQL.
+- A signed-in caller that already owned another handle received 503 at the
+  shared gate instead of a conflict response.
+- First complete-suite candidate exposed an unrelated 20-second timeout in a
+  test that ran two full validation subprocesses. Isolated runtime was 9.27s;
+  splitting missing-registry and mismatched-registry behaviours removed the
+  combined budget hazard without increasing the timeout.
 
 Green evidence:
 
-- Profile and ownership first cycle: 60/60 passed.
-- Route, beta policy, and write certification: 19/19 passed.
-- Legal pages: 23/23 passed.
-- PostgreSQL forward, provenance, account migration, crossed concurrency,
-  private grants, assurance shape, and rollback: 8/8 passed.
-- Broad focused regression set covering every baseline failing file and Social
-  policy surfaces: 160/160 passed across 14 files.
-- Post-review memory/Supabase parity set: 42/42 passed across four files.
+- Ownership attacker and trusted creation probes: 18/18.
+- Social route and server policy: 14/14.
+- Supabase unaliased-profile availability: 2/2.
+- PostgreSQL migration, applied-migration checksum, handle races, account
+  migration, private grants, assurance shape, and rollback: 10/10 in 12.99s.
+- Changed caller regression set: 283/283 across 22 files before the final race
+  additions.
+- Split validation timeout probe: 2/2 in 5.30s.
+- Reviewer re-check: PASS after the deterministic generic-writer-first race
+  proved the claimant blocks, returns `taken`, leaves one row, and preserves a
+  null `user_id`.
 
 ## Final verification
 
-- `npm test`: 762/762 files and 7,727/7,727 tests passed, 0 failures, 198.45s.
-- `npm run typecheck`: exit 0.
-- `npm run lint`: exit 0 with 0 errors. Twenty-nine repository warnings
-  outside this task remain; this task introduces none.
-- `git diff --check`: exit 0.
-- Shape review: one durable provenance owner replaces the blanket refusal;
-  memory and SQL transitions agree.
-- Diff review: no stale first-touch implementation path, no uncertified Social
-  mutation route, and no Yoti hosted-processing claim remains.
-- Docs review: write-surface inventory is 75, Social authority stance is
-  certified, privacy and terms match current behavior, and this report records
-  deferred provider integration explicitly.
+- `npm test`: 763/763 files and 7,732/7,732 tests passed in 235.41s.
+- `npm run typecheck`: passed with no TypeScript errors.
+- `npm run lint`: exited 0 with no errors. It reported 29 existing warnings in
+  files outside this change.
+- `git diff --check`: passed.
+- Applied migration `0009_auth_ownership.sql`: no working-tree diff and pinned
+  checksum passed.
 
 ## Migration note
 
 Captain applies migrations. This task did not apply SQL to production. Suffix
-`0071` remains reserved here because PR #726 owns `0070`; Task 3 owns `0072`.
-Rollback removes Task 2 private state and profile provenance, then restores the
-prior handle-claim function.
+`0071` remains reserved because PR #726 owns `0070`; Task 3 owns `0072`.
+Applied migration `0009_auth_ownership.sql` remains byte-identical to branch
+history, with SHA-256
+`089e555753d5abec31c794bab4a9fef76f1ced6c4b988f68f7f82db2552fd93b`
+pinned in the migration test. Migration `0071` owns the forward function
+override. Its rollback removes Task 2 private Social state and restores the
+prior historical handle-claim function.
 
 ## Concerns and follow-on boundary
 
@@ -122,5 +132,5 @@ prior handle-claim function.
   no-selfie, no-DOB, no-estimated-age, no-raw-payload storage boundary.
 - Social beta remains off by default. Missing or half-configured Clerk and
   missing private storage cannot open Social content or account migration.
-- Migration `0071` must land before code that writes `account_link_state` is
-  enabled against durable storage.
+- Migration `0071` must land with this runtime because it hardens
+  `claim_pubmaxx_handle` and creates the private Social tables the server reads.
