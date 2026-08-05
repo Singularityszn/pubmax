@@ -8,6 +8,15 @@ export const RESERVED_CONTRIBUTOR_HANDLES = [
   "sarah",
   "carol",
   "erin",
+  "nikhil",
+  "tiffany",
+  "karanmanoharan",
+  "karanszn",
+  "karanm",
+  "karanmrn",
+  "kai",
+  "janaki",
+  "manoharan",
 ] as const;
 const RESERVED_CONTRIBUTOR_HANDLE_SET = new Set<string>(
   RESERVED_CONTRIBUTOR_HANDLES,
