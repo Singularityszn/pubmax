@@ -3,6 +3,126 @@
 
 begin;
 
+-- Policy helpers need EXECUTE for authenticated policy evaluation, but they
+-- must not remain RPC endpoints in PostgREST's exposed public schema. Moving
+-- each existing function preserves its OID and every policy dependency.
+create schema if not exists pubmax_private;
+revoke all on schema pubmax_private
+  from public, anon, authenticated, service_role;
+grant usage on schema pubmax_private to authenticated, service_role;
+
+alter function public.rls_current_profile_id()
+  set schema pubmax_private;
+alter function public.rls_owns_profile(uuid)
+  set schema pubmax_private;
+alter function public.rls_owns_handle(text)
+  set schema pubmax_private;
+alter function public.rls_is_plan_participant(uuid)
+  set schema pubmax_private;
+alter function public.rls_is_conversation_participant(uuid)
+  set schema pubmax_private;
+alter function public.rls_current_price_actor()
+  set schema pubmax_private;
+alter function public.rls_follows_handle(text)
+  set schema pubmax_private;
+alter function public.rls_can_read_visit_report(text, text, text)
+  set schema pubmax_private;
+
+-- SQL-string bodies keep schema-qualified calls as text when their OID moves.
+-- Replace only the three wrappers that call another moved helper.
+create or replace function pubmax_private.rls_is_conversation_participant(
+  p_conversation_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_conversation_id is not null
+    and (select auth.uid()) is not null
+    and exists (
+      select 1
+      from public.conversations c
+      where c.id = p_conversation_id
+        and (
+          c.user_id_a = (select auth.uid())
+          or c.user_id_b = (select auth.uid())
+          or pubmax_private.rls_owns_handle(c.handle_a)
+          or pubmax_private.rls_owns_handle(c.handle_b)
+        )
+    );
+$$;
+
+create or replace function pubmax_private.rls_current_price_actor()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when pubmax_private.rls_current_profile_id() is null then null
+    else 'profile:' || pubmax_private.rls_current_profile_id()::text
+  end;
+$$;
+
+create or replace function pubmax_private.rls_can_read_visit_report(
+  p_status text,
+  p_visibility text,
+  p_handle text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_status = 'visible'
+    and (
+      coalesce(nullif(btrim(p_visibility), ''), 'public') in ('public', 'anonymous')
+      or pubmax_private.rls_owns_handle(p_handle)
+      or (
+        coalesce(nullif(btrim(p_visibility), ''), 'public') = 'friends'
+        and pubmax_private.rls_follows_handle(p_handle)
+      )
+    );
+$$;
+
+revoke execute on function pubmax_private.rls_current_profile_id()
+  from public, anon;
+revoke execute on function pubmax_private.rls_owns_profile(uuid)
+  from public, anon;
+revoke execute on function pubmax_private.rls_owns_handle(text)
+  from public, anon;
+revoke execute on function pubmax_private.rls_is_plan_participant(uuid)
+  from public, anon;
+revoke execute on function pubmax_private.rls_is_conversation_participant(uuid)
+  from public, anon;
+revoke execute on function pubmax_private.rls_current_price_actor()
+  from public, anon;
+revoke execute on function pubmax_private.rls_follows_handle(text)
+  from public, anon;
+revoke execute on function pubmax_private.rls_can_read_visit_report(text, text, text)
+  from public, anon;
+
+grant execute on function pubmax_private.rls_current_profile_id()
+  to authenticated, service_role;
+grant execute on function pubmax_private.rls_owns_profile(uuid)
+  to authenticated, service_role;
+grant execute on function pubmax_private.rls_owns_handle(text)
+  to authenticated, service_role;
+grant execute on function pubmax_private.rls_is_plan_participant(uuid)
+  to authenticated, service_role;
+grant execute on function pubmax_private.rls_is_conversation_participant(uuid)
+  to authenticated, service_role;
+grant execute on function pubmax_private.rls_current_price_actor()
+  to authenticated, service_role;
+grant execute on function pubmax_private.rls_follows_handle(text)
+  to authenticated, service_role;
+grant execute on function pubmax_private.rls_can_read_visit_report(text, text, text)
+  to authenticated, service_role;
+
 -- Browser roles retain their existing SELECT grants. All mutation paths move
 -- back behind the service-role APIs that already enforce account ownership,
 -- consent, publication, and voice allowance rules.

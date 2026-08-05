@@ -21,6 +21,7 @@ type Session = {
   appliedForwardMigrations: string[];
   preWaveCatalogSnapshot: string;
   preV1CatalogSnapshot: string;
+  preV1HelperOids: Record<string, string>;
   catalogSnapshot: () => string;
   sql: (
     statement: string,
@@ -31,6 +32,7 @@ type Session = {
     path: string,
     opts: { method?: string; sub?: string | null; headers?: Record<string, string> },
   ) => Promise<{ status: number; body: unknown; text: string }>;
+  reloadPostgrestSchema: () => Promise<void>;
   stop: () => Promise<void>;
   rollbackPath: string;
   v1RollbackPath: string;
@@ -49,6 +51,49 @@ const OWNER = "11111111-1111-1111-1111-111111111111";
 const OTHER = "22222222-2222-2222-2222-222222222222";
 const FRIEND = "33333333-3333-3333-3333-333333333333";
 const STRANGER = "44444444-4444-4444-4444-444444444444";
+
+const RLS_HELPERS = [
+  {
+    name: "rls_current_profile_id",
+    signature: "rls_current_profile_id()",
+    rpcQuery: "",
+  },
+  {
+    name: "rls_owns_profile",
+    signature: "rls_owns_profile(uuid)",
+    rpcQuery: "?p_profile_id=a1111111-1111-1111-1111-111111111111",
+  },
+  {
+    name: "rls_owns_handle",
+    signature: "rls_owns_handle(text)",
+    rpcQuery: "?p_handle=alice",
+  },
+  {
+    name: "rls_is_plan_participant",
+    signature: "rls_is_plan_participant(uuid)",
+    rpcQuery: "?p_plan_id=a1000000-0000-4000-8000-000000000001",
+  },
+  {
+    name: "rls_is_conversation_participant",
+    signature: "rls_is_conversation_participant(uuid)",
+    rpcQuery: "?p_conversation_id=b1000000-0000-4000-8000-000000000002",
+  },
+  {
+    name: "rls_current_price_actor",
+    signature: "rls_current_price_actor()",
+    rpcQuery: "",
+  },
+  {
+    name: "rls_follows_handle",
+    signature: "rls_follows_handle(text)",
+    rpcQuery: "?p_handle=alice",
+  },
+  {
+    name: "rls_can_read_visit_report",
+    signature: "rls_can_read_visit_report(text, text, text)",
+    rpcQuery: "?p_status=visible&p_visibility=friends&p_handle=alice",
+  },
+] as const;
 
 const V1_PROTECTED_WRITE_PROBES = [
   {
@@ -214,11 +259,16 @@ beforeAll(async () => {
       ('a1000000-0000-4000-8000-000000000001', 'Alice plan', now(), '${OWNER}'),
       ('a1000000-0000-4000-8000-000000000002', 'Bob plan', now(), '${OTHER}');
 
+    insert into public.plan_crew_members (id, plan_id, name, token_hash, user_id) values
+      ('a2000000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000001', 'Cara', repeat('c', 64), '${FRIEND}');
+
     insert into public.conversations (id, handle_a, handle_b, user_id_a, user_id_b) values
-      ('b1000000-0000-4000-8000-000000000001', 'alice', 'cara', '${OWNER}', '${FRIEND}');
+      ('b1000000-0000-4000-8000-000000000001', 'alice', 'cara', '${OWNER}', '${FRIEND}'),
+      ('b1000000-0000-4000-8000-000000000002', 'alice', 'dan', null, null);
 
     insert into public.messages (id, conversation_id, sender_handle, body) values
-      ('b2000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'alice', 'hello crew');
+      ('b2000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'alice', 'hello crew'),
+      ('b2000000-0000-4000-8000-000000000002', 'b1000000-0000-4000-8000-000000000002', 'alice', 'hello by handle');
 
     insert into public.saved_pubs (id, profile_id, venue_id) values
       ('c1000000-0000-4000-8000-000000000001', 'a1111111-1111-1111-1111-111111111111', 'v1'),
@@ -397,6 +447,198 @@ describe("migration execution", () => {
       expect(tryWrite(deleteStatement, { asRole: "service_role" })).toBe(true);
     },
   );
+});
+
+describe("unexposed RLS helper functions", () => {
+  it("grants private schema usage only to policy-evaluation roles", () => {
+    const result = requireSession().sql(`
+      select jsonb_build_object(
+        'authenticated', exists (
+          select 1 from pg_namespace n
+          where n.nspname = 'pubmax_private'
+            and has_schema_privilege('authenticated', n.oid, 'USAGE')
+        ),
+        'service_role', exists (
+          select 1 from pg_namespace n
+          where n.nspname = 'pubmax_private'
+            and has_schema_privilege('service_role', n.oid, 'USAGE')
+        ),
+        'anon', exists (
+          select 1 from pg_namespace n
+          where n.nspname = 'pubmax_private'
+            and has_schema_privilege('anon', n.oid, 'USAGE')
+        ),
+        'public', exists (
+          select 1
+          from pg_namespace n
+          cross join lateral aclexplode(
+            coalesce(n.nspacl, acldefault('n', n.nspowner))
+          ) acl
+          where n.nspname = 'pubmax_private'
+            and acl.grantee = 0
+            and acl.privilege_type = 'USAGE'
+        )
+      )::text
+    `);
+    expect(result.ok, result.err).toBe(true);
+    expect(JSON.parse(result.out)).toEqual({
+      authenticated: true,
+      service_role: true,
+      anon: false,
+      public: false,
+    });
+  });
+
+  it.each(RLS_HELPERS)(
+    "moves $name without replacing its OID or function protections",
+    ({ name, signature }) => {
+      const s = requireSession();
+      const result = s.sql(`
+        select jsonb_build_object(
+          'oid', p.oid::text,
+          'securityDefiner', p.prosecdef,
+          'volatility', p.provolatile,
+          'config', p.proconfig,
+          'authenticatedExecute', has_function_privilege(
+            'authenticated', p.oid, 'EXECUTE'
+          ),
+          'serviceRoleExecute', has_function_privilege(
+            'service_role', p.oid, 'EXECUTE'
+          ),
+          'anonExecute', has_function_privilege('anon', p.oid, 'EXECUTE'),
+          'publicExecute', exists (
+            select 1
+            from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
+            where acl.grantee = 0 and acl.privilege_type = 'EXECUTE'
+          )
+        )::text
+        from pg_proc p
+        where p.oid = to_regprocedure('pubmax_private.${signature}')
+      `);
+      expect(result.ok, result.err).toBe(true);
+      expect(result.out, `missing pubmax_private.${signature}`).not.toBe("");
+      expect(JSON.parse(result.out)).toEqual({
+        oid: s.preV1HelperOids[name],
+        securityDefiner: true,
+        volatility: "s",
+        config: ["search_path=public"],
+        authenticatedExecute: true,
+        serviceRoleExecute: true,
+        anonExecute: false,
+        publicExecute: false,
+      });
+
+      const publicOid = s.sql(
+        `select to_regprocedure('public.${signature}')::oid::text`,
+      );
+      expect(publicOid.ok, publicOid.err).toBe(true);
+      expect(publicOid.out).toBe("");
+    },
+  );
+
+  it("keeps every helper out of authenticated PostgREST RPC after schema reload", async () => {
+    const s = requireSession();
+    await s.reloadPostgrestSchema();
+
+    for (const { name, rpcQuery } of RLS_HELPERS) {
+      const response = await s.rest(`/rest/v1/rpc/${name}${rpcQuery}`, {
+        sub: OWNER,
+      });
+      expect(response.status, `${name}: ${response.text}`).toBe(404);
+      expect(response.body).toMatchObject({ code: "PGRST202" });
+    }
+  });
+
+  it("executes the conversation wrapper through its private handle dependency", () => {
+    const result = requireSession().sql(
+      "select pubmax_private.rls_is_conversation_participant('b1000000-0000-4000-8000-000000000002')::text",
+      { asRole: "authenticated", sub: OWNER },
+    );
+    expect(result.ok, result.err).toBe(true);
+    expect(result.out).toBe("true");
+  });
+
+  it("executes the current-price wrapper through its private profile dependency", () => {
+    const result = requireSession().sql(
+      "select pubmax_private.rls_current_price_actor()",
+      { asRole: "authenticated", sub: OWNER },
+    );
+    expect(result.ok, result.err).toBe(true);
+    expect(result.out).toBe("profile:a1111111-1111-1111-1111-111111111111");
+  });
+
+  it("executes the visit-report wrapper through its private follower dependency", () => {
+    const result = requireSession().sql(
+      "select pubmax_private.rls_can_read_visit_report('visible', 'friends', 'alice')::text",
+      { asRole: "authenticated", sub: FRIEND },
+    );
+    expect(result.ok, result.err).toBe(true);
+    expect(result.out).toBe("true");
+  });
+});
+
+describe("PostgREST JSON claims", () => {
+  it("resolves the owner for profile-owned rows", async () => {
+    const s = requireSession();
+    const path =
+      "/rest/v1/saved_pubs?id=eq.c1000000-0000-4000-8000-000000000001&select=id";
+    const owner = await s.rest(path, { sub: OWNER });
+    expect(owner.status).toBe(200);
+    expect(owner.body).toEqual([
+      { id: "c1000000-0000-4000-8000-000000000001" },
+    ]);
+
+    const other = await s.rest(path, { sub: OTHER });
+    expect(other.status).toBe(200);
+    expect(other.body).toEqual([]);
+  });
+
+  it("resolves an author's follower for a friends-only report", async () => {
+    const s = requireSession();
+    const path =
+      "/rest/v1/visit_reports?id=eq.e1000000-0000-4000-8000-000000000002&select=id";
+    const follower = await s.rest(path, { sub: FRIEND });
+    expect(follower.status).toBe(200);
+    expect(follower.body).toEqual([
+      { id: "e1000000-0000-4000-8000-000000000002" },
+    ]);
+
+    const other = await s.rest(path, { sub: OTHER });
+    expect(other.status).toBe(200);
+    expect(other.body).toEqual([]);
+  });
+
+  it("resolves both owner and linked crew plan participants", async () => {
+    const s = requireSession();
+    const path =
+      "/rest/v1/plans?id=eq.a1000000-0000-4000-8000-000000000001&select=id";
+    for (const sub of [OWNER, FRIEND]) {
+      const participant = await s.rest(path, { sub });
+      expect(participant.status).toBe(200);
+      expect(participant.body).toEqual([
+        { id: "a1000000-0000-4000-8000-000000000001" },
+      ]);
+    }
+
+    const stranger = await s.rest(path, { sub: STRANGER });
+    expect(stranger.status).toBe(200);
+    expect(stranger.body).toEqual([]);
+  });
+
+  it("resolves a conversation participant through linked handle ownership", async () => {
+    const s = requireSession();
+    const path =
+      "/rest/v1/messages?id=eq.b2000000-0000-4000-8000-000000000002&select=id";
+    const participant = await s.rest(path, { sub: OWNER });
+    expect(participant.status).toBe(200);
+    expect(participant.body).toEqual([
+      { id: "b2000000-0000-4000-8000-000000000002" },
+    ]);
+
+    const nonParticipant = await s.rest(path, { sub: OTHER });
+    expect(nonParticipant.status).toBe(200);
+    expect(nonParticipant.body).toEqual([]);
+  });
 });
 
 describe("private Pint Drop storage", () => {
