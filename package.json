@@ -100,7 +100,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.17.0",
     "eslint-config-next": "^16.0.10",
-    "knip": "^5.30.0",
+    "knip": "^6.31.0",
     "tailwindcss": "^4.3.2",
     "tsx": "^4.20.6",
     "typescript": "^5.7.2",
