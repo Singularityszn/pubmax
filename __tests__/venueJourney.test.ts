@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { coarsenViewerPoint } from "@/lib/geo";
 import {
   optimalJourney,
-  privacyRoundedJourneyPoint,
   venueDirectionsUrl,
   type VenueJourney,
 } from "@/lib/venueJourney";
@@ -60,10 +60,10 @@ describe("venueDirectionsUrl", () => {
   });
 });
 
-describe("privacyRoundedJourneyPoint", () => {
+describe("coarsenViewerPoint", () => {
   it("reduces device coordinates to routing-level precision", () => {
     expect(
-      privacyRoundedJourneyPoint({ lat: 51.50741234, lng: -0.12785678 }),
+      coarsenViewerPoint({ lat: 51.50741234, lng: -0.12785678 }),
     ).toEqual({ lat: 51.507, lng: -0.128 });
   });
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Firecrawl-powered Greene King drink price harvester.
+ * Greene King drink price harvester using local refresh providers.
  *
  * Governance: first-party Greene King menus only (see data/price_sources.json).
  * Writes public/data/drink_price_updates/latest.json — sourced rows with licence.
@@ -9,10 +9,9 @@
  *   node scripts/firecrawl_greene_king_prices.mjs [--limit N]
  *   node scripts/firecrawl_greene_king_prices.mjs --urls-file .firecrawl/gk-london-menu-urls.txt
  *
- * Requires FIRECRAWL_API_KEY (or firecrawl CLI stored credentials).
+ * Requires EXA_API_KEY for discovery and BROWSERBASE_API_KEY for rendered menus.
  */
 
-import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -29,6 +28,11 @@ import {
   normalisePubName,
   resolveVenueKeyFromHints,
 } from "./lib/venueMatch.mjs";
+import {
+  assertProviderCredentials,
+  discoverRefreshPages,
+  fetchRefreshPage,
+} from "./lib/localRefreshProviders.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -206,19 +210,16 @@ function resolveVenueKey(url, indexes, menuUrlToId) {
   return resolveVenueKeyFromHints(tokens, indexes);
 }
 
-// --- firecrawl --------------------------------------------------------------
+// Keep this cache path stable. Downstream merge scripts treat it as an input contract.
 
-function scrapeMenu(url, outPath) {
+async function scrapeMenu(url, outPath) {
   if (existsSync(outPath)) {
     return readFileSync(outPath, "utf8");
   }
   mkdirSync(dirname(outPath), { recursive: true });
-  execFileSync(
-    "npx",
-    ["-y", "firecrawl-cli@latest", "scrape", url, "-o", outPath, "--wait-for", "3000"],
-    { stdio: "inherit", cwd: ROOT, env: process.env },
-  );
-  return readFileSync(outPath, "utf8");
+  const page = await fetchRefreshPage({ job: "rendered-menu", url });
+  writeFileSync(outPath, `${page.markdown.trim()}\n`);
+  return page.markdown;
 }
 
 // --- main -------------------------------------------------------------------
@@ -255,6 +256,7 @@ function loadExistingUpdates() {
 async function main() {
   const { limit, urlsFile, merge, onlyUrlsFile } = parseArgs(process.argv);
   const observedAt = new Date().toISOString();
+  assertProviderCredentials(["pub-discovery", "rendered-menu"]);
 
   const enrichment = JSON.parse(readFileSync(ENRICHMENT_PATH, "utf8"));
   const enrichmentUrls = Object.values(enrichment.venues ?? {})
@@ -268,9 +270,31 @@ async function main() {
       .map((l) => l.trim())
       .filter((l) => l.startsWith("http"));
   }
-  const urls = onlyUrlsFile
-    ? bulkUrls.slice(0, limit)
-    : [...new Set([...enrichmentUrls, ...bulkUrls])].slice(0, limit);
+  const knownUrls = [...new Set([...enrichmentUrls, ...bulkUrls])];
+  let discoveredUrls = [];
+  if (!onlyUrlsFile) {
+    const discoveries = await discoverRefreshPages({
+      query: "new London Greene King pub official drinks menu prices",
+      includeDomains: ["greeneking.co.uk"],
+      numResults: Math.min(10, Math.max(1, limit)),
+    });
+    discoveredUrls = discoveries
+      .map((result) => result.url)
+      .filter((url) => {
+        try {
+          const parsed = new URL(url);
+          return parsed.hostname.endsWith("greeneking.co.uk") && /\/menu\/?$/i.test(parsed.pathname);
+        } catch {
+          return false;
+        }
+      });
+  }
+  const candidates = onlyUrlsFile
+    ? bulkUrls
+    : limit > 1 && discoveredUrls.length
+      ? [discoveredUrls[0], ...knownUrls]
+      : knownUrls;
+  const urls = [...new Set(candidates)].slice(0, limit);
 
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
   const indexes = buildVenueIndexes(dataset);
@@ -284,14 +308,8 @@ async function main() {
   for (const url of urls) {
     const slug = slugFromMenuUrl(url) ?? "unknown";
     const cachePath = join(MENU_CACHE, `${slug}.md`);
-    let markdown;
-    try {
-      markdown = scrapeMenu(url, cachePath);
-      scraped += 1;
-    } catch (err) {
-      console.warn(`SKIP scrape failed ${url}:`, err.message ?? err);
-      continue;
-    }
+    const markdown = await scrapeMenu(url, cachePath);
+    scraped += 1;
 
     const venueKey = resolveVenueKey(url, indexes, menuUrlToId);
     if (!venueKey) {

@@ -127,13 +127,14 @@ describe("legal content pages", () => {
 
   it("discloses precise location processing without overstating retention", () => {
     expect(privacy).toMatch(/coordinates never leave your\s+device/);
+    expect(privacy).toMatch(/Viewer coordinates never leave your\s+device at full precision/i);
     expect(privacy).toMatch(/\/api\/whats-on/);
     expect(privacy).toMatch(/\/api\/tonight-conditions/);
     expect(privacy).toMatch(/\/api\/last-train/);
     expect(privacy).toMatch(/\/api\/nearby-bus-departures/);
     expect(privacy).toMatch(/\/api\/tfl-disruption/);
     expect(privacy).toMatch(/\/api\/citymcp\/journey/);
-    expect(privacy).toMatch(/without\s+rounding them first/);
+    expect(privacy).not.toMatch(/without\s+rounding them first/);
     expect(privacy).toMatch(/rounds your\s+point to three decimal places/);
     expect(privacy).toMatch(/public StopPoint API/);
     expect(privacy).toMatch(/pub(?:&rsquo;|’)s public map coordinates/);
@@ -188,8 +189,9 @@ describe("legal content pages", () => {
 
   it("describes durable rate-limit retention", () => {
     expect(privacy).toMatch(/durable limiter rows are\s+keyed to salted hashes/);
-    expect(privacy).toMatch(/Hit timestamps\s+outside that window are pruned/);
-    expect(privacy).toMatch(/the key row remains/);
+    expect(privacy).toMatch(/expires\s+at\s+the end of its limiter window/i);
+    expect(privacy).toMatch(/deleted\s+the next time the\s+durable limiter runs/i);
+    expect(privacy).not.toMatch(/the key row remains/);
     expect(privacy).not.toMatch(/Server and rate-limit records/);
   });
 

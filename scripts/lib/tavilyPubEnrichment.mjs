@@ -200,7 +200,23 @@ function cleanDrinkName(line, sizeMatch, priceMatch) {
 export function extractPintPrices(markdown) {
   const prices = [];
   const seen = new Set();
-  for (const sourceLine of String(markdown ?? "").split(/\r?\n/)) {
+  const addPrice = (drinkName, priceGbp, servingSize = "pint") => {
+    if (!Number.isFinite(priceGbp) || priceGbp < 1.5 || priceGbp > 15) return;
+    if (drinkName.length < 2 || drinkName.length > 100) return;
+    if (
+      /["“”]/.test(drinkName) ||
+      /\b(?:all beers?|beer is priced|lunchtime)\b/i.test(drinkName) ||
+      /\b(?:at|for|from|only)\s*$/i.test(drinkName)
+    ) {
+      return;
+    }
+    const key = `${drinkName.toLowerCase()}|${priceGbp}|${servingSize}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    prices.push({ drinkName, priceGbp, servingSize });
+  };
+  const lines = String(markdown ?? "").split(/\r?\n/);
+  for (const sourceLine of lines) {
     const line = sourceLine.replace(/\\£/g, "£").trim();
     const sizeMatch = /\b(pint|568\s*ml)\b/i.exec(line);
     const priceMatch = /£\s*(\d{1,2}(?:\.\d{1,2})?)\b/i.exec(line);
@@ -208,21 +224,37 @@ export function extractPintPrices(markdown) {
     if (/(?:\bhalf\b|½)/i.test(line.slice(0, Math.max(sizeMatch.index, priceMatch.index)))) continue;
     if (/\b(?:and|includes?|plus|served with|with)\s+(?:an?\s+)?pint\b/i.test(line)) continue;
     const priceGbp = Number(priceMatch[1]);
-    if (!Number.isFinite(priceGbp) || priceGbp < 1.5 || priceGbp > 15) continue;
     const drinkName = cleanDrinkName(line, sizeMatch, priceMatch);
-    if (drinkName.length < 2 || drinkName.length > 100) continue;
-    if (
-      /["“”]/.test(drinkName) ||
-      /\b(?:all beers?|beer is priced|lunchtime)\b/i.test(drinkName) ||
-      /\b(?:at|for|from|only)\s*$/i.test(drinkName)
-    ) {
+    const servingSize = sizeMatch[1].toLowerCase().startsWith("568") ? "568ml" : "pint";
+    addPrice(drinkName, priceGbp, servingSize);
+  }
+
+  const compact = lines
+    .map((line) => line.replace(/\\£/g, "£").replace(/^[_*]+|[_*]+$/g, "").trim())
+    .filter(Boolean);
+  let hasPintColumn = false;
+  for (let index = 0; index < compact.length; index += 1) {
+    const line = compact[index];
+    if (/\bhalf\s+pint\b.*\bpint\b/i.test(line) && !/£/.test(line)) {
+      hasPintColumn = true;
       continue;
     }
-    const servingSize = sizeMatch[1].toLowerCase().startsWith("568") ? "568ml" : "pint";
-    const key = `${drinkName.toLowerCase()}|${priceGbp}|${servingSize}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    prices.push({ drinkName, priceGbp, servingSize });
+    const matches = [...line.matchAll(/£\s*(\d{1,2}(?:\.\d{1,2})?)/g)];
+    if (!matches.length || index === 0) continue;
+    if (!/^(?:£\s*\d{1,2}(?:\.\d{1,2})?\s*(?:[|/]\s*)?)+$/.test(line)) continue;
+    const rawName = compact[index - 1];
+    const namedPint = /\b(?:pint|draught|draft)\b/i.test(rawName);
+    if (!namedPint && !(hasPintColumn && matches.length >= 2)) {
+      if (hasPintColumn) hasPintColumn = false;
+      continue;
+    }
+    const selected = matches[matches.length - 1];
+    const drinkName = rawName
+      .replace(/\b(?:pint|568\s*ml)\b/gi, "")
+      .replace(/^[-*#|>\s]+/, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    addPrice(drinkName, Number(selected[1]));
   }
   return prices;
 }
