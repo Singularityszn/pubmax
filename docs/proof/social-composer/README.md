@@ -8,7 +8,7 @@ Browser fixtures pass the same verified actor boundary without enabling Social b
 PW_SCREENSHOTS=1 PW_SOCIAL_COMPOSER_PROOF=1 PW_NEXT_DIST_DIR=.next-task6 npx playwright test e2e/social-composer.spec.ts --project=chromium
 ```
 
-Result: 13/13 passed against isolated production output.
+Result: 14/14 passed against isolated production output.
 
 Coverage includes text and photo posting, failed photo draft reload, stable
 idempotency keys, account-switch text and Blob isolation, two-sided tab warning,
@@ -17,7 +17,8 @@ choices, immediate owner outbox state, feature kind, informed tag approval,
 audience-conflict review, paged withdrawal, photo preview and removal, alt-text
 correction, edit conflict recovery, edit reopen, bounded owner-outbox pagination,
 retryable page errors, deduplication, honest visibility labels, focus containment,
-Escape focus return, axe, and no horizontal overflow.
+independent tag-lane read failures, retry without data loss, Escape focus return,
+axe, and no horizontal overflow.
 
 Proof frames:
 
@@ -30,7 +31,7 @@ Proof frames:
 - `1280-light.png`
 - `1280-dark.png`
 - `390-light-outbox-load-more.png` - 44px control for older owner posts
-- `390-light-outbox-pagination.png` - accumulated Friends, Public, and Private rows
+- `390-light-outbox-pagination-final.png` - accumulated Friends, Public, and Private rows
 
 All frames show final custom photo control. Native file input remains visually
 hidden and keyboard focus appears on its labelled control.
