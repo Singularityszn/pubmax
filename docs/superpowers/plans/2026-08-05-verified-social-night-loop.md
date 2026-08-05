@@ -108,12 +108,12 @@ Task 1 changes no data practice. Do not edit `/privacy` or `/terms` until implem
 - Refactor reusable bodies from `app/feed/` and `app/discover/`
 - Modify: navigation model, mobile tab bar, redirects, sitemap, analytics path, route pattern, warmup, tracing declarations, and focused tests
 
-- [ ] Make `/social` canonical. Redirect `/feed` and `/stories` to `/social`; redirect `/discover` and `/drinks` to `/social?tab=discover`.
-- [ ] Preserve safe metadata preview while protected posts show an honest sign-in or verification boundary.
-- [ ] Provide one 44px top-level switcher, then child feed controls. Avoid stacked control chrome before first content.
-- [ ] Preserve chronological Following, Nearby, and Discover state across refresh and back navigation.
-- [ ] Reserve fixed mobile-tab clearance at 320px, 390px, and 430px with no horizontal overflow.
-- [ ] Keep desktop responsive as a three-column Social layout without forking the domain or API.
+- [x] Make `/social` canonical. Redirect `/feed` and `/stories` to `/social`; redirect `/discover` and `/drinks` to `/social?tab=discover`.
+- [x] Preserve safe metadata preview while protected posts show an honest sign-in or verification boundary.
+- [x] Provide one 44px top-level switcher, then child feed controls. Avoid stacked control chrome before first content.
+- [x] Preserve chronological Following, Nearby, and Discover state across refresh and back navigation.
+- [x] Reserve fixed mobile-tab clearance at 320px, 390px, and 430px with no horizontal overflow.
+- [x] Keep desktop responsive as a three-column Social layout without forking the domain or API.
 
 ### Task 6: Composer, media, consent, and feature requests
 

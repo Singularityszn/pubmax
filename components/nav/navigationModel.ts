@@ -1,4 +1,4 @@
-export type PrimaryNavKey = "map" | "tonight" | "stories" | "you";
+export type PrimaryNavKey = "map" | "tonight" | "social" | "you";
 
 export type PrimaryNavItem = {
   key: PrimaryNavKey;
@@ -16,15 +16,12 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   { key: "map", href: "/map", label: "Map", match: ["/map"] },
   { key: "tonight", href: "/tonight", label: "Tonight", match: ["/tonight"] },
   {
-    key: "stories",
-    href: "/feed",
-    label: "Stories",
-    // Canonical surface is /feed. /stories is a retired alias (308 → /feed);
-    // keep it in match so soft clients still light Stories if they land there
-    // before the redirect settles. Borough pages are data/discovery, not
-    // Stories — do not include /borough here (desktop SiteNav maps borough
-    // via its own legacy-active handler and leaves it unlit).
-    match: ["/discover", "/feed", "/stories", "/crawls"],
+    key: "social",
+    href: "/social",
+    label: "Social",
+    // Keep retired aliases in the match set so soft clients light the canonical
+    // destination while a permanent redirect settles.
+    match: ["/social", "/discover", "/drinks", "/feed", "/stories", "/crawls"],
   },
   // You owns the profile surfaces under /u only. /pal (Pub Pal, the AI
   // concierge) is its OWN destination with no primary tab — it used to sit in
@@ -44,15 +41,15 @@ export const MOMENT_NAV_ACTION = {
  * tour anchors its bottom-bar ring to the REAL tab column (see MobileTabBar
  * `buildTabs` / `tourSpotlightColumn`), so this is the single source tying tour
  * copy targets to nav destinations: "drop" is the Moment centre action, and
- * "discover" is the Stories tab. A new or reordered tab that shifts these keys'
+ * "social" is the Social tab. A new or reordered tab that shifts these keys'
  * columns is caught by the tour-geometry regression test.
  */
-export type TourSpotlightTarget = "map" | "drop" | "discover";
+export type TourSpotlightTarget = "map" | "drop" | "social";
 
 export const TOUR_TARGET_TAB_KEY: Record<TourSpotlightTarget, string> = {
   map: "map",
   drop: MOMENT_NAV_ACTION.key,
-  discover: "stories",
+  social: "social",
 } as const;
 
 export type MomentReturnTarget = string;

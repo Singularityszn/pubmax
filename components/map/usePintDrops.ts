@@ -444,10 +444,8 @@ export function usePintDrops(
     setSubmitting(false);
     setDropMsg({
       ok: true,
-      text: publishToFeed
-        ? "Cheers. Posting to the feed…"
-        : "Cheers. Saving your Pint Drop…",
-      links: [{ href: "/feed", label: "See the feed" }],
+      text: "Cheers. Saving your Pint Drop…",
+      links: [{ href: "/social", label: "Open Social" }],
     });
 
     const markFailed = (message: string) => {
@@ -540,7 +538,7 @@ export function usePintDrops(
       });
 
       const links: NonNullable<DropMsg["links"]> = [
-        { href: "/feed", label: "See the feed" },
+        { href: "/social", label: "Open Social" },
       ];
       if (addedToNight) {
         links.push({

@@ -20,23 +20,18 @@ async function loadRedirects(): Promise<RedirectRule[]> {
 }
 
 describe("next.config redirects", () => {
-  it("sends the retired /stories route to /feed permanently", async () => {
-    const rule = (await loadRedirects()).find((entry) => entry.source === "/stories");
-    expect(rule).toMatchObject({
-      source: "/stories",
-      destination: "/feed",
-      permanent: true,
-    });
-  });
-
-  it("carries deep /stories/* links to /feed too", async () => {
-    const rule = (await loadRedirects()).find(
-      (entry) => entry.source === "/stories/:path*",
-    );
-    expect(rule).toMatchObject({
-      destination: "/feed",
-      permanent: true,
-    });
+  it.each([
+    ["/feed", "/social"],
+    ["/feed/:path*", "/social"],
+    ["/stories", "/social"],
+    ["/stories/:path*", "/social"],
+    ["/discover", "/social?tab=discover"],
+    ["/discover/:path*", "/social?tab=discover"],
+    ["/drinks", "/social?tab=discover"],
+    ["/drinks/:path*", "/social?tab=discover"],
+  ])("redirects %s straight to canonical Social", async (source, destination) => {
+    const rule = (await loadRedirects()).find((entry) => entry.source === source);
+    expect(rule).toMatchObject({ source, destination, permanent: true });
   });
 
   it("sends the bare /you path to the canonical /u/you profile route permanently", async () => {
