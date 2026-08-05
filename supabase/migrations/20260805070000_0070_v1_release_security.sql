@@ -189,7 +189,13 @@ create policy pub_pal_voice_usage_owner_select
   using (owner_id = (select auth.uid()));
 
 -- Reserve first, then compensate exactly one reservation if ElevenLabs cannot
--- allocate a session. This RPC is service-role only, like the consume RPC.
+-- allocate a session. Both quota RPCs are service-role only because the server
+-- API owns allowance enforcement.
+revoke all on function public.consume_pub_pal_voice_trial(uuid, date, integer)
+  from public, anon, authenticated;
+grant execute on function public.consume_pub_pal_voice_trial(uuid, date, integer)
+  to service_role;
+
 create or replace function public.release_pub_pal_voice_trial(
   p_owner_id uuid,
   p_month date

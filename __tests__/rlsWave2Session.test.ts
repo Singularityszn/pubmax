@@ -447,6 +447,65 @@ describe("migration execution", () => {
       expect(tryWrite(deleteStatement, { asRole: "service_role" })).toBe(true);
     },
   );
+
+  it("executes both Pub Pal voice quota RPCs only as service_role", () => {
+    const s = requireSession();
+    const quotaRpcSignatures = [
+      "consume_pub_pal_voice_trial(uuid, date, integer)",
+      "release_pub_pal_voice_trial(uuid, date)",
+    ];
+
+    for (const signature of quotaRpcSignatures) {
+      const privileges = s.sql(`
+        select jsonb_build_object(
+          'serviceRole', has_function_privilege(
+            'service_role', 'public.${signature}', 'EXECUTE'
+          ),
+          'authenticated', has_function_privilege(
+            'authenticated', 'public.${signature}', 'EXECUTE'
+          ),
+          'anon', has_function_privilege(
+            'anon', 'public.${signature}', 'EXECUTE'
+          )
+        )::text
+      `);
+      expect(privileges.ok, privileges.err).toBe(true);
+      expect(JSON.parse(privileges.out)).toEqual({
+        serviceRole: true,
+        authenticated: false,
+        anon: false,
+      });
+    }
+
+    const consumed = s.sql(
+      `select public.consume_pub_pal_voice_trial(
+        '${OWNER}', '2098-01-01', 10
+      )::text`,
+      { asRole: "service_role" },
+    );
+    expect(consumed.ok, consumed.err).toBe(true);
+    expect(consumed.out).toBe("true");
+
+    const released = s.sql(
+      `select public.release_pub_pal_voice_trial(
+        '${OWNER}', '2098-01-01'
+      )::text`,
+      { asRole: "service_role" },
+    );
+    expect(released.ok, released.err).toBe(true);
+    expect(released.out).toBe("true");
+
+    for (const role of ["authenticated", "anon"]) {
+      const denied = s.sql(
+        `select public.consume_pub_pal_voice_trial(
+          '${OWNER}', '2098-01-01', 10
+        )::text`,
+        { asRole: role, sub: role === "authenticated" ? OWNER : null },
+      );
+      expect(denied.ok).toBe(false);
+      expect(denied.err).toMatch(/permission denied/i);
+    }
+  });
 });
 
 describe("unexposed RLS helper functions", () => {

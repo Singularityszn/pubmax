@@ -204,6 +204,8 @@ grant insert, update, delete on table public.night_story_moments to authenticate
 grant insert, update, delete on table public.night_story_publish_proposals to authenticated;
 grant insert, update on table public.pub_pal_voice_usage to authenticated;
 
+revoke execute on function public.consume_pub_pal_voice_trial(uuid, date, integer)
+  from service_role;
 drop function if exists public.release_pub_pal_voice_trial(uuid, date);
 
 commit;

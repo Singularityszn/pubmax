@@ -40,6 +40,11 @@ export type ProfilePatch = {
   bio?: string | null;
 };
 
+export type ProfileSoftDeleteResult =
+  | { status: "deleted"; profile: ProfileRecord; ownerUserId: string | null }
+  | { status: "not-found" }
+  | { status: "forbidden" };
+
 // Editable-field caps — the store is the last line of defence so `update` is
 // safe called directly (tests, future callers), independent of the route's own
 // trust boundary. The route validates first; this cleans again, cheaply.
@@ -96,14 +101,17 @@ export type ProfileStore = {
   /** Apply a patch to an existing profile. Returns null when the handle is unknown. */
   update(handle: string, patch: ProfilePatch): Promise<ProfileRecord | null>;
   /**
-   * Soft-delete a profile: clear editable display fields (bio/avatar/display
-   * name/home city) while keeping the row + handle + user_id so the social
-   * graph (follows, drops keyed by handle) is not cascade-destroyed. Returns
-   * null when the handle is unknown. There is no `deleted_at` column yet —
-   * clearing editable fields is the safe delete until a dedicated tombstone
-   * migration lands.
+   * Atomically authorize and soft-delete a profile. Anonymous callers may
+   * clear only a row that is still unlinked. Authenticated callers may clear
+   * an unlinked row or their own linked row. Keeping ownership in the UPDATE
+   * predicate prevents a concurrent account claim from being deleted after a
+   * stale route-level read. The row, handle, and user_id remain so social graph
+   * edges are not cascade-destroyed.
    */
-  softDelete(handle: string): Promise<ProfileRecord | null>;
+  softDeleteForCaller(
+    handle: string,
+    callerUserId: string | null,
+  ): Promise<ProfileSoftDeleteResult>;
   /**
    * Link an authenticated user id onto a handle's row (account migration, story
    * 32): ensures the row exists, then stamps user_id when it is unset. Idempotent
@@ -228,15 +236,41 @@ export const supabaseProfileStore: ProfileStore = {
     return updated ? fromRow(updated as Record<string, unknown>) : null;
   },
 
-  async softDelete(handle) {
-    // Prefer clearing editable fields over DELETE so follows/drops keyed by
-    // handle (and ON DELETE CASCADE edges) stay intact. No deleted_at column.
-    return this.update(handle, {
+  async softDeleteForCaller(handle, callerUserId) {
+    const key = normalizeHandle(handle);
+    if (!key) return { status: "not-found" };
+
+    const row = patchToRow(cleanPatch({
       displayName: null,
       avatarUrl: null,
       homeCity: null,
       bio: null,
-    });
+    }));
+    row.updated_at = new Date().toISOString();
+
+    let query = admin()
+      .from(TABLE)
+      .update(row)
+      .eq("handle", key);
+    const caller = callerUserId?.trim() || null;
+    query = caller
+      ? query.or(`user_id.is.null,user_id.eq.${caller}`)
+      : query.is("user_id", null);
+
+    const { data, error } = await query.select("*").limit(1);
+    if (error) throw new Error(error.message);
+    const deleted = (data ?? [])[0];
+    if (deleted) {
+      const profile = fromRow(deleted as Record<string, unknown>);
+      return {
+        status: "deleted",
+        profile,
+        ownerUserId: profile.userId ?? null,
+      };
+    }
+
+    const current = await this.getByHandle(key);
+    return current ? { status: "forbidden" } : { status: "not-found" };
   },
 
   async linkUser(handle, userId) {
@@ -334,13 +368,30 @@ export const memoryProfileStore: ProfileStore = {
     return next;
   },
 
-  async softDelete(handle) {
-    return this.update(handle, {
-      displayName: null,
-      avatarUrl: null,
-      homeCity: null,
-      bio: null,
-    });
+  async softDeleteForCaller(handle, callerUserId) {
+    const key = normalizeHandle(handle);
+    const existing = memoryProfiles.get(key);
+    if (!existing) return { status: "not-found" };
+
+    const caller = callerUserId?.trim() || null;
+    if (existing.userId && existing.userId !== caller) {
+      return { status: "forbidden" };
+    }
+
+    const profile: ProfileRecord = {
+      ...existing,
+      displayName: undefined,
+      avatarUrl: undefined,
+      homeCity: undefined,
+      bio: undefined,
+      updatedAt: new Date().toISOString(),
+    };
+    memoryProfiles.set(key, profile);
+    return {
+      status: "deleted",
+      profile,
+      ownerUserId: profile.userId ?? null,
+    };
   },
 
   async linkUser(handle, userId) {
