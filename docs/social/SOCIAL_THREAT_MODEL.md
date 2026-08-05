@@ -176,11 +176,11 @@ Threats include excessive OAuth scopes, forged import callbacks, server-side req
 Controls:
 
 - Use explicit user export or the minimum OAuth scope needed for Google Maps saved places.
-- Validate callback state and account binding. Keep provider tokens server-side and encrypted.
+- Validate callback state and account binding. Keep provider credentials server-side and encrypted.
 - Do not fetch arbitrary user-supplied URLs.
 - Make import retries idempotent.
 - Keep unmatched places private until the owner deliberately links or shares them.
-- Include imported data and provider tokens in export and complete erasure.
+- Include imported data and provider connection metadata in export. Never export access tokens, refresh tokens, or other provider credentials. Erasure must revoke upstream grants and delete locally held provider credentials.
 
 ### Deletion, evidence, and backup conflicts
 
