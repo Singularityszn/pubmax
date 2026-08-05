@@ -290,7 +290,7 @@ test("owner outbox pages older posts without duplicates and labels approved visi
     mkdirSync(directory, { recursive: true });
     await page.screenshot({ animations: "disabled", fullPage: false });
     await page.screenshot({
-      path: join(directory, "390-light-outbox-load-more.png"),
+      path: join(directory, "390-light-outbox-load-more-final.png"),
       animations: "disabled",
       fullPage: false,
     });
