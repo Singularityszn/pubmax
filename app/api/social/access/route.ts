@@ -1,6 +1,10 @@
 import { assertServerEnv } from "@/lib/serverEnv";
 import { verifyCallerAuth } from "@/lib/authServer";
 import {
+  isSocialInviteBetaEnabled,
+  SOCIAL_BETA_DISABLED,
+} from "@/lib/socialAccess";
+import {
   migrateSocialProductAccount,
   resolveSocialAccess,
 } from "@/lib/socialAccessServer";
@@ -22,9 +26,19 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  if (!isSocialInviteBetaEnabled(process.env.SOCIAL_INVITE_BETA_ENABLED)) {
+    return privateJson(
+      {
+        code: SOCIAL_BETA_DISABLED.code,
+        error: SOCIAL_BETA_DISABLED.error,
+      },
+      { status: SOCIAL_BETA_DISABLED.status },
+    );
+  }
   // This route resolves the legacy account authority itself so write-surface
-  // certification can see the boundary. The protected server seam separately
-  // verifies Clerk and applies the beta policy before any migration write.
+  // certification can see the boundary. The beta policy above runs before
+  // either identity verifier. The protected server seam repeats it for direct
+  // internal callers.
   const supabase = await verifyCallerAuth(request);
   const migration = await migrateSocialProductAccount(supabase);
   if (!migration.ok) {

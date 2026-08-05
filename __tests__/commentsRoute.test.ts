@@ -192,7 +192,7 @@ describe("POST /api/pint-drops/comments", () => {
   });
 
   it("403s when the commenter handle is linked and the caller is anonymous", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     const res = await post({ dropId: "drop-1", handle: "ken", body: "forged" });
     expect(res.status).toBe(403);
     expectNoStore(res);

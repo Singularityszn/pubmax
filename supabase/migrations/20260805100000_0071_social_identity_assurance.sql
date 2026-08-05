@@ -3,26 +3,8 @@
 -- join is this service-role-only account record. No date of birth, document,
 -- image, provider payload or provider credential belongs here.
 
--- Pre-existing unlinked rows came from self-declared handles and are frozen.
--- A recognised `ensure` after this migration writes `ephemeral`, which keeps
--- the established ensure-then-link transition available without confusing it
--- with legacy ownership. Account writers set `account_owned` explicitly.
-alter table public.profiles
-  add column account_link_state text;
-
-update public.profiles
-   set account_link_state = case
-     when user_id is null then 'legacy_unlinked'
-     else 'account_owned'
-   end;
-
-alter table public.profiles
-  alter column account_link_state set default 'legacy_unlinked',
-  alter column account_link_state set not null,
-  add constraint profiles_account_link_state_check
-    check (account_link_state in (
-      'legacy_unlinked', 'ephemeral', 'account_owned'
-    ));
+-- Every unowned profile stays unowned. Account writers create absent rows with
+-- `user_id` set in the same insert, so no second provenance state can drift.
 
 create table public.private_social_accounts (
   id uuid primary key default gen_random_uuid(),
@@ -271,46 +253,31 @@ begin
 
   select * into v_profile from public.profiles
    where lower(handle) = v_handle limit 1 for update;
-  if found and (
-    v_profile.user_id is not null
-    or v_profile.account_link_state <> 'ephemeral'
-  ) then
+  if found then
     return jsonb_build_object('ok', false, 'code', 'taken',
       'error', 'That handle is already taken.');
   end if;
-  if found and exists (
-    select 1 from public.profile_handle_aliases
-     where lower(handle) = v_handle and profile_id <> v_profile.id
-  ) then
-    return jsonb_build_object('ok', false, 'code', 'taken',
-      'error', 'That handle is already taken.');
-  end if;
-  if not found and exists (
+  if exists (
     select 1 from public.profile_handle_aliases where lower(handle) = v_handle
   ) then
     return jsonb_build_object('ok', false, 'code', 'taken',
       'error', 'That handle is already taken.');
   end if;
 
-  if found then
-    update public.profiles
-       set user_id = p_user_id,
-           account_link_state = 'account_owned',
-           updated_at = now()
-     where id = v_profile.id
-       and user_id is null
-       and account_link_state = 'ephemeral'
-     returning * into v_profile;
-  else
-    insert into public.profiles(user_id, handle, account_link_state)
-    values (p_user_id, v_handle, 'account_owned')
-    returning * into v_profile;
-  end if;
+  insert into public.profiles(user_id, handle)
+  values (p_user_id, v_handle)
+  returning * into v_profile;
   insert into public.profile_handle_aliases(profile_id, handle, is_current)
   values (v_profile.id, v_handle, true);
   return jsonb_build_object('ok', true, 'profile_id', v_profile.id,
     'handle', v_handle);
 exception when unique_violation then
+  select * into v_profile from public.profiles
+   where user_id = p_user_id limit 1;
+  if found then
+    return jsonb_build_object('ok', false, 'code', 'already_has_handle',
+      'error', 'Rename your existing PUBMAXX handle instead.');
+  end if;
   return jsonb_build_object('ok', false, 'code', 'taken',
     'error', 'That handle is already taken.');
 end;

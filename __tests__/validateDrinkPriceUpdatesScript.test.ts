@@ -352,7 +352,7 @@ describe("validate-data.mjs drink-price-update extension", () => {
     expect(stdout).toContain("row 0: category and night-out job do not match");
   });
 
-  it("fails when the night-out provenance registry is missing or mismatched", () => {
+  it("fails when the night-out provenance registry is missing", () => {
     const missingScriptsDir = setupScratch({});
     const missingRegistry = join(
       missingScriptsDir,
@@ -364,7 +364,9 @@ describe("validate-data.mjs drink-price-update extension", () => {
     const missing = runValidate(missingScriptsDir);
     expect(missing.code).not.toBe(0);
     expect(missing.stdout).toContain("required provenance registry is missing");
+  });
 
+  it("fails when the night-out provenance registry is mismatched", () => {
     const mismatchedScriptsDir = setupScratch({});
     const mismatchedRegistry = join(
       mismatchedScriptsDir,

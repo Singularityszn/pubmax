@@ -189,25 +189,23 @@ describe("profileStore.update — empty patch is a read", () => {
 
 describe("profileStore.softDelete + getHandleByUserId", () => {
   it.each(RESERVED_CONTRIBUTOR_HANDLE_INPUTS)(
-    "refuses to link reserved handle %s at the store boundary",
+    "refuses to create reserved handle %s at the store boundary",
     async (handle) => {
       await expect(
-        memoryProfileStore.linkUser(handle, "user-abc"),
+        memoryProfileStore.createOwned(handle, "user-abc"),
       ).rejects.toThrow("That handle is not available.");
       expect(await memoryProfileStore.getByHandle(handle)).toBeNull();
     },
   );
 
   it("clears editable fields but keeps the handle row", async () => {
-    await seed("ken");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     await memoryProfileStore.update("ken", {
       displayName: "Ken",
       bio: "bye",
       homeCity: "London",
       avatarUrl: "https://cdn.test/ken.jpg",
     });
-    await memoryProfileStore.linkUser("ken", "user-abc");
-
     const cleared = await memoryProfileStore.softDelete("ken");
     expect(cleared).not.toBeNull();
     expect(cleared!.handle).toBe("ken");
@@ -219,7 +217,7 @@ describe("profileStore.softDelete + getHandleByUserId", () => {
   });
 
   it("resolves a linked handle by user id", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     expect(await memoryProfileStore.getHandleByUserId("user-abc")).toBe("ken");
     expect(await memoryProfileStore.getHandleByUserId("missing")).toBeNull();
   });

@@ -54,21 +54,6 @@ export function decideProfileWrite(
 }
 
 /**
- * Decide whether the caller's authenticated identity should be linked to a new
- * handle row. The shared gate calls this only after proving no profile row
- * exists, so an old unlinked profile never reaches this helper.
- */
-export function shouldLinkUser(
-  rowUserId: string | null | undefined,
-  callerUserId: string | null | undefined,
-): boolean {
-  const linkedTo = typeof rowUserId === "string" && rowUserId ? rowUserId : null;
-  const caller = typeof callerUserId === "string" && callerUserId ? callerUserId : null;
-  if (!caller) return false; // anonymous → nothing to link
-  return linkedTo !== caller; // link when unlinked, or (defensively) mismatched-but-allowed
-}
-
-/**
  * Shared ownership gate for handle-keyed private/destructive API routes.
  *
  * Resolves the caller's verified JWT identity, looks up whether `handle` is
@@ -98,15 +83,15 @@ export async function gateHandleAction(
 
   try {
     const store = profileStore();
-    // A read never creates account ownership. A write can finish a recognised
-    // ephemeral ensure-then-link flow, but never claim a pre-0071 legacy row.
+    // Generic profile creation never grants account ownership. An authenticated
+    // mutation may create an absent handle already owned, but cannot inherit an
+    // existing unowned row.
     const existing = await store.getByHandle(key);
     const rowUserId = existing?.userId ?? null;
     const linkNewHandle = !["GET", "HEAD"].includes(request.method.toUpperCase());
     if (
       existing &&
       !rowUserId &&
-      existing.accountLinkState !== "ephemeral" &&
       caller &&
       linkNewHandle
     ) {
@@ -126,18 +111,18 @@ export async function gateHandleAction(
       };
     }
 
-    if (linkNewHandle && shouldLinkUser(rowUserId, caller) && caller) {
+    if (linkNewHandle && !existing && caller) {
       try {
-        await store.linkUser(key, caller);
+        await store.createOwned(key, caller);
       } catch (err) {
         // Concurrent creation of the same new handle surfaces as 409 so the
         // client can re-auth / pick another handle instead of a generic 503.
         const message = err instanceof Error ? err.message : String(err);
-        if (/already linked/i.test(message)) {
+        if (/already has a handle/i.test(message)) {
           return {
             allowed: false,
             status: 409,
-            error: "This handle was just claimed by another account. Sign in as its owner, or pick a different handle.",
+            error: "This account already has a handle. Use that handle, or rename it first.",
           };
         }
         if (/not available/i.test(message)) {

@@ -92,7 +92,7 @@ describe("/api/identity/onboarding", () => {
       error: "That handle is not available.",
     });
 
-    await memoryProfileStore.linkUser("night_owl", "user-other");
+    await memoryProfileStore.createOwned("night_owl", "user-other");
     response = await POST(
       request("POST", {
         handle: "night_owl",

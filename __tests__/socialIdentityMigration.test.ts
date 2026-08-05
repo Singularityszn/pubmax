@@ -1,4 +1,5 @@
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +11,12 @@ const FORWARD = join(
   process.cwd(),
   "supabase/migrations/20260805100000_0071_social_identity_assurance.sql",
 );
+const APPLIED_OWNERSHIP = join(
+  process.cwd(),
+  "supabase/migrations/20260706193751_0009_auth_ownership.sql",
+);
+const APPLIED_OWNERSHIP_SHA256 =
+  "089e555753d5abec31c794bab4a9fef76f1ced6c4b988f68f7f82db2552fd93b";
 const ROLLBACK = join(
   process.cwd(),
   "supabase/migrations/rollback/20260805100000_0071_social_identity_assurance_rollback.sql",
@@ -35,6 +42,7 @@ type Database = {
   sql(statement: string): string;
   apply(path: string): void;
   concurrent(statements: readonly string[]): Promise<void>;
+  concurrentResults(statements: readonly string[]): Promise<string[]>;
   stop(): Promise<void>;
 };
 
@@ -107,34 +115,52 @@ async function startDatabase(): Promise<Database> {
      );
      insert into public.profiles(handle) values ('pre_migration_shape');`,
   ]);
+  const runConcurrent = async (
+    statements: readonly string[],
+  ): Promise<string[]> =>
+    Promise.all(
+      statements.map(
+        (statement) =>
+          new Promise<string>((resolve, reject) => {
+            const client = spawn(
+              psql,
+              [
+                ...connection,
+                "-v",
+                "ON_ERROR_STOP=1",
+                "-t",
+                "-A",
+                "-c",
+                statement,
+              ],
+              { stdio: ["ignore", "pipe", "pipe"] },
+            );
+            let stdout = "";
+            let stderr = "";
+            client.stdout.setEncoding("utf8");
+            client.stdout.on("data", (chunk: string) => {
+              stdout += chunk;
+            });
+            client.stderr.setEncoding("utf8");
+            client.stderr.on("data", (chunk: string) => {
+              stderr += chunk;
+            });
+            client.once("error", reject);
+            client.once("exit", (code) => {
+              if (code === 0) resolve(stdout.trim());
+              else reject(new Error(stderr || `psql exited ${code}`));
+            });
+          }),
+      ),
+    );
   return {
     sql: (statement) => run(["-t", "-A", "-c", statement]),
     apply: (path) => {
       run(["-f", path]);
     },
+    concurrentResults: runConcurrent,
     concurrent: async (statements) => {
-      await Promise.all(
-        statements.map(
-          (statement) =>
-            new Promise<void>((resolve, reject) => {
-              const client = spawn(
-                psql,
-                [...connection, "-v", "ON_ERROR_STOP=1", "-c", statement],
-                { stdio: ["ignore", "pipe", "pipe"] },
-              );
-              let stderr = "";
-              client.stderr.setEncoding("utf8");
-              client.stderr.on("data", (chunk: string) => {
-                stderr += chunk;
-              });
-              client.once("error", reject);
-              client.once("exit", (code) => {
-                if (code === 0) resolve();
-                else reject(new Error(stderr || `psql exited ${code}`));
-              });
-            }),
-        ),
-      );
+      await runConcurrent(statements);
     },
     async stop() {
       if (server.exitCode === null) {
@@ -150,6 +176,14 @@ async function startDatabase(): Promise<Database> {
 }
 
 describe("social identity migration shape", () => {
+  it("keeps applied ownership migration 0009 byte-identical", () => {
+    const digest = createHash("sha256")
+      .update(readFileSync(APPLIED_OWNERSHIP))
+      .digest("hex");
+
+    expect(digest).toBe(APPLIED_OWNERSHIP_SHA256);
+  });
+
   it("keeps account and Yoti assurance records service-only and minimal", () => {
     const sql = readFileSync(FORWARD, "utf8").toLowerCase();
     expect(sql).toContain("create table public.private_social_accounts");
@@ -187,19 +221,22 @@ afterAll(async () => {
 });
 
 describe("social identity migration runtime", () => {
-  it("backfills legacy provenance and lets only an ephemeral row finish linking", () => {
+  it("freezes every unowned row and creates only absent handles as owned", () => {
     const db = database!;
     db.sql(`
       insert into auth.users(id) values
         ('77777777-7777-4777-8777-777777777777'),
         ('88888888-8888-4888-8888-888888888888');
-      insert into public.profiles(handle, account_link_state)
-      values ('ephemeral_shape', 'ephemeral');
+      insert into public.profiles(handle) values ('post_migration_unowned');
     `);
 
+    expect(() =>
+      db.sql(`insert into public.profiles(handle, account_link_state)
+        values ('attacker_seed', 'ephemeral')`),
+    ).toThrow();
     expect(
-      db.sql("select account_link_state from public.profiles where handle='pre_migration_shape'"),
-    ).toBe("legacy_unlinked");
+      db.sql("select user_id is null from public.profiles where handle='pre_migration_shape'"),
+    ).toBe("t");
     expect(
       JSON.parse(
         db.sql(`select public.claim_pubmaxx_handle(
@@ -210,13 +247,88 @@ describe("social identity migration runtime", () => {
     expect(
       JSON.parse(
         db.sql(`select public.claim_pubmaxx_handle(
-          '88888888-8888-4888-8888-888888888888', 'ephemeral_shape'
+          '88888888-8888-4888-8888-888888888888', 'post_migration_unowned'
         )`),
       ),
-    ).toMatchObject({ ok: true, handle: "ephemeral_shape" });
+    ).toMatchObject({ ok: false, code: "taken" });
     expect(
-      db.sql("select account_link_state from public.profiles where handle='ephemeral_shape'"),
-    ).toBe("account_owned");
+      JSON.parse(
+        db.sql(`select public.claim_pubmaxx_handle(
+          '88888888-8888-4888-8888-888888888888', 'new_owned_shape'
+        )`),
+      ),
+    ).toMatchObject({ ok: true, handle: "new_owned_shape" });
+    expect(
+      db.sql("select user_id from public.profiles where handle='new_owned_shape'"),
+    ).toBe("88888888-8888-4888-8888-888888888888");
+  });
+
+  it("serializes concurrent handle claims without inheriting generic rows", async () => {
+    const db = database!;
+    db.sql(`
+      insert into auth.users(id) values
+        ('66666666-6666-4666-8666-666666666661'),
+        ('66666666-6666-4666-8666-666666666662'),
+        ('66666666-6666-4666-8666-666666666663'),
+        ('66666666-6666-4666-8666-666666666664');
+    `);
+    const startsAt = new Date(Date.now() + 2_000).toISOString();
+    const synchronized = (statement: string) => `
+      begin;
+      set local statement_timeout = '10s';
+      select pg_sleep(greatest(0, extract(epoch from timestamptz '${startsAt}' - clock_timestamp())));
+      ${statement}
+      commit;
+    `;
+
+    const sameHandle = await db.concurrentResults([
+      synchronized(`select public.claim_pubmaxx_handle(
+        '66666666-6666-4666-8666-666666666661', 'race_same_handle'
+      );`),
+      synchronized(`select public.claim_pubmaxx_handle(
+        '66666666-6666-4666-8666-666666666662', 'race_same_handle'
+      );`),
+    ]);
+    expect(sameHandle.join("\n").match(/"ok": true/g)).toHaveLength(1);
+    expect(sameHandle.join("\n").match(/"code": "taken"/g)).toHaveLength(1);
+    expect(db.sql("select count(*) from public.profiles where handle='race_same_handle'"))
+      .toBe("1");
+
+    const sameOwner = await db.concurrentResults([
+      synchronized(`select public.claim_pubmaxx_handle(
+        '66666666-6666-4666-8666-666666666663', 'race_owner_one'
+      );`),
+      synchronized(`select public.claim_pubmaxx_handle(
+        '66666666-6666-4666-8666-666666666663', 'race_owner_two'
+      );`),
+    ]);
+    expect(sameOwner.join("\n").match(/"ok": true/g)).toHaveLength(1);
+    expect(sameOwner.join("\n").match(/"code": "already_has_handle"/g))
+      .toHaveLength(1);
+
+    const ensureRace = await db.concurrentResults([
+      `begin;
+       set local statement_timeout = '10s';
+       select pg_advisory_xact_lock(hashtextextended('race_generic_ensure', 0));
+       insert into public.profiles(handle) values ('race_generic_ensure')
+       returning 'generic_inserted';
+       select pg_sleep(0.5);
+       commit;`,
+      `begin;
+       set local statement_timeout = '10s';
+       select pg_sleep(0.25);
+       select public.claim_pubmaxx_handle(
+         '66666666-6666-4666-8666-666666666664', 'race_generic_ensure'
+       );
+       commit;`,
+    ]);
+    expect(ensureRace[0]).toContain("generic_inserted");
+    expect(ensureRace[1]).toContain('"code": "taken"');
+    expect(db.sql("select count(*) from public.profiles where handle='race_generic_ensure'"))
+      .toBe("1");
+    expect(
+      db.sql("select coalesce(user_id::text, '') from public.profiles where handle='race_generic_ensure'"),
+    ).toBe("");
   });
 
   it("binds both server-derived identities once and rejects confused-session replay", () => {
@@ -295,9 +407,9 @@ describe("social identity migration runtime", () => {
       insert into auth.users(id) values
         ('99999999-9999-4999-8999-999999999991'),
         ('99999999-9999-4999-8999-999999999992');
-      insert into public.profiles(user_id, handle, account_link_state) values
-        ('99999999-9999-4999-8999-999999999991', 'crossed_one', 'account_owned'),
-        ('99999999-9999-4999-8999-999999999992', 'crossed_two', 'account_owned');
+      insert into public.profiles(user_id, handle) values
+        ('99999999-9999-4999-8999-999999999991', 'crossed_one'),
+        ('99999999-9999-4999-8999-999999999992', 'crossed_two');
     `);
     expect(
       JSON.parse(db.sql(`select public.migrate_social_product_account(

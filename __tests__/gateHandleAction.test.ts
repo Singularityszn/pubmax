@@ -35,14 +35,14 @@ describe("gateHandleAction", () => {
   });
 
   it("REJECTS an anonymous caller on a linked handle", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     const gate = await gateHandleAction(req(), "ken");
     expect(gate.allowed).toBe(false);
     if (!gate.allowed) expect(gate.status).toBe(403);
   });
 
   it("allows the matching owner and is idempotent when already linked", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     mockedCaller.mockResolvedValue("user-abc");
     const gate = await gateHandleAction(req(), "ken");
     expect(gate.allowed).toBe(true);
@@ -81,21 +81,31 @@ describe("gateHandleAction", () => {
   );
 
   it("REJECTS a different signed-in user on a linked handle", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     mockedCaller.mockResolvedValue("user-xyz");
     const gate = await gateHandleAction(req(), "ken");
     expect(gate.allowed).toBe(false);
     if (!gate.allowed) expect(gate.status).toBe(403);
   });
 
-  it("returns 409 when a concurrent claim races on an unlinked handle", async () => {
+  it("returns 409 when a concurrent claim takes an absent handle", async () => {
     mockedCaller.mockResolvedValue("user-new");
-    const linkSpy = vi
-      .spyOn(memoryProfileStore, "linkUser")
-      .mockRejectedValueOnce(new Error("Handle is already linked to another account."));
+    const createSpy = vi
+      .spyOn(memoryProfileStore, "createOwned")
+      .mockRejectedValueOnce(new Error("That handle is not available."));
     const gate = await gateHandleAction(req({ method: "POST" }), "racy");
     expect(gate.allowed).toBe(false);
     if (!gate.allowed) expect(gate.status).toBe(409);
-    linkSpy.mockRestore();
+    createSpy.mockRestore();
+  });
+
+  it("returns 409 when the account already owns another handle", async () => {
+    await memoryProfileStore.createOwned("owned_name", "user-new");
+    mockedCaller.mockResolvedValue("user-new");
+
+    const gate = await gateHandleAction(req({ method: "POST" }), "second_name");
+
+    expect(gate.allowed).toBe(false);
+    if (!gate.allowed) expect(gate.status).toBe(409);
   });
 });

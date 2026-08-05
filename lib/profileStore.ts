@@ -3,21 +3,15 @@
 // single seam by the API route (isSupabaseConfigured), exactly like
 // lib/pintDropsStore.ts.
 //
-// A profile handle becomes account-owned when `userId` is set. Migration 0071
-// marks pre-existing unlinked rows as frozen legacy records. Rows created by
-// `ensure` after that boundary are ephemeral, so established ensure-then-link
-// flows can finish without making old self-declared handles claimable.
+// A profile handle becomes account-owned when `userId` is set. Every unowned
+// row is frozen against later account ownership. Authenticated creation uses a
+// distinct atomic operation that never exposes an unowned intermediate row.
 
 import { normalizeHandle } from "@/lib/profiles";
 import { isReservedContributorHandle } from "@/lib/pubmaxxIdentity";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 import { cleanText, isHttpUrl } from "@/lib/textClean";
-
-export type ProfileAccountLinkState =
-  | "legacy_unlinked"
-  | "ephemeral"
-  | "account_owned";
 
 export type ProfileRecord = {
   id: string;
@@ -26,9 +20,6 @@ export type ProfileRecord = {
   // remains unlinked. NEVER serialized to the public /u/[handle] read. It is an
   // internal ownership key only.
   userId?: string;
-  // Internal provenance for the account-link transition. Never serialized by
-  // the public profile route.
-  accountLinkState: ProfileAccountLinkState;
   displayName?: string;
   avatarUrl?: string;
   homeCity?: string;
@@ -99,6 +90,8 @@ export type ProfileStore = {
   getByUserId(userId: string): Promise<ProfileRecord | null>;
   /** Get-or-create a minimal row for a handle. Never clobbers existing fields. */
   ensure(handle: string): Promise<ProfileRecord>;
+  /** Atomically create an absent handle already owned by an account. */
+  createOwned(handle: string, userId: string): Promise<ProfileRecord>;
   /** Apply a patch to an existing profile. Returns null when the handle is unknown. */
   update(handle: string, patch: ProfilePatch): Promise<ProfileRecord | null>;
   /**
@@ -111,9 +104,8 @@ export type ProfileStore = {
    */
   softDelete(handle: string): Promise<ProfileRecord | null>;
   /**
-   * Create an account-owned handle or finish an ephemeral ensure-then-link
-   * flow. Repeating the same handle and user is idempotent. Frozen legacy rows
-   * and different owners are unavailable.
+   * Confirm current ownership. Repeating the same handle and user is
+   * idempotent. Absent, unowned, and differently owned handles are unavailable.
    */
   linkUser(handle: string, userId: string): Promise<ProfileRecord>;
 };
@@ -127,17 +119,10 @@ function admin() {
 // profiles (snake_case) <-> ProfileRecord (camelCase). One place so a column
 // rename is a one-line change on each side.
 function fromRow(row: Record<string, unknown>): ProfileRecord {
-  const state = row.account_link_state;
   return {
     id: String(row.id),
     handle: String(row.handle),
     userId: row.user_id ? String(row.user_id) : undefined,
-    accountLinkState:
-      state === "ephemeral" || state === "account_owned"
-        ? state
-        : row.user_id
-          ? "account_owned"
-          : "legacy_unlinked",
     displayName: row.display_name ? String(row.display_name) : undefined,
     avatarUrl: row.avatar_url ? String(row.avatar_url) : undefined,
     homeCity: row.home_city ? String(row.home_city) : undefined,
@@ -204,7 +189,7 @@ export const supabaseProfileStore: ProfileStore = {
 
     const { data, error } = await admin()
       .from(TABLE)
-      .insert({ handle: key, account_link_state: "ephemeral" })
+      .insert({ handle: key })
       .select("*")
       .limit(1);
     if (error) {
@@ -216,6 +201,35 @@ export const supabaseProfileStore: ProfileStore = {
       throw new Error(error.message);
     }
     return fromRow((data ?? [])[0] as Record<string, unknown>);
+  },
+
+  async createOwned(handle, userId) {
+    const key = normalizeHandle(handle);
+    if (!key) throw new Error("A profile needs a non-empty handle.");
+    if (!userId) throw new Error("User id is missing.");
+    if (isReservedContributorHandle(key)) {
+      throw new Error("That handle is not available.");
+    }
+    const { data, error } = await admin().rpc("claim_pubmaxx_handle", {
+      p_user_id: userId,
+      p_handle: key,
+    });
+    if (error) throw new Error(error.message);
+    const result = (Array.isArray(data) ? data[0] : data) as
+      | Record<string, unknown>
+      | null;
+    if (result?.ok === true) {
+      const profile = await this.getByHandle(key);
+      if (profile?.userId === userId) return profile;
+      throw new Error("Profile storage is unavailable.");
+    }
+    if (result?.code === "already_has_handle") {
+      throw new Error("That account already has a handle.");
+    }
+    if (result?.code === "taken") {
+      throw new Error("That handle is not available.");
+    }
+    throw new Error("Profile storage is unavailable.");
   },
 
   async update(handle, patch) {
@@ -257,43 +271,6 @@ export const supabaseProfileStore: ProfileStore = {
     }
     const existing = await this.getByHandle(key);
     if (existing?.userId === userId) return existing;
-    if (existing && existing.accountLinkState !== "ephemeral") {
-      throw new Error("That handle is not available.");
-    }
-    if (await this.getByUserId(userId)) {
-      throw new Error("That account already has a handle.");
-    }
-    const query = existing
-      ? admin()
-          .from(TABLE)
-          .update({
-            user_id: userId,
-            account_link_state: "account_owned",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existing.id)
-          .eq("account_link_state", "ephemeral")
-          .is("user_id", null)
-      : admin()
-          .from(TABLE)
-          .insert({
-            handle: key,
-            user_id: userId,
-            account_link_state: "account_owned",
-          });
-    const { data, error } = await query.select("*").limit(1);
-    if (error) {
-      if (isUniqueViolation(error)) {
-        const after = await this.getByHandle(key);
-        if (after?.userId === userId) return after;
-        throw new Error("That handle is not available.");
-      }
-      throw new Error(error.message);
-    }
-    const linked = (data ?? [])[0];
-    if (linked) return fromRow(linked as Record<string, unknown>);
-    const after = await this.getByHandle(key);
-    if (after?.userId === userId) return after;
     throw new Error("That handle is not available.");
   },
 };
@@ -339,7 +316,33 @@ export const memoryProfileStore: ProfileStore = {
     const record: ProfileRecord = {
       id: memoryId(key),
       handle: key,
-      accountLinkState: "ephemeral",
+      createdAt: now,
+      updatedAt: now,
+    };
+    memoryProfiles.set(key, record);
+    return record;
+  },
+
+  async createOwned(handle, userId) {
+    const key = normalizeHandle(handle);
+    if (!key) throw new Error("A profile needs a non-empty handle.");
+    if (!userId) throw new Error("User id is missing.");
+    if (isReservedContributorHandle(key)) {
+      throw new Error("That handle is not available.");
+    }
+    const existing = memoryProfiles.get(key);
+    if (existing?.userId === userId) return existing;
+    if (existing) throw new Error("That handle is not available.");
+    for (const profile of memoryProfiles.values()) {
+      if (profile.userId === userId) {
+        throw new Error("That account already has a handle.");
+      }
+    }
+    const now = new Date().toISOString();
+    const record: ProfileRecord = {
+      id: memoryId(key),
+      handle: key,
+      userId,
       createdAt: now,
       updatedAt: now,
     };
@@ -382,21 +385,7 @@ export const memoryProfileStore: ProfileStore = {
     }
     const existing = memoryProfiles.get(key);
     if (existing?.userId === userId) return existing;
-    if (existing && existing.accountLinkState !== "ephemeral") {
-      throw new Error("That handle is not available.");
-    }
-    if (await this.getByUserId(userId)) {
-      throw new Error("That account already has a handle.");
-    }
-    const now = new Date().toISOString();
-    const next: ProfileRecord = {
-      ...(existing ?? { id: memoryId(key), handle: key, createdAt: now }),
-      userId,
-      accountLinkState: "account_owned",
-      updatedAt: now,
-    };
-    memoryProfiles.set(key, next);
-    return next;
+    throw new Error("That handle is not available.");
   },
 };
 
@@ -418,7 +407,6 @@ export function __seedMemoryLegacyProfile(handle: string): ProfileRecord {
   const record: ProfileRecord = {
     id: memoryId(key),
     handle: key,
-    accountLinkState: "legacy_unlinked",
     createdAt: now,
     updatedAt: now,
   };

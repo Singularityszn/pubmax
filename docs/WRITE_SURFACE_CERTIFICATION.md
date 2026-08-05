@@ -60,8 +60,9 @@ derives the legacy Supabase identity with `verifyCallerAuth(request)` and the
 protected server seam derives the Clerk identity from middleware-backed session
 context. It accepts no account ID, handle, or email from the body. The beta
 policy denies the write with `SOCIAL_BETA_DISABLED` while Social remains in
-preview, before the Clerk check or migration RPC runs. A successful call passes
-only those two independently verified IDs to the service-only transactional RPC.
+preview, before the Supabase verifier, Clerk check, or migration RPC runs. A
+successful call passes only those two independently verified IDs to the
+service-only transactional RPC.
 
 ## Failure posture
 

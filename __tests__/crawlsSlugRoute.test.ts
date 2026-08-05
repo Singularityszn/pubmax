@@ -69,7 +69,7 @@ describe("PATCH /api/crawls/[slug]", () => {
 
   it("403s when the author handle is linked and the caller is anonymous", async () => {
     const slug = await makeStory("ken");
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     const req = new Request(`${URL_BASE}/${slug}`, {
       method: "PATCH",
       body: JSON.stringify({ handle: "ken", title: "Hijack" }),

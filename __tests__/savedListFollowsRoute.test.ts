@@ -161,7 +161,7 @@ describe("POST /api/saved-pubs/list-follows", () => {
   });
 
   it("403s when the follower handle is linked and the caller is anonymous", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     const res = await post({ follower: "ken", owner: "sam", listType: "Date Night" });
     expect(res.status).toBe(403);
     expectNoStore(res);

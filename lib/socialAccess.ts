@@ -28,6 +28,17 @@ export type SocialAccessInput = {
   now: string | Date;
 };
 
+export const SOCIAL_BETA_DISABLED = {
+  ok: false,
+  status: 403,
+  code: "SOCIAL_BETA_DISABLED",
+  error: "Social account migration is not available in preview.",
+} as const;
+
+export function isSocialInviteBetaEnabled(value: string | undefined): boolean {
+  return value === "1";
+}
+
 function validTime(value: string): number | null {
   const time = Date.parse(value);
   return Number.isFinite(time) ? time : null;

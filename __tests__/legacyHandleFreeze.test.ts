@@ -76,19 +76,25 @@ describe("legacy handle freeze", () => {
     });
   });
 
-  it("lets canonical onboarding finish a newly ensured ephemeral row", async () => {
-    const ephemeral = await memoryProfileStore.ensure("fresh_person");
+  it("keeps a post-migration generic ensure unavailable to canonical onboarding", async () => {
+    const unowned = await memoryProfileStore.ensure("fresh_person");
 
     await expect(
       memoryIdentityHandleStore.availability("fresh_person"),
-    ).resolves.toEqual({ handle: "fresh_person", available: true });
+    ).resolves.toEqual({
+      handle: "fresh_person",
+      available: false,
+      reason: "taken",
+    });
     await expect(
       memoryIdentityHandleStore.claim("user-1", "fresh_person"),
     ).resolves.toMatchObject({
-      ok: true,
-      profileId: ephemeral.id,
-      handle: "fresh_person",
+      ok: false,
+      code: "taken",
     });
+    const unchanged = await memoryProfileStore.getByHandle("fresh_person");
+    expect(unchanged?.id).toBe(unowned.id);
+    expect(unchanged?.userId).toBeUndefined();
   });
 
   it("keeps a current owner idempotent after the alias cache is lost", async () => {
@@ -100,5 +106,17 @@ describe("legacy handle freeze", () => {
     await expect(
       memoryIdentityHandleStore.claim("user-1", "fresh_person"),
     ).resolves.toEqual(first);
+  });
+
+  it("reports the owned handle when two names race for one account", async () => {
+    const results = await Promise.all([
+      memoryIdentityHandleStore.claim("user-1", "racing_one"),
+      memoryIdentityHandleStore.claim("user-1", "racing_two"),
+    ]);
+
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    expect(results.filter((result) => !result.ok)).toEqual([
+      expect.objectContaining({ ok: false, code: "already_has_handle" }),
+    ]);
   });
 });
