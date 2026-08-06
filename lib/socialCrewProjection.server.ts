@@ -26,7 +26,6 @@ import {
   isSocialCrewRole,
   isSocialCrewVisibility,
   socialCrewPhase,
-  type SocialCrewJoinRequestState,
   type SocialCrewListItemDTO,
   type SocialCrewListPageDTO,
   type SocialCrewMembershipState,
@@ -92,6 +91,24 @@ export type SocialCrewProjectionViewer = {
   ownerRelationship: SocialRelationshipResolution;
   plan: PlanState;
 };
+
+export type RawSocialCrewReadSnapshot =
+  | {
+      kind: "member";
+      ownerRelationship: "self" | "mutual";
+      crew: RawSocialCrew;
+      plan: PlanState;
+    }
+  | {
+      kind: "preview";
+      preview: {
+        title: string;
+        status: PlannedNightStatus;
+        nightArea: NightContext["nightArea"];
+        startsAt: string;
+        joinRequestState: "none" | "pending" | "declined";
+      };
+    };
 
 type ParsedSocialCrewMember = RawSocialCrewMember & { joinedAt: string };
 
@@ -396,7 +413,7 @@ function parsePlanState(value: PlanState): SocialCrewPlanDTO {
 }
 
 function validJoinRequestState(
-  value: SocialCrewJoinRequestState | "none",
+  value: unknown,
 ): value is "none" | "pending" | "declined" {
   return value === "none" || value === "pending" || value === "declined";
 }
@@ -470,11 +487,7 @@ function parseRawSocialCrew(raw: RawSocialCrew): RawSocialCrew & {
   };
 }
 
-export function validateRawSocialCrew(raw: RawSocialCrew): void {
-  parseRawSocialCrew(raw);
-}
-
-export function projectSocialCrewRead(
+function projectSocialCrewAuthorityRead(
   rawInput: RawSocialCrew,
   viewer: SocialCrewProjectionViewer,
 ): SocialCrewReadDTO | null {
@@ -538,6 +551,61 @@ export function projectSocialCrewRead(
     })),
     plan: planState,
   };
+}
+
+function projectPreviewSnapshot(value: unknown): SocialCrewReadDTO {
+  if (!isRecord(value)) return unavailable("preview");
+  if (
+    typeof value.title !== "string" ||
+    !value.title.trim() ||
+    !isPlannedNightStatus(value.status) ||
+    !(value.nightArea === null || isNightAreaSlug(value.nightArea)) ||
+    !validJoinRequestState(value.joinRequestState)
+  ) {
+    return unavailable("preview");
+  }
+  return {
+    kind: "preview",
+    title: value.title,
+    phase: socialCrewPhase(value.status),
+    nightArea: value.nightArea,
+    startsAt: canonicalDate(value.startsAt, "preview"),
+    joinRequestState: value.joinRequestState,
+  };
+}
+
+export function projectSocialCrewRead(
+  rawInput: unknown,
+  viewer: SocialCrewProjectionViewer | SocialPostActor,
+): SocialCrewReadDTO | null {
+  if (isRecord(rawInput) && rawInput.kind === "preview") {
+    return projectPreviewSnapshot(rawInput.preview);
+  }
+  if (isRecord(rawInput) && rawInput.kind === "member") {
+    if (
+      !isRecord(rawInput.crew) ||
+      !isRecord(rawInput.plan) ||
+      (rawInput.ownerRelationship !== "self" &&
+        rawInput.ownerRelationship !== "mutual") ||
+      !isRecord(viewer) ||
+      "actor" in viewer
+    ) {
+      return unavailable("snapshot");
+    }
+    const projected = projectSocialCrewAuthorityRead(rawInput.crew as RawSocialCrew, {
+      actor: viewer as SocialPostActor,
+      ownerRelationship: rawInput.ownerRelationship,
+      plan: rawInput.plan as PlanState,
+    });
+    return projected?.kind === "member" ? projected : unavailable("snapshot");
+  }
+  if (!isRecord(viewer) || !("actor" in viewer)) {
+    return unavailable("snapshot");
+  }
+  return projectSocialCrewAuthorityRead(
+    rawInput as RawSocialCrew,
+    viewer as SocialCrewProjectionViewer,
+  );
 }
 
 function parseListItem(

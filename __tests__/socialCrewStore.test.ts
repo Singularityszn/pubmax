@@ -6,7 +6,6 @@ import type { PlanState } from "@/lib/plan";
 import {
   SocialCrewStoreError,
   createSocialCrewStore,
-  socialCrewJoinRequestPreviewState,
   type SocialCrewRpcName,
   type SocialCrewStoreDependencies,
 } from "@/lib/socialCrewStore";
@@ -126,10 +125,8 @@ function rawCrew(overrides: Partial<RawSocialCrew> = {}): RawSocialCrew {
 type RpcCall = { name: SocialCrewRpcName; input: Record<string, unknown> };
 
 function dependencies(options: {
-  raw?: RawSocialCrew | null;
-  relationship?: "self" | "mutual" | "not_mutual" | "blocked" | "unavailable";
-  plan?: PlanState | null;
   rpc?: SocialCrewStoreDependencies["rpc"];
+  snapshot?: SocialCrewStoreDependencies["snapshot"];
 } = {}): SocialCrewStoreDependencies & { calls: RpcCall[] } {
   const calls: RpcCall[] = [];
   return {
@@ -139,15 +136,18 @@ function dependencies(options: {
       if (options.rpc) return options.rpc(name, input);
       return { ok: true, code: "updated", member_id: BOB_MEMBER_ID };
     },
-    async loadCrew() {
-      return options.raw === undefined ? rawCrew() : options.raw;
+    async snapshot(name, input) {
+      if (options.snapshot) return options.snapshot(name, input);
+      return {
+        kind: "member",
+        ownerRelationship: input.p_viewer_profile_id === ALICE_PROFILE_ID
+          ? "self"
+          : "mutual",
+        crew: rawCrew(),
+        plan: planState,
+      };
     },
-    async loadPlan() {
-      return { ok: true, plan: options.plan === undefined ? planState : options.plan };
-    },
-    async relationshipBetweenProfiles() {
-      return options.relationship ?? "mutual";
-    },
+    signingKey: () => Buffer.from("social-crew-store-test-signing-key-0001"),
   };
 }
 
@@ -477,15 +477,11 @@ describe("SocialCrewStore durable writes", () => {
   });
 
   it("lets a non-owner leave without a friendship precheck", async () => {
-    let relationshipChecks = 0;
+    const snapshot = vi.fn();
     const deps = dependencies({
-      relationship: "blocked",
       rpc: async () => ({ ok: true, code: "left", member_id: BOB_MEMBER_ID }),
+      snapshot,
     });
-    deps.relationshipBetweenProfiles = async () => {
-      relationshipChecks += 1;
-      return "blocked";
-    };
     const store = createSocialCrewStore(deps);
 
     await expect(store.leave(bob, {
@@ -496,7 +492,7 @@ describe("SocialCrewStore durable writes", () => {
       replayed: false,
       memberId: BOB_MEMBER_ID,
     });
-    expect(relationshipChecks).toBe(0);
+    expect(snapshot).not.toHaveBeenCalled();
     expect(deps.calls[0]?.input.p_actor_account_id).toBe(BOB_ACCOUNT_ID);
   });
 
@@ -678,95 +674,14 @@ describe("SocialCrewStore durable writes", () => {
 });
 
 describe("SocialCrewStore protected projection", () => {
-  it.each([
-    [{ state: "pending", expiresAt: "2026-08-05T12:00:00.001Z" }, "pending"],
-    [{ state: "pending", expiresAt: "2026-08-05T12:00:00.000Z" }, "none"],
-    [{ state: "pending", expiresAt: "2026-08-05T11:59:59.999Z" }, "none"],
-    [{ state: "declined", expiresAt: "2026-08-05T11:00:00.000Z" }, "declined"],
-    [{ state: "accepted", expiresAt: "2026-08-05T13:00:00.000Z" }, "none"],
-    [{ state: "cancelled", expiresAt: "2026-08-05T13:00:00.000Z" }, "none"],
-    [{ state: "expired", expiresAt: "2026-08-05T13:00:00.000Z" }, "none"],
-    [null, "none"],
-  ] as const)("derives current preview request state from latest durable row %#", (latest, expected) => {
-    expect(socialCrewJoinRequestPreviewState(latest, new Date("2026-08-05T12:00:00.000Z"))).toBe(expected);
-  });
-
-  it("uses durable decision time when Join Requests share created time", () => {
-    expect(socialCrewJoinRequestPreviewState([
-      {
-        state: "cancelled",
-        expiresAt: "2026-08-06T00:00:00.000Z",
-        createdAt: "2026-08-05T10:00:00.000Z",
-        decidedAt: "2026-08-05T10:05:00.000Z",
-      },
-      {
-        state: "declined",
-        expiresAt: "2026-08-06T00:00:00.000Z",
-        createdAt: "2026-08-05T10:00:00.000Z",
-        decidedAt: "2026-08-05T10:06:00.000Z",
-      },
-    ], new Date("2026-08-05T12:00:00.000Z"))).toBe("declined");
-  });
-
-  it("fails closed when any row in the exact top Join Request cohort conflicts", () => {
-    const topTie = {
-      expiresAt: "2026-08-06T00:00:00.000Z",
-      createdAt: "2026-08-05T10:00:00.000Z",
-      decidedAt: "2026-08-05T10:06:00.000Z",
-    };
-
-    expect(() => socialCrewJoinRequestPreviewState([
-      { ...topTie, state: "declined" },
-      { ...topTie, state: "declined" },
-      { ...topTie, state: "cancelled" },
-    ], new Date("2026-08-05T12:00:00.000Z"))).toThrow(
-      "Social Crew Join Request order is unavailable.",
-    );
-  });
-
-  it("fails closed when the latest Join Request disappears before the cohort read", async () => {
-    const latestRequest = {
-      state: "pending",
-      expiresAt: "2026-08-06T00:00:00.000Z",
-      createdAt: "2026-08-05T10:00:00.000Z",
-      decidedAt: null,
-    };
-    const deps = dependencies();
-    deps.loadCrew = async () => rawCrew({
-      joinRequestState: socialCrewJoinRequestPreviewState(
-        [],
-        new Date("2026-08-05T12:00:00.000Z"),
-        latestRequest !== null,
-      ),
-    });
-
-    await expectStoreError(createSocialCrewStore(deps).read(CREW_ID, alice), "UNAVAILABLE", 503);
-  });
-
-  it.each([
-    ["state", "unknown"],
-    ["role", "host"],
-    ["memberId", "not-a-uuid"],
-    ["accountId", "not-a-uuid"],
-    ["profileId", "not-a-uuid"],
-    ["planMemberId", "not-a-uuid"],
-    ["handle", ""],
-    ["joinedAt", "not-a-date"],
-  ] as const)("fails closed for invalid durable member %s", async (field, value) => {
-    const invalidMember = {
-      ...rawCrew().members[1]!,
-      state: "left",
-      [field]: value,
-    } as RawSocialCrew["members"][number];
-    const store = createSocialCrewStore(dependencies({
-      raw: rawCrew({ members: [rawCrew().members[0]!, invalidMember] }),
+  it("projects an atomic member snapshot and sends current actor binding", async () => {
+    const snapshot = vi.fn(async () => ({
+      kind: "member",
+      ownerRelationship: "mutual",
+      crew: rawCrew(),
+      plan: planState,
     }));
-
-    await expectStoreError(store.read(CREW_ID, alice), "UNAVAILABLE", 503);
-  });
-
-  it("derives Crew presentation and Plan state from the bound Planned Night", async () => {
-    const store = createSocialCrewStore(dependencies());
+    const store = createSocialCrewStore(dependencies({ snapshot }));
 
     const result = await store.read(CREW_ID, bob);
 
@@ -803,127 +718,63 @@ describe("SocialCrewStore protected projection", () => {
         ending: null,
       },
     });
-    expect(result).not.toHaveProperty("ownerAccountId");
-    expect(result).not.toHaveProperty("planId");
+    expect(snapshot).toHaveBeenCalledTimes(1);
+    expect(snapshot).toHaveBeenCalledWith("read_social_crew_snapshot", {
+      p_viewer_account_id: BOB_ACCOUNT_ID,
+      p_viewer_profile_id: BOB_PROFILE_ID,
+      p_crew_id: CREW_ID,
+    });
     expect(JSON.stringify(result)).not.toContain("legacy-plan-member");
     expect(JSON.stringify(result)).not.toContain(BOB_PLAN_MEMBER_ID);
     expect(JSON.stringify(result)).not.toContain(BOB_ACCOUNT_ID);
   });
 
-  it.each([
-    ["active", "live"],
-    ["ending", "live"],
-    ["completed", "ended"],
-    ["abandoned", "ended"],
-  ] as const)("derives %s Planned Night status as %s Crew phase", async (status, phase) => {
+  it("projects discriminated preview without Crew or Plan data", async () => {
     const store = createSocialCrewStore(dependencies({
-      plan: { ...planState, plan: { ...planState.plan, status } },
+      snapshot: async () => ({
+        kind: "preview",
+        preview: {
+          title: "Friday in Camden",
+          status: "ready",
+          nightArea: null,
+          startsAt: "2026-08-07T18:30:00.000000Z",
+          joinRequestState: "pending",
+        },
+      }),
     }));
 
-    await expect(store.read(CREW_ID, alice)).resolves.toMatchObject({ phase });
-  });
-
-  it("uses current profile handles while retaining scoped member identity", async () => {
-    const renamed = rawCrew({
-      members: rawCrew().members.map((member) => member.memberId === BOB_MEMBER_ID
-        ? { ...member, handle: "robert" }
-        : member),
-    });
-    const store = createSocialCrewStore(dependencies({ raw: renamed }));
-
-    const result = await store.read(CREW_ID, bob);
-
-    expect(result).toMatchObject({
-      viewer: { memberId: BOB_MEMBER_ID },
-      members: [
-        { memberId: ALICE_MEMBER_ID, handle: "alice" },
-        { memberId: BOB_MEMBER_ID, handle: "robert" },
-      ],
-    });
-  });
-
-  it.each(["blocked", "not_mutual"] as const)("removes protected member state after relationship becomes %s", async (relationship) => {
-    const store = createSocialCrewStore(dependencies({ relationship }));
-
-    await expectStoreError(store.read(CREW_ID, bob), "NOT_FOUND", 404);
-  });
-
-  it("maps relationship dependency failure to unavailable", async () => {
-    const store = createSocialCrewStore(dependencies({ relationship: "unavailable" }));
-
-    await expectStoreError(store.read(CREW_ID, bob), "UNAVAILABLE", 503);
-  });
-
-  it("returns the same not-found error for a private outsider and an unknown Crew", async () => {
-    const privateCrew = rawCrew({ visibility: "private", members: rawCrew().members.slice(0, 1) });
-    const privateStore = createSocialCrewStore(dependencies({ raw: privateCrew }));
-    const unknownStore = createSocialCrewStore(dependencies({ raw: null }));
-
-    await expectStoreError(privateStore.read(CREW_ID, bob), "NOT_FOUND", 404);
-    await expectStoreError(unknownStore.read(CREW_ID, bob), "NOT_FOUND", 404);
-  });
-
-  it("returns private outsider not found before relationship dependency access", async () => {
-    let relationshipCalls = 0;
-    const deps = dependencies({
-      raw: rawCrew({ visibility: "private", members: rawCrew().members.slice(0, 1) }),
-      relationship: "unavailable",
-    });
-    deps.relationshipBetweenProfiles = async () => {
-      relationshipCalls += 1;
-      return "unavailable";
-    };
-    const privateStore = createSocialCrewStore(deps);
-    const unknownStore = createSocialCrewStore(dependencies({ raw: null }));
-
-    await expectStoreError(privateStore.read(CREW_ID, bob), "NOT_FOUND", 404);
-    await expectStoreError(unknownStore.read(CREW_ID, bob), "NOT_FOUND", 404);
-    expect(relationshipCalls).toBe(0);
-  });
-
-  it("projects only a narrow preview for a Mutual who is not a member", async () => {
-    const friendCrew = rawCrew({
-      members: rawCrew().members.slice(0, 1),
-      joinRequestState: "pending",
-    });
-    const store = createSocialCrewStore(dependencies({ raw: friendCrew }));
-
-    const result = await store.read(CREW_ID, bob);
-
-    expect(result).toEqual({
+    await expect(store.read(CREW_ID, bob)).resolves.toEqual({
       kind: "preview",
       title: "Friday in Camden",
       phase: "planning",
-      nightArea: "camden",
+      nightArea: null,
       startsAt: "2026-08-07T18:30:00.000Z",
       joinRequestState: "pending",
     });
-    expect(JSON.stringify(result)).not.toContain(CREW_ID);
-    expect(JSON.stringify(result)).not.toContain(PLAN_ID);
-    expect(JSON.stringify(result)).not.toContain("venue-a");
-    expect(JSON.stringify(result)).not.toContain("alice");
   });
 
-  it("maps Crew and Plan read dependency failures to unavailable", async () => {
-    const crewFailure = dependencies();
-    crewFailure.loadCrew = async () => {
-      throw new Error("read failed");
-    };
-    const planFailure = dependencies();
-    planFailure.loadPlan = async () => ({ ok: false, error: "error" });
-
-    await expectStoreError(createSocialCrewStore(crewFailure).read(CREW_ID, alice), "UNAVAILABLE", 503);
-    await expectStoreError(createSocialCrewStore(planFailure).read(CREW_ID, alice), "UNAVAILABLE", 503);
-  });
-
-  it("requires actor account and profile identity to match the same active membership", async () => {
-    const forged: SocialPostActor = {
-      accountId: BOB_ACCOUNT_ID,
-      profileId: ALICE_PROFILE_ID,
-      handle: "alice",
-    };
-    const store = createSocialCrewStore(dependencies());
-
-    await expectStoreError(store.read(CREW_ID, forged), "NOT_FOUND", 404);
+  it("fails closed for absent, malformed, and failed atomic snapshots", async () => {
+    await expectStoreError(
+      createSocialCrewStore(dependencies({ snapshot: async () => null }))
+        .read(CREW_ID, bob),
+      "NOT_FOUND",
+      404,
+    );
+    await expectStoreError(
+      createSocialCrewStore(dependencies({
+        snapshot: async () => ({ kind: "preview", preview: {} }),
+      })).read(CREW_ID, bob),
+      "UNAVAILABLE",
+      503,
+    );
+    await expectStoreError(
+      createSocialCrewStore(dependencies({
+        snapshot: async () => {
+          throw new Error("database down");
+        },
+      })).read(CREW_ID, bob),
+      "UNAVAILABLE",
+      503,
+    );
   });
 });
