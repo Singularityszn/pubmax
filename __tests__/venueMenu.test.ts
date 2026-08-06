@@ -1,7 +1,10 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
+import DrinkMenu from "@/components/drinks/DrinkMenu";
 import { hasMenuBeyondPints } from "@/lib/drinkMenu";
-import { parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
+import { parseDrinkPriceUpdates, type DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import { parseFoodPriceUpdates } from "@/lib/foodPriceUpdates";
 import type { VenuePrice } from "@/lib/venues";
 import { venueMenuForInspector, venueMenuLookupKeys } from "@/lib/venueMenu";
@@ -34,6 +37,48 @@ beforeEach(() => {
 
 // A seeded heritage venue id (Prospect of Whitby) — see __tests__/drinkSeeds.test.ts.
 const SEEDED_VENUE_ID = "venue-16pnwmm";
+
+/** Pinned Manchester OSM pub: empty prices[], coords-keyed overlay target. */
+const MANCHESTER_GEORGE_DRAGON = {
+  id: "venue-mcr-8nl72x",
+  name: "George & Dragon",
+  address: "14, London Road, Stockport, SK7 4AH",
+  latitude: 53.3843726,
+  longitude: -2.127616,
+  prices: [] as VenuePrice[],
+};
+
+const MANCHESTER_GEORGE_DRAGON_VENUE_KEY =
+  "george & dragon|14, london road, stockport, sk7 4ah|53.38437|-2.12762";
+
+const MANCHESTER_DRINK_OVERLAYS: DrinkPriceUpdate[] = [
+  {
+    venueKey: MANCHESTER_GEORGE_DRAGON_VENUE_KEY,
+    drinkName: "Abbot Ale",
+    category: "beer",
+    priceGbp: 4.85,
+    source: {
+      label: "Greene King — official menu",
+      url: "https://www.greeneking.co.uk/pubs/greater-manchester/george-and-dragon",
+      licence: "venue menu",
+    },
+    observedAt: "2026-07-11T12:13:09.496Z",
+    lane: "publisher",
+  },
+  {
+    venueKey: MANCHESTER_GEORGE_DRAGON_VENUE_KEY,
+    drinkName: "House Pinot Grigio",
+    category: "wine",
+    priceGbp: 5.25,
+    source: {
+      label: "Greene King — official menu",
+      url: "https://www.greeneking.co.uk/pubs/greater-manchester/george-and-dragon",
+      licence: "venue menu",
+    },
+    observedAt: "2026-07-11T12:13:09.496Z",
+    lane: "publisher",
+  },
+];
 
 function fabricatedPrice(
   id: string,
@@ -159,18 +204,91 @@ describe("venueMenuForInspector", () => {
   });
 
   it("lookup keys fall back to name|address|lat|lng and venue.id when prices are empty", () => {
-    const keys = venueMenuLookupKeys({
-      id: "venue-mcr-8nl72x",
-      name: "George & Dragon",
-      address: "14, London Road, Stockport, SK7 4AH",
-      latitude: 53.3843726,
-      longitude: -2.127616,
-      prices: [],
-    });
-    expect(keys[0]).toBe(
-      "george & dragon|14, london road, stockport, sk7 4ah|53.38437|-2.12762",
-    );
+    const keys = venueMenuLookupKeys(MANCHESTER_GEORGE_DRAGON);
+    expect(keys[0]).toBe(MANCHESTER_GEORGE_DRAGON_VENUE_KEY);
     expect(keys).toContain("venue-mcr-8nl72x");
+  });
+
+  it("applies drink-price overlays to a price-free Manchester OSM pub", () => {
+    const menu = venueMenuForInspector(
+      MANCHESTER_GEORGE_DRAGON,
+      MANCHESTER_DRINK_OVERLAYS,
+    );
+
+    expect(menu).toHaveLength(2);
+    expect(menu.some((drink) => drink.provenance.source === "app-dataset")).toBe(
+      false,
+    );
+    const abbot = menu.find((drink) => drink.name === "Abbot Ale");
+    expect(abbot).toMatchObject({
+      category: "beer",
+      priceGbp: 4.85,
+      provenance: {
+        source: "Greene King — official menu",
+        observedAt: "2026-07-11T12:13:09.496Z",
+      },
+    });
+    const pinot = menu.find((drink) => drink.name === "House Pinot Grigio");
+    expect(pinot).toMatchObject({
+      category: "wine",
+      priceGbp: 5.25,
+      provenance: {
+        source: "Greene King — official menu",
+        observedAt: "2026-07-11T12:13:09.496Z",
+      },
+    });
+    expect(hasMenuBeyondPints(menu)).toBe(true);
+  });
+
+  it("does not invent a pint row for a price-free city pub without an overlay", () => {
+    const menu = venueMenuForInspector(MANCHESTER_GEORGE_DRAGON, []);
+    expect(menu).toEqual([]);
+  });
+
+  it("renders dated overlay lines with publisher provenance for a price-free city pub", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-05T12:00:00.000Z"));
+    const menu = venueMenuForInspector(
+      MANCHESTER_GEORGE_DRAGON,
+      MANCHESTER_DRINK_OVERLAYS,
+    );
+    const html = renderToStaticMarkup(
+      createElement(DrinkMenu, {
+        drinks: menu,
+        venueName: MANCHESTER_GEORGE_DRAGON.name,
+        venueId: MANCHESTER_GEORGE_DRAGON.id,
+      }),
+    );
+
+    expect(html).toContain("Abbot Ale");
+    expect(html).toContain("Greene King — official menu");
+    expect(html).toContain("Last seen");
+    expect(html).toContain('<time dateTime="2026-07-11T12:13:09.496Z">11 Jul 2026</time>');
+    vi.useRealTimers();
+  });
+
+  it("drops demo drink overlays for price-free city pubs when demo content is off", () => {
+    process.env.NEXT_PUBLIC_DEMO_CONTENT = "off";
+    const menu = venueMenuForInspector(MANCHESTER_GEORGE_DRAGON, [
+      ...MANCHESTER_DRINK_OVERLAYS,
+      {
+        venueKey: MANCHESTER_GEORGE_DRAGON_VENUE_KEY,
+        drinkName: "Fixture Spritz",
+        category: "cocktail",
+        priceGbp: 9.5,
+        source: {
+          label: "PUBMAXXING demo menu fixture",
+          url: "https://pubmaxxing.com/demo",
+          licence: "demo",
+        },
+        observedAt: "2026-07-11T12:13:09.496Z",
+        lane: "demo",
+      },
+    ]);
+
+    expect(menu.some((drink) => drink.name === "Fixture Spritz")).toBe(false);
+    expect(menu).toHaveLength(2);
+    delete process.env.NEXT_PUBLIC_DEMO_CONTENT;
   });
 
   it("attaches Prospect food updates from the food price layer", () => {
