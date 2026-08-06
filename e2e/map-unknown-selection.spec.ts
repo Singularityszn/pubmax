@@ -24,6 +24,8 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
     (-0.132117).toFixed(5),
   ].join("|"),
 );
+const ALIASED_VENUE_ID = "venue-11h1ycl";
+const CANONICAL_VENUE_ID = "venue-1g0tt6c";
 
 const venuePortal = (page: Page) =>
   page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
@@ -56,6 +58,35 @@ test.describe("unknown ?sel= honesty", () => {
       "That pub is not one we know.",
     );
     await expect(venuePortal(page)).toHaveCount(0);
+    await expect.poll(() => new URL(page.url()).searchParams.has("sel")).toBe(false);
+
+    await page.reload();
+    await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
+  });
+
+  test("a failed lookup stays distinct from an unknown pub", async ({ page }) => {
+    await page.route("**/api/venue/venue-transient-failure", async (route) => {
+      await route.fulfill({ status: 503, body: "Service unavailable" });
+    });
+
+    await page.goto("/map?sel=venue-transient-failure");
+
+    await expect(page.getByTestId("map-selection-lookup-failed")).toContainText(
+      "We could not check that pub right now.",
+      { timeout: 45_000 },
+    );
+    expect(new URL(page.url()).searchParams.get("sel")).toBe("venue-transient-failure");
+    await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
+  });
+
+  test("an aliased ?sel= opens its canonical venue", async ({ page }) => {
+    await page.goto(`/map?sel=${ALIASED_VENUE_ID}`);
+
+    await expect(venuePortal(page)).toBeVisible({ timeout: 45_000 });
+    await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(
+      CANONICAL_VENUE_ID,
+    );
+    await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
   });
 
   test("a valid ?sel= still opens the venue sheet", async ({ page }) => {

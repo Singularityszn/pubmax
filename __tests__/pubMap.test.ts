@@ -6,7 +6,8 @@ import {
   filtersForCuratedCrawl,
   buildMapSeed,
   detailStatusFor,
-  isUnknownMapSelection,
+  mapSelectionNotice,
+  MAP_SELECTION_LOOKUP_FAILED_NOTE,
   UNKNOWN_MAP_SELECTION_NOTE,
   venueUpdateKey,
   normaliseTonightVenueLookup,
@@ -115,41 +116,46 @@ describe("detailStatusFor", () => {
   });
 });
 
-describe("isUnknownMapSelection", () => {
+describe("mapSelectionNotice", () => {
   const base = {
     loaded: true,
     selectedVenueId: "the-dove-hammersmith",
     resolvable: false,
     ukBase: false,
-    detailStatus: "unavailable" as VenueDetailStatus,
+    detailStatus: "missing" as VenueDetailStatus,
   };
 
-  it("is true only after the index settles and detail warm reports unavailable", () => {
-    expect(isUnknownMapSelection(base)).toBe(true);
-  });
-
-  it("stays false while still loading or before the index settles", () => {
-    expect(isUnknownMapSelection({ ...base, loaded: false })).toBe(false);
-    expect(isUnknownMapSelection({ ...base, detailStatus: "loading" })).toBe(false);
-    expect(isUnknownMapSelection({ ...base, detailStatus: "idle" })).toBe(false);
-  });
-
-  it("stays false for a resolvable curated pin or a UK base id", () => {
-    expect(isUnknownMapSelection({ ...base, resolvable: true, selectedVenueId: "venue-xjf3n0" })).toBe(
-      false,
-    );
-    expect(isUnknownMapSelection({ ...base, ukBase: true, selectedVenueId: "venue-uk-1" })).toBe(
-      false,
+  it("reports unknown only after a confirmed missing lookup", () => {
+    expect(mapSelectionNotice(base)).toBe("unknown");
+    expect(mapSelectionNotice({ ...base, detailStatus: "unavailable" })).toBe(
+      "lookup-failed",
     );
   });
 
-  it("stays false with no selection", () => {
-    expect(isUnknownMapSelection({ ...base, selectedVenueId: "" })).toBe(false);
+  it("stays silent while loading or before the index settles", () => {
+    expect(mapSelectionNotice({ ...base, loaded: false })).toBeNull();
+    expect(mapSelectionNotice({ ...base, detailStatus: "loading" })).toBeNull();
+    expect(mapSelectionNotice({ ...base, detailStatus: "idle" })).toBeNull();
+  });
+
+  it("stays silent for a resolvable curated pin or a UK base id", () => {
+    expect(mapSelectionNotice({ ...base, resolvable: true, selectedVenueId: "venue-xjf3n0" })).toBe(
+      null,
+    );
+    expect(mapSelectionNotice({ ...base, ukBase: true, selectedVenueId: "venue-uk-1" })).toBe(
+      null,
+    );
+  });
+
+  it("stays silent with no selection", () => {
+    expect(mapSelectionNotice({ ...base, selectedVenueId: "" })).toBeNull();
   });
 
   it("ships quiet empty-state voice with no em dash", () => {
     expect(UNKNOWN_MAP_SELECTION_NOTE).toBe("That pub is not one we know.");
+    expect(MAP_SELECTION_LOOKUP_FAILED_NOTE).toBe("We could not check that pub right now.");
     expect(UNKNOWN_MAP_SELECTION_NOTE).not.toMatch(/\u2014/);
+    expect(MAP_SELECTION_LOOKUP_FAILED_NOTE).not.toMatch(/\u2014/);
   });
 });
 

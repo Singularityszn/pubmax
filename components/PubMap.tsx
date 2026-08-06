@@ -312,11 +312,13 @@ import {
   filtersForCuratedCrawl,
   buildMapSeed,
   detailStatusFor,
-  isUnknownMapSelection,
+  mapSelectionNotice,
+  MAP_SELECTION_LOOKUP_FAILED_NOTE,
   UNKNOWN_MAP_SELECTION_NOTE,
   venueUpdateKey,
   normaliseTonightVenueLookup,
   type MapSeed,
+  type MapSelectionNotice,
   type VenueDetailStatus,
 } from "@/lib/pubMap";
 import { explicitMapIntent } from "@/lib/explicitMapIntent";
@@ -618,9 +620,7 @@ export default function PubMap({
   const [selectedVenueId, setSelectedVenueId] = useState<string>(
     seed.selectedVenueId || restoredMobileSession?.selectedVenueId || "",
   );
-  // Honest quiet note when `?sel=` never resolves to a known pub. Ambient only
-  // - never a surface-stack entry (no history writes for the note).
-  const [unknownSelectionNote, setUnknownSelectionNote] = useState(false);
+  const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(null);
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
@@ -1134,43 +1134,6 @@ export default function PubMap({
     };
   }, [userLocation, venueJourneyLocation, mergeSlimVenues]);
 
-  useEffect(() => {
-    if (!selectedVenueId || detailById.has(selectedVenueId)) return;
-    // A UK base pub has no detail record to warm - it is an OSM point, not a
-    // venue - so asking /api/venue for it would only buy a guaranteed 404 and a
-    // spurious "details unavailable" banner.
-    if (isUkBaseId(selectedVenueId)) return;
-    // Always go through warmVenueDetail (cache hit → Promise.resolve) so we
-    // never setState synchronously in the effect body (react-hooks/set-state-in-effect).
-    let cancelled = false;
-    warmVenueDetail(selectedVenueId)
-      .then((venue) => {
-        if (cancelled) return;
-        if (!venue) throw new Error("Bad venue detail payload");
-        setDetailById((current) => {
-          const next = new Map(current);
-          next.set(selectedVenueId, venue);
-          return next;
-        });
-        setDetailStatusById((current) => {
-          const next = new Map(current);
-          next.delete(selectedVenueId);
-          return next;
-        });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setDetailStatusById((current) => {
-          const next = new Map(current);
-          next.set(selectedVenueId, "unavailable");
-          return next;
-        });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedVenueId, detailById]);
-
   // Sourced price-refresh layer (issue #23): London-only JSON; community drops
   // always outrank it inside mergePriceUpdates. Skip the fetch for other cities
   // and ignore any stale London updates while viewing them (no setState clear).
@@ -1568,7 +1531,7 @@ export default function PubMap({
       origin: PlanningIntentSource | null = null,
     ) => {
       if (!id) return;
-      setUnknownSelectionNote(false);
+      setSelectionNotice(null);
       surfaceOpenRef.current({
         id: "venue",
         title: "Pub detail",
@@ -2659,36 +2622,63 @@ export default function PubMap({
     surfaceStateRef.current = mapSurfaceState;
   }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.open]);
 
-  // Unknown `?sel=` honesty: once the index has settled and detail warm has
-  // reported unavailable, clear the phantom selection and show a quiet note.
-  // No surface-stack entry for the note itself. If a client-nav selectVenue
-  // already pushed a venue entry for the unknown id, home undoes that push
-  // rather than leaving a sheetless venue trail. State updates ride a microtask
-  // so they stay out of the effect body (set-state-in-effect).
   useEffect(() => {
-    if (
-      !isUnknownMapSelection({
-        loaded,
-        selectedVenueId,
-        resolvable: selectedVenueResolvable,
-        ukBase: isUkBaseId(selectedVenueId),
-        detailStatus: selectedDetailStatus,
-      })
-    ) {
-      return;
-    }
-    const unknownId = selectedVenueId;
-    const trail = mapSurfaceTrail;
-    queueMicrotask(() => {
-      setUnknownSelectionNote(true);
-      setSelectedVenueId((current) => (current === unknownId ? "" : current));
-      if (trail.holdsSurface("venue")) {
-        trail.home();
+    if (!selectedVenueId || detailById.has(selectedVenueId) || isUkBaseId(selectedVenueId)) return;
+    const requestedVenueId = selectedVenueId;
+    let cancelled = false;
+    warmVenueDetail(requestedVenueId).then((result) => {
+      if (cancelled) return;
+      if (result.status !== "found") {
+        setDetailStatusById((current) => {
+          const next = new Map(current);
+          next.set(requestedVenueId, result.status === "missing" ? "missing" : "unavailable");
+          return next;
+        });
+        return;
       }
+      const canonicalVenueId = result.venue.id;
+      mapSurfaceTrail.resolveSelection(requestedVenueId, canonicalVenueId);
+      setDetailById((current) => {
+        const next = new Map(current);
+        next.set(canonicalVenueId, result.venue);
+        return next;
+      });
+      setDetailStatusById((current) => {
+        const next = new Map(current);
+        next.delete(requestedVenueId);
+        next.delete(canonicalVenueId);
+        return next;
+      });
+      if (canonicalVenueId !== requestedVenueId) {
+        setSelectedVenueId((current) =>
+          current === requestedVenueId ? canonicalVenueId : current,
+        );
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [detailById, mapSurfaceTrail.resolveSelection, selectedVenueId]);
+
+  useEffect(() => {
+    const notice = mapSelectionNotice({
+      loaded,
+      selectedVenueId,
+      resolvable: selectedVenueResolvable,
+      ukBase: isUkBaseId(selectedVenueId),
+      detailStatus: selectedDetailStatus,
+    });
+    if (!notice) return;
+    const unresolvedVenueId = selectedVenueId;
+    queueMicrotask(() => {
+      setSelectionNotice(notice);
+      if (notice !== "unknown") return;
+      mapSurfaceTrail.rejectSelection(unresolvedVenueId);
+      setSelectedVenueId((current) => (current === unresolvedVenueId ? "" : current));
     });
   }, [
     loaded,
-    mapSurfaceTrail,
+    mapSurfaceTrail.rejectSelection,
     selectedDetailStatus,
     selectedVenueId,
     selectedVenueResolvable,
@@ -3092,22 +3082,30 @@ export default function PubMap({
         {ukPlaceArrival ? (
           <UkPlaceArrivalBanner arrival={ukPlaceArrival} />
         ) : null}
-        {unknownSelectionNote ? (
+        {selectionNotice ? (
           <aside
             className="ukPlaceArrival"
             role="status"
             aria-live="polite"
-            data-testid="unknown-map-selection"
+            data-testid={
+              selectionNotice === "unknown"
+                ? "unknown-map-selection"
+                : "map-selection-lookup-failed"
+            }
           >
+            <MapPinned className="ukPlaceArrivalIcon" size={18} aria-hidden="true" />
             <span className="ukPlaceArrivalCopy">
-              <strong>{UNKNOWN_MAP_SELECTION_NOTE}</strong>
-              <span>Search for it, or pick one on the map.</span>
+              <strong>
+                {selectionNotice === "unknown"
+                  ? UNKNOWN_MAP_SELECTION_NOTE
+                  : MAP_SELECTION_LOOKUP_FAILED_NOTE}
+              </strong>
             </span>
             <button
               type="button"
               className="ukPlaceArrivalDismiss"
-              onClick={() => setUnknownSelectionNote(false)}
-              aria-label="Dismiss unknown pub note"
+              onClick={() => setSelectionNotice(null)}
+              aria-label="Dismiss pub lookup note"
             >
               <X size={18} aria-hidden="true" />
             </button>

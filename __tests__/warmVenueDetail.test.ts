@@ -23,8 +23,8 @@ describe("warmVenueDetail", () => {
     const first = await warmVenueDetail("venue-1");
     const second = await warmVenueDetail("venue-1");
 
-    expect(first).toEqual(venue);
-    expect(second).toEqual(venue);
+    expect(first).toEqual({ status: "found", venue });
+    expect(second).toEqual({ status: "found", venue });
     expect(getWarmedVenue("venue-1")).toEqual(venue);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -46,23 +46,47 @@ describe("warmVenueDetail", () => {
       json: async () => ({ venue: { id: "venue-2", name: "The Anchor" } }),
     });
     const [ra, rb] = await Promise.all([a, b]);
-    expect(ra?.name).toBe("The Anchor");
-    expect(rb?.name).toBe("The Anchor");
+    expect(ra).toEqual({
+      status: "found",
+      venue: { id: "venue-2", name: "The Anchor" },
+    });
+    expect(rb).toEqual({
+      status: "found",
+      venue: { id: "venue-2", name: "The Anchor" },
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("does not cache failures", async () => {
+  it("distinguishes a confirmed missing venue from a failed lookup", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({ ok: false })
+      .mockResolvedValueOnce({ ok: false, status: 404 })
+      .mockResolvedValueOnce({ ok: false, status: 503 })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ venue: { id: "venue-3", name: "Retry Arms" } }),
       });
     vi.stubGlobal("fetch", fetchMock);
 
-    expect(await warmVenueDetail("venue-3")).toBeNull();
-    expect(await warmVenueDetail("venue-3")).toEqual({ id: "venue-3", name: "Retry Arms" });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(await warmVenueDetail("venue-3")).toEqual({ status: "missing" });
+    expect(await warmVenueDetail("venue-3")).toEqual({ status: "failed" });
+    expect(await warmVenueDetail("venue-3")).toEqual({
+      status: "found",
+      venue: { id: "venue-3", name: "Retry Arms" },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("accepts a canonical venue returned for an aliased id", async () => {
+    const venue = { id: "venue-canonical", name: "The Canonical Arms" };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ venue }),
+    }));
+
+    expect(await warmVenueDetail("venue-alias")).toEqual({ status: "found", venue });
+    expect(getWarmedVenue("venue-alias")).toEqual(venue);
+    expect(getWarmedVenue("venue-canonical")).toEqual(venue);
   });
 });

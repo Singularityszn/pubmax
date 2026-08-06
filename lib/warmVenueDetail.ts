@@ -11,8 +11,13 @@ import { venueDetailUrl } from "@/lib/prefetchVenue";
 
 type VenueDetailResponse = { venue?: Venue | null };
 
+export type VenueDetailLookupResult =
+  | { status: "found"; venue: Venue }
+  | { status: "missing" }
+  | { status: "failed" };
+
 const resolved = new Map<string, Venue>();
-const inflight = new Map<string, Promise<Venue | null>>();
+const inflight = new Map<string, Promise<VenueDetailLookupResult>>();
 
 /** Return a previously warmed venue, or null when not yet resolved. */
 export function getWarmedVenue(venueId: string): Venue | null {
@@ -23,24 +28,26 @@ export function getWarmedVenue(venueId: string): Venue | null {
  * Fetch (or join an in-flight fetch for) venue detail. Successful results are
  * cached for the session. Failures are not cached so a later select can retry.
  */
-export function warmVenueDetail(venueId: string): Promise<Venue | null> {
-  if (!venueId) return Promise.resolve(null);
+export function warmVenueDetail(venueId: string): Promise<VenueDetailLookupResult> {
+  if (!venueId) return Promise.resolve({ status: "missing" });
   const hit = resolved.get(venueId);
-  if (hit) return Promise.resolve(hit);
+  if (hit) return Promise.resolve({ status: "found", venue: hit });
 
   const pending = inflight.get(venueId);
   if (pending) return pending;
 
   const request = fetch(venueDetailUrl(venueId))
     .then(async (response) => {
-      if (!response.ok) return null;
+      if (response.status === 404) return { status: "missing" } as const;
+      if (!response.ok) return { status: "failed" } as const;
       const data = (await response.json()) as VenueDetailResponse;
       const venue = data.venue;
-      if (!venue || venue.id !== venueId) return null;
+      if (!venue?.id) return { status: "failed" } as const;
       resolved.set(venueId, venue);
-      return venue;
+      resolved.set(venue.id, venue);
+      return { status: "found", venue } as const;
     })
-    .catch(() => null)
+    .catch(() => ({ status: "failed" }) as const)
     .finally(() => {
       inflight.delete(venueId);
     });
