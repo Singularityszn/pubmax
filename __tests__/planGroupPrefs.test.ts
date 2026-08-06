@@ -187,6 +187,32 @@ describe("plan group prefs store", () => {
     expect(replay).toEqual(first);
   });
 
+  it("clears the idempotency ledger so a reused key can write again", async () => {
+    const { id, tokens } = await crew(1);
+    const store = planGroupPrefsStore();
+    expect(await store.save(id, tokens[0], sample, "clear-then-reuse")).toMatchObject({ ok: true });
+    expect(await store.clear(id, tokens[0])).toMatchObject({ ok: true, overlap: { mateCount: 0 } });
+    const listed = await store.list(id, tokens[0]);
+    expect(listed).toMatchObject({ ok: true, prefs: [] });
+    const again = await store.save(
+      id,
+      tokens[0],
+      {
+        budgetBand: "flexible",
+        atmosphereChip: "music",
+        zeroProof: false,
+        accessibilityRequired: false,
+        weatherShelterRequired: false,
+      },
+      "clear-then-reuse",
+    );
+    expect(again).toMatchObject({
+      ok: true,
+      pref: { budgetBand: "flexible", atmosphereChips: ["music"] },
+      overlap: { mateCount: 1 },
+    });
+  });
+
   it("admits only the host or a collaboration-authorized guest", async () => {
     const created = await memoryPlanStore.create({
       title: "Auth night",

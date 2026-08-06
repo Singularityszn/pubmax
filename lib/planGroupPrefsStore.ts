@@ -136,6 +136,10 @@ const memoryStore: PlanGroupPrefsStore = {
     const auth = await authorizedMember(planId, token);
     if (!auth.ok) return auth;
     memory.prefs.delete(prefMapKey(planId, auth.identity.memberId));
+    const ledgerPrefix = `${planId}:${auth.identity.memberId}:group-pref:`;
+    for (const key of [...memory.idempotency.keys()]) {
+      if (key.startsWith(ledgerPrefix)) memory.idempotency.delete(key);
+    }
     return { ok: true, overlap: overlapGroupPrefs(prefsForPlan(planId)) };
   },
 };
@@ -183,6 +187,12 @@ const supabaseStore: PlanGroupPrefsStore = {
     const admin = requireSupabaseAdmin();
     const deleted = await admin.from(PREFS).delete().eq("plan_id", planId).eq("member_id", auth.identity.memberId);
     if (deleted.error) return { ok: false, error: "error" };
+    const ledger = await admin
+      .from("plan_member_group_pref_requests")
+      .delete()
+      .eq("plan_id", planId)
+      .eq("member_id", auth.identity.memberId);
+    if (ledger.error) return { ok: false, error: "error" };
     const listed = await listDurablePrefs(planId, auth.identity.memberId, auth.identity.role);
     if (!listed.ok) return listed;
     return { ok: true, overlap: listed.overlap };

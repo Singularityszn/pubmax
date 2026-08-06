@@ -263,7 +263,7 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
 
       {isHost && mustHaves ? (
         <output className="matchGroupPrefs__mustHaves" aria-live="polite">
-          Must-haves for this plan: {mustHaves}. The planner will not silently drop these.
+          Must-haves for this plan: {mustHaves}. Shared with the crew for this night.
         </output>
       ) : null}
 
