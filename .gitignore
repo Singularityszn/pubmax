@@ -46,3 +46,6 @@ skills_used_global.md
 !skills/
 !skills/**
 .codex-worktrees/
+
+# clerk configuration (can include secrets)
+/.clerk/
