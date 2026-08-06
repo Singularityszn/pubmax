@@ -157,3 +157,67 @@ npx vitest run __tests__/socialCrewMigration.test.ts --maxWorkers=1
 Test Files  1 passed (1)
 Tests  36 passed (36)
 ```
+
+## Fix round 2: isolated fixtures and deterministic race proof
+
+### Finding
+
+The new read fixtures were created by the first test. Preview and later tests
+therefore depended on test order. Race checks also used timing sleeps and
+accepted a matching result kind instead of one complete valid snapshot.
+
+### RED
+
+Running the preview test alone before the fix returned SQL `NULL`:
+
+```text
+npx vitest run __tests__/socialCrewMigration.test.ts --maxWorkers=1 -t "returns the exact friends preview and omits every protected field"
+Test Files  1 failed (1)
+Tests  1 failed | 35 skipped (36)
+```
+
+### GREEN
+
+Each dependent test now calls an idempotent fixture helper. Each new read and
+race test passes alone with `-t`.
+
+Race tests use an interactive writer transaction, an advisory transaction lock,
+and an explicit ready marker. The reader runs only after the uncommitted
+mutation reaches that barrier. Every block, friendship loss, owner transfer,
+membership removal, and suspension race must equal the complete exact pre-write
+snapshot. The committed result is then checked against the exact new state.
+
+Final gates:
+
+```text
+npx vitest run __tests__/socialCrewMigration.test.ts --maxWorkers=1
+Test Files  1 passed (1)
+Tests  36 passed (36)
+
+npm run test:rls
+Test Files  1 passed (1)
+Tests  36 passed (36)
+
+npx vitest run __tests__/socialCrewProjection.test.ts __tests__/socialCrewStore.test.ts __tests__/socialCrewRoutes.test.ts __tests__/socialRelationships.test.ts __tests__/socialCrewLegacyPlanBoundary.test.ts __tests__/socialCrewLegacyPlanCollaborationBoundary.test.ts --maxWorkers=1
+Test Files  6 passed (6)
+Tests  164 passed (164)
+
+npm run typecheck
+exit 0
+
+npm run lint
+exit 0, 0 errors, 33 existing warnings
+```
+
+Production migration and rollback SQL remain unchanged in this fix round. No
+hosted migration, push, or deployment occurred.
+
+### Independent verification
+
+Reviewer ran all six new tests alone, repeated the race test five times, ran
+the full migration suite, inspected the barrier and exact snapshot assertions,
+and confirmed the production SQL diff is empty.
+
+```text
+No findings. Ready to commit.
+```
