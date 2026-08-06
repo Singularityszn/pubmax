@@ -94,13 +94,17 @@ const UNDATED_SOURCE_LINE = "We can’t date these listings yet.";
 // Deals/Music placement. Flag off keeps their shipped slot above the main list.
 // Flag on wraps them so CSS can place them: on desktop they populate the right
 // rail (using the canvas, matching the flag-off desktop shape); below the rail
-// breakpoint they stack under the main list (§4.11 main-list-first). Keeping the
-// branch in a helper holds TonightClient under the cyclomatic-complexity cap.
-function placeSecondaryLanes(below: boolean, lanes: ReactNode): { above: ReactNode; below: ReactNode } {
+// breakpoint they stack under the main list (§4.11 main-list-first). This helper
+// owns both placement and its CSS marker so the host does not repeat the branch.
+function placeSecondaryLanes(below: boolean, lanes: ReactNode): {
+  above: ReactNode;
+  below: ReactNode;
+  placement: "above" | "below";
+} {
   const wrapped = <div className="tonightSecondaryLanes">{lanes}</div>;
   return below
-    ? { above: null, below: wrapped }
-    : { above: wrapped, below: null };
+    ? { above: null, below: wrapped, placement: "below" }
+    : { above: wrapped, below: null, placement: "above" };
 }
 
 // A thin night (0-2 confirmed listings) leaves the list short enough that the
@@ -279,7 +283,7 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
 
       <div
         className="tonightDesktopGrid"
-        data-secondary-placement={flags.tonightGrouping ? "below" : "above"}
+        data-secondary-placement={lanePlacement.placement}
       >
       <header className="tonightHead">
         <div className="tonightEyebrowRow">

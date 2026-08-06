@@ -21,6 +21,8 @@ export type DealsTonightLaneProps = {
    *  spine (Tonight) never fires a duplicate request. Omitted on Discover, which
    *  self-fetches exactly as before. */
   rows?: WhatsOnRow[];
+  /** Retained for host compatibility. Card-derived copy does not use it. */
+  asOf?: string | null;
 };
 
 function selectDealsTonightRows(value: unknown): WhatsOnRow[] {
@@ -34,7 +36,7 @@ export function dealsTonightRowsFromResponse(body: unknown): WhatsOnRow[] {
   return selectDealsTonightRows((body as { rows?: unknown }).rows);
 }
 
-export default function DealsTonightLane({ rows: providedRows }: DealsTonightLaneProps = {}) {
+export default function DealsTonightLane({ rows: providedRows }: DealsTonightLaneProps) {
   const provided = providedRows !== undefined;
   const [fetchedRows, setFetchedRows] = useState<WhatsOnRow[]>([]);
 
