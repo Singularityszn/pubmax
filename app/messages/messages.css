@@ -31,17 +31,6 @@
   min-width: 0;
 }
 
-/* The signed-out wall belongs to the inbox column, not the viewport. Keep its
-   action and form stack on the card's centre line and inside its content box. */
-.messagesInboxPane .emptyStateAction,
-.messagesInboxPane .authUser:not(.authUserNav),
-.messagesInboxPane .authOptions {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  margin-inline: auto;
-}
-
 .messagesThreadEmpty {
   color: var(--muted);
 }
