@@ -21,6 +21,7 @@ import {
 import { POST as SAVE_RECAP } from "@/app/api/plans/[id]/recap/route";
 import { __resetNightMemoryStore, listNightMemories, listNightMoments } from "@/lib/nightMemoryStore";
 import { pendingPlanRecapFromCompletion } from "@/lib/planRecap";
+import { preferFresherPendingPlanRecap } from "@/lib/planRecapSync.client";
 import {
   __resetPendingPlanRecapStore,
   pendingPlanRecapStore,
@@ -202,5 +203,39 @@ describe("Plan recap durability: complete → refresh → claim → Memory", () 
     }));
     expect(forged.status).toBe(403);
     expect(await listNightMemories("user-1")).toHaveLength(0);
+  });
+
+  it("does not park a conflicted save under owner scope", async () => {
+    const fixture = await completedPlan();
+    const recap = {
+      ...pendingPlanRecapFromCompletion(fixture.completion, "Thursday orbit"),
+      stops: pendingPlanRecapFromCompletion(fixture.completion, "Thursday orbit").stops.map((stop, index) => ({
+        ...stop,
+        venueId: `tampered-${index}`,
+      })),
+    };
+    const response = await SAVE_RECAP(
+      new Request(`http://localhost/api/plans/${fixture.plan.plan.id}/recap`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-test-user": "user-1" },
+        body: JSON.stringify({ memberToken: fixture.memberToken, recap }),
+      }),
+      ctx(fixture.plan.plan.id),
+    );
+    expect(response.status).toBe(409);
+    expect(await pendingPlanRecapStore().list("user-1")).toHaveLength(0);
+  });
+
+  it("prefers the fresher of local and owner drafts", async () => {
+    const fixture = await completedPlan();
+    const older = pendingPlanRecapFromCompletion(
+      fixture.completion,
+      "Older",
+      "2026-07-16T23:01:00.000Z",
+    );
+    const newer = { ...older, title: "Newer", savedAt: "2026-07-16T23:05:00.000Z" };
+    expect(preferFresherPendingPlanRecap(older, newer)?.title).toBe("Newer");
+    expect(preferFresherPendingPlanRecap(newer, older)?.title).toBe("Newer");
+    expect(preferFresherPendingPlanRecap(newer, null)?.title).toBe("Newer");
   });
 });

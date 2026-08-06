@@ -52,12 +52,17 @@ export async function POST(request: Request, context: Context): Promise<Response
     return error("Add the valid Plan recap and member capability.", "INVALID_RECAP", 400);
   }
 
-  // Park under owner scope before promotion so a failed save still leaves the
-  // draft on the account for retry (device localStorage remains the other copy).
-  await pendingPlanRecapStore().upsert(ownerId, recap);
-
   const result = await promotePendingPlanRecapToMemory(ownerId, recap, memberToken);
   if (!result.ok) {
+    // Park only retryable failures so a conflict/forbidden draft cannot overwrite
+    // a good account copy. Device localStorage remains the other hold.
+    if (
+      result.error === "member_unavailable" ||
+      result.error === "completion_unavailable" ||
+      result.error === "save_failed"
+    ) {
+      await pendingPlanRecapStore().upsert(ownerId, recap);
+    }
     if (result.error === "member_forbidden") {
       return error("That member capability cannot save this recap.", "MEMBER_FORBIDDEN", 403);
     }
@@ -91,5 +96,6 @@ export async function POST(request: Request, context: Context): Promise<Response
     );
   }
 
+  await pendingPlanRecapStore().remove(ownerId, recap.completionId);
   return jsonNoStore({ memory: result.memory, moments: result.moments, private: true }, { status: 201 });
 }

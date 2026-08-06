@@ -210,14 +210,19 @@ export async function POST(request: Request): Promise<Response> {
         403,
       );
     }
-    // Also park under owner scope so a mid-claim refresh can resume.
-    await pendingPlanRecapStore().upsert(resolved, item.recap);
     const result = await promotePendingPlanRecapToMemory(
       resolved,
       item.recap,
       memberToken,
     );
     if (!result.ok) {
+      if (
+        result.error === "member_unavailable" ||
+        result.error === "completion_unavailable" ||
+        result.error === "save_failed"
+      ) {
+        await pendingPlanRecapStore().upsert(resolved, item.recap);
+      }
       if (result.error === "member_forbidden") {
         return publicApiError(
           "That Plan member capability cannot bring this recap.",
@@ -247,6 +252,7 @@ export async function POST(request: Request): Promise<Response> {
         { retryable: true },
       );
     }
+    await pendingPlanRecapStore().remove(resolved, item.recap.completionId);
     memories.push({ memory: result.memory, moments: result.moments, private: true });
   }
 

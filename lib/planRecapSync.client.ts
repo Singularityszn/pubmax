@@ -2,6 +2,9 @@ import { authedFetch } from "@/lib/authedFetch";
 import type { PendingPlanRecap } from "@/lib/planRecap";
 import { validatePendingPlanRecap } from "@/lib/planRecap";
 
+/** Debounce caption edits so typing does not burn the write rate limit. */
+export const PENDING_PLAN_RECAP_SYNC_DEBOUNCE_MS = 900;
+
 /**
  * Best-effort park of a device draft under the signed-in owner scope so a
  * reload on this account can resume. Unsigned callers get a quiet 401; the
@@ -24,4 +27,14 @@ export async function syncPendingPlanRecapToAccount(
   } catch {
     return false;
   }
+}
+
+/** Prefer the draft with the later savedAt; ties keep the local copy. */
+export function preferFresherPendingPlanRecap(
+  local: PendingPlanRecap | null,
+  owned: PendingPlanRecap | null,
+): PendingPlanRecap | null {
+  if (!local) return owned;
+  if (!owned) return local;
+  return owned.savedAt > local.savedAt ? owned : local;
 }

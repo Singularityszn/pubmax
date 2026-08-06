@@ -1,14 +1,18 @@
 import type { PendingPlanRecap } from "@/lib/planRecap";
 import { validatePendingPlanRecap } from "@/lib/planRecap";
-import { selectStore } from "@/lib/storeBackend";
+import {
+  isMissingTableSchema,
+  onMissingDurableWrite,
+  selectStore,
+} from "@/lib/storeBackend";
+import { requireSupabaseAdmin } from "@/lib/supabase";
 
 /**
  * Owner-scoped pending Plan recap drafts. Private only: route captions and
  * completion references, never member tokens, coordinates, or voice.
  *
- * Process-memory is the keyless / test backend. A future durable table can sit
- * behind the same seam without changing callers. Claim merge promotes a draft
- * into a private Night Memory via createNightMemoryFromPlanRecap.
+ * Process-memory is the keyless / test backend. Supabase backs production so a
+ * refresh can resume the same draft across serverless invocations.
  */
 export type PendingPlanRecapStore = {
   list(ownerId: string): Promise<PendingPlanRecap[]>;
@@ -17,6 +21,8 @@ export type PendingPlanRecapStore = {
   remove(ownerId: string, completionId: string): Promise<boolean>;
   clearOwner(ownerId: string): Promise<void>;
 };
+
+const TABLE = "pending_plan_recaps";
 
 /** ownerId → completionId → draft */
 const byOwner = new Map<string, Map<string, PendingPlanRecap>>();
@@ -32,6 +38,18 @@ function ownerBucket(ownerId: string): Map<string, PendingPlanRecap> {
     byOwner.set(ownerId, bucket);
   }
   return bucket;
+}
+
+function draftFromRow(row: Record<string, unknown>): PendingPlanRecap | null {
+  return validatePendingPlanRecap(row.draft);
+}
+
+function schemaMissFallback<T>(fallback: () => Promise<T>): Promise<T> {
+  return onMissingDurableWrite({
+    storeTag: "pendingPlanRecapStore",
+    migrationHint: "0077_pending_plan_recaps",
+    fallback,
+  });
 }
 
 export const memoryPendingPlanRecapStore: PendingPlanRecapStore = {
@@ -65,11 +83,106 @@ export const memoryPendingPlanRecapStore: PendingPlanRecapStore = {
   },
 };
 
-/**
- * No Supabase table yet (Lane C ships memory + claim→Memory durability). The
- * selectStore seam keeps the door open for a later migration without callers
- * changing shape.
- */
+export const supabasePendingPlanRecapStore: PendingPlanRecapStore = {
+  async list(ownerId) {
+    if (!ownerId) return [];
+    const { data, error } = await requireSupabaseAdmin()
+      .from(TABLE)
+      .select("draft")
+      .eq("owner_id", ownerId)
+      .order("saved_at", { ascending: false });
+    if (error) {
+      if (isMissingTableSchema(error, TABLE)) {
+        return schemaMissFallback(() => memoryPendingPlanRecapStore.list(ownerId));
+      }
+      throw new Error(error.message);
+    }
+    return (data ?? [])
+      .map((row) => draftFromRow(row as Record<string, unknown>))
+      .filter((draft): draft is PendingPlanRecap => Boolean(draft));
+  },
+
+  async getByCompletion(ownerId, completionId) {
+    if (!ownerId || !completionId) return null;
+    const { data, error } = await requireSupabaseAdmin()
+      .from(TABLE)
+      .select("draft")
+      .eq("owner_id", ownerId)
+      .eq("completion_id", completionId)
+      .maybeSingle();
+    if (error) {
+      if (isMissingTableSchema(error, TABLE)) {
+        return schemaMissFallback(() =>
+          memoryPendingPlanRecapStore.getByCompletion(ownerId, completionId),
+        );
+      }
+      throw new Error(error.message);
+    }
+    return data ? draftFromRow(data as Record<string, unknown>) : null;
+  },
+
+  async upsert(ownerId, recap) {
+    if (!ownerId) return null;
+    const safe = validatePendingPlanRecap({
+      ...recap,
+      savedAt: new Date().toISOString(),
+    });
+    if (!safe) return null;
+    const row = {
+      owner_id: ownerId,
+      completion_id: safe.completionId,
+      plan_id: safe.planId,
+      draft: safe,
+      saved_at: safe.savedAt,
+    };
+    const { data, error } = await requireSupabaseAdmin()
+      .from(TABLE)
+      .upsert(row, { onConflict: "owner_id,completion_id" })
+      .select("draft")
+      .single();
+    if (error) {
+      if (isMissingTableSchema(error, TABLE)) {
+        return schemaMissFallback(() => memoryPendingPlanRecapStore.upsert(ownerId, safe));
+      }
+      throw new Error(error.message);
+    }
+    return draftFromRow(data as Record<string, unknown>);
+  },
+
+  async remove(ownerId, completionId) {
+    if (!ownerId || !completionId) return false;
+    const { error, count } = await requireSupabaseAdmin()
+      .from(TABLE)
+      .delete({ count: "exact" })
+      .eq("owner_id", ownerId)
+      .eq("completion_id", completionId);
+    if (error) {
+      if (isMissingTableSchema(error, TABLE)) {
+        return schemaMissFallback(() =>
+          memoryPendingPlanRecapStore.remove(ownerId, completionId),
+        );
+      }
+      throw new Error(error.message);
+    }
+    return (count ?? 0) > 0;
+  },
+
+  async clearOwner(ownerId) {
+    if (!ownerId) return;
+    const { error } = await requireSupabaseAdmin()
+      .from(TABLE)
+      .delete()
+      .eq("owner_id", ownerId);
+    if (error) {
+      if (isMissingTableSchema(error, TABLE)) {
+        await schemaMissFallback(() => memoryPendingPlanRecapStore.clearOwner(ownerId));
+        return;
+      }
+      throw new Error(error.message);
+    }
+  },
+};
+
 export function pendingPlanRecapStore(): PendingPlanRecapStore {
-  return selectStore(memoryPendingPlanRecapStore, memoryPendingPlanRecapStore);
+  return selectStore(memoryPendingPlanRecapStore, supabasePendingPlanRecapStore);
 }
