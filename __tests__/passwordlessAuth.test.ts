@@ -576,6 +576,7 @@ describe("auth callback URL safety", () => {
     expect(replacedCallback).toMatchObject({
       attempt: { attemptId: ATTEMPT_A, tokens: TOKENS, providerError: false },
       cleanUrl: "/plan/abc",
+      localAttemptOwned: false,
     });
     expect([...persistentValues.values()].join(" ")).toContain("#venue-b");
 
@@ -588,6 +589,7 @@ describe("auth callback URL safety", () => {
     expect(liveCallback).toMatchObject({
       attempt: { attemptId: ATTEMPT_B, tokens: TOKENS, providerError: false },
       cleanUrl: "/map#venue-b",
+      localAttemptOwned: true,
     });
   });
 
@@ -621,6 +623,7 @@ describe("auth callback URL safety", () => {
     expect(newTabCallback).toMatchObject({
       attempt: { attemptId: ATTEMPT_A, tokens: TOKENS, providerError: false },
       cleanUrl: "/plan/abc#invite=SECRET-A",
+      localAttemptOwned: true,
     });
     expect([...persistentValues.values()].join(" ")).not.toContain("SECRET-A");
     expect(tabAValues.size).toBe(1);
@@ -632,6 +635,7 @@ describe("auth callback URL safety", () => {
       .toMatchObject({
         attempt: { attemptId: ATTEMPT_A, tokens: TOKENS, providerError: false },
         cleanUrl: "/plan/abc",
+        localAttemptOwned: false,
       });
 
     releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabBStorage);
@@ -731,6 +735,8 @@ describe("auth callback URL safety", () => {
       tokens: TOKENS,
       providerError: false,
     });
+    // Cross-browser / unrelated attempt: no local claim → confirmation surface.
+    expect(unrelated?.localAttemptOwned).toBe(false);
     expect(persistentValues).toEqual(beforePersistent);
     expect(tabValues).toEqual(beforeTab);
 

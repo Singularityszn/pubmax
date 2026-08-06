@@ -464,3 +464,21 @@ export function __seedMemoryLegacyProfile(handle: string): ProfileRecord {
   memoryProfiles.set(key, record);
   return record;
 }
+
+/**
+ * Test-only: model ON DELETE SET NULL after an auth.users row is removed.
+ * The profile row and handle stay (attribution + reservation); userId goes.
+ */
+export function __tombstoneMemoryProfile(handle: string): ProfileRecord | null {
+  const key = normalizeHandle(handle);
+  if (!key) return null;
+  const existing = memoryProfiles.get(key);
+  if (!existing) return null;
+  const next: ProfileRecord = {
+    ...existing,
+    userId: undefined,
+    updatedAt: new Date().toISOString(),
+  };
+  memoryProfiles.set(key, next);
+  return next;
+}

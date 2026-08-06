@@ -24,7 +24,10 @@ import { POST as rename } from "@/app/api/identity/handle/rename/route";
 import { GET as resolve } from "@/app/api/identity/handle/resolve/route";
 import { GET as current } from "@/app/api/identity/handle/current/route";
 import { __resetMemoryIdentityHandles } from "@/lib/identityHandleStore";
-import { __resetMemoryProfiles } from "@/lib/profileStore";
+import {
+  __resetMemoryProfiles,
+  __tombstoneMemoryProfile,
+} from "@/lib/profileStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
 function request(path: string, method = "GET", body?: unknown): Request {
@@ -99,10 +102,42 @@ describe("PUBMAXX handle APIs", () => {
       requestedHandle: "night_owl",
       currentHandle: "dawn_owl",
       redirect: true,
+      status: "live",
     });
     expect(
       await (await current(request("/api/identity/handle/current"))).json(),
     ).toEqual({ handle: "dawn_owl" });
+  });
+
+  it("answers gone for a tombstoned handle and keeps the handle reserved", async () => {
+    authState.userId = "user-1";
+    const claimed = await claim(
+      request("/api/identity/handle/claim", "POST", { handle: "ghost_owl" }),
+    );
+    expect(claimed.status).toBe(201);
+    const body = await claimed.json();
+
+    // Model auth.users ON DELETE SET NULL: profile row stays, user_id clears.
+    expect(__tombstoneMemoryProfile("ghost_owl")?.userId).toBeUndefined();
+
+    const resolved = await resolve(
+      request("/api/identity/handle/resolve?handle=ghost_owl"),
+    );
+    expect(resolved.status).toBe(200);
+    expect(await resolved.json()).toEqual({
+      status: "gone",
+      handle: "ghost_owl",
+      profileId: body.profileId,
+    });
+
+    const availabilityResponse = await availability(
+      request("/api/identity/handle/availability?handle=ghost_owl"),
+    );
+    expect(await availabilityResponse.json()).toEqual({
+      handle: "ghost_owl",
+      available: false,
+      reason: "taken",
+    });
   });
 
   it.each(NEW_RESERVED_CONTRIBUTOR_HANDLE_INPUTS)(

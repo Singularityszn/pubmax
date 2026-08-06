@@ -21,6 +21,7 @@
 // device re-tapping the chip refreshes the timestamp but never inflates the
 // count — `confirms` stays an honest tally of distinct confirmers.
 
+import { DAY_MS } from "@/lib/dayMs";
 import { CONFIRM_WINDOW_DAYS } from "@/lib/priceConfidence";
 import { createFailSoftGuard, selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
@@ -81,7 +82,7 @@ const MAX_KEYS = 5_000;
 // actors at this scale, bounded on purpose.
 const CONFIRM_SCAN_ROWS = 2_000;
 
-const CONFIRM_WINDOW_MS = CONFIRM_WINDOW_DAYS * 86_400_000;
+const CONFIRM_WINDOW_MS = CONFIRM_WINDOW_DAYS * DAY_MS;
 
 const EMPTY: PriceConfirmResult = { confirms: 0, lastConfirmedAt: null, recentConfirms: 0 };
 

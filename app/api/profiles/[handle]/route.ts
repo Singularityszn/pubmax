@@ -127,6 +127,20 @@ export async function GET(
     const viewerFollowing =
       viewer && viewer !== handle ? await follows.isFollowing(viewer, handle) : false;
 
+    // user_id null after auth deletion is a reserved tombstone, not a live
+    // public profile. The row stays for attribution; the read answers gone.
+    if (profile && !profile.userId) {
+      return jsonNoStore(
+        {
+          profile: null,
+          status: "gone",
+          counts,
+          viewerFollowing: false,
+        },
+        { status: 200 },
+      );
+    }
+
     return jsonNoStore(
       { profile: toPublicProfile(profile), counts, viewerFollowing },
       { status: 200 },
