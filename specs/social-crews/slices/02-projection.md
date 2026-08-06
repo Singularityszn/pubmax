@@ -5,17 +5,31 @@
 Crew list and Crew Page reads expose only current authority. Private denial is
 `404`. A Mutual may receive a narrow friends preview and Join Request state.
 Only an active member who remains a current Mutual with owner receives full Plan
-state.
+state. Crew list is member-only; friend preview stays detail-only because it has
+no Crew identifier.
 
-Title, start time, nullable Night Area, phase, and route revision are projected
-from the Planned Night. `authorityRevision` comes from Crew authority storage
-and has no route meaning.
+Title, start time, nullable Night Area, and phase are projected from the Planned
+Night. Full detail also carries Plan `routeRevision` and Crew
+`authorityRevision`; collection deliberately omits both revisions.
 
 ## Seam
 
-`projectSocialCrewRead(raw, viewer)` is the only raw-row to browser boundary.
-`SocialCrewReadDTO` is the only route output. Cursors bind HMAC signature to
-viewer profile ID, lane, timestamp, and row ID.
+`projectSocialCrewRead(raw, viewer)` is the only detail raw-row to browser
+boundary. `projectSocialCrewListPage(raw, viewer, encodeCursor)` is the only
+collection boundary. Store injects the cursor encoder; projector validates raw
+position coherence and returns the final DTO without internal cursor fields.
+`SocialCrewReadDTO` is the only detail response and `SocialCrewListPageDTO` is
+the only collection response. Cursors bind HMAC
+signature to viewer profile ID, lane, timestamp, and row ID. Cursor position
+never grants authority.
+
+Canonical list types live in the parent Social Crew specification.
+
+One atomic list snapshot filters current authority before cursor and limit. It
+returns narrow item rows plus the last returned membership position only when
+another authorised row exists. A valid active actor with no Crews receives an
+empty `200`; stale account or profile binding receives `404`; database or
+signing-key failure receives `503`; invalid cursor receives `422`.
 
 ## RED cases
 
@@ -25,6 +39,8 @@ viewer profile ID, lane, timestamp, and row ID.
 - A block clears protected DTOs on next refetch.
 - Dependency failure returns `503`, not empty or `404`.
 - Actor A cursor fails for actor B.
+- List never performs per-item detail reads or returns full Plan state.
+- Authority filtering happens before `LIMIT + 1` and cursor position.
 - Legacy Plan tokens never return member projection for a Crew-bound Plan.
 
 ## Playable checkpoint

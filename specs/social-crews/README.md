@@ -120,6 +120,16 @@ export type SocialCrewPageDTO = {
 };
 
 export type SocialCrewReadDTO = SocialCrewPreviewDTO | SocialCrewPageDTO;
+
+export type SocialCrewListItemDTO = Pick<
+  SocialCrewPageDTO,
+  "kind" | "crewId" | "title" | "phase" | "nightArea" | "startsAt" | "viewer"
+>;
+
+export type SocialCrewListPageDTO = {
+  items: SocialCrewListItemDTO[];
+  nextCursor: string | null;
+};
 ```
 
 Preview contains no Crew ID, Plan ID, route, exact Venue, member identity,
@@ -130,6 +140,10 @@ never a fake empty response.
 Full Crew projection omits legacy `PlanState.crew`. Social members come only
 from `SocialCrewMemberDTO`; old Plan guests are not projected as Social Crew
 members and their legacy Plan member IDs never enter the browser DTO.
+
+Crew collection is active-member-only and uses `SocialCrewListItemDTO`. Friend
+preview stays detail-only because it contains no Crew identifier. The list
+never returns full Plan, Stops, actions, members, or Join Request state.
 
 ## Slice graph
 
