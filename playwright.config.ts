@@ -1,6 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
 
+import { resolvePlaywrightNextDistDir } from "./lib/playwrightDistDir";
+
 // P3.11 browser smoke suite. Chromium projects use production builds on
 // fixed ports (kept off 3000 so they won't collide
 // with a hand-run `next dev`). Assertions are WebGL-agnostic so headless boxes
@@ -13,8 +15,7 @@ const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 const SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === "1";
 const FIREFOX_DESKTOP_MAP_CHROME_FIT =
   process.env.PW_FIREFOX_DESKTOP_MAP_CHROME_FIT === "1";
-const NEXT_DIST_DIR =
-  process.env.PW_NEXT_DIST_DIR ?? (SCREENSHOT_RUN ? ".next" : ".next-e2e");
+const NEXT_DIST_DIR = resolvePlaywrightNextDistDir();
 const KEYLESS_NEXT_DIST_DIR =
   process.env.PW_KEYLESS_NEXT_DIST_DIR ?? `${NEXT_DIST_DIR}-keyless`;
 // Production-style browser tests retain the keyless in-memory stores, but
@@ -60,13 +61,13 @@ export default defineConfig({
     trace: "on-first-retry",
     video: process.env.PUBMAX_GATE_Z_VIDEO ? "on" : "off",
   },
-  // Screenshots are design-QA artifacts, not assertions: kept out of the
-  // `chromium` project (testIgnore below) and out of `playwright test`'s
-  // project list entirely by default — Playwright runs every configured
-  // project when no --project filter is given, so the "screenshots" project
-  // below are only added to the array when PW_SCREENSHOTS=1 is set. Each
-  // device/theme combination is a real Playwright project so `npm run shots`
-  // exercises (and reports) the complete design-QA matrix explicitly.
+  // Screenshot projects produce design-QA artifacts and assert each journey's
+  // ready state. e2e/screenshots.spec.ts owns the map-paint requirement. Keep
+  // them out of the `chromium` project (testIgnore below) and out of
+  // `playwright test`'s project list by default. Playwright runs every
+  // configured project when no --project filter is given, so these projects
+  // are added only when PW_SCREENSHOTS=1 is set. Each device/theme combination
+  // is a real Playwright project, so `npm run shots` reports the matrix.
   projects: [
     {
       name: "chromium",
@@ -217,13 +218,12 @@ export default defineConfig({
                 ...(formFactor === "mobile" ? devices["iPhone 13"] : devices["Desktop Chrome"]),
                 browserName: "chromium" as const,
                 viewport: { width, height },
-                ...(formFactor === "desktop"
-                  ? {
-                      launchOptions: {
-                        args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-                      },
-                    }
-                  : {}),
+                // Mobile and desktop both need a real GL stack: without
+                // SwiftShader headless Chromium can sit forever on the map
+                // loading shell and the visual gate would snapshot a lie.
+                launchOptions: {
+                  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+                },
               },
               testMatch: "**/screenshots.spec.ts",
             })),

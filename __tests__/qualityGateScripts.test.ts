@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 
+import { resolvePlaywrightNextDistDir } from "@/lib/playwrightDistDir";
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempDirectories: string[] = [];
 
@@ -85,12 +87,36 @@ afterEach(() => {
 });
 
 describe("Playwright isolated build configuration", () => {
+  it.each([
+    [
+      "explicit screenshot override",
+      {
+        PW_NEXT_DIST_DIR: ".next-custom",
+        PW_SCREENSHOTS: "1",
+        NEXT_DIST_DIR: ".next-isolated",
+      },
+      ".next-custom",
+    ],
+    [
+      "explicit normal E2E override",
+      { PW_NEXT_DIST_DIR: ".next-custom", NEXT_DIST_DIR: ".next-prod" },
+      ".next-custom",
+    ],
+    [
+      "screenshot wrapper directory",
+      { PW_SCREENSHOTS: "1", NEXT_DIST_DIR: ".next-isolated" },
+      ".next-isolated",
+    ],
+    ["screenshot default", { PW_SCREENSHOTS: "1" }, ".next"],
+    ["normal E2E default", { NEXT_DIST_DIR: ".next-prod" }, ".next-e2e"],
+  ])("resolves %s", (_label, env, expected) => {
+    expect(resolvePlaywrightNextDistDir(env)).toBe(expected);
+  });
+
   it("passes PW_NEXT_DIST_DIR through webServer.env", () => {
     const source = readFileSync(path.join(ROOT, "playwright.config.ts"), "utf8");
 
-    expect(source).toContain(
-      'process.env.PW_NEXT_DIST_DIR ?? (SCREENSHOT_RUN ? ".next" : ".next-e2e")',
-    );
+    expect(source).toContain("resolvePlaywrightNextDistDir()");
     expect(source).toContain("SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === \"1\"");
     expect(source).toContain("webServer: SKIP_WEBSERVER");
     expect(source).toContain('name: "chromium-keyless"');
