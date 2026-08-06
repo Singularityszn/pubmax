@@ -61,13 +61,13 @@ export default defineConfig({
     trace: "on-first-retry",
     video: process.env.PUBMAX_GATE_Z_VIDEO ? "on" : "off",
   },
-  // Screenshots are design-QA artifacts, not assertions: kept out of the
-  // `chromium` project (testIgnore below) and out of `playwright test`'s
-  // project list entirely by default — Playwright runs every configured
-  // project when no --project filter is given, so the "screenshots" project
-  // below are only added to the array when PW_SCREENSHOTS=1 is set. Each
-  // device/theme combination is a real Playwright project so `npm run shots`
-  // exercises (and reports) the complete design-QA matrix explicitly.
+  // Screenshot projects produce design-QA artifacts and assert each journey's
+  // ready state. e2e/screenshots.spec.ts owns the map-paint requirement. Keep
+  // them out of the `chromium` project (testIgnore below) and out of
+  // `playwright test`'s project list by default. Playwright runs every
+  // configured project when no --project filter is given, so these projects
+  // are added only when PW_SCREENSHOTS=1 is set. Each device/theme combination
+  // is a real Playwright project, so `npm run shots` reports the matrix.
   projects: [
     {
       name: "chromium",
