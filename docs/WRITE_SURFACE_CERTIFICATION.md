@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 77 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 78 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -19,7 +19,8 @@ CI until this certification is deliberately updated.
 > Recommendations `POST /api/weather-recommendations`) → 74 (private referral
 > invite-link creation and same-journey signup claim) → 75 (private Social
 > product-account migration) → 77 (verified Social post creation and item
-> editing or recoverable removal). Account onboarding
+> editing or recoverable removal) → 78 (shared Plan group preferences
+> `POST/DELETE /api/plans/[id]/group-prefs`). Account onboarding
 > replaces the earlier identity claim POST, so its route does not change the
 > count.
 > Token-gated GET
@@ -139,6 +140,35 @@ moderation state, revision or timestamp is accepted from the request body.
   work for edits and removals.
 - **Failure:** A post outside stable profile ownership returns 403 or 404. A
   hidden, removed or moderation-held post never appears through the item read.
+
+### `app/api/plans/[id]/group-prefs` - shared Plan group preferences (route 78)
+
+- **Route / method:** `POST` and `DELETE` on
+  `app/api/plans/[id]/group-prefs/route.ts` (Lane D shared group prefs). The
+  route also exports a member-capability `GET` (list + merged hard constraints)
+  which is NOT a mutating verb and is not counted.
+- **Validation:** `parseGroupPrefWriteInput` (`lib/groupPrefs.ts`) requires a
+  closed budget band (`under6` | `standard` | `flexible`) and atmosphere chip
+  (`cosy` | `chatty` | `lively` | `music` | `food`); boolean must-haves are
+  `zeroProof`, `accessibilityRequired`, and `weatherShelterRequired`. Invalid
+  bodies 400 before the store is touched. The store and migration CHECKs
+  re-validate.
+- **Rate limit (boundary):** durable per-plan + hashed-IP `isLimited` with keys
+  `plan-group-prefs:${id}:${hashIp(...)}` (POST) and
+  `plan-group-prefs-clear:${id}:${hashIp(...)}` (DELETE). Raw IP never keyed.
+- **Auth stance:** member-capability bound via `planMemberCapability`. The store
+  admits only the host or a collaboration-authorized guest. Rows are keyed by
+  `(plan_id, member_id)`; a token for plan A cannot read or write plan B.
+- **Hard constraints:** `overlapGroupPrefs` merges the strictest budget and any
+  zero-proof / step-free / covered-shelter ask into `hardConstraints` /
+  `mustHaveLabels`. These must-haves are never silently relaxed when a looser
+  mate joins.
+- **Rollback / kill:** durable rows live in `public.plan_member_group_prefs` +
+  `public.plan_member_group_pref_requests` (migration **0076**, RLS on,
+  anon/authenticated revoked, service_role only). Forward:
+  `supabase/migrations/20260806160000_0076_plan_member_group_prefs.sql`.
+  Rollback:
+  `supabase/migrations/rollback/20260806160000_0076_plan_member_group_prefs_rollback.sql`.
 
 ### `app/api/push-tokens` — native/web push registration (route 61)
 

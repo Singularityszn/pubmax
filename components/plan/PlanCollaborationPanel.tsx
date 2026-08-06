@@ -280,7 +280,9 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
         </div>
       ) : null}
 
-      {state.memberId ? <MatchGroupPrefs planId={planId} memberId={state.memberId} /> : null}
+      {state.memberId ? (
+        <MatchGroupPrefs planId={planId} memberId={state.memberId} memberToken={memberToken} isHost={isHost} />
+      ) : null}
 
       <form className="planCollab__form" onSubmit={addConstraint}>
         <strong>Add a need</strong>

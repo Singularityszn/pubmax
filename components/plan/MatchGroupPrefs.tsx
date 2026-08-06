@@ -1,140 +1,183 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   GROUP_PREF_ATMOSPHERE_CHIPS,
   GROUP_PREF_BUDGET_BANDS,
-  overlapGroupPrefs,
-  parseMatePreference,
   type GroupPrefAtmosphereChip,
   type GroupPrefBudgetBand,
+  type GroupPrefsOverlap,
   type MatePreference,
 } from "@/lib/groupPrefs";
 
 type Props = {
   planId: string;
   memberId: string;
+  memberToken: string;
+  isHost: boolean;
 };
+
 type DraftPref = {
   budgetBand?: GroupPrefBudgetBand;
   atmosphereChip?: GroupPrefAtmosphereChip;
   zeroProof?: boolean;
+  accessibilityRequired?: boolean;
+  weatherShelterRequired?: boolean;
 };
 
-const STORAGE_PREFIX = "pubmaxx:match-group-prefs:v1:";
-
-function planStoragePrefix(planId: string): string {
-  return `${STORAGE_PREFIX}${planId}:`;
+function operationKey(): string {
+  return typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function prefStorageKey(planId: string, memberId: string): string {
-  return `${planStoragePrefix(planId)}${memberId}`;
-}
+const EMPTY_OVERLAP: GroupPrefsOverlap = {
+  mateCount: 0,
+  hardConstraints: {
+    budgetBand: null,
+    budgetLabel: null,
+    zeroProofRequired: false,
+    accessibilityRequired: false,
+    weatherShelterRequired: false,
+    sharedAtmosphereChips: [],
+  },
+  softScore: 0,
+  scoreLabel: "No picks yet",
+  summaryLabels: ["waiting on mate picks"],
+  mustHaveLabels: [],
+};
 
-function changeEvent(planId: string): string {
-  return `pubmaxx:match-group-prefs:${planId}`;
-}
-
-function readPlanPrefsSnapshot(planId: string): string {
-  if (typeof window === "undefined") return "[]";
-  const prefix = planStoragePrefix(planId);
-  const rows: Array<[string, string]> = [];
-  try {
-    for (let index = 0; index < window.localStorage.length; index += 1) {
-      const key = window.localStorage.key(index);
-      if (!key?.startsWith(prefix)) continue;
-      rows.push([key, window.localStorage.getItem(key) ?? ""]);
-    }
-    return JSON.stringify(rows.sort(([left], [right]) => left.localeCompare(right)));
-  } catch {
-    return "[]";
-  }
-}
-
-function prefsFromSnapshot(snapshot: string): MatePreference[] {
-  let rows: unknown;
-  try {
-    rows = JSON.parse(snapshot);
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(rows)) return [];
-  return rows.flatMap((row) => {
-    if (!Array.isArray(row) || typeof row[1] !== "string") return [];
-    try {
-      const pref = parseMatePreference(JSON.parse(row[1]));
-      return pref ? [pref] : [];
-    } catch {
-      return [];
-    }
-  });
-}
-
-export default function MatchGroupPrefs({ planId, memberId }: Props) {
+export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost }: Props) {
   const [draft, setDraft] = useState<DraftPref>({});
+  const [prefs, setPrefs] = useState<MatePreference[]>([]);
+  const [overlap, setOverlap] = useState<GroupPrefsOverlap>(EMPTY_OVERLAP);
   const [status, setStatus] = useState("");
-  const snapshot = useSyncExternalStore(
-    (onChange) => {
-      const eventName = changeEvent(planId);
-      window.addEventListener("storage", onChange);
-      window.addEventListener(eventName, onChange);
-      return () => {
-        window.removeEventListener("storage", onChange);
-        window.removeEventListener(eventName, onChange);
-      };
-    },
-    () => readPlanPrefsSnapshot(planId),
-    () => "[]",
-  );
-  const prefs = useMemo(() => prefsFromSnapshot(snapshot), [snapshot]);
-  const myPref = useMemo(() => prefs.find((pref) => pref.mateId === memberId) ?? null, [memberId, prefs]);
-  const overlap = useMemo(() => overlapGroupPrefs(prefs), [prefs]);
+  const [pending, setPending] = useState(false);
+  const [shared, setShared] = useState(false);
+
+  const refresh = useCallback(async () => {
+    if (!memberToken) return;
+    try {
+      const response = await fetch(`/api/plans/${planId}/group-prefs`, {
+        cache: "no-store",
+        headers: { authorization: `Bearer ${memberToken}` },
+      });
+      if (!response.ok) return;
+      const body = await response.json() as { prefs?: MatePreference[]; overlap?: GroupPrefsOverlap };
+      setPrefs(Array.isArray(body.prefs) ? body.prefs : []);
+      setOverlap(body.overlap && typeof body.overlap === "object" ? body.overlap : EMPTY_OVERLAP);
+      const mine = Array.isArray(body.prefs) ? body.prefs.find((pref) => pref.mateId === memberId) : null;
+      setShared(Boolean(mine));
+    } catch {
+      // Keep the last confirmed shared prefs during a transient failure.
+    }
+  }, [memberId, memberToken, planId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void refresh(), 0);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, 15_000);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(interval);
+    };
+  }, [refresh]);
+
+  const myPref = prefs.find((pref) => pref.mateId === memberId) ?? null;
   const budgetBand = draft.budgetBand ?? myPref?.budgetBand ?? "";
   const atmosphereChip = draft.atmosphereChip ?? myPref?.atmosphereChips[0] ?? "";
   const zeroProof = draft.zeroProof ?? myPref?.zeroProof ?? false;
+  const accessibilityRequired = draft.accessibilityRequired ?? myPref?.accessibilityRequired ?? false;
+  const weatherShelterRequired = draft.weatherShelterRequired ?? myPref?.weatherShelterRequired ?? false;
 
-  function save(next: { budgetBand?: GroupPrefBudgetBand; atmosphereChip?: GroupPrefAtmosphereChip; zeroProof?: boolean }) {
+  async function save(next: DraftPref) {
     const nextBudget = next.budgetBand ?? budgetBand;
     const nextAtmosphere = next.atmosphereChip ?? atmosphereChip;
     const nextZeroProof = next.zeroProof ?? zeroProof;
-    setDraft({ budgetBand: nextBudget || undefined, atmosphereChip: nextAtmosphere || undefined, zeroProof: nextZeroProof });
+    const nextAccess = next.accessibilityRequired ?? accessibilityRequired;
+    const nextWeather = next.weatherShelterRequired ?? weatherShelterRequired;
+    setDraft({
+      budgetBand: nextBudget || undefined,
+      atmosphereChip: nextAtmosphere || undefined,
+      zeroProof: nextZeroProof,
+      accessibilityRequired: nextAccess,
+      weatherShelterRequired: nextWeather,
+    });
     if (!nextBudget || !nextAtmosphere) {
       setStatus("Pick a budget and a vibe to save.");
       return;
     }
-    const pref: MatePreference = {
-      mateId: memberId,
-      budgetBand: nextBudget,
-      atmosphereChips: [nextAtmosphere],
-      zeroProof: nextZeroProof,
-      updatedAt: new Date().toISOString(),
-    };
+    setPending(true);
+    setStatus("");
     try {
-      window.localStorage.setItem(prefStorageKey(planId, memberId), JSON.stringify(pref));
-      window.dispatchEvent(new Event(changeEvent(planId)));
-      setStatus("Saved on this device.");
+      const response = await fetch(`/api/plans/${planId}/group-prefs`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${memberToken}`,
+          "idempotency-key": operationKey(),
+        },
+        body: JSON.stringify({
+          budgetBand: nextBudget,
+          atmosphereChip: nextAtmosphere,
+          zeroProof: nextZeroProof,
+          accessibilityRequired: nextAccess,
+          weatherShelterRequired: nextWeather,
+        }),
+      });
+      const body = await response.json().catch(() => ({})) as {
+        pref?: MatePreference;
+        overlap?: GroupPrefsOverlap;
+        error?: string;
+      };
+      if (!response.ok) {
+        setStatus(typeof body.error === "string" ? body.error : "Could not share these picks yet.");
+        return;
+      }
+      if (body.overlap) setOverlap(body.overlap);
+      setShared(true);
       setDraft({});
+      setStatus("Saved and shared with this plan.");
+      await refresh();
     } catch {
-      setStatus("This browser could not save your picks.");
+      setStatus("Could not share these picks yet.");
+    } finally {
+      setPending(false);
     }
   }
 
-  function clearPrefs() {
+  async function clearPrefs() {
+    setPending(true);
+    setStatus("");
     try {
-      window.localStorage.removeItem(prefStorageKey(planId, memberId));
-      window.dispatchEvent(new Event(changeEvent(planId)));
+      const response = await fetch(`/api/plans/${planId}/group-prefs`, {
+        method: "DELETE",
+        headers: { authorization: `Bearer ${memberToken}` },
+      });
+      const body = await response.json().catch(() => ({})) as { overlap?: GroupPrefsOverlap; error?: string };
+      if (!response.ok) {
+        setStatus(typeof body.error === "string" ? body.error : "Could not clear shared picks.");
+        return;
+      }
+      if (body.overlap) setOverlap(body.overlap);
+      setShared(false);
+      setDraft({});
+      setStatus("Shared picks cleared.");
+      await refresh();
     } catch {
-      // Best effort. The controls reset even if storage is restricted.
+      setStatus("Could not clear shared picks.");
+    } finally {
+      setPending(false);
     }
-    setDraft({});
-    setStatus("Device picks cleared.");
   }
 
   const summary = overlap.summaryLabels.join(", ");
   const meta = overlap.mateCount > 1
     ? `${overlap.scoreLabel}, ${overlap.softScore}%`
-    : overlap.mateCount === 1 ? "Waiting for another saved mate on this device." : "No saved picks on this device yet.";
+    : overlap.mateCount === 1
+      ? "Waiting for another mate to save shared picks."
+      : "No shared picks on this plan yet.";
+  const mustHaves = overlap.mustHaveLabels.join(", ");
 
   return (
     <section className="matchGroupPrefs" aria-labelledby="match-group-prefs-title">
@@ -143,15 +186,24 @@ export default function MatchGroupPrefs({ planId, memberId }: Props) {
           <p className="matchGroupPrefs__eyebrow">Sort My Night P1</p>
           <h4 id="match-group-prefs-title">Match the group</h4>
         </div>
-        <span>Saved on this device</span>
+        <span>{shared ? "Shared with this plan" : "Not shared yet"}</span>
       </div>
-      <p className="matchGroupPrefs__intro">Pick a budget, a vibe and optional zero-proof need. Another phone will not see this yet.</p>
+      <p className="matchGroupPrefs__intro">
+        Pick a budget, a vibe and optional needs. Saved picks are shared with everyone on this plan.
+      </p>
 
       <div className="matchGroupPrefs__field">
         <strong>Budget</strong>
         <div className="matchGroupPrefs__chips" role="group" aria-label="Budget preference">
           {GROUP_PREF_BUDGET_BANDS.map((band) => (
-            <button key={band.id} type="button" className="matchGroupPrefs__chip" aria-pressed={budgetBand === band.id} onClick={() => save({ budgetBand: band.id })}>
+            <button
+              key={band.id}
+              type="button"
+              className="matchGroupPrefs__chip"
+              aria-pressed={budgetBand === band.id}
+              disabled={pending}
+              onClick={() => void save({ budgetBand: band.id })}
+            >
               {band.label}
             </button>
           ))}
@@ -162,7 +214,14 @@ export default function MatchGroupPrefs({ planId, memberId }: Props) {
         <strong>Vibe</strong>
         <div className="matchGroupPrefs__chips" role="group" aria-label="Atmosphere preference">
           {GROUP_PREF_ATMOSPHERE_CHIPS.map((chip) => (
-            <button key={chip.id} type="button" className="matchGroupPrefs__chip" aria-pressed={atmosphereChip === chip.id} onClick={() => save({ atmosphereChip: chip.id })}>
+            <button
+              key={chip.id}
+              type="button"
+              className="matchGroupPrefs__chip"
+              aria-pressed={atmosphereChip === chip.id}
+              disabled={pending}
+              onClick={() => void save({ atmosphereChip: chip.id })}
+            >
               {chip.label}
             </button>
           ))}
@@ -170,13 +229,43 @@ export default function MatchGroupPrefs({ planId, memberId }: Props) {
       </div>
 
       <div className="matchGroupPrefs__actions">
-        <button type="button" className="matchGroupPrefs__chip" aria-pressed={zeroProof} onClick={() => save({ zeroProof: !zeroProof })}>
+        <button
+          type="button"
+          className="matchGroupPrefs__chip"
+          aria-pressed={zeroProof}
+          disabled={pending}
+          onClick={() => void save({ zeroProof: !zeroProof })}
+        >
           Zero-proof needed
         </button>
-        <button type="button" className="planCollab__quiet" onClick={clearPrefs}>
+        <button
+          type="button"
+          className="matchGroupPrefs__chip"
+          aria-pressed={accessibilityRequired}
+          disabled={pending}
+          onClick={() => void save({ accessibilityRequired: !accessibilityRequired })}
+        >
+          Step-free access
+        </button>
+        <button
+          type="button"
+          className="matchGroupPrefs__chip"
+          aria-pressed={weatherShelterRequired}
+          disabled={pending}
+          onClick={() => void save({ weatherShelterRequired: !weatherShelterRequired })}
+        >
+          Covered shelter
+        </button>
+        <button type="button" className="planCollab__quiet" onClick={() => void clearPrefs()} disabled={pending}>
           Clear my picks
         </button>
       </div>
+
+      {isHost && mustHaves ? (
+        <output className="matchGroupPrefs__mustHaves" aria-live="polite">
+          Must-haves for this plan: {mustHaves}. The planner will not silently drop these.
+        </output>
+      ) : null}
 
       <output className="matchGroupPrefs__summary" aria-live="polite">
         Crew overlap: {summary || "waiting on mate picks"}. {meta}

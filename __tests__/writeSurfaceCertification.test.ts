@@ -112,10 +112,12 @@ describe("mutating API surface certification", () => {
     // caller, and neither exposes an invite edge. Account onboarding replaces
     // the earlier identity claim POST, so removing the superseded
     // contribution-age route returns the inventory to 74. The protected Social
-    // account-migration POST adds route 75. The
+    // account-migration POST adds route 75. Verified Social post create + item
+    // mutate bring the inventory to 77. Shared Plan group preferences
+    // (app/api/plans/[id]/group-prefs/route.ts) add route 78.
     // deliberate merge-coordination point: any branch adding a mutating route
     // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(77);
+    expect(mutationRoutes).toHaveLength(78);
   });
 
   it("certifies both verified Social post write routes", () => {
