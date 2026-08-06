@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
+import { whatsappShareHref } from "@/lib/shareArtifacts";
 
 // The recap share affordance — deliberately two-state and approval-gated.
 //
@@ -36,13 +37,6 @@ function toAbsoluteUrl(url: string): string {
   } catch {
     return url;
   }
-}
-
-// wa.me href — text first, absolute url appended. Mirrors lib/shareArtifacts.ts
-// whatsappShareHref (#314, unmerged on main). REBASE-BY-INTENT: when #314 lands,
-// import that helper here and delete this local copy.
-function whatsappHref(text: string, absolute: string): string {
-  return `https://wa.me/?text=${encodeURIComponent(`${text} ${absolute}`)}`;
 }
 
 export default function RecapShareButton({ planId, shareText, shareUrl }: RecapShareButtonProps) {
@@ -107,11 +101,11 @@ export default function RecapShareButton({ planId, shareText, shareUrl }: RecapS
     <div className="recapShare" role="group" aria-label="Share this recap">
       <a
         className="recapShare__cta"
-        href={whatsappHref(shareText, shareUrl)}
+        href={whatsappShareHref(shareText, shareUrl)}
         onClick={(event) => {
           event.preventDefault();
           trackEvent("recap_shared", { channel: "whatsapp", planId });
-          window.open(whatsappHref(shareText, toAbsoluteUrl(shareUrl)), "_blank", "noopener,noreferrer");
+          window.open(whatsappShareHref(shareText, toAbsoluteUrl(shareUrl)), "_blank", "noopener,noreferrer");
         }}
         target="_blank"
         rel="noreferrer"

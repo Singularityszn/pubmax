@@ -16,6 +16,7 @@ import { createPrivateKey, sign as cryptoSign } from "node:crypto";
 import { connect as http2Connect, constants as http2Constants } from "node:http2";
 import webpush from "web-push";
 
+import type { DeliveryStatus } from "@/lib/deliveryStatus";
 import {
   decodeWebPushSubscription,
   isWebPushToken,
@@ -36,8 +37,9 @@ export type PushPayload = {
 };
 
 /** Terminal disposition of a single token in a send. `invalid` tokens are
- *  pruned by the caller (APNs 410 / BadDeviceToken); `error` is retryable. */
-export type PushDeliveryStatus = "sent" | "skipped" | "invalid" | "error";
+ *  pruned by the caller (APNs 410 / BadDeviceToken); `error` is retryable.
+ *  Derived from the shared DeliveryStatus owner (lib/deliveryStatus.ts). */
+export type PushDeliveryStatus = DeliveryStatus;
 
 export type PerTokenResult = {
   token: string;

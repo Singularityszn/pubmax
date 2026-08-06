@@ -229,6 +229,63 @@ export function useMapSurfaceNavigation({
     window.history.back();
   }, []);
 
+  const resolveSelection = useCallback(
+    (requestedVenueId: string, canonicalVenueId: string) => {
+      if (
+        typeof window === "undefined" ||
+        !requestedVenueId ||
+        !canonicalVenueId
+      ) {
+        return;
+      }
+      const held = stackRef.current;
+      const current = currentSurface(held);
+      const { pathname, search, hash } = window.location;
+      if (current?.id === "venue" && current.state?.venueId === requestedVenueId) {
+        if (requestedVenueId === canonicalVenueId) return;
+        const resolvedEntry = {
+          ...current,
+          state: { ...current.state, venueId: canonicalVenueId },
+        };
+        const next = [...held.slice(0, -1), resolvedEntry] as SurfaceStack<MapSurfaceState>;
+        publishStack(next);
+        window.history.replaceState(
+          stampMapSurfaceHistory(window.history.state, next, canonicalVenueId),
+          "",
+          browseSelectionUrl(pathname, search, canonicalVenueId, hash),
+        );
+        return;
+      }
+      if (new URLSearchParams(search).get("sel") !== requestedVenueId) return;
+      window.history.replaceState(
+        stampMapSurfaceHistory(window.history.state, held, selectedVenueId(held)),
+        "",
+        cleanMapUrl(pathname, search, hash),
+      );
+    },
+    [publishStack],
+  );
+
+  const rejectSelection = useCallback(
+    (venueId: string) => {
+      if (typeof window === "undefined" || !venueId) return;
+      const held = stackRef.current;
+      const current = currentSurface(held);
+      if (current?.id === "venue" && current.state?.venueId === venueId) {
+        back();
+        return;
+      }
+      const { pathname, search, hash } = window.location;
+      if (new URLSearchParams(search).get("sel") !== venueId) return;
+      window.history.replaceState(
+        stampMapSurfaceHistory(window.history.state, held, selectedVenueId(held)),
+        "",
+        cleanMapUrl(pathname, search, hash),
+      );
+    },
+    [back],
+  );
+
   const home = useCallback(() => {
     const held = stackRef.current;
     if (!held.length) return;
@@ -243,8 +300,10 @@ export function useMapSurfaceNavigation({
       back,
       home,
       open,
+      rejectSelection,
+      resolveSelection,
       holdsSurface: (id: MapSurfaceId) => stack.some((entry) => entry.id === id),
     }),
-    [back, home, open, stack],
+    [back, home, open, rejectSelection, resolveSelection, stack],
   );
 }

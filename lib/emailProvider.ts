@@ -24,6 +24,8 @@
 // → { status: "invalid" }, and a 429/5xx → { status: "error" } (retryable).
 // That transport is intentionally NOT implemented here.
 
+import type { DeliveryStatus } from "@/lib/deliveryStatus";
+
 /** A single email, provider-agnostic. Rendered HTML + a plain-text alternative
  *  (both required — every message ships a text/plain part for deliverability and
  *  for clients that refuse HTML). */
@@ -39,8 +41,9 @@ export type EmailMessage = {
 
 /** Terminal disposition of a single message in a send. `invalid` addresses are
  *  pruned/suppressed by the caller (hard bounce / malformed); `error` is
- *  retryable (rate limit, transient 5xx). */
-export type EmailDeliveryStatus = "sent" | "skipped" | "invalid" | "error";
+ *  retryable (rate limit, transient 5xx).
+ *  Derived from the shared DeliveryStatus owner (lib/deliveryStatus.ts). */
+export type EmailDeliveryStatus = DeliveryStatus;
 
 export type PerMessageResult = {
   to: string;

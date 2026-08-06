@@ -6,6 +6,9 @@ pre-merge PR branches; this pass re-verifies every non-final verdict **against H
 (`77d65a6a`, post-#415) and folds in the 2026-07-19 two-axis review (spec + backend standards +
 frontend standards, diff `e6dfa164...HEAD`, 238 commits).
 
+Rows 15, 16, 35, 36, 42, and 53 were re-verified on 2026-08-06 at `b8737d98` and marked
+resolved. Other verdicts retain their original review evidence.
+
 **Method:** every row below was re-run in this worktree against HEAD (grep / file read / `gh`
 state / test assertion), not carried forward on trust. Rows from V1/V2 whose verdict was already
 final and whose subject merged unchanged are closed under "Shipped" and not re-argued.
@@ -19,7 +22,7 @@ recorded).
 
 ## Headline
 
-Of the 63 V1/V2 rows plus 11 new findings from the 07-19 review: **31 resolved or shipped, 7 of
+At the initial 2026-07-19 review, of the 63 V1/V2 rows plus 11 new findings: **31 resolved or shipped, 7 of
 today's 11 already fixed same-day, 1 refuted, 12 still open** (all minor or owner-gated; zero
 blocker severity). The three P1/P2 classes V1 left live in code — prompt-budget adoption, the
 identity-first ordering guard, and the analytics `platform` payload — are all **wired on main
@@ -43,18 +46,18 @@ now**. The largest remaining debt is cosmetic token hygiene and two doc gaps.
 | 11 | #279 dataset `*.meta.json` provenance | **CONFIRMED-OPEN** | `git ls-files | grep -c 'meta.json$'` = **0**. Still unbuilt. |
 | 12 | #252 six-companion system open | **CONFIRMED-OPEN · progress** | `components/pal/` now ships `PalExperience`/`PalPortrait` onboarding plus `/pal/chat` (#412). Companion system partially real; #252 remains open for the rest. |
 | 13 | #283 lacks a11y matrix proof | **RESOLVED** | `docs/A11Y_MATRIX_2026-07-18.md` exists on main; #282/#287 remain open-deferred per London-only launch (correct). |
-| 15 | Duplicated `DeliveryStatus` unions | **CONFIRMED-OPEN · minor** | Verbatim duplicates at `lib/pushProvider.ts:34` and `lib/emailProvider.ts:43`. |
-| 16 | Magic `86_400_000` day-ms | **CONFIRMED-OPEN · minor** | `lib/weeklyDigest.ts:161,180,364`, `lib/pintContributions.ts:42`; no shared `DAY_MS` exported anywhere in `lib/`. |
+| 15 | Duplicated `DeliveryStatus` unions | **RESOLVED (2026-08-06)** | `lib/deliveryStatus.ts` owns `DeliveryStatus`; push and email export provider-specific aliases derived from it. |
+| 16 | Magic `86_400_000` day-ms | **RESOLVED (2026-08-06)** | `lib/dayMs.ts` owns `DAY_MS`; the scoped digest and contribution arithmetic import it. |
 | 18 | promptBudget one-sided (P1) | **RESOLVED** | All four surfaces adopt: `grep -rl claimPromptBudget components/` = A2HSInstallPrompt, IdentityNudge, NativePushPrompt; FirstRunTour via `claimTourPromptBudget` (`components/onboarding/FirstRunTour.tsx`, `lib/firstRunTour.ts`). |
 | 19 | Identity/push ordering guard dead code (P1) | **RESOLVED** | Guard wired in production: `components/plan/PlanCrew.tsx:167` `if (!isIdentityNudgePending())` gates the high-intent push record; PlanComposer documents the ordering (:528). |
 | 20 | `pwa_install_*` payload drift (P2) | **RESOLVED** | `lib/analyticsEvents.ts:94-95` registers `["platform"]` for both events. |
 | 29 | Write-path newline inconsistency | **OWNER · cosmetic** | Unchanged; harmless post `build:slim`. |
 | 30 | Coverage doc date-stamps | **CONFIRMED-OPEN · cosmetic** | Single `BOROUGH_COVERAGE_2026-07-17.md` today; duplication risk only materialises on re-run. |
-| 35 | `pubsGallery.css` raw `--brass` (was 11) | **PARTIAL** | Down to **4** refs (`components/pubs/pubsGallery.css:143-144,204-205`). Migrate to role tokens with the next /pubs touch. |
-| 36 | Identity nudge CTA raw `--brass` | **CONFIRMED-OPEN · minor** | `components/identity/identityNudge.css:100-101`. One-line swap to `--accent-action` family. |
+| 35 | `pubsGallery.css` raw `--brass` (was 11) | **RESOLVED (2026-08-06)** | `components/pubs/pubsGallery.css` uses role tokens; no raw `--brass` reference remains. |
+| 36 | Identity nudge CTA raw `--brass` | **RESOLVED (2026-08-06)** | `components/identity/identityNudge.css` uses the `--accent-action` role token. |
 | 39 | Recap photo signed-URL TTL | **RESOLVED (on main)** | `lib/nightMomentMedia.ts:36` `PUBLIC_RECAP_PHOTO_TTL_SECONDS = 180`. |
 | 40 | RICH OG 11-min revocation window | **ACCEPTED** | `lib/recapCard.ts:190-191` unchanged (`rich: s-maxage=60, swr=600`); payload title+date only; documented tradeoff stands. |
-| 42 | Share-helper duplication | **CONFIRMED-OPEN · minor** | `components/plan/RecapShareButton.tsx:41-44` still carries local `whatsappHref` self-described as "Mirrors lib/shareArtifacts.ts". Fold on next share-surface touch. |
+| 42 | Share-helper duplication | **RESOLVED (2026-08-06)** | `components/plan/RecapShareButton.tsx` imports `whatsappShareHref` from `lib/shareArtifacts.ts`; the local copy is gone. |
 | 43 | `map-gl.spec.ts` SW-vs-Playwright failure | **OWNER** | Spec still present (`e2e/map-gl.spec.ts`); runtime status not re-run this pass; pre-existing on main per V1 proof. |
 | 44 | Remote branch prune list | **OWNER** | 158 remote heads today; prune awaits owner confirmation. |
 | 45 | Push sending unbuilt | **RESOLVED (code) · OWNER (key)** | Full APNs HTTP/2 ES256 transport + sender pipeline on main (`lib/pushProvider.ts`, `lib/pushSender.ts`, `lib/pushTokenStore.ts`); needs `APNS_PRIVATE_KEY` env after store enrollment. Web-push VAPID path = PRD cycle-17 Lane B (Sol). |
@@ -68,7 +71,7 @@ now**. The largest remaining debt is cosmetic token hygiene and two doc gaps.
 |---|--------------|-----------|------------------|
 | 48-51, 54-63 | #345-#354 programme verdicts | **SHIPPED** | Entire programme merged; launch happened 2026-07-18. |
 | 52 | `/api/price-confirm` missing from cert doc | **CONFIRMED-OPEN · doc gap** | `grep price-confirm docs/WRITE_SURFACE_CERTIFICATION.md` = 0 at HEAD. The V2 paste-ready row was never pasted. Route IS boundary-covered in code and counted. |
-| 53 | `venuePriceStory.css` raw `--brass` (was 7) | **PARTIAL** | Down to **1** ref (`components/map/venuePriceStory.css`). |
+| 53 | `venuePriceStory.css` raw `--brass` (was 7) | **RESOLVED (2026-08-06)** | `components/map/venuePriceStory.css` uses `--accent-action`; no raw `--brass` reference remains. |
 | — | Cert count reconciliation | **UPDATED** | 60 (V2) → **63** now: `__tests__/writeSurfaceCertification.test.ts:59` `toHaveLength(63)`; the three additions (check-ins, email-subscribers, push-tokens era) each carry a boundary per the 07-19 backend standards axis. |
 
 ## New rows — 2026-07-19 two-axis review (spec, backend, frontend)
@@ -91,15 +94,14 @@ now**. The largest remaining debt is cosmetic token hygiene and two doc gaps.
 
 ## Remaining open ledger (the honest to-do)
 
-Minor code: 15 (DeliveryStatus union), 16 (DAY_MS), 35 (4x brass pubsGallery), 36 (2x brass
-identityNudge), 42 (share-helper dup), 53 (1x brass venuePriceStory), 74/#417 (point-row grace).
+Minor code: 74/#417 (point-row grace).
 Doc gaps: 52 (price-confirm cert row), 30 (coverage date-stamp). Owner-gated: 2 (EXA key local),
 11 (#279 meta.json), 29 (newline), 43 (map-gl e2e), 44 (branch prune), 45 (APNS key + VAPID),
 #229 (MapLibre 6 GA).
 
-**Score movement this pass: 24 V1/V2 rows upgraded to RESOLVED/SHIPPED beyond V1's own count, 7 of
+**Initial score movement: 24 V1/V2 rows upgraded to RESOLVED/SHIPPED beyond V1's own count, 7 of
 11 new findings fixed the same day they were found, 1 refuted, 0 downgraded.** No open finding is
 blocker-severity; none blocks the cycle-17 launch lanes.
 
-_Compiled by Fable 5 (xhigh) on `docs/confidence-v3`. Every verdict above re-run against HEAD
-`77d65a6a` in this worktree; nothing carried on trust from V1/V2 or lane reports._
+_Compiled by Fable 5 (xhigh) on `docs/confidence-v3`. Original verdicts were re-run against
+`77d65a6a`; the six maintenance rows named above were re-verified at `b8737d98`._

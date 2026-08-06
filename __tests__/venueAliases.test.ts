@@ -4,6 +4,7 @@ import os from "os";
 import path from "path";
 
 import {
+  lookupCanonicalVenueId,
   resolveCanonicalVenueId,
   resetVenueAliasesForTests,
   setVenueAliasesPathForTests,
@@ -55,6 +56,7 @@ describe("resolveCanonicalVenueId", () => {
   it("degrades to an identity map when the alias file is missing", async () => {
     setVenueAliasesPathForTests(path.join(os.tmpdir(), "does-not-exist-venue-aliases.json"));
     expect(await resolveCanonicalVenueId("venue-anything")).toBe("venue-anything");
+    expect(await lookupCanonicalVenueId("venue-anything")).toEqual({ status: "unavailable" });
   });
 
   it("recovers once a previously-missing alias file is created (no cached-empty poisoning)", async () => {

@@ -1,10 +1,10 @@
 import { promises as fs } from "fs";
 import path from "path";
 
-import { listEnabledCities } from "@/lib/cities";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import type { FoodCategory } from "@/lib/food";
-import { resolveCanonicalVenueId } from "@/lib/venueAliases";
+import { lookupCanonicalVenueId } from "@/lib/venueAliases";
+import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
@@ -79,6 +79,16 @@ let detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
 let fallbackIndex: Map<string, Venue> | null = null;
 let manifestReadAttemptsForTests = 0;
 
+export type VenueDetailLookupResult =
+  | { status: "found"; venue: Venue }
+  | { status: "missing" }
+  | { status: "unavailable" };
+
+type ArtifactLookupResult =
+  | { status: "found"; venue: Venue }
+  | { status: "missing" }
+  | { status: "unavailable"; allowFallback: boolean };
+
 function isTestRuntime(): boolean {
   return (
     process.env.NODE_ENV === "test" ||
@@ -128,9 +138,12 @@ export function venueFromDetailArtifact(
 }
 
 /** Sentinel: schema-invalid manifest is permanent for this process (do not re-read). */
-async function readManifest(): Promise<VenueDetailManifest | null> {
-  if (cachedManifest === INVALID_MANIFEST) return null;
-  if (cachedManifest) return cachedManifest;
+async function readManifest(): Promise<
+  | { status: "ready"; manifest: VenueDetailManifest }
+  | { status: "unavailable" }
+> {
+  if (cachedManifest === INVALID_MANIFEST) return { status: "unavailable" };
+  if (cachedManifest) return { status: "ready", manifest: cachedManifest };
   if (isTestRuntime()) manifestReadAttemptsForTests += 1;
   try {
     const parsed = JSON.parse(
@@ -148,27 +161,30 @@ async function readManifest(): Promise<VenueDetailManifest | null> {
       console.warn(
         "[venueDetailIndex] venue_detail_index.json failed schema validation; venue detail lookups disabled until restart",
       );
-      return null;
+      return { status: "unavailable" };
     }
     cachedManifest = parsed;
-    return parsed;
+    return { status: "ready", manifest: parsed };
   } catch {
     // Leave cache unset so a later request can retry after a transient miss.
-    return null;
+    return { status: "unavailable" };
   }
 }
 
-async function readVenueFromArtifact(id: string): Promise<Venue | null | undefined> {
-  const manifest = await readManifest();
-  const entry = manifest?.venues[id];
-  if (!manifest || !entry) return manifest ? null : undefined;
+async function readVenueFromArtifact(id: string): Promise<ArtifactLookupResult> {
+  const manifestResult = await readManifest();
+  if (manifestResult.status === "unavailable") {
+    return { status: "unavailable", allowFallback: true };
+  }
+  const entry = manifestResult.manifest.venues[id];
+  if (!entry) return { status: "missing" };
   if (
     !Number.isSafeInteger(entry.offset) ||
     !Number.isSafeInteger(entry.length) ||
     entry.offset < 0 ||
     entry.length <= 0
   ) {
-    return null;
+    return { status: "unavailable", allowFallback: false };
   }
 
   let file: Awaited<ReturnType<typeof fs.open>> | null = null;
@@ -176,11 +192,14 @@ async function readVenueFromArtifact(id: string): Promise<Venue | null | undefin
     file = await fs.open(/* turbopackIgnore: true */ detailRowsFile, "r");
     const buffer = Buffer.alloc(entry.length);
     const { bytesRead } = await file.read(buffer, 0, entry.length, entry.offset);
-    if (bytesRead !== entry.length) return null;
+    if (bytesRead !== entry.length) return { status: "unavailable", allowFallback: false };
     const artifact = JSON.parse(buffer.toString("utf8").trim()) as VenueDetailArtifact;
-    return venueFromDetailArtifact(artifact, id);
+    const venue = venueFromDetailArtifact(artifact, id);
+    return venue
+      ? { status: "found", venue }
+      : { status: "unavailable", allowFallback: false };
   } catch {
-    return null;
+    return { status: "unavailable", allowFallback: false };
   } finally {
     await file?.close().catch(() => {});
   }
@@ -229,69 +248,45 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
   return fallbackIndex;
 }
 
-/** Successful city slim packs only — I/O failures stay unset so the next call can retry. */
-let cachedCitySlimPins: Map<string, Venue> | null | undefined;
+export async function lookupVenueDetail(requestedId: string): Promise<VenueDetailLookupResult> {
+  if (!isVenueDetailId(requestedId)) return { status: "missing" };
+  const aliasResult = await lookupCanonicalVenueId(requestedId);
+  if (aliasResult.status === "unavailable") return aliasResult;
+  const id = aliasResult.venueId;
+  const cached = cachedDetails.get(id);
+  if (cached) return { status: "found", venue: cached };
 
-function publicDataPath(publicPath: string): string {
-  return path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
-}
+  const venueLookup = await lookupCanonicalVenue(id);
+  if (venueLookup.status === "unavailable") return { status: "unavailable" };
+  if (venueLookup.status === "unknown") return { status: "missing" };
 
-async function getCitySlimPinIndex(): Promise<Map<string, Venue>> {
-  if (cachedCitySlimPins) return cachedCitySlimPins;
-  const index = new Map<string, Venue>();
-  let loadedAny = false;
-  for (const city of listEnabledCities()) {
-    if (city.id === "london") continue;
-    try {
-      const rows = JSON.parse(
-        await fs.readFile(publicDataPath(city.slimVenuesPath), "utf8"),
-      ) as SlimVenue[];
-      loadedAny = true;
-      if (!Array.isArray(rows)) continue;
-      for (const row of rows) {
-        if (
-          typeof row?.id === "string" &&
-          typeof row.name === "string" &&
-          Number.isFinite(row.lat) &&
-          Number.isFinite(row.lng)
-        ) {
-          index.set(row.id, slimVenueToPin(row));
-        }
-      }
-    } catch {
-      // One missing/corrupt city pack must not wipe the rest; leave cache unset
-      // only when every city fails so a later request can retry.
-    }
+  const artifactResult = await readVenueFromArtifact(id);
+  let venue: Venue | null = artifactResult.status === "found" ? artifactResult.venue : null;
+  if (
+    !venue &&
+    artifactResult.status === "unavailable" &&
+    artifactResult.allowFallback &&
+    process.env.NODE_ENV !== "production"
+  ) {
+    venue = (await getFallbackIndex()).get(id) ?? null;
   }
-  if (!loadedAny) return new Map();
-  cachedCitySlimPins = index;
-  return index;
+  if (!venue && cityIdFromVenueId(id)) {
+    venue = slimVenueToPin(venueLookup.slimVenue);
+  }
+  if (!venue) return { status: "unavailable" };
+
+  try {
+    const enriched = await enrichVenueForDetail(venue);
+    cachedDetails.set(id, enriched);
+    return { status: "found", venue: enriched };
+  } catch {
+    return { status: "unavailable" };
+  }
 }
 
 export async function getVenueDetail(requestedId: string): Promise<Venue | null> {
-  if (!isVenueDetailId(requestedId)) return null;
-  // Resolve a merged duplicate id (D1) to its canonical id up front, so detail
-  // lookups by a losing id return the surviving venue and cache under one key.
-  const id = await resolveCanonicalVenueId(requestedId);
-  if (cachedDetails.has(id)) return cachedDetails.get(id) ?? null;
-
-  const artifactVenue = await readVenueFromArtifact(id);
-  let venue: Venue | null =
-    artifactVenue === undefined && process.env.NODE_ENV !== "production"
-      ? (await getFallbackIndex()).get(id) ?? null
-      : artifactVenue ?? null;
-
-  // Non-London packs ship slim pins only today — synthesize a minimal Venue so
-  // /api/venue/[id] does not 404 every Manchester/Oxford/etc. open.
-  if (!venue && cityIdFromVenueId(id)) {
-    venue = (await getCitySlimPinIndex()).get(id) ?? null;
-  }
-
-  if (venue) {
-    venue = await enrichVenueForDetail(venue);
-    cachedDetails.set(id, venue);
-  }
-  return venue;
+  const result = await lookupVenueDetail(requestedId);
+  return result.status === "found" ? result.venue : null;
 }
 
 export function resetVenueDetailCachesForTests(): void {
@@ -301,7 +296,6 @@ export function resetVenueDetailCachesForTests(): void {
   detailIndexFile = DEFAULT_DETAIL_INDEX_FILE;
   detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
   fallbackIndex = null;
-  cachedCitySlimPins = undefined;
   manifestReadAttemptsForTests = 0;
 }
 
@@ -310,7 +304,6 @@ export function clearVenueDetailEntriesForTests(): void {
   if (!isTestRuntime()) return;
   cachedDetails.clear();
   fallbackIndex = null;
-  cachedCitySlimPins = undefined;
 }
 
 export function setVenueDetailIndexFileForTests(file: string): void {

@@ -1,6 +1,6 @@
 /* The Golden Thread — per-venue price story block, rendered inside the Pints tab
-   of .venueInspector. Scoped to .venuePriceStory only; reuses the shared app
-   tokens (--brass, --ink, --ink-soft, --line, --panel-raised, --pint, --brick,
+   of .venueInspector. Scoped to .venuePriceStory only; reuses role tokens
+   (--accent-action, --ink, --ink-soft, --line, --panel-raised, --pint, --brick,
    --amber, --font-data, --radius-sm) and the global .provChip idiom. Data
    prices are stable badges; the field-guide feel comes from muted rules. */
 

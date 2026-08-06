@@ -13,25 +13,25 @@
 // through the same detail boundary. That avoids cold-parsing all source data on
 // first open while keeping each venue kind's price meaning intact.
 //
-// Never throws to a 500 on a read/parse failure — it degrades to an empty index
-// so an unknown/absent id returns a friendly 404 instead. Cached hard at the
-// edge (immutable-ish detail) with a long SWR window.
-
 import { NextResponse } from "next/server";
 
 import { canGroupGetIn, estimateBusyness, resolveBookingOption } from "@/lib/busyness";
-import { getVenueDetail } from "@/lib/venueDetailIndex";
+import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
-  const venue = await getVenueDetail(id);
+  const lookup = await lookupVenueDetail(id);
 
-  if (!venue) {
+  if (lookup.status === "missing") {
     return NextResponse.json({ error: "Venue not found." }, { status: 404 });
   }
+  if (lookup.status === "unavailable") {
+    return NextResponse.json({ error: "Venue details unavailable." }, { status: 503 });
+  }
+  const { venue } = lookup;
 
   const requestedGroupSize = Number(new URL(request.url).searchParams.get("groupSize") ?? 2);
   const groupSize = Number.isFinite(requestedGroupSize)
