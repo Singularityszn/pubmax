@@ -131,7 +131,7 @@ export default async function CrawlStoryPage({ params }: PageProps) {
   const chaosCard = chaosCardHref(story, chaos);
 
   return (
-    <main className="storyShell">
+    <main id="main" className="storyShell">
       <nav className="storyNav" aria-label="Site navigation">
         <Link href="/">Home</Link>
         <Link href="/map">Map</Link>

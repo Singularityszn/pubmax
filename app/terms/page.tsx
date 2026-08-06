@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <main className="legalPage">
+    <main id="main" className="legalPage">
       <header className="legalHead">
         <p className="legalEyebrow">Terms of use</p>
         <h1 className="legalTitle">The deal in plain English</h1>

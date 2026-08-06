@@ -28,7 +28,7 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
           every other app page. /near is not a primary-nav destination, so no
           active key is set (Map stays unlit). */}
       <SiteNav />
-      <main className="nmnPageBody">
+      <main id="main" className="nmnPageBody">
         {/* Idle-first on /near so patch chips are reachable without granting
             location. Shareable ?patch= deep links answer immediately. */}
         <NearMeNow

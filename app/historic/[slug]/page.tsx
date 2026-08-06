@@ -132,7 +132,7 @@ export default async function HistoricDetailPage({ params }: PageProps) {
   const shareText = buildHistoricPubShareText({ name: pub.name, hook: pub.hook });
 
   return (
-    <main className="hdPage">
+    <main id="main" className="hdPage">
       <JsonLd data={historicPubJsonLd(pub)} nonce={nonce} />
       <SiteNav active="historic" />
 

@@ -22,6 +22,7 @@ import EntryBootStamp from "@/components/native/EntryBootStamp";
 import A2HSTracking from "@/components/A2HSTracking";
 import AnalyticsConsentPrompt from "@/components/AnalyticsConsentPrompt";
 import PosthogPageviews from "@/components/PosthogPageviews";
+import SkipLink from "@/components/a11y/SkipLink";
 
 // Site-wide structured data (Wave S1.3). WebSite + Organization only — the
 // identity graph Google reads for the brand panel and AI engines read to know
@@ -280,6 +281,7 @@ export default async function RootLayout({
         <JsonLd data={SITE_JSON_LD} nonce={nonce} />
       </head>
       <body>
+        <SkipLink />
         {/* ClerkProvider is additive in exactly the same sense as AuthProvider
             below, and it sits OUTSIDE it rather than replacing it: both identity
             systems run side by side. Clerk gates no route either, so anonymous

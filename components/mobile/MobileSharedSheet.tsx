@@ -8,6 +8,7 @@ import { homeActionLabel } from "@/lib/surfaceStack";
 import { useSheetHeightDrag } from "@/components/mobile/useSheetHeightDrag";
 import { SheetFooterContext } from "@/components/mobile/sheetFooterContext";
 import { useFocusTrap } from "@/lib/useFocusTrap";
+import { mobileSheetFocusContained, mobileSheetIsModal } from "@/lib/mobileSheetA11y";
 import type { MapSheetDetent, MapSheetKind } from "@/lib/mobileShell";
 
 /**
@@ -129,8 +130,11 @@ export default function MobileSharedSheet({
     setSheetSnap(requestedSnap);
   }, [kind, requestedSnap, setSheetSnap]);
 
-  // Modal focus trap only at the `full` detent (near-fullscreen).
-  useFocusTrap(Boolean(kind) && sheetSnap === "full", sheetRef);
+  // Modal focus trap at half and full: the scrim blocks pointer input to the map,
+  // so keyboard focus must not walk the inert page behind an unreachable surface.
+  // Peek is the tested exception — enough map stays live that trapping would lie.
+  const sheetModal = mobileSheetIsModal(sheetSnap);
+  useFocusTrap(Boolean(kind) && mobileSheetFocusContained(sheetSnap), sheetRef);
 
   if (!kind || typeof document === "undefined") return null;
   // At the first level Home IS this sheet's close, so it keeps the sheet's own
@@ -164,15 +168,15 @@ export default function MobileSharedSheet({
       <button
         className="mobileSheetScrim"
         type="button"
-        tabIndex={sheetSnap === "full" ? -1 : 0}
+        tabIndex={-1}
         onClick={requestClose}
         aria-label={`Dismiss ${title} backdrop`}
       />
       <section
         ref={sheetRef}
         className={`mapDrawer mobileSharedSheet ${kind === "venue" ? "right" : kind === "planner" ? "left" : "contextual"} open sheet-${sheetSnap}${dragging ? " sheet-dragging" : ""}${settling ? " sheet-settling" : ""}`}
-        role={sheetSnap === "full" ? "dialog" : undefined}
-        aria-modal={sheetSnap === "full" ? "true" : undefined}
+        role={sheetModal ? "dialog" : undefined}
+        aria-modal={sheetModal ? "true" : undefined}
         aria-labelledby={titleId}
         tabIndex={-1}
         style={sectionStyle}

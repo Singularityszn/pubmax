@@ -118,7 +118,7 @@ export default async function SavedListPage({ params }: PageProps) {
   return (
     <div className="lp profilePage">
       <SiteNav active="profile" />
-      <main className="container profileMain">
+      <main id="main" className="container profileMain">
         {!ownerHandle || !listType ? (
           <p className="profileEmpty">That list link is missing a handle or list name.</p>
         ) : (

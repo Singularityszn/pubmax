@@ -42,7 +42,7 @@ const BUCKET_VAR: Record<"pint" | "amber" | "brick", string> = {
 
 export default function MapLoadingSkeleton() {
   return (
-    <main
+    <main id="main"
       className="mapSkeleton"
       aria-busy="true"
       aria-describedby="mapSkeletonStatus"

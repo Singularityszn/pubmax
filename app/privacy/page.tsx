@@ -41,7 +41,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="legalPage">
+    <main id="main" className="legalPage">
       <header className="legalHead">
         <p className="legalEyebrow">Privacy</p>
         <h1 className="legalTitle">How PUBMAXX handles your data</h1>

@@ -40,7 +40,7 @@ export default async function PlanRecapPage({ params }: Props) {
   if (!state) notFound();
 
   return (
-    <main className="recapPage">
+    <main id="main" className="recapPage">
       <MemoryReviewAnalytics />
       <SiteNav />
       <RecapDetail planId={id} />

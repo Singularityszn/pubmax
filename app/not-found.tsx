@@ -11,7 +11,7 @@ import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 
 export default function NotFound() {
   return (
-    <main
+    <main id="main"
       style={{
         minHeight: "100svh",
         display: "grid",

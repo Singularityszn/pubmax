@@ -31,7 +31,7 @@ export default async function PubsPage() {
   const pubs = await listScrapedPubs();
 
   return (
-    <main className="pubsShell">
+    <main id="main" className="pubsShell">
       <SiteNav active="pubs" />
       <div className="pubsPage">
         <header className="pubsHead">

@@ -123,7 +123,7 @@ export default async function PlanPage({ params }: Props) {
   const endingLabel = state.ending ? ENDING_LABEL[state.ending] : null;
 
   return (
-    <main className="planPage">
+    <main id="main" className="planPage">
       {/* Marks this plan as "on tonight" so the shell's Night Mode card can
           follow it across screens (client-only pointer, no backend). */}
       <ActivePlanMarker id={id} startTime={state.plan.startTime} />

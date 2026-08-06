@@ -139,7 +139,7 @@ export default async function AboutPage() {
   const dearest = fmtGbp(stats.dearestPint);
 
   return (
-    <main className="aboutPage">
+    <main id="main" className="aboutPage">
       <script
         type="application/ld+json"
         nonce={nonce}

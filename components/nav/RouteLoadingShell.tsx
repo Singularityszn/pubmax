@@ -11,7 +11,7 @@ type RouteLoadingShellProps = {
 
 export default function RouteLoadingShell({ label }: RouteLoadingShellProps) {
   return (
-    <main
+    <main id="main"
       className="routeLoadingShell"
       aria-busy="true"
       aria-live="polite"

@@ -364,7 +364,7 @@ export default function MomentCapture(): React.JSX.Element {
   return (
     <div className="momentPage">
       <SiteNav />
-      <main className="momentMain">
+      <main id="main" className="momentMain">
         <header className="momentIntro">
           <div className="momentIntroRail">
             <span className="momentPrivacy"><LockKeyhole size={14} aria-hidden="true" /> Private first</span>

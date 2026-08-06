@@ -334,7 +334,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   // Invalid code / not found → an honest empty state (never a crash).
   if (loaded && (!code || !isValidRoundCode(code) || state == null)) {
     return (
-      <main className="roundShell">
+      <main id="main" className="roundShell">
         <SiteNav active="crawls" />
         <EmptyState
           eyebrow="The Round"
@@ -352,7 +352,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
 
   if (!loaded || state == null) {
     return (
-      <main className="roundShell">
+      <main id="main" className="roundShell">
         <SiteNav active="crawls" />
         <p className="roundLoading">Finding the Round…</p>
       </main>
@@ -361,7 +361,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
 
   if (!roundIdentity) {
     return (
-      <main className="roundShell">
+      <main id="main" className="roundShell">
         <SiteNav active="crawls" />
         <p className="roundLoading">Refreshing your sign-in…</p>
       </main>
@@ -369,7 +369,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   }
 
   return (
-    <main className="roundShell">
+    <main id="main" className="roundShell">
       <SiteNav active="crawls" />
       <RoundBoard
         key={roundRequestIdentityOwnerKey(roundIdentity) ?? "transitioning"}

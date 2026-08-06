@@ -21,7 +21,7 @@ export default async function ContributorsPage() {
   return (
     <div className="contributorPage">
       <SiteNav active="profile" />
-      <main className="contributorMain">
+      <main id="main" className="contributorMain">
         <ContributorRecord board={board} />
       </main>
     </div>

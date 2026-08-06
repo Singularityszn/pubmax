@@ -303,7 +303,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   );
 
   return (
-    <main className="palChat">
+    <main id="main" className="palChat">
       <header className="palChatHead">
         {palHandoff ? (
           <Link className="palChatBack" href="/pal">

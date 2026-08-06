@@ -70,7 +70,7 @@ export default function WeAreOutClient() {
   }
 
   return (
-    <main className="feedShell weAreOut">
+    <main id="main" className="feedShell weAreOut">
       <SiteNav active="feed" />
 
       <header className="feedHeader">

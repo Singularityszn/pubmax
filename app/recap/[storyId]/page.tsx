@@ -110,7 +110,7 @@ export default async function PublicRecapPage({ params }: Props) {
   const step = () => ({ ["--recap-step" as string]: String(section++) });
 
   return (
-    <main className="recapPage">
+    <main id="main" className="recapPage">
       <SiteNav />
 
       <header className="recapHero" style={step()}>

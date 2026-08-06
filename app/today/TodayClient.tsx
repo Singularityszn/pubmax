@@ -362,7 +362,7 @@ export default function TodayClient({
   }, [picks, weather, weatherByArea]);
 
   return (
-    <main className="todayPage" data-testid="today-screen">
+    <main id="main" className="todayPage" data-testid="today-screen">
       <SiteNav active="today" />
 
       <header className="todayHead" data-testid="today-greeting">

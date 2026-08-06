@@ -278,7 +278,7 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
   const lanePlacement = placeSecondaryLanes(flags.tonightGrouping, secondaryLanes);
 
   return (
-    <main className="tonightPage" data-testid="tonight-screen">
+    <main id="main" className="tonightPage" data-testid="tonight-screen">
       <SiteNav active="tonight" />
 
       <div

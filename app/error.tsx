@@ -20,7 +20,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <main
+    <main id="main"
       role="alert"
       style={{
         minHeight: "100svh",

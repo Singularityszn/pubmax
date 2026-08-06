@@ -589,7 +589,7 @@ export default function AdminClient() {
   );
 
   return (
-    <main className="admin">
+    <main id="main" className="admin">
       <SiteNav />
 
       <h1>Admin</h1>

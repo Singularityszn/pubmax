@@ -3042,7 +3042,7 @@ export default function PubMap({
   );
 
   return (
-    <main
+    <main id="main"
       className={
         // The `sheet-full` marker only ever matters ≤640px (mapToolbar.css
         // gates every rule that reads it behind that same breakpoint) — it

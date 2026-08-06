@@ -11,9 +11,13 @@
 // and iconography only, never a likeness (PRD guardrail). No em dashes.
 
 import { GlassWater, Search, Sparkles, X } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { DrinkCategory } from "@/lib/drinks";
+import {
+  buildPersonaPickerListEntries,
+  stepPersonaPickerActiveIndex,
+} from "@/lib/personaLensPickerA11y";
 import {
   buildPersonaPickerSections,
   loadPersonaDrinks,
@@ -40,7 +44,10 @@ export default function PersonaLensPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const listId = useId();
+  const activeIndexRef = useRef(-1);
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   const personas = useMemo(() => loadPersonaDrinks(), []);
   const active = useMemo(
@@ -51,15 +58,69 @@ export default function PersonaLensPicker({
     () => buildPersonaPickerSections({ personas, query, tonightCategory }),
     [personas, query, tonightCategory],
   );
+  const listEntries = useMemo(
+    () =>
+      buildPersonaPickerListEntries({
+        sections,
+        includeClear: Boolean(active),
+      }),
+    [active, sections],
+  );
 
-  // Close on outside click / Escape, mirroring the app's popover idioms.
+  const entryIndexByPersonaId = useMemo(() => {
+    const map = new Map<string, number>();
+    listEntries.forEach((entry, index) => {
+      if (entry.kind === "persona") map.set(entry.persona.id, index);
+    });
+    return map;
+  }, [listEntries]);
+
+  const chooseActiveIndex = useCallback((next: number) => {
+    activeIndexRef.current = next;
+    setActiveIndex(next);
+  }, []);
+
+  const closePanel = useCallback(() => {
+    setOpen(false);
+    setQuery("");
+    chooseActiveIndex(-1);
+    triggerRef.current?.focus({ preventScroll: true });
+  }, [chooseActiveIndex]);
+
+  const choose = useCallback(
+    (persona: PersonaDrink | null) => {
+      onSelect(persona);
+      setOpen(false);
+      setQuery("");
+      chooseActiveIndex(-1);
+      triggerRef.current?.focus({ preventScroll: true });
+    },
+    [chooseActiveIndex, onSelect],
+  );
+
+  const activateEntry = useCallback(
+    (index: number) => {
+      const entry = listEntries[index];
+      if (!entry) return;
+      if (entry.kind === "clear") choose(null);
+      else choose(entry.persona);
+    },
+    [choose, listEntries],
+  );
+
+  const optionId = useCallback((index: number) => `${listId}-opt-${index}`, [listId]);
+  const safeActive =
+    activeIndex >= 0 && activeIndex < listEntries.length ? activeIndex : -1;
+
   useEffect(() => {
     if (!open) return;
     function onPointerDown(event: PointerEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(event.target as Node)) closePanel();
     }
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closePanel();
     }
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -67,21 +128,75 @@ export default function PersonaLensPicker({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [closePanel, open]);
 
-  function choose(persona: PersonaDrink | null) {
-    onSelect(persona);
-    setOpen(false);
-    setQuery("");
-  }
+  const handleSearchKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      const eventActive =
+        activeIndexRef.current >= 0 && activeIndexRef.current < listEntries.length
+          ? activeIndexRef.current
+          : -1;
+      if (event.key === "ArrowDown" && listEntries.length > 0) {
+        event.preventDefault();
+        chooseActiveIndex(stepPersonaPickerActiveIndex(eventActive, 1, listEntries.length));
+        return;
+      }
+      if (event.key === "ArrowUp" && listEntries.length > 0) {
+        event.preventDefault();
+        chooseActiveIndex(stepPersonaPickerActiveIndex(eventActive, -1, listEntries.length));
+        return;
+      }
+      if (event.key === "Enter" || event.key === " ") {
+        if (eventActive < 0) return;
+        event.preventDefault();
+        activateEntry(eventActive);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closePanel();
+      }
+    },
+    [activateEntry, chooseActiveIndex, closePanel, listEntries.length],
+  );
+
+  const handleQueryChange = useCallback(
+    (next: string) => {
+      chooseActiveIndex(-1);
+      setQuery(next);
+    },
+    [chooseActiveIndex],
+  );
+
+  const renderOption = (
+    index: number,
+    className: string,
+    selected: boolean,
+    onPick: () => void,
+    children: React.ReactNode,
+  ) => (
+    <button
+      id={optionId(index)}
+      type="button"
+      role="option"
+      aria-selected={selected}
+      className={safeActive === index ? `${className} isHighlighted` : className}
+      onMouseEnter={() => chooseActiveIndex(index)}
+      onClick={onPick}
+    >
+      {children}
+    </button>
+  );
 
   return (
     <div className="personaLensPicker" ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
         className={active ? "personaLensTrigger isActive" : "personaLensTrigger"}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={open ? listId : undefined}
         onClick={() => setOpen((value) => !value)}
       >
         <GlassWater size={15} aria-hidden="true" />
@@ -101,30 +216,34 @@ export default function PersonaLensPicker({
       ) : null}
 
       {open ? (
-        <div className="personaLensPanel" role="dialog" aria-label="Drink like a persona">
+        <div className="personaLensPanel">
           <div className="personaLensSearch">
             <Search size={14} aria-hidden="true" />
             <input
               type="search"
               value={query}
               autoFocus
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search people or drinks"
-              aria-label="Search personas by name or drink"
+              role="combobox"
+              aria-expanded="true"
               aria-controls={listId}
+              aria-activedescendant={safeActive >= 0 ? optionId(safeActive) : undefined}
+              aria-label="Search personas by name or drink"
+              onChange={(event) => handleQueryChange(event.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search people or drinks"
             />
           </div>
 
-          <div className="personaLensList" id={listId} role="listbox">
-            {active ? (
-              <button
-                type="button"
-                className="personaLensOption personaLensOptionClear"
-                onClick={() => choose(null)}
-              >
-                Clear selection
-              </button>
-            ) : null}
+          <div className="personaLensList" id={listId} role="listbox" aria-label="Personas">
+            {active
+              ? renderOption(
+                  0,
+                  "personaLensOption personaLensOptionClear",
+                  false,
+                  () => choose(null),
+                  "Clear selection",
+                )
+              : null}
 
             {sections.length === 0 ? (
               <p className="personaLensEmpty">No personas match that search.</p>
@@ -134,21 +253,16 @@ export default function PersonaLensPicker({
               <div key={section.kind} className="personaLensGroup">
                 <p className="personaLensGroupLabel">{section.label}</p>
                 {section.personas.map((persona) => {
+                  const index = entryIndexByPersonaId.get(persona.id);
+                  if (index === undefined) return null;
                   const fits = personaFitsCategory(persona, tonightCategory);
                   const selected = persona.id === personaId;
-                  return (
-                    <button
-                      key={persona.id}
-                      type="button"
-                      role="option"
-                      aria-selected={selected}
-                      className={
-                        selected
-                          ? "personaLensOption isSelected"
-                          : "personaLensOption"
-                      }
-                      onClick={() => choose(persona)}
-                    >
+                  return renderOption(
+                    index,
+                    selected ? "personaLensOption isSelected" : "personaLensOption",
+                    selected,
+                    () => choose(persona),
+                    <>
                       <span className="personaLensOptionName">{persona.name}</span>
                       <span className="personaLensOptionMeta">
                         {persona.drink}
@@ -159,7 +273,7 @@ export default function PersonaLensPicker({
                           </span>
                         ) : null}
                       </span>
-                    </button>
+                    </>,
                   );
                 })}
               </div>

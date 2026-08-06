@@ -29,7 +29,7 @@ export default async function AddHandlePage({
 }) {
   const handle = normalizeHandle((await params).handle);
   return (
-    <main className="addShell">
+    <main id="main" className="addShell">
       <SiteNav active="feed" />
       <AddPageShell>
         <ConfirmFollow targetHandle={handle} />

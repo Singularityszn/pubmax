@@ -99,7 +99,7 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
   const { corrections, revision, publishedAt } = edition.archive;
 
   return (
-    <main className="pintIndexPage">
+    <main id="main" className="pintIndexPage">
       <JsonLd data={jsonLd} nonce={nonce} />
       <SiteNav />
 

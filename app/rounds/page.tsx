@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function RoundsIndex(): React.JSX.Element {
   return (
-    <main className="roundShell">
+    <main id="main" className="roundShell">
       <SiteNav />
 
       <EmptyState

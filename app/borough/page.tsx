@@ -61,7 +61,7 @@ export default async function BoroughIndexPage() {
   );
 
   return (
-    <main className="boroughPage">
+    <main id="main" className="boroughPage">
       <SiteNav active="borough" />
 
       <header className="boroughHead">

@@ -89,7 +89,7 @@ export default function FirstRunOnboarding({
   const isCompanionStage = stage === "companion";
 
   return (
-    <main className="firstRunOnboarding" data-stage={stage}>
+    <main id="main" className="firstRunOnboarding" data-stage={stage}>
       <header className="firstRunTopbar">
         <div className="firstRunBrand" aria-label="PUBMAXXING">
           <Image src="/brand/icon.svg" alt="" width={30} height={30} priority />

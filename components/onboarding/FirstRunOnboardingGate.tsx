@@ -56,7 +56,7 @@ export default function FirstRunOnboardingGate({
   }, [router]);
 
   if (!eligible) {
-    return <main className="firstRunOnboarding firstRunOnboardingGate" aria-busy="true" />;
+    return <main id="main" className="firstRunOnboarding firstRunOnboardingGate" aria-busy="true" />;
   }
 
   return <FirstRunOnboarding reviewedAreas={reviewedAreas} />;

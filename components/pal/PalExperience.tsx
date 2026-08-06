@@ -640,14 +640,14 @@ export default function PalExperience() {
     draftOwner !== (user?.id ?? anonymousOwner)
   );
   if (loading || !ready || ownerTransitioning) {
-    return <main className="palExperience"><div className="palLoading" role="status">Waking your Pub Pal</div></main>;
+    return <main id="main" className="palExperience"><div className="palLoading" role="status">Waking your Pub Pal</div></main>;
   }
 
   if (mode === "home" && pal && user && pal.ownerId === user.id) {
     const visiblePalState: PalAnimationState = pal.muted ? "sleeping" : palAnimationState;
     const proposalPreferences = pal.proposalPreferences ?? { memories: false, routes: true };
     return (
-      <main className="palExperience palHome">
+      <main id="main" className="palExperience palHome">
         <div className="palTopbar">
           <Link href="/map"><ArrowLeft size={17} /> Map</Link>
           <span>Level {level}</span>
@@ -737,7 +737,7 @@ export default function PalExperience() {
   if (mode === "meeting") {
     if (!routeActivated) {
       return (
-        <main className="palExperience palMeeting">
+        <main id="main" className="palExperience palMeeting">
           <div className="palTopbar">
             <Link href="/map"><ArrowLeft size={17} /> Map</Link>
             <span><LockKeyhole size={14} /> Skip it if you like</span>
@@ -761,7 +761,7 @@ export default function PalExperience() {
       );
     }
     return (
-      <main className="palExperience palMeeting">
+      <main id="main" className="palExperience palMeeting">
         <div className="palTopbar">
           <Link href="/map"><ArrowLeft size={17} /> Map</Link>
           <span><LockKeyhole size={14} /> Private by default</span>
@@ -786,7 +786,7 @@ export default function PalExperience() {
   }
 
   return (
-    <main className="palExperience palOnboarding">
+    <main id="main" className="palExperience palOnboarding">
       <div className="palTopbar">
         <button type="button" onClick={() => step === 0 ? setMode("meeting") : setStep((current) => current - 1)}><ArrowLeft size={17} /> Back</button>
         <span>{step + 1} of 5</span>
