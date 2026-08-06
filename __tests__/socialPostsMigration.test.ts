@@ -7,8 +7,8 @@ import { promisify } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-const FORWARD = join(process.cwd(), "supabase/migrations/20260805110000_0072_social_posts.sql");
-const ROLLBACK = join(process.cwd(), "supabase/migrations/rollback/20260805110000_0072_social_posts_rollback.sql");
+const FORWARD = join(process.cwd(), "supabase/migrations/20260806145914_0072_social_posts.sql");
+const ROLLBACK = join(process.cwd(), "supabase/migrations/rollback/20260806145914_0072_social_posts_rollback.sql");
 
 function binary(name: "initdb" | "postgres" | "psql"): string | null {
   for (const path of [
