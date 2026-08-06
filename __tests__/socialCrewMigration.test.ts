@@ -37,6 +37,7 @@ type Database = {
   sql(statement: string): string;
   apply(path: string): void;
   concurrentResults(statements: readonly string[]): Promise<string[]>;
+  snapshotDuringWrite(mutation: string, snapshotExpression: string): Promise<unknown>;
   stop(): Promise<void>;
 };
 
@@ -95,10 +96,72 @@ async function startDatabase(): Promise<Database> {
       return stdout.trim();
     }),
   );
+  const snapshotDuringWrite = async (mutation: string, snapshotExpression: string): Promise<unknown> => {
+    const barrierKey = "7531001";
+    const readyMarker = "SOCIAL_CREW_MUTATION_READY";
+    const writer = spawn(psql, [
+      ...connection, "-v", "ON_ERROR_STOP=1", "-q", "-t", "-A",
+    ], { stdio: ["pipe", "pipe", "pipe"] });
+    writer.stdout!.setEncoding("utf8");
+    writer.stderr!.setEncoding("utf8");
+    let writerOutput = "";
+    let writerError = "";
+    writer.stderr!.on("data", (chunk: string) => { writerError += chunk; });
+    const ready = new Promise<void>((resolve, reject) => {
+      writer.stdout!.on("data", (chunk: string) => {
+        writerOutput += chunk;
+        if (writerOutput.includes(readyMarker)) resolve();
+      });
+      writer.once("error", reject);
+      writer.once("exit", (code) => {
+        if (!writerOutput.includes(readyMarker)) {
+          reject(new Error(`Race writer exited before barrier (${code}): ${writerError}`));
+        }
+      });
+    });
+    writer.stdin!.write(`begin;
+      select pg_catalog.pg_advisory_xact_lock(${barrierKey}::bigint);
+      ${mutation};
+      select '${readyMarker}';
+    `);
+    let readerCompleted = false;
+    try {
+      await Promise.race([
+        ready,
+        sleep(10_000).then(() => { throw new Error("Race writer did not reach barrier."); }),
+      ]);
+      const { stdout } = await execFileAsync(psql, [
+        ...connection, "-v", "ON_ERROR_STOP=1", "-q", "-t", "-A", "-c",
+        `select case
+          when pg_catalog.pg_try_advisory_lock(${barrierKey}::bigint) then '"barrier_missing"'
+          else coalesce((${snapshotExpression}),'null'::jsonb)::text
+        end`,
+      ], { encoding: "utf8" });
+      const snapshot = jsonValue(stdout.trim());
+      readerCompleted = true;
+      return snapshot;
+    } finally {
+      const exited = new Promise<number | null>((resolve) => writer.once("exit", resolve));
+      if (writer.exitCode === null) {
+        writer.stdin!.end(`${readerCompleted ? "commit" : "rollback"};\n\\q\n`);
+        await Promise.race([
+          exited,
+          sleep(10_000).then(() => {
+            writer.kill("SIGTERM");
+            throw new Error("Race writer did not commit.");
+          }),
+        ]);
+      }
+      if (writer.exitCode !== 0) {
+        throw new Error(`Race writer failed (${writer.exitCode}): ${writerError}`);
+      }
+    }
+  };
   return {
     sql: (statement) => run(["-q", "-t", "-A", "-c", statement]),
     apply: (path) => run(["-f", path]),
     concurrentResults,
+    snapshotDuringWrite,
     async stop() {
       if (server.exitCode === null) {
         server.kill("SIGTERM");
@@ -138,6 +201,8 @@ const READ_OWNER_PLAN_MEMBER = "30303030-bbbb-4bbb-8bbb-303030303030";
 const READ_MEMBER_PLAN_MEMBER = "40404040-bbbb-4bbb-8bbb-404040404040";
 const READ_OWNER_MEMBER = "50505050-bbbb-4bbb-8bbb-505050505050";
 const READ_MEMBER = "60606060-bbbb-4bbb-8bbb-606060606060";
+const READ_ROGUE_PLAN = "90909090-bbbb-4bbb-8bbb-909090909091";
+const READ_ROGUE_PLAN_MEMBER = "90909090-bbbb-4bbb-8bbb-909090909092";
 const HOST_MEMBER = "55555555-5555-4555-8555-555555555555";
 const HOST_TOKEN_HASH = "1".repeat(64);
 const LEGACY_GUEST = "66666666-6666-4666-8666-666666666666";
@@ -182,6 +247,210 @@ function readMemberPage(
   return jsonValue(db.sql(`select coalesce(public.read_social_crew_member_page(
     '${accountId}','${profileId}',${joinedAt},${memberId},${limit}
   ),'null'::jsonb)`));
+}
+
+function snapshotExpression(accountId: string, profileId: string): string {
+  return `public.read_social_crew_snapshot('${accountId}','${profileId}','${READ_CREW}')`;
+}
+
+function expectedReadMemberSnapshot({
+  ownerRelationship,
+  ownerAccountId = ALICE_ACCOUNT,
+  ownerProfileId = ALICE_PROFILE,
+  authorityRevision = 9,
+  aliceRole = "owner",
+  bobRole = "cohost",
+}: {
+  ownerRelationship: "self" | "mutual";
+  ownerAccountId?: string;
+  ownerProfileId?: string;
+  authorityRevision?: number;
+  aliceRole?: "owner" | "cohost";
+  bobRole?: "owner" | "cohost";
+}): unknown {
+  return {
+    kind: "member",
+    ownerRelationship,
+    crew: {
+      crewId: READ_CREW,
+      planId: READ_PLAN,
+      ownerAccountId,
+      ownerProfileId,
+      visibility: "friends",
+      authorityRevision,
+      joinRequestState: "none",
+      members: [
+        {
+          memberId: READ_OWNER_MEMBER,
+          accountId: ALICE_ACCOUNT,
+          profileId: ALICE_PROFILE,
+          planMemberId: READ_OWNER_PLAN_MEMBER,
+          handle: "alice",
+          role: aliceRole,
+          state: "active",
+          joinedAt: "2026-08-05T10:00:00.123456Z",
+        },
+        {
+          memberId: READ_MEMBER,
+          accountId: BOB_ACCOUNT,
+          profileId: BOB_PROFILE,
+          planMemberId: READ_MEMBER_PLAN_MEMBER,
+          handle: "bob",
+          role: bobRole,
+          state: "active",
+          joinedAt: "2026-08-05T11:00:00.654321Z",
+        },
+      ],
+    },
+    plan: {
+      plan: {
+        id: READ_PLAN,
+        title: "Projected night",
+        startTime: "2026-08-10T19:00:00.654321Z",
+        createdAt: "2026-08-05T10:00:00.123456Z",
+        routeRevision: 7,
+        status: "ending",
+        anchorVenueId: "venue-one",
+        anchorSource: "tonight",
+        outcome: "route",
+        routeReadyAt: "2026-08-05T10:30:00.111222Z",
+      },
+      stops: [
+        { venueId: "venue-one", venueName: "Venue One", position: 0 },
+        { venueId: "venue-two", venueName: "Venue Two", position: 1 },
+      ],
+      context: {
+        nightArea: "camden",
+        daypart: "evening",
+        partyType: "friends",
+        groupSize: 4,
+        budget: "standard",
+        budgetLimitPence: 2500,
+        zeroProof: false,
+        atmosphere: ["lively"],
+        foodNeeds: ["vegan"],
+        accessibility: ["step-free"],
+        transportConstraints: ["tube"],
+      },
+      actions: [
+        {
+          id: "71717171-bbbb-4bbb-8bbb-717171717171",
+          type: "arrived",
+          stopPosition: 0,
+          ending: null,
+          createdAt: "2026-08-05T11:30:00.111111Z",
+        },
+        {
+          id: "81818181-bbbb-4bbb-8bbb-818181818181",
+          type: "ending",
+          stopPosition: null,
+          ending: "get_home",
+          createdAt: "2026-08-05T12:00:00.999999Z",
+        },
+      ],
+      ending: "get_home",
+    },
+  };
+}
+
+function seedReadFixture(db: Database): void {
+  db.sql(`
+    delete from public.social_blocks
+      where blocker_profile_id in ('${ALICE_PROFILE}','${BOB_PROFILE}','${CAROL_PROFILE}')
+        and blocked_profile_id in ('${ALICE_PROFILE}','${BOB_PROFILE}','${CAROL_PROFILE}');
+    delete from public.social_crews where id='${READ_CREW}';
+    delete from public.plans where id in ('${READ_PLAN}','${READ_ROGUE_PLAN}');
+
+    insert into auth.users(id) values('${EVE_USER}'),('${FRANK_USER}')
+      on conflict(id) do nothing;
+    insert into public.profiles(id,user_id,handle) values
+      ('${EVE_PROFILE}','${EVE_USER}','eve'),
+      ('${FRANK_PROFILE}','${FRANK_USER}','frank')
+      on conflict(id) do update set user_id=excluded.user_id,handle=excluded.handle;
+    insert into public.private_social_accounts(
+      id,clerk_user_id,supabase_user_id,profile_id,ownership_state
+    ) values
+      ('${EVE_ACCOUNT}','clerk-eve','${EVE_USER}','${EVE_PROFILE}','active'),
+      ('${FRANK_ACCOUNT}','clerk-frank','${FRANK_USER}','${FRANK_PROFILE}','active')
+      on conflict(id) do update set
+        clerk_user_id=excluded.clerk_user_id,
+        supabase_user_id=excluded.supabase_user_id,
+        profile_id=excluded.profile_id,
+        ownership_state='active';
+    update public.private_social_accounts set ownership_state='active'
+      where id in ('${ALICE_ACCOUNT}','${BOB_ACCOUNT}','${CAROL_ACCOUNT}');
+    insert into public.follows(follower_id,followee_id) values
+      ('${ALICE_PROFILE}','${BOB_PROFILE}'),('${BOB_PROFILE}','${ALICE_PROFILE}'),
+      ('${ALICE_PROFILE}','${CAROL_PROFILE}'),('${CAROL_PROFILE}','${ALICE_PROFILE}')
+      on conflict do nothing;
+
+    insert into public.plans(id,title,start_time,owner_user_id,status)
+      values('${READ_ROGUE_PLAN}','Rogue binding','2026-08-11 19:00:00+00','${BOB_USER}','ready');
+    insert into public.plan_crew_members(
+      id,plan_id,name,token_hash,status,user_id,joined_at,updated_at,can_collaborate,social_account_id
+    ) values(
+      '${READ_ROGUE_PLAN_MEMBER}','${READ_ROGUE_PLAN}','Bob',
+      md5('read-rogue-bob')||md5('read-rogue-bob-2'),'in','${BOB_USER}',now(),now(),true,'${BOB_ACCOUNT}'
+    );
+
+    insert into public.plans(
+      id,title,start_time,owner_user_id,created_at,status,night_context,ending,
+      route_revision,anchor_venue_id,anchor_source,plan_outcome,route_ready_at,social_owner_account_id
+    ) values(
+      '${READ_PLAN}','Projected night','2026-08-10 19:00:00.654321+00','${ALICE_USER}',
+      '2026-08-05 10:00:00.123456+00','ending',
+      '{
+        "nightArea":"camden","daypart":"evening","partyType":"friends",
+        "groupSize":4,"budget":"standard","budgetLimitPence":2500,"zeroProof":false,
+        "atmosphere":["lively"],"foodNeeds":["vegan"],"accessibility":["step-free"],
+        "transportConstraints":["tube"],"poisonContextSecret":"must-not-escape"
+      }'::jsonb,'get_home',7,'venue-one','tonight','route','2026-08-05 10:30:00.111222+00','${ALICE_ACCOUNT}'
+    );
+    insert into public.plan_stops(plan_id,venue_id,venue_name,position) values
+      ('${READ_PLAN}','venue-two','Venue Two',1),
+      ('${READ_PLAN}','venue-one','Venue One',0);
+    insert into public.plan_crew_members(
+      id,plan_id,name,token_hash,status,user_id,joined_at,updated_at,can_collaborate,social_account_id
+    ) values
+      ('${READ_MEMBER_PLAN_MEMBER}','${READ_PLAN}','Bob',md5('read-bob')||md5('read-bob-2'),'in','${BOB_USER}',
+        '2026-08-05 11:00:00.654321+00','2026-08-05 11:00:00.654321+00',true,'${BOB_ACCOUNT}'),
+      ('${READ_OWNER_PLAN_MEMBER}','${READ_PLAN}','Alice',md5('read-alice')||md5('read-alice-2'),'in','${ALICE_USER}',
+        '2026-08-05 10:00:00.123456+00','2026-08-05 10:00:00.123456+00',true,'${ALICE_ACCOUNT}');
+    insert into public.plan_actions(id,plan_id,actor_member_id,type,stop_position,ending,created_at) values
+      ('81818181-bbbb-4bbb-8bbb-818181818181','${READ_PLAN}','${READ_MEMBER_PLAN_MEMBER}','ending',null,'get_home','2026-08-05 12:00:00.999999+00'),
+      ('71717171-bbbb-4bbb-8bbb-717171717171','${READ_PLAN}','${READ_OWNER_PLAN_MEMBER}','arrived',0,null,'2026-08-05 11:30:00.111111+00');
+    insert into public.social_crews(id,plan_id,owner_account_id,visibility,authority_revision,created_at,updated_at)
+      values('${READ_CREW}','${READ_PLAN}','${ALICE_ACCOUNT}','friends',9,
+        '2026-08-05 10:00:00.123456+00','2026-08-05 12:00:00.999999+00');
+    insert into public.social_crew_members(
+      id,crew_id,social_account_id,plan_member_id,role,state,joined_at,updated_at
+    ) values
+      ('${READ_MEMBER}','${READ_CREW}','${BOB_ACCOUNT}','${READ_MEMBER_PLAN_MEMBER}','cohost','active',
+        '2026-08-05 11:00:00.654321+00','2026-08-05 11:00:00.654321+00'),
+      ('${READ_OWNER_MEMBER}','${READ_CREW}','${ALICE_ACCOUNT}','${READ_OWNER_PLAN_MEMBER}','owner','active',
+        '2026-08-05 10:00:00.123456+00','2026-08-05 10:00:00.123456+00');
+  `);
+}
+
+function seedMemberPageIdentities(db: Database): void {
+  seedReadFixture(db);
+  db.sql(`
+    insert into auth.users(id) values('${DAVE_USER}') on conflict(id) do nothing;
+    insert into public.profiles(id,user_id,handle)
+      values('${DAVE_PROFILE}','${DAVE_USER}','dave')
+      on conflict(id) do update set user_id=excluded.user_id,handle=excluded.handle;
+    insert into public.private_social_accounts(
+      id,clerk_user_id,supabase_user_id,profile_id,ownership_state
+    ) values('${DAVE_ACCOUNT}','clerk-dave','${DAVE_USER}','${DAVE_PROFILE}','active')
+      on conflict(id) do update set
+        clerk_user_id=excluded.clerk_user_id,
+        supabase_user_id=excluded.supabase_user_id,
+        profile_id=excluded.profile_id,
+        ownership_state='active';
+    delete from public.social_blocks
+      where (blocker_profile_id='${DAVE_PROFILE}' and blocked_profile_id='${EVE_PROFILE}')
+         or (blocker_profile_id='${EVE_PROFILE}' and blocked_profile_id='${DAVE_PROFILE}');
+  `);
 }
 
 function catalog(db: Database): string {
@@ -989,140 +1258,18 @@ describe("Social Crew migration foundation", () => {
 
   it("returns exact owner and Mutual-member snapshots from one allowlisted shape", () => {
     const db = database!;
-    db.sql(`
-      insert into auth.users(id) values('${EVE_USER}'),('${FRANK_USER}');
-      insert into public.profiles(id,user_id,handle) values
-        ('${EVE_PROFILE}','${EVE_USER}','eve'),
-        ('${FRANK_PROFILE}','${FRANK_USER}','frank');
-      insert into public.private_social_accounts(id,clerk_user_id,supabase_user_id,profile_id) values
-        ('${EVE_ACCOUNT}','clerk-eve','${EVE_USER}','${EVE_PROFILE}'),
-        ('${FRANK_ACCOUNT}','clerk-frank','${FRANK_USER}','${FRANK_PROFILE}');
-      insert into public.plans(
-        id,title,start_time,owner_user_id,created_at,status,night_context,ending,
-        route_revision,anchor_venue_id,anchor_source,plan_outcome,route_ready_at,social_owner_account_id
-      ) values(
-        '${READ_PLAN}','Projected night','2026-08-10 19:00:00.654321+00','${ALICE_USER}',
-        '2026-08-05 10:00:00.123456+00','ending',
-        '{
-          "nightArea":"camden","daypart":"evening","partyType":"friends",
-          "groupSize":4,"budget":"standard","budgetLimitPence":2500,"zeroProof":false,
-          "atmosphere":["lively"],"foodNeeds":["vegan"],"accessibility":["step-free"],
-          "transportConstraints":["tube"],"poisonContextSecret":"must-not-escape"
-        }'::jsonb,'get_home',7,'venue-one','tonight','route','2026-08-05 10:30:00.111222+00','${ALICE_ACCOUNT}'
-      );
-      insert into public.plan_stops(plan_id,venue_id,venue_name,position) values
-        ('${READ_PLAN}','venue-two','Venue Two',1),
-        ('${READ_PLAN}','venue-one','Venue One',0);
-      insert into public.plan_crew_members(
-        id,plan_id,name,token_hash,status,user_id,joined_at,updated_at,can_collaborate,social_account_id
-      ) values
-        ('${READ_MEMBER_PLAN_MEMBER}','${READ_PLAN}','Bob',md5('read-bob')||md5('read-bob-2'),'in','${BOB_USER}',
-          '2026-08-05 11:00:00.654321+00','2026-08-05 11:00:00.654321+00',true,'${BOB_ACCOUNT}'),
-        ('${READ_OWNER_PLAN_MEMBER}','${READ_PLAN}','Alice',md5('read-alice')||md5('read-alice-2'),'in','${ALICE_USER}',
-          '2026-08-05 10:00:00.123456+00','2026-08-05 10:00:00.123456+00',true,'${ALICE_ACCOUNT}');
-      insert into public.plan_actions(id,plan_id,actor_member_id,type,stop_position,ending,created_at) values
-        ('81818181-bbbb-4bbb-8bbb-818181818181','${READ_PLAN}','${READ_MEMBER_PLAN_MEMBER}','ending',null,'get_home','2026-08-05 12:00:00.999999+00'),
-        ('71717171-bbbb-4bbb-8bbb-717171717171','${READ_PLAN}','${READ_OWNER_PLAN_MEMBER}','arrived',0,null,'2026-08-05 11:30:00.111111+00');
-      insert into public.social_crews(id,plan_id,owner_account_id,visibility,authority_revision,created_at,updated_at)
-        values('${READ_CREW}','${READ_PLAN}','${ALICE_ACCOUNT}','friends',9,
-          '2026-08-05 10:00:00.123456+00','2026-08-05 12:00:00.999999+00');
-      insert into public.social_crew_members(
-        id,crew_id,social_account_id,plan_member_id,role,state,joined_at,updated_at
-      ) values
-        ('${READ_MEMBER}','${READ_CREW}','${BOB_ACCOUNT}','${READ_MEMBER_PLAN_MEMBER}','cohost','active',
-          '2026-08-05 11:00:00.654321+00','2026-08-05 11:00:00.654321+00'),
-        ('${READ_OWNER_MEMBER}','${READ_CREW}','${ALICE_ACCOUNT}','${READ_OWNER_PLAN_MEMBER}','owner','active',
-          '2026-08-05 10:00:00.123456+00','2026-08-05 10:00:00.123456+00');
-    `);
-
-    const common = {
-      kind: "member",
-      crew: {
-        crewId: READ_CREW,
-        planId: READ_PLAN,
-        ownerAccountId: ALICE_ACCOUNT,
-        ownerProfileId: ALICE_PROFILE,
-        visibility: "friends",
-        authorityRevision: 9,
-        joinRequestState: "none",
-        members: [
-          {
-            memberId: READ_OWNER_MEMBER,
-            accountId: ALICE_ACCOUNT,
-            profileId: ALICE_PROFILE,
-            planMemberId: READ_OWNER_PLAN_MEMBER,
-            handle: "alice",
-            role: "owner",
-            state: "active",
-            joinedAt: "2026-08-05T10:00:00.123456Z",
-          },
-          {
-            memberId: READ_MEMBER,
-            accountId: BOB_ACCOUNT,
-            profileId: BOB_PROFILE,
-            planMemberId: READ_MEMBER_PLAN_MEMBER,
-            handle: "bob",
-            role: "cohost",
-            state: "active",
-            joinedAt: "2026-08-05T11:00:00.654321Z",
-          },
-        ],
-      },
-      plan: {
-        plan: {
-          id: READ_PLAN,
-          title: "Projected night",
-          startTime: "2026-08-10T19:00:00.654321Z",
-          createdAt: "2026-08-05T10:00:00.123456Z",
-          routeRevision: 7,
-          status: "ending",
-          anchorVenueId: "venue-one",
-          anchorSource: "tonight",
-          outcome: "route",
-          routeReadyAt: "2026-08-05T10:30:00.111222Z",
-        },
-        stops: [
-          { venueId: "venue-one", venueName: "Venue One", position: 0 },
-          { venueId: "venue-two", venueName: "Venue Two", position: 1 },
-        ],
-        context: {
-          nightArea: "camden",
-          daypart: "evening",
-          partyType: "friends",
-          groupSize: 4,
-          budget: "standard",
-          budgetLimitPence: 2500,
-          zeroProof: false,
-          atmosphere: ["lively"],
-          foodNeeds: ["vegan"],
-          accessibility: ["step-free"],
-          transportConstraints: ["tube"],
-        },
-        actions: [
-          {
-            id: "71717171-bbbb-4bbb-8bbb-717171717171",
-            type: "arrived",
-            stopPosition: 0,
-            ending: null,
-            createdAt: "2026-08-05T11:30:00.111111Z",
-          },
-          {
-            id: "81818181-bbbb-4bbb-8bbb-818181818181",
-            type: "ending",
-            stopPosition: null,
-            ending: "get_home",
-            createdAt: "2026-08-05T12:00:00.999999Z",
-          },
-        ],
-        ending: "get_home",
-      },
-    };
-    expect(readSnapshot(db, ALICE_ACCOUNT, ALICE_PROFILE)).toEqual({ ...common, ownerRelationship: "self" });
-    expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toEqual({ ...common, ownerRelationship: "mutual" });
+    seedReadFixture(db);
+    expect(readSnapshot(db, ALICE_ACCOUNT, ALICE_PROFILE)).toEqual(
+      expectedReadMemberSnapshot({ ownerRelationship: "self" }),
+    );
+    expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toEqual(
+      expectedReadMemberSnapshot({ ownerRelationship: "mutual" }),
+    );
   });
 
   it("returns the exact friends preview and omits every protected field", () => {
     const db = database!;
+    seedReadFixture(db);
     const expected = {
       kind: "preview",
       preview: {
@@ -1140,6 +1287,7 @@ describe("Social Crew migration foundation", () => {
 
   it("denies private, stranger, blocked, stale-member, suspended, mismatched, and absent dependencies", () => {
     const db = database!;
+    seedReadFixture(db);
     expect(readSnapshot(db, EVE_ACCOUNT, EVE_PROFILE)).toBeNull();
     expect(readSnapshot(db, ALICE_ACCOUNT, BOB_PROFILE)).toBeNull();
     expect(readSnapshot(db, ALICE_ACCOUNT, ALICE_PROFILE, "90909090-bbbb-4bbb-8bbb-909090909090")).toBeNull();
@@ -1162,10 +1310,8 @@ describe("Social Crew migration foundation", () => {
     expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toBeNull();
     db.sql(`update public.social_crew_members set state='active',ended_at=null where id='${READ_MEMBER}'`);
 
-    db.sql(`update public.social_crew_members set plan_member_id=(
-      select id from public.plan_crew_members
-      where plan_id='${PLAN}' and social_account_id='${BOB_ACCOUNT}'
-    ) where id='${READ_MEMBER}'`);
+    db.sql(`update public.social_crew_members set plan_member_id='${READ_ROGUE_PLAN_MEMBER}'
+      where id='${READ_MEMBER}'`);
     try {
       expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toBeNull();
     } finally {
@@ -1184,6 +1330,7 @@ describe("Social Crew migration foundation", () => {
 
   it("projects only the latest current Join Request in deterministic order", () => {
     const db = database!;
+    seedReadFixture(db);
     const state = () => (readSnapshot(db, CAROL_ACCOUNT, CAROL_PROFILE) as {
       preview: { joinRequestState: string };
     }).preview.joinRequestState;
@@ -1237,69 +1384,51 @@ describe("Social Crew migration foundation", () => {
 
   it("linearises block, friendship, transfer, removal, and suspension races", async () => {
     const db = database!;
-    expect(db.sql("select to_regprocedure('public.read_social_crew_snapshot(uuid,uuid,uuid)')::text"))
-      .toBe("read_social_crew_snapshot(uuid,uuid,uuid)");
-    const concurrentRead = async (mutation: string, accountId = BOB_ACCOUNT, profileId = BOB_PROFILE) => {
-      const results = await db.concurrentResults([
-        `begin; ${mutation}; select pg_sleep(0.5); commit;`,
-        `begin; select pg_sleep(0.2); select coalesce(public.read_social_crew_snapshot(
-          '${accountId}','${profileId}','${READ_CREW}'
-        ),'null'::jsonb); commit;`,
-      ]);
-      expect(results[1]).toContain('"kind": "member"');
+    const expectedBefore = expectedReadMemberSnapshot({ ownerRelationship: "mutual" });
+    const deniedAfterCommit = async (mutation: string) => {
+      seedReadFixture(db);
+      expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toEqual(expectedBefore);
+      expect(await db.snapshotDuringWrite(
+        mutation,
+        snapshotExpression(BOB_ACCOUNT, BOB_PROFILE),
+      )).toEqual(expectedBefore);
+      expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toBeNull();
     };
 
-    await concurrentRead(`insert into public.social_blocks(blocker_profile_id,blocked_profile_id)
+    await deniedAfterCommit(`insert into public.social_blocks(blocker_profile_id,blocked_profile_id)
       values('${ALICE_PROFILE}','${BOB_PROFILE}')`);
-    expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toBeNull();
-    db.sql(`delete from public.social_blocks where blocker_profile_id='${ALICE_PROFILE}' and blocked_profile_id='${BOB_PROFILE}'`);
 
-    await concurrentRead(`delete from public.follows
+    await deniedAfterCommit(`delete from public.follows
       where follower_id='${BOB_PROFILE}' and followee_id='${ALICE_PROFILE}'`);
-    expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toBeNull();
-    db.sql(`insert into public.follows(follower_id,followee_id) values('${BOB_PROFILE}','${ALICE_PROFILE}')`);
 
-    await concurrentRead(`
-      update public.social_crew_members set role='member' where id='${READ_OWNER_MEMBER}';
-      update public.social_crew_members set role='owner' where id='${READ_MEMBER}';
-      update public.social_crews set owner_account_id='${BOB_ACCOUNT}',authority_revision=authority_revision+1 where id='${READ_CREW}';
-      update public.plans set social_owner_account_id='${BOB_ACCOUNT}' where id='${READ_PLAN}'
-    `);
-    expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toMatchObject({
-      kind: "member",
+    seedReadFixture(db);
+    expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toEqual(expectedBefore);
+    expect(await db.snapshotDuringWrite(
+      `select public.transfer_social_crew_owner_atomic(
+        '${ALICE_ACCOUNT}','${READ_CREW}','${READ_MEMBER}','race-transfer-key-01','${DIGEST_A}'
+      )`,
+      snapshotExpression(BOB_ACCOUNT, BOB_PROFILE),
+    )).toEqual(expectedBefore);
+    expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toEqual(expectedReadMemberSnapshot({
       ownerRelationship: "self",
-      crew: {
-        ownerAccountId: BOB_ACCOUNT,
-        ownerProfileId: BOB_PROFILE,
-        members: expect.arrayContaining([
-          expect.objectContaining({ memberId: READ_MEMBER, role: "owner" }),
-          expect.objectContaining({ memberId: READ_OWNER_MEMBER, role: "member" }),
-        ]),
-      },
-    });
-    db.sql(`
-      update public.social_crew_members set role='cohost' where id='${READ_MEMBER}';
-      update public.social_crew_members set role='owner' where id='${READ_OWNER_MEMBER}';
-      update public.social_crews set owner_account_id='${ALICE_ACCOUNT}',authority_revision=9 where id='${READ_CREW}';
-      update public.plans set social_owner_account_id='${ALICE_ACCOUNT}' where id='${READ_PLAN}'
-    `);
+      ownerAccountId: BOB_ACCOUNT,
+      ownerProfileId: BOB_PROFILE,
+      authorityRevision: 10,
+      aliceRole: "cohost",
+      bobRole: "owner",
+    }));
 
-    await concurrentRead(`update public.social_crew_members
-      set state='removed',ended_at=statement_timestamp(),updated_at=statement_timestamp()
-      where id='${READ_MEMBER}'`);
-    expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toBeNull();
-    db.sql(`update public.social_crew_members
-      set state='active',ended_at=null,updated_at=statement_timestamp() where id='${READ_MEMBER}'`);
+    await deniedAfterCommit(`select public.remove_social_crew_member_atomic(
+      '${ALICE_ACCOUNT}','${READ_CREW}','${READ_MEMBER}','race-removal-key-001','${DIGEST_A}'
+    )`);
 
-    await concurrentRead(`update public.private_social_accounts
+    await deniedAfterCommit(`update public.private_social_accounts
       set ownership_state='suspended',ownership_changed_at=statement_timestamp() where id='${BOB_ACCOUNT}'`);
-    expect(readSnapshot(db, BOB_ACCOUNT, BOB_PROFILE)).toBeNull();
-    db.sql(`update public.private_social_accounts
-      set ownership_state='active',ownership_changed_at=statement_timestamp() where id='${BOB_ACCOUNT}'`);
   });
 
   it("filters member-page authority before keyset cursor and limit plus one", () => {
     const db = database!;
+    seedMemberPageIdentities(db);
     const selfPlan = "11112222-0000-4000-8000-000000000001";
     const selfCrew = "11112222-0000-4000-8000-000000000002";
     const selfPlanMember = "11112222-0000-4000-8000-000000000003";
