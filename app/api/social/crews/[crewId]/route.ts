@@ -50,8 +50,9 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   const { visibility, expectedAuthorityRevision } = input.body;
   if (
     (visibility !== "private" && visibility !== "friends") ||
-    !Number.isInteger(expectedAuthorityRevision) ||
-    Number(expectedAuthorityRevision) < 0
+    !Number.isSafeInteger(expectedAuthorityRevision) ||
+    Number(expectedAuthorityRevision) < 0 ||
+    Number(expectedAuthorityRevision) > 2_147_483_647
   ) {
     return socialCrewInvalidResponse();
   }

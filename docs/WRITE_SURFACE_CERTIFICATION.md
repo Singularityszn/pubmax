@@ -6,36 +6,124 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 88 mutating routes.** The count grew 60 → 61 (email-capture
-> `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
-> Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
-> `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
-> `POST /api/area-demand`) → 66 (the structured Visit Reports
-> `POST /api/visit-reports`) → 67 (author-confirmed alt text
-> `PATCH /api/night-moments/[id]/alt-text`) → 69 (the operator rail: `POST
-> /api/venue-operators/claim` and `POST /api/operator-proposals`) → 70 (the
-> community price submission `POST /api/price-submit`) → 71 (community-price
-> moderation `POST /api/admin/community-prices`) → 72 (authored weather
-> Recommendations `POST /api/weather-recommendations`) → 74 (private referral
-> invite-link creation and same-journey signup claim) → 75 (private Social
-> product-account migration) → 77 (verified Social post creation and item
-> editing or recoverable removal) → 78 (consolidated verified Social
-> interactions and governance) → 79 (verified photo-tag consent) → 80 (named
-> staff Social post moderation) → 88 (Social Crew authority routes). Account onboarding
-> replaces the earlier identity claim POST, so its route does not change the
-> count.
-> Token-gated GET
-> confirm/unsubscribe endpoints and read-only GETs (the Social Loop reads, the
-> vibe-vote tally read, the Visit Report venue / contributor-count /
-> moderator-lane reads, the operator
-> own-claim / moderator queue reads, the per-venue community price and venue
-> signal read, the base-pub provisional-mark read, the community-observation
-> review queue read, the weather-matched Recommendation read, and the Social
-> Crew member read) are
-> deliberately excluded from the
-> mutating-verb inventory. The number is a merge-conflict coordination point
-> across in-flight branches — reconcile it (not silently overwrite) when branches
-> meet.
+> **Inventory: 105 mutating handlers across 88 route files.** Each exported
+> `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
+> mutation methods contributes two entries. Read-only handlers do not enter this
+> inventory. Both counts are merge-conflict coordination points.
+
+## Certified mutation handlers
+
+This list is matched exactly against TypeScript syntax-tree discovery. Handler
+bodies are checked separately, including only local helpers each body calls.
+Protection in a sibling method cannot certify another method.
+
+<!-- mutation-handler-inventory:start -->
+- `DELETE app/api/admin/session`
+- `DELETE app/api/crawls/[slug]`
+- `DELETE app/api/night-stories/[id]/contributors`
+- `DELETE app/api/plans/[id]/invites/[inviteId]`
+- `DELETE app/api/profiles/[handle]`
+- `DELETE app/api/pub-pal`
+- `DELETE app/api/pub-pal/memories/[memoryId]`
+- `DELETE app/api/social-connections/[provider]`
+- `DELETE app/api/social/crews/[crewId]/invitations/[invitationId]`
+- `DELETE app/api/social/crews/[crewId]/join-requests`
+- `DELETE app/api/social/crews/[crewId]/members/[memberId]`
+- `DELETE app/api/social/interactions`
+- `PATCH app/api/admin/import-notes`
+- `PATCH app/api/crawls/[slug]`
+- `PATCH app/api/identity/onboarding`
+- `PATCH app/api/night-moments/[id]/alt-text`
+- `PATCH app/api/night-stories/[id]`
+- `PATCH app/api/night-stories/[id]/contributors`
+- `PATCH app/api/plans/[id]`
+- `PATCH app/api/profiles/[handle]`
+- `PATCH app/api/pub-pal`
+- `PATCH app/api/pub-pal/memories/[memoryId]`
+- `PATCH app/api/social/crews/[crewId]`
+- `PATCH app/api/social/crews/[crewId]/invitations/[invitationId]`
+- `PATCH app/api/social/crews/[crewId]/join-requests/[requestId]`
+- `PATCH app/api/social/crews/[crewId]/members/[memberId]`
+- `PATCH app/api/social/posts/[postId]`
+- `POST app/api/admin/comments`
+- `POST app/api/admin/community-prices`
+- `POST app/api/admin/import-notes`
+- `POST app/api/admin/session`
+- `POST app/api/admin/social-posts`
+- `POST app/api/area-demand`
+- `POST app/api/check-ins`
+- `POST app/api/citymcp/journey`
+- `POST app/api/concierge`
+- `POST app/api/crawls`
+- `POST app/api/email-subscribers`
+- `POST app/api/events`
+- `POST app/api/heritage`
+- `POST app/api/identity/handle/claim`
+- `POST app/api/identity/handle/rename`
+- `POST app/api/identity/onboarding`
+- `POST app/api/messages`
+- `POST app/api/messages/[id]`
+- `POST app/api/night-memories`
+- `POST app/api/night-memories/[id]/moments`
+- `POST app/api/night-stories`
+- `POST app/api/night-stories/[id]/consents`
+- `POST app/api/night-stories/[id]/contributors`
+- `POST app/api/night-stories/[id]/moments`
+- `POST app/api/night-stories/[id]/publish-confirmations`
+- `POST app/api/night-stories/[id]/publish-proposals`
+- `POST app/api/notifications`
+- `POST app/api/operator-proposals`
+- `POST app/api/pint-drops`
+- `POST app/api/pint-drops/comments`
+- `POST app/api/pint-drops/reactions`
+- `POST app/api/plans`
+- `POST app/api/plans/[id]/actions`
+- `POST app/api/plans/[id]/complete`
+- `POST app/api/plans/[id]/constraints`
+- `POST app/api/plans/[id]/constraints/[constraintId]/resolve`
+- `POST app/api/plans/[id]/invites`
+- `POST app/api/plans/[id]/invites/redeem`
+- `POST app/api/plans/[id]/join`
+- `POST app/api/plans/[id]/presence`
+- `POST app/api/plans/[id]/proposals`
+- `POST app/api/plans/[id]/proposals/[proposalId]/decision`
+- `POST app/api/plans/[id]/proposals/[proposalId]/votes`
+- `POST app/api/plans/[id]/recap`
+- `POST app/api/plans/[id]/session`
+- `POST app/api/plans/[id]/vibe-votes`
+- `POST app/api/plans/generate`
+- `POST app/api/presence`
+- `POST app/api/price-confirm`
+- `POST app/api/price-submit`
+- `POST app/api/profiles/[handle]/follow`
+- `POST app/api/pub-pal`
+- `POST app/api/pub-pal/mastery`
+- `POST app/api/pub-pal/memories`
+- `POST app/api/pub-pal/voice-token`
+- `POST app/api/push-tokens`
+- `POST app/api/ratings`
+- `POST app/api/referrals/claim-attribution`
+- `POST app/api/referrals/invite-link`
+- `POST app/api/rounds`
+- `POST app/api/rounds/[code]`
+- `POST app/api/saved-pubs`
+- `POST app/api/saved-pubs/list-follows`
+- `POST app/api/social-connections/[provider]`
+- `POST app/api/social/access`
+- `POST app/api/social/crews`
+- `POST app/api/social/crews/[crewId]/invitations`
+- `POST app/api/social/crews/[crewId]/join-requests`
+- `POST app/api/social/crews/[crewId]/leave`
+- `POST app/api/social/interactions`
+- `POST app/api/social/posts`
+- `POST app/api/social/tags`
+- `POST app/api/venue-operators/claim`
+- `POST app/api/visit-reports`
+- `POST app/api/weather-recommendations`
+- `PUT app/api/me/night-profile`
+- `PUT app/api/profiles/[handle]`
+- `PUT app/api/social/interactions`
+<!-- mutation-handler-inventory:end -->
 
 ## Boundary classes
 
@@ -46,6 +134,7 @@ CI until this certification is deliberately updated.
 | Capability | Narrow possession-based authority plus server validation | Plan actions, completion, invites, constraints, proposals, recap |
 | Moderator | Staff-only operational mutation | Import notes and moderation |
 | Confirmation | One-use confirmation for a consequential proposal | Night Story publication |
+| Session revocation | Safe removal of caller-held authority | Admin session cookie removal |
 
 These boundaries compose. For example, Plan creation is rate-limited and fails
 closed when durable enforcement is unavailable; later lifecycle writes require a
@@ -226,8 +315,8 @@ only Plan ID and Crew visibility. Capability is never returned or stored.
 #### `app/api/social/crews/[crewId]` (route 82)
 
 `PATCH` changes visibility through owner authority and an expected authority
-revision. Sibling `GET` returns only the projected Crew DTO and is not a
-mutating route.
+revision in PostgreSQL `int4` range 0 to 2147483647. Sibling `GET` returns only
+the projected Crew DTO and is not a mutating route.
 
 #### `app/api/social/crews/[crewId]/invitations` (route 83)
 

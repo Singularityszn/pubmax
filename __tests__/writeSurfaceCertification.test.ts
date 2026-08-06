@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import ts from "typescript";
 
 const ROOT = process.cwd();
 const API_ROOT = join(ROOT, "app/api");
@@ -9,10 +10,14 @@ const CERTIFICATION = readFileSync(
   join(ROOT, "docs/WRITE_SURFACE_CERTIFICATION.md"),
   "utf8",
 );
-// Mutating handlers are exported either as `export async function POST` or, when
-// wrapped by an observation seam like `withRouteTiming`, as `export const POST =
-// …`. Both forms must stay certified.
-const MUTATION_EXPORT = /export (?:(?:async )?function|const) (POST|PUT|PATCH|DELETE)\b/;
+const MUTATION_METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
+type MutationMethod = (typeof MUTATION_METHODS)[number];
+type MutationHandler = {
+  file: string;
+  method: MutationMethod;
+  route: string;
+  source: string;
+};
 
 function routeFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -25,7 +30,82 @@ function routeFiles(directory: string): string[] {
   });
 }
 
-type Boundary = "rate_limit" | "account" | "capability" | "moderator" | "confirmation";
+function hasExportModifier(node: ts.Node): boolean {
+  return ts.canHaveModifiers(node) &&
+    (ts.getModifiers(node) ?? []).some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
+}
+
+function mutationMethod(name: string | undefined): MutationMethod | null {
+  return MUTATION_METHODS.includes(name as MutationMethod) ? name as MutationMethod : null;
+}
+
+function routeFromFile(file: string): string {
+  return relative(ROOT, file).replace(/\/route\.tsx?$/, "");
+}
+
+function mutationHandlersFromSource(source: string, file: string): MutationHandler[] {
+  const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+  const route = routeFromFile(file);
+  const localDeclarations = new Map<string, ts.Node>();
+  for (const statement of sourceFile.statements) {
+    if (ts.isFunctionDeclaration(statement) && statement.name && statement.body) {
+      localDeclarations.set(statement.name.text, statement.body);
+    }
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name) && declaration.initializer) {
+          localDeclarations.set(declaration.name.text, declaration.initializer);
+        }
+      }
+    }
+  }
+
+  function sourceWithLocalDependencies(root: ts.Node): string {
+    const parts: string[] = [];
+    const seen = new Set<ts.Node>();
+    function visit(node: ts.Node): void {
+      if (seen.has(node)) return;
+      seen.add(node);
+      parts.push(node.getText(sourceFile));
+      const referenced = new Set<ts.Node>();
+      function collect(child: ts.Node): void {
+        if (ts.isIdentifier(child)) {
+          const declaration = localDeclarations.get(child.text);
+          if (declaration && !seen.has(declaration)) referenced.add(declaration);
+        }
+        ts.forEachChild(child, collect);
+      }
+      collect(node);
+      for (const declaration of referenced) visit(declaration);
+    }
+    visit(root);
+    return parts.join("\n");
+  }
+
+  return sourceFile.statements.flatMap((statement): MutationHandler[] => {
+    if (ts.isFunctionDeclaration(statement) && hasExportModifier(statement)) {
+      const method = mutationMethod(statement.name?.text);
+      return method && statement.body
+        ? [{ file, method, route, source: sourceWithLocalDependencies(statement.body) }]
+        : [];
+    }
+    if (!ts.isVariableStatement(statement) || !hasExportModifier(statement)) return [];
+    return statement.declarationList.declarations.flatMap((declaration): MutationHandler[] => {
+      const method = ts.isIdentifier(declaration.name)
+        ? mutationMethod(declaration.name.text)
+        : null;
+      return method && declaration.initializer
+        ? [{ file, method, route, source: sourceWithLocalDependencies(declaration.initializer) }]
+        : [];
+    });
+  });
+}
+
+function mutationHandlerKey(handler: Pick<MutationHandler, "method" | "route">): string {
+  return `${handler.method} ${handler.route}`;
+}
+
+type Boundary = "rate_limit" | "account" | "capability" | "moderator" | "confirmation" | "session";
 
 const BOUNDARY_PATTERNS: Record<Boundary, RegExp> = {
   rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited)\b/,
@@ -33,6 +113,7 @@ const BOUNDARY_PATTERNS: Record<Boundary, RegExp> = {
   capability: /\b(?:planMemberCapability|memberToken|requireRoundOwnership)\b/,
   moderator: /\b(?:isModerator|isAdminAuthorized|verifyAdminToken)\b/,
   confirmation: /\b(?:consumePublishConfirmation|confirmationToken)\b/,
+  session: /\bclearSessionCookie\b/,
 };
 
 function boundaries(source: string): Boundary[] {
@@ -41,13 +122,19 @@ function boundaries(source: string): Boundary[] {
     .map(([boundary]) => boundary);
 }
 
-const mutationRoutes = routeFiles(API_ROOT)
-  .map((file) => ({
-    file,
-    route: relative(ROOT, file),
-    source: readFileSync(file, "utf8"),
-  }))
-  .filter(({ source }) => MUTATION_EXPORT.test(source));
+const mutationHandlers = routeFiles(API_ROOT)
+  .flatMap((file) => mutationHandlersFromSource(readFileSync(file, "utf8"), file))
+  .sort((first, second) => mutationHandlerKey(first).localeCompare(mutationHandlerKey(second)));
+
+function certifiedMutationHandlers(): string[] {
+  const block = CERTIFICATION.match(
+    /<!-- mutation-handler-inventory:start -->[\s\S]*?<!-- mutation-handler-inventory:end -->/,
+  )?.[0] ?? "";
+  return [...block.matchAll(/^- `((?:POST|PUT|PATCH|DELETE) app\/api\/[^`]+)`$/gm)]
+    .map((match) => match[1] ?? "")
+    .filter(Boolean)
+    .sort();
+}
 
 describe("mutating API surface certification", () => {
   it("documents account-derived Visit Report and Recommendation identity", () => {
@@ -73,51 +160,12 @@ describe("mutating API surface certification", () => {
   });
 
   it("keeps the reviewed inventory explicit", () => {
-    // 72 = the Wave 0 inventory of 60 + the email-capture POST
-    // (app/api/email-subscribers/route.ts, merged) + push-tokens (native shell
-    // registration) + the Social Loop "we're out" check-in POST
-    // (app/api/check-ins/route.ts, feat/social-loop-v1) + the vibe-vote POST
-    // (app/api/plans/[id]/vibe-votes/route.ts, feat/vibe-votes — share-loop
-    // tally; its sibling GET aggregate read is NOT a mutating verb and is not
-    // counted) + the area-demand capture POST (app/api/area-demand/route.ts,
-    // lane/area-demand-capture — Wayfinder 3.2 honest unsupported-area preview)
-    // + the structured Visit Reports POST (app/api/visit-reports/route.ts,
-    // lane/visit-reports — Wayfinder 3.4; its per-venue GET summary read is NOT
-    // a mutating verb and is not counted) + the author-confirmed alt-text PATCH
-    // (app/api/night-moments/[id]/alt-text/route.ts, lane/alt-text-authoring —
-    // Wayfinder 5.6; a PRIVATE authoring write, account-gated, not a publication)
-    // + the operator rail (Wayfinder 3.5, lane/operator-rail): the venue-operator
-    // claim POST (app/api/venue-operators/claim/route.ts) and the
-    // operator-proposals POST (app/api/operator-proposals/route.ts) — each also
-    // exports a read-only GET (own-claim / moderator queue) which is NOT a
-    // mutating verb and is not counted. Token-gated GET confirm/unsubscribe
-    // endpoints and the Social Loop's read-only GETs (/check-ins GET,
-    // /profiles/[handle]/lot) are intentionally NOT counted. Plus the community
-    // price-submission POST (app/api/price-submit/route.ts,
-    // fm/price-submission): an account-gated, handle-attributed, rate-limited,
-    // bounds-checked dated price observation; its sibling GET (the freshest
-    // community price per drink at a venue) is NOT a mutating verb and is not
-    // counted. Plus the
-    // community-price moderation POST (app/api/admin/community-prices/route.ts,
-    // fm/trust-quickfixes): moderator-gated hide/restore on one community price
-    // - hide, never delete; its sibling GET (the review queue) is NOT a mutating
-    // verb and is not counted. The reader-side FLAG shares the existing
-    // price-submit POST rather than adding a route. Plus the authored weather
-    // Recommendation POST (app/api/weather-recommendations/route.ts,
-    // fm/weather-recommendations): account-derived handle and profile actor,
-    // closed weather vocabulary, and two rate-limit tiers. Its sibling
-    // GET is read-only and is not counted. This literal is the
-    // + two private referral writes: account-gated invite-link creation and
-    // signup-only attribution claim. Neither accepts an account id from the
-    // caller, and neither exposes an invite edge. Account onboarding replaces
-    // the earlier identity claim POST, so removing the superseded
-    // contribution-age route returns the inventory to 74. The protected Social
-    // account-migration POST adds route 75. Task 6 adds verified tag-consent
-    // POST route 79 and named-staff Social post moderation POST route 80.
-    // Social Crew authority adds routes 81-88. The
-    // deliberate merge-coordination point: any branch adding a mutating route
-    // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(88);
+    // Each mutation method is one coordination point. Exact path and method
+    // pairs live in docs/WRITE_SURFACE_CERTIFICATION.md.
+    expect(mutationHandlers).toHaveLength(105);
+    expect(certifiedMutationHandlers()).toEqual(
+      mutationHandlers.map(mutationHandlerKey),
+    );
   });
 
   it("certifies both verified Social post write routes", () => {
@@ -175,10 +223,33 @@ describe("mutating API surface certification", () => {
     expect(section).toMatch(/unknown keys/i);
   });
 
-  it("gives every mutating route an abuse or authority boundary", () => {
-    const uncovered = mutationRoutes
+  it("enumerates synchronous handlers and checks sibling boundaries independently", () => {
+    const fixture = `
+      export async function POST() {
+        await requireVerifiedSocialActor();
+        return save();
+      }
+      export function DELETE() {
+        return remove();
+      }
+    `;
+    const handlers = mutationHandlersFromSource(
+      fixture,
+      join(ROOT, "app/api/fixture/route.ts"),
+    );
+
+    expect(handlers.map(mutationHandlerKey)).toEqual([
+      "POST app/api/fixture",
+      "DELETE app/api/fixture",
+    ]);
+    expect(boundaries(handlers[0]?.source ?? "")).toContain("account");
+    expect(boundaries(handlers[1]?.source ?? "")).toEqual([]);
+  });
+
+  it("gives every mutating handler its own abuse or authority boundary", () => {
+    const uncovered = mutationHandlers
       .filter(({ source }) => boundaries(source).length === 0)
-      .map(({ route }) => route);
+      .map(mutationHandlerKey);
 
     expect(uncovered).toEqual([]);
   });
@@ -197,10 +268,10 @@ describe("mutating API surface certification", () => {
   });
 
   it("keeps Plan lifecycle writes capability-bound and idempotent", () => {
-    const planMutationRoutes = mutationRoutes.filter(({ route }) =>
+    const planMutationRoutes = mutationHandlers.filter(({ route }) =>
       route.startsWith("app/api/plans/[id]/")
-      && !route.endsWith("/presence/route.ts")
-      && !route.endsWith("/session/route.ts"),
+      && !route.endsWith("/presence")
+      && !route.endsWith("/session"),
     );
 
     const violations = planMutationRoutes
