@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run ci",
+  "buildCommand": "npm run validate-data && npm run build",
   "framework": "nextjs",
   "regions": ["lhr1"],
   "crons": [
