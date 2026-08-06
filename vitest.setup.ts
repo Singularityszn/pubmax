@@ -43,6 +43,12 @@ delete process.env.VERCEL;
 delete process.env.SUPABASE_URL;
 delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Clerk uses the same two-key deployment gate. Production builds expose both
+// keys before Vitest starts, but keyless tests must keep proving the fallback
+// path. Tests for configured Clerk behaviour provide explicit stub values.
+delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+delete process.env.CLERK_SECRET_KEY;
+
 // Same trap, different flag: the Production Vercel project sets
 // NEXT_PUBLIC_DEMO_CONTENT=off, and `npm run ci` runs vitest inside that
 // build. Seed-behaviour tests (demoPintDropsForCity and friends) assume the
