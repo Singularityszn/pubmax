@@ -344,14 +344,15 @@ export function socialCrewJoinRequestPreviewState(
     const created = Date.parse(String(second.createdAt)) - Date.parse(String(first.createdAt));
     return created || joinRequestDecisionOrder(second) - joinRequestDecisionOrder(first);
   });
-  const [latest, next] = rows;
+  const [latest] = rows;
   if (!latest) return "none";
-  if (
-    next &&
-    latest.createdAt === next.createdAt &&
-    joinRequestDecisionOrder(latest) === joinRequestDecisionOrder(next) &&
-    latest.state !== next.state
-  ) {
+  const latestDecisionOrder = joinRequestDecisionOrder(latest);
+  const conflictingTopRow = rows.some((candidate) =>
+    candidate.createdAt === latest.createdAt &&
+    joinRequestDecisionOrder(candidate) === latestDecisionOrder &&
+    candidate.state !== latest.state
+  );
+  if (conflictingTopRow) {
     throw new Error("Social Crew Join Request order is unavailable.");
   }
   return previewStateFromLatest(latest, now);
@@ -424,16 +425,33 @@ async function loadCrewFromSupabase(
   const owner = members.find((member) => member.accountId === crewData.owner_account_id);
   if (!owner) throw new Error("Social Crew owner is unavailable.");
 
-  const { data: requestData, error: requestError } = await admin
+  const { data: latestRequest, error: latestRequestError } = await admin
     .from("social_crew_join_requests")
     .select("state,expires_at,created_at,decided_at")
     .eq("crew_id", crewId)
     .eq("requester_account_id", viewerAccountId)
     .order("created_at", { ascending: false })
     .order("decided_at", { ascending: false, nullsFirst: true })
-    .limit(2);
-  if (requestError) throw new Error(requestError.message);
-  const joinRequestState = socialCrewJoinRequestPreviewState((requestData ?? []).map((request) => ({
+    .limit(1)
+    .maybeSingle();
+  if (latestRequestError) throw new Error(latestRequestError.message);
+
+  let requestCohort: Record<string, unknown>[] = [];
+  if (latestRequest) {
+    let cohortQuery = admin
+      .from("social_crew_join_requests")
+      .select("state,expires_at,created_at,decided_at")
+      .eq("crew_id", crewId)
+      .eq("requester_account_id", viewerAccountId)
+      .eq("created_at", latestRequest.created_at);
+    cohortQuery = latestRequest.decided_at == null
+      ? cohortQuery.is("decided_at", null)
+      : cohortQuery.eq("decided_at", latestRequest.decided_at);
+    const { data: cohortData, error: cohortError } = await cohortQuery;
+    if (cohortError) throw new Error(cohortError.message);
+    requestCohort = (cohortData ?? []) as Record<string, unknown>[];
+  }
+  const joinRequestState = socialCrewJoinRequestPreviewState(requestCohort.map((request) => ({
     state: request.state,
     expiresAt: request.expires_at,
     createdAt: request.created_at,

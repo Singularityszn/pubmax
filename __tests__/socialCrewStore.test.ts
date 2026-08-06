@@ -613,6 +613,22 @@ describe("SocialCrewStore protected projection", () => {
     ], new Date("2026-08-05T12:00:00.000Z"))).toBe("declined");
   });
 
+  it("fails closed when any row in the exact top Join Request cohort conflicts", () => {
+    const topTie = {
+      expiresAt: "2026-08-06T00:00:00.000Z",
+      createdAt: "2026-08-05T10:00:00.000Z",
+      decidedAt: "2026-08-05T10:06:00.000Z",
+    };
+
+    expect(() => socialCrewJoinRequestPreviewState([
+      { ...topTie, state: "declined" },
+      { ...topTie, state: "declined" },
+      { ...topTie, state: "cancelled" },
+    ], new Date("2026-08-05T12:00:00.000Z"))).toThrow(
+      "Social Crew Join Request order is unavailable.",
+    );
+  });
+
   it.each([
     ["state", "unknown"],
     ["role", "host"],
