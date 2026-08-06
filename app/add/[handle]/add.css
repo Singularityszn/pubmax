@@ -94,9 +94,8 @@
   margin: 0;
   font-weight: 700;
   font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--brass);
+  letter-spacing: 0.01em;
+  color: var(--ink-soft);
 }
 
 .confirmFollowTitle {

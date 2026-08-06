@@ -58,6 +58,16 @@
   transition: filter var(--duration-base, 0.18s) var(--ease-standard, ease);
 }
 
+.emptyState--accentAction .emptyStateEyebrow {
+  color: var(--ink-soft);
+}
+
+.emptyState--accentAction .emptyStateAction :is(a, button) {
+  border: 1px solid var(--brass);
+  background: var(--brass);
+  color: var(--color-on-accent, #fdfaf2);
+}
+
 .emptyStateAction :is(a, button):hover {
   filter: brightness(1.15);
 }

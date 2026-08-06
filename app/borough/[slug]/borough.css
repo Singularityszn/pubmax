@@ -22,13 +22,12 @@
   margin: 0 0 10px;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--brass);
+  letter-spacing: 0.01em;
+  color: var(--ink-soft);
 }
 
 .boroughEyebrow a {
-  color: var(--brass);
+  color: inherit;
   text-decoration: none;
 }
 

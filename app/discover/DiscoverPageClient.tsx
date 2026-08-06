@@ -123,7 +123,7 @@ function buildEditorial(): EditorialCardData[] {
       title: "The old guard, still standing",
       dek: "Victorian gin palaces, listed snugs, and the bar Dickens leaned on.",
       href: crawlMapHref("victorian-soho", DEFAULT_CITY_ID),
-      cta: "Walk the heritage route",
+      cta: "Walk Victorian Soho",
     },
     {
       id: "coding-pint",
@@ -188,6 +188,12 @@ function pickDrops(raw: unknown): TonightDrop[] {
 // stops hydrate identically — no parallel map-link format. London-authored, so
 // (like buildEditorial) we omit an explicit city and let the venue-derived city
 // win via DEFAULT_CITY_ID.
+const HERITAGE_CTA_LABELS: Readonly<Record<string, string>> = {
+  "heritage-oldest-pubs": "Start with the oldest",
+  "heritage-riverside-taverns": "Walk the Thames taverns",
+  "heritage-grade-listed": "See the listed classics",
+};
+
 function heritageCrawlCards(crawls: CuratedCrawl[]): EditorialCardData[] {
   return crawls.map((crawl) => ({
     id: `heritage-${crawl.id}`,
@@ -195,7 +201,7 @@ function heritageCrawlCards(crawls: CuratedCrawl[]): EditorialCardData[] {
     title: crawl.name,
     dek: crawl.blurb,
     href: curatedCrawlMapHref(crawl, DEFAULT_CITY_ID),
-    cta: "Walk the heritage route",
+    cta: HERITAGE_CTA_LABELS[crawl.id] ?? "Open this heritage route",
   }));
 }
 

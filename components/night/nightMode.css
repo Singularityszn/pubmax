@@ -129,8 +129,7 @@ html:has(.nightPill) {
 .nightCard__eyebrow {
   margin: 0;
   font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.01em;
   font-weight: 600;
   color: var(--ink-soft, #6b726a);
   overflow: hidden;

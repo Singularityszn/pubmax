@@ -45,9 +45,8 @@
 .roundEyebrow {
   margin: 0 0 8px;
   font-size: 12px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--brass);
+  letter-spacing: 0.01em;
+  color: var(--ink-soft);
   font-weight: 700;
 }
 

@@ -1,11 +1,9 @@
 .nightAreaCoverage {
   margin-top: 30px;
   padding: 22px;
-  border: 1px solid color-mix(in srgb, var(--brass) 26%, var(--line));
+  border: 1px solid var(--line);
   border-radius: 22px;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--brass) 7%, var(--panel-raised)), transparent 62%),
-    var(--panel-raised);
+  background: var(--panel-raised);
   box-shadow: 0 16px 36px color-mix(in srgb, var(--ink) 7%, transparent);
 }
 
@@ -19,11 +17,10 @@
 .nightAreaCoverage__eyebrow,
 .nightAreaCoverage__sectionLabel {
   margin: 0 0 6px;
-  color: var(--brass);
+  color: var(--ink-soft);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
 .nightAreaCoverage h2 {
