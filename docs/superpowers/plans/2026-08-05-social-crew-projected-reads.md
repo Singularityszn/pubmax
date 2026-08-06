@@ -105,7 +105,10 @@ membership, friendship, and block state.
 - [ ] Prove detail snapshot reads Crew authority, current relationships,
   membership, latest Join Request, bound Planned Night, Stops, context, actions,
   ending, and active Social members in one `STABLE SECURITY DEFINER` statement
-  snapshot. Preview snapshot must not carry protected Plan or member rows.
+  snapshot. Response is discriminated: member branch carries explicit
+  allowlisted Crew, Plan, and member rows; preview branch carries only title,
+  status, nullable Night Area, start time, and Join Request state. Preview must
+  not carry Crew or Plan IDs, revisions, protected Plan arrays, or member rows.
 - [ ] Every SQL JSON aggregate has stable order: Social members by
   `joined_at ASC, id ASC`; Stops by `position ASC`; actions by
   `created_at ASC, id ASC`.
@@ -137,6 +140,7 @@ membership, friendship, and block state.
 
 - Create: `lib/socialCrewCursor.server.ts`
 - Modify: `lib/socialCrewStore.ts`
+- Modify: `lib/socialCrewProjection.server.ts`
 - Create: `__tests__/socialCrewReadStore.test.ts`
 - Modify: `__tests__/socialCrewStore.test.ts`
 
@@ -145,6 +149,9 @@ membership, friendship, and block state.
 
 - [ ] Replace default multi-query detail loader with the snapshot RPC. Keep one
   injected snapshot dependency for tests; remove stale default read owners.
+- [ ] Extend the sole detail projector to parse the discriminated atomic
+  snapshot directly. Preview projection must not reconstruct or require
+  protected member data.
 - [ ] Add cursor RED tests for actor A used by actor B, lane mismatch, signature
   mutation, oversized or malformed token, invalid UUID/date/version, missing
   trusted signing key, and equal timestamp ordering.
