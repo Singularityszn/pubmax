@@ -113,6 +113,28 @@ export function detailStatusFor(
   return detailStatusById.get(selectedVenueId) ?? "loading";
 }
 
+/**
+ * Quiet honesty for a `?sel=` that never resolved to a known pub.
+ * Waits until the map index has settled and the detail warm has reported
+ * unavailable, so a still-loading curated pin never flashes the note.
+ * UK base ids are a separate path (ring / hint restore), never "unknown".
+ */
+export function isUnknownMapSelection(input: {
+  loaded: boolean;
+  selectedVenueId: string;
+  resolvable: boolean;
+  ukBase: boolean;
+  detailStatus: VenueDetailStatus;
+}): boolean {
+  if (!input.loaded || !input.selectedVenueId) return false;
+  if (input.ukBase) return false;
+  if (input.resolvable) return false;
+  return input.detailStatus === "unavailable";
+}
+
+/** Visible copy for an unknown `?sel=` - empty-state voice, no plumbing. */
+export const UNKNOWN_MAP_SELECTION_NOTE = "That pub is not one we know.";
+
 export function venueUpdateKey(venue: Venue): string {
   const firstPrice = venue.prices[0];
   return firstPrice ? venueGroupingKey(firstPrice) : venue.id;

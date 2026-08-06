@@ -13,6 +13,8 @@
 // never the drinking. The reward is visible impact ("you mapped 12 pints in
 // Hackney"), never a points economy. Copy must stay on the mapping framing.
 
+import { DAY_MS } from "@/lib/dayMs";
+
 /**
  * The calendar day (YYYY-MM-DD) an instant falls on in Europe/London — the one
  * timezone every PUBMAXX day-bucket is anchored to (mirrors lib/dataFreshness.ts,
@@ -39,7 +41,7 @@ function daysBetween(a: string, b: string): number {
   const ta = Date.parse(`${a}T00:00:00Z`);
   const tb = Date.parse(`${b}T00:00:00Z`);
   if (Number.isNaN(ta) || Number.isNaN(tb)) return NaN;
-  return Math.round((tb - ta) / 86_400_000);
+  return Math.round((tb - ta) / DAY_MS);
 }
 
 export type ContributionStreak = {

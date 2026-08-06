@@ -1,6 +1,6 @@
 "use client";
 
-import { List, MapPinned, ShieldCheck, Sparkles } from "lucide-react";
+import { List, MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -312,6 +312,8 @@ import {
   filtersForCuratedCrawl,
   buildMapSeed,
   detailStatusFor,
+  isUnknownMapSelection,
+  UNKNOWN_MAP_SELECTION_NOTE,
   venueUpdateKey,
   normaliseTonightVenueLookup,
   type MapSeed,
@@ -616,6 +618,9 @@ export default function PubMap({
   const [selectedVenueId, setSelectedVenueId] = useState<string>(
     seed.selectedVenueId || restoredMobileSession?.selectedVenueId || "",
   );
+  // Honest quiet note when `?sel=` never resolves to a known pub. Ambient only
+  // - never a surface-stack entry (no history writes for the note).
+  const [unknownSelectionNote, setUnknownSelectionNote] = useState(false);
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
@@ -1563,6 +1568,7 @@ export default function PubMap({
       origin: PlanningIntentSource | null = null,
     ) => {
       if (!id) return;
+      setUnknownSelectionNote(false);
       surfaceOpenRef.current({
         id: "venue",
         title: "Pub detail",
@@ -2653,6 +2659,41 @@ export default function PubMap({
     surfaceStateRef.current = mapSurfaceState;
   }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.open]);
 
+  // Unknown `?sel=` honesty: once the index has settled and detail warm has
+  // reported unavailable, clear the phantom selection and show a quiet note.
+  // No surface-stack entry for the note itself. If a client-nav selectVenue
+  // already pushed a venue entry for the unknown id, home undoes that push
+  // rather than leaving a sheetless venue trail. State updates ride a microtask
+  // so they stay out of the effect body (set-state-in-effect).
+  useEffect(() => {
+    if (
+      !isUnknownMapSelection({
+        loaded,
+        selectedVenueId,
+        resolvable: selectedVenueResolvable,
+        ukBase: isUkBaseId(selectedVenueId),
+        detailStatus: selectedDetailStatus,
+      })
+    ) {
+      return;
+    }
+    const unknownId = selectedVenueId;
+    const trail = mapSurfaceTrail;
+    queueMicrotask(() => {
+      setUnknownSelectionNote(true);
+      setSelectedVenueId((current) => (current === unknownId ? "" : current));
+      if (trail.holdsSurface("venue")) {
+        trail.home();
+      }
+    });
+  }, [
+    loaded,
+    mapSurfaceTrail,
+    selectedDetailStatus,
+    selectedVenueId,
+    selectedVenueResolvable,
+  ]);
+
   useEffect(() => {
     // An uncovered-place arrival is a one-off destination, not a city session:
     // persisting its viewport under cityId reopened the town under full London
@@ -3050,6 +3091,27 @@ export default function PubMap({
         ) : null}
         {ukPlaceArrival ? (
           <UkPlaceArrivalBanner arrival={ukPlaceArrival} />
+        ) : null}
+        {unknownSelectionNote ? (
+          <aside
+            className="ukPlaceArrival"
+            role="status"
+            aria-live="polite"
+            data-testid="unknown-map-selection"
+          >
+            <span className="ukPlaceArrivalCopy">
+              <strong>{UNKNOWN_MAP_SELECTION_NOTE}</strong>
+              <span>Search for it, or pick one on the map.</span>
+            </span>
+            <button
+              type="button"
+              className="ukPlaceArrivalDismiss"
+              onClick={() => setUnknownSelectionNote(false)}
+              aria-label="Dismiss unknown pub note"
+            >
+              <X size={18} aria-hidden="true" />
+            </button>
+          </aside>
         ) : null}
         {/* Keep pitched-London loading chrome until slim data and the canvas's
             viewport-specific handoff are ready. Phone requires a guarded frame

@@ -16,6 +16,8 @@
 //   - Provenance ({label,url}) rides every price/what's-on line the renderer can
 //     attribute, exactly as the in-app surfaces attribute them.
 
+import { DAY_MS } from "@/lib/dayMs";
+
 /** Days in the digest window, ending at `now`. */
 export const DEFAULT_WINDOW_DAYS = 7;
 
@@ -157,7 +159,7 @@ export function pickGuardianTip(
   tips: readonly string[] = GUARDIAN_TIPS,
 ): string {
   if (tips.length === 0) return "";
-  const dayIndex = Math.floor(windowEnd.getTime() / 86_400_000);
+  const dayIndex = Math.floor(windowEnd.getTime() / DAY_MS);
   const weekIndex = Math.floor(dayIndex / 7);
   return tips[((weekIndex % tips.length) + tips.length) % tips.length];
 }
@@ -176,7 +178,7 @@ export function formatGbp(price: number): string {
 export function generateWeeklyDigest(input: WeeklyDigestInput): WeeklyDigest {
   const end = input.now instanceof Date ? input.now : new Date(input.now);
   const windowDays = input.windowDays ?? DEFAULT_WINDOW_DAYS;
-  const start = new Date(end.getTime() - windowDays * 86_400_000);
+  const start = new Date(end.getTime() - windowDays * DAY_MS);
   const startMs = start.getTime();
   const endMs = end.getTime();
 
@@ -360,7 +362,7 @@ function esc(s: string): string {
 export function freshnessLabel(observedAt: string, now: Date): string {
   const ms = toMs(observedAt);
   if (!isFiniteTime(ms)) return "";
-  const days = Math.floor((now.getTime() - ms) / 86_400_000);
+  const days = Math.floor((now.getTime() - ms) / DAY_MS);
   if (days <= 0) return "logged today";
   if (days === 1) return "logged yesterday";
   return `logged ${days} days ago`;
