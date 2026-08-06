@@ -21,18 +21,28 @@ import {
 // and pass them in; the menu renders seed/app-dataset rows immediately and the
 // update overlay lands when the fetch resolves.
 
+function applyDrinkUpdatesForKeys(
+  base: Drink[],
+  keys: string[],
+  updates: DrinkPriceUpdate[],
+): Drink[] {
+  if (keys.length === 0) return base;
+  const keySet = new Set(keys);
+  const scoped = updates.filter((u) => keySet.has(u.venueKey));
+  if (scoped.length === 0) return base;
+  const canonical = keys[0];
+  const remapped = scoped.map((u) =>
+    u.venueKey === canonical ? u : { ...u, venueKey: canonical },
+  );
+  return applyDrinkPriceUpdatesToMenu(canonical, base, remapped);
+}
+
 export function venueMenuForInspector(
-  venue: Pick<Venue, "id" | "prices">,
+  venue: VenueMenuVenue,
   updates: DrinkPriceUpdate[] = [],
 ): Drink[] {
   const base = venueDrinkMenu(venue.id, venue.prices);
-  const firstPrice = venue.prices[0];
-  if (!firstPrice) return base;
-  return applyDrinkPriceUpdatesToMenu(
-    venueGroupingKey(firstPrice),
-    base,
-    updates,
-  );
+  return applyDrinkUpdatesForKeys(base, venueMenuLookupKeys(venue), updates);
 }
 
 export type VenueMenuVenue = Pick<Venue, "id" | "prices"> &
