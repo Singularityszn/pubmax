@@ -453,6 +453,111 @@ function seedMemberPageIdentities(db: Database): void {
   `);
 }
 
+type MemberPageResult = {
+  items: Array<{ crewId: string; memberId: string; joinedAt: string }>;
+  hasMore: boolean;
+  cursorPosition: { joinedAt: string; memberId: string } | null;
+};
+
+type MemberPageCrewFixture = {
+  planId: string;
+  crewId: string;
+  viewerMemberId: string;
+};
+
+function memberPageFixtureUuid(scope: number, ordinal: number, entity: number): string {
+  const tail = [scope, ordinal, entity]
+    .map((value) => value.toString(16).padStart(4, "0"))
+    .join("");
+  return `70000000-0000-4000-8000-${tail}`;
+}
+
+function insertMemberPageCrew(
+  db: Database,
+  input: {
+    scope: number;
+    ordinal: number;
+    owner: "eve" | "alice";
+    joinedAt: string;
+    title: string;
+  },
+): MemberPageCrewFixture {
+  const planId = memberPageFixtureUuid(input.scope, input.ordinal, 1);
+  const crewId = memberPageFixtureUuid(input.scope, input.ordinal, 2);
+  const ownerPlanMemberId = memberPageFixtureUuid(input.scope, input.ordinal, 3);
+  const viewerPlanMemberId = input.owner === "eve"
+    ? ownerPlanMemberId
+    : memberPageFixtureUuid(input.scope, input.ordinal, 4);
+  const ownerMemberId = memberPageFixtureUuid(input.scope, input.ordinal, 5);
+  const viewerMemberId = input.owner === "eve"
+    ? ownerMemberId
+    : memberPageFixtureUuid(input.scope, input.ordinal, 6);
+  const owner = input.owner === "eve"
+    ? { accountId: EVE_ACCOUNT, userId: EVE_USER, name: "Eve" }
+    : { accountId: ALICE_ACCOUNT, userId: ALICE_USER, name: "Alice" };
+
+  db.sql(`
+    insert into public.plans(
+      id,title,start_time,owner_user_id,status,night_context,social_owner_account_id
+    ) values(
+      '${planId}','${input.title}','2031-08-20 19:00:00.123456+00','${owner.userId}',
+      'ready','{"nightArea":"camden"}'::jsonb,'${owner.accountId}'
+    );
+    insert into public.plan_crew_members(
+      id,plan_id,name,token_hash,status,user_id,joined_at,updated_at,can_collaborate,social_account_id
+    ) values(
+      '${ownerPlanMemberId}','${planId}','${owner.name}',md5('${planId}')||md5('${crewId}'),
+      'in','${owner.userId}',now(),now(),true,'${owner.accountId}'
+    );
+    ${input.owner === "eve" ? "" : `insert into public.plan_crew_members(
+      id,plan_id,name,token_hash,status,user_id,joined_at,updated_at,can_collaborate,social_account_id
+    ) values(
+      '${viewerPlanMemberId}','${planId}','Eve',md5('${viewerPlanMemberId}')||md5('${viewerMemberId}'),
+      'in','${EVE_USER}',now(),now(),true,'${EVE_ACCOUNT}'
+    );`}
+    insert into public.social_crews(id,plan_id,owner_account_id,visibility)
+      values('${crewId}','${planId}','${owner.accountId}','${input.owner === "eve" ? "private" : "friends"}');
+    insert into public.social_crew_members(
+      id,crew_id,social_account_id,plan_member_id,role,state,joined_at,updated_at
+    ) values(
+      '${ownerMemberId}','${crewId}','${owner.accountId}','${ownerPlanMemberId}','owner','active',
+      '${input.owner === "eve" ? input.joinedAt : "2031-08-01 10:00:00.000001+00"}',now()
+    );
+    ${input.owner === "eve" ? "" : `insert into public.social_crew_members(
+      id,crew_id,social_account_id,plan_member_id,role,state,joined_at,updated_at
+    ) values(
+      '${viewerMemberId}','${crewId}','${EVE_ACCOUNT}','${viewerPlanMemberId}','member','active',
+      '${input.joinedAt}',now()
+    );`}
+  `);
+  return { planId, crewId, viewerMemberId };
+}
+
+function beginMemberPageFixture(db: Database): void {
+  seedMemberPageIdentities(db);
+  db.sql(`
+    delete from public.social_blocks
+      where (blocker_profile_id='${ALICE_PROFILE}' and blocked_profile_id='${EVE_PROFILE}')
+         or (blocker_profile_id='${EVE_PROFILE}' and blocked_profile_id='${ALICE_PROFILE}');
+    insert into public.follows(follower_id,followee_id) values
+      ('${EVE_PROFILE}','${ALICE_PROFILE}'),('${ALICE_PROFILE}','${EVE_PROFILE}')
+      on conflict do nothing;
+  `);
+}
+
+function cleanMemberPageFixture(db: Database, fixtures: readonly MemberPageCrewFixture[]): void {
+  db.sql(`
+    delete from public.social_blocks
+      where (blocker_profile_id='${ALICE_PROFILE}' and blocked_profile_id='${EVE_PROFILE}')
+         or (blocker_profile_id='${EVE_PROFILE}' and blocked_profile_id='${ALICE_PROFILE}');
+    insert into public.follows(follower_id,followee_id) values
+      ('${EVE_PROFILE}','${ALICE_PROFILE}'),('${ALICE_PROFILE}','${EVE_PROFILE}')
+      on conflict do nothing;
+    delete from public.social_crews where id in (${fixtures.map(({ crewId }) => `'${crewId}'`).join(",")});
+    delete from public.plans where id in (${fixtures.map(({ planId }) => `'${planId}'`).join(",")});
+  `);
+}
+
 function catalog(db: Database): string {
   return db.sql(`
     with catalog_item(item) as (
@@ -1424,6 +1529,172 @@ describe("Social Crew migration foundation", () => {
 
     await deniedAfterCommit(`update public.private_social_accounts
       set ownership_state='suspended',ownership_changed_at=statement_timestamp() where id='${BOB_ACCOUNT}'`);
+  });
+
+  it("continues from the exact member position after cursor-row deletion and excludes a newer insert", () => {
+    const db = database!;
+    beginMemberPageFixture(db);
+    const fixtures = [
+      insertMemberPageCrew(db, {
+        scope: 1,
+        ordinal: 1,
+        owner: "eve",
+        joinedAt: "2031-08-05 15:00:00.000015+00",
+        title: "First page newest",
+      }),
+      insertMemberPageCrew(db, {
+        scope: 1,
+        ordinal: 2,
+        owner: "eve",
+        joinedAt: "2031-08-05 14:00:00.000014+00",
+        title: "First page cursor",
+      }),
+      insertMemberPageCrew(db, {
+        scope: 1,
+        ordinal: 3,
+        owner: "eve",
+        joinedAt: "2031-08-05 13:00:00.000013+00",
+        title: "Second page first",
+      }),
+      insertMemberPageCrew(db, {
+        scope: 1,
+        ordinal: 4,
+        owner: "eve",
+        joinedAt: "2031-08-05 12:00:00.000012+00",
+        title: "Second page last",
+      }),
+    ];
+    try {
+      const first = readMemberPage(db, EVE_ACCOUNT, EVE_PROFILE, 2) as MemberPageResult;
+      expect(first.items.map(({ crewId }) => crewId)).toEqual([
+        fixtures[0]!.crewId,
+        fixtures[1]!.crewId,
+      ]);
+      expect(first).toMatchObject({
+        hasMore: true,
+        cursorPosition: {
+          joinedAt: "2031-08-05T14:00:00.000014Z",
+          memberId: fixtures[1]!.viewerMemberId,
+        },
+      });
+      const cursor = first.cursorPosition!;
+
+      db.sql(`delete from public.social_crew_members where id='${cursor.memberId}'`);
+      const newer = insertMemberPageCrew(db, {
+        scope: 1,
+        ordinal: 5,
+        owner: "eve",
+        joinedAt: "2031-08-05 16:00:00.000016+00",
+        title: "Inserted after page one",
+      });
+      fixtures.push(newer);
+
+      const second = readMemberPage(db, EVE_ACCOUNT, EVE_PROFILE, 2, cursor) as MemberPageResult;
+      expect(second.items.map(({ crewId }) => crewId)).toEqual([
+        fixtures[2]!.crewId,
+        fixtures[3]!.crewId,
+      ]);
+      expect(second).toMatchObject({ hasMore: false, cursorPosition: null });
+      expect([...first.items, ...second.items].map(({ crewId }) => crewId)).toEqual([
+        fixtures[0]!.crewId,
+        fixtures[1]!.crewId,
+        fixtures[2]!.crewId,
+        fixtures[3]!.crewId,
+      ]);
+      expect(second.items.map(({ crewId }) => crewId)).not.toContain(newer.crewId);
+    } finally {
+      cleanMemberPageFixture(db, fixtures);
+    }
+  });
+
+  it.each([
+    {
+      label: "a block",
+      scope: 2,
+      mutate: (db: Database) => db.sql(`
+        insert into public.social_blocks(blocker_profile_id,blocked_profile_id)
+          values('${ALICE_PROFILE}','${EVE_PROFILE}')
+      `),
+    },
+    {
+      label: "an unfriend",
+      scope: 3,
+      mutate: (db: Database) => db.sql(`
+        delete from public.follows
+          where follower_id='${EVE_PROFILE}' and followee_id='${ALICE_PROFILE}'
+      `),
+    },
+    {
+      label: "active membership removal",
+      scope: 4,
+      mutate: (db: Database, target: MemberPageCrewFixture) => db.sql(`
+        update public.social_crew_members
+          set state='removed',ended_at=statement_timestamp(),updated_at=statement_timestamp()
+          where id='${target.viewerMemberId}'
+      `),
+    },
+  ])("filters current authority before page limit after $label", ({ scope, mutate }) => {
+    const db = database!;
+    beginMemberPageFixture(db);
+    const fixtures = [
+      insertMemberPageCrew(db, {
+        scope,
+        ordinal: 1,
+        owner: "eve",
+        joinedAt: "2031-08-05 15:00:00.000015+00",
+        title: "Cursor crew",
+      }),
+      insertMemberPageCrew(db, {
+        scope,
+        ordinal: 2,
+        owner: "alice",
+        joinedAt: "2031-08-05 14:00:00.000014+00",
+        title: "Authority revoked crew",
+      }),
+      insertMemberPageCrew(db, {
+        scope,
+        ordinal: 3,
+        owner: "eve",
+        joinedAt: "2031-08-05 13:00:00.000013+00",
+        title: "Authorised fallback",
+      }),
+      insertMemberPageCrew(db, {
+        scope,
+        ordinal: 4,
+        owner: "eve",
+        joinedAt: "2031-08-05 12:00:00.000012+00",
+        title: "Trailing authorised crew",
+      }),
+    ];
+    try {
+      const first = readMemberPage(db, EVE_ACCOUNT, EVE_PROFILE, 1) as MemberPageResult;
+      expect(first.items.map(({ crewId }) => crewId)).toEqual([fixtures[0]!.crewId]);
+      expect(first.cursorPosition).toEqual({
+        joinedAt: "2031-08-05T15:00:00.000015Z",
+        memberId: fixtures[0]!.viewerMemberId,
+      });
+
+      mutate(db, fixtures[1]!);
+
+      const second = readMemberPage(
+        db,
+        EVE_ACCOUNT,
+        EVE_PROFILE,
+        1,
+        first.cursorPosition!,
+      ) as MemberPageResult;
+      expect(second.items.map(({ crewId }) => crewId)).toEqual([fixtures[2]!.crewId]);
+      expect(second.items.map(({ crewId }) => crewId)).not.toContain(fixtures[1]!.crewId);
+      expect(second).toMatchObject({
+        hasMore: true,
+        cursorPosition: {
+          joinedAt: "2031-08-05T13:00:00.000013Z",
+          memberId: fixtures[2]!.viewerMemberId,
+        },
+      });
+    } finally {
+      cleanMemberPageFixture(db, fixtures);
+    }
   });
 
   it("filters member-page authority before keyset cursor and limit plus one", () => {
