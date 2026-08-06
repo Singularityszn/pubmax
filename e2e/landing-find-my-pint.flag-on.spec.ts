@@ -17,7 +17,7 @@ async function openLanding(page: Page, viewport: { width: number; height: number
   expect(response?.status()).toBe(200);
   await expect(
     page.getByRole("heading", {
-      name: "Real pint prices on a live map. Plan a crawl your mates will actually walk.",
+      name: "Listed pint prices for nights out.",
       exact: true,
     }),
   ).toBeVisible();

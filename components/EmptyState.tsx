@@ -17,7 +17,7 @@ import "./emptyState.css";
 // which is exactly what a polite (non-interrupting) live region is for. A
 // caller reporting a failed fetch can pass role="alert" instead.
 export type EmptyStateProps = {
-  /** Short, upper-cased kicker above the headline (optional). */
+  /** Short, sentence-case kicker above the headline (optional). */
   eyebrow?: string;
   /** The short serif headline — one line, no punctuation pile-up. */
   title: string;
@@ -25,6 +25,8 @@ export type EmptyStateProps = {
   body?: ReactNode;
   /** At most one action (a link or button) — resist adding a second. */
   action?: ReactNode;
+  /** Use coral action emphasis and a neutral eyebrow on action-led surfaces. */
+  actionTone?: "default" | "accent";
   /** "status" (default) for passive empty results; "alert" for failures. */
   role?: "status" | "alert";
   /** Extra class appended to the root, for page-specific width/spacing only —
@@ -37,12 +39,21 @@ export default function EmptyState({
   title,
   body,
   action,
+  actionTone = "default",
   role = "status",
   className,
 }: EmptyStateProps): React.JSX.Element {
+  const rootClassName = [
+    "emptyState",
+    actionTone === "accent" ? "emptyState--accentAction" : null,
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <section
-      className={className ? `emptyState ${className}` : "emptyState"}
+      className={rootClassName}
       role={role}
     >
       {eyebrow ? <p className="emptyStateEyebrow">{eyebrow}</p> : null}

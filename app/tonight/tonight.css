@@ -42,7 +42,7 @@
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: var(--brass);
+  color: var(--ink-soft);
 }
 
 .tonightShare {
@@ -394,23 +394,7 @@
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: var(--brass);
-}
-
-.tonightRowKind[data-kind="quiz"] {
-  color: color-mix(in srgb, var(--brass) 70%, #c45c26 30%);
-}
-
-.tonightRowKind[data-kind="sport"] {
-  color: color-mix(in srgb, var(--brass) 40%, #2f6fed 60%);
-}
-
-.tonightRowKind[data-kind="deal"] {
-  color: color-mix(in srgb, var(--brass) 50%, #2f9e6b 50%);
-}
-
-.tonightRowKind[data-kind="music"] {
-  color: color-mix(in srgb, var(--brass) 45%, #9b4dca 55%);
+  color: var(--ink-soft);
 }
 
 .tonightRowPrice {

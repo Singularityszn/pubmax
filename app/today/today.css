@@ -30,7 +30,7 @@
   font-size: 0.8125rem;
   font-weight: 650;
   letter-spacing: 0.005em;
-  color: var(--brass);
+  color: var(--ink-soft);
 }
 
 .todayTitle {
@@ -103,10 +103,7 @@
   margin: 0 0 3px;
   font-size: 0.72rem;
   font-weight: 700;
-  /* Small caps text needs POSITIVE tracking to stay legible; the hero above
-     needs negative. Same discipline, opposite direction. */
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--muted, var(--ink-soft));
 }
 
@@ -337,25 +334,8 @@
 .todayPickKind {
   font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--brass);
-}
-
-.todayPickKind[data-kind="quiz"] {
-  color: color-mix(in srgb, var(--brass) 70%, #c45c26 30%);
-}
-
-.todayPickKind[data-kind="sport"] {
-  color: color-mix(in srgb, var(--brass) 40%, #2f6fed 60%);
-}
-
-.todayPickKind[data-kind="deal"] {
-  color: color-mix(in srgb, var(--brass) 50%, #2f9e6b 50%);
-}
-
-.todayPickKind[data-kind="music"] {
-  color: color-mix(in srgb, var(--brass) 45%, #9b4dca 55%);
+  letter-spacing: 0.01em;
+  color: var(--ink-soft);
 }
 
 .todayPickPrice {
@@ -460,7 +440,7 @@
   flex: none;
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--brass);
+  color: var(--accent-price-ink);
   font-variant-numeric: tabular-nums;
 }
 
@@ -520,7 +500,7 @@
   flex: none;
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--brass);
+  color: var(--accent-price-ink);
   font-variant-numeric: tabular-nums;
 }
 

@@ -168,10 +168,10 @@
 }
 .lpHeroKicker span { width: 7px; height: 7px; border-radius: 50%; background: var(--brass); box-shadow: 0 0 0 4px color-mix(in srgb, var(--brass) 14%, transparent); }
 .lpHero h1 {
-  max-width: 9ch;
+  max-width: 18ch;
   margin: 0;
-  font: 760 clamp(52px, 7.1vw, 104px)/.89 var(--font-display);
-  letter-spacing: -.068em;
+  font: 760 clamp(56px, 4.45vw, 64px)/.95 var(--font-display);
+  letter-spacing: -.04em;
   text-wrap: balance;
 }
 .lpHeroLede { max-width: 500px; margin: 25px 0 0; color: var(--ink-soft); font-size: clamp(16px, 1.45vw, 19px); line-height: 1.58; }
@@ -184,7 +184,7 @@
   padding-bottom: clamp(48px, 6vh, 72px);
 }
 .lp--findMyPint .lpHero h1 {
-  font-size: clamp(48px, 6.4vw, 88px);
+  font-size: clamp(56px, 4.45vw, 64px);
 }
 .lp--findMyPint .lpHeroLede { margin-top: 18px; }
 .lpHeroActions--findMyPint {
@@ -380,7 +380,7 @@
 
 @media (max-width: 960px) {
   .lpNav { grid-template-columns: auto 1fr; }.lpPrimaryNav { display: none; }.lpNavActions { justify-self: end; }
-  .lpHero { grid-template-columns: 1fr; min-height: auto; padding-top: 118px; }.lpHeroCopy { max-width: 690px; }.lpHero h1 { max-width: 10ch; font-size: clamp(56px, 11vw, 88px); }
+  .lpHero { grid-template-columns: 1fr; min-height: auto; padding-top: 118px; }.lpHeroCopy { max-width: 690px; }.lpHero h1 { max-width: 10ch; font-size: clamp(56px, 8vw, 64px); }
   .lpHeroMap { width: min(720px, 100%); }
   .lpMemoryCanvas, .lpProofIntro { grid-template-columns: 1fr; }.lpProofIntro { gap: 18px; }
 }

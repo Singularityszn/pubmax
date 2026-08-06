@@ -820,6 +820,7 @@ export default function FeedPageClient({
       ) : isError ? (
         <EmptyState
           className="feedEmpty"
+          actionTone="accent"
           title="Couldn't load Stories."
           body="Check your connection, then try again."
           role="alert"
@@ -836,6 +837,7 @@ export default function FeedPageClient({
       ) : lotEmpty ? (
         <EmptyState
           className="feedEmpty"
+          actionTone="accent"
           eyebrow="Your lot"
           title="Your lot is quiet."
           body="Your lot is the people you both follow. Add a friend by their handle or share your link at the table, and their nights, drops and check-ins land here."
@@ -849,6 +851,7 @@ export default function FeedPageClient({
       ) : isEmpty ? (
         <EmptyState
           className="feedEmpty"
+          actionTone="accent"
           eyebrow="Quiet at the bar"
           title="No pints logged yet tonight."
           body="Be the first to drop one. Snap your pint, log the price, pass down a story. The feed fills up as London drinks."

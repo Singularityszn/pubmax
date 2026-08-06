@@ -225,7 +225,7 @@ export default function LandingPage({
           </div>
 
           <div className="lpHeroCopy">
-            <h1 id="hero-title">Listed pint prices on an interactive map. Plan a crawl with your mates.</h1>
+            <h1 id="hero-title">Listed pint prices for nights out.</h1>
             {/* Flag off: lede then three equal-slot buttons (shipped).
                 Flag on: actions immediately under the title so Find my pint
                 owns the first screen; Map + Plan as secondary text. */}

@@ -1,5 +1,5 @@
-/* Discover beer-garden weather nudge — a single warm card that only mounts
-   when lib/gardenWeather approves. Brass-tinted panel, token-driven so both
+/* Discover beer-garden weather nudge. This card only mounts
+   when lib/gardenWeather approves. Token-driven so both
    themes work; entrance animation is gated on prefers-reduced-motion. The
    column layout stays comfortable at 390px (no fixed widths, names ellipsise). */
 
@@ -8,13 +8,9 @@
   flex-direction: column;
   gap: 8px;
   padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
+  border: 1px solid var(--line);
   border-radius: 16px;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--brass) 10%, var(--panel-raised)),
-    var(--panel-raised) 60%
-  );
+  background: var(--panel-raised);
   color: var(--ink);
   box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 6%, transparent);
 }
@@ -26,9 +22,8 @@
   margin: 0;
   font-size: 0.66rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--brass);
+  letter-spacing: 0.01em;
+  color: var(--ink-soft);
 }
 
 .gardenTonightHeadline {

@@ -39,11 +39,10 @@
 }
 
 .accountOnboardingEyebrow {
-  color: var(--brass);
+  color: var(--ink-soft);
   font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
 .accountOnboardingHead h2 {
