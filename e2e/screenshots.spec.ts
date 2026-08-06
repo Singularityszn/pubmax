@@ -16,6 +16,13 @@ import { mkdir, writeFile } from "node:fs/promises";
 const DOCS_DIR = process.env.SHOTS_DOCS_DIR ?? "docs/screenshots";
 const OUT_DIR = process.env.SHOTS_OUT_DIR ?? "e2e/screenshots";
 
+type PaintedMapTapPoint = {
+  kind: "pin" | "cluster";
+  id: string;
+  x: number;
+  y: number;
+};
+
 async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript((t) => {
@@ -23,17 +30,99 @@ async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // Arm pin-reveal before any /map navigation so waitForLoadedMap can see it.
+    const revealWindow = window as typeof window & {
+      __pubmaxPinRevealTrace?: Array<{ reason: string; generation: number }>;
+    };
+    if (!revealWindow.__pubmaxPinRevealTrace) {
+      const trace: Array<{ reason: string; generation: number }> = [];
+      revealWindow.__pubmaxPinRevealTrace = trace;
+      window.addEventListener("pubmax:pin-reveal", (event) => {
+        trace.push(
+          (event as CustomEvent<{ reason: string; generation: number }>).detail,
+        );
+      });
+    }
   }, theme);
 }
 
-async function waitForMobileVenueSheet(page: Page): Promise<void> {
-  const inspector = page.locator(".venueInspector");
-  await inspector.waitFor({
-    state: "visible",
-    timeout: 60_000,
+/** Count pub marks the map is painting right now (pins + clusters). */
+async function paintedMapMarkCount(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const probe = (
+      window as typeof window & {
+        __pubmaxPaintedMapTapPoints?: () => PaintedMapTapPoint[];
+      }
+    ).__pubmaxPaintedMapTapPoints;
+    return probe?.().length ?? 0;
   });
-  await inspector.getByRole("heading", { level: 3, name: "Arnos Arms" }).waitFor({
-    state: "visible",
+}
+
+async function pinRevealCount(page: Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      (
+        window as typeof window & {
+          __pubmaxPinRevealTrace?: Array<{ reason: string; generation: number }>;
+        }
+      ).__pubmaxPinRevealTrace?.length ?? 0,
+  );
+}
+
+/**
+ * Wait until the MapLibre scene has painted pubs.
+ * A fixed sleep after `.mapCanvasWrap` is not enough: the wrap appears while
+ * the loading shell still says "Rounding up the pubs", and a green gate that
+ * only waits for the wrap lies. `paintedPinProbe` + `pubmax:pin-reveal` are
+ * the product-owned ready signals (see repo CLAUDE.md).
+ *
+ * `requireTappableMarks` is for clean map shots: the probe only returns marks
+ * not covered by chrome. A venue sheet can cover every pin, so deep-link
+ * shots rely on pin-reveal instead and still fail on the loading fallback.
+ */
+async function waitForLoadedMap(
+  page: Page,
+  options: { requireTappableMarks?: boolean } = {},
+): Promise<void> {
+  const { requireTappableMarks = false } = options;
+  await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20_000 });
+
+  // Fail fast if the GL stack never arrives: the honest fallback is not a map.
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+
+  await expect
+    .poll(
+      async () => {
+        const marks = await paintedMapMarkCount(page);
+        const reveals = await pinRevealCount(page);
+        if (requireTappableMarks) return marks;
+        // pin-reveal proves symbols painted; tappable marks prove chrome-clear
+        // pins. Either is enough when the sheet may cover the pin the reader
+        // is already looking at.
+        return Math.max(marks, reveals);
+      },
+      {
+        message: requireTappableMarks
+          ? "map visual gate requires at least one tappable painted pub mark"
+          : "map visual gate requires pin-reveal or a painted pub mark",
+        timeout: 60_000,
+      },
+    )
+    .toBeGreaterThan(0);
+
+  await expect(page.locator(".mapLoading")).toHaveCount(0);
+  await expect(page.getByText("Rounding up the pubs")).toHaveCount(0);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+  await expect(page.locator(".maplibreMap canvas, .maplibregl-canvas").first()).toBeVisible();
+}
+
+async function waitForMobileVenueSheet(page: Page): Promise<void> {
+  // Match the mobile sheet contract other e2e specs use: the shared right
+  // drawer owns the inspector, and the name may land in the peek summary
+  // before the expanded h3 is fully interactive.
+  const sheet = page.locator(".mobileSharedSheet.right");
+  await expect(sheet).toBeVisible({ timeout: 60_000 });
+  await expect(sheet.locator(".venueInspector")).toContainText("Arnos Arms", {
     timeout: 60_000,
   });
 }
@@ -128,8 +217,9 @@ test.describe("screenshot baseline", () => {
         await setTheme(page, theme);
         const response = await page.goto("/map");
         expect(response?.status()).toBe(200);
-        await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20000 });
-        await page.waitForTimeout(1500);
+        // Clean map: pins must be tappable, not hidden under chrome/fallback.
+        await waitForLoadedMap(page, { requireTappableMarks: true });
+        expect(await paintedMapMarkCount(page)).toBeGreaterThan(0);
         await shot(page, `map-clean-${theme}-${viewportName}`);
       });
 
@@ -140,7 +230,8 @@ test.describe("screenshot baseline", () => {
         await setTheme(page, theme);
         const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
         expect(response?.status()).toBe(200);
-        await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20000 });
+        // Sheet may cover pins; pin-reveal still proves the map painted.
+        await waitForLoadedMap(page);
         await waitForMobileVenueSheet(page);
         await shot(page, `map-sheet-${theme}-${viewportName}`);
       });
@@ -149,8 +240,8 @@ test.describe("screenshot baseline", () => {
         await setTheme(page, theme);
         const response = await page.goto("/map?log=1");
         expect(response?.status()).toBe(200);
-        await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20000 });
-        await page.waitForTimeout(2000);
+        // Log chrome can cover pins; pin-reveal still proves the map painted.
+        await waitForLoadedMap(page);
         await shot(page, `map-log-${theme}-${viewportName}`);
       });
 
@@ -179,31 +270,106 @@ test.describe("screenshot baseline", () => {
         await shot(page, `plan-${theme}-${viewportName}`);
       });
 
-      test("plan location success", async ({ page, context }) => {
+      test("plan location success", async ({ page }) => {
         test.skip(isDesktop || viewportName !== "390", "390px mobile evidence only");
         await setTheme(page, theme);
-        await context.grantPermissions(["geolocation"]);
-        await context.setGeolocation({ latitude: 51.527, longitude: -0.08 });
+        await page.addInitScript(() => {
+          window.localStorage.removeItem("pubmax:plan-intake:v1");
+          window.localStorage.removeItem("pubmax:nightPatch:v1");
+          Object.defineProperty(navigator, "geolocation", {
+            configurable: true,
+            value: {
+              getCurrentPosition(success: PositionCallback) {
+                // Async like a real fix so the first paint is the empty area step.
+                queueMicrotask(() => {
+                  success({
+                    coords: {
+                      latitude: 51.527,
+                      longitude: -0.08,
+                      accuracy: 10,
+                      altitude: null,
+                      altitudeAccuracy: null,
+                      heading: null,
+                      speed: null,
+                    },
+                    timestamp: Date.now(),
+                  } as GeolocationPosition);
+                });
+              },
+              watchPosition() {
+                return 0;
+              },
+              clearWatch() {},
+            },
+          });
+        });
         const response = await page.goto("/plan");
         expect(response?.status()).toBe(200);
-        await page.getByRole("button", { name: "Use my location" }).click();
+        // Wait for PlanComposer's auto-seed to finish (lands Shoreditch and
+        // advances to time). Clicking locate while that remount is in flight
+        // detaches the button forever.
+        await page
+          .getByRole("heading", { name: "When are you heading out?" })
+          .waitFor({ state: "visible", timeout: 15_000 });
+        await page.getByRole("button", { name: "Back" }).click();
+        await page
+          .getByRole("heading", { name: "Where should the night happen?" })
+          .waitFor({ state: "visible", timeout: 15_000 });
+        const locate = page.locator(".planIntake__locate");
+        await expect(locate).toBeVisible({ timeout: 15_000 });
+        await locate.dispatchEvent("click");
         await expect(page.locator(".planIntake__locationStatus")).toContainText(
           "Shoreditch is your nearest supported area",
+          { timeout: 15_000 },
         );
         await shot(page, `plan-location-success-${theme}-${viewportName}`);
       });
 
-      test("plan location failure", async ({ page, context }) => {
+      test("plan location failure", async ({ page }) => {
         test.skip(isDesktop || viewportName !== "390", "390px mobile evidence only");
         await setTheme(page, theme);
-        await context.grantPermissions(["geolocation"]);
-        await context.setGeolocation({ latitude: 53.48, longitude: -2.24 });
+        await page.addInitScript(() => {
+          window.localStorage.removeItem("pubmax:plan-intake:v1");
+          window.localStorage.removeItem("pubmax:nightPatch:v1");
+          Object.defineProperty(navigator, "geolocation", {
+            configurable: true,
+            value: {
+              getCurrentPosition(success: PositionCallback) {
+                queueMicrotask(() => {
+                  success({
+                    coords: {
+                      latitude: 53.48,
+                      longitude: -2.24,
+                      accuracy: 10,
+                      altitude: null,
+                      altitudeAccuracy: null,
+                      heading: null,
+                      speed: null,
+                    },
+                    timestamp: Date.now(),
+                  } as GeolocationPosition);
+                });
+              },
+              watchPosition() {
+                return 0;
+              },
+              clearWatch() {},
+            },
+          });
+        });
         const response = await page.goto("/plan");
         expect(response?.status()).toBe(200);
+        // Outside London: auto-seed finds no patch and stays on the area step.
+        await page
+          .getByRole("heading", { name: "Where should the night happen?" })
+          .waitFor({ state: "visible", timeout: 15_000 });
         await page.getByRole("button", { name: "Clapham" }).click();
-        await page.getByRole("button", { name: "Use my location" }).click();
+        const locate = page.locator(".planIntake__locate");
+        await expect(locate).toBeVisible({ timeout: 15_000 });
+        await locate.dispatchEvent("click");
         await expect(page.locator(".planIntake__locationStatus")).toContainText(
           "outside London",
+          { timeout: 15_000 },
         );
         await expect(page.getByRole("button", { name: "Clapham" })).toHaveAttribute(
           "aria-pressed",
@@ -231,33 +397,57 @@ test.describe("screenshot baseline", () => {
         const fixture = await createPlanFixture(request, "ready");
         const response = await page.goto(`/plan/${fixture.id}`);
         expect(response?.status()).toBe(200);
-        await page.getByRole("heading", { level: 1, name: "Friday around Arnos Grove" }).waitFor();
-        await expect(page.getByText("Karan", { exact: true })).toBeVisible();
-        await expect(page.getByText("Luna", { exact: true })).toBeVisible();
+        // §4.10: the shared-link surface is the privacy-safe preview. The user
+        // title ("Friday around Arnos Grove") and guest roster never land in
+        // the public HTML; host display name and stop count do.
+        await page
+          .getByRole("heading", { level: 1, name: "Your night out" })
+          .waitFor({ state: "visible", timeout: 15_000 });
+        await expect(page.getByText("Karan", { exact: true })).toBeVisible({
+          timeout: 15_000,
+        });
+        await expect(page.getByText("1 pub", { exact: true })).toBeVisible({
+          timeout: 15_000,
+        });
+        // Fixture still has the private title server-side; the page must not
+        // leak it into the anonymous snapshot.
+        await expect(page.getByText("Friday around Arnos Grove")).toHaveCount(0);
         await shot(page, `planned-night-shared-${theme}-${viewportName}`);
       });
 
       test("active night", async ({ page, request }) => {
         await setTheme(page, theme);
         const fixture = await createPlanFixture(request, "active");
-        await page.addInitScript(({ id, startTime }) => {
-          window.localStorage.setItem(
-            "pubmax_active_plan",
-            JSON.stringify({ id, startTime, stopIndex: 0 }),
-          );
-        }, fixture);
-        const response = await page.goto("/map");
+        await page.addInitScript(
+          ({ id, startTime, token }) => {
+            window.localStorage.setItem(
+              "pubmax_active_plan",
+              JSON.stringify({ id, startTime, stopIndex: 0 }),
+            );
+            // Legacy recovery path for host capability (member route upgrade
+            // still needs friendMemberRehydrationV2; the card mounts either way).
+            window.sessionStorage.setItem(`pubmax-plan-member:${id}`, token);
+          },
+          { id: fixture.id, startTime: fixture.startTime, token: fixture.memberToken },
+        );
+        // NightModeCard is deliberately null on /map (the map owns its own
+        // plan sheet). Capture the shell card on an in-app route that still
+        // mounts the deferred pill.
+        const response = await page.goto("/tonight");
         expect(response?.status()).toBe(200);
-        await page.getByRole("region", { name: "Map" }).waitFor({
+        await page.getByTestId("tonight-screen").waitFor({
           state: "visible",
-          timeout: 20_000,
+          timeout: 15_000,
         });
-        await page.getByRole("region", { name: "Tonight's plan" }).waitFor({
-          state: "visible",
-          timeout: 15000,
-        });
-        await expect(page.getByText("On tonight · The Gate Zero night")).toBeVisible({
-          timeout: 60_000,
+        await page
+          .getByRole("button", { name: "Show tonight's plan" })
+          .click({ timeout: 30_000 });
+        const tonight = page.getByRole("dialog", { name: "Tonight's plan" });
+        await tonight.waitFor({ state: "visible", timeout: 15_000 });
+        // Eyebrow always says "On tonight"; the private plan title only joins
+        // after member rehydration (flag-gated). Match the public shell.
+        await expect(tonight.getByText("On tonight")).toBeVisible({
+          timeout: 30_000,
         });
         await shot(page, `active-night-${theme}-${viewportName}`);
       });
@@ -267,15 +457,15 @@ test.describe("screenshot baseline", () => {
         await setTheme(page, theme);
         const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
         expect(response?.status()).toBe(200);
-        await page.locator(".mapCanvasWrap").waitFor({ state: "visible", timeout: 20000 });
+        await waitForLoadedMap(page);
         // Deterministic: wait for the selected venue's inspector content (the
         // desktop docked panel) instead of a fixed sleep.
         const inspector = page.locator(".venueInspector");
-        await inspector.waitFor({ state: "visible", timeout: 15000 });
+        await inspector.waitFor({ state: "visible", timeout: 15_000 });
         await inspector
           .getByText("Arnos Arms")
           .first()
-          .waitFor({ state: "visible", timeout: 15000 });
+          .waitFor({ state: "visible", timeout: 15_000 });
         await shot(page, `venue-desktop-${theme}-${viewportName}`);
       });
 

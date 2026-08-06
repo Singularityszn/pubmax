@@ -88,9 +88,9 @@ describe("Playwright isolated build configuration", () => {
   it("passes PW_NEXT_DIST_DIR through webServer.env", () => {
     const source = readFileSync(path.join(ROOT, "playwright.config.ts"), "utf8");
 
-    expect(source).toContain(
-      'process.env.PW_NEXT_DIST_DIR ?? (SCREENSHOT_RUN ? ".next" : ".next-e2e")',
-    );
+    expect(source).toContain("process.env.PW_NEXT_DIST_DIR ??");
+    expect(source).toContain("process.env.NEXT_DIST_DIR ??");
+    expect(source).toContain('SCREENSHOT_RUN ? ".next" : ".next-e2e"');
     expect(source).toContain("SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === \"1\"");
     expect(source).toContain("webServer: SKIP_WEBSERVER");
     expect(source).toContain('name: "chromium-keyless"');

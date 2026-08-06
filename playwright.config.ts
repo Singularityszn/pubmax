@@ -13,8 +13,13 @@ const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 const SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === "1";
 const FIREFOX_DESKTOP_MAP_CHROME_FIT =
   process.env.PW_FIREFOX_DESKTOP_MAP_CHROME_FIT === "1";
+// Prefer an explicit Playwright override, then an inherited NEXT_DIST_DIR from
+// scripts/run-with-restored-next-env.mjs (shots / shots:extended build into a
+// unique .next-isolated dir and must start the same tree), then the defaults.
 const NEXT_DIST_DIR =
-  process.env.PW_NEXT_DIST_DIR ?? (SCREENSHOT_RUN ? ".next" : ".next-e2e");
+  process.env.PW_NEXT_DIST_DIR ??
+  process.env.NEXT_DIST_DIR ??
+  (SCREENSHOT_RUN ? ".next" : ".next-e2e");
 const KEYLESS_NEXT_DIST_DIR =
   process.env.PW_KEYLESS_NEXT_DIST_DIR ?? `${NEXT_DIST_DIR}-keyless`;
 // Production-style browser tests retain the keyless in-memory stores, but
@@ -217,13 +222,12 @@ export default defineConfig({
                 ...(formFactor === "mobile" ? devices["iPhone 13"] : devices["Desktop Chrome"]),
                 browserName: "chromium" as const,
                 viewport: { width, height },
-                ...(formFactor === "desktop"
-                  ? {
-                      launchOptions: {
-                        args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-                      },
-                    }
-                  : {}),
+                // Mobile and desktop both need a real GL stack: without
+                // SwiftShader headless Chromium can sit forever on the map
+                // loading shell and the visual gate would snapshot a lie.
+                launchOptions: {
+                  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+                },
               },
               testMatch: "**/screenshots.spec.ts",
             })),
