@@ -641,7 +641,7 @@ describe("POST /api/rounds/[code] — actions", () => {
       handle: "ken",
       venueId: "venue-1",
     });
-    await memoryProfileStore.linkUser("ken", "user-ken");
+    await memoryProfileStore.createOwned("ken", "user-ken");
     authState.userId = "user-ken";
 
     const response = await action(
@@ -1565,7 +1565,7 @@ describe("POST /api/rounds/[code] — actions", () => {
 describe("rounds auth ownership — linked handle wins over body handle", () => {
   it("joins as the auth-linked handle, ignoring a spoofed body handle", async () => {
     const { round } = await newRound("ken");
-    await memoryProfileStore.linkUser("ale", "user-ale");
+    await memoryProfileStore.createOwned("ale", "user-ale");
     authState.userId = "user-ale";
 
     const res = await action(round.code, { action: "join", handle: "mallory" });

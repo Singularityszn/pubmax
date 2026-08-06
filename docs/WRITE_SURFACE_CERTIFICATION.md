@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 74 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 75 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -17,7 +17,8 @@ CI until this certification is deliberately updated.
 > community price submission `POST /api/price-submit`) → 71 (community-price
 > moderation `POST /api/admin/community-prices`) → 72 (authored weather
 > Recommendations `POST /api/weather-recommendations`) → 74 (private referral
-> invite-link creation and same-journey signup claim). Account onboarding
+> invite-link creation and same-journey signup claim) → 75 (private Social
+> product-account migration). Account onboarding
 > replaces the earlier identity claim POST, so its route does not change the
 > count.
 > Token-gated GET
@@ -53,6 +54,15 @@ resolves only an opaque invite code from its body. Neither route accepts an
 account ID in its body, and neither returns either side of an invite edge.
 Following the public invite route writes nothing. Auth callback code claims are
 accepted only for newly created accounts in the same sign-in journey.
+
+Social account migration is account-bound twice. `POST /api/social/access`
+derives the legacy Supabase identity with `verifyCallerAuth(request)` and the
+protected server seam derives the Clerk identity from middleware-backed session
+context. It accepts no account ID, handle, or email from the body. The beta
+policy denies the write with `SOCIAL_BETA_DISABLED` while Social remains in
+preview, before the Supabase verifier, Clerk check, or migration RPC runs. A
+successful call passes only those two independently verified IDs to the
+service-only transactional RPC.
 
 ## Failure posture
 

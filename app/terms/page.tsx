@@ -15,7 +15,7 @@ import "../legal.css";
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
   "Plain-language terms covering what PUBMAXX is, what you can post, what map prices mean, and where our responsibility ends.";
-const LAST_UPDATED = "31 July 2026";
+const LAST_UPDATED = "5 August 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -72,9 +72,12 @@ export default function TermsPage() {
       <section className="legalSection" aria-labelledby="age">
         <h2 id="age" className="legalH2">Age and alcohol</h2>
         <p className="legalBody">
-          PUBMAXX doesn&rsquo;t block accounts or contributions based on age. Pubs
-          decide who they serve. Nothing in the app is designed to encourage
-          you to drink more. Know your limits, and know the facts at{" "}
+          The map and existing contribution tools don&rsquo;t use age to block an
+          account. Social remains in preview. Yoti integration is not active.
+          If enabled later, full Social access is for verified adults aged 18+
+          and will need a current adult-check decision. Pubs decide who they serve.
+          Nothing in the app is designed to encourage you to drink more. Know
+          your limits, and know the facts at{" "}
           <a
             href="https://www.drinkaware.co.uk"
             target="_blank"
@@ -101,13 +104,22 @@ export default function TermsPage() {
           person and device records 12 months after their last activity. Handle
           is needed to finish signup. Date of birth is needed to finish signup
           too. Full name and sex are optional. We collect and store date of
-          birth, full name and sex as private details for product analytics and social features.
+          birth, full name and sex as private details for existing account tools.
+          Social adult access does not use them.
           Date of birth stays until you delete your profile.
           Full name and sex stay until you edit or clear them, or delete your
           profile. Deleting your profile removes these private identity fields and clears
           its editable public details, while keeping your
           authentication account, public handle and handle-keyed contribution
           history. Only your handle is public.
+          Social also uses a Clerk product session. If you move an existing
+          Supabase-backed account into Social, you need both signed-in sessions
+          in the same request. PUBMAXX doesn&rsquo;t use your email or handle to join
+          them. Full Social content stays closed while the feature is in
+          preview. Yoti integration is not active. If enabled later, access will
+          also require a current 18+ decision for the private product account.
+          Your date of birth, documents and verification status aren&rsquo;t public
+          profile fields or badges.
           Keep your sign-in to yourself, use a handle that isn&rsquo;t someone
           else&rsquo;s identity, and don&rsquo;t hand the account to anyone
           else. You can stop using it whenever you like, and ask us to delete

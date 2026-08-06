@@ -108,7 +108,7 @@ describe("collaborative Night Story storage", () => {
   });
 
   it("gives contributors consent-only workspace data without other private Moments", async () => {
-    await profileStore().linkUser("friend", "friend-user");
+    await profileStore().createOwned("friend", "friend-user");
     const memory = await createNightMemory("host", { title: "Crew night" });
     await addNightMoment("host", memory!.id, { kind: "quote", caption: "Host private note" });
     const friendMoment = await addNightMoment("friend-user", memory!.id, { kind: "photo", caption: "Friend photo" }, { allowContributor: true });
@@ -203,7 +203,7 @@ describe("collaborative Night Story storage", () => {
     // A departed contributor's still-published photo is DROPPED (5.5 redaction),
     // and on the surviving owner's photo an unconfirmed description is emitted as
     // NULL — never dropped (5.6 alt-text belt). Both effects, one emission.
-    await profileStore().linkUser("friend", "friend-user");
+    await profileStore().createOwned("friend", "friend-user");
     const memory = await createNightMemory("host", { title: "Two-photo night" });
     const hostPhoto = await addNightMoment("host", memory!.id, {
       kind: "photo",
@@ -246,7 +246,7 @@ describe("collaborative Night Story storage", () => {
   });
 
   it("sorts every pending invitation ahead of a long accepted Story shelf", async () => {
-    await profileStore().linkUser("friend", "friend-user");
+    await profileStore().createOwned("friend", "friend-user");
     const memory = await createNightMemory("host", { title: "Story shelf" });
     const pending = await createNightStory("host", { memoryId: memory!.id, title: "Old invitation" });
     await upsertStoryContributor("host", pending!.id, { handle: "friend", role: "contributor" });

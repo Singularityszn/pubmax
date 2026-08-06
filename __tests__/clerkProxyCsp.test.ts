@@ -396,6 +396,22 @@ describe("the middleware gate needs BOTH keys", () => {
 });
 
 describe("the proxy export Next.js actually runs", () => {
+  it("matches protected Social APIs without widening to every API", () => {
+    expect(config.matcher).toContainEqual({ source: "/api/social/:path*" });
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "https://pubmaxxing.com/api/social/access",
+      }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "https://pubmaxxing.com/api/price-submit",
+      }),
+    ).toBe(false);
+  });
+
   it("matches Clerk's own frontend API path", () => {
     expect(config.matcher).toContainEqual({ source: "/__clerk/:path*" });
     expect(

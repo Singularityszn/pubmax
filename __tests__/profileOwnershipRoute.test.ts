@@ -26,7 +26,11 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { DELETE, PATCH } from "@/app/api/profiles/[handle]/route";
-import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
+import {
+  __resetMemoryProfiles,
+  __seedMemoryLegacyProfile,
+  memoryProfileStore,
+} from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/profiles";
 
@@ -80,7 +84,7 @@ describe("PATCH /api/profiles/[handle] — ownership gate", () => {
 
   it("REJECTS an anonymous edit of a handle LINKED to a user (403, no hijack)", async () => {
     // Pre-claim the handle for a real account.
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
 
     const res = await patch("ken", { displayName: "Impostor Ken" });
     expect(res.status).toBe(403);
@@ -124,7 +128,7 @@ describe("DELETE /api/profiles/[handle] — soft-delete ownership gate", () => {
   });
 
   it("REJECTS anonymous delete of a LINKED handle (403)", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     await memoryProfileStore.update("ken", { displayName: "Ken" });
 
     const res = await del("ken");
@@ -133,24 +137,28 @@ describe("DELETE /api/profiles/[handle] — soft-delete ownership gate", () => {
     expect(row?.displayName).toBe("Ken");
   });
 
-  it("REJECTS delete when another account claims the handle after the gate read", async () => {
+  it("keeps deletion available when a concurrent legacy ownership claim is refused", async () => {
     await memoryProfileStore.ensure("racy");
     await memoryProfileStore.update("racy", { displayName: "Victim" });
 
     const readProfile = memoryProfileStore.getByHandle.bind(memoryProfileStore);
     vi.spyOn(memoryProfileStore, "getByHandle").mockImplementationOnce(async (handle) => {
       const unlinkedSnapshot = await readProfile(handle);
-      await memoryProfileStore.linkUser(handle, "victim-user");
+      await expect(
+        memoryProfileStore.linkUser(handle, "victim-user"),
+      ).rejects.toThrow("not available");
       return unlinkedSnapshot;
     });
 
     const res = await del("racy");
 
-    expect(res.status).toBe(403);
-    expect(await readProfile("racy")).toMatchObject({
-      userId: "victim-user",
-      displayName: "Victim",
+    expect(res.status).toBe(200);
+    const row = await readProfile("racy");
+    expect(row).toMatchObject({
+      handle: "racy",
+      displayName: undefined,
     });
+    expect(row?.userId).toBeUndefined();
   });
 
   it("REJECTS anonymous delete of a reserved handle before unlinked allowance", async () => {
@@ -168,30 +176,53 @@ describe("DELETE /api/profiles/[handle] — soft-delete ownership gate", () => {
   });
 });
 
-describe("profileStore.linkUser — account migration (story 32)", () => {
-  it("stamps user_id on an existing handle without touching its other fields", async () => {
-    await memoryProfileStore.ensure("ken");
+describe("profileStore account ownership", () => {
+  it("refuses to stamp ownership onto an existing unlinked handle", async () => {
+    __seedMemoryLegacyProfile("ken");
     await memoryProfileStore.update("ken", { displayName: "Ken" });
 
-    const linked = await memoryProfileStore.linkUser("ken", "user-abc");
-    expect(linked.userId).toBe("user-abc");
-    expect(linked.displayName).toBe("Ken"); // prior activity preserved, not copied
+    await expect(
+      memoryProfileStore.linkUser("ken", "user-abc"),
+    ).rejects.toThrow("not available");
+    expect(await memoryProfileStore.getByHandle("ken")).toMatchObject({
+      displayName: "Ken",
+    });
+  });
+
+  it("never lets an account inherit a row created by generic ensure", async () => {
+    const ensured = await memoryProfileStore.ensure("fresh");
+
+    await expect(
+      memoryProfileStore.linkUser("fresh", "user-new"),
+    ).rejects.toThrow("not available");
+
+    expect(await memoryProfileStore.getByHandle("fresh")).toMatchObject({
+      id: ensured.id,
+      handle: "fresh",
+    });
   });
 
   it("is idempotent for the same user", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     const again = await memoryProfileStore.linkUser("ken", "user-abc");
     expect(again.userId).toBe("user-abc");
   });
 
   it("refuses to re-link a handle owned by a different user", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     await expect(memoryProfileStore.linkUser("ken", "user-xyz")).rejects.toThrow();
   });
 
-  it("creates the row if the handle has none yet, then links it", async () => {
-    const linked = await memoryProfileStore.linkUser("fresh", "user-new");
+  it("creates an absent handle already owned in one operation", async () => {
+    const linked = await memoryProfileStore.createOwned("fresh", "user-new");
     expect(linked.handle).toBe("fresh");
     expect(linked.userId).toBe("user-new");
+  });
+
+  it("refuses linkUser when the handle is absent", async () => {
+    await expect(
+      memoryProfileStore.linkUser("fresh", "user-new"),
+    ).rejects.toThrow("not available");
+    expect(await memoryProfileStore.getByHandle("fresh")).toBeNull();
   });
 });

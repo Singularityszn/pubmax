@@ -67,7 +67,7 @@ describe("isAuthor — the edit/delete gate", () => {
 
   it("requires matching JWT owner when the author handle is linked", async () => {
     const { slug } = await makeStory("ken");
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     expect(await isAuthor(slug, "ken")).toBe(false);
     expect(await isAuthor(slug, "ken", "user-xyz")).toBe(false);
     expect(await isAuthor(slug, "ken", "user-abc")).toBe(true);

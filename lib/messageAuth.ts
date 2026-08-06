@@ -80,7 +80,8 @@ export async function requireLinkedActor(
   }
 
   if (!linked) {
-    // First-touch: allow asserted handle so gateHandleAction can claim/link on POST.
+    // A new asserted handle can be created by gateHandleAction on POST. If a
+    // legacy unlinked row already exists, that gate refuses account ownership.
     const asserted = normalizeHandle(assertedHandle ?? "");
     if (!asserted) {
       return {

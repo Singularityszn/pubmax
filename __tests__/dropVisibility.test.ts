@@ -51,7 +51,10 @@ import { GET as getPintDrops } from "@/app/api/pint-drops/route";
 import { callerUserId } from "@/lib/authServer";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { followStore } from "@/lib/followStore";
-import { memoryProfileStore } from "@/lib/profileStore";
+import {
+  __resetMemoryProfiles,
+  memoryProfileStore,
+} from "@/lib/profileStore";
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
@@ -59,6 +62,7 @@ beforeEach(() => {
   vi.stubEnv("NODE_ENV", "test");
   vi.mocked(callerUserId).mockReset();
   vi.mocked(callerUserId).mockResolvedValue(null);
+  __resetMemoryProfiles();
 });
 
 // A base drop for gate/DTO tests — override per case.
@@ -308,8 +312,7 @@ describe("friends visibility — verified viewer only in production", () => {
   it("resolveViewerContextFromRequest uses JWT profile handle in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     addPintDrop(makeDrop({ id: "fr-jwt", visibility: "friends" }));
-    await memoryProfileStore.ensure("mate_bob");
-    await memoryProfileStore.linkUser("mate_bob", "user-bob");
+    await memoryProfileStore.createOwned("mate_bob", "user-bob");
     await followStore().follow("mate_bob", "author_ale");
 
     vi.mocked(callerUserId).mockResolvedValueOnce("user-bob");

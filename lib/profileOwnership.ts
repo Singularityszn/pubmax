@@ -9,14 +9,14 @@
 // whether the write may proceed.
 //
 // Rules:
-//   • Unlinked, non-reserved handle (rowUserId == null): allowed for anyone.
-//     This preserves the demo/anonymous self-asserted-handle behaviour without
-//     allowing a reserved public identity to become account-owned.
+//   • An existing unlinked legacy profile is frozen against account ownership.
+//     It keeps the anonymous demo path, but an authenticated write cannot claim
+//     it. A genuinely new handle can still be created and linked.
 //   • Linked handle (rowUserId set): allowed ONLY when the caller is
 //     authenticated AND their uid matches. A non-owner — anonymous OR a different
 //     signed-in user — is rejected. This is the security win: once a handle is
 //     claimed by an account, it can't be hijacked by a self-asserted handle.
-//   • Concurrent claim of the same unlinked handle returns 409 (linkUser race).
+//   • Concurrent creation of the same new handle returns 409.
 
 import { callerUserId } from "@/lib/authServer";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
@@ -65,35 +65,13 @@ export function decideProfileWrite(
 }
 
 /**
- * Decide whether the caller's authenticated identity should be LINKED onto the
- * handle's row on this write (account migration, user story 32). Link when the
- * caller is authenticated and the row is not already linked to them — i.e. the
- * first authenticated touch of a still-unlinked handle claims it. Never
- * re-links a row already owned by someone else (that write is rejected upstream
- * by decideProfileWrite before we get here).
- */
-export function shouldLinkUser(
-  rowUserId: string | null | undefined,
-  callerUserId: string | null | undefined,
-): boolean {
-  const linkedTo = typeof rowUserId === "string" && rowUserId ? rowUserId : null;
-  const caller = typeof callerUserId === "string" && callerUserId ? callerUserId : null;
-  if (!caller) return false; // anonymous → nothing to link
-  return linkedTo !== caller; // link when unlinked, or (defensively) mismatched-but-allowed
-}
-
-/**
  * Shared ownership gate for handle-keyed private/destructive API routes.
  *
  * Resolves the caller's verified JWT identity, looks up whether `handle` is
  * already linked to a `profiles.user_id`, and applies {@link decideProfileWrite}.
- * On the first authenticated touch of a still-unlinked handle, stamps the link
- * only for write intent so subsequent anonymous claims of that handle fail
- * closed. Reads and deletes never claim ownership.
- *
- * Social Night Loop's frozen-legacy/createOwned contract and migration 0071 are
- * intentionally outside this release. Their later integration must replace the
- * write branch explicitly while preserving this read/delete intent boundary.
+ * Existing unlinked profiles remain frozen against account ownership. Their
+ * anonymous demo path remains, but an authenticated write may only create and
+ * link a genuinely new handle. Reads and deletes never claim ownership.
  *
  * Unlinked, non-reserved handles keep the demo path. Linked handles require the
  * matching signed-in owner. Fail-closed on store errors so an outage cannot open
@@ -125,11 +103,24 @@ export async function gateHandleAction(
 
   try {
     const store = profileStore();
-    // Prefer a read-only lookup so a private GET (inbox, notifications) does not
-    // invent a profile row. Fall back to ensure() only when we are about to
-    // link — that path is write-intent and needs a row to stamp.
+    // Generic profile creation never grants account ownership. An authenticated
+    // mutation may create an absent handle already owned, but cannot inherit an
+    // existing unowned row.
     const existing = await store.getByHandle(key);
     const rowUserId = existing?.userId ?? null;
+    const linkNewHandle = handleActionIntent(request.method) === "write";
+    if (
+      existing &&
+      !rowUserId &&
+      caller &&
+      linkNewHandle
+    ) {
+      return {
+        allowed: false,
+        status: 409,
+        error: "That legacy handle is frozen. Choose a new handle for this account.",
+      };
+    }
     const decision = decideProfileWrite(rowUserId, caller);
     if (!decision.allowed) {
       return {
@@ -140,19 +131,18 @@ export async function gateHandleAction(
       };
     }
 
-    const claimOnUnlinked = handleActionIntent(request.method) === "write";
-    if (claimOnUnlinked && shouldLinkUser(rowUserId, caller) && caller) {
+    if (linkNewHandle && !existing && caller) {
       try {
-        await store.linkUser(key, caller);
+        await store.createOwned(key, caller);
       } catch (err) {
-        // Concurrent claim of the same unlinked handle — surface as 409 so the
+        // Concurrent creation of the same new handle surfaces as 409 so the
         // client can re-auth / pick another handle instead of a generic 503.
         const message = err instanceof Error ? err.message : String(err);
-        if (/already linked/i.test(message)) {
+        if (/already has a handle/i.test(message)) {
           return {
             allowed: false,
             status: 409,
-            error: "This handle was just claimed by another account. Sign in as its owner, or pick a different handle.",
+            error: "This account already has a handle. Use that handle, or rename it first.",
           };
         }
         if (/not available/i.test(message)) {

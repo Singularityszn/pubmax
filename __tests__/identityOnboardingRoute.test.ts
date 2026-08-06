@@ -25,6 +25,7 @@ import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryPrivateIdentities } from "@/lib/privateIdentityStore";
 import {
   __resetMemoryProfiles,
+  __seedMemoryLegacyProfile,
   memoryProfileStore,
 } from "@/lib/profileStore";
 
@@ -91,7 +92,7 @@ describe("/api/identity/onboarding", () => {
       error: "That handle is not available.",
     });
 
-    await memoryProfileStore.linkUser("night_owl", "user-other");
+    await memoryProfileStore.createOwned("night_owl", "user-other");
     response = await POST(
       request("POST", {
         handle: "night_owl",
@@ -137,9 +138,9 @@ describe("/api/identity/onboarding", () => {
     });
   });
 
-  it("claims a legacy handle in place and keeps optional details private", async () => {
+  it("keeps a legacy unlinked handle frozen", async () => {
     authState.userId = "user-1";
-    const legacy = await memoryProfileStore.ensure("old_timer");
+    const legacy = __seedMemoryLegacyProfile("old_timer");
 
     const response = await POST(
       request("POST", {
@@ -149,24 +150,13 @@ describe("/api/identity/onboarding", () => {
         sex: "female",
       }),
     );
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(409);
     expect(await response.json()).toEqual({
-      complete: true,
-      handle: "old_timer",
-      fullName: "Nina Example",
-      sex: "female",
+      code: "taken",
+      error: "That handle is already taken.",
     });
-    expect(await memoryProfileStore.getByUserId("user-1")).toMatchObject({
-      id: legacy.id,
-    });
-
-    const status = await GET(request());
-    expect(await status.json()).toEqual({
-      complete: true,
-      handle: "old_timer",
-      fullName: "Nina Example",
-      sex: "female",
-    });
+    expect(await memoryProfileStore.getByUserId("user-1")).toBeNull();
+    expect((await memoryProfileStore.getByHandle("old_timer"))?.id).toBe(legacy.id);
   });
 
   it("lets the account owner edit and clear private optional details", async () => {

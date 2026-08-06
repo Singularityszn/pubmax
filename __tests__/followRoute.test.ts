@@ -77,7 +77,7 @@ describe("POST /api/profiles/[handle]/follow", () => {
 
 describe("follow auth ownership — linked handle wins over body.follower", () => {
   it("follows as the auth-linked handle, ignoring a spoofed body.follower", async () => {
-    await memoryProfileStore.linkUser("ken", "user-ken");
+    await memoryProfileStore.createOwned("ken", "user-ken");
     asUser("user-ken");
 
     // Signed in as ken (linked); body claims mallory (unlinked) — write must use ken.

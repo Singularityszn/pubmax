@@ -161,7 +161,7 @@ describe("Night Memory HTTP contract", () => {
   });
 
   it("lets a non-host discover, accept, contribute, and consent without edit capability", async () => {
-    await profileStore().linkUser("friend", "friend-user");
+    await profileStore().createOwned("friend", "friend-user");
     const memoryResponse = await CREATE_MEMORY(auth("/api/night-memories", { title: "Crew night" }));
     const { memory } = await memoryResponse.json();
     const storyResponse = await CREATE_STORY(auth("/api/night-stories", { memoryId: memory.id, title: "Crew night" }));

@@ -7,7 +7,7 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 import { callerUserId } from "@/lib/authServer";
-import { decideProfileWrite, gateHandleAction, shouldLinkUser } from "@/lib/profileOwnership";
+import { decideProfileWrite, gateHandleAction } from "@/lib/profileOwnership";
 import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
 
 // Pure ownership decisions (user story 31). These are the gate the API seam
@@ -25,7 +25,7 @@ describe("decideProfileWrite — unlinked handle (demo path preserved)", () => {
     expect(d.allowed && d.reason).toBe("unlinked");
   });
 
-  it("allows a signed-in caller to write an unlinked handle (they'll claim it)", () => {
+  it("allows a signed-in caller to write an absent handle", () => {
     const d = decideProfileWrite(null, OWNER);
     expect(d.allowed).toBe(true);
   });
@@ -52,20 +52,6 @@ describe("decideProfileWrite — linked handle (owner-only)", () => {
     const d = decideProfileWrite(OWNER, OTHER);
     expect(d.allowed).toBe(false);
     expect(!d.allowed && d.status).toBe(403);
-  });
-});
-
-describe("shouldLinkUser — first-authenticated-touch linking (story 32)", () => {
-  it("links when a signed-in caller touches an unlinked handle", () => {
-    expect(shouldLinkUser(null, OWNER)).toBe(true);
-  });
-
-  it("does NOT link an anonymous caller", () => {
-    expect(shouldLinkUser(null, null)).toBe(false);
-  });
-
-  it("does NOT re-link a handle already linked to the same caller (idempotent)", () => {
-    expect(shouldLinkUser(OWNER, OWNER)).toBe(false);
   });
 });
 
@@ -100,7 +86,7 @@ describe("gateHandleAction — shared route ownership seam", () => {
   );
 
   it("REJECTS an anonymous caller on a linked handle", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     const req = new Request("http://localhost/api/x");
     const gate = await gateHandleAction(req, "ken");
     expect(gate.allowed).toBe(false);
@@ -108,7 +94,7 @@ describe("gateHandleAction — shared route ownership seam", () => {
   });
 
   it("allows the matching authenticated owner on a linked handle", async () => {
-    await memoryProfileStore.linkUser("ken", "user-abc");
+    await memoryProfileStore.createOwned("ken", "user-abc");
     vi.mocked(callerUserId).mockResolvedValue("user-abc");
     const req = new Request("http://localhost/api/x", {
       headers: { authorization: "Bearer fake" },
@@ -144,7 +130,7 @@ describe("gateHandleAction — shared route ownership seam", () => {
     expect((await memoryProfileStore.getByHandle("legacy"))?.userId).toBeUndefined();
   });
 
-  it("links on first authenticated write of an unlinked handle", async () => {
+  it("creates ownership on first authenticated write of an absent handle", async () => {
     vi.mocked(callerUserId).mockResolvedValue("user-new");
     const req = new Request("http://localhost/api/x", {
       method: "POST",

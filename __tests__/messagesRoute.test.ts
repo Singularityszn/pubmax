@@ -259,7 +259,7 @@ describe("POST /api/messages/[id] — send + report gating", () => {
 
 describe("messages auth ownership — linked handle wins over body handle", () => {
   it("sends as the auth-linked handle, ignoring a spoofed body handle", async () => {
-    await memoryProfileStore.linkUser("ken", "user-ken");
+    await memoryProfileStore.createOwned("ken", "user-ken");
     asUser("user-ken");
 
     const res = await postInbox({
@@ -277,7 +277,7 @@ describe("messages auth ownership — linked handle wins over body handle", () =
   });
 
   it("401s when the linked owner is not signed in", async () => {
-    await memoryProfileStore.linkUser("ken", "user-ken");
+    await memoryProfileStore.createOwned("ken", "user-ken");
     const res = await postInbox({
       action: "send",
       handle: "ken",

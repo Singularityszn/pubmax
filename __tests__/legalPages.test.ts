@@ -105,6 +105,33 @@ describe("legal content pages", () => {
     expect(terms).not.toMatch(/optional anonymous analytics/i);
   });
 
+  it("discloses Social ownership and the planned Yoti evidence foundation", () => {
+    for (const page of [privacy, terms]) {
+      expect(page).toMatch(/Clerk/);
+      expect(page).toMatch(/Yoti/);
+      expect(page).toMatch(/18\+/);
+    }
+    expect(privacy).toMatch(/Clerk user ID/);
+    expect(privacy).toMatch(/Supabase account ID/);
+    expect(privacy).toMatch(/Yoti subject reference/);
+    expect(privacy).toMatch(/over-18 decision/);
+    expect(privacy).toMatch(/expiry/);
+    expect(privacy).toMatch(/We don&rsquo;t store identity documents/);
+    expect(privacy).toMatch(/selfies/);
+    expect(terms).toMatch(/both signed-in sessions/);
+    expect(terms).toMatch(/doesn&rsquo;t use your email or handle to join\s+them/);
+  });
+
+  it("describes Yoti as deferred service-only evidence plumbing", () => {
+    expect(privacy).toMatch(/does not currently start a Yoti check/i);
+    expect(privacy).toMatch(/service-only evidence fields/i);
+    expect(terms).toMatch(/Yoti integration is not active/i);
+    expect(privacy).not.toMatch(/Yoti runs the\s+adult check/i);
+    expect(privacy).not.toMatch(/Hosted 18\+ age checking/i);
+    expect(privacy).not.toMatch(/returns the authoritative result/i);
+    expect(terms).not.toMatch(/until Yoti returns a current\s+18\+ decision/i);
+  });
+
   it("states both 12-month analytics retention clocks on both legal pages", () => {
     expect(privacy).toMatch(
       /PostHog\s+deletes\s+analytics\s+events\s+12 months after collection/i,
@@ -265,7 +292,7 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/Full name and sex are optional/);
     expect(privacy).toMatch(/only identity shown with contributions/);
     expect(privacy).toMatch(
-      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*product analytics[\s\S]*social features/i,
+      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing account tools[\s\S]*Social adult access does not use them/i,
     );
     expect(privacy).toMatch(
       /date of birth[\s\S]*until you delete your profile/i,
@@ -283,7 +310,7 @@ describe("legal content pages", () => {
       /date of birth is needed to finish signup/i,
     );
     expect(terms).toMatch(
-      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*product analytics[\s\S]*social features/i,
+      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing account tools[\s\S]*Social adult access does not use them/i,
     );
     expect(terms).toMatch(/date of birth[\s\S]*until you delete your profile/i);
     expect(terms).toMatch(
@@ -320,10 +347,11 @@ describe("legal content pages", () => {
     );
   });
 
-  it("states that account and contribution access are not age-gated", () => {
+  it("keeps existing tools open while making full Social 18+", () => {
     expect(terms).toMatch(
-      /doesn&rsquo;t block accounts or contributions based on age/i,
+      /map and existing contribution tools don&rsquo;t use age to block an\s+account/i,
     );
+    expect(terms).toMatch(/full Social access is for verified adults aged 18\+/i);
     expect(terms).toMatch(/Pubs\s+decide who they serve/i);
     expect(terms).toMatch(/drinkaware\.co\.uk/);
   });

@@ -52,8 +52,7 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
 
   it("redacts the deleted account's Moments + identity from a published Story, keeping the rest", async () => {
     // A linked account 'friend' owning handle 'jordanx', contributing to a Story.
-    await profileStore().ensure("jordanx");
-    await profileStore().linkUser("jordanx", "friend");
+    await profileStore().createOwned("jordanx", "friend");
     await profileStore().update("jordanx", { displayName: "Jordan" });
 
     const memory = await createNightMemory("host", { title: "Friday orbit" });
@@ -91,8 +90,7 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
   });
 
   it("still deletes (does not fail) when the account contributes to no Story", async () => {
-    await profileStore().ensure("solo");
-    await profileStore().linkUser("solo", "solo-user");
+    await profileStore().createOwned("solo", "solo-user");
     await memoryReferralStore.recordEdge("inviter", "solo-user");
     const res = await del("solo", "solo-user");
     expect(res.status).toBe(200);
@@ -110,8 +108,7 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
   });
 
   it("deletes private identity fields at the existing profile deletion boundary", async () => {
-    await profileStore().ensure("private_person");
-    await profileStore().linkUser("private_person", "private-user");
+    await profileStore().createOwned("private_person", "private-user");
     expect(
       await memoryPrivateIdentityStore.completeOnboarding({
         userId: "private-user",
