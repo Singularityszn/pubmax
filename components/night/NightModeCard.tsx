@@ -77,6 +77,11 @@ import {
   type PendingPlanRecap,
 } from "@/lib/planRecap";
 import {
+  PENDING_PLAN_RECAP_SYNC_DEBOUNCE_MS,
+  preferFresherPendingPlanRecap,
+  syncPendingPlanRecapToAccount,
+} from "@/lib/planRecapSync.client";
+import {
   parsePlanCapabilitySnapshot,
   readPlanCapabilitySnapshot,
   restorePlanCapability,
@@ -509,18 +514,52 @@ function NightModeSheet({
     [id],
   );
 
+  // When signed in, park the local draft under owner scope so a refresh can
+  // resume from the account copy. Debounced so caption typing stays under the
+  // write rate limit. Fail soft: device localStorage remains.
+  useEffect(() => {
+    if (!recap) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void syncPendingPlanRecapToAccount(recap, controller.signal);
+    }, PENDING_PLAN_RECAP_SYNC_DEBOUNCE_MS);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [recap]);
+
   useEffect(() => {
     if (plan?.plan.status !== "completed" && !plan?.ending) return;
-    // Already holding this night's recap locally — no seed fetch, no spinner.
-    if (readPendingPlanRecap(id)) return;
     const controller = new AbortController();
     const title = plan.plan.title;
-    // Seed the completed night's recap on re-entry. The seeding flag lives inside
-    // the async task (not the effect body) so it never triggers a synchronous
-    // render cascade; the honest "coming" line shows only while this is in flight.
+    // Seed the completed night's recap on re-entry. Prefer the fresher of the
+    // local draft and the owner-scoped account copy before re-deriving from the
+    // completion snapshot.
     void (async () => {
       setRecapSeeding(true);
       try {
+        const local = readPendingPlanRecap(id);
+        let owned: PendingPlanRecap | null = null;
+        try {
+          const ownedResponse = await authedFetch("/api/me/pending-plan-recaps", {
+            signal: controller.signal,
+          });
+          if (ownedResponse.ok && !controller.signal.aborted) {
+            const ownedBody = (await ownedResponse.json().catch(() => null)) as {
+              drafts?: PendingPlanRecap[];
+            } | null;
+            owned = ownedBody?.drafts?.find((draft) => draft.planId === id) ?? null;
+          }
+        } catch {
+          // Signed out or store unavailable: fall through with local only.
+        }
+        const chosen = preferFresherPendingPlanRecap(local, owned);
+        if (chosen) {
+          if (chosen !== local) writePendingPlanRecap(chosen);
+          setRecap(chosen);
+          return;
+        }
         const response = await fetch(`/api/plans/${id}/complete`, {
           cache: "no-store",
           signal: controller.signal,

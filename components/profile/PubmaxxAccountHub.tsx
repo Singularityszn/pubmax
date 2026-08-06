@@ -39,6 +39,22 @@ import {
   type NightProfileMergeChoice,
   type NightProfileMergeState,
 } from "@/lib/nightProfileClient";
+import {
+  confirmedPlanRecapClaim,
+  planRecapClaimMergeState,
+  type PlanRecapClaimChoice,
+  type PlanRecapClaimMergeState,
+} from "@/lib/planRecapClaim";
+import {
+  listPendingPlanRecaps,
+  resolvePendingPlanRecap,
+  subscribeAnyPendingPlanRecap,
+  type PendingPlanRecap,
+} from "@/lib/planRecap";
+import {
+  PLAN_HTTP_ONLY_SESSION,
+  restorePlanCapability,
+} from "@/lib/planSessionCapability";
 import type { SocialProvider, SocialProviderAvailability } from "@/lib/socialConnections";
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import { getNightAreasForCity } from "@/lib/nightAreas";
@@ -287,6 +303,10 @@ export default function PubmaxxAccountHub() {
   const [deviceNightProfile, setDeviceNightProfile] = useState<NightProfileInput | null>(null);
   const [nightProfileDraft, setNightProfileDraft] = useState<NightProfileInput | null>(null);
   const [mergeDeferred, setMergeDeferred] = useState(false);
+  const [devicePlanRecaps, setDevicePlanRecaps] = useState<PendingPlanRecap[]>([]);
+  const [memoryCompletionIds, setMemoryCompletionIds] = useState<string[]>([]);
+  const [planRecapMergeLoaded, setPlanRecapMergeLoaded] = useState(false);
+  const [planRecapMergeDeferred, setPlanRecapMergeDeferred] = useState(false);
   const [message, setMessage] = useState("");
   const [analyticsConsent, setAnalyticsConsentState] = useState<AnalyticsConsentDecision | null>(null);
   const [referralStatus, setReferralStatus] = useState<ReferralPrivateStatus | null>(null);
@@ -335,13 +355,17 @@ export default function PubmaxxAccountHub() {
         setNightProfileLoaded(false);
         setAccountNightProfile(null);
         setMergeDeferred(false);
+        setPlanRecapMergeLoaded(false);
+        setPlanRecapMergeDeferred(false);
+        setMemoryCompletionIds([]);
       }
     });
     void Promise.allSettled([
       authedFetch("/api/social-connections", { signal: controller.signal }),
       authedFetch("/api/me/night-profile", { signal: controller.signal }),
       authedFetch("/api/referrals/status", { signal: controller.signal }),
-    ]).then(async ([socialResult, nightProfileResult, referralsResult]) => {
+      authedFetch("/api/me/pending-plan-recaps", { signal: controller.signal }),
+    ]).then(async ([socialResult, nightProfileResult, referralsResult, pendingRecapResult]) => {
       if (controller.signal.aborted) return;
       const social = socialResult.status === "fulfilled" ? socialResult.value : null;
       const nightProfile = nightProfileResult.status === "fulfilled"
@@ -349,6 +373,9 @@ export default function PubmaxxAccountHub() {
         : null;
       const referrals = referralsResult.status === "fulfilled"
         ? referralsResult.value
+        : null;
+      const pendingRecaps = pendingRecapResult.status === "fulfilled"
+        ? pendingRecapResult.value
         : null;
       if (social?.ok) {
         const body = await social.json().catch(() => null) as {
@@ -376,7 +403,16 @@ export default function PubmaxxAccountHub() {
           | null;
         if (status) setReferralStatus(status);
       }
-      if (!controller.signal.aborted) setNightProfileLoaded(true);
+      if (pendingRecaps?.ok) {
+        const body = await pendingRecaps.json().catch(() => null) as {
+          memoryCompletionIds?: string[];
+        } | null;
+        setMemoryCompletionIds(body?.memoryCompletionIds ?? []);
+      }
+      if (!controller.signal.aborted) {
+        setNightProfileLoaded(true);
+        setPlanRecapMergeLoaded(true);
+      }
     });
     return () => controller.abort();
   }, [user]);
@@ -385,6 +421,12 @@ export default function PubmaxxAccountHub() {
     const refresh = () => setDeviceNightProfile(readDeviceNightProfile());
     queueMicrotask(refresh);
     return subscribeDeviceNightProfile(refresh);
+  }, [user]);
+
+  useEffect(() => {
+    const refresh = () => setDevicePlanRecaps(listPendingPlanRecaps());
+    queueMicrotask(refresh);
+    return subscribeAnyPendingPlanRecap(refresh);
   }, [user]);
 
   useEffect(() => {
@@ -445,6 +487,66 @@ export default function PubmaxxAccountHub() {
     writeDeviceNightProfile(nightProfileInput(body.profile));
     setDeviceNightProfile(nightProfileInput(body.profile));
     setMessage("Your device preferences are now on your account.");
+  }
+
+  async function confirmPlanRecapClaim(
+    state: Exclude<PlanRecapClaimMergeState, { kind: "none" }>,
+    choice: PlanRecapClaimChoice,
+  ) {
+    const confirmed = confirmedPlanRecapClaim(state, choice);
+    if (!confirmed.writesAccount) {
+      setPlanRecapMergeDeferred(true);
+      setMessage("Your private Memories were left unchanged. The recap stays on this device.");
+      return;
+    }
+    const items: Array<{ recap: PendingPlanRecap; memberToken: string }> = [];
+    for (const recap of confirmed.recaps) {
+      let memberToken = "";
+      try {
+        const capability = await restorePlanCapability(recap.planId);
+        if (capability?.token) memberToken = capability.token;
+      } catch {
+        memberToken = "";
+      }
+      if (!memberToken) {
+        setMessage(
+          "Open the Plan in this browser before bringing the recap. Your local draft is safe.",
+        );
+        return;
+      }
+      items.push({
+        recap,
+        memberToken: memberToken === PLAN_HTTP_ONLY_SESSION ? PLAN_HTTP_ONLY_SESSION : memberToken,
+      });
+    }
+    const response = await authedFetch("/api/me/pending-plan-recaps", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "claim", choice: "bring-device", items }),
+    });
+    const body = (await response.json().catch(() => ({}))) as {
+      memories?: Array<{ memory?: { id: string; planCompletionId?: string | null } }>;
+      error?: string;
+    };
+    if (!response.ok) {
+      setMessage(body.error ?? "Your private recap could not be brought onto your account.");
+      return;
+    }
+    const nextIds = new Set(memoryCompletionIds);
+    for (const entry of body.memories ?? []) {
+      const completionId = entry.memory?.planCompletionId;
+      if (completionId) nextIds.add(completionId);
+    }
+    for (const recap of confirmed.recaps) {
+      resolvePendingPlanRecap(recap, "saved");
+    }
+    setMemoryCompletionIds([...nextIds]);
+    setDevicePlanRecaps(listPendingPlanRecaps());
+    setMessage(
+      (body.memories?.length ?? 0) > 1
+        ? "Your device recaps are now private Memories. Nothing was published."
+        : "Your device recap is now a private Memory. Nothing was published.",
+    );
   }
 
   function editDeviceNightProfile(profile: NightProfileInput) {
@@ -550,6 +652,10 @@ export default function PubmaxxAccountHub() {
     ? ({ kind: "none" } as const)
     : nightProfileMergeState(deviceNightProfile, accountNightProfile);
 
+  const planRecapMergeState = planRecapMergeDeferred || !planRecapMergeLoaded
+    ? ({ kind: "none" } as const)
+    : planRecapClaimMergeState(devicePlanRecaps, memoryCompletionIds);
+
   return (
     <section className="accountHub" aria-labelledby="account-hub-title">
       <p className="profileSectionKicker">Your PUBMAXX</p><h2 id="account-hub-title">Identity, connections and memories.</h2>
@@ -570,6 +676,24 @@ export default function PubmaxxAccountHub() {
         </div>
       ) : accountNightProfile ? (
         <p className="accountHubNightProfile">Night Profile synced · {accountNightProfile.context.budget} budget{accountNightProfile.context.zeroProof ? " · zero-proof preferred" : ""}</p>
+      ) : null}
+      {planRecapMergeState.kind !== "none" ? (
+        <div className="accountHubMerge" role="group" aria-labelledby="plan-recap-merge-title">
+          <h3 id="plan-recap-merge-title">Bring tonight&rsquo;s private recap?</h3>
+          <p>
+            {planRecapMergeState.recaps.length === 1
+              ? "This device has a finished-night recap that is not on your account yet. Bringing it saves one private Memory. Nothing is published."
+              : `This device has ${planRecapMergeState.recaps.length} finished-night recaps that are not on your account yet. Bringing them saves private Memories. Nothing is published.`}
+          </p>
+          <div className="accountHubActions">
+            <button type="button" onClick={() => void confirmPlanRecapClaim(planRecapMergeState, "bring-device")}>
+              Bring this device
+            </button>
+            <button type="button" onClick={() => void confirmPlanRecapClaim(planRecapMergeState, "keep-device")}>
+              Keep only on this device
+            </button>
+          </div>
+        </div>
       ) : null}
       <NightProfileControls
         profile={nightProfileDraft ?? DEFAULT_NIGHT_PROFILE_INPUT}
