@@ -41,28 +41,40 @@ test.describe("phone route composition", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test("Today keeps one card column in its original order", async ({ page }) => {
+    await page.route("**/api/tfl-disruption?*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          disruption: {
+            patchId: "soho",
+            patchLabel: "Soho",
+            lineId: "central",
+            lineName: "Central",
+            kind: "severe_delays",
+            line: "Severe delays on the Central line tonight, leave more time to get home",
+          },
+          generatedAt: "2026-08-06T10:00:00.000Z",
+        }),
+      }),
+    );
     await page.goto("/today");
+    await expect(page.getByTestId("today-tube")).toBeVisible();
 
     const cards = page.locator(".todayStack .todayCard");
     const cardIds = await cards.evaluateAll((elements) =>
       elements.map((element) => element.getAttribute("data-testid")),
     );
-    const canonicalOrder = [
+    const expectedCardIds = [
       "today-weather",
       "today-tube",
       "today-picks",
       "today-get-there",
       "today-pints",
-      "today-quiet-pint",
+      ...(cardIds.includes("today-quiet-pint") ? ["today-quiet-pint"] : []),
       "today-fact",
     ];
-    expect(cardIds).toEqual(canonicalOrder.filter((id) => cardIds.includes(id)));
-    expect(cardIds).toEqual(expect.arrayContaining([
-      "today-weather",
-      "today-picks",
-      "today-get-there",
-      "today-fact",
-    ]));
+    expect(cardIds).toEqual(expectedCardIds);
     const boxes = await cards.evaluateAll((elements) =>
       elements.map((element) => element.getBoundingClientRect().toJSON()),
     );
