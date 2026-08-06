@@ -74,6 +74,8 @@ to service_role;
 
 drop function if exists public.update_legacy_plan_status_context_atomic(uuid,text,text,jsonb);
 drop function if exists public._social_plan_is_bound(uuid);
+drop function if exists public.read_social_crew_member_page(uuid,uuid,timestamptz,uuid,integer);
+drop function if exists public.read_social_crew_snapshot(uuid,uuid,uuid);
 
 drop function if exists public.update_social_crew_visibility_atomic(uuid,uuid,text,integer,text,text);
 drop function if exists public.leave_social_crew_atomic(uuid,uuid,text,text);

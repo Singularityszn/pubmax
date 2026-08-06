@@ -316,6 +316,9 @@ create unique index social_crew_one_active_owner_idx
   where role = 'owner' and state = 'active';
 create index social_crew_members_account_idx
   on public.social_crew_members(social_account_id, state);
+create index social_crew_members_active_page_idx
+  on public.social_crew_members(social_account_id, joined_at desc, id desc)
+  where state = 'active';
 
 create table public.social_crew_invitations (
   id uuid primary key default gen_random_uuid(),
@@ -353,6 +356,10 @@ create unique index social_crew_pending_join_request_idx
   where state = 'pending';
 create index social_crew_join_requests_expiry_idx
   on public.social_crew_join_requests(expires_at) where state = 'pending';
+create index social_crew_join_requests_history_idx
+  on public.social_crew_join_requests(
+    crew_id, requester_account_id, created_at desc, id desc
+  );
 
 create table public.private_social_crew_write_receipts (
   actor_account_id uuid not null references public.private_social_accounts(id) on delete restrict,
@@ -888,6 +895,361 @@ begin
 end;
 $$;
 
+-- Social Crew reads resolve current account, relationship, membership, and
+-- bound Plan data inside one PostgreSQL statement snapshot. Every JSON object
+-- is an explicit server-to-store allowlist.
+create function public.read_social_crew_snapshot(
+  p_viewer_account_id uuid,
+  p_viewer_profile_id uuid,
+  p_crew_id uuid
+) returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with actor as (
+    select account.id as account_id, profile.id as profile_id
+    from public.private_social_accounts account
+    join public.profiles profile on profile.id=account.profile_id
+    where account.id=p_viewer_account_id
+      and account.profile_id=p_viewer_profile_id
+      and account.ownership_state='active'
+  ),
+  authority as (
+    select
+      crew.id as crew_id,
+      crew.plan_id,
+      crew.owner_account_id,
+      owner_account.profile_id as owner_profile_id,
+      crew.visibility,
+      crew.authority_revision,
+      plan.title,
+      plan.start_time,
+      plan.created_at,
+      plan.route_revision,
+      plan.status,
+      plan.night_context,
+      plan.ending,
+      plan.anchor_venue_id,
+      plan.anchor_source,
+      plan.plan_outcome,
+      plan.route_ready_at
+    from public.social_crews crew
+    join public.plans plan
+      on plan.id=crew.plan_id
+      and plan.social_owner_account_id=crew.owner_account_id
+    join public.private_social_accounts owner_account
+      on owner_account.id=crew.owner_account_id
+      and owner_account.ownership_state='active'
+    join public.profiles owner_profile on owner_profile.id=owner_account.profile_id
+    join public.social_crew_members owner_member
+      on owner_member.crew_id=crew.id
+      and owner_member.social_account_id=crew.owner_account_id
+      and owner_member.role='owner'
+      and owner_member.state='active'
+    join public.plan_crew_members owner_plan_member
+      on owner_plan_member.id=owner_member.plan_member_id
+      and owner_plan_member.plan_id=plan.id
+      and owner_plan_member.social_account_id=crew.owner_account_id
+    where crew.id=p_crew_id
+  ),
+  relationship as (
+    select case
+      when actor.account_id=authority.owner_account_id then 'self'
+      when public.social_relationship_between_profiles(
+        actor.profile_id,authority.owner_profile_id
+      )='mutual' then 'mutual'
+      else 'denied'
+    end as state
+    from actor cross join authority
+  ),
+  viewer_membership as (
+    select member.id,member.state,member.plan_member_id
+    from actor
+    join authority on true
+    join public.social_crew_members member
+      on member.crew_id=authority.crew_id
+      and member.social_account_id=actor.account_id
+  ),
+  viewer_member_authority as (
+    select viewer_membership.id
+    from actor
+    join authority on true
+    join viewer_membership on viewer_membership.state='active'
+    join public.plan_crew_members plan_member
+      on plan_member.id=viewer_membership.plan_member_id
+      and plan_member.plan_id=authority.plan_id
+      and plan_member.social_account_id=actor.account_id
+  ),
+  latest_request as (
+    select request.state, request.expires_at
+    from actor cross join authority
+    join public.social_crew_join_requests request
+      on request.crew_id=authority.crew_id
+      and request.requester_account_id=actor.account_id
+    order by request.created_at desc,request.id desc
+    limit 1
+  ),
+  request_projection as (
+    select case
+      when request.state='pending'
+        and request.expires_at>statement_timestamp() then 'pending'
+      when request.state='declined' then 'declined'
+      else 'none'
+    end as state
+    from latest_request request
+    union all
+    select 'none'
+    where not exists(select 1 from latest_request)
+  ),
+  active_members as (
+    select coalesce(jsonb_agg(
+      jsonb_build_object(
+        'memberId',member.id,
+        'accountId',member.social_account_id,
+        'profileId',account.profile_id,
+        'planMemberId',member.plan_member_id,
+        'handle',profile.handle,
+        'role',member.role,
+        'state',member.state,
+        'joinedAt',to_char(member.joined_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+      ) order by member.joined_at,member.id
+    ),'[]'::jsonb) as rows
+    from authority
+    join public.social_crew_members member
+      on member.crew_id=authority.crew_id and member.state='active'
+    join public.private_social_accounts account
+      on account.id=member.social_account_id and account.ownership_state='active'
+    join public.profiles profile on profile.id=account.profile_id
+    join public.plan_crew_members plan_member
+      on plan_member.id=member.plan_member_id
+      and plan_member.plan_id=authority.plan_id
+      and plan_member.social_account_id=member.social_account_id
+  ),
+  stops as (
+    select coalesce(jsonb_agg(
+      jsonb_build_object(
+        'venueId',stop.venue_id,
+        'venueName',stop.venue_name,
+        'position',stop.position
+      ) order by stop.position
+    ),'[]'::jsonb) as rows
+    from authority
+    join public.plan_stops stop on stop.plan_id=authority.plan_id
+  ),
+  actions as (
+    select coalesce(jsonb_agg(
+      jsonb_build_object(
+        'id',action.id,
+        'type',action.type,
+        'stopPosition',action.stop_position,
+        'ending',action.ending,
+        'createdAt',to_char(action.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+      ) order by action.created_at,action.id
+    ),'[]'::jsonb) as rows
+    from authority
+    join public.plan_actions action on action.plan_id=authority.plan_id
+  ),
+  member_snapshot as (
+    select jsonb_build_object(
+      'kind','member',
+      'ownerRelationship',relationship.state,
+      'crew',jsonb_build_object(
+        'crewId',authority.crew_id,
+        'planId',authority.plan_id,
+        'ownerAccountId',authority.owner_account_id,
+        'ownerProfileId',authority.owner_profile_id,
+        'visibility',authority.visibility,
+        'authorityRevision',authority.authority_revision,
+        'joinRequestState','none',
+        'members',active_members.rows
+      ),
+      'plan',jsonb_build_object(
+        'plan',jsonb_build_object(
+          'id',authority.plan_id,
+          'title',authority.title,
+          'startTime',to_char(authority.start_time at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+          'createdAt',to_char(authority.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+          'routeRevision',authority.route_revision,
+          'status',authority.status,
+          'anchorVenueId',authority.anchor_venue_id,
+          'anchorSource',authority.anchor_source,
+          'outcome',authority.plan_outcome,
+          'routeReadyAt',case when authority.route_ready_at is null then null else
+            to_char(authority.route_ready_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') end
+        ),
+        'stops',stops.rows,
+        'context',case when authority.night_context is null then null else jsonb_build_object(
+          'nightArea',authority.night_context->'nightArea',
+          'daypart',authority.night_context->'daypart',
+          'partyType',authority.night_context->'partyType',
+          'groupSize',authority.night_context->'groupSize',
+          'budget',authority.night_context->'budget',
+          'budgetLimitPence',authority.night_context->'budgetLimitPence',
+          'zeroProof',authority.night_context->'zeroProof',
+          'atmosphere',authority.night_context->'atmosphere',
+          'foodNeeds',authority.night_context->'foodNeeds',
+          'accessibility',authority.night_context->'accessibility',
+          'transportConstraints',authority.night_context->'transportConstraints'
+        ) end,
+        'actions',actions.rows,
+        'ending',authority.ending
+      )
+    ) as value
+    from authority cross join relationship cross join active_members cross join stops cross join actions
+  ),
+  preview_snapshot as (
+    select jsonb_build_object(
+      'kind','preview',
+      'preview',jsonb_build_object(
+        'title',authority.title,
+        'status',authority.status,
+        'nightArea',authority.night_context->'nightArea',
+        'startsAt',to_char(authority.start_time at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+        'joinRequestState',request_projection.state
+      )
+    ) as value
+    from authority cross join request_projection
+  )
+  select case
+    when not exists(select 1 from actor)
+      or not exists(select 1 from authority) then null::jsonb
+    when exists(select 1 from viewer_member_authority) then
+      case when (select state from relationship) in ('self','mutual')
+        then (select value from member_snapshot)
+        else null::jsonb end
+    when exists(select 1 from viewer_membership) then null::jsonb
+    when (select visibility from authority)='friends'
+      and (select state from relationship)='mutual'
+      then (select value from preview_snapshot)
+    else null::jsonb
+  end;
+$$;
+
+create function public.read_social_crew_member_page(
+  p_viewer_account_id uuid,
+  p_viewer_profile_id uuid,
+  p_cursor_joined_at timestamptz,
+  p_cursor_member_id uuid,
+  p_limit integer
+) returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with valid_input as (
+    select p_limit as page_limit
+    where p_limit between 1 and 50
+      and ((p_cursor_joined_at is null and p_cursor_member_id is null)
+        or (p_cursor_joined_at is not null and p_cursor_member_id is not null))
+  ),
+  actor as (
+    select account.id as account_id, profile.id as profile_id
+    from valid_input
+    join public.private_social_accounts account
+      on account.id=p_viewer_account_id
+      and account.profile_id=p_viewer_profile_id
+      and account.ownership_state='active'
+    join public.profiles profile on profile.id=account.profile_id
+  ),
+  authorised as (
+    select
+      crew.id as crew_id,
+      plan.title,
+      plan.status,
+      plan.night_context->'nightArea' as night_area,
+      plan.start_time,
+      member.id as member_id,
+      member.social_account_id as account_id,
+      actor.profile_id,
+      member.role,
+      member.state,
+      member.joined_at
+    from actor
+    join public.social_crew_members member
+      on member.social_account_id=actor.account_id and member.state='active'
+    join public.social_crews crew on crew.id=member.crew_id
+    join public.plans plan
+      on plan.id=crew.plan_id
+      and plan.social_owner_account_id=crew.owner_account_id
+    join public.plan_crew_members plan_member
+      on plan_member.id=member.plan_member_id
+      and plan_member.plan_id=plan.id
+      and plan_member.social_account_id=actor.account_id
+    join public.private_social_accounts owner_account
+      on owner_account.id=crew.owner_account_id and owner_account.ownership_state='active'
+    join public.profiles owner_profile on owner_profile.id=owner_account.profile_id
+    join public.social_crew_members owner_member
+      on owner_member.crew_id=crew.id
+      and owner_member.social_account_id=crew.owner_account_id
+      and owner_member.role='owner'
+      and owner_member.state='active'
+    join public.plan_crew_members owner_plan_member
+      on owner_plan_member.id=owner_member.plan_member_id
+      and owner_plan_member.plan_id=plan.id
+      and owner_plan_member.social_account_id=crew.owner_account_id
+    where (
+      crew.owner_account_id=actor.account_id
+      or public.social_relationship_between_profiles(
+        actor.profile_id,owner_account.profile_id
+      )='mutual'
+    )
+      and (p_cursor_joined_at is null
+        or (member.joined_at,member.id)<(p_cursor_joined_at,p_cursor_member_id))
+  ),
+  bounded as (
+    select authorised.*
+    from authorised
+    order by joined_at desc,member_id desc
+    limit (select page_limit+1 from valid_input)
+  ),
+  positioned as (
+    select bounded.*,
+      row_number() over(order by joined_at desc,member_id desc) as row_number
+    from bounded
+  ),
+  page as (
+    select
+      count(*) as bounded_count,
+      coalesce(jsonb_agg(
+        jsonb_build_object(
+          'crewId',crew_id,
+          'title',title,
+          'status',status,
+          'nightArea',night_area,
+          'startsAt',to_char(start_time at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+          'memberId',member_id,
+          'accountId',account_id,
+          'profileId',profile_id,
+          'role',role,
+          'state',state,
+          'joinedAt',to_char(joined_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+        ) order by joined_at desc,member_id desc
+      ) filter(where row_number<=(select page_limit from valid_input)),'[]'::jsonb) as items
+    from positioned
+  ),
+  last_returned as (
+    select joined_at,member_id
+    from positioned
+    where row_number=(select page_limit from valid_input)
+  )
+  select case when not exists(select 1 from actor) then null::jsonb else
+    jsonb_build_object(
+      'items',page.items,
+      'hasMore',page.bounded_count>(select page_limit from valid_input),
+      'cursorPosition',case
+        when page.bounded_count>(select page_limit from valid_input) then (
+          select jsonb_build_object(
+            'joinedAt',to_char(last_returned.joined_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+            'memberId',last_returned.member_id
+          ) from last_returned
+        ) else null end
+    ) end
+  from page;
+$$;
+
 alter function public.join_plan_atomic(uuid,uuid,text,text,timestamptz,boolean) rename to _0075_join_plan_atomic;
 create function public.join_plan_atomic(uuid,uuid,text,text,timestamptz,boolean) returns boolean
 language plpgsql security definer set search_path='' as $$ begin if public._social_plan_is_bound($1) then return false; end if; return public._0075_join_plan_atomic($1,$2,$3,$4,$5,$6); end $$;
@@ -968,6 +1330,8 @@ revoke all on function
   public._activate_social_crew_member(uuid,uuid),
   public._social_plan_is_bound(uuid),
   public.update_legacy_plan_status_context_atomic(uuid,text,text,jsonb),
+  public.read_social_crew_snapshot(uuid,uuid,uuid),
+  public.read_social_crew_member_page(uuid,uuid,timestamptz,uuid,integer),
   public.create_social_crew_atomic(uuid,uuid,text,text,text,text),
   public.invite_social_crew_member_atomic(uuid,uuid,uuid,text,text),
   public.accept_social_crew_invitation_atomic(uuid,uuid,uuid,text,text,text),
@@ -999,6 +1363,8 @@ from public, anon, authenticated;
 grant execute on function
   public.social_relationship_between_profiles(uuid,uuid),
   public.update_legacy_plan_status_context_atomic(uuid,text,text,jsonb),
+  public.read_social_crew_snapshot(uuid,uuid,uuid),
+  public.read_social_crew_member_page(uuid,uuid,timestamptz,uuid,integer),
   public.create_social_crew_atomic(uuid,uuid,text,text,text,text),
   public.invite_social_crew_member_atomic(uuid,uuid,uuid,text,text),
   public.accept_social_crew_invitation_atomic(uuid,uuid,uuid,text,text,text),
