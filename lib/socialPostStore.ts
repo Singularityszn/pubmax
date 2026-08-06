@@ -136,6 +136,7 @@ function fromRow(value: unknown): SocialPost {
         }
       : null,
     revision: Number(row.revision ?? 0),
+    mutationVersion: Number(row.mutation_version ?? 0),
     editedAt: typeof row.edited_at === "string" ? row.edited_at : null,
     moderatedAt: typeof row.moderated_at === "string" ? row.moderated_at : null,
     createdAt: String(row.created_at),
@@ -318,6 +319,7 @@ export function createMemorySocialPostStore(options: {
           ? { status: "submitted", staffResponse: null }
           : null,
         revision: 0,
+        mutationVersion: 0,
         editedAt: null,
         moderatedAt: null,
         createdAt: timestamp,
@@ -353,6 +355,7 @@ export function createMemorySocialPostStore(options: {
           ? current.featureRequest ?? { status: "submitted", staffResponse: null }
           : null,
         revision: actualContentChange ? current.revision + 1 : current.revision,
+        mutationVersion: current.mutationVersion + 1,
         editedAt: actualContentChange ? timestamp : current.editedAt,
         moderationState: actualContentChange ? "pending" : current.moderationState,
         moderatedAt: actualContentChange ? null : current.moderatedAt,
@@ -538,7 +541,7 @@ export const supabaseSocialPostStore: SocialPostStore = {
       const { data, error } = await requireSupabaseAdmin().rpc("edit_social_post", {
         p_post_id: id,
         p_author_profile_id: actor.profileId,
-        p_expected_revision: current.revision,
+        p_expected_mutation_version: current.mutationVersion,
         p_kind: merged.kind,
         p_visibility: merged.visibility,
         p_body: merged.body,

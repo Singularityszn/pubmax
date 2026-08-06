@@ -29,6 +29,7 @@ create table public.social_posts (
   moderation_state text not null default 'pending'
     check (moderation_state in ('pending', 'approved', 'needs_review')),
   revision integer not null default 0 check (revision >= 0),
+  mutation_version integer not null default 0 check (mutation_version >= 0),
   edited_at timestamptz,
   moderated_at timestamptz,
   created_at timestamptz not null default now(),
@@ -224,7 +225,7 @@ $$;
 create function public.edit_social_post(
   p_post_id uuid,
   p_author_profile_id uuid,
-  p_expected_revision integer,
+  p_expected_mutation_version integer,
   p_kind text,
   p_visibility text,
   p_body text,
@@ -262,6 +263,7 @@ begin
         else null
       end,
       revision = post.revision + case when p_content_changed then 1 else 0 end,
+      mutation_version = post.mutation_version + 1,
       edited_at = case when p_content_changed then now() else post.edited_at end,
       moderation_state = case when p_content_changed then 'pending' else post.moderation_state end,
       moderated_at = case when p_content_changed then null else post.moderated_at end,
@@ -269,7 +271,7 @@ begin
   where post.id = p_post_id
     and post.author_profile_id = p_author_profile_id
     and post.status = 'visible'
-    and post.revision = p_expected_revision
+    and post.mutation_version = p_expected_mutation_version
   returning post.*;
 end;
 $$;

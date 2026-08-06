@@ -14,9 +14,6 @@ vi.mock("@/lib/socialPostStore", () => ({
     },
   }),
 }));
-vi.mock("@/lib/socialPostModeration", () => ({
-  OpenAISocialPostModerationAdapter: class {},
-}));
 
 import { GET } from "@/app/api/cron/moderate-social-posts/route";
 
@@ -29,6 +26,7 @@ function request(token?: string, action?: string) {
 
 beforeEach(() => {
   vi.stubEnv("CRON_SECRET", "cron-secret");
+  vi.stubEnv("OPENAI_API_KEY", "test-key");
   state.calls = 0;
   state.requeueCalls = 0;
 });
@@ -54,6 +52,20 @@ describe("Social post moderation worker", () => {
       terminalErrors: 1,
     });
     expect(state.calls).toBe(1);
+  });
+
+  it("refuses before claiming jobs when OpenAI moderation is not configured", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+
+    const response = await GET(request("cron-secret"));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: "Social post moderation queue is unavailable.",
+      retryable: true,
+    });
+    expect(state.calls).toBe(0);
   });
 
   it("requeues terminal holds only through the authenticated operator action", async () => {

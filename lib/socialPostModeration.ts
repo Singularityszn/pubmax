@@ -16,7 +16,10 @@ export class OpenAISocialPostModerationAdapter implements SocialPostModerationAd
   private readonly timeoutMs: number;
 
   constructor(options: { apiKey?: string; fetcher?: Fetcher; timeoutMs?: number } = {}) {
-    this.apiKey = options.apiKey ?? process.env.OPENAI_API_KEY ?? "";
+    this.apiKey = (options.apiKey ?? process.env.OPENAI_API_KEY ?? "").trim();
+    if (!this.apiKey) {
+      throw new SocialPostModerationError("OpenAI moderation is not configured.", false);
+    }
     this.fetcher = options.fetcher ?? fetch;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_MODERATION_TIMEOUT_MS;
   }
@@ -24,9 +27,6 @@ export class OpenAISocialPostModerationAdapter implements SocialPostModerationAd
   async moderate(input: { postId: string; text: string }): Promise<{
     decision: "approved" | "needs_review";
   }> {
-    if (!this.apiKey) {
-      throw new SocialPostModerationError("OpenAI moderation is not configured.", false);
-    }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     let response: Response;

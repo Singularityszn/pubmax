@@ -248,6 +248,28 @@ describe("Social posts migration forward and rollback", () => {
       .toBe("1");
   });
 
+  it("rejects a stale non-content edit without changing the moderation revision", () => {
+    const db = database!;
+    const postId = db.sql(`insert into public.social_posts(
+      author_profile_id,author_handle,kind,visibility,body,area_slug,hashtags,comment_policy,moderation_state
+    ) values (
+      '11111111-1111-4111-8111-111111111111','alice','standard','public',
+      'Privacy first','camden',array['privacy'],'open','approved'
+    ) returning id`);
+    expect(db.sql(`select count(*) from public.edit_social_post(
+      '${postId}', '11111111-1111-4111-8111-111111111111', 0,
+      'standard', 'private', 'Privacy first', 'camden', null,
+      array['privacy'], 'open', null, null, false
+    )`)).toBe("1");
+    expect(db.sql(`select count(*) from public.edit_social_post(
+      '${postId}', '11111111-1111-4111-8111-111111111111', 0,
+      'standard', 'public', 'Privacy first', 'camden', null,
+      array['privacy'], 'locked', null, null, false
+    )`)).toBe("0");
+    expect(db.sql(`select visibility || ':' || comment_policy || ':' || revision || ':' || mutation_version
+      from public.social_posts where id='${postId}'`)).toBe("private:open:0:1");
+  });
+
   it("rolls back Task 3 state without touching the profile graph", () => {
     const db = database!;
     db.apply(ROLLBACK);

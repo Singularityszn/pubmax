@@ -40,6 +40,7 @@ export type SocialPost = SocialPostFields & {
   moderationState: SocialPostModerationState;
   featureRequest: SocialPostFeatureRequest | null;
   revision: number;
+  mutationVersion: number;
   editedAt: string | null;
   moderatedAt: string | null;
   createdAt: string;
@@ -48,7 +49,7 @@ export type SocialPost = SocialPostFields & {
 
 export type SocialPostDTO = Omit<
   SocialPost,
-  "authorProfileId" | "authorHandle" | "status" | "moderatedAt"
+  "authorProfileId" | "authorHandle" | "status" | "moderatedAt" | "mutationVersion"
 > & {
   author: { handle: string };
 };
