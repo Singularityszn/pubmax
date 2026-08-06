@@ -20,7 +20,7 @@ describe("mobile tab bar contract", () => {
       "Map",
       "Moment",
       "Tonight",
-      "Stories",
+      "Social",
       "You",
     ]);
   });
@@ -33,7 +33,7 @@ describe("mobile tab bar contract", () => {
     expect(byLabel.Map.href).toBe("/map/london");
     expect(byLabel.Moment.href).toBe("/moment?returnTo=%2Ftonight");
     expect(byLabel.Tonight.href).toBe("/tonight");
-    expect(byLabel.Stories.href).toBe("/feed");
+    expect(byLabel.Social.href).toBe("/social");
     expect(byLabel.You.href).toBe("/u/you");
   });
 
@@ -51,11 +51,13 @@ describe("mobile tab bar contract", () => {
     expect(tabs[2].label).toBe("Moment");
   });
 
-  it("marks Stories active on /feed and the retired /stories alias", () => {
-    expect(activeLabel("/feed")).toBe("Stories");
-    expect(activeLabel("/stories")).toBe("Stories");
-    expect(activeLabel("/discover")).toBe("Stories");
-    expect(activeLabel("/crawls")).toBe("Stories");
+  it("marks Social active on its canonical route and retired aliases", () => {
+    expect(activeLabel("/social")).toBe("Social");
+    expect(activeLabel("/feed")).toBe("Social");
+    expect(activeLabel("/stories")).toBe("Social");
+    expect(activeLabel("/discover")).toBe("Social");
+    expect(activeLabel("/drinks")).toBe("Social");
+    expect(activeLabel("/crawls")).toBe("Social");
     // Moment is a compose action, never a persistent location.
     expect(activeLabel("/moment")).toBeUndefined();
   });
@@ -63,14 +65,14 @@ describe("mobile tab bar contract", () => {
 
 // The first-run tour spotlight rings are positioned from the LIVE tab geometry
 // (tourSpotlightColumn → buildTabs), so the ring can never drift off its tab.
-// Lock the exact columns each tour target resolves to: a future 7th tab — or a
-// reorder — that shifts "map" / Moment / "stories" out of these slots fails
+// Lock the exact columns each tour target resolves to. A future 7th tab or a
+// reorder that shifts Map, Moment, or Social out of these slots fails
 // here, forcing the tour copy + geometry to be reconsidered in lockstep.
 describe("first-run tour spotlight geometry", () => {
   const tabs = buildTabs("/map", "/map");
 
   it("maps each tour target to the tab key it names", () => {
-    expect(TOUR_TARGET_TAB_KEY).toEqual({ map: "map", drop: "moment", discover: "stories" });
+    expect(TOUR_TARGET_TAB_KEY).toEqual({ map: "map", drop: "moment", social: "social" });
   });
 
   it("anchors 'map' to the Map column", () => {
@@ -88,10 +90,10 @@ describe("first-run tour spotlight geometry", () => {
     expect(tabs[index]!.primary).toBe(true);
   });
 
-  it("anchors 'discover' to the Stories column", () => {
-    const { index, total } = tourSpotlightColumn("discover");
+  it("anchors 'social' to the Social column", () => {
+    const { index, total } = tourSpotlightColumn("social");
     expect(total).toBe(6);
     expect(index).toBe(4);
-    expect(tabs[index]!.label).toBe("Stories");
+    expect(tabs[index]!.label).toBe("Social");
   });
 });

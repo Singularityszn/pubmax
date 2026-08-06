@@ -14,36 +14,45 @@ describe("PUBMAXX primary navigation", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ label }) => label)).toEqual([
       "Map",
       "Tonight",
-      "Stories",
+      "Social",
       "You",
     ]);
     expect(MOMENT_NAV_ACTION).toMatchObject({ label: "Moment", href: "/moment" });
   });
 
-  it("keeps capture separate from the map and sends Stories to the social feed", () => {
+  it("keeps capture separate from the map and sends Social to its canonical shell", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ href }) => href)).toEqual([
       "/map",
       "/tonight",
-      "/feed",
+      "/social",
       "/u/you",
     ]);
   });
 
-  it("lights Stories for /feed and its aliases, not for borough pages", () => {
-    const stories = PRIMARY_NAV_ITEMS.find((item) => item.key === "stories");
-    expect(stories?.match).toEqual(["/discover", "/feed", "/stories", "/crawls"]);
-    expect(primaryNavKeyForPath("/feed")).toBe("stories");
-    expect(primaryNavKeyForPath("/feed/friends")).toBe("stories");
-    expect(primaryNavKeyForPath("/stories")).toBe("stories");
-    expect(primaryNavKeyForPath("/discover")).toBe("stories");
-    expect(primaryNavKeyForPath("/crawls/soho")).toBe("stories");
+  it("lights Social for its canonical route and aliases, not for borough pages", () => {
+    const social = PRIMARY_NAV_ITEMS.find((item) => item.key === "social");
+    expect(social?.match).toEqual([
+      "/social",
+      "/discover",
+      "/drinks",
+      "/feed",
+      "/stories",
+      "/crawls",
+    ]);
+    expect(primaryNavKeyForPath("/social")).toBe("social");
+    expect(primaryNavKeyForPath("/feed")).toBe("social");
+    expect(primaryNavKeyForPath("/feed/friends")).toBe("social");
+    expect(primaryNavKeyForPath("/stories")).toBe("social");
+    expect(primaryNavKeyForPath("/discover")).toBe("social");
+    expect(primaryNavKeyForPath("/drinks")).toBe("social");
+    expect(primaryNavKeyForPath("/crawls/soho")).toBe("social");
     expect(primaryNavKeyForPath("/borough")).toBeUndefined();
     expect(primaryNavKeyForPath("/borough/soho")).toBeUndefined();
-    expect(navPathMatches("/feed", stories!.match)).toBe(true);
+    expect(navPathMatches("/social", social!.match)).toBe(true);
   });
 
   it("accepts only safe Moment return destinations", () => {
-    expect(momentHref("/feed")).toBe("/moment?returnTo=%2Ffeed");
+    expect(momentHref("/social")).toBe("/moment?returnTo=%2Fsocial");
     expect(safeMomentReturnTo("https://example.com/steal")).toBe("/map");
     expect(safeMomentReturnTo("/u/you?tab=moments")).toBe("/u/you?tab=moments");
     expect(safeMomentReturnTo("/map/manchester?sel=pub-1#sheet")).toBe("/map/manchester?sel=pub-1#sheet");

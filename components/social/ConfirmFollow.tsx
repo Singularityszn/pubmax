@@ -85,8 +85,8 @@ export default function ConfirmFollow({ targetHandle }: { targetHandle: string }
     return (
       <section className="confirmFollow">
         <p className="confirmFollowError">That link is missing a handle.</p>
-        <Link className="confirmFollowGhost" href="/feed">
-          Back to the feed
+        <Link className="confirmFollowGhost" href="/social">
+          Back to Social
         </Link>
       </section>
     );
@@ -106,8 +106,8 @@ export default function ConfirmFollow({ targetHandle }: { targetHandle: string }
         <button type="button" className="confirmFollowPrimary" onClick={share}>
           {copied ? "Link copied" : "Share your link"}
         </button>
-        <Link className="confirmFollowGhost" href="/feed">
-          Back to the feed
+        <Link className="confirmFollowGhost" href="/social">
+          Back to Social
         </Link>
       </section>
     );
@@ -122,8 +122,8 @@ export default function ConfirmFollow({ targetHandle }: { targetHandle: string }
           When they add you back, you&rsquo;re each other&rsquo;s lot and their
           nights show up in Your lot.
         </p>
-        <Link className="confirmFollowPrimary" href="/feed">
-          See the feed
+        <Link className="confirmFollowPrimary" href="/social">
+          Open Social
         </Link>
       </section>
     );
@@ -150,7 +150,7 @@ export default function ConfirmFollow({ targetHandle }: { targetHandle: string }
       >
         {state === "working" ? "Adding." : `Add ${displayHandle(target)}`}
       </button>
-      <Link className="confirmFollowGhost" href="/feed">
+      <Link className="confirmFollowGhost" href="/social">
         Not now
       </Link>
     </section>

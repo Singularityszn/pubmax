@@ -16,7 +16,7 @@ import type { MetadataRoute } from "next";
 // Includes /pint-index (Wave S3.3 — the London Pint Index hub), /about
 // (founder story + press kit hub) and the two legal content pages
 // (/privacy, /terms) linked from the site footer.
-const STATIC_HUB_COUNT = 14;
+const STATIC_HUB_COUNT = 13;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -37,7 +37,10 @@ const FORBIDDEN_SUBSTRINGS = [
   "/profile",
   "/activity",
   "/auth",
-  "/drinks", // 308-redirects to /discover; must not be advertised
+  "/discover",
+  "/drinks",
+  "/feed",
+  "/stories",
 ];
 
 // Query strings carry map/crawl tokens; a sitemap URL must be a bare canonical.
@@ -114,7 +117,7 @@ describe("sitemap()", () => {
   });
 
   it("includes the core static hubs", () => {
-    for (const hub of ["/", "/map", "/borough", "/historic", "/discover", "/crawls", "/about"]) {
+    for (const hub of ["/", "/map", "/borough", "/historic", "/social", "/crawls", "/about"]) {
       expect(urls).toContain(`${SITE}${hub}`);
     }
   });

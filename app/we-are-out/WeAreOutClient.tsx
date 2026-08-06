@@ -86,8 +86,8 @@ export default function WeAreOutClient() {
         <section className="weAreOutDone" role="status">
           <p className="weAreOutDoneTitle">You&rsquo;re out. Your lot can see it.</p>
           <div className="weAreOutDoneActions">
-            <Link className="feedDropCta" href="/feed">
-              See the feed
+            <Link className="feedDropCta" href="/social">
+              Open Social
             </Link>
           </div>
         </section>

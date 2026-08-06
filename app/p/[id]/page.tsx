@@ -111,11 +111,10 @@ function NotOnTheWall() {
         <p className="permalink__eyebrow">Pint Drop</p>
         <h1 className="permalink__emptyTitle">This pint isn&rsquo;t on the wall</h1>
         <p className="permalink__emptyBody">
-          It may have been taken down, or the link is wrong. Every real pint still
-          has a home on the feed.
+          It may have been taken down, or the link is wrong.
         </p>
-        <Link className="permalink__primary" href="/feed">
-          Go to the feed
+        <Link className="permalink__primary" href="/social?tab=discover">
+          Browse pubs &amp; pints
         </Link>
       </div>
     </main>

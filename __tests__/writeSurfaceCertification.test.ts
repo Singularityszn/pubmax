@@ -114,10 +114,13 @@ describe("mutating API surface certification", () => {
     // contribution-age route returns the inventory to 74. The protected Social
     // account-migration POST adds route 75. Verified Social post create + item
     // mutate bring the inventory to 77. Shared Plan group preferences
-    // (app/api/plans/[id]/group-prefs/route.ts) add route 78.
+    // (app/api/plans/[id]/group-prefs/route.ts) add route 78. Pending Plan
+    // recap claim writes (app/api/me/pending-plan-recaps/route.ts) bring the
+    // live scan to 79. Consolidated verified Social interactions
+    // (app/api/social/interactions/route.ts) add route 80.
     // deliberate merge-coordination point: any branch adding a mutating route
     // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(78);
+    expect(mutationRoutes).toHaveLength(80);
   });
 
   it("certifies both verified Social post write routes", () => {
@@ -135,6 +138,19 @@ describe("mutating API surface certification", () => {
     }
     expect(create).toMatch(/pending moderation/i);
     expect(item).toMatch(/recoverable/i);
+  });
+
+  it("certifies the consolidated verified Social interaction route", () => {
+    const section = CERTIFICATION.match(
+      /### `app\/api\/social\/interactions`[\s\S]*?(?=\n### |\s*$)/,
+    )?.[0] ?? "";
+    expect(section).toMatch(/verified Social actor/i);
+    expect(section).toMatch(/stable profile/i);
+    expect(section).toMatch(/desired state/i);
+    expect(section).toMatch(/private saves/i);
+    expect(section).toMatch(/held moderation/i);
+    expect(section).toMatch(/named staff/i);
+    expect(section).toMatch(/safety floors\s+stay\s+open/i);
   });
 
   it("gives every mutating route an abuse or authority boundary", () => {

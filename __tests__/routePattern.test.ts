@@ -19,6 +19,7 @@ describe("toRoutePattern", () => {
     expect(toRoutePattern("/pal/chat")).toBe("/pal/chat");
     expect(toRoutePattern("/tonight")).toBe("/tonight");
     expect(toRoutePattern("/near/")).toBe("/near");
+    expect(toRoutePattern("/social?feed=nearby&area=camden")).toBe("/social");
   });
 
   it("strips query and hash before matching", () => {

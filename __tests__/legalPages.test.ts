@@ -144,6 +144,19 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/moderation queue/i);
   });
 
+  it("discloses Social interactions, private saves, governance, and held derivatives", () => {
+    expect(privacy).toMatch(/Cheers, comments, private saves, reposts and quote posts/i);
+    expect(privacy).toMatch(/comments and quote-post text[^]*OpenAI[^]*held/i);
+    expect(privacy).toMatch(/saves are private/i);
+    expect(privacy).toMatch(/reports[^]*do not hide content/i);
+    expect(privacy).toMatch(/named staff member[^]*audit/i);
+    expect(privacy).toMatch(/in-app notifications/i);
+    expect(terms).toMatch(/comments and quote posts[^]*held[^]*moderation decision/i);
+    expect(terms).toMatch(/lock comments/i);
+    expect(terms).toMatch(/Feature requests[^]*status and response history/i);
+    expect(terms).toMatch(/chronological[^]*not popularity/i);
+  });
+
   it("states both 12-month analytics retention clocks on both legal pages", () => {
     expect(privacy).toMatch(
       /PostHog\s+deletes\s+analytics\s+events\s+12 months after collection/i,
