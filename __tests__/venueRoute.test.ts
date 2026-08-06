@@ -1,9 +1,14 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { GET } from "@/app/api/venue/[id]/route";
+import {
+  resetVenueDetailCachesForTests,
+  setVenueDetailRowsFileForTests,
+} from "@/lib/venueDetailIndex";
+import { resetVenueAliasesForTests } from "@/lib/venueAliases";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 const ROOT = path.resolve(__dirname, "..");
@@ -13,6 +18,11 @@ const slim = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as SlimVenue[];
 function ctx(id: string) {
   return { params: Promise.resolve({ id }) };
 }
+
+beforeEach(() => {
+  resetVenueDetailCachesForTests();
+  resetVenueAliasesForTests();
+});
 
 describe("GET /api/venue/[id]", () => {
   it("returns full detail for a slim venue id", async () => {
@@ -37,5 +47,15 @@ describe("GET /api/venue/[id]", () => {
 
     expect(res.status).toBe(404);
     expect(body).toEqual({ error: "Venue not found." });
+  });
+
+  it("returns 503 when a known venue cannot be checked", async () => {
+    const seed = slim.find((venue) => venue.id === "venue-16pnwmm") ?? slim[0];
+    setVenueDetailRowsFileForTests(path.join(ROOT, "data", "generated", "missing-details.jsonl"));
+
+    const res = await GET(new Request(`http://localhost/api/venue/${seed.id}`), ctx(seed.id));
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toEqual({ error: "Venue details unavailable." });
   });
 });

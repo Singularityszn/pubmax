@@ -930,6 +930,9 @@ export default function PubMap({
   const surfaceOpenRef = useRef<
     (entry: SurfaceEntry<MapSurfaceState>) => void
   >(() => {});
+  const surfaceSelectionRef = useRef<
+    (entry: SurfaceEntry<MapSurfaceState>, resolved: boolean) => void
+  >(() => {});
   const surfaceStateRef = useRef<MapSurfaceState>(EMPTY_MAP_SURFACE_STATE);
   const {
     sheetSnap,
@@ -1532,15 +1535,18 @@ export default function PubMap({
     ) => {
       if (!id) return;
       setSelectionNotice(null);
-      surfaceOpenRef.current({
-        id: "venue",
-        title: "Pub detail",
-        state: {
-          ...surfaceStateRef.current,
-          venueId: id,
-          venueTab: initialTab,
+      surfaceSelectionRef.current(
+        {
+          id: "venue",
+          title: "Pub detail",
+          state: {
+            ...surfaceStateRef.current,
+            venueId: id,
+            venueTab: initialTab,
+          },
         },
-      });
+        venueById.has(id) || isUkBaseId(id),
+      );
       if (typeof document !== "undefined") {
         const active = document.activeElement;
         if (
@@ -1566,7 +1572,7 @@ export default function PubMap({
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
       setSheetDragY(null);
     },
-    [claimMapDrawer, closeComposer, setSelectedVenueId, setSheetSnap, setSheetDragY],
+    [claimMapDrawer, closeComposer, setSelectedVenueId, setSheetSnap, setSheetDragY, venueById],
   );
 
   // §4.8 Make it Stop 1 — the ONE Map intent-write. The caller only wires this
@@ -2619,8 +2625,9 @@ export default function PubMap({
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
     surfaceOpenRef.current = mapSurfaceTrail.open;
+    surfaceSelectionRef.current = mapSurfaceTrail.openSelection;
     surfaceStateRef.current = mapSurfaceState;
-  }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.open]);
+  }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.open, mapSurfaceTrail.openSelection]);
 
   useEffect(() => {
     if (!selectedVenueId || detailById.has(selectedVenueId) || isUkBaseId(selectedVenueId)) return;

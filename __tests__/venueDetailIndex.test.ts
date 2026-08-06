@@ -9,12 +9,17 @@ import {
   getManifestReadAttemptsForTests,
   getVenueDetail,
   isVenueDetailId,
+  lookupVenueDetail,
   resetVenueDetailCachesForTests,
   setVenueDetailIndexFileForTests,
   setVenueDetailRowsFileForTests,
   venueFromDetailArtifact,
   type VenueDetailArtifact,
 } from "@/lib/venueDetailIndex";
+import {
+  resetVenueAliasesForTests,
+  setVenueAliasesPathForTests,
+} from "@/lib/venueAliases";
 import {
   stableVenueIdFromKey,
   venueGroupingKey,
@@ -46,6 +51,7 @@ beforeEach(() => {
 
 afterEach(() => {
   resetVenueDetailCachesForTests();
+  resetVenueAliasesForTests();
   vi.unstubAllEnvs();
 });
 
@@ -147,12 +153,26 @@ describe("venueDetailIndex", () => {
   it("degrades to null when the detail rows file cannot be opened", async () => {
     setVenueDetailRowsFileForTests(path.join(ROOT, "data", "generated", "missing-details.jsonl"));
     await expect(getVenueDetail(SEED_VENUE_ID)).resolves.toBeNull();
+    await expect(lookupVenueDetail(SEED_VENUE_ID)).resolves.toEqual({ status: "unavailable" });
   });
 
   it("does not cache missing venue ids permanently", async () => {
+    await expect(lookupVenueDetail("venue-does-not-exist")).resolves.toEqual({
+      status: "missing",
+    });
     await expect(getVenueDetail("venue-does-not-exist")).resolves.toBeNull();
     const venue = await getVenueDetail(SEED_VENUE_ID);
     expect(venue?.id).toBe(SEED_VENUE_ID);
+  });
+
+  it("does not call a failed alias lookup an unknown venue", async () => {
+    setVenueAliasesPathForTests(
+      path.join(ROOT, "data", "generated", "missing-venue-aliases.json"),
+    );
+
+    await expect(lookupVenueDetail(SEED_VENUE_ID)).resolves.toEqual({
+      status: "unavailable",
+    });
   });
 
   it("retries a failed manifest read instead of caching null forever", async () => {

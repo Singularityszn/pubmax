@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAP_SURFACE_HISTORY_KEY,
   mapSurfaceOpenTransition,
+  mapSurfaceSelectionTransition,
   readMapSurfaceHistory,
   stampMapSurfaceHistory,
 } from "@/lib/mapSurfaceHistory";
@@ -104,6 +105,13 @@ describe("Map surface URL ownership", () => {
 });
 
 describe("Map surface open decision", () => {
+  it("defers an unresolved venue without adding it below another surface", () => {
+    expect(mapSurfaceSelectionTransition([venue, planner], venue, false)).toEqual({
+      kind: "defer",
+      stack: [planner],
+    });
+  });
+
   it("pushes a surface not yet in trail", () => {
     expect(mapSurfaceOpenTransition([planner], venue)).toEqual({
       kind: "push",
