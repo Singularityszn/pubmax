@@ -2628,6 +2628,10 @@ export default function PubMap({
     onRestore: restoreMapSurface,
     onHome: closeEverySurface,
   });
+  const {
+    rejectSelection: rejectMapSelection,
+    resolveSelection: resolveMapSelection,
+  } = mapSurfaceTrail;
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
     surfaceOpenRef.current = mapSurfaceTrail.open;
@@ -2649,7 +2653,7 @@ export default function PubMap({
         return;
       }
       const canonicalVenueId = result.venue.id;
-      mapSurfaceTrail.resolveSelection(requestedVenueId, canonicalVenueId);
+      resolveMapSelection(requestedVenueId, canonicalVenueId);
       setDetailById((current) => {
         const next = new Map(current);
         next.set(canonicalVenueId, result.venue);
@@ -2671,7 +2675,7 @@ export default function PubMap({
     return () => {
       cancelled = true;
     };
-  }, [detailById, mapSurfaceTrail.resolveSelection, selectedVenueId]);
+  }, [detailById, resolveMapSelection, selectedVenueId]);
 
   useEffect(() => {
     const notice = mapSelectionNotice({
@@ -2686,12 +2690,12 @@ export default function PubMap({
     queueMicrotask(() => {
       setSelectionNotice(notice);
       if (notice !== "unknown") return;
-      mapSurfaceTrail.rejectSelection(unresolvedVenueId);
+      rejectMapSelection(unresolvedVenueId);
       setSelectedVenueId((current) => (current === unresolvedVenueId ? "" : current));
     });
   }, [
     loaded,
-    mapSurfaceTrail.rejectSelection,
+    rejectMapSelection,
     selectedDetailStatus,
     selectedVenueId,
     selectedVenueResolvable,
