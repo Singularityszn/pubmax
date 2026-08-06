@@ -13,6 +13,7 @@ import {
   buildAuthCallbackUrl,
   cancelAuthAttempt,
   captureAuthCallback,
+  defaultEmailAuthNext,
   readAuthCallbackAttempt,
   releaseAuthAttempt,
   scrubAuthCallback,
@@ -1335,9 +1336,11 @@ describe("auth callback URL safety", () => {
     expect(persistentValues.size).toBe(0);
   });
 
-  it("recognizes only marked callback tokens with a valid attempt id", () => {
-    // An unmarked URL is never a callback, even with an auth-shaped fragment.
+  it("recognizes marked callbacks, error fragments, and bare token fragments", () => {
+    // An ordinary app URL is never a callback.
     expect(readAuthCallbackAttempt("https://pubmaxxing.com/map?area=soho"))
+      .toBeNull();
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/map#venue"))
       .toBeNull();
     expect(
       readAuthCallbackAttempt(
@@ -1363,6 +1366,57 @@ describe("auth callback URL safety", () => {
     ).toEqual({ attemptId: ATTEMPT_A, tokens: null, providerError: true });
     expect(readAuthCallbackAttempt("https://pubmaxxing.com/?authError=1"))
       .toEqual({ attemptId: null, tokens: null, providerError: true });
+    // Supabase's redirect allowlist clamps unlisted redirect_to values to the
+    // bare site URL, which lands the token fragment on the landing page with
+    // no callback marker. Those tokens still complete sign-in.
+    expect(readAuthCallbackAttempt(`https://pubmaxxing.com/${TOKEN_FRAGMENT}`))
+      .toEqual({ attemptId: null, tokens: TOKENS, providerError: false });
+    // A bare error fragment on any page is a genuine failure.
+    expect(
+      readAuthCallbackAttempt(
+        "https://pubmaxxing.com/#error=access_denied&error_code=otp_expired",
+      ),
+    ).toEqual({ attemptId: null, tokens: null, providerError: true });
+    // A marked callback whose attempt id was stripped still carries tokens.
+    expect(
+      readAuthCallbackAttempt(
+        `https://pubmaxxing.com/map?_authCallback=1${TOKEN_FRAGMENT}`,
+      ),
+    ).toEqual({ attemptId: null, tokens: TOKENS, providerError: false });
+  });
+
+  it("signs in from a clamped landing-page fragment and scrubs it first", async () => {
+    const { persistentStorage, persistentValues, tabStorage, tabValues } = authStores();
+    const replaced: string[] = [];
+
+    const captured = await scrubAuthCallback(
+      `https://pubmaxxing.com/${TOKEN_FRAGMENT}`,
+      (cleanUrl) => replaced.push(cleanUrl),
+      { persistentStorage, tabStorage, lockManager: immediateLocks, now: 2_000 },
+    );
+
+    expect(replaced).toEqual(["/"]);
+    expect(captured?.attempt).toEqual({
+      attemptId: null,
+      tokens: TOKENS,
+      providerError: false,
+    });
+    expect(captured?.cleanUrl).toBe("/");
+    // No local attempt existed and none is disturbed or invented.
+    expect(persistentValues.size).toBe(0);
+    expect(tabValues.size).toBe(0);
+    captured?.releaseCoordination();
+  });
+
+  it("defaults a fragment-free email sign-in to the handle claim surface", () => {
+    expect(defaultEmailAuthNext("https://pubmaxxing.com/map?area=soho")).toBe("/u/you");
+    // A leftover auth-response fragment is not a destination worth keeping.
+    expect(defaultEmailAuthNext("https://pubmaxxing.com/?authError=1#error=access_denied"))
+      .toBe("/u/you");
+    // A live app fragment (an invite) must come back to the page that held it.
+    expect(defaultEmailAuthNext("https://pubmaxxing.com/plan/abc#invite=SECRET-A"))
+      .toBeUndefined();
+    expect(defaultEmailAuthNext("not a URL")).toBeUndefined();
   });
 
   it("rejects external, protocol-relative, and backslash next targets", () => {

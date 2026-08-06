@@ -28,6 +28,7 @@ vi.mock("@/lib/analytics", () => ({
   trackEvent: vi.fn(),
 }));
 vi.mock("@/lib/authCallbackClient", () => ({
+  clearLegacyPkceVerifiers: vi.fn(),
   establishAuthCallbackSession: vi.fn(),
 }));
 vi.mock("@/lib/authClient", () => ({
@@ -56,10 +57,12 @@ vi.mock("@/lib/authRedirect", () => ({
     callbackUrl: "http://localhost/auth-callback",
   })),
   cancelAuthAttempt: vi.fn(),
+  defaultEmailAuthNext: () => "/u/you",
   releaseAuthAttempt: vi.fn(),
   scrubAuthCallback: async () => null,
 }));
 vi.mock("@/lib/identityClient", () => ({
+  handleClaimRouteAfterSignIn: vi.fn(async () => null),
   IDENTITY_HANDLE_CHANGED_EVENT: "pubmax:identity-handle-changed",
   identityHandleForOwner: () => null,
   resolveCanonicalIdentity: async () => null,

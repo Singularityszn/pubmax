@@ -36,7 +36,10 @@ import {
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
-import { establishAuthCallbackSession } from "@/lib/authCallbackClient";
+import {
+  clearLegacyPkceVerifiers,
+  establishAuthCallbackSession,
+} from "@/lib/authCallbackClient";
 import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import {
   guardSocialAuthProvider,
@@ -49,6 +52,7 @@ import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
   beginCanonicalAuthAttempt,
   cancelAuthAttempt,
+  defaultEmailAuthNext,
   releaseAuthAttempt,
   scrubAuthCallback,
   type CanonicalAuthAttemptStart,
@@ -61,6 +65,7 @@ import {
   withReferralSignupProof,
 } from "@/lib/referralClaimClient";
 import {
+  handleClaimRouteAfterSignIn,
   IDENTITY_HANDLE_CHANGED_EVENT,
   identityHandleForOwner,
   resolveCanonicalIdentity,
@@ -378,9 +383,11 @@ export function AuthProvider({
         const captured = await callbackCapture;
         const callbackAttempt = captured?.attempt ?? null;
         let exchangedSession: Session | null = null;
+        // Tokens complete sign-in even without an attempt id (a clamped
+        // cross-browser link); a token-less callback is the genuine failure.
         let exchangeFailed = Boolean(
           callbackAttempt &&
-            (callbackAttempt.providerError || !callbackAttempt.tokens || !callbackAttempt.attemptId),
+            (callbackAttempt.providerError || !callbackAttempt.tokens),
         );
         try {
           if (callbackAttempt?.tokens && !callbackAttempt.providerError) {
@@ -407,20 +414,39 @@ export function AuthProvider({
           window.clearTimeout(loadingTimeout);
           updateSession(exchangedSession);
           setSessionLoading(false);
-          if (callbackAttempt) {
-            void claimSignupReferralFromAuthCallback({
-              currentUrl: window.location.href,
-              callback: callbackAttempt,
-              request: authedFetch,
-              replaceUrl: (cleanUrl) => {
-                window.history.replaceState(
-                  window.history.state,
-                  "",
-                  cleanUrl,
-                );
-              },
-            });
-          }
+          // The PKCE flow this app ran before left one-time code-verifier keys
+          // behind; the implicit flow never clears them, so sweep them here.
+          clearLegacyPkceVerifiers(browserLocalStorage());
+          const referralClaimed = callbackAttempt
+            ? claimSignupReferralFromAuthCallback({
+                currentUrl: window.location.href,
+                callback: callbackAttempt,
+                request: authedFetch,
+                replaceUrl: (cleanUrl) => {
+                  window.history.replaceState(
+                    window.history.state,
+                    "",
+                    cleanUrl,
+                  );
+                },
+              })
+            : Promise.resolve();
+          // Account first, handle second: once the referral claim settles (a
+          // navigation would abort its in-flight request), an account with no
+          // claimed handle lands on the claim surface.
+          void referralClaimed
+            .catch(() => {})
+            .then(() =>
+              handleClaimRouteAfterSignIn(
+                exchangedSession,
+                captured?.cleanUrl ?? "/",
+                browserLocalStorage(),
+              ),
+            )
+            .then((destination) => {
+              if (destination && active) window.location.assign(destination);
+            })
+            .catch(() => {});
           return;
         }
 
@@ -520,7 +546,10 @@ export function AuthProvider({
       if (typeof window === "undefined") {
         return { status: "error", message: "Sign-in is unavailable on this page." };
       }
-      const attempt = await prepareAuthCallback(window.location.href, next);
+      const attempt = await prepareAuthCallback(
+        window.location.href,
+        next ?? defaultEmailAuthNext(window.location.href),
+      );
       if ("navigationStarted" in attempt) {
         return {
           status: "error",

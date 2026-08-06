@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { establishAuthCallbackSession } from "@/lib/authCallbackClient";
+import {
+  clearLegacyPkceVerifiers,
+  establishAuthCallbackSession,
+} from "@/lib/authCallbackClient";
 
 describe("explicit implicit-flow callback completion", () => {
   it("returns the established session", async () => {
@@ -42,5 +45,55 @@ describe("explicit implicit-flow callback completion", () => {
         { accessToken: "access", refreshToken: "refresh" },
       ),
     ).resolves.toEqual({ session: null, failed: true });
+  });
+});
+
+describe("legacy PKCE verifier cleanup", () => {
+  function keyedStorage(initial: string[]) {
+    const keys = [...initial];
+    return {
+      keys,
+      storage: {
+        get length() {
+          return keys.length;
+        },
+        key: (index: number) => keys[index] ?? null,
+        removeItem: (key: string) => {
+          const at = keys.indexOf(key);
+          if (at >= 0) keys.splice(at, 1);
+        },
+      },
+    };
+  }
+
+  it("removes only supabase code-verifier keys and keeps live state", () => {
+    const { keys, storage } = keyedStorage([
+      "sb-iankaj-auth-token-code-verifier",
+      "sb-iankaj-auth-token",
+      "sb-other-auth-token-code-verifier",
+      "pubmax_handle",
+      "unrelated-auth-token-code-verifier",
+    ]);
+
+    clearLegacyPkceVerifiers(storage);
+
+    expect(keys).toEqual([
+      "sb-iankaj-auth-token",
+      "pubmax_handle",
+      "unrelated-auth-token-code-verifier",
+    ]);
+  });
+
+  it("tolerates missing or blocked storage", () => {
+    expect(() => clearLegacyPkceVerifiers(null)).not.toThrow();
+    expect(() =>
+      clearLegacyPkceVerifiers({
+        get length(): number {
+          throw new Error("blocked");
+        },
+        key: () => null,
+        removeItem: () => {},
+      }),
+    ).not.toThrow();
   });
 });
