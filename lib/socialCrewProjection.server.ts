@@ -1,7 +1,9 @@
 import "server-only";
 
 import {
+  CRAWL_ENDINGS,
   PLAN_ANCHOR_SOURCES,
+  PLAN_ACTION_TYPES,
   PLAN_OUTCOMES,
   PLANNED_NIGHT_STATUSES,
   type CrawlEnding,
@@ -94,9 +96,14 @@ export type SocialCrewProjectionViewer = {
 type ParsedSocialCrewMember = RawSocialCrewMember & { joinedAt: string };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const ISO_TIMESTAMP_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
-const PLAN_ACTION_TYPES = ["arrived", "skipped", "swapped", "ending"] as const;
-const CRAWL_ENDINGS = ["food", "get_home", "keep_going"] as const;
+const ISO_TIMESTAMP_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(Z|[+-]\d{2}:\d{2})$/;
+const MICROSECONDS_PER_SECOND = BigInt(1_000_000);
+const MICROSECONDS_PER_MILLISECOND = BigInt(1_000);
+
+type ParsedTimestamp = {
+  epochMicroseconds: bigint;
+  epochMilliseconds: number;
+};
 
 function unavailable(section: string): never {
   throw new Error(`Social Crew ${section} data is unavailable.`);
@@ -110,11 +117,11 @@ function validUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
 }
 
-function canonicalDate(value: unknown, section: string): string {
+function parseTimestamp(value: unknown, section: string): ParsedTimestamp {
   if (typeof value !== "string") return unavailable(section);
   const parts = ISO_TIMESTAMP_RE.exec(value);
   if (!parts) return unavailable(section);
-  const [, year, month, day, hour, minute, second] = parts.map(Number);
+  const [, year, month, day, hour, minute, second] = parts.slice(0, 7).map(Number);
   if (
     month! < 1 ||
     month! > 12 ||
@@ -126,9 +133,46 @@ function canonicalDate(value: unknown, section: string): string {
   ) {
     return unavailable(section);
   }
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) return unavailable(section);
-  return new Date(timestamp).toISOString();
+  const timezone = parts[8]!;
+  const epochSecondMilliseconds = Date.parse(
+    `${parts[1]}-${parts[2]}-${parts[3]}T${parts[4]}:${parts[5]}:${parts[6]}${timezone}`,
+  );
+  if (!Number.isFinite(epochSecondMilliseconds)) return unavailable(section);
+  const fractionalMicroseconds = BigInt((parts[7] ?? "").padEnd(6, "0"));
+  return {
+    epochMicroseconds:
+      BigInt(epochSecondMilliseconds) * MICROSECONDS_PER_MILLISECOND +
+      fractionalMicroseconds,
+    epochMilliseconds:
+      epochSecondMilliseconds +
+      Number(fractionalMicroseconds / MICROSECONDS_PER_MILLISECOND),
+  };
+}
+
+function canonicalDate(value: unknown, section: string): string {
+  return new Date(parseTimestamp(value, section).epochMilliseconds).toISOString();
+}
+
+function canonicalCursorTimestamp(
+  value: unknown,
+  section: string,
+): { canonical: string; epochMicroseconds: bigint } {
+  const { epochMicroseconds } = parseTimestamp(value, section);
+  let epochSeconds = epochMicroseconds / MICROSECONDS_PER_SECOND;
+  let fractionalMicroseconds = epochMicroseconds % MICROSECONDS_PER_SECOND;
+  if (fractionalMicroseconds < BigInt(0)) {
+    epochSeconds -= BigInt(1);
+    fractionalMicroseconds += MICROSECONDS_PER_SECOND;
+  }
+  const utcSecond = new Date(
+    Number(epochSeconds * MICROSECONDS_PER_MILLISECOND),
+  )
+    .toISOString()
+    .slice(0, 19);
+  return {
+    canonical: `${utcSecond}.${fractionalMicroseconds.toString().padStart(6, "0")}Z`,
+    epochMicroseconds,
+  };
 }
 
 function isPlannedNightStatus(value: unknown): value is PlannedNightStatus {
@@ -499,7 +543,11 @@ export function projectSocialCrewRead(
 function parseListItem(
   value: unknown,
   viewer: SocialPostActor,
-): { item: SocialCrewListItemDTO; position: SocialCrewListCursorPosition } {
+): {
+  item: SocialCrewListItemDTO;
+  position: SocialCrewListCursorPosition;
+  joinedAtInstant: bigint;
+} {
   if (
     !isRecord(value) ||
     !validUuid(value.crewId) ||
@@ -518,7 +566,7 @@ function parseListItem(
     return unavailable("list");
   }
   const startsAt = canonicalDate(value.startsAt, "list");
-  const joinedAt = canonicalDate(value.joinedAt, "list");
+  const joinedAt = canonicalCursorTimestamp(value.joinedAt, "list");
   return {
     item: {
       kind: "member",
@@ -529,18 +577,19 @@ function parseListItem(
       startsAt,
       viewer: { memberId: value.memberId, role: value.role },
     },
-    position: { joinedAt, memberId: value.memberId },
+    position: { joinedAt: joinedAt.canonical, memberId: value.memberId },
+    joinedAtInstant: joinedAt.epochMicroseconds,
   };
 }
 
 function positionIsBefore(
-  previous: SocialCrewListCursorPosition,
-  current: SocialCrewListCursorPosition,
+  previous: { position: SocialCrewListCursorPosition; joinedAtInstant: bigint },
+  current: { position: SocialCrewListCursorPosition; joinedAtInstant: bigint },
 ): boolean {
-  if (previous.joinedAt !== current.joinedAt) {
-    return previous.joinedAt > current.joinedAt;
+  if (previous.joinedAtInstant !== current.joinedAtInstant) {
+    return previous.joinedAtInstant > current.joinedAtInstant;
   }
-  return previous.memberId > current.memberId;
+  return previous.position.memberId > current.position.memberId;
 }
 
 export function projectSocialCrewListPage(
@@ -561,8 +610,8 @@ export function projectSocialCrewListPage(
   const crewIds = new Set(parsed.map(({ item }) => item.crewId));
   if (
     crewIds.size !== parsed.length ||
-    parsed.some(({ position }, index) =>
-      index > 0 && !positionIsBefore(parsed[index - 1]!.position, position)
+    parsed.some((current, index) =>
+      index > 0 && !positionIsBefore(parsed[index - 1]!, current)
     )
   ) {
     return unavailable("list");
@@ -575,8 +624,12 @@ export function projectSocialCrewListPage(
   if (!isRecord(raw.cursorPosition) || parsed.length === 0) {
     return unavailable("list");
   }
+  const cursorTimestamp = canonicalCursorTimestamp(
+    raw.cursorPosition.joinedAt,
+    "list",
+  );
   const cursorPosition = {
-    joinedAt: canonicalDate(raw.cursorPosition.joinedAt, "list"),
+    joinedAt: cursorTimestamp.canonical,
     memberId: validUuid(raw.cursorPosition.memberId)
       ? raw.cursorPosition.memberId
       : unavailable("list"),

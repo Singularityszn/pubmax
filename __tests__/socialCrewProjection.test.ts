@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import type { PlanState } from "@/lib/plan";
+import {
+  CRAWL_ENDINGS,
+  PLAN_ACTION_TYPES,
+  type PlanState,
+} from "@/lib/plan";
 import {
   projectSocialCrewListPage,
   projectSocialCrewRead,
@@ -156,6 +160,11 @@ function expectUnavailable(run: () => unknown): void {
 }
 
 describe("Social Crew detail projection", () => {
+  it("uses Plan-owned action and ending vocabularies", () => {
+    expect(PLAN_ACTION_TYPES).toEqual(["arrived", "skipped", "swapped", "ending"]);
+    expect(CRAWL_ENDINGS).toEqual(["food", "get_home", "keep_going"]);
+  });
+
   it("projects exact current fields, canonical dates, distinct revisions, and no legacy Plan crew", () => {
     const result = projectSocialCrewRead(rawCrew(), viewer());
 
@@ -409,6 +418,36 @@ function rawListPage(overrides: Partial<RawSocialCrewListPage> = {}): RawSocialC
 }
 
 describe("Social Crew list projection", () => {
+  it("preserves PostgreSQL microseconds when rows share one millisecond", () => {
+    const first = rawListPage().items[0]!;
+    const second = rawListPage().items[1]!;
+    const encodeCursor = vi.fn(() => "microsecond-cursor");
+    const result = projectSocialCrewListPage(rawListPage({
+      items: [
+        {
+          ...first,
+          memberId: MEMBER_ID,
+          joinedAt: "2026-08-05T12:00:00.123456+01:00",
+        },
+        {
+          ...second,
+          memberId: "30000000-0000-4000-8000-000000000003",
+          joinedAt: "2026-08-05T12:00:00.123123+01:00",
+        },
+      ],
+      cursorPosition: {
+        joinedAt: "2026-08-05T12:00:00.123123+01:00",
+        memberId: "30000000-0000-4000-8000-000000000003",
+      },
+    }), memberActor, encodeCursor);
+
+    expect(result.nextCursor).toBe("microsecond-cursor");
+    expect(encodeCursor).toHaveBeenCalledWith({
+      joinedAt: "2026-08-05T11:00:00.123123Z",
+      memberId: "30000000-0000-4000-8000-000000000003",
+    });
+  });
+
   it("returns exact narrow items and encodes only the canonical last position", () => {
     const encodeCursor = vi.fn(() => "signed-cursor");
 
@@ -442,7 +481,7 @@ describe("Social Crew list projection", () => {
     });
     expect(encodeCursor).toHaveBeenCalledOnce();
     expect(encodeCursor).toHaveBeenCalledWith({
-      joinedAt: "2026-08-05T11:00:00.000Z",
+      joinedAt: "2026-08-05T11:00:00.000000Z",
       memberId: "30000000-0000-4000-8000-000000000003",
     });
     expect(JSON.stringify(result)).not.toContain("poison");
