@@ -137,24 +137,28 @@ describe("DELETE /api/profiles/[handle] — soft-delete ownership gate", () => {
     expect(row?.displayName).toBe("Ken");
   });
 
-  it("REJECTS delete when another account claims the handle after the gate read", async () => {
+  it("keeps deletion available when a concurrent legacy ownership claim is refused", async () => {
     await memoryProfileStore.ensure("racy");
     await memoryProfileStore.update("racy", { displayName: "Victim" });
 
     const readProfile = memoryProfileStore.getByHandle.bind(memoryProfileStore);
     vi.spyOn(memoryProfileStore, "getByHandle").mockImplementationOnce(async (handle) => {
       const unlinkedSnapshot = await readProfile(handle);
-      await memoryProfileStore.linkUser(handle, "victim-user");
+      await expect(
+        memoryProfileStore.linkUser(handle, "victim-user"),
+      ).rejects.toThrow("not available");
       return unlinkedSnapshot;
     });
 
     const res = await del("racy");
 
-    expect(res.status).toBe(403);
-    expect(await readProfile("racy")).toMatchObject({
-      userId: "victim-user",
-      displayName: "Victim",
+    expect(res.status).toBe(200);
+    const row = await readProfile("racy");
+    expect(row).toMatchObject({
+      handle: "racy",
+      displayName: undefined,
     });
+    expect(row?.userId).toBeUndefined();
   });
 
   it("REJECTS anonymous delete of a reserved handle before unlinked allowance", async () => {
