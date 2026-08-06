@@ -1,17 +1,17 @@
 # Social Crew specification
 
-Status: planned, Slice 1 next. Last updated: 5 August 2026.
+Status: Slice 1 complete, Slice 2 next. Last updated: 5 August 2026.
 
 ## Next Agent Prompt
 
-Implement [Slice 1](slices/01-authority-foundation.md) with the TDD plan in
-`docs/superpowers/plans/2026-08-05-social-crew-foundation.md`. Start with the
-relationship and migration RED tests. Do not edit Task 6 post, composer, media,
-tag, or moderation files. Do not apply migration 0075 to a hosted database.
-Before ending, update this section with the last commit, verification evidence,
-open findings, and the exact next pickup point.
+Implement [Slice 2](slices/02-projection.md) from `12c451ccd`. Keep the authority
+contracts from Slice 1 closed and use its reviewed store and routes rather than
+adding a parallel read path. Start with projection RED tests. Do not edit Task 6
+post, composer, media, tag, or moderation files. Do not apply migration 0075 to
+a hosted database. Before ending, update this section with the last commit,
+verification evidence, open findings, and the exact next pickup point.
 
-- [ ] Slice 1: authority foundation
+- [x] Slice 1: authority foundation
 - [ ] Slice 2: projected reads
 - [ ] Slice 3: focused Plan collaboration
 - [ ] Slice 4: live loop
@@ -22,6 +22,8 @@ open findings, and the exact next pickup point.
 
 Active warning: migration 0075 follows 0074. Captain applies it only after all
 eight slices pass final review. Social beta stays off.
+
+[Slice 1 handoff and verification evidence](../../.superpowers/sdd/2026-08-05-verified-social-night-loop/task-7-slice-1-report.md).
 
 ## Goal
 
