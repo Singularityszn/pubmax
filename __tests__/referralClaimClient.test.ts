@@ -149,7 +149,7 @@ describe("same-journey referral claim", () => {
         "https://pubmaxxing.com/?city=london#referral=opaque_code_123456789&section=prices",
       callback: {
         attemptId: AUTH_ATTEMPT.id,
-        code: "pkce",
+        tokens: { accessToken: "header.payload.signature", refreshToken: "refresh-token-1" },
         providerError: false,
         signupProof: "signed-proof",
       },

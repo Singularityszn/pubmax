@@ -202,18 +202,27 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
   );
 
   // Restore pending hold marks after reload so the advanced cursor stays honest.
+  // setState fires from an async callback, never the effect body, so
+  // react-hooks/set-state-in-effect stays clean (same rule as AuthProvider).
   useEffect(() => {
-    const pending = listPlanMutationOutbox(planId).filter((row) => row.status === "pending");
-    if (pending.length === 0) return;
-    const restored: Record<number, NightCrawlActionType> = {};
-    for (const entry of pending) {
-      restored[entry.body.stopPosition] = entry.body.type;
-    }
-    setOptimistic((previous) => ({ ...previous, ...restored }));
-    setNote({
-      text: "Held on this phone. We will try again when you have signal.",
-      tone: "pending",
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      const pending = listPlanMutationOutbox(planId).filter((row) => row.status === "pending");
+      if (pending.length === 0) return;
+      const restored: Record<number, NightCrawlActionType> = {};
+      for (const entry of pending) {
+        restored[entry.body.stopPosition] = entry.body.type;
+      }
+      setOptimistic((previous) => ({ ...previous, ...restored }));
+      setNote({
+        text: "Held on this phone. We will try again when you have signal.",
+        tone: "pending",
+      });
     });
+    return () => {
+      active = false;
+    };
   }, [planId]);
 
   // Replay held arrive/skip mutations when signal returns or the surface opens.

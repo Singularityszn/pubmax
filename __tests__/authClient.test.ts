@@ -39,7 +39,7 @@ describe("browser auth client", () => {
     expect(createClient).not.toHaveBeenCalled();
   });
 
-  it("constructs and reuses one PKCE client when browser auth is configured", async () => {
+  it("constructs and reuses one implicit-flow client when browser auth is configured", async () => {
     vi.stubGlobal("window", {});
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
@@ -66,8 +66,11 @@ describe("browser auth client", () => {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
+          // Implicit flow: the session tokens ride the callback URL fragment,
+          // so an email link opened in a DIFFERENT browser can still complete.
+          // AuthProvider detects and scrubs the fragment explicitly.
           detectSessionInUrl: false,
-          flowType: "pkce",
+          flowType: "implicit",
         },
       },
     );

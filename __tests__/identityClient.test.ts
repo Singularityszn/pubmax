@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   emitIdentityHandleChanged,
+  handleClaimRouteAfterSignIn,
   identityHandleForOwner,
   resolveCanonicalIdentity,
 } from "@/lib/identityClient";
@@ -101,5 +102,92 @@ describe("identity handle events", () => {
       identity: { ownerId: "user-a", handle: "bob" },
     });
     expect(values.has("pubmax_round_anonymous_identity_v1")).toBe(false);
+  });
+});
+
+describe("post-callback handle claim routing", () => {
+  const SESSION = {
+    access_token: "token-a",
+    user: { id: "user-a" },
+  } as never;
+
+  function storageWith(values: Map<string, string>) {
+    return {
+      getItem: (key: string) => values.get(key) ?? null,
+      removeItem: (key: string) => {
+        values.delete(key);
+      },
+    };
+  }
+
+  function requestAnswering(handle: string | null) {
+    return vi.fn(async () => Response.json({ handle }));
+  }
+
+  it("routes a session with no claimed handle to /u/you", async () => {
+    await expect(
+      handleClaimRouteAfterSignIn(
+        SESSION,
+        "/map?area=soho",
+        storageWith(new Map()),
+        requestAnswering(null),
+      ),
+    ).resolves.toBe("/u/you");
+  });
+
+  it("stays put when the account already has a handle", async () => {
+    await expect(
+      handleClaimRouteAfterSignIn(
+        SESSION,
+        "/map",
+        storageWith(new Map()),
+        requestAnswering("alice"),
+      ),
+    ).resolves.toBeNull();
+  });
+
+  it("stays put on a device handle without asking the server", async () => {
+    const request = requestAnswering(null);
+    await expect(
+      handleClaimRouteAfterSignIn(
+        SESSION,
+        "/map",
+        storageWith(new Map([["pubmax_handle", "alice"]])),
+        request,
+      ),
+    ).resolves.toBeNull();
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("never bounces a restored return fragment or the claim surface itself", async () => {
+    const request = requestAnswering(null);
+    await expect(
+      handleClaimRouteAfterSignIn(
+        SESSION,
+        "/plan/abc#invite=SECRET-A",
+        storageWith(new Map()),
+        request,
+      ),
+    ).resolves.toBeNull();
+    await expect(
+      handleClaimRouteAfterSignIn(SESSION, "/u/you", storageWith(new Map()), request),
+    ).resolves.toBeNull();
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("treats a failed or unreadable server answer as no evidence", async () => {
+    const failing = vi.fn(async () => new Response("nope", { status: 500 }));
+    const offline = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    await expect(
+      handleClaimRouteAfterSignIn(SESSION, "/map", storageWith(new Map()), failing),
+    ).resolves.toBeNull();
+    await expect(
+      handleClaimRouteAfterSignIn(SESSION, "/map", storageWith(new Map()), offline),
+    ).resolves.toBeNull();
+    await expect(
+      handleClaimRouteAfterSignIn(null, "/map", storageWith(new Map()), failing),
+    ).resolves.toBeNull();
   });
 });

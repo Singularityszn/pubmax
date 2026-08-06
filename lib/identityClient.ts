@@ -5,6 +5,7 @@ import {
   captureAccountAuth,
   type AccountBoundRequest,
 } from "@/lib/accountBoundFetch";
+import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import { normalizeHandle } from "@/lib/profiles";
 import { clearClaimedRoundAnonymousHandle } from "@/lib/roundRequest";
 
@@ -73,4 +74,48 @@ export async function resolveCanonicalIdentity(
     ok: true,
     identity: { ownerId: auth.userId, handle },
   };
+}
+
+// App-wide device-handle convention shared with the composers and /u/you.
+const DEVICE_HANDLE_KEY = "pubmax_handle";
+
+/**
+ * Post-callback routing. Creating the account comes first and choosing a
+ * handle is the step after, and /u/you is the only surface carrying the claim
+ * form, so a freshly established session with no claimed handle routes there.
+ * Returns the destination path, or null to stay put. Never bounces the user on
+ * doubt: a restored return fragment (an invite) owns the destination, a device
+ * handle means /u/you would just redirect back out, and a failed or unreadable
+ * server answer is not evidence the account has no handle.
+ */
+export async function handleClaimRouteAfterSignIn(
+  session: Pick<Session, "access_token" | "user"> | null,
+  landedUrl: string,
+  storage: Pick<Storage, "getItem" | "removeItem"> | null,
+  request: AccountBoundRequest = fetch,
+): Promise<string | null> {
+  const userId = session?.user?.id;
+  if (!userId) return null;
+  try {
+    const landed = new URL(landedUrl, "https://pubmax.invalid");
+    if (landed.hash) return null;
+    if (landed.pathname === HANDLE_CLAIM_NEXT) return null;
+  } catch {
+    return null;
+  }
+  try {
+    if (storage && normalizeHandle(storage.getItem(DEVICE_HANDLE_KEY) ?? "")) {
+      return null;
+    }
+  } catch {
+    // Unreadable storage answers nothing; the server read below decides.
+  }
+  const resolution = await resolveCanonicalIdentity(
+    userId,
+    session,
+    storage,
+    request,
+  ).catch(() => null);
+  if (!resolution?.ok || resolution.identity) return null;
+  return HANDLE_CLAIM_NEXT;
 }

@@ -9,7 +9,7 @@ function requestSignal(input: Parameters<FetchLike>[0]): AbortSignal | null {
 /**
  * Bound Supabase browser requests by aborting the underlying fetch itself.
  * The returned promise settles only after that fetch observes the abort, so an
- * auth coordination lease can remain held until PKCE verifier cleanup is done.
+ * auth coordination lease can remain held until attempt cleanup is done.
  */
 export function withAuthFetchTimeout(
   fetchImpl: FetchLike,

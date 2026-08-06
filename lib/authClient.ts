@@ -6,10 +6,13 @@
 // and its only job is to establish an authenticated session (identity) via
 // Supabase Auth. It never touches privileged tables.
 //
-// Flow: PKCE (the supabase-js default). The code-verifier is minted and stored
-// in this browser's localStorage; AuthProvider explicitly finishes the exchange
-// when it lands back on a URL carrying our marked `?code=` — see
-// components/auth/AuthProvider.tsx and app/auth/callback/route.ts.
+// Flow: implicit. Supabase returns the session tokens in the callback URL
+// fragment, so ANY browser can complete sign-in — not only the one that
+// requested the link. PKCE was abandoned deliberately: its code-verifier lives
+// in the requesting browser's localStorage, so an email magic link opened in a
+// different browser (Gmail app → Safari) could never finish the exchange.
+// AuthProvider explicitly establishes the session from the marked callback —
+// see components/auth/AuthProvider.tsx and app/auth/callback/route.ts.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { withAuthFetchTimeout } from "@/lib/authFetch";
@@ -37,10 +40,12 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
           // Keep the session in this browser and refresh it in the background.
           persistSession: true,
           autoRefreshToken: true,
-          // AuthProvider completes PKCE explicitly so exchange failures can be
-          // surfaced and one-time URL parameters are always removed.
+          // AuthProvider establishes the session from the callback fragment
+          // explicitly so failures can be surfaced and one-time tokens are
+          // always scrubbed from the URL before any await. Automatic detection
+          // would race this lazily-loaded client against that scrub.
           detectSessionInUrl: false,
-          flowType: "pkce",
+          flowType: "implicit",
         },
       })
       : null;

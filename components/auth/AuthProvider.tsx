@@ -36,7 +36,10 @@ import {
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
-import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
+import {
+  clearLegacyPkceVerifiers,
+  establishAuthCallbackSession,
+} from "@/lib/authCallbackClient";
 import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import {
   guardSocialAuthProvider,
@@ -49,6 +52,7 @@ import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
   beginCanonicalAuthAttempt,
   cancelAuthAttempt,
+  defaultEmailAuthNext,
   releaseAuthAttempt,
   scrubAuthCallback,
   type CanonicalAuthAttemptStart,
@@ -61,6 +65,7 @@ import {
   withReferralSignupProof,
 } from "@/lib/referralClaimClient";
 import {
+  handleClaimRouteAfterSignIn,
   IDENTITY_HANDLE_CHANGED_EVENT,
   identityHandleForOwner,
   resolveCanonicalIdentity,
@@ -218,9 +223,9 @@ export function AuthProvider({
     () => sessionTransitions.current.currentUserId(),
     [],
   );
-  // React Strict Mode replays effects in development. Reuse one exchange so a
-  // one-time PKCE code is never redeemed twice by the replayed mount effect.
-  const callbackExchangeInFlight = useRef<
+  // React Strict Mode replays effects in development. Reuse one completion so
+  // the callback tokens are never applied twice by the replayed mount effect.
+  const callbackSessionInFlight = useRef<
     Promise<{ session: Session | null; failed: boolean }> | null
   >(null);
 
@@ -370,27 +375,29 @@ export function AuthProvider({
         return;
       }
 
-      // Prime from a callback code or any persisted session. PKCE is explicit so
-      // missing-verifier, expired-code, and network failures become visible and
-      // one-time URL parameters are removed on both success and failure.
+      // Prime from callback tokens or any persisted session. Completion is
+      // explicit so expired-link, missing-token, and network failures become
+      // visible and one-time URL state is removed on both success and failure.
       void (async () => {
         await Promise.resolve();
         const captured = await callbackCapture;
         const callbackAttempt = captured?.attempt ?? null;
         let exchangedSession: Session | null = null;
+        // Tokens complete sign-in even without an attempt id (a clamped
+        // cross-browser link); a token-less callback is the genuine failure.
         let exchangeFailed = Boolean(
           callbackAttempt &&
-            (callbackAttempt.providerError || !callbackAttempt.code || !callbackAttempt.attemptId),
+            (callbackAttempt.providerError || !callbackAttempt.tokens),
         );
         try {
-          if (callbackAttempt?.code && !callbackAttempt.providerError) {
-            if (!callbackExchangeInFlight.current) {
-              callbackExchangeInFlight.current = exchangeAuthCallbackCode(
+          if (callbackAttempt?.tokens && !callbackAttempt.providerError) {
+            if (!callbackSessionInFlight.current) {
+              callbackSessionInFlight.current = establishAuthCallbackSession(
                 supabase.auth,
-                callbackAttempt.code,
+                callbackAttempt.tokens,
               );
             }
-            const exchange = await callbackExchangeInFlight.current;
+            const exchange = await callbackSessionInFlight.current;
             exchangedSession = exchange.session;
             exchangeFailed = exchange.failed;
           }
@@ -407,20 +414,39 @@ export function AuthProvider({
           window.clearTimeout(loadingTimeout);
           updateSession(exchangedSession);
           setSessionLoading(false);
-          if (callbackAttempt) {
-            void claimSignupReferralFromAuthCallback({
-              currentUrl: window.location.href,
-              callback: callbackAttempt,
-              request: authedFetch,
-              replaceUrl: (cleanUrl) => {
-                window.history.replaceState(
-                  window.history.state,
-                  "",
-                  cleanUrl,
-                );
-              },
-            });
-          }
+          // The PKCE flow this app ran before left one-time code-verifier keys
+          // behind; the implicit flow never clears them, so sweep them here.
+          clearLegacyPkceVerifiers(browserLocalStorage());
+          const referralClaimed = callbackAttempt
+            ? claimSignupReferralFromAuthCallback({
+                currentUrl: window.location.href,
+                callback: callbackAttempt,
+                request: authedFetch,
+                replaceUrl: (cleanUrl) => {
+                  window.history.replaceState(
+                    window.history.state,
+                    "",
+                    cleanUrl,
+                  );
+                },
+              })
+            : Promise.resolve();
+          // Account first, handle second: once the referral claim settles (a
+          // navigation would abort its in-flight request), an account with no
+          // claimed handle lands on the claim surface.
+          void referralClaimed
+            .catch(() => {})
+            .then(() =>
+              handleClaimRouteAfterSignIn(
+                exchangedSession,
+                captured?.cleanUrl ?? "/",
+                browserLocalStorage(),
+              ),
+            )
+            .then((destination) => {
+              if (destination && active) window.location.assign(destination);
+            })
+            .catch(() => {});
           return;
         }
 
@@ -520,7 +546,10 @@ export function AuthProvider({
       if (typeof window === "undefined") {
         return { status: "error", message: "Sign-in is unavailable on this page." };
       }
-      const attempt = await prepareAuthCallback(window.location.href, next);
+      const attempt = await prepareAuthCallback(
+        window.location.href,
+        next ?? defaultEmailAuthNext(window.location.href),
+      );
       if ("navigationStarted" in attempt) {
         return {
           status: "error",

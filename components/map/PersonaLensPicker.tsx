@@ -36,6 +36,38 @@ type PersonaLensPickerProps = {
   tonightCategory: DrinkCategory | null;
 };
 
+function PersonaLensOption({
+  id,
+  className,
+  highlighted,
+  selected,
+  onHover,
+  onPick,
+  children,
+}: {
+  id: string;
+  className: string;
+  highlighted: boolean;
+  selected: boolean;
+  onHover: () => void;
+  onPick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      id={id}
+      type="button"
+      role="option"
+      aria-selected={selected}
+      className={highlighted ? `${className} isHighlighted` : className}
+      onMouseEnter={onHover}
+      onClick={onPick}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function PersonaLensPicker({
   personaId,
   onSelect,
@@ -168,26 +200,6 @@ export default function PersonaLensPicker({
     [chooseActiveIndex],
   );
 
-  const renderOption = (
-    index: number,
-    className: string,
-    selected: boolean,
-    onPick: () => void,
-    children: React.ReactNode,
-  ) => (
-    <button
-      id={optionId(index)}
-      type="button"
-      role="option"
-      aria-selected={selected}
-      className={safeActive === index ? `${className} isHighlighted` : className}
-      onMouseEnter={() => chooseActiveIndex(index)}
-      onClick={onPick}
-    >
-      {children}
-    </button>
-  );
-
   return (
     <div className="personaLensPicker" ref={rootRef}>
       <button
@@ -235,15 +247,18 @@ export default function PersonaLensPicker({
           </div>
 
           <div className="personaLensList" id={listId} role="listbox" aria-label="Personas">
-            {active
-              ? renderOption(
-                  0,
-                  "personaLensOption personaLensOptionClear",
-                  false,
-                  () => choose(null),
-                  "Clear selection",
-                )
-              : null}
+            {active ? (
+              <PersonaLensOption
+                id={optionId(0)}
+                className="personaLensOption personaLensOptionClear"
+                highlighted={safeActive === 0}
+                selected={false}
+                onHover={() => chooseActiveIndex(0)}
+                onPick={() => choose(null)}
+              >
+                Clear selection
+              </PersonaLensOption>
+            ) : null}
 
             {sections.length === 0 ? (
               <p className="personaLensEmpty">No personas match that search.</p>
@@ -257,12 +272,18 @@ export default function PersonaLensPicker({
                   if (index === undefined) return null;
                   const fits = personaFitsCategory(persona, tonightCategory);
                   const selected = persona.id === personaId;
-                  return renderOption(
-                    index,
-                    selected ? "personaLensOption isSelected" : "personaLensOption",
-                    selected,
-                    () => choose(persona),
-                    <>
+                  return (
+                    <PersonaLensOption
+                      key={persona.id}
+                      id={optionId(index)}
+                      className={
+                        selected ? "personaLensOption isSelected" : "personaLensOption"
+                      }
+                      highlighted={safeActive === index}
+                      selected={selected}
+                      onHover={() => chooseActiveIndex(index)}
+                      onPick={() => choose(persona)}
+                    >
                       <span className="personaLensOptionName">{persona.name}</span>
                       <span className="personaLensOptionMeta">
                         {persona.drink}
@@ -273,7 +294,7 @@ export default function PersonaLensPicker({
                           </span>
                         ) : null}
                       </span>
-                    </>,
+                    </PersonaLensOption>
                   );
                 })}
               </div>
