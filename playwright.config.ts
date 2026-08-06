@@ -1,6 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
 
+import { resolvePlaywrightNextDistDir } from "./lib/playwrightDistDir";
+
 // P3.11 browser smoke suite. Chromium projects use production builds on
 // fixed ports (kept off 3000 so they won't collide
 // with a hand-run `next dev`). Assertions are WebGL-agnostic so headless boxes
@@ -13,13 +15,7 @@ const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 const SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === "1";
 const FIREFOX_DESKTOP_MAP_CHROME_FIT =
   process.env.PW_FIREFOX_DESKTOP_MAP_CHROME_FIT === "1";
-// Prefer an explicit Playwright override, then an inherited NEXT_DIST_DIR from
-// scripts/run-with-restored-next-env.mjs (shots / shots:extended build into a
-// unique .next-isolated dir and must start the same tree), then the defaults.
-const NEXT_DIST_DIR =
-  process.env.PW_NEXT_DIST_DIR ??
-  process.env.NEXT_DIST_DIR ??
-  (SCREENSHOT_RUN ? ".next" : ".next-e2e");
+const NEXT_DIST_DIR = resolvePlaywrightNextDistDir();
 const KEYLESS_NEXT_DIST_DIR =
   process.env.PW_KEYLESS_NEXT_DIST_DIR ?? `${NEXT_DIST_DIR}-keyless`;
 // Production-style browser tests retain the keyless in-memory stores, but

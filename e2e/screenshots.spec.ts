@@ -2,6 +2,8 @@ import { test, expect, type APIRequestContext, type Page } from "@playwright/tes
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 
+import { planMemberCookieName } from "@/lib/planMemberCapability";
+
 // Design-QA artifacts for the Gate-Z baseline. The configured Playwright
 // projects own the desktop/mobile and light/dark matrix.
 //
@@ -22,6 +24,58 @@ type PaintedMapTapPoint = {
   x: number;
   y: number;
 };
+
+type GeolocationFix = {
+  latitude: number;
+  longitude: number;
+};
+
+async function mockGeolocation(page: Page, fix: GeolocationFix): Promise<void> {
+  await page.addInitScript(({ latitude, longitude }) => {
+    let requestCount = 0;
+    window.localStorage.removeItem("pubmax:plan-intake:v1");
+    window.localStorage.removeItem("pubmax:nightPatch:v1");
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition(success: PositionCallback) {
+          const current = requestCount++ === 0
+            ? { latitude: 51.527, longitude: -0.08 }
+            : { latitude, longitude };
+          queueMicrotask(() => {
+            success({
+              coords: {
+                latitude: current.latitude,
+                longitude: current.longitude,
+                accuracy: 10,
+                altitude: null,
+                altitudeAccuracy: null,
+                heading: null,
+                speed: null,
+              },
+              timestamp: Date.now(),
+            } as GeolocationPosition);
+          });
+        },
+        watchPosition() {
+          return 0;
+        },
+        clearWatch() {},
+      },
+    });
+  }, fix);
+}
+
+async function waitForStableAreaStep(page: Page): Promise<void> {
+  await page
+    .getByRole("heading", { name: "When are you heading out?" })
+    .waitFor({ state: "visible", timeout: 15_000 });
+  await page.getByRole("button", { name: "Back" }).click();
+  await page
+    .getByRole("heading", { name: "Where should the night happen?" })
+    .waitFor({ state: "visible", timeout: 15_000 });
+  await expect(page.locator(".planIntake__locate")).toBeEnabled({ timeout: 15_000 });
+}
 
 async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -273,51 +327,12 @@ test.describe("screenshot baseline", () => {
       test("plan location success", async ({ page }) => {
         test.skip(isDesktop || viewportName !== "390", "390px mobile evidence only");
         await setTheme(page, theme);
-        await page.addInitScript(() => {
-          window.localStorage.removeItem("pubmax:plan-intake:v1");
-          window.localStorage.removeItem("pubmax:nightPatch:v1");
-          Object.defineProperty(navigator, "geolocation", {
-            configurable: true,
-            value: {
-              getCurrentPosition(success: PositionCallback) {
-                // Async like a real fix so the first paint is the empty area step.
-                queueMicrotask(() => {
-                  success({
-                    coords: {
-                      latitude: 51.527,
-                      longitude: -0.08,
-                      accuracy: 10,
-                      altitude: null,
-                      altitudeAccuracy: null,
-                      heading: null,
-                      speed: null,
-                    },
-                    timestamp: Date.now(),
-                  } as GeolocationPosition);
-                });
-              },
-              watchPosition() {
-                return 0;
-              },
-              clearWatch() {},
-            },
-          });
-        });
+        await mockGeolocation(page, { latitude: 51.527, longitude: -0.08 });
         const response = await page.goto("/plan");
         expect(response?.status()).toBe(200);
-        // Wait for PlanComposer's auto-seed to finish (lands Shoreditch and
-        // advances to time). Clicking locate while that remount is in flight
-        // detaches the button forever.
-        await page
-          .getByRole("heading", { name: "When are you heading out?" })
-          .waitFor({ state: "visible", timeout: 15_000 });
-        await page.getByRole("button", { name: "Back" }).click();
-        await page
-          .getByRole("heading", { name: "Where should the night happen?" })
-          .waitFor({ state: "visible", timeout: 15_000 });
+        await waitForStableAreaStep(page);
         const locate = page.locator(".planIntake__locate");
-        await expect(locate).toBeVisible({ timeout: 15_000 });
-        await locate.dispatchEvent("click");
+        await locate.click();
         await expect(page.locator(".planIntake__locationStatus")).toContainText(
           "Shoreditch is your nearest supported area",
           { timeout: 15_000 },
@@ -328,45 +343,13 @@ test.describe("screenshot baseline", () => {
       test("plan location failure", async ({ page }) => {
         test.skip(isDesktop || viewportName !== "390", "390px mobile evidence only");
         await setTheme(page, theme);
-        await page.addInitScript(() => {
-          window.localStorage.removeItem("pubmax:plan-intake:v1");
-          window.localStorage.removeItem("pubmax:nightPatch:v1");
-          Object.defineProperty(navigator, "geolocation", {
-            configurable: true,
-            value: {
-              getCurrentPosition(success: PositionCallback) {
-                queueMicrotask(() => {
-                  success({
-                    coords: {
-                      latitude: 53.48,
-                      longitude: -2.24,
-                      accuracy: 10,
-                      altitude: null,
-                      altitudeAccuracy: null,
-                      heading: null,
-                      speed: null,
-                    },
-                    timestamp: Date.now(),
-                  } as GeolocationPosition);
-                });
-              },
-              watchPosition() {
-                return 0;
-              },
-              clearWatch() {},
-            },
-          });
-        });
+        await mockGeolocation(page, { latitude: 53.48, longitude: -2.24 });
         const response = await page.goto("/plan");
         expect(response?.status()).toBe(200);
-        // Outside London: auto-seed finds no patch and stays on the area step.
-        await page
-          .getByRole("heading", { name: "Where should the night happen?" })
-          .waitFor({ state: "visible", timeout: 15_000 });
+        await waitForStableAreaStep(page);
         await page.getByRole("button", { name: "Clapham" }).click();
         const locate = page.locator(".planIntake__locate");
-        await expect(locate).toBeVisible({ timeout: 15_000 });
-        await locate.dispatchEvent("click");
+        await locate.click();
         await expect(page.locator(".planIntake__locationStatus")).toContainText(
           "outside London",
           { timeout: 15_000 },
@@ -392,9 +375,10 @@ test.describe("screenshot baseline", () => {
         await shot(page, `today-diversity-${theme}-${viewportName}`);
       });
 
-      test("shared planned night", async ({ page, request }) => {
+      test("shared planned night", async ({ page, request, context }) => {
         await setTheme(page, theme);
         const fixture = await createPlanFixture(request, "ready");
+        await context.clearCookies({ name: planMemberCookieName(fixture.id) });
         const response = await page.goto(`/plan/${fixture.id}`);
         expect(response?.status()).toBe(200);
         // §4.10: the shared-link surface is the privacy-safe preview. The user
@@ -444,11 +428,10 @@ test.describe("screenshot baseline", () => {
           .click({ timeout: 30_000 });
         const tonight = page.getByRole("dialog", { name: "Tonight's plan" });
         await tonight.waitFor({ state: "visible", timeout: 15_000 });
-        // Eyebrow always says "On tonight"; the private plan title only joins
-        // after member rehydration (flag-gated). Match the public shell.
-        await expect(tonight.getByText("On tonight")).toBeVisible({
+        await expect(tonight.locator(".nightCard__now")).toHaveText("Arnos Arms", {
           timeout: 30_000,
         });
+        await expect(tonight.locator(".nightCard__loading")).toHaveCount(0);
         await shot(page, `active-night-${theme}-${viewportName}`);
       });
 
