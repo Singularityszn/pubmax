@@ -629,6 +629,25 @@ describe("SocialCrewStore protected projection", () => {
     );
   });
 
+  it("fails closed when the latest Join Request disappears before the cohort read", async () => {
+    const latestRequest = {
+      state: "pending",
+      expiresAt: "2026-08-06T00:00:00.000Z",
+      createdAt: "2026-08-05T10:00:00.000Z",
+      decidedAt: null,
+    };
+    const deps = dependencies();
+    deps.loadCrew = async () => rawCrew({
+      joinRequestState: socialCrewJoinRequestPreviewState(
+        [],
+        new Date("2026-08-05T12:00:00.000Z"),
+        latestRequest !== null,
+      ),
+    });
+
+    await expectStoreError(createSocialCrewStore(deps).read(CREW_ID, alice), "UNAVAILABLE", 503);
+  });
+
   it.each([
     ["state", "unknown"],
     ["role", "host"],
