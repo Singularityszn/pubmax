@@ -9,6 +9,7 @@ const ALICE_MEMBER_ID = "30000000-0000-4000-8000-000000000001";
 const BOB_PROFILE_ID = "20000000-0000-4000-8000-000000000002";
 const BOB_MEMBER_ID = "30000000-0000-4000-8000-000000000002";
 const CREW_ID = "50000000-0000-4000-8000-000000000001";
+const OTHER_CREW_ID = "50000000-0000-4000-8000-000000000002";
 const PLAN_ID = "60000000-0000-4000-8000-000000000001";
 const INVITATION_ID = "70000000-0000-4000-8000-000000000001";
 const REQUEST_ID = "80000000-0000-4000-8000-000000000001";
@@ -476,6 +477,7 @@ describe("Social Crew membership routes", () => {
     ), context({ crewId: CREW_ID, invitationId: INVITATION_ID }));
     expect(accepted.status).toBe(200);
     expect(store.acceptInvitation).toHaveBeenCalledWith(actor, {
+      crewId: CREW_ID,
       invitationId: INVITATION_ID,
       action: "accept",
       idempotencyKey: IDEMPOTENCY_KEY,
@@ -487,6 +489,7 @@ describe("Social Crew membership routes", () => {
       { action: "decline" },
     ), context({ crewId: CREW_ID, invitationId: INVITATION_ID }));
     expect(store.acceptInvitation).toHaveBeenLastCalledWith(actor, {
+      crewId: CREW_ID,
       invitationId: INVITATION_ID,
       action: "decline",
       idempotencyKey: IDEMPOTENCY_KEY,
@@ -498,6 +501,7 @@ describe("Social Crew membership routes", () => {
     ), context({ crewId: CREW_ID, invitationId: INVITATION_ID }));
     expect(revoked.status).toBe(200);
     expect(store.revokeInvitation).toHaveBeenCalledWith(actor, {
+      crewId: CREW_ID,
       invitationId: INVITATION_ID,
       idempotencyKey: IDEMPOTENCY_KEY,
     });
@@ -533,10 +537,82 @@ describe("Social Crew membership routes", () => {
     ), context({ crewId: CREW_ID, requestId: REQUEST_ID }));
     expect(decided.status).toBe(200);
     expect(store.decideJoin).toHaveBeenCalledWith(actor, {
+      crewId: CREW_ID,
       requestId: REQUEST_ID,
       decision: "accept",
       idempotencyKey: IDEMPOTENCY_KEY,
     });
+  });
+
+  it.each([
+    {
+      label: "invitation acceptance",
+      invoke: () => decideInvitation(mutationRequest(
+        `http://localhost/api/social/crews/${OTHER_CREW_ID}/invitations/${INVITATION_ID}`,
+        "PATCH",
+        { action: "accept" },
+      ), context({ crewId: OTHER_CREW_ID, invitationId: INVITATION_ID })),
+      operation: store.acceptInvitation,
+      input: {
+        crewId: OTHER_CREW_ID,
+        invitationId: INVITATION_ID,
+        action: "accept",
+        idempotencyKey: IDEMPOTENCY_KEY,
+      },
+    },
+    {
+      label: "invitation decline",
+      invoke: () => decideInvitation(mutationRequest(
+        `http://localhost/api/social/crews/${OTHER_CREW_ID}/invitations/${INVITATION_ID}`,
+        "PATCH",
+        { action: "decline" },
+      ), context({ crewId: OTHER_CREW_ID, invitationId: INVITATION_ID })),
+      operation: store.acceptInvitation,
+      input: {
+        crewId: OTHER_CREW_ID,
+        invitationId: INVITATION_ID,
+        action: "decline",
+        idempotencyKey: IDEMPOTENCY_KEY,
+      },
+    },
+    {
+      label: "invitation revocation",
+      invoke: () => revokeInvitation(mutationRequest(
+        `http://localhost/api/social/crews/${OTHER_CREW_ID}/invitations/${INVITATION_ID}`,
+        "DELETE",
+      ), context({ crewId: OTHER_CREW_ID, invitationId: INVITATION_ID })),
+      operation: store.revokeInvitation,
+      input: {
+        crewId: OTHER_CREW_ID,
+        invitationId: INVITATION_ID,
+        idempotencyKey: IDEMPOTENCY_KEY,
+      },
+    },
+    {
+      label: "Join Request decision",
+      invoke: () => decideJoinRequest(mutationRequest(
+        `http://localhost/api/social/crews/${OTHER_CREW_ID}/join-requests/${REQUEST_ID}`,
+        "PATCH",
+        { decision: "decline" },
+      ), context({ crewId: OTHER_CREW_ID, requestId: REQUEST_ID })),
+      operation: store.decideJoin,
+      input: {
+        crewId: OTHER_CREW_ID,
+        requestId: REQUEST_ID,
+        decision: "decline",
+        idempotencyKey: IDEMPOTENCY_KEY,
+      },
+    },
+  ])("keeps parent Crew scope for mismatched $label", async ({ invoke, operation, input }) => {
+    operation.mockRejectedValueOnce(
+      new SocialCrewStoreError("NOT_FOUND", 404, "Social Crew not found."),
+    );
+
+    const response = await invoke();
+
+    expect(response.status).toBe(404);
+    expectPrivate(response);
+    expect(operation).toHaveBeenCalledWith(actor, input);
   });
 
   it("changes a scoped member role, transfers ownership, and removes the member", async () => {

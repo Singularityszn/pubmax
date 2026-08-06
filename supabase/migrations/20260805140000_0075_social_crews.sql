@@ -601,63 +601,65 @@ end;
 $$;
 
 create function public.accept_social_crew_invitation_atomic(
-  p_actor_account_id uuid,p_invitation_id uuid,p_action text,
+  p_actor_account_id uuid,p_crew_id uuid,p_invitation_id uuid,p_action text,
   p_idempotency_key text,p_payload_digest text
 ) returns jsonb language plpgsql security definer set search_path=''
 as $$
-declare v_replay jsonb; v_row public.social_crew_invitations%rowtype; v_crew uuid; v_owner uuid; v_member uuid; v_response jsonb;
+declare v_operation text:='invitation-action:'||p_crew_id::text; v_replay jsonb;
+  v_row public.social_crew_invitations%rowtype; v_owner uuid; v_member uuid; v_response jsonb;
 begin
-  v_replay:=public._social_crew_begin_write(p_actor_account_id,'invitation-action',p_idempotency_key,p_payload_digest);
+  v_replay:=public._social_crew_begin_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest);
   if v_replay is not null then return v_replay; end if;
-  select crew_id into v_crew from public.social_crew_invitations where id=p_invitation_id;
-  if v_crew is null then return public._social_crew_fail_write(p_actor_account_id,'invitation-action',p_idempotency_key,p_payload_digest,'not_found'); end if;
-  perform 1 from public.social_crews where id=v_crew for update;
-  select * into v_row from public.social_crew_invitations where id=p_invitation_id for update;
-  if not found or v_row.target_account_id<>p_actor_account_id then return public._social_crew_fail_write(p_actor_account_id,'invitation-action',p_idempotency_key,p_payload_digest,'not_found'); end if;
-  if v_row.state<>'pending' then return public._social_crew_fail_write(p_actor_account_id,'invitation-action',p_idempotency_key,p_payload_digest,'already_decided'); end if;
+  perform 1 from public.social_crews where id=p_crew_id for update;
+  if not found then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
+  select * into v_row from public.social_crew_invitations
+    where id=p_invitation_id and crew_id=p_crew_id for update;
+  if not found or v_row.target_account_id<>p_actor_account_id then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
+  if v_row.state<>'pending' then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'already_decided'); end if;
   if now()>=v_row.expires_at then
     update public.social_crew_invitations set state='expired',decided_at=now() where id=v_row.id;
-    return public._social_crew_fail_write(p_actor_account_id,'invitation-action',p_idempotency_key,p_payload_digest,'expired');
+    return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'expired');
   end if;
   if p_action='declined' then
     update public.social_crew_invitations set state='declined',decided_at=now() where id=v_row.id;
     v_response:=jsonb_build_object('ok',true,'code','declined');
   elsif p_action='accepted' then
-    select owner_account_id into v_owner from public.social_crews where id=v_row.crew_id;
+    select owner_account_id into v_owner from public.social_crews where id=p_crew_id;
     if public._social_crew_relationship_between_accounts(p_actor_account_id,v_owner) is distinct from 'mutual' then
-      return public._social_crew_fail_write(p_actor_account_id,'invitation-action',p_idempotency_key,p_payload_digest,'not_found'); end if;
-    v_member:=public._activate_social_crew_member(v_row.crew_id,p_actor_account_id);
-    if v_member is null then return public._social_crew_fail_write(p_actor_account_id,'invitation-action',p_idempotency_key,p_payload_digest,'full'); end if;
+      return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
+    v_member:=public._activate_social_crew_member(p_crew_id,p_actor_account_id);
+    if v_member is null then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'full'); end if;
     update public.social_crew_invitations set state='accepted',decided_at=now() where id=v_row.id;
     v_response:=jsonb_build_object('ok',true,'code','accepted','member_id',v_member);
-  else return public._social_crew_fail_write(p_actor_account_id,'invitation-action',p_idempotency_key,p_payload_digest,'invalid'); end if;
-  return public._social_crew_finish_write(p_actor_account_id,'invitation-action',p_idempotency_key,p_payload_digest,v_response);
+  else return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'invalid'); end if;
+  return public._social_crew_finish_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,v_response);
 end;
 $$;
 
 create function public.revoke_social_crew_invitation_atomic(
-  p_actor_account_id uuid,p_invitation_id uuid,p_idempotency_key text,p_payload_digest text
+  p_actor_account_id uuid,p_crew_id uuid,p_invitation_id uuid,p_idempotency_key text,p_payload_digest text
 ) returns jsonb language plpgsql security definer set search_path=''
 as $$
-declare v_replay jsonb; v_row public.social_crew_invitations%rowtype; v_crew uuid; v_role text; v_response jsonb;
+declare v_operation text:='invitation-revoke:'||p_crew_id::text; v_replay jsonb;
+  v_row public.social_crew_invitations%rowtype; v_role text; v_response jsonb;
 begin
-  v_replay:=public._social_crew_begin_write(p_actor_account_id,'invitation-revoke',p_idempotency_key,p_payload_digest);
+  v_replay:=public._social_crew_begin_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest);
   if v_replay is not null then return v_replay; end if;
-  select crew_id into v_crew from public.social_crew_invitations where id=p_invitation_id;
-  if v_crew is null then return public._social_crew_fail_write(p_actor_account_id,'invitation-revoke',p_idempotency_key,p_payload_digest,'not_found'); end if;
-  perform 1 from public.social_crews where id=v_crew for update;
-  select * into v_row from public.social_crew_invitations where id=p_invitation_id for update;
-  if not found then return public._social_crew_fail_write(p_actor_account_id,'invitation-revoke',p_idempotency_key,p_payload_digest,'not_found'); end if;
-  v_role:=public._social_crew_member_role(v_row.crew_id,p_actor_account_id);
-  if v_role is null or v_role not in ('owner','cohost') then return public._social_crew_fail_write(p_actor_account_id,'invitation-revoke',p_idempotency_key,p_payload_digest,'not_found'); end if;
-  if v_row.state<>'pending' then return public._social_crew_fail_write(p_actor_account_id,'invitation-revoke',p_idempotency_key,p_payload_digest,'already_decided'); end if;
+  perform 1 from public.social_crews where id=p_crew_id for update;
+  if not found then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
+  select * into v_row from public.social_crew_invitations
+    where id=p_invitation_id and crew_id=p_crew_id for update;
+  if not found then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
+  v_role:=public._social_crew_member_role(p_crew_id,p_actor_account_id);
+  if v_role is null or v_role not in ('owner','cohost') then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
+  if v_row.state<>'pending' then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'already_decided'); end if;
   if now()>=v_row.expires_at then
     update public.social_crew_invitations set state='expired',decided_at=now() where id=v_row.id;
-    return public._social_crew_fail_write(p_actor_account_id,'invitation-revoke',p_idempotency_key,p_payload_digest,'expired');
+    return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'expired');
   end if;
   update public.social_crew_invitations set state='revoked',decided_at=now() where id=v_row.id;
   v_response:=jsonb_build_object('ok',true,'code','revoked','invitation_id',v_row.id);
-  return public._social_crew_finish_write(p_actor_account_id,'invitation-revoke',p_idempotency_key,p_payload_digest,v_response);
+  return public._social_crew_finish_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,v_response);
 end;
 $$;
 
@@ -700,37 +702,38 @@ end;
 $$;
 
 create function public.decide_social_crew_join_request_atomic(
-  p_actor_account_id uuid,p_request_id uuid,p_decision text,p_idempotency_key text,p_payload_digest text
+  p_actor_account_id uuid,p_crew_id uuid,p_request_id uuid,p_decision text,p_idempotency_key text,p_payload_digest text
 ) returns jsonb language plpgsql security definer set search_path=''
 as $$
-declare v_replay jsonb; v_request public.social_crew_join_requests%rowtype; v_crew uuid; v_role text; v_decider uuid; v_owner uuid;
+declare v_operation text:='join-decision:'||p_crew_id::text; v_replay jsonb;
+  v_request public.social_crew_join_requests%rowtype; v_role text; v_decider uuid; v_owner uuid;
   v_member uuid; v_response jsonb;
 begin
-  v_replay:=public._social_crew_begin_write(p_actor_account_id,'join-decision',p_idempotency_key,p_payload_digest);
+  v_replay:=public._social_crew_begin_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest);
   if v_replay is not null then return v_replay; end if;
-  select crew_id into v_crew from public.social_crew_join_requests where id=p_request_id;
-  if v_crew is null then return public._social_crew_fail_write(p_actor_account_id,'join-decision',p_idempotency_key,p_payload_digest,'not_found'); end if;
-  perform 1 from public.social_crews where id=v_crew for update;
-  select * into v_request from public.social_crew_join_requests where id=p_request_id for update;
-  if not found then return public._social_crew_fail_write(p_actor_account_id,'join-decision',p_idempotency_key,p_payload_digest,'not_found'); end if;
-  v_role:=public._social_crew_member_role(v_request.crew_id,p_actor_account_id);
-  if v_role is null or v_role not in ('owner','cohost') then return public._social_crew_fail_write(p_actor_account_id,'join-decision',p_idempotency_key,p_payload_digest,'not_found'); end if;
-  if v_request.state<>'pending' then return public._social_crew_fail_write(p_actor_account_id,'join-decision',p_idempotency_key,p_payload_digest,'already_decided'); end if;
+  perform 1 from public.social_crews where id=p_crew_id for update;
+  if not found then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
+  select * into v_request from public.social_crew_join_requests
+    where id=p_request_id and crew_id=p_crew_id for update;
+  if not found then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
+  v_role:=public._social_crew_member_role(p_crew_id,p_actor_account_id);
+  if v_role is null or v_role not in ('owner','cohost') then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
+  if v_request.state<>'pending' then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'already_decided'); end if;
   if now()>=v_request.expires_at then
     update public.social_crew_join_requests set state='expired',decided_at=now() where id=v_request.id;
-    return public._social_crew_fail_write(p_actor_account_id,'join-decision',p_idempotency_key,p_payload_digest,'expired'); end if;
-  select id into v_decider from public.social_crew_members where crew_id=v_request.crew_id and social_account_id=p_actor_account_id and state='active';
+    return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'expired'); end if;
+  select id into v_decider from public.social_crew_members where crew_id=p_crew_id and social_account_id=p_actor_account_id and state='active';
   if p_decision='accepted' then
-    select owner_account_id into v_owner from public.social_crews where id=v_request.crew_id;
+    select owner_account_id into v_owner from public.social_crews where id=p_crew_id;
     if public._social_crew_relationship_between_accounts(v_request.requester_account_id,v_owner) is distinct from 'mutual' then
-      return public._social_crew_fail_write(p_actor_account_id,'join-decision',p_idempotency_key,p_payload_digest,'not_found'); end if;
-    v_member:=public._activate_social_crew_member(v_request.crew_id,v_request.requester_account_id);
-    if v_member is null then return public._social_crew_fail_write(p_actor_account_id,'join-decision',p_idempotency_key,p_payload_digest,'full'); end if;
+      return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
+    v_member:=public._activate_social_crew_member(p_crew_id,v_request.requester_account_id);
+    if v_member is null then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'full'); end if;
     v_response:=jsonb_build_object('ok',true,'code','accepted','member_id',v_member);
   elsif p_decision='declined' then v_response:=jsonb_build_object('ok',true,'code','declined');
-  else return public._social_crew_fail_write(p_actor_account_id,'join-decision',p_idempotency_key,p_payload_digest,'invalid'); end if;
+  else return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'invalid'); end if;
   update public.social_crew_join_requests set state=p_decision,decided_at=now(),decided_by_member_id=v_decider where id=v_request.id;
-  return public._social_crew_finish_write(p_actor_account_id,'join-decision',p_idempotency_key,p_payload_digest,v_response);
+  return public._social_crew_finish_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,v_response);
 end;
 $$;
 
@@ -967,10 +970,10 @@ revoke all on function
   public.update_legacy_plan_status_context_atomic(uuid,text,text,jsonb),
   public.create_social_crew_atomic(uuid,uuid,text,text,text,text),
   public.invite_social_crew_member_atomic(uuid,uuid,uuid,text,text),
-  public.accept_social_crew_invitation_atomic(uuid,uuid,text,text,text),
-  public.revoke_social_crew_invitation_atomic(uuid,uuid,text,text),
+  public.accept_social_crew_invitation_atomic(uuid,uuid,uuid,text,text,text),
+  public.revoke_social_crew_invitation_atomic(uuid,uuid,uuid,text,text),
   public.request_social_crew_join_atomic(uuid,uuid,text,text,text),
-  public.decide_social_crew_join_request_atomic(uuid,uuid,text,text,text),
+  public.decide_social_crew_join_request_atomic(uuid,uuid,uuid,text,text,text),
   public.set_social_crew_role_atomic(uuid,uuid,uuid,text,text,text),
   public.transfer_social_crew_owner_atomic(uuid,uuid,uuid,text,text),
   public.remove_social_crew_member_atomic(uuid,uuid,uuid,text,text),
@@ -998,10 +1001,10 @@ grant execute on function
   public.update_legacy_plan_status_context_atomic(uuid,text,text,jsonb),
   public.create_social_crew_atomic(uuid,uuid,text,text,text,text),
   public.invite_social_crew_member_atomic(uuid,uuid,uuid,text,text),
-  public.accept_social_crew_invitation_atomic(uuid,uuid,text,text,text),
-  public.revoke_social_crew_invitation_atomic(uuid,uuid,text,text),
+  public.accept_social_crew_invitation_atomic(uuid,uuid,uuid,text,text,text),
+  public.revoke_social_crew_invitation_atomic(uuid,uuid,uuid,text,text),
   public.request_social_crew_join_atomic(uuid,uuid,text,text,text),
-  public.decide_social_crew_join_request_atomic(uuid,uuid,text,text,text),
+  public.decide_social_crew_join_request_atomic(uuid,uuid,uuid,text,text,text),
   public.set_social_crew_role_atomic(uuid,uuid,uuid,text,text,text),
   public.transfer_social_crew_owner_atomic(uuid,uuid,uuid,text,text),
   public.remove_social_crew_member_atomic(uuid,uuid,uuid,text,text),

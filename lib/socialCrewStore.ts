@@ -67,15 +67,17 @@ type CreateInput = WriteInput & {
 };
 type InviteInput = WriteInput & { crewId: string; targetProfileId: string };
 type InvitationActionInput = WriteInput & {
+  crewId: string;
   invitationId: string;
   action: "accept" | "decline";
 };
-type InvitationInput = WriteInput & { invitationId: string };
+type InvitationInput = WriteInput & { crewId: string; invitationId: string };
 type JoinRequestInput = WriteInput & {
   crewId: string;
   action: "request" | "cancel";
 };
 type JoinDecisionInput = WriteInput & {
+  crewId: string;
   requestId: string;
   decision: "accept" | "decline";
 };
@@ -599,20 +601,22 @@ export function createSocialCrewStore(
     },
 
     acceptInvitation(actor, input) {
-      if (!isUuid(input.invitationId) || (input.action !== "accept" && input.action !== "decline")) {
+      if (!isUuid(input.crewId) || !isUuid(input.invitationId) || (input.action !== "accept" && input.action !== "decline")) {
         return Promise.reject(new SocialCrewStoreError("INVALID", 400, "Social Crew request is not valid."));
       }
       return write("accept_social_crew_invitation_atomic", actor, "invitation-action", input.idempotencyKey, {
+        p_crew_id: input.crewId,
         p_invitation_id: input.invitationId,
         p_action: input.action === "accept" ? "accepted" : "declined",
       });
     },
 
     revokeInvitation(actor, input) {
-      if (!isUuid(input.invitationId)) {
+      if (!isUuid(input.crewId) || !isUuid(input.invitationId)) {
         return Promise.reject(new SocialCrewStoreError("INVALID", 400, "Social Crew request is not valid."));
       }
       return write("revoke_social_crew_invitation_atomic", actor, "invitation-revoke", input.idempotencyKey, {
+        p_crew_id: input.crewId,
         p_invitation_id: input.invitationId,
       });
     },
@@ -628,10 +632,11 @@ export function createSocialCrewStore(
     },
 
     decideJoin(actor, input) {
-      if (!isUuid(input.requestId) || (input.decision !== "accept" && input.decision !== "decline")) {
+      if (!isUuid(input.crewId) || !isUuid(input.requestId) || (input.decision !== "accept" && input.decision !== "decline")) {
         return Promise.reject(new SocialCrewStoreError("INVALID", 400, "Social Crew request is not valid."));
       }
       return write("decide_social_crew_join_request_atomic", actor, "join-decision", input.idempotencyKey, {
+        p_crew_id: input.crewId,
         p_request_id: input.requestId,
         p_decision: input.decision === "accept" ? "accepted" : "declined",
       });

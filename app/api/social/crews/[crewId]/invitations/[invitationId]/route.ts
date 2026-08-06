@@ -35,6 +35,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   }
 
   return socialCrewMutation(() => store.acceptInvitation(authority.actor, {
+    crewId,
     invitationId,
     action: input.body.action as "accept" | "decline",
     idempotencyKey,
@@ -57,6 +58,7 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
   if (!socialCrewEmptyBody(input.body)) return socialCrewInvalidResponse();
 
   return socialCrewMutation(() => store.revokeInvitation(authority.actor, {
+    crewId,
     invitationId,
     idempotencyKey,
   }));

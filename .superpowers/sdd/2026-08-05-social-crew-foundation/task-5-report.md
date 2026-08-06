@@ -2,9 +2,9 @@
 
 ## Status
 
-Fix Round 1 complete. Independent verifier returned `VERDICT: PASS`.
+Fix Round 2 complete. Independent verifier returned `VERDICT: PASS`.
 
-Review base: `807ed503 fix: certify Social Crew mutation handlers`.
+Review base: `8d6fccbf4 fix: close Social Crew authority review`.
 
 ## Fix Round 1
 
@@ -52,13 +52,77 @@ member and increment once. A reactivation race accepts both an invitation and a
 Join Request into one retained Plan member, increments once, and exact replay
 leaves revision unchanged.
 
-## Verification
+## Fix Round 2
+
+### Parent Crew scope
+
+Invitation accept or decline, invitation revoke, and Join Request decision now
+retain the parent Crew ID from the route path through the store and PostgreSQL
+RPC. Store inputs require `crewId`, RPC payloads use `p_crew_id`, and payload
+digests include that value.
+
+Each RPC locks the named Crew before its child row. Child selection uses both
+the child ID and Crew ID. A mismatched parent returns the same `not_found`
+result as an absent protected child. Existing correct-parent accept, decline,
+revoke, and decision behaviour remains unchanged.
+
+Nested write receipts now scope their operation key to the parent Crew. A
+same-key request for the same child through another Crew path cannot replay the
+first path's result. It receives `not_found`, while same-parent replay and
+changed-payload conflict remain unchanged.
+
+Service-role grants, browser-role revocations, function signatures, and exact
+rollback drops now use the parent-scoped RPC signatures.
+
+### TDD evidence
+
+Route and store RED:
+
+```text
+npx vitest run __tests__/socialCrewRoutes.test.ts __tests__/socialCrewStore.test.ts --maxWorkers=1
+```
+
+Result: 2 files failed, 9 tests failed, and 93 passed. Failures showed every
+nested route omitting `crewId`, each RPC payload omitting `p_crew_id`, and
+same-child digests remaining equal across different parent paths.
+
+PostgreSQL signature RED:
+
+```text
+npx vitest run __tests__/socialCrewMigration.test.ts --maxWorkers=1
+```
+
+Result: 17 tests failed and 13 passed. PostgreSQL reported the new six-argument
+invitation and Join Request functions were absent. Later expected cascade
+failures came from state-changing tests that could not call those functions.
+
+Cross-parent idempotency RED after signature implementation:
+
+```text
+npx vitest run __tests__/socialCrewMigration.test.ts --maxWorkers=1
+```
+
+Result: 1 test failed and 29 passed. Same child and key through another Crew
+path returned `idempotency_conflict`; required result was `not_found` without
+replaying prior success.
+
+ACL mutation RED: removing the revoke RPC from browser-role revocation made the
+targeted service-only test fail with authenticated execute privilege `t`
+instead of `f`. Restoring the revocation returned the suite to green.
+
+Route and store GREEN: 2 files and 102 tests passed.
+
+PostgreSQL GREEN: 1 file and 30 tests passed, including mismatched-parent
+denial, correct-parent success, parent-scoped replay, service-only grants, and
+exact rollback catalog restoration.
+
+### Fix Round 2 verification
 
 ```text
 npx vitest run __tests__/socialCrewRoutes.test.ts __tests__/socialCrewStore.test.ts __tests__/socialRelationships.test.ts __tests__/socialCrewLegacyPlanBoundary.test.ts __tests__/socialCrewMigration.test.ts __tests__/writeSurfaceCertification.test.ts --maxWorkers=1
 ```
 
-Result: 6 files and 155 tests passed.
+Result: 6 files and 162 tests passed.
 
 ```text
 npm run test:rls
@@ -74,11 +138,15 @@ npm run lint
 Result: TypeScript passed. ESLint exited 0 with 33 existing warnings outside
 owned files. Focused lint for all owned TypeScript files passed cleanly.
 
+`git diff --check` passed.
+
+Independent verifier confirmed parent scope, Crew-first lock order, child
+selection by child ID and Crew ID, per-Crew replay isolation, service-only
+ACLs, and exact rollback. No findings.
+
 No hosted migration, push, or deployment performed.
 
 ## Deferred
 
-- Nested invitation and Join Request routes still do not bind child IDs to the
-  parent Crew path. Fix belongs to the route follow-up, not this migration fix.
 - Existing structural `server-only` boundary and header-order proof gaps remain
   deferred as recorded in the Slice 1 ledger.
