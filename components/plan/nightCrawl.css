@@ -190,6 +190,42 @@
   border: 1px solid rgba(255, 90, 95, 0.32);
   box-shadow: 0 20px 44px rgba(0, 0, 0, 0.5);
 }
+/* One-thumb glance: now / then / get home above the fold. */
+.nightCrawl__glance {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--nc-line);
+}
+.nightCrawl__glanceNow,
+.nightCrawl__glanceNext {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--nc-ink);
+}
+.nightCrawl__glanceNext { color: var(--nc-ink-soft); font-weight: 600; }
+.nightCrawl__glanceHome {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--nc-ink);
+  text-decoration: none;
+  background: var(--nc-panel-hi);
+  border: 1px solid var(--nc-line);
+}
+.nightCrawl__glanceHome:active { background: var(--nc-panel); }
+
 .nightCrawl__eyebrow {
   font-size: 12px;
   font-weight: 800;
@@ -354,7 +390,8 @@
   line-height: 1.4;
   color: var(--nc-ink-soft);
 }
-.nightCrawl__note[data-tone="offline"] { color: var(--nc-amber); }
+.nightCrawl__note[data-tone="offline"],
+.nightCrawl__note[data-tone="pending"] { color: var(--nc-amber); }
 
 /* Final-stop line, when there's no stop left to advance to. */
 .nightCrawl__final {

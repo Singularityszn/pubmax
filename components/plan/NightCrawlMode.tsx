@@ -14,7 +14,7 @@
 // endpoint with a persistent idempotency key (lib/planMutationKey). The tap flips
 // the stack optimistically (the done row marks, the cursor advances) and the
 // outcome reconciles honestly - a confirmed write adopts the canonical plan;
-// any failed write restores the prior stop because there is no offline outbox.
+// offline failures keep the advance only when the client outbox queued them.
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
@@ -32,13 +32,22 @@ import {
   classifyActionOutcome,
   isFinalStop,
   nightCrawlActionPayload,
+  nightCrawlGlance,
   nightCrawlHero,
   nightCrawlIdempotencyScope,
+  nightCrawlNextStop,
   nightCrawlStack,
   reconcileNightCrawlAction,
   type NightCrawlActionType,
 } from "@/lib/nightCrawl";
+import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
+import {
+  enqueueNightCrawlAction,
+  flushPlanMutationOutbox,
+  hasPendingPlanMutation,
+  subscribePlanMutationOutbox,
+} from "@/lib/planMutationOutbox";
 import {
   parsePlanCapabilitySnapshot,
   planCapabilityEvent,
@@ -58,7 +67,7 @@ const CREW_CHIP: Partial<Record<CrewPresenceStatus, { label: string; tone: "here
   start_without_me: { label: "catching up", tone: "late" },
 };
 
-type NoteTone = "offline" | "rejected" | "forbidden";
+type NoteTone = "offline" | "rejected" | "forbidden" | "pending";
 
 function initial(name: string): string {
   return (name.trim()[0] ?? "?").toUpperCase();
@@ -139,7 +148,44 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     sync();
   }, [activeNow, isMobile, collapseKey]);
 
+  // First "here" from PlanCrew (or other engage cues) opens Night Crawl.
+  useEffect(() => {
+    const onEngage = (event: Event) => {
+      const detail = (event as CustomEvent<{ planId?: string }>).detail;
+      if (detail?.planId && detail.planId !== planId) return;
+      try {
+        sessionStorage.removeItem(collapseKey);
+      } catch {
+        // ignore
+      }
+      setOpen(true);
+    };
+    window.addEventListener(NIGHT_CRAWL_ENGAGE_EVENT, onEngage);
+    return () => window.removeEventListener(NIGHT_CRAWL_ENGAGE_EVENT, onEngage);
+  }, [planId, collapseKey]);
+
   const showSurface = activeNow && open;
+
+  // Replay held arrive/skip mutations when signal returns or the surface opens.
+  useEffect(() => {
+    const flush = () => {
+      void flushPlanMutationOutbox({ planId }).then((results) => {
+        for (const result of results) {
+          if (result.outcome === "confirmed" && result.plan) {
+            setPlan(result.plan);
+            setNote(null);
+          }
+        }
+      });
+    };
+    flush();
+    window.addEventListener("online", flush);
+    const unsub = subscribePlanMutationOutbox(flush);
+    return () => {
+      window.removeEventListener("online", flush);
+      unsub();
+    };
+  }, [planId, showSurface]);
 
   // Refresh crew + actions when the surface opens, so "who is where" and the done
   // dispositions reflect the live night, not the page's first server render.
@@ -163,8 +209,15 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     [stops, cursor, plan.actions, optimistic],
   );
   const hero = nightCrawlHero(stops, cursor);
+  const nextStop = nightCrawlNextStop(stops, cursor);
   const finalStop = isFinalStop(stops, cursor);
   const heroPosition = clampStopIndex(cursor, Math.max(stops.length, 1));
+  const glance = nightCrawlGlance({
+    currentName: hero?.venueName ?? null,
+    nextName: nextStop?.venueName ?? null,
+    stopIndex: heroPosition,
+    stopCount: stops.length,
+  });
   const crewChips = plan.crew
     .map((member: CrewMemberDTO) => ({ member, chip: CREW_CHIP[member.status] }))
     .filter((entry): entry is { member: CrewMemberDTO; chip: NonNullable<(typeof CREW_CHIP)[CrewPresenceStatus]> } => Boolean(entry.chip))
@@ -202,7 +255,10 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       setOptimistic(optimisticState);
       setActivePlanStopIndex(optimisticCursor);
 
-      const reconcile = (outcome: ReturnType<typeof classifyActionOutcome>) => {
+      const reconcile = (
+        outcome: ReturnType<typeof classifyActionOutcome>,
+        queued = false,
+      ) => {
         const settled = reconcileNightCrawlAction({
           outcome,
           type,
@@ -211,6 +267,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           previousCursor,
           optimisticCursor,
           optimistic: optimisticState,
+          queued,
         });
         setOptimistic(settled.optimistic);
         setActivePlanStopIndex(settled.cursor);
@@ -231,29 +288,43 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       const scope = nightCrawlIdempotencyScope(planId, type, stopPosition);
       const payload = nightCrawlActionPayload(type, hero);
       const key = await persistentPlanMutationKey(scope, payload);
+      // Fingerprint aligns with the idempotency key scope: same tap, same key.
+      const print = `${scope}:${JSON.stringify(payload)}`;
 
-      let statusOrError: number | "network";
-      let body: unknown = null;
+      // Persist intent before the network attempt so reload can replay.
+      let queued = false;
       try {
-        const response = await fetch(`/api/plans/${planId}/actions`, {
-          method: "POST",
-          headers: { "content-type": "application/json", "idempotency-key": key },
-          body: JSON.stringify({ ...payload, memberToken: token }),
+        await enqueueNightCrawlAction({
+          planId,
+          type,
+          stop: hero,
+          idempotencyKey: key,
+          fingerprint: print,
         });
-        statusOrError = response.status;
-        body = await response.json().catch(() => null);
+        queued = true;
       } catch {
-        statusOrError = "network";
+        queued = false;
       }
 
-      const outcome = classifyActionOutcome(statusOrError);
-      if (outcome === "confirmed") {
+      const flushResults = await flushPlanMutationOutbox({ planId });
+      const mine = flushResults.find((row) => row.entryId === scope);
+      if (mine?.outcome === "confirmed") {
         clearPersistentPlanMutationKey(scope, key);
-        if (body && typeof body === "object" && Array.isArray((body as PlanState).stops)) {
-          setPlan(body as PlanState);
-        }
+        if (mine.plan) setPlan(mine.plan);
+        reconcile("confirmed");
+        setBusy(null);
+        return;
       }
-      reconcile(outcome);
+      if (mine?.outcome === "forbidden" || mine?.outcome === "rejected" || mine?.outcome === "conflict") {
+        clearPersistentPlanMutationKey(scope, key);
+        reconcile(mine.outcome === "conflict" ? "rejected" : mine.outcome);
+        setBusy(null);
+        return;
+      }
+
+      // Offline or still pending in the outbox.
+      const stillQueued = queued && hasPendingPlanMutation(planId, scope);
+      reconcile("offline", stillQueued);
       setBusy(null);
     },
     [busy, hero, cursor, stops.length, memberToken, planId, optimistic],
@@ -326,6 +397,13 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           if (view.slot === "current") {
             return (
               <div key={`hero-${view.stop.venueId}`} className="nightCrawl__hero">
+                <div className="nightCrawl__glance" aria-label="Tonight at a glance">
+                  <p className="nightCrawl__glanceNow">{glance.currentLine}</p>
+                  {glance.nextLine ? <p className="nightCrawl__glanceNext">{glance.nextLine}</p> : null}
+                  <a className="nightCrawl__glanceHome" href={TFL_JOURNEY_PLANNER} target="_blank" rel="noreferrer">
+                    {glance.homeLine}
+                  </a>
+                </div>
                 <p className="nightCrawl__eyebrow">{finalStop ? "Last stop · head here" : "Next up · head here"}</p>
                 <h2 className="nightCrawl__heroName">{view.stop.venueName}</h2>
 
