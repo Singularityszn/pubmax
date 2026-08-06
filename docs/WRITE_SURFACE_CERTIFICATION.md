@@ -125,11 +125,13 @@ moderation state, revision or timestamp is accepted from the request body.
 - **Abuse control:** Edit and recoverable removal share a durable limiter keyed
   to the shared salted digest of the stable profile ID.
 - **Validation:** Strict edit validation rejects status, revision, timestamp,
-  moderation and raw storage fields. A real text, kind, hashtag or future photo
-  change increments the server revision and returns the row to pending
-  moderation. A transactional compare-and-swap RPC owns that revision so two
-  concurrent edits cannot share a moderation claim. Visibility-only changes do
-  not claim a content edit.
+  moderation and raw storage fields. A transactional RPC advances private
+  `mutation_version` for every successful edit and uses it for compare-and-swap,
+  so a stale edit cannot overwrite newer visibility or comment choices. A real
+  text, kind, hashtag or future photo change separately advances moderation
+  `revision`, returns the row to pending moderation and binds its queued claim
+  and decision. Visibility-only and comment-policy edits do not advance the
+  moderation revision.
 - **Removal:** `{ action: "remove" }` changes status to `removed`. It is a
   recoverable state change, never a delete, and removed content is excluded from
   direct reads and every feed.
