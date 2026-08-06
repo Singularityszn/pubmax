@@ -107,8 +107,8 @@ A venue surfaced by product logic from current conditions, preferences, or other
 _Avoid_: Recommendation, user tip
 
 **Pint Drop**:
-A single community contribution attached to a venue: an optional pint photo, an optional venue photo, an observed pint price, and an optional Passed-Down Note. A separate object from a Visit Report, which records observed conditions on a dated visit rather than a photo or a price.
-_Avoid_: Post, check-in, upload
+A single community Night Moment attached to a Venue. It must carry an observed Pint Price or a Passed-Down Note and can add a pint or venue photo. It is separate from a Visit Report and is never the generic name for a Social Post.
+_Avoid_: Social Post, check-in, upload
 
 **Passed-Down Note**:
 A short piece of personal or inherited knowledge about a venue — a memory from childhood, a story handed down from family, or local lore — tagged with the era it belongs to. The generational-bridge content, distinct from a rating.
@@ -170,9 +170,9 @@ _Avoid_: Night Memory, automatic activity feed, unreviewed archive
 A single shareable part of a Night Story, such as a photo, drink, event, venue, quote, person, or Side Quest. Night Moments belong to the wider story even when shared independently.
 _Avoid_: Generic post, unrelated content, complete Night Memory
 
-**Pint Drop**:
-A price-verified drink Night Moment that contributes an observed price and provenance to the map. A Pint Drop is one kind of Night Moment, not the name for every social post.
-_Avoid_: Generic post, alcohol-quantity counter, unverified live price
+**Social Post**:
+A verified-adult-authored item in Social with author-selected visibility and comment policy. It stays out of reads until moderation approves it and never carries venue or price authority.
+_Avoid_: Pint Drop, Night Moment, venue fact, price observation
 
 **Connected Social Account**:
 An optional X, Instagram, or TikTok profile a Pubmaxxer links through a compliant provider flow or explicit public link. Provider-approved capabilities may include display, consented discovery, and user-confirmed publishing. Connection proves control of that external account at connection time, not the person's identity, age, or trustworthiness.

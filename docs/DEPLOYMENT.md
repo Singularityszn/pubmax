@@ -29,6 +29,7 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `SUPABASE_STORAGE_BUCKET` | Storage bucket name for Pint Drop photos. Defaults to `pint-drops` if unset. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public Supabase URL used by browser auth/realtime. Usually the same value as `SUPABASE_URL`. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public browser key for Supabase Auth/Realtime. Safe to expose; do **not** use the service-role key. |
+| `OPENAI_API_KEY` | **Server-only** key for Social post moderation. If unset, the moderation cron returns 503 before claiming queued posts, so pending work stays available after configuration is restored. Keyless local app behavior remains available. |
 | `ADMIN_TOKEN` | Moderator auth for `/admin` and moderation APIs. Prefer the httpOnly session cookie from `POST /api/admin/session` (the admin console never needs to keep sending the raw token). The `x-admin-token` header remains accepted for scripts/back-compat. If unset, moderation is open **only** in dev/test (`NODE_ENV`) — always set it anywhere reachable, including preview deployments. **Required in production:** `assertServerEnv()` refuses to start if this is unset (FATAL at route import). |
 | `RATE_LIMIT_SALT` | At least 32 random bytes for `sha256(salt:ip)` IP hashing (raw IPs never reach the DB or logs) and the fallback trusted Plan-signing key. Defaults are allowed only for non-trusted local helpers. **Required in production:** `assertServerEnv()` refuses to start if this is unset, short, or still the dev default. |
 
@@ -87,6 +88,11 @@ Apply every SQL file in `supabase/migrations/` **in filename timestamp order** (
 | `0020_ratings.sql` | Durable drink/pub ratings with raw row access denied; public reads go through aggregate API responses. |
 
 Run each via the Supabase SQL editor, or with the Supabase CLI (`supabase db push` / `supabase migration up`) pointed at the project.
+
+Production migration history already contains
+`20260806035204_0070_v1_release_security.sql`. Migrations `0071` and `0072` have
+earlier timestamps, so Captain must apply them with
+`supabase db push --include-all`; a normal push can skip them as out of order.
 
 Quick post-migration smoke:
 
