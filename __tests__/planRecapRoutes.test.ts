@@ -11,6 +11,7 @@ vi.mock("@/lib/authServer", () => ({
 import { POST as SAVE_RECAP } from "@/app/api/plans/[id]/recap/route";
 import { __resetNightMemoryStore, listNightMemories, listNightMoments } from "@/lib/nightMemoryStore";
 import { pendingPlanRecapFromCompletion } from "@/lib/planRecap";
+import { __resetPendingPlanRecapStore } from "@/lib/pendingPlanRecapStore";
 import { __resetMemoryPlans, planStore } from "@/lib/planStore";
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -19,6 +20,7 @@ describe("completed Plan recap promotion", () => {
   beforeEach(() => {
     __resetMemoryPlans();
     __resetNightMemoryStore();
+    __resetPendingPlanRecapStore();
   });
 
   async function completedPlan() {

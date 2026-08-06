@@ -76,6 +76,7 @@ import {
   writePendingPlanRecap,
   type PendingPlanRecap,
 } from "@/lib/planRecap";
+import { syncPendingPlanRecapToAccount } from "@/lib/planRecapSync.client";
 import {
   parsePlanCapabilitySnapshot,
   readPlanCapabilitySnapshot,
@@ -509,18 +510,44 @@ function NightModeSheet({
     [id],
   );
 
+  // When signed in, park the local draft under owner scope so a refresh can
+  // resume from the account copy. Fail soft: device localStorage remains.
+  useEffect(() => {
+    if (!recap) return;
+    const controller = new AbortController();
+    void syncPendingPlanRecapToAccount(recap, controller.signal);
+    return () => controller.abort();
+  }, [recap]);
+
   useEffect(() => {
     if (plan?.plan.status !== "completed" && !plan?.ending) return;
     // Already holding this night's recap locally — no seed fetch, no spinner.
     if (readPendingPlanRecap(id)) return;
     const controller = new AbortController();
     const title = plan.plan.title;
-    // Seed the completed night's recap on re-entry. The seeding flag lives inside
-    // the async task (not the effect body) so it never triggers a synchronous
-    // render cascade; the honest "coming" line shows only while this is in flight.
+    // Seed the completed night's recap on re-entry. Prefer an owner-scoped draft
+    // (signed-in durability) before re-deriving from the completion snapshot.
     void (async () => {
       setRecapSeeding(true);
       try {
+        try {
+          const ownedResponse = await authedFetch("/api/me/pending-plan-recaps", {
+            signal: controller.signal,
+          });
+          if (ownedResponse.ok && !controller.signal.aborted) {
+            const ownedBody = (await ownedResponse.json().catch(() => null)) as {
+              drafts?: PendingPlanRecap[];
+            } | null;
+            const owned = ownedBody?.drafts?.find((draft) => draft.planId === id) ?? null;
+            if (owned) {
+              writePendingPlanRecap(owned);
+              setRecap(owned);
+              return;
+            }
+          }
+        } catch {
+          // Signed out or store unavailable: fall through to completion seed.
+        }
         const response = await fetch(`/api/plans/${id}/complete`, {
           cache: "no-store",
           signal: controller.signal,

@@ -206,3 +206,47 @@ export function subscribePendingPlanRecap(planId: string, listener: () => void):
     window.removeEventListener(CHANGE_EVENT, onChange);
   };
 }
+
+/**
+ * Every pending Plan recap still on this device. Scans only the versioned key
+ * prefix so unrelated storage never becomes a draft.
+ */
+export function listPendingPlanRecaps(storage = localStorageSafe()): PendingPlanRecap[] {
+  if (!storage) return [];
+  const found: PendingPlanRecap[] = [];
+  try {
+    for (let index = 0; index < storage.length; index += 1) {
+      const itemKey = storage.key(index);
+      if (!itemKey || !itemKey.startsWith(KEY_PREFIX)) continue;
+      try {
+        const recap = validatePendingPlanRecap(JSON.parse(storage.getItem(itemKey) ?? "null"));
+        if (recap) found.push(recap);
+      } catch {
+        // Skip malformed rows; never invent a draft from garbage.
+      }
+    }
+  } catch {
+    return [];
+  }
+  return found.sort((left, right) => right.savedAt.localeCompare(left.savedAt));
+}
+
+export function subscribeAnyPendingPlanRecap(listener: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (event: StorageEvent) => {
+    if (
+      event.storageArea === window.localStorage
+      && typeof event.key === "string"
+      && event.key.startsWith(KEY_PREFIX)
+    ) {
+      listener();
+    }
+  };
+  const onChange = () => listener();
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(CHANGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(CHANGE_EVENT, onChange);
+  };
+}

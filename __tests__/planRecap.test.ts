@@ -4,6 +4,7 @@ import {
   discardPendingPlanRecap,
   ensurePendingPlanRecap,
   isPendingPlanRecapResolved,
+  listPendingPlanRecaps,
   pendingPlanRecapFromCompletion,
   readPendingPlanRecap,
   resolvePendingPlanRecap,
@@ -11,6 +12,10 @@ import {
   writePendingPlanRecap,
 } from "@/lib/planRecap";
 import type { PlanCompletionDTO } from "@/lib/plan";
+import {
+  confirmedPlanRecapClaim,
+  planRecapClaimMergeState,
+} from "@/lib/planRecapClaim";
 
 const PLAN_ID = "6ab5ca40-836b-4970-9477-d1779fdd31ab";
 
@@ -110,5 +115,19 @@ describe("PendingPlanRecap storage", () => {
     const saved = ensurePendingPlanRecap(next, "Next recap");
     resolvePendingPlanRecap(saved!, "saved");
     expect(ensurePendingPlanRecap(next, "Next recap")).toBeNull();
+  });
+
+  it("lists device drafts for account claim merge without leaking public fields", () => {
+    const recap = pendingPlanRecapFromCompletion(completion, "Thursday orbit");
+    writePendingPlanRecap(recap);
+    const listed = listPendingPlanRecaps();
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.completionId).toBe(completion.id);
+    const merge = planRecapClaimMergeState(listed, []);
+    expect(merge.kind).toBe("device-only");
+    if (merge.kind !== "device-only") throw new Error("expected device-only");
+    expect(confirmedPlanRecapClaim(merge, "bring-device").writesAccount).toBe(true);
+    expect(JSON.stringify(listed)).not.toContain("memberToken");
+    expect(JSON.stringify(listed)).not.toContain("latitude");
   });
 });
