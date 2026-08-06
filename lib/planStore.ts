@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 
 import { cleanCrewName, CREW_MAX_MEMBERS, isCrewPresenceStatus, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
-import { canTransitionPlannedNight, cleanCreatePlan, cleanEndingSelection, isPlanId, PLANNED_NIGHT_STATUSES, type CleanPlanInput, type CrawlEnding, type CreatePlanInput, type EndingSelection, type PlanActionDTO, type PlanAnchorMetadata, type PlanCompletionDTO, type PlanDTO, type PlanMemberRole, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
+import { canTransitionPlannedNight, cleanCreatePlan, cleanEndingSelection, isPlanId, type CleanPlanInput, type CrawlEnding, type CreatePlanInput, type EndingSelection, type PlanActionDTO, type PlanAnchorMetadata, type PlanCompletionDTO, type PlanDTO, type PlanMemberRole, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import type { NightContext } from "@/lib/nightPlanning";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -325,9 +325,6 @@ export const supabasePlanStore: PlanStore = {
   },
   async update(id, rawToken, update) {
     if (!isPlanId(id) || typeof rawToken !== "string") return { ok: false, error: "invalid" };
-    const legacyLookup = await planStateResult(id);
-    if (!legacyLookup.ok) return { ok: false, error: "error" };
-    if (!legacyLookup.plan) return { ok: false, error: "not_found" };
     const admin = requireSupabaseAdmin();
     if (update.stops) {
       const stops = cleanReplacementStops(update.stops);
@@ -343,7 +340,7 @@ export const supabasePlanStore: PlanStore = {
           p_grounded_upgrade: update.groundedUpgrade === true,
         });
         if (error) throw new Error(error.message);
-        if (data !== "ok") return { ok: false, error: data === "forbidden" ? "forbidden" : data === "conflict" ? "conflict" : "invalid" };
+        if (data !== "ok") return { ok: false, error: data === "not_found" ? "not_found" : data === "forbidden" ? "forbidden" : data === "conflict" ? "conflict" : "invalid" };
         const plan = await this.get(id);
         return plan ? { ok: true, plan } : { ok: false, error: "error" };
       } catch (error) {
@@ -351,23 +348,23 @@ export const supabasePlanStore: PlanStore = {
         return { ok: false, error: "error" };
       }
     }
-    const [creatorResult, currentResult] = await Promise.all([
-      admin.from(MEMBERS).select("id,token_hash").eq("plan_id", id).order("joined_at").order("id").limit(1).maybeSingle(),
-      planStateResult(id),
-    ]);
-    if (creatorResult.error || !currentResult.ok) return { ok: false, error: "error" };
-    const creator = creatorResult.data;
-    const current = currentResult.plan;
-    if (!creator || creator.token_hash !== hashPlanMemberToken(rawToken)) return { ok: false, error: "forbidden" };
-    if (!current) return { ok: false, error: "not_found" };
-    if (update.status && !canTransitionPlannedNight(current.plan.status ?? "draft", update.status)) return { ok: false, error: "invalid" };
-    const values: Record<string, unknown> = {};
-    if (update.status && PLANNED_NIGHT_STATUSES.includes(update.status)) values.status = update.status;
-    if (update.context) values.night_context = update.context;
-    const { error } = await admin.from(PLANS).update(values).eq("id", id);
-    if (error) return { ok: false, error: "error" };
-    const plan = await this.get(id);
-    return plan ? { ok: true, plan } : { ok: false, error: "error" };
+    try {
+      const { data, error } = await admin.rpc("update_legacy_plan_status_context_atomic", {
+        p_plan_id: id,
+        p_token_hash: hashPlanMemberToken(rawToken),
+        p_status: update.status ?? null,
+        p_context: update.context ?? null,
+      });
+      if (error) throw new Error(error.message);
+      if (data !== "ok") {
+        return { ok: false, error: data === "not_found" ? "not_found" : data === "forbidden" ? "forbidden" : data === "invalid" ? "invalid" : "error" };
+      }
+      const plan = await this.get(id);
+      return plan ? { ok: true, plan } : { ok: false, error: "error" };
+    } catch (error) {
+      console.error("[plans] metadata update failed:", error instanceof Error ? error.message : error);
+      return { ok: false, error: "error" };
+    }
   },
   async addAction(id, rawToken, action) {
     if (!isPlanId(id) || typeof rawToken !== "string" || !isPlanIdempotencyKey(action.idempotencyKey)) return { ok: false, error: "invalid" };
