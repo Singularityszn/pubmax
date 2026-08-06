@@ -73,7 +73,9 @@ test("skip link targets the page main landmark", async ({ page }) => {
   await skipLink.focus();
   await expect(skipLink).toBeFocused();
   await skipLink.click();
-  await expect(page.locator("#main")).toBeVisible();
+  const main = page.locator("#main");
+  await expect(main).toBeVisible();
+  await expect(main).toBeFocused();
 
   expect(errors).toEqual([]);
 });

@@ -11,6 +11,7 @@ import {
   listEnabledCities,
   type CityId,
 } from "@/lib/cities";
+import { MAIN_LANDMARK_ID } from "@/lib/a11yLandmarks";
 import { buildCityChooserSearchResults } from "@/lib/cityChooserSearch";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
@@ -135,8 +136,11 @@ export default function CityChooser({
       ? "cityChooser cityChooser--section"
       : "cityChooser cityChooser--page";
 
+  const Root = variant === "page" ? "main" : "section";
+
   return (
-    <section
+    <Root
+      id={variant === "page" ? MAIN_LANDMARK_ID : undefined}
       className={rootClass}
       aria-labelledby={listId + "-title"}
     >
@@ -329,6 +333,6 @@ export default function CityChooser({
           </ul>
         </nav>
       </div>
-    </section>
+    </Root>
   );
 }

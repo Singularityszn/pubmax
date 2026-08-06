@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import SkipLink from "@/components/a11y/SkipLink";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
-import { MAIN_LANDMARK_ID } from "@/lib/a11yLandmarks";
+import { focusMainLandmark, MAIN_LANDMARK_ID } from "@/lib/a11yLandmarks";
 import {
   mobileSheetFocusContained,
   mobileSheetIsModal,
@@ -80,6 +80,35 @@ describe("SkipLink", () => {
     const html = renderToStaticMarkup(createElement(SkipLink));
     expect(html).toContain('href="#main"');
     expect(html).toContain("Skip to main content");
+  });
+});
+
+describe("focusMainLandmark", () => {
+  it("focuses #main and makes it tabbable when needed", () => {
+    const attrs = new Map<string, string>();
+    let focused = false;
+    const main = {
+      hasAttribute: (name: string) => attrs.has(name),
+      getAttribute: (name: string) => attrs.get(name) ?? null,
+      setAttribute: (name: string, value: string) => {
+        attrs.set(name, value);
+      },
+      focus: () => {
+        focused = true;
+      },
+      scrollIntoView: () => undefined,
+    };
+    const doc = {
+      getElementById: (id: string) => (id === MAIN_LANDMARK_ID ? main : null),
+    };
+
+    expect(focusMainLandmark(doc)).toBe(true);
+    expect(main.getAttribute("tabindex")).toBe("-1");
+    expect(focused).toBe(true);
+  });
+
+  it("returns false when the landmark is missing", () => {
+    expect(focusMainLandmark({ getElementById: () => null })).toBe(false);
   });
 });
 
