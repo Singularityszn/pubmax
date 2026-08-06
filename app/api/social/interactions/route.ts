@@ -67,6 +67,14 @@ async function body(request: Request): Promise<Record<string, unknown> | null> {
   }
 }
 
+function isUrgentReport(input: Record<string, unknown>): boolean {
+  return input.action === "report" && (input.reason === "threat" || input.reason === "doxxing");
+}
+
+function bypassesSocialFreeze(action: unknown): boolean {
+  return action === "report" || action === "moderate" || action === "report_resolution";
+}
+
 async function writeActor(options: {
   bypassFreeze?: boolean;
   bypassRateLimit?: boolean;
@@ -209,9 +217,10 @@ export async function DELETE(request: Request): Promise<Response> {
 export async function POST(request: Request): Promise<Response> {
   const input = await body(request);
   if (!input || typeof input.action !== "string") return privateJson({ code: "MALFORMED_REQUEST", error: "Request body is not valid." }, { status: 400 });
-  const urgentReport = input.action === "report" && (input.reason === "threat" || input.reason === "doxxing");
-  const safetyFloor = input.action === "report" || input.action === "moderate" || input.action === "report_resolution";
-  const access = await writeActor({ bypassFreeze: safetyFloor, bypassRateLimit: urgentReport });
+  const access = await writeActor({
+    bypassFreeze: bypassesSocialFreeze(input.action),
+    bypassRateLimit: isUrgentReport(input),
+  });
   if ("response" in access) return access.response;
   const idempotencyKey = request.headers.get("idempotency-key");
   try {
