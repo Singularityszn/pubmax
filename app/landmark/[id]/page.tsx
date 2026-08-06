@@ -77,7 +77,7 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
   const mapHref = `/map?landmark=${encodeURIComponent(landmark.id)}`;
 
   return (
-    <main className="landmarkChapterPage">
+    <main id="main" className="landmarkChapterPage">
       <SiteNav active="discover" />
       <header className="landmarkChapterHead">
         {/* Deep-link to THIS landmark on the map (?landmark= is the existing

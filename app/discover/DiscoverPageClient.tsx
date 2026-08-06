@@ -388,7 +388,7 @@ export default function DiscoverPageClient({
   }, []);
 
   return (
-    <main className="discoverPage" ref={revealRootRef}>
+    <main id="main" className="discoverPage" ref={revealRootRef}>
       <SiteNav active="discover" />
 
       <header className="discoverHead">

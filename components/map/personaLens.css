@@ -131,6 +131,7 @@
 }
 
 .personaLensOption:hover,
+.personaLensOption.isHighlighted,
 .personaLensOption.isSelected {
   background: color-mix(in srgb, var(--brass) 14%, transparent);
 }

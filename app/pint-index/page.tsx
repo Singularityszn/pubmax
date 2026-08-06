@@ -87,7 +87,7 @@ export default async function PintIndexPage() {
   const dearestPint = summary.dearestPint;
 
   return (
-    <main className="pintIndexPage">
+    <main id="main" className="pintIndexPage">
       {jsonLd ? <JsonLd data={jsonLd} nonce={nonce} /> : null}
       <SiteNav />
 

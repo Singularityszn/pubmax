@@ -61,7 +61,7 @@ export default function HistoricPageClient({
   };
 
   return (
-    <main className="historicPage">
+    <main id="main" className="historicPage">
       <SiteNav active="historic" />
 
       <header className="historicHead">

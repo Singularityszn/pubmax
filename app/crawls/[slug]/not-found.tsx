@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 export default function CrawlStoryNotFound(): React.JSX.Element {
   return (
-    <main className="storyShell">
+    <main id="main" className="storyShell">
       <nav className="storyNav" aria-label="Site navigation">
         <Link href="/">Home</Link>
         <Link href="/map">Map</Link>

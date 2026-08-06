@@ -148,7 +148,7 @@ function CrawlsPageInner() {
   }
 
   return (
-    <main className="crawlsShell">
+    <main id="main" className="crawlsShell">
       <SiteNav active="crawls" />
 
       {story ? (
@@ -409,7 +409,7 @@ export default function CrawlsPageClient() {
   // Suspense boundary required by Next.js when a client page uses useSearchParams
   // during static prerender — without it, /crawls fails the production build.
   return (
-    <Suspense fallback={<main className="crawlsShell" aria-busy="true" />}>
+    <Suspense fallback={<main id="main" className="crawlsShell" aria-busy="true" />}>
       <CrawlsPageInner />
     </Suspense>
   );

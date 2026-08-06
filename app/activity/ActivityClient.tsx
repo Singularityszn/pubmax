@@ -139,13 +139,13 @@ export default function ActivityClient(): React.JSX.Element {
     kindFilter === "all" ? items : items.filter((n) => n.kind === kindFilter);
 
   return (
-    // The nav lives OUTSIDE the 640px-capped <main> (same shape as the other
+    // The nav lives OUTSIDE the 640px-capped <main id="main"> (same shape as the other
     // pages' full-width shells) — nesting it inside the narrow column wrapped
     // the link row into three overlapping lines on desktop.
     <div className="activityShell">
       <SiteNav />
 
-      <main className="activity">
+      <main id="main" className="activity">
         <header className="activityHead">
           <h1>Activity</h1>
           <p className="activitySub">Who followed you, cheered a pint, left a comment, or saved your crawl.</p>

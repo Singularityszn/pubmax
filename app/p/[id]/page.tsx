@@ -103,7 +103,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 // ── Empty / not-found state ──────────────────────────────────────────────────
 function NotOnTheWall() {
   return (
-    <main className="permalink permalink--empty">
+    <main id="main" className="permalink permalink--empty">
       <div className="permalink__emptyCard">
         <Link className="permalink__home" href="/">
           PUBMAXXING
@@ -149,7 +149,7 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
   });
 
   return (
-    <main className="permalink">
+    <main id="main" className="permalink">
       <div className="permalink__mat">
         {/* Kicker: brand + edition line */}
         <div className="permalink__kicker">

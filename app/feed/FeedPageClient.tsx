@@ -751,7 +751,7 @@ export default function FeedPageClient({
   const showComposeActions = status === "ready" && !isEmpty && !lotEmpty;
 
   return (
-    <main className="feedShell">
+    <main id="main" className="feedShell">
       <SiteNav active="feed" />
 
       {/* One compact intro line only (spec #395): the title carries the whole

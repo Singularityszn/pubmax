@@ -88,7 +88,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 function NotInTheTab() {
   return (
-    <main className="barTabPage barTabPage--empty">
+    <main id="main" className="barTabPage barTabPage--empty">
       <SiteNav active="feed" />
       <div className="barTabEmptyCard">
         <p className="barTabEyebrow">The Bar Tab</p>
@@ -124,7 +124,7 @@ export default async function BarTabPage({ params }: PageProps) {
   const shareUrl = `/bar-tab/${encodeURIComponent(canonicalId)}`;
 
   return (
-    <main className="barTabPage">
+    <main id="main" className="barTabPage">
       <SiteNav active="feed" />
 
       <header className="barTabHead">

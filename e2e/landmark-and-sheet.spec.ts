@@ -15,7 +15,7 @@ import { test, expect, type Page } from "@playwright/test";
 //     assert that story surface: heritage copy, and — when the pub carries
 //     sourced claims — a credited source link + a provenance badge.
 //   • The mobile drag-sheet's snap points (peek/half/full) support both pointer
-//     drag and a keyboard-operable detent. We assert its non-modal half state,
+//     drag and a keyboard-operable detent. We assert its modal half state,
 //     modal full state, background inerting and contained keyboard traversal.
 //
 // House style (e2e/social-loop.spec.ts): read-only, `.count()`-guarded,
@@ -63,8 +63,22 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
   ].join("|"),
 );
 
+test("skip link targets the page main landmark", async ({ page }) => {
+  const errors = watchPageErrors(page);
+
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+
+  const skipLink = page.getByRole("link", { name: "Skip to main content" });
+  await skipLink.focus();
+  await expect(skipLink).toBeFocused();
+  await skipLink.click();
+  await expect(page.locator("#main")).toBeVisible();
+
+  expect(errors).toEqual([]);
+});
+
 // ---------------------------------------------------------------------------
-// The heritage STORY surface, reachable without the canvas via the venue sheet's
 // "Story" tab. This is the same landmark→heritage story data the canvas landmark
 // card renders (photo/credit/source), surfaced on a venue: a description plus
 // provenance-badged, source-linked claim cards.
@@ -172,7 +186,7 @@ test("venue sheet offers a start-a-crawl affordance in build mode (non-canvas jo
 // opens at the READABLE mid-height "half" snap (PubMap.tsx: peek would hide the
 // primary CTA, full feels heavy — see the SHEET_SNAP comment). The snaps are
 // pointer drag and keyboard detent both share the same snap state.
-test("mobile drag-sheet supports non-modal half and focus-contained full states (#17)", async ({
+test("mobile drag-sheet traps focus at half and contains it at full (#17)", async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -201,15 +215,21 @@ test("mobile drag-sheet supports non-modal half and focus-contained full states 
   const detent = sheet.getByRole("button", { name: "Expand sheet" });
   await expect(detent).toBeVisible();
 
-  // At half the sheet is deliberately NOT a modal dialog — enough of the map
-  // stays visible/reachable that trapping focus would be wrong. role="dialog" +
-  // aria-modal only appear at the "full" snap, so they must be ABSENT here.
-  await expect(sheet).not.toHaveAttribute("aria-modal", "true");
-  await expect(sheet).not.toHaveAttribute("role", "dialog");
+  // At half the scrim blocks the map, so the sheet is modal and traps focus.
+  await expect(sheet).toHaveAttribute("aria-modal", "true");
+  await expect(sheet).toHaveAttribute("role", "dialog");
+  await expect(page.locator("body > [inert]")).not.toHaveCount(0);
+
+  const homeAtHalf = sheet.getByRole("button", { name: "Close pub detail" });
+  await homeAtHalf.focus();
+  await page.keyboard.press("Shift+Tab");
+  expect(await sheet.evaluate((node) => node.contains(document.activeElement))).toBe(
+    true,
+  );
 
   // The sheet's close control is reachable (the user can always dismiss it) —
   // a keyboard/AT-reachable escape hatch that doesn't need the drag gesture.
-  await expect(sheet.getByRole("button", { name: "Close pub detail" })).toBeVisible();
+  await expect(homeAtHalf).toBeVisible();
 
   // The venue tabs render inside the sheet at this snap (content is mounted, not
   // gated behind an expand) — proof the sheet is usable before any drag.
@@ -230,8 +250,8 @@ test("mobile drag-sheet supports non-modal half and focus-contained full states 
 
   await collapse.click();
   await expect(sheet).toHaveClass(/sheet-half/);
-  await expect(sheet).not.toHaveAttribute("aria-modal", "true");
-  await expect(page.locator("body > [inert]")).toHaveCount(0);
+  await expect(sheet).toHaveAttribute("aria-modal", "true");
+  await expect(page.locator("body > [inert]")).not.toHaveCount(0);
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await sheet.getByRole("button", { name: "Expand sheet" }).click();

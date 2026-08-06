@@ -180,7 +180,7 @@ function venueJsonLd(venue: Venue, listed: ListedBuilding | null) {
 
 function NotInTheLedger() {
   return (
-    <main className="ledgerPage ledgerPage--empty">
+    <main id="main" className="ledgerPage ledgerPage--empty">
       <div className="ledgerEmptyCard">
         <Link className="ledgerHomeLink" href="/">
           PUBMAXXING
@@ -290,7 +290,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
   ].filter(Boolean);
 
   return (
-    <main className="ledgerPage">
+    <main id="main" className="ledgerPage">
       <JsonLd data={venueJsonLd(venue, listedBuilding)} nonce={nonce} />
       <header className="ledgerHead">
         <Link className="ledgerHomeLink" href="/">

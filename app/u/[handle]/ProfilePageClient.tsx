@@ -558,7 +558,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     <div className="lp profilePage">
       <SiteNav active="profile" />
 
-      <main className="container profileMain">
+      <main id="main" className="container profileMain">
         {!routeHandle ? (
           <p className="profileEmpty">That profile link is missing a handle.</p>
         ) : state === "error" ? (

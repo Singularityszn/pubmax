@@ -234,7 +234,7 @@ export default async function BoroughPage({ params }: PageProps) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
-    <main className="boroughPage">
+    <main id="main" className="boroughPage">
       <JsonLd data={jsonLdGraph} nonce={nonce} />
       <SiteNav active="borough" />
 

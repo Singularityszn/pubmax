@@ -33,7 +33,7 @@ export default async function MessageThreadPage({
   return (
     <div className="lp messagesPage">
       <SiteNav />
-      <main className="container messagesMain messagesMainThread">
+      <main id="main" className="container messagesMain messagesMainThread">
         <div className="messagesSplit">
           <aside className="messagesInboxPane" aria-label="Inbox">
             <MessagesInboxClient activeConversationId={id} />

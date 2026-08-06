@@ -215,7 +215,7 @@ export default function LandingPage({
         </div>
       </header>
 
-      <main>
+      <main id="main">
         <section className="lpHero" aria-labelledby="hero-title">
           <div className="lpHeroAtmosphere" aria-hidden="true">
             <span className="lpOrbit lpOrbitOne" />

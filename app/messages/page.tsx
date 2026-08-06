@@ -19,7 +19,7 @@ export default function MessagesInboxPage(): React.JSX.Element {
   return (
     <div className="lp messagesPage">
       <SiteNav />
-      <main className="container messagesMain messagesMainInbox">
+      <main id="main" className="container messagesMain messagesMainInbox">
         <div className="messagesSplit">
           <aside className="messagesInboxPane" aria-label="Inbox">
             <MessagesInboxClient />
