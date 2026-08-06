@@ -139,8 +139,8 @@ describe("legal content pages", () => {
       expect(page).toMatch(/omni moderation/i);
       expect(page).toMatch(/held[^]*decision/i);
     }
-    expect(privacy).toMatch(/future Social post photos/i);
-    expect(privacy).toMatch(/photos will also go\s+to OpenAI for moderation/i);
+    expect(privacy).toMatch(/Social photos are normalised/i);
+    expect(privacy).toMatch(/short-lived signed copy[^]*OpenAI/i);
     expect(privacy).toMatch(/moderation queue/i);
   });
 
@@ -155,6 +155,23 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/lock comments/i);
     expect(terms).toMatch(/Feature requests[^]*status and response history/i);
     expect(terms).toMatch(/chronological[^]*not popularity/i);
+  });
+
+  it("discloses interrupted Social upload retention without widening local drafts", () => {
+    expect(privacy).toMatch(/failed or interrupted Social photo uploads/i);
+    expect(privacy).toMatch(/can stay temporarily/i);
+    expect(privacy).toMatch(/eligible for deletion after 24 hours/i);
+    expect(privacy).toMatch(/daily scheduled cleanup/i);
+    expect(privacy).toMatch(/outage[s]? can delay/i);
+    expect(privacy).toMatch(/unfinished text and selected photo\s+data on this device until you post or clear the draft/i);
+    expect(privacy).not.toMatch(/Social Drafts?[^.]*server/i);
+  });
+
+  it("discloses the private Social media removal audit", () => {
+    expect(privacy).toMatch(
+      /media ID, post, actor, detachment action and retention\s+deadline/i,
+    );
+    expect(privacy).toMatch(/private removal\s+audit/i);
   });
 
   it("states both 12-month analytics retention clocks on both legal pages", () => {

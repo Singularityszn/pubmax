@@ -27,6 +27,21 @@ function fields(overrides: Record<string, unknown> = {}) {
 }
 
 describe("Social post store visibility and feeds", () => {
+  it("fences keyless removal by mutation version and request key, then cancels moderation", async () => {
+    const store = createMemorySocialPostStore();
+    const first = await store.create(alice, fields({ body: "First" }));
+    const second = await store.create(alice, fields({ body: "Second" }));
+    await expect(store.remove(first.id, alice, 9, "remove-key-123456")).resolves.toBe(false);
+    await expect(store.remove(first.id, alice, 0, "remove-key-123456")).resolves.toBe(true);
+    await expect(store.remove(second.id, alice, 0, "remove-key-123456"))
+      .rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
+    const claims: string[] = [];
+    await store.processModerationQueue({
+      moderate: async ({ postId }) => { claims.push(postId); return { decision: "approved" }; },
+    });
+    expect(claims).toEqual([second.id]);
+  });
+
   it("holds durable submissions until deterministic moderation approves them", async () => {
     const store = createMemorySocialPostStore();
     const post = await store.create(alice, fields({ hashtags: ["#Camden", "Night_Out"] }));
@@ -45,6 +60,28 @@ describe("Social post store visibility and feeds", () => {
       id: post.id,
       author: { handle: "alice" },
     });
+  });
+
+  it("lets only the owner directly read visible pending and held posts", async () => {
+    const store = createMemorySocialPostStore();
+    const post = await store.create(alice, fields({ visibility: "private" }));
+
+    await expect(store.readOwned(post.id, alice)).resolves.toMatchObject({
+      id: post.id,
+      moderationState: "pending",
+      ownedByViewer: true,
+    });
+    await expect(store.read(post.id, bob)).resolves.toBeNull();
+
+    await store.processModerationQueue({
+      moderate: async () => ({ decision: "needs_review" }),
+    });
+    await expect(store.readOwned(post.id, alice)).resolves.toMatchObject({
+      id: post.id,
+      moderationState: "needs_review",
+      ownedByViewer: true,
+    });
+    await expect(store.read(post.id, bob)).resolves.toBeNull();
   });
 
   it("keeps moderation outages queued and never treats them as clean", async () => {
@@ -87,8 +124,56 @@ describe("Social post store visibility and feeds", () => {
     await expect(store.read(friendPost.id, carol)).resolves.toBeNull();
     await expect(store.read(privatePost.id, bob)).resolves.toBeNull();
     await expect(store.read(privatePost.id, alice)).resolves.not.toBeNull();
-    await store.remove(friendPost.id, alice);
+    await store.remove(friendPost.id, alice, friendPost.mutationVersion, "remove-test-key-1234");
     await expect(store.read(friendPost.id, alice)).resolves.toBeNull();
+  });
+
+  it("projects a public Venue to author and current mutual friends but not strangers or blocked readers", async () => {
+    const store = createMemorySocialPostStore({
+      relationships: async (viewer) => viewer.profileId === bob.profileId
+        ? {
+            followingProfileIds: new Set([alice.profileId]),
+            mutualProfileIds: new Set([alice.profileId]),
+            blockedProfileIds: new Set<string>(),
+          }
+        : viewer.profileId === carol.profileId
+          ? {
+              followingProfileIds: new Set([alice.profileId]),
+              mutualProfileIds: new Set([alice.profileId]),
+              blockedProfileIds: new Set([alice.profileId]),
+            }
+          : {
+              followingProfileIds: new Set<string>(),
+              mutualProfileIds: new Set<string>(),
+              blockedProfileIds: new Set<string>(),
+            },
+    });
+    const post = await store.create(alice, fields({ visibility: "public", venueId: "venue-1" }));
+    await store.processModerationQueue({ moderate: async () => ({ decision: "approved" }) });
+
+    await expect(store.read(post.id, alice)).resolves.toMatchObject({
+      venueId: "venue-1",
+      venueProjected: true,
+    });
+    await expect(store.read(post.id, bob)).resolves.toMatchObject({
+      venueId: "venue-1",
+      venueProjected: true,
+    });
+    await expect(store.read(post.id, carol)).resolves.toBeNull();
+
+    const strangerStore = createMemorySocialPostStore({
+      relationships: async () => ({
+        followingProfileIds: new Set<string>(),
+        mutualProfileIds: new Set<string>(),
+        blockedProfileIds: new Set<string>(),
+      }),
+    });
+    const strangerPost = await strangerStore.create(alice, fields({ visibility: "public", venueId: "venue-1" }));
+    await strangerStore.processModerationQueue({ moderate: async () => ({ decision: "approved" }) });
+    await expect(strangerStore.read(strangerPost.id, carol)).resolves.toMatchObject({
+      venueId: null,
+      venueProjected: false,
+    });
   });
 
   it("returns discover, nearby, and following lanes newest-first with scoped cursors", async () => {
@@ -123,13 +208,25 @@ describe("Social post store visibility and feeds", () => {
       .map((post) => post.body)).toEqual(["newer friends", "older public"]);
   });
 
-  it("requeues real edits, increments revision, and never exposes account IDs", async () => {
+  it("uses mutation_version compare-and-swap for every reader-visible edit and moderates only sensitive changes", async () => {
     const store = createMemorySocialPostStore();
     const post = await store.create(alice, fields());
     await store.processModerationQueue({ moderate: async () => ({ decision: "approved" }) });
-    const edited = await store.edit(post.id, alice, { body: "Changed" }, true);
+    const visibilityEdit = await store.edit(post.id, alice, 0, { visibility: "friends" }, false);
 
-    expect(edited).toMatchObject({ body: "Changed", revision: 1, moderationState: "pending" });
+    expect(visibilityEdit).toMatchObject({
+      visibility: "friends",
+      revision: 0,
+      mutationVersion: 1,
+      moderationState: "approved",
+      editedAt: null,
+    });
+    await expect(store.edit(post.id, alice, 0, { area: "shoreditch" }, false))
+      .rejects.toMatchObject({ code: "EDIT_CONFLICT" });
+
+    const edited = await store.edit(post.id, alice, 1, { body: "Changed" }, true);
+
+    expect(edited).toMatchObject({ body: "Changed", revision: 1, mutationVersion: 2, moderationState: "pending" });
     expect(JSON.stringify(edited)).not.toContain(alice.accountId);
     await expect(store.read(post.id, bob)).resolves.toBeNull();
   });
@@ -139,13 +236,25 @@ describe("Social post store visibility and feeds", () => {
     const post = await store.create(alice, fields({ body: "Same words" }));
     await store.processModerationQueue({ moderate: async () => ({ decision: "approved" }) });
 
-    const unchanged = await store.edit(post.id, alice, { body: "Same words" }, true);
+    const unchanged = await store.edit(post.id, alice, 0, { body: "Same words" }, true);
     expect(unchanged).toMatchObject({
       revision: 0,
+      mutationVersion: 0,
       editedAt: null,
       moderationState: "approved",
     });
     await expect(store.read(post.id, bob)).resolves.not.toBeNull();
+  });
+
+  it("edits an existing photo description through CAS and moderation", async () => {
+    const store = createMemorySocialPostStore();
+    const post = await store.create(alice, {
+      ...fields(),
+      photo: { mediaId: "11111111-1111-4111-8111-111111111111", altText: "Old description" },
+    });
+    await store.processModerationQueue({ moderate: async () => ({ decision: "approved" }) });
+    const edited = await store.edit(post.id, alice, 0, {}, true, { existingPhotoAltText: "Corrected description" });
+    expect(edited).toMatchObject({ photo: { altText: "Corrected description" }, revision: 1, mutationVersion: 1, moderationState: "pending" });
   });
 
   it("cannot approve a newer edit with an older in-flight moderation result", async () => {
@@ -158,7 +267,7 @@ describe("Social post store visibility and feeds", () => {
       }),
     });
     while (!release) await Promise.resolve();
-    await store.edit(post.id, alice, { body: "Second version" }, true);
+    await store.edit(post.id, alice, 0, { body: "Second version" }, true);
     release();
     await moderation;
 

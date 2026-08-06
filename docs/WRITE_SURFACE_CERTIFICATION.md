@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 80 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 82 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -21,7 +21,7 @@ CI until this certification is deliberately updated.
 > product-account migration) → 77 (verified Social post creation and item
 > editing or recoverable removal) → 78 (shared Plan group preferences
 > `POST/DELETE /api/plans/[id]/group-prefs`) → 79 (pending Plan recap claim
-> writes) → 80 (consolidated verified Social interactions and governance).
+> writes) → 80 (consolidated verified Social interactions and governance) → 82 (verified tag-consent and named-staff Social post moderation).
 > Account onboarding
 > replaces the earlier identity claim POST, so its route does not change the
 > count.
@@ -209,6 +209,31 @@ moderation state, revision or timestamp is accepted from the request body.
   open. Deployed production selects the durable store and fails closed when
   migration 0073 is unavailable. Rollback removes only Task 4 tables and RPCs,
   leaving Social posts, profiles and follows intact.
+
+### `app/api/social/tags` - verified photo-tag consent (route 81)
+
+- **Route / method:** `POST app/api/social/tags/route.ts`.
+- **Authority:** `requireVerifiedSocialActor` derives stable profile authority.
+  Proposal IDs do not grant authority. The target can approve or decline, and
+  the photo author can cancel. An approved target can withdraw later.
+- **Consent:** identity appears only while proposal state is approved and the
+  current block graph still permits the author-target edge. Each state change
+  appends an immutable consent event.
+- **Failure:** malformed requests return 400. Wrong actors, blocked edges and
+  invalid state transitions use one denied response without exposing proposal
+  state.
+
+### `app/api/admin/social-posts` - named staff Social moderation (route 82)
+
+- **Route / method:** `POST app/api/admin/social-posts/route.ts`.
+- **Authority:** `requireVerifiedSocialActor` derives stable profile authority.
+  The durable moderation transaction also requires an active named moderator
+  role. Client data cannot assert staff identity or role.
+- **Moderation:** approval binds post, revision and private media. Hide keeps
+  provenance and appends the named staff action. Neither action deletes the
+  post, media audit, or tag consent history.
+- **Failure:** missing named staff authority and held-row mismatches use a
+  private denied response. No partial moderation result is returned.
 
 ### `app/api/push-tokens` — native/web push registration (route 61)
 

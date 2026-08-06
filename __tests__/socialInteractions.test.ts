@@ -209,6 +209,48 @@ describe("Social comments, quotes, visibility, and moderation", () => {
     })).rejects.toMatchObject({ code: "COMMENTS_NOT_ALLOWED" });
   });
 
+  it("changes comment policy after a visibility-only mutation", async () => {
+    const { posts, store } = harness();
+    const post = await approvedPost(posts);
+    const visibilityEdit = await posts.edit(
+      post.id,
+      alice,
+      post.mutationVersion,
+      { visibility: "friends" },
+      false,
+    );
+
+    await expect(store.setCommentPolicy(alice, post.id, "locked"))
+      .resolves.toBeUndefined();
+    await expect(posts.read(post.id, alice)).resolves.toMatchObject({
+      commentPolicy: "locked",
+      revision: visibilityEdit.revision,
+      mutationVersion: visibilityEdit.mutationVersion + 1,
+    });
+  });
+
+  it("applies two consecutive comment-policy changes using mutationVersion CAS", async () => {
+    // Proven F1 repro: first policy change bumps mutationVersion only; second must
+    // pass mutationVersion, not content revision, or EDIT_CONFLICT fires.
+    const { posts, store } = harness();
+    const post = await approvedPost(posts, alice, { commentPolicy: "open" });
+
+    await expect(store.setCommentPolicy(alice, post.id, "friends")).resolves.toBeUndefined();
+    const afterFirst = await posts.read(post.id, alice);
+    expect(afterFirst).toMatchObject({
+      commentPolicy: "friends",
+      revision: post.revision,
+      mutationVersion: post.mutationVersion + 1,
+    });
+
+    await expect(store.setCommentPolicy(alice, post.id, "locked")).resolves.toBeUndefined();
+    await expect(posts.read(post.id, alice)).resolves.toMatchObject({
+      commentPolicy: "locked",
+      revision: post.revision,
+      mutationVersion: post.mutationVersion + 2,
+    });
+  });
+
   it("applies block and source visibility reductions to comments, derivatives, counts, and notifications", async () => {
     const { posts, store } = harness({ friends: true });
     const post = await approvedPost(posts, alice, { visibility: "friends" });
@@ -337,7 +379,7 @@ describe("Social governance, reports, and notifications", () => {
     expect((await store.notifications(alice, { limit: 20 })).items).toMatchObject([
       { kind: "comment", sourcePostId: post.id },
     ]);
-    await posts.remove(post.id, alice);
+    await posts.remove(post.id, alice, post.revision, "remove-test-key-1234");
     expect(await store.notifications(alice, { limit: 20 })).toEqual({ items: [], nextCursor: null });
   });
 

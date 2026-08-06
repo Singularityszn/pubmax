@@ -12,6 +12,8 @@ import {
 import { requireSupabaseAdmin, requiresSupabaseStore } from "@/lib/supabase";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
+import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
+import { socialMemoryBlockedProfiles } from "@/lib/socialBlockMemory";
 
 export type SocialPostActor = {
   accountId: string;
@@ -22,6 +24,7 @@ export type SocialPostActor = {
 export type SocialPostRelationships = {
   followingProfileIds: Set<string>;
   mutualProfileIds: Set<string>;
+  blockedProfileIds?: Set<string>;
 };
 
 export type SocialPostFeedLane = "discover" | "nearby" | "following";
@@ -44,7 +47,7 @@ export type SocialPostServerProjection = {
 };
 
 export type SocialPostModerationAdapter = {
-  moderate(input: { postId: string; text: string }): Promise<{
+  moderate(input: { postId: string; text: string; imageUrl?: string }): Promise<{
     decision: "approved" | "needs_review";
   }>;
 };
@@ -57,6 +60,24 @@ export type SocialPostModerationResult = {
   terminalErrors: number;
 };
 
+export type SocialPostWriteMedia = {
+  mediaId: string;
+  objectKey: string;
+  sha256: string;
+  width: number;
+  height: number;
+  byteSize: number;
+};
+
+export type SocialPostCreateOptions = {
+  media?: SocialPostWriteMedia;
+  tagHandles?: string[];
+  idempotencyKey?: string;
+  requestDigest?: string;
+  replayExistingMedia?: boolean;
+};
+export type SocialPostEditOptions = SocialPostCreateOptions & { existingPhotoAltText?: string };
+
 export class SocialPostStoreError extends Error {
   constructor(
     public readonly code:
@@ -64,6 +85,7 @@ export class SocialPostStoreError extends Error {
       | "NOT_FOUND"
       | "FORBIDDEN"
       | "EDIT_CONFLICT"
+      | "IDEMPOTENCY_CONFLICT"
       | "INVALID_POST",
     message: string,
   ) {
@@ -81,15 +103,18 @@ type Cursor = {
 };
 
 export type SocialPostStore = {
-  create(actor: SocialPostActor, fields: SocialPostFields): Promise<SocialPostDTO>;
+  create(actor: SocialPostActor, fields: SocialPostFields, options?: SocialPostCreateOptions): Promise<SocialPostDTO>;
   edit(
     id: string,
     actor: SocialPostActor,
+    expectedMutationVersion: number,
     changes: Partial<SocialPostFields>,
-    contentChanged: boolean,
+    moderationSensitive: boolean,
+    options?: SocialPostEditOptions,
   ): Promise<SocialPostDTO>;
-  remove(id: string, actor: SocialPostActor): Promise<boolean>;
+  remove(id: string, actor: SocialPostActor, expectedMutationVersion: number, idempotencyKey: string): Promise<boolean>;
   read(id: string, viewer: SocialPostActor): Promise<SocialPostDTO | null>;
+  readOwned(id: string, owner: SocialPostActor): Promise<SocialPostDTO | null>;
   readServerProjection(id: string, viewer: SocialPostActor): Promise<SocialPostServerProjection | null>;
   feed(viewer: SocialPostActor, input: SocialPostFeedInput): Promise<SocialPostFeedPage>;
   processModerationQueue(
@@ -114,7 +139,7 @@ function rowObject(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function fromRow(value: unknown): SocialPost {
+export function socialPostFromRow(value: unknown): SocialPost {
   const row = rowObject(value);
   return {
     id: String(row.id),
@@ -156,7 +181,7 @@ function fromRow(value: unknown): SocialPost {
 }
 
 export function socialPostServerProjectionFromRow(value: unknown): SocialPostServerProjection {
-  const post = fromRow(value);
+  const post = socialPostFromRow(value);
   return {
     post: socialPostDTO(post),
     authorProfileId: post.authorProfileId,
@@ -235,10 +260,31 @@ function canRead(
   relationships: SocialPostRelationships,
 ): boolean {
   if (post.status !== "visible" || post.moderationState !== "approved") return false;
+  if (relationships.blockedProfileIds?.has(post.authorProfileId)) return false;
   if (post.authorProfileId === viewer.profileId) return true;
   if (post.visibility === "public") return true;
   if (post.visibility === "friends") return relationships.mutualProfileIds.has(post.authorProfileId);
   return false;
+}
+
+function exactVenueAllowed(
+  post: SocialPost,
+  viewer: SocialPostActor,
+  relationships: SocialPostRelationships,
+): boolean {
+  return post.authorProfileId === viewer.profileId ||
+    relationships.mutualProfileIds.has(post.authorProfileId);
+}
+
+function projectedPost(
+  post: SocialPost,
+  viewer: SocialPostActor,
+  relationships: SocialPostRelationships,
+): SocialPostDTO {
+  return socialPostDTO(post, {
+    exactVenue: exactVenueAllowed(post, viewer, relationships),
+    viewerProfileId: viewer.profileId,
+  });
 }
 
 async function defaultRelationships(actor: SocialPostActor): Promise<SocialPostRelationships> {
@@ -255,6 +301,7 @@ async function defaultRelationships(actor: SocialPostActor): Promise<SocialPostR
   return {
     followingProfileIds: new Set(following.flatMap((profile) => profile ? [profile.id] : [])),
     mutualProfileIds: new Set(mutual.flatMap((profile) => profile ? [profile.id] : [])),
+    blockedProfileIds: socialMemoryBlockedProfiles(actor.profileId),
   };
 }
 
@@ -302,7 +349,7 @@ function makePage(
   const hasMore = matches.length > limit;
   const last = pageRows.at(-1);
   return {
-    posts: pageRows.map(socialPostDTO),
+    posts: pageRows.map((post) => projectedPost(post, viewer, relationships)),
     nextCursor: hasMore && last
       ? encodeCursor({
           v: 1,
@@ -315,7 +362,14 @@ function makePage(
   };
 }
 
-type MemoryJob = { postId: string; revision: number; nextAttemptAt: number; attempts: number };
+type MemoryJob = {
+  postId: string;
+  revision: number;
+  mediaId: string | null;
+  objectKey: string | null;
+  nextAttemptAt: number;
+  attempts: number;
+};
 
 function moderationFailureIsRetryable(error: unknown): boolean {
   return !error || typeof error !== "object" || !("retryable" in error) ||
@@ -328,11 +382,12 @@ export function createMemorySocialPostStore(options: {
 } = {}): SocialPostStore {
   const rows = new Map<string, SocialPost>();
   const jobs = new Map<string, MemoryJob>();
+  const removeRequests = new Map<string, string>();
   const now = options.now ?? (() => new Date());
   const relationships = options.relationships ?? defaultRelationships;
 
   return {
-    async create(actor, fields) {
+    async create(actor, fields, createOptions = {}) {
       const timestamp = now().toISOString();
       const post: SocialPost = {
         id: randomUUID(),
@@ -352,13 +407,23 @@ export function createMemorySocialPostStore(options: {
         updatedAt: timestamp,
       };
       rows.set(post.id, post);
-      jobs.set(post.id, { postId: post.id, revision: 0, nextAttemptAt: 0, attempts: 0 });
-      return socialPostDTO(post);
+      jobs.set(post.id, {
+        postId: post.id,
+        revision: 0,
+        mediaId: fields.photo?.mediaId ?? null,
+        objectKey: createOptions.media?.objectKey ?? null,
+        nextAttemptAt: 0,
+        attempts: 0,
+      });
+      return socialPostDTO(post, { exactVenue: true, viewerProfileId: actor.profileId });
     },
-    async edit(id, actor, changes, contentChanged) {
+    async edit(id, actor, expectedMutationVersion, changes, moderationSensitive, editOptions) {
       const current = rows.get(id);
       if (!current || current.status !== "visible") throw new SocialPostStoreError("NOT_FOUND", "Post not found.");
       if (current.authorProfileId !== actor.profileId) throw new SocialPostStoreError("FORBIDDEN", "That post is not yours.");
+      if (current.mutationVersion !== expectedMutationVersion) {
+        throw new SocialPostStoreError("EDIT_CONFLICT", "This post changed before your edit was saved. Reload it and try again.");
+      }
       const mergedFields: SocialPostFields = {
         kind: changes.kind ?? current.kind,
         visibility: changes.visibility ?? current.visibility,
@@ -367,12 +432,25 @@ export function createMemorySocialPostStore(options: {
         venueId: "venueId" in changes ? changes.venueId ?? null : current.venueId,
         hashtags: changes.hashtags ?? current.hashtags,
         commentPolicy: changes.commentPolicy ?? current.commentPolicy,
-        photo: "photo" in changes ? changes.photo ?? null : current.photo,
+        photo: "photo" in changes
+          ? changes.photo ?? null
+          : editOptions?.existingPhotoAltText && current.photo
+            ? { ...current.photo, altText: editOptions.existingPhotoAltText }
+            : current.photo,
       };
+      if (editOptions?.existingPhotoAltText && !current.photo) throw new SocialPostStoreError("INVALID_POST", "That post has no photo description to edit.");
       if (!mergedFields.body && !mergedFields.photo) throw new SocialPostStoreError("INVALID_POST", "Add some words or a photo.");
       if (mergedFields.kind === "feature_request" && !mergedFields.body) throw new SocialPostStoreError("INVALID_POST", "Add words to a feature request.");
-      if (mergedFields.visibility === "public" && mergedFields.venueId) throw new SocialPostStoreError("INVALID_POST", "Exact venue posts are for friends or private posts.");
-      const actualContentChange = contentChanged && contentActuallyChanged(current, mergedFields);
+      const anyChange = current.kind !== mergedFields.kind ||
+        current.visibility !== mergedFields.visibility || current.body !== mergedFields.body ||
+        current.area !== mergedFields.area || current.venueId !== mergedFields.venueId ||
+        current.commentPolicy !== mergedFields.commentPolicy ||
+        current.hashtags.length !== mergedFields.hashtags.length ||
+        current.hashtags.some((tag, index) => tag !== mergedFields.hashtags[index]) ||
+        current.photo?.mediaId !== mergedFields.photo?.mediaId ||
+        current.photo?.altText !== mergedFields.photo?.altText;
+      if (!anyChange) return socialPostDTO(current, { exactVenue: true, viewerProfileId: actor.profileId });
+      const actualContentChange = moderationSensitive && contentActuallyChanged(current, mergedFields);
       const timestamp = now().toISOString();
       const post: SocialPost = {
         ...current,
@@ -389,22 +467,45 @@ export function createMemorySocialPostStore(options: {
       };
       rows.set(id, post);
       if (actualContentChange) {
-        jobs.set(id, { postId: id, revision: post.revision, nextAttemptAt: 0, attempts: 0 });
+        jobs.set(id, {
+          postId: id,
+          revision: post.revision,
+          mediaId: post.photo?.mediaId ?? null,
+          objectKey: null,
+          nextAttemptAt: 0,
+          attempts: 0,
+        });
       }
-      return socialPostDTO(post);
+      return socialPostDTO(post, { exactVenue: true, viewerProfileId: actor.profileId });
     },
-    async remove(id, actor) {
+    async remove(id, actor, expectedMutationVersion, idempotencyKey) {
+      const requestKey = `${actor.profileId}:${idempotencyKey}`;
+      const priorPostId = removeRequests.get(requestKey);
+      if (priorPostId) {
+        if (priorPostId === id) return true;
+        throw new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That removal key belongs to another post.");
+      }
       const post = rows.get(id);
-      if (!post || post.status !== "visible") return false;
+      if (!post) return false;
       if (post.authorProfileId !== actor.profileId) throw new SocialPostStoreError("FORBIDDEN", "That post is not yours.");
-      rows.set(id, { ...post, status: "removed", updatedAt: now().toISOString() });
+      if (post.status === "removed") return false;
+      if (post.mutationVersion !== expectedMutationVersion) return false;
+      rows.set(id, { ...post, status: "removed", mutationVersion: post.mutationVersion + 1, updatedAt: now().toISOString() });
+      jobs.delete(id);
+      removeRequests.set(requestKey, id);
       return true;
     },
     async read(id, viewer) {
       const post = rows.get(id);
       if (!post) return null;
       const graph = await relationships(viewer);
-      return canRead(post, viewer, graph) ? socialPostDTO(post) : null;
+      return canRead(post, viewer, graph) ? projectedPost(post, viewer, graph) : null;
+    },
+    async readOwned(id, owner) {
+      const post = rows.get(id);
+      return post?.status === "visible" && post.authorProfileId === owner.profileId
+        ? socialPostDTO(post, { exactVenue: true, viewerProfileId: owner.profileId })
+        : null;
     },
     async readServerProjection(id, viewer) {
       const post = rows.get(id);
@@ -441,7 +542,7 @@ export function createMemorySocialPostStore(options: {
         .slice(0, Math.min(Math.max(limit, 1), 50));
       await Promise.all(pending.map(async (job) => {
         const post = rows.get(job.postId);
-        if (!post || post.moderationState !== "pending") {
+        if (!post || post.status !== "visible" || post.moderationState !== "pending") {
           jobs.delete(job.postId);
           return;
         }
@@ -450,6 +551,7 @@ export function createMemorySocialPostStore(options: {
           const moderation = await adapter.moderate({
             postId: post.id,
             text: socialPostModerationClaim(post),
+            ...(job.objectKey ? { imageUrl: job.objectKey } : {}),
           });
           const currentPost = rows.get(post.id);
           const currentJob = jobs.get(post.id);
@@ -504,30 +606,6 @@ export function createMemorySocialPostStore(options: {
 
 export const memorySocialPostStore = createMemorySocialPostStore();
 
-function postWrite(
-  fields: SocialPostFields,
-  actor?: SocialPostActor,
-  featureRequest?: SocialPost["featureRequest"],
-) {
-  const feature = fields.kind === "feature_request"
-    ? featureRequest ?? { status: "submitted" as const, staffResponse: null }
-    : null;
-  return {
-    ...(actor ? { author_profile_id: actor.profileId, author_handle: actor.handle } : {}),
-    kind: fields.kind,
-    visibility: fields.visibility,
-    body: fields.body,
-    area_slug: fields.area,
-    venue_id: fields.venueId,
-    hashtags: fields.hashtags,
-    comment_policy: fields.commentPolicy,
-    photo_media_id: fields.photo?.mediaId ?? null,
-    photo_alt_text: fields.photo?.altText ?? null,
-    feature_status: feature?.status ?? null,
-    feature_staff_response: feature?.staffResponse ?? null,
-  };
-}
-
 async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => Promise<T>, write: boolean): Promise<T> {
   try {
     return await operation();
@@ -544,18 +622,50 @@ async function durableOrMemory<T>(operation: () => Promise<T>, fallback: () => P
 }
 
 export const supabaseSocialPostStore: SocialPostStore = {
-  async create(actor, fields) {
+  async create(actor, fields, createOptions = {}) {
     return durableOrMemory(async () => {
-      const { data, error } = await requireSupabaseAdmin()
-        .from("social_posts")
-        .insert(postWrite(fields, actor))
-        .select("*")
-        .single();
-      if (error) throw error;
-      return socialPostDTO(fromRow(data));
-    }, () => memorySocialPostStore.create(actor, fields), true);
+      const media = createOptions.media;
+      const idempotent = Boolean(createOptions.idempotencyKey && createOptions.requestDigest);
+      const replayExistingMedia = Boolean(
+        createOptions.replayExistingMedia && idempotent && fields.photo && !media,
+      );
+      if (fields.photo && !replayExistingMedia && (!media || media.mediaId !== fields.photo.mediaId)) {
+        throw new SocialPostStoreError("INVALID_POST", "Photo ownership is not valid.");
+      }
+      if (!fields.photo && media) throw new SocialPostStoreError("INVALID_POST", "Photo ownership is not valid.");
+      if (createOptions.replayExistingMedia && !replayExistingMedia) {
+        throw new SocialPostStoreError("INVALID_POST", "Photo ownership is not valid.");
+      }
+      const { data, error } = await requireSupabaseAdmin().rpc(idempotent ? "create_social_post_idempotent" : "create_social_post", {
+        p_author_profile_id: actor.profileId,
+        p_author_handle: actor.handle,
+        p_kind: fields.kind,
+        p_visibility: fields.visibility,
+        p_body: fields.body,
+        p_area_slug: fields.area,
+        p_venue_id: fields.venueId,
+        p_hashtags: fields.hashtags,
+        p_comment_policy: fields.commentPolicy,
+        p_media_id: media?.mediaId ?? null,
+        p_object_key: media?.objectKey ?? null,
+        p_sha256: media?.sha256 ?? null,
+        p_width: media?.width ?? null,
+        p_height: media?.height ?? null,
+        p_byte_size: media?.byteSize ?? null,
+        p_photo_alt_text: fields.photo?.altText ?? null,
+        p_tag_handles: createOptions.tagHandles ?? [],
+        ...(idempotent ? { p_idempotency_key: createOptions.idempotencyKey, p_request_digest: createOptions.requestDigest } : {}),
+      });
+      if (error) {
+        if (/idempotency conflict/i.test(error.message)) throw new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That post request key was already used for different content.");
+        throw error;
+      }
+      const created = (data ?? [])[0];
+      if (!created) throw new Error("Social post was not created.");
+      return socialPostDTO(socialPostFromRow(created), { exactVenue: true, viewerProfileId: actor.profileId });
+    }, () => memorySocialPostStore.create(actor, fields, createOptions), true);
   },
-  async edit(id, actor, changes, contentChanged) {
+  async edit(id, actor, expectedMutationVersion, changes, moderationSensitive, options) {
     return durableOrMemory(async () => {
       const { data: currentData, error: currentError } = await requireSupabaseAdmin()
         .from("social_posts")
@@ -566,7 +676,7 @@ export const supabaseSocialPostStore: SocialPostStore = {
         .maybeSingle();
       if (currentError) throw currentError;
       if (!currentData) throw new SocialPostStoreError("NOT_FOUND", "Post not found.");
-      const current = fromRow(currentData);
+      const current = socialPostFromRow(currentData);
       const merged: SocialPostFields = {
         kind: changes.kind ?? current.kind,
         visibility: changes.visibility ?? current.visibility,
@@ -575,16 +685,24 @@ export const supabaseSocialPostStore: SocialPostStore = {
         venueId: "venueId" in changes ? changes.venueId ?? null : current.venueId,
         hashtags: changes.hashtags ?? current.hashtags,
         commentPolicy: changes.commentPolicy ?? current.commentPolicy,
-        photo: "photo" in changes ? changes.photo ?? null : current.photo,
+        photo: "photo" in changes
+          ? changes.photo ?? null
+          : options?.existingPhotoAltText && current.photo
+            ? { ...current.photo, altText: options.existingPhotoAltText }
+            : current.photo,
       };
+      if (options?.existingPhotoAltText && !current.photo) throw new SocialPostStoreError("INVALID_POST", "That post has no photo description to edit.");
       if (!merged.body && !merged.photo) throw new SocialPostStoreError("INVALID_POST", "Add some words or a photo.");
       if (merged.kind === "feature_request" && !merged.body) throw new SocialPostStoreError("INVALID_POST", "Add words to a feature request.");
-      if (merged.visibility === "public" && merged.venueId) throw new SocialPostStoreError("INVALID_POST", "Exact venue posts are for friends or private posts.");
-      const actualContentChange = contentChanged && contentActuallyChanged(current, merged);
-      const { data, error } = await requireSupabaseAdmin().rpc("edit_social_post", {
+      if (current.mutationVersion !== expectedMutationVersion) {
+        throw new SocialPostStoreError("EDIT_CONFLICT", "This post changed before your edit was saved. Reload it and try again.");
+      }
+      const actualContentChange = moderationSensitive && contentActuallyChanged(current, merged);
+      const media = options?.media;
+      const { data, error } = await requireSupabaseAdmin().rpc(media ? "edit_social_post_with_media" : "edit_social_post", {
         p_post_id: id,
         p_author_profile_id: actor.profileId,
-        p_expected_mutation_version: current.mutationVersion,
+        p_expected_mutation_version: expectedMutationVersion,
         p_kind: merged.kind,
         p_visibility: merged.visibility,
         p_body: merged.body,
@@ -595,8 +713,18 @@ export const supabaseSocialPostStore: SocialPostStore = {
         p_photo_media_id: merged.photo?.mediaId ?? null,
         p_photo_alt_text: merged.photo?.altText ?? null,
         p_content_changed: actualContentChange,
+        ...(media ? {
+          p_object_key: media.objectKey, p_sha256: media.sha256, p_width: media.width,
+          p_height: media.height, p_byte_size: media.byteSize,
+          p_tag_handles: options?.tagHandles ?? [],
+        } : {}),
       });
-      if (error) throw error;
+      if (error) {
+        if (/edit conflict/i.test(error.message)) {
+          throw new SocialPostStoreError("EDIT_CONFLICT", "This post changed before your edit was saved. Reload it and try again.");
+        }
+        throw error;
+      }
       const updated = (data ?? [])[0];
       if (!updated) {
         throw new SocialPostStoreError(
@@ -604,21 +732,23 @@ export const supabaseSocialPostStore: SocialPostStore = {
           "This post changed before your edit was saved. Reload it and try again.",
         );
       }
-      return socialPostDTO(fromRow(updated));
-    }, () => memorySocialPostStore.edit(id, actor, changes, contentChanged), true);
+      return socialPostDTO(socialPostFromRow(updated), { exactVenue: true, viewerProfileId: actor.profileId });
+    }, () => memorySocialPostStore.edit(id, actor, expectedMutationVersion, changes, moderationSensitive, options), true);
   },
-  async remove(id, actor) {
+  async remove(id, actor, expectedMutationVersion, idempotencyKey) {
     return durableOrMemory(async () => {
-      const { data, error } = await requireSupabaseAdmin()
-        .from("social_posts")
-        .update({ status: "removed", updated_at: new Date().toISOString() })
-        .eq("id", id)
-        .eq("author_profile_id", actor.profileId)
-        .eq("status", "visible")
-        .select("id");
-      if (error) throw error;
-      return (data ?? []).length === 1;
-    }, () => memorySocialPostStore.remove(id, actor), true);
+      const { data, error } = await requireSupabaseAdmin().rpc("remove_social_post_idempotent", {
+        p_post_id: id, p_author_profile_id: actor.profileId, p_expected_mutation_version: expectedMutationVersion,
+        p_idempotency_key: idempotencyKey,
+      });
+      if (error) {
+        if (/idempotency conflict/i.test(error.message)) {
+          throw new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That removal key belongs to another post.");
+        }
+        throw error;
+      }
+      return data === true;
+    }, () => memorySocialPostStore.remove(id, actor, expectedMutationVersion, idempotencyKey), true);
   },
   async applyFeatureRequestUpdate(id, status, staffResponse) {
     return durableOrMemory(async () => {
@@ -647,8 +777,25 @@ export const supabaseSocialPostStore: SocialPostStore = {
       });
       if (error) throw error;
       const row = (data ?? [])[0];
-      return row ? socialPostDTO(fromRow(row)) : null;
+      if (!row) return null;
+      const post = socialPostFromRow(row);
+      return socialPostDTO(post, { exactVenue: Boolean(post.venueId), viewerProfileId: viewer.profileId });
     }, () => memorySocialPostStore.read(id, viewer), false);
+  },
+  async readOwned(id, owner) {
+    return durableOrMemory(async () => {
+      const { data, error } = await requireSupabaseAdmin().rpc("read_social_post_outbox_item", {
+        p_post_id: id,
+        p_owner: owner.profileId,
+      });
+      if (error) throw error;
+      const row = (data ?? [])[0];
+      if (!row) return null;
+      return socialPostDTO(socialPostFromRow(row), {
+        exactVenue: true,
+        viewerProfileId: owner.profileId,
+      });
+    }, () => memorySocialPostStore.readOwned(id, owner), false);
   },
   async readServerProjection(id, viewer) {
     return durableOrMemory(async () => {
@@ -676,12 +823,15 @@ export const supabaseSocialPostStore: SocialPostStore = {
         p_limit: limit + 1,
       });
       if (error) throw error;
-      const rows = (data ?? []).map(fromRow);
-      const pageRows = rows.slice(0, limit);
+      const posts: SocialPost[] = (data ?? []).map(socialPostFromRow);
+      const pageRows = posts.slice(0, limit);
       const last = pageRows.at(-1);
       return {
-        posts: pageRows.map(socialPostDTO),
-        nextCursor: rows.length > limit && last
+        posts: pageRows.map((post) => socialPostDTO(post, {
+          exactVenue: Boolean(post.venueId),
+          viewerProfileId: viewer.profileId,
+        })),
+        nextCursor: posts.length > limit && last
           ? encodeCursor({ v: 1, lane: input.lane, area, createdAt: last.createdAt, id: last.id }, viewer.profileId)
           : null,
       };
@@ -704,12 +854,21 @@ export const supabaseSocialPostStore: SocialPostStore = {
         const job = rowObject(value);
         const postId = String(job.post_id);
         const revision = Number(job.revision);
+        const mediaId = typeof job.media_id === "string" ? job.media_id : null;
+        const leaseToken = typeof job.lease_token === "string" ? job.lease_token : "";
+        if (!leaseToken) throw new Error("Social post moderation lease is unavailable.");
         result.processed += 1;
         let moderation: Awaited<ReturnType<SocialPostModerationAdapter["moderate"]>>;
         try {
+          const objectKey = typeof job.object_key === "string" ? job.object_key : null;
+          const imageUrl = objectKey ? await signSocialPhotoObject(objectKey) : null;
+          if (objectKey && !imageUrl) {
+            throw new Error("Social photo could not be authorised for moderation.");
+          }
           moderation = await adapter.moderate({
             postId,
             text: typeof job.moderation_claim === "string" ? job.moderation_claim : "",
+            ...(imageUrl ? { imageUrl } : {}),
           });
         } catch (moderationError) {
           const attempts = Number(job.attempts ?? 1);
@@ -718,6 +877,8 @@ export const supabaseSocialPostStore: SocialPostStore = {
           const completion = await requireSupabaseAdmin().rpc("complete_social_post_moderation_job", {
             p_post_id: postId,
             p_revision: revision,
+            p_media_id: mediaId,
+            p_lease_token: leaseToken,
             p_decision: null,
             p_error_code: moderationError instanceof Error ? moderationError.name.slice(0, 80) : "provider_error",
             p_retry_at: retryable ? retryAt : null,
@@ -731,6 +892,8 @@ export const supabaseSocialPostStore: SocialPostStore = {
         const completion = await requireSupabaseAdmin().rpc("complete_social_post_moderation_job", {
           p_post_id: postId,
           p_revision: revision,
+          p_media_id: mediaId,
+          p_lease_token: leaseToken,
           p_decision: moderation.decision,
           p_error_code: null,
           p_retry_at: null,

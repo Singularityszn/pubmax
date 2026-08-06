@@ -7,7 +7,8 @@ import type {
   SocialPostRelationships,
   SocialPostStore,
 } from "@/lib/socialPostStore";
-import { socialPostServerProjectionFromRow, socialPostStore } from "@/lib/socialPostStore";
+import { socialPostServerProjectionFromRow, socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
+import { clearSocialMemoryBlocks, setSocialMemoryBlock, socialMemoryBlocked } from "@/lib/socialBlockMemory";
 import type { SocialPostCommentPolicy, SocialPostDTO, SocialPostVisibility } from "@/lib/socialPosts";
 import {
   cleanSocialText,
@@ -64,6 +65,7 @@ export class SocialInteractionStoreError extends Error {
       | "INVALID_INTERACTION"
       | "INVALID_CURSOR"
       | "IDEMPOTENCY_CONFLICT"
+      | "EDIT_CONFLICT"
       | "STAFF_REQUIRED",
     message: string,
   ) {
@@ -211,6 +213,7 @@ export function createMemorySocialInteractionStore(options: {
   relationships?: RelationshipResolver;
   staff?: StaffResolver;
 } = {}): SocialInteractionStore {
+  clearSocialMemoryBlocks();
   const posts = options.posts ?? socialPostStore();
   const now = options.now ?? (() => new Date());
   const relationships = options.relationships ?? defaultRelationships;
@@ -219,14 +222,12 @@ export function createMemorySocialInteractionStore(options: {
   const comments = new Map<string, CommentRow>();
   const quotes = new Map<string, QuoteRow>();
   const jobs = new Map<string, Job>();
-  const blocks = new Set<string>();
   const notificationRows = new Map<string, NotificationRow>();
   const featureRows = new Map<string, FeatureRow>();
   const reports = new Map<string, ReportRow>();
   const idempotency = new Map<string, IdempotencyRow>();
 
-  const blocked = (first: string, second: string) =>
-    blocks.has(`${first}:${second}`) || blocks.has(`${second}:${first}`);
+  const blocked = socialMemoryBlocked;
 
   async function visiblePost(postId: string, viewer: SocialInteractionActor): Promise<{ post: SocialPostDTO; authorProfileId: string } | null> {
     const projection = await posts.readServerProjection(postId, viewer as SocialPostActor);
@@ -439,7 +440,7 @@ export function createMemorySocialInteractionStore(options: {
       const source = await visiblePost(postId, actor);
       if (!source) throw new SocialInteractionStoreError("NOT_FOUND", "Post not found.");
       if (source.authorProfileId !== actor.profileId) throw new SocialInteractionStoreError("FORBIDDEN", "Only the author can change comments.");
-      await posts.edit(postId, actor as SocialPostActor, { commentPolicy: policy }, false);
+      await posts.edit(postId, actor as SocialPostActor, source.post.mutationVersion, { commentPolicy: policy }, false);
     },
 
     async createQuote(actor, postId, input) {
@@ -548,9 +549,7 @@ export function createMemorySocialInteractionStore(options: {
       if (!targetProfileId || targetProfileId === actor.profileId) {
         throw new SocialInteractionStoreError("INVALID_INTERACTION", "Choose another account to block.");
       }
-      const key = `${actor.profileId}:${targetProfileId}`;
-      if (active) blocks.add(key);
-      else blocks.delete(key);
+      setSocialMemoryBlock(actor.profileId, targetProfileId, active);
     },
 
     async notifications(viewer, input) {
@@ -738,9 +737,13 @@ function commentFromRow(value: unknown): SocialCommentDTO {
 
 function notificationFromRow(value: unknown): SocialNotificationDTO {
   const valueRow = row(value);
+  const kind = String(valueRow.kind);
+  if (!["cheer", "comment", "repost", "quote", "feature_update", "tag_proposal"].includes(kind)) {
+    throw new SocialInteractionStoreError("INVALID_INTERACTION", "Social notification data is unavailable.");
+  }
   return {
     id: String(valueRow.id),
-    kind: String(valueRow.kind) as SocialNotificationDTO["kind"],
+    kind: kind as SocialNotificationDTO["kind"],
     sourcePostId: String(valueRow.source_post_id),
     readAt: typeof valueRow.read_at === "string" ? valueRow.read_at : null,
     createdAt: String(valueRow.created_at),
@@ -960,14 +963,21 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
   },
 
   async setCommentPolicy(actor, postId, policy) {
-    return durableOrMemory(async () => {
-      const { error } = await requireSupabaseAdmin().rpc("set_social_comment_policy", {
-        p_actor: actor.profileId,
-        p_post_id: postId,
-        p_policy: policy,
-      });
-      if (error) throw error;
-    }, () => memorySocialInteractionStore.setCommentPolicy(actor, postId, policy), true);
+    const posts = socialPostStore();
+    const current = await posts.read(postId, actor as SocialPostActor);
+    if (!current) {
+      throw new SocialInteractionStoreError("NOT_FOUND", "Post not found.");
+    }
+    try {
+      await posts.edit(postId, actor as SocialPostActor, current.mutationVersion, { commentPolicy: policy }, false);
+    } catch (error) {
+      if (error instanceof SocialPostStoreError) {
+        if (error.code === "EDIT_CONFLICT") throw new SocialInteractionStoreError("EDIT_CONFLICT", "Post changed before comment policy was saved.");
+        if (error.code === "FORBIDDEN") throw new SocialInteractionStoreError("FORBIDDEN", "Only the post author can change comments.");
+        if (error.code === "NOT_FOUND") throw new SocialInteractionStoreError("NOT_FOUND", "Post not found.");
+      }
+      throw error;
+    }
   },
 
   async createQuote(actor, postId, input) {

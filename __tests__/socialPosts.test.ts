@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  socialPostDTO,
+  socialPostModerationClaim,
   validateSocialPostCreate,
   validateSocialPostEdit,
 } from "@/lib/socialPosts";
 
 describe("Social post validation", () => {
+  it("uses the same canonical photo-only moderation claim as SQL", () => {
+    expect(socialPostModerationClaim({ body: "", hashtags: [], photo: { mediaId: "media", altText: "Friends outside" } }))
+      .toBe("Photo: Friends outside");
+  });
   it("normalises a standard post without accepting ownership or moderation fields", () => {
     expect(validateSocialPostCreate({
       kind: "standard",
@@ -38,18 +44,11 @@ describe("Social post validation", () => {
     })).toMatchObject({ ok: false, code: "INVALID_POST" });
   });
 
-  it("requires body or an alt-text-labelled future photo and keeps exact venues non-public", () => {
+  it("requires body when no trusted server photo exists and permits a public canonical Venue", () => {
     expect(validateSocialPostCreate({
       kind: "standard",
       visibility: "public",
       body: "",
-      commentPolicy: "open",
-    })).toMatchObject({ ok: false });
-    expect(validateSocialPostCreate({
-      kind: "standard",
-      visibility: "friends",
-      body: "",
-      photo: { mediaId: "11111111-1111-4111-8111-111111111111", altText: "" },
       commentPolicy: "open",
     })).toMatchObject({ ok: false });
     expect(validateSocialPostCreate({
@@ -58,7 +57,34 @@ describe("Social post validation", () => {
       body: "At the pub",
       venueId: "venue-1",
       commentPolicy: "open",
-    })).toMatchObject({ ok: false, code: "EXACT_VENUE_NOT_ALLOWED" });
+    })).toMatchObject({ ok: true, value: { venueId: "venue-1" } });
+    expect(validateSocialPostCreate({
+      kind: "standard",
+      visibility: "friends",
+      body: "Photo",
+      photo: { mediaId: "11111111-1111-4111-8111-111111111111", altText: "A pub sign" },
+      commentPolicy: "open",
+    })).toMatchObject({ ok: false, code: "INVALID_POST" });
+    expect(validateSocialPostCreate({
+      kind: "standard",
+      visibility: "friends",
+      body: "",
+      commentPolicy: "open",
+    }, {
+      trustedPhoto: {
+        mediaId: "11111111-1111-4111-8111-111111111111",
+        altText: "A pub sign",
+      },
+    })).toMatchObject({
+      ok: true,
+      value: {
+        body: "",
+        photo: {
+          mediaId: "11111111-1111-4111-8111-111111111111",
+          altText: "A pub sign",
+        },
+      },
+    });
   });
 
   it("requires feature-request text and rejects unknown areas", () => {
@@ -66,10 +92,6 @@ describe("Social post validation", () => {
       kind: "feature_request",
       visibility: "public",
       body: "",
-      photo: {
-        mediaId: "11111111-1111-4111-8111-111111111111",
-        altText: "A sketch",
-      },
       commentPolicy: "open",
     })).toMatchObject({ ok: false, code: "FEATURE_REQUEST_BODY_REQUIRED" });
     expect(validateSocialPostCreate({
@@ -81,20 +103,64 @@ describe("Social post validation", () => {
     })).toMatchObject({ ok: false, code: "INVALID_AREA" });
   });
 
-  it("marks only real content edits for moderation and rejects client revision state", () => {
-    expect(validateSocialPostEdit({ visibility: "private" })).toEqual({
+  it("requires a client-observed mutation version and marks only moderation-sensitive fields", () => {
+    expect(validateSocialPostEdit({ expectedMutationVersion: 3, visibility: "private" })).toEqual({
       ok: true,
       value: { visibility: "private" },
-      contentChanged: false,
+      expectedMutationVersion: 3,
+      moderationSensitive: false,
     });
-    expect(validateSocialPostEdit({ body: "Changed words" })).toEqual({
+    expect(validateSocialPostEdit({ expectedMutationVersion: 3, body: "Changed words" })).toEqual({
       ok: true,
       value: { body: "Changed words" },
-      contentChanged: true,
+      expectedMutationVersion: 3,
+      moderationSensitive: true,
     });
-    expect(validateSocialPostEdit({ revision: 99 })).toMatchObject({
+    expect(validateSocialPostEdit({ visibility: "private" })).toMatchObject({
       ok: false,
       code: "INVALID_POST",
+    });
+    expect(validateSocialPostEdit({ expectedMutationVersion: 3, photo: null })).toMatchObject({
+      ok: false,
+      code: "INVALID_POST",
+    });
+  });
+
+  it("projects an exact Venue only when reader authority was proven", () => {
+    const post = {
+      id: "11111111-1111-4111-8111-111111111111",
+      authorProfileId: "profile-a",
+      authorHandle: "alice",
+      kind: "standard" as const,
+      visibility: "public" as const,
+      body: "At the Venue",
+      area: "camden" as const,
+      venueId: "venue-1",
+      hashtags: [],
+      commentPolicy: "open" as const,
+      photo: null,
+      status: "visible" as const,
+      moderationState: "approved" as const,
+      featureRequest: null,
+      revision: 0,
+      mutationVersion: 0,
+      editedAt: null,
+      moderatedAt: "2026-08-05T12:00:00.000Z",
+      createdAt: "2026-08-05T12:00:00.000Z",
+      updatedAt: "2026-08-05T12:00:00.000Z",
+    };
+
+    expect(socialPostDTO(post, { exactVenue: false, viewerProfileId: "other-profile" })).toMatchObject({
+      venueId: null,
+      venueName: null,
+      venueProjected: false,
+      ownedByViewer: false,
+    });
+    expect(socialPostDTO(post, { exactVenue: true, viewerProfileId: post.authorProfileId, venueName: "The Venue" })).toMatchObject({
+      venueId: "venue-1",
+      venueName: "The Venue",
+      venueProjected: true,
+      ownedByViewer: true,
     });
   });
 });

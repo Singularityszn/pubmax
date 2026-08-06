@@ -101,7 +101,7 @@ function storeError(error: unknown): Response {
   if (error instanceof SocialInteractionStoreError) {
     const status = error.code === "INVALID_INTERACTION" || error.code === "INVALID_CURSOR"
       ? 400
-      : error.code === "IDEMPOTENCY_CONFLICT"
+      : error.code === "IDEMPOTENCY_CONFLICT" || error.code === "EDIT_CONFLICT"
         ? 409
         : error.code === "COMMENTS_NOT_ALLOWED" || error.code === "FORBIDDEN" || error.code === "STAFF_REQUIRED"
           ? 403

@@ -10,6 +10,7 @@
     { "path": "/api/cron/refresh-night-signals", "schedule": "15 5 * * *" },
     { "path": "/api/cron/freshness-audit", "schedule": "30 6 * * *" },
     { "path": "/api/cron/moderate-social-posts", "schedule": "* * * * *" },
+    { "path": "/api/cron/purge-social-media", "schedule": "20 4 * * *" },
     { "path": "/api/cron/moderate-social-interactions", "schedule": "* * * * *" },
     { "path": "/api/cron/enrich-city-pubs", "schedule": "15 3 * * *" }
   ]

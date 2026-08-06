@@ -117,10 +117,12 @@ describe("mutating API surface certification", () => {
     // (app/api/plans/[id]/group-prefs/route.ts) add route 78. Pending Plan
     // recap claim writes (app/api/me/pending-plan-recaps/route.ts) bring the
     // live scan to 79. Consolidated verified Social interactions
-    // (app/api/social/interactions/route.ts) add route 80.
+    // (app/api/social/interactions/route.ts) add route 80. Verified tag-consent
+    // POST (app/api/social/tags/route.ts) and named-staff Social post moderation
+    // POST (app/api/admin/social-posts/route.ts) bring the inventory to 82.
     // deliberate merge-coordination point: any branch adding a mutating route
     // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(80);
+    expect(mutationRoutes).toHaveLength(82);
   });
 
   it("certifies both verified Social post write routes", () => {

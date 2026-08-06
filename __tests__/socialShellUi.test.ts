@@ -1,5 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
@@ -22,16 +23,20 @@ const protectedPost: SocialPostDTO = {
   body: "A protected post body",
   area: "camden",
   venueId: "venue-a",
+  venueProjected: true,
   hashtags: ["quietpint"],
   commentPolicy: "open",
   photo: null,
   moderationState: "approved",
   featureRequest: null,
   revision: 0,
+  mutationVersion: 0,
   editedAt: null,
   createdAt: "2026-08-05T12:00:00.000Z",
   updatedAt: "2026-08-05T12:00:00.000Z",
   author: { handle: "alice" },
+  ownedByViewer: true,
+  venueName: "The Test Arms",
 };
 
 describe("Social access boundary", () => {
@@ -71,6 +76,19 @@ describe("Social access boundary", () => {
 });
 
 describe("verified Social post card", () => {
+  it("ships CAS edit controls with conflict-safe draft recovery", () => {
+    const source = readFileSync("app/social/SocialComposer.tsx", "utf8");
+    expect(source).toContain("Edit post");
+    expect(source).toContain("expectedMutationVersion");
+    expect(source).toContain("removePhoto");
+    expect(source).toContain("Load latest");
+    expect(source).toContain("Post changed. Your draft is still here.");
+    expect(source).toContain("BroadcastChannel");
+    expect(source).toContain("useDismissOnEscape");
+    expect(source).toContain("Selected Venue");
+    expect(source).toContain("Remove venue");
+  });
+
   it("renders the chronological DTO without legacy interaction controls", () => {
     const html = renderToStaticMarkup(
       createElement(SocialPostCard, { post: protectedPost }),
@@ -93,7 +111,7 @@ describe("verified Social post card", () => {
   it("does not render exact Venue context from an invalid public DTO", () => {
     const html = renderToStaticMarkup(
       createElement(SocialPostCard, {
-        post: { ...protectedPost, visibility: "public" },
+        post: { ...protectedPost, visibility: "public", venueProjected: false },
       }),
     );
 
@@ -101,6 +119,17 @@ describe("verified Social post card", () => {
     expect(html).toContain("Camden");
     expect(html).not.toContain("Open venue");
     expect(html).not.toContain('href="/map?sel=venue-a"');
+  });
+
+  it("renders exact Venue context on a public DTO authorised for a mutual friend", () => {
+    const html = renderToStaticMarkup(
+      createElement(SocialPostCard, {
+        post: { ...protectedPost, visibility: "public", venueProjected: true },
+      }),
+    );
+
+    expect(html).toContain("Open venue");
+    expect(html).toContain('href="/map?sel=venue-a"');
   });
 });
 
@@ -128,11 +157,18 @@ describe("desktop Social rail", () => {
             readAt: null,
             createdAt: "2026-08-05T19:00:00.000Z",
           },
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            kind: "tag_proposal",
+            readAt: null,
+            createdAt: "2026-08-05T19:01:00.000Z",
+          },
         ],
       }),
     );
 
     expect(html).toContain("New comment");
+    expect(html).toContain("New photo tag");
     expect(html).not.toContain('href="/activity"');
     expect(html).not.toContain("Open Activity");
   });
