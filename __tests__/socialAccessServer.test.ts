@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   migrateSocialProductAccount,
+  requireVerifiedSocialActor,
   resolveSocialAccess,
   type SocialAccessServerDependencies,
 } from "@/lib/socialAccessServer";
@@ -27,6 +28,10 @@ function dependencies(
         id: "account-1",
         clerkUserId: "clerk-1",
         ownershipState: "active",
+      },
+      profile: {
+        id: "profile-1",
+        handle: "alice",
       },
       verification: {
         productAccountId: "account-1",
@@ -93,7 +98,26 @@ describe("server Social access resolution", () => {
   it("returns verified from server-held account and Yoti evidence", async () => {
     await expect(
       resolveSocialAccess(dependencies()),
-    ).resolves.toEqual({ available: true, state: "verified" });
+    ).resolves.toEqual({
+      available: true,
+      state: "verified",
+      actor: { accountId: "account-1", profileId: "profile-1", handle: "alice" },
+    });
+  });
+
+  it("returns only a server-held internal actor to protected Social routes", async () => {
+    await expect(requireVerifiedSocialActor(dependencies())).resolves.toEqual({
+      ok: true,
+      actor: { accountId: "account-1", profileId: "profile-1", handle: "alice" },
+    });
+  });
+
+  it("maps every non-verified state to a protected-route refusal", async () => {
+    await expect(requireVerifiedSocialActor(dependencies({ betaEnabled: false })))
+      .resolves.toMatchObject({ ok: false, status: 403, code: "SOCIAL_BETA_DISABLED" });
+    await expect(requireVerifiedSocialActor(dependencies({
+      verifyClerkSession: async () => ({ status: "absent" }),
+    }))).resolves.toMatchObject({ ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED" });
   });
 
   it("fails closed when private account storage is unavailable", async () => {

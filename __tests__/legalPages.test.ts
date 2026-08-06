@@ -132,6 +132,18 @@ describe("legal content pages", () => {
     expect(terms).not.toMatch(/until Yoti returns a current\s+18\+ decision/i);
   });
 
+  it("discloses OpenAI moderation of held Social post content", () => {
+    for (const page of [privacy, terms]) {
+      expect(page).toMatch(/OpenAI/);
+      expect(page).toMatch(/Social post text/i);
+      expect(page).toMatch(/omni moderation/i);
+      expect(page).toMatch(/held[^]*decision/i);
+    }
+    expect(privacy).toMatch(/future Social post photos/i);
+    expect(privacy).toMatch(/photos will also go\s+to OpenAI for moderation/i);
+    expect(privacy).toMatch(/moderation queue/i);
+  });
+
   it("states both 12-month analytics retention clocks on both legal pages", () => {
     expect(privacy).toMatch(
       /PostHog\s+deletes\s+analytics\s+events\s+12 months after collection/i,

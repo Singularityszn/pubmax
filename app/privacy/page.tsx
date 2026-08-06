@@ -190,6 +190,16 @@ export default function PrivacyPage() {
           tap; the app never tracks your location in the background.
         </p>
         <p className="legalBody">
+          Social post text is stored in a private moderation queue, then sent
+          to OpenAI for omni moderation. A post stays held from every Social
+          feed and direct read until OpenAI returns a decision. If OpenAI is
+          unavailable or returns no usable decision, the post stays held. No
+          account ID, public handle, area or exact venue is included in that
+          moderation request. Future Social post photos are not accepted yet.
+          When ownership-checked photo posting opens, those photos will also go
+          to OpenAI for moderation before they can appear.
+        </p>
+        <p className="legalBody">
           A Recommendation is your short opinion that one pub suits one kind of
           weather. Writing one needs a signed-in account, a claimed public
           handle and a completed private profile. We store your public PUBMAXX
@@ -495,6 +505,17 @@ export default function PrivacyPage() {
               hosted check receives before processing starts. PUBMAXX&rsquo;s
               service-only evidence shape is limited to the reference,
               decision, check time, expiry and audit status described above.
+            </dd>
+          </div>
+          <div className="legalRow">
+            <dt>OpenAI</dt>
+            <dd>
+              Social post text goes to OpenAI for omni moderation after the
+              post enters our moderation queue. It stays held until OpenAI
+              returns a decision. We don&rsquo;t send the Social account ID,
+              handle, area or venue with that text. When ownership-checked
+              Social photo posting opens, those photos will also go to OpenAI
+              for moderation.
             </dd>
           </div>
           <div className="legalRow">

@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 75 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 77 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -18,7 +18,8 @@ CI until this certification is deliberately updated.
 > moderation `POST /api/admin/community-prices`) → 72 (authored weather
 > Recommendations `POST /api/weather-recommendations`) → 74 (private referral
 > invite-link creation and same-journey signup claim) → 75 (private Social
-> product-account migration). Account onboarding
+> product-account migration) → 77 (verified Social post creation and item
+> editing or recoverable removal). Account onboarding
 > replaces the earlier identity claim POST, so its route does not change the
 > count.
 > Token-gated GET
@@ -64,6 +65,12 @@ preview, before the Supabase verifier, Clerk check, or migration RPC runs. A
 successful call passes only those two independently verified IDs to the
 service-only transactional RPC.
 
+Social post writes use one account boundary. Both routes call
+`requireVerifiedSocialActor`, which returns the server-held product account ID,
+stable profile ID and current handle only after the Clerk session, product
+ownership and adult decision pass. No account ID, profile ID, handle,
+moderation state, revision or timestamp is accepted from the request body.
+
 ## Failure posture
 
 - Anonymous paid spend (`concierge`, narrated `heritage`) and Plan creation pass
@@ -83,6 +90,53 @@ service-only transactional RPC.
   receives a write capability merely because the HTTP verb is POST.
 
 ## Route additions since the Wave 0 inventory
+
+### `app/api/social/posts` - verified Social post creation (route 76)
+
+- **Route / method:** `POST app/api/social/posts/route.ts`.
+- **Authority:** `requireVerifiedSocialActor` derives the verified Social actor.
+  The stable profile ID owns the row. The product account ID never enters the
+  response or post table.
+- **Abuse control:** Durable create and feed-read limiters use the shared salted
+  digest of the stable profile ID, never the raw profile ID, handle or account
+  ID. Feed reads partition budgets by lane and listed nearby area.
+- **Validation:** Kind, visibility, text, listed area, hashtags and comment
+  policy use `validateSocialPostCreate`. Public posts cannot carry an exact
+  venue. Raw object keys and every client-supplied ownership, timestamp,
+  revision or moderation field are rejected. Photo references remain closed
+  until the ownership-checked upload task ships.
+- **Moderation:** Durable creation starts in pending moderation and the same
+  database write queues an OpenAI moderation job carrying body plus normalised
+  hashtags. Pending content cannot reach direct reads or any feed. A protected
+  cron drains isolated leased jobs with bounded provider timeouts. Terminal
+  holds are counted and only an authenticated operator action can requeue them.
+- **Freeze:** The Social freeze guard runs before identity, limiter or storage
+  work and pauses creation while reads stay available.
+- **Failure:** Invalid input returns 400, unavailable photo upload returns 409,
+  unavailable identity or durable storage fails closed, and no fake success is
+  returned.
+
+### `app/api/social/posts/[postId]` - verified Social post editing (route 77)
+
+- **Route / method:** `PATCH app/api/social/posts/[postId]/route.ts`.
+- **Authority:** `requireVerifiedSocialActor` supplies the verified Social actor,
+  and the store matches the row against that stable profile ID. No
+  account ID or author field is accepted from the body.
+- **Abuse control:** Edit and recoverable removal share a durable limiter keyed
+  to the shared salted digest of the stable profile ID.
+- **Validation:** Strict edit validation rejects status, revision, timestamp,
+  moderation and raw storage fields. A real text, kind, hashtag or future photo
+  change increments the server revision and returns the row to pending
+  moderation. A transactional compare-and-swap RPC owns that revision so two
+  concurrent edits cannot share a moderation claim. Visibility-only changes do
+  not claim a content edit.
+- **Removal:** `{ action: "remove" }` changes status to `removed`. It is a
+  recoverable state change, never a delete, and removed content is excluded from
+  direct reads and every feed.
+- **Freeze:** The Social freeze guard runs before identity, limiter or storage
+  work for edits and removals.
+- **Failure:** A post outside stable profile ownership returns 403 or 404. A
+  hidden, removed or moderation-held post never appears through the item read.
 
 ### `app/api/push-tokens` — native/web push registration (route 61)
 
