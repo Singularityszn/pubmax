@@ -1,28 +1,32 @@
 import { createHash } from "node:crypto";
 
-import { hashPlanMemberToken, socialBoundPlanStateResult, type PlanStateLookupResult } from "@/lib/planStore";
+import { hashPlanMemberToken } from "@/lib/planStore";
 import {
   isSocialCrewMutationCode,
   isSocialCrewRole,
   isSocialCrewVisibility,
   type SocialCrewMutationResult,
   type SocialCrewMutationCode,
+  type SocialCrewListPageDTO,
   type SocialCrewReadDTO,
   type SocialCrewRole,
   type SocialCrewVisibility,
 } from "@/lib/socialCrew";
 import {
+  projectSocialCrewListPage,
   projectSocialCrewRead,
-  type RawSocialCrew,
-  type RawSocialCrewMember,
-  validateRawSocialCrew,
+  type RawSocialCrewListPage,
+  type SocialCrewListCursorPosition,
 } from "@/lib/socialCrewProjection.server";
 import {
-  socialRelationshipBetweenProfiles,
-  type SocialRelationshipResolution,
-} from "@/lib/socialRelationships.server";
+  SocialCrewCursorInvalidError,
+  decodeSocialCrewMemberCursor,
+  encodeSocialCrewMemberCursor,
+  readSocialCrewCursorEnvelope,
+} from "@/lib/socialCrewCursor.server";
 import type { SocialPostActor } from "@/lib/socialPostStore";
 import { requireSupabaseAdmin } from "@/lib/supabase";
+import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -39,20 +43,23 @@ export type SocialCrewRpcName =
   | "leave_social_crew_atomic"
   | "update_social_crew_visibility_atomic";
 
+export type SocialCrewSnapshotRpcName =
+  | "read_social_crew_snapshot"
+  | "read_social_crew_member_page";
+
 export type SocialCrewStoreDependencies = {
   rpc(name: SocialCrewRpcName, input: Record<string, unknown>): Promise<unknown>;
-  loadCrew(crewId: string, viewerAccountId: string): Promise<RawSocialCrew | null>;
-  loadPlan(planId: string, ownerAccountId: string): Promise<PlanStateLookupResult>;
-  relationshipBetweenProfiles(
-    firstProfileId: string,
-    secondProfileId: string,
-  ): Promise<SocialRelationshipResolution>;
+  snapshot(
+    name: SocialCrewSnapshotRpcName,
+    input: Record<string, unknown>,
+  ): Promise<unknown>;
+  signingKey(): Buffer;
 };
 
 export class SocialCrewStoreError extends Error {
   constructor(
     public readonly code: "INVALID" | "NOT_FOUND" | "CONFLICT" | "UNAVAILABLE",
-    public readonly status: 400 | 404 | 409 | 503,
+    public readonly status: 400 | 404 | 409 | 422 | 503,
     message: string,
   ) {
     super(message);
@@ -93,9 +100,17 @@ type VisibilityInput = WriteInput & {
   visibility: SocialCrewVisibility;
   expectedAuthorityRevision: number;
 };
+export type SocialCrewListInput = {
+  cursor?: string | null;
+  limit?: number;
+};
 
 export type SocialCrewStore = {
   read(crewId: string, actor: SocialPostActor): Promise<SocialCrewReadDTO>;
+  list(
+    actor: SocialPostActor,
+    input: SocialCrewListInput,
+  ): Promise<SocialCrewListPageDTO>;
   create(actor: SocialPostActor, input: CreateInput): Promise<SocialCrewMutationResult>;
   invite(actor: SocialPostActor, input: InviteInput): Promise<SocialCrewMutationResult>;
   acceptInvitation(actor: SocialPostActor, input: InvitationActionInput): Promise<SocialCrewMutationResult>;
@@ -292,190 +307,43 @@ function writeArguments(
   };
 }
 
-function text(value: unknown): string {
-  return typeof value === "string" ? value : "";
+const DEFAULT_LIST_LIMIT = 20;
+const MAX_LIST_LIMIT = 50;
+
+function invalidList(): never {
+  throw new SocialCrewStoreError(
+    "INVALID",
+    422,
+    "Social Crew page is not valid.",
+  );
 }
 
-type JoinRequestPreviewRow = {
-  state: unknown;
-  expiresAt: unknown;
-  createdAt?: unknown;
-  decidedAt?: unknown;
-};
-
-function previewStateFromLatest(
-  latest: JoinRequestPreviewRow | null,
-  now = new Date(),
-): RawSocialCrew["joinRequestState"] {
-  if (!latest) return "none";
-  if (latest.state === "declined") return "declined";
+function parseListInput(input: SocialCrewListInput): {
+  limit: number;
+  cursor: unknown;
+} {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return invalidList();
+  }
+  const keys = Object.keys(input);
   if (
-    latest.state === "pending" &&
-    typeof latest.expiresAt === "string" &&
-    Number.isFinite(Date.parse(latest.expiresAt)) &&
-    Date.parse(latest.expiresAt) > now.getTime()
+    keys.some((key) => key !== "cursor" && key !== "limit") ||
+    keys.length > 2
   ) {
-    return "pending";
+    return invalidList();
   }
-  return "none";
-}
-
-function joinRequestDecisionOrder(row: JoinRequestPreviewRow): number {
-  if (row.state === "pending" && row.decidedAt == null) return Number.POSITIVE_INFINITY;
-  if (typeof row.decidedAt !== "string" || !Number.isFinite(Date.parse(row.decidedAt))) {
-    throw new Error("Social Crew Join Request data is unavailable.");
+  const limit = input.limit ?? DEFAULT_LIST_LIMIT;
+  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIST_LIMIT) {
+    return invalidList();
   }
-  return Date.parse(row.decidedAt);
-}
-
-export function socialCrewJoinRequestPreviewState(
-  value: JoinRequestPreviewRow | readonly JoinRequestPreviewRow[] | null,
-  now = new Date(),
-  latestRequestObserved = false,
-): RawSocialCrew["joinRequestState"] {
-  if (!Array.isArray(value)) {
-    return previewStateFromLatest(value as JoinRequestPreviewRow | null, now);
+  if (
+    input.cursor !== undefined &&
+    input.cursor !== null &&
+    typeof input.cursor !== "string"
+  ) {
+    return invalidList();
   }
-  if (value.length === 0) {
-    if (latestRequestObserved) {
-      throw new Error("Social Crew Join Request data is unavailable.");
-    }
-    return "none";
-  }
-  const rows = [...value];
-  for (const item of rows) {
-    if (typeof item.createdAt !== "string" || !Number.isFinite(Date.parse(item.createdAt))) {
-      throw new Error("Social Crew Join Request data is unavailable.");
-    }
-  }
-  rows.sort((first, second) => {
-    const created = Date.parse(String(second.createdAt)) - Date.parse(String(first.createdAt));
-    return created || joinRequestDecisionOrder(second) - joinRequestDecisionOrder(first);
-  });
-  const [latest] = rows;
-  if (!latest) return "none";
-  const latestDecisionOrder = joinRequestDecisionOrder(latest);
-  const conflictingTopRow = rows.some((candidate) =>
-    candidate.createdAt === latest.createdAt &&
-    joinRequestDecisionOrder(candidate) === latestDecisionOrder &&
-    candidate.state !== latest.state
-  );
-  if (conflictingTopRow) {
-    throw new Error("Social Crew Join Request order is unavailable.");
-  }
-  return previewStateFromLatest(latest, now);
-}
-
-function defaultMemberRows(
-  memberRows: Record<string, unknown>[],
-  accountRows: Record<string, unknown>[],
-  profileRows: Record<string, unknown>[],
-): RawSocialCrewMember[] {
-  const accounts = new Map(accountRows.map((account) => [text(account.id), text(account.profile_id)]));
-  const profiles = new Map(profileRows.map((profile) => [text(profile.id), text(profile.handle)]));
-  return memberRows.map((member) => {
-    const accountId = text(member.social_account_id);
-    const profileId = accounts.get(accountId) ?? "";
-    return {
-      memberId: text(member.id),
-      accountId,
-      profileId,
-      planMemberId: text(member.plan_member_id),
-      handle: profiles.get(profileId) ?? "",
-      role: member.role as SocialCrewRole,
-      state: member.state as RawSocialCrewMember["state"],
-      joinedAt: text(member.joined_at),
-    };
-  });
-}
-
-async function loadCrewFromSupabase(
-  crewId: string,
-  viewerAccountId: string,
-): Promise<RawSocialCrew | null> {
-  const admin = requireSupabaseAdmin();
-  const { data: crewData, error: crewError } = await admin
-    .from("social_crews")
-    .select("id,plan_id,owner_account_id,visibility,authority_revision")
-    .eq("id", crewId)
-    .maybeSingle();
-  if (crewError) throw new Error(crewError.message);
-  if (!crewData) return null;
-
-  const { data: memberData, error: memberError } = await admin
-    .from("social_crew_members")
-    .select("id,social_account_id,plan_member_id,role,state,joined_at")
-    .eq("crew_id", crewId)
-    .order("joined_at")
-    .order("id");
-  if (memberError) throw new Error(memberError.message);
-  const memberRows = (memberData ?? []) as Record<string, unknown>[];
-  const accountIds = [...new Set(memberRows.map((member) => text(member.social_account_id)).filter(Boolean))];
-  if (accountIds.length === 0) throw new Error("Social Crew has no authority members.");
-
-  const { data: accountData, error: accountError } = await admin
-    .from("private_social_accounts")
-    .select("id,profile_id")
-    .in("id", accountIds);
-  if (accountError) throw new Error(accountError.message);
-  const accountRows = (accountData ?? []) as Record<string, unknown>[];
-  const profileIds = [...new Set(accountRows.map((account) => text(account.profile_id)).filter(Boolean))];
-  const { data: profileData, error: profileError } = await admin
-    .from("profiles")
-    .select("id,handle")
-    .in("id", profileIds);
-  if (profileError) throw new Error(profileError.message);
-  const members = defaultMemberRows(
-    memberRows,
-    accountRows,
-    (profileData ?? []) as Record<string, unknown>[],
-  );
-  const owner = members.find((member) => member.accountId === crewData.owner_account_id);
-  if (!owner) throw new Error("Social Crew owner is unavailable.");
-
-  const { data: latestRequest, error: latestRequestError } = await admin
-    .from("social_crew_join_requests")
-    .select("state,expires_at,created_at,decided_at")
-    .eq("crew_id", crewId)
-    .eq("requester_account_id", viewerAccountId)
-    .order("created_at", { ascending: false })
-    .order("decided_at", { ascending: false, nullsFirst: true })
-    .limit(1)
-    .maybeSingle();
-  if (latestRequestError) throw new Error(latestRequestError.message);
-
-  let requestCohort: Record<string, unknown>[] = [];
-  if (latestRequest) {
-    let cohortQuery = admin
-      .from("social_crew_join_requests")
-      .select("state,expires_at,created_at,decided_at")
-      .eq("crew_id", crewId)
-      .eq("requester_account_id", viewerAccountId)
-      .eq("created_at", latestRequest.created_at);
-    cohortQuery = latestRequest.decided_at == null
-      ? cohortQuery.is("decided_at", null)
-      : cohortQuery.eq("decided_at", latestRequest.decided_at);
-    const { data: cohortData, error: cohortError } = await cohortQuery;
-    if (cohortError) throw new Error(cohortError.message);
-    requestCohort = (cohortData ?? []) as Record<string, unknown>[];
-  }
-  const joinRequestState = socialCrewJoinRequestPreviewState(requestCohort.map((request) => ({
-    state: request.state,
-    expiresAt: request.expires_at,
-    createdAt: request.created_at,
-    decidedAt: request.decided_at,
-  })), new Date(), latestRequest !== null);
-
-  return {
-    crewId: text(crewData.id),
-    planId: text(crewData.plan_id),
-    ownerAccountId: text(crewData.owner_account_id),
-    ownerProfileId: owner.profileId,
-    visibility: crewData.visibility as RawSocialCrew["visibility"],
-    authorityRevision: Number(crewData.authority_revision),
-    joinRequestState,
-    members,
-  };
+  return { limit, cursor: input.cursor };
 }
 
 const defaultDependencies: SocialCrewStoreDependencies = {
@@ -484,9 +352,12 @@ const defaultDependencies: SocialCrewStoreDependencies = {
     if (error) throw new Error(error.message);
     return data;
   },
-  loadCrew: loadCrewFromSupabase,
-  loadPlan: socialBoundPlanStateResult,
-  relationshipBetweenProfiles: socialRelationshipBetweenProfiles,
+  async snapshot(name, input) {
+    const { data, error } = await requireSupabaseAdmin().rpc(name, input);
+    if (error) throw new Error(error.message);
+    return data;
+  },
+  signingKey: trustedSigningKey,
 };
 
 export function createSocialCrewStore(
@@ -511,65 +382,83 @@ export function createSocialCrewStore(
   return {
     async read(crewId, actor) {
       if (!isUuid(crewId) || !validActor(actor)) return notFound();
-      let raw: RawSocialCrew | null;
+      let snapshot: unknown;
       try {
-        raw = await dependencies.loadCrew(crewId, actor.accountId);
+        snapshot = await dependencies.snapshot("read_social_crew_snapshot", {
+          p_viewer_account_id: actor.accountId,
+          p_viewer_profile_id: actor.profileId,
+          p_crew_id: crewId,
+        });
       } catch {
         return unavailable();
       }
-      if (!raw) return notFound();
+      if (snapshot === null) return notFound();
       try {
-        validateRawSocialCrew(raw);
+        const projected = projectSocialCrewRead(snapshot, actor);
+        return projected ?? notFound();
       } catch {
         return unavailable();
       }
+    },
 
-      const actorAccountMember = raw.members.find((member) =>
-        member.state === "active" && member.accountId === actor.accountId
-      );
-      if (actorAccountMember && actorAccountMember.profileId !== actor.profileId) {
-        return notFound();
-      }
-      const actorMember = raw.members.find((member) =>
-        member.state === "active" &&
-        member.accountId === actor.accountId &&
-        member.profileId === actor.profileId
-      );
-      const ownerIsViewer = raw.ownerAccountId === actor.accountId && raw.ownerProfileId === actor.profileId;
-      if (!actorMember && !ownerIsViewer && raw.visibility === "private") return notFound();
-      let relationship: SocialRelationshipResolution;
-      if (ownerIsViewer) {
-        relationship = "self";
-      } else {
+    async list(actor, input) {
+      if (!validActor(actor)) return notFound();
+      const parsedInput = parseListInput(input);
+      let envelope: ReturnType<typeof readSocialCrewCursorEnvelope> | null =
+        null;
+      if (parsedInput.cursor !== undefined && parsedInput.cursor !== null) {
         try {
-          relationship = await dependencies.relationshipBetweenProfiles(actor.profileId, raw.ownerProfileId);
+          envelope = readSocialCrewCursorEnvelope(parsedInput.cursor);
         } catch {
+          return invalidList();
+        }
+      }
+      let signingKey: Buffer;
+      try {
+        signingKey = dependencies.signingKey();
+      } catch {
+        return unavailable();
+      }
+      let cursor: SocialCrewListCursorPosition | null = null;
+      if (envelope) {
+        try {
+          cursor = decodeSocialCrewMemberCursor(
+            envelope,
+            actor.profileId,
+            signingKey,
+          );
+        } catch (error) {
+          if (error instanceof SocialCrewCursorInvalidError) {
+            return invalidList();
+          }
           return unavailable();
         }
       }
-      if (relationship === "unavailable") return unavailable();
-      if (actorMember) {
-        if (!ownerIsViewer && relationship !== "mutual") return notFound();
-      } else if (raw.visibility !== "friends" || relationship !== "mutual") {
-        return notFound();
-      }
-
-      let planResult: PlanStateLookupResult;
+      let snapshot: unknown;
       try {
-        planResult = await dependencies.loadPlan(raw.planId, raw.ownerAccountId);
+        snapshot = await dependencies.snapshot("read_social_crew_member_page", {
+          p_viewer_account_id: actor.accountId,
+          p_viewer_profile_id: actor.profileId,
+          p_cursor_joined_at: cursor?.joinedAt ?? null,
+          p_cursor_member_id: cursor?.memberId ?? null,
+          p_limit: parsedInput.limit,
+        });
       } catch {
         return unavailable();
       }
-      if (!planResult.ok || !planResult.plan) return unavailable();
+      if (snapshot === null) return notFound();
       try {
-        const projected = projectSocialCrewRead(raw, {
+        return projectSocialCrewListPage(
+          snapshot as RawSocialCrewListPage,
           actor,
-          ownerRelationship: relationship,
-          plan: planResult.plan,
-        });
-        return projected ?? notFound();
-      } catch (error) {
-        if (error instanceof SocialCrewStoreError) throw error;
+          (position) =>
+            encodeSocialCrewMemberCursor(
+              position,
+              actor.profileId,
+              signingKey,
+            ),
+        );
+      } catch {
         return unavailable();
       }
     },
