@@ -1,11 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const DESKTOP_CASES = [
+  { width: 1024, height: 768, theme: "light" },
+  { width: 1024, height: 768, theme: "dark" },
   { width: 1280, height: 800, theme: "light" },
   { width: 1280, height: 800, theme: "dark" },
   { width: 1440, height: 900, theme: "light" },
   { width: 1440, height: 900, theme: "dark" },
+  { width: 1920, height: 1080, theme: "light" },
+  { width: 1920, height: 1080, theme: "dark" },
 ] as const;
+
+const SIGNED_OUT_FITTED_SELECTOR =
+  ".messagesInboxPane .emptyStateTitle, .messagesInboxPane .emptyStateBody, .messagesInboxPane .authUser:not(.authUserNav), .messagesInboxPane .authOptions, .messagesInboxPane .authMagicLinkInput, .messagesInboxPane .authMagicLinkButton";
 
 async function expectDesktopSplit(page: Page): Promise<void> {
   const split = page.locator(".messagesSplit");
@@ -15,6 +22,8 @@ async function expectDesktopSplit(page: Page): Promise<void> {
   await expect(split).toBeVisible();
   await expect(inbox).toBeVisible();
   await expect(thread).toBeVisible();
+  await expect(inbox).toHaveCSS("min-width", "0px");
+  await expect(thread).toHaveCSS("min-width", "0px");
 
   const [splitBox, inboxBox, threadBox] = await Promise.all([
     split.boundingBox(),
@@ -37,6 +46,53 @@ async function expectDesktopSplit(page: Page): Promise<void> {
   expect(overflow).toBe(0);
 }
 
+async function expectSignedOutCardFitsInbox(page: Page): Promise<void> {
+  const heading = page.getByRole("heading", { name: "Sign in to message" });
+  const fitted = page.locator(SIGNED_OUT_FITTED_SELECTOR);
+
+  await expect(heading).toBeVisible();
+  await expect(fitted).toHaveCount(6);
+  const geometry = await page.evaluate((fittedSelector) => {
+    const inboxNode = document.querySelector<HTMLElement>(".messagesInboxPane");
+    const cardNode = document.querySelector<HTMLElement>(".messagesInboxPane .emptyState");
+    const fittedNodes = [
+      ...document.querySelectorAll<HTMLElement>(fittedSelector),
+    ];
+    if (!inboxNode || !cardNode) return null;
+
+    return {
+      inboxRight: inboxNode.getBoundingClientRect().right,
+      cardLeft: cardNode.getBoundingClientRect().left,
+      cardRight: cardNode.getBoundingClientRect().right,
+      cardFits: cardNode.scrollWidth <= cardNode.clientWidth,
+      fitted: fittedNodes.map((node) => ({
+        className: node.className,
+        left: node.getBoundingClientRect().left,
+        right: node.getBoundingClientRect().right,
+        fits: node.scrollWidth <= node.clientWidth,
+      })),
+    };
+  }, SIGNED_OUT_FITTED_SELECTOR);
+
+  expect(geometry).not.toBeNull();
+  if (!geometry) return;
+  expect(geometry.cardFits).toBe(true);
+  const cardCenter = (geometry.cardLeft + geometry.cardRight) / 2;
+  for (const item of geometry.fitted) {
+    expect(item.fits, `${item.className} should fit its own box`).toBe(true);
+    expect(item.right, `${item.className} should stay inside card`).toBeLessThanOrEqual(
+      geometry.cardRight + 1,
+    );
+    expect(item.right, `${item.className} should stay inside inbox`).toBeLessThanOrEqual(
+      geometry.inboxRight + 1,
+    );
+    expect(
+      Math.abs((item.left + item.right) / 2 - cardCenter),
+      `${item.className} should share card centre line`,
+    ).toBeLessThanOrEqual(1);
+  }
+}
+
 for (const viewport of DESKTOP_CASES) {
   test(`messages use inbox and thread panes at ${viewport.width}px in ${viewport.theme} mode`, async ({
     page,
@@ -56,7 +112,9 @@ for (const viewport of DESKTOP_CASES) {
     }
     await expect(page.getByRole("heading", { name: "Messages", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Pick a message" })).toBeVisible();
+    await expect(page.locator(".messagesThreadEyebrow")).toHaveCSS("text-transform", "none");
     await expectDesktopSplit(page);
+    await expectSignedOutCardFitsInbox(page);
 
     await page.goto("/messages/nonexistent");
     await expect(page.getByText(/sign in to read and send messages/i)).toBeVisible();

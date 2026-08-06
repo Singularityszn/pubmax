@@ -517,6 +517,7 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
     ["app/pal/pal.css", [".palEyebrow", ".palMemoryList__meta span"]],
     ["components/pal/palChat.css", [".palChatEyebrow", ".palGlanceLabel"]],
     ["components/emptyState.css", [".emptyStateEyebrow"]],
+    ["app/messages/messages.css", [".messagesThreadEyebrow"]],
     ["components/landing/landing.css", [".lpSectionLabel", ".thamesHeroPinCat"]],
     ["components/landing/nightSignals.css", [".nsKicker"]],
     ["components/plan/nightCrawl.css", [
