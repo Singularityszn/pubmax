@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
 import type { SocialCrewPageDTO } from "@/lib/socialCrew";
 import type { SocialPostActor } from "@/lib/socialPostStore";
 

@@ -70,6 +70,16 @@ export type SocialCrewPageDTO = {
 
 export type SocialCrewReadDTO = SocialCrewPreviewDTO | SocialCrewPageDTO;
 
+export type SocialCrewListItemDTO = Pick<
+  SocialCrewPageDTO,
+  "kind" | "crewId" | "title" | "phase" | "nightArea" | "startsAt" | "viewer"
+>;
+
+export type SocialCrewListPageDTO = {
+  items: SocialCrewListItemDTO[];
+  nextCursor: string | null;
+};
+
 export const SOCIAL_CREW_MUTATION_CODES = [
   "created",
   "invited",
@@ -118,8 +128,16 @@ export function isSocialCrewMutationCode(
   return SOCIAL_CREW_MUTATION_CODES.includes(value as SocialCrewMutationCode);
 }
 
-export function socialCrewPhase(status: PlannedNightStatus | undefined): SocialCrewPhase {
-  if (status === "active" || status === "ending") return "live";
-  if (status === "completed" || status === "abandoned") return "ended";
-  return "planning";
+export function socialCrewPhase(status: PlannedNightStatus): SocialCrewPhase {
+  switch (status) {
+    case "draft":
+    case "ready":
+      return "planning";
+    case "active":
+    case "ending":
+      return "live";
+    case "completed":
+    case "abandoned":
+      return "ended";
+  }
 }
