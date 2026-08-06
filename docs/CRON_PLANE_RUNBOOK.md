@@ -1,12 +1,11 @@
-# Cron freshness plane — owner runbook
+# Production cron plane - owner runbook
 
-A scheduled **freshness plane on Vercel Cron** that keeps live data fresh:
-weather, the What's-On tonight window, permissible-source price retrieval,
-Night Signal candidates, and a rotating UK city pub-enrichment sweep. It is
-additive and fail-soft — every piece degrades loud-but-soft (log + skip) and
-never fabricates data.
+Vercel Cron keeps live data fresh and drains the Social post moderation queue.
+Freshness jobs cover weather, the What's-On tonight window, permissible-source
+price retrieval, Night Signal candidates, and a rotating UK city pub-enrichment
+sweep. No job fabricates data or reports false success.
 
-> **GitHub Actions is retired.** Vercel owns server-safe refresh work. File-producing
+> **GitHub Actions is retired.** Vercel owns server-safe scheduled work. File-producing
 > acquisition runs through the Mac's local launchd scheduler and review PRs; see
 > [`LOCAL_REFRESH_SCHEDULER.md`](./LOCAL_REFRESH_SCHEDULER.md). Do not add or suggest
 > a `.github/workflows/*` schedule because Actions cannot allocate a runner.
@@ -27,6 +26,7 @@ JSON and cannot carry inline comments.
 | `GET /api/cron/refresh-prices` | `0 7 * * 1` | 08:00 / 07:00 | Retrieve and validate permissible-source rows; stamp the `price_update_retrieval` feed only when valid rows exist (never the served `price_updates` snapshot) | 60s |
 | `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine, report stale feeds and unresolvable feeds as two separate findings (console only) | 30s |
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
+| `GET /api/cron/moderate-social-posts` | `* * * * *` | Every minute | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
 | `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating Tavily official-page discovery for one UK city batch (`lib/tavilyPubEnrichment.server.ts`) — structured observations to logs only; a function cannot commit repository files | 120s |
 
 The What's-On slot is chosen to land **before the evening** in London. In BST
@@ -68,9 +68,9 @@ pinned to exactly 15:00 year-round, you must flip the schedule seasonally
 
 ---
 
-## Which keys enable which feed
+## Which keys enable each job
 
-| Feed | Provider | Env key(s) | Behaviour without the key |
+| Job | Provider | Env key(s) | Behaviour without the key |
 |---|---|---|---|
 | **Weather** | Open-Meteo | **none** (keyless) | Always runs. No skip branch. |
 | **Price updates** | First-party official pages / open data | **none** | Cron runs and logs an honest no-op. Freshness remains unchanged until a real source parser returns valid rows. |
@@ -78,10 +78,11 @@ pinned to exactly 15:00 year-round, you must flip the schedule seasonally
 | What's-On — events vertical | Ticketmaster / Skiddle | `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY` | Provider noop-skips; slim cron logs the absent keys. Skiddle also needs **written commercial approval** (email dev@skiddle.com) before use. |
 | Events (later) | Ticketmaster Discovery | `TICKETMASTER_API_KEY` | Free instant key; lights up the events vertical when full ingest is wired. |
 | **Night Signals — candidates** | Exa | `EXA_API_KEY` | Cron logs the absent key and no-op skips; candidates stay wherever the last sweep left them. |
+| **Social post moderation** | OpenAI | `OPENAI_API_KEY` | Cron returns 503 before it claims a job; queued posts stay pending. |
 | **UK city pub enrichment** | Tavily (discovery only — never provenance; see `data/price_sources.json`) | `TAVILY_API_KEY` | Cron is an honest no-op (`skipped: "no-tavily-key"`). Set as a Vercel secret. |
 
-Owner provides keys as they are secured; a missing key is **logged and skipped**,
-never faked.
+Provider-key failures follow the table above. A missing key never produces fake
+success.
 
 ---
 
@@ -167,6 +168,8 @@ would only duplicate the live path. Same for `/api/last-train` and friends
     data files, so check `outputFileTracingIncludes` in `next.config.mjs` before
     suspecting the feeds.
   - Night Signals success: `swept N pending candidate(s) at <iso>`.
+  - Social moderation success: the response reports `processed`, `approved`,
+    `needsReview`, `retried`, and `terminalErrors` counts.
   - City enrichment success: a `[city-enrichment]` JSON line with city, cursor,
     queries/credits spent, matched pubs, and extracted prices.
 - **Manual trigger** (with the secret):
@@ -198,6 +201,9 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   own `unknown` status. Alerting is **console-only** today
   (`lib/freshnessNotify.ts` is the seam a later push/alert integration hangs
   off; push delivery is a separate lane and this plane sends none).
+- Social moderation provider failures keep posts held. Retryable failures use
+  bounded backoff; terminal failures require an authenticated requeue action.
+- Missing `OPENAI_API_KEY` returns **503** before any queued job is claimed.
 - City enrichment Tavily failure → **`502 PROVIDER_UNAVAILABLE`** with an
   `[ALERT]` log; any partial batch already processed is logged as a
   `[partial]` line (progress observations stream per pub, so a mid-batch

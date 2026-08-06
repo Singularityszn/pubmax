@@ -89,6 +89,11 @@ Apply every SQL file in `supabase/migrations/` **in filename timestamp order** (
 
 Run each via the Supabase SQL editor, or with the Supabase CLI (`supabase db push` / `supabase migration up`) pointed at the project.
 
+Production migration history already contains
+`20260806035204_0070_v1_release_security.sql`. Migrations `0071` and `0072` have
+earlier timestamps, so Captain must apply them with
+`supabase db push --include-all`; a normal push can skip them as out of order.
+
 Quick post-migration smoke:
 
 - `POST /api/messages` with `{ "action": "send", "handle": "alice", "other": "bob", "body": "hello" }` returns `201`.
