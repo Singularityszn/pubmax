@@ -74,8 +74,8 @@ test.describe("mobile landing entry", () => {
     await page.goto("/");
     await expectNoHorizontalOverflow(page);
 
-    await page.getByRole("link", { name: "Plan my night" }).first().click();
-    await expect(page).toHaveURL(/\/pal$/);
+    await page.getByRole("link", { name: "Plan with friends" }).first().click();
+    await expect(page).toHaveURL(/\/plan$/);
     await page.goto("/");
 
     await page.getByRole("link", { name: "Open the map" }).first().click();
