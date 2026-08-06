@@ -229,6 +229,28 @@ describe("Social comments, quotes, visibility, and moderation", () => {
     });
   });
 
+  it("applies two consecutive comment-policy changes using mutationVersion CAS", async () => {
+    // Proven F1 repro: first policy change bumps mutationVersion only; second must
+    // pass mutationVersion, not content revision, or EDIT_CONFLICT fires.
+    const { posts, store } = harness();
+    const post = await approvedPost(posts, alice, { commentPolicy: "open" });
+
+    await expect(store.setCommentPolicy(alice, post.id, "friends")).resolves.toBeUndefined();
+    const afterFirst = await posts.read(post.id, alice);
+    expect(afterFirst).toMatchObject({
+      commentPolicy: "friends",
+      revision: post.revision,
+      mutationVersion: post.mutationVersion + 1,
+    });
+
+    await expect(store.setCommentPolicy(alice, post.id, "locked")).resolves.toBeUndefined();
+    await expect(posts.read(post.id, alice)).resolves.toMatchObject({
+      commentPolicy: "locked",
+      revision: post.revision,
+      mutationVersion: post.mutationVersion + 2,
+    });
+  });
+
   it("applies block and source visibility reductions to comments, derivatives, counts, and notifications", async () => {
     const { posts, store } = harness({ friends: true });
     const post = await approvedPost(posts, alice, { visibility: "friends" });

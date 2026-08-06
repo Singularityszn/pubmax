@@ -36,11 +36,21 @@ vi.mock("@/lib/socialPostStore", async (importOriginal) => {
     socialPostStore: () => ({
       read: async () => ({
         id: state.postRow.id,
-        revision: 3,
-        mutationVersion: 7,
+        revision: Number(state.postRow.revision),
+        mutationVersion: Number(state.postRow.mutation_version),
       }),
       edit: async (...args: unknown[]) => {
+        const expectedMutationVersion = Number(args[2]);
+        if (expectedMutationVersion !== Number(state.postRow.mutation_version)) {
+          throw new original.SocialPostStoreError(
+            "EDIT_CONFLICT",
+            "This post changed before your edit was saved. Reload it and try again.",
+          );
+        }
         state.postStoreEdits.push(args);
+        const changes = args[3] as { commentPolicy?: string };
+        if (changes.commentPolicy) state.postRow.comment_policy = changes.commentPolicy;
+        state.postRow.mutation_version = Number(state.postRow.mutation_version) + 1;
       },
     }),
   };
@@ -113,6 +123,9 @@ describe("durable Social interaction projections", () => {
   });
 
   it("uses mutation version when durable comment policy changes", async () => {
+    state.postRow.mutation_version = 7;
+    state.postRow.revision = 3;
+
     await supabaseSocialInteractionStore.setCommentPolicy(
       viewer,
       state.postRow.id,
@@ -126,5 +139,29 @@ describe("durable Social interaction projections", () => {
       { commentPolicy: "locked" },
       false,
     ]]);
+    expect(state.postRow.mutation_version).toBe(8);
+    expect(state.postRow.revision).toBe(3);
+  });
+
+  it("applies two consecutive durable comment-policy changes without revision CAS conflict", async () => {
+    // Same F1 repro as memory: two policy edits, revision stays, mutationVersion advances.
+    state.postRow.mutation_version = 7;
+    state.postRow.revision = 3;
+    state.postRow.comment_policy = "open";
+
+    await expect(supabaseSocialInteractionStore.setCommentPolicy(viewer, state.postRow.id, "friends"))
+      .resolves.toBeUndefined();
+    await expect(supabaseSocialInteractionStore.setCommentPolicy(viewer, state.postRow.id, "locked"))
+      .resolves.toBeUndefined();
+
+    expect(state.postStoreEdits).toEqual([
+      [state.postRow.id, viewer, 7, { commentPolicy: "friends" }, false],
+      [state.postRow.id, viewer, 8, { commentPolicy: "locked" }, false],
+    ]);
+    expect(state.postRow).toMatchObject({
+      comment_policy: "locked",
+      mutation_version: 9,
+      revision: 3,
+    });
   });
 });
