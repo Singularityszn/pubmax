@@ -7,7 +7,7 @@ import type {
   SocialPostRelationships,
   SocialPostStore,
 } from "@/lib/socialPostStore";
-import { socialPostStore } from "@/lib/socialPostStore";
+import { socialPostServerProjectionFromRow, socialPostStore } from "@/lib/socialPostStore";
 import type { SocialPostCommentPolicy, SocialPostDTO, SocialPostVisibility } from "@/lib/socialPosts";
 import {
   cleanSocialText,
@@ -97,7 +97,14 @@ export type SocialInteractionStore = {
 type DesiredRow = { postId: string; actor: SocialInteractionActor; kind: SocialDesiredInteraction; createdAt: string };
 type CommentRow = SocialCommentDTO & { authorProfileId: string; status: "visible" | "hidden" | "removed" };
 type QuoteRow = SocialDerivativeDTO & { authorProfileId: string; sourceAuthorProfileId: string; status: "visible" | "hidden" | "removed" };
-type Job = { kind: "comment" | "quote"; id: string; text: string; attempts: number; nextAttemptAt: number };
+type Job = {
+  kind: "comment" | "quote";
+  id: string;
+  text: string;
+  sourceAuthorProfileId: string;
+  attempts: number;
+  nextAttemptAt: number;
+};
 type NotificationRow = SocialNotificationDTO & { recipientProfileId: string; actorProfileId: string };
 type FeatureRow = SocialFeatureUpdateDTO & { postId: string; staffId: string; staffDisplayName: string };
 type ReportRow = Omit<SocialContentReportDTO, "state"> & {
@@ -107,7 +114,6 @@ type ReportRow = Omit<SocialContentReportDTO, "state"> & {
 type IdempotencyRow = { digest: string; resultId: string };
 
 type RelationshipResolver = (actor: SocialInteractionActor) => Promise<SocialPostRelationships>;
-type ProfileResolver = (handle: string) => Promise<string | null>;
 type StaffResolver = (actor: SocialInteractionActor) => Promise<StaffIdentity | null>;
 
 const DEFAULT_LIMIT = 20;
@@ -199,21 +205,15 @@ async function defaultRelationships(actor: SocialInteractionActor): Promise<Soci
   };
 }
 
-async function defaultProfileResolver(handle: string): Promise<string | null> {
-  return (await profileStore().getByHandle(handle))?.id ?? null;
-}
-
 export function createMemorySocialInteractionStore(options: {
   posts?: SocialPostStore;
   now?: () => Date;
   relationships?: RelationshipResolver;
-  resolveProfileId?: ProfileResolver;
   staff?: StaffResolver;
 } = {}): SocialInteractionStore {
   const posts = options.posts ?? socialPostStore();
   const now = options.now ?? (() => new Date());
   const relationships = options.relationships ?? defaultRelationships;
-  const resolveProfileId = options.resolveProfileId ?? defaultProfileResolver;
   const resolveStaff = options.staff ?? (async () => null);
   const desired = new Map<string, DesiredRow>();
   const comments = new Map<string, CommentRow>();
@@ -229,11 +229,9 @@ export function createMemorySocialInteractionStore(options: {
     blocks.has(`${first}:${second}`) || blocks.has(`${second}:${first}`);
 
   async function visiblePost(postId: string, viewer: SocialInteractionActor): Promise<{ post: SocialPostDTO; authorProfileId: string } | null> {
-    const post = await posts.read(postId, viewer as SocialPostActor);
-    if (!post) return null;
-    const authorProfileId = await resolveProfileId(post.author.handle);
-    if (!authorProfileId || blocked(viewer.profileId, authorProfileId)) return null;
-    return { post, authorProfileId };
+    const projection = await posts.readServerProjection(postId, viewer as SocialPostActor);
+    if (!projection || blocked(viewer.profileId, projection.authorProfileId)) return null;
+    return projection;
   }
 
   function desiredKey(kind: SocialDesiredInteraction, postId: string, profileId: string): string {
@@ -411,7 +409,14 @@ export function createMemorySocialInteractionStore(options: {
         createdAt: now().toISOString(),
       };
       comments.set(id, row);
-      jobs.set(`comment:${id}`, { kind: "comment", id, text: body, attempts: 0, nextAttemptAt: now().getTime() });
+      jobs.set(`comment:${id}`, {
+        kind: "comment",
+        id,
+        text: body,
+        sourceAuthorProfileId: source.authorProfileId,
+        attempts: 0,
+        nextAttemptAt: now().getTime(),
+      });
       return row;
     },
 
@@ -462,7 +467,14 @@ export function createMemorySocialInteractionStore(options: {
         createdAt: now().toISOString(),
       };
       quotes.set(id, row);
-      jobs.set(`quote:${id}`, { kind: "quote", id, text: body, attempts: 0, nextAttemptAt: now().getTime() });
+      jobs.set(`quote:${id}`, {
+        kind: "quote",
+        id,
+        text: body,
+        sourceAuthorProfileId: source.authorProfileId,
+        attempts: 0,
+        nextAttemptAt: now().getTime(),
+      });
       return row;
     },
 
@@ -504,13 +516,7 @@ export function createMemorySocialInteractionStore(options: {
             if (row) {
               row.moderationState = moderation.decision;
               if (moderation.decision === "approved") {
-                const sourcePost = await posts.read(row.postId, {
-                  accountId: "interaction-moderation",
-                  profileId: row.authorProfileId,
-                  handle: row.author.handle,
-                });
-                const sourceAuthor = sourcePost ? await resolveProfileId(sourcePost.author.handle) : null;
-                if (sourceAuthor) addNotification(sourceAuthor, row.authorProfileId, "comment", row.postId);
+                addNotification(job.sourceAuthorProfileId, row.authorProfileId, "comment", row.postId);
               }
             }
           } else {
@@ -902,12 +908,11 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
         p_limit: size + 1,
       });
       if (error) throw error;
-      const items: Array<{ id: string; createdAt: string; savedAt: string; post: SocialPostDTO }> = [];
-      for (const value of data ?? []) {
+      const items = (data ?? []).map((value: unknown) => {
         const valueRow = row(value);
-        const post = await socialPostStore().read(String(valueRow.post_id), viewer);
-        if (post) items.push({ id: post.id, createdAt: String(valueRow.saved_at), savedAt: String(valueRow.saved_at), post });
-      }
+        const post = socialPostServerProjectionFromRow(valueRow.source_post).post;
+        return { id: post.id, createdAt: String(valueRow.saved_at), savedAt: String(valueRow.saved_at), post };
+      });
       const pageResult = durablePage(items, viewer, "saves", size);
       return {
         items: pageResult.items.map(({ savedAt, post }) => ({ savedAt, post })),
@@ -1011,22 +1016,19 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
         p_limit: size + 1,
       });
       if (error) throw error;
-      const items: SocialDerivativeDTO[] = [];
-      for (const value of data ?? []) {
+      const items = (data ?? []).map((value: unknown): SocialDerivativeDTO => {
         const valueRow = row(value);
-        const sourcePost = await socialPostStore().read(String(valueRow.source_post_id), viewer);
-        if (!sourcePost) continue;
-        items.push({
+        return {
           id: String(valueRow.id),
           kind: valueRow.kind === "quote" ? "quote" : "repost",
-          sourcePost,
+          sourcePost: socialPostServerProjectionFromRow(valueRow.source_post).post,
           body: typeof valueRow.body === "string" ? valueRow.body : null,
           visibility: valueRow.visibility as SocialPostVisibility,
           author: { handle: String(valueRow.author_handle) },
           moderationState: "approved",
           createdAt: String(valueRow.created_at),
-        });
-      }
+        };
+      });
       return durablePage(items, viewer, "derivatives", size);
     }, () => memorySocialInteractionStore.listDerivatives(viewer, input), false);
   },
@@ -1179,7 +1181,9 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
         };
       });
       const pageResult = durablePage<SocialFeatureUpdateDTO>(items, viewer, scope, size);
-      const statusRow = row((statusResult.data ?? [])[0]);
+      const statusValue = (statusResult.data ?? [])[0];
+      if (!statusValue) throw new SocialInteractionStoreError("NOT_FOUND", "Feature request not found.");
+      const statusRow = row(statusValue);
       return {
         ...pageResult,
         items: pageResult.items.sort(oldest),
@@ -1259,12 +1263,7 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
         if (/staff required/i.test(error.message ?? "")) throw new SocialInteractionStoreError("STAFF_REQUIRED", "Named staff access is required.");
         throw error;
       }
-      const items: SocialPostDTO[] = [];
-      for (const value of data ?? []) {
-        const valueRow = row(value);
-        const post = await socialPostStore().read(String(valueRow.id), actor);
-        if (post) items.push(post);
-      }
+      const items = (data ?? []).map((value: unknown) => socialPostServerProjectionFromRow(value).post);
       return durablePage(items, actor, scope, size);
     }, () => memorySocialInteractionStore.featureQueue(actor, input), false);
   },

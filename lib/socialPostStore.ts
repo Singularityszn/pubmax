@@ -38,6 +38,11 @@ export type SocialPostFeedPage = {
   nextCursor: string | null;
 };
 
+export type SocialPostServerProjection = {
+  post: SocialPostDTO;
+  authorProfileId: string;
+};
+
 export type SocialPostModerationAdapter = {
   moderate(input: { postId: string; text: string }): Promise<{
     decision: "approved" | "needs_review";
@@ -85,6 +90,7 @@ export type SocialPostStore = {
   ): Promise<SocialPostDTO>;
   remove(id: string, actor: SocialPostActor): Promise<boolean>;
   read(id: string, viewer: SocialPostActor): Promise<SocialPostDTO | null>;
+  readServerProjection(id: string, viewer: SocialPostActor): Promise<SocialPostServerProjection | null>;
   feed(viewer: SocialPostActor, input: SocialPostFeedInput): Promise<SocialPostFeedPage>;
   processModerationQueue(
     adapter: SocialPostModerationAdapter,
@@ -146,6 +152,21 @@ function fromRow(value: unknown): SocialPost {
     moderatedAt: typeof row.moderated_at === "string" ? row.moderated_at : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
+  };
+}
+
+export function socialPostServerProjectionFromRow(value: unknown): SocialPostServerProjection {
+  const post = fromRow(value);
+  return {
+    post: socialPostDTO(post),
+    authorProfileId: post.authorProfileId,
+  };
+}
+
+function serverProjection(post: SocialPost): SocialPostServerProjection {
+  return {
+    post: socialPostDTO(post),
+    authorProfileId: post.authorProfileId,
   };
 }
 
@@ -385,6 +406,12 @@ export function createMemorySocialPostStore(options: {
       const graph = await relationships(viewer);
       return canRead(post, viewer, graph) ? socialPostDTO(post) : null;
     },
+    async readServerProjection(id, viewer) {
+      const post = rows.get(id);
+      if (!post) return null;
+      const graph = await relationships(viewer);
+      return canRead(post, viewer, graph) ? serverProjection(post) : null;
+    },
     async feed(viewer, input) {
       const graph = await relationships(viewer);
       return makePage([...rows.values()], viewer, input, graph);
@@ -622,6 +649,17 @@ export const supabaseSocialPostStore: SocialPostStore = {
       const row = (data ?? [])[0];
       return row ? socialPostDTO(fromRow(row)) : null;
     }, () => memorySocialPostStore.read(id, viewer), false);
+  },
+  async readServerProjection(id, viewer) {
+    return durableOrMemory(async () => {
+      const { data, error } = await requireSupabaseAdmin().rpc("read_social_post", {
+        p_post_id: id,
+        p_viewer_profile_id: viewer.profileId,
+      });
+      if (error) throw error;
+      const row = (data ?? [])[0];
+      return row ? socialPostServerProjectionFromRow(row) : null;
+    }, () => memorySocialPostStore.readServerProjection(id, viewer), false);
   },
   async feed(viewer, input) {
     const limit = resolvedLimit(input.limit);

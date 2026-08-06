@@ -438,7 +438,7 @@ $$;
 create function public.read_social_derivatives(
   p_viewer uuid, p_before_created_at timestamptz, p_before_id uuid, p_limit integer
 )
-returns table(id uuid, kind text, source_post_id uuid, author_profile_id uuid, author_handle text, body text, visibility text, created_at timestamptz)
+returns table(id uuid, kind text, source_post_id uuid, author_profile_id uuid, author_handle text, body text, visibility text, created_at timestamptz, source_post jsonb)
 language plpgsql
 stable
 security definer
@@ -449,7 +449,7 @@ begin
   return query
   select derivative.* from (
     select quote.id, 'quote'::text kind, quote.source_post_id, quote.author_profile_id, quote.author_handle,
-      quote.body, quote.visibility, quote.created_at
+      quote.body, quote.visibility, quote.created_at, to_jsonb(post) source_post
     from public.social_quotes quote join public.social_posts post on post.id = quote.source_post_id
     where quote.status = 'visible' and quote.moderation_state = 'approved'
       and public.social_post_readable(post, p_viewer)
@@ -462,7 +462,7 @@ begin
       ))
     union all
     select repost.id, 'repost'::text, repost.post_id, repost.actor_profile_id, repost.actor_handle,
-      null::text, post.visibility, repost.created_at
+      null::text, post.visibility, repost.created_at, to_jsonb(post)
     from public.social_reposts repost join public.social_posts post on post.id = repost.post_id
     where public.social_post_readable(post, p_viewer)
       and not public.social_interaction_blocked(p_viewer, post.author_profile_id)
@@ -522,13 +522,13 @@ $$;
 create function public.read_social_saves(
   p_viewer uuid, p_before_created_at timestamptz, p_before_post_id uuid, p_limit integer
 )
-returns table(post_id uuid, saved_at timestamptz)
+returns table(post_id uuid, saved_at timestamptz, source_post jsonb)
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select save.post_id, save.created_at
+  select save.post_id, save.created_at, to_jsonb(post)
   from public.social_saves save join public.social_posts post on post.id = save.post_id
   where save.actor_profile_id = p_viewer
     and public.social_post_readable(post, p_viewer)
@@ -638,12 +638,15 @@ security definer
 set search_path = public
 as $$
   select coalesce((
-    select update.status from public.social_feature_request_updates update
-    join public.social_posts post on post.id = update.post_id
-    where update.post_id = p_post_id and public.social_post_readable(post, p_viewer)
-      and not public.social_interaction_blocked(p_viewer, post.author_profile_id)
+    select update.status
+    from public.social_feature_request_updates update
+    where update.post_id = post.id
     order by update.created_at desc, update.id desc limit 1
-  ), 'submitted');
+  ), post.feature_status, 'submitted')
+  from public.social_posts post
+  where post.id = p_post_id and post.kind = 'feature_request'
+    and public.social_post_readable(post, p_viewer)
+    and not public.social_interaction_blocked(p_viewer, post.author_profile_id);
 $$;
 
 create function public.read_social_feature_queue(

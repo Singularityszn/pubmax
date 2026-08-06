@@ -126,6 +126,7 @@ describe("Social interactions migration forward, race, and rollback", () => {
     expect(db.sql(`select count(*) from public.social_cheers where post_id='${postId}' and actor_profile_id='${BOB}'`)).toBe("1");
     db.sql(`select public.set_social_desired_interaction('${BOB}','${postId}','save',true)`);
     expect(db.sql(`select count(*) from public.social_saves where post_id='${postId}' and actor_profile_id='${BOB}'`)).toBe("1");
+    expect(db.sql(`select source_post ->> 'id' from public.read_social_saves('${BOB}',null,null,20)`)).toBe(postId);
     expect(db.sql(`select has_table_privilege('authenticated','public.social_saves','select')`)).toBe("f");
     expect(db.sql(`select has_table_privilege('anon','public.social_cheers','select')`)).toBe("f");
   });
@@ -196,6 +197,7 @@ describe("Social interactions migration forward, race, and rollback", () => {
     )`);
     db.sql(`select public.complete_social_interaction_moderation('quote','${quote}','approved')`);
     expect(db.sql(`select count(*) from public.read_social_derivatives('${CAROL}',null,null,20)`)).toBe("1");
+    expect(db.sql(`select source_post ->> 'id' from public.read_social_derivatives('${CAROL}',null,null,20)`)).toBe(postId);
     expect(db.sql(`select cheer_count from public.read_social_interaction_summary('${CAROL}','${postId}')`)).toBe("1");
     const privateQuote = db.sql(`select id from public.create_social_quote(
       '${BOB}','${postId}','bob','Private wrapper','private','${"0".repeat(64)}','${"e".repeat(64)}'
@@ -218,6 +220,12 @@ describe("Social interactions migration forward, race, and rollback", () => {
   it("keeps reports non-hiding and staff feature history append-only with private named audit identity", () => {
     const db = database!;
     db.sql(`update public.social_posts set visibility='public' where id='${postId}'`);
+    expect(db.sql(`select current_status from public.read_social_feature_status('${ALICE}','${featureId}')`)).toBe("submitted");
+    expect(db.sql(`select count(*) from public.read_social_feature_status('${ALICE}','${postId}')`)).toBe("0");
+    expect(db.sql(`select count(*) from public.read_social_feature_status('${ALICE}','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')`)).toBe("0");
+    db.sql(`update public.social_posts set visibility='private' where id='${featureId}'`);
+    expect(db.sql(`select count(*) from public.read_social_feature_status('${BOB}','${featureId}')`)).toBe("0");
+    db.sql(`update public.social_posts set visibility='public' where id='${featureId}'`);
     const report = db.sql(`select id from public.report_social_content('${BOB}','post','${postId}','harassment')`);
     const retry = db.sql(`select id from public.report_social_content('${BOB}','post','${postId}','harassment')`);
     expect(retry).toBe(report);

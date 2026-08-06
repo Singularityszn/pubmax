@@ -45,7 +45,6 @@ function harness(options: { friends?: boolean } = {}) {
     posts,
     now: () => new Date(tick += 1_000),
     relationships,
-    resolveProfileId: async (handle) => ({ alice, bob, carol }[handle as "alice" | "bob" | "carol"]?.profileId ?? null),
     staff: async (actor) => actor.profileId === carol.profileId
       ? { id: "staff-carol", profileId: carol.profileId, displayName: "Carol Smith", active: true, role: "moderator" }
       : null,
@@ -107,6 +106,20 @@ describe("Social desired-state interactions", () => {
       cheerCount: 0,
       repostCount: 0,
     });
+  });
+
+  it("keeps interaction ownership stable across an author handle rename", async () => {
+    const { posts, store } = harness();
+    const post = await approvedPost(posts, { ...alice, handle: "alice-old" });
+
+    await store.setDesired(bob, post.id, "cheer", true);
+    await store.setCommentPolicy({ ...alice, handle: "alice-new" }, post.id, "locked");
+
+    await expect(store.createComment(bob, post.id, {
+      body: "Should stay closed",
+      idempotencyKey: "renamed-author",
+    })).rejects.toMatchObject({ code: "COMMENTS_NOT_ALLOWED" });
+    expect(await store.summary(bob, post.id)).toMatchObject({ cheered: true, cheerCount: 1 });
   });
 
   it("never exposes save counts or creates save and self notifications", async () => {
