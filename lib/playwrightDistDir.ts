@@ -5,7 +5,11 @@ type PlaywrightDistDirEnv = Readonly<
 >;
 
 export function resolvePlaywrightNextDistDir(
-  env: PlaywrightDistDirEnv = process.env,
+  env: PlaywrightDistDirEnv = {
+    NEXT_DIST_DIR: process.env.NEXT_DIST_DIR,
+    PW_NEXT_DIST_DIR: process.env.PW_NEXT_DIST_DIR,
+    PW_SCREENSHOTS: process.env.PW_SCREENSHOTS,
+  },
 ): string {
   if (env.PW_NEXT_DIST_DIR !== undefined) return env.PW_NEXT_DIST_DIR;
   if (env.PW_SCREENSHOTS) return env.NEXT_DIST_DIR ?? ".next";
