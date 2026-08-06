@@ -22,6 +22,8 @@ const excludedSelectors = [
   ".mapLoadingEyebrow",
   ".venueHoverEyebrow",
   ".contributionGateEyebrow",
+  // The Map tour stays in Map's lane per fence.
+  ".tourEyebrow",
 ];
 const stampSelectors = [
   ".feedEyebrow",
