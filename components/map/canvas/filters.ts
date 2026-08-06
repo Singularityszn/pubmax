@@ -24,6 +24,23 @@ export const AMBIENT_CATEGORIES: readonly PoiCategory[] = [
   "sight",
 ];
 
+/** Dot and label layers controlled by Parks, Gardens, Markets, Historic, Views, and Sights. */
+export const POI_AMBIENT_LAYERS = ["pois-dot", "pois-label"] as const;
+
+/** Station and stop symbols controlled by Tube, Rail, Bus, and River. */
+export const POI_TRANSPORT_LAYERS = [
+  "pois-transport-major",
+  "pois-transport-minor",
+  "pois-transport-label",
+] as const;
+
+/** Coloured TfL line network governed by `isTransitNetworkVisible`. */
+export const TUBE_LINE_LAYERS = [
+  "tube-lines-casing",
+  "tube-lines-color",
+  "tube-lines-label",
+] as const;
+
 // A MapLibre filter keeping only the not-hidden categories within a given group
 // (the transport symbols and the ambient dots live on different layers).
 export function poiFilter(
@@ -50,6 +67,40 @@ export function transportFilter(
     ? ["==", ["coalesce", ["get", "rank"], 2], 1]
     : ["!=", ["coalesce", ["get", "rank"], 2], 1];
   return ["all", inCategory, rankTest];
+}
+
+/**
+ * Push Layers-chip state onto the live map without a scene rebuild.
+ *
+ * Callers must run this whenever `poiHidden` changes AND after deferred
+ * transit layers land (tube-lines-* are added after first idle, so a toggle
+ * that fired earlier could not set their visibility yet).
+ *
+ * Missing layers are skipped, so a pre-transit toggle is safe.
+ * This is the single owner of setFilter / tube-line visibility for POI chips;
+ * buildScene only seeds the initial values at layer creation.
+ */
+export function applyPoiCategoryVisibility(
+  map: Pick<maplibregl.Map, "getLayer" | "setFilter" | "setLayoutProperty">,
+  hidden: Record<PoiCategory, boolean>,
+): void {
+  const ambient = poiFilter(hidden, AMBIENT_CATEGORIES);
+  const transportAll = poiFilter(hidden, TRANSPORT_CATEGORIES);
+  const setFilter = (layer: string, filter: maplibregl.FilterSpecification) => {
+    if (map.getLayer(layer)) map.setFilter(layer, filter);
+  };
+  setFilter("pois-dot", ambient);
+  setFilter("pois-label", ambient);
+  setFilter("pois-transport-major", transportFilter(hidden, true));
+  setFilter("pois-transport-minor", transportFilter(hidden, false));
+  setFilter("pois-transport-label", transportAll);
+
+  // Keep this equivalent to isTransitNetworkVisible without importing the UI
+  // toggle table into the canvas filter module.
+  const tubeVisibility: "visible" | "none" = !hidden.tube ? "visible" : "none";
+  for (const layer of TUBE_LINE_LAYERS) {
+    if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", tubeVisibility);
+  }
 }
 
 // icon-image match for a transport feature → its TfL symbol id (lib/mapIcons).
@@ -411,11 +462,23 @@ const TUBE_OFFSET_INDEX_EXPR: maplibregl.ExpressionSpecification = [
 ] as unknown as maplibregl.ExpressionSpecification;
 
 // The signed pixel offset for a line at the current zoom: offsetIndex × a
-// zoom-interpolated per-index step. At/below zoom 11 the step is 0 (lines
+// zoom-interpolated per-index step. At or below zoom 11 the step is 0 (lines
 // converge); it grows to a full fan by zoom 14. `line-offset` is in pixels and
 // perpendicular to the line, so a symmetric index set fans the group evenly.
+//
+// MapLibre permits `zoom` only as input to a top-level step or interpolate
+// expression. Multiply the fan index at each stop so zoom stays top-level;
+// nesting this interpolation under multiplication fails layer validation.
 export const TUBE_LINE_OFFSET_EXPR: maplibregl.ExpressionSpecification = [
-  "*",
-  TUBE_OFFSET_INDEX_EXPR,
-  ["interpolate", ["linear"], ["zoom"], 11, 0, 12, 1.4, 14, 3.2, 16, 4.5],
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  11,
+  ["*", TUBE_OFFSET_INDEX_EXPR, 0],
+  12,
+  ["*", TUBE_OFFSET_INDEX_EXPR, 1.4],
+  14,
+  ["*", TUBE_OFFSET_INDEX_EXPR, 3.2],
+  16,
+  ["*", TUBE_OFFSET_INDEX_EXPR, 4.5],
 ] as unknown as maplibregl.ExpressionSpecification;
