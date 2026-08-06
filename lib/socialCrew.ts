@@ -14,7 +14,8 @@ export const SOCIAL_CREW_VISIBILITIES = ["private", "friends"] as const;
 export type SocialCrewVisibility = (typeof SOCIAL_CREW_VISIBILITIES)[number];
 
 export type SocialCrewPhase = "planning" | "live" | "ended";
-export type SocialCrewMembershipState = "active" | "left" | "removed";
+export const SOCIAL_CREW_MEMBERSHIP_STATES = ["active", "left", "removed"] as const;
+export type SocialCrewMembershipState = (typeof SOCIAL_CREW_MEMBERSHIP_STATES)[number];
 export type SocialCrewInvitationState =
   | "pending"
   | "accepted"
@@ -97,6 +98,12 @@ export type SocialCrewMutationResult = {
 
 export function isSocialCrewRole(value: unknown): value is SocialCrewRole {
   return SOCIAL_CREW_ROLES.includes(value as SocialCrewRole);
+}
+
+export function isSocialCrewMembershipState(
+  value: unknown,
+): value is SocialCrewMembershipState {
+  return SOCIAL_CREW_MEMBERSHIP_STATES.includes(value as SocialCrewMembershipState);
 }
 
 export function isSocialCrewVisibility(
