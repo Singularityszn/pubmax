@@ -480,6 +480,9 @@
     color-mix(in srgb, var(--panel) 92%, var(--paper));
 }
 .planIntake__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.planIntake__palEntry { margin: 10px 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.45; }
+.planIntake__palEntry a { color: var(--plan-accent-strong); font-weight: 750; text-underline-offset: 3px; }
+.planIntake__palEntry a:hover { color: var(--ink); }
 .planIntake__header > div { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
 .planIntake__kicker,
 .planIntake__count,

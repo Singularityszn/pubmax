@@ -52,7 +52,7 @@ test.describe("mobile landing entry", () => {
       "hero Open the map CTA",
     );
     await expectTappable(page.getByRole("link", { name: "How it works" }).first(), "hero How it works CTA");
-    await expectTappable(page.getByRole("link", { name: "Plan my night" }).first(), "hero Plan my night CTA");
+    await expectTappable(page.getByRole("link", { name: "Plan with friends" }).first(), "hero Plan with friends CTA");
     await expectTappable(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Map" }), "bottom Map tab");
 
     const visibleHeroPins = page.locator(".thamesHeroPin:visible");
@@ -74,8 +74,8 @@ test.describe("mobile landing entry", () => {
     await page.goto("/");
     await expectNoHorizontalOverflow(page);
 
-    await page.getByRole("link", { name: "Plan my night" }).first().click();
-    await expect(page).toHaveURL(/\/pal$/);
+    await page.getByRole("link", { name: "Plan with friends" }).first().click();
+    await expect(page).toHaveURL(/\/plan$/);
     await page.goto("/");
 
     await page.getByRole("link", { name: "Open the map" }).first().click();

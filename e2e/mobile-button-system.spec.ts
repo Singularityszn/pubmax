@@ -29,7 +29,7 @@ for (const viewport of DEVICES) {
 
       const heroActions = page.locator(".lpHeroActions .lpButton");
       await expect(heroActions).toHaveCount(3);
-      await expect(page.getByRole("link", { name: "Plan my night" }).first()).toBeVisible();
+      await expect(page.getByRole("link", { name: "Plan with friends" }).first()).toBeVisible();
 
       const actionGeometry = await heroActions.evaluateAll((elements) =>
         elements.map((element) => {
@@ -44,7 +44,7 @@ for (const viewport of DEVICES) {
       await expect(wordmark).toBeVisible();
       await expect(wordmark.locator(".pubmaxxDoubleX svg")).toHaveCount(2);
 
-      await page.getByRole("link", { name: "Plan my night" }).first().click();
+      await page.getByRole("link", { name: "Plan with friends" }).first().click();
       await page.getByRole("button", { name: /Meet your Pub Pal/i }).click();
       await expect(page.getByRole("heading", { name: "The grown-up bit first." })).toBeVisible();
 
