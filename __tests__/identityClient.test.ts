@@ -77,6 +77,9 @@ describe("identity handle events", () => {
     ]);
     const storage = {
       getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        values.set(key, value);
+      },
       removeItem: (key: string) => {
         values.delete(key);
       },
@@ -102,6 +105,7 @@ describe("identity handle events", () => {
       identity: { ownerId: "user-a", handle: "bob" },
     });
     expect(values.has("pubmax_round_anonymous_identity_v1")).toBe(false);
+    expect(values.get("pubmax_handle")).toBe("bob");
   });
 });
 
@@ -114,6 +118,9 @@ describe("post-callback handle claim routing", () => {
   function storageWith(values: Map<string, string>) {
     return {
       getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        values.set(key, value);
+      },
       removeItem: (key: string) => {
         values.delete(key);
       },
@@ -136,14 +143,16 @@ describe("post-callback handle claim routing", () => {
   });
 
   it("stays put when the account already has a handle", async () => {
+    const storage = storageWith(new Map());
     await expect(
       handleClaimRouteAfterSignIn(
         SESSION,
         "/map",
-        storageWith(new Map()),
+        storage,
         requestAnswering("alice"),
       ),
     ).resolves.toBeNull();
+    expect(storage.getItem("pubmax_handle")).toBe("alice");
   });
 
   it("stays put on a device handle without asking the server", async () => {
