@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Check, LocateFixed, MapPin, RotateCcw } from "lucide-react";
 
@@ -231,6 +232,11 @@ export default function PlanIntake({
           Describe instead
         </button>
       </header>
+
+      <p className="planIntake__palEntry">
+        Not sure?{" "}
+        <Link href="/pal/chat">Ask your Pub Pal…</Link>
+      </p>
 
       <ol className="planIntake__progress" aria-label="Plan details progress">
         {PLAN_INTAKE_STEPS.map((step, index) => {

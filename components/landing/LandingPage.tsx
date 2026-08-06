@@ -167,7 +167,7 @@ export default function LandingPage({
           <MapPin size={17} aria-hidden="true" /> Open the map
         </Link>
         <Link className="lpTextLink" href="/plan">
-          <MessageSquareText size={17} aria-hidden="true" /> Plan my night
+          <MessageSquareText size={17} aria-hidden="true" /> Plan with friends
         </Link>
       </div>
     </div>
@@ -178,7 +178,7 @@ export default function LandingPage({
         <MapPin size={17} aria-hidden="true" /> Open the map
       </Link>
       <Link className="lpButton lpButtonQuiet" href="/plan">
-        <MessageSquareText size={17} aria-hidden="true" /> Plan my night
+        <MessageSquareText size={17} aria-hidden="true" /> Plan with friends
       </Link>
     </div>
   );
@@ -198,6 +198,7 @@ export default function LandingPage({
 
         <nav className="lpPrimaryNav" aria-label="Landing navigation">
           <Link href={primaryCtaHref} {...warmProps}>Map</Link>
+          <Link href="/plan">Plan</Link>
           <Link href="/tonight">Tonight</Link>
           <Link href="/moment">Moment</Link>
           <Link href="/feed">Stories</Link>
@@ -317,7 +318,7 @@ export default function LandingPage({
           <div className="lpPalCallout" id="landlord">
             <span className="lpPalIcon"><MessageSquareText size={23} aria-hidden="true" /></span>
             <div><h3>Ask your Pub Pal</h3><p>Tell it a mood, a budget, or half an idea, and it hands back a real plan. You confirm every change, always.</p></div>
-            <Link href="/plan" className="lpTextLink">Plan my night <ArrowRight size={16} aria-hidden="true" /></Link>
+            <Link href="/pal/chat" className="lpTextLink">Ask your Pub Pal <ArrowRight size={16} aria-hidden="true" /></Link>
           </div>
         </section>
 
@@ -337,11 +338,17 @@ export default function LandingPage({
               <Link href={primaryCtaHref} className="lpTextLink" {...warmProps}>
                 Open the map <ArrowRight size={16} aria-hidden="true" />
               </Link>
+              <Link href="/plan" className="lpTextLink">
+                Plan with friends <ArrowRight size={16} aria-hidden="true" />
+              </Link>
             </>
           ) : (
             <>
               <Link href={primaryCtaHref} className="lpButton lpButtonPrimary" {...warmProps}>
                 Open the map <ArrowRight size={18} aria-hidden="true" />
+              </Link>
+              <Link href="/plan" className="lpTextLink">
+                Plan with friends <ArrowRight size={16} aria-hidden="true" />
               </Link>
               <Link href="/about" className="lpTextLink">
                 Our story <ArrowRight size={16} aria-hidden="true" />

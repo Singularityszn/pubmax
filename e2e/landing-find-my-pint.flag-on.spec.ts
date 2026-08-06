@@ -40,7 +40,7 @@ test("makes Find my pint the sole primary; Map and Plan are secondary text", asy
   const secondary = hero.locator(".lpHeroSecondaryRow");
   await expect(secondary).toBeVisible();
   const mapLink = secondary.getByRole("link", { name: /Open the map/i });
-  const planLink = secondary.getByRole("link", { name: /Plan my night/i });
+  const planLink = secondary.getByRole("link", { name: /Plan with friends/i });
   await expect(mapLink).toBeVisible();
   await expect(planLink).toBeVisible();
   await expect(mapLink).toHaveClass(/lpTextLink/);

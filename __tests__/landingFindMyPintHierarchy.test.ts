@@ -34,7 +34,7 @@ describe("L19 landing Find my pint hierarchy", () => {
   it("flag-off snapshot: three equal-slot hero buttons, Find my pint primary", () => {
     // Quiet-button branch still present for Map + Plan.
     expect(landingTsx).toMatch(/lpButtonQuiet[\s\S]*Open the map/);
-    expect(landingTsx).toMatch(/lpButtonQuiet[\s\S]*Plan my night/);
+    expect(landingTsx).toMatch(/lpButtonQuiet[\s\S]*Plan with friends/);
     // Primary is always Find my pint → /near.
     expect(landingTsx).toMatch(
       /className="lpButton lpButtonPrimary" href="\/near"[\s\S]*Find my pint/,
@@ -56,11 +56,11 @@ describe("L19 landing Find my pint hierarchy", () => {
     expect(secondaryBlock, "flag-on secondary branch present").toBeTruthy();
     expect(secondaryBlock).toMatch(/lpTextLink/);
     expect(secondaryBlock).toMatch(/Open the map/);
-    expect(secondaryBlock).toMatch(/Plan my night/);
+    expect(secondaryBlock).toMatch(/Plan with friends/);
     expect(secondaryBlock).not.toMatch(/lpButtonQuiet/);
     // Map + Plan never hidden.
     expect(landingTsx).toMatch(/href=\{primaryCtaHref\}[\s\S]*Open the map/);
-    expect(landingTsx).toMatch(/href="\/plan"[\s\S]*Plan my night/);
+    expect(landingTsx).toMatch(/href="\/plan"[\s\S]*Plan with friends/);
   });
 
   it("CSS scopes dominant primary and high-contrast secondary text", () => {

@@ -36,7 +36,7 @@ test.describe("landing Find my pint hierarchy (flag off / default)", () => {
     await expect(buttons.nth(1)).toHaveClass(/lpButtonQuiet/);
     await expect(buttons.nth(1)).toContainText("Open the map");
     await expect(buttons.nth(2)).toHaveClass(/lpButtonQuiet/);
-    await expect(buttons.nth(2)).toContainText("Plan my night");
+    await expect(buttons.nth(2)).toContainText("Plan with friends");
 
     // Map and Plan remain reachable; no secondary text demotion while off.
     await expect(hero.locator(".lpHeroSecondaryRow")).toHaveCount(0);
@@ -47,7 +47,7 @@ test.describe("landing Find my pint hierarchy (flag off / default)", () => {
     const hero = page.locator(".lpHeroActions");
     await expect(hero.getByRole("link", { name: /Find my pint/i })).toHaveAttribute("href", "/near");
     await expect(hero.getByRole("link", { name: /Open the map/i })).toBeVisible();
-    await expect(hero.getByRole("link", { name: /Plan my night/i })).toHaveAttribute("href", "/plan");
+    await expect(hero.getByRole("link", { name: /Plan with friends/i })).toHaveAttribute("href", "/plan");
     const primary = hero.locator(".lpButtonPrimary");
     await expect(primary).toHaveCount(1);
     const box = await primary.boundingBox();
