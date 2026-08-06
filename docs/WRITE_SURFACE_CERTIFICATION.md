@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 78 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 88 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -20,7 +20,8 @@ CI until this certification is deliberately updated.
 > invite-link creation and same-journey signup claim) → 75 (private Social
 > product-account migration) → 77 (verified Social post creation and item
 > editing or recoverable removal) → 78 (consolidated verified Social
-> interactions and governance). Account onboarding
+> interactions and governance) → 79 (verified photo-tag consent) → 80 (named
+> staff Social post moderation) → 88 (Social Crew authority routes). Account onboarding
 > replaces the earlier identity claim POST, so its route does not change the
 > count.
 > Token-gated GET
@@ -29,7 +30,8 @@ CI until this certification is deliberately updated.
 > moderator-lane reads, the operator
 > own-claim / moderator queue reads, the per-venue community price and venue
 > signal read, the base-pub provisional-mark read, the community-observation
-> review queue read, the weather-matched Recommendation read) are
+> review queue read, the weather-matched Recommendation read, and the Social
+> Crew member read) are
 > deliberately excluded from the
 > mutating-verb inventory. The number is a merge-conflict coordination point
 > across in-flight branches — reconcile it (not silently overwrite) when branches
@@ -201,6 +203,62 @@ moderation state, revision or timestamp is accepted from the request body.
   post, media audit, or tag consent history.
 - **Failure:** missing named staff authority and held-row mismatches use a
   private denied response. No partial moderation result is returned.
+
+### Social Crew authority routes (routes 81-88)
+
+All eight route files resolve a verified Social actor before parameter, header,
+or bounded JSON reads. No body can assert account ownership, role authority, or
+an owner. JSON objects use exact keys, so unknown keys fail. Every mutation
+requires a header-only `Idempotency-Key` of 16 to 128 trimmed characters. Body
+fallback is not supported. A salted stable-profile budget limits writes to 30
+per minute. Every success and failure is `private, no-store` JSON. Statuses are
+stable: 401 for sign-in, 403 for Social policy, 404 for unknown or protected
+denial, 409 for write conflict, 422 for invalid input, 429 for the write budget,
+and 503 for unavailable authority or storage. Store transactions re-check
+membership, current reciprocal follows, blocks, role, state, and revision.
+
+#### `app/api/social/crews` (route 81)
+
+`POST` binds one existing Planned Night. Creation alone reads the one-time
+legacy host capability from the `Authorization` bearer header. Body accepts
+only Plan ID and Crew visibility. Capability is never returned or stored.
+
+#### `app/api/social/crews/[crewId]` (route 82)
+
+`PATCH` changes visibility through owner authority and an expected authority
+revision. Sibling `GET` returns only the projected Crew DTO and is not a
+mutating route.
+
+#### `app/api/social/crews/[crewId]/invitations` (route 83)
+
+`POST` invites one stable target profile. It accepts no target account ID or
+caller role.
+
+#### `app/api/social/crews/[crewId]/invitations/[invitationId]` (route 84)
+
+`PATCH` lets target accept or decline. `DELETE` lets current owner or cohost
+revoke a pending invitation. Neither method reads legacy host capability.
+
+#### `app/api/social/crews/[crewId]/join-requests` (route 85)
+
+`POST` requests membership for verified actor. `DELETE` cancels that actor's
+pending request. Neither body accepts another requester.
+
+#### `app/api/social/crews/[crewId]/join-requests/[requestId]` (route 86)
+
+`PATCH` accepts or declines one scoped Join Request. Durable authority decides
+whether actor is current owner or cohost.
+
+#### `app/api/social/crews/[crewId]/members/[memberId]` (route 87)
+
+`PATCH` changes cohost or member role, or transfers ownership. `DELETE` removes
+one non-owner. Path uses scoped Crew member ID, never account ID or Plan member
+ID.
+
+#### `app/api/social/crews/[crewId]/leave` (route 88)
+
+`POST` leaves as verified actor. Self-leave stays available after friendship
+loss or a block; owner leave remains a durable conflict until ownership moves.
 
 ### `app/api/push-tokens` — native/web push registration (route 61)
 

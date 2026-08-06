@@ -12,7 +12,7 @@ const CERTIFICATION = readFileSync(
 // Mutating handlers are exported either as `export async function POST` or, when
 // wrapped by an observation seam like `withRouteTiming`, as `export const POST =
 // …`. Both forms must stay certified.
-const MUTATION_EXPORT = /export (?:async function|const) (POST|PUT|PATCH|DELETE)\b/;
+const MUTATION_EXPORT = /export (?:(?:async )?function|const) (POST|PUT|PATCH|DELETE)\b/;
 
 function routeFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -113,10 +113,11 @@ describe("mutating API surface certification", () => {
     // the earlier identity claim POST, so removing the superseded
     // contribution-age route returns the inventory to 74. The protected Social
     // account-migration POST adds route 75. Task 6 adds verified tag-consent
-    // POST route 79 and named-staff Social post moderation POST route 80. The
+    // POST route 79 and named-staff Social post moderation POST route 80.
+    // Social Crew authority adds routes 81-88. The
     // deliberate merge-coordination point: any branch adding a mutating route
     // bumps it in the same commit (docs/WRITE_SURFACE_CERTIFICATION.md).
-    expect(mutationRoutes).toHaveLength(80);
+    expect(mutationRoutes).toHaveLength(88);
   });
 
   it("certifies both verified Social post write routes", () => {
@@ -147,6 +148,31 @@ describe("mutating API surface certification", () => {
     expect(section).toMatch(/held moderation/i);
     expect(section).toMatch(/named staff/i);
     expect(section).toMatch(/safety floors\s+stay\s+open/i);
+  });
+
+  it("certifies every verified Social Crew membership route", () => {
+    const section = CERTIFICATION.match(
+      /### Social Crew authority routes[\s\S]*?(?=\n### `app\/api\/push-tokens`)/,
+    )?.[0] ?? "";
+    const routes = [
+      "app/api/social/crews",
+      "app/api/social/crews/[crewId]",
+      "app/api/social/crews/[crewId]/invitations",
+      "app/api/social/crews/[crewId]/invitations/[invitationId]",
+      "app/api/social/crews/[crewId]/join-requests",
+      "app/api/social/crews/[crewId]/join-requests/[requestId]",
+      "app/api/social/crews/[crewId]/members/[memberId]",
+      "app/api/social/crews/[crewId]/leave",
+    ];
+
+    for (const route of routes) expect(section).toContain(`\`${route}\``);
+    expect(section).toMatch(/verified Social actor/i);
+    expect(section).toMatch(/Idempotency-Key/);
+    expect(section).toMatch(/16 to 128/);
+    expect(section).toMatch(/private, no-store/);
+    expect(section).toMatch(/401[\s\S]*403[\s\S]*404[\s\S]*409[\s\S]*422[\s\S]*429[\s\S]*503/);
+    expect(section).toMatch(/creation alone[\s\S]*Authorization/i);
+    expect(section).toMatch(/unknown keys/i);
   });
 
   it("gives every mutating route an abuse or authority boundary", () => {
