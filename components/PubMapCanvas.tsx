@@ -31,14 +31,12 @@ import {
   loadPoisFromPath,
   LONDON_POIS_PATH,
   POI_CATEGORY_META,
-  TRANSPORT_CATEGORIES,
   type PoiCategory,
 } from "@/lib/pois";
 import {
   defaultPoiHidden,
   defaultPoiHiddenForViewport,
   defaultPoiHiddenMobile,
-  isTransitNetworkVisible,
 } from "@/lib/poiToggleGroups";
 import MapLayersControl from "@/components/map/MapLayersControl";
 import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
@@ -70,7 +68,7 @@ import {
 } from "@/components/map/canvas/geojson";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import {
-  AMBIENT_CATEGORIES, poiFilter, transportFilter,
+  applyPoiCategoryVisibility,
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
   pinEntranceIconSizeExpr, pinEntranceIconOpacityExpr,
   selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, pinPriceLabelExpr,
@@ -1445,6 +1443,10 @@ export default function PubMapCanvas({
               selectedId: selectedIdRef.current,
               selectionMuteStore: selectionMuteStoreRef.current,
             });
+            // Re-apply chip state after deferred layers exist. A toggle that
+            // ran before idle could only setFilter POI layers; tube-lines-*
+            // were missing then, so their visibility must catch up here.
+            applyPoiCategoryVisibility(map, poiHiddenRef.current);
           } catch {
             // Transit is additive; never block the pub map on overlay failure.
           }
@@ -2573,29 +2575,24 @@ export default function PubMapCanvas({
     };
   }, [mapReady, applyToMap, poisPath]);
 
-  // POI category toggles → layer filters (kept in a ref for theme rebuilds).
-  // Transport layers filter by category+rank; ambient dots by category only.
+  // POI category toggles → live layer filters + tube-line visibility.
+  // Structural readiness only: setFilter/setLayoutProperty on existing layers
+  // is safe after style.load. applyToMap waits on isStyleLoaded() (tiles too),
+  // which can stay false for seconds after first paint — and queued writes only
+  // flush on the NEXT style.load, so chip toggles looked on while layers stayed
+  // none until a theme swap. Same gate pattern as applyRouteData.
   useEffect(() => {
     poiHiddenRef.current = poiHidden;
     if (!mapReady) return;
-    applyToMap("pois:filters", (map) => {
-      const ambient = poiFilter(poiHidden, AMBIENT_CATEGORIES);
-      const transportAll = poiFilter(poiHidden, TRANSPORT_CATEGORIES);
-      const setFilter = (layer: string, filter: maplibregl.FilterSpecification) => {
-        if (map.getLayer(layer)) map.setFilter(layer, filter);
-      };
-      setFilter("pois-dot", ambient);
-      setFilter("pois-label", ambient);
-      setFilter("pois-transport-major", transportFilter(poiHidden, true));
-      setFilter("pois-transport-minor", transportFilter(poiHidden, false));
-      setFilter("pois-transport-label", transportAll);
-      // The coloured tube-line network toggles with Tube only (stations stay independent).
-      const tubeVisibility = isTransitNetworkVisible(poiHidden) ? "visible" : "none";
-      for (const layer of ["tube-lines-casing", "tube-lines-color", "tube-lines-label"]) {
-        if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", tubeVisibility);
-      }
-    });
-  }, [poiHidden, mapReady, applyToMap]);
+    const map = mapRef.current;
+    if (!map) return;
+    const run = (m: maplibregl.Map) => applyPoiCategoryVisibility(m, poiHidden);
+    if (styleStructureReadyRef.current) {
+      run(map);
+    } else {
+      pendingUpdatesRef.current.set("pois:filters", run);
+    }
+  }, [poiHidden, mapReady]);
 
   // Route + selection ring → sources/filter.
   useEffect(() => {

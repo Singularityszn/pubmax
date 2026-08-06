@@ -1,18 +1,25 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type * as maplibregl from "maplibre-gl";
 
 import {
-  poiFilter,
-  transportFilter,
+  AMBIENT_CATEGORIES,
+  applyPoiCategoryVisibility,
   opportunityForFeature,
+  pinEntranceIconOpacityExpr,
+  pinEntranceIconSizeExpr,
+  pinEntranceLocalT,
+  pinEntranceLocalTExpr,
+  PIN_ICON_SIZE_EXPR,
+  POI_AMBIENT_LAYERS,
+  POI_TRANSPORT_LAYERS,
+  poiFilter,
   pubIconOpacityExpr,
   glowPulsePaint,
   hashEntranceSeed,
-  pinEntranceLocalT,
-  pinEntranceLocalTExpr,
-  pinEntranceIconSizeExpr,
-  pinEntranceIconOpacityExpr,
-  PIN_ICON_SIZE_EXPR,
   selectedPinIconSizeExpr,
+  transportFilter,
+  TUBE_LINE_LAYERS,
+  TUBE_LINE_OFFSET_EXPR,
 } from "@/components/map/canvas/filters";
 import { SELECTED_PIN_SIZE_SCALE } from "@/components/map/canvas/easing";
 import {
@@ -28,6 +35,11 @@ import {
 } from "@/components/map/canvas/tokens";
 import type { PoiCategory } from "@/lib/pois";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
+import {
+  defaultPoiHiddenMobile,
+  POI_TOGGLE_GROUPS,
+  togglePoiGroup,
+} from "@/lib/poiToggleGroups";
 
 function hiddenMap(hidden: Partial<Record<PoiCategory, boolean>> = {}): Record<PoiCategory, boolean> {
   return new Proxy(hidden as Record<PoiCategory, boolean>, {
@@ -363,5 +375,99 @@ describe("selectedPinIconSizeExpr", () => {
       1.05 * SELECTED_PIN_SIZE_SCALE,
     );
     expect(evalIconSizeExpr(expr, { id: "pub-2", story: true }, 15)).toBeCloseTo(1.05);
+  });
+});
+
+describe("TUBE_LINE_OFFSET_EXPR", () => {
+  it("keeps zoom as the top-level interpolate input (MapLibre rejects nested zoom)", () => {
+    // Regression: nested ["*", index, ["interpolate", …, ["zoom"], …]] made
+    // tube-lines-casing/color fail addLayer validation, so only the label
+    // layer mounted and the coloured network never painted.
+    expect(TUBE_LINE_OFFSET_EXPR[0]).toBe("interpolate");
+    expect(TUBE_LINE_OFFSET_EXPR[2]).toEqual(["zoom"]);
+    expect(zoomPaths(TUBE_LINE_OFFSET_EXPR)).toEqual([[2]]);
+  });
+});
+
+describe("applyPoiCategoryVisibility (live chip → map propagation)", () => {
+  function makeMap(layerIds: string[]) {
+    const layers = new Set(layerIds);
+    const setFilter = vi.fn();
+    const setLayoutProperty = vi.fn();
+    const map = {
+      getLayer: (id: string) => (layers.has(id) ? ({ id } as maplibregl.LayerSpecification) : undefined),
+      setFilter,
+      setLayoutProperty,
+    };
+    return { map: map as unknown as maplibregl.Map, setFilter, setLayoutProperty, layers };
+  }
+
+  it("propagates a Tube-on toggle into transport filters and tube-line visibility", () => {
+    const allLayers = [
+      ...POI_AMBIENT_LAYERS,
+      ...POI_TRANSPORT_LAYERS,
+      ...TUBE_LINE_LAYERS,
+    ];
+    const { map, setFilter, setLayoutProperty } = makeMap(allLayers);
+    // Mobile default: everything hidden. Turn Tube on alone.
+    const tube = POI_TOGGLE_GROUPS.find((g) => g.id === "tube")!;
+    const hidden = togglePoiGroup(defaultPoiHiddenMobile(), tube);
+
+    applyPoiCategoryVisibility(map, hidden);
+
+    // Transport major/minor/label must be re-filtered so tube stations appear.
+    const filterLayers = setFilter.mock.calls.map((c) => c[0]);
+    expect(filterLayers).toEqual(
+      expect.arrayContaining([
+        "pois-transport-major",
+        "pois-transport-minor",
+        "pois-transport-label",
+        "pois-dot",
+        "pois-label",
+      ]),
+    );
+    // Tube network lines become visible with the Tube chip.
+    for (const layer of TUBE_LINE_LAYERS) {
+      expect(setLayoutProperty).toHaveBeenCalledWith(layer, "visibility", "visible");
+    }
+  });
+
+  it("hides the tube network when Tube turns off, without requiring a scene rebuild", () => {
+    const { map, setLayoutProperty } = makeMap([...TUBE_LINE_LAYERS]);
+    const hidden = { ...defaultPoiHiddenMobile(), tube: true };
+    applyPoiCategoryVisibility(map, hidden);
+    for (const layer of TUBE_LINE_LAYERS) {
+      expect(setLayoutProperty).toHaveBeenCalledWith(layer, "visibility", "none");
+    }
+  });
+
+  it("propagates Parks on into ambient filters (and is a no-op for missing layers)", () => {
+    // Only ambient layers exist — deferred transit has not landed yet.
+    const { map, setFilter, setLayoutProperty } = makeMap([...POI_AMBIENT_LAYERS]);
+    const park = POI_TOGGLE_GROUPS.find((g) => g.id === "park")!;
+    const hidden = togglePoiGroup(defaultPoiHiddenMobile(), park);
+
+    applyPoiCategoryVisibility(map, hidden);
+
+    expect(setFilter).toHaveBeenCalledWith("pois-dot", poiFilter(hidden, AMBIENT_CATEGORIES));
+    expect(setFilter).toHaveBeenCalledWith("pois-label", poiFilter(hidden, AMBIENT_CATEGORIES));
+    // Tube layers not present: do not throw, do not invent layout writes.
+    expect(setLayoutProperty).not.toHaveBeenCalled();
+  });
+
+  it("both directions: Parks on then off rewrites ambient filters each time", () => {
+    const { map, setFilter } = makeMap([...POI_AMBIENT_LAYERS]);
+    const park = POI_TOGGLE_GROUPS.find((g) => g.id === "park")!;
+    const on = togglePoiGroup(defaultPoiHiddenMobile(), park);
+    const off = togglePoiGroup(on, park);
+
+    applyPoiCategoryVisibility(map, on);
+    applyPoiCategoryVisibility(map, off);
+
+    const lastDot = setFilter.mock.calls.filter((c) => c[0] === "pois-dot").at(-1)?.[1];
+    expect(lastDot).toEqual(poiFilter(off, AMBIENT_CATEGORIES));
+    // Off = empty ambient visible list (mobile default has park hidden again).
+    const literal = (lastDot as unknown as [string, unknown, [string, string[]]])[2][1];
+    expect(literal).not.toContain("park");
   });
 });
