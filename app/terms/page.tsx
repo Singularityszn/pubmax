@@ -15,7 +15,7 @@ import "../legal.css";
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
   "Plain-language terms covering what PUBMAXX is, what you can post, what map prices mean, and where our responsibility ends.";
-const LAST_UPDATED = "5 August 2026";
+const LAST_UPDATED = "6 August 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -125,6 +125,34 @@ export default function TermsPage() {
           else. You can stop using it whenever you like, and ask us to delete
           your account and its private profile data. See the{" "}
           <Link href="/privacy" className="legalLink">privacy notice</Link>.
+        </p>
+      </section>
+
+      <section className="legalSection" aria-labelledby="crews">
+        <h2 id="crews" className="legalH2">Social Crews</h2>
+        <p className="legalBody">
+          A Social Crew takes its name from the linked Planned Night title. Its
+          owner chooses whether it is private or friends-only. Active members
+          who remain Mutual with the owner can read the roster and Crew-bound
+          Plan. A private Crew stays with the owner and those active members.
+          Friends visibility gives the owner&rsquo;s current Mutuals a limited
+          preview, not the roster or full Plan.
+        </p>
+        <p className="legalBody">
+          Owners and cohosts can invite eligible Mutuals and decide Join
+          Requests. An invitation is for its named recipient and ends at its
+          expiry. A request is for its requester. Blocks stop access in either
+          direction. Do not invite people who do not want to join, share Crew
+          details outside its visibility, or use another person&rsquo;s account.
+        </p>
+        <p className="legalBody">
+          The owner controls visibility and ownership changes. The owner can
+          change roles. The owner or a cohost can remove a non-owner member
+          within their authority. Members can leave, but an owner must transfer
+          ownership first.
+          Leaving or removal doesn&rsquo;t erase the membership, invitation or
+          decision history. Current members can still read Crew-bound Plan data
+          under the Crew rules.
         </p>
       </section>
 

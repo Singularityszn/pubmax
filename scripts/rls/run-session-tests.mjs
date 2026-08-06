@@ -18,6 +18,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "../..");
+const RLS_SUITES = [
+  "__tests__/rlsWave2Session.test.ts",
+  "__tests__/socialCrewMigration.test.ts",
+  "__tests__/socialCrewLegacyRoutesRls.test.ts",
+];
 
 const { missingPostgresReason } = await import(
   pathToFileURL(join(__dirname, "session-harness.mjs")).href
@@ -36,7 +41,9 @@ function printLoudSkip(reason) {
     "",
     "╔══════════════════════════════════════════════════════════════════════╗",
     "║  RLS SESSION SUITE SKIPPED - THIS IS NOT A PASS                      ║",
-    "║  Suite: __tests__/rlsWave2Session.test.ts  (npm run test:rls)        ║",
+    "║  Suites: __tests__/rlsWave2Session.test.ts                          ║",
+    "║          __tests__/socialCrewMigration.test.ts  (npm run test:rls)  ║",
+    "║          __tests__/socialCrewLegacyRoutesRls.test.ts                ║",
     "╠══════════════════════════════════════════════════════════════════════╣",
     "║  Effective RLS tests need local PostgreSQL 16+ (initdb/postgres/psql)║",
     "║  They were NOT executed. A green CI step with this banner still means║",
@@ -69,7 +76,7 @@ const result = spawnSync(
   vitestBin,
   [
     "run",
-    "__tests__/rlsWave2Session.test.ts",
+    ...RLS_SUITES,
     // Verbose + no silent: each test name and any skip reason stays in the log.
     "--reporter=verbose",
     "--silent=false",

@@ -9,7 +9,7 @@ import {
   type MatePreference,
 } from "@/lib/groupPrefs";
 import { isPlanId } from "@/lib/plan";
-import { planMemberIdentityResult } from "@/lib/planStore";
+import { legacyPlanMemberIdentityResult } from "@/lib/planStore";
 import { selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -50,8 +50,8 @@ function validKey(value: unknown): value is string {
 }
 
 async function authorizedMember(planId: string, token: unknown) {
-  const result = await planMemberIdentityResult(planId, token);
-  if (!result.ok) return { ok: false as const, error: "error" as const };
+  const result = await legacyPlanMemberIdentityResult(planId, token);
+  if (!result.ok) return { ok: false as const, error: result.error };
   const identity = result.identity;
   if (!identity || (identity.role !== "host" && !identity.collaborationAuthorized)) {
     return { ok: false as const, error: "forbidden" as const };
