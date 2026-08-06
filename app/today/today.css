@@ -60,6 +60,11 @@
   gap: 12px;
 }
 
+.todayBriefColumn,
+.todayExploreColumn {
+  display: contents;
+}
+
 .todayCard {
   display: flex;
   flex-direction: column;
@@ -634,5 +639,47 @@
   @keyframes todayHeadIn {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: none; }
+  }
+}
+
+@media (min-width: 1024px) {
+  .todayPage {
+    max-width: var(--content-max-wide, 1240px);
+    padding-inline: var(--page-gutter);
+  }
+
+  .todayHead {
+    max-width: 760px;
+    margin-top: 16px;
+    margin-bottom: 32px;
+  }
+
+  .todayTitle {
+    font-size: clamp(2.15rem, 3.2vw, 3.25rem);
+    max-width: 16ch;
+  }
+
+  .todayLede {
+    font-size: 1rem;
+  }
+
+  .todayStack {
+    display: grid;
+    grid-template-columns: minmax(0, 1.06fr) minmax(0, 0.94fr);
+    align-items: start;
+    gap: 24px;
+  }
+
+  .todayBriefColumn,
+  .todayExploreColumn {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 12px;
+  }
+
+  .todayFoot {
+    justify-content: flex-start;
+    margin-top: 32px;
   }
 }

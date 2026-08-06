@@ -2047,6 +2047,23 @@ html:not([data-theme="dark"]) .feedSpillCat svg {
     align-items: start;
     gap: 24px;
   }
+
+  .feedMain > .feedEmpty {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 420px;
+    max-width: none;
+    margin: 0;
+    padding: 56px 64px;
+    text-align: left;
+  }
+
+  .feedMain > .feedEmpty .emptyStateBody {
+    max-width: 52ch;
+    margin-inline: 0;
+  }
 }
 
 /* Desktop-only rail slot (D1): hidden on mobile so the feed stays

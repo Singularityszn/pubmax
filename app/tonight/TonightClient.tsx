@@ -29,8 +29,8 @@ import {
 
 import SiteNav from "@/components/nav/SiteNav";
 import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
-import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
+import TonightDealsLane from "./TonightDealsLane";
 import TonightConditionsStrip from "./TonightConditionsStrip";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
@@ -97,9 +97,10 @@ const UNDATED_SOURCE_LINE = "We can’t date these listings yet.";
 // breakpoint they stack under the main list (§4.11 main-list-first). Keeping the
 // branch in a helper holds TonightClient under the cyclomatic-complexity cap.
 function placeSecondaryLanes(below: boolean, lanes: ReactNode): { above: ReactNode; below: ReactNode } {
+  const wrapped = <div className="tonightSecondaryLanes">{lanes}</div>;
   return below
-    ? { above: null, below: <div className="tonightSecondaryLanes">{lanes}</div> }
-    : { above: lanes, below: null };
+    ? { above: null, below: wrapped }
+    : { above: wrapped, below: null };
 }
 
 // A thin night (0-2 confirmed listings) leaves the list short enough that the
@@ -266,7 +267,7 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
   const secondaryHeroes = groupedAll.map((group) => group.row);
   const secondaryLanes = (
     <>
-      <DealsTonightLane rows={secondaryHeroes} asOf={asOf} />
+      <TonightDealsLane rows={secondaryHeroes} />
       <MusicTonightLane rows={secondaryHeroes} asOf={asOf} />
     </>
   );
@@ -276,6 +277,10 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
     <main className="tonightPage" data-testid="tonight-screen">
       <SiteNav active="tonight" />
 
+      <div
+        className="tonightDesktopGrid"
+        data-secondary-placement={flags.tonightGrouping ? "below" : "above"}
+      >
       <header className="tonightHead">
         <div className="tonightEyebrowRow">
           <p className="tonightEyebrow">Tonight in London</p>
@@ -312,29 +317,31 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
         ) : null}
       </header>
 
-      <TonightConditionsStrip origin={origin} />
-      {/* Deals/Music secondary treatment. Flag off keeps their shipped position
-          here (above the main list) so the page is byte-identical to prod; flag on
-          moves them below the main list (§4.11 main-list-first). */}
-      {lanePlacement.above}
-      {/* Wide viewports place the strip plus this block in a sticky right rail
-          (tonight.css grid); below the breakpoint the rail block simply follows
-          the strip in flow. Area news needs a coarse area: the shared
-          location's nearest Night Area (never stored), else the heart of the
-          viewer's remembered patch — the area they TOLD us, so no new ask. */}
-      <div className="tonightRail">
-        <AreaNewsRail
-          area={
-            tonightNear
-              ? (nearestNightAreaForViewport("london", [
-                  tonightNear.near.lng,
-                  tonightNear.near.lat,
-                ])?.slug ?? null)
-              : null
-          }
-        />
-      </div>
+      <aside className="tonightContext" aria-label="Tonight at a glance">
+        <TonightConditionsStrip origin={origin} />
+        {/* Deals/Music secondary treatment. Flag off keeps their shipped position
+            here (above the main list); flag on moves them below the main list
+            (§4.11 main-list-first). The wrapper is display:contents below the
+            desktop breakpoint, so phone order and spacing stay unchanged. */}
+        {lanePlacement.above}
+        {/* Area news needs a coarse area: the shared location's nearest Night
+            Area (never stored), else the heart of the viewer's remembered patch.
+            This is the area they told us, so there is no new location ask. */}
+        <div className="tonightRail">
+          <AreaNewsRail
+            area={
+              tonightNear
+                ? (nearestNightAreaForViewport("london", [
+                    tonightNear.near.lng,
+                    tonightNear.near.lat,
+                  ])?.slug ?? null)
+                : null
+            }
+          />
+        </div>
+      </aside>
 
+      <div className="tonightPrimary">
       {loading ? (
         <p className="tonightStatus" role="status">
           Reading tonight&rsquo;s listings…
@@ -636,10 +643,6 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
         </>
       ) : null}
 
-      {/* Main-list-first (§4.11): under the canonical model the Deals/Music
-          treatment follows the main list instead of preceding it. */}
-      {lanePlacement.below}
-
       {thinNight ? (
         <section className="tonightQuiet" aria-label="While it's quiet">
           <p className="tonightQuietLede">
@@ -734,6 +737,13 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
           ) : null}
         </section>
       ) : null}
+      </div>
+
+      {/* Main-list-first (§4.11): under the canonical model the Deals/Music
+          treatment follows the main list on phones. Desktop CSS places this
+          direct grid child in the contextual rail. */}
+      {lanePlacement.below}
+      </div>
     </main>
   );
 }
