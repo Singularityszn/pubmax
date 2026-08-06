@@ -329,11 +329,17 @@ function joinRequestDecisionOrder(row: JoinRequestPreviewRow): number {
 export function socialCrewJoinRequestPreviewState(
   value: JoinRequestPreviewRow | readonly JoinRequestPreviewRow[] | null,
   now = new Date(),
+  latestRequestObserved = false,
 ): RawSocialCrew["joinRequestState"] {
   if (!Array.isArray(value)) {
     return previewStateFromLatest(value as JoinRequestPreviewRow | null, now);
   }
-  if (value.length === 0) return "none";
+  if (value.length === 0) {
+    if (latestRequestObserved) {
+      throw new Error("Social Crew Join Request data is unavailable.");
+    }
+    return "none";
+  }
   const rows = [...value];
   for (const item of rows) {
     if (typeof item.createdAt !== "string" || !Number.isFinite(Date.parse(item.createdAt))) {
@@ -456,7 +462,7 @@ async function loadCrewFromSupabase(
     expiresAt: request.expires_at,
     createdAt: request.created_at,
     decidedAt: request.decided_at,
-  })));
+  })), new Date(), latestRequest !== null);
 
   return {
     crewId: text(crewData.id),
