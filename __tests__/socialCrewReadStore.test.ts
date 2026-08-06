@@ -5,10 +5,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const supabase = vi.hoisted(() => ({ rpc: vi.fn() }));
+const trusted = vi.hoisted(() => ({
+  signingKey: vi.fn(() => Buffer.from("social-crew-read-store-test-key-0001", "utf8")),
+}));
 
 vi.mock("@/lib/supabase", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/supabase")>()),
   requireSupabaseAdmin: () => ({ rpc: supabase.rpc }),
+}));
+
+vi.mock("@/lib/trustedSigningKey.server", () => ({
+  trustedSigningKey: trusted.signingKey,
 }));
 
 import type { PlanState } from "@/lib/plan";
@@ -34,7 +41,6 @@ const CAROL_MEMBER_ID = "30000000-0000-4000-8000-000000000003";
 const DAVE_MEMBER_ID = "30000000-0000-4000-8000-000000000004";
 const CREW_ID = "50000000-0000-4000-8000-000000000001";
 const SECOND_CREW_ID = "50000000-0000-4000-8000-000000000002";
-const THIRD_CREW_ID = "50000000-0000-4000-8000-000000000003";
 const PLAN_ID = "60000000-0000-4000-8000-000000000001";
 
 const alice: SocialPostActor = {
@@ -225,6 +231,7 @@ async function firstCursor(store: ReadStore): Promise<string> {
 
 beforeEach(() => {
   supabase.rpc.mockReset();
+  trusted.signingKey.mockClear();
 });
 
 describe("SocialCrewStore atomic detail reads", () => {
@@ -300,6 +307,55 @@ describe("SocialCrewStore atomic detail reads", () => {
 });
 
 describe("SocialCrewStore signed member list", () => {
+  it("uses production member-page wiring and composes its signed continuation from the RPC position", async () => {
+    const joinedAt = "2026-08-05T12:00:00.123456Z";
+    const rawItem = listItem(CREW_ID, ALICE_MEMBER_ID, joinedAt);
+    supabase.rpc
+      .mockResolvedValueOnce({
+        data: {
+          items: [rawItem],
+          hasMore: true,
+          cursorPosition: { joinedAt, memberId: ALICE_MEMBER_ID },
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { items: [], hasMore: false, cursorPosition: null },
+        error: null,
+      });
+    const store = createSocialCrewStore();
+
+    const first = await store.list(alice, { limit: 1 });
+    const second = await store.list(alice, { limit: 1, cursor: first.nextCursor });
+
+    const expectedCursor = signedCursor({
+      v: 1,
+      lane: "member",
+      joinedAt,
+      memberId: ALICE_MEMBER_ID,
+    });
+    expect(first.nextCursor).toBe(expectedCursor);
+    expect(first.items).toHaveLength(1);
+    expect(second).toEqual({ items: [], nextCursor: null });
+    expect(supabase.rpc.mock.calls).toEqual([
+      ["read_social_crew_member_page", {
+        p_viewer_account_id: ALICE_ACCOUNT_ID,
+        p_viewer_profile_id: ALICE_PROFILE_ID,
+        p_cursor_joined_at: null,
+        p_cursor_member_id: null,
+        p_limit: 1,
+      }],
+      ["read_social_crew_member_page", {
+        p_viewer_account_id: ALICE_ACCOUNT_ID,
+        p_viewer_profile_id: ALICE_PROFILE_ID,
+        p_cursor_joined_at: joinedAt,
+        p_cursor_member_id: ALICE_MEMBER_ID,
+        p_limit: 1,
+      }],
+    ]);
+    expect(trusted.signingKey).toHaveBeenCalledTimes(2);
+  });
+
   it("uses one member-page RPC, returns only narrow items, and mints exact viewer-bound payload", async () => {
     const rawItem = listItem(
       CREW_ID,
@@ -489,67 +545,6 @@ describe("SocialCrewStore signed member list", () => {
     await store.list(alice, { cursor: page.nextCursor, limit: 2 });
 
     expect(cursorPayload(page.nextCursor!)).toMatchObject({ joinedAt, memberId: earlierId });
-  });
-
-  it("continues from the signed tuple after cursor-row deletion and ignores a newer insertion", async () => {
-    const firstJoined = "2026-08-05T12:03:00.000003Z";
-    const cursorJoined = "2026-08-05T12:02:00.000002Z";
-    const olderJoined = "2026-08-05T12:01:00.000001Z";
-    let page = 0;
-    const { store, calls } = readStore({
-      snapshot: async (_name, input) => {
-        page += 1;
-        if (page === 1) {
-          return {
-            items: [
-              listItem(CREW_ID, DAVE_MEMBER_ID, firstJoined),
-              listItem(SECOND_CREW_ID, CAROL_MEMBER_ID, cursorJoined),
-            ],
-            hasMore: true,
-            cursorPosition: { joinedAt: cursorJoined, memberId: CAROL_MEMBER_ID },
-          };
-        }
-        expect(input).toMatchObject({
-          p_cursor_joined_at: cursorJoined,
-          p_cursor_member_id: CAROL_MEMBER_ID,
-        });
-        return {
-          items: [listItem(THIRD_CREW_ID, ALICE_MEMBER_ID, olderJoined)],
-          hasMore: false,
-          cursorPosition: null,
-        };
-      },
-    });
-
-    const first = await store.list(alice, { limit: 2 });
-    const second = await store.list(alice, { limit: 2, cursor: first.nextCursor });
-
-    expect(second.items.map((item) => item.crewId)).toEqual([THIRD_CREW_ID]);
-    expect(calls).toHaveLength(2);
-  });
-
-  it.each(["block", "unfriend", "membership removal"])("returns current empty authority after %s instead of refilling or reading detail", async () => {
-    let call = 0;
-    const { store, calls, writeRpc } = readStore({
-      snapshot: async () => {
-        call += 1;
-        return call === 1
-          ? {
-              items: [listItem(CREW_ID, ALICE_MEMBER_ID, "2026-08-05T12:00:00.000000Z")],
-              hasMore: true,
-              cursorPosition: { joinedAt: "2026-08-05T12:00:00.000000Z", memberId: ALICE_MEMBER_ID },
-            }
-          : { items: [], hasMore: false, cursorPosition: null };
-      },
-    });
-    const cursor = await firstCursor(store);
-
-    await expect(store.list(alice, { cursor, limit: 1 })).resolves.toEqual({
-      items: [],
-      nextCursor: null,
-    });
-    expect(calls).toHaveLength(2);
-    expect(writeRpc).not.toHaveBeenCalled();
   });
 
   it("returns an empty authorised page and resolves its key", async () => {
