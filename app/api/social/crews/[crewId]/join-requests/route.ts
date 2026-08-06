@@ -12,6 +12,7 @@ import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { createSocialCrewStore } from "@/lib/socialCrewStore";
 
 type Context = { params: Promise<{ crewId: string }> };
+type Access = Awaited<ReturnType<typeof requireVerifiedSocialActor>>;
 
 const store = createSocialCrewStore();
 
@@ -19,8 +20,8 @@ async function changeJoinRequest(
   request: Request,
   context: Context,
   action: "request" | "cancel",
+  access: Access,
 ): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
   const authority = await socialCrewActor(access, true);
   if (!authority.ok) return authority.response;
 
@@ -40,9 +41,11 @@ async function changeJoinRequest(
 }
 
 export async function POST(request: Request, context: Context): Promise<Response> {
-  return changeJoinRequest(request, context, "request");
+  const access = await requireVerifiedSocialActor();
+  return changeJoinRequest(request, context, "request", access);
 }
 
 export async function DELETE(request: Request, context: Context): Promise<Response> {
-  return changeJoinRequest(request, context, "cancel");
+  const access = await requireVerifiedSocialActor();
+  return changeJoinRequest(request, context, "cancel", access);
 }

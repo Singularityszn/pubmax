@@ -187,6 +187,47 @@ beforeEach(() => {
 
 describe("Social Crew route authority and HTTP policy", () => {
   it.each([
+    ["Crew creation", (request: Request) => createCrew(request)],
+    ["Crew read", readCrew],
+    ["Crew visibility", changeCrew],
+    ["invitation creation", inviteMember],
+    ["invitation decision", decideInvitation],
+    ["invitation revocation", revokeInvitation],
+    ["Join Request creation", requestJoin],
+    ["Join Request cancellation", cancelJoinRequest],
+    ["Join Request decision", decideJoinRequest],
+    ["member change", changeMember],
+    ["member removal", removeMember],
+    ["leave", leaveCrew],
+  ] as const)("resolves actor before request data for %s", async (_label, invoke) => {
+    state.access = {
+      ok: false,
+      status: 401,
+      code: "SOCIAL_SIGN_IN_REQUIRED",
+      error: "Sign in to use Social.",
+    };
+    let parameterReads = 0;
+    const routeContext = Object.defineProperty({}, "params", {
+      get() {
+        parameterReads += 1;
+        throw new Error("Route parameters were read before actor authority.");
+      },
+    }) as never;
+    const deniedRequest = new Request("http://localhost/api/social/crews/not-read", {
+      method: "POST",
+      body: "{not-json",
+    });
+
+    const response = await invoke(deniedRequest, routeContext);
+
+    expect(response.status).toBe(401);
+    expectPrivate(response);
+    expect(parameterReads).toBe(0);
+    expect(deniedRequest.bodyUsed).toBe(false);
+    for (const operation of Object.values(store)) expect(operation).not.toHaveBeenCalled();
+  });
+
+  it.each([
     [
       { ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED", error: "Sign in to use Social." },
       401,
@@ -568,6 +609,37 @@ describe("Social Crew membership routes", () => {
     expect(left.status).toBe(200);
     expect(store.leave).toHaveBeenCalledWith(actor, {
       crewId: CREW_ID,
+      idempotencyKey: IDEMPOTENCY_KEY,
+    });
+  });
+
+  it.each([
+    2_147_483_648,
+    Number.MAX_SAFE_INTEGER,
+    Number.MAX_SAFE_INTEGER + 1,
+  ])("rejects authority revision %s outside PostgreSQL int4", async (expectedAuthorityRevision) => {
+    const response = await changeCrew(mutationRequest(
+      `http://localhost/api/social/crews/${CREW_ID}`,
+      "PATCH",
+      { visibility: "private", expectedAuthorityRevision },
+    ), context({ crewId: CREW_ID }));
+
+    expect(response.status).toBe(422);
+    expect(store.updateVisibility).not.toHaveBeenCalled();
+  });
+
+  it("accepts the maximum PostgreSQL int4 authority revision", async () => {
+    const response = await changeCrew(mutationRequest(
+      `http://localhost/api/social/crews/${CREW_ID}`,
+      "PATCH",
+      { visibility: "private", expectedAuthorityRevision: 2_147_483_647 },
+    ), context({ crewId: CREW_ID }));
+
+    expect(response.status).toBe(200);
+    expect(store.updateVisibility).toHaveBeenCalledWith(actor, {
+      crewId: CREW_ID,
+      visibility: "private",
+      expectedAuthorityRevision: 2_147_483_647,
       idempotencyKey: IDEMPOTENCY_KEY,
     });
   });
