@@ -62,6 +62,28 @@ describe("Social post store visibility and feeds", () => {
     });
   });
 
+  it("lets only the owner directly read visible pending and held posts", async () => {
+    const store = createMemorySocialPostStore();
+    const post = await store.create(alice, fields({ visibility: "private" }));
+
+    await expect(store.readOwned(post.id, alice)).resolves.toMatchObject({
+      id: post.id,
+      moderationState: "pending",
+      ownedByViewer: true,
+    });
+    await expect(store.read(post.id, bob)).resolves.toBeNull();
+
+    await store.processModerationQueue({
+      moderate: async () => ({ decision: "needs_review" }),
+    });
+    await expect(store.readOwned(post.id, alice)).resolves.toMatchObject({
+      id: post.id,
+      moderationState: "needs_review",
+      ownedByViewer: true,
+    });
+    await expect(store.read(post.id, bob)).resolves.toBeNull();
+  });
+
   it("keeps moderation outages queued and never treats them as clean", async () => {
     const store = createMemorySocialPostStore();
     const post = await store.create(alice, fields());

@@ -160,6 +160,8 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
       .toBe(`${MEDIA}:Photo night\n\n#night\n\nPhoto: Alice and Bob outside the Venue`);
     expect(db.sql(`select state from public.social_post_tag_proposals where post_id='${postId}' and target_profile_id='${BOB}'`))
       .toBe("proposed");
+    expect(db.sql(`select body from public.read_social_post_outbox_item('${postId}','${ALICE}')`)).toBe("Photo night");
+    expect(db.sql(`select count(*) from public.read_social_post('${postId}','${BOB}')`)).toBe("0");
     expect(db.sql("select has_table_privilege('authenticated','public.social_post_media','select')")).toBe("f");
     expect(db.sql("select has_function_privilege('authenticated','public.create_social_post(uuid,text,text,text,text,text,text,text[],text,uuid,text,text,integer,integer,integer,text,text[])','execute')")).toBe("f");
     expect(db.sql("select has_function_privilege('service_role','public.set_social_comment_policy(uuid,uuid,text)','execute')")).toBe("f");

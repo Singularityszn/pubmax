@@ -71,7 +71,8 @@ export async function GET(_request: Request, context: Context): Promise<Response
   const { postId } = await context.params;
   if (!validId(postId)) return privateJson({ code: "NOT_FOUND", error: "Post not found." }, { status: 404 });
   try {
-    const post = await socialPostStore().read(postId, access.actor);
+    const store = socialPostStore();
+    const post = await store.read(postId, access.actor) ?? await store.readOwned(postId, access.actor);
     const tags = post?.photo
       ? (await socialPostConsentStore.approvedTags(access.actor, [post.id])).get(post.id) ?? []
       : [];

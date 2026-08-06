@@ -11,6 +11,7 @@ alter table public.social_notifications add constraint social_notifications_kind
 drop function if exists public.moderate_social_post(uuid,uuid,uuid,text);
 drop function if exists public.read_social_post_moderation_queue(uuid,integer);
 drop function if exists public.read_social_post_outbox(uuid,timestamptz,uuid,integer);
+drop function if exists public.read_social_post_outbox_item(uuid,uuid);
 drop function if exists public.read_social_post_media(uuid,uuid);
 drop function if exists public.read_social_tag_inbox(uuid,text,timestamptz,uuid,integer);
 drop function if exists public.read_social_post_tags(uuid,uuid);

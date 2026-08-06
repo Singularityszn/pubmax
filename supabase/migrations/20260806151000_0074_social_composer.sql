@@ -434,6 +434,20 @@ as $$
     and not public.social_interaction_blocked(p_viewer_profile_id, post.author_profile_id);
 $$;
 
+create function public.read_social_post_outbox_item(p_post_id uuid, p_owner uuid)
+returns setof public.social_posts
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select post.*
+  from public.social_posts post
+  where post.id = p_post_id
+    and post.author_profile_id = p_owner
+    and post.status = 'visible';
+$$;
+
 create or replace function public.read_social_post_feed(
   p_viewer_profile_id uuid,
   p_lane text,
@@ -1083,6 +1097,7 @@ revoke all on function public.read_social_post_tags(uuid,uuid) from public,anon,
 revoke all on function public.read_social_post_tags_many(uuid,uuid[]) from public,anon,authenticated;
 revoke all on function public.read_social_tag_inbox(uuid,text,timestamptz,uuid,integer) from public,anon,authenticated;
 revoke all on function public.read_social_post_media(uuid,uuid) from public,anon,authenticated;
+revoke all on function public.read_social_post_outbox_item(uuid,uuid) from public,anon,authenticated;
 revoke all on function public.read_social_post_outbox(uuid,timestamptz,uuid,integer) from public,anon,authenticated;
 revoke all on function public.read_social_post_moderation_queue(uuid,integer) from public,anon,authenticated;
 revoke all on function public.moderate_social_post(uuid,uuid,uuid,text) from public,anon,authenticated;
@@ -1104,6 +1119,7 @@ grant execute on function public.social_post_digest(public.social_posts),
   public.act_social_post_tag(uuid,uuid,text,integer),public.read_social_post_tags(uuid,uuid),
   public.read_social_post_tags_many(uuid,uuid[]),
   public.read_social_tag_inbox(uuid,text,timestamptz,uuid,integer),public.read_social_post_media(uuid,uuid),
+  public.read_social_post_outbox_item(uuid,uuid),
   public.read_social_post_outbox(uuid,timestamptz,uuid,integer),public.read_social_post_moderation_queue(uuid,integer),
   public.moderate_social_post(uuid,uuid,uuid,text)
   to service_role;

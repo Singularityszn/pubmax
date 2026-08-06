@@ -114,6 +114,7 @@ export type SocialPostStore = {
   ): Promise<SocialPostDTO>;
   remove(id: string, actor: SocialPostActor, expectedMutationVersion: number, idempotencyKey: string): Promise<boolean>;
   read(id: string, viewer: SocialPostActor): Promise<SocialPostDTO | null>;
+  readOwned(id: string, owner: SocialPostActor): Promise<SocialPostDTO | null>;
   readServerProjection(id: string, viewer: SocialPostActor): Promise<SocialPostServerProjection | null>;
   feed(viewer: SocialPostActor, input: SocialPostFeedInput): Promise<SocialPostFeedPage>;
   processModerationQueue(
@@ -500,6 +501,12 @@ export function createMemorySocialPostStore(options: {
       const graph = await relationships(viewer);
       return canRead(post, viewer, graph) ? projectedPost(post, viewer, graph) : null;
     },
+    async readOwned(id, owner) {
+      const post = rows.get(id);
+      return post?.status === "visible" && post.authorProfileId === owner.profileId
+        ? socialPostDTO(post, { exactVenue: true, viewerProfileId: owner.profileId })
+        : null;
+    },
     async readServerProjection(id, viewer) {
       const post = rows.get(id);
       if (!post) return null;
@@ -774,6 +781,21 @@ export const supabaseSocialPostStore: SocialPostStore = {
       const post = socialPostFromRow(row);
       return socialPostDTO(post, { exactVenue: Boolean(post.venueId), viewerProfileId: viewer.profileId });
     }, () => memorySocialPostStore.read(id, viewer), false);
+  },
+  async readOwned(id, owner) {
+    return durableOrMemory(async () => {
+      const { data, error } = await requireSupabaseAdmin().rpc("read_social_post_outbox_item", {
+        p_post_id: id,
+        p_owner: owner.profileId,
+      });
+      if (error) throw error;
+      const row = (data ?? [])[0];
+      if (!row) return null;
+      return socialPostDTO(socialPostFromRow(row), {
+        exactVenue: true,
+        viewerProfileId: owner.profileId,
+      });
+    }, () => memorySocialPostStore.readOwned(id, owner), false);
   },
   async readServerProjection(id, viewer) {
     return durableOrMemory(async () => {

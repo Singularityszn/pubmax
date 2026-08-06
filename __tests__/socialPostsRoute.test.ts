@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   calls: [] as Array<{ name: string; args: unknown[] }>,
   limitCalls: [] as unknown[][],
   read: null as unknown,
+  ownedRead: null as unknown,
   limited: false,
   frozen: false,
   accessCalls: 0,
@@ -132,6 +133,10 @@ vi.mock("@/lib/socialPostStore", async (importOriginal) => {
         state.calls.push({ name: "read", args });
         return state.read;
       },
+      readOwned: async (...args: unknown[]) => {
+        state.calls.push({ name: "readOwned", args });
+        return state.ownedRead;
+      },
       edit: async (...args: unknown[]) => {
         state.calls.push({ name: "edit", args });
         if (state.editError) throw state.editError;
@@ -168,6 +173,7 @@ beforeEach(() => {
   state.calls = [];
   state.limitCalls = [];
   state.read = null;
+  state.ownedRead = null;
   state.limited = false;
   state.frozen = false;
   state.accessCalls = 0;
@@ -504,7 +510,37 @@ describe("/api/social/posts/[postId]", () => {
   it("returns 404 for a post hidden by visibility or moderation", async () => {
     const response = await read(request("/api/social/posts/post-1"), context);
     expect(response.status).toBe(404);
-    expect(state.calls[0]).toEqual({ name: "read", args: [postId, actor] });
+    expect(state.calls).toEqual([
+      { name: "read", args: [postId, actor] },
+      { name: "readOwned", args: [postId, actor] },
+    ]);
+  });
+
+  it("returns an owned pending outbox post for edit conflict recovery", async () => {
+    state.ownedRead = {
+      id: postId,
+      body: "Latest pending words",
+      moderationState: "pending",
+      mutationVersion: 2,
+      photo: null,
+      venueId: null,
+      venueName: null,
+      venueProjected: false,
+      ownedByViewer: true,
+    };
+
+    const response = await read(request(`/api/social/posts/${postId}`), context);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      post: {
+        id: postId,
+        body: "Latest pending words",
+        moderationState: "pending",
+        mutationVersion: 2,
+        ownedByViewer: true,
+      },
+    });
   });
 
   it("projects approved photo tags on a direct post read", async () => {
