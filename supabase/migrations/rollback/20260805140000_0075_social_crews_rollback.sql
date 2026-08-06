@@ -72,6 +72,7 @@ grant execute on function
   public.create_plan_recap_atomic(uuid,uuid,text,timestamptz,jsonb)
 to service_role;
 
+drop function if exists public.update_legacy_plan_status_context_atomic(uuid,text,text,jsonb);
 drop function if exists public._social_plan_is_bound(uuid);
 
 drop function if exists public.update_social_crew_visibility_atomic(uuid,uuid,text,integer,text,text);

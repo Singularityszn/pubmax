@@ -112,12 +112,15 @@ async function startDatabase(): Promise<Database> {
 const ALICE_PROFILE = "11111111-1111-4111-8111-111111111111";
 const BOB_PROFILE = "22222222-2222-4222-8222-222222222222";
 const CAROL_PROFILE = "33333333-3333-4333-8333-333333333333";
+const DAVE_PROFILE = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const ALICE_USER = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const BOB_USER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const CAROL_USER = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const DAVE_USER = "dddddddd-dddd-4ddd-8ddd-dddddddddd01";
 const ALICE_ACCOUNT = "a1111111-1111-4111-8111-111111111111";
 const BOB_ACCOUNT = "b2222222-2222-4222-8222-222222222222";
 const CAROL_ACCOUNT = "c3333333-3333-4333-8333-333333333333";
+const DAVE_ACCOUNT = "d4444444-4444-4444-8444-444444444444";
 const PLAN = "44444444-4444-4444-8444-444444444444";
 const HOST_MEMBER = "55555555-5555-4555-8555-555555555555";
 const HOST_TOKEN_HASH = "1".repeat(64);
@@ -263,6 +266,10 @@ describe("Social Crew migration foundation", () => {
       .toBe("t");
     expect(db.sql("select has_function_privilege('authenticated','public.create_social_crew_atomic(uuid,uuid,text,text,text,text)','execute')"))
       .toBe("f");
+    expect(db.sql("select has_function_privilege('authenticated','public.update_legacy_plan_status_context_atomic(uuid,text,text,jsonb)','execute')"))
+      .toBe("f");
+    expect(db.sql("select has_function_privilege('service_role','public.update_legacy_plan_status_context_atomic(uuid,text,text,jsonb)','execute')"))
+      .toBe("t");
     expect(db.sql("select has_function_privilege('service_role','public._0075_join_plan_idempotent_atomic(uuid,uuid,text,text,timestamptz,boolean,text,text)','execute')"))
       .toBe("f");
     expect(db.sql("select proconfig::text from pg_proc where oid='public.create_social_crew_atomic(uuid,uuid,text,text,text,text)'::regprocedure"))
@@ -284,6 +291,91 @@ describe("Social Crew migration foundation", () => {
     expect(authenticatedSql(db, ALICE_USER, `select count(id) from public.plan_stops where plan_id='${PLAN}'`)).toBe("1");
     expect(authenticatedSql(db, ALICE_USER, `select count(id) from public.plan_crew_members where plan_id='${PLAN}'`)).toBe("2");
     expect(db.sql("select has_column_privilege('authenticated','public.plans','social_owner_account_id','select')")).toBe("f");
+  });
+
+  it("updates legacy Plan metadata atomically for the host token", () => {
+    const db = database!;
+    const plan = "42424242-4242-4242-8242-424242424242";
+    const host = "43434343-4343-4343-8343-434343434343";
+    const guest = "45454545-4545-4545-8545-454545454545";
+    const hostToken = "4".repeat(64);
+    const guestToken = "5".repeat(64);
+    db.sql(`
+      insert into public.plans(id,title,start_time,status) values('${plan}','Metadata update',now()+interval '1 day','ready');
+      insert into public.plan_crew_members(id,plan_id,name,token_hash,status,joined_at,updated_at,can_collaborate)
+      values
+        ('${host}','${plan}','Host','${hostToken}','in',now()-interval '1 minute',now(),true),
+        ('${guest}','${plan}','Guest','${guestToken}','in',now(),now(),true)
+    `);
+
+    expect(db.sql(`select public.update_legacy_plan_status_context_atomic(
+      '${plan}',null,'active',null
+    )`)).toBe("forbidden");
+    expect(db.sql(`select public.update_legacy_plan_status_context_atomic(
+      '${plan}','${guestToken}','active','{"nightArea":"Camden"}'::jsonb
+    )`)).toBe("forbidden");
+    expect(db.sql(`select status || '|' || coalesce(night_context::text,'null') from public.plans where id='${plan}'`))
+      .toBe("ready|null");
+    expect(db.sql(`select public.update_legacy_plan_status_context_atomic(
+      '${plan}','${hostToken}','active','{"nightArea":"Camden"}'::jsonb
+    )`)).toBe("ok");
+    expect(db.sql(`select status || '|' || (night_context->>'nightArea') from public.plans where id='${plan}'`))
+      .toBe("active|Camden");
+    expect(db.sql(`select public.update_legacy_plan_status_context_atomic(
+      '${plan}','${hostToken}','draft',null
+    )`)).toBe("invalid");
+    expect(db.sql(`select status || '|' || (night_context->>'nightArea') from public.plans where id='${plan}'`))
+      .toBe("active|Camden");
+  });
+
+  it("linearizes legacy metadata updates and Social Crew conversion in both Plan-lock schedules", async () => {
+    const db = database!;
+    const conversionFirstPlan = "46464646-4646-4646-8646-464646464646";
+    const conversionFirstHost = "47474747-4747-4747-8747-474747474747";
+    const metadataFirstPlan = "48484848-4848-4848-8848-484848484848";
+    const metadataFirstHost = "49494949-4949-4949-8949-494949494949";
+    const conversionFirstToken = "6".repeat(64);
+    const metadataFirstToken = "7".repeat(64);
+    db.sql(`
+      insert into public.plans(id,title,start_time,status) values
+        ('${conversionFirstPlan}','Conversion first',now()+interval '1 day','ready'),
+        ('${metadataFirstPlan}','Metadata first',now()+interval '1 day','ready');
+      insert into public.plan_crew_members(id,plan_id,name,token_hash,status,joined_at,updated_at,can_collaborate) values
+        ('${conversionFirstHost}','${conversionFirstPlan}','Host','${conversionFirstToken}','in',now(),now(),true),
+        ('${metadataFirstHost}','${metadataFirstPlan}','Host','${metadataFirstToken}','in',now(),now(),true)
+    `);
+
+    const conversionFirst = await db.concurrentResults([
+      `begin;
+       set local deadlock_timeout='50ms'; set local statement_timeout='10s';
+       select public.create_social_crew_atomic('${ALICE_ACCOUNT}','${conversionFirstPlan}','${conversionFirstToken}','private','metadata-race-key-01','${DIGEST_A}');
+       select pg_sleep(0.5); commit;`,
+      `begin;
+       set local deadlock_timeout='50ms'; set local statement_timeout='10s';
+       select pg_sleep(0.2);
+       select public.update_legacy_plan_status_context_atomic('${conversionFirstPlan}','${conversionFirstToken}','active','{"nightArea":"Soho"}'::jsonb);
+       commit;`,
+    ]);
+    expect(conversionFirst[0]).toContain('"code": "created"');
+    expect(conversionFirst[1]).toContain("not_found");
+    expect(db.sql(`select status || '|' || coalesce(night_context::text,'null') from public.plans where id='${conversionFirstPlan}'`))
+      .toBe("ready|null");
+
+    const metadataFirst = await db.concurrentResults([
+      `begin;
+       set local deadlock_timeout='50ms'; set local statement_timeout='10s';
+       select public.update_legacy_plan_status_context_atomic('${metadataFirstPlan}','${metadataFirstToken}','active','{"nightArea":"Soho"}'::jsonb);
+       select pg_sleep(0.5); commit;`,
+      `begin;
+       set local deadlock_timeout='50ms'; set local statement_timeout='10s';
+       select pg_sleep(0.2);
+       select public.create_social_crew_atomic('${ALICE_ACCOUNT}','${metadataFirstPlan}','${metadataFirstToken}','private','metadata-race-key-02','${DIGEST_A}');
+       commit;`,
+    ]);
+    expect(metadataFirst[0]).toContain("ok");
+    expect(metadataFirst[1]).toContain('"code": "created"');
+    expect(db.sql(`select status || '|' || (night_context->>'nightArea') from public.plans where id='${metadataFirstPlan}'`))
+      .toBe("active|Soho");
   });
 
   it("binds a host once, revokes legacy invites, rotates every capability, and replays exactly", () => {
@@ -501,6 +593,7 @@ describe("Social Crew migration foundation", () => {
     expect(db.sql(`select public.redeem_plan_invite_idempotent_atomic('${PLAN}','${LEGACY_INVITE_HASH}',gen_random_uuid(),'Mallory','${"4".repeat(64)}',now(),'${"5".repeat(64)}','${"6".repeat(64)}')`)).toBe("not_found");
     expect(db.sql(`select public.upgrade_plan_member_invite_atomic('${PLAN}','${LEGACY_INVITE_HASH}','${HOST_TOKEN_HASH}',now())`)).toBe("not_found");
     expect(db.sql(`select public.replace_plan_route_atomic('${PLAN}','${HOST_TOKEN_HASH}',1,'[]'::jsonb,null,false)`)).toBe("not_found");
+    expect(db.sql(`select public.update_legacy_plan_status_context_atomic('${PLAN}','${HOST_TOKEN_HASH}','active',null)`)).toBe("not_found");
     expect(db.sql(`select public.add_plan_action_idempotent_atomic('${PLAN}','${HOST_TOKEN_HASH}',gen_random_uuid(),'arrived',0,'${"5".repeat(64)}','${"6".repeat(64)}',now())`)).toBe("not_found");
     expect(db.sql(`select public.complete_plan_atomic('${PLAN}','${HOST_TOKEN_HASH}',1,gen_random_uuid(),gen_random_uuid(),'get_home',null,now())`)).toBe("not_found");
     expect(db.sql(`select public.complete_plan_atomic('${PLAN}','${HOST_TOKEN_HASH}',1,gen_random_uuid(),gen_random_uuid(),'get_home',null,'{"kind":"get_home","optionId":"tube","evidenceSnapshot":{}}'::jsonb,now())`)).toBe("not_found");
@@ -552,9 +645,12 @@ describe("Social Crew migration foundation", () => {
       where crew_id='${crewId}' and target_account_id='${CAROL_ACCOUNT}' and state='pending'`)).toBe("1");
   });
 
-  it("binds changed payload conflicts even when the first result is a denial", () => {
+  it("replays the original denial and binds changed payload conflicts", () => {
     const db = database!;
     const missing = "16161616-1616-4161-8161-161616161616";
+    expect(json(db.sql(`select public.accept_social_crew_invitation_atomic(
+      '${CAROL_ACCOUNT}','${missing}','accepted','denied-replay-key-1','${DIGEST_A}'
+    )`))).toEqual({ ok: false, code: "not_found" });
     expect(json(db.sql(`select public.accept_social_crew_invitation_atomic(
       '${CAROL_ACCOUNT}','${missing}','accepted','denied-replay-key-1','${DIGEST_A}'
     )`))).toEqual({ ok: false, code: "not_found" });
@@ -565,6 +661,7 @@ describe("Social Crew migration foundation", () => {
 
   it("serializes double invitation acceptance into one retained membership", async () => {
     const db = database!;
+    const revisionBefore = Number(db.sql(`select authority_revision from public.social_crews where id='${crewId}'`));
     const invited = json(db.sql(`select public.invite_social_crew_member_atomic(
       '${ALICE_ACCOUNT}','${crewId}','${BOB_PROFILE}','invite-bob-key-0001','${DIGEST_A}'
     )`));
@@ -582,6 +679,8 @@ describe("Social Crew migration foundation", () => {
     expect(db.sql(`select count(*) from public.social_crew_members where crew_id='${crewId}' and social_account_id='${BOB_ACCOUNT}'`)).toBe("1");
     expect(db.sql(`select count(*) from public.plan_crew_members where plan_id='${PLAN}' and social_account_id='${BOB_ACCOUNT}'`)).toBe("1");
     expect(db.sql("select count(*) from public.follows")).toBe("4");
+    expect(Number(db.sql(`select authority_revision from public.social_crews where id='${crewId}'`)))
+      .toBe(revisionBefore + 1);
   });
 
   it("does not let an active member create a Join Request", () => {
@@ -621,6 +720,42 @@ describe("Social Crew migration foundation", () => {
     )`);
   });
 
+  it("increments authority once when a racing Join Request acceptance activates a member", async () => {
+    const db = database!;
+    db.sql(`
+      insert into auth.users(id) values('${DAVE_USER}');
+      insert into public.profiles(id,user_id,handle) values('${DAVE_PROFILE}','${DAVE_USER}','dave');
+      insert into public.private_social_accounts(id,clerk_user_id,supabase_user_id,profile_id)
+        values('${DAVE_ACCOUNT}','clerk-dave','${DAVE_USER}','${DAVE_PROFILE}');
+      insert into public.follows(follower_id,followee_id) values
+        ('${ALICE_PROFILE}','${DAVE_PROFILE}'),('${DAVE_PROFILE}','${ALICE_PROFILE}')
+    `);
+    const requested = json(db.sql(`select public.request_social_crew_join_atomic(
+      '${DAVE_ACCOUNT}','${crewId}','pending','request-dave-key-01','${DIGEST_A}'
+    )`));
+    const requestId = String(requested.request_id);
+    const revisionBefore = Number(db.sql(`select authority_revision from public.social_crews where id='${crewId}'`));
+    const start = new Date(Date.now() + 2_000).toISOString();
+    const transaction = (key: string) => `begin; set local statement_timeout='10s';
+      select pg_sleep(greatest(0,extract(epoch from timestamptz '${start}'-clock_timestamp())));
+      select public.decide_social_crew_join_request_atomic('${ALICE_ACCOUNT}','${requestId}','accepted','${key}','${DIGEST_A}'); commit;`;
+    const results = await db.concurrentResults([
+      transaction("accept-dave-key-001"),
+      transaction("accept-dave-key-002"),
+    ]);
+
+    expect(results.join("\n").match(/"code": "accepted"/g)).toHaveLength(1);
+    expect(db.sql(`select count(*) from public.social_crew_members
+      where crew_id='${crewId}' and social_account_id='${DAVE_ACCOUNT}' and state='active'`)).toBe("1");
+    expect(Number(db.sql(`select authority_revision from public.social_crews where id='${crewId}'`)))
+      .toBe(revisionBefore + 1);
+    expect(json(db.sql(`select public.decide_social_crew_join_request_atomic(
+      '${ALICE_ACCOUNT}','${requestId}','accepted','accept-dave-again-1','${DIGEST_A}'
+    )`))).toEqual({ ok: false, code: "already_decided" });
+    expect(Number(db.sql(`select authority_revision from public.social_crews where id='${crewId}'`)))
+      .toBe(revisionBefore + 1);
+  });
+
   it("serializes Join Request cancellation and decision without losing provenance", async () => {
     const db = database!;
     const stale = "17171717-1717-4171-8171-171717171717";
@@ -650,20 +785,43 @@ describe("Social Crew migration foundation", () => {
     expect(db.sql(`select count(*) from public.social_crew_join_requests where id='${requestId}'`)).toBe("1");
   });
 
-  it("keeps self-leave available after a block and reuses the retained Plan member", () => {
+  it("races reactivation paths once and reuses the retained Plan member", async () => {
     const db = database!;
     const before = db.sql(`select plan_member_id from public.social_crew_members where crew_id='${crewId}' and social_account_id='${BOB_ACCOUNT}'`);
     db.sql(`insert into public.social_blocks(blocker_profile_id,blocked_profile_id) values('${ALICE_PROFILE}','${BOB_PROFILE}')`);
     expect(json(db.sql(`select public.leave_social_crew_atomic(
       '${BOB_ACCOUNT}','${crewId}','blocked-leave-key1','${DIGEST_A}'
     )`))).toMatchObject({ ok: true, code: "left" });
+    const revisionAfterLeave = Number(db.sql(`select authority_revision from public.social_crews where id='${crewId}'`));
     db.sql(`delete from public.social_blocks where blocker_profile_id='${ALICE_PROFILE}' and blocked_profile_id='${BOB_PROFILE}'`);
     const invited = json(db.sql(`select public.invite_social_crew_member_atomic(
       '${ALICE_ACCOUNT}','${crewId}','${BOB_PROFILE}','reinvite-bob-key01','${DIGEST_A}'
     )`));
-    db.sql(`select public.accept_social_crew_invitation_atomic(
+    const requested = json(db.sql(`select public.request_social_crew_join_atomic(
+      '${BOB_ACCOUNT}','${crewId}','pending','reactivate-request1','${DIGEST_A}'
+    )`));
+    const start = new Date(Date.now() + 2_000).toISOString();
+    const synchronized = (statement: string) => `begin; set local statement_timeout='10s';
+      select pg_sleep(greatest(0,extract(epoch from timestamptz '${start}'-clock_timestamp())));
+      ${statement}; commit;`;
+    const results = await db.concurrentResults([
+      synchronized(`select public.accept_social_crew_invitation_atomic(
+        '${BOB_ACCOUNT}','${String(invited.invitation_id)}','accepted','reactivate-bob-key1','${DIGEST_A}')`),
+      synchronized(`select public.decide_social_crew_join_request_atomic(
+        '${ALICE_ACCOUNT}','${String(requested.request_id)}','accepted','reactivate-decision1','${DIGEST_A}')`),
+    ]);
+    expect(results.join("\n").match(/"code": "accepted"/g)).toHaveLength(2);
+    expect(Number(db.sql(`select authority_revision from public.social_crews where id='${crewId}'`)))
+      .toBe(revisionAfterLeave + 1);
+    expect(json(db.sql(`select public.accept_social_crew_invitation_atomic(
       '${BOB_ACCOUNT}','${String(invited.invitation_id)}','accepted','reactivate-bob-key1','${DIGEST_A}'
-    )`);
+    )`))).toMatchObject({ ok: true, code: "replayed" });
+    expect(Number(db.sql(`select authority_revision from public.social_crews where id='${crewId}'`)))
+      .toBe(revisionAfterLeave + 1);
+    expect(db.sql(`select count(*) from public.social_crew_members
+      where crew_id='${crewId}' and social_account_id='${BOB_ACCOUNT}'`)).toBe("1");
+    expect(db.sql(`select count(*) from public.plan_crew_members
+      where plan_id='${PLAN}' and social_account_id='${BOB_ACCOUNT}'`)).toBe("1");
     expect(db.sql(`select plan_member_id from public.social_crew_members where crew_id='${crewId}' and social_account_id='${BOB_ACCOUNT}'`)).toBe(before);
   });
 

@@ -419,7 +419,10 @@ begin
     if v_receipt.payload_digest <> p_digest then
       return jsonb_build_object('ok',false,'code','idempotency_conflict');
     end if;
-    return v_receipt.response || jsonb_build_object('code','replayed');
+    if v_receipt.response @> '{"ok":true}'::jsonb then
+      return v_receipt.response || jsonb_build_object('code','replayed');
+    end if;
+    return v_receipt.response;
   end if;
   return null;
 end;
@@ -498,6 +501,8 @@ begin
       end if;
       update public.social_crew_members set state='active',role='member',ended_at=null,updated_at=now()
         where id=v_member.id;
+      update public.social_crews set authority_revision=authority_revision+1,updated_at=now()
+        where id=p_crew;
     end if;
     return v_member.id;
   end if;
@@ -517,6 +522,8 @@ begin
     'in',now(),now(),true,p_account);
   insert into public.social_crew_members(crew_id,social_account_id,plan_member_id,role,state)
   values(p_crew,p_account,v_plan_member,'member','active') returning id into v_member.id;
+  update public.social_crews set authority_revision=authority_revision+1,updated_at=now()
+    where id=p_crew;
   return v_member.id;
 end;
 $$;
@@ -845,6 +852,39 @@ begin
 end;
 $$;
 
+create function public.update_legacy_plan_status_context_atomic(
+  p_plan_id uuid,p_token_hash text,p_status text,p_context jsonb
+) returns text
+language plpgsql security definer set search_path=''
+as $$
+declare v_plan public.plans%rowtype; v_host_token text;
+begin
+  select * into v_plan from public.plans where id=p_plan_id for update;
+  if not found or v_plan.social_owner_account_id is not null then return 'not_found'; end if;
+
+  select token_hash into v_host_token from public.plan_crew_members
+    where plan_id=p_plan_id order by joined_at,id limit 1;
+  if v_host_token is null or p_token_hash is null or v_host_token <> p_token_hash then return 'forbidden'; end if;
+
+  if p_status is not null and (
+    p_status not in ('draft','ready','active','ending','completed','abandoned')
+    or not (
+      p_status=v_plan.status
+      or (v_plan.status='draft' and p_status in ('ready','abandoned'))
+      or (v_plan.status='ready' and p_status in ('draft','active','abandoned'))
+      or (v_plan.status='active' and p_status in ('ending','completed','abandoned'))
+      or (v_plan.status='ending' and p_status in ('active','completed','abandoned'))
+    )
+  ) then return 'invalid'; end if;
+
+  update public.plans set
+    status=coalesce(p_status,status),
+    night_context=coalesce(p_context,night_context)
+  where id=p_plan_id;
+  return 'ok';
+end;
+$$;
+
 alter function public.join_plan_atomic(uuid,uuid,text,text,timestamptz,boolean) rename to _0075_join_plan_atomic;
 create function public.join_plan_atomic(uuid,uuid,text,text,timestamptz,boolean) returns boolean
 language plpgsql security definer set search_path='' as $$ begin if public._social_plan_is_bound($1) then return false; end if; return public._0075_join_plan_atomic($1,$2,$3,$4,$5,$6); end $$;
@@ -924,6 +964,7 @@ revoke all on function
   public._social_crew_plan_expiry(uuid),
   public._activate_social_crew_member(uuid,uuid),
   public._social_plan_is_bound(uuid),
+  public.update_legacy_plan_status_context_atomic(uuid,text,text,jsonb),
   public.create_social_crew_atomic(uuid,uuid,text,text,text,text),
   public.invite_social_crew_member_atomic(uuid,uuid,uuid,text,text),
   public.accept_social_crew_invitation_atomic(uuid,uuid,text,text,text),
@@ -954,6 +995,7 @@ from public, anon, authenticated;
 -- new Crew entry points are service-only.
 grant execute on function
   public.social_relationship_between_profiles(uuid,uuid),
+  public.update_legacy_plan_status_context_atomic(uuid,text,text,jsonb),
   public.create_social_crew_atomic(uuid,uuid,text,text,text,text),
   public.invite_social_crew_member_atomic(uuid,uuid,uuid,text,text),
   public.accept_social_crew_invitation_atomic(uuid,uuid,text,text,text),

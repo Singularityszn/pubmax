@@ -4,6 +4,8 @@ type Row = Record<string, unknown>;
 
 const fixture = vi.hoisted(() => ({
   configured: true,
+  rpcCalls: [] as Array<{ name: string; args: Record<string, unknown> }>,
+  rpcResult: { data: "not_found" as string, error: null as null | { message: string } },
   rows: {
     plans: [] as Row[],
     plan_stops: [] as Row[],
@@ -30,6 +32,9 @@ function query(table: keyof typeof fixture.rows) {
     order() {
       return builder;
     },
+    limit() {
+      return builder;
+    },
     async maybeSingle() {
       return { data: rows[0] ?? null, error: null };
     },
@@ -44,11 +49,16 @@ vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => fixture.configured,
   requireSupabaseAdmin: () => ({
     from: (table: keyof typeof fixture.rows) => query(table),
+    rpc: async (name: string, args: Record<string, unknown>) => {
+      fixture.rpcCalls.push({ name, args });
+      return fixture.rpcResult;
+    },
   }),
 }));
 
 import {
   __resetMemoryPlans,
+  hashPlanMemberToken,
   memoryPlanStore,
   planStateResult,
   planCompletionResult,
@@ -107,6 +117,8 @@ function seedBoundPlan(): void {
 
 beforeEach(() => {
   fixture.configured = true;
+  fixture.rpcCalls = [];
+  fixture.rpcResult = { data: "not_found", error: null };
   seedBoundPlan();
   __resetMemoryPlans();
 });
@@ -142,6 +154,41 @@ describe("legacy Plan boundary for Social Crews", () => {
         evidenceSnapshot: { label: "Tube", confidence: "high" },
       },
     })).resolves.toEqual({ ok: false, error: "not_found" });
+  });
+
+  it("routes legacy status and context changes through one atomic RPC", async () => {
+    fixture.rows.plans[0].social_owner_account_id = null;
+    fixture.rows.plan_crew_members[0].token_hash = hashPlanMemberToken("host-token");
+    fixture.rpcResult = { data: "ok", error: null };
+    const context = {
+      nightArea: "camden" as const,
+      daypart: "evening" as const,
+      partyType: "friends" as const,
+      groupSize: 4,
+      budget: "standard" as const,
+      budgetLimitPence: null,
+      zeroProof: false,
+      atmosphere: [],
+      foodNeeds: [],
+      accessibility: [],
+      transportConstraints: [],
+    };
+
+    const result = await supabasePlanStore.update(PLAN_ID, "host-token", {
+      status: "active",
+      context,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(fixture.rpcCalls).toEqual([{
+      name: "update_legacy_plan_status_context_atomic",
+      args: {
+        p_plan_id: PLAN_ID,
+        p_token_hash: hashPlanMemberToken("host-token"),
+        p_status: "active",
+        p_context: context,
+      },
+    }]);
   });
 
   it("assembles a bound Plan only for its expected Social owner", async () => {
