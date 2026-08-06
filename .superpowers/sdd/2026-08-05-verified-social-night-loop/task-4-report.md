@@ -80,10 +80,9 @@ recovery, browser grants and rollback.
 
 ## Deployment note
 
-Captain applies
-`supabase/migrations/20260805120000_0073_social_interactions.sql` after `0072`.
-Agents did not apply production SQL. Rollback is
-`supabase/migrations/rollback/20260805120000_0073_social_interactions_rollback.sql`.
+Captain applies the `0073_social_interactions` forward migration after `0072`.
+Agents did not apply production SQL. Current forward and rollback paths live in
+`supabase/migrations/` and `supabase/migrations/rollback/`.
 
 ## Deliberate push boundary
 

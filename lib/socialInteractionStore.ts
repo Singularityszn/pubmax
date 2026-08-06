@@ -908,7 +908,7 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
         p_limit: size + 1,
       });
       if (error) throw error;
-      const items = (data ?? []).map((value: unknown) => {
+      const items: Array<{ id: string; createdAt: string; savedAt: string; post: SocialPostDTO }> = (data ?? []).map((value: unknown) => {
         const valueRow = row(value);
         const post = socialPostServerProjectionFromRow(valueRow.source_post).post;
         return { id: post.id, createdAt: String(valueRow.saved_at), savedAt: String(valueRow.saved_at), post };
