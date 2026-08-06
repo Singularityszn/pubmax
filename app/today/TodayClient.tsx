@@ -374,17 +374,21 @@ export default function TodayClient({
       </header>
 
       <div className="todayStack">
-        <WeatherCard weather={brief.weather} />
-        <TodayTubeCard slot={shownGreeting.slot} />
-        <PicksCard
-          picks={brief.picks}
-          filteredPickCount={brief.filteredPickCount}
-          slot={shownGreeting.slot}
-        />
-        <TodayGetThereStrip />
-        <TodayPintsCard index={pintsIndex} nowIso={nowIso} />
-        <TodayQuietPintCard module={quietPint} />
-        <FactCard fact={fact} />
+        <div className="todayBriefColumn">
+          <WeatherCard weather={brief.weather} />
+          <TodayTubeCard slot={shownGreeting.slot} />
+          <PicksCard
+            picks={brief.picks}
+            filteredPickCount={brief.filteredPickCount}
+            slot={shownGreeting.slot}
+          />
+          <TodayGetThereStrip />
+        </div>
+        <div className="todayExploreColumn">
+          <TodayPintsCard index={pintsIndex} nowIso={nowIso} />
+          <TodayQuietPintCard module={quietPint} />
+          <FactCard fact={fact} />
+        </div>
       </div>
 
       <p className="todayFoot">

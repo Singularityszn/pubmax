@@ -659,53 +659,97 @@
 /* .tonightConditions* rules live in tonightConditions.css (component-owned,
    multi-host: Tonight page + desktop rails). */
 
-/* Desktop rail (D1): on wide viewports the Tonight page becomes a two-column
-   grid; the Conditions strip and the rail block dock right and stay sticky so
-   the weather verdict is always in view (owner requirement). Below the
-   breakpoint everything stays in the existing single-column flow. */
+.tonightDesktopGrid,
+.tonightPrimary,
+.tonightAfterPrimary,
+.tonightContext {
+  display: contents;
+}
+
+/* Wide Tonight uses the same reading canvas as Plan: primary choices stay in
+   one generous column while weather, deals, music, and area news form one
+   contextual rail. The context wrapper contributes no box below this
+   breakpoint, which preserves the shipped phone order and spacing. */
 @media (min-width: 1024px) {
   .tonightPage {
+    max-width: var(--content-max-wide, 1240px);
+  }
+
+  .tonightDesktopGrid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
-    column-gap: 28px;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+    grid-template-rows: auto auto;
+    column-gap: 32px;
     align-items: start;
   }
 
-  .tonightPage > * {
+  .tonightDesktopGrid > .tonightHead {
     grid-column: 1;
+    grid-row: 1;
   }
 
-  .tonightPage > .tonightConditions {
+  .tonightDesktopGrid > .tonightPrimary {
+    display: block;
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+  }
+
+  .tonightDesktopGrid > .tonightAfterPrimary {
+    display: block;
+    grid-column: 1;
+    grid-row: 3;
+    min-width: 0;
+  }
+
+  .tonightTitle {
+    max-width: 18ch;
+    font-size: clamp(2.15rem, 3.2vw, 3.25rem);
+  }
+
+  .tonightLede {
+    font-size: 1rem;
+  }
+
+  .tonightDesktopGrid > .tonightContext {
     grid-column: 2;
+    grid-row: 1 / span 2;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  .tonightDesktopGrid[data-secondary-placement="below"] > .tonightContext {
     grid-row: 1;
-    position: sticky;
-    top: 96px; /* clears the floating SiteNav pill, same offset as feedRail */
+  }
+
+  .tonightContext > .tonightConditions {
     margin: 0;
   }
 
-  .tonightPage > .tonightRail {
-    grid-column: 2;
-    grid-row: 2;
-    position: sticky;
-    top: 170px; /* below the stuck conditions strip */
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+  .tonightContext .dealsTonight {
+    margin: 0;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--line-soft);
   }
 
-  /* Flag-on (canonical) Deals/Music: on desktop they populate the right rail so
-     the canvas is used and the shape matches flag-off; below 1024px this wrapper
-     is a normal block that stacks under the main list (main-list-first).
-     Placed below the Conditions (row 1) and area-news rail (row 2) but spanning
-     the remaining rows with align-self:start, so it TOP-aligns beside the main
-     list instead of dropping to the bottom, and its height never stretches a
-     shared row out of line with the main column. */
-  .tonightPage > .tonightSecondaryLanes {
+  .tonightContext .dealsTonightList,
+  .tonightDesktopGrid > .tonightSecondaryLanes .dealsTonightList {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tonightContext .dealsTonightHead h2,
+  .tonightDesktopGrid > .tonightSecondaryLanes .dealsTonightHead h2 {
+    font-size: var(--text-md, 1.16rem);
+  }
+
+  .tonightDesktopGrid > .tonightSecondaryLanes {
     grid-column: 2;
-    grid-row: 3 / span 24;
-    align-self: start;
+    grid-row: 2;
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-width: 0;
   }
 }

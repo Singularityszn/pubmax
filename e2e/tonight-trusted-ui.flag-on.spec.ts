@@ -22,7 +22,11 @@ const ROWS = [
   { id: "q1", venueId: "venue-quiz", placeName: "The Sharp Wit", kind: "quiz", startsAt: "2026-07-24T19:30:00.000Z", title: "Pub Quiz", source: { label: "Listings", url: "https://listings.example/quiz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
 ];
 
-type WhatsOnBody = { sourceFreshnessKind?: string; sourceObservedAt?: string | null };
+type WhatsOnBody = {
+  rows?: typeof ROWS;
+  sourceFreshnessKind?: string;
+  sourceObservedAt?: string | null;
+};
 
 async function mockWhatsOn(page: Page, body: WhatsOnBody = {}) {
   await page.route("**/api/whats-on**", (route) =>
@@ -30,7 +34,7 @@ async function mockWhatsOn(page: Page, body: WhatsOnBody = {}) {
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        rows: ROWS,
+        rows: body.rows ?? ROWS,
         servedAt: "2026-07-24T22:00:00.000Z",
         sourceObservedAt: body.sourceObservedAt ?? "2026-07-20T12:00:00.000Z",
         sourceFreshnessKind: body.sourceFreshnessKind ?? "provider-observed",
@@ -66,15 +70,25 @@ async function shoot(page: Page, name: string) {
 }
 
 test.describe("Tonight trusted UI (flag on / canonical)", () => {
-  test("moves Deals/Music below the main list (main-list-first §4.11)", async ({ page }) => {
-    await mockWhatsOn(page);
+  test("keeps secondary lanes directly after the main list on phones", async ({ page }) => {
+    await mockWhatsOn(page, { rows: [ROWS[0]!, ROWS[2]!] });
     await openTonight(page);
     const order = await page.evaluate(() => {
-      const l = document.querySelector('[data-testid="tonight-list"]');
-      const d = document.querySelector(".dealsTonight");
-      return l && d ? l.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING : 0;
+      const selectors = [
+        '[data-testid="tonight-list"]',
+        'section[aria-labelledby="deals-tonight-title"]',
+        'section[aria-labelledby="music-tonight-title"]',
+        ".tonightQuiet",
+        ".tonightLocation",
+      ];
+      const elements = selectors.map((selector) => document.querySelector(selector));
+      if (elements.some((element) => element === null)) return [];
+      return elements.slice(1).map((element, index) => Boolean(
+        elements[index]!.compareDocumentPosition(element!)
+          & Node.DOCUMENT_POSITION_FOLLOWING,
+      ));
     });
-    expect(order).toBeTruthy(); // deals FOLLOWS list → deals below
+    expect(order).toEqual([true, true, true, true]);
     await shoot(page, "flagon");
   });
 
