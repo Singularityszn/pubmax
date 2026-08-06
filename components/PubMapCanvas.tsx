@@ -2576,11 +2576,10 @@ export default function PubMapCanvas({
   }, [mapReady, applyToMap, poisPath]);
 
   // POI category toggles → live layer filters + tube-line visibility.
-  // Structural readiness only: setFilter/setLayoutProperty on existing layers
-  // is safe after style.load. applyToMap waits on isStyleLoaded() (tiles too),
-  // which can stay false for seconds after first paint — and queued writes only
-  // flush on the NEXT style.load, so chip toggles looked on while layers stayed
-  // none until a theme swap. Same gate pattern as applyRouteData.
+  // Structural readiness only: existing layers accept filter and layout writes
+  // after style.load, even while tiles load. applyToMap waits on isStyleLoaded()
+  // and can defer writes until another style.load, so it cannot own live control
+  // updates. Same gate pattern as applyRouteData.
   useEffect(() => {
     poiHiddenRef.current = poiHidden;
     if (!mapReady) return;

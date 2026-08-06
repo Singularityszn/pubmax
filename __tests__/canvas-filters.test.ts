@@ -442,7 +442,7 @@ describe("applyPoiCategoryVisibility (live chip → map propagation)", () => {
   });
 
   it("propagates Parks on into ambient filters (and is a no-op for missing layers)", () => {
-    // Only ambient layers exist — deferred transit has not landed yet.
+    // Only ambient layers exist because deferred transit has not landed yet.
     const { map, setFilter, setLayoutProperty } = makeMap([...POI_AMBIENT_LAYERS]);
     const park = POI_TOGGLE_GROUPS.find((g) => g.id === "park")!;
     const hidden = togglePoiGroup(defaultPoiHiddenMobile(), park);
