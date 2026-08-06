@@ -121,7 +121,8 @@ export function nightCrawlIdempotencyScope(planId: string, type: NightCrawlActio
 //               the optimistic advance back so the hero honestly returns.
 //   forbidden → 403; the viewer isn't a checked-in crew member — roll back and
 //               point them at joining, never fake the check-in.
-//   offline   → network drop or 5xx; roll back because no offline outbox exists.
+//   offline   → network drop or 5xx; keep advance only when the mutation is
+//               queued in the client outbox, otherwise roll back honestly.
 export type NightCrawlOutcome = "confirmed" | "rejected" | "forbidden" | "offline";
 
 export type NightCrawlActionReconciliation = {
@@ -129,7 +130,7 @@ export type NightCrawlActionReconciliation = {
   optimistic: Record<number, NightCrawlActionType>;
   note: {
     text: string;
-    tone: Exclude<NightCrawlOutcome, "confirmed">;
+    tone: Exclude<NightCrawlOutcome, "confirmed"> | "pending";
   } | null;
 };
 
@@ -141,27 +142,35 @@ export function classifyActionOutcome(statusOrError: number | "network"): NightC
   return "rejected";
 }
 
-/** Whether an outcome keeps the optimistic advance. Only a saved write may. */
-export function outcomeKeepsOptimistic(outcome: NightCrawlOutcome): boolean {
-  return outcome === "confirmed";
+/** Whether an outcome keeps the optimistic advance. Confirmed always does;
+ * offline only when the client outbox accepted the mutation. */
+export function outcomeKeepsOptimistic(
+  outcome: NightCrawlOutcome,
+  options?: { queued?: boolean },
+): boolean {
+  if (outcome === "confirmed") return true;
+  return outcome === "offline" && options?.queued === true;
 }
 
 /**
- * Honest feedback for a failed tap. Confirmed taps need no note because the
- * stack speaks for itself.
+ * Honest feedback for a failed or held tap. Confirmed taps need no note because
+ * the stack speaks for itself. Queued offline holds never promise a sync.
  */
 export function nightCrawlActionNote(
   type: NightCrawlActionType,
   venueName: string,
   outcome: Exclude<NightCrawlOutcome, "confirmed">,
+  options?: { queued?: boolean },
 ): string {
   void type;
   void venueName;
-  void outcome;
+  if (outcome === "offline" && options?.queued) {
+    return "Held on this phone. We will try again when you have signal.";
+  }
   return "That did not save. Try again when you have signal.";
 }
 
-/** Resolve temporary action state after the write returns. */
+/** Resolve temporary action state after the write returns (or is queued). */
 export function reconcileNightCrawlAction({
   outcome,
   type,
@@ -170,6 +179,7 @@ export function reconcileNightCrawlAction({
   previousCursor,
   optimisticCursor,
   optimistic,
+  queued = false,
 }: {
   outcome: NightCrawlOutcome;
   type: NightCrawlActionType;
@@ -178,20 +188,64 @@ export function reconcileNightCrawlAction({
   previousCursor: number;
   optimisticCursor: number;
   optimistic: Readonly<Record<number, NightCrawlActionType>>;
+  queued?: boolean;
 }): NightCrawlActionReconciliation {
   const settledOptimistic = { ...optimistic };
-  delete settledOptimistic[stopPosition];
 
   if (outcome === "confirmed") {
+    delete settledOptimistic[stopPosition];
     return { cursor: optimisticCursor, optimistic: settledOptimistic, note: null };
   }
 
+  if (outcomeKeepsOptimistic(outcome, { queued })) {
+    // Keep the mark so the done row stays honest as a local hold.
+    return {
+      cursor: optimisticCursor,
+      optimistic: settledOptimistic,
+      note: {
+        text: nightCrawlActionNote(type, venueName, outcome, { queued }),
+        tone: "pending",
+      },
+    };
+  }
+
+  delete settledOptimistic[stopPosition];
   return {
     cursor: previousCursor,
     optimistic: settledOptimistic,
     note: {
-      text: nightCrawlActionNote(type, venueName, outcome),
+      text: nightCrawlActionNote(type, venueName, outcome, { queued }),
       tone: outcome,
     },
+  };
+}
+
+/** Next stop after the hero, for the mid-crawl glance strip. */
+export function nightCrawlNextStop(
+  stops: readonly PlanStopDTO[],
+  cursor: number,
+): PlanStopDTO | null {
+  const ordered = orderedStops(stops);
+  if (ordered.length === 0) return null;
+  const safe = clampStopIndex(cursor, ordered.length);
+  return ordered[safe + 1] ?? null;
+}
+
+/** Glance copy: current stop, optional next name, get-home affordance label. */
+export function nightCrawlGlance(input: {
+  currentName: string | null;
+  nextName: string | null;
+  stopIndex: number;
+  stopCount: number;
+}): { currentLine: string; nextLine: string | null; homeLine: string } {
+  const currentLine =
+    input.currentName && input.stopCount > 0
+      ? `Now · ${input.currentName}`
+      : "No stops yet";
+  const nextLine = input.nextName ? `Then · ${input.nextName}` : null;
+  return {
+    currentLine,
+    nextLine,
+    homeLine: "Get me home",
   };
 }

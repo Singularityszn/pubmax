@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
 import NightCrawlMode from "@/components/plan/NightCrawlMode";
+import PlanInviteOpened from "@/components/plan/PlanInviteOpened";
 import PlanCrew from "@/components/plan/PlanCrew";
 import LastCrewInvite from "@/components/plan/LastCrewInvite";
 import SiteNav from "@/components/nav/SiteNav";
@@ -127,6 +128,7 @@ export default async function PlanPage({ params }: Props) {
       {/* Marks this plan as "on tonight" so the shell's Night Mode card can
           follow it across screens (client-only pointer, no backend). */}
       <ActivePlanMarker id={id} startTime={state.plan.startTime} />
+      <PlanInviteOpened planId={id} />
       {/* Standard site navigation — a shared plan link is many people's first
           screen; it must route onward, not dead-end on a wordmark. SiteNav
           carries the brand, so the masthead keeps just the plan actions. */}

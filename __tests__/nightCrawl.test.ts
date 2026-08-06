@@ -6,8 +6,10 @@ import {
   isFinalStop,
   nightCrawlActionNote,
   nightCrawlActionPayload,
+  nightCrawlGlance,
   nightCrawlHero,
   nightCrawlIdempotencyScope,
+  nightCrawlNextStop,
   nightCrawlStack,
   outcomeKeepsOptimistic,
   reconcileNightCrawlAction,
@@ -138,9 +140,10 @@ describe("classifyActionOutcome + optimistic reconciliation", () => {
     expect(classifyActionOutcome(404)).toBe("rejected");
   });
 
-  it("keeps the optimistic advance only for a confirmed write", () => {
+  it("keeps the optimistic advance for confirmed writes, or offline when queued", () => {
     expect(outcomeKeepsOptimistic("confirmed")).toBe(true);
     expect(outcomeKeepsOptimistic("offline")).toBe(false);
+    expect(outcomeKeepsOptimistic("offline", { queued: true })).toBe(true);
     expect(outcomeKeepsOptimistic("rejected")).toBe(false);
     expect(outcomeKeepsOptimistic("forbidden")).toBe(false);
   });
@@ -212,9 +215,54 @@ describe("nightCrawlActionNote (value-first, no apology-first, plain British)", 
     }
   });
 
+  it("queued offline holds use local-hold copy without promising a sync", () => {
+    const note = nightCrawlActionNote("arrived", "X", "offline", { queued: true });
+    expect(note).toBe("Held on this phone. We will try again when you have signal.");
+    expect(note).not.toMatch(/will sync/i);
+  });
+
+  it("keeps a queued offline advance and marks the note as pending", () => {
+    const result = reconcileNightCrawlAction({
+      outcome: "offline",
+      type: "arrived",
+      venueName: "The Bull & Last",
+      stopPosition: 0,
+      previousCursor: 0,
+      optimisticCursor: 1,
+      optimistic: { 0: "arrived" },
+      queued: true,
+    });
+    expect(result.cursor).toBe(1);
+    expect(result.optimistic).toEqual({ 0: "arrived" });
+    expect(result.note?.tone).toBe("pending");
+    expect(result.note?.text).not.toMatch(/will sync/i);
+  });
+
   it("does not imply an action succeeded when the venue name is blank", () => {
     expect(nightCrawlActionNote("arrived", "  ", "rejected")).toBe(
       "That did not save. Try again when you have signal.",
     );
+  });
+});
+
+describe("nightCrawl glance helpers", () => {
+  it("names the next stop after the hero", () => {
+    expect(nightCrawlNextStop(THREE, 0)?.venueName).toBe("The Bull & Last");
+    expect(nightCrawlNextStop(THREE, 2)).toBeNull();
+  });
+
+  it("builds glance lines for now, then, and get-home", () => {
+    expect(
+      nightCrawlGlance({
+        currentName: "The Southampton Arms",
+        nextName: "The Bull & Last",
+        stopIndex: 0,
+        stopCount: 3,
+      }),
+    ).toEqual({
+      currentLine: "Now · The Southampton Arms",
+      nextLine: "Then · The Bull & Last",
+      homeLine: "Get me home",
+    });
   });
 });

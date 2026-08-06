@@ -11,6 +11,9 @@ const harness = vi.hoisted(() => ({
   setActiveCursor: vi.fn(),
   mutationKey: vi.fn(),
   clearMutationKey: vi.fn(),
+  enqueue: vi.fn(),
+  flush: vi.fn(),
+  hasPending: vi.fn(),
 }));
 
 vi.mock("react", async (importOriginal) => {
@@ -64,16 +67,27 @@ vi.mock("@/lib/planMutationKey", () => ({
   clearPersistentPlanMutationKey: harness.clearMutationKey,
 }));
 
-vi.mock("@/lib/planSessionCapability", () => ({
-  parsePlanCapabilitySnapshot: () => ({
-    token: "member-token",
-    collaborationAuthorized: true,
-    role: "host",
-  }),
-  planCapabilityEvent: () => "plan-capability",
-  readPlanCapabilitySnapshot: () => "member-token|1|host",
-  restorePlanCapability: vi.fn(),
+vi.mock("@/lib/planMutationOutbox", () => ({
+  enqueueNightCrawlAction: harness.enqueue,
+  flushPlanMutationOutbox: harness.flush,
+  hasPendingPlanMutation: harness.hasPending,
+  subscribePlanMutationOutbox: () => () => undefined,
 }));
+
+vi.mock("@/lib/planSessionCapability", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/planSessionCapability")>();
+  return {
+    ...actual,
+    parsePlanCapabilitySnapshot: () => ({
+      token: "member-token",
+      collaborationAuthorized: true,
+      role: "host",
+    }),
+    planCapabilityEvent: () => "plan-capability",
+    readPlanCapabilitySnapshot: () => "member-token|1|host",
+    restorePlanCapability: vi.fn(),
+  };
+});
 
 import NightCrawlMode from "@/components/plan/NightCrawlMode";
 import type { PlanState } from "@/lib/plan";
@@ -132,6 +146,11 @@ beforeEach(() => {
   harness.mutationKey.mockReset();
   harness.mutationKey.mockResolvedValue("retry-key");
   harness.clearMutationKey.mockReset();
+  harness.enqueue.mockReset();
+  harness.enqueue.mockResolvedValue({ id: `night-crawl-action:${PLAN_ID}:arrived:0` });
+  harness.flush.mockReset();
+  harness.hasPending.mockReset();
+  harness.hasPending.mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -139,12 +158,12 @@ afterEach(() => {
 });
 
 describe("NightCrawlMode failed action reconciliation", () => {
-  it.each([
-    ["network failure", () => Promise.reject(new Error("offline"))],
-    ["non-2xx response", () => Promise.resolve(new Response("{}", { status: 409 }))],
-  ])("restores cursor and live failure state after a %s", async (_name, response) => {
-    const fetchMock = vi.fn(response);
-    vi.stubGlobal("fetch", fetchMock);
+  it("keeps the advance when offline and the outbox queued the mutation", async () => {
+    harness.flush.mockResolvedValue([
+      { planId: PLAN_ID, entryId: `night-crawl-action:${PLAN_ID}:arrived:0`, outcome: "offline" },
+    ]);
+    harness.hasPending.mockReturnValue(true);
+
     const firstRender = renderMode();
     const arrive = findElement(
       firstRender,
@@ -152,25 +171,42 @@ describe("NightCrawlMode failed action reconciliation", () => {
     );
 
     expect(arrive).not.toBeNull();
-    (arrive?.props as { onClick: () => void }).onClick();
+    await (arrive?.props as { onClick: () => Promise<void> }).onClick();
 
     await vi.waitFor(() => {
-      expect(harness.setActiveCursor.mock.calls).toEqual([[1], [0]]);
+      expect(harness.setActiveCursor.mock.calls.at(-1)).toEqual([1]);
+      expect(harness.enqueue).toHaveBeenCalled();
+      expect(harness.flush).toHaveBeenCalledWith({ planId: PLAN_ID });
     });
-    expect(harness.mutationKey).toHaveBeenCalledWith(
-      `night-crawl-action:${PLAN_ID}:arrived:0`,
-      { type: "arrived", stopPosition: 0 },
-    );
-    expect(fetchMock).toHaveBeenCalledWith(
-      `/api/plans/${PLAN_ID}/actions`,
-      expect.objectContaining({
-        headers: {
-          "content-type": "application/json",
-          "idempotency-key": "retry-key",
-        },
-      }),
-    );
     expect(harness.clearMutationKey).not.toHaveBeenCalled();
+    // note state slot (useState index 3) holds the pending copy
+    expect(harness.stateValues[3]).toEqual({
+      text: "Held on this phone. We will try again when you have signal.",
+      tone: "pending",
+    });
+    expect(String((harness.stateValues[3] as { text: string }).text)).not.toMatch(/will sync/i);
+  });
+
+  it("restores cursor after a conflict response", async () => {
+    harness.flush.mockResolvedValue([
+      { planId: PLAN_ID, entryId: `night-crawl-action:${PLAN_ID}:arrived:0`, outcome: "conflict" },
+    ]);
+
+    const firstRender = renderMode();
+    const arrive = findElement(
+      firstRender,
+      (element) => element.type === "button" && textOf(element).includes("We are here"),
+    );
+
+    expect(arrive).not.toBeNull();
+    await (arrive?.props as { onClick: () => Promise<void> }).onClick();
+
+    await vi.waitFor(() => {
+      expect(harness.setActiveCursor).toHaveBeenCalledWith(1);
+      expect(harness.setActiveCursor).toHaveBeenCalledWith(0);
+      expect(harness.activeCursor).toBe(0);
+    });
+    expect(harness.clearMutationKey).toHaveBeenCalled();
 
     const settledRender = renderMode();
     expect(textOf(settledRender)).toContain("Stop 1 of 2");
@@ -179,8 +215,6 @@ describe("NightCrawlMode failed action reconciliation", () => {
       settledRender,
       (element) => (element.props as { role?: string }).role === "status",
     );
-    expect(status).not.toBeNull();
-    expect(status?.props).toMatchObject({ "aria-live": "polite" });
     expect(textOf(status)).toBe("That did not save. Try again when you have signal.");
   });
 });

@@ -44,6 +44,10 @@ const NativeSystemBars = nextDynamic(() => import("@/components/native/NativeSys
 const NativeDeepLinks = nextDynamic(() => import("@/components/native/NativeDeepLinks"), {
   ssr: false,
 });
+const PlanMutationOutboxHost = nextDynamic(
+  () => import("@/components/plan/PlanMutationOutboxHost"),
+  { ssr: false },
+);
 
 export default function DeferredShellExtras() {
   return (
@@ -57,6 +61,7 @@ export default function DeferredShellExtras() {
       <WebPushPrompt />
       <NativeSystemBars />
       <NativeDeepLinks />
+      <PlanMutationOutboxHost />
       <CellarNotice />
     </>
   );

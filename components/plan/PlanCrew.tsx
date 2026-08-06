@@ -5,6 +5,8 @@ import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore, type
 import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
 import { trackEvent } from "@/lib/analytics";
+import { planRouteReady } from "@/lib/planPrivacy";
+import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
 import { isIdentityNudgePending, recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { rememberLastCrew } from "@/lib/lastCrew";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability, writePlanCapability } from "@/lib/planSessionCapability";
@@ -195,10 +197,17 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       rememberStatus("in");
       const nextCrew = body.plan?.crew ?? crew;
       setCrew(nextCrew);
-      trackEvent("crew_committed", {
-        source: "shared-plan",
-        participants: Array.isArray(nextCrew) ? nextCrew.length : 1,
-      });
+      const routeReady = body.plan ? planRouteReady(body.plan) : false;
+      const deliveryToken = typeof body.crewCommitted === "string" ? body.crewCommitted : undefined;
+      trackEvent(
+        "crew_committed",
+        {
+          source: "shared-plan",
+          participants: Array.isArray(nextCrew) ? nextCrew.length : 1,
+          routeReady,
+        },
+        deliveryToken ? { deliveryToken } : undefined,
+      );
       // Identity-first ordering (docs/PROMPT_ORCHESTRATION.md): the account
       // nudge wins the shared moment; push defers to a pending identity nudge.
       recordPlanNudgeTrigger();
@@ -227,6 +236,18 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error || "Could not update your status.");
       setCrew(body.crew ?? crew);
+      if (status === "here") {
+        try {
+          sessionStorage.removeItem(`pubmax:night-crawl-collapsed:${planId}`);
+        } catch {
+          // storage-restricted: Night Crawl still receives the engage event
+        }
+        try {
+          window.dispatchEvent(new CustomEvent(NIGHT_CRAWL_ENGAGE_EVENT, { detail: { planId } }));
+        } catch {
+          // Event unavailable
+        }
+      }
     } catch (caught) {
       rememberStatus(previous); // roll back the optimistic state on failure
       setError(caught instanceof Error ? caught.message : "Could not update your status.");
