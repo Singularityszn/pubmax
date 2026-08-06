@@ -34,6 +34,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   }
 
   return socialCrewMutation(() => store.decideJoin(authority.actor, {
+    crewId,
     requestId,
     decision: input.body.decision as "accept" | "decline",
     idempotencyKey,

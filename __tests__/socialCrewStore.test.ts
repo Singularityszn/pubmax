@@ -20,6 +20,7 @@ const BOB_PROFILE_ID = "20000000-0000-4000-8000-000000000002";
 const BOB_MEMBER_ID = "30000000-0000-4000-8000-000000000002";
 const BOB_PLAN_MEMBER_ID = "40000000-0000-4000-8000-000000000002";
 const CREW_ID = "50000000-0000-4000-8000-000000000001";
+const OTHER_CREW_ID = "50000000-0000-4000-8000-000000000002";
 const PLAN_ID = "60000000-0000-4000-8000-000000000001";
 const INVITATION_ID = "70000000-0000-4000-8000-000000000001";
 const REQUEST_ID = "80000000-0000-4000-8000-000000000001";
@@ -414,6 +415,7 @@ describe("SocialCrewStore durable writes", () => {
       label: "accepted invitation requires member ID",
       response: { ok: true, code: "accepted" },
       run: (store: ReturnType<typeof createSocialCrewStore>) => store.acceptInvitation(bob, {
+        crewId: CREW_ID,
         invitationId: INVITATION_ID,
         action: "accept",
         idempotencyKey: KEY_A,
@@ -432,6 +434,7 @@ describe("SocialCrewStore durable writes", () => {
       label: "accepted Join Request decision requires member ID",
       response: { ok: true, code: "accepted", member_id: "not-a-uuid" },
       run: (store: ReturnType<typeof createSocialCrewStore>) => store.decideJoin(alice, {
+        crewId: CREW_ID,
         requestId: REQUEST_ID,
         decision: "accept",
         idempotencyKey: KEY_A,
@@ -505,6 +508,7 @@ describe("SocialCrewStore durable writes", () => {
 
     const left = await store.leave(bob, { crewId: CREW_ID, idempotencyKey: KEY_A });
     const reactivated = await store.acceptInvitation(bob, {
+      crewId: CREW_ID,
       invitationId: INVITATION_ID,
       action: "accept",
       idempotencyKey: KEY_B,
@@ -523,6 +527,7 @@ describe("SocialCrewStore durable writes", () => {
     const store = createSocialCrewStore(deps);
 
     await expect(store.revokeInvitation(alice, {
+      crewId: CREW_ID,
       invitationId: INVITATION_ID,
       idempotencyKey: KEY_A,
     })).resolves.toEqual({
@@ -534,11 +539,99 @@ describe("SocialCrewStore durable writes", () => {
       name: "revoke_social_crew_invitation_atomic",
       input: {
         p_actor_account_id: ALICE_ACCOUNT_ID,
+        p_crew_id: CREW_ID,
         p_invitation_id: INVITATION_ID,
         p_idempotency_key: KEY_A,
         p_payload_digest: expect.stringMatching(/^[0-9a-f]{64}$/),
       },
     });
+  });
+
+  it("maps parent Crew IDs into nested child RPCs", async () => {
+    const responses: Partial<Record<SocialCrewRpcName, Record<string, unknown>>> = {
+      accept_social_crew_invitation_atomic: {
+        ok: true,
+        code: "declined",
+      },
+      revoke_social_crew_invitation_atomic: {
+        ok: true,
+        code: "revoked",
+        invitation_id: INVITATION_ID,
+      },
+      decide_social_crew_join_request_atomic: {
+        ok: true,
+        code: "declined",
+      },
+    };
+    const deps = dependencies({
+      rpc: async (name) => responses[name] ?? { ok: false, code: "invalid" },
+    });
+    const store = createSocialCrewStore(deps);
+
+    await store.acceptInvitation(bob, {
+      crewId: CREW_ID,
+      invitationId: INVITATION_ID,
+      action: "decline",
+      idempotencyKey: KEY_A,
+    });
+    await store.revokeInvitation(alice, {
+      crewId: CREW_ID,
+      invitationId: INVITATION_ID,
+      idempotencyKey: KEY_B,
+    });
+    await store.decideJoin(alice, {
+      crewId: CREW_ID,
+      requestId: REQUEST_ID,
+      decision: "decline",
+      idempotencyKey: "store-test-key-0003",
+    });
+
+    expect(deps.calls.map(({ name, input }) => ({
+      name,
+      crewId: input.p_crew_id,
+    }))).toEqual([
+      { name: "accept_social_crew_invitation_atomic", crewId: CREW_ID },
+      { name: "revoke_social_crew_invitation_atomic", crewId: CREW_ID },
+      { name: "decide_social_crew_join_request_atomic", crewId: CREW_ID },
+    ]);
+  });
+
+  it("binds nested child idempotency to parent Crew scope", async () => {
+    let storedDigest = "";
+    const deps = dependencies({
+      rpc: async (_name, input) => {
+        const digest = String(input.p_payload_digest);
+        if (!storedDigest) {
+          storedDigest = digest;
+          return { ok: true, code: "accepted", member_id: BOB_MEMBER_ID };
+        }
+        return digest === storedDigest
+          ? { ok: true, code: "replayed", member_id: BOB_MEMBER_ID }
+          : { ok: false, code: "not_found" };
+      },
+    });
+    const store = createSocialCrewStore(deps);
+
+    await store.acceptInvitation(bob, {
+      crewId: CREW_ID,
+      invitationId: INVITATION_ID,
+      action: "accept",
+      idempotencyKey: KEY_A,
+    });
+    await expectStoreError(store.acceptInvitation(bob, {
+      crewId: OTHER_CREW_ID,
+      invitationId: INVITATION_ID,
+      action: "accept",
+      idempotencyKey: KEY_A,
+    }), "NOT_FOUND", 404);
+
+    expect(deps.calls.map(({ input }) => input.p_crew_id)).toEqual([
+      CREW_ID,
+      OTHER_CREW_ID,
+    ]);
+    expect(deps.calls[0]?.input.p_payload_digest).not.toBe(
+      deps.calls[1]?.input.p_payload_digest,
+    );
   });
 
   it("passes owner visibility revision and maps stale revision to conflict", async () => {
