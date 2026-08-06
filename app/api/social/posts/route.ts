@@ -63,6 +63,12 @@ function accessError(access: Exclude<Awaited<ReturnType<typeof requireVerifiedSo
 }
 
 function storeError(error: unknown): Response {
+  if (error instanceof Error && /invalid Social tags/i.test(error.message)) {
+    return privateJson(
+      { code: "INVALID_TAGS", error: "Photo tags are not valid." },
+      { status: 400 },
+    );
+  }
   if (error instanceof SocialPostStoreError) {
     const status = error.code === "FORBIDDEN" ? 403
       : error.code === "NOT_FOUND" ? 404

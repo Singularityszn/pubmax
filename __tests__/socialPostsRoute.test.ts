@@ -20,6 +20,7 @@ const state = vi.hoisted(() => ({
   } as unknown,
   removedObjects: [] as string[],
   createError: null as Error | null,
+  editError: null as Error | null,
   removeError: null as Error | null,
   createRequestReads: 0,
   createWinnerMediaId: null as string | null,
@@ -133,6 +134,7 @@ vi.mock("@/lib/socialPostStore", async (importOriginal) => {
       },
       edit: async (...args: unknown[]) => {
         state.calls.push({ name: "edit", args });
+        if (state.editError) throw state.editError;
         return { id: "post-1", body: "Changed", revision: Number(args[2]) + 1, mutationVersion: Number(args[2]) + 1, moderationState: "pending" };
       },
       remove: async (...args: unknown[]) => {
@@ -176,6 +178,7 @@ beforeEach(() => {
   };
   state.removedObjects = [];
   state.createError = null;
+  state.editError = null;
   state.removeError = null;
   state.createRequestReads = 0;
   state.createWinnerMediaId = null;
@@ -378,6 +381,33 @@ describe("/api/social/posts", () => {
     ]);
   });
 
+  it("maps rejected create tags without disclosing validation details", async () => {
+    state.createError = new Error("invalid Social tags");
+    const form = new FormData();
+    form.set("post", JSON.stringify({
+      kind: "standard",
+      visibility: "friends",
+      body: "Photo",
+      commentPolicy: "friends",
+      photoAltText: "A pub sign",
+      tagHandles: ["unknown"],
+    }));
+    form.set("photo", new File([Buffer.from([0xff, 0xd8, 0xff])], "night.jpg", { type: "image/jpeg" }));
+
+    const response = await POST(new Request("http://localhost/api/social/posts", {
+      method: "POST",
+      headers: { "Idempotency-Key": "invalid-create-tags-key" },
+      body: form,
+    }));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      code: "INVALID_TAGS",
+      error: "Photo tags are not valid.",
+    });
+    expect(state.removedObjects).toHaveLength(1);
+  });
+
   it("does not delete a winning replay photo after an idempotency conflict", async () => {
     state.createError = new SocialPostStoreError("IDEMPOTENCY_CONFLICT", "That post request key was already used for different content.");
     state.createWinnerMediaId = "uploaded";
@@ -519,6 +549,30 @@ describe("/api/social/posts/[postId]", () => {
       name: "edit",
       args: [postId, actor, 4, {}, true, { existingPhotoAltText: "Corrected description" }],
     });
+  });
+
+  it("maps rejected edit tags and removes the unused upload", async () => {
+    state.editError = new Error("invalid Social tags");
+    const form = new FormData();
+    form.set("post", JSON.stringify({
+      expectedMutationVersion: 4,
+      body: "Changed",
+      photoAltText: "A pub sign",
+      tagHandles: ["blocked"],
+    }));
+    form.set("photo", new File([Buffer.from([0xff, 0xd8, 0xff])], "night.jpg", { type: "image/jpeg" }));
+
+    const response = await PATCH(new Request(`http://localhost/api/social/posts/${postId}`, {
+      method: "PATCH",
+      body: form,
+    }), context);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      code: "INVALID_TAGS",
+      error: "Photo tags are not valid.",
+    });
+    expect(state.removedObjects).toHaveLength(1);
   });
 
   it("removes recoverably without a DELETE route or client status", async () => {

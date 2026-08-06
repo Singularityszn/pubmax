@@ -209,6 +209,26 @@ describe("Social comments, quotes, visibility, and moderation", () => {
     })).rejects.toMatchObject({ code: "COMMENTS_NOT_ALLOWED" });
   });
 
+  it("changes comment policy after a visibility-only mutation", async () => {
+    const { posts, store } = harness();
+    const post = await approvedPost(posts);
+    const visibilityEdit = await posts.edit(
+      post.id,
+      alice,
+      post.mutationVersion,
+      { visibility: "friends" },
+      false,
+    );
+
+    await expect(store.setCommentPolicy(alice, post.id, "locked"))
+      .resolves.toBeUndefined();
+    await expect(posts.read(post.id, alice)).resolves.toMatchObject({
+      commentPolicy: "locked",
+      revision: visibilityEdit.revision,
+      mutationVersion: visibilityEdit.mutationVersion + 1,
+    });
+  });
+
   it("applies block and source visibility reductions to comments, derivatives, counts, and notifications", async () => {
     const { posts, store } = harness({ friends: true });
     const post = await approvedPost(posts, alice, { visibility: "friends" });

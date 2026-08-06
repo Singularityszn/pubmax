@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   calls: [] as string[],
+  postStoreEdits: [] as unknown[][],
   postRow: {
     id: "11111111-1111-4111-8111-111111111111",
     author_profile_id: "22222222-2222-4222-8222-222222222222",
@@ -27,6 +28,23 @@ const state = vi.hoisted(() => ({
     updated_at: "2026-08-06T10:00:00.000Z",
   },
 }));
+
+vi.mock("@/lib/socialPostStore", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/socialPostStore")>();
+  return {
+    ...original,
+    socialPostStore: () => ({
+      read: async () => ({
+        id: state.postRow.id,
+        revision: 3,
+        mutationVersion: 7,
+      }),
+      edit: async (...args: unknown[]) => {
+        state.postStoreEdits.push(args);
+      },
+    }),
+  };
+});
 
 vi.mock("@/lib/supabase", () => ({
   hashActor: (value: string) => value,
@@ -70,6 +88,7 @@ const viewer = { accountId: "account-c", profileId: "profile-c", handle: "carol"
 
 beforeEach(() => {
   state.calls = [];
+  state.postStoreEdits = [];
 });
 
 describe("durable Social interaction projections", () => {
@@ -91,5 +110,21 @@ describe("durable Social interaction projections", () => {
   it("maps an absent feature status projection to not found", async () => {
     await expect(supabaseSocialInteractionStore.featureHistory(viewer, state.postRow.id, { limit: 20 }))
       .rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("uses mutation version when durable comment policy changes", async () => {
+    await supabaseSocialInteractionStore.setCommentPolicy(
+      viewer,
+      state.postRow.id,
+      "locked",
+    );
+
+    expect(state.postStoreEdits).toEqual([[
+      state.postRow.id,
+      viewer,
+      7,
+      { commentPolicy: "locked" },
+      false,
+    ]]);
   });
 });

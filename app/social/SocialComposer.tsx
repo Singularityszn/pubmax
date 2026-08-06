@@ -207,6 +207,7 @@ export default function SocialComposer({
   const editing = Boolean(post);
   const draftKey = `pubmaxx:social-composer:v1:${draftScope}:${post?.id ?? "new"}`;
   const initialPostRef = useRef(post);
+  const [basePost, setBasePost] = useState(post);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => initialDraft(post));
   const [photo, setPhoto] = useState<File | null>(null);
@@ -246,7 +247,7 @@ export default function SocialComposer({
     if (fileInputRef.current) fileInputRef.current.value = "";
     setDraft((current) => ({
       ...current,
-      altText: post?.photo?.altText ?? "",
+      altText: basePost?.photo?.altText ?? "",
       tagHandles: "",
     }));
   }
@@ -414,11 +415,20 @@ export default function SocialComposer({
     });
     const value = (await response.json()) as { post?: SocialPostDTO };
     if (response.ok && value.post) {
+      initialPostRef.current = value.post;
+      setBasePost(value.post);
+      setDraft(initialDraft(value.post));
+      setPhoto(null);
+      setRemovePhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setMutationVersion(value.post.mutationVersion);
       setConflict(false);
       setFeedbackIsStatus(true);
-      setFeedback("Latest revision loaded. Your draft is unchanged.");
+      setFeedback("Latest post loaded. Review it before saving.");
+      return;
     }
+    setFeedbackIsStatus(false);
+    setFeedback("Latest post could not be loaded.");
   }
 
   async function submit() {
@@ -439,7 +449,7 @@ export default function SocialComposer({
       venueId: draft.venueId,
       hashtags,
       commentPolicy: draft.commentPolicy,
-      ...(photo || (editing && post?.photo && !removePhoto)
+      ...(photo || (editing && basePost?.photo && !removePhoto)
         ? { photoAltText: draft.altText }
         : {}),
       ...(photo
@@ -471,20 +481,29 @@ export default function SocialComposer({
         },
       );
       const result = (await response.json()) as {
+        code?: string;
         error?: string;
         post?: SocialPostDTO;
       };
       if (!response.ok) {
-        if (response.status === 409) {
+        if (editing && response.status === 409 && result.code === "EDIT_CONFLICT") {
           setConflict(true);
-          throw new Error("Post changed. Your draft is still here.");
+          throw new Error("Post changed. Your draft is still here. Load latest before retrying.");
+        }
+        if (!editing && response.status === 409 && result.code === "IDEMPOTENCY_CONFLICT") {
+          setDraft((current) => ({
+            ...current,
+            requestKey: initialDraft().requestKey,
+          }));
+          throw new Error("Post request key was already used. Your draft is still here. Try posting again.");
         }
         throw new Error(result.error ?? "Post was not saved.");
       }
       localStorage.removeItem(draftKey);
       void saveSocialDraftPhoto(draftKey, null);
-      const savedPost = editing ? result.post ?? post : undefined;
+      const savedPost = editing ? result.post ?? basePost : undefined;
       initialPostRef.current = savedPost;
+      setBasePost(savedPost);
       setDraft(initialDraft(savedPost));
       if (savedPost) setMutationVersion(savedPost.mutationVersion);
       setPhoto(null);
@@ -501,14 +520,14 @@ export default function SocialComposer({
     }
   }
 
-  const attachedPhoto = Boolean(photo || (post?.photo && !removePhoto));
+  const attachedPhoto = Boolean(photo || (basePost?.photo && !removePhoto));
   const previewSource = photoPreviewUrl ??
-    (post?.photo && !removePhoto
-      ? `/api/social/media/${post.photo.mediaId}`
+    (basePost?.photo && !removePhoto
+      ? `/api/social/media/${basePost.photo.mediaId}`
       : null);
   const hasDraftChanges = draftHasChanges(
     draft,
-    post,
+    basePost,
     photo,
     removePhoto,
   );
@@ -596,7 +615,7 @@ export default function SocialComposer({
             </label>
 
             <PhotoEditor
-              post={post} draft={draft} photo={photo} previewSource={previewSource}
+              post={basePost} draft={draft} photo={photo} previewSource={previewSource}
               removePhoto={removePhoto} fileInputRef={fileInputRef} onDraft={setDraft}
               onPhoto={(nextPhoto) => { setPhoto(nextPhoto); setRemovePhoto(false); }}
               onClearSelected={clearSelectedPhoto}

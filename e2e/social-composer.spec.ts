@@ -9,6 +9,7 @@ const basePost = {
   area: "camden", venueId: "venue-a", venueName: "The Proof Arms", venueProjected: true, hashtags: ["camden"],
   commentPolicy: "open", photo: { mediaId: "22222222-2222-4222-8222-222222222222", altText: "Friends outside" },
   moderationState: "approved", featureRequest: null, revision: 1, editedAt: null,
+  mutationVersion: 1,
   createdAt: "2026-08-05T18:00:00.000Z", updatedAt: "2026-08-05T18:00:00.000Z",
   author: { handle: "old-alice" }, ownedByViewer: true,
 };
@@ -52,19 +53,26 @@ test("verified composer preserves failed photo draft, records consent choices, a
   });
   await page.route("**/api/social/posts?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ posts: [currentPost], nextCursor: null }) }));
   await page.route(`**/api/social/posts/${POST_ID}`, async (route) => {
-    if (route.request().method() === "GET") return route.fulfill({ contentType: "application/json", body: JSON.stringify({ post: { ...currentPost, revision: 2 } }) });
+    if (route.request().method() === "GET") return route.fulfill({ contentType: "application/json", body: JSON.stringify({ post: {
+      ...currentPost,
+      body: "Changed in another tab",
+      visibility: "private",
+      commentPolicy: "locked",
+      mutationVersion: 2,
+    } }) });
     editAttempts += 1;
     editPayloads.push(route.request().postDataJSON() as Record<string, unknown>);
     if (editAttempts === 1) return route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ code: "EDIT_CONFLICT", error: "Conflict" }) });
     currentPost = editAttempts === 2
-      ? { ...currentPost, body: "Edited draft survives", revision: 3, editedAt: "2026-08-05T20:00:00.000Z", photo: { ...basePost.photo!, altText: "Corrected friends outside" } }
-      : { ...currentPost, revision: 4, editedAt: "2026-08-05T20:01:00.000Z", photo: null };
-    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ post: currentPost, audit: { fromRevision: 2, toRevision: 3 } }) });
+      ? { ...currentPost, body: "Changed in another tab", visibility: "private", commentPolicy: "locked", mutationVersion: 3 }
+      : { ...currentPost, revision: 2, mutationVersion: 4, editedAt: "2026-08-05T20:01:00.000Z", photo: null };
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ post: currentPost, audit: { fromMutationVersion: 2, toMutationVersion: 3 } }) });
   });
   await page.route("**/api/social/posts", async (route) => {
     createAttempts += 1;
     createKeys.push(route.request().headers()["idempotency-key"] ?? "");
     if (createAttempts === 1) return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Moderation unavailable" }) });
+    if (createAttempts === 2) return route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ code: "IDEMPOTENCY_CONFLICT", error: "Request key conflict" }) });
     return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ post: { ...currentPost, id: "created-1", moderationState: "pending" } }) });
   });
 
@@ -112,18 +120,25 @@ test("verified composer preserves failed photo draft, records consent choices, a
   await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Photo draft survives reload");
   await expect(dialog.getByLabel("Photo description")).toBeVisible();
   await expect(dialog.getByLabel("Photo description")).toHaveValue("Friends outside The Proof Arms");
+  await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Photo draft changed after failure");
+  await page.getByRole("button", { name: "Post", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("Your draft is still here");
+  await expect(dialog.getByRole("button", { name: "Load latest" })).toHaveCount(0);
+  await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Photo draft changed after failure");
+  await expect(dialog.getByLabel("Photo description")).toHaveValue("Friends outside The Proof Arms");
   await page.getByRole("button", { name: "Post", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  expect(createKeys).toHaveLength(2);
+  expect(createKeys).toHaveLength(3);
   expect(createKeys[0]).toBe(createKeys[1]);
+  expect(createKeys[2]).not.toBe(createKeys[1]);
 
   await page.getByRole("button", { name: "New post" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Text-only post");
   await dialog.getByRole("button", { name: "Post", exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  expect(createAttempts).toBe(3);
-  expect(createKeys[2]).not.toBe(createKeys[1]);
+  expect(createAttempts).toBe(4);
+  expect(createKeys[3]).not.toBe(createKeys[2]);
 
   await page.getByRole("button", { name: "Edit post" }).click();
   dialog = page.getByRole("dialog");
@@ -142,16 +157,18 @@ test("verified composer preserves failed photo draft, records consent choices, a
   await expect(dialog.getByRole("alert")).toBeFocused();
   expect((await dialog.getByRole("button", { name: "Load latest" }).boundingBox())?.height).toBeGreaterThanOrEqual(44);
   await dialog.getByRole("button", { name: "Load latest" }).click();
-  await expect(dialog.getByText("Latest revision loaded. Your draft is unchanged.")).toBeVisible();
+  await expect(dialog.getByText("Latest post loaded. Review it before saving.")).toBeVisible();
+  await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Changed in another tab");
+  await expect(dialog.getByLabel("Visibility")).toHaveValue("private");
+  await expect(dialog.getByLabel("Comments")).toHaveValue("locked");
   await dialog.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Edited draft survives")).toBeVisible();
-  await expect(page.getByText("Edited", { exact: true })).toBeVisible();
-  expect(editPayloads[1]).toMatchObject({ expectedMutationVersion: 2, photoAltText: "Corrected friends outside" });
+  await expect(page.getByText("Changed in another tab")).toBeVisible();
+  expect(editPayloads[1]).toMatchObject({ expectedMutationVersion: 2, body: "Changed in another tab", visibility: "private", commentPolicy: "locked" });
   await page.getByRole("button", { name: "Edit post" }).click();
   dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Edited draft survives");
+  await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Changed in another tab");
   await expect(dialog.getByLabel("Selected Venue")).toBeVisible();
-  await expect(dialog.getByLabel("Photo description")).toHaveValue("Corrected friends outside");
+  await expect(dialog.getByLabel("Photo description")).toHaveValue("Friends outside");
   await dialog.getByRole("button", { name: "Remove photo" }).click();
   await dialog.getByRole("button", { name: "Save" }).click();
   await page.getByRole("button", { name: "Edit post" }).click();
