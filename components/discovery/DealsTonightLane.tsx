@@ -9,13 +9,11 @@ import { PoundSterling } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
 import { isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
-import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
+import { WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 import { preferredCityMapHref } from "@/lib/cityPreference";
 import { WhatsOnUrgencyBadge } from "@/components/map/WhatsOnUrgencyBadge";
 
 import "./dealsTonightLane.css";
-
-type DealsState = { rows: WhatsOnRow[]; asOf: string | null };
 
 export type DealsTonightLaneProps = {
   /** When provided, render from these already-loaded rows (deal families are
@@ -23,12 +21,22 @@ export type DealsTonightLaneProps = {
    *  spine (Tonight) never fires a duplicate request. Omitted on Discover, which
    *  self-fetches exactly as before. */
   rows?: WhatsOnRow[];
-  asOf?: string | null;
 };
 
-export default function DealsTonightLane({ rows: providedRows, asOf: providedAsOf }: DealsTonightLaneProps = {}) {
+function selectDealsTonightRows(value: unknown): WhatsOnRow[] {
+  return Array.isArray(value)
+    ? value.filter((row) => isValidWhatsOnRow(row)).filter((row) => row.kind === "deal").slice(0, 8)
+    : [];
+}
+
+export function dealsTonightRowsFromResponse(body: unknown): WhatsOnRow[] {
+  if (typeof body !== "object" || body === null) return [];
+  return selectDealsTonightRows((body as { rows?: unknown }).rows);
+}
+
+export default function DealsTonightLane({ rows: providedRows }: DealsTonightLaneProps = {}) {
   const provided = providedRows !== undefined;
-  const [state, setState] = useState<DealsState>({ rows: [], asOf: null });
+  const [fetchedRows, setFetchedRows] = useState<WhatsOnRow[]>([]);
 
   useEffect(() => {
     if (provided) return; // reuse mode: the host already loaded the spine.
@@ -38,21 +46,15 @@ export default function DealsTonightLane({ rows: providedRows, asOf: providedAsO
     })
       .then((res) => (res.ok ? res.json() : null))
       .then((body) => {
-        if (!body || !Array.isArray(body.rows)) return;
-        const rows = body.rows.filter(isValidWhatsOnRow).slice(0, 8);
-        setState({
-          rows,
-          asOf: typeof body.asOf === "string" ? body.asOf : null,
-        });
+        setFetchedRows(dealsTonightRowsFromResponse(body));
       })
       .catch(() => undefined);
     return () => controller.abort();
   }, [provided]);
 
   const rows = provided
-    ? providedRows.filter((row) => row.kind === "deal").slice(0, 8)
-    : state.rows;
-  const asOf = provided ? (providedAsOf ?? null) : state.asOf;
+    ? selectDealsTonightRows(providedRows)
+    : fetchedRows;
 
   if (rows.length === 0) return null;
 
@@ -64,7 +66,9 @@ export default function DealsTonightLane({ rows: providedRows, asOf: providedAsO
         <h2 id="deals-tonight-title">
           <PoundSterling size={18} aria-hidden="true" /> Deals tonight
         </h2>
-        <span className="dealsTonightChecked">{checkedLabel(asOf)}</span>
+        <span className="dealsTonightChecked">
+          {rows.length} listed deal{rows.length === 1 ? "" : "s"}
+        </span>
       </div>
       <p className="dealsTonightLead">
         Listed offers and other deals, {meta.badgeLabel.toLowerCase()}.

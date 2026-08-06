@@ -29,8 +29,8 @@ import {
 
 import SiteNav from "@/components/nav/SiteNav";
 import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
+import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
-import TonightDealsLane from "./TonightDealsLane";
 import TonightConditionsStrip from "./TonightConditionsStrip";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
@@ -267,7 +267,7 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
   const secondaryHeroes = groupedAll.map((group) => group.row);
   const secondaryLanes = (
     <>
-      <TonightDealsLane rows={secondaryHeroes} />
+      <DealsTonightLane rows={secondaryHeroes} />
       <MusicTonightLane rows={secondaryHeroes} asOf={asOf} />
     </>
   );
@@ -643,6 +643,14 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
         </>
       ) : null}
 
+      </div>
+
+      {/* Main-list-first (§4.11): under the canonical model the Deals/Music
+          treatment follows the main list on phones. Desktop CSS places this
+          direct grid child in the contextual rail. */}
+      {lanePlacement.below}
+
+      <div className="tonightAfterPrimary">
       {thinNight ? (
         <section className="tonightQuiet" aria-label="While it's quiet">
           <p className="tonightQuietLede">
@@ -738,11 +746,6 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
         </section>
       ) : null}
       </div>
-
-      {/* Main-list-first (§4.11): under the canonical model the Deals/Music
-          treatment follows the main list on phones. Desktop CSS places this
-          direct grid child in the contextual rail. */}
-      {lanePlacement.below}
       </div>
     </main>
   );

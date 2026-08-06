@@ -661,6 +661,7 @@
 
 .tonightDesktopGrid,
 .tonightPrimary,
+.tonightAfterPrimary,
 .tonightContext {
   display: contents;
 }
@@ -691,6 +692,13 @@
     display: block;
     grid-column: 1;
     grid-row: 2;
+    min-width: 0;
+  }
+
+  .tonightDesktopGrid > .tonightAfterPrimary {
+    display: block;
+    grid-column: 1;
+    grid-row: 3;
     min-width: 0;
   }
 
@@ -727,19 +735,13 @@
   }
 
   .tonightContext .dealsTonightList,
-  .tonightPrimary > .tonightSecondaryLanes .dealsTonightList {
+  .tonightDesktopGrid > .tonightSecondaryLanes .dealsTonightList {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .tonightContext .dealsTonightHead h2,
-  .tonightPrimary > .tonightSecondaryLanes .dealsTonightHead h2 {
+  .tonightDesktopGrid > .tonightSecondaryLanes .dealsTonightHead h2 {
     font-size: var(--text-md, 1.16rem);
-  }
-
-  .tonightPrimary > .tonightSecondaryLanes {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
   }
 
   .tonightDesktopGrid > .tonightSecondaryLanes {

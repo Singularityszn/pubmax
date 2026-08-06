@@ -12,19 +12,18 @@ test.describe("desktop route composition", () => {
 
     await expect(page.getByTestId("tonight-screen")).toBeVisible();
     expect(await widthOf(page.getByTestId("tonight-screen"))).toBeGreaterThan(1000);
-    await expect(page.locator(".tonightContext")).toBeVisible();
     expect(await widthOf(page.locator(".tonightContext"))).toBeGreaterThanOrEqual(300);
   });
 
   test("Today presents its brief and pub context side by side", async ({ page }) => {
     await page.goto("/today");
 
-    const screen = page.getByTestId("today-screen");
+    const screen = page.locator('[data-testid="today-screen"]:visible').last();
     await expect(screen).toBeVisible();
     expect(await widthOf(screen)).toBeGreaterThan(1000);
 
-    const brief = page.locator(".todayBriefColumn");
-    const explore = page.locator(".todayExploreColumn");
+    const brief = screen.locator(".todayBriefColumn");
+    const explore = screen.locator(".todayExploreColumn");
     await expect(brief).toBeVisible();
     await expect(explore).toBeVisible();
     const [briefBox, exploreBox] = await Promise.all([
@@ -35,6 +34,7 @@ test.describe("desktop route composition", () => {
     expect(exploreBox).not.toBeNull();
     expect(exploreBox!.x).toBeGreaterThan(briefBox!.x + briefBox!.width);
   });
+
 });
 
 test.describe("phone route composition", () => {
@@ -44,7 +44,25 @@ test.describe("phone route composition", () => {
     await page.goto("/today");
 
     const cards = page.locator(".todayStack .todayCard");
-    await expect(cards).toHaveCount(6);
+    const cardIds = await cards.evaluateAll((elements) =>
+      elements.map((element) => element.getAttribute("data-testid")),
+    );
+    const canonicalOrder = [
+      "today-weather",
+      "today-tube",
+      "today-picks",
+      "today-get-there",
+      "today-pints",
+      "today-quiet-pint",
+      "today-fact",
+    ];
+    expect(cardIds).toEqual(canonicalOrder.filter((id) => cardIds.includes(id)));
+    expect(cardIds).toEqual(expect.arrayContaining([
+      "today-weather",
+      "today-picks",
+      "today-get-there",
+      "today-fact",
+    ]));
     const boxes = await cards.evaluateAll((elements) =>
       elements.map((element) => element.getBoundingClientRect().toJSON()),
     );

@@ -3,9 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import DealsTonightLane, {
+  dealsTonightRowsFromResponse,
   type DealsTonightLaneProps,
 } from "@/components/discovery/DealsTonightLane";
-import TonightDealsLane from "@/app/tonight/TonightDealsLane";
 import { londonServiceDayBounds } from "@/lib/whatsOn";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -25,7 +25,6 @@ describe("DealsTonightLane caption", () => {
     const observedAt = new Date(now - 60 * 60 * 1000).toISOString();
 
     const props: DealsTonightLaneProps = {
-      asOf: observedAt,
       rows: [
         {
           id: "caption-integrity-deal",
@@ -52,8 +51,8 @@ describe("DealsTonightLane caption", () => {
     expect(html).toContain(`class="dealsTonightDetail">${DEAL_QUALIFIER}</span>`);
   });
 
-  it("derives the Tonight header claim from the deal cards shown", () => {
-    const observedAt = "2026-08-06T10:30:00.000Z";
+  it("derives the Tonight host-provided claim from the deal cards shown", () => {
+    const observedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const props: { rows: WhatsOnRow[] } = {
       rows: [
         {
@@ -74,7 +73,7 @@ describe("DealsTonightLane caption", () => {
 
     const html = renderToStaticMarkup(
       createElement(
-        TonightDealsLane,
+        DealsTonightLane,
         props,
       ),
     );
@@ -84,6 +83,7 @@ describe("DealsTonightLane caption", () => {
   });
 
   it("counts only the deal cards that the Tonight lane renders", () => {
+    const observedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const dealRows: WhatsOnRow[] = Array.from({ length: 9 }, (_, index) => ({
       id: `deal-${index}`,
       placeName: `Venue ${index}`,
@@ -91,7 +91,7 @@ describe("DealsTonightLane caption", () => {
       startsAt: "2026-08-06T17:00:00.000Z",
       title: `Deal ${index}`,
       source: { label: "Venue listing", url: "https://example.com/deal" },
-      observedAt: "2026-08-06T10:30:00.000Z",
+      observedAt,
       confidence: "listed",
     }));
     const musicRow: WhatsOnRow = {
@@ -102,11 +102,33 @@ describe("DealsTonightLane caption", () => {
     };
 
     const html = renderToStaticMarkup(
-      createElement(TonightDealsLane, { rows: [...dealRows, musicRow] }),
+      createElement(DealsTonightLane, { rows: [...dealRows, musicRow] }),
     );
 
     expect(html).toContain('class="dealsTonightChecked">8 listed deals</span>');
     expect(html.match(/class="dealsTonightCard"/g)).toHaveLength(8);
     expect(html).not.toContain("Live music");
+  });
+
+  it("derives the Discover claim from validated response cards without asOf", () => {
+    const rows = dealsTonightRowsFromResponse({
+      rows: [{
+        id: "discover-dated-deal",
+        venueId: "venue-xjf3n0",
+        placeName: "Arnos Arms, Arnos Grove",
+        kind: "deal",
+        startsAt: "2026-08-06T17:00:00.000Z",
+        title: "Early round offer",
+        source: { label: "Venue listing", url: "https://example.com/deal" },
+        observedAt: "2026-08-06T00:00:00.000Z",
+        confidence: "listed",
+      }],
+    });
+
+    const html = renderToStaticMarkup(createElement(DealsTonightLane, { rows }));
+
+    expect(html).toContain('class="dealsTonightChecked">1 listed deal</span>');
+    expect(html.match(/class="dealsTonightCard"/g)).toHaveLength(1);
+    expect(html).not.toContain("No date on this yet");
   });
 });
