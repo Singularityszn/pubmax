@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const FORWARD = join(
   process.cwd(),
-  "supabase/migrations/20260805100000_0071_social_identity_assurance.sql",
+  "supabase/migrations/20260806145754_0071_social_identity_assurance.sql",
 );
 const APPLIED_OWNERSHIP = join(
   process.cwd(),
@@ -19,7 +19,7 @@ const APPLIED_OWNERSHIP_SHA256 =
   "089e555753d5abec31c794bab4a9fef76f1ced6c4b988f68f7f82db2552fd93b";
 const ROLLBACK = join(
   process.cwd(),
-  "supabase/migrations/rollback/20260805100000_0071_social_identity_assurance_rollback.sql",
+  "supabase/migrations/rollback/20260806145754_0071_social_identity_assurance_rollback.sql",
 );
 
 function postgresBinary(name: "initdb" | "postgres" | "psql"): string | null {
