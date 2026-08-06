@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 79 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 80 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -20,8 +20,9 @@ CI until this certification is deliberately updated.
 > invite-link creation and same-journey signup claim) → 75 (private Social
 > product-account migration) → 77 (verified Social post creation and item
 > editing or recoverable removal) → 78 (shared Plan group preferences
-> `POST/DELETE /api/plans/[id]/group-prefs`) → 79 (consolidated verified Social
-> interactions and governance). Account onboarding
+> `POST/DELETE /api/plans/[id]/group-prefs`) → 79 (pending Plan recap claim
+> writes) → 80 (consolidated verified Social interactions and governance).
+> Account onboarding
 > replaces the earlier identity claim POST, so its route does not change the
 > count.
 > Token-gated GET
@@ -171,7 +172,7 @@ moderation state, revision or timestamp is accepted from the request body.
   Rollback:
   `supabase/migrations/rollback/20260806160000_0076_plan_member_group_prefs_rollback.sql`.
 
-### `app/api/social/interactions` - verified Social interactions and governance (route 79)
+### `app/api/social/interactions` - verified Social interactions and governance (route 80)
 
 - **Route / methods:** `GET`, `PUT`, `POST`, and `DELETE` share one reviewed
   route. GET reads bounded interaction pages. PUT and DELETE set Cheers,
