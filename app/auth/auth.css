@@ -25,8 +25,9 @@
   box-sizing: border-box;
   /* Named container: label full/short swaps on CONTAINER width so a tight
      empty-state card at a wide viewport no longer forces clipped full labels.
-     Must sit under a definite-width host (see .authUser:not(.authUserNav)) —
-     size containment would otherwise collapse under justify-items:center. */
+     The direct wrapper and .authUser:not(.authUserNav) below both fill their
+     host column and may shrink; otherwise size containment can collapse under
+     justify-items:center. */
   container-type: inline-size;
   container-name: auth-options;
 }
@@ -539,20 +540,17 @@
   justify-content: flex-end;
 }
 
-/* Standalone sign-in wall (empty states / passport). Give the wall a real
-   min inline size so .authOptions container queries work under
-   globals .emptyState { justify-items: center } (parent shrink-wraps to
-   content; size containment would otherwise report 0). Nav compact keeps
-   the inline-flex .authUser rule above. */
+:where(:has(> .authUser:not(.authUserNav))) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .authUser:not(.authUserNav) {
   display: block;
-  width: min(26rem, 100%);
-  max-width: min(26rem, 100%);
-  /* Definite min inline size for the container queries, but sized off the
-     VIEWPORT minus the host card's gutter (page padding + emptyState's 18px
-     inner padding) so the wall never overruns a padded card's right edge at
-     phone widths — the source of the earlier right-side bleed. */
-  min-width: min(26rem, calc(100vw - 4.5rem));
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin-inline: auto;
   box-sizing: border-box;
 }
