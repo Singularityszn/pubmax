@@ -37,7 +37,7 @@ claims, and mobile paths blocked by shipped chrome.
 
 ### Security and identity
 
-- Migration `20260805070000_0070_v1_release_security.sql` denies browser DML on
+- Migration `20260806035204_0070_v1_release_security.sql` denies browser DML on
   eight Night Memory and voice tables while retaining the service-role path.
 - The same migration moves Wave 2 SECURITY DEFINER policy helpers into the
   unexposed `pubmax_private` schema. Existing policy dependencies and function
@@ -116,7 +116,7 @@ Release operator must then confirm:
 ### 2. Apply and verify migration 0070
 
 Captain alone applies
-`supabase/migrations/20260805070000_0070_v1_release_security.sql` to Supabase
+`supabase/migrations/20260806035204_0070_v1_release_security.sql` to Supabase
 project `iankajxliutqogqkmvdg`. Current production migration history stops at
 `0069`. Agents ship and test SQL only.
 
@@ -158,7 +158,7 @@ unreconciled quota event blocks release completion.
 ## Rollback
 
 Database rollback is Captain-only. Do not execute
-`supabase/migrations/rollback/20260805070000_v1_release_security_rollback.sql`
+`supabase/migrations/rollback/20260806035204_v1_release_security_rollback.sql`
 directly against production or pair it with an ad hoc migration-history repair.
 Direct SQL alone leaves the ledger claiming a schema state that no longer
 exists. Marking `0070` reverted erases applied history and allows a later push to

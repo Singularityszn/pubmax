@@ -71,8 +71,8 @@ Expected: deterministic failures showing helpers still live under `public`, `/rp
 ### Task 2: Move Helpers and Repair JWT Fixture
 
 **Files:**
-- Modify: `supabase/migrations/20260805070000_0070_v1_release_security.sql`
-- Modify: `supabase/migrations/rollback/20260805070000_v1_release_security_rollback.sql`
+- Modify: `supabase/migrations/20260806035204_0070_v1_release_security.sql`
+- Modify: `supabase/migrations/rollback/20260806035204_v1_release_security_rollback.sql`
 - Modify: `scripts/rls/session-fixture.sql`
 
 **Interfaces:**

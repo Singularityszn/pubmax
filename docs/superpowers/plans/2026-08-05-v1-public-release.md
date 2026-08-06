@@ -25,8 +25,8 @@
 **Owner worktree:** `.codex-worktrees/v1-security`
 
 **Files:**
-- Create: `supabase/migrations/20260805070000_0070_v1_release_security.sql`
-- Create: `supabase/migrations/rollback/20260805070000_v1_release_security_rollback.sql`
+- Create: `supabase/migrations/20260806035204_0070_v1_release_security.sql`
+- Create: `supabase/migrations/rollback/20260806035204_v1_release_security_rollback.sql`
 - Modify: `app/api/pub-pal/voice-token/route.ts`
 - Modify: `__tests__/rlsWave2Policies.test.ts` only when its all-migration expectations need the new final state
 - Create: `__tests__/v1ReleaseSecurityMigration.test.ts`

@@ -30,7 +30,7 @@ const WAVE2 = [
   "20260803204000_0069_rls_wave2_rpc_hardening.sql",
 ];
 const V1_RELEASE = [
-  "20260805070000_0070_v1_release_security.sql",
+  "20260806035204_0070_v1_release_security.sql",
 ];
 
 const PRE_WAVE_MIGRATIONS = readdirSync(MIGRATIONS_DIR)
@@ -576,7 +576,7 @@ export async function startRlsSession() {
     rollbackPath: join(MIGRATIONS_DIR, "rollback/20260803200000_rls_wave2_rollback.sql"),
     v1RollbackPath: join(
       MIGRATIONS_DIR,
-      "rollback/20260805070000_v1_release_security_rollback.sql",
+      "rollback/20260806035204_v1_release_security_rollback.sql",
     ),
   };
 }

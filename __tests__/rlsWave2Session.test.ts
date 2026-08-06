@@ -44,7 +44,7 @@ const EXPECTED_SECURITY_MIGRATIONS = [
   "20260803202000_0067_rls_wave2_owner_policies.sql",
   "20260803203000_0068_rls_wave2_service_role_only.sql",
   "20260803204000_0069_rls_wave2_rpc_hardening.sql",
-  "20260805070000_0070_v1_release_security.sql",
+  "20260806035204_0070_v1_release_security.sql",
 ];
 
 const OWNER = "11111111-1111-1111-1111-111111111111";

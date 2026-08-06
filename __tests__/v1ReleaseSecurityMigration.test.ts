@@ -12,8 +12,8 @@ import { describe, expect, it } from "vitest";
 
 const MIGRATIONS_DIR = join(process.cwd(), "supabase/migrations");
 const ROLLBACK_DIR = join(MIGRATIONS_DIR, "rollback");
-const FORWARD_NAME = "20260805070000_0070_v1_release_security.sql";
-const ROLLBACK_NAME = "20260805070000_v1_release_security_rollback.sql";
+const FORWARD_NAME = "20260806035204_0070_v1_release_security.sql";
+const ROLLBACK_NAME = "20260806035204_v1_release_security_rollback.sql";
 const FORWARD_PATH = join(MIGRATIONS_DIR, FORWARD_NAME);
 const ROLLBACK_PATH = join(ROLLBACK_DIR, ROLLBACK_NAME);
 
