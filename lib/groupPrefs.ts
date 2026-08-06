@@ -22,6 +22,8 @@ export type MatePreference = {
   budgetBand: GroupPrefBudgetBand;
   atmosphereChips: GroupPrefAtmosphereChip[];
   zeroProof: boolean;
+  accessibilityRequired: boolean;
+  weatherShelterRequired: boolean;
   updatedAt?: string;
 };
 
@@ -29,6 +31,8 @@ export type GroupPrefsHardConstraints = {
   budgetBand: GroupPrefBudgetBand | null;
   budgetLabel: string | null;
   zeroProofRequired: boolean;
+  accessibilityRequired: boolean;
+  weatherShelterRequired: boolean;
   sharedAtmosphereChips: GroupPrefAtmosphereChip[];
 };
 
@@ -38,6 +42,8 @@ export type GroupPrefsOverlap = {
   softScore: number;
   scoreLabel: "No picks yet" | "First pick saved" | "Strong overlap" | "Some overlap" | "Light overlap";
   summaryLabels: string[];
+  /** Must-have lines the planner may never silently relax. */
+  mustHaveLabels: string[];
 };
 
 const BUDGET_BY_ID = new Map(GROUP_PREF_BUDGET_BANDS.map((band) => [band.id, band]));
@@ -74,7 +80,30 @@ export function parseMatePreference(value: unknown): MatePreference | null {
     budgetBand: row.budgetBand,
     atmosphereChips,
     zeroProof: row.zeroProof === true,
+    accessibilityRequired: row.accessibilityRequired === true,
+    weatherShelterRequired: row.weatherShelterRequired === true,
     updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : undefined,
+  };
+}
+
+export type GroupPrefWriteInput = {
+  budgetBand: GroupPrefBudgetBand;
+  atmosphereChip: GroupPrefAtmosphereChip;
+  zeroProof: boolean;
+  accessibilityRequired: boolean;
+  weatherShelterRequired: boolean;
+};
+
+export function parseGroupPrefWriteInput(value: unknown): GroupPrefWriteInput | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  if (!isBudgetBand(row.budgetBand) || !isAtmosphereChip(row.atmosphereChip)) return null;
+  return {
+    budgetBand: row.budgetBand,
+    atmosphereChip: row.atmosphereChip,
+    zeroProof: row.zeroProof === true,
+    accessibilityRequired: row.accessibilityRequired === true,
+    weatherShelterRequired: row.weatherShelterRequired === true,
   };
 }
 
@@ -111,6 +140,15 @@ function scoreLabel(mateCount: number, score: number): GroupPrefsOverlap["scoreL
   return "Light overlap";
 }
 
+function mustHaveLabelsFor(hard: GroupPrefsHardConstraints): string[] {
+  return [
+    hard.budgetLabel ? `Budget: ${hard.budgetLabel}` : null,
+    hard.zeroProofRequired ? "Zero-proof options needed" : null,
+    hard.accessibilityRequired ? "Step-free access needed" : null,
+    hard.weatherShelterRequired ? "Covered shelter needed" : null,
+  ].filter((label): label is string => Boolean(label));
+}
+
 export function overlapGroupPrefs(prefs: readonly MatePreference[]): GroupPrefsOverlap {
   const latest = latestMatePrefs(prefs);
   if (latest.length === 0) {
@@ -120,11 +158,14 @@ export function overlapGroupPrefs(prefs: readonly MatePreference[]): GroupPrefsO
         budgetBand: null,
         budgetLabel: null,
         zeroProofRequired: false,
+        accessibilityRequired: false,
+        weatherShelterRequired: false,
         sharedAtmosphereChips: [],
       },
       softScore: 0,
       scoreLabel: "No picks yet",
       summaryLabels: ["waiting on mate picks"],
+      mustHaveLabels: [],
     };
   }
 
@@ -134,6 +175,8 @@ export function overlapGroupPrefs(prefs: readonly MatePreference[]): GroupPrefsO
   const strictestBudget = GROUP_PREF_BUDGET_BANDS.find((band) => band.rank === strictestRank)?.id ?? null;
   const budgetLabel = labelForBudget(strictestBudget);
   const zeroProofRequired = latest.some((pref) => pref.zeroProof);
+  const accessibilityRequired = latest.some((pref) => pref.accessibilityRequired);
+  const weatherShelterRequired = latest.some((pref) => pref.weatherShelterRequired);
   const mixedZeroProof = latest.some((pref) => pref.zeroProof) && latest.some((pref) => !pref.zeroProof);
 
   const atmosphereCounts = new Map<GroupPrefAtmosphereChip, number>();
@@ -156,24 +199,28 @@ export function overlapGroupPrefs(prefs: readonly MatePreference[]): GroupPrefsO
     ? 1
     : rankedAtmosphere.length > 0 ? rankedAtmosphere[0]![1] / latest.length : 0.5;
   const softScore = Math.max(0, Math.min(100, Math.round(((budgetScore + zeroProofScore + atmosphereScore) / 3) * 100)));
+  const hardConstraints: GroupPrefsHardConstraints = {
+    budgetBand: strictestBudget,
+    budgetLabel,
+    zeroProofRequired,
+    accessibilityRequired,
+    weatherShelterRequired,
+    sharedAtmosphereChips,
+  };
+  const mustHaveLabels = mustHaveLabelsFor(hardConstraints);
   const summaryLabels = [
-    budgetLabel ? `Budget: ${budgetLabel}` : null,
+    ...mustHaveLabels,
     sharedAtmosphereChips.length > 0
       ? `Shared vibe: ${sharedAtmosphereChips.map(labelForAtmosphere).join(", ")}`
       : rankedAtmosphere[0] ? `Top vibe: ${labelForAtmosphere(rankedAtmosphere[0][0])} (${rankedAtmosphere[0][1]}/${latest.length})` : null,
-    zeroProofRequired ? "Zero-proof options needed" : null,
   ].filter((label): label is string => Boolean(label));
 
   return {
     mateCount: latest.length,
-    hardConstraints: {
-      budgetBand: strictestBudget,
-      budgetLabel,
-      zeroProofRequired,
-      sharedAtmosphereChips,
-    },
+    hardConstraints,
     softScore,
     scoreLabel: scoreLabel(latest.length, softScore),
     summaryLabels,
+    mustHaveLabels,
   };
 }

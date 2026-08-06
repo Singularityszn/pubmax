@@ -180,7 +180,9 @@
 .matchGroupPrefs__actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .planCollab .matchGroupPrefs__chip { min-height: 36px; padding: 7px 10px; border-color: var(--line); background: var(--panel-raised); color: var(--ink-soft); font-size: 0.72rem; }
 .planCollab .matchGroupPrefs__chip[aria-pressed="true"] { border-color: var(--plan-accent); background: var(--plan-accent); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--plan-accent) 22%, transparent); }
-.matchGroupPrefs__summary { padding: 10px; border-radius: 12px; background: var(--panel-raised); color: var(--ink-soft); font-size: 0.74rem; line-height: 1.45; }
+.matchGroupPrefs__summary,
+.matchGroupPrefs__mustHaves { padding: 10px; border-radius: 12px; background: var(--panel-raised); color: var(--ink-soft); font-size: 0.74rem; line-height: 1.45; }
+.matchGroupPrefs__mustHaves { border: 1px solid color-mix(in srgb, var(--plan-accent) 35%, var(--line)); }
 .planCollab__form { display: grid; gap: 9px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
 .planCollab__form > strong,
 .planCollab__proposals > strong { font-size: 0.82rem; }
