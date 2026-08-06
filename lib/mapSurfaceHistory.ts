@@ -87,17 +87,3 @@ export function mapSurfaceOpenTransition<S>(
     stack: [...stack.filter((held) => held.id !== entry.id), entry],
   };
 }
-
-export type MapSurfaceSelectionTransition<S> =
-  | MapSurfaceOpenTransition<S>
-  | { kind: "defer"; stack: SurfaceStack<S> };
-
-export function mapSurfaceSelectionTransition<S>(
-  stack: SurfaceStack<S>,
-  entry: SurfaceEntry<S>,
-  resolved: boolean,
-): MapSurfaceSelectionTransition<S> {
-  return resolved
-    ? mapSurfaceOpenTransition(stack, entry)
-    : { kind: "defer", stack: stack.filter((held) => held.id !== entry.id) };
-}

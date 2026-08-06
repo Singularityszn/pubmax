@@ -271,16 +271,7 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
     venue = (await getFallbackIndex()).get(id) ?? null;
   }
   if (!venue && cityIdFromVenueId(id)) {
-    const ref = venueLookup.venue;
-    venue = slimVenueToPin({
-      id: ref.id,
-      name: ref.name,
-      lat: ref.lat,
-      lng: ref.lng,
-      cheapestPrice: null,
-      borough: ref.borough,
-      ...(ref.kind ? { kind: ref.kind } : {}),
-    });
+    venue = slimVenueToPin(venueLookup.slimVenue);
   }
   if (!venue) return { status: "unavailable" };
 

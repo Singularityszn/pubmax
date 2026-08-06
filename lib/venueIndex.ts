@@ -9,6 +9,7 @@ import {
 } from "@/lib/cityVenueIds";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import type { Venue, VenueKind } from "@/lib/venues";
+import type { SlimVenue } from "@/lib/venuesSlim";
 
 // Server-only venue-name resolution (PRD §9). Social content stores raw venue
 // ids (content-hashed, e.g. "venue-1ufn31x"); no public feed/profile/permalink
@@ -30,7 +31,12 @@ export type VenueRef = {
 };
 
 export type CanonicalVenueLookup =
-  | { status: "found"; canonicalId: string; venue: VenueRef }
+  | {
+      status: "found";
+      canonicalId: string;
+      venue: VenueRef;
+      slimVenue: SlimVenue;
+    }
   | { status: "unknown"; canonicalId: string }
   | { status: "unavailable"; canonicalId: string };
 
@@ -40,7 +46,14 @@ type SlimRow = {
   borough?: unknown;
   lat?: unknown;
   lng?: unknown;
+  cheapestPrice?: unknown;
   kind?: unknown;
+  [key: string]: unknown;
+};
+
+type IndexedVenue = {
+  venue: VenueRef;
+  slimVenue: SlimVenue;
 };
 
 // Pure: fold venues into an id→ref lookup. Split out so it's unit-testable
@@ -60,8 +73,8 @@ export function buildVenueIndex(venues: Venue[]): Map<string, VenueRef> {
   return index;
 }
 
-function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, VenueRef> {
-  const index = new Map<string, VenueRef>();
+function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, IndexedVenue> {
+  const index = new Map<string, IndexedVenue>();
   const kinds = new Set<VenueKind>(["pub", "bar", "club", "food", "restaurant"]);
   for (const row of rows) {
     if (typeof row.id !== "string" || !row.id) continue;
@@ -75,20 +88,60 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, VenueRef> {
     const lat = typeof row.lat === "number" ? row.lat : Number(row.lat);
     const lng = typeof row.lng === "number" ? row.lng : Number(row.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-    index.set(row.id, {
+    const borough =
+      typeof row.borough === "string" && row.borough ? row.borough : "London";
+    const venue: VenueRef = {
       id: row.id,
       name: row.name,
-      borough: typeof row.borough === "string" && row.borough ? row.borough : "London",
+      borough,
       lat,
       lng,
       ...(row.kind !== undefined ? { kind: row.kind as VenueKind } : {}),
-    });
+    };
+    const cheapestPrice =
+      row.cheapestPrice === null ||
+      (typeof row.cheapestPrice === "number" && Number.isFinite(row.cheapestPrice))
+        ? row.cheapestPrice
+        : null;
+    const slimVenue: SlimVenue = {
+      id: row.id,
+      name: row.name,
+      borough,
+      lat,
+      lng,
+      cheapestPrice,
+      ...(typeof row.zone === "number" &&
+      Number.isInteger(row.zone) &&
+      row.zone > 0
+        ? { zone: row.zone }
+        : {}),
+      ...(typeof row.filterHints === "object" && row.filterHints !== null
+        ? { filterHints: row.filterHints as SlimVenue["filterHints"] }
+        : {}),
+      ...(row.kind !== undefined ? { kind: row.kind as VenueKind } : {}),
+      ...(row.priceBand === 0 || row.priceBand === 1 || row.priceBand === 2
+        ? { priceBand: row.priceBand }
+        : {}),
+      ...(typeof row.anchorLabel === "string"
+        ? { anchorLabel: row.anchorLabel }
+        : {}),
+      ...(typeof row.anchorCourse === "string"
+        ? { anchorCourse: row.anchorCourse as SlimVenue["anchorCourse"] }
+        : {}),
+      ...(typeof row.anchorObservedAt === "string"
+        ? { anchorObservedAt: row.anchorObservedAt }
+        : {}),
+      ...(typeof row.anchorSourceUrl === "string"
+        ? { anchorSourceUrl: row.anchorSourceUrl }
+        : {}),
+    };
+    index.set(row.id, { venue, slimVenue });
   }
   return index;
 }
 
 let cached: Map<string, VenueRef> | null = null;
-const cityCache = new Map<string, Map<string, VenueRef>>();
+const cityCache = new Map<string, Map<string, IndexedVenue>>();
 
 function publicDataPath(publicPath: string): string {
   return path.join(
@@ -98,7 +151,9 @@ function publicDataPath(publicPath: string): string {
   );
 }
 
-async function readSlimIndex(publicPath: string): Promise<Map<string, VenueRef>> {
+async function readSlimIndex(
+  publicPath: string,
+): Promise<Map<string, IndexedVenue>> {
   const rows = JSON.parse(
     await fs.readFile(
       /* turbopackIgnore: true */ publicDataPath(publicPath),
@@ -108,7 +163,9 @@ async function readSlimIndex(publicPath: string): Promise<Map<string, VenueRef>>
   return buildVenueIndexFromSlim(Array.isArray(rows) ? rows : []);
 }
 
-async function getCityVenueIndex(publicPath: string): Promise<Map<string, VenueRef> | null> {
+async function getCityVenueIndex(
+  publicPath: string,
+): Promise<Map<string, IndexedVenue> | null> {
   const existing = cityCache.get(publicPath);
   if (existing) return existing;
   try {
@@ -141,8 +198,8 @@ export async function getVenueIndex(): Promise<Map<string, VenueRef>> {
   for (const city of cities) {
     const cityIndex = cityCache.get(city.slimVenuesPath);
     if (!cityIndex) continue;
-    for (const [id, ref] of cityIndex) {
-      index.set(id, ref);
+    for (const [id, entry] of cityIndex) {
+      index.set(id, entry.venue);
     }
   }
   if (allLoaded) cached = index;
@@ -164,9 +221,9 @@ export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLo
   if (!cityIndex) {
     return { status: "unavailable", canonicalId };
   }
-  const venue = cityIndex.get(canonicalId);
-  return venue
-    ? { status: "found", canonicalId, venue }
+  const entry = cityIndex.get(canonicalId);
+  return entry
+    ? { status: "found", canonicalId, ...entry }
     : { status: "unknown", canonicalId };
 }
 

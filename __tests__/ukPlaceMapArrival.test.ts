@@ -139,6 +139,9 @@ describe("UK place map arrival", () => {
 
     expect(pubMap).toContain("limitedCoverage={Boolean(ukPlaceArrival)}");
     expect(pubMap).toContain("ukPlaceArrival ? null : (");
+    expect(pubMap).toMatch(
+      /\{selectionNotice \? \([\s\S]*?\) : ukPlaceArrival \? \(/,
+    );
     // The arrival's own place name still wins the bar. What follows it is now
     // the claim the VIEW earned (lib/areaButton.areaClaimedByViewport), which
     // answers null for a view over no single area, so the city name is the

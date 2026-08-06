@@ -930,9 +930,6 @@ export default function PubMap({
   const surfaceOpenRef = useRef<
     (entry: SurfaceEntry<MapSurfaceState>) => void
   >(() => {});
-  const surfaceSelectionRef = useRef<
-    (entry: SurfaceEntry<MapSurfaceState>, resolved: boolean) => void
-  >(() => {});
   const surfaceStateRef = useRef<MapSurfaceState>(EMPTY_MAP_SURFACE_STATE);
   const {
     sheetSnap,
@@ -1535,18 +1532,21 @@ export default function PubMap({
     ) => {
       if (!id) return;
       setSelectionNotice(null);
-      surfaceSelectionRef.current(
-        {
-          id: "venue",
-          title: "Pub detail",
-          state: {
-            ...surfaceStateRef.current,
-            venueId: id,
-            venueTab: initialTab,
-          },
+      setDetailStatusById((current) => {
+        if (!current.has(id)) return current;
+        const next = new Map(current);
+        next.delete(id);
+        return next;
+      });
+      surfaceOpenRef.current({
+        id: "venue",
+        title: "Pub detail",
+        state: {
+          ...surfaceStateRef.current,
+          venueId: id,
+          venueTab: initialTab,
         },
-        venueById.has(id) || isUkBaseId(id),
-      );
+      });
       if (typeof document !== "undefined") {
         const active = document.activeElement;
         if (
@@ -1572,7 +1572,13 @@ export default function PubMap({
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
       setSheetDragY(null);
     },
-    [claimMapDrawer, closeComposer, setSelectedVenueId, setSheetSnap, setSheetDragY, venueById],
+    [
+      claimMapDrawer,
+      closeComposer,
+      setSelectedVenueId,
+      setSheetSnap,
+      setSheetDragY,
+    ],
   );
 
   // §4.8 Make it Stop 1 — the ONE Map intent-write. The caller only wires this
@@ -2625,9 +2631,8 @@ export default function PubMap({
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
     surfaceOpenRef.current = mapSurfaceTrail.open;
-    surfaceSelectionRef.current = mapSurfaceTrail.openSelection;
     surfaceStateRef.current = mapSurfaceState;
-  }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.open, mapSurfaceTrail.openSelection]);
+  }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.open]);
 
   useEffect(() => {
     if (!selectedVenueId || detailById.has(selectedVenueId) || isUkBaseId(selectedVenueId)) return;
@@ -2656,6 +2661,7 @@ export default function PubMap({
         next.delete(canonicalVenueId);
         return next;
       });
+      setSelectionNotice(null);
       if (canonicalVenueId !== requestedVenueId) {
         setSelectedVenueId((current) =>
           current === requestedVenueId ? canonicalVenueId : current,
@@ -3086,9 +3092,6 @@ export default function PubMap({
             onChange={setVenueKindVisibility}
           />
         ) : null}
-        {ukPlaceArrival ? (
-          <UkPlaceArrivalBanner arrival={ukPlaceArrival} />
-        ) : null}
         {selectionNotice ? (
           <aside
             className="ukPlaceArrival"
@@ -3117,6 +3120,8 @@ export default function PubMap({
               <X size={18} aria-hidden="true" />
             </button>
           </aside>
+        ) : ukPlaceArrival ? (
+          <UkPlaceArrivalBanner arrival={ukPlaceArrival} />
         ) : null}
         {/* Keep pitched-London loading chrome until slim data and the canvas's
             viewport-specific handoff are ready. Phone requires a guarded frame

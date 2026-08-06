@@ -188,10 +188,19 @@ describe("venueDetailIndex", () => {
     expect(getManifestReadAttemptsForTests()).toBe(2);
   });
 
-  it("synthesizes non-London detail from the city slim pack when no artifact exists", async () => {
-    const venue = await getVenueDetail("venue-oxf-16404bl");
-    expect(venue?.id).toBe("venue-oxf-16404bl");
-    expect(venue?.name).toBeTruthy();
-    expect(venue?.prices).toEqual([]);
+  it("preserves the full city slim row when no detail artifact exists", async () => {
+    const venue = await getVenueDetail("venue-bat-1vw6eb2");
+
+    expect(venue).toMatchObject({
+      id: "venue-bat-1vw6eb2",
+      name: "The Raven",
+      address: "6-7, queen street, bath, ba1 1he bath pie",
+      hasStory: true,
+      filterHints: {
+        amenities: { food: true, beerGarden: true },
+        curation: { hasStory: true },
+      },
+      prices: [],
+    });
   });
 });

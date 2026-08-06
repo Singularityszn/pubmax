@@ -11,7 +11,6 @@ import {
 
 import {
   mapSurfaceOpenTransition,
-  mapSurfaceSelectionTransition,
   readMapSurfaceHistory,
   stampMapSurfaceHistory,
 } from "@/lib/mapSurfaceHistory";
@@ -230,28 +229,6 @@ export function useMapSurfaceNavigation({
     window.history.back();
   }, []);
 
-  const deferSelection = useCallback((next: SurfaceStack<MapSurfaceState>) => {
-    if (typeof window === "undefined") return;
-    publishStack(next);
-    window.history.replaceState(
-      stampMapSurfaceHistory(window.history.state, next, selectedVenueId(next)),
-      "",
-      urlForStack(next, selectionHintRef.current),
-    );
-  }, [publishStack]);
-
-  const openSelection = useCallback(
-    (entry: SurfaceEntry<MapSurfaceState>, resolved: boolean) => {
-      const transition = mapSurfaceSelectionTransition(stackRef.current, entry, resolved);
-      if (transition.kind === "defer") {
-        deferSelection(transition.stack);
-        return;
-      }
-      open(entry);
-    },
-    [deferSelection, open],
-  );
-
   const resolveSelection = useCallback(
     (requestedVenueId: string, canonicalVenueId: string) => {
       if (
@@ -323,11 +300,10 @@ export function useMapSurfaceNavigation({
       back,
       home,
       open,
-      openSelection,
       rejectSelection,
       resolveSelection,
       holdsSurface: (id: MapSurfaceId) => stack.some((entry) => entry.id === id),
     }),
-    [back, home, open, openSelection, rejectSelection, resolveSelection, stack],
+    [back, home, open, rejectSelection, resolveSelection, stack],
   );
 }
