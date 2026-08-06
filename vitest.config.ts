@@ -23,10 +23,11 @@ export default defineConfig({
     // test runs don't masquerade as production runtimes — see vitest.setup.ts.
     setupFiles: ["./vitest.setup.ts"],
     include: ["__tests__/**/*.test.ts"],
-    // v8 coverage instrumentation slows async tests enough to trip the default
-    // 5s per-test timeout under `npm run coverage`; 20s absorbs that overhead
-    // without masking a genuine hang. Plain `npm test` finishes in seconds.
-    testTimeout: 20000,
+    // v8 coverage instrumentation plus concurrent agent worktrees can starve
+    // repository-wide scans and subprocess validation past the default 5s.
+    // Keep a bounded 60s ceiling so those real assertions remain deterministic
+    // without turning a genuine hang into an unbounded release wait.
+    testTimeout: 60000,
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary"],

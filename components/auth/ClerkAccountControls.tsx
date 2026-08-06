@@ -25,7 +25,8 @@
 
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 
-import { isClerkConfigured } from "@/lib/clerkIdentity";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 
 export default function ClerkAccountControls({
   /**
@@ -37,9 +38,11 @@ export default function ClerkAccountControls({
 }: {
   className?: string;
 }): React.JSX.Element | null {
-  // No key, no dead control. Mirrors SignInButton's `configured` gate exactly,
-  // so an unconfigured deployment shows nothing rather than a button that fails.
-  if (!isClerkConfigured()) return null;
+  // Clerk does not establish the Supabase session that owns PUBMAXX identity.
+  // Keep its secondary account controls behind an established product session
+  // until that provider bridge exists end to end.
+  const { user, clerkIntegrationConfigured } = useAuth();
+  if (!isClerkProductSessionAvailable(user, clerkIntegrationConfigured)) return null;
 
   const classes = ["clerkAccount", className].filter(Boolean).join(" ");
 
@@ -51,24 +54,26 @@ export default function ClerkAccountControls({
               do, and sign-in is one tap away inside the same dialog. */}
           <SignUpButton mode="modal">
             <button type="button" className="authSignIn clerkAccountPrimary">
-              Create account
+              Create Clerk account
             </button>
           </SignUpButton>
           <SignInButton mode="modal">
             <button type="button" className="authSignIn">
-              Sign in with a PUBMAXX account
+              Sign in to Clerk
             </button>
           </SignInButton>
         </div>
         <p className="clerkAccountNote">
-          A new account does not carry a PUBMAXX Handle yet.
+          A Clerk session is separate. It does not create or replace your
+          PUBMAXX User ID or PUBMAXX Handle.
         </p>
       </Show>
       <Show when="signed-in">
         <div className="clerkAccountActions clerkAccountSignedIn">
           <UserButton />
           <span className="clerkAccountNote clerkAccountNoteInline">
-            Signed in to your PUBMAXX account.
+            Clerk session active. Your PUBMAXX User ID and PUBMAXX Handle stay
+            separate.
           </span>
         </div>
       </Show>

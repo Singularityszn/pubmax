@@ -52,10 +52,11 @@ export function readClerkPublishableKey(): string | undefined {
 }
 
 /**
- * Whether the BROWSER half of Clerk may run: the provider, the buttons and the
- * CSP origins. clerk-js needs only the publishable key, so this is the gate for
- * anything a reader can see. With no key, nothing Clerk-shaped renders and the
- * Content-Security-Policy is byte-for-byte its pre-Clerk self.
+ * Whether the browser SDK and CSP origins may run. clerk-js needs only the
+ * publishable key, but visible account controls also require an established
+ * product Supabase session until the identity bridge exists end to end. With
+ * no key, nothing Clerk-shaped renders and the Content-Security-Policy is
+ * byte-for-byte its pre-Clerk self.
  */
 export function isClerkConfigured(
   publishableKey: string | undefined = readClerkPublishableKey(),
@@ -73,9 +74,8 @@ export function isClerkConfigured(
  * absent, so a deployment carrying only the publishable key does not get a
  * degraded sign-in: it gets a site-wide 500 on every page, including pages that
  * have nothing to do with identity. Requiring both keys means a half-configured
- * deployment stays a fully working site whose Clerk buttons simply run
- * browser-side without a server session, which is a bad day rather than an
- * outage.
+ * deployment stays a fully working site with Clerk account controls hidden,
+ * rather than a site-wide outage.
  */
 export function isClerkMiddlewareConfigured(): boolean {
   const secretKey = process.env.CLERK_SECRET_KEY;
@@ -102,11 +102,10 @@ export function clerkFrontendApiOrigin(
     : null;
   if (!payload) return null;
 
-  // Decode on BOTH runtimes. Node has Buffer; the browser has atob. The client
-  // gate (SignInButton / ClerkAccountControls) calls this during render, so a
-  // Buffer-only decode used to return null in the browser, hide every Clerk
-  // control, and leave a reader with no way to make an account when Supabase
-  // was also off. The payload is ASCII (host + `$`), so atob is exact.
+  // Decode on both runtimes. Node has Buffer; browsers have atob. Keeping this
+  // public-key parser runtime-neutral lets security-policy callers validate a
+  // key without depending on a Node-only global. The payload is ASCII (host +
+  // `$`), so atob is exact.
   let decoded: string;
   try {
     decoded =

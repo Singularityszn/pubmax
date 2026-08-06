@@ -58,6 +58,42 @@ describe("feed sightings server boundary", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+
+  it("removes an in-window demo overlay when demo content is off", async () => {
+    vi.stubEnv("NEXT_PUBLIC_DEMO_CONTENT", "off");
+    const demoOverlay = {
+      version: 1,
+      generatedAt: "2026-07-26T07:13:02.882Z",
+      updates: [
+        {
+          ...MIXED_CITY_OVERLAY.updates[1],
+          source: {
+            label: "PUBMAXXING demo menu fixture",
+            url: "https://pubmaxxing.com/data/drink_price_updates/latest.json",
+            licence: "First-party demo fixture for UI coverage; not a live venue price.",
+          },
+        },
+      ],
+    };
+    vi.spyOn(fs, "readFile").mockResolvedValue(JSON.stringify(demoOverlay));
+    getVenueIndex.mockResolvedValue(
+      new Map([
+        [
+          "venue-16pnwmm",
+          {
+            id: "venue-16pnwmm",
+            name: "Prospect of Whitby",
+            borough: "Tower Hamlets",
+            lat: 51.5071,
+            lng: -0.05113,
+          },
+        ],
+      ]),
+    );
+
+    expect(await loadFeedSightings()).toEqual([]);
   });
 
   it("drops an out-of-city observation while retaining a resolved London venue", async () => {

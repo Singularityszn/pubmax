@@ -393,6 +393,11 @@ describe("coverage inventory (honest)", () => {
     "night_moments",
     "night_stories",
     "night_story_moments",
+    "pub_pal_voice_usage",
+    "night_memories",
+    "night_moment_consents",
+    "night_story_contributors",
+    "night_story_publish_proposals",
   ] as const;
 
   /**
@@ -411,11 +416,6 @@ describe("coverage inventory (honest)", () => {
     "pub_pals",
     "pub_pal_memories",
     "pub_pal_mastery_events",
-    "pub_pal_voice_usage",
-    "night_memories",
-    "night_moment_consents",
-    "night_story_contributors",
-    "night_story_publish_proposals",
     "external_social_accounts",
     "profile_handle_aliases",
     "profiles",
@@ -477,9 +477,14 @@ describe("coverage inventory (honest)", () => {
       "night_moments",
       "night_stories",
       "night_story_moments",
+      "pub_pal_voice_usage",
+      "night_memories",
+      "night_moment_consents",
+      "night_story_contributors",
+      "night_story_publish_proposals",
     ]);
-    // 11 real policy-table proofs. Storage deny-by-default is tracked apart.
-    expect(REAL_SESSION_TESTED).toHaveLength(11);
+    // 16 real policy-table proofs. Storage deny-by-default is tracked apart.
+    expect(REAL_SESSION_TESTED).toHaveLength(16);
     expect(POLICY_DECLARED_UNTESTED.length).toBeGreaterThan(40);
   });
 

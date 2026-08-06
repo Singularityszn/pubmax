@@ -3,6 +3,8 @@ import {
   type Drink,
   type LegacyPintPrice,
 } from "@/lib/drinks";
+import { demoContentEnabled } from "@/lib/demoContent";
+import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { demoDrinksFor } from "@/lib/drinkSeeds";
 
 // The venue Menu read path (PRD E1). ONE pure function that composes a venue's
@@ -22,19 +24,19 @@ import { demoDrinksFor } from "@/lib/drinkSeeds";
 // LegacyPintPrice[]) rather than reaching into a store, so it composes on the
 // server or the client with no fetch.
 
-// Fixed baseline "observed" stamp for the legacy beer rows — the app dataset is
-// a first-party price on record, not a live feed. Kept deterministic so the
-// menu doesn't drift with wall-clock time; a live fetcher (E2) will stamp its
-// own observedAt when it lands.
-const LEGACY_OBSERVED_AT = "2026-07-01T12:00:00.000Z";
-
+// Registry-owned collection stamp for legacy beer rows. App dataset is a
+// first-party price on record, not a live feed; update overlays keep their own
+// per-observation stamps.
 export function venueDrinkMenu(
   venueId: string,
   legacyPrices: LegacyPintPrice[] = [],
   seeds: (id: string) => Drink[] = demoDrinksFor,
 ): Drink[] {
-  const beer = legacyPricesToDrinks(legacyPrices, LEGACY_OBSERVED_AT);
-  const seeded = seeds(venueId);
+  const beer = legacyPricesToDrinks(
+    legacyPrices,
+    PINT_DATASET_OBSERVED_AT.toISOString(),
+  );
+  const seeded = demoContentEnabled() ? seeds(venueId) : [];
   // Beer (legacy pints) first, then the seeded non-beer menu. Dedupe by id so a
   // re-run or an overlapping source never doubles a row.
   const seen = new Set<string>();

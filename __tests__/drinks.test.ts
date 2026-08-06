@@ -202,6 +202,7 @@ describe("legacyPricesToDrinks", () => {
       source: "app-dataset",
       licence: "first-party",
       observedAt: OBSERVED,
+      lane: "dataset",
     });
   });
 

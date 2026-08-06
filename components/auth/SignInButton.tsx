@@ -22,7 +22,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import ClerkAccountControls from "@/components/auth/ClerkAccountControls";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
-import { isClerkConfigured } from "@/lib/clerkIdentity";
+import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
 import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
@@ -56,6 +56,7 @@ export default function SignInButton({
     user,
     loading,
     configured,
+    clerkIntegrationConfigured,
     socialProviders,
     signInWithGoogle,
     signInWithApple,
@@ -183,22 +184,18 @@ export default function SignInButton({
     setBusy(null);
   }, [signOut]);
 
-  // Hide entirely when NEITHER identity system is configured — no dead button.
-  // Clerk is checked as well as Supabase because the two are independent: a
-  // deployment with a Clerk key and no Supabase env used to render nothing at
-  // all, which left a signed-out reader with no way to make an account.
-  const clerkConfigured = isClerkConfigured();
-  // Clerk is browser-side identity: it does not wait on the Supabase session
-  // restore. Holding the whole control behind `loading` used to hide the only
-  // way in when Supabase was off (or slow) and Clerk was on — the reader saw a
-  // nav with no Sign in at all. Once Clerk is configured, show the control even
-  // while the Supabase half is still resolving; Supabase-only hosts keep the
-  // flash guard below.
-  if (!configured && !clerkConfigured) return null;
+  // Clerk does not mint the Supabase session that owns PUBMAXX identity. Its
+  // secondary controls stay behind an established product session until that
+  // provider bridge exists end to end.
+  const clerkSessionAvailable = isClerkProductSessionAvailable(
+    user,
+    clerkIntegrationConfigured,
+  );
+  if (!configured && !clerkSessionAvailable) return null;
 
   // Avoid a flash of the wrong state while the first getSession() resolves.
-  // Skip the wait when Clerk can already answer — see gate comment above.
-  if (loading && !clerkConfigured) return null;
+  // Skip the wait only for an already established product session.
+  if (loading && !clerkSessionAvailable) return null;
 
   if (user) {
     const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
@@ -211,17 +208,58 @@ export default function SignInButton({
       (typeof meta.avatar_url === "string" && meta.avatar_url) ||
       (typeof meta.picture === "string" && meta.picture) ||
       "";
+    const avatarControl = avatar ? (
+      // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar; no next/image loader configured for it
+      <img className="authAvatar" src={avatar} alt="" width={28} height={28} />
+    ) : (
+      <span className="authAvatarFallback" aria-hidden="true">
+        {initials(name)}
+      </span>
+    );
+
+    if (compact) {
+      return (
+        <div className="authUser authUserNav" ref={rootRef}>
+          <div className="authCompact">
+            <button
+              type="button"
+              ref={triggerRef}
+              className="authCompactTrigger"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-expanded={menuOpen}
+              aria-controls={menuId}
+              aria-haspopup="true"
+              aria-label={`Account options for ${name}`}
+            >
+              {avatarControl}
+              <span className="authCompactLabel" aria-hidden="true">
+                Account
+              </span>
+            </button>
+            {menuOpen ? (
+              <div className="authMenu" id={menuId} aria-label="Account options" ref={menuRef}>
+                <div className="authAccountSummary">
+                  <span className="authName">{name}</span>
+                </div>
+                <button
+                  type="button"
+                  className="authSignOut"
+                  onClick={onSignOut}
+                  disabled={busy !== null}
+                >
+                  Sign out
+                </button>
+                {clerkSessionAvailable ? <ClerkAccountControls /> : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="authUser">
-        {avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar; no next/image loader configured for it
-          <img className="authAvatar" src={avatar} alt="" width={28} height={28} />
-        ) : (
-          <span className="authAvatarFallback" aria-hidden="true">
-            {initials(name)}
-          </span>
-        )}
+        {avatarControl}
         <span className="authName">{name}</span>
         <button
           type="button"
@@ -231,6 +269,7 @@ export default function SignInButton({
         >
           Sign out
         </button>
+        {clerkSessionAvailable ? <ClerkAccountControls /> : null}
       </div>
     );
   }
@@ -239,7 +278,7 @@ export default function SignInButton({
   // Magic links belong to Supabase. Social buttons belong to whichever
   // configured identity provider owns the capability read.
   const socialOptions = (fullLabels = false) =>
-    configured || clerkConfigured ? (
+    configured || clerkSessionAvailable ? (
       <SocialSignInButtons
         availability={socialProviders}
         disabled={busy !== null}
@@ -264,7 +303,6 @@ export default function SignInButton({
   const options = (
     <div className="authOptions">
       {supabaseOptions}
-      <ClerkAccountControls />
     </div>
   );
 
@@ -305,7 +343,7 @@ export default function SignInButton({
         </button>
         {menuOpen ? (
           <div className="authMenu" id={menuId} aria-label="Sign in options" ref={menuRef}>
-            {configured || clerkConfigured ? (
+            {configured || clerkSessionAvailable ? (
               <>
                 {socialOptions(true)}
                 {configured ? (
@@ -318,7 +356,6 @@ export default function SignInButton({
                 ) : null}
               </>
             ) : null}
-            <ClerkAccountControls />
           </div>
         ) : null}
       </div>

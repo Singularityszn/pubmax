@@ -83,6 +83,22 @@ describe("gateHandleAction — shared route ownership seam", () => {
     expect(gate.allowed).toBe(true);
   });
 
+  it.each(["karan", "admin"])(
+    "refuses reserved handle %s before anonymous allowance",
+    async (handle) => {
+      const gate = await gateHandleAction(
+        new Request("http://localhost/api/x", { method: "POST" }),
+        handle,
+      );
+
+      expect(gate).toMatchObject({
+        allowed: false,
+        status: 409,
+      });
+      expect(await memoryProfileStore.getByHandle(handle)).toBeNull();
+    },
+  );
+
   it("REJECTS an anonymous caller on a linked handle", async () => {
     await memoryProfileStore.linkUser("ken", "user-abc");
     const req = new Request("http://localhost/api/x");
@@ -110,6 +126,22 @@ describe("gateHandleAction — shared route ownership seam", () => {
     expect(gate.allowed).toBe(true);
     const row = await memoryProfileStore.getByHandle("fresh");
     expect(row).toBeNull();
+  });
+
+  it("does not link an existing unlinked handle during authenticated delete", async () => {
+    await memoryProfileStore.ensure("legacy");
+    vi.mocked(callerUserId).mockResolvedValue("user-new");
+
+    const gate = await gateHandleAction(
+      new Request("http://localhost/api/x", {
+        method: "DELETE",
+        headers: { authorization: "Bearer fake" },
+      }),
+      "legacy",
+    );
+
+    expect(gate.allowed).toBe(true);
+    expect((await memoryProfileStore.getByHandle("legacy"))?.userId).toBeUndefined();
   });
 
   it("links on first authenticated write of an unlinked handle", async () => {

@@ -14,50 +14,19 @@ import {
   type FeedItem,
   type PintDropDTO,
 } from "@/lib/feed";
+import { type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import {
-  REACTION_KEYS,
-  type ReactionKey,
-  type ReactionSummary,
-} from "@/lib/reactions";
+  loadReactionSummaries,
+  localReactionSummary,
+  toggleReactionMine,
+  writeLocalReactions,
+  type ReactionSummaryMap,
+} from "@/lib/reactionClient";
+import { postReactionToggle } from "@/lib/optimisticToggle";
 
 const EMPTY_SUMMARY: ReactionSummary = { counts: {}, mine: [] };
 
-type SummaryMap = Record<string, ReactionSummary>;
-
-const LOCAL_PREFIX = "pubmax:profile:reactions:";
-
-function readLocalMine(id: string): ReactionKey[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(LOCAL_PREFIX + id);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((v): v is ReactionKey =>
-      (REACTION_KEYS as readonly string[]).includes(String(v)),
-    );
-  } catch {
-    return [];
-  }
-}
-
-function writeLocalMine(id: string, mine: ReactionKey[]): void {
-  try {
-    window.localStorage.setItem(LOCAL_PREFIX + id, JSON.stringify(mine));
-  } catch {
-    // Storage full / disabled — reaction still flips in memory this session.
-  }
-}
-
-function localSummary(mine: ReactionKey[]): ReactionSummary {
-  const counts: Partial<Record<ReactionKey, number>> = {};
-  for (const key of mine) counts[key] = 1;
-  return { counts, mine };
-}
-
-function toggleMine(mine: ReactionKey[], reaction: ReactionKey): ReactionKey[] {
-  return mine.includes(reaction) ? mine.filter((k) => k !== reaction) : [...mine, reaction];
-}
+type SummaryMap = ReactionSummaryMap;
 
 const PROVENANCE_OK = new Set<Provenance>(["demo", "contributor", "sourced", "anecdote"]);
 
@@ -121,55 +90,41 @@ export default function ProfileTimeline({
   const visibleIds = useMemo(() => items.map((i) => i.id), [items]);
 
   useEffect(() => {
-    const fresh = visibleIds.filter((id) => !summarizedIds.current.has(id));
+    const loadedIds = summarizedIds.current;
+    const fresh = visibleIds.filter((id) => !loadedIds.has(id));
     if (fresh.length === 0) return;
-    for (const id of fresh) summarizedIds.current.add(id);
+    for (const id of fresh) loadedIds.add(id);
 
     const controller = new AbortController();
-    const query = `ids=${encodeURIComponent(fresh.join(","))}&actor=${encodeURIComponent(actorId)}`;
-    fetch(`/api/pint-drops/reactions?${query}`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((data: { summaries?: SummaryMap }) => {
-        if (controller.signal.aborted) return;
-        const server = data.summaries ?? {};
+    let settled = false;
+    loadReactionSummaries(fresh, actorId, controller.signal)
+      .then((result) => {
+        if (result.aborted || controller.signal.aborted) return;
+        settled = true;
+        for (const id of result.retryableIds) loadedIds.delete(id);
         setSummaries((prev) => {
-          const next = { ...prev };
-          for (const id of fresh) {
-            if (server[id]) next[id] = server[id];
-            else {
-              localOnly.current.add(id);
-              next[id] = localSummary(readLocalMine(id));
-            }
-          }
-          return next;
+          return { ...prev, ...result.summaries };
         });
       })
       .catch(() => {
-        // Cleanup aborts must not permanently mark ids local-only / summarized.
-        if (controller.signal.aborted) {
-          for (const id of fresh) summarizedIds.current.delete(id);
-          return;
-        }
-        setSummaries((prev) => {
-          const next = { ...prev };
-          for (const id of fresh) {
-            localOnly.current.add(id);
-            next[id] = localSummary(readLocalMine(id));
-          }
-          return next;
-        });
+        for (const id of fresh) loadedIds.delete(id);
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      if (!settled) {
+        for (const id of fresh) loadedIds.delete(id);
+      }
+    };
   }, [visibleIds, actorId]);
 
   const toggleReaction = useCallback(async (dropId: string, reaction: ReactionKey) => {
     if (localOnly.current.has(dropId)) {
       setSummaries((prev) => {
         const current = prev[dropId] ?? EMPTY_SUMMARY;
-        const mine = toggleMine(current.mine, reaction);
-        writeLocalMine(dropId, mine);
-        return { ...prev, [dropId]: localSummary(mine) };
+        const mine = toggleReactionMine(current.mine, reaction);
+        writeLocalReactions(dropId, mine);
+        return { ...prev, [dropId]: localReactionSummary(mine) };
       });
       return;
     }
@@ -177,36 +132,46 @@ export default function ProfileTimeline({
     setSummaries((prev) => {
       const current = prev[dropId] ?? EMPTY_SUMMARY;
       const on = current.mine.includes(reaction);
-      const mine = toggleMine(current.mine, reaction);
+      const mine = toggleReactionMine(current.mine, reaction);
       const counts = { ...current.counts };
       counts[reaction] = Math.max(0, (counts[reaction] ?? 0) + (on ? -1 : 1));
       if (counts[reaction] === 0) delete counts[reaction];
       return { ...prev, [dropId]: { counts, mine } };
     });
 
-    try {
-      const res = await fetch("/api/pint-drops/reactions", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: dropId, reaction, actor: actorId }),
+    const outcome = await postReactionToggle({ id: dropId, reaction, actor: actorId });
+    if (outcome.kind === "unknown-drop") {
+      localOnly.current.add(dropId);
+      setSummaries((prev) => {
+        const current = prev[dropId] ?? EMPTY_SUMMARY;
+        writeLocalReactions(dropId, current.mine);
+        return { ...prev, [dropId]: localReactionSummary(current.mine) };
       });
-      if (res.status === 404) {
-        localOnly.current.add(dropId);
-        setSummaries((prev) => {
-          const current = prev[dropId] ?? EMPTY_SUMMARY;
-          writeLocalMine(dropId, current.mine);
-          return { ...prev, [dropId]: localSummary(current.mine) };
-        });
-        return;
-      }
-      if (!res.ok) return;
-      const data = (await res.json()) as { summary?: ReactionSummary };
-      if (data.summary) {
-        setSummaries((prev) => ({ ...prev, [dropId]: data.summary! }));
-      }
-    } catch {
-      // Keep optimistic flip; next load reconciles.
+      return;
     }
+    if (outcome.kind === "confirmed" && outcome.summary) {
+      setSummaries((prev) => ({
+        ...prev,
+        [dropId]: outcome.summary as ReactionSummary,
+      }));
+      return true;
+    }
+
+    if (outcome.kind === "confirmed") return true;
+
+    // Network/503. Reverse the optimistic flip against the latest local state
+    // and report failure so FeedCard can show its save-failure prompt. Keeping
+    // the optimistic state here makes a failed reaction look durable.
+    setSummaries((prev) => {
+      const current = prev[dropId] ?? EMPTY_SUMMARY;
+      const on = current.mine.includes(reaction);
+      const mine = toggleReactionMine(current.mine, reaction);
+      const counts = { ...current.counts };
+      counts[reaction] = Math.max(0, (counts[reaction] ?? 0) + (on ? -1 : 1));
+      if (counts[reaction] === 0) delete counts[reaction];
+      return { ...prev, [dropId]: { counts, mine } };
+    });
+    return false;
   }, [actorId]);
 
   return (

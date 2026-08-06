@@ -216,6 +216,16 @@ html[data-legacy="1"] .drinkCategoryTitle {
   color: var(--ink);
 }
 
+.drinkObservationAge {
+  max-inline-size: 9rem;
+  color: var(--ink-soft);
+  font-family: var(--font-data, monospace);
+  font-size: 0.68rem;
+  line-height: 1.25;
+  text-align: end;
+  white-space: normal;
+}
+
 /* ── Footnote ──────────────────────────────────────────────────────────────── */
 .drinkMenuFootnote {
   margin: 4px 0 0;

@@ -1,8 +1,8 @@
 /* Morning brief (/today, Lane A). Shares the Tonight screen's visual language
    (light type, brass accents, raised panels) as a single scannable column of
-   four cards. Role tokens only, so light and dark themes both inherit. Bottom
-   padding clears the mobile tab bar + safe-area so the last card never hides
-   behind the bar. No em dashes in any copy this file drives. */
+   four cards. Role tokens only, so light and dark themes both inherit. Mobile
+   tab-bar clearance belongs to mobileNav.css, so this page owns content spacing
+   only. No em dashes in any copy this file drives. */
 
 .todayPage {
   max-width: var(--content-max);
@@ -11,7 +11,7 @@
      viewport-fit=cover puts the page under the clock. env() is 0 in an ordinary
      browser, so the web layout keeps its 12px. */
   padding: calc(12px + env(safe-area-inset-top, 0px)) var(--page-gutter)
-    calc(96px + env(safe-area-inset-bottom, 0px));
+    32px;
   color: var(--ink);
 }
 
@@ -148,14 +148,6 @@
   align-items: center;
   gap: 8px 12px;
   margin: 0;
-}
-
-@media (max-width: 600px) {
-  .todayNearEntry {
-    /* Keep the new journey below the first phone viewport without moving the
-       existing last-train action above it. Shorter screens need no spacer. */
-    margin-block-start: max(0px, calc(100svh - 680px));
-  }
 }
 
 .todayProvenance {

@@ -13,7 +13,6 @@
 // Account onboarding owns handle selection after sign-in. Provider email and
 // browser-local handles are never promoted to account identity automatically.
 
-import { useAuth as useClerkAuth, useClerk } from "@clerk/nextjs";
 import {
   createContext,
   useCallback,
@@ -41,12 +40,10 @@ import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
 import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import {
   guardSocialAuthProvider,
-  loadClerkSocialAuthProviders,
   loadSocialAuthProviders,
   NO_SOCIAL_AUTH_PROVIDERS,
   type SocialAuthProviderAvailability,
 } from "@/lib/authProviderAvailability";
-import { isClerkConfigured } from "@/lib/clerkIdentity";
 import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
 import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
@@ -134,6 +131,8 @@ export type AuthContextValue = {
   loading: boolean;
   /** True when the public Supabase env is present (sign-in can be attempted). */
   configured: boolean;
+  /** True only when server saw both valid Clerk keys. Contains no secret data. */
+  clerkIntegrationConfigured: boolean;
   /** Social providers enabled by the current Supabase Auth settings read. */
   socialProviders: SocialAuthProviderAvailability;
   /** Start the Google OAuth redirect. No-op (returns an error) when unconfigured. */
@@ -156,7 +155,13 @@ export type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }): React.JSX.Element {
+export function AuthProvider({
+  children,
+  clerkIntegrationConfigured,
+}: {
+  children?: ReactNode;
+  clerkIntegrationConfigured: boolean;
+}): React.JSX.Element {
   const [session, setSession] = useState<Session | null>(null);
   // Session restore only applies when Supabase public env is present. When it
   // is not, there is nothing to wait for — derive `loading` false during render
@@ -173,24 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const rejectedContributionAuthRef =
     useRef<AccountAuthSnapshot | null>(null);
   const configured = isAuthConfigured();
-  const clerkConfigured = isClerkConfigured();
-  const clerk = useClerk();
-  const { isLoaded: clerkLoaded } = useClerkAuth();
   const loading = configured && sessionLoading;
-  const loadConfiguredSocialProviders = useCallback(async () => {
-    if (!clerkConfigured) return loadSocialAuthProviders();
-    const clerkApi = clerk as unknown as {
-      environment?: unknown;
-    };
-    const browserClerk =
-      typeof window === "undefined"
-        ? undefined
-        : (window as Window & { Clerk?: { environment?: unknown } }).Clerk;
-    return loadClerkSocialAuthProviders(
-      globalThis.fetch,
-      browserClerk?.environment ?? clerkApi.environment,
-    );
-  }, [clerk, clerkConfigured]);
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
@@ -237,10 +225,9 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   >(null);
 
   useEffect(() => {
-    if (!configured && !clerkConfigured) return;
-    if (clerkConfigured && !clerkLoaded) return;
+    if (!configured) return;
     let active = true;
-    void loadConfiguredSocialProviders().then((availability) => {
+    void loadSocialAuthProviders().then((availability) => {
       if (active) {
         setSocialProviders(availability ?? NO_SOCIAL_AUTH_PROVIDERS);
       }
@@ -248,7 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     return () => {
       active = false;
     };
-  }, [clerkConfigured, clerkLoaded, configured, loadConfiguredSocialProviders]);
+  }, [configured]);
   const capturedCallback = useRef<Promise<CapturedAuthCallback | null> | undefined>(undefined);
 
   useEffect(() => {
@@ -508,48 +495,25 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     }
   }, []);
 
-  /**
-   * Clerk owns this click when configured. Its account is deliberately kept
-   * separate from the Supabase session, which remains the PUBMAXX User ID.
-   */
-  const startClerkOAuth = useCallback(async (): Promise<{ error: string | null }> => {
-    if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
-    try {
-      clerk.openSignIn({
-        oauthFlow: "redirect",
-        fallbackRedirectUrl: window.location.href,
-        forceRedirectUrl: window.location.href,
-      });
-      return { error: null };
-    } catch {
-      return { error: "Sign-in could not be started. Try again." };
-    }
-  }, [clerk]);
-
   const signInWithGoogle = useCallback(async (): Promise<{ error: string | null }> => {
     const guarded = await guardSocialAuthProvider(
       "google",
-      clerkConfigured ? startClerkOAuth : startSupabaseGoogleOAuth,
-      loadConfiguredSocialProviders,
+      startSupabaseGoogleOAuth,
+      loadSocialAuthProviders,
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
-  }, [
-    clerkConfigured,
-    loadConfiguredSocialProviders,
-    startClerkOAuth,
-    startSupabaseGoogleOAuth,
-  ]);
+  }, [startSupabaseGoogleOAuth]);
 
   const signInWithApple = useCallback(async (): Promise<{ error: string | null }> => {
     const guarded = await guardSocialAuthProvider(
       "apple",
-      clerkConfigured ? startClerkOAuth : startSupabaseAppleOAuth,
-      loadConfiguredSocialProviders,
+      startSupabaseAppleOAuth,
+      loadSocialAuthProviders,
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
-  }, [clerkConfigured, loadConfiguredSocialProviders, startClerkOAuth, startSupabaseAppleOAuth]);
+  }, [startSupabaseAppleOAuth]);
 
   const signInWithEmail = useCallback(
     async (email: string, next?: string): Promise<MagicLinkResult> => {
@@ -597,6 +561,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       user,
       loading,
       configured,
+      clerkIntegrationConfigured,
       socialProviders,
       signInWithGoogle,
       signInWithApple,
@@ -616,6 +581,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     session,
     loading,
     configured,
+    clerkIntegrationConfigured,
     socialProviders,
     signInWithGoogle,
     signInWithApple,
@@ -656,6 +622,7 @@ export function useAuth(): AuthContextValue {
     user: null,
     loading: false,
     configured: false,
+    clerkIntegrationConfigured: false,
     socialProviders: NO_SOCIAL_AUTH_PROVIDERS,
     signInWithGoogle: async () => ({ error: "Sign-in is not configured." }),
     signInWithApple: async () => ({ error: "Sign-in is not configured." }),

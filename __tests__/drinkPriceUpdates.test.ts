@@ -25,6 +25,7 @@ function makeUpdate(overrides: Partial<DrinkPriceUpdate> = {}): DrinkPriceUpdate
       licence: "All rights reserved — first-party publisher, attributed use only.",
     },
     observedAt: "2026-07-01T00:00:00.000Z",
+    lane: "publisher",
     ...overrides,
   };
 }
@@ -296,6 +297,7 @@ describe("drink menu materialisation from updates", () => {
       sourceUrl: "https://www.jdwetherspoon.com/pubs/all-pubs/the-test-arms",
       licence: "All rights reserved — first-party publisher, attributed use only.",
       observedAt: "2026-07-01T00:00:00.000Z",
+      lane: "drink-price-update",
     });
   });
 

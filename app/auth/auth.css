@@ -475,6 +475,25 @@
   border-top: 1px solid var(--line);
 }
 
+.authAccountSummary {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 2rem;
+  padding-inline: 0.2rem;
+}
+
+.authMenu > .authSignOut {
+  width: 100%;
+  min-height: 44px;
+  text-align: center;
+}
+
+.authMenu > .clerkAccount {
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--line);
+}
+
 /* A rare OAuth-call error in the compact host renders as a small anchored
    note instead of stretching the (nowrap) nav row. */
 .authUserNav > .authError {
@@ -898,4 +917,3 @@
 .clerkAccountNoteInline {
   min-width: 0;
 }
-

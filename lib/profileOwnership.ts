@@ -19,6 +19,7 @@
 //   • Concurrent claim of the same unlinked handle returns 409 (linkUser race).
 
 import { callerUserId } from "@/lib/authServer";
+import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { profileStore } from "@/lib/profileStore";
 
 export type OwnershipDecision =
@@ -29,14 +30,15 @@ export type HandleActionGate =
   | { allowed: true; callerUserId: string | null; handle: string }
   | { allowed: false; status: number; error: string };
 
-type HandleActionGateOptions = {
-  /**
-   * Whether an authenticated caller may stamp user_id onto an unlinked handle.
-   * Defaults to write-intent methods only; read-only private routes must never
-   * claim a handle merely because someone opened an inbox/list endpoint.
-   */
-  claimOnUnlinked?: boolean;
-};
+export type HandleActionIntent = "read" | "write" | "delete";
+
+/** One owner for deciding whether a route action may claim an unlinked handle. */
+export function handleActionIntent(method: string): HandleActionIntent {
+  const normalized = method.toUpperCase();
+  if (normalized === "GET" || normalized === "HEAD") return "read";
+  if (normalized === "DELETE") return "delete";
+  return "write";
+}
 
 /**
  * Decide whether a caller may write to `handle`'s profile.
@@ -86,7 +88,12 @@ export function shouldLinkUser(
  * Resolves the caller's verified JWT identity, looks up whether `handle` is
  * already linked to a `profiles.user_id`, and applies {@link decideProfileWrite}.
  * On the first authenticated touch of a still-unlinked handle, stamps the link
- * (account migration) so subsequent anonymous claims of that handle fail closed.
+ * only for write intent so subsequent anonymous claims of that handle fail
+ * closed. Reads and deletes never claim ownership.
+ *
+ * Social Night Loop's frozen-legacy/createOwned contract and migration 0071 are
+ * intentionally outside this release. Their later integration must replace the
+ * write branch explicitly while preserving this read/delete intent boundary.
  *
  * Unlinked, non-reserved handles keep the demo path. Linked handles require the
  * matching signed-in owner. Fail-closed on store errors so an outage cannot open
@@ -95,7 +102,6 @@ export function shouldLinkUser(
 export async function gateHandleAction(
   request: Request,
   handle: string,
-  options: HandleActionGateOptions = {},
 ): Promise<HandleActionGate> {
   const key = typeof handle === "string" ? handle.trim() : "";
   if (!key) {
@@ -103,6 +109,15 @@ export async function gateHandleAction(
       allowed: false,
       status: 400,
       error: "Add a handle.",
+    };
+  }
+
+  const assessment = assessPubmaxxHandle(key);
+  if (!assessment.ok && assessment.reason === "reserved") {
+    return {
+      allowed: false,
+      status: 409,
+      error: assessment.error,
     };
   }
 
@@ -125,8 +140,7 @@ export async function gateHandleAction(
       };
     }
 
-    const claimOnUnlinked =
-      options.claimOnUnlinked ?? !["GET", "HEAD"].includes(request.method.toUpperCase());
+    const claimOnUnlinked = handleActionIntent(request.method) === "write";
     if (claimOnUnlinked && shouldLinkUser(rowUserId, caller) && caller) {
       try {
         await store.linkUser(key, caller);

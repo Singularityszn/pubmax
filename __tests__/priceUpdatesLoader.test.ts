@@ -71,7 +71,9 @@ describe("price update overlay loading", () => {
 
     const firstDrinkLoad = loadDrinkPriceUpdates();
     expect(loadDrinkPriceUpdates()).toBe(firstDrinkLoad);
-    await expect(firstDrinkLoad).resolves.toEqual([drinkUpdate]);
+    await expect(firstDrinkLoad).resolves.toEqual([
+      { ...drinkUpdate, lane: "publisher" },
+    ]);
 
     const firstFoodLoad = loadFoodPriceUpdates();
     expect(loadFoodPriceUpdates()).toBe(firstFoodLoad);
@@ -118,6 +120,8 @@ describe("price update overlay loading", () => {
       })),
     );
 
-    await expect(loadDrinkPriceUpdates()).resolves.toEqual([drinkUpdate]);
+    await expect(loadDrinkPriceUpdates()).resolves.toEqual([
+      { ...drinkUpdate, lane: "publisher" },
+    ]);
   });
 });
