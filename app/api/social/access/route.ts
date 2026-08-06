@@ -8,6 +8,7 @@ import {
   migrateSocialProductAccount,
   resolveSocialAccess,
 } from "@/lib/socialAccessServer";
+import { socialDraftScope } from "@/lib/socialDraftScope.server";
 
 assertServerEnv();
 
@@ -22,7 +23,13 @@ export async function GET(): Promise<Response> {
   if (!access.available) {
     return privateJson(access, { status: 503 });
   }
-  return privateJson({ state: access.state });
+  return privateJson({
+    state: access.state,
+    ...(access.state === "verified" ? {
+      viewerHandle: access.actor.handle,
+      draftScope: socialDraftScope(access.actor.profileId),
+    } : {}),
+  });
 }
 
 export async function POST(request: Request): Promise<Response> {

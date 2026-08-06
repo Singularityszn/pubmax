@@ -20,6 +20,9 @@ import type { SocialPostDTO } from "@/lib/socialPosts";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import "./social.css";
+import SocialComposer from "./SocialComposer";
+import SocialTagInbox from "./SocialTagInbox";
+import SocialOutbox from "./SocialOutbox";
 
 export type SocialBoundaryState =
   Exclude<SocialAccessState, "verified"> | "unavailable";
@@ -46,7 +49,7 @@ type ActivityLoadState = "idle" | "loading" | "ready" | "unavailable";
 
 type SocialActivityItem = {
   id: string;
-  kind: "cheer" | "comment" | "repost" | "quote" | "feature_update";
+  kind: "cheer" | "comment" | "repost" | "quote" | "feature_update" | "tag_proposal";
   readAt: string | null;
   createdAt: string;
 };
@@ -73,6 +76,11 @@ function parseAccessState(value: unknown): SocialAccessState | null {
     : null;
 }
 
+function parseDraftScope(value: unknown): string | null {
+  return isRecord(value) && typeof value.draftScope === "string" && /^[A-Za-z0-9_-]{43}$/.test(value.draftScope)
+    ? value.draftScope : null;
+}
+
 function parsePostPage(value: unknown): SocialPostPage | null {
   if (!isRecord(value) || !Array.isArray(value.posts)) return null;
   const posts: SocialPostDTO[] = [];
@@ -83,6 +91,8 @@ function parsePostPage(value: unknown): SocialPostPage | null {
       typeof candidate.body !== "string" ||
       typeof candidate.createdAt !== "string" ||
       typeof candidate.author.handle !== "string" ||
+      typeof candidate.ownedByViewer !== "boolean" ||
+      (candidate.venueName !== null && typeof candidate.venueName !== "string") ||
       !Array.isArray(candidate.hashtags)
     )
       return null;
@@ -99,6 +109,7 @@ const ACTIVITY_KINDS = new Set<SocialActivityItem["kind"]>([
   "repost",
   "quote",
   "feature_update",
+  "tag_proposal",
 ]);
 
 function parseActivityPage(value: unknown): SocialActivityItem[] | null {
@@ -153,9 +164,9 @@ export function SocialAccessBoundary({
   );
 }
 
-export function SocialPostCard({ post }: { post: SocialPostDTO }) {
+export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: { post: SocialPostDTO; canEdit?: boolean; draftScope?: string | null; onEdited?: (post?: SocialPostDTO) => void }) {
   const area = post.area ? getNightArea(post.area) : null;
-  const exactVenueId = post.visibility === "public" ? null : post.venueId;
+  const exactVenueId = post.venueProjected ? post.venueId : null;
   const when = relativeTime(post.createdAt);
   return (
     <article className="socialPostCard">
@@ -167,6 +178,15 @@ export function SocialPostCard({ post }: { post: SocialPostDTO }) {
         <p className="socialPostKind">Feature request</p>
       ) : null}
       <p className="socialPostBody">{post.body}</p>
+      {post.photo ? (
+        <figure className="socialPostPhoto">
+          {/* eslint-disable-next-line @next/next/no-img-element -- private signed delivery route. */}
+          <img src={`/api/social/media/${post.photo.mediaId}`} alt={post.photo.altText} />
+          {post.photo.tags && post.photo.tags.length > 0 ? (
+            <figcaption>{post.photo.tags.map((tag) => `@${tag.handle}`).join(" ")}</figcaption>
+          ) : null}
+        </figure>
+      ) : null}
       {area || exactVenueId ? (
         <p className="socialPostPlace">
           {area ? <span>{area.name}</span> : null}
@@ -182,6 +202,8 @@ export function SocialPostCard({ post }: { post: SocialPostDTO }) {
           ))}
         </p>
       ) : null}
+      {post.editedAt ? <p className="socialPostEdited">Edited</p> : null}
+      {canEdit && draftScope && onEdited ? <SocialComposer key={`${draftScope}:${post.id}`} post={post} draftScope={draftScope} onSaved={onEdited} /> : null}
     </article>
   );
 }
@@ -252,6 +274,7 @@ const ACTIVITY_LABEL: Record<SocialActivityItem["kind"], string> = {
   repost: "repost",
   quote: "quote",
   feature_update: "feature update",
+  tag_proposal: "photo tag",
 };
 
 export function SocialContextRail({
@@ -304,6 +327,8 @@ export default function SocialPageClient({
   heritageCrawls,
 }: SocialPageClientProps) {
   const [access, setAccess] = useState<AccessLoadState>("checking");
+  const [draftScope, setDraftScope] = useState<string | null>(null);
+  const [submittedPost, setSubmittedPost] = useState<SocialPostDTO | null>(null);
   const [accessAttempt, setAccessAttempt] = useState(0);
   const [feedAttempt, setFeedAttempt] = useState(0);
   const [feedStatus, setFeedStatus] = useState<FeedLoadState>("idle");
@@ -332,11 +357,12 @@ export default function SocialPageClient({
     })
       .then(async (response) => {
         if (!response.ok) throw new Error("Social access unavailable");
-        const state = parseAccessState(await response.json());
+        const body = await response.json();
+        const state = parseAccessState(body);
         if (!state) throw new Error("Social access malformed");
-        return state;
+        return { state, draftScope: parseDraftScope(body) };
       })
-      .then(setAccess)
+      .then((result) => { setAccess(result.state); setDraftScope(result.draftScope); })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError")
           return;
@@ -473,6 +499,15 @@ export default function SocialPageClient({
         <h1 className="socialTitle">Social</h1>
         <div className="socialLayout">
           <aside className="socialControlRail" aria-label="Social views">
+            {showPostsControls && draftScope ? <SocialComposer key={draftScope} draftScope={draftScope} onSaved={(saved) => {
+              if (saved) setSubmittedPost(saved);
+              setFeedAttempt((value) => value + 1);
+            }} /> : null}
+            {showPostsControls ? <SocialTagInbox /> : null}
+            {showPostsControls ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
+              if (updated) setSubmittedPost(updated);
+              setFeedAttempt((value) => value + 1);
+            }} /> : null}
             <nav className="socialSwitcher" aria-label="Social view">
               <Link href="/social" aria-current={isPosts ? "page" : undefined}>
                 Posts
@@ -556,7 +591,10 @@ export default function SocialPageClient({
               ) : (
                 <div className="socialPostList">
                   {posts.map((post) => (
-                    <SocialPostCard key={post.id} post={post} />
+                    <SocialPostCard key={post.id} post={post} canEdit={post.ownedByViewer} draftScope={draftScope}
+                      onEdited={(updated) => updated
+                        ? setPosts((current) => chronological(current.map((item) => item.id === updated.id ? updated : item)))
+                        : setFeedAttempt((value) => value + 1)} />
                   ))}
                 </div>
               )}

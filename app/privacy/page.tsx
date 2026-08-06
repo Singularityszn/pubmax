@@ -195,9 +195,18 @@ export default function PrivacyPage() {
           feed and direct read until OpenAI returns a decision. If OpenAI is
           unavailable or returns no usable decision, the post stays held. No
           account ID, public handle, area or exact venue is included in that
-          moderation request. Future Social post photos are not accepted yet.
-          When ownership-checked photo posting opens, those photos will also go
-          to OpenAI for moderation before they can appear.
+          moderation request. Social photos are normalised to JPEG, resized and
+          stripped of embedded metadata before private storage. OpenAI receives
+          a short-lived signed copy with the post text for moderation. Photo
+          tags appear only after the tagged person approves them and can be
+          withdrawn later. The browser keeps unfinished text and selected photo
+          data on this device until you post or clear the draft.
+        </p>
+        <p className="legalBody">
+          Failed or interrupted Social photo uploads can stay temporarily in
+          private server storage so an exact retry cannot damage another upload. They become
+          eligible for deletion after 24 hours. A daily scheduled cleanup
+          removes them. Storage or database outages can delay that cleanup.
         </p>
         <p className="legalBody">
           Cheers, comments, private saves, reposts and quote posts are tied to
@@ -213,6 +222,14 @@ export default function PrivacyPage() {
           history. Reports from readers join a private review queue and do not hide content.
           A named staff member must hide or restore a comment or quote,
           and that decision keeps a private audit record.
+        </p>
+        <p className="legalBody">
+          Social edits keep revision numbers, changed-field names and content
+          digests for conflict handling and abuse review. A private removal
+          audit keeps the media ID, post, actor, detachment action and retention
+          deadline. A removed photo stops being delivered. Detached photo files
+          enter a 30-day deletion queue. A scheduled server cleanup removes
+          the private file and its media row after that date. Signed photo links expire after three minutes.
         </p>
         <p className="legalBody">
           A Recommendation is your short opinion that one pub suits one kind of
@@ -528,9 +545,8 @@ export default function PrivacyPage() {
               Social post text goes to OpenAI for omni moderation after the
               post enters our moderation queue. It stays held until OpenAI
               returns a decision. We don&rsquo;t send the Social account ID,
-              handle, area or venue with that text. When ownership-checked
-              Social photo posting opens, those photos will also go to OpenAI
-              for moderation.
+              handle, area or venue with that text. Normalised Social photos go
+              to OpenAI through short-lived signed links for the same moderation decision.
             </dd>
           </div>
           <div className="legalRow">
@@ -654,8 +670,9 @@ export default function PrivacyPage() {
             else you posted.
           </li>
           <li>
-            <strong>Hidden or reported content:</strong>{" "}photos attached to a
-            removed post are purged from storage when the post is taken down.
+            <strong>Hidden or reported content:</strong>{" "}a detached Social
+            photo stops being delivered immediately and enters the 30-day
+            deletion queue.
           </li>
           <li>
             <strong>Analytics events:</strong>{" "}PostHog deletes analytics

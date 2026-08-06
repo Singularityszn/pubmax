@@ -47,7 +47,7 @@ export type SocialDerivativeDTO = {
 
 export type SocialNotificationDTO = {
   id: string;
-  kind: "cheer" | "comment" | "repost" | "quote" | "feature_update";
+  kind: "cheer" | "comment" | "repost" | "quote" | "feature_update" | "tag_proposal";
   sourcePostId: string;
   readAt: string | null;
   createdAt: string;

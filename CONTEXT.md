@@ -166,6 +166,18 @@ _Avoid_: Automatic public post, tracking history, Pal Memory
 The deliberately published social expression of a Night Memory and the primary social object in PUBMAXX. A host shapes the narrative, while every contributor controls publication of their own Night Moments, tags, and likeness.
 _Avoid_: Night Memory, automatic activity feed, unreviewed archive
 
+**Social Post**:
+A verified-adult Social message with text, an optional private Photo, an optional Night Area, and an optional exact Venue. It stays held until moderation approves its current revision. Exact Venue is visible only to its author and current Mutuals.
+_Avoid_: Night Story, public venue fact, unmoderated draft
+
+**Photo Tag Proposal**:
+A request to show another Pubmaxxer&rsquo;s current handle on one Social Post photo. It becomes visible only after that person approves it, and they can withdraw approval later.
+_Avoid_: Face recognition, automatic tag, permanent consent
+
+**Social Draft**:
+An unfinished Social Post stored only on the author&rsquo;s device. It is not a Social Post and is not sent for moderation until submission.
+_Avoid_: Published post, server outbox, shared draft
+
 **Night Moment**:
 A single shareable part of a Night Story, such as a photo, drink, event, venue, quote, person, or Side Quest. Night Moments belong to the wider story even when shared independently.
 _Avoid_: Generic post, unrelated content, complete Night Memory

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ calls: 0, requeueCalls: 0 }));
+const state = vi.hoisted(() => ({ calls: 0, requeueCalls: 0, purgeCalls: 0 }));
 
 vi.mock("@/lib/socialPostStore", () => ({
   socialPostStore: () => ({
@@ -13,6 +13,21 @@ vi.mock("@/lib/socialPostStore", () => ({
       return 3;
     },
   }),
+}));
+vi.mock("@/lib/socialPostModeration", () => ({
+  OpenAISocialPostModerationAdapter: class {
+    constructor() {
+      if (!(process.env.OPENAI_API_KEY ?? "").trim()) {
+        throw new Error("OpenAI moderation is not configured.");
+      }
+    }
+  },
+}));
+vi.mock("@/lib/socialPostMedia.server", () => ({
+  purgeDetachedSocialPhotos: async () => {
+    state.purgeCalls += 1;
+    return 4;
+  },
 }));
 
 import { GET } from "@/app/api/cron/moderate-social-posts/route";
@@ -29,6 +44,7 @@ beforeEach(() => {
   vi.stubEnv("OPENAI_API_KEY", "test-key");
   state.calls = 0;
   state.requeueCalls = 0;
+  state.purgeCalls = 0;
 });
 
 afterEach(() => vi.unstubAllEnvs());
@@ -52,6 +68,7 @@ describe("Social post moderation worker", () => {
       terminalErrors: 1,
     });
     expect(state.calls).toBe(1);
+    expect(state.purgeCalls).toBe(0);
   });
 
   it("refuses before claiming jobs when OpenAI moderation is not configured", async () => {
@@ -73,6 +90,15 @@ describe("Social post moderation worker", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, requeued: 3 });
     expect(state.requeueCalls).toBe(1);
+    expect(state.calls).toBe(0);
+    expect(state.purgeCalls).toBe(0);
+  });
+
+  it("runs detached media cleanup through the authenticated operator action", async () => {
+    const response = await GET(request("cron-secret", "purge-detached-media"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, purged: 4 });
+    expect(state.purgeCalls).toBe(1);
     expect(state.calls).toBe(0);
   });
 });

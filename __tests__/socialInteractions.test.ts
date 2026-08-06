@@ -337,7 +337,7 @@ describe("Social governance, reports, and notifications", () => {
     expect((await store.notifications(alice, { limit: 20 })).items).toMatchObject([
       { kind: "comment", sourcePostId: post.id },
     ]);
-    await posts.remove(post.id, alice);
+    await posts.remove(post.id, alice, post.revision, "remove-test-key-1234");
     expect(await store.notifications(alice, { limit: 20 })).toEqual({ items: [], nextCursor: null });
   });
 

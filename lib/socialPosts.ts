@@ -14,6 +14,7 @@ export type SocialPostModerationState = "pending" | "approved" | "needs_review";
 export type SocialPostPhoto = {
   mediaId: string;
   altText: string;
+  tags?: Array<{ handle: string }>;
 };
 
 export type SocialPostFields = {
@@ -49,15 +50,17 @@ export type SocialPost = SocialPostFields & {
 
 export type SocialPostDTO = Omit<
   SocialPost,
-  "authorProfileId" | "authorHandle" | "status" | "moderatedAt" | "mutationVersion"
+  "authorProfileId" | "authorHandle" | "status" | "moderatedAt"
 > & {
   author: { handle: string };
+  ownedByViewer: boolean;
+  venueName: string | null;
+  venueProjected: boolean;
 };
 
 type ValidationErrorCode =
   | "INVALID_POST"
   | "INVALID_AREA"
-  | "EXACT_VENUE_NOT_ALLOWED"
   | "FEATURE_REQUEST_BODY_REQUIRED";
 
 export type SocialPostValidationResult<T> =
@@ -65,20 +68,24 @@ export type SocialPostValidationResult<T> =
   | { ok: false; code: ValidationErrorCode; error: string };
 
 export type SocialPostEditValidationResult =
-  | { ok: true; value: Partial<SocialPostFields>; contentChanged: boolean }
+  | {
+      ok: true;
+      value: Partial<SocialPostFields>;
+      expectedMutationVersion: number;
+      moderationSensitive: boolean;
+    }
   | { ok: false; code: ValidationErrorCode; error: string };
 
 const CREATE_KEYS = new Set([
   "kind", "visibility", "body", "area", "venueId", "hashtags",
-  "commentPolicy", "photo",
+  "commentPolicy",
 ]);
 const EDIT_KEYS = new Set([
   "kind", "visibility", "body", "area", "venueId", "hashtags",
-  "commentPolicy", "photo",
+  "commentPolicy", "expectedMutationVersion",
 ]);
-const CONTENT_KEYS = new Set(["kind", "body", "hashtags", "photo"]);
+const MODERATION_SENSITIVE_KEYS = new Set(["kind", "body", "hashtags"]);
 const AREA_SET = new Set<string>(NIGHT_AREA_SLUGS);
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const HASHTAG = /^[a-z0-9_]{1,40}$/;
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -127,17 +134,6 @@ function parseHashtags(value: unknown): string[] | null {
   return tags;
 }
 
-function parsePhoto(value: unknown): SocialPostPhoto | null | undefined {
-  if (value === undefined || value === null) return null;
-  const photo = record(value);
-  if (!photo || Object.keys(photo).some((key) => !["mediaId", "altText"].includes(key))) {
-    return undefined;
-  }
-  const mediaId = typeof photo.mediaId === "string" ? photo.mediaId.trim() : "";
-  const altText = cleanText(photo.altText, 300);
-  return UUID.test(mediaId) && altText ? { mediaId, altText } : undefined;
-}
-
 function invalid(error: string, code: ValidationErrorCode = "INVALID_POST") {
   return { ok: false as const, code, error };
 }
@@ -148,6 +144,7 @@ export function isSocialPostArea(value: string | null | undefined): value is Nig
 
 export function validateSocialPostCreate(
   input: unknown,
+  options: { trustedPhoto?: SocialPostPhoto | null } = {},
 ): SocialPostValidationResult<SocialPostFields> {
   const raw = record(input);
   if (!raw || Object.keys(raw).some((key) => !CREATE_KEYS.has(key))) {
@@ -163,16 +160,13 @@ export function validateSocialPostCreate(
   if (area === undefined) return invalid("Choose a listed area.", "INVALID_AREA");
   const venueId = raw.venueId == null ? null : cleanText(raw.venueId, 100);
   if (raw.venueId != null && !venueId) return invalid("Choose a valid venue.");
-  if (visibility === "public" && venueId) {
-    return invalid("Exact venue posts are for friends or private posts.", "EXACT_VENUE_NOT_ALLOWED");
-  }
   const hashtags = parseHashtags(raw.hashtags);
-  const photo = parsePhoto(raw.photo);
-  if (!hashtags || photo === undefined) return invalid("Post details are not valid.");
-  if (!body && !photo) return invalid("Add some words or a photo.");
+  if (!hashtags) return invalid("Post details are not valid.");
+  const photo = options.trustedPhoto ?? null;
   if (kind === "feature_request" && !body) {
     return invalid("Add words to a feature request.", "FEATURE_REQUEST_BODY_REQUIRED");
   }
+  if (!body && !photo) return invalid("Add some words or a photo.");
   return {
     ok: true,
     value: { kind, visibility, body, area, venueId, hashtags, commentPolicy, photo },
@@ -182,6 +176,10 @@ export function validateSocialPostCreate(
 export function validateSocialPostEdit(input: unknown): SocialPostEditValidationResult {
   const raw = record(input);
   if (!raw || Object.keys(raw).length === 0 || Object.keys(raw).some((key) => !EDIT_KEYS.has(key))) {
+    return invalid("Post changes are not valid.");
+  }
+  const expectedMutationVersion = raw.expectedMutationVersion;
+  if (!Number.isInteger(expectedMutationVersion) || Number(expectedMutationVersion) < 0) {
     return invalid("Post changes are not valid.");
   }
   const value: Partial<SocialPostFields> = {};
@@ -216,42 +214,55 @@ export function validateSocialPostEdit(input: unknown): SocialPostEditValidation
     if (!hashtags) return invalid("Post changes are not valid.");
     value.hashtags = hashtags;
   }
-  if ("photo" in raw) {
-    const photo = parsePhoto(raw.photo);
-    if (photo === undefined) return invalid("Post changes are not valid.");
-    value.photo = photo;
-  }
+  if (Object.keys(value).length === 0) return invalid("Post changes are not valid.");
   return {
     ok: true,
     value,
-    contentChanged: Object.keys(value).some((key) => CONTENT_KEYS.has(key)),
+    expectedMutationVersion: Number(expectedMutationVersion),
+    moderationSensitive: Object.keys(value).some((key) => MODERATION_SENSITIVE_KEYS.has(key)),
   };
 }
 
-export function socialPostDTO(post: SocialPost): SocialPostDTO {
+export function socialPostDTO(
+  post: SocialPost,
+  projection: {
+    exactVenue: boolean;
+    viewerProfileId?: string | null;
+    venueName?: string | null;
+  } = { exactVenue: false },
+): SocialPostDTO {
+  const exactVenue = Boolean(post.venueId && projection.exactVenue);
   return {
     id: post.id,
     kind: post.kind,
     visibility: post.visibility,
     body: post.body,
     area: post.area,
-    venueId: post.venueId,
+    venueId: exactVenue ? post.venueId : null,
+    venueName: exactVenue ? projection.venueName ?? null : null,
+    venueProjected: exactVenue,
     hashtags: [...post.hashtags],
     commentPolicy: post.commentPolicy,
-    photo: post.photo ? { ...post.photo } : null,
+    photo: post.photo
+      ? { ...post.photo, ...(post.photo.tags ? { tags: post.photo.tags.map((tag) => ({ ...tag })) } : {}) }
+      : null,
     moderationState: post.moderationState,
     featureRequest: post.featureRequest ? { ...post.featureRequest } : null,
     revision: post.revision,
+    mutationVersion: post.mutationVersion,
     editedAt: post.editedAt,
     createdAt: post.createdAt,
     updatedAt: post.updatedAt,
     author: { handle: post.authorHandle },
+    ownedByViewer: post.authorProfileId === projection.viewerProfileId,
   };
 }
 
 export function socialPostModerationClaim(
-  post: Pick<SocialPostFields, "body" | "hashtags">,
+  post: Pick<SocialPostFields, "body" | "hashtags" | "photo">,
 ): string {
-  if (post.hashtags.length === 0) return post.body;
-  return `${post.body}\n\n${post.hashtags.map((tag) => `#${tag}`).join(" ")}`;
+  const sections = [post.body];
+  if (post.hashtags.length > 0) sections.push(post.hashtags.map((tag) => `#${tag}`).join(" "));
+  if (post.photo) sections.push(`Photo: ${post.photo.altText}`);
+  return sections.filter(Boolean).join("\n\n");
 }
