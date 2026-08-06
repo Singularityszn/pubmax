@@ -36,7 +36,7 @@ import {
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
-import { exchangeAuthCallbackCode } from "@/lib/authCallbackClient";
+import { establishAuthCallbackSession } from "@/lib/authCallbackClient";
 import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
 import {
   guardSocialAuthProvider,
@@ -218,9 +218,9 @@ export function AuthProvider({
     () => sessionTransitions.current.currentUserId(),
     [],
   );
-  // React Strict Mode replays effects in development. Reuse one exchange so a
-  // one-time PKCE code is never redeemed twice by the replayed mount effect.
-  const callbackExchangeInFlight = useRef<
+  // React Strict Mode replays effects in development. Reuse one completion so
+  // the callback tokens are never applied twice by the replayed mount effect.
+  const callbackSessionInFlight = useRef<
     Promise<{ session: Session | null; failed: boolean }> | null
   >(null);
 
@@ -370,9 +370,9 @@ export function AuthProvider({
         return;
       }
 
-      // Prime from a callback code or any persisted session. PKCE is explicit so
-      // missing-verifier, expired-code, and network failures become visible and
-      // one-time URL parameters are removed on both success and failure.
+      // Prime from callback tokens or any persisted session. Completion is
+      // explicit so expired-link, missing-token, and network failures become
+      // visible and one-time URL state is removed on both success and failure.
       void (async () => {
         await Promise.resolve();
         const captured = await callbackCapture;
@@ -380,17 +380,17 @@ export function AuthProvider({
         let exchangedSession: Session | null = null;
         let exchangeFailed = Boolean(
           callbackAttempt &&
-            (callbackAttempt.providerError || !callbackAttempt.code || !callbackAttempt.attemptId),
+            (callbackAttempt.providerError || !callbackAttempt.tokens || !callbackAttempt.attemptId),
         );
         try {
-          if (callbackAttempt?.code && !callbackAttempt.providerError) {
-            if (!callbackExchangeInFlight.current) {
-              callbackExchangeInFlight.current = exchangeAuthCallbackCode(
+          if (callbackAttempt?.tokens && !callbackAttempt.providerError) {
+            if (!callbackSessionInFlight.current) {
+              callbackSessionInFlight.current = establishAuthCallbackSession(
                 supabase.auth,
-                callbackAttempt.code,
+                callbackAttempt.tokens,
               );
             }
-            const exchange = await callbackExchangeInFlight.current;
+            const exchange = await callbackSessionInFlight.current;
             exchangedSession = exchange.session;
             exchangeFailed = exchange.failed;
           }

@@ -50,17 +50,20 @@ describe("safeNext (auth callback open-redirect guard)", () => {
 });
 
 describe("auth callback flow", () => {
-  it("forwards the PKCE code to an allowlisted deep link", async () => {
+  // The implicit-flow token fragment never reaches this server route; the
+  // browser carries it across the redirect. So the route forwards every valid
+  // attempt with the callback marker and lets the client decide success.
+  it("forwards a valid attempt to an allowlisted deep link", async () => {
     const response = await GET(
       new Request(
-        `${ORIGIN}/auth/callback?code=pkce-code&next=%2Fmap%3Farea%3Dsoho&_authAttempt=${ATTEMPT}`,
+        `${ORIGIN}/auth/callback?next=%2Fmap%3Farea%3Dsoho&_authAttempt=${ATTEMPT}`,
       ),
     );
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location"))
       .toBe(
-        `${ORIGIN}/map?area=soho&code=pkce-code&_authCallback=1&_authAttempt=${ATTEMPT}`,
+        `${ORIGIN}/map?area=soho&_authCallback=1&_authAttempt=${ATTEMPT}`,
       );
   });
 
@@ -68,27 +71,38 @@ describe("auth callback flow", () => {
     const signupProof = mintReferralSignupProof(ATTEMPT);
     const response = await GET(
       new Request(
-        `${ORIGIN}/auth/callback?code=pkce-code&_authAttempt=${ATTEMPT}&_referralSignupProof=${signupProof}`,
+        `${ORIGIN}/auth/callback?_authAttempt=${ATTEMPT}&_referralSignupProof=${signupProof}`,
       ),
     );
 
     expect(response.headers.get("location")).toBe(
-      `${ORIGIN}/?code=pkce-code&_authCallback=1&_authAttempt=${ATTEMPT}&_referralSignupProof=${signupProof}`,
+      `${ORIGIN}/?_authCallback=1&_authAttempt=${ATTEMPT}&_referralSignupProof=${signupProof}`,
     );
   });
 
   it("drops a hostile destination while still completing the callback", async () => {
     const response = await GET(
       new Request(
-        `${ORIGIN}/auth/callback?code=pkce-code&next=${encodeURIComponent("//evil.com")}&_authAttempt=${ATTEMPT}`,
+        `${ORIGIN}/auth/callback?next=${encodeURIComponent("//evil.com")}&_authAttempt=${ATTEMPT}`,
       ),
     );
 
     expect(response.headers.get("location"))
-      .toBe(`${ORIGIN}/?code=pkce-code&_authCallback=1&_authAttempt=${ATTEMPT}`);
+      .toBe(`${ORIGIN}/?_authCallback=1&_authAttempt=${ATTEMPT}`);
   });
 
-  it("returns safely to anonymous browsing when the link is invalid or expired", async () => {
+  it("never sends a Location fragment that would replace the token fragment", async () => {
+    const response = await GET(
+      new Request(
+        `${ORIGIN}/auth/callback?next=${encodeURIComponent("/feed#top")}&_authAttempt=${ATTEMPT}`,
+      ),
+    );
+
+    expect(response.headers.get("location"))
+      .toBe(`${ORIGIN}/feed?_authCallback=1&_authAttempt=${ATTEMPT}`);
+  });
+
+  it("returns safely to anonymous browsing when the link is invalid or rejected", async () => {
     const missing = await GET(new Request(`${ORIGIN}/auth/callback`));
     const rejected = await GET(
       new Request(`${ORIGIN}/auth/callback?error=access_denied&next=%2Fmap`),

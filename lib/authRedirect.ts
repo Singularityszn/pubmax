@@ -87,12 +87,47 @@ export type CanonicalAuthAttemptStart =
   | AuthAttemptStart
   | { ok: false; navigationStarted: true };
 
+export type AuthCallbackTokens = {
+  accessToken: string;
+  refreshToken: string;
+};
+
 export type AuthCallbackAttempt = {
   attemptId: string | null;
-  code: string | null;
+  tokens: AuthCallbackTokens | null;
   providerError: boolean;
   signupProof?: string;
 };
+
+type AuthResponseFragment =
+  | { kind: "tokens"; tokens: AuthCallbackTokens }
+  | { kind: "error" };
+
+/**
+ * Parse a Supabase implicit-flow response fragment. The fragment never reaches
+ * the server; browsers carry it across the callback route's redirect. Returns
+ * null when the hash is an ordinary app fragment (an invite, a venue anchor).
+ */
+function parseAuthResponseFragment(hash: string): AuthResponseFragment | null {
+  if (!hash.startsWith("#")) return null;
+  try {
+    const params = new URLSearchParams(hash.slice(1));
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+    const isAuthResponse =
+      params.has("access_token") ||
+      params.has("refresh_token") ||
+      params.has("error") ||
+      params.has("error_code");
+    if (!isAuthResponse) return null;
+    if (accessToken && refreshToken) {
+      return { kind: "tokens", tokens: { accessToken, refreshToken } };
+    }
+    return { kind: "error" };
+  } catch {
+    return null;
+  }
+}
 
 export type CapturedAuthCallback = {
   attempt: AuthCallbackAttempt;
@@ -134,6 +169,10 @@ function authDestination(currentUrl: string, requestedNext?: string): URL | null
       current.searchParams.delete(REFERRAL_SIGNUP_PROOF_PARAM);
       current.searchParams.delete("authError");
     }
+    // A leftover token/error fragment is a one-time credential, never a
+    // destination. Stripping it here keeps it out of the stored return
+    // fragment and out of canonical-navigation URLs.
+    if (parseAuthResponseFragment(current.hash)) current.hash = "";
     const currentPath = `${current.pathname}${current.search}${current.hash}`;
     return new URL(
       safeAuthNext(
@@ -249,8 +288,10 @@ export function buildAuthCallbackUrl(
 }
 
 /**
- * Start one browser-wide auth attempt. Supabase stores one PKCE verifier per
- * project, so a second tab must not overwrite it while the first link is live.
+ * Start one browser-wide auth attempt. The attempt record owns the stored
+ * return fragment (an invite must come back to the tab that held it) and keeps
+ * two tabs from racing each other's sign-in state, so a second tab must not
+ * overwrite it while the first link is live.
  */
 export function beginAuthAttempt(
   currentUrl: string,
@@ -346,7 +387,7 @@ export function beginAuthAttempt(
   }
 }
 
-/** Atomically claim the browser-wide verifier across tabs via the Web Locks API. */
+/** Atomically claim the browser-wide attempt across tabs via the Web Locks API. */
 export async function beginCoordinatedAuthAttempt(
   currentUrl: string,
   requestedNext: string | undefined,
@@ -449,6 +490,9 @@ function cleanAuthCallbackUrl(currentUrl: string): string | null {
     current.searchParams.delete(AUTH_ATTEMPT_PARAM);
     current.searchParams.delete(REFERRAL_SIGNUP_PROOF_PARAM);
     current.searchParams.delete("authError");
+    // The implicit-flow response fragment carries the session tokens (or an
+    // error). It must leave the address bar with the marker parameters.
+    if (parseAuthResponseFragment(current.hash)) current.hash = "";
     return `${current.pathname}${current.search}${current.hash}` || "/";
   } catch {
     return null;
@@ -457,7 +501,28 @@ function cleanAuthCallbackUrl(currentUrl: string): string | null {
 
 function rejectedAuthCallback(cleanUrl: string): CapturedAuthCallback {
   return {
-    attempt: { attemptId: null, code: null, providerError: true },
+    attempt: { attemptId: null, tokens: null, providerError: true },
+    cleanUrl,
+    releaseCoordination: () => {},
+  };
+}
+
+/**
+ * Callback tokens are self-authenticating: Supabase already verified the email
+ * link or provider redirect that minted them, and an emailed link legitimately
+ * opens in a browser that never started the attempt (Gmail app opening Safari),
+ * where no local attempt record exists. So a token-bearing callback survives a
+ * missing, expired, or already-claimed local attempt — it only loses the stored
+ * return-fragment restore. A token-less callback still fails closed; it exists
+ * only to surface a failure banner.
+ */
+function fallbackAuthCallback(
+  parsedAttempt: AuthCallbackAttempt,
+  cleanUrl: string,
+): CapturedAuthCallback {
+  if (!parsedAttempt.tokens) return rejectedAuthCallback(cleanUrl);
+  return {
+    attempt: parsedAttempt,
     cleanUrl,
     releaseCoordination: () => {},
   };
@@ -486,7 +551,10 @@ function claimAuthCallback(
   try {
     const active = readActiveAttempt(persistentStorage);
     if (active?.id !== attemptId) {
-      return rejectedAuthCallback(cleanUrl);
+      // No matching local record: this browser did not start the attempt
+      // (cross-browser email link) or the attempt was replaced. Tokens still
+      // complete sign-in; see fallbackAuthCallback.
+      return fallbackAuthCallback(parsedAttempt, cleanUrl);
     }
     const key = authFragmentKey(attemptId);
     if (active.expiresAt <= now) {
@@ -494,9 +562,9 @@ function claimAuthCallback(
         { storage: persistentStorage, key: AUTH_ACTIVE_ATTEMPT_KEY, value: null },
         { storage: persistentStorage, key, value: null },
       ]);
-      return rejectedAuthCallback(cleanUrl);
+      return fallbackAuthCallback(parsedAttempt, cleanUrl);
     }
-    if (active.callbackClaimed) return rejectedAuthCallback(cleanUrl);
+    if (active.callbackClaimed) return fallbackAuthCallback(parsedAttempt, cleanUrl);
     const raw = persistentStorage.getItem(key);
     let fragment = "";
     if (raw) {
@@ -529,14 +597,14 @@ function claimAuthCallback(
       { storage: persistentStorage, key: AUTH_ACTIVE_ATTEMPT_KEY, value: claimedAttempt },
       { storage: persistentStorage, key, value: null },
     ]);
-    if (!ok) return rejectedAuthCallback(cleanUrl);
+    if (!ok) return fallbackAuthCallback(parsedAttempt, cleanUrl);
     return {
       attempt: parsedAttempt,
       cleanUrl: fragment ? restoreAuthFragment(cleanUrl, fragment) : cleanUrl,
       releaseCoordination: () => {},
     };
   } catch {
-    return rejectedAuthCallback(cleanUrl);
+    return fallbackAuthCallback(parsedAttempt, cleanUrl);
   }
 }
 
@@ -544,17 +612,21 @@ function claimAuthCallback(
 export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt | null {
   try {
     const current = new URL(currentUrl);
-    const providerError = current.searchParams.get("authError") === "1";
+    const fragment = parseAuthResponseFragment(current.hash);
+    const providerError =
+      current.searchParams.get("authError") === "1" || fragment?.kind === "error";
     if (current.searchParams.get(AUTH_CALLBACK_MARKER) !== "1" && !providerError) return null;
     const rawAttemptId = current.searchParams.get(AUTH_ATTEMPT_PARAM);
     const attemptId = isAuthAttemptId(rawAttemptId) ? rawAttemptId : null;
+    const tokens =
+      attemptId && !providerError && fragment?.kind === "tokens" ? fragment.tokens : null;
     const signupProof =
       attemptId && !providerError
         ? current.searchParams.get(REFERRAL_SIGNUP_PROOF_PARAM)
         : null;
     return {
       attemptId,
-      code: attemptId && !providerError ? current.searchParams.get("code") : null,
+      tokens,
       providerError: providerError || !attemptId,
       ...(signupProof ? { signupProof } : {}),
     };
@@ -570,7 +642,9 @@ async function capturePreparedAuthCallback(
   options: AuthCallbackCaptureOptions,
 ): Promise<CapturedAuthCallback> {
   const { persistentStorage, lockManager } = options;
-  if (!persistentStorage || !lockManager) return rejectedAuthCallback(cleanUrl);
+  if (!persistentStorage || !lockManager) {
+    return fallbackAuthCallback(parsedAttempt, cleanUrl);
+  }
   return new Promise<CapturedAuthCallback>((resolve) => {
     let resolved = false;
     const resolveOnce = (captured: CapturedAuthCallback) => {
@@ -607,9 +681,9 @@ async function capturePreparedAuthCallback(
           // Locks with the document; a live caller releases explicitly in finally.
           await lease;
         }),
-      ).catch(() => resolveOnce(rejectedAuthCallback(cleanUrl)));
+      ).catch(() => resolveOnce(fallbackAuthCallback(parsedAttempt, cleanUrl)));
     } catch {
-      resolveOnce(rejectedAuthCallback(cleanUrl));
+      resolveOnce(fallbackAuthCallback(parsedAttempt, cleanUrl));
     }
   });
 }
@@ -625,7 +699,7 @@ export function captureAuthCallback(
   return capturePreparedAuthCallback(currentUrl, parsedAttempt, cleanUrl, options);
 }
 
-/** Scrub credentials synchronously, then expose a code only after the locked claim. */
+/** Scrub credentials synchronously, then expose tokens only after the locked claim. */
 export function scrubAuthCallback(
   currentUrl: string,
   replaceUrl: (cleanUrl: string) => void,

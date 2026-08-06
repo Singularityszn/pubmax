@@ -27,10 +27,10 @@ describe("profile route shell", () => {
 
   it("keeps profile and profile-list routes on the shared shell", () => {
     expect(profilePage).toContain(
-      '<main className="container profileMain">',
+      '<main id="main" className="container profileMain">',
     );
     expect(profileListPage).toContain(
-      '<main className="container profileMain">',
+      '<main id="main" className="container profileMain">',
     );
   });
 });
