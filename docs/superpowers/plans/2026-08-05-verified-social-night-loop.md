@@ -94,11 +94,11 @@ Task 1 changes no data practice. Do not edit `/privacy` or `/terms` until implem
 - Create interaction domain, store, API, migrations, and tests under `lib/` and `app/api/social/`
 - Reuse existing follows, notifications, and moderation seams where contracts match
 
-- [ ] Add Cheers, comments, saves, reposts, and quote posts with idempotent writes and pagination.
-- [ ] Let authors choose comment policy and lock comments later.
-- [ ] Treat saves as private. Never use engagement for paid or popularity ranking.
-- [ ] Render feature requests as a dedicated post kind with staff status and response history.
-- [ ] Notify through in-app delivery first. Web push remains opt-in.
+- [x] Add Cheers, comments, saves, reposts, and quote posts with idempotent writes and pagination.
+- [x] Let authors choose comment policy and lock comments later.
+- [x] Treat saves as private. Never use engagement for paid or popularity ranking.
+- [x] Render feature requests as a dedicated post kind with staff status and response history.
+- [x] Notify through in-app delivery first. Web push remains opt-in.
 
 ### Task 5: Canonical mobile-first `/social` shell
 
@@ -108,12 +108,12 @@ Task 1 changes no data practice. Do not edit `/privacy` or `/terms` until implem
 - Refactor reusable bodies from `app/feed/` and `app/discover/`
 - Modify: navigation model, mobile tab bar, redirects, sitemap, analytics path, route pattern, warmup, tracing declarations, and focused tests
 
-- [ ] Make `/social` canonical. Redirect `/feed` and `/stories` to `/social`; redirect `/discover` and `/drinks` to `/social?tab=discover`.
-- [ ] Preserve safe metadata preview while protected posts show an honest sign-in or verification boundary.
-- [ ] Provide one 44px top-level switcher, then child feed controls. Avoid stacked control chrome before first content.
-- [ ] Preserve chronological Following, Nearby, and Discover state across refresh and back navigation.
-- [ ] Reserve fixed mobile-tab clearance at 320px, 390px, and 430px with no horizontal overflow.
-- [ ] Keep desktop responsive as a three-column Social layout without forking the domain or API.
+- [x] Make `/social` canonical. Redirect `/feed` and `/stories` to `/social`; redirect `/discover` and `/drinks` to `/social?tab=discover`.
+- [x] Preserve safe metadata preview while protected posts show an honest sign-in or verification boundary.
+- [x] Provide one 44px top-level switcher, then child feed controls. Avoid stacked control chrome before first content.
+- [x] Preserve chronological Following, Nearby, and Discover state across refresh and back navigation.
+- [x] Reserve fixed mobile-tab clearance at 320px, 390px, and 430px with no horizontal overflow.
+- [x] Keep desktop responsive as a three-column Social layout without forking the domain or API.
 
 ### Task 6: Composer, media, consent, and feature requests
 

@@ -57,13 +57,13 @@ const TODAY_TAB: Omit<Tab, "Icon" | "primary"> = {
 // Map follows the preferred city (null → /map); every other route is canonical.
 // Exported for the six-tab contract test (order + destinations are load-bearing).
 export function buildTabs(mapHref: string, pathname: string, youHref = "/u/you"): Tab[] {
-  const icons = { today: Sunrise, map: Map, tonight: CalendarClock, moment: CirclePlus, stories: Images, you: UserRound };
+  const icons = { today: Sunrise, map: Map, tonight: CalendarClock, moment: CirclePlus, social: Images, you: UserRound };
   const primary = PRIMARY_NAV_ITEMS.map((item) => ({
     ...item,
     href: item.key === "map" ? mapHref : item.key === "you" ? youHref : item.href,
     Icon: icons[item.key],
   }));
-  // Today, Map | Moment (centre) | Tonight, Stories, You.
+  // Today, Map | Moment (centre) | Tonight, Social, You.
   const destinations = [{ ...TODAY_TAB, Icon: icons.today }, ...primary];
   return [
     ...destinations.slice(0, 2),
@@ -72,7 +72,7 @@ export function buildTabs(mapHref: string, pathname: string, youHref = "/u/you")
   ];
 }
 
-// Resolve a first-run tour spotlight target ("map" | "drop" | "discover") to
+// Resolve a first-run tour spotlight target ("map" | "drop" | "social") to
 // its live column in the tab row, so the tour ring is positioned from the REAL
 // tab geometry and moves with it if the row grows or reorders. Args are
 // irrelevant to the order/count, so the canonical /map pair is fine. Exported
@@ -135,7 +135,7 @@ export default function MobileTabBar() {
   );
 
   // Mount-time warmup of every durable tab destination (Today / Map / Tonight /
-  // Stories / You). Extends the landing map-warmup pattern so a cold thumb-tap
+  // Social / You). Extends the landing map-warmup pattern so a cold thumb-tap
   // does not wait on first-fetch of the target route bundle. No setState.
   useEffect(() => {
     warmPrimaryTabRoutes(

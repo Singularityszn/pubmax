@@ -91,6 +91,11 @@ export type SocialPostStore = {
     limit?: number,
   ): Promise<SocialPostModerationResult>;
   requeueTerminalModeration(limit?: number): Promise<number>;
+  applyFeatureRequestUpdate(
+    id: string,
+    status: "planned" | "shipped" | "declined",
+    staffResponse: string,
+  ): Promise<void>;
 };
 
 const DEFAULT_LIMIT = 20;
@@ -384,6 +389,17 @@ export function createMemorySocialPostStore(options: {
       const graph = await relationships(viewer);
       return makePage([...rows.values()], viewer, input, graph);
     },
+    async applyFeatureRequestUpdate(id, status, staffResponse) {
+      const post = rows.get(id);
+      if (!post || post.status !== "visible" || post.kind !== "feature_request") {
+        throw new SocialPostStoreError("NOT_FOUND", "Feature request not found.");
+      }
+      rows.set(id, {
+        ...post,
+        featureRequest: { status, staffResponse },
+        updatedAt: now().toISOString(),
+      });
+    },
     async processModerationQueue(adapter, limit = 20) {
       const result: SocialPostModerationResult = {
         processed: 0,
@@ -576,6 +592,25 @@ export const supabaseSocialPostStore: SocialPostStore = {
       if (error) throw error;
       return (data ?? []).length === 1;
     }, () => memorySocialPostStore.remove(id, actor), true);
+  },
+  async applyFeatureRequestUpdate(id, status, staffResponse) {
+    return durableOrMemory(async () => {
+      const { data, error } = await requireSupabaseAdmin()
+        .from("social_posts")
+        .update({
+          feature_status: status,
+          feature_staff_response: staffResponse,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .eq("kind", "feature_request")
+        .eq("status", "visible")
+        .select("id");
+      if (error) throw error;
+      if ((data ?? []).length !== 1) {
+        throw new SocialPostStoreError("NOT_FOUND", "Feature request not found.");
+      }
+    }, () => memorySocialPostStore.applyFeatureRequestUpdate(id, status, staffResponse), true);
   },
   async read(id, viewer) {
     return durableOrMemory(async () => {

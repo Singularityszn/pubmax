@@ -151,10 +151,8 @@ const nextConfig = {
   },
   skipTrailingSlashRedirect: true,
   async redirects() {
-    // The Stories tab settled on /feed; the old /stories route (and any deep
-    // link beneath it) is retired. A permanent (308) redirect keeps shared
-    // links and search-engine equity alive instead of dropping visitors on an
-    // unbranded 404. __tests__/storiesRedirect.test.ts pins this.
+    // Social owns posts and public pub discovery. Retired route families go
+    // straight to their canonical Social surface with no redirect chain.
     return [
       // Host canonicalisation (SEO split-brain fix, docs/SEO_CANONICAL_RUNBOOK
       // _2026-07-21.md). www.pubmaxxing.com was serving a full 200 MIRROR of the
@@ -175,8 +173,14 @@ const nextConfig = {
         destination: "https://pubmaxxing.com/:path*",
         permanent: true,
       },
-      { source: "/stories", destination: "/feed", permanent: true },
-      { source: "/stories/:path*", destination: "/feed", permanent: true },
+      { source: "/feed", destination: "/social", permanent: true },
+      { source: "/feed/:path*", destination: "/social", permanent: true },
+      { source: "/stories", destination: "/social", permanent: true },
+      { source: "/stories/:path*", destination: "/social", permanent: true },
+      { source: "/discover", destination: "/social?tab=discover", permanent: true },
+      { source: "/discover/:path*", destination: "/social?tab=discover", permanent: true },
+      { source: "/drinks", destination: "/social?tab=discover", permanent: true },
+      { source: "/drinks/:path*", destination: "/social?tab=discover", permanent: true },
       // The You surface lives at /u/you (the nav points there); the bare /you
       // path had no route and 404'd on shared links. A permanent (308) redirect
       // sends it to the canonical profile route. __tests__/storiesRedirect.test.ts

@@ -201,7 +201,7 @@ export default function LandingPage({
           <Link href="/plan">Plan</Link>
           <Link href="/tonight">Tonight</Link>
           <Link href="/moment">Moment</Link>
-          <Link href="/feed">Stories</Link>
+          <Link href="/social">Social</Link>
           <Link href="/u/you">You</Link>
         </nav>
 
@@ -292,7 +292,7 @@ export default function LandingPage({
               <p>Your night stays private until you say otherwise. When the crew&rsquo;s ready, turn the moments everyone likes into a story worth keeping.</p>
               <div className="lpMemoryActions">
                 <Link href="/plan" className="lpButton lpButtonPrimary">Start a plan</Link>
-              <Link href="/feed" className="lpTextLink">Read the stories <ArrowRight size={16} aria-hidden="true" /></Link>
+              <Link href="/social" className="lpTextLink">Open Social <ArrowRight size={16} aria-hidden="true" /></Link>
               </div>
             </div>
             <ol className="lpMemorySteps">
@@ -390,7 +390,7 @@ export default function LandingPage({
             </div>
             <div className="lpFooterCol">
               <h2>The good stuff</h2>
-              <Link href="/feed">Stories</Link>
+              <Link href="/social">Social</Link>
               <Link href="/pal">Pub Pal</Link>
               <Link href="/choose-city">Pick your city</Link>
               <Link href="/about">Our story</Link>

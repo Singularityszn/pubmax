@@ -116,8 +116,8 @@ describe("real command registry", () => {
     // Verify the expected navigation commands recorded the expected paths.
     expect(recordedPaths["nav-map"]).toBe("/map");
     expect(recordedPaths["nav-pubs"]).toBe("/pubs");
-    expect(recordedPaths["nav-feed"]).toBe("/feed");
-    expect(recordedPaths["nav-discover"]).toBe("/discover");
+    expect(recordedPaths["nav-social"]).toBe("/social");
+    expect(recordedPaths["nav-discover"]).toBe("/social?tab=discover");
     expect(recordedPaths["nav-borough"]).toBe("/borough");
     expect(recordedPaths["nav-crawls"]).toBe("/crawls");
     expect(recordedPaths["nav-rounds"]).toBe("/rounds");

@@ -219,11 +219,11 @@ describe("warmNavRoute / warmPrimaryTabRoutes", () => {
     const seen = new Set<string>();
     const prefetch = vi.fn();
     warmNavRoute({ prefetch }, "/tonight", seen);
-    warmNavRoute({ prefetch }, "/feed", seen);
+    warmNavRoute({ prefetch }, "/social", seen);
     warmNavRoute({ prefetch }, "/tonight", seen);
     expect(prefetch).toHaveBeenCalledTimes(2);
     expect(prefetch).toHaveBeenCalledWith("/tonight");
-    expect(prefetch).toHaveBeenCalledWith("/feed");
+    expect(prefetch).toHaveBeenCalledWith("/social");
   });
 
   it("warms every durable tab and skips Moment", async () => {
@@ -232,13 +232,13 @@ describe("warmNavRoute / warmPrimaryTabRoutes", () => {
     const prefetch = vi.fn();
     warmPrimaryTabRoutes(
       { prefetch },
-      ["/today", "/map", "/moment?returnTo=%2Ftoday", "/tonight", "/feed", "/u/you"],
+      ["/today", "/map", "/moment?returnTo=%2Ftoday", "/tonight", "/social", "/u/you"],
       seen,
     );
     expect(prefetch).toHaveBeenCalledWith("/today");
     expect(prefetch).toHaveBeenCalledWith("/map");
     expect(prefetch).toHaveBeenCalledWith("/tonight");
-    expect(prefetch).toHaveBeenCalledWith("/feed");
+    expect(prefetch).toHaveBeenCalledWith("/social");
     expect(prefetch).toHaveBeenCalledWith("/u/you");
     expect(prefetch.mock.calls.every(([href]) => !String(href).startsWith("/moment"))).toBe(true);
   });

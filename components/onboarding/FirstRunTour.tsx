@@ -45,7 +45,7 @@ import { trackEvent } from "@/lib/analytics";
 import { subscribePromptBudget } from "@/lib/promptBudget";
 import "./firstRunTour.css";
 
-type TabTarget = "map" | "drop" | "discover" | null;
+type TabTarget = "map" | "drop" | "social" | null;
 
 type TourStep = {
   /** Short overline tag, e.g. THE MAP. */
@@ -77,10 +77,10 @@ const STEPS: readonly TourStep[] = [
     target: "drop",
   },
   {
-    eyebrow: "Stories",
+    eyebrow: "Social",
     title: "Compare listed prices",
     body: "Browse drinks, compare prices, and open a listed crawl.",
-    target: "discover",
+    target: "social",
   },
 ];
 

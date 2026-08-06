@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 78 mutating routes.** The count grew 60 → 61 (email-capture
+> **Inventory: 79 mutating routes.** The count grew 60 → 61 (email-capture
 > `POST /api/email-subscribers`) → 62 (native `POST /api/push-tokens`) → 63 (the
 > Social Loop "we're out" `POST /api/check-ins`) → 64 (the vibe-vote
 > `POST /api/plans/[id]/vibe-votes`) → 65 (the area-demand capture
@@ -20,7 +20,8 @@ CI until this certification is deliberately updated.
 > invite-link creation and same-journey signup claim) → 75 (private Social
 > product-account migration) → 77 (verified Social post creation and item
 > editing or recoverable removal) → 78 (shared Plan group preferences
-> `POST/DELETE /api/plans/[id]/group-prefs`). Account onboarding
+> `POST/DELETE /api/plans/[id]/group-prefs`) → 79 (consolidated verified Social
+> interactions and governance). Account onboarding
 > replaces the earlier identity claim POST, so its route does not change the
 > count.
 > Token-gated GET
@@ -169,6 +170,44 @@ moderation state, revision or timestamp is accepted from the request body.
   `supabase/migrations/20260806160000_0076_plan_member_group_prefs.sql`.
   Rollback:
   `supabase/migrations/rollback/20260806160000_0076_plan_member_group_prefs_rollback.sql`.
+
+### `app/api/social/interactions` - verified Social interactions and governance (route 79)
+
+- **Route / methods:** `GET`, `PUT`, `POST`, and `DELETE` share one reviewed
+  route. GET reads bounded interaction pages. PUT and DELETE set Cheers,
+  private saves, reposts, comment policy and blocks to explicit desired state.
+  POST creates held comments and quotes, queues reports, changes owned
+  notification state, appends feature-request history, or performs named staff
+  moderation.
+- **Authority:** `requireVerifiedSocialActor` derives the verified Social actor,
+  product account and stable profile. Request bodies accept no account, profile
+  or handle ownership. Database RPCs re-check current post visibility, mutual
+  friendship, block state and authorship in the same transaction that mutates.
+- **Abuse and retries:** the route uses a durable limiter keyed by the salted
+  stable profile digest. Desired-state writes are naturally idempotent.
+  Immediate threat and doxxing reports bypass that ordinary budget so reporting
+  cannot be stopped during an incident; report identity and target deduplication
+  still apply.
+  Comments, quotes and feature updates require an idempotency header; only its
+  salted hash and a payload digest reach durable storage, so retries return one
+  result and key reuse with different content is rejected.
+- **Privacy and visibility:** private saves have neither a public count nor a
+  notification. Cursors are viewer and collection scoped. Reposts, quotes,
+  counts and notifications re-authorise their source and apply block reductions
+  on every read. Feeds stay chronological and engagement never enters map,
+  venue, price or popularity ranking.
+- **Moderation and governance:** comments and quote posts remain held moderation
+  content until the OpenAI worker records an approval. Reports never auto-hide.
+  Hide and restore require an active named staff role and append an audit row.
+  Named moderators read the private report queue and explicitly resolve each
+  report, retaining staff-role provenance.
+  Feature-request status and response history are append-only and staff actions
+  use the same private identity.
+- **Failure and rollback:** the Social freeze runs before identity, limiter or
+  storage work for ordinary writes. Reporting and moderation safety floors stay
+  open. Deployed production selects the durable store and fails closed when
+  migration 0073 is unavailable. Rollback removes only Task 4 tables and RPCs,
+  leaving Social posts, profiles and follows intact.
 
 ### `app/api/push-tokens` — native/web push registration (route 61)
 

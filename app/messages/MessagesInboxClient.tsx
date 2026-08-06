@@ -159,7 +159,7 @@ export default function MessagesInboxClient({
         <EmptyState
           title="Nobody in here yet."
           body="Find someone worth a pint on the feed, open their profile, and tap Message. That's how a round starts."
-          action={<Link href="/feed">Find someone to message</Link>}
+          action={<Link href="/social">Find someone to message</Link>}
         />
       ) : (
         <>

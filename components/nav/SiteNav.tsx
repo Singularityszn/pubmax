@@ -26,7 +26,7 @@ import "./siteNavMoment.css";
 // drifts page-to-page.
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
-// (MobileTabBar — Map/Tonight/Moment/Stories/You). Repeating the full link list up
+// (MobileTabBar: Map/Tonight/Moment/Social/You). Repeating the full link list up
 // top there caused the old `.appNav` pill to overflow the viewport (Admin +
 // theme toggle clipped off-screen) on /map. So on mobile this renders a COMPACT
 // bar — just the wordmark + theme toggle + sign-in — and hides the full link
@@ -47,6 +47,7 @@ type NavKey =
   | "historic"
   | "feed"
   | "discover"
+  | "social"
   | "crawls"
   | "profile"
   | "borough";
@@ -71,7 +72,7 @@ const LINKS: NavLink[] = [
   TODAY_LINK,
   ...PRIMARY_NAV_ITEMS.map((item) => ({
     ...item,
-    key: (item.key === "stories" ? "discover" : item.key === "you" ? "profile" : item.key) as NavKey,
+    key: (item.key === "you" ? "profile" : item.key) as NavKey,
   })),
 ];
 
@@ -80,10 +81,10 @@ function matchesPath(pathname: string, link: NavLink): boolean {
 }
 
 function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
-  if (active === "feed" || active === "crawls") return "discover";
-  // Borough pages are data/discovery, not Stories. There is no primary tab for
+  if (active === "feed" || active === "discover" || active === "crawls") return "social";
+  // Borough pages are data/discovery, not Social. There is no primary tab for
   // them, so they light nothing on the desktop nav rather than wrongly lighting
-  // Stories (the mobile tab bar already excludes /borough from its match set).
+  // Social (the mobile tab bar already excludes /borough from its match set).
   if (active === "borough" || active === "home") return undefined;
   if (active === "pubs" || active === "historic") return undefined;
   return active;

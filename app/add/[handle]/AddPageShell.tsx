@@ -5,7 +5,7 @@
 // frame at wide widths via CSS classes on this host only.
 //
 // Not a modal dialog: no role=dialog / aria-modal (would mark SiteNav inert for
-// AT). Visual centring + Esc→feed only — KB-4 focus-trap gate stays N/A here.
+// AT). Visual centring + Esc to Social only. KB-4 focus-trap gate stays N/A here.
 
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
@@ -28,7 +28,7 @@ export default function AddPageShell({ children }: { children: ReactNode }) {
         return;
       }
       event.preventDefault();
-      router.push("/feed");
+      router.push("/social");
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
