@@ -6,6 +6,7 @@
 // Never stores raw member tokens - body uses PLAN_HTTP_ONLY_SESSION only.
 // Never throws on storage failure (degrade like analytics outbox).
 
+import { readActivePlan, setActivePlanStopIndex } from "@/lib/activePlan";
 import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 import type { NightCrawlActionType } from "@/lib/nightCrawl";
 import { nightCrawlIdempotencyScope } from "@/lib/nightCrawl";
@@ -32,6 +33,11 @@ export type PlanMutationOutboxEntry = {
   method: "POST";
   path: string;
   body: { type: NightCrawlActionType; stopPosition: number; memberToken: string };
+  /** Cursor before the optimistic advance — needed to roll back after a failed replay. */
+  previousCursor: number;
+  /** Cursor after the optimistic advance. */
+  optimisticCursor: number;
+  venueName: string;
   fingerprint: string;
   createdAt: number;
   attempts: number;
@@ -45,6 +51,11 @@ export type PlanMutationFlushResult = {
   entryId: string;
   outcome: NightCrawlOutcome | "conflict";
   plan?: PlanState;
+  type: NightCrawlActionType;
+  stopPosition: number;
+  previousCursor: number;
+  optimisticCursor: number;
+  venueName: string;
 };
 
 const inMemory = new Map<string, PlanMutationOutboxEntry>();
@@ -91,17 +102,50 @@ function hydrate(): void {
 function isEntry(value: unknown): value is PlanMutationOutboxEntry {
   if (!value || typeof value !== "object") return false;
   const row = value as PlanMutationOutboxEntry;
-  return (
-    row.version === 1 &&
-    typeof row.id === "string" &&
-    typeof row.planId === "string" &&
-    typeof row.scope === "string" &&
-    typeof row.idempotencyKey === "string" &&
-    typeof row.path === "string" &&
-    row.body?.memberToken === PLAN_HTTP_ONLY_SESSION &&
-    (row.body.type === "arrived" || row.body.type === "skipped") &&
-    typeof row.body.stopPosition === "number"
-  );
+  if (
+    !(
+      row.version === 1 &&
+      typeof row.id === "string" &&
+      typeof row.planId === "string" &&
+      typeof row.scope === "string" &&
+      typeof row.idempotencyKey === "string" &&
+      typeof row.path === "string" &&
+      row.body?.memberToken === PLAN_HTTP_ONLY_SESSION &&
+      (row.body.type === "arrived" || row.body.type === "skipped") &&
+      typeof row.body.stopPosition === "number"
+    )
+  ) {
+    return false;
+  }
+  // Older rows may omit cursor fields; derive a safe rollback from the stop.
+  if (typeof row.previousCursor !== "number") {
+    row.previousCursor = row.body.stopPosition;
+  }
+  if (typeof row.optimisticCursor !== "number") {
+    row.optimisticCursor = row.body.stopPosition + 1;
+  }
+  if (typeof row.venueName !== "string") {
+    row.venueName = "this stop";
+  }
+  return true;
+}
+
+function resultFromEntry(
+  entry: PlanMutationOutboxEntry,
+  outcome: PlanMutationFlushResult["outcome"],
+  plan?: PlanState,
+): PlanMutationFlushResult {
+  return {
+    planId: entry.planId,
+    entryId: entry.id,
+    outcome,
+    plan,
+    type: entry.body.type,
+    stopPosition: entry.body.stopPosition,
+    previousCursor: entry.previousCursor,
+    optimisticCursor: entry.optimisticCursor,
+    venueName: entry.venueName,
+  };
 }
 
 export function listPlanMutationOutbox(planId?: string): PlanMutationOutboxEntry[] {
@@ -147,6 +191,9 @@ export async function enqueuePlanMutation(input: {
   idempotencyKey: string;
   path: string;
   body: { type: NightCrawlActionType; stopPosition: number };
+  previousCursor: number;
+  optimisticCursor: number;
+  venueName: string;
   fingerprint: string;
 }): Promise<PlanMutationOutboxEntry> {
   hydrate();
@@ -169,6 +216,9 @@ export async function enqueuePlanMutation(input: {
       stopPosition: input.body.stopPosition,
       memberToken: PLAN_HTTP_ONLY_SESSION,
     },
+    previousCursor: input.previousCursor,
+    optimisticCursor: input.optimisticCursor,
+    venueName: input.venueName,
     fingerprint: input.fingerprint,
     createdAt: Date.now(),
     attempts: 0,
@@ -193,6 +243,8 @@ export async function enqueueNightCrawlAction(input: {
   stop: PlanStopDTO;
   idempotencyKey: string;
   fingerprint: string;
+  previousCursor: number;
+  optimisticCursor: number;
 }): Promise<PlanMutationOutboxEntry> {
   const scope = nightCrawlIdempotencyScope(input.planId, input.type, input.stop.position);
   return enqueuePlanMutation({
@@ -201,6 +253,9 @@ export async function enqueueNightCrawlAction(input: {
     idempotencyKey: input.idempotencyKey,
     path: `/api/plans/${input.planId}/actions`,
     body: { type: input.type, stopPosition: input.stop.position },
+    previousCursor: input.previousCursor,
+    optimisticCursor: input.optimisticCursor,
+    venueName: input.stop.venueName,
     fingerprint: input.fingerprint,
   });
 }
@@ -215,71 +270,95 @@ function markEntry(
   notify();
 }
 
+/**
+ * Flush every pending outbox row. Concurrent callers share one in-flight run so
+ * a second plan is not starved while the first flush is busy; results are
+ * filtered to `planId` when requested.
+ */
 export function flushPlanMutationOutbox(options?: {
   planId?: string;
   signal?: AbortSignal;
 }): Promise<PlanMutationFlushResult[]> {
-  if (flushPromise) return flushPromise;
-  const run = (async (): Promise<PlanMutationFlushResult[]> => {
-    hydrate();
-    const pending = listPlanMutationOutbox(options?.planId).filter((row) => row.status === "pending");
-    const results: PlanMutationFlushResult[] = [];
-    for (const entry of pending) {
-      if (options?.signal?.aborted) break;
-      markEntry(entry, { attempts: entry.attempts + 1, lastAttemptAt: Date.now() });
-      try {
-        const response = await fetch(entry.path, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "idempotency-key": entry.idempotencyKey,
-          },
-          body: JSON.stringify(entry.body),
-          keepalive: true,
-          signal: options?.signal,
-        });
-        const status = response.status;
-        const body = (await response.json().catch(() => null)) as PlanState | null;
-        if (status === 409) {
-          markEntry(entry, { status: "conflict", lastHttpStatus: status });
-          results.push({ planId: entry.planId, entryId: entry.id, outcome: "conflict" });
-          continue;
-        }
-        const outcome = classifyActionOutcome(status);
-        if (outcome === "confirmed") {
-          removePlanMutationOutboxEntry(entry.id);
-          results.push({
-            planId: entry.planId,
-            entryId: entry.id,
-            outcome: "confirmed",
-            plan: body && Array.isArray(body.stops) ? body : undefined,
+  if (!flushPromise) {
+    const run = (async (): Promise<PlanMutationFlushResult[]> => {
+      hydrate();
+      // Always drain the full queue so concurrent plan-scoped callers share work.
+      const pending = listPlanMutationOutbox().filter((row) => row.status === "pending");
+      const results: PlanMutationFlushResult[] = [];
+      for (const entry of pending) {
+        if (options?.signal?.aborted) break;
+        markEntry(entry, { attempts: entry.attempts + 1, lastAttemptAt: Date.now() });
+        try {
+          const response = await fetch(entry.path, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "idempotency-key": entry.idempotencyKey,
+            },
+            body: JSON.stringify(entry.body),
+            keepalive: true,
+            signal: options?.signal,
           });
-          continue;
+          const status = response.status;
+          const body = (await response.json().catch(() => null)) as PlanState | null;
+          if (status === 409) {
+            markEntry(entry, { status: "conflict", lastHttpStatus: status });
+            results.push(resultFromEntry(entry, "conflict"));
+            continue;
+          }
+          const outcome = classifyActionOutcome(status);
+          if (outcome === "confirmed") {
+            removePlanMutationOutboxEntry(entry.id);
+            results.push(
+              resultFromEntry(
+                entry,
+                "confirmed",
+                body && Array.isArray(body.stops) ? body : undefined,
+              ),
+            );
+            continue;
+          }
+          if (outcome === "forbidden") {
+            markEntry(entry, { status: "forbidden", lastHttpStatus: status });
+            results.push(resultFromEntry(entry, "forbidden"));
+            continue;
+          }
+          if (outcome === "rejected") {
+            markEntry(entry, { status: "rejected", lastHttpStatus: status });
+            results.push(resultFromEntry(entry, "rejected"));
+            continue;
+          }
+          // offline / 5xx - keep pending
+          markEntry(entry, { lastHttpStatus: status });
+          results.push(resultFromEntry(entry, "offline"));
+        } catch {
+          results.push(resultFromEntry(entry, "offline"));
         }
-        if (outcome === "forbidden") {
-          markEntry(entry, { status: "forbidden", lastHttpStatus: status });
-          results.push({ planId: entry.planId, entryId: entry.id, outcome: "forbidden" });
-          continue;
-        }
-        if (outcome === "rejected") {
-          markEntry(entry, { status: "rejected", lastHttpStatus: status });
-          results.push({ planId: entry.planId, entryId: entry.id, outcome: "rejected" });
-          continue;
-        }
-        // offline / 5xx - keep pending
-        markEntry(entry, { lastHttpStatus: status });
-        results.push({ planId: entry.planId, entryId: entry.id, outcome: "offline" });
-      } catch {
-        results.push({ planId: entry.planId, entryId: entry.id, outcome: "offline" });
       }
-    }
-    return results;
-  })();
-  flushPromise = run;
-  void run.finally(() => {
-    if (flushPromise === run) flushPromise = null;
-  });
-  return run;
+      return results;
+    })();
+    flushPromise = run;
+    void run.finally(() => {
+      if (flushPromise === run) flushPromise = null;
+    });
+  }
+  return flushPromise.then((results) =>
+    options?.planId ? results.filter((row) => row.planId === options.planId) : results,
+  );
+}
+
+/** Roll back the active-plan cursor when a held mutation fails after replay. */
+export function applyActivePlanFlushRollback(result: PlanMutationFlushResult): void {
+  if (
+    result.outcome !== "forbidden" &&
+    result.outcome !== "rejected" &&
+    result.outcome !== "conflict"
+  ) {
+    return;
+  }
+  const active = readActivePlan();
+  if (!active || active.id !== result.planId) return;
+  setActivePlanStopIndex(result.previousCursor);
 }
 
 /** Test helper: replace in-memory + storage state. */

@@ -74,6 +74,8 @@ describe("planMutationOutbox", () => {
       stop,
       idempotencyKey: "key-1",
       fingerprint: "fp-1",
+      previousCursor: 0,
+      optimisticCursor: 1,
     });
     const second = await enqueueNightCrawlAction({
       planId: "plan-1",
@@ -81,10 +83,13 @@ describe("planMutationOutbox", () => {
       stop,
       idempotencyKey: "key-1",
       fingerprint: "fp-1",
+      previousCursor: 0,
+      optimisticCursor: 1,
     });
     expect(second.id).toBe(first.id);
     expect(listPlanMutationOutbox("plan-1")).toHaveLength(1);
     expect(first.body.memberToken).toBe(PLAN_HTTP_ONLY_SESSION);
+    expect(first.previousCursor).toBe(0);
     expect(hasPendingPlanMutation("plan-1")).toBe(true);
     const raw = window.localStorage.getItem(PLAN_MUTATION_OUTBOX_KEY);
     expect(raw).toContain("plan-1");
@@ -97,9 +102,12 @@ describe("planMutationOutbox", () => {
       stop,
       idempotencyKey: "key-1",
       fingerprint: "fp-1",
+      previousCursor: 0,
+      optimisticCursor: 1,
     });
     const results = await flushPlanMutationOutbox({ planId: "plan-1" });
     expect(results[0]?.outcome).toBe("confirmed");
+    expect(results[0]?.previousCursor).toBe(0);
     expect(listPlanMutationOutbox("plan-1")).toHaveLength(0);
     expect(fetch).toHaveBeenCalledWith(
       "/api/plans/plan-1/actions",
@@ -123,6 +131,8 @@ describe("planMutationOutbox", () => {
       stop,
       idempotencyKey: "key-2",
       fingerprint: "fp-2",
+      previousCursor: 0,
+      optimisticCursor: 1,
     });
     const results = await flushPlanMutationOutbox({ planId: "plan-1" });
     expect(results[0]?.outcome).toBe("offline");
@@ -140,9 +150,69 @@ describe("planMutationOutbox", () => {
       stop,
       idempotencyKey: "key-3",
       fingerprint: "fp-3",
+      previousCursor: 0,
+      optimisticCursor: 1,
     });
     const results = await flushPlanMutationOutbox({ planId: "plan-1" });
     expect(results[0]?.outcome).toBe("conflict");
     expect(listPlanMutationOutbox("plan-1")[0]?.status).toBe("conflict");
+  });
+
+  it("drains every plan while concurrent flushes share one run", async () => {
+    const stopB = { venueId: "venue-2", venueName: "The Fox", position: 0 };
+    const resolvers: Array<(value: Response) => void> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolvers.push(resolve);
+          }),
+      ),
+    );
+    await enqueueNightCrawlAction({
+      planId: "plan-a",
+      type: "arrived",
+      stop,
+      idempotencyKey: "key-a",
+      fingerprint: "fp-a",
+      previousCursor: 0,
+      optimisticCursor: 1,
+    });
+    await enqueueNightCrawlAction({
+      planId: "plan-b",
+      type: "arrived",
+      stop: stopB,
+      idempotencyKey: "key-b",
+      fingerprint: "fp-b",
+      previousCursor: 0,
+      optimisticCursor: 1,
+    });
+
+    const flushA = flushPlanMutationOutbox({ planId: "plan-a" });
+    const flushB = flushPlanMutationOutbox({ planId: "plan-b" });
+    await vi.waitFor(() => expect(resolvers.length).toBe(1));
+    // Shared drain walks entries sequentially — unblock plan-a, then plan-b.
+    resolvers[0]?.(
+      new Response(JSON.stringify({ stops: [stop], plan: {}, crew: [], actions: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    await vi.waitFor(() => expect(resolvers.length).toBe(2));
+    resolvers[1]?.(
+      new Response(JSON.stringify({ stops: [stopB], plan: {}, crew: [], actions: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const [aResults, bResults] = await Promise.all([flushA, flushB]);
+    expect(aResults).toHaveLength(1);
+    expect(aResults[0]?.planId).toBe("plan-a");
+    expect(bResults).toHaveLength(1);
+    expect(bResults[0]?.planId).toBe("plan-b");
+    expect(listPlanMutationOutbox()).toHaveLength(0);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

@@ -31,6 +31,7 @@ import {
   advanceNightCrawl,
   classifyActionOutcome,
   isFinalStop,
+  nightCrawlActionNote,
   nightCrawlActionPayload,
   nightCrawlGlance,
   nightCrawlHero,
@@ -43,10 +44,14 @@ import {
 import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import {
+  applyActivePlanFlushRollback,
   enqueueNightCrawlAction,
   flushPlanMutationOutbox,
   hasPendingPlanMutation,
+  listPlanMutationOutbox,
+  removePlanMutationOutboxEntry,
   subscribePlanMutationOutbox,
+  type PlanMutationFlushResult,
 } from "@/lib/planMutationOutbox";
 import {
   parsePlanCapabilitySnapshot,
@@ -166,16 +171,56 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
 
   const showSurface = activeNow && open;
 
+  const applyFlushResult = useCallback(
+    (result: PlanMutationFlushResult) => {
+      if (result.planId !== planId) return;
+      if (result.outcome === "confirmed") {
+        if (result.plan) setPlan(result.plan);
+        setOptimistic((previous) => {
+          const next = { ...previous };
+          delete next[result.stopPosition];
+          return next;
+        });
+        setNote(null);
+        return;
+      }
+      if (result.outcome === "offline") return;
+      applyActivePlanFlushRollback(result);
+      setOptimistic((previous) => {
+        const next = { ...previous };
+        delete next[result.stopPosition];
+        return next;
+      });
+      const tone = result.outcome === "conflict" ? "rejected" : result.outcome;
+      setNote({
+        text: nightCrawlActionNote(result.type, result.venueName, tone),
+        tone,
+      });
+      removePlanMutationOutboxEntry(result.entryId);
+    },
+    [planId],
+  );
+
+  // Restore pending hold marks after reload so the advanced cursor stays honest.
+  useEffect(() => {
+    const pending = listPlanMutationOutbox(planId).filter((row) => row.status === "pending");
+    if (pending.length === 0) return;
+    const restored: Record<number, NightCrawlActionType> = {};
+    for (const entry of pending) {
+      restored[entry.body.stopPosition] = entry.body.type;
+    }
+    setOptimistic((previous) => ({ ...previous, ...restored }));
+    setNote({
+      text: "Held on this phone. We will try again when you have signal.",
+      tone: "pending",
+    });
+  }, [planId]);
+
   // Replay held arrive/skip mutations when signal returns or the surface opens.
   useEffect(() => {
     const flush = () => {
       void flushPlanMutationOutbox({ planId }).then((results) => {
-        for (const result of results) {
-          if (result.outcome === "confirmed" && result.plan) {
-            setPlan(result.plan);
-            setNote(null);
-          }
-        }
+        for (const result of results) applyFlushResult(result);
       });
     };
     flush();
@@ -185,7 +230,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       window.removeEventListener("online", flush);
       unsub();
     };
-  }, [planId, showSurface]);
+  }, [planId, showSurface, applyFlushResult]);
 
   // Refresh crew + actions when the surface opens, so "who is where" and the done
   // dispositions reflect the live night, not the page's first server render.
@@ -300,6 +345,8 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           stop: hero,
           idempotencyKey: key,
           fingerprint: print,
+          previousCursor,
+          optimisticCursor,
         });
         queued = true;
       } catch {
