@@ -2,10 +2,11 @@ import { createHash } from "node:crypto";
 
 import { hashPlanMemberToken, socialBoundPlanStateResult, type PlanStateLookupResult } from "@/lib/planStore";
 import {
-  isSocialCrewRole,
   isSocialCrewMutationCode,
+  isSocialCrewRole,
   isSocialCrewVisibility,
   type SocialCrewMutationResult,
+  type SocialCrewMutationCode,
   type SocialCrewReadDTO,
   type SocialCrewRole,
   type SocialCrewVisibility,
@@ -14,6 +15,7 @@ import {
   projectSocialCrewRead,
   type RawSocialCrew,
   type RawSocialCrewMember,
+  validateRawSocialCrew,
 } from "@/lib/socialCrewProjection.server";
 import {
   socialRelationshipBetweenProfiles,
@@ -143,11 +145,113 @@ function row(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function parseWriteResponse(value: unknown): SocialCrewMutationResult {
+function requiredUuid(value: unknown): string {
+  return isUuid(value) ? value : unavailable();
+}
+
+function requiredRevision(value: unknown): number {
+  return Number.isInteger(value) && Number(value) >= 1
+    ? Number(value)
+    : unavailable();
+}
+
+type FixedWriteContract = {
+  codes: readonly SocialCrewMutationCode[];
+  result(
+    base: SocialCrewMutationResult,
+    value: Record<string, unknown>,
+  ): SocialCrewMutationResult;
+};
+
+const FIXED_WRITE_CONTRACTS: Partial<Record<SocialCrewRpcName, FixedWriteContract>> = {
+  create_social_crew_atomic: {
+    codes: ["created", "replayed"],
+    result: (base, value) => ({
+      ...base,
+      crewId: requiredUuid(value.crew_id),
+      memberId: requiredUuid(value.member_id),
+    }),
+  },
+  invite_social_crew_member_atomic: {
+    codes: ["invited", "replayed"],
+    result: (base, value) => ({ ...base, invitationId: requiredUuid(value.invitation_id) }),
+  },
+  revoke_social_crew_invitation_atomic: {
+    codes: ["revoked", "replayed"],
+    result: (base, value) => ({ ...base, invitationId: requiredUuid(value.invitation_id) }),
+  },
+  set_social_crew_role_atomic: {
+    codes: ["updated", "replayed"],
+    result: (base, value) => ({ ...base, memberId: requiredUuid(value.member_id) }),
+  },
+  transfer_social_crew_owner_atomic: {
+    codes: ["transferred", "replayed"],
+    result: (base, value) => ({ ...base, memberId: requiredUuid(value.member_id) }),
+  },
+  remove_social_crew_member_atomic: {
+    codes: ["removed", "replayed"],
+    result: (base, value) => ({ ...base, memberId: requiredUuid(value.member_id) }),
+  },
+  leave_social_crew_atomic: {
+    codes: ["left", "replayed"],
+    result: (base, value) => ({ ...base, memberId: requiredUuid(value.member_id) }),
+  },
+  update_social_crew_visibility_atomic: {
+    codes: ["updated", "replayed"],
+    result: (base, value) => ({
+      ...base,
+      authorityRevision: requiredRevision(value.authority_revision),
+    }),
+  },
+};
+
+function parseSuccessfulWrite(
+  name: SocialCrewRpcName,
+  input: Record<string, unknown>,
+  value: Record<string, unknown>,
+  code: string,
+): SocialCrewMutationResult {
+  if (!isSocialCrewMutationCode(code)) return unavailable();
+  const result: SocialCrewMutationResult = { code, replayed: code === "replayed" };
+  const fixedContract = FIXED_WRITE_CONTRACTS[name];
+  if (fixedContract) {
+    if (!fixedContract.codes.includes(code)) return unavailable();
+    return fixedContract.result(result, value);
+  }
+  switch (name) {
+    case "accept_social_crew_invitation_atomic": {
+      const expected = input.p_action === "accepted" ? "accepted" : "declined";
+      if (code !== expected && code !== "replayed") return unavailable();
+      return expected === "accepted"
+        ? { ...result, memberId: requiredUuid(value.member_id) }
+        : result;
+    }
+    case "request_social_crew_join_atomic": {
+      const expected = input.p_action === "pending" ? "requested" : "cancelled";
+      if (code !== expected && code !== "replayed") return unavailable();
+      return { ...result, requestId: requiredUuid(value.request_id) };
+    }
+    case "decide_social_crew_join_request_atomic": {
+      const expected = input.p_decision === "accepted" ? "accepted" : "declined";
+      if (code !== expected && code !== "replayed") return unavailable();
+      return expected === "accepted"
+        ? { ...result, memberId: requiredUuid(value.member_id) }
+        : result;
+    }
+    default:
+      return unavailable();
+  }
+}
+
+function parseWriteResponse(
+  name: SocialCrewRpcName,
+  input: Record<string, unknown>,
+  value: unknown,
+): SocialCrewMutationResult {
   const wrapped = row(value);
   if ("error" in wrapped || "data" in wrapped) {
     if (wrapped.error) return unavailable();
-    return parseWriteResponse(wrapped.data);
+    return parseWriteResponse(name, input, wrapped.data);
   }
   const code = typeof wrapped.code === "string" ? wrapped.code : "";
   if (wrapped.ok !== true) {
@@ -167,19 +271,7 @@ function parseWriteResponse(value: unknown): SocialCrewMutationResult {
     }
     return unavailable();
   }
-  if (!isSocialCrewMutationCode(code)) return unavailable();
-  const result: SocialCrewMutationResult = {
-    code,
-    replayed: code === "replayed",
-  };
-  if (isUuid(wrapped.crew_id)) result.crewId = wrapped.crew_id;
-  if (isUuid(wrapped.member_id)) result.memberId = wrapped.member_id;
-  if (isUuid(wrapped.invitation_id)) result.invitationId = wrapped.invitation_id;
-  if (isUuid(wrapped.request_id)) result.requestId = wrapped.request_id;
-  if (Number.isInteger(wrapped.authority_revision)) {
-    result.authorityRevision = wrapped.authority_revision as number;
-  }
-  return result;
+  return parseSuccessfulWrite(name, input, wrapped, code);
 }
 
 function writeArguments(
@@ -202,8 +294,15 @@ function text(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-export function socialCrewJoinRequestPreviewState(
-  latest: { state: unknown; expiresAt: unknown } | null,
+type JoinRequestPreviewRow = {
+  state: unknown;
+  expiresAt: unknown;
+  createdAt?: unknown;
+  decidedAt?: unknown;
+};
+
+function previewStateFromLatest(
+  latest: JoinRequestPreviewRow | null,
   now = new Date(),
 ): RawSocialCrew["joinRequestState"] {
   if (!latest) return "none";
@@ -217,6 +316,45 @@ export function socialCrewJoinRequestPreviewState(
     return "pending";
   }
   return "none";
+}
+
+function joinRequestDecisionOrder(row: JoinRequestPreviewRow): number {
+  if (row.state === "pending" && row.decidedAt == null) return Number.POSITIVE_INFINITY;
+  if (typeof row.decidedAt !== "string" || !Number.isFinite(Date.parse(row.decidedAt))) {
+    throw new Error("Social Crew Join Request data is unavailable.");
+  }
+  return Date.parse(row.decidedAt);
+}
+
+export function socialCrewJoinRequestPreviewState(
+  value: JoinRequestPreviewRow | readonly JoinRequestPreviewRow[] | null,
+  now = new Date(),
+): RawSocialCrew["joinRequestState"] {
+  if (!Array.isArray(value)) {
+    return previewStateFromLatest(value as JoinRequestPreviewRow | null, now);
+  }
+  if (value.length === 0) return "none";
+  const rows = [...value];
+  for (const item of rows) {
+    if (typeof item.createdAt !== "string" || !Number.isFinite(Date.parse(item.createdAt))) {
+      throw new Error("Social Crew Join Request data is unavailable.");
+    }
+  }
+  rows.sort((first, second) => {
+    const created = Date.parse(String(second.createdAt)) - Date.parse(String(first.createdAt));
+    return created || joinRequestDecisionOrder(second) - joinRequestDecisionOrder(first);
+  });
+  const [latest, next] = rows;
+  if (!latest) return "none";
+  if (
+    next &&
+    latest.createdAt === next.createdAt &&
+    joinRequestDecisionOrder(latest) === joinRequestDecisionOrder(next) &&
+    latest.state !== next.state
+  ) {
+    throw new Error("Social Crew Join Request order is unavailable.");
+  }
+  return previewStateFromLatest(latest, now);
 }
 
 function defaultMemberRows(
@@ -288,16 +426,19 @@ async function loadCrewFromSupabase(
 
   const { data: requestData, error: requestError } = await admin
     .from("social_crew_join_requests")
-    .select("state,expires_at")
+    .select("state,expires_at,created_at,decided_at")
     .eq("crew_id", crewId)
     .eq("requester_account_id", viewerAccountId)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("decided_at", { ascending: false, nullsFirst: true })
+    .limit(2);
   if (requestError) throw new Error(requestError.message);
-  const joinRequestState = socialCrewJoinRequestPreviewState(requestData
-    ? { state: requestData.state, expiresAt: requestData.expires_at }
-    : null);
+  const joinRequestState = socialCrewJoinRequestPreviewState((requestData ?? []).map((request) => ({
+    state: request.state,
+    expiresAt: request.expires_at,
+    createdAt: request.created_at,
+    decidedAt: request.decided_at,
+  })));
 
   return {
     crewId: text(crewData.id),
@@ -334,7 +475,7 @@ export function createSocialCrewStore(
   ): Promise<SocialCrewMutationResult> {
     const input = writeArguments(actor, operation, key, payload);
     try {
-      return parseWriteResponse(await dependencies.rpc(name, input));
+      return parseWriteResponse(name, input, await dependencies.rpc(name, input));
     } catch (error) {
       if (error instanceof SocialCrewStoreError) throw error;
       return unavailable();
@@ -351,6 +492,11 @@ export function createSocialCrewStore(
         return unavailable();
       }
       if (!raw) return notFound();
+      try {
+        validateRawSocialCrew(raw);
+      } catch {
+        return unavailable();
+      }
 
       const actorAccountMember = raw.members.find((member) =>
         member.state === "active" && member.accountId === actor.accountId
@@ -364,6 +510,7 @@ export function createSocialCrewStore(
         member.profileId === actor.profileId
       );
       const ownerIsViewer = raw.ownerAccountId === actor.accountId && raw.ownerProfileId === actor.profileId;
+      if (!actorMember && !ownerIsViewer && raw.visibility === "private") return notFound();
       let relationship: SocialRelationshipResolution;
       if (ownerIsViewer) {
         relationship = "self";

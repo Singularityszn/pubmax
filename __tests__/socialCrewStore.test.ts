@@ -380,6 +380,97 @@ describe("SocialCrewStore durable writes", () => {
     }), "UNAVAILABLE", 503);
   });
 
+  it.each([
+    {
+      label: "create rejects another operation's known code",
+      response: { ok: true, code: "invited", invitation_id: INVITATION_ID },
+      run: (store: ReturnType<typeof createSocialCrewStore>) => store.create(alice, {
+        planId: PLAN_ID,
+        hostCapability: "host-capability",
+        visibility: "private",
+        idempotencyKey: KEY_A,
+      }),
+    },
+    {
+      label: "create requires both scoped result IDs",
+      response: { ok: true, code: "created", crew_id: CREW_ID },
+      run: (store: ReturnType<typeof createSocialCrewStore>) => store.create(alice, {
+        planId: PLAN_ID,
+        hostCapability: "host-capability",
+        visibility: "private",
+        idempotencyKey: KEY_A,
+      }),
+    },
+    {
+      label: "invite requires invitation ID",
+      response: { ok: true, code: "invited" },
+      run: (store: ReturnType<typeof createSocialCrewStore>) => store.invite(alice, {
+        crewId: CREW_ID,
+        targetProfileId: BOB_PROFILE_ID,
+        idempotencyKey: KEY_A,
+      }),
+    },
+    {
+      label: "accepted invitation requires member ID",
+      response: { ok: true, code: "accepted" },
+      run: (store: ReturnType<typeof createSocialCrewStore>) => store.acceptInvitation(bob, {
+        invitationId: INVITATION_ID,
+        action: "accept",
+        idempotencyKey: KEY_A,
+      }),
+    },
+    {
+      label: "Join Request requires request ID",
+      response: { ok: true, code: "requested" },
+      run: (store: ReturnType<typeof createSocialCrewStore>) => store.requestJoin(bob, {
+        crewId: CREW_ID,
+        action: "request",
+        idempotencyKey: KEY_A,
+      }),
+    },
+    {
+      label: "accepted Join Request decision requires member ID",
+      response: { ok: true, code: "accepted", member_id: "not-a-uuid" },
+      run: (store: ReturnType<typeof createSocialCrewStore>) => store.decideJoin(alice, {
+        requestId: REQUEST_ID,
+        decision: "accept",
+        idempotencyKey: KEY_A,
+      }),
+    },
+    {
+      label: "role update requires member ID",
+      response: { ok: true, code: "updated" },
+      run: (store: ReturnType<typeof createSocialCrewStore>) => store.setRole(alice, {
+        crewId: CREW_ID,
+        memberId: BOB_MEMBER_ID,
+        role: "cohost",
+        idempotencyKey: KEY_A,
+      }),
+    },
+    {
+      label: "leave rejects another member operation's known code",
+      response: { ok: true, code: "removed", member_id: BOB_MEMBER_ID },
+      run: (store: ReturnType<typeof createSocialCrewStore>) => store.leave(bob, {
+        crewId: CREW_ID,
+        idempotencyKey: KEY_A,
+      }),
+    },
+    {
+      label: "visibility update requires integer revision",
+      response: { ok: true, code: "updated", authority_revision: "2" },
+      run: (store: ReturnType<typeof createSocialCrewStore>) => store.updateVisibility(alice, {
+        crewId: CREW_ID,
+        visibility: "private",
+        expectedAuthorityRevision: 1,
+        idempotencyKey: KEY_A,
+      }),
+    },
+  ])("fails closed when $label", async ({ response, run }) => {
+    const store = createSocialCrewStore(dependencies({ rpc: async () => response }));
+
+    await expectStoreError(run(store), "UNAVAILABLE", 503);
+  });
+
   it("lets a non-owner leave without a friendship precheck", async () => {
     let relationshipChecks = 0;
     const deps = dependencies({
@@ -505,6 +596,45 @@ describe("SocialCrewStore protected projection", () => {
     expect(socialCrewJoinRequestPreviewState(latest, new Date("2026-08-05T12:00:00.000Z"))).toBe(expected);
   });
 
+  it("uses durable decision time when Join Requests share created time", () => {
+    expect(socialCrewJoinRequestPreviewState([
+      {
+        state: "cancelled",
+        expiresAt: "2026-08-06T00:00:00.000Z",
+        createdAt: "2026-08-05T10:00:00.000Z",
+        decidedAt: "2026-08-05T10:05:00.000Z",
+      },
+      {
+        state: "declined",
+        expiresAt: "2026-08-06T00:00:00.000Z",
+        createdAt: "2026-08-05T10:00:00.000Z",
+        decidedAt: "2026-08-05T10:06:00.000Z",
+      },
+    ], new Date("2026-08-05T12:00:00.000Z"))).toBe("declined");
+  });
+
+  it.each([
+    ["state", "unknown"],
+    ["role", "host"],
+    ["memberId", "not-a-uuid"],
+    ["accountId", "not-a-uuid"],
+    ["profileId", "not-a-uuid"],
+    ["planMemberId", "not-a-uuid"],
+    ["handle", ""],
+    ["joinedAt", "not-a-date"],
+  ] as const)("fails closed for invalid durable member %s", async (field, value) => {
+    const invalidMember = {
+      ...rawCrew().members[1]!,
+      state: "left",
+      [field]: value,
+    } as RawSocialCrew["members"][number];
+    const store = createSocialCrewStore(dependencies({
+      raw: rawCrew({ members: [rawCrew().members[0]!, invalidMember] }),
+    }));
+
+    await expectStoreError(store.read(CREW_ID, alice), "UNAVAILABLE", 503);
+  });
+
   it("derives Crew presentation and Plan state from the bound Planned Night", async () => {
     const store = createSocialCrewStore(dependencies());
 
@@ -601,6 +731,24 @@ describe("SocialCrewStore protected projection", () => {
 
     await expectStoreError(privateStore.read(CREW_ID, bob), "NOT_FOUND", 404);
     await expectStoreError(unknownStore.read(CREW_ID, bob), "NOT_FOUND", 404);
+  });
+
+  it("returns private outsider not found before relationship dependency access", async () => {
+    let relationshipCalls = 0;
+    const deps = dependencies({
+      raw: rawCrew({ visibility: "private", members: rawCrew().members.slice(0, 1) }),
+      relationship: "unavailable",
+    });
+    deps.relationshipBetweenProfiles = async () => {
+      relationshipCalls += 1;
+      return "unavailable";
+    };
+    const privateStore = createSocialCrewStore(deps);
+    const unknownStore = createSocialCrewStore(dependencies({ raw: null }));
+
+    await expectStoreError(privateStore.read(CREW_ID, bob), "NOT_FOUND", 404);
+    await expectStoreError(unknownStore.read(CREW_ID, bob), "NOT_FOUND", 404);
+    expect(relationshipCalls).toBe(0);
   });
 
   it("projects only a narrow preview for a Mutual who is not a member", async () => {

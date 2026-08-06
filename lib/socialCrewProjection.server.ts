@@ -1,6 +1,7 @@
 import type { PlanState } from "@/lib/plan";
 import type { SocialRelationshipResolution } from "@/lib/socialRelationships.server";
 import {
+  isSocialCrewMembershipState,
   isSocialCrewRole,
   isSocialCrewVisibility,
   socialCrewPhase,
@@ -43,6 +44,10 @@ function validDate(value: string): boolean {
   return Number.isFinite(Date.parse(value));
 }
 
+function validUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 function activeMembers(raw: RawSocialCrew): RawSocialCrewMember[] {
   return raw.members.filter((member) => member.state === "active");
 }
@@ -53,18 +58,39 @@ function validJoinRequestState(
   return value === "none" || value === "pending" || value === "declined";
 }
 
+export function validateRawSocialCrew(raw: RawSocialCrew): void {
+  if (
+    !validUuid(raw.crewId) ||
+    !validUuid(raw.planId) ||
+    !validUuid(raw.ownerAccountId) ||
+    !validUuid(raw.ownerProfileId) ||
+    !isSocialCrewVisibility(raw.visibility) ||
+    !Number.isInteger(raw.authorityRevision) ||
+    raw.authorityRevision < 1 ||
+    !validJoinRequestState(raw.joinRequestState) ||
+    !Array.isArray(raw.members)
+  ) {
+    throw new Error("Social Crew authority data is unavailable.");
+  }
+  if (raw.members.some((member) =>
+    !isSocialCrewRole(member.role) ||
+    !isSocialCrewMembershipState(member.state) ||
+    !validUuid(member.memberId) ||
+    !validUuid(member.accountId) ||
+    !validUuid(member.profileId) ||
+    !validUuid(member.planMemberId) ||
+    !member.handle.trim() ||
+    !validDate(member.joinedAt)
+  )) {
+    throw new Error("Social Crew member data is unavailable.");
+  }
+}
+
 export function projectSocialCrewRead(
   raw: RawSocialCrew,
   viewer: SocialCrewProjectionViewer,
 ): SocialCrewReadDTO | null {
-  if (
-    !isSocialCrewVisibility(raw.visibility) ||
-    !Number.isInteger(raw.authorityRevision) ||
-    raw.authorityRevision < 1 ||
-    !validJoinRequestState(raw.joinRequestState)
-  ) {
-    throw new Error("Social Crew authority data is unavailable.");
-  }
+  validateRawSocialCrew(raw);
 
   const plan = viewer.plan;
   if (plan.plan.id !== raw.planId || !validDate(plan.plan.startTime)) {
@@ -72,17 +98,6 @@ export function projectSocialCrewRead(
   }
 
   const members = activeMembers(raw);
-  if (members.some((member) =>
-    !isSocialCrewRole(member.role) ||
-    !member.memberId ||
-    !member.accountId ||
-    !member.profileId ||
-    !member.planMemberId ||
-    !member.handle ||
-    !validDate(member.joinedAt)
-  )) {
-    throw new Error("Social Crew member data is unavailable.");
-  }
   const owner = members.find((member) =>
     member.accountId === raw.ownerAccountId &&
     member.profileId === raw.ownerProfileId &&
