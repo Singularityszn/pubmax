@@ -62,9 +62,12 @@ export function cleanPlanAnchor(value: unknown): PlanAnchorMetadata | null {
 
 export const PLANNED_NIGHT_STATUSES = ["draft", "ready", "active", "ending", "completed", "abandoned"] as const;
 export type PlannedNightStatus = (typeof PLANNED_NIGHT_STATUSES)[number];
-export type CrawlEnding = "food" | "get_home" | "keep_going";
+export const CRAWL_ENDINGS = ["food", "get_home", "keep_going"] as const;
+export type CrawlEnding = (typeof CRAWL_ENDINGS)[number];
+export const PLAN_ACTION_TYPES = ["arrived", "skipped", "swapped", "ending"] as const;
+export type PlanActionType = (typeof PLAN_ACTION_TYPES)[number];
 export type PlanMemberRole = "host" | "guest";
-export type PlanActionDTO = { id: string; type: "arrived" | "skipped" | "swapped" | "ending"; stopPosition: number | null; ending: CrawlEnding | null; createdAt: string };
+export type PlanActionDTO = { id: string; type: PlanActionType; stopPosition: number | null; ending: CrawlEnding | null; createdAt: string };
 
 export type EndingEvidenceSnapshot = {
   label: string;
@@ -140,7 +143,9 @@ const ENDING_CONFIDENCE = ["high", "medium", "low", "unknown"] as const;
 export function cleanEndingSelection(value: unknown, ending?: CrawlEnding): EndingSelection | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
-  const kind = row.kind === "food" || row.kind === "get_home" || row.kind === "keep_going" ? row.kind : null;
+  const kind = (CRAWL_ENDINGS as readonly unknown[]).includes(row.kind)
+    ? row.kind as CrawlEnding
+    : null;
   if (!kind || (ending && kind !== ending)) return null;
   const optionId = cleanText(row.optionId, 120);
   const venueId = cleanText(row.venueId, PLAN_VENUE_ID_MAX);
