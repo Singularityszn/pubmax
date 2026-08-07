@@ -24,16 +24,22 @@ export default function PosterLandingNote({ src }: { src: string | null }) {
   const sawPosterSrc = useRef(false);
 
   useEffect(() => {
+    // sessionStorage is the external system here; settle it first, then let a
+    // frame callback carry the state update so the effect body stays free of
+    // synchronous setState (react-hooks/set-state-in-effect).
+    let next: boolean;
     if (fromQuery) {
       sawPosterSrc.current = true;
       rememberPosterLandingSession();
-      setFromSession(true);
-      return;
+      next = true;
+    } else {
+      if (!sawPosterSrc.current) {
+        clearPosterLandingSession();
+      }
+      next = readPosterLandingSession();
     }
-    if (!sawPosterSrc.current) {
-      clearPosterLandingSession();
-    }
-    setFromSession(readPosterLandingSession());
+    const frame = window.requestAnimationFrame(() => setFromSession(next));
+    return () => window.cancelAnimationFrame(frame);
   }, [fromQuery]);
 
   useEffect(() => {

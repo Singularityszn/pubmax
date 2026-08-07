@@ -346,7 +346,9 @@ function expectedReadMemberSnapshot({
         budget: "standard",
         budgetLimitPence: 2500,
         zeroProof: false,
-        wetherspoonsPreferred: false,
+        // 0075's SQL allowlist predates wetherspoonsPreferred; this harness
+        // applies ONLY up to 0075, so the key is absent here by design.
+        // Migration 0084 adds it for the live function (TS parity).
         atmosphere: ["lively"],
         foodNeeds: ["vegan"],
         accessibility: ["step-free"],
