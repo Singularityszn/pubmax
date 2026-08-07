@@ -710,7 +710,7 @@ This deliberately treats every TypeScript helper as a candidate because rendered
 
 ### Route and page metadata owners
 
-Total: 45. Inspected: 18. Not inspected: 27.
+Total: 45. Inspected: 19. Not inspected: 26.
 
 Command:
 
@@ -718,6 +718,13 @@ Command:
 rg -l --glob 'page.tsx' --glob 'layout.tsx' \
   'export (const metadata|async function generateMetadata|function generateMetadata)' app | sort
 ```
+
+`app/map/page.tsx` was inspected on 2026-08-07 (surface pass 1). Its two branches
+generate ten distinct title/description/alt strings (the London/band/curated-crawl
+default via `lib/cityShare.ts`, and the UK-place-arrival fallback inline in the page).
+Every string was traced to a code guarantee and none violated `docs/VOICE.md`; see
+PR "voice: derive and fix app/map/page.tsx copy from code guarantees (surface pass 1)"
+for the per-string guarantee table. No copy changed.
 
 Not inspected:
 
@@ -731,7 +738,6 @@ Not inspected:
 - `app/discover/page.tsx`
 - `app/historic/[slug]/page.tsx`
 - `app/map/[city]/page.tsx`
-- `app/map/page.tsx`
 - `app/messages/[id]/page.tsx`
 - `app/messages/page.tsx`
 - `app/onboarding/page.tsx`
@@ -753,7 +759,10 @@ The previous 19-file list also named `app/historic/[slug]/opengraph-image.tsx`. 
 
 ### Template and tooltip candidates
 
-Total: 93. Inspected: 28. Not inspected: 65.
+Total: 93. Inspected: 29. Not inspected: 64.
+
+`lib/cityShare.ts` was inspected on 2026-08-07 alongside `app/map/page.tsx` (surface
+pass 1), as the direct generator of that route's title/description/OG copy.
 
 Command:
 
@@ -821,7 +830,6 @@ The explicit navigation owner covers menu blurbs that do not use a tooltip-named
 - `lib/cities/liverpool/curatedCrawls.ts`
 - `lib/cities/manchester/curatedCrawls.ts`
 - `lib/cities/oxford/curatedCrawls.ts`
-- `lib/cityShare.ts`
 - `lib/curatedCrawls.ts`
 - `lib/firstDropNudge.ts`
 - `lib/icsExport.ts`
@@ -868,6 +876,21 @@ Not inspected:
 
 ## Outstanding audit scope
 
-The files above remain for the follow-up audit. In particular, this pass did not audit `app/page.tsx`, `app/map/page.tsx`, or most unchanged API routes and shared helpers. Review findings on those files should be recorded against that follow-up rather than used to widen this branch.
+The files above remain for the follow-up audit. In particular, this pass did not audit `app/page.tsx` (its own metadata is canonical-URL only; title and description inherit the already-inspected root layout defaults), or most unchanged API routes and shared helpers. Review findings on those files should be recorded against that follow-up rather than used to widen this branch.
 
 No additional product-character judgement call was decided during this closeout. The branch applies rule-bound fixes only.
+
+### Surface pass 1 (2026-08-07)
+
+`app/map/page.tsx`, the main map route's title/description/OG/Twitter metadata, was
+inspected as the single highest-user-exposure surface remaining in the "Route and
+page metadata owners" not-inspected list, together with `lib/cityShare.ts`, the
+shared helper that generates most of that copy. Ten distinct strings were derived
+from their code guarantees (share URL resolution, curated-crawl and story-band
+lookups, stop counts sourced only from a real `?pubs=` count or a crawl's own
+`venueIds` length, and the UK-place-arrival branch's "no prices logged here yet"
+line, which is guaranteed true because `resolveUkPlaceMapArrival` only resolves
+places outside every enabled city's coverage). None violated `docs/VOICE.md`: no
+banned words, no em dashes, no British-spelling misses, no jokes beside a price or
+date, honest price disclosure, and no copy assuming the reader drinks alcohol. No
+code changed; this is a clean-audit closeout for one surface, not a widened sweep.

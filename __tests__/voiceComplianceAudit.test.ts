@@ -49,7 +49,7 @@ describe("VOICE.md compliance audit", () => {
 
     expect([...notInspected].filter((file) => correctedCandidates.includes(file))).toEqual([]);
     expect(evidence).toContain("Total: 519. Inspected: 43. Not inspected: 476.");
-    expect(evidence).toContain("Total: 93. Inspected: 28. Not inspected: 65.");
+    expect(evidence).toContain("Total: 93. Inspected: 29. Not inspected: 64.");
     expect(evidence).toContain("Total: 27. Inspected: 8. Not inspected: 19.");
     expect(evidence).toContain(
       "Absolute copy is kept only when a named code or data invariant enforces it.",
