@@ -214,7 +214,7 @@ export async function POST(request: Request): Promise<Response> {
 			{ details: { patchId: intake.unsupportedPatch } },
 		);
 	}
-	if (!query && !contextPatch && !intake?.exactNightArea) return publicApiError("Describe the night or add its time, group and area.", "NIGHT_CONTEXT_REQUIRED", 400);
+	if (!query && !contextPatch && !intake?.exactNightArea) return publicApiError("Describe the outing or add its time, group and area.", "NIGHT_CONTEXT_REQUIRED", 400);
 	const reconciled = reconcilePlanContext(query, contextPatch, intake, new Date(requestNow));
 	const context = reconciled.context;
   if (!context.nightArea) return publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422);
