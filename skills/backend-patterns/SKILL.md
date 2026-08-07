@@ -1,495 +1,562 @@
 ---
 name: backend-patterns
-description: >
-  Apply modern backend patterns — auth middleware, caching strategies, background queues,
-  rate limiting, and serverless/edge function design — across stacks (examples use
-  Next.js, Node, and Supabase; adapts to your detected ecosystem). Use when the user says
-  "backend architecture", "queue jobs", "caching layer",
-  "rate limiting", "server actions", "edge function", "microservices", "authentication
-  pattern", "circuit breaker", "outbox pattern", "saga", "bulkhead", "hexagonal architecture",
-  "API gateway", or "BFF" (see references/architecture-patterns.md for the distributed-systems
-  patterns). Pairs with design-api, audit-security, backend-realtime, and audit-backend-architecture
-  (the read-only gap report). Do NOT use for database schema design (audit-db-schema) or pure
-  frontend work.
-license: MIT
+description: Backend architecture patterns, API design, database optimization, and server-side best practices for Node.js, Express, and Next.js API routes.
+metadata:
+  origin: ECC
 ---
 
-# Backend Patterns Skill
+# Backend Development Patterns
 
-Design scalable, maintainable backend architectures using modern patterns and best practices.
+Backend architecture patterns and best practices for scalable server-side applications.
 
-> Code examples lean on **Next.js App Router + Supabase/Prisma**. The patterns are
-> stack-agnostic — adapt ORMs, client libraries, and deploy targets to your detected
-> ecosystem.
+## When to Activate
 
-## CRITICAL: Check Existing First
+- Designing REST or GraphQL API endpoints
+- Implementing repository, service, or controller layers
+- Optimizing database queries (N+1, indexing, connection pooling)
+- Adding caching (Redis, in-memory, HTTP cache headers)
+- Setting up background jobs or async processing
+- Structuring error handling and validation for APIs
+- Building middleware (auth, logging, rate limiting)
 
-**Before implementing ANY backend pattern, verify:**
+## API Design Patterns
 
-1. **Check existing architecture:**
-```bash
-ls -la src/server/ src/api/ app/api/ supabase/functions/ 2>/dev/null
-cat package.json | grep -i "prisma\|drizzle\|supabase\|trpc"
+### RESTful API Structure
+
+```typescript
+// PASS: Resource-based URLs
+GET    /api/markets                 # List resources
+GET    /api/markets/:id             # Get single resource
+POST   /api/markets                 # Create resource
+PUT    /api/markets/:id             # Replace resource
+PATCH  /api/markets/:id             # Update resource
+DELETE /api/markets/:id             # Delete resource
+
+// PASS: Query parameters for filtering, sorting, pagination
+GET /api/markets?status=active&sort=volume&limit=20&offset=0
 ```
 
-2. **Check existing patterns:**
-```bash
-rg "createTRPCRouter|publicProcedure" --type ts -l
-rg "'use server'" --type ts -l
-ls -la supabase/migrations/*.sql 2>/dev/null | tail -5
-```
+### Repository Pattern
 
-3. **Check database setup:**
-```bash
-cat prisma/schema.prisma 2>/dev/null | head -50
-cat supabase/config.toml 2>/dev/null
-```
+```typescript
+// Abstract data access logic
+interface MarketRepository {
+  findAll(filters?: MarketFilters): Promise<Market[]>
+  findById(id: string): Promise<Market | null>
+  create(data: CreateMarketDto): Promise<Market>
+  update(id: string, data: UpdateMarketDto): Promise<Market>
+  delete(id: string): Promise<void>
+}
 
-**Why:** Backend changes have wide impact. Understand existing architecture first.
+class SupabaseMarketRepository implements MarketRepository {
+  async findAll(filters?: MarketFilters): Promise<Market[]> {
+    let query = supabase.from('markets').select('*')
 
-## Server Actions (Next.js 15+)
+    if (filters?.status) {
+      query = query.eq('status', filters.status)
+    }
 
-### Basic Pattern
-```tsx
-// app/actions/users.ts
-'use server'
+    if (filters?.limit) {
+      query = query.limit(filters.limit)
+    }
 
-import { z } from 'zod'
-import { revalidatePath } from 'next/cache'
-import { auth } from '@/lib/auth'
-import { db } from '@/lib/db'
+    const { data, error } = await query
 
-const CreateUserSchema = z.object({
- email: z.string().email(),
- name: z.string().min(1).max(100),
-})
+    if (error) throw new Error(error.message)
+    return data
+  }
 
-type ActionResult<T> =
- | { success: true; data: T }
- | { success: false; error: string; fieldErrors?: Record<string, string[]> }
-
-export async function createUser(
- prevState: ActionResult<User> | null,
- formData: FormData
-): Promise<ActionResult<User>> {
- // 1. Auth check
- const session = await auth()
- if (!session?.user) {
- return { success: false, error: 'Unauthorized' }
- }
-
- // 2. Validate input
- const result = CreateUserSchema.safeParse({
- email: formData.get('email'),
- name: formData.get('name'),
- })
-
- if (!result.success) {
- return {
- success: false,
- error: 'Invalid input',
- fieldErrors: result.error.flatten().fieldErrors,
- }
- }
-
- // 3. Execute
- try {
- const user = await db.user.create({
- data: result.data,
- })
-
- revalidatePath('/users')
- return { success: true, data: user }
- } catch (error) {
- if (isPrismaError(error, 'P2002')) {
- return { success: false, error: 'Email already exists' }
- }
- console.error('createUser error:', error)
- return { success: false, error: 'Failed to create user' }
- }
+  // Other methods...
 }
 ```
 
-### With Background Tasks
-```tsx
-'use server'
+### Service Layer Pattern
 
-import { after } from 'next/server'
+```typescript
+// Business logic separated from data access
+class MarketService {
+  constructor(private marketRepo: MarketRepository) {}
 
-export async function createOrder(formData: FormData) {
- const order = await db.order.create({ data: { ... } })
+  async searchMarkets(query: string, limit: number = 10): Promise<Market[]> {
+    // Business logic
+    const embedding = await generateEmbedding(query)
+    const results = await this.vectorSearch(embedding, limit)
 
- // Run after response sent (Next.js 15)
- after(async () => {
- await sendOrderConfirmation(order.id)
- await updateInventory(order.items)
- await notifyWarehouse(order.id)
- })
+    // Fetch full data
+    const markets = await this.marketRepo.findByIds(results.map(r => r.id))
 
- revalidatePath('/orders')
- return { success: true, data: order }
+    // Sort by similarity
+    return markets.sort((a, b) => {
+      const scoreA = results.find(r => r.id === a.id)?.score || 0
+      const scoreB = results.find(r => r.id === b.id)?.score || 0
+      return scoreA - scoreB
+    })
+  }
+
+  private async vectorSearch(embedding: number[], limit: number) {
+    // Vector search implementation
+  }
 }
 ```
 
-## tRPC Setup
+### Middleware Pattern
 
-### Router Definition
-```tsx
-// server/api/routers/users.ts
-import { z } from 'zod'
-import { createTRPCRouter, protectedProcedure, publicProcedure } from '../trpc'
+```typescript
+// Request/response processing pipeline
+export function withAuth(handler: NextApiHandler): NextApiHandler {
+  return async (req, res) => {
+    const token = req.headers.authorization?.replace('Bearer ', '')
 
-export const usersRouter = createTRPCRouter({
- getById: publicProcedure
- .input(z.object({ id: z.string() }))
- .query(async ({ ctx, input }) => {
- return ctx.db.user.findUnique({
- where: { id: input.id },
- })
- }),
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
 
- create: protectedProcedure
- .input(z.object({
- email: z.string().email(),
- name: z.string().min(1),
- }))
- .mutation(async ({ ctx, input }) => {
- return ctx.db.user.create({
- data: {
- ...input,
- createdById: ctx.session.user.id,
- },
- })
- }),
-
- list: protectedProcedure
- .input(z.object({
- limit: z.number().min(1).max(100).default(10),
- cursor: z.string().optional(),
- }))
- .query(async ({ ctx, input }) => {
- const items = await ctx.db.user.findMany({
- take: input.limit + 1,
- cursor: input.cursor ? { id: input.cursor } : undefined,
- orderBy: { createdAt: 'desc' },
- })
-
- let nextCursor: string | undefined
- if (items.length > input.limit) {
- const nextItem = items.pop()
- nextCursor = nextItem?.id
- }
-
- return { items, nextCursor }
- }),
-})
-```
-
-## Supabase Edge Functions
-
-### Basic Function
-```tsx
-// supabase/functions/process-webhook/index.ts
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
- 'Access-Control-Allow-Origin': '*',
- 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    try {
+      const user = await verifyToken(token)
+      req.user = user
+      return handler(req, res)
+    } catch (error) {
+      return res.status(401).json({ error: 'Invalid token' })
+    }
+  }
 }
 
-serve(async (req) => {
- // Handle CORS preflight
- if (req.method === 'OPTIONS') {
- return new Response('ok', { headers: corsHeaders })
- }
-
- try {
- // Verify webhook signature
- const signature = req.headers.get('x-webhook-signature')
- if (!verifySignature(signature, await req.text())) {
- return new Response('Invalid signature', { status: 401 })
- }
-
- const payload = await req.json()
-
- // Create admin client (bypasses RLS)
- const supabase = createClient(
- Deno.env.get('SUPABASE_URL')!,
- Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
- )
-
- // Process webhook
- await supabase.from('events').insert({
- type: payload.type,
- data: payload.data,
- })
-
- return new Response(
- JSON.stringify({ success: true }),
- { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
- )
- } catch (error) {
- console.error('Webhook error:', error)
- return new Response(
- JSON.stringify({ error: 'Internal error' }),
- { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
- )
- }
+// Usage
+export default withAuth(async (req, res) => {
+  // Handler has access to req.user
 })
 ```
 
 ## Database Patterns
 
-### Optimistic Locking
-```sql
--- Add version column
-ALTER TABLE orders ADD COLUMN version INT DEFAULT 1;
+### Query Optimization
 
--- Update with version check
-UPDATE orders
-SET
- status = 'shipped',
- version = version + 1
-WHERE id = $1 AND version = $2;
--- Returns 0 rows if version mismatch (concurrent update)
+```typescript
+// PASS: GOOD: Select only needed columns
+const { data } = await supabase
+  .from('markets')
+  .select('id, name, status, volume')
+  .eq('status', 'active')
+  .order('volume', { ascending: false })
+  .limit(10)
+
+// FAIL: BAD: Select everything
+const { data } = await supabase
+  .from('markets')
+  .select('*')
 ```
 
-### Soft Deletes
-```prisma
-model Post {
- id String @id @default(cuid())
- title String
- deletedAt DateTime?
+### N+1 Query Prevention
 
- @@index([deletedAt])
+```typescript
+// FAIL: BAD: N+1 query problem
+const markets = await getMarkets()
+for (const market of markets) {
+  market.creator = await getUser(market.creator_id)  // N queries
 }
 
-// Query active records
-const posts = await db.post.findMany({
- where: { deletedAt: null }
-})
+// PASS: GOOD: Batch fetch
+const markets = await getMarkets()
+const creatorIds = markets.map(m => m.creator_id)
+const creators = await getUsers(creatorIds)  // 1 query
+const creatorMap = new Map(creators.map(c => [c.id, c]))
 
-// Soft delete
-await db.post.update({
- where: { id },
- data: { deletedAt: new Date() }
+markets.forEach(market => {
+  market.creator = creatorMap.get(market.creator_id)
 })
 ```
 
-### Audit Logging
-```sql
--- Audit table
-CREATE TABLE audit_logs (
- id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
- table_name TEXT NOT NULL,
- record_id UUID NOT NULL,
- action TEXT NOT NULL, -- INSERT, UPDATE, DELETE
- old_data JSONB,
- new_data JSONB,
- user_id UUID REFERENCES auth.users(id),
- created_at TIMESTAMPTZ DEFAULT now()
-);
+### Transaction Pattern
 
--- Trigger function
-CREATE OR REPLACE FUNCTION audit_trigger()
-RETURNS TRIGGER AS $$
-BEGIN
- INSERT INTO audit_logs (table_name, record_id, action, old_data, new_data, user_id)
- VALUES (
- TG_TABLE_NAME,
- COALESCE(NEW.id, OLD.id),
- TG_OP,
- CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN row_to_json(OLD) END,
- CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN row_to_json(NEW) END,
- auth.uid()
- );
- RETURN COALESCE(NEW, OLD);
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+```typescript
+async function createMarketWithPosition(
+  marketData: CreateMarketDto,
+  positionData: CreatePositionDto
+) {
+  // Use Supabase transaction
+  const { data, error } = await supabase.rpc('create_market_with_position', {
+    market_data: marketData,
+    position_data: positionData
+  })
 
--- Apply to table
-CREATE TRIGGER orders_audit
-AFTER INSERT OR UPDATE OR DELETE ON orders
-FOR EACH ROW EXECUTE FUNCTION audit_trigger();
-```
+  if (error) throw new Error('Transaction failed')
+  return data
+}
 
-## Caching Patterns
-
-### Next.js Cache
-```tsx
-// Cached fetch
-const data = await fetch('https://api.example.com/data', {
- next: {
- revalidate: 3600, // 1 hour
- tags: ['data']
- }
-})
-
-// Revalidate on demand
-import { revalidateTag } from 'next/cache'
-revalidateTag('data')
-
-// unstable_cache for database queries
-import { unstable_cache } from 'next/cache'
-
-const getCachedUser = unstable_cache(
- async (id: string) => db.user.findUnique({ where: { id } }),
- ['user'],
- { revalidate: 3600, tags: ['users'] }
+// SQL function in Supabase
+CREATE OR REPLACE FUNCTION create_market_with_position(
+  market_data jsonb,
+  position_data jsonb
 )
+RETURNS jsonb
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Start transaction automatically
+  INSERT INTO markets VALUES (market_data);
+  INSERT INTO positions VALUES (position_data);
+  RETURN jsonb_build_object('success', true);
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Rollback happens automatically
+    RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;
 ```
 
-### Redis Caching
-```tsx
-import { Redis } from '@upstash/redis'
+## Caching Strategies
 
-const redis = Redis.fromEnv()
+### Redis Caching Layer
 
-async function getCachedData<T>(
- key: string,
- fetcher: () => Promise<T>,
- ttl = 3600
-): Promise<T> {
- // Try cache
- const cached = await redis.get<T>(key)
- if (cached) return cached
+```typescript
+class CachedMarketRepository implements MarketRepository {
+  constructor(
+    private baseRepo: MarketRepository,
+    private redis: RedisClient
+  ) {}
 
- // Fetch and cache
- const data = await fetcher()
- await redis.set(key, data, { ex: ttl })
- return data
+  async findById(id: string): Promise<Market | null> {
+    // Check cache first
+    const cached = await this.redis.get(`market:${id}`)
+
+    if (cached) {
+      return JSON.parse(cached)
+    }
+
+    // Cache miss - fetch from database
+    const market = await this.baseRepo.findById(id)
+
+    if (market) {
+      // Cache for 5 minutes
+      await this.redis.setex(`market:${id}`, 300, JSON.stringify(market))
+    }
+
+    return market
+  }
+
+  async invalidateCache(id: string): Promise<void> {
+    await this.redis.del(`market:${id}`)
+  }
+}
+```
+
+### Cache-Aside Pattern
+
+```typescript
+async function getMarketWithCache(id: string): Promise<Market> {
+  const cacheKey = `market:${id}`
+
+  // Try cache
+  const cached = await redis.get(cacheKey)
+  if (cached) return JSON.parse(cached)
+
+  // Cache miss - fetch from DB
+  const market = await db.markets.findUnique({ where: { id } })
+
+  if (!market) throw new Error('Market not found')
+
+  // Update cache
+  await redis.setex(cacheKey, 300, JSON.stringify(market))
+
+  return market
+}
+```
+
+## Error Handling Patterns
+
+### Centralized Error Handler
+
+```typescript
+class ApiError extends Error {
+  constructor(
+    public statusCode: number,
+    public message: string,
+    public isOperational = true
+  ) {
+    super(message)
+    Object.setPrototypeOf(this, ApiError.prototype)
+  }
+}
+
+export function errorHandler(error: unknown, req: Request): Response {
+  if (error instanceof ApiError) {
+    return NextResponse.json({
+      success: false,
+      error: error.message
+    }, { status: error.statusCode })
+  }
+
+  if (error instanceof z.ZodError) {
+    return NextResponse.json({
+      success: false,
+      error: 'Validation failed',
+      details: error.issues
+    }, { status: 400 })
+  }
+
+  // Log unexpected errors
+  console.error('Unexpected error:', error)
+
+  return NextResponse.json({
+    success: false,
+    error: 'Internal server error'
+  }, { status: 500 })
 }
 
 // Usage
-const user = await getCachedData(
- `user:${id}`,
- () => db.user.findUnique({ where: { id } }),
- 600 // 10 minutes
-)
+export async function GET(request: Request) {
+  try {
+    const data = await fetchData()
+    return NextResponse.json({ success: true, data })
+  } catch (error) {
+    return errorHandler(error, request)
+  }
+}
 ```
 
-## Background Jobs
+### Retry with Exponential Backoff
 
-### Inngest
-```tsx
-// inngest/functions.ts
-import { inngest } from './client'
+```typescript
+async function fetchWithRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3
+): Promise<T> {
+  let lastError: Error
 
-export const processOrder = inngest.createFunction(
- { id: 'process-order' },
- { event: 'order/created' },
- async ({ event, step }) => {
- // Step 1: Validate inventory
- const inventory = await step.run('check-inventory', async () => {
- return await checkInventory(event.data.items)
- })
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn()
+    } catch (error) {
+      lastError = error as Error
 
- if (!inventory.available) {
- await step.run('notify-out-of-stock', async () => {
- await notifyCustomer(event.data.userId, 'out-of-stock')
- })
- return { status: 'cancelled' }
- }
+      if (i < maxRetries - 1) {
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = Math.pow(2, i) * 1000
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    }
+  }
 
- // Step 2: Charge payment
- const payment = await step.run('charge-payment', async () => {
- return await chargeCustomer(event.data.paymentMethod)
- })
+  throw lastError!
+}
 
- // Step 3: Send confirmation
- await step.run('send-confirmation', async () => {
- await sendOrderConfirmation(event.data.orderId)
- })
-
- return { status: 'completed', paymentId: payment.id }
- }
-)
-
-// Trigger from server action
-await inngest.send({
- name: 'order/created',
- data: { orderId, userId, items, paymentMethod }
-})
+// Usage
+const data = await fetchWithRetry(() => fetchFromAPI())
 ```
 
-### Trigger.dev
-```tsx
-// trigger/jobs.ts
-import { client } from './client'
+## Authentication & Authorization
 
-export const syncJob = client.defineJob({
- id: 'sync-data',
- name: 'Sync External Data',
- version: '1.0.0',
- trigger: intervalTrigger({ seconds: 3600 }), // Every hour
- run: async (payload, io, ctx) => {
- const data = await io.runTask('fetch-external', async () => {
- return await fetchExternalAPI()
- })
+### JWT Token Validation
 
- await io.runTask('update-database', async () => {
- await db.externalData.upsert({
- where: { externalId: data.id },
- create: data,
- update: data,
- })
- })
+```typescript
+import jwt from 'jsonwebtoken'
 
- return { synced: data.length }
- },
-})
+interface JWTPayload {
+  userId: string
+  email: string
+  role: 'admin' | 'user'
+}
+
+export function verifyToken(token: string): JWTPayload {
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload
+    return payload
+  } catch (error) {
+    throw new ApiError(401, 'Invalid token')
+  }
+}
+
+export async function requireAuth(request: Request) {
+  const token = request.headers.get('authorization')?.replace('Bearer ', '')
+
+  if (!token) {
+    throw new ApiError(401, 'Missing authorization token')
+  }
+
+  return verifyToken(token)
+}
+
+// Usage in API route
+export async function GET(request: Request) {
+  const user = await requireAuth(request)
+
+  const data = await getDataForUser(user.userId)
+
+  return NextResponse.json({ success: true, data })
+}
+```
+
+### Role-Based Access Control
+
+```typescript
+type Permission = 'read' | 'write' | 'delete' | 'admin'
+
+interface User {
+  id: string
+  role: 'admin' | 'moderator' | 'user'
+}
+
+const rolePermissions: Record<User['role'], Permission[]> = {
+  admin: ['read', 'write', 'delete', 'admin'],
+  moderator: ['read', 'write', 'delete'],
+  user: ['read', 'write']
+}
+
+export function hasPermission(user: User, permission: Permission): boolean {
+  return rolePermissions[user.role].includes(permission)
+}
+
+export function requirePermission(permission: Permission) {
+  return (handler: (request: Request, user: User) => Promise<Response>) => {
+    return async (request: Request) => {
+      const user = await requireAuth(request)
+
+      if (!hasPermission(user, permission)) {
+        throw new ApiError(403, 'Insufficient permissions')
+      }
+
+      return handler(request, user)
+    }
+  }
+}
+
+// Usage - HOF wraps the handler
+export const DELETE = requirePermission('delete')(
+  async (request: Request, user: User) => {
+    // Handler receives authenticated user with verified permission
+    return new Response('Deleted', { status: 200 })
+  }
+)
 ```
 
 ## Rate Limiting
 
-```tsx
-import { Ratelimit } from '@upstash/ratelimit'
-import { Redis } from '@upstash/redis'
+Rate limiting must use a shared store such as Redis, a gateway, or the
+platform's native limiter. Do not use per-process in-memory counters for
+production APIs: they reset on deploy, split across replicas, and fail open in
+serverless or multi-instance environments.
 
-const ratelimit = new Ratelimit({
- redis: Redis.fromEnv(),
- limiter: Ratelimit.slidingWindow(10, '10 s'), // 10 requests per 10 seconds
- analytics: true,
-})
+Keep the backend layer responsible for choosing the integration point and error
+shape; use `api-design` for the HTTP contract and `security-review` for abuse
+case review.
 
-export async function rateLimitedAction(userId: string) {
- const { success, limit, remaining, reset } = await ratelimit.limit(userId)
+## Background Jobs & Queues
 
- if (!success) {
- return {
- success: false,
- error: 'Too many requests',
- retryAfter: Math.ceil((reset - Date.now()) / 1000),
- }
- }
+### Simple Queue Pattern
 
- // Proceed with action...
+```typescript
+class JobQueue<T> {
+  private queue: T[] = []
+  private processing = false
+
+  async add(job: T): Promise<void> {
+    this.queue.push(job)
+
+    if (!this.processing) {
+      this.process()
+    }
+  }
+
+  private async process(): Promise<void> {
+    this.processing = true
+
+    while (this.queue.length > 0) {
+      const job = this.queue.shift()!
+
+      try {
+        await this.execute(job)
+      } catch (error) {
+        console.error('Job failed:', error)
+      }
+    }
+
+    this.processing = false
+  }
+
+  private async execute(job: T): Promise<void> {
+    // Job execution logic
+  }
+}
+
+// Usage for indexing markets
+interface IndexJob {
+  marketId: string
+}
+
+const indexQueue = new JobQueue<IndexJob>()
+
+export async function POST(request: Request) {
+  const { marketId } = await request.json()
+
+  // Add to queue instead of blocking
+  await indexQueue.add({ marketId })
+
+  return NextResponse.json({ success: true, message: 'Job queued' })
 }
 ```
 
-## Architecture patterns (distributed systems)
+## Logging & Monitoring
 
-For the structural/distributed-systems patterns — **API gateway** (centralized cross-cutting
-concerns), **BFF / API composition**, **bulkhead** (resource-pool isolation), **circuit breaker**
-placement, **outbox + CDC** (the dual-write fix), **saga** (compensation + saga-pivot), **hexagonal /
-ports-and-adapters**, **anti-corruption layer**, and **strangler-fig migration** — see
-[references/architecture-patterns.md](references/architecture-patterns.md) for implementation guidance
-and code.
+### Structured Logging
 
-Implement the pattern that fits the topology tier (don't add a mesh to a monolith or CQRS where reads
-and writes don't diverge). Runtime resilience tuning (per-call timeouts, retry backoff+jitter,
-idempotency keys, cancellation) lives in `audit-resilience`; a structural gap report comes from
-`audit-backend-architecture`.
+```typescript
+interface LogContext {
+  userId?: string
+  requestId?: string
+  method?: string
+  path?: string
+  [key: string]: unknown
+}
 
-## Validation
+class Logger {
+  log(level: 'info' | 'warn' | 'error', message: string, context?: LogContext) {
+    const entry = {
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      ...context
+    }
 
-After implementing backend patterns:
+    console.log(JSON.stringify(entry))
+  }
 
-1. **Error handling** → All errors caught, logged, safe response returned
-2. **Auth checks** → Every mutation verifies authentication
-3. **Input validation** → Zod schema on all inputs
-4. **Rate limiting** → Sensitive endpoints protected
-5. **Idempotency** → Critical operations handle retries
-6. **Logging** → Structured logs without sensitive data
-7. **Testing** → Unit tests for business logic, integration for APIs
+  info(message: string, context?: LogContext) {
+    this.log('info', message, context)
+  }
+
+  warn(message: string, context?: LogContext) {
+    this.log('warn', message, context)
+  }
+
+  error(message: string, error: Error, context?: LogContext) {
+    this.log('error', message, {
+      ...context,
+      error: error.message,
+      stack: error.stack
+    })
+  }
+}
+
+const logger = new Logger()
+
+// Usage
+export async function GET(request: Request) {
+  const requestId = crypto.randomUUID()
+
+  logger.info('Fetching markets', {
+    requestId,
+    method: 'GET',
+    path: '/api/markets'
+  })
+
+  try {
+    const markets = await fetchMarkets()
+    return NextResponse.json({ success: true, data: markets })
+  } catch (error) {
+    logger.error('Failed to fetch markets', error as Error, { requestId })
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  }
+}
+```
+
+**Remember**: Backend patterns enable scalable, maintainable server-side applications. Choose patterns that fit your complexity level.
