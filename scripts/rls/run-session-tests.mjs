@@ -80,6 +80,10 @@ const result = spawnSync(
     // Verbose + no silent: each test name and any skip reason stays in the log.
     "--reporter=verbose",
     "--silent=false",
+    // Each suite boots its own ephemeral PostgreSQL cluster. Concurrent boots
+    // starve a 2-core CI runner and the losers time out waiting to accept
+    // connections, so the suites run one after another.
+    "--no-file-parallelism",
   ],
   {
     cwd: REPO_ROOT,

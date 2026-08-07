@@ -73,14 +73,30 @@ async function startDatabase(): Promise<Database> {
     "-c", "shared_memory_type=mmap", "-c", "dynamic_shared_memory_type=mmap",
   ], { stdio: "pipe" });
   writeFileSync(join(directory, "postgresql.auto.conf"), `listen_addresses='127.0.0.1'\nport=${port}\nfsync=off\n`);
-  const server: ChildProcess = spawn(postgres, ["-D", directory, "-h", "127.0.0.1", "-p", String(port)], { stdio: "ignore" });
+  const server: ChildProcess = spawn(postgres, ["-D", directory, "-h", "127.0.0.1", "-p", String(port)], {
+    stdio: ["ignore", "ignore", "pipe"],
+  });
+  // Keep the server log so a boot failure names its own reason. The stream is
+  // always consumed, and only the tail is retained, so a long run cannot fill
+  // the pipe buffer and stall the cluster.
+  let serverLog = "";
+  server.stderr!.setEncoding("utf8");
+  server.stderr!.on("data", (chunk: string) => {
+    serverLog = (serverLog + chunk).slice(-8_000);
+  });
   const connection = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  const BOOT_ATTEMPTS = 600;
+  for (let attempt = 0; attempt < BOOT_ATTEMPTS; attempt += 1) {
     try {
       execFileSync(psql, [...connection, "-c", "select 1"], { stdio: "pipe" });
       break;
     } catch {
-      if (attempt === 49) throw new Error("PostgreSQL did not start.");
+      if (server.exitCode !== null) {
+        throw new Error(`PostgreSQL exited with code ${server.exitCode} before accepting connections.\n${serverLog.trim()}`);
+      }
+      if (attempt === BOOT_ATTEMPTS - 1) {
+        throw new Error(`PostgreSQL did not start within 60s.\n${serverLog.trim()}`);
+      }
       await sleep(100);
     }
   }
