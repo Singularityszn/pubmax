@@ -1,10 +1,16 @@
 {
   "mcpServers": {
     "citymcp-london": {
+      "type": "http",
       "url": "https://citymcp.com/london/mcp"
     },
     "supabase": {
+      "type": "http",
       "url": "https://mcp.supabase.com/mcp?project_ref=iankajxliutqogqkmvdg"
+    },
+    "browser": {
+      "command": "node",
+      "args": ["scripts/run-browser-mcp.mjs"]
     }
   }
 }
