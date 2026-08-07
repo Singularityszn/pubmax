@@ -4,7 +4,8 @@ Strategy and sequencing docs. Prefer one plan per concern; do not implement from
 
 | Plan | Status | Owns |
 |--|--|--|
-| [`FIRST_PRINCIPLES_OUTINGS.md`](./FIRST_PRINCIPLES_OUTINGS.md) | READY FOR OWNER REVIEW | Story / anti-slop voice, occasion expansion beyond pints, legal data densification |
+| [`FIRST_PRINCIPLES_OUTINGS.md`](./FIRST_PRINCIPLES_OUTINGS.md) | WAVES S1–S4 LANDED | Story / anti-slop voice, occasion expansion beyond pints, legal data densification |
+| [`OUTINGS_WAVE_REVIEW.md`](./OUTINGS_WAVE_REVIEW.md) | REVIEW + FIXES | Code review of S1–S4 and follow-up taxonomy/outing-copy patches |
 | [`LANDING_ACQUISITION.md`](./LANDING_ACQUISITION.md) | READY (dual-model review) | Map-first landing + first map open |
 | [`PLG_STRATEGY.md`](./PLG_STRATEGY.md) | READY FOR REVIEW | Invite k-factor, price flywheel, lot density |
 | [`desktop-feature-parity.md`](./desktop-feature-parity.md) | FINAL — parked | Desktop parity waves D1–D6 (no implementation until unblocked) |
