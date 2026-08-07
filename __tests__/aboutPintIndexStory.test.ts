@@ -22,6 +22,12 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
 }));
 
+// SiteNav is a client shell with pathname/auth hooks; the about story pins
+// only the server-rendered prose and brand-first hero markup.
+vi.mock("@/components/nav/SiteNav", () => ({
+  default: () => createElement("nav", { "data-testid": "site-nav", "aria-label": "PUBMAXX" }),
+}));
+
 vi.mock("@/lib/aboutStats", () => ({
   loadAboutStats: async () => fixtures.stats,
 }));
@@ -145,8 +151,29 @@ describe("About outings story (Wave S1)", () => {
     expect(html).toContain("Karan Manoharan");
     expect(html).toContain("one map for nights out and daytime hangs");
     expect(html).not.toMatch(/small team/iu);
+    expect(html).toContain(
+      "where to go for a night out, a coffee, food, or a quiet afternoon",
+    );
     expect(html).not.toMatch(/\b(journey|unlock|seamless|curated|discover|elevate)\b/iu);
     expect(html).not.toMatch(/co-founder|Discord|thousands of/iu);
     expect(html).not.toContain("!");
+  });
+
+  it("leads the first viewport with PUBMAXX brand + one lede composition", async () => {
+    const html = await renderAbout();
+
+    expect(html).toContain('data-testid="site-nav"');
+    expect(html).toContain('class="aboutHero"');
+    expect(html).toContain('class="aboutBrand"');
+    expect(html).toContain('class="aboutBrassRule"');
+    expect(html).toContain('class="aboutLede"');
+    // Brand signal sits ahead of the story title (nav is mocked above both).
+    const brandAt = html.indexOf('class="aboutBrand"');
+    const titleAt = html.indexOf('class="aboutTitle"');
+    expect(brandAt).toBeGreaterThan(-1);
+    expect(titleAt).toBeGreaterThan(brandAt);
+    expect(html.slice(brandAt, brandAt + 80)).toContain("PUBMAXX");
+    // No invented biography / vanity theatre in the hero.
+    expect(html).not.toMatch(/team scars|Discord|thousands of/iu);
   });
 });

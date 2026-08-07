@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 
+import SiteNav from "@/components/nav/SiteNav";
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
 import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
 import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
@@ -150,9 +151,13 @@ export default async function AboutPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* ── Story ──────────────────────────────────────────────── */}
-      <header className="aboutHead">
-        <p className="aboutEyebrow">Our story</p>
+      {/* Wordmark + way out: same SiteNav shell as /pint-index and /plan. */}
+      <SiteNav />
+
+      {/* ── Brand-first story lede (one composition, not a card grid) ── */}
+      <header className="aboutHero">
+        <p className="aboutBrand">PUBMAXX</p>
+        <span className="aboutBrassRule" aria-hidden="true" />
         <h1 className="aboutTitle">
           A pint in London can cost eight quid. Nobody tells you where it
           doesn&rsquo;t.
