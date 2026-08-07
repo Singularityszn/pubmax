@@ -52,6 +52,14 @@ type VenueInspectorProps = {
   /** Epoch ms of the latest Pint Drop, from the unmerged drop signal - see
    *  VenueOverviewTab, which hands it to the submit receipt. */
   latestPintDropAt?: number | null;
+  /**
+   * Map-authority people-logged pint for share copy: the merged signal the
+   * pins already paint (corroborated community candidate and/or contributor
+   * drop). Never a sheet-only uncorroborated report.
+   */
+  shareLoggedPintGbp?: number | null;
+  /** Epoch ms for shareLoggedPintGbp. */
+  shareLoggedAt?: number | null;
   onToggleStop: (id: string) => void;
   onSelectVenue?: (id: string) => void;
   /**
@@ -118,6 +126,8 @@ export default function VenueInspector({
   inCrawl,
   latestContributorPrice,
   latestPintDropAt,
+  shareLoggedPintGbp = null,
+  shareLoggedAt = null,
   onToggleStop,
   onSelectVenue,
   onAcceptStop1,
@@ -174,7 +184,10 @@ export default function VenueInspector({
     TABS,
     onTabSelect,
   );
-  const { currentShareFeedback, shareVenue } = useVenueShare(venue);
+  const { currentShareFeedback, shareVenue } = useVenueShare(venue, {
+    priceGbp: shareLoggedPintGbp,
+    atMs: shareLoggedAt,
+  });
 
   function startPintDrop() {
     if (!pubVenue) return;
