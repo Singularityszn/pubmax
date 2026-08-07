@@ -38,7 +38,7 @@ export type VenueAreaPriceCompareInput = {
   primaryBorough?: string | null;
   /** Nearest-station fare zone (1–6), when known. */
   zone?: number | null;
-  /** Pre-built league rows from `buildLeagueTable`. */
+  /** Pre-built league rows from `buildLeagueTable`. `null` = fetch not settled. */
   leagueRows?: readonly LeagueRow[] | null;
   /** Live/public Pint Index snapshot; used only when `leagueRows` is omitted. */
   snapshot?: PintIndexSnapshot | null;
@@ -68,7 +68,12 @@ export function resolveCompareBorough(
   return LONDON_BOROUGHS.find((name) => slugifyBorough(name) === slug) ?? null;
 }
 
-function resolveLeagueRows(input: VenueAreaPriceCompareInput): readonly LeagueRow[] {
+function resolveLeagueRows(
+  input: VenueAreaPriceCompareInput,
+): readonly LeagueRow[] | null {
+  // `null` means the league fetch has not settled yet — do not let zone answer
+  // early and flash a yardstick that borough may replace.
+  if (input.leagueRows === null) return null;
   if (input.leagueRows) return input.leagueRows;
   if (input.snapshot) return buildLeagueTable(input.snapshot);
   return [];
@@ -155,11 +160,10 @@ export function venueAreaPriceCompare(
     return null;
   }
 
-  const fromBorough = boroughCompare(
-    priceGbp,
-    input.primaryBorough,
-    resolveLeagueRows(input),
-  );
+  const leagueRows = resolveLeagueRows(input);
+  if (leagueRows === null) return null;
+
+  const fromBorough = boroughCompare(priceGbp, input.primaryBorough, leagueRows);
   if (fromBorough) return fromBorough;
 
   return zoneCompare(priceGbp, input.zone, resolveZoneIndex(input));

@@ -12,6 +12,8 @@ import {
   venueAreaPriceCompare,
   venueAreaPriceCompareLine,
 } from "@/lib/venueAreaPriceCompare";
+import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
+import type { CommunityPrice } from "@/lib/communityPrice";
 import {
   buildLeagueTable,
   type LeagueRow,
@@ -137,6 +139,44 @@ describe("venueAreaPriceCompare helper", () => {
     expect(line).toBe("£5.40 here. Zone 2 median £6.10.");
   });
 
+  it("stays silent while the league fetch has not settled", () => {
+    const zoneIndex = computeZonePintIndex(
+      Array.from({ length: MIN_PRICED_VENUES }, () => ({
+        zone: 2,
+        cheapestPrice: 6.1,
+        kind: "pub" as const,
+      })),
+    );
+    expect(
+      venueAreaPriceCompareLine({
+        priceGbp: 5.4,
+        primaryBorough: "Camden",
+        leagueRows: null,
+        zone: 2,
+        zoneIndex,
+      }),
+    ).toBeNull();
+  });
+
+  it("answers with zone once an empty league has settled", () => {
+    const zoneIndex = computeZonePintIndex(
+      Array.from({ length: MIN_PRICED_VENUES }, () => ({
+        zone: 2,
+        cheapestPrice: 6.1,
+        kind: "pub" as const,
+      })),
+    );
+    expect(
+      venueAreaPriceCompareLine({
+        priceGbp: 5.4,
+        primaryBorough: "Soho",
+        leagueRows: [],
+        zone: 2,
+        zoneIndex,
+      }),
+    ).toBe("£5.40 here. Zone 2 median £6.10.");
+  });
+
   it("prefers the borough league over a zone median when both answer", () => {
     const zoneIndex = computeZonePintIndex(
       Array.from({ length: MIN_PRICED_VENUES }, () => ({
@@ -201,6 +241,72 @@ describe("venueAreaPriceCompare helper", () => {
         leagueRows: leagueForCamden(),
       }),
     ).toBeNull();
+  });
+});
+
+describe("overviewDisplayablePintGbp", () => {
+  const NOW = 1_700_000_000_000;
+
+  function beerRow(
+    over: Partial<CommunityPrice> & Pick<CommunityPrice, "priceGbp" | "submittedAt">,
+  ): CommunityPrice {
+    return {
+      venueId: "venue-compare",
+      drinkCategory: "beer",
+      source: "community",
+      corroborations: 1,
+      ...over,
+    };
+  }
+
+  it("prefers corroborated community map authority over curated cheapest", () => {
+    const price = overviewDisplayablePintGbp({
+      cheapestPrice: 5.4,
+      latestContributorPrice: null,
+      communityRows: [
+        beerRow({
+          priceGbp: 6.2,
+          submittedAt: NOW - 60_000,
+          corroborations: 2,
+        }),
+      ],
+      now: NOW,
+    });
+    expect(price).toBe(6.2);
+  });
+
+  it("keeps curated cheapest when community is only sheet-visible", () => {
+    const price = overviewDisplayablePintGbp({
+      cheapestPrice: 5.4,
+      latestContributorPrice: null,
+      communityRows: [
+        beerRow({
+          priceGbp: 6.2,
+          submittedAt: NOW - 60_000,
+          corroborations: 1,
+        }),
+      ],
+      now: NOW,
+    });
+    expect(price).toBe(5.4);
+  });
+
+  it("lets a newer pint drop outrank corroborated community", () => {
+    const dropAt = NOW - 30_000;
+    const price = overviewDisplayablePintGbp({
+      cheapestPrice: 5.4,
+      latestContributorPrice: 5.9,
+      latestPintDropAt: dropAt,
+      communityRows: [
+        beerRow({
+          priceGbp: 6.2,
+          submittedAt: NOW - 120_000,
+          corroborations: 2,
+        }),
+      ],
+      now: NOW,
+    });
+    expect(price).toBe(5.9);
   });
 });
 
@@ -317,15 +423,12 @@ describe("VenueOverviewTab area-price compare mount", () => {
     const thenStart = overviewSource.indexOf("<VenuePriceThen");
     expect(thenStart).toBeGreaterThan(-1);
     expect(start).toBeGreaterThan(thenStart);
-    expect(overviewSource).toMatch(
-      /priceGbp=\{[\s\S]*latestContributorPrice\s*\?\?\s*venue\.cheapestPrice/,
-    );
+    expect(overviewSource).toMatch(/priceGbp=\{overviewPintGbp\}/);
+    expect(overviewSource).toContain("overviewDisplayablePintGbp");
     expect(overviewSource).toMatch(/isPubVenue\(venue\)/);
   });
 
-  it("shows the zone compare line when the zone index is publishable", () => {
-    // SSR cannot await the league fetch, so the zone path is what the first
-    // paint can prove without mocking window.fetch.
+  it("stays silent on first paint until the league fetch settles", () => {
     const zoneIndex = computeZonePintIndex(
       Array.from({ length: MIN_PRICED_VENUES }, () => ({
         zone: 2,
@@ -334,8 +437,8 @@ describe("VenueOverviewTab area-price compare mount", () => {
       })),
     );
     const html = renderOverview(baseVenue(), zoneIndex);
-    expect(html).toContain("venueAreaPriceCompare");
-    expect(html).toContain("£5.40 here. Zone 2 median £6.10.");
+    expect(html).not.toContain("venueAreaPriceCompare");
+    expect(html).not.toContain("median");
   });
 
   it("renders nothing when there is no pint and no publishable patch", () => {

@@ -48,12 +48,14 @@ export default function VenueAreaPriceCompare({
     };
   }, []);
 
-  // Zone can answer before the league fetch settles; borough waits on rows.
+  // Silence until the league fetch settles — zone must not flash ahead of borough.
+  if (league === null) return null;
+
   const line = venueAreaPriceCompareLine({
     priceGbp,
     primaryBorough,
     zone,
-    leagueRows: league?.rows ?? null,
+    leagueRows: league.rows,
     zoneIndex: zoneIndex ?? null,
   });
   if (!line) return null;
