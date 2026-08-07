@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildMapPlaceSuggestions,
   buildMapSearchSuggestions,
   formatSuggestDistance,
   LOCALITY_FLY_ZOOM,
   SUGGEST_PUB_LIMIT,
 } from "@/lib/mapSearchSuggest";
+import {
+  UK_PLACE_MAP_ZOOM,
+  type UkPlace,
+} from "@/lib/ukPlaceSearch";
 import { parseLocalityGazetteer, type Locality } from "@/lib/localities";
 import { getNightArea, getNightAreasForCity } from "@/lib/nightAreas";
 import type { Venue } from "@/lib/venues";
@@ -26,6 +31,41 @@ function venue(overrides: Partial<Venue> & { id: string }): Venue {
     ...overrides,
   } as Venue;
 }
+
+const UK_PLACES: UkPlace[] = [
+  {
+    name: "Sheffield",
+    lat: 53.3800941,
+    lng: -1.4789213,
+    kind: "city",
+    context: "S",
+    search: "sheffield",
+  },
+  {
+    name: "Didsbury",
+    lat: 53.4181794,
+    lng: -2.23144,
+    kind: "suburb",
+    context: "M",
+    search: "didsbury",
+  },
+  {
+    name: "Camden",
+    lat: 51.5389171,
+    lng: -0.1418712,
+    kind: "suburb",
+    context: "NW",
+    search: "camden",
+  },
+  {
+    name: "Bath",
+    lat: 51.38,
+    lng: -2.36,
+    kind: "city",
+    context: "BA",
+    search: "bath",
+  },
+];
 
 const shoreditch = getNightArea("shoreditch");
 const soho = getNightArea("piccadilly-soho");
@@ -345,39 +385,116 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
     expect(withResident.hasResults).toBe(true);
     expect(withResident.pubs).toHaveLength(0);
   });
+});
 
-  it("surfaces UK places from the national gazetteer when supplied", () => {
-    const places = [
-      {
-        name: "Sheffield",
-        lat: 53.38,
-        lng: -1.47,
-        kind: "city" as const,
-        context: "",
-        search: "sheffield",
-      },
-    ];
-    const without = buildMapSearchSuggestions({
+describe("buildMapPlaceSuggestions — in-map UK place search", () => {
+  it("returns an uncovered place on the chooser arrival href at base zoom", () => {
+    const results = buildMapPlaceSuggestions({
+      query: "Sheffield",
+      places: UK_PLACES,
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    expect(results[0]).toMatchObject({
+      name: "Sheffield",
+      placeKind: "uncovered",
+      href: "/map?place=Sheffield&lat=53.3800941&lng=-1.4789213",
+      flyZoom: UK_PLACE_MAP_ZOOM,
+      contextLabel: "S",
+    });
+    expect(results[0].center).toEqual([-1.4789213, 53.3800941]);
+  });
+
+  it("routes a place inside a curated city to that city guide", () => {
+    const results = buildMapPlaceSuggestions({
+      query: "Didsbury",
+      places: UK_PLACES,
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    expect(results[0]).toMatchObject({
+      name: "Didsbury",
+      placeKind: "curated",
+      cityId: "manchester",
+      href: "/map/manchester",
+    });
+  });
+
+  it("drops names already shown as local areas so Camden is not listed twice", () => {
+    const results = buildMapPlaceSuggestions({
+      query: "Camden",
+      places: UK_PLACES,
+      excludedNames: ["Camden"],
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    expect(results).toEqual([]);
+  });
+
+  it("skips the current city guide row when already on that map", () => {
+    const results = buildMapPlaceSuggestions({
+      query: "Bath",
+      places: UK_PLACES,
+      currentCityId: "bath",
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    expect(results.map((r) => r.name)).not.toContain("Bath");
+  });
+
+  it("does not answer a one-character query", () => {
+    expect(
+      buildMapPlaceSuggestions({
+        query: "s",
+        places: UK_PLACES,
+        userLocation: null,
+        mapCenter: CENTRE,
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("buildMapSearchSuggestions — UK places fill limited coverage", () => {
+  it("surfaces Sheffield from the national gazetteer beside local results", () => {
+    const result = buildMapSearchSuggestions({
       cityId: "london",
-      query: "sheff",
+      query: "Sheffield",
       venues: [],
+      places: UK_PLACES,
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    expect(result.places.map((p) => p.name)).toContain("Sheffield");
+    expect(result.hasResults).toBe(true);
+  });
+
+  it("still answers with places when local results are suppressed", () => {
+    const result = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "Sheffield",
+      venues: [venue({ id: "v1", name: "The Sheffield Arms" })],
+      places: UK_PLACES,
       includeLocalResults: false,
       userLocation: null,
       mapCenter: CENTRE,
     });
-    expect(without.places).toEqual([]);
+    expect(result.areas).toEqual([]);
+    expect(result.pubs).toEqual([]);
+    expect(result.places[0]?.name).toBe("Sheffield");
+    expect(result.hasResults).toBe(true);
+  });
 
-    const withPlaces = buildMapSearchSuggestions({
+  it("keeps local area matches ahead of a colliding UK place name", () => {
+    const result = buildMapSearchSuggestions({
       cityId: "london",
-      query: "sheff",
+      query: "camden",
       venues: [],
-      places,
-      includeLocalResults: false,
+      places: UK_PLACES,
       userLocation: null,
       mapCenter: CENTRE,
     });
-    expect(withPlaces.places.map((row) => row.name)).toEqual(["Sheffield"]);
-    expect(withPlaces.hasResults).toBe(true);
+    expect(result.areas.some((a) => a.name.toLowerCase().includes("camden"))).toBe(true);
+    expect(result.places.map((p) => p.name)).not.toContain("Camden");
   });
 });
 

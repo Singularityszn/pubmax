@@ -3,7 +3,7 @@
 import { List, MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
@@ -226,6 +226,7 @@ import AreaSheet from "@/components/map/AreaSheet";
 import MapSearchSuggest, {
   type MapSearchSuggestProps,
 } from "@/components/map/MapSearchSuggest";
+import type { PlaceSuggestion } from "@/lib/mapSearchSuggest";
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
@@ -519,7 +520,6 @@ export default function PubMap({
   nationalBrowse?: boolean;
 }) {
   const city = getCity(cityId);
-  const router = useRouter();
   const [ukPlaceArrival] = useState(() => placeArrival);
   const [ukNationalBrowse] = useState(
     () => nationalBrowse || isUkNationalBrowse(currentSearch()),
@@ -2546,11 +2546,26 @@ export default function PubMap({
     [selectVenue, trimmedMapQuery],
   );
   const selectPlaceFromSearch = useCallback(
-    (href: string) => {
+    (place: PlaceSuggestion) => {
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
-      router.push(href);
+      // Already on that curated city guide → fly in place (no remount).
+      if (place.placeKind === "curated" && place.cityId === cityId) {
+        setAreaFocus((prev) => ({
+          center: place.center,
+          zoom: place.flyZoom,
+          token: (prev?.token ?? 0) + 1,
+        }));
+        clearLogIntent();
+        setMapOverlay("none");
+        changeMapSearchQuery("");
+        return;
+      }
+      // Uncovered / other-city arrivals must full-load so PubMap remounts with
+      // the server-resolved placeArrival (frozen at mount). Soft push would
+      // leave the old arrival banner and emptied venues.
+      window.location.assign(place.href);
     },
-    [router, trimmedMapQuery],
+    [changeMapSearchQuery, cityId, clearLogIntent, trimmedMapQuery],
   );
   // Prefetch the national place index once the reader is typing a place-shaped
   // query, or already on a national / uncovered surface that needs it.
@@ -3319,16 +3334,14 @@ export default function PubMap({
           query={filters.query}
           onQueryChange={changeMapSearchQuery}
           searchContent={
-            // Nothing here is priced, so venue search can never answer. The
-            // mobile shell drops it for the same reason.
-            ukPlaceArrival ? null : (
-              <MapSearchSuggest
-                {...sharedMapSearchProps}
-                id="mapSearchInput"
-                mode="toolbar"
-                placeholder={mapSearchPlaceholder}
-              />
-            )
+            // Limited-coverage arrivals keep search so UK places (and any
+            // resident base pubs) can still answer when venues are emptied.
+            <MapSearchSuggest
+              {...sharedMapSearchProps}
+              id="mapSearchInput"
+              mode="toolbar"
+              placeholder={mapSearchPlaceholder}
+            />
           }
           favoritePint={favoritePint}
           onFavoritePintChange={changeFavoritePint}

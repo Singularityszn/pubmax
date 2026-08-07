@@ -79,8 +79,10 @@ export type MapSearchSuggestProps = {
   onSelectUkBasePub?: (pub: UkBasePub) => void;
   /**
    * Navigate to a UK place or curated city guide (same hrefs as /choose-city).
+   * The full suggestion rides so the shell can fly in-place when already on
+   * that city guide.
    */
-  onSelectPlace?: (href: string) => void;
+  onSelectPlace?: (place: PlaceSuggestion) => void;
   /** Fly the map to an area/borough centre (reduced-motion safe in the canvas). */
   onFlyToArea: (option: MapSearchAreaOption) => void;
   /** Enter with nothing highlighted and no suggestions: keep the old behaviour. */
@@ -231,7 +233,7 @@ export default function MapSearchSuggest({
         else onSelectVenue(entry.item.id);
         closeToolbarPanel();
       } else if (entry.type === "place") {
-        onSelectPlace?.(entry.item.href);
+        onSelectPlace?.(entry.item);
         closeToolbarPanel();
       } else {
         const { item } = entry;
