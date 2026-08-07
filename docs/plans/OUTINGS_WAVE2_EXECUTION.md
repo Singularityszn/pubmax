@@ -71,7 +71,7 @@ See Fable checklist: #821–#828, #830, #833–#834, #836, #819/#831, #825. Pref
 | W2-C quiet/coffee ranking | [#841](https://github.com/Singularityszn/pubmax/pull/841) |
 | W2-D lens/chip analytics | [#845](https://github.com/Singularityszn/pubmax/pull/845) |
 | W2-E Spoons map filter | [#844](https://github.com/Singularityszn/pubmax/pull/844) |
-| W2-F coffee borough ops | pending |
+| W2-F coffee borough ops | [#847](https://github.com/Singularityszn/pubmax/pull/847) |
 
 ## Success signals
 
