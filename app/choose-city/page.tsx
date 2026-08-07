@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import CityChooser from "@/components/city/CityChooser";
+import { firstSearchParam } from "@/lib/cityShare";
 
 export const metadata: Metadata = {
   title: "Choose your city",
@@ -9,6 +10,14 @@ export const metadata: Metadata = {
   alternates: { canonical: "/choose-city" },
 };
 
-export default function ChooseCityPage() {
-  return <CityChooser variant="page" />;
+type ChooseCityPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function ChooseCityPage({
+  searchParams,
+}: ChooseCityPageProps) {
+  const sp = searchParams ? await searchParams : undefined;
+  const focusSearch = firstSearchParam(sp?.focus) === "search";
+  return <CityChooser variant="page" focusSearch={focusSearch} />;
 }

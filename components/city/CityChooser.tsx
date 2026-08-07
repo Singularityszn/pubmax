@@ -2,20 +2,24 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useId, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { Beer, LocateFixed, MapPin, Search } from "lucide-react";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 
-import {
-  getCity,
-  listEnabledCities,
-  type CityId,
-} from "@/lib/cities";
+import { listEnabledCities, type CityId } from "@/lib/cities";
 import { MAIN_LANDMARK_ID } from "@/lib/a11yLandmarks";
 import { buildCityChooserSearchResults } from "@/lib/cityChooserSearch";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
-import { nearestEnabledCity } from "@/lib/nearestCity";
+import { resolveLocateMapDestination } from "@/lib/locateMapDestination";
 import {
   normaliseUkPlaceQuery,
   parseUkPlaceIndex,
@@ -28,6 +32,8 @@ import "./cityChooser.css";
 export type CityChooserProps = {
   variant?: "page" | "section";
   onSelect?: (cityId: CityId) => void;
+  /** When true, focus the town search field on mount (national browse entry). */
+  focusSearch?: boolean;
 };
 
 type LocateState = "idle" | "pending" | "error";
@@ -43,10 +49,12 @@ type PlaceIndexState =
 export default function CityChooser({
   variant = "page",
   onSelect,
+  focusSearch = false,
 }: CityChooserProps) {
   const cities = listEnabledCities();
   const listId = useId();
   const router = useRouter();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [locateState, setLocateState] = useState<LocateState>("idle");
   const [locateMessage, setLocateMessage] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -54,7 +62,7 @@ export default function CityChooser({
     status: "idle",
     places: [],
   });
-  const placeIndexRequested = useRef(false);
+  const placeIndexPromiseRef = useRef<Promise<UkPlace[]> | null>(null);
   const [, startTransition] = useTransition();
   const normalizedQuery = normaliseUkPlaceQuery(query);
   const results = useMemo(
@@ -70,6 +78,26 @@ export default function CityChooser({
     [onSelect],
   );
 
+  const loadPlaceIndex = useCallback((): Promise<UkPlace[]> => {
+    if (placeIndexPromiseRef.current) return placeIndexPromiseRef.current;
+    setPlaceIndex({ status: "loading", places: [] });
+    const pending = fetch(UK_PLACE_INDEX_PATH)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const raw: unknown = await response.json();
+        const places = parseUkPlaceIndex(raw);
+        setPlaceIndex({ status: "ready", places });
+        return places;
+      })
+      .catch(() => {
+        placeIndexPromiseRef.current = null;
+        setPlaceIndex({ status: "error", places: [] });
+        return [] as UkPlace[];
+      });
+    placeIndexPromiseRef.current = pending;
+    return pending;
+  }, []);
+
   const useMyLocation = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setLocateState("error");
@@ -78,25 +106,45 @@ export default function CityChooser({
     }
 
     setLocateState("pending");
-    setLocateMessage("Finding the nearest city…");
+    setLocateMessage("Finding the nearest place…");
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const nearest = nearestEnabledCity(
-          pos.coords.latitude,
-          pos.coords.longitude,
-        );
-        if (!nearest) {
-          setLocateState("error");
-          setLocateMessage("You’re outside our mapped cities. Pick one below.");
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const cityFirst = resolveLocateMapDestination(lat, lng);
+        if (cityFirst.kind === "city") {
+          selectCity(cityFirst.cityId);
+          setLocateState("idle");
+          setLocateMessage(`Opening ${cityFirst.label}…`);
+          startTransition(() => {
+            router.push(cityFirst.href);
+          });
           return;
         }
-        const href = cityMapShareUrl(nearest);
-        selectCity(nearest);
-        setLocateState("idle");
-        setLocateMessage(`Opening ${getCity(nearest).displayName}…`);
-        startTransition(() => {
-          router.push(href);
+        void loadPlaceIndex().then((places) => {
+          const dest = resolveLocateMapDestination(lat, lng, places);
+          if (dest.kind === "city") {
+            selectCity(dest.cityId);
+            setLocateState("idle");
+            setLocateMessage(`Opening ${dest.label}…`);
+            startTransition(() => {
+              router.push(dest.href);
+            });
+            return;
+          }
+          if (dest.kind === "place") {
+            setLocateState("idle");
+            setLocateMessage(`Opening ${dest.arrival.name}…`);
+            startTransition(() => {
+              router.push(dest.href);
+            });
+            return;
+          }
+          setLocateState("error");
+          setLocateMessage(
+            "You’re outside the priced city maps. Search a town above, or pick a city below.",
+          );
         });
       },
       () => {
@@ -105,31 +153,20 @@ export default function CityChooser({
       },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 60_000 },
     );
-  }, [router, selectCity, startTransition]);
-
-  const loadPlaceIndex = useCallback(() => {
-    if (placeIndexRequested.current) return;
-    placeIndexRequested.current = true;
-    setPlaceIndex({ status: "loading", places: [] });
-    void fetch(UK_PLACE_INDEX_PATH)
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const raw: unknown = await response.json();
-        setPlaceIndex({ status: "ready", places: parseUkPlaceIndex(raw) });
-      })
-      .catch(() => {
-        placeIndexRequested.current = false;
-        setPlaceIndex({ status: "error", places: [] });
-      });
-  }, []);
+  }, [loadPlaceIndex, router, selectCity, startTransition]);
 
   const changeQuery = useCallback(
     (value: string) => {
       setQuery(value);
-      if (normaliseUkPlaceQuery(value).length >= 2) loadPlaceIndex();
+      if (normaliseUkPlaceQuery(value).length >= 2) void loadPlaceIndex();
     },
     [loadPlaceIndex],
   );
+
+  useEffect(() => {
+    if (!focusSearch) return;
+    searchInputRef.current?.focus();
+  }, [focusSearch]);
 
   const rootClass =
     variant === "section"
@@ -184,6 +221,7 @@ export default function CityChooser({
           <div className="cityChooserSearchField">
             <Search size={18} strokeWidth={1.75} aria-hidden="true" />
             <input
+              ref={searchInputRef}
               id={`${listId}-search`}
               className="cityChooserSearchInput"
               type="search"

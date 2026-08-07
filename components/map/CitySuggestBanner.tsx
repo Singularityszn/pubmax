@@ -10,6 +10,7 @@ import {
 } from "@/lib/cities";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
+import { resolveLocateMapDestination } from "@/lib/locateMapDestination";
 import {
   dismissCitySuggest,
   getMapLocationControlAvailable,
@@ -17,7 +18,13 @@ import {
   saveDataPreferred,
   subscribeMapLocationControl,
 } from "@/lib/mapLocationPrompt";
-import { nearestEnabledCity } from "@/lib/nearestCity";
+import {
+  parseUkPlaceIndex,
+  ukPlaceMapUrl,
+  UK_PLACE_INDEX_PATH,
+  type UkPlace,
+  type UkPlaceMapArrival,
+} from "@/lib/ukPlaceSearch";
 
 import "./citySuggestBanner.css";
 
@@ -30,6 +37,7 @@ type CitySuggestBannerProps = {
  * Opt-in geolocation city nudge. Does NOT call getCurrentPosition on mount —
  * the viewer taps "Near me?" first. Honours Save-Data and a session dismiss.
  * Fail-soft (permission denied / timeout / no geo) → no switch offer.
+ * Outside curated cities, loads places.json and offers an uncovered arrival.
  * Kept below the CitySwitcher dropdown in z-order so city picks stay tappable.
  */
 export default function CitySuggestBanner({
@@ -42,13 +50,31 @@ export default function CitySuggestBanner({
     getMapLocationControlServerSnapshot,
   );
   const [suggested, setSuggested] = useState<CityId | null>(null);
+  const [suggestedPlace, setSuggestedPlace] = useState<UkPlaceMapArrival | null>(
+    null,
+  );
   const [checking, setChecking] = useState(false);
   const [locatedHere, setLocatedHere] = useState(false);
   const checkGen = useRef(0);
+  const placesCache = useRef<UkPlace[] | null>(null);
 
   const dismiss = useCallback(() => {
     dismissCitySuggest();
     setSuggested(null);
+    setSuggestedPlace(null);
+  }, []);
+
+  const loadPlaces = useCallback(async (): Promise<UkPlace[]> => {
+    if (placesCache.current) return placesCache.current;
+    try {
+      const response = await fetch(UK_PLACE_INDEX_PATH);
+      if (!response.ok) return [];
+      const places = parseUkPlaceIndex(await response.json());
+      placesCache.current = places;
+      return places;
+    } catch {
+      return [];
+    }
   }, []);
 
   const checkNearby = useCallback(() => {
@@ -58,6 +84,7 @@ export default function CitySuggestBanner({
     const gen = ++checkGen.current;
     setChecking(true);
     setSuggested(null);
+    setSuggestedPlace(null);
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -66,18 +93,42 @@ export default function CitySuggestBanner({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         };
-        const nearest = nearestEnabledCity(
-          location.lat,
-          location.lng,
-        );
-        void Promise.resolve().then(() => {
+        const cityDest = resolveLocateMapDestination(location.lat, location.lng);
+        if (cityDest.kind === "city") {
+          void Promise.resolve().then(() => {
+            if (gen !== checkGen.current) return;
+            setChecking(false);
+            if (cityDest.cityId !== cityId) {
+              setSuggested(cityDest.cityId);
+              setLocatedHere(false);
+            } else {
+              setLocatedHere(true);
+              onLocationFound?.(location);
+            }
+          });
+          return;
+        }
+        void loadPlaces().then((places) => {
           if (gen !== checkGen.current) return;
+          const dest = resolveLocateMapDestination(
+            location.lat,
+            location.lng,
+            places,
+          );
           setChecking(false);
-          if (nearest && nearest !== cityId) {
-            setSuggested(nearest);
+          if (dest.kind === "city" && dest.cityId !== cityId) {
+            setSuggested(dest.cityId);
             setLocatedHere(false);
-          } else if (nearest === cityId) {
+            return;
+          }
+          if (dest.kind === "city" && dest.cityId === cityId) {
             setLocatedHere(true);
+            onLocationFound?.(location);
+            return;
+          }
+          if (dest.kind === "place") {
+            setSuggestedPlace(dest.arrival);
+            setLocatedHere(false);
             onLocationFound?.(location);
           }
         });
@@ -90,10 +141,8 @@ export default function CitySuggestBanner({
       },
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
     );
-  }, [cityId, onLocationFound]);
+  }, [cityId, loadPlaces, onLocationFound]);
 
-  // Reuse an already-granted permission without prompting again. A first-time
-  // visitor still has to tap Near me, preserving the Home Area privacy boundary.
   useEffect(() => {
     if (typeof navigator === "undefined" || !("permissions" in navigator)) return;
     let cancelled = false;
@@ -132,6 +181,28 @@ export default function CitySuggestBanner({
           type="button"
           className="citySuggestBannerDismiss"
           aria-label="Dismiss city suggestion"
+          onClick={dismiss}
+        >
+          <X size={14} strokeWidth={2.25} aria-hidden="true" />
+        </button>
+      </div>
+    );
+  }
+
+  if (suggestedPlace) {
+    const href = ukPlaceMapUrl(suggestedPlace);
+    return (
+      <div className="citySuggestBanner" role="status" aria-live="polite">
+        <p className="citySuggestBannerCopy">
+          Looks like you&apos;re near {suggestedPlace.name}. Open the pub map?
+        </p>
+        <Link href={href} className="citySuggestBannerSwitch">
+          Open
+        </Link>
+        <button
+          type="button"
+          className="citySuggestBannerDismiss"
+          aria-label="Dismiss place suggestion"
           onClick={dismiss}
         >
           <X size={14} strokeWidth={2.25} aria-hidden="true" />
