@@ -104,7 +104,7 @@ test("/feed mounts the social feed scaffold without uncaught errors", async ({ p
   expect(errors).toEqual([]);
 });
 
-test("/feed redirects to Social, whose Post lanes are interactive (issue #36)", async ({
+test("/feed redirects to Social and renders its reachable boundary state (issue #36)", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
@@ -113,17 +113,21 @@ test("/feed redirects to Social, whose Post lanes are interactive (issue #36)", 
   expect(response?.status()).toBe(200);
 
   // PR #765 (5adfb689) retired /feed's London-tab + Feed-lanes filter group
-  // in favour of the unified Social shell. /feed now redirects to /social,
-  // whose Post lanes are Following / Nearby / Across town (see
-  // app/social/SocialPageClient.tsx). Deep lane-switching behaviour (Nearby
-  // area select, pagination, stale-response guarding) is covered by
-  // e2e/social-shell.spec.ts; this smoke test only proves the redirect lands
-  // on a working, interactive lane nav.
-  const lanes = page.getByRole("navigation", { name: "Post lanes" });
-  await expect(lanes).toBeVisible();
-  const nearby = lanes.getByRole("link", { name: "Nearby", exact: true });
-  await nearby.click();
-  await expect(nearby).toHaveAttribute("aria-current", "page");
+  // in favour of the unified Social shell. /feed now redirects to /social.
+  // The interactive Post lanes nav (app/social/SocialPageClient.tsx) only
+  // renders once client-side access resolves to "verified", which needs
+  // SOCIAL_INVITE_BETA_ENABLED=1 plus a configured Clerk session
+  // (NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY / CLERK_SECRET_KEY). playwright.config.ts
+  // has never passed any of the three to the e2e webServer (checked its full
+  // git history), so under a real, unmocked e2e run access can only ever
+  // settle at "preview" and the Post lanes nav can never appear - asserting
+  // it here was never reachable. e2e/social-shell.spec.ts covers the
+  // interactive lanes by mocking /api/social/access to "verified"; this
+  // smoke test proves the real, unmocked redirect lands on a working,
+  // honest boundary instead of a blank or crashed page.
+  await expect(
+    page.getByRole("heading", { name: "Social is not open yet." }),
+  ).toBeVisible();
   expect(errors).toEqual([]);
 });
 
