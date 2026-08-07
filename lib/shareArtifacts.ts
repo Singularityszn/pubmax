@@ -173,8 +173,9 @@ export function buildHistoricPubShareText(input: HistoricPubShareInput): string 
 }
 
 // ── wa.me deep link ──────────────────────────────────────────────────────────
-// The one WhatsApp URL idiom (matches ShareBar and lib/tfl's lastPintShareHref):
-// message text first, then the absolute URL when the artifact points somewhere.
+// The one WhatsApp URL builder: message text first, then the absolute URL
+// when the artifact points somewhere. components/share/ShareBar.tsx and
+// lib/tfl's lastPintShareHref both call this rather than building their own.
 // Self-contained messages (Last Pint) simply pass no URL.
 
 export function whatsappShareHref(text: string, url?: string): string {
