@@ -341,12 +341,16 @@ create trigger social_post_tag_proposal_guard
 before insert on public.social_post_tag_proposals
 for each row execute function public.guard_social_post_tag_proposal();
 
+-- search_path includes extensions because Supabase installs pgcrypto's
+-- digest() there, not in public; local test postgres puts it in public,
+-- and a nonexistent schema in search_path is silently skipped, so this
+-- is safe on both.
 create or replace function public.social_post_digest(p_post public.social_posts)
 returns text
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
   select encode(digest(convert_to(jsonb_build_object(
     'kind', p_post.kind,
