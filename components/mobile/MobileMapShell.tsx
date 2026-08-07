@@ -71,7 +71,7 @@ function MapEdgeControls({
   );
 }
 
-export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, savedOnlyActive = false, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
   /**
    * Whether that name is where the READER is, or only what the map is looking
@@ -114,6 +114,8 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
   zoneActive?: boolean;
   /** Saved only on the Filters sheet — same field as the desktop ControlRail. */
   savedOnlyActive?: boolean;
+  /** Open now filter counts as a filters refinement when on. */
+  openNowActive?: boolean;
   priceCapActive: boolean;
   areaPriceNoun: string;
   planOpen: boolean;
@@ -175,6 +177,7 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
     priceLabel,
     zoneActive,
     savedOnlyActive,
+    openNowActive,
   });
   const tflCorner = buildTflCorner(tflStatus, tflCount);
   const sheetKind = CONTEXTUAL_SHEETS.includes(overlay as MapSheetKind)
