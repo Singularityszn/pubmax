@@ -22,6 +22,7 @@ import { pubSources, writerProfile } from "@/lib/curation";
 import { curatedCrawls as londonCuratedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { OPEN_NOW_FILTER_CAPTION } from "@/lib/openNow";
 import {
   accessibilityFilterSummary,
   isKnownAccessibleToilet,
@@ -93,6 +94,8 @@ export const initialFilters: Filters = {
   // Default OFF so scraped / gazetteer pubs (Young's, Nicholson's, Eating Europe
   // seeds) appear on first paint. Users can still tighten to verified-only.
   canonicalOnly: false,
+  // Off by default. When on, only known-closed pubs drop; unknown hours stay.
+  openNow: false,
   requireStepFree: false,
   requireAccessibleToilet: false,
   requireSeatedService: false,
@@ -469,6 +472,21 @@ export default function ControlRail({
         <p className="accessibilityHint" style={{ marginTop: 4 }}>
           Off by default so scraped Young&apos;s / Nicholson&apos;s / guide pins stay on the map.
         </p>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.openNow}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, openNow: event.target.checked })
+            }
+          />
+          Open now
+        </label>
+        {filters.openNow ? (
+          <p className="accessibilityHint" style={{ marginTop: 4 }} role="status">
+            {OPEN_NOW_FILTER_CAPTION}
+          </p>
+        ) : null}
       </section>
 
       <section className="panelSection toggles accessibilityFilters">

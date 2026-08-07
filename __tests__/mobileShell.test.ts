@@ -86,19 +86,23 @@ describe("mobile map session adapter", () => {
     const legacy: Partial<typeof current> = { ...current };
     delete legacy.drinkSubtype;
     delete legacy.topShelfOnly;
+    delete legacy.openNow;
     expect(validateMobileMapFilters(legacy)).toMatchObject({
       drinkSubtype: "",
       topShelfOnly: false,
+      openNow: false,
     });
     expect(validateMobileMapFilters({
       ...current,
       drinkCategory: "rum",
       drinkSubtype: "rum-dark",
       topShelfOnly: true,
+      openNow: true,
     })).toMatchObject({
       drinkCategory: "rum",
       drinkSubtype: "rum-dark",
       topShelfOnly: true,
+      openNow: true,
     });
     expect(validateMobileMapFilters({
       ...current,

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canGroupGetIn,
   estimateBusyness,
+  evaluateOpenState,
   resolveBookingOption,
   type BusynessReport,
 } from "@/lib/busyness";
@@ -60,6 +61,19 @@ describe("estimateBusyness", () => {
 
     expect(result.source).toBe("typical-pattern");
     expect(result.level).toBe("busy");
+  });
+});
+
+describe("evaluateOpenState", () => {
+  it("exports the shared open/closed/unknown evaluator used by the map filter", () => {
+    const fridayNoon = new Date("2026-08-07T11:00:00.000Z");
+    expect(evaluateOpenState({ now: fridayNoon })).toBe("unknown");
+    expect(
+      evaluateOpenState({
+        now: fridayNoon,
+        openingHours: { 5: [{ opens: "08:00", closes: "23:00" }] },
+      }),
+    ).toBe(true);
   });
 });
 

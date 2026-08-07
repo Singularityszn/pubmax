@@ -186,6 +186,9 @@ export function validateMobileMapFilters(value: unknown): Filters | null {
     drinkCategory: category ?? "",
     drinkSubtype: subtype?.id ?? "",
     topShelfOnly: raw.topShelfOnly === true && Boolean(category),
+    // Open-now post-dates older sessions; upgrade missing to off rather than
+    // discarding the whole saved map.
+    openNow: raw.openNow === true,
   };
 }
 

@@ -11,6 +11,7 @@ export function filterMapVenues(
   venues: readonly Venue[],
   filters: Filters,
   hasPintDrops: (venueId: string) => boolean,
+  openNowState: (venueId: string) => boolean | "unknown" = () => "unknown",
 ): Venue[] {
   const slimPinFilters: Filters = {
     ...filters,
@@ -23,6 +24,7 @@ export function filterMapVenues(
     requireStepFree: false,
     requireAccessibleToilet: false,
     requireSeatedService: false,
+    // openNow stays on for slim pins: match uses name+coords, which slim rows have.
   };
 
   const slim: Venue[] = [];
@@ -35,8 +37,8 @@ export function filterMapVenues(
   }
 
   return [
-    ...filterVenues(slim, slimPinFilters, hasPintDrops),
-    ...filterVenues(hydrated, filters, hasPintDrops),
+    ...filterVenues(slim, slimPinFilters, hasPintDrops, openNowState),
+    ...filterVenues(hydrated, filters, hasPintDrops, openNowState),
   ];
 }
 

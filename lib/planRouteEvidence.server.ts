@@ -103,7 +103,10 @@ export async function planOpeningSchedulesForVenues(
 ): Promise<Map<string, PlanOpeningSchedule | null>> {
   const rows = await loadWetherspoonsDirectoryPubs();
   return new Map(venues.map((venue) => {
-    const match = matchWetherspoonsDirectoryPub(venue, rows);
+    const match = matchWetherspoonsDirectoryPub(
+      { name: venue.name, lat: venue.lat, lng: venue.lng },
+      rows,
+    );
     if (
       !match
       || typeof match.observedAt !== "string"
