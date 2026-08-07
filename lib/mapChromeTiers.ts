@@ -14,9 +14,11 @@
 //                                the answer's way. List lives in Layers.
 //
 // Design judgement 2026-08-01, finding 2.3 collapsed the phone chrome to ONE
-// bar. Tonight left the map chrome with both of its other homes intact (the
-// More sheet's Events tab and the tab bar), because a third stacked container
-// cost more than the tap it saved.
+// bar. A permanent Tonight slot in that bar still fails the 320px arithmetic,
+// so Tonight does not reclaim a sixth control. When What's On has listings,
+// a measured cold-start chip docks under the bar (same pattern as the active
+// search chip) and opens overlay "tonight" in one tap. More → Events and the
+// tab bar stay as homes; they are no longer the only phone path.
 //
 // Pure and render-free so the hierarchy is unit-testable; the shell just maps
 // descriptors to components. Adoption notes for the in-flight chip PRs live in
@@ -36,6 +38,13 @@ export type FiltersChipModel = {
   /** Number of active refinement groups (drinks, price cap, zone later). */
   refinements: number;
   /** Screen-reader detail, e.g. "Filters — drinks and ≤£8.00 active". */
+  ariaLabel: string;
+};
+
+export type TonightChipModel = {
+  label: "On tonight";
+  count: number;
+  /** Screen-reader detail, e.g. "On tonight: 3 listings" or "... near you". */
   ariaLabel: string;
 };
 
@@ -110,5 +119,27 @@ export function buildTflCorner(status: TflStatus, count: number): CornerUtilityM
           : count > 0
             ? `TfL live: ${count} updates`
             : "TfL live",
+  };
+}
+
+/**
+ * Cold-start Tonight entry for the phone map. Honest empty: no chip when the
+ * What's On spine has nothing to show, so a quiet night never advertises a
+ * dead door. The shell mounts this under the one top bar, never inside it.
+ */
+export function buildTonightChip(
+  rowCount: number,
+  nearReader: boolean,
+): TonightChipModel | null {
+  if (!Number.isFinite(rowCount) || rowCount <= 0) return null;
+  const count = Math.floor(rowCount);
+  const nearSuffix = nearReader ? " near you" : "";
+  return {
+    label: "On tonight",
+    count,
+    ariaLabel:
+      count === 1
+        ? `On tonight: 1 listing${nearSuffix}`
+        : `On tonight: ${count} listings${nearSuffix}`,
   };
 }

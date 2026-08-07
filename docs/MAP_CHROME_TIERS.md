@@ -7,12 +7,16 @@ truth; the shell renders its descriptors.
 
 | Tier | Surface | Treatment |
 |---|---|---|
-| 1 | **Near me** | The only primary-weight chip (`.mobileMapChipPrimary`, filled accent) |
-| 2 | **Tonight**, **Filters** | Quiet chips. Filters absorbs the old Drinks + price chips (both always opened the same sheet); refinement count renders as the chip badge |
+| 1 | **Near me** | The only primary-weight chip (`.mobileMapChipPrimary`, filled accent); on phone a round map-edge FAB |
+| 2 | **Filters** | Quiet icon-button in the one top bar. Absorbs drinks + price + zone + venue-type toggles; refinement count is the badge |
 | 3 | **TfL** | Compact 44px icon-button in `.mobileMapUtilityCorner` (fixed, right edge, badge-capable). **List view** lives in the Layers sheet shortcut grid. |
 
-The Tonight lane, plan pill, and tab bar are lanes or docks, not chips, and sit
-outside this hierarchy. Mobile map action geometry belongs to
+**Tonight cold-start (P5):** when `whatsOnTonight.rows.length > 0`, a measured
+`.mobileMapTonightChip` docks under the bar (not a sixth bar slot) and opens
+`overlay: "tonight"` in one tap. `buildTonightChip` in `lib/mapChromeTiers.ts`
+owns the model. More → Events, Layers → On tonight, and the tab bar remain
+homes. Quiet nights omit the chip. The plan pill and tab bar stay outside this
+hierarchy. Mobile map action geometry belongs to
 `components/mobile/mobileMapShell.css`.
 
 ## Narrow desktop state
