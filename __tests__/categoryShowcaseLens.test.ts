@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -46,5 +48,21 @@ describe("CategoryShowcase explore mode", () => {
       expect(legendHtml).toContain(CATEGORY_META[category].label);
     }
     expect(legendHtml).not.toContain("/map?drink=");
+  });
+});
+
+describe("Discover explore lede outing honesty", () => {
+  it("names coffee beside the other map-lens drinks", () => {
+    const source = readFileSync(
+      path.join(__dirname, "..", "app", "discover", "DiscoverPageClient.tsx"),
+      "utf8",
+    );
+    const lede = source.match(/className="discoverLede"[\s\S]*?<\/p>/)?.[0];
+    expect(lede, "discover lede present").toBeTruthy();
+    expect(lede).toMatch(/coffee/i);
+    expect(lede).toMatch(/alcohol-free/i);
+    expect(lede).toMatch(/soft drinks/i);
+    expect(lede).not.toMatch(/\b(journey|unlock|seamless|elevate)\b/iu);
+    expect(lede).not.toContain("!");
   });
 });

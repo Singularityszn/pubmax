@@ -357,7 +357,8 @@ export default async function AboutPage() {
             <dt>Positioning</dt>
             <dd>
               London runs on its pubs. This is the app that helps you decide
-              where to go, what it costs, and who you&rsquo;re meeting.
+              where to go for a night out, a coffee, food, or a quiet afternoon,
+              what it costs, and who you&rsquo;re meeting.
             </dd>
           </div>
           <div className="aboutPressRow">
