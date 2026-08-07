@@ -142,12 +142,12 @@ html:has(.nightPill) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  margin: -10px -10px -10px 0;
+  min-width: 56px;
+  min-height: 56px;
+  margin: -14px -14px -14px 0;
   border: none;
   background: none;
-  color: var(--ink-soft, #6b726a);
+  color: var(--ink, #2a2a26);
   cursor: pointer;
   border-radius: 999px;
 }
@@ -167,13 +167,13 @@ html:has(.nightPill) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border-radius: 999px;
   background: var(--brass, #9b7a2a);
   color: var(--color-on-accent-strong, #16122a);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -186,7 +186,7 @@ html:has(.nightPill) {
 }
 
 .nightCard__now {
-  font-size: 16px;
+  font-size: 19px;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -484,7 +484,7 @@ html:has(.nightPill) {
   padding: 8px 10px;
   border-radius: var(--radius-sm, 10px);
   background: color-mix(in srgb, var(--ink, #2a2a26) 5%, transparent);
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ink, #2a2a26);
 }
 
@@ -497,16 +497,21 @@ html:has(.nightPill) {
   color: var(--ink-soft, #6b726a);
 }
 
+/* Pavement glance: the single most important tap on the card. Giant floor
+   (68px, well over the 44px minimum) because this is read and hit at 40%
+   screen brightness while walking. Column layout puts the next-stop name
+   and its walk time on their own lines so both are legible at a glance,
+   with the advance action as a full-width high-contrast band underneath. */
 .nightCard__next {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
   width: 100%;
-  min-height: 44px;
-  padding: 8px 12px;
+  min-height: 68px;
+  padding: 12px 14px 10px;
   border: 1px solid var(--line, #d9d4c7);
-  border-radius: var(--radius-sm, 10px);
+  border-radius: var(--radius-md, 14px);
   background: var(--paper, #fff);
   color: var(--ink, #2a2a26);
   font: inherit;
@@ -523,22 +528,46 @@ html:has(.nightPill) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--ink-soft, #6b726a);
-  font-size: 13px;
+  color: var(--brass, #9b7a2a);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.nightCard__nextLabel strong {
+.nightCard__nextName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--ink, #2a2a26);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.nightCard__nextWalk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink, #2a2a26);
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .nightCard__nextAction {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--brass, #9b7a2a);
+  justify-content: center;
+  gap: 4px;
+  min-height: 44px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--brass, #9b7a2a);
+  color: var(--color-on-accent-strong, #16122a);
+  font-weight: 700;
+  font-size: 16px;
 }
 
 .nightCard__crew {

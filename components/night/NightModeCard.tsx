@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
   ChevronRight,
+  Footprints,
   MapPin,
   MonitorSmartphone,
   PlusCircle,
@@ -56,6 +57,7 @@ import type { NightAreaSlug } from "@/lib/nightAreas";
 import type { LateFoodApiResponse, LateFoodTerminal } from "@/lib/lateFood";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import { haversineKm } from "@/lib/haversine";
+import { legMinutes } from "@/lib/routeLegs";
 import RouteEndingCard, {
   type RouteEndingId,
   type RouteEndingOptions,
@@ -625,6 +627,24 @@ function NightModeSheet({
     return coords.find((v) => v.id === currentStop.venueId) ?? null;
   }, [currentStop, coords]);
 
+  // Pavement glance: next-stop walk time, straight-line from the current
+  // venue. Mirrors rankKeepGoingExtensions' haversineKm-from-coords pattern
+  // below rather than fetching a routed estimate - a giant single-line
+  // button label needs one number, not a full route disclosure.
+  const nextCoord = useMemo(() => {
+    if (!nextStop || !coords) return null;
+    return coords.find((v) => v.id === nextStop.venueId) ?? null;
+  }, [nextStop, coords]);
+
+  const nextStopWalkMinutes = useMemo(() => {
+    if (!currentCoord || !nextCoord) return null;
+    const km = haversineKm(
+      [currentCoord.lng, currentCoord.lat],
+      [nextCoord.lng, nextCoord.lat],
+    );
+    return legMinutes(km, "walk");
+  }, [currentCoord, nextCoord]);
+
   useEffect(() => {
     const area = plan?.context?.nightArea;
     if (!area) {
@@ -988,12 +1008,26 @@ function NightModeSheet({
       ) : null}
 
       {nextStop ? (
-        <button type="button" className="nightCard__next" onClick={advance}>
-          <span className="nightCard__nextLabel">
-            Next · <strong>{nextStop.venueName}</strong>
-          </span>
+        <button
+          type="button"
+          className="nightCard__next"
+          onClick={advance}
+          aria-label={`Next, ${nextStop.venueName}${
+            nextStopWalkMinutes !== null
+              ? `, about ${nextStopWalkMinutes} min walk`
+              : ""
+          }. Mark here now.`}
+        >
+          <span className="nightCard__nextLabel">Next</span>
+          <strong className="nightCard__nextName">{nextStop.venueName}</strong>
+          {nextStopWalkMinutes !== null ? (
+            <span className="nightCard__nextWalk">
+              <Footprints size={18} aria-hidden="true" />
+              about {nextStopWalkMinutes} min on foot
+            </span>
+          ) : null}
           <span className="nightCard__nextAction">
-            Here now <ChevronRight size={15} aria-hidden="true" />
+            Here now <ChevronRight size={18} aria-hidden="true" />
           </span>
         </button>
       ) : currentStop ? (
