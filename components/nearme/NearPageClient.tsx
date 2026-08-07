@@ -1,9 +1,13 @@
 "use client";
 
-import { Suspense, useSyncExternalStore } from "react";
+import { Suspense, useEffect, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 
 import SiteNav from "@/components/nav/SiteNav";
+import {
+  clearPosterLandingSession,
+  isPosterLandingSrc,
+} from "@/lib/posterLanding";
 import { readPreferredCity, subscribePreferredCity } from "@/lib/cityPreference";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { resolveNightPatch } from "@/lib/nightPatches";
@@ -22,6 +26,14 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
   const searchParams = useSearchParams();
   const patchParam = searchParams.get("patch");
   const initialPatchId = resolveNightPatch(patchParam)?.id ?? null;
+
+  // Mount-only: a fresh /near load without src=poster must not inherit a stale
+  // poster session from an earlier scan in the same tab.
+  useEffect(() => {
+    if (!isPosterLandingSrc(searchParams.get("src"))) {
+      clearPosterLandingSession();
+    }
+  }, []);
 
   return (
     <div className="nmnPage">

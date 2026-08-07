@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { sanitizeEvent } from "@/lib/analyticsEvents";
 import {
+  clearPosterLandingSession,
   isPosterLandingArrival,
   isPosterLandingSrc,
   posterLandingOrientation,
@@ -98,7 +99,9 @@ describe("poster landing orientation", () => {
   it("near page mounts the poster orientation note from src", () => {
     expect(nearClient).toMatch(/PosterLandingNote/);
     expect(nearClient).toMatch(/searchParams\.get\("src"\)/);
+    expect(nearClient).toMatch(/clearPosterLandingSession/);
     expect(posterNote).toMatch(/posterLandingOrientation/);
+    expect(posterNote).toMatch(/clearPosterLandingSession/);
     expect(posterNote).toMatch(/trackEvent\("poster_landing"\)/);
   });
 
@@ -149,6 +152,28 @@ describe("poster landing session flag", () => {
     expect(store.get(POSTER_LANDING_SESSION_KEY)).toBe("1");
     expect(readPosterLandingSession()).toBe(true);
     expect(isPosterLandingArrival(null)).toBe(true);
+    expect(isPosterLandingArrival("poster")).toBe(true);
+  });
+
+  it("clears a stale session so organic /near visits are not poster-oriented", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("sessionStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        store.set(key, value);
+      },
+      removeItem: (key: string) => {
+        store.delete(key);
+      },
+    });
+
+    rememberPosterLandingSession();
+    expect(isPosterLandingArrival(null)).toBe(true);
+
+    clearPosterLandingSession();
+    expect(store.has(POSTER_LANDING_SESSION_KEY)).toBe(false);
+    expect(readPosterLandingSession()).toBe(false);
+    expect(isPosterLandingArrival(null)).toBe(false);
     expect(isPosterLandingArrival("poster")).toBe(true);
   });
 });

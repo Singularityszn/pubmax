@@ -99,7 +99,21 @@ export function readPosterLandingSession(): boolean {
   }
 }
 
-/** Query or same-tab session: the drinker arrived from a printed poster. */
+export function clearPosterLandingSession(): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.removeItem(POSTER_LANDING_SESSION_KEY);
+  } catch {
+    // Private mode / quota: nothing to clear.
+  }
+}
+
+/**
+ * Query or same-tab session bridge: the drinker arrived from a printed poster.
+ * `src=poster` is authoritative; session only covers a same-arrival URL rewrite
+ * that drops src before NearPageClient remounts. Organic /near visits clear the
+ * session on mount so orientation does not stick for the whole tab.
+ */
 export function isPosterLandingArrival(
   src: string | null | undefined,
 ): boolean {
