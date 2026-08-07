@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, LocateFixed, LocateOff, Map as MapGlyph, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
+import { Ellipsis, LocateFixed, LocateOff, Map as MapGlyph, MoonStar, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
 import { areaChipClaim, areaChipClaimPrefix, type MapPlaceOrigin } from "@/lib/areaButton";
-import { buildFiltersChip, buildNearMeChip, buildTflCorner, type CornerUtilityModel, type PrimaryChipModel } from "@/lib/mapChromeTiers";
+import { buildFiltersChip, buildNearMeChip, buildTflCorner, buildTonightChip, type CornerUtilityModel, type PrimaryChipModel } from "@/lib/mapChromeTiers";
 import { MAP_SHEET_TITLES, type MapOverlay, type MapSheetKind } from "@/lib/mobileShell";
 
 import "./mobileMapShell.css";
@@ -71,7 +71,7 @@ function MapEdgeControls({
   );
 }
 
-export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
   /**
    * Whether that name is where the READER is, or only what the map is looking
@@ -105,6 +105,16 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
   /** Clears that message, so the map is never left holding a stale reason. */
   onDismissNearMeError: () => void;
   nearbyCount: number;
+  /**
+   * What's On listings ready for the phone cold-start chip. Zero (or a quiet
+   * night) keeps the chip off the map; a positive count opens overlay "tonight".
+   */
+  tonightCount: number;
+  /**
+   * Whether that count was fetched with a reader location (the /api/whats-on
+   * near= seam). City-wide cold-start must not claim "near you".
+   */
+  tonightNearReader: boolean;
   tflCount: number;
   tflStatus: "checking" | "clear" | "issues" | "unavailable";
   priceLabel: string;
@@ -180,6 +190,7 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
     openNowActive,
   });
   const tflCorner = buildTflCorner(tflStatus, tflCount);
+  const tonightChip = buildTonightChip(tonightCount, tonightNearReader);
   const sheetKind = CONTEXTUAL_SHEETS.includes(overlay as MapSheetKind)
     ? (overlay as MapSheetKind)
     : null;
@@ -192,9 +203,11 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
             chrome stacked three containers: this bar, a Near me / Tonight /
             Filters rail, and a full-width category row. The category toggles
             now live in the Filters sheet beside "Show me", Near me is a round
-            map-edge FAB, and Tonight keeps its two existing homes (the More
-            sheet's Events tab and the tab bar). Six slots is what 320px holds
-            at the 44px tap floor, so the bar cannot grow again in silence. */}
+            map-edge FAB, and Tonight does not reclaim a sixth bar slot. When
+            What's On has listings, a cold-start chip docks under the bar and
+            opens overlay "tonight" in one tap; More → Events and the tab bar
+            stay as homes. Six slots is what 320px holds at the 44px tap floor,
+            so the bar cannot grow again in silence. */}
         <header className="mobileMapTopbar">
           <Link href="/" className="mobileMapBrand" aria-label="Open PUBMAXX landing page"><PubmaxxWordmark /></Link>
           <button
@@ -243,6 +256,31 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
               <Search size={15} aria-hidden="true" />
               <span className="mobileMapQueryChipText">{activeQuery}</span>
               <X size={16} aria-hidden="true" className="mobileMapQueryChipDismiss" />
+            </button>
+          </div>
+        ) : null}
+        {/* P5 cold-start: What's On listings earn a one-tap path into the
+            Tonight sheet. Quiet nights stay quiet. The chip stops short of the
+            map-edge lane so TfL never swallows its taps. */}
+        {overlay !== "search" && tonightChip ? (
+          <div className="mobileMapTonightRow">
+            <button
+              type="button"
+              className={
+                overlay === "tonight"
+                  ? "mobileMapTonightChip isActive"
+                  : "mobileMapTonightChip"
+              }
+              aria-label={tonightChip.ariaLabel}
+              aria-expanded={overlay === "tonight"}
+              aria-pressed={overlay === "tonight"}
+              onClick={() => set("tonight")}
+            >
+              <MoonStar size={15} aria-hidden="true" />
+              <span className="mobileMapTonightChipLabel">{tonightChip.label}</span>
+              <span className="mobileMapTonightChipCount" aria-hidden="true">
+                {tonightChip.count}
+              </span>
             </button>
           </div>
         ) : null}
