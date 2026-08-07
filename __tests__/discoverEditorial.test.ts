@@ -1,9 +1,33 @@
 import { describe, expect, it } from "vitest";
 
-import { DISCOVER_EDITORIAL } from "@/app/discover/DiscoverPageClient";
+import {
+  DISCOVER_EDITORIAL,
+  discoverDrinkBrowseLede,
+} from "@/app/discover/DiscoverPageClient";
+import {
+  categoryLabel,
+  MAP_LENS_DRINK_CATEGORIES,
+} from "@/lib/drinks";
 
 // Discover editorial CTAs must open map-first crawl/route URLs (polyline),
 // not bare /map or filter-only arrivals.
+
+describe("Discover drink browse lede", () => {
+  it("lists every map-lens category so coffee cannot drift out", () => {
+    const lede = discoverDrinkBrowseLede();
+    expect(lede.startsWith("Browse ")).toBe(true);
+    expect(lede.endsWith(".")).toBe(true);
+    for (const category of MAP_LENS_DRINK_CATEGORIES) {
+      const label =
+        category === "alcohol-free"
+          ? "alcohol-free drinks"
+          : categoryLabel(category).toLocaleLowerCase("en-GB");
+      expect(lede).toContain(label);
+    }
+    expect(lede).toContain("coffee");
+    expect(lede).not.toMatch(/\bother\b/i);
+  });
+});
 
 describe("Discover editorial map deep-links", () => {
   it("every editorial card opens /map with a built crawl polyline", () => {

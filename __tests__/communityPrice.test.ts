@@ -19,6 +19,11 @@ import {
   validateCommunityPrice,
   type CommunityPrice,
 } from "@/lib/communityPrice";
+import {
+  CATEGORY_META,
+  isMapLensDrinkCategory,
+  MAP_LENS_DRINK_CATEGORIES,
+} from "@/lib/drinks";
 
 // The shared trust boundary: the submit UI and /api/price-submit run THIS
 // validator, so these cases pin the one contract both sides obey. A price that
@@ -307,12 +312,28 @@ describe("paintsMap", () => {
 });
 
 describe("communityReachNote", () => {
-  it("promises the map only for the pint", () => {
+  it("promises the default pint map only for beer", () => {
     expect(communityReachNote("beer")).toMatch(/moves the map/i);
-    for (const category of SUBMITTABLE_DRINK_CATEGORIES) {
+  });
+
+  it("promises a drink-lens colour for map-lens categories other than beer", () => {
+    for (const category of MAP_LENS_DRINK_CATEGORIES) {
       if (category === "beer") continue;
-      expect(communityReachNote(category)).not.toMatch(/moves the map/i);
+      const note = communityReachNote(category);
+      const lens = CATEGORY_META[category].label.toLocaleLowerCase("en-GB");
+      expect(note).toMatch(/colours the map/i);
+      expect(note).toContain(`${lens} lens`);
+      expect(note).not.toMatch(/moves the map/i);
+      expect(note).not.toMatch(/pub's page/i);
+    }
+  });
+
+  it("keeps page-only wording for submit-only non-lens categories", () => {
+    for (const category of SUBMITTABLE_DRINK_CATEGORIES) {
+      if (isMapLensDrinkCategory(category)) continue;
       expect(communityReachNote(category)).toMatch(/pub's page/i);
+      expect(communityReachNote(category)).not.toMatch(/colours the map/i);
+      expect(communityReachNote(category)).not.toMatch(/moves the map/i);
     }
   });
 
@@ -327,6 +348,8 @@ describe("communityReachNote", () => {
     for (const category of SUBMITTABLE_DRINK_CATEGORIES) {
       if (category === "beer") continue;
       expect(communityReachNote(category, "mark")).not.toMatch(/moves the map/i);
+      expect(communityReachNote(category, "mark")).not.toMatch(/colours the map/i);
+      expect(communityReachNote(category, "mark")).toMatch(/pub's page/i);
     }
   });
 });

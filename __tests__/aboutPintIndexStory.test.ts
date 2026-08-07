@@ -144,6 +144,7 @@ describe("About outings story (Wave S1)", () => {
     expect(html).toContain("founder-led by");
     expect(html).toContain("Karan Manoharan");
     expect(html).toContain("one map for nights out and daytime hangs");
+    expect(html).not.toMatch(/small team/iu);
     expect(html).not.toMatch(/\b(journey|unlock|seamless|curated|discover|elevate)\b/iu);
     expect(html).not.toMatch(/co-founder|Discord|thousands of/iu);
     expect(html).not.toContain("!");
