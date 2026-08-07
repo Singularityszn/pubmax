@@ -40,6 +40,23 @@ function priceAndZeroProof(
   return { score, reasons };
 }
 
+/** Soft boost for directory-matched Spoons; never invents a price. */
+export const WETHERSPOONS_DIRECTORY_PREFER_BOOST = 4;
+
+function wetherspoonsDirectoryPrefer(
+  venue: ConciergeVenue,
+  context: NightContext,
+  matchedIds: ReadonlySet<string> | undefined,
+): ScoreAccumulator {
+  if (!context.wetherspoonsPreferred || !matchedIds?.has(venue.id)) {
+    return { score: 0, reasons: [] };
+  }
+  return {
+    score: WETHERSPOONS_DIRECTORY_PREFER_BOOST,
+    reasons: ["matched the first-party J D Wetherspoon directory"],
+  };
+}
+
 function occasionFit(venue: ConciergeVenue, context: NightContext): ScoreAccumulator {
   const reasons: string[] = [];
   let score = 0;
@@ -121,9 +138,11 @@ export function scoreVenueForPlan(
   signalClaims: readonly NightSignalClaim[],
   weather: PlanningWeather | null,
   naLensPrices?: ReadonlyMap<string, MapLensPrice>,
+  wetherspoonsMatchedIds?: ReadonlySet<string>,
 ): { score: number; reasons: string[] } {
   const pieces = [
     priceAndZeroProof(venue, context, naLensPrices),
+    wetherspoonsDirectoryPrefer(venue, context, wetherspoonsMatchedIds),
     occasionFit(venue, context),
     atmosphereFit(venue, context, weather),
     liveSignals(context, tonightEvents, signalClaims),

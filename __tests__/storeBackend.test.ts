@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  createDualBackendStore,
   createFailSoftGuard,
   errorMessage,
   isMissingTableSchema,
@@ -22,6 +23,28 @@ describe("storeBackend", () => {
       process.env.SUPABASE_URL = "https://example.supabase.co";
       process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
       expect(selectStore(memory, supabase)).toBe(supabase);
+    } finally {
+      if (prevUrl === undefined) delete process.env.SUPABASE_URL;
+      else process.env.SUPABASE_URL = prevUrl;
+      if (prevKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      else process.env.SUPABASE_SERVICE_ROLE_KEY = prevKey;
+    }
+  });
+
+  it("createDualBackendStore curries selectStore into a zero-arg getter", () => {
+    type Backend = { kind: "memory" | "supabase" };
+    const memory: Backend = { kind: "memory" };
+    const supabase: Backend = { kind: "supabase" };
+    const getStore = createDualBackendStore(memory, supabase);
+    const prevUrl = process.env.SUPABASE_URL;
+    const prevKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    try {
+      delete process.env.SUPABASE_URL;
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      expect(getStore()).toBe(memory);
+      process.env.SUPABASE_URL = "https://example.supabase.co";
+      process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
+      expect(getStore()).toBe(supabase);
     } finally {
       if (prevUrl === undefined) delete process.env.SUPABASE_URL;
       else process.env.SUPABASE_URL = prevUrl;

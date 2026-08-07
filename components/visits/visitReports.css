@@ -11,6 +11,16 @@
   border-top: 1px solid var(--color-border, var(--line, rgba(0, 0, 0, 0.12)));
 }
 
+/* Overview peek: same lane, tighter so it sits under the action strip. */
+.visitReportPanel--peek {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+}
+
+.visitReportPanel--peek .visitReportRow {
+  padding: 0.65rem 0.75rem;
+}
+
 .visitReportHead,
 .visitReportCardHead,
 .visitReportByline {

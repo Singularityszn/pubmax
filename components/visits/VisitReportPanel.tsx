@@ -4,7 +4,7 @@
 // contributor-attributed accounts newest first and opens one compact composer.
 // A row is a claim about one dated visit, never a score or verified venue fact.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
@@ -30,6 +30,7 @@ import {
   type Seating,
   type ServiceWait,
   type VisitReportDTO,
+  type VisitReportReadStatus,
 } from "@/lib/visitReports";
 
 import {
@@ -41,6 +42,11 @@ import {
 
 import "./visitReports.css";
 
+/** Newest accounts shown on the Overview peek before Lore owns the full lane. */
+export const VISIT_REPORT_PEEK_LIMIT = 2;
+
+export type VisitReportPanelMode = "full" | "peek";
+
 export type VisitReportPanelProps = {
   venueId: string;
   venueName: string;
@@ -50,6 +56,16 @@ export type VisitReportPanelProps = {
    * never unmounts, so a half-written account survives a trip to another tab.
    */
   active?: boolean;
+  /**
+   * "peek" is the Overview read-only strip (newest one or two accounts, or an
+   * honest empty/degraded line). "full" keeps the Story/Lore composer + list.
+   */
+  mode?: VisitReportPanelMode;
+  /**
+   * Opens the full Visit Report surface on Lore. Peek mode only; Overview
+   * wires this to the inspector tab switch.
+   */
+  onOpenFull?: () => void;
 };
 
 export function visitReportComposerMode(
@@ -58,6 +74,31 @@ export function visitReportComposerMode(
 ): "open" | "closed" | "sign_in_required" {
   if (!accountId) return "sign_in_required";
   return open ? "open" : "closed";
+}
+
+/** Empty-list copy for a finished venue read. Degraded never collapses to "no visits". */
+export function visitReportEmptyCopy(status: VisitReportReadStatus): string {
+  if (status === "ready") {
+    return "No visits have been written up here yet.";
+  }
+  return "We couldn't check the visit notes here just now.";
+}
+
+/** Peek keeps the newest one or two; the full lane lists every returned account. */
+export function visitReportsForPanel(
+  reports: VisitReportDTO[],
+  mode: VisitReportPanelMode,
+): VisitReportDTO[] {
+  return mode === "peek" ? reports.slice(0, VISIT_REPORT_PEEK_LIMIT) : reports;
+}
+
+export function visitReportPeekAffordanceLabel(
+  read: VisitReportVenueRead | null,
+): string {
+  if (read === null) return "Open Lore";
+  if (read.reports.length > 0) return "More on Lore";
+  if (read.status === "ready") return "Write yours on Lore";
+  return "Open Lore";
 }
 
 const BUSYNESS_LABELS: Record<Busyness, string> = {
@@ -124,11 +165,14 @@ function VisitReportRow({
   flagged,
   flagging,
   onFlag,
+  readOnly = false,
 }: {
   report: VisitReportDTO;
   flagged: boolean;
   flagging: boolean;
   onFlag: (id: string) => void;
+  /** Peek strips reader actions; the full Lore lane keeps flagging. */
+  readOnly?: boolean;
 }) {
   const details = reportDetails(report);
   return (
@@ -148,15 +192,17 @@ function VisitReportRow({
           ))}
         </ul>
       ) : null}
-      <button
-        type="button"
-        className="visitReportFlag"
-        disabled={flagged || flagging}
-        onClick={() => onFlag(report.id)}
-        aria-label={`Report ${report.handle}'s visit account`}
-      >
-        {flagged ? "Reported" : flagging ? "Reporting…" : "Report"}
-      </button>
+      {readOnly ? null : (
+        <button
+          type="button"
+          className="visitReportFlag"
+          disabled={flagged || flagging}
+          onClick={() => onFlag(report.id)}
+          aria-label={`Report ${report.handle}'s visit account`}
+        >
+          {flagged ? "Reported" : flagging ? "Reporting…" : "Report"}
+        </button>
+      )}
     </article>
   );
 }
@@ -202,13 +248,17 @@ export default function VisitReportPanel({
   venueId,
   venueName,
   active = true,
+  mode = "full",
+  onOpenFull,
 }: VisitReportPanelProps) {
   return (
     <VenueVisitReports
-      key={venueId}
+      key={`${venueId}:${mode}`}
       venueId={venueId}
       venueName={venueName}
       active={active}
+      mode={mode}
+      onOpenFull={onOpenFull}
     />
   );
 }
@@ -217,7 +267,10 @@ function VenueVisitReports({
   venueId,
   venueName,
   active = true,
+  mode = "full",
+  onOpenFull,
 }: VisitReportPanelProps) {
+  const peek = mode === "peek";
   const now = new Date();
   const latest = latestVisitedAt(now);
   // The composer MIRRORS the server's window (lib/visitReports); it never
@@ -261,11 +314,8 @@ function VenueVisitReports({
   const serviceWait = draft?.serviceWait ?? null;
   const note = draft?.note ?? "";
 
-  const requested = useRef(false);
-
   useEffect(() => {
-    if (!active || requested.current) return;
-    requested.current = true;
+    if (!active) return;
     let cancelled = false;
     void Promise.resolve().then(async () => {
       const nextRead = await fetchVisitReports(venueId);
@@ -372,19 +422,35 @@ function VenueVisitReports({
     }
   }
 
+  const headingId = peek
+    ? `visitReports-peek-${venueId}`
+    : `visitReports-${venueId}`;
+  const visibleReports =
+    read === null ? [] : visitReportsForPanel(read.reports, mode);
+
   return (
     <section
-      className="visitReportPanel"
-      aria-labelledby={`visitReports-${venueId}`}
+      className={peek ? "visitReportPanel visitReportPanel--peek" : "visitReportPanel"}
+      aria-labelledby={headingId}
     >
       <div className="visitReportHead">
         <div>
           <span className="visitReportLabel">On the night</span>
-          <h3 id={`visitReports-${venueId}`} className="visitReportTitle">
+          <h3 id={headingId} className="visitReportTitle">
             Visits, written up
           </h3>
         </div>
-        {composerMode !== "open" ? (
+        {peek ? (
+          onOpenFull ? (
+            <button
+              type="button"
+              className="visitReportOpen"
+              onClick={onOpenFull}
+            >
+              {visitReportPeekAffordanceLabel(read)}
+            </button>
+          ) : null
+        ) : composerMode !== "open" ? (
           <button
             type="button"
             className="visitReportOpen"
@@ -408,29 +474,24 @@ function VenueVisitReports({
         <p className="visitReportEmpty" role="status">
           Checking visit notes.
         </p>
-      ) : read.reports.length > 0 ? (
+      ) : visibleReports.length > 0 ? (
         <div className="visitReportList">
-          {read.reports.map((report) => (
+          {visibleReports.map((report) => (
             <VisitReportRow
               key={report.id}
               report={report}
               flagged={flaggedIds.has(report.id)}
               flagging={flaggingId === report.id}
               onFlag={(id) => void flag(id)}
+              readOnly={peek}
             />
           ))}
         </div>
-      ) : read.status === "ready" ? (
-        <p className="visitReportEmpty">
-          No visits have been written up here yet.
-        </p>
       ) : (
-        <p className="visitReportEmpty">
-          We couldn&apos;t check the visit notes here just now.
-        </p>
+        <p className="visitReportEmpty">{visitReportEmptyCopy(read.status)}</p>
       )}
 
-      {composerMode === "open" ? (
+      {!peek && composerMode === "open" ? (
         <div className="visitReportCard">
           <div className="visitReportCardHead">
             <div>

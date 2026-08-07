@@ -11,7 +11,7 @@
 // A stamp is metadata only (feed id + when it was revalidated + how many rows
 // were servable + an optional note). No user data, no PII.
 
-import { createFailSoftGuard, selectStore } from "@/lib/storeBackend";
+import { createDualBackendStore, createFailSoftGuard } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
 export type FeedFreshnessStamp = {
@@ -120,9 +120,10 @@ export const supabaseFeedFreshnessStore: FeedFreshnessStore = {
 };
 
 /** The single backend selection point (mirrors the other stores). */
-export function feedFreshnessStore(): FeedFreshnessStore {
-  return selectStore(memoryFeedFreshnessStore, supabaseFeedFreshnessStore);
-}
+export const feedFreshnessStore = createDualBackendStore(
+  memoryFeedFreshnessStore,
+  supabaseFeedFreshnessStore,
+);
 
 /** Test-only: clear the in-memory stamps and warn dedupe. */
 export function __resetFeedFreshnessStore(): void {

@@ -75,9 +75,13 @@
 }
 
 .contributionGatePrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--brass);
   background: var(--brass);
   color: var(--color-on-accent);
+  text-decoration: none;
 }
 
 .contributionGateClose {

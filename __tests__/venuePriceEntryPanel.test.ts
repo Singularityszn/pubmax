@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import VenuePriceEntryPanel from "@/components/map/inspector/VenuePriceEntryPanel";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
 
 const authState = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
@@ -103,6 +104,11 @@ describe("price contribution auth destination", () => {
     expect(html).toContain(
       'aria-label="Price of a beer at Fixture Arms, in pounds"',
     );
+    // Coffee is a first-class submit chip beside soft-drink / alcohol-free.
+    expect(SUBMITTABLE_DRINK_CATEGORIES).toContain("coffee");
+    expect(html).toContain(">Coffee<");
+    expect(html).toContain(">Soft drinks<");
+    expect(html).toContain(">Alcohol-free<");
     expect(html).toContain("What drinkers noticed");
     expect(html).toContain("Add what you noticed");
     expect(html).not.toContain("Sign in to add a price");

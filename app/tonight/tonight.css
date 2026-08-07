@@ -499,6 +499,12 @@
   outline-offset: 2px;
 }
 
+/* Quiet-pint module — after the listing spine, before thin-night CTAs. Spacing
+   only; the card owns its chrome via TodayQuietPintCard's sheet. */
+.tonightQuietPint {
+  margin: 28px 0 0;
+}
+
 /* Thin-night alternatives — fills the space a short (or empty) listing leaves
    behind with the three things still genuinely useful tonight. Same card
    idiom as .tonightRow so it reads as part of the page, not a bolted-on ad. */

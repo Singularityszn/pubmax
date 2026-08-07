@@ -5,8 +5,8 @@
 //   - no fs, no serverEnv, no DOM, no clock of its own (every function takes
 //     `now`), so it is hermetically unit-testable with fixed dates, and
 //   - shaped as a structural derivation over (candidates, prices, now) rather
-//     than over any one surface's types, so /tonight can adopt the same lens
-//     later without importing anything /today-specific.
+//     than over any one surface's types, so /today and /tonight share the lens
+//     without either importing the other's page types.
 //
 // The honesty rules the rest of the app lives by hold here:
 //   - heritage-cited only: a candidate whose only fact is seed example material
@@ -23,6 +23,7 @@ import { estimateBusyness } from "@/lib/busyness";
 import type { HeritageFact } from "@/lib/heritageFacts";
 import { eraStartYear, heritageSourceLabel, listedBadge } from "@/lib/historicFilter";
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 
 /** The calm cohort sees a tight handful, not a wall. Between MIN and LIMIT. */
 export const QUIET_PINT_LIMIT = 5;
@@ -70,7 +71,7 @@ export type QuietPintRow = {
   quietLabel: string;
   /** "£4.80" when a verified price exists for this venue, else null. */
   priceLabel: string | null;
-  /** Deep link to the venue on the map (the /map?venue= pattern). */
+  /** Deep link to the venue on the map ({@link venueMapUrl}). */
   mapHref: string;
 };
 
@@ -199,7 +200,7 @@ export function buildQuietPint(input: BuildQuietPintInput): QuietPintModule | nu
     sourceRef: typeof best.sourceRef === "string" && best.sourceRef.trim() ? best.sourceRef : null,
     quietLabel,
     priceLabel: priceLabel(priceById.get(candidate.venueId)),
-    mapHref: `/map?venue=${encodeURIComponent(candidate.venueId)}`,
+    mapHref: venueMapUrl(candidate.venueId),
   }));
 
   return { weekdayName, rows };

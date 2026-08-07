@@ -353,7 +353,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     page,
   }) => {
     await page.goto("/map");
-    const planButton = page.getByRole("button", { name: "Plan tonight" }).first();
+    const planButton = page.getByRole("button", { name: "Plan an outing" }).first();
     await expect(planButton).toBeVisible({ timeout: 30_000 });
 
     for (const theme of ["light", "dark"] as const) {

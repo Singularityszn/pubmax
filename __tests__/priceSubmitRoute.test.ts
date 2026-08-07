@@ -691,6 +691,34 @@ describe("GET /api/price-submit", () => {
     ).toBe(400);
   });
 
+  it("records soft-drink, alcohol-free and coffee on the same venue", async () => {
+    const venueId = "venue-xjf3n0";
+    for (const entry of [
+      { drinkCategory: "soft-drink", priceGbp: 2.8 },
+      { drinkCategory: "alcohol-free", priceGbp: 4.6 },
+      { drinkCategory: "coffee", priceGbp: 2.5 },
+    ] as const) {
+      const res = await POST(post({ venueId, ...entry }));
+      expect(res.status, entry.drinkCategory).toBe(201);
+      const data = (await res.json()) as PriceBody;
+      expect(data.ok).toBe(true);
+      expect(data.price).toMatchObject({
+        venueId,
+        drinkCategory: entry.drinkCategory,
+        priceGbp: entry.priceGbp,
+        source: "community",
+      });
+    }
+
+    const prices = await readCommunityPrices(venueId);
+    expect(
+      prices.map((row) => row.drinkCategory).sort(),
+    ).toEqual(["alcohol-free", "coffee", "soft-drink"]);
+    expect(prices.find((row) => row.drinkCategory === "coffee")?.priceGbp).toBe(
+      2.5,
+    );
+  });
+
   it("returns the no-alcohol category index without beer rows", async () => {
     const venueId = "venue-xjf3n0";
     await POST(post({

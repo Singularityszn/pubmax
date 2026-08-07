@@ -76,6 +76,14 @@ describe("checkInStore (memory)", () => {
     expect(await store.listByHandles(["karan"])).toEqual([]);
   });
 
+  it("round-trips a no-area check-in as areaSlug: null (the beacon shape)", async () => {
+    const store = checkInStore();
+    const created = await store.create(input({ handle: "karan", areaSlug: null, note: null }));
+    expect(created.areaSlug).toBeNull();
+    const [row] = await store.listByHandles(["karan"]);
+    expect(row.areaSlug).toBeNull();
+  });
+
   it("deleteForHandle removes every check-in a handle authored (cascade helper)", async () => {
     const store = checkInStore();
     await store.create(input({ handle: "karan" }));

@@ -324,9 +324,12 @@ export function getLateFoodForArea(
   tags: readonly string[] = [],
   options: RankingOptions = {},
 ): LateFoodTerminal[] {
+  // Generic "food" / "meal" / "eat" only mean food was requested. They are not
+  // cuisine filters: matching them against name would silently empty the
+  // shortlist for a "food then a soft drink" outing.
   const normalizedTags = tags
     .map((tag) => tag.trim().toLowerCase())
-    .filter(Boolean);
+    .filter((tag) => tag.length > 0 && !["food", "meal", "eat"].includes(tag));
   const requestedAt = options.at
     ? options.at instanceof Date
       ? options.at

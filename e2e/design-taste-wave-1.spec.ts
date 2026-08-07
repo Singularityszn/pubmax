@@ -119,19 +119,26 @@ test.describe("desktop taste wave 1", () => {
       const emptyColours = await empty.evaluate((element) => {
         const action = element.querySelector<HTMLElement>(".feedEmptyPrimary");
         const eyebrow = element.querySelector<HTMLElement>(".emptyStateEyebrow");
+        const stamp = element.querySelector<HTMLElement>(".emptyStateStamp");
         const accentProbe = document.createElement("span");
         accentProbe.style.backgroundColor = "var(--brass)";
         document.body.append(accentProbe);
+        const style = getComputedStyle(element);
         const result = {
           action: action ? getComputedStyle(action).backgroundColor : "",
           accent: getComputedStyle(accentProbe).backgroundColor,
           eyebrow: eyebrow ? getComputedStyle(eyebrow).color : "",
+          borderStyle: style.borderStyle,
+          stampHidden: stamp?.getAttribute("aria-hidden") === "true",
         };
         accentProbe.remove();
         return result;
       });
       expect(emptyColours.action).toBe(emptyColours.accent);
       expect(emptyColours.eyebrow).not.toBe(emptyColours.accent);
+      // Pressed paper: solid edge, never the dashed upload-zone look.
+      expect(emptyColours.borderStyle).not.toContain("dashed");
+      expect(emptyColours.stampHidden).toBe(true);
 
       await page.goto("/discover");
       const actions = page.locator(".editorialLink");

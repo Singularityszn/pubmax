@@ -36,6 +36,7 @@ const CONTEXT_KEYS = [
   "budget",
   "budgetLimitPence",
   "zeroProof",
+  "wetherspoonsPreferred",
   "atmosphere",
   "foodNeeds",
   "accessibility",
@@ -186,6 +187,10 @@ function parseContext(value: unknown): Partial<NightContext> | null | undefined 
       case "zeroProof":
         if (typeof item !== "boolean") return undefined;
         result.zeroProof = item;
+        break;
+      case "wetherspoonsPreferred":
+        if (typeof item !== "boolean") return undefined;
+        result.wetherspoonsPreferred = item;
         break;
       case "atmosphere":
       case "foodNeeds":

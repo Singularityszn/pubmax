@@ -95,6 +95,46 @@
   color: var(--ink-soft);
 }
 
+.tourLegend {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.tourLegendRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 28px;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.tourLegendRow .mapPriceDot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  flex: 0 0 auto;
+}
+
+.tourLegendRow .mapPriceDot.green {
+  background: var(--pint);
+}
+
+.tourLegendRow .mapPriceDot.amber {
+  background: var(--amber);
+}
+
+.tourLegendRow .mapPriceDot.red {
+  background: var(--brick);
+}
+
+.tourLegendRow .mapPriceDot.grey {
+  background: color-mix(in srgb, var(--muted) 84%, transparent);
+}
+
 .tourDots {
   display: flex;
   gap: var(--space-2);
@@ -194,6 +234,20 @@
   .tourBody {
     font-size: var(--text-sm);
     line-height: 1.4;
+  }
+
+  .tourLegend {
+    margin-top: var(--space-2);
+    gap: var(--space-1);
+  }
+
+  .tourLegendRow {
+    min-height: 24px;
+    font-size: var(--text-xs);
+  }
+
+  .tourActions {
+    margin-top: var(--space-3);
   }
 
   .tourDots {

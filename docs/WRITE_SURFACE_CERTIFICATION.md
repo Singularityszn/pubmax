@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 112 mutating handlers across 92 route files.** Each exported
+> **Inventory: 114 mutating handlers across 92 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -19,6 +19,7 @@ Protection in a sibling method cannot certify another method.
 
 <!-- mutation-handler-inventory:start -->
 - `DELETE app/api/admin/session`
+- `DELETE app/api/check-ins`
 - `DELETE app/api/crawls/[slug]`
 - `DELETE app/api/night-stories/[id]/contributors`
 - `DELETE app/api/plans/[id]/group-prefs`
@@ -425,27 +426,47 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   `truncate public.push_tokens` is a safe reset — devices re-register on next
   boot.
 
-### `app/api/check-ins` — "we're out" check-in (route 63)
+### `app/api/check-ins` — "we're out" check-in, including the out-tonight beacon (route 63)
 
 - **Route / method:** `POST app/api/check-ins/route.ts` (Social Loop v1,
-  `feat/social-loop-v1`). The route also exports a read-only `GET` (the "Your
-  lot" / area read) which is NOT a mutating verb and is not counted.
+  `feat/social-loop-v1`) creates a check-in; `DELETE app/api/check-ins/route.ts`
+  (`fm/out-tonight-beacon`) ends every check-in the caller authored ("turn off").
+  The route also exports a read-only `GET` (the "Your lot" / area read) which is
+  NOT a mutating verb and is not counted.
+- **The out-tonight beacon is this same check-in, not a new table.** A beacon is
+  a check-in with no note and visibility `friends` — the You-page toggle
+  (`components/profile/OutTonightToggle.tsx`) is a thin POST/DELETE surface over
+  this route, and the crew line (`components/profile/OutTonightCrewLine.tsx`)
+  reads it back through `GET ?viewer=`. Two tables both answering "is this
+  handle out" would be two sources of truth.
 - **Validation:** `validateCheckInInput` (`lib/checkIn.ts`) — a normalised handle,
-  an area that must be a known night-area slug (area-level location only, never a
-  coordinate), an optional trimmed venue tag, a cleaned/capped note, and a
-  visibility from the `{friends, area}` allowlist (defaults to `friends`).
-  Malformed bodies 400 before the store is touched.
+  an OPTIONAL area (a blank area normalises to `null`, a plain "out tonight"
+  signal; a named area must be a known night-area slug — area-level location
+  only, never a coordinate, and an unknown area is rejected, never coerced), an
+  optional trimmed venue tag, a cleaned/capped note, and a visibility from the
+  `{friends, area}` allowlist (defaults to `friends`). Malformed bodies 400
+  before the store is touched.
 - **Rate limit (boundary):** durable per-handle + hashed-IP `isLimited` with key
   `check-in:${handle}:${hashIp(clientIp(request))}` (raw IP never keyed) — 429 on
-  exceed. This is the certification boundary (rate_limit class).
+  exceed, on both POST and DELETE. This is the certification boundary
+  (rate_limit class).
 - **Auth stance:** the author is the self-asserted handle resolved through
   `resolveMessageHandle` (JWT-linked handle wins when signed in) and gated by
-  `gateHandleAction` — the same demo identity boundary as a pint drop or follow.
+  `gateHandleAction` — the same demo identity boundary as a pint drop or follow,
+  on both POST and DELETE.
+- **DELETE stance:** deliberately skips `socialFreezeResponse()` — turning off is
+  safety-reducing, so a solo-operator emergency freeze of social writes must
+  never block it. It hard-deletes every check-in the caller authored
+  (`deleteForHandle`); a check-in is single-purpose (one "we're out" state per
+  handle) and short-lived (12h TTL), so no extra scoping is needed. Idempotent:
+  deleting with no active check-in still returns 200.
 - **Privacy:** friends-only by default; the single choke `lib/socialFeed.ts`
   decides which check-ins reach which viewer (mutual follows only), so a
   friends-only post can never reach a public query. Rows auto-expire after 12h
-  (`expires_at`). Durable rows live in `public.check_ins` (migration 0043, RLS on,
-  anon/authenticated revoked); `truncate public.check_ins` is a safe reset.
+  (`expires_at`; `CHECK_IN_TTL_MS` is the one law — no second TTL constant).
+  Durable rows live in `public.check_ins` (migration 0043; `area_slug` made
+  nullable by migration 0083, RLS on, anon/authenticated revoked);
+  `truncate public.check_ins` is a safe reset.
 - **Related privacy change (same migration):** 0043 drops the `follows_public_read`
   policy so the follow graph is service-role-only — follow edges are private to the
   two parties and no follower counts are public.

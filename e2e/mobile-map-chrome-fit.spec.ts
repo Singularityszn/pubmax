@@ -86,7 +86,7 @@ async function openPhoneMap(
   ).toHaveCount(0);
   await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Describe your night" }),
+    page.getByRole("button", { name: "Describe the outing" }),
   ).toBeVisible();
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 }

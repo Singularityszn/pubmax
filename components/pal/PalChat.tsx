@@ -455,7 +455,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
 
       <form className="palChatComposer" onSubmit={onSubmit}>
         <label className="palChatSr" htmlFor={inputId}>
-          Describe the night
+          Describe the outing
         </label>
         <input
           id={inputId}

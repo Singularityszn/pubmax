@@ -1,16 +1,41 @@
 /* Shared empty-state pattern (see EmptyState.tsx). Token-driven only — no
    hard-coded colours — so it flips light/dark for free and reads correctly on
-   every surface that uses it (borough, feed, crawls, profile). */
+   every surface that uses it (borough, feed, crawls, profile).
+
+   Material: pressed paper with a quiet brass ink-stamp, not a dashed upload
+   zone. Surface tint + inset press shadow only — no glow, no second accent. */
 
 .emptyState {
+  position: relative;
   width: 100%;
   max-width: 480px;
   margin: 0 auto;
   padding: 36px 24px;
-  border: 1px dashed var(--line);
+  border: 1px solid color-mix(in srgb, var(--line) 82%, var(--brass) 18%);
   border-radius: var(--radius-lg, 16px);
-  background: var(--panel);
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--panel-raised) 94%, var(--brass) 6%) 0%,
+      var(--panel-raised) 46%,
+      color-mix(in srgb, var(--panel) 90%, var(--ink-deep) 10%) 100%
+    );
+  box-shadow: var(--shadow-inset-press);
   text-align: center;
+}
+
+/* Tiny flat brass seal — decorative only. Never tilt: press-tilt stays the
+   price signature (docs/DESIGN_SYSTEM.md). */
+.emptyStateStamp {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 0 auto 14px;
+  border: var(--ink-stamp-border);
+  border-radius: var(--ink-stamp-radius);
+  box-shadow: var(--ink-stamp-shadow);
+  background: color-mix(in srgb, var(--panel-raised) 88%, var(--brass) 12%);
+  opacity: 0.88;
 }
 
 .emptyStateEyebrow {
@@ -77,8 +102,29 @@
   outline-offset: 2px;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .emptyStateStamp {
+    animation: emptyStateStampPress var(--duration-slow, 0.28s) var(--ease-out-strong, ease) both;
+  }
+}
+
+@keyframes emptyStateStampPress {
+  from {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+  to {
+    opacity: 0.88;
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .emptyStateAction :is(a, button) {
     transition: none;
+  }
+
+  .emptyStateStamp {
+    animation: none;
   }
 }

@@ -288,11 +288,11 @@ export default function MapToolbar({
           className={planningOpen ? "planBtn active" : "planBtn"}
           onClick={onTogglePlanning}
           aria-pressed={planningOpen}
-          aria-label={planningOpen ? "Close plan" : "Plan tonight"}
+          aria-label={planningOpen ? "Close plan" : "Plan an outing"}
         >
           <Route size={15} aria-hidden="true" />
           {/* One label only — the old CSS-hidden sibling span still leaked into
-              textContent/AT trees as the "Plan tonightPlan" dual label. */}
+              textContent/AT trees as the "Plan an outingPlan" dual label. */}
           <span className={isMobile === true ? "planBtnShort" : "planBtnFull"}>
             {isMobile === true
               ? planningOpen
@@ -300,7 +300,7 @@ export default function MapToolbar({
                 : "Plan"
               : planningOpen
                 ? "Close plan"
-                : "Plan tonight"}
+                : "Plan an outing"}
           </span>
         </button>
 

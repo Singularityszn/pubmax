@@ -22,7 +22,9 @@ import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
+import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
+import VenueAreaPriceCompare from "@/components/map/VenueAreaPriceCompare";
 import VenueWeatherRecommendations from "@/components/map/VenueWeatherRecommendations";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import { communityStampLabel, communityTrustNote, submitCategoryLabel } from "@/lib/communityPrice";
@@ -38,6 +40,7 @@ import VenueHygiene from "@/components/map/VenueHygiene";
 import VenueGettingThere, {
   type LocationRequestStatus,
 } from "@/components/map/VenueGettingThere";
+import VisitReportPanel from "@/components/visits/VisitReportPanel";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
 import type { CityId } from "@/lib/cities";
 import type { JourneyPoint } from "@/lib/venueJourney";
@@ -46,11 +49,19 @@ import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import {
+  drinkLensEmptyVenueNote,
+  drinkLensPriceNoun,
   NO_ALCOHOL_LENS_PRICE_NOUN,
   type MapExperienceLens,
   type VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
-import { namedLegacyPintPriceSource } from "@/lib/drinks";
+import {
+  CATEGORY_META,
+  namedLegacyPintPriceSource,
+  type DrinkCategory,
+} from "@/lib/drinks";
+import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
+import type { ZonePintIndex } from "@/lib/zones";
 
 function VenuePriceSummary({
   venue,
@@ -197,13 +208,7 @@ function VenuePriceSummary({
  * the first is a fact about the pub, so the three never share a sentence.
  */
 function noAlcoholEmptyNote(status: VenuePriceReadStatus): string {
-  if (status === "ready") {
-    return `No ${NO_ALCOHOL_LENS_PRICE_NOUN} price logged here yet.`;
-  }
-  if (status === "degraded") {
-    return `We could not read this pub's ${NO_ALCOHOL_LENS_PRICE_NOUN} prices just now.`;
-  }
-  return `Checking ${NO_ALCOHOL_LENS_PRICE_NOUN} prices logged here.`;
+  return drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, status);
 }
 
 export default function VenueOverviewTab({
@@ -216,6 +221,7 @@ export default function VenueOverviewTab({
   latestPintDropAt,
   communityPrices,
   experienceLens,
+  drinkLensCategory = null,
   onToggleStop,
   presenceState,
   markPresenceHere,
@@ -224,10 +230,12 @@ export default function VenueOverviewTab({
   onRequestLocation,
   onClearLocation,
   onStartFirstDrop,
+  onOpenVisitReports,
   priceEntryAllowed,
   priceSignInRequested,
   priceAuthLoading,
   priceFocusRequest,
+  zoneIndex,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -242,6 +250,8 @@ export default function VenueOverviewTab({
   /** Community price layer - the dated submission row plus the submit card. */
   communityPrices: CommunityPricesState;
   experienceLens: MapExperienceLens;
+  /** Selected-drink map lens (e.g. coffee). Never the no-alcohol experience. */
+  drinkLensCategory?: DrinkCategory | null;
   onToggleStop: (id: string) => void;
   presenceState: PresenceState;
   markPresenceHere: () => void;
@@ -252,10 +262,15 @@ export default function VenueOverviewTab({
   /** Opens the existing Pint Drop composer prefilled for this venue (Pints
    *  tab + composer open). Fired by the first-drop nudge on unpriced venues. */
   onStartFirstDrop: () => void;
+  /** Opens Lore, where the full Visit Report composer and list live. */
+  onOpenVisitReports: () => void;
   priceEntryAllowed: boolean;
   priceSignInRequested: boolean;
   priceAuthLoading: boolean;
   priceFocusRequest: number;
+  /** Per-zone median pint index from the map's priced pubs — zone fallback
+   *  when the Pint Index league has no borough row for this pub. */
+  zoneIndex?: ZonePintIndex | null;
 }) {
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
@@ -295,17 +310,32 @@ export default function VenueOverviewTab({
       row.drinkCategory === "soft-drink" ||
       row.drinkCategory === "alcohol-free",
   );
+  const drinkLensRows = drinkLensCategory
+    ? communityRows?.filter((row) => row.drinkCategory === drinkLensCategory)
+    : undefined;
   const communityPrice = freshestCommunityPrice(
     experienceLens === "food"
       ? undefined
       : experienceLens === "no-alcohol"
         ? noAlcoholRows
-        : communityRows,
+        : drinkLensCategory
+          ? drinkLensRows
+          : communityRows,
   );
+  const drinkLensNoun = drinkLensCategory
+    ? drinkLensPriceNoun(drinkLensCategory)
+    : null;
   // The sheet is deliberately UNGATED - it shows what people reported, so an
   // uncorroborated or aged-out figure still renders here in full. What changes
   // is that the row admits its standing instead of implying it moved the map.
   const communityTrustStanding = communityPrice ? communityTrustNote(communityPrice) : "";
+
+  const overviewPintGbp = overviewDisplayablePintGbp({
+    cheapestPrice: venue.cheapestPrice,
+    latestContributorPrice,
+    latestPintDropAt,
+    communityRows: communityRows,
+  });
 
   // Sourced attribution from mergePriceUpdates (optional field on the runtime
   // venue object). Absent when community is fresher or no refresh exists.
@@ -325,18 +355,28 @@ export default function VenueOverviewTab({
     >
       <p className="venueAddress">{venue.address}</p>
       <VenueActionStrip venue={venue} />
-      <Disclosure
-        className="venueOverviewMore"
-        bodyClassName="venueOverviewMoreBody"
-        summary="Details and practical info"
-      >
+      {/* Visit Report peek: newest accounts only. The full composer stays on
+          Lore (VenueStoryTab), so Overview never grows a second rating system. */}
+      <VisitReportPanel
+        venueId={venue.id}
+        venueName={venue.name}
+        mode="peek"
+        active={tab === "overview"}
+        onOpenFull={onOpenVisitReports}
+      />
       {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
-          server-side. Renders nothing for an unmatched pub. */}
+          server-side. Renders nothing for an unmatched pub. Kept above the
+          practical-info disclosure so a matched rating is not buried. */}
       <VenueHygiene
         venueId={venue.id}
         venueName={venue.name}
         address={venue.address}
       />
+      <Disclosure
+        className="venueOverviewMore"
+        bodyClassName="venueOverviewMoreBody"
+        summary="Details and practical info"
+      >
       <VenueGettingThere
         userLocation={userLocation}
         venueLocation={{ lat: venue.latitude, lng: venue.longitude }}
@@ -426,6 +466,18 @@ export default function VenueOverviewTab({
               decision about this venue. Keep them with the optional detail. */}
           <NextBadgeChips />
       </Disclosure>
+      {/* Read-first community observations: character, access and eating sit
+          here so drinkers see them without opening price submit. Authoring
+          stays on the price-entry path below (VenuePriceEntryPanel). The same
+          venue-price read status feeds both, so a failed lookup never words
+          as an empty pub. */}
+      <VenueCommunitySignals
+        venueId={venue.id}
+        venueName={venue.name}
+        signals={communityPrices.signalsByVenueId.get(venue.id) ?? []}
+        readStatus={venueReadStatus}
+        readOnly
+      />
       {/* Tonight's community price sits ATOP the price on record, never
           instead of it: its own row, its own dated badge, and the sourced /
           baseline row below still renders untouched. A submission is an extra
@@ -469,15 +521,27 @@ export default function VenueOverviewTab({
             {noAlcoholEmptyNote(venueReadStatus)}
           </small>
         </div>
+      ) : drinkLensCategory && drinkLensNoun ? (
+        <div className="contributorPrice communityPriceRow">
+          <span>
+            <ClaimBadge kind="baseline" />{" "}
+            {CATEGORY_META[drinkLensCategory].label} prices
+          </span>
+          <small className="communityPriceNote">
+            {drinkLensEmptyVenueNote(drinkLensNoun, venueReadStatus)}
+          </small>
+        </div>
       ) : null}
       {/* Price honesty on overview: community override wins, then sourced
           observation, then baseline-on-record. Never imply a live feed.
           Non-pub venues carry a type-specific anchor (a cocktail, a doner) —
           it renders under its own label with date and source, never as a
-          pint figure. */}
-      {experienceLens !== "no-alcohol" ||
-      venue.kind === "food" ||
-      venue.kind === "restaurant" ? (
+          pint figure. A selected-drink lens already answered above, so a beer
+          baseline must not stand in for coffee (or wine, or soft drink). */}
+      {!drinkLensCategory &&
+      (experienceLens !== "no-alcohol" ||
+        venue.kind === "food" ||
+        venue.kind === "restaurant") ? (
         <VenuePriceSummary
           venue={venue}
           latestContributorPrice={latestContributorPrice}
@@ -491,16 +555,26 @@ export default function VenueOverviewTab({
           against the price on record now. Sits directly under today's price
           because the comparison IS the point. History only - the old figure
           never enters bands, pins, cheapest buckets or the Pint Index
-          (lib/priceHistory.ts). Renders nothing for a pub with no history. */}
-      {experienceLens === "all" ? (
+          (lib/priceHistory.ts). Renders nothing for a pub with no history.
+          Hidden under a drink lens: an old pint does not answer coffee. */}
+      {experienceLens === "all" && !drinkLensCategory ? (
         <VenuePriceThen
           venueId={venue.id}
         // "Now" is only offered where today's figure is a pint. A bar or food
         // venue's cheapestPrice is an anchor price (a cocktail, a dish), so it
         // is withheld rather than compared against an old pint.
-          currentPriceGbp={
-            isPubVenue(venue) ? (latestContributorPrice ?? venue.cheapestPrice) : null
-          }
+          currentPriceGbp={isPubVenue(venue) ? overviewPintGbp : null}
+        />
+      ) : null}
+      {/* Patch yardstick: this pint against the borough Pint Index average, or
+          the fare-zone median when the Index has no row. Same displayable pint
+          stack as the then-and-now block. Renders nothing without a yardstick. */}
+      {experienceLens === "all" && isPubVenue(venue) ? (
+        <VenueAreaPriceCompare
+          priceGbp={overviewPintGbp}
+          primaryBorough={venue.primaryBorough}
+          zone={venue.zone}
+          zoneIndex={zoneIndex}
         />
       ) : null}
       {/* The submission loop itself: pick a drink, type tonight's price, and
@@ -521,6 +595,7 @@ export default function VenueOverviewTab({
           baselinePriceGbp={latestContributorPrice ?? venue.cheapestPrice}
           latestPintDropAt={latestPintDropAt}
           focusRequest={priceFocusRequest}
+          includeSignals={false}
         />
       ) : null}
       {mode === "build" && isPubVenue(venue) ? (

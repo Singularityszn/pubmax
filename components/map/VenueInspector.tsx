@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { ContributionGateDialog } from "@/components/identity/ContributionGateDialog";
 import { type Venue } from "@/lib/venues";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
@@ -17,6 +18,8 @@ import { isPubVenue } from "@/lib/venueKindFilters";
 import type { JourneyPoint } from "@/lib/venueJourney";
 import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import type { DrinkCategory } from "@/lib/drinks";
+import type { ZonePintIndex } from "@/lib/zones";
 import { prefetchLastRide } from "@/lib/lastRideClient";
 import {
   runPriceContributionRequest,
@@ -49,6 +52,14 @@ type VenueInspectorProps = {
   /** Epoch ms of the latest Pint Drop, from the unmerged drop signal - see
    *  VenueOverviewTab, which hands it to the submit receipt. */
   latestPintDropAt?: number | null;
+  /**
+   * Map-authority people-logged pint for share copy: the merged signal the
+   * pins already paint (corroborated community candidate and/or contributor
+   * drop). Never a sheet-only uncorroborated report.
+   */
+  shareLoggedPintGbp?: number | null;
+  /** Epoch ms for shareLoggedPintGbp. */
+  shareLoggedAt?: number | null;
   onToggleStop: (id: string) => void;
   onSelectVenue?: (id: string) => void;
   /**
@@ -85,6 +96,10 @@ type VenueInspectorProps = {
   onRequestLocation: () => void;
   onClearLocation: () => void;
   experienceLens?: MapExperienceLens;
+  /** Selected-drink map lens (e.g. coffee). Never the no-alcohol experience. */
+  drinkLensCategory?: DrinkCategory | null;
+  /** Per-zone median pint index for the Overview area-price compare line. */
+  zoneIndex?: ZonePintIndex | null;
 };
 
 function focusPriceDestination(id: string): void {
@@ -111,6 +126,8 @@ export default function VenueInspector({
   inCrawl,
   latestContributorPrice,
   latestPintDropAt,
+  shareLoggedPintGbp = null,
+  shareLoggedAt = null,
   onToggleStop,
   onSelectVenue,
   onAcceptStop1,
@@ -130,12 +147,15 @@ export default function VenueInspector({
   onRequestLocation,
   onClearLocation,
   experienceLens = "all",
+  drinkLensCategory = null,
+  zoneIndex = null,
 }: VenueInspectorProps) {
   const { dropsByVenueId, setComposerOpen } = pintDrops;
-  const { user, loading: authLoading, configured: authConfigured } = useAuth();
+  const { user, handle, loading: authLoading, configured: authConfigured } = useAuth();
   const [priceSignInVenueId, setPriceSignInVenueId] = useState<string | null>(
     null,
   );
+  const [priceOnboardingOpen, setPriceOnboardingOpen] = useState(false);
   const [priceFocusRequest, setPriceFocusRequest] = useState<{
     venueId: string | null;
     count: number;
@@ -164,7 +184,10 @@ export default function VenueInspector({
     TABS,
     onTabSelect,
   );
-  const { currentShareFeedback, shareVenue } = useVenueShare(venue);
+  const { currentShareFeedback, shareVenue } = useVenueShare(venue, {
+    priceGbp: shareLoggedPintGbp,
+    atMs: shareLoggedAt,
+  });
 
   function startPintDrop() {
     if (!pubVenue) return;
@@ -182,6 +205,14 @@ export default function VenueInspector({
   }, [selectTab, venue.id]);
 
   function requestPriceEntry(): void {
+    // Signed-in but unfinished profile: send to claim before the form, so the
+    // drinker never types a price and only then learns they need a handle.
+    if (authConfigured && user && !handle) {
+      selectTab("overview");
+      setPriceSignInVenueId(null);
+      setPriceOnboardingOpen(true);
+      return;
+    }
     runPriceContributionRequest({
       authConfigured,
       userPresent: Boolean(user),
@@ -287,6 +318,7 @@ export default function VenueInspector({
         latestPintDropAt={latestPintDropAt}
         communityPrices={communityPrices}
         experienceLens={experienceLens}
+        drinkLensCategory={drinkLensCategory}
         onToggleStop={onToggleStop}
         presenceState={presenceState}
         markPresenceHere={markPresenceHere}
@@ -295,7 +327,8 @@ export default function VenueInspector({
         onRequestLocation={onRequestLocation}
         onClearLocation={onClearLocation}
         onStartFirstDrop={startPintDrop}
-        priceEntryAllowed={!authConfigured || Boolean(user)}
+        onOpenVisitReports={() => selectTab("story")}
+        priceEntryAllowed={!authConfigured || Boolean(user && handle)}
         priceSignInRequested={priceSignInVenueId === venue.id}
         priceAuthLoading={authLoading}
         priceFocusRequest={
@@ -303,6 +336,7 @@ export default function VenueInspector({
             ? priceFocusRequest.count
             : 0
         }
+        zoneIndex={zoneIndex}
       />
 
       {/* Pints — the primary tab: demo note, drops list, composer / log bar. */}
@@ -359,6 +393,13 @@ export default function VenueInspector({
         shareVenue={shareVenue}
         currentShareFeedback={currentShareFeedback}
       />
+      {priceOnboardingOpen ? (
+        <ContributionGateDialog
+          mode="onboarding_required"
+          error={null}
+          onClose={() => setPriceOnboardingOpen(false)}
+        />
+      ) : null}
     </section>
   );
 }

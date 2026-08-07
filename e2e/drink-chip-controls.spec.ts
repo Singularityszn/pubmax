@@ -385,7 +385,7 @@ for (const width of [390, 320]) {
     await expect(fullCredit).toContainText("OpenMapTiles");
     await expect(fullCredit).toContainText("Data from OpenStreetMap");
 
-    const plan = page.getByRole("button", { name: "Describe your night" });
+    const plan = page.getByRole("button", { name: "Describe the outing" });
     await expect(plan).toBeVisible();
     const geometry = await page.evaluate(() => {
       const attributionElement = document.querySelector<HTMLElement>(

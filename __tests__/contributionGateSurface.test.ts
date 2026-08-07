@@ -25,6 +25,8 @@ describe("contribution identity gate", () => {
   it("routes incomplete accounts back to handle setup", () => {
     const html = render("onboarding_required");
     expect(html).toContain("Finish account setup");
+    expect(html).toContain("Finish setup");
+    expect(html).toContain('href="/u/you"');
     expect(html).toContain(
       "Choose a public handle and add your date of birth before contributing.",
     );

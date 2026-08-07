@@ -40,6 +40,7 @@ export const ANALYTICS_EVENTS = {
   concierge_ask: [],
   concierge_result_tap: [],
   tour_complete: ["completed"],
+  map_legend_dismissed: [],
   plan_created: ["count"],
   night_description_submitted: ["area", "daypart"],
   planned_night_status_changed: ["status"],
@@ -98,6 +99,9 @@ export const ANALYTICS_EVENTS = {
   // Wave D — sharing is a return-loop signal; alcohol quantity is never
   // represented as progression telemetry.
   poster_shared: ["surface"],
+  // PLG Wave 2 physical QR: a drinker landed on /near from /?src=poster.
+  // No props — the closed name is the whole signal (no free text, no UTM).
+  poster_landing: [],
   // London Capture — reviewed catalogue identifiers and gate codes only.
   district_catalogue_viewed: [],
   district_viewed: ["district", "coverageStatus", "demandWave"],
@@ -185,6 +189,10 @@ export const ANALYTICS_EVENTS = {
   invite_rsvp_submitted: ["status", "isUpdate"],
   invite_reaction_toggled: ["reaction", "active"],
   invite_map_opened: [],
+  // "Out tonight" beacon (You page toggle). No handle and no area ever ride in
+  // these props - only that a crew-only beacon was switched on or off.
+  out_tonight_beacon_on: [],
+  out_tonight_beacon_off: [],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;

@@ -37,6 +37,10 @@ export function shouldShowBandOnboardingChip(input: {
  * suppressed until the visitor dismisses or interacts with the lane (tracked by
  * the caller via `tonightLaneHasRows`, which should go false again once the
  * lane is dismissed/interacted with).
+ *
+ * Landing acquisition W3: defer until the first-map orientation beat
+ * (FirstRunTour band colours) is done, so cold visitors never get three
+ * competing overlays after consent.
  */
 export function shouldShowCuratedOnboarding(input: {
   loaded: boolean;
@@ -54,8 +58,14 @@ export function shouldShowCuratedOnboarding(input: {
   tonightLaneHasRows?: boolean;
   /** Tonight lane is still resolving; it also wins first paint while pending. */
   tonightLanePending?: boolean;
+  /**
+   * First-map orientation (band-colour tour) still pending. When true, curated
+   * crawl waits so at most one orientation surface shows after consent.
+   */
+  mapOrientationPending?: boolean;
 }): boolean {
   if (input.showBandChip) return false;
+  if (input.mapOrientationPending) return false;
   if ((input.curatedCrawlCount ?? 0) <= 0) return false;
   if (input.tonightLaneHasRows || input.tonightLanePending) return false;
   return (

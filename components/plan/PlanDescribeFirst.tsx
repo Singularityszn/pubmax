@@ -2,11 +2,10 @@
 
 import { KeyboardEvent, useState } from "react";
 
-// Suggestion chips are real, working examples. Each string here was posted to
-// /api/plans/generate keyless and returned a priced three-stop route before
-// it was allowed to ship as a chip: an example that 422s is a lie.
-// Verified 2026-08-07 keyless on localhost: classic night chips plus
-// alcohol-free / soft-drink / food / coffee / chill Spoons occasions.
+// Suggestion chips are real generate examples: each string has returned a
+// priced three-stop route keyless before shipping. That proves the route
+// builds; occasion honesty is a separate contract pinned by
+// __tests__/nightPlanning.test.ts (inferNightContext fields per chip label).
 // Dropped: "chill Wetherspoons in Zone 2 for 3" (422 Choose an area).
 export const DESCRIBE_FIRST_CHIPS: readonly string[] = [
   "Quiet in Clapham for 4, not pricey",

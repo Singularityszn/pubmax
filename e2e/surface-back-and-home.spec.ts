@@ -78,7 +78,7 @@ test.describe("every surface offers a way back and a way home", () => {
     await openPhoneMap(page);
     await openSheetFromTopBar(page, "More map controls");
     await page.getByRole("tab", { name: "Layers" }).click();
-    await page.getByRole("button", { name: "Plan tonight" }).first().click();
+    await page.getByRole("button", { name: "Plan an outing" }).first().click();
 
     await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner");
     await expect(back(page)).toHaveCount(1);
@@ -91,7 +91,7 @@ test.describe("every surface offers a way back and a way home", () => {
     await openPhoneMap(page);
     await openSheetFromTopBar(page, "More map controls");
     await page.getByRole("tab", { name: "Layers" }).click();
-    await page.getByRole("button", { name: "Plan tonight" }).first().click();
+    await page.getByRole("button", { name: "Plan an outing" }).first().click();
     await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner");
 
     await back(page).click();
@@ -110,7 +110,7 @@ test.describe("every surface offers a way back and a way home", () => {
     await page.getByRole("tab", { name: "Layers" }).click();
     await expect(page.getByRole("tab", { name: "Layers" })).toHaveAttribute("aria-selected", "true");
 
-    await page.getByRole("button", { name: "Plan tonight" }).first().click();
+    await page.getByRole("button", { name: "Plan an outing" }).first().click();
     await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner");
 
     await back(page).click();
@@ -124,7 +124,7 @@ test.describe("every surface offers a way back and a way home", () => {
     await openPhoneMap(page);
     await openSheetFromTopBar(page, "More map controls");
     await page.getByRole("tab", { name: "Layers" }).click();
-    await page.getByRole("button", { name: "Plan tonight" }).first().click();
+    await page.getByRole("button", { name: "Plan an outing" }).first().click();
     await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner");
 
     await page.goBack();
@@ -138,7 +138,7 @@ test.describe("every surface offers a way back and a way home", () => {
     await openPhoneMap(page);
     await openSheetFromTopBar(page, "More map controls");
     await page.getByRole("tab", { name: "Layers" }).click();
-    await page.getByRole("button", { name: "Plan tonight" }).first().click();
+    await page.getByRole("button", { name: "Plan an outing" }).first().click();
     await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner");
 
     await page.keyboard.press("Escape");
@@ -153,7 +153,7 @@ test.describe("the desktop panels take the same pair", () => {
 
   test("the venue drawer's way out is quiet, and the planner has one at all", async ({ page }) => {
     await openMap(page);
-    await page.getByRole("button", { name: "Plan tonight" }).first().click();
+    await page.getByRole("button", { name: "Plan an outing" }).first().click();
     const planner = page.locator(".mapDrawer.left");
     await expect(planner).toBeVisible();
     // The planner head used to hold a grab handle and nothing else.

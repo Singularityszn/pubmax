@@ -10,6 +10,7 @@
  *   node scripts/evaluate_open_pubs.mjs --download
  *   node scripts/evaluate_open_pubs.mjs --csv fixture.csv --identity curated --limit 20
  *   node scripts/evaluate_open_pubs.mjs --csv open_pubs.csv --report data/generated/open_pubs_eval.json
+ *   node scripts/evaluate_open_pubs.mjs --csv open_pubs.csv --london --report data/generated/open_pubs_london.json
  *
  * See docs/data/OPEN_PUBS.md and docs/data/SOURCE_LEDGER.md.
  */
@@ -29,7 +30,9 @@ import { fileURLToPath } from "node:url";
 
 import {
   OPEN_PUBS_DOWNLOAD_URL,
+  buildLondonCuratedMatchReport,
   evaluateOpenPubsMatches,
+  filterOpenPubsRowsForLondon,
   identityFromOsmPub,
   identityFromSlimVenue,
   parseOpenPubsCsv,
@@ -48,11 +51,13 @@ function printUsage(exitCode = 1) {
 Options:
   --csv PATH          Local Open Pubs CSV (headerless or with fsa_id header)
   --download          Fetch the official zip into data/generated/open_pubs/ and evaluate
-  --identity LAYER    curated | osm | both (default: both)
+  --identity LAYER    curated | osm | both (default: both; forced curated with --london)
   --slim PATH         venues_slim.json (default: public/data/venues_slim.json)
   --osm PATH          uk_osm_pubs.json (default: data/osm/uk/uk_osm_pubs.json)
   --limit N           Evaluate only the first N parsed rows
   --authority NAME    Keep rows whose local_authority equals NAME (case-insensitive)
+  --city london       Filter to Greater London authorities; curated identity only
+  --london            Alias for --city london
   --report PATH       Write JSON report (match rates + sample misses). Still no slim merge
   --help              Show this help
 
@@ -69,6 +74,8 @@ function parseArgs(argv) {
     osm: DEFAULT_OSM,
     limit: null,
     authority: null,
+    city: null,
+    london: false,
     report: null,
     help: false,
   };
@@ -84,11 +91,26 @@ function parseArgs(argv) {
       const n = Number.parseInt(argv[++i] ?? "", 10);
       args.limit = Number.isFinite(n) && n > 0 ? n : null;
     } else if (a === "--authority") args.authority = String(argv[++i] ?? "").trim();
-    else if (a === "--report") args.report = resolve(argv[++i] ?? "");
+    else if (a === "--london") {
+      args.london = true;
+      args.city = "london";
+    } else if (a === "--city") {
+      const city = String(argv[++i] ?? "").trim().toLowerCase();
+      args.city = city || null;
+      if (city === "london") args.london = true;
+    } else if (a === "--report") args.report = resolve(argv[++i] ?? "");
     else if (a.startsWith("-")) {
       console.error(`Unknown flag: ${a}`);
       printUsage(1);
     }
+  }
+  if (args.city && args.city !== "london") {
+    console.error(`--city currently supports only london (got ${args.city})`);
+    process.exit(1);
+  }
+  if (args.london) {
+    // London curated identity report: product slim only, never OSM fill-in.
+    args.identity = "curated";
   }
   if (!["curated", "osm", "both"].includes(args.identity)) {
     console.error(`--identity must be curated | osm | both (got ${args.identity})`);
@@ -161,19 +183,38 @@ function loadIdentityCandidates(args) {
   return candidates;
 }
 
-function formatReport(summary) {
+function formatReport(summary, { london = false } = {}) {
+  const title = london
+    ? "Open Pubs London curated identity report (dry-run; no merge into venues_slim)"
+    : "Open Pubs evaluation (dry-run; no merge into venues_slim)";
   const lines = [
-    "Open Pubs evaluation (dry-run; no merge into venues_slim)",
+    title,
     `  rows read:              ${summary.rowsRead}`,
     `  with coordinates:       ${summary.withCoords}`,
-    `  skipped (no coords):    ${summary.skippedNoCoords}`,
+    `  skipped (no coords):    ${summary.skipped ?? summary.skippedNoCoords}`,
     `  identity candidates:    ${summary.identityCandidates}`,
-    `  matched total:          ${summary.matched} (${summary.matchRateOfCoordsPct}% of coords)`,
-    `    curated:              ${summary.matchedCurated} (${summary.curatedRateOfCoordsPct}%)`,
-    `    osm only:             ${summary.matchedOsm} (${summary.osmOnlyRateOfCoordsPct}%)`,
-    `  unmatched:              ${summary.unmatched}`,
-    `  match radius:           ${summary.radiusM} m`,
+    `  matched:                ${summary.matched} (${summary.matchRateOfCoordsPct}% of coords)`,
   ];
+  if (!london) {
+    lines.push(
+      `    curated:              ${summary.matchedCurated} (${summary.curatedRateOfCoordsPct}%)`,
+      `    osm only:             ${summary.matchedOsm} (${summary.osmOnlyRateOfCoordsPct}%)`,
+    );
+  } else {
+    lines.push(`    curated:              ${summary.matchedCurated}`);
+  }
+  lines.push(
+    `  unmatched:              ${summary.unmatched}`,
+    `  ambiguous:              ${summary.ambiguous ?? 0}`,
+    `  match radius:           ${summary.radiusM} m`,
+  );
+  const samples = summary.sampleUnmatchedNames ?? [];
+  if (samples.length > 0) {
+    lines.push("  sample unmatched names:");
+    for (const name of samples.slice(0, 20)) {
+      lines.push(`    - ${name}`);
+    }
+  }
   return lines.join("\n");
 }
 
@@ -198,16 +239,45 @@ async function main() {
       (r) => (r.localAuthority ?? "").toLowerCase() === needle,
     );
   }
+  if (args.london) {
+    rows = filterOpenPubsRowsForLondon(rows);
+  }
   if (args.limit != null) rows = rows.slice(0, args.limit);
 
   const candidates = loadIdentityCandidates(args);
-  const summary = evaluateOpenPubsMatches(rows, candidates);
 
-  console.log(formatReport(summary));
+  /** @type {object} */
+  let payload;
+  /** @type {ReturnType<typeof evaluateOpenPubsMatches>} */
+  let summary;
 
-  if (args.report) {
-    mkdirSync(dirname(args.report), { recursive: true });
-    const payload = {
+  if (args.london) {
+    payload = buildLondonCuratedMatchReport(rows, candidates, { csvPath });
+    summary = {
+      rowsRead: payload.stats.rowsRead,
+      withCoords: payload.stats.withCoords,
+      skippedNoCoords: payload.stats.skippedNoCoords,
+      skipped: payload.totals.skipped,
+      identityCandidates: payload.stats.identityCandidates,
+      matched: payload.totals.matched,
+      matchedCurated: payload.stats.matchedCurated,
+      matchedOsm: payload.stats.matchedOsm,
+      unmatched: payload.totals.unmatched,
+      ambiguous: payload.totals.ambiguous,
+      matchRateOfCoordsPct: payload.stats.matchRateOfCoordsPct,
+      curatedRateOfCoordsPct: payload.stats.curatedRateOfCoordsPct,
+      osmOnlyRateOfCoordsPct: 0,
+      radiusM: payload.stats.radiusM,
+      sampleUnmatchedNames: payload.sampleUnmatchedNames,
+    };
+    console.log(formatReport(summary, { london: true }));
+    console.log(
+      `  totals: matched=${payload.totals.matched} unmatched=${payload.totals.unmatched} ambiguous=${payload.totals.ambiguous} skipped=${payload.totals.skipped}`,
+    );
+  } else {
+    summary = evaluateOpenPubsMatches(rows, candidates);
+    console.log(formatReport(summary));
+    payload = {
       generatedAt: new Date().toISOString(),
       source: "open-pubs",
       downloadUrl: OPEN_PUBS_DOWNLOAD_URL,
@@ -216,6 +286,7 @@ async function main() {
       dryRun: true,
       mergedIntoSlim: false,
       inventedPrices: false,
+      totals: summary.totals,
       stats: {
         rowsRead: summary.rowsRead,
         withCoords: summary.withCoords,
@@ -225,15 +296,23 @@ async function main() {
         matchedCurated: summary.matchedCurated,
         matchedOsm: summary.matchedOsm,
         unmatched: summary.unmatched,
+        ambiguous: summary.ambiguous,
+        skipped: summary.skipped,
         matchRateOfCoordsPct: summary.matchRateOfCoordsPct,
         curatedRateOfCoordsPct: summary.curatedRateOfCoordsPct,
         osmOnlyRateOfCoordsPct: summary.osmOnlyRateOfCoordsPct,
         radiusM: summary.radiusM,
       },
+      sampleUnmatchedNames: summary.sampleUnmatchedNames,
       // Cap samples so a full-UK run does not dump tens of thousands of rows.
       sampleMatches: summary.matches.slice(0, 50),
       sampleMisses: summary.misses.slice(0, 50),
+      sampleAmbiguous: summary.ambiguousRows.slice(0, 20),
     };
+  }
+
+  if (args.report) {
+    mkdirSync(dirname(args.report), { recursive: true });
     writeFileSync(args.report, `${JSON.stringify(payload, null, 2)}\n`);
     console.log(`Wrote report ${args.report}`);
   }

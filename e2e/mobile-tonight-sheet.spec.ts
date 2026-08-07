@@ -7,9 +7,10 @@ import { expect, test, type Page } from "@playwright/test";
 // single close. Rows are route-mocked so the populated lane path is exercised
 // deterministically at 390×844, both themes.
 //
-// The Tonight chip left the phone map chrome with the one-bar pass (design
-// judgement 2026-08-01, finding 2.3), so the surface under test is the Map
-// controls sheet's Events tab, which always rendered the same lane.
+// The permanent Tonight bar chip left with the one-bar pass (design judgement
+// 2026-08-01, finding 2.3). P5 restored a cold-start chip under the bar when
+// What's On has rows (overlay "tonight"); this spec still walks More → Events,
+// which always rendered the same lane, so the in-flow sheet layout stays pinned.
 
 function tonightRows() {
   const day = new Date().toISOString().slice(0, 10);

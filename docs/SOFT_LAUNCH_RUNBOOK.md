@@ -54,9 +54,9 @@ To check the live ledger, compare `supabase/migrations/` against the Supabase da
 supabase migration list
 ```
 
-**Live snapshot taken 2026-08-07 while writing this runbook** (reverify before running, this will go stale): the database has every migration applied through `0072_social_posts`. Six are not yet applied, in this order:
+**Live snapshot re-verified 2026-08-07 via Supabase migration history** (reverify before any later push; this will go stale): the database has every migration applied through `0081_plan_public_invite`, including the earlier out-of-order `0075_social_crews` block.
 
-| Order | File | Migration |
+| Order applied (timestamp) | File | Migration |
 |---|---|---|
 | 1 | `20260806150000_0073_social_interactions.sql` | `0073_social_interactions` |
 | 2 | `20260806151000_0074_social_composer.sql` | `0074_social_composer` |
@@ -64,8 +64,13 @@ supabase migration list
 | 4 | `20260806162000_0077_pending_plan_recaps.sql` | `0077_pending_plan_recaps` |
 | 5 | `20260806235944_0075_social_crews.sql` | `0075_social_crews` |
 | 6 | `20260807000000_0078_profile_tombstone.sql` | `0078_profile_tombstone` |
+| 7 | `20260807010000_0079_handle_claim_no_inheritance.sql` | `0079_handle_claim_no_inheritance` |
+| 8 | `20260807020000_0080_na_friendly_signal.sql` | `0080_na_friendly_signal` |
+| 9 | `20260807030000_0081_plan_public_invite.sql` | `0081_plan_public_invite` |
 
-Note the order: `0075_social_crews` has a later timestamp than `0076` and `0077`, so it applies last despite its lower number. This is the same out-of-order case `docs/DEPLOYMENT.md` documents for `0070`-`0072`. Use `supabase db push --include-all` rather than assuming filename-number order, and check `0075` does not depend on anything `0076` or `0077` add before applying it out of number order.
+Note the order: `0075_social_crews` has a later timestamp than `0076` and `0077`, so it applied after them despite its lower number. This is the same out-of-order case `docs/DEPLOYMENT.md` documents for `0070`-`0072`. Future pushes should still use `supabase db push --include-all` rather than assuming filename-number order.
+
+If a later agent finds the live ledger behind the tree again, re-run `supabase migration list` (or the dashboard history) before applying, and never assume this section is current.
 
 ### 1.4 Feature flags
 
@@ -86,7 +91,10 @@ Run each check on the production host after every promoted deploy.
 | Map paint | `https://pubmaxxing.com/map` | Pins render within a few seconds, cluster and un-cluster on zoom, no console errors. |
 | Venue sheet | Tap any pin on the map | Sheet opens with venue name, address, and price state (a real price, or an honest "no price logged" line, never a blank). |
 | Plan generate | `https://pubmaxxing.com/plan` | Five-step intake completes and returns a priced route, or the honest 422 "No three-stop route ... meets every must-have need" message. Never a raw error page. |
-| Social tab | `https://pubmaxxing.com/social` | While the beta flag is off: safe preview copy only, no post content, no sign-in-required content leak. Once the flag is on: verified adults see the feed; everyone else sees the correct `sign_in_required` or `age_verification_required` state. |
+| Plan invite share | After locking in a plan on `/plan/[id]` | "Send on WhatsApp" is the primary next action; "Copy invite link" works for the host session and never for an anonymous visitor to the same URL. |
+| Public invite RSVP | `/invite/[token]` from the host copy | Guest can RSVP with a name only; "See these pubs on the map" opens `/map?venue=<first stop>`. |
+| Host Remove (cookie path) | Host revisits `/invite/[token]` after a guest RSVP | Remove appears for the host; after Remove the guest row is gone and stays gone on reload. Guest browsers never see Remove. |
+| Social tab | `https://pubmaxxing.com/social` | While the beta flag is off: safe preview copy only, no post content, no sign-in-required content leak. Once the flag is on: verified adults see the feed; everyone else sees the correct `sign_in_required` or `age_verification_required` state. Keep the flag unset for V1 drinker invites. |
 
 ---
 
@@ -149,3 +157,29 @@ The site's one public contact address is `CONTACT_EMAIL` in `lib/siteContact.ts`
 `docs/social/SOCIAL_BETA_CONTRACT.md` requires a named primary and backup moderator, able to resolve reports within 24 hours, before any invite-beta flag goes live. As of this runbook, both are listed **Unassigned, Blocking** in that document and in issue [#736](https://github.com/Singularityszn/pubmax/issues/736).
 
 Do not enable `SOCIAL_INVITE_BETA_ENABLED` until both roles are named and the handover between them has been exercised at least once. Check `docs/social/SOCIAL_BETA_CONTRACT.md`'s moderation table for current status before launch.
+
+---
+
+## 6. V1 invite cohort (map + plan invite + price logging)
+
+V1 is not a Social launch. Invite 15–40 London drinkers you already WhatsApp nights with. Product strategy: [docs/plans/PLG_STRATEGY.md](plans/PLG_STRATEGY.md). Weekly scoreboard detail: [docs/growth/V1_INVITE_SCOREBOARD.md](growth/V1_INVITE_SCOREBOARD.md).
+
+### 6.1 What you send
+
+One WhatsApp message with:
+
+1. Map link (`https://pubmaxxing.com/map` or `/near`)
+2. Optional plan invite for a real upcoming night (`/invite/[token]` from Copy invite link)
+3. One-line ask: open the map / RSVP / log a pint if you buy one
+
+### 6.2 Seed density before the blast
+
+Captain + early cohort pre-log corroborated prices in 1–2 boroughs guests will open first (for example Soho + Camden). Grey pins in the first viewport kill trust.
+
+### 6.3 Weekly scoreboard (PostHog)
+
+Instrument already lives in [docs/METRICS_FUNNEL.md](METRICS_FUNNEL.md). Track invite k-factor / RSVP rate, corroborated coverage in seed boroughs, meaningful plan actions (`plan_saved`, `plan_invite_sent`, `plan_invite_link_copied`), return `activity_pulse`. Do not track Social DAU while the beta flag is off.
+
+### 6.4 Done when
+
+At least 10 distinct humans completed a map open and at least 5 RSVPs or price logs in week 1 without paid ads.

@@ -1,12 +1,16 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
+import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
+import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { COMMUNITY_PRICE_MAX_AGE_MS } from "@/lib/communityPrice";
 import type { CommunityVenueSignal } from "@/lib/communityVenueSignals";
+import type { Venue } from "@/lib/venues";
 
 const NOW = Date.parse("2026-07-28T20:00:00Z");
+const noop = () => {};
 
 function render(
   signals: CommunityVenueSignal[] = [],
@@ -133,10 +137,18 @@ describe("VenueCommunitySignals", () => {
     const failed = render([], "degraded");
     expect(failed).toContain("Access unread");
     expect(failed).not.toContain("Access unknown");
+    expect(failed).toContain("Unread just now.");
+    expect(failed).toContain("We could not read what drinkers have logged.");
+    expect(failed).not.toContain("Nobody has confirmed step-free entrance access.");
+    expect(failed).not.toContain("Not reported yet.");
 
     const pending = render([], "loading");
     expect(pending).toContain("Checking access");
     expect(pending).not.toContain("Access unknown");
+    expect(pending).toContain("Checking…");
+    expect(pending).toContain("Looking up what drinkers have logged.");
+    expect(pending).not.toContain("Nobody has confirmed step-free entrance access.");
+    expect(pending).not.toContain("Not reported yet.");
   });
 
   it("labels every phone control and keeps access report targets separate", () => {
@@ -167,5 +179,179 @@ describe("VenueCommunitySignals", () => {
     expect(html).toContain("Sign in to add what you noticed.");
     expect(html).not.toContain("Add what you noticed");
     expect(html).not.toContain('type="submit"');
+  });
+
+  it("read-only mode keeps the readout and withholds the composer", () => {
+    const html = renderToStaticMarkup(
+      createElement(VenueCommunitySignals, {
+        venueId: "venue-xjf3n0",
+        venueName: "Arnos Arms",
+        signals: [
+          {
+            venueId: "venue-xjf3n0",
+            signalKey: "character",
+            signalValue: "rough",
+            submittedAt: NOW,
+            source: "community",
+            corroborations: 1,
+          },
+        ],
+        readStatus: "ready",
+        readOnly: true,
+        now: NOW,
+      }),
+    );
+
+    expect(html).toContain("What drinkers noticed");
+    expect(html).toContain("One drinker called it rough.");
+    expect(html).toContain("Nobody has confirmed step-free entrance access.");
+    expect(html).not.toContain("Add what you noticed");
+    expect(html).not.toContain("Sign in to add what you noticed.");
+    expect(html).not.toContain('type="submit"');
+    expect(html).not.toContain('aria-label="What did you notice?"');
+  });
+});
+
+describe("VenueOverviewTab community signals", () => {
+  const overviewVenue = {
+    id: "venue-overview-signals",
+    name: "Overview Arms",
+    address: "1 Test Street",
+    latitude: 51.5,
+    longitude: -0.12,
+    primaryBorough: "Camden",
+    visibleBoroughs: ["Camden"],
+    prices: [],
+    cheapestPrice: 5.5,
+    cheapestPint: "House Lager",
+    averagePrice: 5.5,
+    hasStory: false,
+    latestContributorPrice: null,
+    latestContributorAt: null,
+    amenities: {
+      food: false,
+      cocktails: false,
+      beerGarden: false,
+      liveSports: false,
+      liveMusic: false,
+      pubQuiz: false,
+      darts: false,
+      pool: false,
+      happyHour: false,
+      karaoke: false,
+      nonAlcoholic: false,
+    },
+    website: "",
+    bookingLink: "",
+    imageUrl: "",
+    description: "",
+    dataQualityNotes: [],
+    sourceDatasets: [],
+    curation: {},
+    kind: "pub",
+  } as Venue;
+
+  function overviewCommunityPrices(
+    status: "ready" | "degraded" = "ready",
+  ): CommunityPricesState {
+    return {
+      byVenueId: new Map([[overviewVenue.id, []]]),
+      signalsByVenueId: new Map([
+        [
+          overviewVenue.id,
+          [
+            {
+              venueId: overviewVenue.id,
+              signalKey: "people-eating",
+              signalValue: "eating",
+              submittedAt: NOW,
+              source: "community",
+              corroborations: 1,
+            },
+          ],
+        ],
+      ]),
+      freshestByVenueId: new Map(),
+      noAlcoholIndexStatus: "idle",
+      loadNoAlcoholIndex: noop,
+      loadDrinkCategoryIndex: noop,
+      drinkCategoryIndexStatus: new Map(),
+      provisionalBaseVenueIds: new Set(),
+      loadProvisionalBaseVenues: noop,
+      loadVenue: noop,
+      venuePriceStatus: new Map([[overviewVenue.id, status]]),
+      submit: async () => ({
+        ok: true,
+        attribution: { status: "anonymous" },
+      }),
+      submitVenueSignal: vi.fn(async () => ({ ok: true as const })),
+      submitting: false,
+      reportPrice: noop,
+      reportedIds: new Set(),
+    } as unknown as CommunityPricesState;
+  }
+
+  function renderOverview(status: "ready" | "degraded" = "ready"): string {
+    return renderToStaticMarkup(
+      createElement(VenueOverviewTab, {
+        venue: overviewVenue,
+        tab: "overview",
+        onOpenVisitReports: () => {},
+        cityId: "london",
+        mode: "suggest",
+        inCrawl: false,
+        latestContributorPrice: null,
+        communityPrices: overviewCommunityPrices(status),
+        experienceLens: "all",
+        onToggleStop: noop,
+        presenceState: "idle",
+        markPresenceHere: noop,
+        userLocation: null,
+        locationRequestStatus: "idle",
+        onRequestLocation: noop,
+        onClearLocation: noop,
+        onStartFirstDrop: noop,
+        priceEntryAllowed: false,
+        priceSignInRequested: false,
+        priceAuthLoading: false,
+        priceFocusRequest: 0,
+      }),
+    );
+  }
+
+  it("mounts a read-first signals block above the price story", () => {
+    const html = renderOverview("ready");
+    const signalsAt = html.indexOf("What drinkers noticed");
+    const priceStoryAt = html.indexOf("contributorPrice");
+    expect(signalsAt, "Overview must show What drinkers noticed").toBeGreaterThan(
+      -1,
+    );
+    expect(priceStoryAt, "Overview must still render a price story").toBeGreaterThan(
+      -1,
+    );
+    expect(signalsAt).toBeLessThan(priceStoryAt);
+    expect(html).toContain("One drinker saw people eating.");
+    // Price-entry path keeps the authoring surface; Overview's own mount is
+    // read-only, so the first block never offers the composer.
+    const firstBlock = html.slice(signalsAt, priceStoryAt);
+    expect(firstBlock).not.toContain("Add what you noticed");
+    expect(firstBlock).not.toContain("Sign in to add what you noticed.");
+    expect(
+      html.match(/class=\"venueCommunitySignals\"/g) ?? [],
+      "Overview must not double-mount VenueCommunitySignals",
+    ).toHaveLength(1);
+    expect(
+      html.match(/What drinkers noticed/g) ?? [],
+      "Overview must not repeat the signals heading",
+    ).toHaveLength(1);
+  });
+
+  it("keeps a degraded Overview read from looking like no signals", () => {
+    const html = renderOverview("degraded");
+    expect(html).toContain("Access unread");
+    expect(html).toContain("Unread just now.");
+    expect(html).toContain("We could not read what drinkers have logged.");
+    expect(html).not.toContain("Access unknown");
+    expect(html).not.toContain("Not reported yet.");
   });
 });

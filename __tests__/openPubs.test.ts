@@ -4,17 +4,23 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // prettier-ignore
-// @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
 import {
+  LONDON_OPEN_PUBS_AUTHORITIES,
   OPEN_PUBS_MATCH_RADIUS_M,
+  OPEN_PUBS_SAMPLE_UNMATCHED_CAP,
   buildIdentityIndex,
+  buildLondonCuratedMatchReport,
+  classifyOpenPubMatch,
   evaluateOpenPubsMatches,
+  filterOpenPubsRowsForLondon,
   identityFromOsmPub,
   identityFromSlimVenue,
+  isLondonOpenPubsAuthority,
   matchOpenPubToIdentity,
   normalizeOpenPubsCells,
   parseOpenPubsCsv,
   parseCsvNull,
+  // @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
 } from "../scripts/lib/openPubs.mjs";
 
 const FIXTURE = readFileSync(
@@ -128,6 +134,40 @@ describe("matchOpenPubToIdentity", () => {
     expect(match?.layer).toBe("curated");
     expect(match?.id).toBe("venue-16pnwmm");
   });
+
+  it("refuses ambiguous curated ties when refuseAmbiguous is set", () => {
+    const row = {
+      fsaId: 1,
+      name: "The Crown",
+      address: "1 High Street",
+      postcode: "E1 1AA",
+      easting: null,
+      northing: null,
+      lat: 51.515,
+      lng: -0.07,
+      localAuthority: "Tower Hamlets",
+    };
+    const twins = [
+      {
+        id: "venue-crown-a",
+        name: "Crown",
+        lat: 51.51501,
+        lng: -0.07005,
+        layer: "curated" as const,
+      },
+      {
+        id: "venue-crown-b",
+        name: "The Crown",
+        lat: 51.51502,
+        lng: -0.07008,
+        layer: "curated" as const,
+      },
+    ];
+    const index = buildIdentityIndex(twins);
+    expect(matchOpenPubToIdentity(row, index)?.id).toBeTruthy();
+    expect(matchOpenPubToIdentity(row, index, { refuseAmbiguous: true })).toBeNull();
+    expect(classifyOpenPubMatch(row, index).status).toBe("ambiguous");
+  });
 });
 
 describe("evaluateOpenPubsMatches", () => {
@@ -139,9 +179,18 @@ describe("evaluateOpenPubsMatches", () => {
     expect(summary.rowsRead).toBe(6);
     expect(summary.withCoords).toBe(5);
     expect(summary.skippedNoCoords).toBe(1);
+    expect(summary.skipped).toBe(1);
     expect(summary.matchedCurated).toBe(4);
     expect(summary.matchedOsm).toBe(0);
     expect(summary.unmatched).toBe(1);
+    expect(summary.ambiguous).toBe(0);
+    expect(summary.totals).toEqual({
+      matched: 4,
+      unmatched: 1,
+      ambiguous: 0,
+      skipped: 1,
+    });
+    expect(summary.sampleUnmatchedNames).toEqual(["Unmatched Test Arms"]);
     expect(summary.matchRateOfCoordsPct).toBe(80);
     expect(rows).toEqual(frozen);
     // No price field anywhere in the evaluation contract.
@@ -165,5 +214,109 @@ describe("evaluateOpenPubsMatches", () => {
       layer: "curated",
     });
     expect(identityFromSlimVenue({ id: 1, name: "x", lat: 1, lng: 2 })).toBeNull();
+  });
+
+  it("counts ambiguous ties separately from unmatched", () => {
+    const rows = [
+      {
+        fsaId: 42,
+        name: "The Crown",
+        address: "1 High Street",
+        postcode: "E1 1AA",
+        easting: null,
+        northing: null,
+        lat: 51.515,
+        lng: -0.07,
+        localAuthority: "Tower Hamlets",
+      },
+    ];
+    const twins = [
+      {
+        id: "venue-crown-a",
+        name: "Crown",
+        lat: 51.51501,
+        lng: -0.07005,
+        layer: "curated" as const,
+      },
+      {
+        id: "venue-crown-b",
+        name: "The Crown",
+        lat: 51.51502,
+        lng: -0.07008,
+        layer: "curated" as const,
+      },
+    ];
+    const summary = evaluateOpenPubsMatches(rows, twins);
+    expect(summary.matched).toBe(0);
+    expect(summary.unmatched).toBe(0);
+    expect(summary.ambiguous).toBe(1);
+    expect(summary.totals.ambiguous).toBe(1);
+    expect(summary.ambiguousRows[0]?.candidates).toHaveLength(2);
+  });
+});
+
+describe("London curated identity report", () => {
+  it("keeps the 33 Greater London authority labels", () => {
+    expect(LONDON_OPEN_PUBS_AUTHORITIES).toHaveLength(33);
+    expect(isLondonOpenPubsAuthority("Tower Hamlets")).toBe(true);
+    expect(isLondonOpenPubsAuthority("city of london")).toBe(true);
+    expect(isLondonOpenPubsAuthority("Nowhere")).toBe(false);
+  });
+
+  it("filters the fixture to London authorities only", () => {
+    const rows = parseOpenPubsCsv(FIXTURE);
+    const london = filterOpenPubsRowsForLondon(rows);
+    expect(london).toHaveLength(5);
+    expect(london.every((r: { localAuthority: string }) => isLondonOpenPubsAuthority(r.localAuthority))).toBe(true);
+    expect(london.map((r: { name: string }) => r.name)).not.toContain("Unmatched Test Arms");
+  });
+
+  it("builds a dry-run JSON report with totals and capped unmatched names", () => {
+    const rows = parseOpenPubsCsv(FIXTURE);
+    const report = buildLondonCuratedMatchReport(rows, CURATED, {
+      csvPath: "fixture.csv",
+    });
+
+    expect(report.dryRun).toBe(true);
+    expect(report.mergedIntoSlim).toBe(false);
+    expect(report.inventedPrices).toBe(false);
+    expect(report.scope).toBe("london-curated");
+    expect(report.identity).toBe("curated");
+    expect(report.city).toBe("london");
+    expect(report.csvPath).toBe("fixture.csv");
+    // Nowhere-authority unmatched row is filtered out; remaining London miss is
+    // the no-coords skip, so unmatched stays 0 and skipped is 1.
+    expect(report.totals).toEqual({
+      matched: 4,
+      unmatched: 0,
+      ambiguous: 0,
+      skipped: 1,
+    });
+    expect(report.sampleUnmatchedNames).toEqual([]);
+    expect(report.stats.londonRows).toBe(5);
+    expect(report.stats.identityCandidates).toBe(4);
+    // inventedPrices is the refusal flag; no observation price figures ride along.
+    expect(report.inventedPrices).toBe(false);
+    expect(JSON.stringify(report)).not.toMatch(/"cheapestPrice"|"pricePence"|"latestDemoPrice"/i);
+  });
+
+  it("caps sample unmatched names and never merges slim", () => {
+    const unmatchedRows = Array.from({ length: 25 }, (_, i) => ({
+      fsaId: 1000 + i,
+      name: `Lonely Arms ${i}`,
+      address: "1 Nowhere Street, London",
+      postcode: "E1 1AA",
+      easting: null,
+      northing: null,
+      lat: 51.5 + i * 0.001,
+      lng: -0.05,
+      localAuthority: "Tower Hamlets",
+    }));
+    const report = buildLondonCuratedMatchReport(unmatchedRows, CURATED);
+    expect(report.totals.unmatched).toBe(25);
+    expect(report.totals.matched).toBe(0);
+    expect(report.sampleUnmatchedNames).toHaveLength(OPEN_PUBS_SAMPLE_UNMATCHED_CAP);
+    expect(report.sampleUnmatchedNames[0]).toBe("Lonely Arms 0");
+    expect(report.mergedIntoSlim).toBe(false);
   });
 });

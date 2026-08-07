@@ -51,7 +51,7 @@ function fromRow(row: Record<string, unknown>): CheckIn {
   return {
     id: String(row.id),
     handle: normalizeHandle(String(row.handle ?? "")),
-    areaSlug: String(row.area_slug ?? "") as NightAreaSlug,
+    areaSlug: row.area_slug ? (String(row.area_slug) as NightAreaSlug) : null,
     venueId: row.venue_id ? String(row.venue_id) : null,
     note: row.note ? String(row.note) : null,
     visibility: (String(row.visibility ?? "friends") as CheckInVisibility),

@@ -266,6 +266,41 @@ describe("non-alcoholic personas are first-class (no lens dead-end)", () => {
   });
 });
 
+describe("coffee personas lens as coffee", () => {
+  const personas = loadPersonaDrinks();
+  const coffeeIds = [
+    "lorelai-gilmore",
+    "emma-chamberlain",
+    "howard-schultz",
+    "jeff-bezos",
+    "bob-iger",
+  ] as const;
+
+  it("maps coffee orders to the coffee category, never other", () => {
+    const coffee = personasForCategory("coffee", personas);
+    const other = personasForCategory("other", personas);
+    for (const id of coffeeIds) {
+      const found = coffee.find((p) => p.id === id);
+      expect(found, `${id} should be a coffee persona`).toBeDefined();
+      expect(found!.drinkCategory).toBe("coffee");
+      expect(
+        other.find((p) => p.id === id),
+        `${id} must not remain in other`,
+      ).toBeUndefined();
+    }
+  });
+
+  it("lets a coffee persona highlight pubs under the coffee lens", () => {
+    for (const id of coffeeIds) {
+      const persona = findPersonaById(id, personas);
+      expect(persona).not.toBeNull();
+      expect(personaHighlightsPubs(persona!)).toBe(true);
+      expect(personaFitsCategory(persona!, "coffee")).toBe(true);
+      expect(personaFitsCategory(persona!, "other")).toBe(false);
+    }
+  });
+});
+
 describe("findPersonaById", () => {
   it("resolves a known id and returns null for an unknown one", () => {
     const [first] = loadPersonaDrinks();

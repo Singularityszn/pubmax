@@ -27,6 +27,53 @@ export const OPEN_PUBS_DOWNLOAD_URL =
 /** Same building-width gate as curated ↔ OSM overlap. */
 export const OPEN_PUBS_MATCH_RADIUS_M = 150;
 
+/** Cap for sample unmatched names in London / JSON reports. */
+export const OPEN_PUBS_SAMPLE_UNMATCHED_CAP = 20;
+
+/**
+ * Greater London local_authority labels as they appear in the Open Pubs CSV
+ * (mirrors lib/boroughs.ts LONDON_BOROUGHS — the 33 GLA authorities).
+ */
+export const LONDON_OPEN_PUBS_AUTHORITIES = Object.freeze([
+  "Barking and Dagenham",
+  "Barnet",
+  "Bexley",
+  "Brent",
+  "Bromley",
+  "Camden",
+  "City of London",
+  "Croydon",
+  "Ealing",
+  "Enfield",
+  "Greenwich",
+  "Hackney",
+  "Hammersmith and Fulham",
+  "Haringey",
+  "Harrow",
+  "Havering",
+  "Hillingdon",
+  "Hounslow",
+  "Islington",
+  "Kensington and Chelsea",
+  "Kingston upon Thames",
+  "Lambeth",
+  "Lewisham",
+  "Merton",
+  "Newham",
+  "Redbridge",
+  "Richmond upon Thames",
+  "Southwark",
+  "Sutton",
+  "Tower Hamlets",
+  "Waltham Forest",
+  "Wandsworth",
+  "Westminster",
+]);
+
+const LONDON_AUTHORITY_SET = new Set(
+  LONDON_OPEN_PUBS_AUTHORITIES.map((name) => name.toLowerCase()),
+);
+
 export const OPEN_PUBS_COLUMNS = [
   "fsa_id",
   "name",
@@ -40,6 +87,23 @@ export const OPEN_PUBS_COLUMNS = [
 ];
 
 const INDEX_CELL_DEG = 0.01;
+
+/** True when the Open Pubs local_authority is one of the 33 London boroughs. */
+export function isLondonOpenPubsAuthority(localAuthority) {
+  if (localAuthority == null) return false;
+  return LONDON_AUTHORITY_SET.has(String(localAuthority).trim().toLowerCase());
+}
+
+/**
+ * Keep only Greater London rows (by CSV local_authority). Dry-run filter —
+ * does not mutate the input array.
+ * @param {OpenPubsRow[]} rows
+ * @returns {OpenPubsRow[]}
+ */
+export function filterOpenPubsRowsForLondon(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.filter((row) => isLondonOpenPubsAuthority(row?.localAuthority));
+}
 
 function cellKey(lat, lng) {
   return `${Math.floor(lat / INDEX_CELL_DEG)}:${Math.floor(lng / INDEX_CELL_DEG)}`;
@@ -252,18 +316,35 @@ function postcodesConflict(aOutward, bOutward) {
  *   distanceM: number,
  * } | null}
  */
-export function matchOpenPubToIdentity(row, index, opts = {}) {
-  if (!row || !Number.isFinite(row.lat) || !Number.isFinite(row.lng)) return null;
+/**
+ * Collect every identity candidate that clears the name + distance + postcode
+ * gates for one Open Pubs row, best first (tier, then curated-over-OSM, then
+ * distance). Used by the classifier so ambiguous ties are visible.
+ * @param {OpenPubsRow} row
+ * @param {IdentityIndex} index
+ * @param {{ radiusM?: number }} [opts]
+ * @returns {Array<{
+ *   id: string,
+ *   layer: "curated" | "osm",
+ *   name: string,
+ *   matchType: "exact-name-distance" | "identity-name-distance",
+ *   distanceM: number,
+ *   tier: number,
+ *   layerRank: number,
+ * }>}
+ */
+export function collectOpenPubIdentityCandidates(row, index, opts = {}) {
+  if (!row || !Number.isFinite(row.lat) || !Number.isFinite(row.lng)) return [];
   const radiusM = opts.radiusM ?? OPEN_PUBS_MATCH_RADIUS_M;
   const normalized = normalisePubName(row.name);
   const identity = normalizeVenueIdentityName(row.name);
-  if (!normalized && !identity) return null;
+  if (!normalized && !identity) return [];
   const outward = postcodeOutward(row.postcode ?? row.address ?? "");
 
   const latCell = Math.floor(row.lat / INDEX_CELL_DEG);
   const lngCell = Math.floor(row.lng / INDEX_CELL_DEG);
-  /** @type {null | { id: string, layer: "curated" | "osm", name: string, matchType: "exact-name-distance" | "identity-name-distance", distanceM: number, tier: number, layerRank: number }} */
-  let best = null;
+  /** @type {Array<{ id: string, layer: "curated" | "osm", name: string, matchType: "exact-name-distance" | "identity-name-distance", distanceM: number, tier: number, layerRank: number }>} */
+  const hits = [];
 
   for (let dLat = -1; dLat <= 1; dLat += 1) {
     for (let dLng = -1; dLng <= 1; dLng += 1) {
@@ -287,29 +368,119 @@ export function matchOpenPubToIdentity(row, index, opts = {}) {
         }
 
         const layerRank = candidate.layer === "curated" ? 0 : 1;
-        if (
-          !best ||
-          tier < best.tier ||
-          (tier === best.tier && layerRank < best.layerRank) ||
-          (tier === best.tier &&
-            layerRank === best.layerRank &&
-            distanceM < best.distanceM)
-        ) {
-          best = {
-            id: candidate.id,
-            layer: candidate.layer,
-            name: candidate.name,
-            matchType,
-            distanceM,
-            tier,
-            layerRank,
-          };
-        }
+        hits.push({
+          id: candidate.id,
+          layer: candidate.layer,
+          name: candidate.name,
+          matchType,
+          distanceM,
+          tier,
+          layerRank,
+        });
       }
     }
   }
 
-  if (!best) return null;
+  hits.sort((a, b) => {
+    if (a.tier !== b.tier) return a.tier - b.tier;
+    if (a.layerRank !== b.layerRank) return a.layerRank - b.layerRank;
+    if (a.distanceM !== b.distanceM) return a.distanceM - b.distanceM;
+    return a.id.localeCompare(b.id);
+  });
+  return hits;
+}
+
+/**
+ * Classify one Open Pubs row against identity.
+ * Ambiguous = two or more distinct ids share the best tier + layer (refuse to
+ * guess by distance alone — curator report must surface the tie).
+ * @param {OpenPubsRow} row
+ * @param {IdentityIndex} index
+ * @param {{ radiusM?: number }} [opts]
+ * @returns {{
+ *   status: "matched" | "unmatched" | "ambiguous" | "skipped",
+ *   match: null | {
+ *     id: string,
+ *     layer: "curated" | "osm",
+ *     name: string,
+ *     matchType: "exact-name-distance" | "identity-name-distance",
+ *     distanceM: number,
+ *   },
+ *   candidates: Array<{ id: string, layer: "curated" | "osm", name: string, matchType: string, distanceM: number }>,
+ *   reason: string | null,
+ * }}
+ */
+export function classifyOpenPubMatch(row, index, opts = {}) {
+  if (!row || !Number.isFinite(row.lat) || !Number.isFinite(row.lng)) {
+    return { status: "skipped", match: null, candidates: [], reason: "no-coords" };
+  }
+  const hits = collectOpenPubIdentityCandidates(row, index, opts);
+  if (hits.length === 0) {
+    return {
+      status: "unmatched",
+      match: null,
+      candidates: [],
+      reason: "no-identity-match",
+    };
+  }
+  const best = hits[0];
+  const tied = hits.filter(
+    (h) => h.tier === best.tier && h.layerRank === best.layerRank && h.id !== best.id,
+  );
+  const publicCandidates = hits.slice(0, 5).map((h) => ({
+    id: h.id,
+    layer: h.layer,
+    name: h.name,
+    matchType: h.matchType,
+    distanceM: Math.round(h.distanceM),
+  }));
+  if (tied.length > 0) {
+    return {
+      status: "ambiguous",
+      match: null,
+      candidates: publicCandidates,
+      reason: "ambiguous-identity",
+    };
+  }
+  return {
+    status: "matched",
+    match: {
+      id: best.id,
+      layer: best.layer,
+      name: best.name,
+      matchType: best.matchType,
+      distanceM: Math.round(best.distanceM),
+    },
+    candidates: publicCandidates,
+    reason: null,
+  };
+}
+
+/**
+ * Match one Open Pubs row to an identity candidate inside the radius gate.
+ * Within the same name tier, curated beats OSM (we want the product id when
+ * both layers know the pub); distance is the tie-break inside a layer.
+ * Pass `{ refuseAmbiguous: true }` to return null when two ids share the best
+ * tier + layer (same rule as classifyOpenPubMatch).
+ * @param {OpenPubsRow} row
+ * @param {IdentityIndex} index
+ * @param {{ radiusM?: number, refuseAmbiguous?: boolean }} [opts]
+ * @returns {{
+ *   id: string,
+ *   layer: "curated" | "osm",
+ *   name: string,
+ *   matchType: "exact-name-distance" | "identity-name-distance",
+ *   distanceM: number,
+ * } | null}
+ */
+export function matchOpenPubToIdentity(row, index, opts = {}) {
+  if (opts.refuseAmbiguous) {
+    const classified = classifyOpenPubMatch(row, index, opts);
+    return classified.status === "matched" ? classified.match : null;
+  }
+  const hits = collectOpenPubIdentityCandidates(row, index, opts);
+  if (hits.length === 0) return null;
+  const best = hits[0];
   return {
     id: best.id,
     layer: best.layer,
@@ -321,41 +492,68 @@ export function matchOpenPubToIdentity(row, index, opts = {}) {
 
 /**
  * Dry-run evaluation: match rates only. Never mutates candidates or rows.
+ * Counts ambiguous ties separately from unmatched (refuse-to-guess).
  * @param {OpenPubsRow[]} rows
  * @param {IdentityCandidate[]} candidates
- * @param {{ radiusM?: number }} [opts]
+ * @param {{ radiusM?: number, sampleUnmatchedCap?: number }} [opts]
  */
 export function evaluateOpenPubsMatches(rows, candidates, opts = {}) {
   const index = buildIdentityIndex(candidates);
+  const sampleCap = opts.sampleUnmatchedCap ?? OPEN_PUBS_SAMPLE_UNMATCHED_CAP;
   let withCoords = 0;
   let matchedCurated = 0;
   let matchedOsm = 0;
   let unmatched = 0;
+  let ambiguous = 0;
   let skippedNoCoords = 0;
-  /** @type {Array<{ fsaId: number, name: string, match: ReturnType<typeof matchOpenPubToIdentity> }>} */
+  /** @type {Array<{ fsaId: number, name: string, match: NonNullable<ReturnType<typeof matchOpenPubToIdentity>> }>} */
   const matches = [];
-  /** @type {Array<{ fsaId: number, name: string, reason: string }>} */
+  /** @type {Array<{ fsaId: number, name: string, reason: string, candidates?: unknown[] }>} */
   const misses = [];
+  /** @type {Array<{ fsaId: number, name: string, candidates: unknown[] }>} */
+  const ambiguousRows = [];
+  /** @type {string[]} */
+  const sampleUnmatchedNames = [];
 
   for (const row of rows) {
-    if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) {
+    const classified = classifyOpenPubMatch(row, index, opts);
+    if (classified.status === "skipped") {
       skippedNoCoords += 1;
       misses.push({ fsaId: row.fsaId, name: row.name, reason: "no-coords" });
       continue;
     }
     withCoords += 1;
-    const match = matchOpenPubToIdentity(row, index, opts);
-    if (!match) {
-      unmatched += 1;
-      misses.push({ fsaId: row.fsaId, name: row.name, reason: "no-identity-match" });
+    if (classified.status === "ambiguous") {
+      ambiguous += 1;
+      ambiguousRows.push({
+        fsaId: row.fsaId,
+        name: row.name,
+        candidates: classified.candidates,
+      });
+      misses.push({
+        fsaId: row.fsaId,
+        name: row.name,
+        reason: "ambiguous-identity",
+        candidates: classified.candidates,
+      });
       continue;
     }
+    if (classified.status === "unmatched" || !classified.match) {
+      unmatched += 1;
+      misses.push({ fsaId: row.fsaId, name: row.name, reason: "no-identity-match" });
+      if (sampleUnmatchedNames.length < sampleCap) {
+        sampleUnmatchedNames.push(row.name);
+      }
+      continue;
+    }
+    const match = classified.match;
     matches.push({ fsaId: row.fsaId, name: row.name, match });
     if (match.layer === "curated") matchedCurated += 1;
     else matchedOsm += 1;
   }
 
   const matched = matchedCurated + matchedOsm;
+  const skipped = skippedNoCoords;
   const pct = (n, d) => (d === 0 ? 0 : Math.round((1000 * n) / d) / 10);
 
   return {
@@ -363,16 +561,75 @@ export function evaluateOpenPubsMatches(rows, candidates, opts = {}) {
     identityCandidates: index.size,
     withCoords,
     skippedNoCoords,
+    skipped,
     matched,
     matchedCurated,
     matchedOsm,
     unmatched,
+    ambiguous,
     matchRateOfCoordsPct: pct(matched, withCoords),
     curatedRateOfCoordsPct: pct(matchedCurated, withCoords),
     osmOnlyRateOfCoordsPct: pct(matchedOsm, withCoords),
     radiusM: opts.radiusM ?? OPEN_PUBS_MATCH_RADIUS_M,
     matches,
     misses,
+    ambiguousRows,
+    sampleUnmatchedNames,
+    totals: {
+      matched,
+      unmatched,
+      ambiguous,
+      skipped,
+    },
+  };
+}
+
+/**
+ * JSON-ready London curated identity report (dry-run; never merges slim).
+ * @param {OpenPubsRow[]} rows  already London-filtered (or not — filter applied here)
+ * @param {IdentityCandidate[]} curatedCandidates
+ * @param {{ radiusM?: number, sampleUnmatchedCap?: number, csvPath?: string | null }} [opts]
+ */
+export function buildLondonCuratedMatchReport(rows, curatedCandidates, opts = {}) {
+  const londonRows = filterOpenPubsRowsForLondon(rows);
+  const curatedOnly = (curatedCandidates ?? []).filter(
+    (c) => !c?.layer || c.layer === "curated",
+  );
+  const summary = evaluateOpenPubsMatches(londonRows, curatedOnly, opts);
+  return {
+    generatedAt: new Date().toISOString(),
+    source: "open-pubs",
+    scope: "london-curated",
+    downloadUrl: OPEN_PUBS_DOWNLOAD_URL,
+    csvPath: opts.csvPath ?? null,
+    identity: "curated",
+    city: "london",
+    dryRun: true,
+    mergedIntoSlim: false,
+    inventedPrices: false,
+    totals: summary.totals,
+    stats: {
+      rowsRead: summary.rowsRead,
+      londonRows: londonRows.length,
+      withCoords: summary.withCoords,
+      skippedNoCoords: summary.skippedNoCoords,
+      identityCandidates: summary.identityCandidates,
+      matched: summary.matched,
+      matchedCurated: summary.matchedCurated,
+      matchedOsm: summary.matchedOsm,
+      unmatched: summary.unmatched,
+      ambiguous: summary.ambiguous,
+      skipped: summary.skipped,
+      matchRateOfCoordsPct: summary.matchRateOfCoordsPct,
+      curatedRateOfCoordsPct: summary.curatedRateOfCoordsPct,
+      radiusM: summary.radiusM,
+    },
+    sampleUnmatchedNames: summary.sampleUnmatchedNames,
+    sampleMatches: summary.matches.slice(0, 50),
+    sampleMisses: summary.misses
+      .filter((m) => m.reason === "no-identity-match")
+      .slice(0, 50),
+    sampleAmbiguous: summary.ambiguousRows.slice(0, 20),
   };
 }
 

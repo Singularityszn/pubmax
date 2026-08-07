@@ -321,7 +321,7 @@ test("a drinker logs tonight's price after completing private signup", async ({
 
   // Every control is thumb-sized at 390px - this is a card used one-handed at
   // a bar, so a cramped target is a real defect, not a nit.
-  for (const name of ["Beer", "Alcohol-free", "Soft drinks", "Wine"]) {
+  for (const name of ["Beer", "Alcohol-free", "Soft drinks", "Coffee", "Wine"]) {
     const chip = submit.getByRole("radio", { name, exact: true });
     await expect(chip).toBeVisible();
     const box = await chip.boundingBox();
@@ -444,7 +444,7 @@ test("a drinker logs tonight's price after completing private signup", async ({
   expect(errors).toEqual([]);
 });
 
-test("a person can log soft-drink and alcohol-free prices from the pub sheet", async ({
+test("a person can log soft-drink, alcohol-free and coffee prices from the pub sheet", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
@@ -465,6 +465,7 @@ test("a person can log soft-drink and alcohol-free prices from the pub sheet", a
   for (const entry of [
     { label: "Soft drinks", category: "soft-drink", price: "2.80" },
     { label: "Alcohol-free", category: "alcohol-free", price: "4.60" },
+    { label: "Coffee", category: "coffee", price: "2.50" },
   ] as const) {
     const category = submit.getByRole("radio", {
       name: entry.label,
@@ -484,9 +485,10 @@ test("a person can log soft-drink and alcohol-free prices from the pub sheet", a
     ).toBe(Number(entry.price));
   }
 
+  // Freshest across categories wins the overview row; coffee was last.
   const communityRow = venueSheet.locator(".communityPriceRow");
-  await expect(communityRow).toContainText("Alcohol-free");
-  await expect(communityRow).toContainText("£4.60");
+  await expect(communityRow).toContainText("Coffee");
+  await expect(communityRow).toContainText("£2.50");
   expect(errors).toEqual([]);
 });
 

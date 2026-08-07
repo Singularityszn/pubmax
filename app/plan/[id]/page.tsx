@@ -6,11 +6,11 @@ import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
 import NightCrawlMode from "@/components/plan/NightCrawlMode";
 import PlanInviteOpened from "@/components/plan/PlanInviteOpened";
 import PlanCrew from "@/components/plan/PlanCrew";
-import PlanHostInviteLink from "@/components/plan/PlanHostInviteLink";
+import PlanInviteNextStep from "@/components/plan/PlanInviteNextStep";
 import LastCrewInvite from "@/components/plan/LastCrewInvite";
 import SiteNav from "@/components/nav/SiteNav";
 import PlanSummary from "@/components/plan/PlanSummary";
-import PlanVibe, { PlanInviteShareBar } from "@/components/plan/PlanVibe";
+import PlanVibe from "@/components/plan/PlanVibe";
 import type { PlanState } from "@/lib/plan";
 import { buildPlanPrivacyPreview, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
@@ -148,7 +148,10 @@ export default async function PlanPage({ params }: Props) {
             <Link href="/u/you#night-memories">your Memories</Link>. Nothing is shared until you approve it.
           </p>
         ) : (
-          <p>{preview.stopCount} {preview.stopCount === 1 ? "pub" : "pubs"}, one link, zero account walls.</p>
+          <p>
+            {preview.stopCount} {preview.stopCount === 1 ? "pub" : "pubs"}, one link, zero account walls.{" "}
+            <a href="#share">Next: send this to the group</a>.
+          </p>
         )}
       </section>
       {/* Night-crawl mode (U7): while this plan's night is on, it becomes the
@@ -158,16 +161,22 @@ export default async function PlanPage({ params }: Props) {
       <div className="planPage__grid">
         <PlanSummary planId={id} initialPreview={preview} vibeTally={vibeTally} />
         <aside className="planPage__side">
+          {!completed ? (
+            <section className="planShare" aria-labelledby="plan-share-title">
+              <p className="planPage__eyebrow">Send the invite</p>
+              <h2 id="plan-share-title">Get everyone on the same page</h2>
+              <p>WhatsApp the night link, or copy the invite. Mates tap “I’m in” with a name.</p>
+              <PlanInviteNextStep
+                planId={id}
+                title={safeTitle}
+                text={shareText}
+                initialVibeSlug={topVibeSlug}
+              />
+              <LastCrewInvite planId={id} planTitle={safeTitle} planUrl={`/plan/${id}`} />
+            </section>
+          ) : null}
           <PlanCrew planId={id} hostName={preview.hostDisplayName} />
           <PlanVibe planId={id} initialTally={vibeTally} />
-          <section className="planShare" aria-labelledby="plan-share-title">
-            <p className="planPage__eyebrow">Send the invite</p>
-            <h2 id="plan-share-title">Get everyone on the same page</h2>
-            <p>The link opens straight onto the route. Mates tap “I’m in” with a name.</p>
-            <PlanInviteShareBar planId={id} title={safeTitle} text={shareText} initialVibeSlug={topVibeSlug} />
-            <PlanHostInviteLink planId={id} />
-            <LastCrewInvite planId={id} planTitle={safeTitle} planUrl={`/plan/${id}`} />
-          </section>
         </aside>
       </div>
     </main>

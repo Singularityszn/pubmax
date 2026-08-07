@@ -29,6 +29,7 @@ function filters(overrides: Partial<Filters> = {}): Filters {
     requireHeritage: false,
     requirePintDrops: false,
     canonicalOnly: false,
+    openNow: false,
     requireStepFree: false,
     requireAccessibleToilet: false,
     requireSeatedService: false,
@@ -246,5 +247,51 @@ describe("drink chip styling ships with the component", () => {
     expect(css).toMatch(/\.drinkShapeChip\.isOn/);
     expect(css).toMatch(/\.drinkSubtypeChip\.isOn/);
     expect(css).toMatch(/\.drinkSubtypeChip\.isTopShelf\.isOn/);
+  });
+
+  it("keeps the category strip de-boxed at rest (no resting border)", () => {
+    const chip = /\.drinkShapeChip\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(chip).toMatch(/border:\s*0/);
+    expect(chip).toMatch(/background:\s*transparent/);
+  });
+
+  it("selected category chips use panel-raised and ink, never a coral CTA fill", () => {
+    const selected = /\.drinkShapeChip\.isOn\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    const background = /background:\s*([^;]+);/.exec(selected)?.[1] ?? "";
+    expect(background).toBe("var(--panel-raised)");
+    expect(selected).toMatch(/color:\s*var\(--ink\)/);
+    // Brass may cue selection (underline / inset), never own the fill.
+    expect(selected).toMatch(/var\(--brass\)/);
+    expect(background).not.toMatch(/--brass/);
+  });
+
+  it("edge-fades the horizontal chip strips and clears the mask in the filter grid", () => {
+    const strip = /\.drinkShapeChips\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(strip).toMatch(/mask-image:\s*linear-gradient/);
+    expect(strip).toMatch(/-webkit-mask-image:\s*linear-gradient/);
+    expect(css).toMatch(
+      /\.mobileMapFilters\s+\.drinkShapeChips\s*\{[^}]*mask-image:\s*none/,
+    );
+  });
+
+  it("keeps the 44px phone tap target and gates chip motion behind reduced-motion", () => {
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*?\.drinkShapeChip\s*\{[^}]*min-height:\s*44px/,
+    );
+    expect(css).toMatch(
+      /@media\s*\(prefers-reduced-motion:\s*no-preference\)\s*\{[\s\S]*?\.drinkShapeChip\s*\{[^}]*transition:/,
+    );
+    expect(css).toMatch(
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\.drinkShapeChip/,
+    );
+  });
+
+  it("keeps dark-mode selected and label rules so outing glyphs stay readable", () => {
+    expect(css).toMatch(
+      /html\[data-theme="dark"\]\s+\.drinkShapeChip\.isOn\s*\{[^}]*color:\s*var\(--ink\)/,
+    );
+    expect(css).toMatch(
+      /html\[data-theme="dark"\]\s+\.drinkShapeChip\s*\{[^}]*color:\s*var\(--ink-soft\)/,
+    );
   });
 });

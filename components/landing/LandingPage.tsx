@@ -124,9 +124,13 @@ export default function LandingPage({
   stats,
   // Server-threaded trusted-handoff flag (default off = current hierarchy).
   landingFindMyPint = false,
+  // Server-threaded Social invite beta (default off = soft-launch preview).
+  // Memory CTAs must not promise "Open Social" while the product is closed.
+  socialInviteBetaEnabled = false,
 }: {
   stats?: AboutStats;
   landingFindMyPint?: boolean;
+  socialInviteBetaEnabled?: boolean;
 }) {
   const router = useRouter();
   const preferredCity = useSyncExternalStore(
@@ -328,7 +332,15 @@ export default function LandingPage({
               <p>Your night stays private until you say otherwise. When the crew&rsquo;s ready, turn the moments everyone likes into a story worth keeping.</p>
               <div className="lpMemoryActions">
                 <Link href="/plan" className="lpButton lpButtonPrimary">Start a plan</Link>
-              <Link href="/social" className="lpTextLink">Open Social <ArrowRight size={16} aria-hidden="true" /></Link>
+                {socialInviteBetaEnabled ? (
+                  <Link href="/social" className="lpTextLink">
+                    Open Social <ArrowRight size={16} aria-hidden="true" />
+                  </Link>
+                ) : (
+                  <Link href="/u/you#night-memories" className="lpTextLink">
+                    Open Memories <ArrowRight size={16} aria-hidden="true" />
+                  </Link>
+                )}
               </div>
             </div>
             <ol className="lpMemorySteps">

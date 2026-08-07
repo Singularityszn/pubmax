@@ -431,6 +431,49 @@
 .planShare > p:not(.planPage__eyebrow) { color: var(--ink-soft); line-height: 1.5; }
 .planShare .shareBar { margin-top: 20px; }
 
+/* Inevitable post-plan next step: WhatsApp first, Copy invite second. */
+.planInviteNext {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.1rem;
+}
+.planInviteNext__whatsapp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--plan-accent, var(--amber)) 55%, var(--line));
+  background: color-mix(in srgb, var(--plan-accent, var(--amber)) 22%, var(--panel-raised));
+  color: var(--ink);
+  font-weight: 750;
+  text-decoration: none;
+}
+.planInviteNext__whatsapp:hover {
+  background: color-mix(in srgb, var(--plan-accent, var(--amber)) 32%, var(--panel-raised));
+}
+.planInviteNext .planHostInviteLink {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+.planInviteNext__more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 650;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
 /* Crew vibe picker (vibe layer, surface 3 wiring; issue #438). Chips keep the
    Tonight pill silhouette but deliberately stay on the house face: at sidebar
    density these labels sit far below the 20px+ floor the party accent demands,

@@ -143,7 +143,7 @@ export default function MapConciergeAsk({
 
         <form className="mapConciergeAskForm" onSubmit={onSubmit}>
           <label className="mapConciergeAskSr" htmlFor="map-concierge-query">
-            Describe the night
+            Describe the outing
           </label>
           <input
             id="map-concierge-query"
