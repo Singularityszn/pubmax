@@ -1,6 +1,6 @@
 # Outings Taste Wave — beauty without rebrand
 
-> Status: **EXECUTING** (2026-08-07). Wave S4 “Taste of usefulness” as shippable PRs.
+> Status: **SHIPPING** (2026-08-07). Wave S4 “Taste of usefulness” as shippable PRs.
 > Relates to [`FIRST_PRINCIPLES_OUTINGS.md`](./FIRST_PRINCIPLES_OUTINGS.md) §5 Wave S4 and [`OUTINGS_WAVE2_EXECUTION.md`](./OUTINGS_WAVE2_EXECUTION.md).
 > Does **not** reopen WhatsApp (#816), night-OS first-price (#829/#832), or fight landing copy (#836) / Discover lede (#824) / coffee chip content (#843).
 
@@ -79,6 +79,19 @@ This is fashion for usefulness: hierarchy, type, glass, empty-state material, mo
 2. Prefer CSS + light markup; avoid logic churn in PubMap.
 3. Commit + push + draft PR before claiming done.
 4. Screenshot or note visual intent in PR body when CSS-heavy.
+
+## Opened PRs
+
+| Item | PR |
+|---|---|
+| Plan | [#849](https://github.com/Singularityszn/pubmax/pull/849) |
+| T1 plan describe taste | [#850](https://github.com/Singularityszn/pubmax/pull/850) |
+| T2 empty-state material | [#852](https://github.com/Singularityszn/pubmax/pull/852) |
+| T3 about brand hero | [#851](https://github.com/Singularityszn/pubmax/pull/851) |
+| T4 drink chip strip | [#856](https://github.com/Singularityszn/pubmax/pull/856) |
+| T5 Discover breathing | [#855](https://github.com/Singularityszn/pubmax/pull/855) |
+| T6 mobile map glass | [#853](https://github.com/Singularityszn/pubmax/pull/853) |
+| T7 landing atmosphere | [#854](https://github.com/Singularityszn/pubmax/pull/854) |
 
 ## Success
 
