@@ -145,6 +145,169 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
     expect(model.rows.map((r) => r.id)).toEqual(["a", "b"]);
     expect(model.rows[0].distanceKm).toBeUndefined();
   });
+
+  it("defaults to nearest even when cheaper pubs sit farther away", () => {
+    const nearDear = venue({
+      id: "near-dear",
+      latitude: 51.5,
+      longitude: -0.12,
+      cheapestPrice: 7.5,
+    });
+    const farCheap = venue({
+      id: "far-cheap",
+      latitude: 51.7,
+      longitude: -0.4,
+      cheapestPrice: 4.2,
+    });
+    const model = buildMapVenueListModel(
+      [farCheap, nearDear],
+      [-0.12, 51.5],
+      undefined,
+      null,
+      "this view",
+      "ready",
+      "nearest",
+    );
+    expect(model.rows.map((r) => r.id)).toEqual(["near-dear", "far-cheap"]);
+  });
+
+  it("cheapest sort ranks priced pubs ascending and leaves unpriced last", () => {
+    const nearDear = venue({
+      id: "near-dear",
+      name: "Near Dear",
+      latitude: 51.5,
+      longitude: -0.12,
+      cheapestPrice: 7.5,
+    });
+    const farCheap = venue({
+      id: "far-cheap",
+      name: "Far Cheap",
+      latitude: 51.7,
+      longitude: -0.4,
+      cheapestPrice: 4.2,
+    });
+    const midUnpriced = venue({
+      id: "mid-unpriced",
+      name: "Mid Unpriced",
+      latitude: 51.55,
+      longitude: -0.2,
+      cheapestPrice: null,
+    });
+    const farUnpriced = venue({
+      id: "far-unpriced",
+      name: "Far Unpriced",
+      latitude: 51.75,
+      longitude: -0.45,
+      cheapestPrice: null,
+    });
+    const model = buildMapVenueListModel(
+      [nearDear, farUnpriced, midUnpriced, farCheap],
+      [-0.12, 51.5],
+      undefined,
+      null,
+      "this view",
+      "ready",
+      "cheapest",
+    );
+    expect(model.rows.map((r) => r.id)).toEqual([
+      "far-cheap",
+      "near-dear",
+      "mid-unpriced",
+      "far-unpriced",
+    ]);
+    expect(model.rows.find((r) => r.id === "mid-unpriced")?.priceLabel).toBe(
+      "Price TBD",
+    );
+  });
+
+  it("cheapest sort uses active drink lens prices, not the pint baseline", () => {
+    const softCheap = venue({
+      id: "soft-cheap",
+      latitude: 51.5,
+      longitude: -0.12,
+      cheapestPrice: 9,
+    });
+    const softDear = venue({
+      id: "soft-dear",
+      latitude: 51.51,
+      longitude: -0.13,
+      cheapestPrice: 3,
+    });
+    const noSoft = venue({
+      id: "no-soft",
+      latitude: 51.505,
+      longitude: -0.125,
+      cheapestPrice: 2,
+    });
+    const model = buildMapVenueListModel(
+      [softDear, noSoft, softCheap],
+      [-0.12, 51.5],
+      MAP_VENUE_LIST_LIMIT,
+      new Map([
+        [
+          "soft-cheap",
+          {
+            venueId: "soft-cheap",
+            category: "soft-drink",
+            categoryLabel: "Soft drink",
+            priceGbp: 2.4,
+            submittedAt: 2_000,
+            source: "community",
+          },
+        ],
+        [
+          "soft-dear",
+          {
+            venueId: "soft-dear",
+            category: "soft-drink",
+            categoryLabel: "Soft drink",
+            priceGbp: 4.8,
+            submittedAt: 2_000,
+            source: "community",
+          },
+        ],
+      ]),
+      "Soft drink",
+      "ready",
+      "cheapest",
+    );
+    expect(model.rows.map((r) => r.id)).toEqual([
+      "soft-cheap",
+      "soft-dear",
+      "no-soft",
+    ]);
+    expect(model.rows[2].priceLabel).toBe("No soft drink price logged");
+  });
+
+  it("cheapest sort prefers a contributor override the way AreaSheet does", () => {
+    const baselineCheap = venue({
+      id: "baseline-cheap",
+      latitude: 51.5,
+      longitude: -0.12,
+      cheapestPrice: 4,
+      latestContributorPrice: null,
+    });
+    const contributorCheaper = venue({
+      id: "contributor-cheaper",
+      latitude: 51.51,
+      longitude: -0.13,
+      cheapestPrice: 6,
+      latestContributorPrice: 3.5,
+    });
+    const model = buildMapVenueListModel(
+      [baselineCheap, contributorCheaper],
+      [-0.12, 51.5],
+      undefined,
+      null,
+      "this view",
+      "ready",
+      "cheapest",
+    );
+    expect(model.rows.map((r) => r.id)).toEqual([
+      "contributor-cheaper",
+      "baseline-cheap",
+    ]);
+  });
 });
 
 describe("buildMapVenueListModel — selection wiring + labels", () => {

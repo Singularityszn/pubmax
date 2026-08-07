@@ -8,6 +8,8 @@ import {
   type CategoryPriceIndexStatus,
   type MapLensPrice,
 } from "@/lib/mapExperienceLens";
+import { compactVenueAnchor } from "@/lib/venueAnchorPresentation";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 // Accessibility contract (WCAG 2.1.1): WebGL pins are pointer-only. This is the
 // pure model behind the DOM "List view", the keyboard-reachable parallel to
@@ -19,8 +21,14 @@ import {
 // list does not apply it because every venue in view must remain operable.
 export const MAP_VENUE_LIST_LIMIT = 60;
 
+/** How List view orders the pubs currently in view. Default stays nearest. */
+export type MapVenueListSortMode = "nearest" | "cheapest";
+
 export type MapVenueListModel = {
-  /** Rows to render, nearest-first to the viewport centre when known. */
+  /**
+   * Rows to render. Default order is nearest-first to the viewport centre when
+   * known; "cheapest" ranks priced pubs ascending and leaves unpriced pubs last.
+   */
   rows: LogNearbyCandidate[];
   /** Total venues currently on the map (pre-cap). */
   total: number;
@@ -95,11 +103,39 @@ export function projectedItemIdsInViewport<T extends { id: string }>(
 }
 
 /**
+ * The figure List view may rank on: an active drink lens uses that lens price
+ * alone (same stack as AreaSheet), and the pint default uses the contributor
+ * override then the curated cheapest. A bare non-pub figure without complete
+ * provenance is not shown on the row, so it cannot climb the cheapest sort.
+ */
+export function mapVenueListSortPrice(
+  venue: Venue,
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null,
+): number | null {
+  if (lensPrices !== null) {
+    const price = lensPrices.get(venue.id)?.priceGbp;
+    return typeof price === "number" && Number.isFinite(price) && price > 0
+      ? price
+      : null;
+  }
+  const price = venue.latestContributorPrice ?? venue.cheapestPrice;
+  if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) {
+    return null;
+  }
+  if (!isPubVenueKind(venue.kind) && compactVenueAnchor(venue) === null) {
+    return null;
+  }
+  return price;
+}
+
+/**
  * Build the keyboard/AT-reachable list of the venues currently on the map.
  *
- * Ordered nearest-first to the viewport centre so the list mirrors what the eye
- * sees on the canvas; without a viewport fix it preserves the filtered map
- * order. Pure and deterministic — safe on empty input.
+ * Default order is nearest-first to the viewport centre so the list mirrors
+ * what the eye sees on the canvas; without a viewport fix it preserves the
+ * filtered map order. "cheapest" ranks priced pubs ascending (active drink lens
+ * when set) and leaves unpriced pubs last, nearest among themselves. Pure and
+ * deterministic — safe on empty input.
  */
 export function buildMapVenueListModel(
   venues: Venue[],
@@ -108,6 +144,7 @@ export function buildMapVenueListModel(
   lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
   lensCategoryLabel: string = "this view",
   lensStatus: CategoryPriceIndexStatus = "ready",
+  sortMode: MapVenueListSortMode = "nearest",
 ): MapVenueListModel {
   const total = venues.length;
   const origin =
@@ -121,7 +158,7 @@ export function buildMapVenueListModel(
   // A row is read on its own, so its unknown wording carries the finding too -
   // the note below is not always heard beside it.
   const unknownLabel = drinkLensUnknownSentence(drinkNoun, lensStatus);
-  const rows =
+  const labelledRows =
     lensPrices === null
       ? baseRows
       : baseRows.map((row) => {
@@ -133,6 +170,10 @@ export function buildMapVenueListModel(
               : unknownLabel,
           };
         });
+  const rows =
+    sortMode === "cheapest"
+      ? sortMapVenueListRowsCheapest(labelledRows, venues, lensPrices)
+      : labelledRows;
   return {
     rows,
     total,
@@ -141,6 +182,39 @@ export function buildMapVenueListModel(
     coverageNote:
       lensPrices === null ? null : drinkLensCoverageNote(drinkNoun, lensStatus),
   };
+}
+
+function sortMapVenueListRowsCheapest(
+  rows: LogNearbyCandidate[],
+  venues: Venue[],
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null,
+): LogNearbyCandidate[] {
+  const venueById = new Map(venues.map((venue) => [venue.id, venue]));
+  return [...rows].sort((left, right) => {
+    const leftVenue = venueById.get(left.id);
+    const rightVenue = venueById.get(right.id);
+    const leftPrice = leftVenue
+      ? mapVenueListSortPrice(leftVenue, lensPrices)
+      : null;
+    const rightPrice = rightVenue
+      ? mapVenueListSortPrice(rightVenue, lensPrices)
+      : null;
+    if (leftPrice !== null && rightPrice !== null) {
+      return (
+        leftPrice - rightPrice ||
+        left.name.localeCompare(right.name) ||
+        left.id.localeCompare(right.id)
+      );
+    }
+    if (leftPrice !== null) return -1;
+    if (rightPrice !== null) return 1;
+    return (
+      (left.distanceKm ?? Number.POSITIVE_INFINITY) -
+        (right.distanceKm ?? Number.POSITIVE_INFINITY) ||
+      left.name.localeCompare(right.name) ||
+      left.id.localeCompare(right.id)
+    );
+  });
 }
 
 export function buildUkBasePubListModel(

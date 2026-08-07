@@ -45,6 +45,7 @@ import {
 import {
   buildMapVenueListModel,
   buildUkBasePubListModel,
+  type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import { useFocusTrap } from "@/lib/useFocusTrap";
@@ -765,6 +766,8 @@ export default function PubMap({
   /** Once the viewer collapses a deep-linked lane, don't keep forcing it open. */
   const [dismissedTonightSrc, setDismissedTonightSrc] = useState<string | null>(null);
   const [mapListOpen, setMapListOpen] = useState(false);
+  const [mapListSortMode, setMapListSortMode] =
+    useState<MapVenueListSortMode>("nearest");
   const [visibleVenueState, setVisibleVenueState] = useState<{
     cityId: CityId;
     curatedVenueIds: string[];
@@ -1349,11 +1352,13 @@ export default function PubMap({
         activeLensPrices,
         activeLensNoun ?? undefined,
         drinkIndexStatus,
+        mapListSortMode,
       ),
     [
       activeLensNoun,
       activeLensPrices,
       drinkIndexStatus,
+      mapListSortMode,
       mapVenueListVenues,
       mapViewport.center,
     ],
@@ -3407,6 +3412,8 @@ export default function PubMap({
           onSelectVenue={selectVenue}
           onSelectUkBasePub={handleUkBasePubClick}
           onPrefetchVenue={prefetchVenueDetail}
+          sortMode={mapListSortMode}
+          onSortModeChange={setMapListSortMode}
           backLabel={mapListOpen && mapSurfaceId === "venue-list" ? mapSurfaceTrail.backLabel : null}
           onBack={mapSurfaceTrail.back}
           onHome={mapSurfaceTrail.home}

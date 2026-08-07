@@ -5,7 +5,11 @@ import { List, MapPin } from "lucide-react";
 
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
-import type { MapVenueListModel, UkBasePubListModel } from "@/lib/mapVenueList";
+import type {
+  MapVenueListModel,
+  MapVenueListSortMode,
+  UkBasePubListModel,
+} from "@/lib/mapVenueList";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import SurfaceNav from "@/components/ui/surface-nav";
 import { homeActionLabel } from "@/lib/surfaceStack";
@@ -16,9 +20,10 @@ import "./mapVenueList.css";
 // Accessibility contract (WCAG 2.1.1): keyboard/screen-reader parallel to
 // canvas pins. A visible, focusable "List view" toggle opens a DOM list of the
 // filtered venues projected inside the current viewport, nearest-first to its
-// centre. Each row is a real <button> that drives the SAME select handler a pin
-// tap does, so an AT user can enumerate and open any listed venue without
-// touching the WebGL layer.
+// centre by default, with an optional cheapest sort for priced pubs. Each row
+// is a real <button> that drives the SAME select handler a pin tap does, so an
+// AT user can enumerate and open any listed venue without touching the WebGL
+// layer.
 // It's also a useful feature for everyone: list view is not a
 // shim.
 export default function MapVenueList({
@@ -31,6 +36,8 @@ export default function MapVenueList({
   onSelectVenue,
   onSelectUkBasePub,
   onPrefetchVenue,
+  sortMode = "nearest",
+  onSortModeChange,
   backLabel = null,
   onBack,
   onHome,
@@ -45,6 +52,9 @@ export default function MapVenueList({
   onSelectVenue: (id: string) => void;
   onSelectUkBasePub: (pub: UkBasePub) => void;
   onPrefetchVenue: (id: string) => void;
+  /** How the listed pubs are ordered. Default stays nearest. */
+  sortMode?: MapVenueListSortMode;
+  onSortModeChange?: (mode: MapVenueListSortMode) => void;
   /** The way out, shared with every other surface. See MobileSharedSheet. */
   backLabel?: string | null;
   onBack?: () => void;
@@ -98,7 +108,7 @@ export default function MapVenueList({
                   : total === 0
                     ? "Nothing matches"
                     : truncated
-                      ? `Nearest ${shown} of ${total}`
+                      ? `${sortMode === "cheapest" ? "Cheapest" : "Nearest"} ${shown} of ${total}`
                       : `${total} venue${total === 1 ? "" : "s"}`}
               </span>
             </div>
@@ -110,6 +120,27 @@ export default function MapVenueList({
               closeRef={closeButtonRef}
             />
           </header>
+
+          {onSortModeChange && total > 0 ? (
+            <div className="mapVenueListSort" role="group" aria-label="Sort venues on the map">
+              <button
+                type="button"
+                className="mapVenueListSortChip"
+                aria-pressed={sortMode === "nearest"}
+                onClick={() => onSortModeChange("nearest")}
+              >
+                Nearest
+              </button>
+              <button
+                type="button"
+                className="mapVenueListSortChip"
+                aria-pressed={sortMode === "cheapest"}
+                onClick={() => onSortModeChange("cheapest")}
+              >
+                Cheapest
+              </button>
+            </div>
+          ) : null}
 
           {model.coverageNote ? (
             <p className="mapVenueListCoverage" role="status">
