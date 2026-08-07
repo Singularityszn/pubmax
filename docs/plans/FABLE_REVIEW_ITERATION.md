@@ -49,6 +49,17 @@ Keep shipping useful product slices overnight as **small, reviewable PRs**. Each
 **Job:** Extend price-submission e2e (or vitest route test) so coffee is a submittable category in the UI list; no fake prices in fixtures beyond what tests already allow.  
 **Done when:** test green keyless/mocked.
 
+### PR-F — Plan occasion chip honesty (from S1–S4 review)
+**Branch:** `cursor/plan-occasion-chip-honesty-dd0b`  
+**Base:** outings tip  
+**Job:** Wire `inferNightContext` so coffee / soft drink / food / daytime chips set real context fields; tests per chip.  
+**Done when:** vitest asserts parsed occasion fields per `DESCRIBE_FIRST_CHIPS` label.
+
+### PR-G — Lens reach note + Discover lede
+**Branch:** `cursor/lens-reach-note-discover-dd0b`  
+**Base:** outings tip  
+**Job:** `communityReachNote` honesty for map-lens non-beer; Discover lede includes coffee; drop soft invented “small team” on `/about`.
+
 ## Execution rules
 
 1. One concern per PR; prefer stacked base notes in the PR body when depending on #817.
