@@ -346,6 +346,7 @@ function expectedReadMemberSnapshot({
         budget: "standard",
         budgetLimitPence: 2500,
         zeroProof: false,
+        wetherspoonsPreferred: false,
         atmosphere: ["lively"],
         foodNeeds: ["vegan"],
         accessibility: ["step-free"],

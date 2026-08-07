@@ -63,6 +63,7 @@ async function installSuccessfulPlanRoute(page: Page): Promise<void> {
           budget: "standard",
           budgetLimitPence: null,
           zeroProof: false,
+          wetherspoonsPreferred: false,
           atmosphere: [],
           foodNeeds: [],
           accessibility: [],

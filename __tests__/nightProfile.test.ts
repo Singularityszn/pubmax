@@ -63,6 +63,7 @@ describe("Night Profile contracts", () => {
       budget: "value" as const,
       groupSize: 5,
       zeroProof: true,
+      wetherspoonsPreferred: false,
     };
     const written = writeDeviceNightContext(context, "london", storage);
 

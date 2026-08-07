@@ -45,6 +45,7 @@ function generateResponse(overrides: Partial<MapGeneratedRouteResponse> = {}): M
     inferredContext: {
       nightArea: "clapham", daypart: "evening", partyType: "friends", groupSize: 4,
       budget: "standard", budgetLimitPence: null, zeroProof: false,
+      wetherspoonsPreferred: false,
       atmosphere: [], foodNeeds: [], accessibility: [], transportConstraints: [],
     },
     routeTotals: { stopCount: 3, straightLineWalkingKm: 1.2, estimatedWalkingMinutes: 20, distanceBasis: "straight-line" },
