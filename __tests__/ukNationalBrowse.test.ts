@@ -15,27 +15,27 @@ import { CITIES } from "@/lib/cities";
 
 const places: UkPlace[] = [
   {
-    name: "Sheffield",
-    lat: 53.38,
-    lng: -1.47,
+    name: "Norwich",
+    lat: 52.63,
+    lng: 1.3,
     kind: "city",
     context: "",
-    search: "sheffield",
+    search: "norwich",
   },
   {
-    name: "Leeds",
-    lat: 53.8,
-    lng: -1.55,
+    name: "Exeter",
+    lat: 50.72,
+    lng: -3.53,
     kind: "city",
     context: "",
-    search: "leeds",
+    search: "exeter",
   },
 ];
 
 describe("nearestUkPlace", () => {
   it("returns the closest place within the cap", () => {
-    const hit = nearestUkPlace(53.4, -1.5, places);
-    expect(hit?.name).toBe("Sheffield");
+    const hit = nearestUkPlace(52.65, 1.28, places);
+    expect(hit?.name).toBe("Norwich");
   });
 
   it("returns null when nothing is near enough", () => {
@@ -55,16 +55,16 @@ describe("resolveLocateMapDestination", () => {
   });
 
   it("opens an uncovered place when outside every curated city", () => {
-    // South of Sheffield: outside the ~80km curated-city window but still
-    // near enough for the place index to name Sheffield.
-    const dest = resolveLocateMapDestination(53.0, -0.5, places);
+    // Norwich is >80km from every enabled city centre, so locate must not
+    // fall through to a priced pack.
+    const dest = resolveLocateMapDestination(52.65, 1.28, places);
     expect(dest.kind).toBe("place");
     if (dest.kind !== "place") return;
-    expect(dest.arrival.name).toBe("Sheffield");
-    expect(dest.arrival.lat).toBe(53.0);
-    expect(dest.arrival.lng).toBe(-0.5);
-    expect(dest.href).toContain("place=Sheffield");
-    expect(dest.href).toContain("lat=53");
+    expect(dest.arrival.name).toBe("Norwich");
+    expect(dest.arrival.lat).toBe(52.65);
+    expect(dest.arrival.lng).toBe(1.28);
+    expect(dest.href).toContain("place=Norwich");
+    expect(dest.href).toContain("lat=52.65");
   });
 
   it("returns none when neither city nor place is near", () => {
