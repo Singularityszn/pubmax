@@ -1,6 +1,6 @@
 # Fable review iteration — multi-PR build queue
 
-> Status: **EXECUTING** (2026-08-07). Separate PRs for Fable review tomorrow.
+> Status: **SHIPPING** (2026-08-07 overnight). Separate draft PRs for Fable review.
 > Does **not** reopen [#816](https://github.com/Singularityszn/pubmax/pull/816) (invite-ready / WhatsApp next step / map orientation) or duplicate its ShareBar work.
 > Relates to [#817](https://github.com/Singularityszn/pubmax/pull/817) (outings S1–S4 + review fixes) and [`OUTINGS_WAVE_REVIEW.md`](./OUTINGS_WAVE_REVIEW.md).
 
@@ -10,55 +10,46 @@
 
 Keep shipping useful product slices overnight as **small, reviewable PRs**. Each PR owns one concern, has tests, and stays inside `docs/VOICE.md`.
 
-## Already in flight (do not duplicate)
+## Trunk / do not duplicate
 
 | PR | Owns |
 |---|---|
 | [#817](https://github.com/Singularityszn/pubmax/pull/817) | Outings story, landing why, coffee taxonomy + `0082`, Open Pubs scaffold, taxonomy follow-through |
-| [#816](https://github.com/Singularityszn/pubmax/pull/816) | First-map band tour, WhatsApp-first `PlanInviteNextStep`, contribution gate before price form, invite e2e |
+| [#816](https://github.com/Singularityszn/pubmax/pull/816) | First-map band tour, WhatsApp-first `PlanInviteNextStep`, contribution gate, invite e2e + guest map handoff |
 
-## PR queue (this iteration)
+## Opened for Fable (review in this order)
 
-### PR-A — Coffee lens empty-state honesty
-**Branch:** `cursor/coffee-lens-empty-states-dd0b`  
-**Base:** `cursor/first-principles-outings-plan-dd0b` (needs coffee taxonomy) or stack after #817  
-**Job:** When the map lens is coffee, unknown/empty copy uses a coffee noun, not beer or “alcohol-free or soft drink”. Reuse `drinkLensUnknownRowLabel` / coverage helpers. No seeded prices.  
-**Done when:** focused vitest on mapExperienceLens / mapPriceLegend / venue list labels green; VOICE fences green.
+### Stacked on #817 (merge tip first)
 
-### PR-B — Open Pubs London match report
-**Branch:** `cursor/open-pubs-london-report-dd0b`  
-**Base:** `cursor/first-principles-outings-plan-dd0b` (uses Open Pubs scaffold)  
-**Job:** CLI/report mode that evaluates Open Pubs rows against **London curated identity**, writes a JSON summary (matched / unmatched / ambiguous counts), never merges into slim. Document in `docs/data/OPEN_PUBS.md`.  
-**Done when:** unit test with fixture; dry-run script exits 0; no network in tests.
+| PR | Branch | Job |
+|---|---|---|
+| [#822](https://github.com/Singularityszn/pubmax/pull/822) | `fix-coffee-price-update-tests` | CI: coffee valid in drink-price update suites |
+| [#821](https://github.com/Singularityszn/pubmax/pull/821) | `coffee-submit-e2e` | Coffee on price-submit path tests |
+| [#823](https://github.com/Singularityszn/pubmax/pull/823) | `persona-coffee-reclassify` | Personas off `other` → `coffee` |
+| [#824](https://github.com/Singularityszn/pubmax/pull/824) | `lens-reach-note-discover` | `communityReachNote` honesty; Discover lede from `MAP_LENS`; about team copy |
+| [#827](https://github.com/Singularityszn/pubmax/pull/827) | `plan-occasion-chip-honesty` | `inferNightContext` honours every describe-first chip |
+| [#830](https://github.com/Singularityszn/pubmax/pull/830) | `spoons-plan-prefer` | Soft-prefer directory-matched Spoons in ranking (no hard filter, no prices) |
+| [#828](https://github.com/Singularityszn/pubmax/pull/828) | `coffee-sheet-drink-lens` | Venue sheet drink-lens honesty (**prefer over #826**) |
+| [#826](https://github.com/Singularityszn/pubmax/pull/826) | `coffee-lens-empty-states` | **Superseded by #828** — close when #828 chosen |
+| [#825](https://github.com/Singularityszn/pubmax/pull/825) | `open-pubs-london-report` | Open Pubs London curated match report |
+| [#833](https://github.com/Singularityszn/pubmax/pull/833) | `scraper-coffee-categories` | Greene King / MBPLC / refresh scrapers → coffee, soft-drink, AF |
+| [#834](https://github.com/Singularityszn/pubmax/pull/834) | `outing-generate-copy` | Generate API + Pal/Ask + SiteNav outing copy |
+| [#836](https://github.com/Singularityszn/pubmax/pull/836) | `landing-outing-beat` | Landing `#why` outing jobs + about press positioning |
 
-### PR-C — Map-sheet outing copy
-**Branch:** `cursor/map-sheet-outing-copy-dd0b`  
-**Base:** `main` (independent of coffee)  
-**Job:** Align `MobilePlanActivation` / residual “Plan my night” / “Describe the night” user-facing strings on the map sheet with outing language already on `/plan`, without breaking onboarding companion CTA that #816/e2e may still pin — update e2e in the same PR.  
-**Done when:** em-dash/voice tests + touched e2e locators updated.
+### Independent of coffee taxonomy
 
-### PR-D — Guest RSVP → map soft prompt (only if missing on #816)
-**Branch:** `cursor/invite-rsvp-map-prompt-dd0b`  
-**Base:** `main` or #816 tip  
-**Job:** After successful guest RSVP on `/invite/[token]`, show one soft prompt to open stops on the map (no account). Skip if #816 already ships this.  
-**Done when:** unit or e2e pins the prompt; VOICE-clean.
+| PR | Branch | Job |
+|---|---|---|
+| [#819](https://github.com/Singularityszn/pubmax/pull/819) | `map-sheet-outing-copy` → `main` | Map-sheet "Describe the outing" |
+| [#831](https://github.com/Singularityszn/pubmax/pull/831) | `plan-outing-chrome` → #819 | "Plan tonight" → "Plan an outing" chrome |
 
-### PR-E — Coffee submit surface smoke (test-only)
-**Branch:** `cursor/coffee-submit-e2e-dd0b`  
-**Base:** outings tip  
-**Job:** Extend price-submission e2e (or vitest route test) so coffee is a submittable category in the UI list; no fake prices in fixtures beyond what tests already allow.  
-**Done when:** test green keyless/mocked.
+### Skipped / already owned
 
-### PR-F — Plan occasion chip honesty (from S1–S4 review)
-**Branch:** `cursor/plan-occasion-chip-honesty-dd0b`  
-**Base:** outings tip  
-**Job:** Wire `inferNightContext` so coffee / soft drink / food / daytime chips set real context fields; tests per chip.  
-**Done when:** vitest asserts parsed occasion fields per `DESCRIBE_FIRST_CHIPS` label.
-
-### PR-G — Lens reach note + Discover lede
-**Branch:** `cursor/lens-reach-note-discover-dd0b`  
-**Base:** outings tip  
-**Job:** `communityReachNote` honesty for map-lens non-beer; Discover lede includes coffee; drop soft invented “small team” on `/about`.
+| Item | Why |
+|---|---|
+| Guest RSVP → map prompt | Already on #816 (`InviteMapLink` / e2e map handoff) |
+| WhatsApp invite next step | #816 |
+| Captain applies `0082` | Ops, not an agent PR |
 
 ## Execution rules
 
@@ -70,9 +61,14 @@ Keep shipping useful product slices overnight as **small, reviewable PRs**. Each
 
 ## Fable checklist (tomorrow)
 
-- [ ] #817 outings + review fixes
+- [ ] #817 outings trunk
 - [ ] #816 invite-ready V1 gaps
-- [ ] PR-A coffee lens copy
-- [ ] PR-B Open Pubs London report
-- [ ] PR-C map-sheet outing copy
-- [ ] PR-D/E if opened
+- [ ] #822 → #821 → #823 coffee test/persona follow-through
+- [ ] #824 lens reach + Discover lede
+- [ ] #827 chip honesty, then #830 Spoons prefer
+- [ ] #828 sheet lens (close #826)
+- [ ] #833 scraper category sync
+- [ ] #834 + #819 + #831 outing copy stack
+- [ ] #825 Open Pubs London report
+- [ ] #836 landing outing beat
+- [ ] Captain: apply migration `0082` on Supabase
