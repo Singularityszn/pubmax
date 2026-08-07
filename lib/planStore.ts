@@ -465,13 +465,15 @@ function publicCompletion(completion: StoredCompletion): PlanCompletionDTO {
     completedAt: completion.completedAt,
   };
 }
-type MemoryPlan = { plan: PlanDTO; stops: PlanStopDTO[]; crew: MemoryMember[]; context: NightContext | null; actions: PlanActionDTO[]; ending: CrawlEnding | null; completion: StoredCompletion | null };
+type MemoryPlan = { plan: PlanDTO; stops: PlanStopDTO[]; crew: MemoryMember[]; context: NightContext | null; actions: PlanActionDTO[]; ending: CrawlEnding | null; completion: StoredCompletion | null; inviteToken: string };
 type PlanMemoryState = {
   plans: Map<string, MemoryPlan>;
   sequence: number;
   createRequests: Map<string, { requestHash: string; planId: string }>;
   joinRequests: Map<string, { requestHash: string; memberId: string }>;
   actionRequests: Map<string, { requestHash: string; actionId: string }>;
+  /** invite_token -> plan id, the memory-store mirror of plans.invite_token. */
+  inviteTokens: Map<string, string>;
 };
 const planMemoryGlobal = globalThis as typeof globalThis & {
   __pubmaxPlanMemory?: PlanMemoryState;
@@ -482,11 +484,18 @@ const planMemory = planMemoryGlobal.__pubmaxPlanMemory ??= {
   createRequests: new Map(),
   joinRequests: new Map(),
   actionRequests: new Map(),
+  inviteTokens: new Map(),
 };
 planMemory.createRequests ??= new Map();
 planMemory.joinRequests ??= new Map();
 planMemory.actionRequests ??= new Map();
+planMemory.inviteTokens ??= new Map();
 const memoryPlans = planMemory.plans;
+
+/** Mirrors the DB column default (encode(gen_random_bytes(16), 'hex')) for the memory store. */
+function mintInviteToken(): string {
+  return randomBytes(16).toString("hex");
+}
 
 function publicState(value: MemoryPlan): PlanState {
   return {
@@ -550,8 +559,10 @@ export const memoryPlanStore: PlanStore = {
       actions: [],
       ending: null,
       completion: null,
+      inviteToken: mintInviteToken(),
     };
     memoryPlans.set(id, plan);
+    planMemory.inviteTokens.set(plan.inviteToken, id);
     planMemory.createRequests.set(keyHash, { requestHash, planId: id });
     return { ok: true, plan: publicState(plan), memberToken, role: "host", created: true };
   },
@@ -864,5 +875,50 @@ export function __resetMemoryPlans(): void {
   planMemory.createRequests.clear();
   planMemory.joinRequests.clear();
   planMemory.actionRequests.clear();
+  planMemory.inviteTokens.clear();
   planMemory.sequence = 0;
+}
+
+const INVITE_TOKEN_PATTERN = /^[0-9a-f]{32}$/;
+
+export type PlanInviteTokenLookupResult = { ok: true; planId: string | null } | { ok: false; error: "error" };
+
+/**
+ * Resolves the public invite token in an app/invite/[token] URL to its plan
+ * id. The token is a bearer-capability slug, not a secret validated against a
+ * hash — matches plans.invite_token, which is stored in clear text so the
+ * host can keep reading the same link back (see migration 0081). Distinguishes
+ * a genuinely unknown token from a store outage, matching planStateResult.
+ */
+export async function resolvePlanIdByInviteToken(rawToken: unknown): Promise<PlanInviteTokenLookupResult> {
+  if (typeof rawToken !== "string") return { ok: true, planId: null };
+  const token = rawToken.trim().toLowerCase();
+  if (!INVITE_TOKEN_PATTERN.test(token)) return { ok: true, planId: null };
+  if (!isSupabaseConfigured()) return { ok: true, planId: planMemory.inviteTokens.get(token) ?? null };
+  try {
+    const { data, error } = await requireSupabaseAdmin().from(PLANS).select("id")
+      .eq("invite_token", token)
+      .maybeSingle();
+    if (error) return { ok: false, error: "error" };
+    return { ok: true, planId: data ? String(data.id) : null };
+  } catch {
+    return { ok: false, error: "error" };
+  }
+}
+
+export type PlanInviteTokenResult = { ok: true; inviteToken: string | null } | { ok: false; error: "error" };
+
+/** The host-facing lookup: a plan's own invite token, to build its share URL. */
+export async function planInviteToken(id: string): Promise<PlanInviteTokenResult> {
+  if (!isPlanId(id)) return { ok: true, inviteToken: null };
+  if (!isSupabaseConfigured()) return { ok: true, inviteToken: memoryPlans.get(id)?.inviteToken ?? null };
+  try {
+    const { data, error } = await requireSupabaseAdmin().from(PLANS).select("invite_token")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) return { ok: false, error: "error" };
+    return { ok: true, inviteToken: data && typeof data.invite_token === "string" ? data.invite_token : null };
+  } catch {
+    return { ok: false, error: "error" };
+  }
 }
