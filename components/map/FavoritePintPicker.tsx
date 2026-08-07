@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { Beer, GlassWater } from "lucide-react";
 
+import { trackEvent } from "@/lib/analytics";
 import { BEERS } from "@/lib/beers";
 import {
   CATEGORY_META,
@@ -89,6 +90,14 @@ export default function FavoritePintPicker({
           onChange={(event) => {
             const next = event.target.value;
             if (!isMapLensDrinkCategory(next)) return;
+            // Pint is the map default (empty lens). Leaving a non-pint lens for
+            // pint clears; picking a non-pint family selects. Category enum
+            // only - never a brand id or free text.
+            if (next === "beer") {
+              if (category) trackEvent("drink_lens_cleared", { category });
+            } else if (next !== category) {
+              trackEvent("drink_lens_selected", { category: next });
+            }
             onDrinkLensChange({
               drinkCategory: next === "beer" ? "" : next,
               drinkBrand: "",

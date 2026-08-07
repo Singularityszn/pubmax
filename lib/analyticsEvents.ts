@@ -185,6 +185,13 @@ export const ANALYTICS_EVENTS = {
   invite_rsvp_submitted: ["status", "isUpdate"],
   invite_reaction_toggled: ["reaction", "active"],
   invite_map_opened: [],
+  // Outing drink-lens + describe-first chips (Wave 2 · W2-D). Closed enums
+  // only so non-pint outing usage is measurable without free text or account
+  // ids. `category` is the drink taxonomy; `chip` is a stable describe-first
+  // key, never the example query string a drinker might have typed themselves.
+  drink_lens_selected: ["category"],
+  drink_lens_cleared: ["category"],
+  plan_describe_chip_selected: ["chip"],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
@@ -285,6 +292,30 @@ export const PRICE_SUBMIT_CATEGORIES = completeDrinkTaxonomy([
 ]);
 
 /**
+ * Drink categories a map lens select/clear may report. Same closed taxonomy as
+ * the price funnel (pinned to DrinkCategory), so a lens event can never invent
+ * a drink the registry does not already know.
+ */
+export const DRINK_LENS_CATEGORIES = PRICE_SUBMIT_CATEGORIES;
+
+/**
+ * Stable keys for `/plan` describe-first example chips. Order matches
+ * `DESCRIBE_FIRST_CHIPS` in `components/plan/PlanDescribeFirst.tsx`. The
+ * analytics prop is this key alone - never the chip's free-text query, which
+ * names areas and party sizes a typed request could also carry as PII.
+ */
+export const DESCRIBE_FIRST_CHIP_KEYS = [
+  "quiet_clapham",
+  "cheap_pints_shoreditch",
+  "alcohol_free_camden",
+  "soft_drinks_clapham",
+  "food_soft_shoreditch",
+  "coffee_clapham",
+  "chill_spoons_clapham",
+] as const;
+export type DescribeFirstChipKey = (typeof DESCRIBE_FIRST_CHIP_KEYS)[number];
+
+/**
  * Why a submission did not land. `invalid` is the client-side envelope check
  * (the same validator the route runs), `rejected` a non-2xx answer from the
  * route, `offline` a transport failure. Deliberately three coarse buckets - the
@@ -360,10 +391,12 @@ const SAFE_STRING_VALUES = new Set([
   "auth", "inline_recap", "full_recap",
   "plan_accepted", "plan_saved", "plan_completed", "memory_reviewed", "story_published",
   // Community-price funnel vocabulary: the drink taxonomy and the three
-  // failure buckets.
+  // failure buckets. Drink-lens events reuse the same category set.
   ...PRICE_SUBMIT_CATEGORIES,
   ...PRICE_SUBMIT_FAILURE_REASONS,
   ...CONTRIBUTION_GATE_STEPS,
+  // Describe-first chip keys (stable slugs, never the example query text).
+  ...DESCRIBE_FIRST_CHIP_KEYS,
   // Press-arrival vocabulary: the two Pint Index surfaces, the two visit
   // kinds, and the London borough codes an arrival tap may name.
   ...PINT_INDEX_SURFACES,
@@ -427,6 +460,10 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   invite_page_viewed: ["hasRsvps"],
   invite_rsvp_submitted: ["status", "isUpdate"],
   invite_reaction_toggled: ["reaction", "active"],
+  // A lens select with no category, or a describe-first chip with no key, is
+  // an uncountable step. Clear may omit category (lens already empty).
+  drink_lens_selected: ["category"],
+  plan_describe_chip_selected: ["chip"],
 } as const satisfies Partial<Record<AnalyticsEventName, readonly string[]>>;
 
 function includesValue(values: readonly string[], value: string | number | boolean): boolean {
@@ -618,6 +655,33 @@ function isAllowedInviteLoopProp(
   return true;
 }
 
+/**
+ * Drink-lens strictness. `category` shares its key name with the price funnel
+ * and pub-pal memory, so the check is scoped to these two events.
+ */
+function isAllowedDrinkLensProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (!name.startsWith("drink_lens_")) return true;
+  if (key === "category") return includesValue(DRINK_LENS_CATEGORIES, value);
+  return true;
+}
+
+/**
+ * Describe-first chip strictness. `chip` is a stable key from
+ * DESCRIBE_FIRST_CHIP_KEYS - never the free-text example query.
+ */
+function isAllowedDescribeFirstChipProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name !== "plan_describe_chip_selected" || key !== "chip") return true;
+  return includesValue(DESCRIBE_FIRST_CHIP_KEYS, value);
+}
+
 export function isKnownEvent(name: string): name is AnalyticsEventName {
   return Object.prototype.hasOwnProperty.call(ANALYTICS_EVENTS, name);
 }
@@ -668,7 +732,9 @@ export function sanitizeEvent(
             && isAllowedPriceFunnelProp(name, key, value)
             && isAllowedContributionGateProp(name, key, value)
             && isAllowedPintIndexArrivalProp(name, key, value)
-            && isAllowedInviteLoopProp(name, key, value);
+            && isAllowedInviteLoopProp(name, key, value)
+            && isAllowedDrinkLensProp(name, key, value)
+            && isAllowedDescribeFirstChipProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }

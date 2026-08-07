@@ -285,6 +285,35 @@ rsvp_change_rate        = count(invite_rsvp_submitted where isUpdate = true)
                         / count(invite_rsvp_submitted)
 ```
 
+## 8. Outing drink lens and describe-first chips
+
+Non-pint outing usage needs its own closed-enum rail. These events answer how
+often a drinker puts the map under a non-pint lens, and which describe-first
+example chips on `/plan` they pick - without ever sending typed free text or
+an account id.
+
+**Events:**
+- `drink_lens_selected` - `{ category }`. Fires in
+  `components/map/DrinkShapeChips.tsx` when a shape chip turns on, and in
+  `components/map/FavoritePintPicker.tsx` when the drink-category select moves
+  to a non-pint map lens. `category` is the closed drink taxonomy
+  (`DRINK_LENS_CATEGORIES`, the same set as `PRICE_SUBMIT_CATEGORIES`).
+- `drink_lens_cleared` - `{ category? }`. Fires when a shape chip is toggled
+  off, or when FavoritePintPicker returns to the pint default from a non-pint
+  lens. Previous category is optional so an already-empty clear still lands.
+- `plan_describe_chip_selected` - `{ chip }`. Fires in
+  `components/plan/PlanDescribeFirst.tsx` when an example chip is chosen.
+  `chip` is a stable key from `DESCRIBE_FIRST_CHIP_KEYS` (for example
+  `coffee_clapham`), never the example query string itself.
+
+```
+non_pint_lens_select_rate = count(drink_lens_selected where category != "beer")
+describe_chip_pick_rate   = count(plan_describe_chip_selected) / plan describe-first opens
+```
+
+A select with no category, or a chip pick with no key, fails closed. Consent
+gating is unchanged: `trackEvent()` no-ops without analytics consent.
+
 ## Registry additions
 
 All six new event names were added to `ANALYTICS_EVENTS` in
@@ -339,6 +368,19 @@ context, an RSVP with no status, or a reaction toggle with no reaction/
 direction is an uncountable step in a ratio-based funnel, so each fails
 closed rather than landing partial.
 
+The outing lens rail (§8) added three more, with scoped validators
+(`isAllowedDrinkLensProp` and `isAllowedDescribeFirstChipProp`):
+
+```ts
+drink_lens_selected: ["category"],
+drink_lens_cleared: ["category"],
+plan_describe_chip_selected: ["chip"],
+```
+
+`drink_lens_selected` and `plan_describe_chip_selected` join
+`TRUSTED_HANDOFF_REQUIRED_KEYS` so a select without a category or a chip
+without a key fails closed. `drink_lens_cleared` keeps `category` optional.
+
 ## Tests
 
 - `__tests__/pintIndexArrival.test.ts` — the arrival strip's area selection and
@@ -362,7 +404,9 @@ closed rather than landing partial.
   the five `REACTION_KEYS`) with an off-list value rejected; `isUpdate` and
   `active` accept only booleans; `invite_page_viewed`,
   `invite_rsvp_submitted`, and `invite_reaction_toggled` fail closed when
-  their required prop is missing.
+  their required prop is missing. The same file pins the outing lens rail:
+  drink taxonomy allow-list for select/clear, stable describe-first chip keys
+  (never free-text queries), and fail-closed missing props.
 
 ## Wave 0.5 loop metrics
 

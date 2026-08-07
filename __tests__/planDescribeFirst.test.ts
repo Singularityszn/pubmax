@@ -4,12 +4,19 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { DESCRIBE_FIRST_CHIPS } from "@/components/plan/PlanDescribeFirst";
+import { DESCRIBE_FIRST_CHIP_KEYS } from "@/lib/analyticsEvents";
 
 // Chips are promises of a priced three-stop route. Shipping an unverified
 // example that 422s is a lie — this fence holds the verified set and the
 // voice rules the surface owes.
 
 describe("PlanDescribeFirst occasion chips", () => {
+  it("keeps analytics chip keys aligned one-to-one with shipped queries", () => {
+    expect(DESCRIBE_FIRST_CHIP_KEYS).toHaveLength(DESCRIBE_FIRST_CHIPS.length);
+    expect(DESCRIBE_FIRST_CHIP_KEYS).toContain("coffee_clapham");
+    expect(DESCRIBE_FIRST_CHIP_KEYS).toContain("chill_spoons_clapham");
+  });
+
   it("keeps at least two classic night chips that already generate", () => {
     expect(DESCRIBE_FIRST_CHIPS).toContain("Quiet in Clapham for 4, not pricey");
     expect(DESCRIBE_FIRST_CHIPS).toContain("cheap pints tonight in Shoreditch");

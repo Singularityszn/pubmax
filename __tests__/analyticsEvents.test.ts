@@ -2,10 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   ANALYTICS_EVENTS,
+  DESCRIBE_FIRST_CHIP_KEYS,
+  DRINK_LENS_CATEGORIES,
   isKnownEvent,
+  PRICE_SUBMIT_CATEGORIES,
   sanitizeEvent,
   WEEKLY_MEANINGFUL_CORE_ACTIONS,
 } from "@/lib/analyticsEvents";
+import { DESCRIBE_FIRST_CHIPS } from "@/components/plan/PlanDescribeFirst";
+import { DRINK_CATEGORIES } from "@/lib/drinks";
 
 describe("isKnownEvent", () => {
   it("accepts registry names and rejects everything else", () => {
@@ -458,5 +463,82 @@ describe("invite loop events", () => {
     expect(ANALYTICS_EVENTS.invite_rsvp_submitted).toEqual(["status", "isUpdate"]);
     expect(ANALYTICS_EVENTS.invite_reaction_toggled).toEqual(["reaction", "active"]);
     expect(ANALYTICS_EVENTS.invite_map_opened).toEqual([]);
+  });
+});
+
+describe("outing drink-lens and describe-first chip events", () => {
+  it("registers select, clear, and chip-pick events", () => {
+    expect(isKnownEvent("drink_lens_selected")).toBe(true);
+    expect(isKnownEvent("drink_lens_cleared")).toBe(true);
+    expect(isKnownEvent("plan_describe_chip_selected")).toBe(true);
+    expect(ANALYTICS_EVENTS.drink_lens_selected).toEqual(["category"]);
+    expect(ANALYTICS_EVENTS.drink_lens_cleared).toEqual(["category"]);
+    expect(ANALYTICS_EVENTS.plan_describe_chip_selected).toEqual(["chip"]);
+  });
+
+  it("pins the drink-lens category allow-list to the full drink taxonomy", () => {
+    expect(DRINK_LENS_CATEGORIES).toEqual(PRICE_SUBMIT_CATEGORIES);
+    expect([...DRINK_LENS_CATEGORIES]).toEqual([...DRINK_CATEGORIES]);
+    for (const category of DRINK_LENS_CATEGORIES) {
+      expect(sanitizeEvent("drink_lens_selected", { category })).toEqual({
+        name: "drink_lens_selected",
+        props: { category },
+      });
+      expect(sanitizeEvent("drink_lens_cleared", { category })).toEqual({
+        name: "drink_lens_cleared",
+        props: { category },
+      });
+    }
+  });
+
+  it("keeps drink_lens_cleared optional and fails closed on a select without category", () => {
+    expect(sanitizeEvent("drink_lens_cleared")).toEqual({
+      name: "drink_lens_cleared",
+      props: {},
+    });
+    expect(sanitizeEvent("drink_lens_cleared", { category: "absinthe" })?.props).toEqual({});
+    expect(sanitizeEvent("drink_lens_selected", {})).toBeNull();
+    expect(sanitizeEvent("drink_lens_selected", { category: "absinthe" })).toBeNull();
+  });
+
+  it("never carries free text, venue ids, or account ids on lens events", () => {
+    expect(
+      sanitizeEvent("drink_lens_selected", {
+        category: "coffee",
+        query: "coffee in Clapham for 2",
+        venueId: "the-lamb",
+        accountId: "user_123",
+        handle: "night_owl",
+      }),
+    ).toEqual({
+      name: "drink_lens_selected",
+      props: { category: "coffee" },
+    });
+  });
+
+  it("pins describe-first chip keys to the shipped chip list, never the query text", () => {
+    expect(DESCRIBE_FIRST_CHIP_KEYS).toHaveLength(DESCRIBE_FIRST_CHIPS.length);
+    for (const chip of DESCRIBE_FIRST_CHIP_KEYS) {
+      expect(sanitizeEvent("plan_describe_chip_selected", { chip })).toEqual({
+        name: "plan_describe_chip_selected",
+        props: { chip },
+      });
+    }
+    // Free-text example queries must never survive as the chip prop.
+    for (const query of DESCRIBE_FIRST_CHIPS) {
+      expect(sanitizeEvent("plan_describe_chip_selected", { chip: query })).toBeNull();
+    }
+    expect(sanitizeEvent("plan_describe_chip_selected", { chip: "made_up_chip" })).toBeNull();
+    expect(sanitizeEvent("plan_describe_chip_selected", {})).toBeNull();
+    expect(
+      sanitizeEvent("plan_describe_chip_selected", {
+        chip: "coffee_clapham",
+        query: "coffee and a catch-up in Clapham for 2",
+        accountId: "user_123",
+      }),
+    ).toEqual({
+      name: "plan_describe_chip_selected",
+      props: { chip: "coffee_clapham" },
+    });
   });
 });

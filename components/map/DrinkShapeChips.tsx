@@ -19,6 +19,7 @@
 import "./mapToolbar.css";
 
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
+import { trackEvent } from "@/lib/analytics";
 import {
   CATEGORY_META,
   type DrinkCategory,
@@ -148,7 +149,17 @@ export default function DrinkShapeChips({
               className={on ? "drinkShapeChip isOn" : "drinkShapeChip"}
               aria-pressed={on}
               aria-label={`${CATEGORY_META[cat].label}${on ? " (selected)" : ""}`}
-              onClick={() => onFiltersChange(nextDrinkShapeFilters(filters, cat))}
+              onClick={() => {
+                // Closed-enum lens telemetry only: the drink taxonomy value,
+                // never a typed query or venue id. Toggle-off clears; pick
+                // selects (including a switch from another family).
+                if (on) {
+                  trackEvent("drink_lens_cleared", { category: cat });
+                } else {
+                  trackEvent("drink_lens_selected", { category: cat });
+                }
+                onFiltersChange(nextDrinkShapeFilters(filters, cat));
+              }}
             >
               {/* The glyph keeps its own drink colour in BOTH states now that
                   selection is a neutral fill, not a coral one. Inheriting the
