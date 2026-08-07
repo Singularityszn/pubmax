@@ -221,7 +221,7 @@ This deliberately treats every API route as a candidate because client code can 
 
 ### Shared helper candidates
 
-Total: 519. Inspected: 43. Not inspected: 476.
+Total: 519. Inspected: 45. Not inspected: 474.
 
 Command:
 
@@ -229,7 +229,9 @@ Command:
 rg --files lib -g '*.ts' -g '*.tsx' | sort
 ```
 
-This deliberately treats every TypeScript helper as a candidate because rendered fallbacks can be exported from otherwise non-visual modules. Not inspected:
+This deliberately treats every TypeScript helper as a candidate because rendered fallbacks can be exported from otherwise non-visual modules. `lib/todayBrief.ts` and
+`lib/dealsDigest.ts` were inspected on 2026-08-07 alongside `app/today/page.tsx`
+(surface pass 2), as the direct generators behind its metadata claims. Not inspected:
 
 - `lib/a2hsPrompt.ts`
 - `lib/aboutStats.ts`
@@ -337,7 +339,6 @@ This deliberately treats every TypeScript helper as a candidate because rendered
 - `lib/dailyActivity.ts`
 - `lib/dailyBriefPush.ts`
 - `lib/dataFreshness.ts`
-- `lib/dealsDigest.ts`
 - `lib/demoContent.ts`
 - `lib/deploymentEnv.ts`
 - `lib/discoverLazy.ts`
@@ -634,7 +635,6 @@ This deliberately treats every TypeScript helper as a candidate because rendered
 - `lib/tflDisruption.ts`
 - `lib/thenVsNow.ts`
 - `lib/thingsToDoMap.ts`
-- `lib/todayBrief.ts`
 - `lib/todayPersonalization.ts`
 - `lib/tonight.ts`
 - `lib/tonightAcceptance.ts`
@@ -710,7 +710,7 @@ This deliberately treats every TypeScript helper as a candidate because rendered
 
 ### Route and page metadata owners
 
-Total: 45. Inspected: 19. Not inspected: 26.
+Total: 45. Inspected: 20. Not inspected: 25.
 
 Command:
 
@@ -725,6 +725,15 @@ default via `lib/cityShare.ts`, and the UK-place-arrival fallback inline in the 
 Every string was traced to a code guarantee and none violated `docs/VOICE.md`; see
 PR "voice: derive and fix app/map/page.tsx copy from code guarantees (surface pass 1)"
 for the per-string guarantee table. No copy changed.
+
+`app/today/page.tsx` was inspected on 2026-08-07 (surface pass 2), together with
+`lib/todayBrief.ts` and `lib/dealsDigest.ts`, the two direct generators behind its
+"morning brief" claim. The title and description are its only owned strings; both
+were traced to code guarantees (the London-only weather and pricing pipeline, the
+real-ranked tonight picks, the sourced-and-unclosed pub-fact rule, and the get-home
+strip rendered by `TodayClient.tsx`). See PR "voice: derive and fix
+app/today/page.tsx copy from code guarantees (surface pass 2)" for the per-string
+guarantee table. No copy changed.
 
 Not inspected:
 
@@ -750,7 +759,6 @@ Not inspected:
 - `app/recap/[storyId]/page.tsx`
 - `app/rounds/[code]/page.tsx`
 - `app/rounds/page.tsx`
-- `app/today/page.tsx`
 - `app/u/[handle]/lists/[listType]/page.tsx`
 - `app/u/[handle]/page.tsx`
 - `app/we-are-out/page.tsx`
@@ -841,7 +849,7 @@ The explicit navigation owner covers menu blurbs that do not use a tooltip-named
 
 ### Notification and email candidates
 
-Total: 27. Inspected: 8. Not inspected: 19.
+Total: 27. Inspected: 9. Not inspected: 18.
 
 Command:
 
@@ -852,6 +860,11 @@ rg --files app components lib |
   sort
 ```
 
+`lib/dealsDigest.ts` matches this list on "digest" (it is the deals-digest grouping
+core, not a notification channel). It was inspected on 2026-08-07 alongside
+`app/today/page.tsx` (surface pass 2); see the Route and page metadata owners
+section above.
+
 Not inspected:
 
 - `app/api/cron/refresh-night-signals/route.ts`
@@ -861,7 +874,6 @@ Not inspected:
 - `components/nav/NotificationBell.tsx`
 - `components/pwa/WebPushPrompt.tsx`
 - `lib/dailyBriefPush.ts`
-- `lib/dealsDigest.ts`
 - `lib/emailProvider.ts`
 - `lib/emailSubscribers.ts`
 - `lib/emailSubscribersStore.ts`
@@ -893,4 +905,24 @@ line, which is guaranteed true because `resolveUkPlaceMapArrival` only resolves
 places outside every enabled city's coverage). None violated `docs/VOICE.md`: no
 banned words, no em dashes, no British-spelling misses, no jokes beside a price or
 date, honest price disclosure, and no copy assuming the reader drinks alcohol. No
+code changed; this is a clean-audit closeout for one surface, not a widened sweep.
+
+### Surface pass 2 (2026-08-07)
+
+`app/today/page.tsx` was chosen as the next highest-user-exposure surface: it is
+the only route `components/nav/SiteNav.tsx` places ahead of the shared primary-nav
+model, by that file's own comment, as the "before you go" home surface leading the
+desktop link list. Its title and description are its only owned strings, so the
+audit also pulled in `lib/todayBrief.ts` and `lib/dealsDigest.ts`, the direct
+generators behind the description's four claims. Every claim was traced to a code
+guarantee: the London-only weather and pricing pipeline behind "pint-in-the-garden
+day", the real-ranked, never-padded picks pipeline (`rankTonightPicks`,
+`digestSectionPicks`, whose venue-count note is always a real distinct-venue count)
+behind "tonight's top picks", the closure-checked, sourced-only fact rule
+(`pickPubOfTheDayFact`) behind "one sourced pub fact", and the live get-home strip
+(`TodayGetThereStrip`, `TodayTubeCard`) rendered by `app/today/TodayClient.tsx`
+behind "how you'll get home". None violated `docs/VOICE.md`: no banned words, no em
+dashes, no British-spelling misses, honest staleness disclosure that only ever
+rounds down, and no copy assuming the reader drinks alcohol ("pint-in-the-garden
+day" names a weather mood, not a drink order; the product noun "pint" stays). No
 code changed; this is a clean-audit closeout for one surface, not a widened sweep.
