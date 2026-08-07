@@ -313,6 +313,38 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
     });
     expect(result.pubs[0].distanceLabel).toBe("");
   });
+
+  it("surfaces resident UK base pubs in their own group, never when none are loaded", () => {
+    const without = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "fat cat",
+      venues: [],
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    expect(without.ukBasePubs).toEqual([]);
+
+    const withResident = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "fat cat",
+      venues: [],
+      ukBasePubs: [
+        {
+          id: "venue-uk-n-fat",
+          name: "The Fat Cat",
+          address: "23 Alma Street",
+          lat: 53.391,
+          lng: -1.477,
+          curatedVenueId: "",
+        },
+      ],
+      userLocation: null,
+      mapCenter: [-1.47, 53.38],
+    });
+    expect(withResident.ukBasePubs.map((row) => row.id)).toEqual(["venue-uk-n-fat"]);
+    expect(withResident.hasResults).toBe(true);
+    expect(withResident.pubs).toHaveLength(0);
+  });
 });
 
 // A tiny synthetic gazetteer — a locality, a modelled-area collision, and a

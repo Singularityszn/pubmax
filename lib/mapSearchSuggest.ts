@@ -14,10 +14,15 @@ import {
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
 import { slugifyBorough } from "@/lib/boroughs";
-import type { CityId } from "@/lib/cities";
+import { listEnabledCities, type CityId } from "@/lib/cities";
+import { buildCityChooserSearchResults } from "@/lib/cityChooserSearch";
 import { haversineKm } from "@/lib/haversine";
 import type { Locality } from "@/lib/localities";
 import { getNightAreasForCity } from "@/lib/nightAreas";
+import {
+  UK_PLACE_MAP_ZOOM,
+  type UkPlace,
+} from "@/lib/ukPlaceSearch";
 import type { Venue, VenueKind } from "@/lib/venues";
 import {
   compactVenueAnchor,
@@ -35,6 +40,11 @@ export const SUGGEST_PUB_LIMIT = 6;
 export const SUGGEST_AREA_LIMIT = 6;
 /** Cap on the "nearby areas" shown on an empty query (taste-first, minimal). */
 export const SUGGEST_EMPTY_AREA_LIMIT = 5;
+/** Cap on UK place matches from the national gazetteer. */
+export const SUGGEST_PLACE_LIMIT = 6;
+
+/** Visible group head for national place rows in MapSearchSuggest. */
+export const UK_PLACE_SEARCH_GROUP_LABEL = "UK places";
 
 /** Camera zoom a locality tap flies to. A locality is tighter than a modelled
  *  area, so it sits one notch deeper than the area fly's default (14). */
@@ -87,12 +97,35 @@ export type PubSuggestion = {
   distanceLabel: string;
 };
 
+/**
+ * A UK place from the national gazetteer (public/data/uk_base/places.json).
+ * Uses the same arrival hrefs as /choose-city so an uncovered pick lands the
+ * UkPlaceArrivalBanner, and a place inside a curated pack opens that city map.
+ */
+export type PlaceSuggestion = {
+  key: string;
+  name: string;
+  /** Postcode area for an uncovered place; "" for a curated city-guide row. */
+  contextLabel: string;
+  description: string;
+  href: string;
+  placeKind: "curated" | "uncovered";
+  /** Set for curated rows so the shell can fly in-place when already there. */
+  cityId?: CityId;
+  /** [lng, lat] fly target when staying on the current city map. */
+  center: [number, number];
+  flyZoom: number;
+  distanceKm: number;
+  distanceLabel: string;
+};
+
 export type MapSearchSuggestions = {
   origin: SuggestOrigin;
   /** The normalised query these suggestions answer. */
   query: string;
   areas: AreaSuggestion[];
   pubs: PubSuggestion[];
+  places: PlaceSuggestion[];
   hasResults: boolean;
   isEmptyQuery: boolean;
 };
@@ -105,6 +138,17 @@ export type MapSearchSuggestInput = {
    *  Optional + defaults to []: a non-London city, or a fetch that hasn't
    *  landed yet, simply falls back to the modelled areas + boroughs. */
   localities?: Locality[];
+  /**
+   * National UK place index (lazy-loaded). Optional + defaults to []: until
+   * places.json lands, the panel keeps answering with local areas and pubs.
+   */
+  places?: readonly UkPlace[];
+  /**
+   * When false, skip modelled areas / localities / boroughs / pubs. Used on a
+   * limited-coverage UK place arrival where the city pack is emptied and the
+   * national gazetteer is what can still answer.
+   */
+  includeLocalResults?: boolean;
   /** The viewer's GPS position when Near me granted it; else null. */
   userLocation: { lat: number; lng: number } | null;
   /** Live map centre [lng, lat] — the honest fallback origin. */
@@ -112,7 +156,74 @@ export type MapSearchSuggestInput = {
   now?: Date;
   pubLimit?: number;
   areaLimit?: number;
+  placeLimit?: number;
 };
+
+/**
+ * Turn chooser-shaped place matches into map-search rows with honest distance
+ * labels. Pure so MapSearchSuggest stays a thin render, and so limited-coverage
+ * arrivals can answer with places alone when venues/localities are emptied.
+ */
+export function buildMapPlaceSuggestions(input: {
+  query: string;
+  places: readonly UkPlace[];
+  /** Names already shown as local areas — dropped to avoid a double row. */
+  excludedNames?: readonly string[];
+  /** Curated city currently on screen — its own guide row is not re-offered. */
+  currentCityId?: CityId;
+  userLocation: { lat: number; lng: number } | null;
+  mapCenter: [number, number];
+  limit?: number;
+}): PlaceSuggestion[] {
+  const limit = input.limit ?? SUGGEST_PLACE_LIMIT;
+  if (limit <= 0) return [];
+  const origin: SuggestOrigin = input.userLocation ? "user" : "map-centre";
+  const originPoint: [number, number] = input.userLocation
+    ? [input.userLocation.lng, input.userLocation.lat]
+    : input.mapCenter;
+  const excluded = new Set(
+    (input.excludedNames ?? []).map((name) => normalize(name)).filter(Boolean),
+  );
+  const results: PlaceSuggestion[] = [];
+  for (const result of buildCityChooserSearchResults(
+    input.query,
+    listEnabledCities(),
+    input.places,
+    Math.max(limit + excluded.size, limit),
+  )) {
+    if (excluded.has(normalize(result.name))) continue;
+    if (
+      result.kind === "curated" &&
+      input.currentCityId !== undefined &&
+      result.cityId === input.currentCityId &&
+      normalize(result.name) ===
+        normalize(
+          listEnabledCities().find((city) => city.id === result.cityId)
+            ?.displayName ?? "",
+        )
+    ) {
+      // Already on this city guide — the empty-query nearby areas cover it.
+      continue;
+    }
+    const center: [number, number] = [result.lng, result.lat];
+    const distanceKm = distanceKmFrom(originPoint, center);
+    results.push({
+      key: `place:${result.kind}:${result.href}:${result.name}`,
+      name: result.name,
+      contextLabel: result.kind === "uncovered" ? result.context : "",
+      description: result.description,
+      href: result.href,
+      placeKind: result.kind,
+      ...(result.kind === "curated" ? { cityId: result.cityId } : {}),
+      center,
+      flyZoom: UK_PLACE_MAP_ZOOM,
+      distanceKm,
+      distanceLabel: formatSuggestDistance(distanceKm, origin),
+    });
+    if (results.length >= limit) break;
+  }
+  return results;
+}
 
 function normalize(value: string): string {
   return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
@@ -272,13 +383,22 @@ function buildPubSuggestion(
  * from the map centre — labelled honestly. Only modelled areas carry a coverage
  * chip; localities and boroughs are navigation targets, not coverage promises.
  *
+ * When `places` is supplied and the query is two or more characters, UK places
+ * from the national gazetteer join as a third group (same routing as
+ * /choose-city). On a limited-coverage arrival, pass `includeLocalResults:
+ * false` so emptied venues/localities do not leave an empty panel — places fill
+ * the gap.
+ *
  * An empty query returns the nearest few areas (a minimal, taste-first prompt)
  * and no pubs. A non-empty query with no match returns empty groups, so the
  * shell can show one honest "nothing matching" line rather than a dead panel.
  */
 export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSearchSuggestions {
-  const { cityId, venues, userLocation, mapCenter, now = new Date() } = input;
-  const localities = input.localities ?? [];
+  const { cityId, userLocation, mapCenter, now = new Date() } = input;
+  const includeLocalResults = input.includeLocalResults !== false;
+  const venues = includeLocalResults ? input.venues : [];
+  const localities = includeLocalResults ? (input.localities ?? []) : [];
+  const places = input.places ?? [];
   const pubLimit = input.pubLimit ?? SUGGEST_PUB_LIMIT;
   const query = normalize(input.query);
   const isEmptyQuery = query.length === 0;
@@ -288,103 +408,105 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
     ? [userLocation.lng, userLocation.lat]
     : mapCenter;
 
-  const areas = getNightAreasForCity(cityId);
-  const modelledLabels = new Set<string>();
-  for (const area of areas) {
-    modelledLabels.add(normalize(area.name));
-    for (const alias of area.aliases) modelledLabels.add(normalize(alias));
-  }
-
   const areaMatches: { tier: number; suggestion: AreaSuggestion }[] = [];
-
-  for (const area of areas) {
-    // Empty query: every area is an equal-tier "nearby" candidate, ranked by
-    // distance below. Typed query: keep only the ones that match.
-    const tier = isEmptyQuery ? 1 : matchTier([area.name, ...area.aliases], query);
-    if (tier === null) continue;
-    const center: [number, number] = [area.centre.lng, area.centre.lat];
-    const distanceKm = distanceKmFrom(originPoint, center);
-    areaMatches.push({
-      tier,
-      suggestion: {
-        key: `area:${area.slug}`,
-        kind: "area",
-        slug: area.slug,
-        name: area.name,
-        contextLabel: "",
-        areaNewsArea: area.slug,
-        center,
-        distanceKm,
-        distanceLabel: formatSuggestDistance(distanceKm, origin),
-        coverage: areaCoverageLabel(area, now),
-      },
-    });
-  }
-
-  // Localities (public/data/london_localities.json) join only for a typed query
-  // — the empty-query prompt stays to the modelled areas. A locality whose name
-  // is already a modelled area (or one of its aliases) is dropped so search never
-  // double-lists it; the curated area, with its coverage chip, wins. Localities
-  // carry NO coverage — they are places to fly to, not coverage promises.
+  const modelledLabels = new Set<string>();
   const shownLocalityLabels = new Set<string>();
-  if (!isEmptyQuery) {
-    for (const locality of localities) {
-      const label = normalize(locality.name);
-      if (!label || modelledLabels.has(label) || shownLocalityLabels.has(label)) continue;
-      const tier = matchTier([locality.name], query);
+
+  if (includeLocalResults) {
+    const areas = getNightAreasForCity(cityId);
+    for (const area of areas) {
+      modelledLabels.add(normalize(area.name));
+      for (const alias of area.aliases) modelledLabels.add(normalize(alias));
+    }
+
+    for (const area of areas) {
+      // Empty query: every area is an equal-tier "nearby" candidate, ranked by
+      // distance below. Typed query: keep only the ones that match.
+      const tier = isEmptyQuery ? 1 : matchTier([area.name, ...area.aliases], query);
       if (tier === null) continue;
-      if (!Number.isFinite(locality.lng) || !Number.isFinite(locality.lat)) continue;
-      shownLocalityLabels.add(label);
-      const center: [number, number] = [locality.lng, locality.lat];
+      const center: [number, number] = [area.centre.lng, area.centre.lat];
       const distanceKm = distanceKmFrom(originPoint, center);
       areaMatches.push({
         tier,
         suggestion: {
-          key: `locality:${slugify(locality.name)}`,
-          kind: "locality",
-          slug: `locality:${slugify(locality.name)}`,
-          name: locality.name,
-          contextLabel: locality.borough,
-          areaNewsArea: slugifyBorough(locality.borough),
+          key: `area:${area.slug}`,
+          kind: "area",
+          slug: area.slug,
+          name: area.name,
+          contextLabel: "",
+          areaNewsArea: area.slug,
           center,
-          flyZoom: LOCALITY_FLY_ZOOM,
           distanceKm,
           distanceLabel: formatSuggestDistance(distanceKm, origin),
-          coverage: null,
+          coverage: areaCoverageLabel(area, now),
         },
       });
     }
-  }
 
-  // Boroughs join only for a typed query (empty-query prompts stay to the
-  // modelled areas). A borough whose name is already a modelled area (or one of
-  // its aliases) is dropped so we never show "Camden" twice — the curated area,
-  // with its real centre and coverage, wins.
-  if (!isEmptyQuery) {
-    for (const [name, info] of buildBoroughCentroids(venues)) {
-      const label = normalize(name);
-      // Drop a borough that collides with a modelled area (curated area wins) or
-      // with a locality already shown (no "Bromley" twice — the locality centroid
-      // is the finer target).
-      if (modelledLabels.has(label) || shownLocalityLabels.has(label)) continue;
-      const tier = matchTier([name], query);
-      if (tier === null) continue;
-      const distanceKm = distanceKmFrom(originPoint, info.center);
-      areaMatches.push({
-        tier,
-        suggestion: {
-          key: `borough:${slugify(name)}`,
-          kind: "borough",
-          slug: `borough:${slugify(name)}`,
-          name,
-          contextLabel: "",
-          areaNewsArea: slugifyBorough(name),
-          center: info.center,
-          distanceKm,
-          distanceLabel: formatSuggestDistance(distanceKm, origin),
-          coverage: null,
-        },
-      });
+    // Localities (public/data/london_localities.json) join only for a typed query
+    // — the empty-query prompt stays to the modelled areas. A locality whose name
+    // is already a modelled area (or one of its aliases) is dropped so search never
+    // double-lists it; the curated area, with its coverage chip, wins. Localities
+    // carry NO coverage — they are places to fly to, not coverage promises.
+    if (!isEmptyQuery) {
+      for (const locality of localities) {
+        const label = normalize(locality.name);
+        if (!label || modelledLabels.has(label) || shownLocalityLabels.has(label)) continue;
+        const tier = matchTier([locality.name], query);
+        if (tier === null) continue;
+        if (!Number.isFinite(locality.lng) || !Number.isFinite(locality.lat)) continue;
+        shownLocalityLabels.add(label);
+        const center: [number, number] = [locality.lng, locality.lat];
+        const distanceKm = distanceKmFrom(originPoint, center);
+        areaMatches.push({
+          tier,
+          suggestion: {
+            key: `locality:${slugify(locality.name)}`,
+            kind: "locality",
+            slug: `locality:${slugify(locality.name)}`,
+            name: locality.name,
+            contextLabel: locality.borough,
+            areaNewsArea: slugifyBorough(locality.borough),
+            center,
+            flyZoom: LOCALITY_FLY_ZOOM,
+            distanceKm,
+            distanceLabel: formatSuggestDistance(distanceKm, origin),
+            coverage: null,
+          },
+        });
+      }
+    }
+
+    // Boroughs join only for a typed query (empty-query prompts stay to the
+    // modelled areas). A borough whose name is already a modelled area (or one of
+    // its aliases) is dropped so we never show "Camden" twice — the curated area,
+    // with its real centre and coverage, wins.
+    if (!isEmptyQuery) {
+      for (const [name, info] of buildBoroughCentroids(venues)) {
+        const label = normalize(name);
+        // Drop a borough that collides with a modelled area (curated area wins) or
+        // with a locality already shown (no "Bromley" twice — the locality centroid
+        // is the finer target).
+        if (modelledLabels.has(label) || shownLocalityLabels.has(label)) continue;
+        const tier = matchTier([name], query);
+        if (tier === null) continue;
+        const distanceKm = distanceKmFrom(originPoint, info.center);
+        areaMatches.push({
+          tier,
+          suggestion: {
+            key: `borough:${slugify(name)}`,
+            kind: "borough",
+            slug: `borough:${slugify(name)}`,
+            name,
+            contextLabel: "",
+            areaNewsArea: slugifyBorough(name),
+            center: info.center,
+            distanceKm,
+            distanceLabel: formatSuggestDistance(distanceKm, origin),
+            coverage: null,
+          },
+        });
+      }
     }
   }
 
@@ -395,7 +517,7 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
     .map((entry) => entry.suggestion);
 
   const pubMatches: { tier: number; suggestion: PubSuggestion }[] = [];
-  if (!isEmptyQuery) {
+  if (includeLocalResults && !isEmptyQuery) {
     const seen = new Set<string>();
     for (const venue of venues) {
       if (!venue.name || seen.has(venue.id)) continue;
@@ -413,12 +535,33 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
     .slice(0, Math.max(0, pubLimit))
     .map((entry) => entry.suggestion);
 
+  // National places join only for a typed query of two or more characters
+  // (searchUkPlaces / chooser already enforce that). Names already shown as
+  // local areas are dropped so Camden is not listed twice on a London map.
+  const rankedPlaces =
+    isEmptyQuery || places.length === 0
+      ? []
+      : buildMapPlaceSuggestions({
+          query: input.query,
+          places,
+          excludedNames: rankedAreas.map((area) => area.name),
+          currentCityId: cityId,
+          userLocation,
+          mapCenter,
+          limit: input.placeLimit ?? SUGGEST_PLACE_LIMIT,
+        });
+
   return {
     origin,
     query,
     areas: rankedAreas,
     pubs: rankedPubs,
-    hasResults: rankedAreas.length > 0 || rankedPubs.length > 0,
+    places: rankedPlaces,
+    hasResults:
+      rankedAreas.length > 0 ||
+      rankedPubs.length > 0 ||
+      rankedPlaces.length > 0,
     isEmptyQuery,
   };
 }
+
