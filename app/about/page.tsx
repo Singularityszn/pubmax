@@ -277,9 +277,9 @@ export default async function AboutPage() {
           >
             Karan Manoharan
           </a>
-          , with a small team. We argue about corroboration versus speed, London
-          depth versus a thinner national map, and what a price is allowed to
-          claim. Those fights land in the product, not in a brand deck.
+          . We argue about corroboration versus speed, London depth versus a
+          thinner national map, and what a price is allowed to claim. Those
+          fights land in the product, not in a brand deck.
         </p>
       </section>
 
