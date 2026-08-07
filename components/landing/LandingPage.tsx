@@ -18,7 +18,7 @@ import {
   Smartphone,
   UsersRound,
 } from "lucide-react";
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
@@ -37,12 +37,14 @@ import {
   subscribePreferredCity,
 } from "@/lib/cityPreference";
 import { warmMapRoute } from "@/lib/mapWarmup";
+import { onReducedMotionChange, prefersReducedMotion } from "@/lib/motionVocabulary";
 import { CONTACT_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
 
 import PintDropStripLoading from "./PintDropStripLoading";
 import ThamesHero from "./ThamesHero";
 import "./landing.css";
+import "./heroCinema.css";
 
 const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
   ssr: false,
@@ -158,6 +160,59 @@ export default function LandingPage({
     trackEvent("discovery_viewed", { surface: "landing", daypart });
   }, []);
 
+  // Hero scroll cinema (PIECE 2 of feat(landing): hero scroll cinema with
+  // aperture splash). Drives --cinema-progress on .lpHero from scroll
+  // position, 0 to 1 over CINEMA_SCROLL_DISTANCE px. Eligibility (viewport
+  // width, prefers-reduced-motion) mirrors the compound media query in
+  // heroCinema.css exactly, so the CSS default and this effect's first
+  // computed value always agree - no flash on mount. Reduced motion and
+  // phones (<=700px) never attach the listener; the card stays the plain,
+  // static, settled treatment heroCinema.css falls back to.
+  const heroRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const hero = heroRef.current;
+    if (!hero) return;
+
+    const CINEMA_SCROLL_DISTANCE = 520;
+    const wideQuery = window.matchMedia("(min-width: 701px)");
+    let frame = 0;
+    let listening = false;
+
+    const applyProgress = () => {
+      frame = 0;
+      const progress = Math.min(1, Math.max(0, window.scrollY / CINEMA_SCROLL_DISTANCE));
+      hero.style.setProperty("--cinema-progress", String(progress));
+    };
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(applyProgress);
+    };
+    const evaluate = () => {
+      const eligible = wideQuery.matches && !prefersReducedMotion();
+      if (eligible && !listening) {
+        listening = true;
+        applyProgress();
+        window.addEventListener("scroll", onScroll, { passive: true });
+      } else if (!eligible && listening) {
+        listening = false;
+        window.removeEventListener("scroll", onScroll);
+        if (frame) cancelAnimationFrame(frame);
+        hero.style.removeProperty("--cinema-progress");
+      }
+    };
+
+    evaluate();
+    const unsubscribeMotion = onReducedMotionChange(evaluate);
+    wideQuery.addEventListener("change", evaluate);
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+      wideQuery.removeEventListener("change", evaluate);
+      unsubscribeMotion();
+    };
+  }, []);
+
   // Flag-on primary: Find my pint (geo-primary experiment, untouched).
   const heroPrimaryFindMyPint = (
     <Link className="lpButton lpButtonPrimary" href="/near">
@@ -230,7 +285,7 @@ export default function LandingPage({
       </header>
 
       <main id="main">
-        <section className="lpHero" aria-labelledby="hero-title">
+        <section className="lpHero" aria-labelledby="hero-title" ref={heroRef}>
           <div className="lpHeroAtmosphere" aria-hidden="true">
             <span className="lpOrbit lpOrbitOne" />
             <span className="lpOrbit lpOrbitTwo" />
