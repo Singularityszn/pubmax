@@ -267,6 +267,12 @@
   font-size: 14px;
 }
 
+.inviteRsvp__more {
+  margin: -6px 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
 .inviteRsvp__form {
   display: flex;
   flex-direction: column;

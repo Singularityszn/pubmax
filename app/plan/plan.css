@@ -911,6 +911,11 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   padding-top: 1rem;
   border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
 }
+.planHostInviteLink__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
 .planHostInviteLink__cta {
   display: inline-flex;
   align-items: center;
@@ -923,6 +928,24 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   color: var(--ink);
   font-weight: 750;
   cursor: pointer;
+}
+.planHostInviteLink__rotate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--panel-raised);
+  color: var(--muted);
+  font-weight: 650;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.planHostInviteLink__rotate:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 .planHostInviteLink__status {
   margin: 0;

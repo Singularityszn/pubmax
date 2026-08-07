@@ -8,7 +8,7 @@ import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { GUEST_DISPLAY_NAME_MAX, isRsvpStatus } from "@/lib/planInvite";
 import { resolveClassicInvitePlan } from "@/lib/planInviteResolve";
-import { UnknownPlanError, rsvpStore } from "@/lib/planInviteRsvpStore";
+import { RsvpCapExceededError, UnknownPlanError, rsvpStore } from "@/lib/planInviteRsvpStore";
 import { hashActor } from "@/lib/supabase";
 import { cleanText, readString } from "@/lib/textClean";
 
@@ -53,6 +53,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   } catch (err) {
     if (err instanceof UnknownPlanError) {
       return jsonNoStore({ error: "This invite link isn't valid." }, { status: 404 });
+    }
+    if (err instanceof RsvpCapExceededError) {
+      return jsonNoStore({ error: "This guest list is full." }, { status: 409 });
     }
     console.error("[invite-rsvp] POST failed:", err instanceof Error ? err.stack || err.message : err);
     return jsonNoStore({ error: "RSVPs are unavailable." }, { status: 503 });

@@ -16,6 +16,11 @@ import {
 // only ever holds the privacy-safe preview, so this island restores capability
 // client-side and fetches the member-only projection itself. Clipboard idiom
 // mirrors PlanCollaborationPanel.tsx's createInvite().
+//
+// F9: the "New link" rotate control is host-only, gated on the same
+// capability snapshot PlanInviteRsvp.tsx already uses for its host-only
+// Remove button. Confirm idiom (window.confirm) mirrors
+// CrawlStoryOwnerControls.tsx's delete confirmation.
 export default function PlanHostInviteLink({ planId }: { planId: string }) {
   const tokenEvent = planCapabilityEvent(planId);
   const capabilitySnapshot = useSyncExternalStore(
@@ -26,10 +31,12 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
     () => readPlanCapabilitySnapshot(planId),
     () => "|0|",
   );
-  const { token: memberToken } = parsePlanCapabilitySnapshot(capabilitySnapshot);
+  const { token: memberToken, role } = parsePlanCapabilitySnapshot(capabilitySnapshot);
+  const isHost = Boolean(memberToken && role === "host");
 
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [status, setStatus] = useState("");
+  const [rotating, setRotating] = useState(false);
 
   useEffect(() => {
     if (memberToken) return;
@@ -60,11 +67,57 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
     setStatus("Invite link copied.");
   }
 
+  async function rotateLink() {
+    if (rotating) return;
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(
+        "Make a new invite link? The old one stops working straight away, and anyone still holding it won't get in.",
+      )
+    ) {
+      return;
+    }
+    setRotating(true);
+    setStatus("");
+    try {
+      const res = await fetch(`/api/plans/${planId}/invite-rotate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ memberToken }),
+      });
+      if (!res.ok) {
+        setStatus("Couldn't make a new link.");
+        return;
+      }
+      const data = (await res.json()) as { inviteToken?: string };
+      if (data.inviteToken) {
+        setInviteToken(data.inviteToken);
+        setStatus("New link ready. The old one stopped working.");
+      }
+    } catch {
+      setStatus("Couldn't make a new link.");
+    } finally {
+      setRotating(false);
+    }
+  }
+
   return (
     <div className="planHostInviteLink">
-      <button type="button" className="planHostInviteLink__cta pressable" onClick={() => void copyLink()}>
-        Copy invite link
-      </button>
+      <div className="planHostInviteLink__row">
+        <button type="button" className="planHostInviteLink__cta pressable" onClick={() => void copyLink()}>
+          Copy invite link
+        </button>
+        {isHost ? (
+          <button
+            type="button"
+            className="planHostInviteLink__rotate pressable"
+            disabled={rotating}
+            onClick={() => void rotateLink()}
+          >
+            {rotating ? "Making new link…" : "New link"}
+          </button>
+        ) : null}
+      </div>
       {status ? (
         <p className="planHostInviteLink__status" role="status">
           {status}

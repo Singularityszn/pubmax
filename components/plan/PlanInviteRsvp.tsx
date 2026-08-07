@@ -159,7 +159,9 @@ export default function PlanInviteRsvp({
               ? "That's a lot of RSVPs. Give it a moment."
               : res.status === 404
                 ? "This invite link isn't valid."
-                : "Couldn't save that RSVP.",
+                : res.status === 409
+                  ? "This guest list is full."
+                  : "Couldn't save that RSVP.",
           );
           return;
         }
@@ -244,9 +246,17 @@ export default function PlanInviteRsvp({
             </li>
           ))}
         </ul>
-      ) : (
+      ) : null}
+
+      {rsvp.counts.going + rsvp.counts.maybe > rsvp.guests.length ? (
+        <p className="inviteRsvp__more">
+          +{rsvp.counts.going + rsvp.counts.maybe - rsvp.guests.length} more
+        </p>
+      ) : null}
+
+      {rsvp.guests.length === 0 ? (
         <p className="inviteRsvp__empty">No RSVPs yet. Be the first.</p>
-      )}
+      ) : null}
 
       {removeError ? (
         <p className="inviteRsvp__error" role="status">

@@ -19,7 +19,7 @@
 // instead for the browser-safe constants and DTO shapes.
 
 import { admin, isForeignKeyViolation, isUniqueViolation, selectStore } from "@/lib/storeBackend";
-import { isRsvpStatus, type PlanInviteGuest, type PlanInviteRsvpSummary, type RsvpStatus } from "@/lib/planInvite";
+import { GUEST_LIST_DISPLAY_CAP, isRsvpStatus, RSVP_PLAN_CEILING, type PlanInviteGuest, type PlanInviteRsvpSummary, type RsvpStatus } from "@/lib/planInvite";
 import { isReactionKey, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 
 /** The plan id backing an invite token no longer exists (or never did). */
@@ -27,6 +27,14 @@ export class UnknownPlanError extends Error {
   constructor(planId: string) {
     super(`Unknown plan: ${planId}`);
     this.name = "UnknownPlanError";
+  }
+}
+
+/** F10: a plan already holds RSVP_PLAN_CEILING guests; a new guest is refused. */
+export class RsvpCapExceededError extends Error {
+  constructor(planId: string) {
+    super(`RSVP cap reached for plan: ${planId}`);
+    this.name = "RsvpCapExceededError";
   }
 }
 
@@ -42,9 +50,11 @@ function summarizeRsvpRows(rows: RsvpRow[]): PlanInviteRsvpSummary {
     .filter((row): row is RsvpRow & { status: RsvpStatus } => isRsvpStatus(row.status))
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .map((row): PlanInviteGuest => ({ id: row.id, displayName: row.display_name, status: row.status }));
+  // Counts tally every row before the display cap, so "N going" always
+  // reflects the true guest list even once the shown names are trimmed.
   const counts = { going: 0, maybe: 0 };
   for (const guest of guests) counts[guest.status] += 1;
-  return { counts, guests };
+  return { counts, guests: guests.slice(0, GUEST_LIST_DISPLAY_CAP) };
 }
 
 export type PlanInviteRsvpStore = {
@@ -58,6 +68,23 @@ export type PlanInviteRsvpStore = {
 
 export const supabaseRsvpStore: PlanInviteRsvpStore = {
   async upsert(planId, submitterHash, displayName, status) {
+    const { data: existing, error: existingError } = await admin()
+      .from(RSVP_TABLE)
+      .select("id")
+      .eq("plan_id", planId)
+      .eq("submitter_hash", submitterHash)
+      .maybeSingle();
+    if (existingError) throw new Error(existingError.message);
+    // Only a brand-new guest counts against the ceiling; an existing guest
+    // changing Going/Maybe is always allowed, even once a plan is full.
+    if (!existing) {
+      const { count, error: countError } = await admin()
+        .from(RSVP_TABLE)
+        .select("id", { count: "exact", head: true })
+        .eq("plan_id", planId);
+      if (countError) throw new Error(countError.message);
+      if ((count ?? 0) >= RSVP_PLAN_CEILING) throw new RsvpCapExceededError(planId);
+    }
     const { error } = await admin()
       .from(RSVP_TABLE)
       .upsert(
@@ -103,6 +130,7 @@ export const memoryRsvpStore: PlanInviteRsvpStore = {
   async upsert(planId, submitterHash, displayName, status) {
     const byPlan = memoryRsvps.get(planId) ?? new Map();
     const existing = byPlan.get(submitterHash);
+    if (!existing && byPlan.size >= RSVP_PLAN_CEILING) throw new RsvpCapExceededError(planId);
     byPlan.set(submitterHash, {
       id: existing?.id ?? crypto.randomUUID(),
       displayName,

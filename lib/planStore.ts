@@ -922,3 +922,33 @@ export async function planInviteToken(id: string): Promise<PlanInviteTokenResult
     return { ok: false, error: "error" };
   }
 }
+
+/**
+ * Host-only rotation: mints a fresh invite token for the plan, invalidating
+ * the old /invite/[token] link immediately. Same format as the DB column
+ * default (migration 0081, encode(gen_random_bytes(16), 'hex')) — mirrors
+ * mintInviteToken() rather than calling a SQL function, since a JS-minted
+ * hex value satisfies the same unique + format constraint either way.
+ */
+export async function rotateInviteToken(id: string): Promise<PlanInviteTokenResult> {
+  if (!isPlanId(id)) return { ok: true, inviteToken: null };
+  const token = mintInviteToken();
+  if (!isSupabaseConfigured()) {
+    const plan = memoryPlans.get(id);
+    if (!plan) return { ok: true, inviteToken: null };
+    planMemory.inviteTokens.delete(plan.inviteToken);
+    plan.inviteToken = token;
+    planMemory.inviteTokens.set(token, id);
+    return { ok: true, inviteToken: token };
+  }
+  try {
+    const { data, error } = await requireSupabaseAdmin().from(PLANS).update({ invite_token: token })
+      .eq("id", id)
+      .select("invite_token")
+      .maybeSingle();
+    if (error) return { ok: false, error: "error" };
+    return { ok: true, inviteToken: data && typeof data.invite_token === "string" ? data.invite_token : null };
+  } catch {
+    return { ok: false, error: "error" };
+  }
+}
