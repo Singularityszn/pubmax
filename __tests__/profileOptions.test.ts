@@ -50,4 +50,19 @@ describe("desktop profile options", () => {
     expect(siteNavMore).toContain("<button");
     expect(profileClient).not.toMatch(/function ProfileOptionsMenu|<ProfileOptionsMenu/);
   });
+
+  it("preserves the location hash when redirecting /u/you to the viewer handle", () => {
+    expect(profileClient).toContain("window.location.hash");
+    expect(profileClient).toMatch(
+      /router\.replace\(`\/u\/\$\{encodeURIComponent\(viewerHandle\)\}\$\{hash\}`\)/,
+    );
+  });
+
+  it("honestly routes signed-out #night-memories to claim instead of a dead studio anchor", () => {
+    expect(profileClient).toContain("isNightMemoriesHash");
+    expect(profileClient).toContain('getElementById("account-settings")');
+    expect(profileClient).toContain("nightMemoriesInvite");
+    expect(profileClient).toMatch(/claimed @handle/);
+    expect(profileClient).not.toContain('id="night-memories"');
+  });
 });
