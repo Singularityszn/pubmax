@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
+import { trackEvent } from "@/lib/analytics";
 import { getAnonId } from "@/lib/anonId";
 import { GUEST_DISPLAY_NAME_MAX, isRsvpStatus, type PlanInviteRsvpSummary, type RsvpStatus } from "@/lib/planInvite";
 import {
@@ -165,8 +166,11 @@ export default function PlanInviteRsvp({
           );
           return;
         }
-        const data = (await res.json()) as { summary?: PlanInviteRsvpSummary };
-        if (data.summary) setRsvp(data.summary);
+        const data = (await res.json()) as { summary?: PlanInviteRsvpSummary; isUpdate?: boolean };
+        if (data.summary) {
+          setRsvp(data.summary);
+          trackEvent("invite_rsvp_submitted", { status: chosen, isUpdate: Boolean(data.isUpdate) });
+        }
       } catch {
         setRsvpError("Couldn't save that RSVP.");
       } finally {
@@ -201,7 +205,10 @@ export default function PlanInviteRsvp({
           return;
         }
         const data = (await res.json()) as { summary?: ReactionSummary };
-        if (data.summary) setReactions(data.summary);
+        if (data.summary) {
+          setReactions(data.summary);
+          trackEvent("invite_reaction_toggled", { reaction, active: data.summary.mine.includes(reaction) });
+        }
       } catch {
         setReactionError("Couldn't save that reaction.");
       } finally {

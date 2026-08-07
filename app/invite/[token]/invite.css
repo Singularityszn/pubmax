@@ -168,6 +168,14 @@
   font-size: 14px;
 }
 
+.invite__mapLink {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--brass);
+  font-weight: 600;
+  font-size: 14px;
+}
+
 /* ── RSVP + reactions (mounted by components/plan/PlanInviteRsvp.tsx) ────── */
 .inviteRsvp {
   margin-top: 26px;

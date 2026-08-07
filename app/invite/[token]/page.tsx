@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import RouteThumbnail from "@/app/crawls/RouteThumbnail";
+import InviteMapLink from "@/components/plan/InviteMapLink";
+import InvitePageView from "@/components/plan/InvitePageView";
 import PlanInviteRsvp from "@/components/plan/PlanInviteRsvp";
 import type { PlanInviteRsvpSummary } from "@/lib/planInvite";
 import { reactionStore, rsvpStore } from "@/lib/planInviteRsvpStore";
@@ -240,12 +242,15 @@ export default async function PlanInvitePage({ params }: PageProps) {
           ))}
         </ol>
 
+        {stops[0] ? <InviteMapLink firstVenueId={stops[0].venueId} /> : null}
+
         <PlanInviteRsvp
           token={token}
           planId={lookup.planId}
           initialRsvp={summaries.rsvp}
           initialReactions={summaries.reactions}
         />
+        <InvitePageView hasRsvps={summaries.rsvp.guests.length > 0} />
       </div>
     </main>
   );
