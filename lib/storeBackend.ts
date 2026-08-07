@@ -18,6 +18,23 @@ export function selectStore<T>(memory: T, supabase: T): T {
 }
 
 /**
+ * Factory for a plain-dual-backend store: curries `selectStore` into the
+ * zero-arg getter every such store already hand-writes as
+ * `export function xStore() { return selectStore(memoryX, supabaseX); }`.
+ * Saves that one boilerplate line per store; decides nothing selectStore
+ * did not already decide.
+ *
+ * Scope is deliberately narrow, matching selectStore: no error catching, no
+ * table-name inference, no query generation, no authorization. A store with
+ * extra write-path policy (schema-miss guards, admin checks) keeps composing
+ * runStoreOp / createFailSoftGuard directly around its own memory/supabase
+ * implementations - this factory only replaces the final selection wrapper.
+ */
+export function createDualBackendStore<T>(memory: T, supabase: T): () => T {
+  return () => selectStore(memory, supabase);
+}
+
+/**
  * Missing-table handling for write paths in dual-backend stores. Keyless local
  * development and preview deployments may keep using the process-memory
  * implementation while a migration is being prepared. A deployed production
