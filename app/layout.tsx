@@ -23,6 +23,7 @@ import A2HSTracking from "@/components/A2HSTracking";
 import AnalyticsConsentPrompt from "@/components/AnalyticsConsentPrompt";
 import PosthogPageviews from "@/components/PosthogPageviews";
 import SkipLink from "@/components/a11y/SkipLink";
+import SplashAperture from "@/components/splash/SplashAperture";
 
 // Site-wide structured data (Wave S1.3). WebSite + Organization only — the
 // identity graph Google reads for the brand panel and AI engines read to know
@@ -180,8 +181,8 @@ export const metadata: Metadata = {
 // standalone PWA / notched phones.
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#16122a" },
-    { media: "(prefers-color-scheme: dark)", color: "#090806" },
+    { media: "(prefers-color-scheme: light)", color: "#0b0b0d" },
+    { media: "(prefers-color-scheme: dark)", color: "#060607" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -234,6 +235,15 @@ export default async function RootLayout({
             out for this one intentional case. */}
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script src="/theme-init.js" />
+        {/* Aperture splash pre-paint eligibility (feat(landing): hero scroll
+            cinema with aperture splash, PIECE 3). Same reason and same
+            pattern as theme-init.js above: served as a static file
+            (public/splash-init.js) so it is covered by CSP `script-src
+            'self'` with no per-build hash, and loaded render-blocking (no
+            async/defer) so the eligibility decision lands before the browser
+            paints the overlay markup rendered by <SplashAperture /> below. */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="/splash-init.js" />
         {/* IDEAS B5 — Speculation Rules: declaratively prerender the LIKELY next
             page while the user browses the explore-London loop, so tapping
             through borough/Social surfaces is instant. Conservative by design:
@@ -281,6 +291,7 @@ export default async function RootLayout({
         <JsonLd data={SITE_JSON_LD} nonce={nonce} />
       </head>
       <body>
+        <SplashAperture />
         <SkipLink />
         {/* ClerkProvider is additive in exactly the same sense as AuthProvider
             below, and it sits OUTSIDE it rather than replacing it: both identity
