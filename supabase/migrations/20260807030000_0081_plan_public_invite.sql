@@ -27,9 +27,14 @@ begin;
 -- row with its own fresh random value (not one shared default) and every
 -- future INSERT keeps generating one automatically — no application code
 -- has to mint or backfill this column.
+--
+-- gen_random_bytes is pgcrypto, and Supabase installs pgcrypto in the
+-- `extensions` schema, not `public` (docs/DEPLOYMENT.md, "Supabase installs
+-- the pgcrypto extension..."). Schema-qualify it so the same migration runs
+-- the same way on Supabase and on the local harness.
 alter table public.plans
   add column invite_token text not null unique
-  default encode(gen_random_bytes(16), 'hex');
+  default encode(extensions.gen_random_bytes(16), 'hex');
 
 alter table public.plans
   add constraint plans_invite_token_format_check
