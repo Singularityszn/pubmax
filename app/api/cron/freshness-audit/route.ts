@@ -24,14 +24,19 @@ import { assertCronRequest } from "@/lib/cronAuth";
 import {
   evaluateDataset,
   hasBreach,
+  resolveStoreStamp,
   staleFeeds,
   unresolvedFeeds,
   type FreshnessDataset,
   type FreshnessRegistry,
   type FreshnessResult,
+  type StoreRead,
 } from "@/lib/freshness";
 import { resolveDatasetStamp } from "@/lib/freshnessArtifact";
-import { resolveStoreObservedAt } from "@/lib/freshnessStoreOverlay";
+import {
+  resolveDurableFeedStoreReads,
+  resolveStoreObservedAt,
+} from "@/lib/freshnessStoreOverlay";
 import { notifyFreshnessFindings } from "@/lib/freshnessNotify";
 
 export const runtime = "nodejs";
@@ -54,10 +59,18 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   // Store-backed feeds report their durable observedAt; everything else keeps its
-  // disk-derived stamp.
+  // disk-derived stamp. The two artifact-less cron feeds declare a `{kind:"store"}`
+  // stamp and resolve ONLY from the durable store's real four-way read — they have
+  // no committed file to fall back to.
   const overlay = await resolveStoreObservedAt();
+  const durableReads = await resolveDurableFeedStoreReads();
   const now = new Date();
   const results: FreshnessResult[] = registry.datasets.map((dataset: FreshnessDataset) => {
+    if (dataset.stamp?.kind === "store") {
+      const read: StoreRead = durableReads[dataset.id] ?? { kind: "unconfigured" };
+      const { observedAt, reason } = resolveStoreStamp(dataset.stamp, read);
+      return evaluateDataset(dataset, observedAt, now, reason);
+    }
     const stored = overlay[dataset.id];
     const { observedAt, reason } = stored
       ? { observedAt: stored, reason: null }

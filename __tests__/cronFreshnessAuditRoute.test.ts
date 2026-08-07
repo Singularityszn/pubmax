@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Hermetic: reads the real committed freshness registry from disk (like
-// /api/freshness); no Supabase env → the store overlay is empty and every feed
-// keeps its disk-derived stamp. Never 500s.
+// /api/freshness); no Supabase env → the overlay is empty and every artifact-
+// backed feed keeps its disk-derived stamp. The two store-only feeds
+// (price_update_retrieval, night_signal_candidates) have no artifact at all, so
+// with no Supabase credentials they honestly read "unknown" — unmeasurable
+// without credentials, never silently fresh. Never 500s.
 
 import { GET } from "@/app/api/cron/freshness-audit/route";
 
@@ -54,14 +57,22 @@ describe("GET /api/cron/freshness-audit", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("resolves a genuine age for every registered feed when the artifacts are present", async () => {
+  it("resolves a genuine age for every artifact-backed feed when the artifacts are present", async () => {
     // The whole cause of the daily flood: the audit ran somewhere its artifacts
     // were not. With them present it must be able to age every one, so any
-    // "unknown" left here is a real defect and not the audit's blind spot.
+    // OTHER "unknown" left here is a real defect and not the audit's blind spot.
+    // The two store-only feeds are the sole legitimate exception in this
+    // credential-less test run: they have no artifact, so with no Supabase
+    // configured they correctly report unmeasurable-without-credentials.
     const res = await GET(req("Bearer test-secret"));
     const body = await res.json();
-    expect(body.unresolved).toEqual([]);
-    expect(body.counts.unknown ?? 0).toBe(0);
+    const STORE_ONLY_FEEDS = new Set(["price_update_retrieval", "night_signal_candidates"]);
+    const unresolvedIds = (body.unresolved as Array<{ id: string }>).map((n) => n.id);
+    expect(unresolvedIds.every((id) => STORE_ONLY_FEEDS.has(id))).toBe(true);
+    for (const notice of body.unresolved as Array<{ detail: string }>) {
+      expect(notice.detail).toContain("unmeasurable without credentials");
+    }
+    expect(body.counts.unknown ?? 0).toBe(unresolvedIds.length);
   });
 
   it("escalates a budget breach to a loud error-level [ALERT], not an advisory warn", async () => {

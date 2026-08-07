@@ -26,6 +26,77 @@ function isParseableDate(value) {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
+// Mirror of lib/storeBackend.ts isMissingTableSchema: same PostgREST/Postgres
+// schema-miss signals, checked against a raw response/error body here instead
+// of a Supabase client error object.
+function looksLikeMissingTableSchema(text, table) {
+  return new RegExp(
+    `Could not find the table 'public\\.(${table})'|relation "public\\.(${table})" does not exist|schema cache`,
+    "i",
+  ).test(text ?? "");
+}
+
+// Mirror of lib/freshnessStoreOverlay.ts readDurableFeedStamp, dependency-free:
+// a raw PostgREST fetch against the feed_freshness table (migration 0047),
+// gated on the same two env vars lib/supabase.ts requires. Never throws —
+// every outcome is one of the four StoreRead kinds mirrored below.
+async function readDurableFeedStamp(feedKey) {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return { kind: "unconfigured" };
+
+  const endpoint = `${url.replace(/\/+$/, "")}/rest/v1/feed_freshness?feed=eq.${encodeURIComponent(feedKey)}&select=observed_at&limit=1`;
+  try {
+    const response = await fetch(endpoint, {
+      headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: "application/json" },
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      if (looksLikeMissingTableSchema(body, "feed_freshness")) {
+        return {
+          kind: "unreachable",
+          error: `durable table missing (apply migration 0047): ${response.status} ${body}`.trim(),
+        };
+      }
+      return { kind: "unreachable", error: `${response.status} ${response.statusText}: ${body}`.trim() };
+    }
+    const rows = await response.json();
+    const observedAt = Array.isArray(rows) && rows.length > 0 ? rows[0]?.observed_at : undefined;
+    if (!observedAt) return { kind: "empty" };
+    return { kind: "ok", observedAt };
+  } catch (err) {
+    return { kind: "unreachable", error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// Mirror of lib/freshness.ts resolveStoreStamp.
+function resolveStoreStamp(spec, read) {
+  if (!spec || spec.kind !== "store") return { observedAt: null, reason: null };
+  if (read.kind === "unconfigured") {
+    return {
+      observedAt: null,
+      reason: `Durable store for "${spec.feedKey}" is unmeasurable without credentials in this runtime.`,
+    };
+  }
+  if (read.kind === "unreachable") {
+    return {
+      observedAt: null,
+      reason: `Durable store for "${spec.feedKey}" could not be queried: ${read.error}`,
+    };
+  }
+  if (read.kind === "empty") {
+    return {
+      observedAt: null,
+      reason: `Durable store holds no stamp yet for "${spec.feedKey}" (the writing cron has not succeeded).`,
+    };
+  }
+  if (isParseableDate(read.observedAt)) return { observedAt: read.observedAt, reason: null };
+  return {
+    observedAt: null,
+    reason: `Durable store for "${spec.feedKey}" carries an unparseable observedAt.`,
+  };
+}
+
 // Mirror of lib/freshness.ts resolveStamp: resolves the stamp, and says why when
 // it cannot. "The file is not there" and "the file has no generatedAt" are
 // different defects, so they get different sentences here too.
@@ -130,18 +201,28 @@ export function loadRegistry(rootDir = DEFAULT_ROOT) {
  * Evaluate the whole registry against disk. Returns { results, breached }.
  * `now` and `rootDir` are injectable for tests.
  */
-export function evaluateFreshness({ now = new Date(), rootDir = DEFAULT_ROOT, registry } = {}) {
+export async function evaluateFreshness({ now = new Date(), rootDir = DEFAULT_ROOT, registry } = {}) {
   const reg = registry ?? loadRegistry(rootDir);
-  const results = (reg.datasets ?? []).map((dataset) => {
-    // Mirror of lib/freshnessArtifact.ts resolveDatasetStamp: only a field stamp
-    // lives inside the artifact, so only a field stamp opens one.
-    const spec = dataset.stamp ?? null;
-    const { observedAt, reason } = resolveStamp(
-      spec,
-      spec?.kind === "field" ? readArtifact(rootDir, dataset.artifact) : { kind: "absent" },
-    );
-    return evaluateDataset(dataset, observedAt, now, reason);
-  });
+  const results = await Promise.all(
+    (reg.datasets ?? []).map(async (dataset) => {
+      const spec = dataset.stamp ?? null;
+      // Store-kind datasets have no committed artifact at all — their age comes
+      // only from the durable store's real four-way read (unconfigured /
+      // unreachable / empty / ok), dependency-free via a raw PostgREST fetch.
+      if (spec?.kind === "store") {
+        const read = await readDurableFeedStamp(spec.feedKey);
+        const { observedAt, reason } = resolveStoreStamp(spec, read);
+        return evaluateDataset(dataset, observedAt, now, reason);
+      }
+      // Mirror of lib/freshnessArtifact.ts resolveDatasetStamp: only a field stamp
+      // lives inside the artifact, so only a field stamp opens one.
+      const { observedAt, reason } = resolveStamp(
+        spec,
+        spec?.kind === "field" ? readArtifact(rootDir, dataset.artifact) : { kind: "absent" },
+      );
+      return evaluateDataset(dataset, observedAt, now, reason);
+    }),
+  );
   const breached = results.some((r) => r.status === "stale" || r.status === "unknown");
   return { results, breached };
 }
@@ -168,8 +249,8 @@ export function formatFreshnessTable(results) {
   return lines.join("\n");
 }
 
-function main() {
-  const { results, breached } = evaluateFreshness();
+async function main() {
+  const { results, breached } = await evaluateFreshness();
   console.log("Freshness registry check (data/freshness_registry.json)\n");
   console.log(formatFreshnessTable(results));
   const stale = results.filter((r) => r.status === "stale");
@@ -194,5 +275,8 @@ function main() {
 
 // Run as a CLI only when invoked directly, not when imported by validate-data.
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  main();
+  main().catch((err) => {
+    console.error("Freshness check crashed:", err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  });
 }

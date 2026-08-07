@@ -10,10 +10,12 @@ import {
   hasBreach,
   resolveObservedAt,
   resolveStamp,
+  resolveStoreStamp,
   staleFeeds,
   unresolvedFeeds,
   type FreshnessDataset,
   type FreshnessRegistry,
+  type StoreRead,
 } from "@/lib/freshness";
 import { readFreshnessArtifact, resolveDatasetStamp } from "@/lib/freshnessArtifact";
 
@@ -122,6 +124,94 @@ describe("resolveStamp — why a stamp could not be resolved", () => {
     expect(
       resolveStamp({ kind: "literal", value: "2026-07-03T12:00:00Z" }, { kind: "missing", path: "gone.json" }),
     ).toEqual({ observedAt: "2026-07-03T12:00:00Z", reason: null });
+  });
+});
+
+describe("resolveStoreStamp — the durable-store four-way read, never fresh or stale when unmeasurable", () => {
+  const spec = { kind: "store", feedKey: "price_update_retrieval" } as const;
+
+  it("resolves an ok read and attaches no reason", () => {
+    const read: StoreRead = { kind: "ok", observedAt: "2026-07-16T00:00:00Z" };
+    expect(resolveStoreStamp(spec, read)).toEqual({ observedAt: "2026-07-16T00:00:00Z", reason: null });
+  });
+
+  it("reports unmeasurable-without-credentials for an unconfigured store, never a guess", () => {
+    const read: StoreRead = { kind: "unconfigured" };
+    const r = resolveStoreStamp(spec, read);
+    expect(r.observedAt).toBeNull();
+    expect(r.reason).toContain("price_update_retrieval");
+    expect(r.reason).toContain("unmeasurable without credentials");
+  });
+
+  it("names the query failure for an unreachable store, distinct from unconfigured", () => {
+    const read: StoreRead = { kind: "unreachable", error: "durable table missing (apply migration 0047): 404" };
+    const r = resolveStoreStamp(spec, read);
+    expect(r.observedAt).toBeNull();
+    expect(r.reason).toContain("could not be queried");
+    expect(r.reason).toContain("migration 0047");
+  });
+
+  it("distinguishes an empty store (no row yet) from unconfigured and unreachable", () => {
+    const read: StoreRead = { kind: "empty" };
+    const r = resolveStoreStamp(spec, read);
+    expect(r.observedAt).toBeNull();
+    expect(r.reason).toContain("holds no stamp yet");
+    expect(r.reason).toContain("cron has not succeeded");
+  });
+
+  it("rejects an unparseable observedAt from an ok read rather than passing it through", () => {
+    const read: StoreRead = { kind: "ok", observedAt: "not-a-date" };
+    const r = resolveStoreStamp(spec, read);
+    expect(r.observedAt).toBeNull();
+    expect(r.reason).toContain("unparseable observedAt");
+  });
+
+  it("gives every failure mode a DIFFERENT sentence, so an alert is actionable", () => {
+    const reasons = [
+      resolveStoreStamp(spec, { kind: "unconfigured" }).reason,
+      resolveStoreStamp(spec, { kind: "unreachable", error: "boom" }).reason,
+      resolveStoreStamp(spec, { kind: "empty" }).reason,
+      resolveStoreStamp(spec, { kind: "ok", observedAt: "nope" }).reason,
+    ];
+    expect(new Set(reasons).size).toBe(reasons.length);
+  });
+
+  it("never merges unreachable/unconfigured/empty into fresh or stale: observedAt is always null", () => {
+    const unmeasurable: StoreRead[] = [
+      { kind: "unconfigured" },
+      { kind: "unreachable", error: "network down" },
+      { kind: "empty" },
+    ];
+    for (const read of unmeasurable) {
+      expect(resolveStoreStamp(spec, read).observedAt).toBeNull();
+    }
+  });
+
+  it("no-ops for a non-store spec (nothing was promised)", () => {
+    expect(resolveStoreStamp(null, { kind: "empty" })).toEqual({ observedAt: null, reason: null });
+    expect(
+      resolveStoreStamp({ kind: "literal", value: "2026-07-03T12:00:00Z" }, { kind: "empty" }),
+    ).toEqual({ observedAt: null, reason: null });
+  });
+});
+
+describe("evaluateDataset — a store-kind dataset reads unknown, never fresh, when unmeasurable", () => {
+  const storeDataset: FreshnessDataset = dataset({
+    id: "price_update_retrieval",
+    artifact: null,
+    stamp: { kind: "store", feedKey: "price_update_retrieval" },
+    stalenessBudgetHours: null,
+  });
+
+  it("reads unknown when the store is unmeasurable, not stale and not fresh", () => {
+    const r = evaluateDataset(storeDataset, null, NOW, 'Durable store for "price_update_retrieval" is unmeasurable without credentials in this runtime.');
+    expect(r.status).toBe("unknown");
+    expect(r.detail).toContain("unmeasurable without credentials");
+  });
+
+  it("reads untracked (not stale) once the store answers, because the budget is intentionally unset", () => {
+    const r = evaluateDataset(storeDataset, "2026-07-16T00:00:00Z", NOW, null);
+    expect(r.status).toBe("untracked");
   });
 });
 
@@ -377,12 +467,14 @@ describe("data/freshness_registry.json integrity", () => {
     const byId = new Map(registry.datasets.map((dataset) => [dataset.id, dataset]));
 
     // An ingestion feed a serverless cron stamps carries no committed artifact,
-    // so a run can never be mistaken for a publish of the file readers get.
+    // so a run can never be mistaken for a publish of the file readers get. Its
+    // age instead comes from a store-kind stamp naming its own feed key, read
+    // from the durable feed_freshness table (see resolveStoreStamp).
     for (const id of ["price_update_retrieval", "night_signal_candidates"]) {
       expect(byId.get(id)).toMatchObject({
         class: "cron",
         artifact: null,
-        stamp: null,
+        stamp: { kind: "store", feedKey: id },
         stalenessBudgetHours: null,
       });
     }

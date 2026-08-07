@@ -18,6 +18,9 @@
 // keeps the disk-derived stamp — behaviour-identical to before this plane.
 
 import { feedFreshnessStore } from "@/lib/feedFreshnessStore";
+import type { StoreRead } from "@/lib/freshness";
+import { errorMessage, isMissingTableSchema } from "@/lib/storeBackend";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { weatherSnapshotStore } from "@/lib/weatherSnapshotStore";
 
 // Registry dataset id → the store that holds its honest observedAt.
@@ -75,4 +78,54 @@ export async function resolveStoreObservedAt(): Promise<Record<string, string>> 
   }
 
   return overlay;
+}
+
+/**
+ * Resolve the real four-way outcome (unconfigured / unreachable / empty / ok)
+ * of reading price_update_retrieval and night_signal_candidates from the
+ * durable feed_freshness table.
+ *
+ * `feedFreshnessStore().read()` never throws, so it cannot tell "no row yet"
+ * apart from "the query failed" — both come back as null. This function
+ * queries the table directly (bypassing that fail-soft swallow) so the two
+ * store-backed datasets can distinguish an unreachable store from one that is
+ * simply not stamped yet, which resolveStoreStamp needs to keep the two
+ * findings apart: "unmeasurable" is never "fresh", and never "stale" either.
+ */
+export async function resolveDurableFeedStoreReads(): Promise<Record<string, StoreRead>> {
+  const [priceUpdateRetrieval, nightSignalCandidates] = await Promise.all([
+    readDurableFeedStamp(PRICE_UPDATE_RETRIEVAL_FEED_KEY),
+    readDurableFeedStamp(NIGHT_SIGNAL_CANDIDATES_FEED_KEY),
+  ]);
+  return {
+    [PRICE_UPDATE_RETRIEVAL_DATASET_ID]: priceUpdateRetrieval,
+    [NIGHT_SIGNAL_CANDIDATES_DATASET_ID]: nightSignalCandidates,
+  };
+}
+
+async function readDurableFeedStamp(feedKey: string): Promise<StoreRead> {
+  if (!isSupabaseConfigured()) return { kind: "unconfigured" };
+
+  try {
+    const { data, error } = await requireSupabaseAdmin()
+      .from("feed_freshness")
+      .select("observed_at")
+      .eq("feed", feedKey)
+      .maybeSingle();
+
+    if (error) {
+      if (isMissingTableSchema(error, "feed_freshness")) {
+        return {
+          kind: "unreachable",
+          error: `durable table missing (apply migration 0047): ${errorMessage(error)}`,
+        };
+      }
+      return { kind: "unreachable", error: errorMessage(error) };
+    }
+
+    if (!data?.observed_at) return { kind: "empty" };
+    return { kind: "ok", observedAt: data.observed_at };
+  } catch (err) {
+    return { kind: "unreachable", error: errorMessage(err) };
+  }
 }

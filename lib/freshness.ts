@@ -12,6 +12,7 @@
 export type FreshnessStampSpec =
   | { readonly kind: "field"; readonly pointer: string }
   | { readonly kind: "literal"; readonly value: string; readonly consumedBy?: string }
+  | { readonly kind: "store"; readonly feedKey: string }
   | null;
 
 export type FreshnessClass =
@@ -90,6 +91,26 @@ export interface StampResolution {
 }
 
 /**
+ * What a caller found when it tried to read a "store" stamp's durable feed.
+ * Four outcomes, kept apart on purpose:
+ *  - unconfigured — this runtime holds no credentials for the store, so it was
+ *    never queried. Not a failure of the store itself.
+ *  - unreachable  — credentials existed but the query failed (network error,
+ *    missing table, bad response). A real problem, worth its own alert.
+ *  - empty        — the store answered but holds no row for this feed yet
+ *    (the writing cron has never run, or never succeeded).
+ *  - ok            — the store answered with a stamp.
+ * unconfigured, unreachable, and empty all resolve to "unknown" through
+ * resolveStoreStamp: a store-backed feed must never read as fresh or stale
+ * when its real age cannot be measured.
+ */
+export type StoreRead =
+  | { readonly kind: "unconfigured" }
+  | { readonly kind: "unreachable"; readonly error: string }
+  | { readonly kind: "empty" }
+  | { readonly kind: "ok"; readonly observedAt: string };
+
+/**
  * Whether resolving this dataset's stamp requires opening its artifact. Only a
  * field stamp does: a literal stamp is carried by the registry and an unstamped
  * dataset is never dated, so both resolve without a read (see `resolveStamp`).
@@ -114,6 +135,13 @@ export function resolveStamp(spec: FreshnessStampSpec, read: ArtifactRead): Stam
       observedAt: null,
       reason: `The registry's literal stamp "${spec.value}" is not a parseable date.`,
     };
+  }
+
+  if (spec.kind === "store") {
+    // A store-kind stamp is resolved by resolveStoreStamp, not here. Treat it
+    // as "nothing was promised" so a caller that forgets to route it correctly
+    // degrades to untracked rather than crashing on a missing field.
+    return { observedAt: null, reason: null };
   }
 
   // kind === "field": the stamp lives in the artifact, so the read decides.
@@ -147,6 +175,44 @@ export function resolveStamp(spec: FreshnessStampSpec, read: ArtifactRead): Stam
         reason: `Artifact ${read.path} carries no parseable "${spec.pointer}" field.`,
       };
     }
+  }
+}
+
+/**
+ * Resolve the observed timestamp for a "store" stamp from what the caller read
+ * off the durable store, reporting the reason when it cannot. Mirrors
+ * `resolveStamp`'s shape so both feed the same "unknown" branch in
+ * `evaluateDataset`, and mirrored again dependency-free in
+ * scripts/check_freshness.mjs. A spec that is not a store stamp resolves to
+ * null with no reason, matching `resolveStamp`'s treatment of a store spec.
+ */
+export function resolveStoreStamp(spec: FreshnessStampSpec, read: StoreRead): StampResolution {
+  if (spec === null || spec.kind !== "store") return { observedAt: null, reason: null };
+
+  switch (read.kind) {
+    case "unconfigured":
+      return {
+        observedAt: null,
+        reason: `Durable store for "${spec.feedKey}" is unmeasurable without credentials in this runtime.`,
+      };
+    case "unreachable":
+      return {
+        observedAt: null,
+        reason: `Durable store for "${spec.feedKey}" could not be queried: ${read.error}`,
+      };
+    case "empty":
+      return {
+        observedAt: null,
+        reason: `Durable store holds no stamp yet for "${spec.feedKey}" (the writing cron has not succeeded).`,
+      };
+    case "ok":
+      if (Number.isFinite(Date.parse(read.observedAt))) {
+        return { observedAt: read.observedAt, reason: null };
+      }
+      return {
+        observedAt: null,
+        reason: `Durable store for "${spec.feedKey}" carries an unparseable observedAt.`,
+      };
   }
 }
 
