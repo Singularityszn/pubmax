@@ -36,6 +36,38 @@ node scripts/evaluate_open_pubs.mjs \
   --identity curated
 ```
 
+### London curated identity report
+
+Evaluate Open Pubs rows whose `local_authority` is one of the 33 Greater London
+boroughs against the curated London slim index only. Writes matched / unmatched /
+ambiguous / skipped totals plus up to 20 sample unmatched names. Still dry-run:
+never merges into `venues_slim`.
+
+```bash
+node scripts/evaluate_open_pubs.mjs \
+  --csv path/to/open_pubs.csv \
+  --london \
+  --report data/generated/open_pubs_london.json
+```
+
+`--city london` is an alias for `--london`. Identity is forced to `curated`
+(London product slim at `public/data/venues_slim.json`).
+
+Or via npm:
+
+```bash
+npm run evaluate:open-pubs:london -- --csv path/to/open_pubs.csv \
+  --report data/generated/open_pubs_london.json
+```
+
+Fixture smoke (no network):
+
+```bash
+npm run evaluate:open-pubs:london -- \
+  --csv __tests__/fixtures/open_pubs_sample.csv \
+  --report /tmp/open_pubs_london_fixture.json
+```
+
 Download the official zip into `data/generated/open_pubs/` then evaluate
 (curated slim + OSM UK pack when present):
 
@@ -69,7 +101,9 @@ A row matches curated or OSM identity when:
 3. Great-circle distance ≤ 150 m (same gate as curated ↔ OSM overlap)
 4. Postcode outward codes do not conflict when both sides have one
 
-Curated wins over OSM when both qualify. Ambiguous far names stay unmatched.
+Curated wins over OSM when both qualify. When two distinct ids share the best
+name tier and layer, the row is **ambiguous** (counted separately; the report
+refuses to guess by distance alone). Far same-shape names stay unmatched.
 
 ## Next step (owner decision)
 
