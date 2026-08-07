@@ -226,4 +226,37 @@ describe("leaderboard contribution store projections", () => {
     );
     expect(sql).not.toMatch(/coalesce\(profile\.handle,\s*contribution\.handle\)/);
   });
+
+  it("stops a handle claim from back-dating pre-claim contributions into the aggregate", () => {
+    const sql = readFileSync(
+      join(
+        process.cwd(),
+        "supabase/migrations/20260807010000_0079_handle_claim_no_inheritance.sql",
+      ),
+      "utf8",
+    );
+
+    // Every lane in visible_contributions must carry its own recorded-at
+    // timestamp: the trustworthy insertion time, never a user-editable date.
+    expect(sql).toMatch(
+      /submitted_at as recorded_at[\s\S]*?from public\.community_prices/,
+    );
+    expect(sql).toMatch(
+      /created_at as recorded_at[\s\S]*?from public\.structured_visit_reports/,
+    );
+    expect(sql).not.toMatch(/visited_at as recorded_at/);
+    expect(sql).toMatch(
+      /submitted_at as recorded_at[\s\S]*?from public\.weather_recommendations/,
+    );
+
+    // The alias join must bound attribution to rows at or after the claim.
+    expect(sql).toMatch(
+      /join public\.profile_handle_aliases as alias\s+on lower\(alias\.handle\) = lower\(contribution\.handle\)\s+and contribution\.recorded_at >= alias\.claimed_at/,
+    );
+
+    // Old rows keep showing their own stored handle: no display column changes.
+    expect(sql).not.toMatch(/alter table public\.community_prices[\s\S]*?contributor_handle/);
+    expect(sql).not.toMatch(/alter table public\.structured_visit_reports/);
+    expect(sql).not.toMatch(/alter table public\.weather_recommendations/);
+  });
 });
