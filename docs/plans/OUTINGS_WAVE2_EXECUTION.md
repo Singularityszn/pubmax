@@ -1,6 +1,6 @@
 # Outings Wave 2 — execution queue
 
-> Status: **EXECUTING** (2026-08-07). Next product slices after the Fable overnight catalogue ([`FABLE_REVIEW_ITERATION.md`](./FABLE_REVIEW_ITERATION.md)).
+> Status: **SHIPPING** (2026-08-07). Next product slices after the Fable overnight catalogue ([`FABLE_REVIEW_ITERATION.md`](./FABLE_REVIEW_ITERATION.md)).
 > Trunk remains [#817](https://github.com/Singularityszn/pubmax/pull/817). Do **not** reopen [#816](https://github.com/Singularityszn/pubmax/pull/816) WhatsApp, [#829](https://github.com/Singularityszn/pubmax/pull/829)/[#832](https://github.com/Singularityszn/pubmax/pull/832) night-OS pin trust / first-price, or re-ship coffee taxonomy / sheet lens / scrapers already opened.
 
 ---
@@ -60,6 +60,18 @@ See Fable checklist: #821–#828, #830, #833–#834, #836, #819/#831, #825. Pref
 3. Captain applies migrations — agents ship SQL only (`0082` still captain).
 4. Do not touch `AuthProvider` token-fragment paths.
 5. Commit + push + open/update draft PR per branch before claiming done.
+
+## Opened PRs (this wave)
+
+| Item | PR |
+|---|---|
+| Plan doc | [#839](https://github.com/Singularityszn/pubmax/pull/839) |
+| W2-A drink outing chips | [#843](https://github.com/Singularityszn/pubmax/pull/843) |
+| W2-B price-submit lens default | [#842](https://github.com/Singularityszn/pubmax/pull/842) |
+| W2-C quiet/coffee ranking | [#841](https://github.com/Singularityszn/pubmax/pull/841) |
+| W2-D lens/chip analytics | [#845](https://github.com/Singularityszn/pubmax/pull/845) |
+| W2-E Spoons map filter | [#844](https://github.com/Singularityszn/pubmax/pull/844) |
+| W2-F coffee borough ops | pending |
 
 ## Success signals
 
