@@ -6,7 +6,7 @@ Strategy and sequencing docs. Prefer one plan per concern; do not implement from
 |--|--|--|
 | [`LANDING_ACQUISITION.md`](./LANDING_ACQUISITION.md) | READY (dual-model review) | Map-first landing + first map open |
 | [`PLG_STRATEGY.md`](./PLG_STRATEGY.md) | READY FOR REVIEW | Invite k-factor, price flywheel, lot density |
-| [`PRODUCT_UTILITY_WAVE.md`](./PRODUCT_UTILITY_WAVE.md) | EXECUTING | Sheet/journey usefulness: signals, hygiene, visits, Safe Night, quiet pint, Social honesty |
+| [`PRODUCT_UTILITY_WAVE.md`](./PRODUCT_UTILITY_WAVE.md) | SHIPPING | Sheet/journey usefulness: signals, hygiene, visits, Safe Night, quiet pint, Social honesty |
 | [`desktop-feature-parity.md`](./desktop-feature-parity.md) | FINAL — parked | Desktop parity waves D1–D6 (no implementation until unblocked) |
 
 Outings / taste catalogues may live on the `#817` stack until that trunk merges.

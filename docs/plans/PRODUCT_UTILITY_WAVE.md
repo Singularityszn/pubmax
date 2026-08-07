@@ -1,6 +1,6 @@
 # Product Utility Wave — sheet and journey usefulness
 
-> Status: **EXECUTING** (2026-08-07). Distinct from outings/coffee/taste stacks (#817–#856) and night-OS (#829/#832).
+> Status: **SHIPPING** (2026-08-07). Distinct from outings/coffee/taste stacks (#817–#856) and night-OS (#829/#832).
 > Base: `main` (post #816 invite-ready + #846 post-claim profile).
 > Does **not** reopen WhatsApp CTAs, UK national map (#840), Social beta, or taste CSS.
 
@@ -52,6 +52,19 @@ Open PRs already own coffee taxonomy, Spoons prefer/filter, lens analytics, boro
 **Branch:** `cursor/poster-near-landing-dd0b`  
 **Job:** `/?src=poster` (UTM preserved) lands on `/near` or map-near with one honest orientation line. Spec already in `docs/growth/POSTER_SPEC.md`.  
 **Done when:** redirect/analytics test; no Social surface.
+
+## Opened PRs
+
+| Item | PR |
+|---|---|
+| Plan | [#861](https://github.com/Singularityszn/pubmax/pull/861) |
+| U1 signals on Overview | [#863](https://github.com/Singularityszn/pubmax/pull/863) |
+| U2 landing Social honesty | [#865](https://github.com/Singularityszn/pubmax/pull/865) |
+| U3 FSA hygiene above fold | [#862](https://github.com/Singularityszn/pubmax/pull/862) |
+| U4 visit report peek | [#864](https://github.com/Singularityszn/pubmax/pull/864) |
+| U5 Safe Night Getting Home | [#867](https://github.com/Singularityszn/pubmax/pull/867) |
+| U6 quiet pint on /tonight | [#869](https://github.com/Singularityszn/pubmax/pull/869) |
+| U7 poster → /near | [#868](https://github.com/Singularityszn/pubmax/pull/868) |
 
 ## Anti-goals
 
