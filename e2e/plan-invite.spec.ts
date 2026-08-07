@@ -80,3 +80,53 @@ test("an unknown invite token renders the honest not-found state", async ({ page
   await page.goto("/invite/000000000000000000000000000000ff");
   await expect(page.locator(".invite__emptyTitle")).toHaveText("This invite link isn’t valid");
 });
+
+// Task: plan-invite-host-ui. PlanHostInviteLink only ever renders once the
+// browser has resolved a live capability AND fetched a real inviteToken
+// (components/plan/PlanHostInviteLink.tsx returns null until then) — there is
+// no Vitest render harness for UI components in this codebase
+// (vitest.config.ts), so this is the proof that the control's gating actually
+// holds in a real browser. The host capability only lives in the creating
+// tab's in-memory session (lib/planSessionCapability.ts, set client-side at
+// plan creation), so the host must be driven through the actual composer UI —
+// a Plan created via a bare API call, as the other test in this file does,
+// never populates that memory.
+test("Copy invite link shows for the host's own session and never for an anonymous visitor", async ({
+  page,
+  browser,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // The identity nudge (lib/identityNudge.ts) fires after the first
+    // qualifying plan action — a real signed-out UX, but noise for this test,
+    // which only cares about the invite-link control. Pre-dismissing it keeps
+    // the cooldown gate shut, the same way it would for a returning visitor.
+    window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
+  });
+  await page.goto("/plan");
+  await page.getByRole("button", { name: "Describe instead" }).click();
+  await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
+  await page.getByRole("button", { name: "Plan my night" }).click();
+  await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
+  await page.getByLabel("Your name").fill("Karan");
+  await page.getByRole("button", { name: "Lock it in" }).click();
+  await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}$/);
+
+  // The host's own tab: the control appears once capability + inviteToken resolve.
+  const copyButton = page.getByRole("button", { name: "Copy invite link" });
+  await expect(copyButton).toBeVisible();
+  await copyButton.click();
+  await expect(page.locator(".planHostInviteLink__status")).toHaveText("Invite link copied.");
+
+  // A genuinely anonymous visitor to the exact same URL never sees it — no
+  // capability in this fresh browser context's memory, and the server page
+  // itself only ever carries the privacy-safe preview.
+  const anonymous = await browser.newContext();
+  const anonymousPage = await anonymous.newPage();
+  await anonymousPage.goto(page.url());
+  await expect(anonymousPage.getByRole("heading", { name: /Who.s in/ })).toBeVisible();
+  await expect(anonymousPage.getByRole("button", { name: "Copy invite link" })).toHaveCount(0);
+  await anonymous.close();
+});

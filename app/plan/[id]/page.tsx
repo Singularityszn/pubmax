@@ -6,6 +6,7 @@ import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
 import NightCrawlMode from "@/components/plan/NightCrawlMode";
 import PlanInviteOpened from "@/components/plan/PlanInviteOpened";
 import PlanCrew from "@/components/plan/PlanCrew";
+import PlanHostInviteLink from "@/components/plan/PlanHostInviteLink";
 import LastCrewInvite from "@/components/plan/LastCrewInvite";
 import SiteNav from "@/components/nav/SiteNav";
 import PlanSummary from "@/components/plan/PlanSummary";
@@ -164,6 +165,7 @@ export default async function PlanPage({ params }: Props) {
             <h2 id="plan-share-title">Get everyone on the same page</h2>
             <p>The link opens straight onto the route. Mates tap “I’m in” with a name.</p>
             <PlanInviteShareBar planId={id} title={safeTitle} text={shareText} initialVibeSlug={topVibeSlug} />
+            <PlanHostInviteLink planId={id} />
             <LastCrewInvite planId={id} planTitle={safeTitle} planUrl={`/plan/${id}`} />
           </section>
         </aside>

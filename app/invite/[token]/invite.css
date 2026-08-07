@@ -239,6 +239,28 @@
   background: var(--panel);
 }
 
+/* Host-only remove control (Task: plan-invite-host-ui, deliverable 2) — a
+   quiet, uppercase-free text button, never shown to guests. */
+.inviteRsvp__guestRemove {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.inviteRsvp__guestRemove:hover {
+  color: var(--brick);
+}
+
+.inviteRsvp__guestRemove:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .inviteRsvp__empty {
   margin: 0;
   color: var(--ink-soft);

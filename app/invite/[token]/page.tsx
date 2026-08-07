@@ -242,6 +242,7 @@ export default async function PlanInvitePage({ params }: PageProps) {
 
         <PlanInviteRsvp
           token={token}
+          planId={lookup.planId}
           initialRsvp={summaries.rsvp}
           initialReactions={summaries.reactions}
         />

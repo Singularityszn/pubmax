@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import { getAnonId } from "@/lib/anonId";
 import { GUEST_DISPLAY_NAME_MAX, isRsvpStatus, type PlanInviteRsvpSummary, type RsvpStatus } from "@/lib/planInvite";
+import {
+  parsePlanCapabilitySnapshot,
+  planCapabilityEvent,
+  readPlanCapabilitySnapshot,
+  restorePlanCapability,
+} from "@/lib/planSessionCapability";
 import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 
 // The handle-free RSVP + reaction island on a Plan's public invite page (Task:
@@ -51,10 +57,12 @@ function writeStoredGuestName(name: string): void {
 
 export default function PlanInviteRsvp({
   token,
+  planId,
   initialRsvp,
   initialReactions,
 }: {
   token: string;
+  planId: string;
   initialRsvp: PlanInviteRsvpSummary;
   initialReactions: ReactionSummary;
 }) {
@@ -66,6 +74,62 @@ export default function PlanInviteRsvp({
   const [rsvpError, setRsvpError] = useState<string | null>(null);
   const [pendingReaction, setPendingReaction] = useState<ReactionKey | null>(null);
   const [reactionError, setReactionError] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+
+  // Host RSVP moderation (Task: plan-invite-host-ui, deliverable 2). Same
+  // capability-restoration idiom as PlanCrew.tsx — the row control only shows
+  // once this browser session resolves a live host capability for the Plan
+  // the invite belongs to. DELETE /api/invite/[token]/rsvp is already
+  // participant-fenced host-only server-side; this is purely the UI gate.
+  const tokenEvent = planCapabilityEvent(planId);
+  const capabilitySnapshot = useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener(tokenEvent, onChange);
+      return () => window.removeEventListener(tokenEvent, onChange);
+    },
+    () => readPlanCapabilitySnapshot(planId),
+    () => "|0|",
+  );
+  const { token: memberToken, role } = parsePlanCapabilitySnapshot(capabilitySnapshot);
+  const isHost = Boolean(memberToken && role === "host");
+
+  useEffect(() => {
+    if (memberToken) return;
+    void restorePlanCapability(planId).catch(() => undefined);
+  }, [memberToken, planId]);
+
+  const removeGuest = useCallback(
+    async (rsvpId: string) => {
+      if (removingId) return;
+      setRemovingId(rsvpId);
+      setRemoveError(null);
+      try {
+        const res = await fetch(`/api/invite/${encodeURIComponent(token)}/rsvp`, {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ rsvpId, memberToken }),
+        });
+        if (!res.ok) {
+          setRemoveError("Couldn't remove that RSVP.");
+          return;
+        }
+        setRsvp((current) => {
+          const guest = current.guests.find((candidate) => candidate.id === rsvpId);
+          if (!guest) return current;
+          return {
+            counts: { ...current.counts, [guest.status]: Math.max(0, current.counts[guest.status] - 1) },
+            guests: current.guests.filter((candidate) => candidate.id !== rsvpId),
+          };
+        });
+      } catch {
+        setRemoveError("Couldn't remove that RSVP.");
+      } finally {
+        setRemovingId(null);
+      }
+    },
+    [memberToken, removingId, token],
+  );
 
   const submitRsvp = useCallback(
     async (chosen: RsvpStatus) => {
@@ -167,12 +231,29 @@ export default function PlanInviteRsvp({
               <span className={`inviteRsvp__guestStatus inviteRsvp__guestStatus--${guest.status}`}>
                 {guest.status === "going" ? "Going" : "Maybe"}
               </span>
+              {isHost ? (
+                <button
+                  type="button"
+                  className="inviteRsvp__guestRemove"
+                  disabled={removingId === guest.id}
+                  onClick={() => void removeGuest(guest.id)}
+                  aria-label={`Remove ${guest.displayName}`}
+                >
+                  Remove
+                </button>
+              ) : null}
             </li>
           ))}
         </ul>
       ) : (
         <p className="inviteRsvp__empty">No RSVPs yet. Be the first.</p>
       )}
+
+      {removeError ? (
+        <p className="inviteRsvp__error" role="status">
+          {removeError}
+        </p>
+      ) : null}
 
       <form className="inviteRsvp__form" onSubmit={onSubmit}>
         <input
