@@ -88,11 +88,11 @@ describe("firstDropNudgeCopy — dry London variants", () => {
     expect(firstDropNudgeCopy("venue-42")).toEqual(firstDropNudgeCopy("venue-42"));
   });
 
-  it("always returns one non-empty line and one CTA label", () => {
+  it("always offers a community-price CTA", () => {
     for (const id of ["a", "venue-1", "osm-9987", "long-venue-id-xyz", ""]) {
       const copy = firstDropNudgeCopy(id);
       expect(copy.line.length).toBeGreaterThan(0);
-      expect(copy.cta.length).toBeGreaterThan(0);
+      expect(copy.cta).toBe("Log tonight's price");
     }
   });
 

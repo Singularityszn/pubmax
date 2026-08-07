@@ -2,6 +2,7 @@ import { PLANNING_INTENT_SOURCES, type PlanningIntentSource } from "@/lib/planni
 import {
   writePlanRouteDraftEnvelope,
   type ParsedPlanRouteDraft,
+  type PlanRouteDraftOrigin,
   type PlanRouteDraftStorage,
 } from "@/lib/planRouteDraft";
 
@@ -118,6 +119,22 @@ export function mapGeneratedRouteDraftValue(
 }
 
 /**
+ * Transfer a generate response into the Plan route draft. Returns true only
+ * when the canonical V2 envelope was written. Storage exceptions and malformed
+ * Routes are non-destructive and simply return false.
+ */
+export function transferGeneratedRouteToDraft(
+  body: MapGeneratedRouteResponse | null | undefined,
+  storage: PlanRouteDraftStorage | null,
+  origin: PlanRouteDraftOrigin = "plan-generated",
+  now = Date.now(),
+): boolean {
+  const value = mapGeneratedRouteDraftValue(body);
+  if (!value || !storage) return false;
+  return writePlanRouteDraftEnvelope(value, origin, storage, now).v2;
+}
+
+/**
  * Transfer a Map-generated Route into the Plan route draft. Returns true only
  * when the canonical V2 envelope was written. Storage exceptions and malformed
  * Routes are non-destructive and simply return false.
@@ -127,7 +144,5 @@ export function transferMapRouteToDraft(
   storage: PlanRouteDraftStorage | null,
   now = Date.now(),
 ): boolean {
-  const value = mapGeneratedRouteDraftValue(body);
-  if (!value || !storage) return false;
-  return writePlanRouteDraftEnvelope(value, "map-generated", storage, now).v2;
+  return transferGeneratedRouteToDraft(body, storage, "map-generated", now);
 }

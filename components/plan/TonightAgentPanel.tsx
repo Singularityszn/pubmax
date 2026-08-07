@@ -5,6 +5,8 @@
 
 import { FormEvent, useState } from "react";
 
+import { transferGeneratedRouteToDraft } from "@/lib/mapRouteTransfer";
+import { whatsappShareHref } from "@/lib/shareArtifacts";
 import {
   interpretTonightAgentGenerateBody,
   type TonightAgentResult,
@@ -16,6 +18,8 @@ export default function TonightAgentPanel() {
   const [query, setQuery] = useState("Quiet in Clapham for 4, not pricey");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<TonightAgentResult | null>(null);
+  const [rawBody, setRawBody] = useState<unknown>(null);
+  const [actionStatus, setActionStatus] = useState("");
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -23,6 +27,8 @@ export default function TonightAgentPanel() {
     if (!trimmed || busy) return;
     setBusy(true);
     setResult(null);
+    setRawBody(null);
+    setActionStatus("");
     try {
       const response = await fetch("/api/plans/generate", {
         method: "POST",
@@ -30,6 +36,7 @@ export default function TonightAgentPanel() {
         body: JSON.stringify({ query: trimmed }),
       });
       const body = await response.json().catch(() => null);
+      setRawBody(body);
       setResult(
         interpretTonightAgentGenerateBody(response.ok, body, {
           title: trimmed.slice(0, 80),
@@ -44,6 +51,30 @@ export default function TonightAgentPanel() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function copyDraft(text: string) {
+    try {
+      await navigator.clipboard?.writeText(text);
+      setActionStatus("Invite draft copied.");
+    } catch {
+      setActionStatus("Could not copy just now.");
+    }
+  }
+
+  function useStopsInComposer() {
+    if (!rawBody || typeof window === "undefined") return;
+    const wrote = transferGeneratedRouteToDraft(
+      rawBody as Parameters<typeof transferGeneratedRouteToDraft>[0],
+      window.localStorage,
+      "plan-generated",
+    );
+    if (!wrote) {
+      setActionStatus("Could not hand those stops to the composer.");
+      return;
+    }
+    setActionStatus("Stops ready in the composer. Review and lock when you are.");
+    window.location.assign("/plan#plan-composer");
   }
 
   return (
@@ -111,7 +142,36 @@ export default function TonightAgentPanel() {
             value={result.inviteDraft}
             rows={3}
           />
+          <div className="tonightAgentActions">
+            <button
+              type="button"
+              className="tonightAgentAction"
+              onClick={() => void copyDraft(result.inviteDraft)}
+            >
+              Copy draft
+            </button>
+            <a
+              className="tonightAgentAction tonightAgentAction--wa"
+              href={whatsappShareHref(result.inviteDraft)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Draft on WhatsApp
+            </a>
+            <button
+              type="button"
+              className="tonightAgentAction tonightAgentAction--primary"
+              onClick={useStopsInComposer}
+            >
+              Use these stops
+            </button>
+          </div>
           <p className="tonightAgentNext">{result.nextStep}</p>
+          {actionStatus ? (
+            <p className="tonightAgentStatus" role="status">
+              {actionStatus}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </section>

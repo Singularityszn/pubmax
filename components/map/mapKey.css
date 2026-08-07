@@ -329,3 +329,26 @@ html[data-theme="dark"] .mapKeyPriceSwatch--grey {
 .mapKeyNote {
   padding: 5px 0 2px 36px;
 }
+
+.mapKeyTrustList {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.mapKeyTrustList li {
+  display: grid;
+  gap: 2px;
+}
+
+.mapKeyTrustList strong {
+  font-size: 0.78rem;
+}
+
+.mapKeyTrustList small {
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}

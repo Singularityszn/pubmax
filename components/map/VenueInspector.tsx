@@ -304,6 +304,7 @@ export default function VenueInspector({
         locationRequestStatus={locationRequestStatus}
         onRequestLocation={onRequestLocation}
         onClearLocation={onClearLocation}
+        onLogTonightPrice={requestPriceEntry}
         onStartFirstDrop={startPintDrop}
         priceEntryAllowed={!authConfigured || Boolean(user && handle)}
         priceSignInRequested={priceSignInVenueId === venue.id}

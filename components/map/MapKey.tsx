@@ -12,6 +12,7 @@ import type {
   MapKeyEntry,
   MapPriceLegendModel,
 } from "@/lib/mapPriceLegend";
+import { mapPriceTrustBeats } from "@/lib/mapPriceTrust";
 
 import "./mapKey.css";
 
@@ -84,6 +85,17 @@ export default function MapKey({
             </li>
           ))}
         </ul>
+        <details className="mapKeyDetails mapKeyDetails--trust">
+          <summary>Why this colour?</summary>
+          <ul className="mapKeyTrustList">
+            {mapPriceTrustBeats().map((beat) => (
+              <li key={beat.id}>
+                <strong>{beat.title}</strong>
+                <small>{beat.detail}</small>
+              </li>
+            ))}
+          </ul>
+        </details>
       </section>
 
       {legend.clusterNote ? (
