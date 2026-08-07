@@ -345,6 +345,40 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
     expect(withResident.hasResults).toBe(true);
     expect(withResident.pubs).toHaveLength(0);
   });
+
+  it("surfaces UK places from the national gazetteer when supplied", () => {
+    const places = [
+      {
+        name: "Sheffield",
+        lat: 53.38,
+        lng: -1.47,
+        kind: "city" as const,
+        context: "",
+        search: "sheffield",
+      },
+    ];
+    const without = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "sheff",
+      venues: [],
+      includeLocalResults: false,
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    expect(without.places).toEqual([]);
+
+    const withPlaces = buildMapSearchSuggestions({
+      cityId: "london",
+      query: "sheff",
+      venues: [],
+      places,
+      includeLocalResults: false,
+      userLocation: null,
+      mapCenter: CENTRE,
+    });
+    expect(withPlaces.places.map((row) => row.name)).toEqual(["Sheffield"]);
+    expect(withPlaces.hasResults).toBe(true);
+  });
 });
 
 // A tiny synthetic gazetteer — a locality, a modelled-area collision, and a

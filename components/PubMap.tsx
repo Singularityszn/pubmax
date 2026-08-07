@@ -3,7 +3,7 @@
 import { List, MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
@@ -324,7 +324,10 @@ import {
 } from "@/lib/pubMap";
 import { explicitMapIntent } from "@/lib/explicitMapIntent";
 import {
+  parseUkPlaceIndex,
+  UK_PLACE_INDEX_PATH,
   ukPlaceMapView,
+  type UkPlace,
   type UkPlaceMapArrival,
 } from "@/lib/ukPlaceSearch";
 import {
@@ -516,10 +519,32 @@ export default function PubMap({
   nationalBrowse?: boolean;
 }) {
   const city = getCity(cityId);
+  const router = useRouter();
   const [ukPlaceArrival] = useState(() => placeArrival);
   const [ukNationalBrowse] = useState(
     () => nationalBrowse || isUkNationalBrowse(currentSearch()),
   );
+  // National gazetteer for map search (same places.json as /choose-city).
+  // Loaded once when the reader types two characters or arrives on a national
+  // / uncovered surface — never on every keystroke.
+  const [ukPlaces, setUkPlaces] = useState<readonly UkPlace[]>([]);
+  const ukPlacesPromiseRef = useRef<Promise<readonly UkPlace[]> | null>(null);
+  const loadUkPlaces = useCallback((): Promise<readonly UkPlace[]> => {
+    if (ukPlacesPromiseRef.current) return ukPlacesPromiseRef.current;
+    const pending = fetch(UK_PLACE_INDEX_PATH)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const places = parseUkPlaceIndex(await response.json());
+        setUkPlaces(places);
+        return places;
+      })
+      .catch(() => {
+        ukPlacesPromiseRef.current = null;
+        return [] as readonly UkPlace[];
+      });
+    ukPlacesPromiseRef.current = pending;
+    return pending;
+  }, []);
   const [initialMapView] = useState<MapViewportSnapshot>(() => {
     if (ukPlaceArrival) return ukPlaceMapView(ukPlaceArrival, city.mapView);
     if (ukNationalBrowse) {
@@ -2520,19 +2545,48 @@ export default function PubMap({
     },
     [selectVenue, trimmedMapQuery],
   );
+  const selectPlaceFromSearch = useCallback(
+    (href: string) => {
+      searchQueryCameraOwnedRef.current = trimmedMapQuery;
+      router.push(href);
+    },
+    [router, trimmedMapQuery],
+  );
+  // Prefetch the national place index once the reader is typing a place-shaped
+  // query, or already on a national / uncovered surface that needs it.
+  useEffect(() => {
+    if (ukPlaces.length > 0) return;
+    if (
+      ukNationalBrowse ||
+      ukPlaceArrival ||
+      trimmedMapQuery.length >= TYPED_SEARCH_MIN_QUERY
+    ) {
+      void loadUkPlaces();
+    }
+  }, [
+    loadUkPlaces,
+    trimmedMapQuery.length,
+    ukNationalBrowse,
+    ukPlaceArrival,
+    ukPlaces.length,
+  ]);
+  const limitedCoverageSearch = Boolean(ukPlaceArrival || ukNationalBrowse);
   const sharedMapSearchProps = {
     cityId,
     query: filters.query,
     onQueryChange: changeMapSearchQuery,
-    venues: ukPlaceArrival ? [] : venues,
-    localities: ukPlaceArrival ? [] : localities,
+    venues: limitedCoverageSearch ? [] : venues,
+    localities: limitedCoverageSearch ? [] : localities,
+    places: ukPlaces,
+    includeLocalResults: !limitedCoverageSearch,
     ukBasePubs: residentUkBasePubs,
     userLocation,
     mapCenter: mapViewport.center,
     onSelectVenue: selectVenueFromSearch,
     onSelectUkBasePub: selectUkBasePubFromSearch,
+    onSelectPlace: selectPlaceFromSearch,
     onFlyToArea: selectSearchArea,
-    onSubmitQuery: ukPlaceArrival ? undefined : selectTopSearchMatch,
+    onSubmitQuery: limitedCoverageSearch ? undefined : selectTopSearchMatch,
   } satisfies Omit<MapSearchSuggestProps, "id" | "mode" | "placeholder" | "onClose">;
 
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
