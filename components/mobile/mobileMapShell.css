@@ -47,7 +47,13 @@
   }
 
   /* The coordinator is the only mobile map chrome owner. Desktop keeps the
-     mature controls while mobile removes their independently-positioned rows. */
+     mature controls while mobile removes their independently-positioned rows.
+     CitySuggestBanner and CityStatusBanner are two of those rows, and the
+     phone map drops both on purpose (they have no phone form yet, and the
+     phone map keeps space for the one coordinator bar instead). The real
+     gate is `ambientBannerLane` in components/PubMap.tsx: it is false on a
+     mobile viewport, so neither banner ever mounts. This display: none rule
+     is only a backstop for that JS gate. */
   .appShell > .siteNavBarFloating,
   .appShell .mapStage > .mapToolbar,
   .appShell .mapStage > .citySuggestBanner,
