@@ -5,6 +5,13 @@ import { describe, expect, it } from "vitest";
 import MapVenueList from "@/components/map/MapVenueList";
 import type { MapVenueListModel, UkBasePubListModel } from "@/lib/mapVenueList";
 
+const emptyBase: UkBasePubListModel = {
+  rows: [],
+  total: 0,
+  shown: 0,
+  truncated: false,
+};
+
 describe("MapVenueList", () => {
   it("announces rendered base pubs as a distinct group without a listed price", () => {
     const curated: MapVenueListModel = {
@@ -61,5 +68,76 @@ describe("MapVenueList", () => {
     expect(html).toContain('aria-label="Other pubs with no listed price"');
     expect(html).toContain("Base Arms");
     expect(html).toContain("Other pub · no listed price");
+  });
+
+  it("offers Nearest and Cheapest sort chips when the list has venues", () => {
+    const curated: MapVenueListModel = {
+      rows: [
+        {
+          id: "venue-curated",
+          name: "Curated Arms",
+          typeLabel: "Pub",
+          priceLabel: "£4.50",
+          anchor: null,
+        },
+      ],
+      total: 1,
+      shown: 1,
+      truncated: false,
+      coverageNote: null,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MapVenueList, {
+        model: curated,
+        ukBaseModel: emptyBase,
+        cityName: "London",
+        open: true,
+        onOpenChange: () => {},
+        loaded: true,
+        onSelectVenue: () => {},
+        onSelectUkBasePub: () => {},
+        onPrefetchVenue: () => {},
+        sortMode: "cheapest",
+        onSortModeChange: () => {},
+      }),
+    );
+
+    expect(html).toContain('aria-label="Sort venues on the map"');
+    expect(html).toContain("Nearest");
+    expect(html).toContain("Cheapest");
+    expect(html).toContain('aria-pressed="true"');
+  });
+
+  it("keeps an empty list explicit and omits the sort chips", () => {
+    const curated: MapVenueListModel = {
+      rows: [],
+      total: 0,
+      shown: 0,
+      truncated: false,
+      coverageNote: null,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MapVenueList, {
+        model: curated,
+        ukBaseModel: emptyBase,
+        cityName: "London",
+        open: true,
+        onOpenChange: () => {},
+        loaded: true,
+        onSelectVenue: () => {},
+        onSelectUkBasePub: () => {},
+        onPrefetchVenue: () => {},
+        sortMode: "nearest",
+        onSortModeChange: () => {},
+      }),
+    );
+
+    expect(html).toContain("Nothing matches");
+    expect(html).toContain(
+      "Nothing in view fits that, which takes some doing round here",
+    );
+    expect(html).not.toContain('aria-label="Sort venues on the map"');
   });
 });

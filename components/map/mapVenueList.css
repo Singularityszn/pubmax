@@ -166,6 +166,42 @@
   color: var(--muted);
 }
 
+/* Nearest / Cheapest sort for the pubs currently in view. Default stays
+   nearest; cheapest ranks priced pubs and leaves unpriced ones last. */
+.mapVenueListSort {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px 0;
+}
+
+.mapVenueListSortChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 750;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mapVenueListSortChip[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
+  color: var(--ink);
+}
+
+.mapVenueListSortChip:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 .mapVenueListClose {
   display: inline-flex;
   align-items: center;
