@@ -4,7 +4,11 @@
 
 begin;
 
-create extension if not exists "pgcrypto";
+-- Mirrors Supabase, which installs pgcrypto in the extensions schema
+-- rather than public. Migrations that call digest() must qualify it as
+-- extensions.digest(...) or include extensions in their search_path.
+create schema if not exists extensions;
+create extension if not exists "pgcrypto" with schema extensions;
 
 do $$
 begin
@@ -21,6 +25,7 @@ end $$;
 
 grant usage on schema public to anon, authenticated, service_role;
 grant all on schema public to service_role;
+grant usage on schema extensions to anon, authenticated, service_role;
 alter default privileges in schema public
   grant select, insert, update, delete on tables
   to anon, authenticated, service_role;

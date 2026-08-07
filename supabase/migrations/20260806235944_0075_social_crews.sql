@@ -1,6 +1,9 @@
 -- Social Crew authority foundation. All Crew authority is service-only and
 -- bound to stable private account IDs. Existing Plan capabilities are revoked
 -- at conversion and every legacy mutation RPC is fenced below.
+--
+-- digest() calls below are qualified as extensions.digest(): Supabase
+-- installs pgcrypto in the extensions schema, not public.
 
 alter table public.plans
   add column social_owner_account_id uuid
@@ -525,7 +528,7 @@ begin
   v_plan_member := gen_random_uuid();
   perform pg_catalog.set_config('pubmax.social_crew_write','1',true);
   insert into public.plan_crew_members(id,plan_id,name,token_hash,status,joined_at,updated_at,can_collaborate,social_account_id)
-  values(v_plan_member,v_plan,v_handle,encode(public.digest(gen_random_uuid()::text || clock_timestamp()::text,'sha256'),'hex'),
+  values(v_plan_member,v_plan,v_handle,encode(extensions.digest(gen_random_uuid()::text || clock_timestamp()::text,'sha256'),'hex'),
     'in',now(),now(),true,p_account);
   insert into public.social_crew_members(crew_id,social_account_id,plan_member_id,role,state)
   values(p_crew,p_account,v_plan_member,'member','active') returning id into v_member.id;
@@ -559,7 +562,7 @@ begin
     return public._social_crew_fail_write(p_actor_account_id,'create',p_idempotency_key,p_payload_digest,'not_found'); end if;
   insert into public.social_crews(id,plan_id,owner_account_id,visibility)
     values(v_crew,p_plan_id,p_actor_account_id,p_visibility);
-  update public.plan_crew_members set token_hash=encode(public.digest(gen_random_uuid()::text || id::text || clock_timestamp()::text,'sha256'),'hex')
+  update public.plan_crew_members set token_hash=encode(extensions.digest(gen_random_uuid()::text || id::text || clock_timestamp()::text,'sha256'),'hex')
     where plan_id=p_plan_id;
   update public.plan_crew_members set social_account_id=p_actor_account_id where id=v_host.id;
   insert into public.social_crew_members(id,crew_id,social_account_id,plan_member_id,role,state)
