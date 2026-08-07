@@ -30,7 +30,26 @@ describe("messages thread eyebrow uses type token", () => {
     const css = read("app/messages/messages.css");
     const rule = /\.messagesThreadEyebrow\s*\{([\s\S]*?)\}/.exec(css);
     expect(rule, ".messagesThreadEyebrow missing").not.toBeNull();
-    expect(rule![1]).toMatch(/font-size:\s*var\(--text-2xs/);
-    expect(rule![1]).not.toMatch(/font-size:\s*0\.\d+rem/);
+    expect(rule![1]).toMatch(/font-size:\s*var\(--text-2xs,\s*0\.68rem\)/);
+    expect(rule![1]).not.toMatch(/font-size:\s*0\.\d+rem;/);
+  });
+});
+
+describe("--text-2xs owner is single-root + scoped legacy bump only", () => {
+  it("defines 0.68rem once as the default and redefines only under data-legacy", () => {
+    const css = read("app/globals.css");
+    const assignments = [...css.matchAll(/--text-2xs:\s*([0-9.]+)rem/g)];
+    // Exactly two assignments: root default, then Legacy Mode bump.
+    expect(assignments.map((m) => m[1])).toEqual(["0.68", "0.78"]);
+
+    const defaultAt = css.indexOf("--text-2xs: 0.68rem");
+    // Match the real rule open, not a comment that happens to name the selector.
+    const legacyRuleAt = css.indexOf('html[data-legacy="1"] {');
+    const bumpAt = css.indexOf("--text-2xs: 0.78rem");
+    expect(defaultAt).toBeGreaterThanOrEqual(0);
+    expect(legacyRuleAt).toBeGreaterThan(defaultAt);
+    // The 0.78 value must appear after the legacy rule open (scoped bump), never
+    // as a second root-level definition before data-legacy.
+    expect(bumpAt).toBeGreaterThan(legacyRuleAt);
   });
 });
