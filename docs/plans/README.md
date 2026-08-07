@@ -1,16 +1,14 @@
-# Plans (desktop-parity isolation tree)
+# Plans
 
-This directory is the **docs-only** home for desktop feature parity planning.
+Strategy and sequencing docs. Prefer one plan per concern; do not implement from a plan until the owner names the wave.
 
-| | |
-|--|--|
-| Worktree | `/Users/karanmanoharan/Documents/pubmax-desktop-parity-plan` |
-| Branch | `docs/desktop-feature-parity-plan` |
-| Canonical plan | [`desktop-feature-parity.md`](./desktop-feature-parity.md) |
-| Status | **FINAL** — plan complete; no implementation from away-mode |
+| Plan | Status | Owns |
+|--|--|--|
+| [`LANDING_ACQUISITION.md`](./LANDING_ACQUISITION.md) | READY (dual-model review) | Map-first landing + first map open |
+| [`PLG_STRATEGY.md`](./PLG_STRATEGY.md) | READY FOR REVIEW | Invite k-factor, price flywheel, lot density |
+| [`PRODUCT_UTILITY_WAVE.md`](./PRODUCT_UTILITY_WAVE.md) | EXECUTING | Sheet/journey usefulness: signals, hygiene, visits, Safe Night, quiet pint, Social honesty |
+| [`desktop-feature-parity.md`](./desktop-feature-parity.md) | FINAL — parked | Desktop parity waves D1–D6 (no implementation until unblocked) |
 
-**Away-mode rules:** local commit on this branch only; **no push / PR / merge** without owner review; **do not start Waves D1–D6**; §12 owner questions stay **parked**.
+Outings / taste catalogues may live on the `#817` stack until that trunk merges.
 
-**Do not** copy this plan onto `main` while Sol / Fable / Opus / Codex wave worktrees are active on product surfaces. Implementation waves (when owner unblocks) use **separate** worktrees (see plan §11).
-
-Before implementing any wave, re-read **§5.1 Concurrent agents — freeze map** and re-run `git worktree list`.
+**Desktop-parity isolation note:** that plan’s away-mode rules still apply (no push/merge of D1–D6 without owner review). Re-read its §5.1 freeze map before any desktop parity build.
