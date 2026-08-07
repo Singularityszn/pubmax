@@ -5,6 +5,12 @@ import { curatedCrawlByIdForCity } from "@/lib/cityCuratedCrawls";
 import { bandByIdForCity } from "@/lib/cityStoryBands";
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
 import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { readOgCityPriceBandCounts } from "@/lib/ogCityPriceBands.server";
+import {
+  deriveOgPriceWaveLayers,
+  type OgPriceWaveLayer,
+  type PriceBandCounts,
+} from "@/lib/ogPriceWaves";
 
 // City map OG share card — cult / Freshers deep links (`?band=subcrawl`) and
 // curated crawl shares (`?crawl=victorian-soho`). Query-aware because
@@ -27,6 +33,31 @@ const RIVER = "#3f5566";
 
 const display = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 const body = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
+
+// Wave layer fills — restricted to the three-colour palette (ink near-black,
+// warm paper, coral accent) as varying-opacity washes, never a fourth hue.
+// Cheap pints read coral (the most inviting band); dear pints read ink,
+// receding into the card's own dark ground.
+const WAVE_COLOURS: Readonly<Record<0 | 1 | 2, string>> = {
+  0: "rgba(255,90,95,0.22)",
+  1: "rgba(255,244,232,0.10)",
+  2: "rgba(25,25,39,0.4)",
+};
+
+export function waveColour(band: 0 | 1 | 2): string {
+  return WAVE_COLOURS[band];
+}
+
+/**
+ * Wraps deriveOgPriceWaveLayers at this card's fixed size, so a route test can
+ * prove different band distributions produce different SVG paths without
+ * touching next/og internals.
+ */
+export function buildOgMapCardWaveLayers(
+  counts: PriceBandCounts,
+): OgPriceWaveLayer[] {
+  return deriveOgPriceWaveLayers(counts, size);
+}
 
 function clampParam(raw: string | null, max: number, fallback = ""): string {
   if (!raw) return fallback;
@@ -70,6 +101,9 @@ export async function GET(request: Request) {
       : "";
   const eyebrow = crawl ? "Crawl" : "City map";
 
+  const priceBandCounts = await readOgCityPriceBandCounts(cityId);
+  const waveLayers = buildOgMapCardWaveLayers(priceBandCounts);
+
   return new ImageResponse(
     (
       <div
@@ -111,6 +145,21 @@ export async function GET(request: Request) {
             display: "flex",
           }}
         />
+
+        {/* Price-band waves — every layer traces a real, corroborated pint-price
+            distribution for this city; never decorative randomness. */}
+        {waveLayers.length > 0 ? (
+          <svg
+            width={size.width}
+            height={size.height}
+            viewBox={`0 0 ${size.width} ${size.height}`}
+            style={{ position: "absolute", top: 0, left: 0 }}
+          >
+            {waveLayers.map((layer) => (
+              <path key={layer.band} d={layer.path} fill={waveColour(layer.band)} />
+            ))}
+          </svg>
+        ) : null}
 
         {/* Hairline frame */}
         <div
