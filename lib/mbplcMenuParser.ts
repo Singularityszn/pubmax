@@ -59,7 +59,11 @@ export function mapMbplcSectionToCategory(section: string): DrinkCategory | null
   if (s.includes("rum")) return "rum";
   if (s.includes("tequila")) return "shot";
   if (s.includes("spirit") || s.includes("shot")) return "shot";
-  return "other";
+  // Unrecognised section: DROP (null), never coerce into "other" - same rule
+  // as the Greene King and Wetherspoons mappers. An explicit Other section is
+  // the one honest "other".
+  if (s.includes("other")) return "other";
+  return null;
 }
 
 function priceFromLines(lines: string[]): number | null {
