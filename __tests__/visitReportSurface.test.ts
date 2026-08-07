@@ -203,7 +203,11 @@ describe("Visit Report venue surface", () => {
       /<VisitReportPanel[\s\S]*active=\{tab === "story"\}/,
     );
     expect(storyTab).not.toMatch(/tab === "story" \? \(\s*<VisitReportPanel/);
-    expect(panel).toContain("if (!active || requested.current) return;");
+    // Peek and full are separate instances; refetch whenever the tab becomes
+    // active again so Lore writes do not leave Overview stale.
+    expect(panel).toContain("if (!active) return;");
+    expect(panel).not.toContain("requested.current");
+    expect(panel).toMatch(/\}, \[active, venueId\]/);
   });
 
   it("keeps all interactive controls thumb-sized at phone width", () => {

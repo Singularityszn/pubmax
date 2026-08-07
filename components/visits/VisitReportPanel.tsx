@@ -4,7 +4,7 @@
 // contributor-attributed accounts newest first and opens one compact composer.
 // A row is a claim about one dated visit, never a score or verified venue fact.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
@@ -314,11 +314,8 @@ function VenueVisitReports({
   const serviceWait = draft?.serviceWait ?? null;
   const note = draft?.note ?? "";
 
-  const requested = useRef(false);
-
   useEffect(() => {
-    if (!active || requested.current) return;
-    requested.current = true;
+    if (!active) return;
     let cancelled = false;
     void Promise.resolve().then(async () => {
       const nextRead = await fetchVisitReports(venueId);
