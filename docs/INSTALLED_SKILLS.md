@@ -1,0 +1,1340 @@
+# Installed agent skills
+
+Generated 2026-08-07.
+
+Inventory of skills installed for Cursor in this environment and mirrored under `skills/` where applicable.
+Global install path: `~/.agents/skills/` (symlinked into `~/.cursor/skills/`).
+Committed mirrors: `skills/<name>/` (because `.agents/` is gitignored).
+
+## Totals
+
+- CLI lock (`~/.agents/.skill-lock.json`): **533** skills across **29** sources
+- Workspace dirs with `SKILL.md`: **677**
+- Workspace-only (plugin mirrors / local, not in CLI lock): **144**
+
+## Related docs
+
+- [`DESIGN_SKILLS_CATALOG.md`](DESIGN_SKILLS_CATALOG.md) — Emil / Taste / Impeccable / Layers / UIZZE
+- [`FIRSTMATE_CURSOR.md`](FIRSTMATE_CURSOR.md) — kunchenguid Firstmate + Cursor
+- `skills/SKILLS_INVENTORY.md`, `skills/*-SOURCE.md` — pack install notes
+
+## By source (CLI lock)
+
+### Design / anti-slop (45)
+
+#### `Leonxlnx/taste-skill` (13)
+
+- **`brandkit`** — Premium brand-kit image generation skill for creating high-end brand-guidelines boards, logo systems, identity decks, and visual-world presentations. Trained fo
+- **`design-taste-frontend`** — Anti-slop frontend skill for landing pages, portfolios, and redesigns. The agent reads the brief, infers the right design direction, and ships interfaces that d
+- **`design-taste-frontend-v1`** — The original v1 taste-skill, preserved for projects depending on its exact behavior. The current default is `design-taste-frontend` (v2 experimental), which is 
+- **`full-output-enforcement`** — Overrides default LLM truncation behavior. Enforces complete code generation, bans placeholder patterns, and handles token-limit splits cleanly. Apply to any ta
+- **`gpt-taste`** — Elite UX/UI & Advanced GSAP Motion Engineer. Enforces Python-driven true randomization for layout variance, strict AIDA page structure, wide editorial typograph
+- **`high-end-visual-design`** — Teaches the AI to design like a high-end agency. Defines the exact fonts, spacing, shadows, card structures, and animations that make a website feel expensive. 
+- **`image-to-code`** — Elite website image-to-code skill for Codex. For visually important web tasks, it must first generate the design image(s) itself, deeply analyze them, then impl
+- **`imagegen-frontend-mobile`** — Elite mobile app image-generation skill for creating premium, app-native screen concepts and flows. Designed for iOS, Android, and cross-platform mobile product
+- **`imagegen-frontend-web`** — Elite frontend image-direction skill for generating premium, conversion-aware website design references. CRITICAL OUTPUT RULE — generate ONE separate horizontal
+- **`industrial-brutalist-ui`** — Raw mechanical interfaces fusing Swiss typographic print with military terminal aesthetics. Rigid grids, extreme type scale contrast, utilitarian color, analog 
+- **`minimalist-ui`** — Clean editorial-style interfaces. Warm monochrome palette, typographic contrast, flat bento grids, muted pastels. No gradients, no heavy shadows.
+- **`redesign-existing-projects`** — Upgrades existing websites and apps to premium quality. Audits current design, identifies generic AI patterns, and applies high-end design standards without bre
+- **`stitch-design-taste`** — Semantic Design System Skill for Google Stitch. Generates agent-friendly DESIGN.md files that enforce premium, anti-generic UI standards — strict typography, ca
+
+#### `emilkowalski/skills` (9)
+
+- **`animate`** — Build an animation from scratch, making the decisions in the order that determines whether it feels right — should it animate at all, what purpose, which tool, 
+- **`animation-vocabulary`** — Reverse-lookup glossary that turns a vague description of a web animation or motion effect into its exact term ("the bouncy thing when a popover opens" → Pop in
+- **`apple-design`** — Apple's approach to interface design and fluid, physical motion, translated for the web. Use when building or reviewing gesture-driven UI, spring animations, dr
+- **`emil-design-eng`** — This skill encodes Emil Kowalski's philosophy on UI polish, component design, animation decisions, and the invisible details that make software feel great.
+- **`find-animation-opportunities`** — Search a codebase or UI for places that don't animate but should, and reject everything that shouldn't. Read-only; it proposes motion with exact values, it does
+- **`improve-animations`** — Survey a codebase's animation and motion code as a senior motion advisor, then produce a prioritized audit and self-contained implementation plans for other age
+- **`pick-ui-library`** — Pick the right library for a given frontend task from a curated, opinionated list — numbers, OTP inputs, charts, command menus, virtualization, drag and drop, t
+- **`prototype`** — Build multiple genuinely different versions of a UI piece you describe, rendered behind a visual picker so you can flip through them live and promote the one th
+- **`review-animations`** — Reviews animation and motion code against a high craft bar derived from Emil Kowalski's design engineering philosophy. Default to flagging; approval is earned.
+
+#### `gnurio/refactoring-ui-plugin` (11)
+
+- **`apply-consistent-spacing`** — Use systematic spacing with 25% minimum jumps, start with excess whitespace
+- **`apply-typography-scale`** — Create clear typographic hierarchy using hand-crafted font sizes, weights, and colors
+- **`build-color-palette`** — Create comprehensive palette with 8-10 greys, 5-10 primary, 5-10 accent shades
+- **`design-button-hierarchy`** — Create clear primary/secondary/tertiary action distinctions
+- **`design-empty-states`** — Create helpful, actionable zero-content states
+- **`eliminate-visual-clutter`** — Remove unnecessary borders, backgrounds, shadows, decorations
+- **`establish-visual-hierarchy`** — Determine what UI element draws attention first, second, third using size, weight, color, and de-emphasis strategies
+- **`group-related-elements`** — Use proximity and spacing to show relationships
+- **`manage-color-contrast`** — Ensure WCAG AA accessibility and readability
+- **`refactor-ui`** — Analyze a design against all 10 Refactoring UI skills and generate a comprehensive assessment with specific fixes
+- **`use-shadows-appropriately`** — Add depth only when functionally necessary (elevation, not decoration)
+
+#### `jamiemill/layers-skills` (9)
+
+- **`layers-conceptual-model`** — Techniques for defining the product's objects, relationships, states, and vocabulary independently of any interface — the most load-bearing layer
+- **`layers-domain`** — Techniques for mapping a domain's concepts, terminology conflicts, and bounded contexts — the raw material the conceptual model is built from
+- **`layers-interaction-flow`** — Techniques for mapping interaction structure and flow — places, affordances, edge cases, and failure paths — without committing to visual form
+- **`layers-intro`** — Framework orientation for Layers of Product Design — load this first; provides the context all other skills depend on
+- **`layers-observed-behaviour`** — Techniques for planning user research and synthesising it into grounded, confidence-rated findings about what users actually do
+- **`layers-orient`** — Diagnostic audit across all seven layers — identifies the bottleneck layer and recommends where to focus
+- **`layers-product-strategy`** — Techniques for connecting user opportunities to business outcomes and solution bets, and testing the riskiest assumptions cheaply
+- **`layers-surface`** — Techniques for auditing and deciding the surface against the layers below — vocabulary, object consistency, completeness, feedback, hierarchy, accessibility
+- **`layers-user-needs`** — Techniques for eliciting and prioritising user needs, pains, and desires — the opportunities that feed product strategy
+
+#### `pbakaus/impeccable` (1)
+
+- **`impeccable`** — Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimize, adapt, animate, colorize, extract, or otherwise
+
+#### `uizze/uizze` (2)
+
+- **`anti-ui-slop`** — Stop coding agents from shipping generic UI. Use UIZZE's 800,000+ real web and iOS screens to build product-specific interfaces, define a design contract, cover
+- **`ui-slop-score`** — Score a rendered web or iOS screen for generic UI risk before it ships. Use when a user asks whether a UI looks generic, needs an honest pre-merge visual review
+
+### kunchenguid / Firstmate (43)
+
+#### `kunchenguid/acpx` (1)
+
+- **`acpx`** — Use acpx as a headless ACP CLI for agent-to-agent communication, including prompt/exec/sessions workflows, session scoping, queueing, permissions, and output fo
+
+#### `kunchenguid/axi` (1)
+
+- **`axi`** — >
+
+#### `kunchenguid/baby-menu` (1)
+
+- **`baby-menu-design`** — Use this skill to generate well-branded interfaces and assets for Baby Menu, either for production or throwaway prototypes/mocks/etc. Contains essential design 
+
+#### `kunchenguid/chrome-devtools-axi` (1)
+
+- **`chrome-devtools-axi`** — Control a Chrome browser session through the chrome-devtools-axi CLI - navigate, snapshot, click, fill forms, run JavaScript, inspect console and network, take 
+
+#### `kunchenguid/eddies-wallet` (1)
+
+- **`eddies-wallet-design`** — Use this skill to generate well-branded interfaces and assets for Eddie's Wallet, either for production or throwaway prototypes/mocks/etc. Contains essential de
+
+#### `kunchenguid/firstmate` (19)
+
+- **`afk`** — >-
+- **`ahoy`** — Recap visible session events since the prior real captain message plus visibly unanswered captain decisions when the captain explicitly invokes /ahoy, with a Be
+- **`ask-user-authority`** — >-
+- **`bearings`** — >-
+- **`bootstrap-diagnostics`** — >-
+- **`decision-hold-lifecycle`** — >-
+- **`diagnostic-reasoning`** — >-
+- **`firstmate-codexapp`** — >-
+- **`firstmate-coding-guidelines`** — >-
+- **`firstmate-orca`** — Agent-only operator checklist for Firstmate's Orca runtime backend. Use when switching to Orca, spawning or supervising Orca-backed work, smoke-testing Orca bac
+- **`fmx-respond`** — >-
+- **`harness-adapters`** — Agent-only reference for firstmate harness operations. Use before spawning or recovering a crewmate or secondmate, handling a trust dialog, sending a harness-sp
+- **`process-event-sources`** — >-
+- **`project-management`** — >-
+- **`quota-array-dispatch`** — >-
+- **`secondmate-provisioning`** — >-
+- **`stow`** — Sweep the current conversation for durable knowledge - user preferences, project facts, operational gotchas, standing decisions, and unfinished next steps - and
+- **`stuck-crewmate-recovery`** — >-
+- **`updatefirstmate`** — >-
+
+#### `kunchenguid/gh-axi` (1)
+
+- **`gh-axi`** — Operate GitHub through the gh-axi CLI - issues, pull requests, workflow runs, workflows, releases, repositories, labels, gists, Projects (v2), Actions secrets a
+
+#### `kunchenguid/gnhf` (1)
+
+- **`gnhf`** — Use when the user asks to run GNHF, says they are going to sleep or leaving and wants an agent-managed coding run, asks to supervise, steer, or review an active
+
+#### `kunchenguid/kunchenguid-design-system` (1)
+
+- **`use-kunchenguid-design-system`** — >
+
+#### `kunchenguid/lavish-axi` (2)
+
+- **`lavish`** — Turn complex or visual agent responses into rich, reviewable HTML artifacts the user can annotate and send feedback on, using the lavish-axi CLI. Use when about
+- **`lavish-design`** — Use this skill to generate well-branded interfaces and assets for Lavish, either for production or throwaway prototypes/mocks/etc. Contains essential design gui
+
+#### `kunchenguid/no-mistakes` (1)
+
+- **`no-mistakes`** — Validate your code changes through the no-mistakes pipeline - automated code review, tests, lint, docs, push, PR, and CI - before they reach the configured push
+
+#### `kunchenguid/programbench-bench` (6)
+
+- **`careful`** — |
+- **`health`** — |
+- **`investigate`** — |
+- **`plan-eng-review`** — |
+- **`review`** — |
+- **`test-driven-development`** — Use when implementing any feature or bugfix, before writing implementation code
+
+#### `kunchenguid/quota-axi` (1)
+
+- **`quota-axi`** — Report local Claude, Codex, Cursor, GitHub Copilot, Grok, and Kimi quota windows via the quota-axi CLI - remaining effective usable runway, percentages, reset t
+
+#### `kunchenguid/rough-cut-axi` (1)
+
+- **`rough-cut-design`** — Use this skill to generate well-branded interfaces and assets for Rough Cut, a transcript-based video editor — either for production, throwaway prototypes, mark
+
+#### `kunchenguid/short-pipe` (2)
+
+- **`short-pipe-design`** — Use this skill to generate well-branded interfaces and assets for Short Pipe, either for production or throwaway prototypes/mocks/etc. Contains essential design
+- **`shorts-from-longform`** — Turn a long-form video transcript into ranked, captioned vertical shorts. Use when proposing soundbite candidates, following the user's target-length setting, d
+
+#### `kunchenguid/simplewords` (1)
+
+- **`simple-words-design`** — Use this skill to generate well-branded interfaces and assets for Simple Words, either for production or throwaway prototypes/mocks/etc. Contains essential desi
+
+#### `kunchenguid/tasks-axi` (1)
+
+- **`tasks-axi`** — Manage a task backlog through the tasks-axi CLI - add, list, show, start, and complete tasks; track blocked-by dependencies, structured holds, and a ready queue
+
+#### `kunchenguid/whathappened` (1)
+
+- **`whathappened`** — >
+
+### Matt Pocock (31)
+
+#### `mattpocock/skills` (31)
+
+- **`ask-matt`** — Ask which skill or flow fits your situation. A router over the skills in this repo.
+- **`claude-handoff`** — Hand the current conversation off to a fresh background agent that picks up the work immediately.
+- **`code-review`** — Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes — Standards (does the code follow this repo's documented coding stand
+- **`codebase-design`** — Shared vocabulary for designing deep modules. Use when the user wants to design or improve a module's interface, find deepening opportunities, decide where a se
+- **`diagnosing-bugs`** — Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow.
+- **`git-guardrails-claude-code`** — Set up Claude Code hooks to block dangerous git commands (push, reset --hard, clean, branch -D, etc.) before they execute. Use when user wants to prevent destru
+- **`grill-me`** — A relentless interview to sharpen a plan or design.
+- **`grill-with-docs`** — A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.
+- **`implement`** — Implement a piece of work based on a spec or set of tickets.
+- **`improve-codebase-architecture`** — Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
+- **`loop-me`** — Grill me about specs for the workflows I want to build, within this workspace.
+- **`migrate-to-shoehorn`** — Migrate test files from `as` type assertions to @total-typescript/shoehorn. Use when user mentions shoehorn, wants to replace `as` in tests, or needs partial te
+- **`research`** — Investigate a question against high-trust primary sources and capture the findings as a Markdown file in the repo. Use when the user wants a topic researched, d
+- **`resolving-merge-conflicts`** — Use when you need to resolve an in-progress git merge/rebase conflict.
+- **`scaffold-exercises`** — Create exercise directory structures with sections, problems, solutions, and explainers that pass linting. Use when user wants to scaffold exercises, create exe
+- **`setup-matt-pocock-skills`** — Configure this repo for the engineering skills — set up its issue tracker, triage label vocabulary, and domain doc layout. Run once before first use of the othe
+- **`setup-pre-commit`** — Set up Husky pre-commit hooks with lint-staged (Prettier), type checking, and tests in the current repo. Use when user wants to add pre-commit hooks, set up Hus
+- **`setup-ts-deep-modules`** — Wire dependency-cruiser into a TypeScript repo so each package is a deep module — implementation hidden in subfolders, reachable only through its entry-point fi
+- **`tdd`** — Test-driven development. Use when the user wants to build features or fix bugs test-first, mentions "red-green-refactor", or wants integration tests.
+- **`teach`** — Teach the user a new skill or concept, within this workspace.
+- **`to-questionnaire`** — Turn a decision you can't fully answer into a questionnaire for someone else to fill in.
+- **`to-spec`** — Turn the current conversation into a spec and publish it to the project issue tracker — no interview, just synthesis of what you've already discussed.
+- **`to-tickets`** — Break a plan, spec, or the current conversation into a set of tracer-bullet tickets, each declaring its blocking edges, published to the configured tracker — ed
+- **`triage`** — Move issues and external PRs through a state machine of triage roles — categorise, verify, grill if needed, and write agent-ready briefs.
+- **`wait-what`** — Stop. That last message did not land — re-pitch it.
+- **`wayfinder`** — Plan a huge chunk of work — more than one agent session can hold — as a shared map of decision tickets on your issue tracker, and resolve them one at a time unt
+- **`wizard`** — Generate an interactive bash wizard that walks a human through steps only they can perform. Use when provisioning infrastructure, setting up credentials or CI s
+- **`writing-beats`** — Writing, exploit — assemble raw material into a journey of beats, grounding each term before a beat leans on it.
+- **`writing-for-agents`** — Writing documents for agents. Use when creating or editing skills, or modifying AGENTS.md or CLAUDE.md.
+- **`writing-fragments`** — Writing, explore — mine raw fragments, no structure yet.
+- **`writing-shape`** — Writing, exploit — shape raw material into an article, paragraph by paragraph.
+
+### cursor-kenji (109)
+
+#### `kensaurus/cursor-kenji` (109)
+
+- **`audit-accessibility`** — >
+- **`audit-backend-architecture`** — >-
+- **`audit-bundle-size`** — >-
+- **`audit-cicd`** — >
+- **`audit-code-quality`** — Detect and fix code anti-patterns, and audit codebase consistency. Use when reviewing code quality, fixing anti-patterns, enforcing naming conventions, standard
+- **`audit-code-review`** — >
+- **`audit-db-schema`** — >
+- **`audit-fe-api`** — >
+- **`audit-i18n`** — >-
+- **`audit-payment-system`** — >-
+- **`audit-performance`** — >
+- **`audit-realworld`** — >-
+- **`audit-resilience`** — >-
+- **`audit-security`** — >
+- **`audit-uiux-design-system`** — >
+- **`audit-ux`** — >
+- **`audit-ux-journeys`** — >-
+- **`backend-db-performance`** — Optimize database queries, schemas, and performance. Use when fixing slow queries, adding indexes, N+1 problems, schema design, RLS policies, or when user menti
+- **`backend-error-handling`** — Implement solid error handling patterns. Use when adding error handling, improving error UX, debugging error flows, standardizing error responses, or when user 
+- **`backend-observability`** — Instrument features so errors, traces, and logs are correlated from the first line. Use when adding logging, tracing, or monitoring; wiring Sentry, Langfuse, or
+- **`backend-realtime`** — Implement real-time features using WebSockets, Supabase Realtime, Server-Sent Events, and live data. Use when user wants "real-time", "live updates", "WebSocket
+- **`burndown-full`** — Drive a planned change to 100% coverage across an entire codebase when a prior agent run stopped early. Use whenever a refactor, migration, rename, rule-applica
+- **`complete-everything`** — >
+- **`data-pipeline`** — Wire ETL, ingestion, cron, edge-function, and queue jobs correctly. Use for "build a pipeline", "sync X into Y", "nightly aggregation", "cron double-counts", "d
+- **`data-visualization`** — >
+- **`debug-error`** — >
+- **`debug-fe-be-integration`** — >
+- **`debug-sentry-monitor`** — >
+- **`deploy-npm`** — >
+- **`deploy-verify`** — >
+- **`design-api`** — >
+- **`design-canvas`** — Create museum-quality visual art in .png and .pdf formats using design philosophy. Use when user asks for poster, visual design, infographic, certificate, badge
+- **`design-email`** — >-
+- **`design-frontend`** — >
+- **`design-generative-art`** — Create algorithmic art using p5.js, Canvas API, or SVG with seeded randomness and interactive parameters. Use when user requests generative art, procedural art,
+- **`design-mobile-first`** — Designs mobile-first responsive interfaces with touch optimization — breakpoint strategy, touch targets, safe areas, and gesture handling, enhanced progressivel
+- **`design-motion`** — >
+- **`design-prd`** — >
+- **`design-theme`** — Apply cohesive visual themes to artifacts (slides, docs, landing pages). Provides 11 pre-set themes with colors/fonts. Use when user mentions "apply theme", "co
+- **`docs-writer`** — >
+- **`domain-modeling`** — >-
+- **`enhance-agent-guardrails`** — >-
+- **`enhance-capacitor-ui`** — >
+- **`enhance-motion`** — >-
+- **`enhance-pwa`** — >-
+- **`enhance-readme`** — >-
+- **`enhance-web-forms`** — >-
+- **`enhance-web-landing`** — Build landing pages, portfolios, and marketing sites that don't look AI-generated. Use when asked for "landing page", "portfolio", "marketing site", "anti-slop"
+- **`enhance-web-redesign`** — Upgrades existing websites and apps to premium quality. Audits current design, identifies generic AI patterns, and applies high-end design standards without bre
+- **`enhance-web-seo`** — >-
+- **`enhance-web-ui`** — >
+- **`enhance-web-ux`** — >
+- **`enhance-web-web3d`** — >
+- **`grilling`** — >-
+- **`handoff`** — >-
+- **`housekeep-design`** — >-
+- **`iterate-agent-harness`** — >-
+- **`iterate-post-launch`** — >-
+- **`meta-mcp-builder`** — >
+- **`meta-skill-creator`** — Create or update Cursor agent skills (SKILL.md). Use when authoring a new skill, updating an existing skill, or asking about SKILL.md structure and best practic
+- **`mobile-emulator-start`** — >
+- **`mobile-emulator-test`** — QA a native Android build end-to-end on the emulator. Use for "test on emulator", "QA Android build", "verify native build", "white screen", "cache rehydration"
+- **`mobile-rn-performance`** — Fix React Native / Expo performance, build, and upgrade issues. Use for jank, frame drops, slow startup, large bundles, memory leaks, Hermes, FlashList, Reanima
+- **`mobile-rn-screen`** — >
+- **`mushi-health`** — >-
+- **`mushi-integration`** — >-
+- **`plan-aeo-readiness`** — >
+- **`plan-antislop`** — >
+- **`plan-capacitor-hardening`** — >
+- **`plan-data-integrity`** — >
+- **`plan-dependency-provenance`** — >
+- **`plan-docs-sync`** — >
+- **`plan-error-handling`** — >
+- **`plan-input-validation`** — >
+- **`plan-llm-cost-guardrails`** — >
+- **`plan-mobile-readiness`** — >
+- **`plan-perf-audit`** — >
+- **`plan-rls-audit`** — >
+- **`plan-secrets-audit`** — >
+- **`plan-security-audit`** — >
+- **`plan-stub-checker`** — >
+- **`plan-test-coverage`** — >
+- **`plan-uiux-unification`** — >
+- **`protocol-browser-anti-stall`** — >-
+- **`test-playwright`** — >-
+- **`test-qa`** — >
+- **`test-red-team`** — >-
+- **`test-unit`** — >
+- **`thirdparty-emil-design-eng`** — >-
+- **`thirdparty-ui-ux-pro-max`** — >-
+- **`thirdparty-web-interface-guidelines`** — >-
+- **`workflow-build-feature`** — >-
+- **`workflow-coding-discipline`** — Apply behavioral guardrails when writing, editing, refactoring, or debugging code. Use when vibe-coding keeps producing wrong results, or for any task needing "
+- **`workflow-environment-ready`** — >-
+- **`workflow-feature-flag`** — >-
+- **`workflow-feedback-to-closure`** — >-
+- **`workflow-fix-and-ship`** — >-
+- **`workflow-git-commit`** — Generate clear, descriptive commit messages following conventional commits format. Use when committing code, writing commit messages, or when the user asks for 
+- **`workflow-green-repo`** — >-
+- **`workflow-housekeep`** — >
+- **`workflow-launch-ready`** — >-
+- **`workflow-merge-conflicts`** — >-
+- **`workflow-onboard`** — >-
+- **`workflow-parallel-agents`** — Run multiple agents in parallel via git worktrees, cloud agents, or multi-model comparison. Use for "run agents in parallel", "best-of-N", "compare approaches",
+- **`workflow-pr`** — Manage the full PR lifecycle — create, review, address bot feedback, resolve conflicts, and merge. Use when creating pull requests, managing PR reviews, address
+- **`workflow-quality-gate`** — >-
+- **`workflow-refactor`** — >
+- **`workflow-ship-and-observe`** — >-
+- **`workflow-spec-tdd`** — Stop vibe-coding with a spec → plan → TDD loop before writing a line. Use for any non-trivial feature, refactor, or bug fix on web, React Native, or Capacitor. 
+
+### everything-claude-code (286)
+
+#### `affaan-m/everything-claude-code` (286)
+
+- **`accessibility`** — Design, implement, and audit inclusive digital products using WCAG 2.2 Level AA
+- **`agent-architecture-audit`** — Full-stack diagnostic for agent and LLM applications. Audits the 12-layer agent stack for wrapper regression, memory pollution, tool discipline failures, hidden
+- **`agent-eval`** — Head-to-head comparison of coding agents (Claude Code, Aider, Codex, etc.) on custom tasks with pass rate, cost, time, and consistency metrics
+- **`agent-harness-construction`** — Design and optimize AI agent action spaces, tool definitions, and observation formatting for higher completion rates.
+- **`agent-introspection-debugging`** — Structured self-debugging workflow for AI agent failures using capture, diagnosis, contained recovery, and introspection reports.
+- **`agent-payment-x402`** — Add x402 payment execution to AI agents with per-task budgets, spending controls, and non-custodial wallets. Supports Base through agentwallet-sdk and X Layer t
+- **`agent-self-evaluation`** — Use after completing any non-trivial task. The agent self-rates its output on 5 axes — accuracy, completeness, clarity, actionability, conciseness — with concre
+- **`agent-sort`** — Build an evidence-backed ECC install plan for a specific repo by sorting skills, commands, rules, hooks, and extras into DAILY vs LIBRARY buckets using parallel
+- **`agentic-engineering`** — Operate as an agentic engineer using eval-first execution, decomposition, and cost-aware model routing.
+- **`agentic-os`** — Build persistent multi-agent operating systems on Claude Code. Covers kernel architecture, specialist agents, slash commands, file-based memory, scheduled autom
+- **`ai-first-engineering`** — Engineering operating model for teams where AI agents generate a large share of implementation output.
+- **`ai-regression-testing`** — Regression testing strategies for AI-assisted development. Sandbox-mode API testing without database dependencies, automated bug-check workflows, and patterns t
+- **`android-clean-architecture`** — Clean Architecture patterns for Android and Kotlin Multiplatform projects — module structure, dependency rules, UseCases, Repositories, and data layer patterns.
+- **`angular-developer`** — Generates Angular code and provides architectural guidance. Trigger when creating projects, components, or services, or for best practices on reactivity (signal
+- **`api-connector-builder`** — Build a new API connector or provider by matching the target repo's existing integration pattern exactly. Use when adding one more integration without inventing
+- **`api-design`** — REST API design patterns including resource naming, status codes, pagination, filtering, error responses, versioning, and rate limiting for production APIs.
+- **`architecture-decision-records`** — Capture architectural decisions made during Claude Code sessions as structured ADRs. Auto-detects decision moments, records context, alternatives considered, an
+- **`article-writing`** — Write articles, guides, blog posts, tutorials, newsletter issues, and other long-form content in a distinctive voice derived from supplied examples or brand gui
+- **`automation-audit-ops`** — Evidence-first automation inventory and overlap audit workflow for ECC. Use when the user wants to know which jobs, hooks, connectors, MCP servers, or wrappers 
+- **`autonomous-agent-harness`** — Transform Claude Code into a fully autonomous agent system with persistent memory, scheduled operations, computer use, and task queuing. Replaces standalone age
+- **`autonomous-loops`** — Patterns and architectures for autonomous Claude Code loops — from simple sequential pipelines to RFC-driven multi-agent DAG systems.
+- **`backend-patterns`** — Backend architecture patterns, API design, database optimization, and server-side best practices for Node.js, Express, and Next.js API routes.
+- **`benchmark`** — Use this skill to measure performance baselines, detect regressions before/after PRs, and compare stack alternatives.
+- **`benchmark-methodology`** — >-
+- **`benchmark-optimization-loop`** — Use when the user asks to make something faster, try many variants, run recursive optimization, benchmark latency/throughput/cost, or choose the best implementa
+- **`blender-motion-state-inspection`** — Use this skill when inspecting Blender characters, rigs, poses, animation retargeting, ground contact, facing direction, or model-vs-motion alignment where scre
+- **`blueprint`** — >-
+- **`brand-discovery`** — >-
+- **`brand-voice`** — Build a source-derived writing style profile from real posts, essays, launch notes, docs, or site copy, then reuse that profile across content, outreach, and so
+- **`browser-qa`** — Use this skill to automate visual testing and UI interaction verification using browser automation after deploying features.
+- **`bun-runtime`** — Bun as runtime, package manager, bundler, and test runner. When to choose Bun vs Node, migration notes, and Vercel support.
+- **`canary-watch`** — Use this skill to monitor and verify a deployed URL after releases — checks HTTP endpoints, SSE streams, static assets, console errors, and performance regressi
+- **`carrier-relationship-management`** — >
+- **`cisco-ios-patterns`** — Cisco IOS and IOS-XE review patterns for show commands, config hierarchy, wildcard masks, ACL placement, interface hygiene, and safe change-window verification.
+- **`ck`** — Persistent per-project memory for Claude Code. Auto-loads project context on session start, tracks sessions with git activity, and writes to native memory. Comm
+- **`claude-devfleet`** — Orchestrate multi-agent coding tasks via Claude DevFleet — plan projects, dispatch parallel agents in isolated worktrees, monitor progress, and read structured 
+- **`click-path-audit`** — Trace every user-facing button/touchpoint through its full state change sequence to find bugs where functions individually work but cancel each other out, produ
+- **`clickhouse-io`** — ClickHouse database patterns, query optimization, analytics, and data engineering best practices for high-performance analytical workloads.
+- **`code-tour`** — Create CodeTour `.tour` files — persona-targeted, step-by-step walkthroughs with real file and line anchors. Use for onboarding tours, architecture walkthroughs
+- **`codebase-onboarding`** — Analyze an unfamiliar codebase and generate a structured onboarding guide with architecture map, key entry points, conventions, and a starter CLAUDE.md. Use whe
+- **`codehealth-mcp`** — Real-time structural Code Health via CodeScene MCP — review before edits, verify score deltas after changes, gate commits and PRs. Use when reviewing code quali
+- **`coding-standards`** — Baseline cross-project coding conventions for naming, readability, immutability, and code-quality review. Use detailed frontend or backend skills for framework-
+- **`competitive-platform-analysis`** — >-
+- **`competitive-report-structure`** — >-
+- **`compose-multiplatform-patterns`** — Compose Multiplatform and Jetpack Compose patterns for KMP projects — state management, navigation, theming, performance, and platform-specific UI.
+- **`config-gc`** — Garbage collection for your Claude Code configuration. Periodically scans ~/.claude (skills, memory, hooks, permissions, MCP servers, caches) for redundant, sta
+- **`configure-ecc`** — Guide ECC installation, update, or reconfiguration from inside Claude Code, Codex, or Kimi while respecting each harness's real plugin, scope, and hook capabili
+- **`connections-optimizer`** — Reorganize the user's X and LinkedIn network with review-first pruning, add/follow recommendations, and channel-specific warm outreach drafted in the user's rea
+- **`content-engine`** — Create platform-native content systems for X, LinkedIn, TikTok, YouTube, newsletters, and repurposed multi-platform campaigns. Use when the user wants social po
+- **`content-hash-cache-pattern`** — Cache expensive file processing results using SHA-256 content hashes — path-independent, auto-invalidating, with service layer separation.
+- **`context-budget`** — Audits Claude Code context window consumption across agents, skills, MCP servers, and rules. Identifies bloat, redundant components, and produces prioritized to
+- **`continuous-agent-loop`** — Patterns for continuous autonomous agent loops with quality gates, evals, and recovery controls.
+- **`continuous-learning`** — [DEPRECATED - use continuous-learning-v2] Legacy v1 stop-hook skill extractor. v2 is a strict superset with instinct-based, project-scoped, hook-reliable learni
+- **`continuous-learning-v2`** — Instinct-based learning system that observes sessions via hooks, creates atomic instincts with confidence scoring, and evolves them into skills/commands/agents.
+- **`contract-first`** — Use when multiple consumers and providers must evolve an API or event schema without field drift, integration surprises, or one side silently redefining the int
+- **`cost-aware-llm-pipeline`** — Cost optimization patterns for LLM API usage — model routing by task complexity, budget tracking, retry logic, and prompt caching.
+- **`cost-tracking`** — Track and report Claude Code token usage, spending, and budgets from the local ECC cost-tracker metrics log. Use when the user asks about costs, spending, usage
+- **`council`** — Convene a four-voice council for ambiguous decisions, tradeoffs, and go/no-go calls. Use when multiple valid paths exist and you need structured disagreement be
+- **`cpp-coding-standards`** — C++ coding standards based on the C++ Core Guidelines (isocpp.github.io). Use when writing, reviewing, or refactoring C++ code to enforce modern, safe, and idio
+- **`cpp-testing`** — Use only when writing/updating/fixing C++ tests, configuring GoogleTest/CTest, diagnosing failing or flaky tests, or adding coverage/sanitizers.
+- **`crosspost`** — Multi-platform content distribution across X, LinkedIn, Threads, and Bluesky. Adapts content per platform using content-engine patterns. Never posts identical c
+- **`csharp-testing`** — C# and .NET testing patterns with xUnit, FluentAssertions, mocking, integration tests, and test organization best practices.
+- **`customer-billing-ops`** — Operate customer billing workflows such as subscriptions, refunds, churn triage, billing-portal recovery, and plan analysis using connected billing tools like S
+- **`customs-trade-compliance`** — >
+- **`dart-flutter-patterns`** — Production-ready Dart and Flutter patterns covering null safety, immutable state, async composition, widget architecture, popular state management frameworks (B
+- **`dashboard-builder`** — Build monitoring dashboards that answer real operator questions for Grafana, SigNoz, and similar platforms. Use when turning metrics into a working dashboard in
+- **`data-scraper-agent`** — Build a fully automated AI-powered data collection agent for any public source — job boards, prices, news, GitHub, sports, anything. Runs on a schedule, enriche
+- **`data-throughput-accelerator`** — Use when large data ingestion, backfill, export, ETL, warehouse loading, manifest catch-up, or table synchronization needs to become much faster while preservin
+- **`database-migrations`** — Database migration best practices for schema changes, data migrations, rollbacks, and zero-downtime deployments across PostgreSQL, MySQL, and common ORMs (Prism
+- **`deep-research`** — Multi-source deep research using firecrawl and exa MCPs. Searches the web, synthesizes findings, and delivers cited reports with source attribution. Use when th
+- **`defi-amm-security`** — Security checklist for Solidity AMM contracts, liquidity pools, and swap flows. Covers reentrancy, CEI ordering, donation or inflation attacks, oracle manipulat
+- **`delivery-gate`** — Stop hook that blocks Claude from finishing until quality checks pass. Detects rationalization patterns (surface text heuristics), stale learning logs (filesyst
+- **`deployment-patterns`** — Deployment workflows, CI/CD pipeline patterns, Docker containerization, health checks, rollback strategies, and production readiness checklists for web applicat
+- **`design-system`** — Use this skill to generate or audit design systems, check visual consistency, and review PRs that touch styling.
+- **`django-celery`** — Django + Celery async task patterns — configuration, task design, beat scheduling, retries, canvas workflows, monitoring, and testing. Use when adding backgroun
+- **`django-patterns`** — Django architecture patterns, REST API design with DRF, ORM best practices, caching, signals, middleware, and production-grade Django apps.
+- **`django-security`** — Django security best practices, authentication, authorization, CSRF protection, SQL injection prevention, XSS prevention, and secure deployment configurations.
+- **`django-tdd`** — Django testing strategies with pytest-django, TDD methodology, factory_boy, mocking, coverage, and testing Django REST Framework APIs.
+- **`django-verification`** — Verification loop for Django projects: migrations, linting, tests with coverage, security scans, and deployment readiness checks before release or PR.
+- **`dmux-workflows`** — Multi-agent orchestration using dmux (tmux pane manager for AI agents). Patterns for parallel agent workflows across Claude Code, Codex, OpenCode, and other har
+- **`docker-patterns`** — Docker and Docker Compose patterns for local development, hardened CLI installer harnesses, container security, networking, volumes, and multi-service orchestra
+- **`documentation-lookup`** — Use up-to-date library and framework docs via Context7 MCP instead of training data. Activates for setup questions, API references, code examples, or when the u
+- **`dotnet-patterns`** — Idiomatic C# and .NET patterns, conventions, dependency injection, async/await, and best practices for building robust, maintainable .NET applications.
+- **`dynamic-workflow-mode`** — Design task-local harnesses, eval gates, and reusable skill extraction for Claude dynamic workflow mode and other adaptive agent harnesses.
+- **`e2e-testing`** — Playwright E2E testing patterns, Page Object Model, configuration, CI/CD integration, artifact management, and flaky test strategies.
+- **`ecc-guide`** — Guide users through ECC's current agents, skills, commands, hooks, rules, install profiles, and project onboarding by reading the live repository surface before
+- **`ecc-recipes`** — Map a described workflow to the right ECC command-GROUP with run-order and stop condition, and browse all command-group recipe families. Adds a family-grouping 
+- **`ecc-tools-cost-audit`** — Evidence-first ECC Tools burn and billing audit workflow. Use when investigating runaway PR creation, quota bypass, premium-model leakage, duplicate jobs, or Gi
+- **`email-ops`** — Evidence-first mailbox triage, drafting, send verification, and sent-mail-safe follow-up workflow for ECC. Use when the user wants to organize email, draft or s
+- **`energy-procurement`** — >
+- **`enterprise-agent-ops`** — Operate long-lived agent workloads with observability, security boundaries, and lifecycle management.
+- **`error-handling`** — Patterns for robust error handling across TypeScript, Python, and Go. Covers typed errors, error boundaries, retries, circuit breakers, and user-facing error me
+- **`eval-harness`** — Formal evaluation framework for Claude Code sessions implementing eval-driven development (EDD) principles
+- **`everything-claude-code`** — Development conventions and patterns for everything-claude-code. JavaScript project with conventional commits.
+- **`everything-claude-code-conventions`** — Development conventions and patterns for everything-claude-code. JavaScript project with conventional commits.
+- **`evm-token-decimals`** — Prevent silent decimal mismatch bugs across EVM chains. Covers runtime decimal lookup, chain-aware caching, bridged-token precision drift, and safe normalizatio
+- **`exa-search`** — Neural search via Exa MCP for web, code, and company research. Use when the user needs web search, code examples, company intel, people lookup, or AI-powered de
+- **`fal-ai-media`** — Unified media generation via fal.ai MCP — image, video, and audio. Covers text-to-image (Nano Banana), text/image-to-video (Seedance, Kling, Veo 3), text-to-spe
+- **`fastapi-patterns`** — FastAPI best practices covering project structure, Pydantic v2 schemas, dependency injection, async handlers, authentication, authorization, transactional servi
+- **`finance-billing-ops`** — Evidence-first revenue, pricing, refunds, team-billing, and billing-model truth workflow for ECC. Use when the user wants a sales snapshot, pricing comparison, 
+- **`flox-environments`** — Create reproducible, cross-platform (macOS/Linux) development environments with Flox, a declarative Nix-based environment manager. Use when setting up project t
+- **`flutter-dart-code-review`** — Library-agnostic Flutter/Dart code review checklist covering widget best practices, state management patterns (BLoC, Riverpod, Provider, GetX, MobX, Signals), D
+- **`foundation-models-on-device`** — Apple FoundationModels framework for on-device LLM — text generation, guided generation with @Generable, tool calling, and snapshot streaming in iOS 26+.
+- **`frontend-a11y`** — >
+- **`frontend-design-direction`** — Set an ECC-specific frontend design direction for production UI work. Use when building or improving websites, dashboards, applications, components, landing pag
+- **`frontend-patterns`** — Frontend development patterns for React, Next.js, state management, performance optimization, and UI best practices.
+- **`frontend-slides`** — Create stunning, animation-rich HTML presentations from scratch or by converting PowerPoint files. Use when the user wants to build a presentation, convert a PP
+- **`fsharp-testing`** — F# testing patterns with xUnit, FsUnit, Unquote, FsCheck property-based testing, integration tests, and test organization best practices.
+- **`gan-style-harness`** — GAN-inspired Generator-Evaluator agent harness for building high-quality applications autonomously. Based on Anthropic's March 2026 harness design paper.
+- **`gateguard`** — Fact-forcing gate that blocks Edit/Write/Bash (including MultiEdit) and demands concrete investigation (importers, data schemas, user instruction) before allowi
+- **`generating-python-installer`** — Commercial-grade Python installer expert for Windows: Nuitka extreme compilation, dist slimming, DLL footprint analysis, and Inno Setup packaging to ship the sm
+- **`gget`** — gget CLI and Python workflow for quick genomic database queries, sequence lookup, BLAST-style searches, enrichment checks, and reproducible bioinformatics evide
+- **`git-workflow`** — Git workflow patterns including branching strategies, commit conventions, merge vs rebase, conflict resolution, and collaborative development best practices for
+- **`github-ops`** — GitHub repository operations, automation, and management. Issue triage, PR management, CI/CD operations, release management, and security monitoring using the g
+- **`golang-patterns`** — Idiomatic Go patterns, best practices, and conventions for building robust, efficient, and maintainable Go applications.
+- **`golang-testing`** — Go testing patterns including table-driven tests, subtests, benchmarks, fuzzing, and test coverage. Follows TDD methodology with idiomatic Go practices.
+- **`google-workspace-ops`** — Operate across Google Drive, Docs, Sheets, and Slides as one workflow surface for plans, trackers, decks, and shared documents. Use when the user needs to find,
+- **`growth-log`** — Use after a complex task, failure, or when reviewing what was learned. Teaches how to write growth logs that extract reusable patterns — not diary entries.
+- **`healthcare-cdss-patterns`** — Clinical Decision Support System (CDSS) development patterns. Drug interaction checking, dose validation, clinical scoring (NEWS2, qSOFA), alert severity classi
+- **`healthcare-emr-patterns`** — EMR/EHR development patterns for healthcare applications. Clinical safety, encounter workflows, prescription generation, clinical decision support integration, 
+- **`healthcare-eval-harness`** — Patient safety evaluation harness for healthcare application deployments. Automated test suites for CDSS accuracy, PHI exposure, clinical workflow integrity, an
+- **`healthcare-phi-compliance`** — Protected Health Information (PHI) and Personally Identifiable Information (PII) compliance patterns for healthcare applications. Covers data classification, ac
+- **`hermes-imports`** — Convert local Hermes operator workflows into sanitized ECC skills and release-pack artifacts. Use when preparing a Hermes workflow for public ECC reuse without 
+- **`hexagonal-architecture`** — Design, implement, and refactor Ports & Adapters systems with clear domain boundaries, dependency inversion, and testable use-case orchestration across TypeScri
+- **`hipaa-compliance`** — HIPAA-specific entrypoint for healthcare privacy and security work. Use when a task is explicitly framed around HIPAA, PHI handling, covered entities, BAAs, bre
+- **`homelab-network-readiness`** — Readiness checklist for homelab VLAN segmentation, local DNS filtering, and WireGuard-style remote access before changing router, firewall, DHCP, or VPN configu
+- **`homelab-network-setup`** — Practical home and homelab network planning for gateways, switches, access points, IP ranges, DHCP reservations, DNS, cabling, and common beginner mistakes.
+- **`homelab-pihole-dns`** — Pi-hole installation, blocklist management, DNS-over-HTTPS setup, DHCP integration, local DNS records, and troubleshooting broken DNS resolution on a home netwo
+- **`homelab-vlan-segmentation`** — Segmenting home networks into VLANs for IoT, guest, trusted, and server traffic using UniFi, pfSense/OPNsense, and MikroTik — including switch trunk config, fir
+- **`homelab-wireguard-vpn`** — WireGuard VPN server setup, peer configuration, key generation, split tunneling vs full tunnel routing, and remote access to a home network from mobile and lapt
+- **`hookify-rules`** — This skill should be used when the user asks to create a hookify rule, write a hook rule, configure hookify, add a hookify rule, or needs guidance on hookify ru
+- **`inherit-legacy-style`** — Legacy-project style inheritance skill. Use when the user types /inherit-legacy-style, or when onboarding an AI coding agent onto a hand-written legacy project 
+- **`intent-driven-development`** — Turn ambiguous or high-impact product and engineering changes into scoped, verifiable acceptance criteria before or alongside implementation. Use when a user as
+- **`inventory-demand-planning`** — >
+- **`investor-materials`** — Create and update pitch decks, one-pagers, investor memos, accelerator applications, financial models, and fundraising materials. Use when the user needs invest
+- **`investor-outreach`** — Draft cold emails, warm intro blurbs, follow-ups, update emails, and investor communications for fundraising. Use when the user wants outreach to angels, VCs, s
+- **`ios-icon-gen`** — Generate iOS app icons as PNG imagesets for Xcode asset catalogs from SF Symbols (5000+ Apple-native) or Iconify API (275k+ open source icons from 200+ collecti
+- **`iterative-retrieval`** — Pattern for progressively refining context retrieval to solve the subagent context problem
+- **`ito-basket-compare`** — Compare Itô prediction-market baskets against a user's knowledge base, portfolio notes, financial context, watchlist, or research thesis. Use for read-only bask
+- **`ito-compute`** — Query live GPU inventory, submit an authenticated Itô fixed-rate RFQ, inspect RFQ or procurement status, revoke device credentials, and run explicitly gated nod
+- **`ito-data-atlas-agent`** — Design source-grounded Data Atlas style agents for Itô basket research, market discovery, parameter drafting, and human-in-the-loop editing. Use for architectur
+- **`ito-inference`** — Inspect the availability of model serving on a completed Itô compute booking and, when the canonical backend becomes available, hand off an explicitly confirmed
+- **`ito-market-intelligence`** — Research prediction-market events, venues, underliers, liquidity, and news context for Itô basket workflows. Use for read-only market intelligence, API-gated It
+- **`ito-trade-planner`** — Build a non-advisory prediction-market trade planning worksheet for Itô or venue workflows. Use to inspect venues, underliers, constraints, order prerequisites,
+- **`ito-training`** — Run an ML training job on a completed Itô compute booking through the canonical Itô backend. Use after ito-compute has booked GPU nodes and the user wants pre-t
+- **`java-coding-standards`** — Java coding standards for Spring Boot and Quarkus services: naming, immutability, Optional usage, streams, exceptions, generics, CDI, reactive patterns, and pro
+- **`jira-integration`** — Use this skill when retrieving Jira tickets, analyzing requirements, updating ticket status, adding comments, or transitioning issues. Provides Jira API pattern
+- **`jpa-patterns`** — JPA/Hibernate patterns for entity design, relationships, query optimization, transactions, auditing, indexing, pagination, and pooling in Spring Boot.
+- **`knowledge-ops`** — Knowledge base management, ingestion, sync, and retrieval across multiple storage layers (local files, MCP memory, vector stores, Git repos). Use when the user 
+- **`kotlin-coroutines-flows`** — Kotlin Coroutines and Flow patterns for Android and KMP — structured concurrency, Flow operators, StateFlow, error handling, and testing.
+- **`kotlin-exposed-patterns`** — JetBrains Exposed ORM patterns including DSL queries, DAO pattern, transactions, HikariCP connection pooling, Flyway migrations, and repository pattern.
+- **`kotlin-ktor-patterns`** — Ktor server patterns including routing DSL, plugins, authentication, Koin DI, kotlinx.serialization, WebSockets, and testApplication testing.
+- **`kotlin-patterns`** — Idiomatic Kotlin patterns, best practices, and conventions for building robust, efficient, and maintainable Kotlin applications with coroutines, null safety, an
+- **`kotlin-testing`** — Kotlin testing patterns with Kotest, MockK, coroutine testing, property-based testing, and Kover coverage. Follows TDD methodology with idiomatic Kotlin practic
+- **`kubernetes-patterns`** — Kubernetes workload patterns, resource management, RBAC, probes, autoscaling, ConfigMap/Secret handling, and kubectl debugging for production-grade deployments.
+- **`laravel-patterns`** — Laravel architecture patterns, routing/controllers, Eloquent ORM, service layers, queues, events, caching, and API resources for production apps.
+- **`laravel-plugin-discovery`** — Discover and evaluate Laravel packages via LaraPlugins.io MCP. Use when the user wants to find plugins, check package health, or assess Laravel/PHP compatibilit
+- **`laravel-security`** — Laravel security best practices — authentication, authorization, Eloquent safety, CSRF, XSS prevention, API security, and secure deployment configurations.
+- **`laravel-tdd`** — Laravel testing strategies with PHPUnit, Pest, model factories, HTTP tests, Sanctum authentication testing, mocking, and coverage.
+- **`laravel-verification`** — Verification loop for Laravel projects: env checks, linting, static analysis, tests with coverage, security scans, and deployment readiness.
+- **`latency-critical-systems`** — Use for latency-sensitive systems such as realtime dashboards, market data, streaming agents, execution gateways, queues, caches, or HFT-like infrastructure whe
+- **`lead-intelligence`** — AI-native lead intelligence and outreach pipeline. Replaces Apollo, Clay, and ZoomInfo with agent-powered signal scoring, mutual ranking, warm path discovery, s
+- **`liquid-glass-design`** — iOS 26 Liquid Glass design system — dynamic glass material with blur, reflection, and interactive morphing for SwiftUI, UIKit, and WidgetKit.
+- **`literature-review`** — Systematic literature-review workflow for academic, biomedical, technical, and scientific topics, including search planning, source screening, synthesis, citati
+- **`llm-trading-agent-security`** — Security patterns for autonomous trading agents with wallet or transaction authority. Covers prompt injection, spend limits, pre-send simulation, circuit breake
+- **`logistics-exception-management`** — >
+- **`loop-design-check`** — Design a goal-oriented agent loop, and review it for the ways loops go wrong — spinning and burning tokens, Goodhart-gaming the verifier, or running a wrong ans
+- **`mailtrap-email-integration`** — Guides agents through integrating transactional email sending via Mailtrap's Email API, including sandbox testing, domain verification, and API authentication. 
+- **`make-interfaces-feel-better`** — Apply concrete design-engineering details that make interfaces feel polished. Use when reviewing or improving UI spacing, typography, borders, shadows, motion, 
+- **`manim-video`** — Build reusable Manim explainers for technical concepts, graphs, system diagrams, and product walkthroughs, then hand off to the wider ECC video stack if needed.
+- **`market-research`** — Conduct market research, competitive analysis, investor due diligence, and industry intelligence with source attribution and decision-oriented summaries. Use wh
+- **`marketing-campaign`** — End-to-end marketing campaign planning and execution. Covers audience research, positioning, campaign angle definition, landing page copy, email sequences, soci
+- **`mcp-server-patterns`** — Build MCP servers with Node/TypeScript SDK — tools, resources, prompts, Zod validation, stdio vs Streamable HTTP. Use Context7 or official MCP docs for latest A
+- **`messages-ops`** — Evidence-first live messaging workflow for ECC. Use when the user wants to read texts or DMs, recover a recent one-time code, inspect a thread before replying, 
+- **`ml-adoption-playbook`** — End-to-end methodology for AI agents and software engineers to add machine learning algorithms to existing non-ML codebases. Covers problem framing, data readin
+- **`mle-workflow`** — Production machine-learning engineering workflow for data contracts, reproducible training, model evaluation, deployment, monitoring, and rollback. Use when bui
+- **`motion-advanced`** — Advanced motion patterns for React / Next.js — drag & drop, gestures, text animations, SVG path drawing, custom hooks, imperative sequences (useAnimate), loader
+- **`motion-foundations`** — Motion tokens, spring presets, performance rules, device adaptation, accessibility enforcement, and SSR safety for React / Next.js using motion/react. Foundatio
+- **`motion-patterns`** — Production-ready animation patterns for React / Next.js — button, modal, toast, stagger, page transitions, exit animations, scroll, and layout — built on motion
+- **`motion-ui`** — Production-ready UI motion system for React/Next.js. Use when implementing animations, transitions, or motion patterns.
+- **`mysql-patterns`** — MySQL and MariaDB schema, query, indexing, transaction, replication, and connection-pool patterns for production backends.
+- **`nanoclaw-repl`** — Operate and extend NanoClaw v2, ECC's zero-dependency session-aware REPL built on claude -p.
+- **`nestjs-patterns`** — NestJS architecture patterns for modules, controllers, providers, DTO validation, guards, interceptors, config, and production-grade TypeScript backends.
+- **`netmiko-ssh-automation`** — Safe Python Netmiko patterns for read-only collection, bounded batch SSH, TextFSM parsing, guarded config changes, timeouts, and network automation error handli
+- **`network-bgp-diagnostics`** — Diagnostics-only BGP troubleshooting patterns for neighbor state, route exchange, prefix policy, AS path inspection, and safe evidence collection.
+- **`network-config-validation`** — Pre-deployment checks for router and switch configuration, including dangerous commands, duplicate addresses, subnet overlaps, stale references, management-plan
+- **`network-interface-health`** — Diagnose interface errors, drops, CRCs, duplex mismatches, flapping, speed negotiation issues, and counter trends on routers, switches, and Linux hosts.
+- **`nextjs-turbopack`** — Next.js 16+ and Turbopack — incremental bundling, FS caching, dev speed, and when to use Turbopack vs webpack.
+- **`nodejs-keccak256`** — Prevent Ethereum hashing bugs in JavaScript and TypeScript. Node's sha3-256 is NIST SHA3, not Ethereum Keccak-256, and silently breaks selectors, signatures, st
+- **`nutrient-document-processing`** — Process, convert, OCR, extract, redact, sign, and fill documents using the Nutrient DWS API. Works with PDFs, DOCX, XLSX, PPTX, HTML, and images.
+- **`nuxt4-patterns`** — Nuxt 4 app patterns for hydration safety, performance, route rules, lazy loading, and SSR-safe data fetching with useFetch and useAsyncData.
+- **`openclaw-persona-forge`** — 为 OpenClaw AI Agent 锻造完整的龙虾灵魂方案。根据用户偏好或随机抽卡， 输出身份定位、灵魂描述(SOUL.md)、角色化底线规则、名字和头像生图提示词。 如当前环境提供已审核的生图 skill，可自动生成统一风格头像图片。 当用户需要创建、设计或定制 OpenClaw 龙虾灵魂时使用。 不适用于：微调
+- **`opensource-pipeline`** — Open-source pipeline: fork, sanitize, and package private projects for safe public release. Chains 3 agents (forker, sanitizer, packager). Triggers: '/opensourc
+- **`orch-add-feature`** — Orchestrate building a brand-new feature end to end — research, plan, TDD implementation, review, and gated commit — by delegating each phase to the matching EC
+- **`orch-build-mvp`** — Orchestrate bootstrapping a working MVP from a design or spec document — ingest the doc, plan thin vertical slices, scaffold the first end-to-end slice, then TD
+- **`orch-change-feature`** — Orchestrate altering an existing, working feature to new desired behavior — update its tests to the new spec, change the implementation to match, review, and ga
+- **`orch-fix-defect`** — Orchestrate fixing a bug — reproduce it as a failing regression test, fix to green, review, and gated commit — by delegating each phase to the matching ECC agen
+- **`orch-pipeline`** — Shared orchestration engine for the orch-* skill family. Defines the gated Research-Plan-TDD-Review-Commit pipeline, the size classifier, the agent map, and the
+- **`orch-refine-code`** — Orchestrate a behavior-preserving refactor — confirm tests are green, restructure without changing behavior, keep tests green, review, and gated commit. Use whe
+- **`parallel-execution-optimizer`** — Use when the user wants a task done much faster through parallel work, concurrent agents, batched tool calls, isolated worktrees, or many independent verificati
+- **`perl-patterns`** — Modern Perl 5.36+ idioms, best practices, and conventions for building robust, maintainable Perl applications.
+- **`perl-security`** — Comprehensive Perl security covering taint mode, input validation, safe process execution, DBI parameterized queries, web security (XSS/SQLi/CSRF), and perlcrit
+- **`perl-testing`** — Perl testing patterns using Test2::V0, Test::More, prove runner, mocking, coverage with Devel::Cover, and TDD methodology.
+- **`plan-canvas`** — Open plans and HTML artifacts in a local browser canvas where the human annotates elements, chats, and approves or requests changes without leaving the page. Us
+- **`plan-orchestrate`** — Read a plan document, decompose it into steps, design a per-step agent chain from the ECC catalogue, and emit ready-to-paste /orchestrate custom prompts. Genera
+- **`plankton-code-quality`** — Write-time code quality enforcement using Plankton — auto-formatting, linting, and Claude-powered fixes on every file edit via hooks.
+- **`postgres-patterns`** — PostgreSQL database patterns for query optimization, schema design, indexing, and security. Based on Supabase best practices.
+- **`prediction-market-oracle-research`** — Research prediction markets as data sources or oracle signals for products, agents, dashboards, and corporate decision intelligence. Use for source-grounded ana
+- **`prediction-market-risk-review`** — Review prediction-market, basket, oracle, and trading-agent workflows for compliance, safety, data-quality, privacy, and execution risk. Use before any workflow
+- **`prisma-patterns`** — Prisma ORM patterns for TypeScript backends — schema design, query optimization, transactions, pagination, and critical traps like updateMany returning count no
+- **`product-capability`** — Translate PRD intent, roadmap asks, or product discussions into an implementation-ready capability plan that exposes constraints, invariants, interfaces, and un
+- **`product-lens`** — Use this skill to validate the "why" before building, run product diagnostics, and pressure-test product direction before the request becomes an implementation 
+- **`production-audit`** — Local-evidence production readiness audit for shipped apps, pre-launch reviews, post-merge checks, and "what breaks in prod?" questions without sending repo dat
+- **`production-scheduling`** — >
+- **`project-flow-ops`** — Operate execution flow across GitHub and Linear by triaging issues and pull requests, linking active work, and keeping GitHub public-facing while Linear remains
+- **`prompt-optimizer`** — >-
+- **`pubmed-database`** — Direct PubMed and NCBI E-utilities search workflows for biomedical literature, MeSH queries, PMID lookup, citation retrieval, and API-backed literature monitori
+- **`python-patterns`** — Pythonic idioms, PEP 8 standards, type hints, and best practices for building robust, efficient, and maintainable Python applications.
+- **`python-testing`** — Python testing strategies using pytest, TDD methodology, fixtures, mocking, parametrization, and coverage requirements.
+- **`pytorch-patterns`** — PyTorch deep learning patterns and best practices for building robust, efficient, and reproducible training pipelines, model architectures, and data loading.
+- **`quality-nonconformance`** — >
+- **`quarkus-patterns`** — Quarkus 3.x LTS architecture patterns with Camel for messaging, RESTful API design, CDI services, data access with Panache, and async processing. Use for Java Q
+- **`quarkus-security`** — Quarkus Security best practices for authentication, authorization, JWT/OIDC, RBAC, input validation, CSRF, secrets management, and dependency security.
+- **`quarkus-tdd`** — Test-driven development for Quarkus 3.x LTS using JUnit 5, Mockito, REST Assured, Camel testing, and JaCoCo. Use when adding features, fixing bugs, or refactori
+- **`quarkus-verification`** — Verification loop for Quarkus projects: build, static analysis, tests with coverage, security scans, native compilation, and diff review before release or PR.
+- **`ralphinho-rfc-pipeline`** — RFC-driven multi-agent DAG execution pattern with quality gates, merge queues, and work unit orchestration.
+- **`react-native-patterns`** — React Native and Expo app patterns — Expo Router navigation, state separation (server/client/route/form), TanStack Query data fetching with Zod, performant list
+- **`react-patterns`** — React 18/19 patterns including hooks discipline, server/client component boundaries, Suspense + error boundaries, form actions, data fetching, state management 
+- **`react-performance`** — React and Next.js performance optimization patterns adapted from Vercel Engineering's React Best Practices (https://github.com/vercel-labs/agent-skills). Organi
+- **`react-testing`** — React component testing with React Testing Library, Vitest/Jest, MSW for network mocking, accessibility assertions with axe, and the decision boundary between c
+- **`recsys-pipeline-architect`** — Design composable recommendation, ranking, and feed pipelines using the six-stage Source→Hydrator→Filter→Scorer→Selector→SideEffect framework popularized by xAI
+- **`recursive-decision-ledger`** — Use when the user asks for repeated rollouts, marked decision processes, high-dimensional search, stochastic optimization, local-optima exploration, ensemble co
+- **`redis-patterns`** — Redis data structure patterns, caching strategies, distributed locks, rate limiting, pub/sub, and connection management for production applications.
+- **`regex-vs-llm-structured-text`** — Decision framework for choosing between regex and LLM when parsing structured text — start with regex, add LLM only for low-confidence edge cases.
+- **`remotion-video-creation`** — Best practices for Remotion - Video creation in React. 29 domain-specific rules covering 3D, animations, audio, captions, charts, transitions, and more.
+- **`repo-scan`** — Cross-stack source code asset audit — classifies every file, detects embedded third-party libraries, and delivers actionable four-level verdicts per module with
+- **`research-ops`** — Evidence-first current-state research workflow for ECC. Use when the user wants fresh facts, comparisons, enrichment, or a recommendation built from current pub
+- **`returns-reverse-logistics`** — >
+- **`rules-distill`** — Scan skills to extract cross-cutting principles and distill them into rules — append, revise, or create new rule files
+- **`rust-patterns`** — Idiomatic Rust patterns, ownership, error handling, traits, concurrency, and best practices for building safe, performant applications.
+- **`rust-testing`** — Rust testing patterns including unit tests, integration tests, async testing, property-based testing, mocking, and coverage. Follows TDD methodology.
+- **`safety-guard`** — Use this skill to prevent destructive operations when working on production systems or running agents autonomously.
+- **`santa-method`** — Multi-agent adversarial verification with convergence loop. Two independent review agents must both pass before output ships.
+- **`scholar-evaluation`** — Structured scholarly-work evaluation for papers, proposals, literature reviews, methods sections, evidence quality, citation support, and research-writing feedb
+- **`search-first`** — Research-before-coding workflow. Search for existing tools, libraries, and patterns before writing custom code. Invokes the researcher agent.
+- **`security-bounty-hunter`** — Hunt for exploitable, bounty-worthy security issues in repositories. Focuses on remotely reachable vulnerabilities that qualify for real reports instead of nois
+- **`security-review`** — Use this skill when adding authentication, handling user input, working with secrets, creating API endpoints, or implementing payment/sensitive features. Provid
+- **`security-scan`** — Scan your Claude Code configuration (.claude/ directory) for security vulnerabilities, misconfigurations, and injection risks using AgentShield. Checks CLAUDE.m
+- **`seo`** — Audit, plan, and implement SEO improvements across technical SEO, on-page optimization, structured data, Core Web Vitals, and content strategy. Use when the use
+- **`skill-comply`** — Visualize whether skills, rules, and agent definitions are actually followed — auto-generates scenarios at 3 prompt strictness levels, runs agents, classifies b
+- **`skill-scout`** — Search existing local, marketplace, GitHub, and web skill sources before creating a new skill. Use when the user wants to create, build, fork, or find a skill f
+- **`skill-stocktake`** — Use when auditing Claude skills and commands for quality. Supports Quick Scan (changed skills only) and Full Stocktake modes with sequential subagent batch eval
+- **`social-graph-ranker`** — Weighted social-graph ranking for warm intro discovery, bridge scoring, and network gap analysis across X and LinkedIn. Use when the user wants the reusable gra
+- **`social-publisher`** — Agent-driven scheduling and publishing of social media posts across 13 platforms via SocialClaw. Use when the user wants to publish to X, LinkedIn, Instagram, F
+- **`springboot-patterns`** — Spring Boot architecture patterns, REST API design, layered services, data access, caching, async processing, and logging. Use for Java Spring Boot backend work
+- **`springboot-security`** — Spring Security best practices for authn/authz, validation, CSRF, secrets, headers, rate limiting, and dependency security in Java Spring Boot services.
+- **`springboot-tdd`** — Test-driven development for Spring Boot using JUnit 5, Mockito, MockMvc, Testcontainers, and JaCoCo. Use when adding features, fixing bugs, or refactoring.
+- **`springboot-verification`** — Verification loop for Spring Boot projects: build, static analysis, tests with coverage, security scans, and diff review before release or PR.
+- **`strategic-compact`** — Suggests manual context compaction at logical intervals to preserve context through task phases rather than arbitrary auto-compaction.
+- **`swift-actor-persistence`** — Thread-safe data persistence in Swift using actors — in-memory cache with file-backed storage, eliminating data races by design.
+- **`swift-concurrency-6-2`** — Swift 6.2 Approachable Concurrency — single-threaded by default, @concurrent for explicit background offloading, isolated conformances for main actor types.
+- **`swift-protocol-di-testing`** — Protocol-based dependency injection for testable Swift code — mock file system, network, and external APIs using focused protocols and Swift Testing.
+- **`swiftui-patterns`** — SwiftUI architecture patterns, state management with @Observable, view composition, navigation, performance optimization, and modern iOS/macOS UI best practices
+- **`taste`** — A creative-direction (taste) layer for music videos and short-form edits in the angelcore / cloud-trance / hyperpop visual family. Distills a named-genre aesthe
+- **`tdd-workflow`** — Use this skill when writing new features, fixing bugs, or refactoring code. Enforces test-driven development with 80%+ coverage including unit, integration, and
+- **`team-agent-orchestration`** — Run team-based orchestration for agent squads using work items, ownership, agent Kanban, merge gates, and control pane handoffs.
+- **`team-builder`** — Interactive agent picker for composing and dispatching parallel teams
+- **`terminal-opener`** — Open an executable and its argument array in a visible terminal window through a reusable, shell-free launch plan with dry-run, JSON, capability detection, deta
+- **`terminal-ops`** — Evidence-first repo execution workflow for ECC. Use when the user wants a command run, a repo checked, a CI failure debugged, or a narrow fix pushed with exact 
+- **`tinystruct-patterns`** — Expert guidance for developing with the tinystruct Java framework. Use when working on the tinystruct codebase or any project built on tinystruct — including cr
+- **`token-budget-advisor`** — >-
+- **`ui-demo`** — Record polished UI demo videos using Playwright. Use when the user asks to create a demo, walkthrough, screen recording, or tutorial video of a web application.
+- **`ui-to-vue`** — Use when the user has UI screenshots or design exports that need batch conversion into Vue 3 components, especially with Vant, Element Plus, or Ant Design Vue.
+- **`uncloud`** — Use when managing an Uncloud cluster — deploying services, configuring Caddy ingress, adding static proxy routes for non-cluster devices, publishing ports, scal
+- **`unified-memory`** — Share durable, inspectable context and handoffs between Claude, Codex, Hermes, Cursor, OpenCode, and other agents through the local ECC Memory Vault. Use when a
+- **`unified-notifications-ops`** — Operate notifications as one ECC-native workflow across GitHub, Linear, desktop alerts, hooks, and connected communication surfaces. Use when the real problem i
+- **`uspto-database`** — USPTO patent and trademark data workflow for official record lookup, PatentSearch queries, TSDR checks, assignment data, and reproducible IP research logs.
+- **`verification-loop`** — A comprehensive verification system for Claude Code sessions.
+- **`video-editing`** — AI-assisted video editing workflows for cutting, structuring, and augmenting real footage. Covers the full pipeline from raw capture through FFmpeg, Remotion, E
+- **`videodb`** — See, Understand, Act on video and audio. See- ingest from local files, URLs, RTSP/live feeds, or live record desktop; return realtime context and playable strea
+- **`visa-doc-translate`** — Translate visa application documents (images) to English and create a bilingual PDF with original and translation
+- **`vite-patterns`** — Vite build tool patterns including config, plugins, HMR, env variables, proxy setup, SSR, library mode, dependency pre-bundling, and build optimization. Activat
+- **`vue-patterns`** — Vue.js 3 Composition API patterns, component architecture, reactivity best practices, Pinia state management, Vue Router navigation, and Nuxt SSR patterns. Acti
+- **`windows-desktop-e2e`** — E2E testing for Windows native desktop apps (WPF, WinForms, Win32/MFC, Qt) using pywinauto and Windows UI Automation.
+- **`workspace-surface-audit`** — Audit the active repo, MCP servers, plugins, connectors, env surfaces, and harness setup, then recommend the highest-value ECC-native skills, hooks, agents, and
+- **`x-api`** — X/Twitter API integration for posting tweets, threads, reading timelines, search, and analytics. Covers OAuth auth patterns, rate limits, and platform-native co
+
+### Anthropic official (18)
+
+#### `anthropics/skills` (18)
+
+- **`algorithmic-art`** — Creating algorithmic art using p5.js with seeded randomness and interactive parameter exploration. Use this when users request creating art using code, generati
+- **`brand-guidelines`** — Applies Anthropic's official brand colors and typography to any sort of artifact that may benefit from having Anthropic's look-and-feel. Use it when brand color
+- **`canvas-design`** — Create beautiful visual art in .png and .pdf documents using design philosophy. You should use this skill when the user asks to create a poster, piece of art, d
+- **`claude-api`** — |-
+- **`doc-coauthoring`** — Guide users through a structured workflow for co-authoring documentation. Use when user wants to write documentation, proposals, technical specs, decision docs,
+- **`docx`** — Use this skill whenever the user wants to create, read, edit, or manipulate Word documents (.docx files) or Word templates (.dotx files). Triggers include: any 
+- **`frontend-design`** — Guidance for distinctive, intentional visual design when building new UI or reshaping an existing one. Helps with aesthetic direction, typography, and making ch
+- **`internal-comms`** — A set of resources to help me write all kinds of internal communications, using the formats that my company likes to use. Claude should use this skill whenever 
+- **`mcp-builder`** — Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with external services through well-designed tools. Use when b
+- **`pdf`** — Use this skill whenever the user wants to do anything with PDF files. This includes reading or extracting text/tables from PDFs, combining or merging multiple P
+- **`pptx`** — Use this skill any time a .pptx or .potx file is involved in any way — as input, output, or both. This includes: creating slide decks, pitch decks, or presentat
+- **`skill-creator`** — Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an e
+- **`slack-gif-creator`** — Knowledge and utilities for creating animated GIFs optimized for Slack. Provides constraints, validation tools, and animation concepts. Use when users request a
+- **`template-skill`** — Replace with description of the skill and when Claude should use it.
+- **`theme-factory`** — Toolkit for styling artifacts with a theme. These artifacts can be slides, docs, reportings, HTML landing pages, etc. There are 10 pre-set themes with colors/fo
+- **`web-artifacts-builder`** — Suite of tools for creating elaborate, multi-component claude.ai HTML artifacts using modern frontend web technologies (React, Tailwind CSS, shadcn/ui). Use for
+- **`webapp-testing`** — Toolkit for interacting with and testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing br
+- **`xlsx`** — Use this skill any time a spreadsheet file is the primary input or output. This means any task where the user wants to: open, read, edit, or fix an existing .xl
+
+### Matt Van Horn / last30days (1)
+
+#### `mvanhorn/last30days-skill` (1)
+
+- **`last30days`** — Research what people actually say about any topic in the last 30 days. Pulls posts and engagement from Reddit, X, YouTube, TikTok, Hacker News, Polymarket, GitH
+
+### Workspace-only mirrors (144)
+
+Present under `skills/` but not in the current CLI lock (often Cursor plugin copies or older vendored packs).
+
+- **`access-protected-vercel-deployment`** — Access and test Vercel deployments protected by Vercel Authentication, SSO, or Deployment Protection. Use when curl, agent-browser, Playwright, or another autom
+- **`ai-gateway`** — Vercel AI Gateway expert guidance. Use when configuring model routing, provider failover, cost tracking, or managing multiple AI providers through a unified API
+- **`ai-sdk`** — Vercel AI SDK expert guidance. Use when building AI-powered features — chat interfaces, text generation, structured output, tool calling, agents, MCP integratio
+- **`analyzing-experiment-session-replays`** — Analyze session replay patterns across experiment variants to understand user behavior differences. Use when the user wants to see how users interact with diffe
+- **`arize-admin`** — Manages Arize users, organizations, spaces, projects, roles, role bindings, resource restrictions, and API keys via the ax CLI. Use for enterprise admin workflo
+- **`arize-ai-provider-integration`** — Creates, reads, updates, and deletes Arize AI integrations that store LLM provider credentials used by evaluators and other Arize features. Supports any LLM pro
+- **`arize-annotation`** — Creates and manages annotation configs (categorical, continuous, freeform label schemas) and annotation queues (human review workflows) on Arize. Applies human 
+- **`arize-compliance-audit`** — INVOKE THIS SKILL when auditing an AI agent or LLM app for regulatory compliance. Covers EU AI Act, GPAI Code of Practice, GDPR, NIST AI RMF, Colorado AI Act, H
+- **`arize-dataset`** — Creates, manages, and queries Arize datasets and examples. Covers dataset CRUD, appending examples, exporting data, and file-based dataset creation using the ax
+- **`arize-evaluator`** — Handles LLM-as-judge and code evaluator workflows on Arize including creating/updating evaluators, running evaluations on spans or experiments, managing tasks, 
+- **`arize-experiment`** — Creates, runs, and analyzes Arize experiments for evaluating and comparing model performance. Covers experiment CRUD, exporting runs, comparing results, and eva
+- **`arize-instrumentation`** — Adds Arize AX tracing to an LLM application for the first time. Follows a two-phase agent-assisted flow to analyze the codebase then implement instrumentation a
+- **`arize-link`** — Generates deep links to the Arize UI for traces, spans, sessions, datasets, labeling queues, evaluators, and annotation configs. Produces clickable URLs for sha
+- **`arize-prompt-optimization`** — Optimizes, improves, and debugs LLM prompts using production trace data, evaluations, and annotations. Extracts prompts from spans, gathers performance signal, 
+- **`arize-prompts`** — INVOKE THIS SKILL for Arize Prompt Hub and `ax prompts` workflows: author or import templates and save (Workflows A–B), label/promote (C), or list/get/edit/dele
+- **`arize-trace`** — Downloads, exports, and inspects existing Arize traces and spans to understand what an LLM app is doing or debug runtime issues. Covers exporting traces by ID, 
+- **`assessing-heatmaps`** — Assesses what a page's heatmap is telling you and recommends concrete changes. Pulls click / rageclick / scroll-depth data for a URL, names the hot elements by 
+- **`auditing-endpoints`** — >
+- **`auditing-experiments-flags`** — Audit PostHog experiments and feature flags for configuration issues, staleness, and best-practice violations. Read when the user asks to audit, health-check, o
+- **`auditing-warehouse-data-health`** — >
+- **`auth`** — Authentication integration guidance — Clerk (native Vercel Marketplace), Descope, and Auth0 setup for Next.js applications. Covers middleware auth patterns, sig
+- **`authoring-log-alerts`** — >
+- **`authoring-signals-scouts`** — >
+- **`benchmark-agents`** — Advanced AI agent benchmark scenarios that push Vercel's cutting-edge platform features — Workflow DevKit, AI Gateway, MCP, Chat SDK, Queues, Flags, Sandbox, an
+- **`benchmark-e2e`** — End-to-end benchmark suite for vercel-plugin. Runs realistic projects through skill injection, launches dev servers, verifies everything works, analyzes convers
+- **`benchmark-sandbox`** — Run vercel-plugin eval scenarios in Vercel Sandboxes instead of local WezTerm panels. Provisions ephemeral microVMs with Claude Code + plugin pre-installed, run
+- **`benchmark-testing`** — Create and launch benchmark test projects to exercise vercel-plugin skill injection across realistic scenarios. Sets up isolated directories, installs the plugi
+- **`bootstrap`** — Project bootstrapping orchestrator for repos that depend on Vercel-linked resources (databases, auth, and managed integrations). Use when setting up or repairin
+- **`browser-automation`** — Automate web browser interactions using MCP tools. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, 
+- **`cdn-caching`** — Debug Vercel CDN caching — cache hit rate, stale content, revalidation behavior, ISR + PPR, per-request cache reasons (cacheReason) and PPR state (ppr_state), a
+- **`chat-sdk`** — Vercel Chat SDK expert guidance. Use when building multi-platform chat bots — Slack, Telegram, Microsoft Teams, Discord, Google Chat, GitHub, Linear — with a si
+- **`cleaning-up-stale-feature-flags`** — Identify and clean up stale feature flags in a PostHog project. Use when the user wants to find unused, fully rolled out, or abandoned feature flags, review the
+- **`codex-cli-runtime`** — Internal helper contract for calling the codex-companion runtime from Claude Code
+- **`codex-result-handling`** — Internal guidance for presenting Codex helper output back to the user
+- **`configuring-experiment-analytics`** — Configures the analytics side of a PostHog experiment — exposure criteria (default `$feature_flag_called` vs custom exposure events), primary and secondary metr
+- **`configuring-experiment-rollout`** — Configures the rollout shape of a PostHog experiment — the variant split (50/50, 80/20, A/B/C ratios), the overall rollout percentage that gates how many users 
+- **`consuming-endpoints-from-client-code`** — >
+- **`copying-flags-across-projects`** — Copy a feature flag from one PostHog project to one or more target projects in the same organization. Use when the user wants to duplicate a flag, promote a fla
+- **`creating-an-endpoint`** — >
+- **`creating-experiments`** — Guides agents through the 3-step experiment creation flow: defining the hypothesis, configuring rollout, and setting up analytics. Delegates rollout decisions t
+- **`creating-replay-vision-scanners`** — Guides agents through creating and safely sizing a Replay Vision scanner: choosing the scanner type (monitor/classifier/scorer/summarizer), shaping the Recordin
+- **`debugging-local-replay`** — >
+- **`debugging-signals-pipeline`** — >
+- **`deployments-cicd`** — Vercel deployment and CI/CD expert guidance. Use when deploying, promoting, rolling back, inspecting deployments, building with --prebuilt, or configuring CI wo
+- **`diagnosing-endpoint-performance`** — >
+- **`diagnosing-experiment-results`** — Diagnoses bias, anomalies, and strange-looking results on a specific PostHog experiment. Covers empty / 0-exposure experiments, sample ratio mismatch, identity 
+- **`diagnosing-failed-warehouse-syncs`** — >
+- **`diagnosing-missing-recordings`** — >
+- **`diagnosing-sdk-health`** — >
+- **`diagnosing-stacktrace-symbolication`** — >
+- **`downloading-batch-export-files`** — >
+- **`env-vars`** — Vercel environment variable expert guidance. Use when working with .env files, vercel env commands, OIDC tokens, or managing environment-specific configuration.
+- **`eve`** — Build durable AI agents and agent-powered applications with the eve framework. Use when creating, editing, or debugging an eve project, or when choosing archite
+- **`exploring-apm-traces`** — >
+- **`exploring-autocapture-events`** — >
+- **`exploring-live-traffic`** — Inspects PostHog Web analytics Live tab data — current users online, last-30-minutes pageviews, top pages, referrers, devices, browsers, countries, bot traffic,
+- **`exploring-llm-clusters`** — Investigate AI observability clusters — understand usage patterns in AI/LLM traffic, compare cluster behavior, compute cost/latency metrics, and drill into indi
+- **`exploring-llm-costs`** — >
+- **`exploring-llm-evaluations`** — >
+- **`exploring-llm-traces`** — >
+- **`exploring-signals-scouts`** — >
+- **`feature-usage-feed`** — >
+- **`finding-deleted-feature-flags`** — Find feature flags that were soft-deleted in the active project within a recent time window. Use when the user asks "what flags were deleted in the last N days"
+- **`finding-experiments`** — Resolves a PostHog experiment reference from natural language to a concrete experiment ID by browsing `experiment-list` (not feature-flag tools), with disambigu
+- **`finding-replay-for-issue`** — >
+- **`finding-sessions-to-watch`** — >
+- **`firecrawl-agent`** — |
+- **`firecrawl-cli`** — |
+- **`firecrawl-crawl`** — |
+- **`firecrawl-download`** — |
+- **`firecrawl-interact`** — |
+- **`firecrawl-map`** — |
+- **`firecrawl-monitor`** — |
+- **`firecrawl-parse`** — |
+- **`firecrawl-scrape`** — |
+- **`firecrawl-search`** — |
+- **`formatting-insight-axes`** — >
+- **`gnurio-refactoring-ui-plugin`**
+- **`gpt-5-4-prompting`** — Internal guidance for composing Codex and GPT-5.4 prompts for coding, review, diagnosis, and research tasks inside the Codex Claude Code plugin
+- **`grouping-noisy-errors`** — >
+- **`inbox-exploration`** — >
+- **`instrument-error-tracking`** — >-
+- **`instrument-feature-flags`** — >-
+- **`instrument-integration`** — >-
+- **`instrument-llm-analytics`** — >-
+- **`instrument-logs`** — >-
+- **`instrument-product-analytics`** — >-
+- **`investigate-metric`** — >
+- **`investigating-error-issue`** — >
+- **`investigating-replay`** — >
+- **`knowledge-update`** — Corrects outdated LLM knowledge about the Vercel platform and introduces new products. Injected at session start.
+- **`lucid`** — Use when working with Lucidchart, Lucidspark, or Lucidscale tasks: search/list documents, fetch or summarize content, create or edit diagrams, export, share, co
+- **`managing-endpoint-versions`** — >
+- **`managing-experiment-lifecycle`** — Guides experiment state transitions: launching, pausing, resuming, ending, shipping variants, archiving, resetting, and duplicating. Covers preconditions, impli
+- **`managing-path-cleaning-rules`** — Inspects URL paths and proposes, tests, orders, and applies project-level path cleaning rules so dynamic segments (numeric IDs, UUIDs, slugs, dates) collapse in
+- **`managing-subscriptions`** — Manage PostHog subscriptions — scheduled email, Slack, or webhook deliveries of insight or dashboard snapshots. Use when the user wants to subscribe to an insig
+- **`marketplace`** — Vercel Marketplace expert guidance — discovering, installing, and managing third-party integrations via the `vercel integration` CLI. Use when building any app 
+- **`microfrontends`** — Guide for building, configuring, and deploying microfrontends on Vercel. Use this skill when the user mentions microfrontends, multi-zones, splitting an app acr
+- **`next-cache-components`** — Next.js 16 Cache Components guidance — PPR, use cache directive, cacheLife, cacheTag, updateTag, and migration from unstable_cache. Use when implementing partia
+- **`next-forge`** — next-forge expert guidance — production-grade Turborepo monorepo SaaS starter by Vercel. Use when working in a next-forge project, scaffolding with `npx next-fo
+- **`next-upgrade`** — Upgrade Next.js to the latest version following official migration guides and codemods. Use when upgrading Next.js versions, running codemods, or migrating betw
+- **`nextjs`** — Next.js App Router expert guidance. Use when building, debugging, or architecting Next.js applications — routing, Server Components, Server Actions, Cache Compo
+- **`nvidia-skill-finder`** — >-
+- **`planning-user-interviews`** — Plan a user interview topic in PostHog — pick who to target (cohort, emails, or PostHog distinct IDs), draft what to ask about, and prepare the voice-agent cont
+- **`plugin-audit`** — Audit vercel-plugin performance on real-world projects. Extracts tool calls from Claude Code conversation logs, tests hook matching against actual inputs, ident
+- **`pr-review-canvas`** — >-
+- **`project-guidelines-example`** — Example project-specific skill template based on a real production application.
+- **`querying-posthog-data`** — Required reading before writing any HogQL/SQL or calling execute-sql against PostHog. Use whenever the user wants to search, find, or do complex aggregations Po
+- **`react-best-practices`** — React best-practices reviewer for TSX files. Triggers after editing multiple TSX components to run a condensed quality checklist covering component structure, h
+- **`release`** — Release vercel-plugin — run gates, bump version, generate artifacts, commit, and push. Use when asked to "release", "ship", "bump and push", or "cut a release".
+- **`routing-middleware`** — Vercel Routing Middleware guidance — request interception before cache, rewrites, redirects, personalization. Works with any framework. Supports Edge, Node.js, 
+- **`runtime-cache`** — Vercel Runtime Cache API guidance — ephemeral per-region key-value cache with tag-based invalidation. Shared across Functions, Routing Middleware, and Builds. U
+- **`setting-up-a-data-warehouse-source`** — >
+- **`shadcn`** — shadcn/ui expert guidance — CLI, component installation, composition patterns, custom registries, theming, Tailwind CSS integration, and high-quality interface 
+- **`signals`** — >
+- **`signals-scout-ai-observability`** — >
+- **`signals-scout-anomaly-detection`** — >
+- **`signals-scout-csp-violations`** — >
+- **`signals-scout-error-tracking`** — >
+- **`signals-scout-general`** — >
+- **`signals-scout-logs`** — >
+- **`signals-scout-observability-gaps`** — >
+- **`signals-scout-revenue-analytics`** — >
+- **`signals-scout-surveys`** — >
+- **`skills-store`** — >-
+- **`suggesting-data-imports`** — Use when the user asks about revenue, payments, subscriptions, billing, CRM deals, support tickets, production database tables, or other data that PostHog does 
+- **`supabase`** — Use when doing ANY task involving Supabase. Triggers: Supabase products (Database, Auth, Edge Functions, Realtime, Storage, Vectors, Cron, Queues); client libra
+- **`supabase-postgres-best-practices`** — Postgres performance optimization and best practices from Supabase. Use this skill when writing, reviewing, or optimizing Postgres queries, schema designs, or d
+- **`suppressing-noisy-errors`** — >
+- **`triaging-error-issues`** — >
+- **`triaging-visual-review-runs`** — >
+- **`tuning-incremental-sync-config`** — >
+- **`turbopack`** — Turbopack expert guidance. Use when configuring the Next.js bundler, optimizing HMR, debugging build issues, or understanding the Turbopack vs Webpack differenc
+- **`vercel-agent`** — Vercel Agent guidance — AI-powered code review, incident investigation, and SDK installation. Automates PR analysis and anomaly debugging. Use when configuring 
+- **`vercel-cli`** — Vercel CLI expert guidance. Use when deploying, managing environment variables, linking projects, viewing logs, querying metrics, managing domains, or interacti
+- **`vercel-connect`** — Vercel Connect expert guidance — securely obtain scoped OAuth tokens for third-party services (Slack, GitHub, MCP servers, OAuth, Snowflake) on behalf of apps o
+- **`vercel-firewall`** — Vercel Firewall expert guidance — automatic DDoS mitigation, the Vercel WAF (custom rules, IP blocking, managed rulesets, rate limiting), Attack Mode, system by
+- **`vercel-functions`** — Vercel Functions expert guidance — Serverless Functions, Edge Functions, Fluid Compute, streaming, Cron Jobs, and runtime configuration. Use when configuring, d
+- **`vercel-plugin-eval`** — Run live eval sessions against the vercel-plugin to verify hook behavior, skill injection, dedup correctness, and coverage. Launches real Claude Code sessions v
+- **`vercel-sandbox`** — Vercel Sandbox guidance — ephemeral Firecracker microVMs for running untrusted code safely. Supports AI agents, code generation, and experimentation. Use when e
+- **`vercel-storage`** — Vercel storage expert guidance — Blob, Edge Config, and Marketplace storage (Neon Postgres, Upstash Redis). Use when choosing, configuring, or using data storag
+- **`verification`** — Full-story verification — infers what the user is building, then verifies the complete flow end-to-end: browser → API → data → response. Triggers on dev server 
+- **`workflow`** — Vercel Workflow DevKit (WDK) expert guidance. Use when building durable workflows, long-running tasks, API routes or agents that need pause/resume, retries, ste
+- **`working-with-skills`** — >-
+
+## Flat index (all CLI lock names)
+
+- `accessibility` ← `affaan-m/everything-claude-code`
+- `acpx` ← `kunchenguid/acpx`
+- `afk` ← `kunchenguid/firstmate`
+- `agent-architecture-audit` ← `affaan-m/everything-claude-code`
+- `agent-eval` ← `affaan-m/everything-claude-code`
+- `agent-harness-construction` ← `affaan-m/everything-claude-code`
+- `agent-introspection-debugging` ← `affaan-m/everything-claude-code`
+- `agent-payment-x402` ← `affaan-m/everything-claude-code`
+- `agent-self-evaluation` ← `affaan-m/everything-claude-code`
+- `agent-sort` ← `affaan-m/everything-claude-code`
+- `agentic-engineering` ← `affaan-m/everything-claude-code`
+- `agentic-os` ← `affaan-m/everything-claude-code`
+- `ahoy` ← `kunchenguid/firstmate`
+- `ai-first-engineering` ← `affaan-m/everything-claude-code`
+- `ai-regression-testing` ← `affaan-m/everything-claude-code`
+- `algorithmic-art` ← `anthropics/skills`
+- `android-clean-architecture` ← `affaan-m/everything-claude-code`
+- `angular-developer` ← `affaan-m/everything-claude-code`
+- `animate` ← `emilkowalski/skills`
+- `animation-vocabulary` ← `emilkowalski/skills`
+- `anti-ui-slop` ← `uizze/uizze`
+- `api-connector-builder` ← `affaan-m/everything-claude-code`
+- `api-design` ← `affaan-m/everything-claude-code`
+- `apple-design` ← `emilkowalski/skills`
+- `apply-consistent-spacing` ← `gnurio/refactoring-ui-plugin`
+- `apply-typography-scale` ← `gnurio/refactoring-ui-plugin`
+- `architecture-decision-records` ← `affaan-m/everything-claude-code`
+- `article-writing` ← `affaan-m/everything-claude-code`
+- `ask-matt` ← `mattpocock/skills`
+- `ask-user-authority` ← `kunchenguid/firstmate`
+- `audit-accessibility` ← `kensaurus/cursor-kenji`
+- `audit-backend-architecture` ← `kensaurus/cursor-kenji`
+- `audit-bundle-size` ← `kensaurus/cursor-kenji`
+- `audit-cicd` ← `kensaurus/cursor-kenji`
+- `audit-code-quality` ← `kensaurus/cursor-kenji`
+- `audit-code-review` ← `kensaurus/cursor-kenji`
+- `audit-db-schema` ← `kensaurus/cursor-kenji`
+- `audit-fe-api` ← `kensaurus/cursor-kenji`
+- `audit-i18n` ← `kensaurus/cursor-kenji`
+- `audit-payment-system` ← `kensaurus/cursor-kenji`
+- `audit-performance` ← `kensaurus/cursor-kenji`
+- `audit-realworld` ← `kensaurus/cursor-kenji`
+- `audit-resilience` ← `kensaurus/cursor-kenji`
+- `audit-security` ← `kensaurus/cursor-kenji`
+- `audit-uiux-design-system` ← `kensaurus/cursor-kenji`
+- `audit-ux` ← `kensaurus/cursor-kenji`
+- `audit-ux-journeys` ← `kensaurus/cursor-kenji`
+- `automation-audit-ops` ← `affaan-m/everything-claude-code`
+- `autonomous-agent-harness` ← `affaan-m/everything-claude-code`
+- `autonomous-loops` ← `affaan-m/everything-claude-code`
+- `axi` ← `kunchenguid/axi`
+- `baby-menu-design` ← `kunchenguid/baby-menu`
+- `backend-db-performance` ← `kensaurus/cursor-kenji`
+- `backend-error-handling` ← `kensaurus/cursor-kenji`
+- `backend-observability` ← `kensaurus/cursor-kenji`
+- `backend-patterns` ← `affaan-m/everything-claude-code`
+- `backend-realtime` ← `kensaurus/cursor-kenji`
+- `bearings` ← `kunchenguid/firstmate`
+- `benchmark` ← `affaan-m/everything-claude-code`
+- `benchmark-methodology` ← `affaan-m/everything-claude-code`
+- `benchmark-optimization-loop` ← `affaan-m/everything-claude-code`
+- `blender-motion-state-inspection` ← `affaan-m/everything-claude-code`
+- `blueprint` ← `affaan-m/everything-claude-code`
+- `bootstrap-diagnostics` ← `kunchenguid/firstmate`
+- `brand-discovery` ← `affaan-m/everything-claude-code`
+- `brand-guidelines` ← `anthropics/skills`
+- `brand-voice` ← `affaan-m/everything-claude-code`
+- `brandkit` ← `Leonxlnx/taste-skill`
+- `browser-qa` ← `affaan-m/everything-claude-code`
+- `build-color-palette` ← `gnurio/refactoring-ui-plugin`
+- `bun-runtime` ← `affaan-m/everything-claude-code`
+- `burndown-full` ← `kensaurus/cursor-kenji`
+- `canary-watch` ← `affaan-m/everything-claude-code`
+- `canvas-design` ← `anthropics/skills`
+- `careful` ← `kunchenguid/programbench-bench`
+- `carrier-relationship-management` ← `affaan-m/everything-claude-code`
+- `chrome-devtools-axi` ← `kunchenguid/chrome-devtools-axi`
+- `cisco-ios-patterns` ← `affaan-m/everything-claude-code`
+- `ck` ← `affaan-m/everything-claude-code`
+- `claude-api` ← `anthropics/skills`
+- `claude-devfleet` ← `affaan-m/everything-claude-code`
+- `claude-handoff` ← `mattpocock/skills`
+- `click-path-audit` ← `affaan-m/everything-claude-code`
+- `clickhouse-io` ← `affaan-m/everything-claude-code`
+- `code-review` ← `mattpocock/skills`
+- `code-tour` ← `affaan-m/everything-claude-code`
+- `codebase-design` ← `mattpocock/skills`
+- `codebase-onboarding` ← `affaan-m/everything-claude-code`
+- `codehealth-mcp` ← `affaan-m/everything-claude-code`
+- `coding-standards` ← `affaan-m/everything-claude-code`
+- `competitive-platform-analysis` ← `affaan-m/everything-claude-code`
+- `competitive-report-structure` ← `affaan-m/everything-claude-code`
+- `complete-everything` ← `kensaurus/cursor-kenji`
+- `compose-multiplatform-patterns` ← `affaan-m/everything-claude-code`
+- `config-gc` ← `affaan-m/everything-claude-code`
+- `configure-ecc` ← `affaan-m/everything-claude-code`
+- `connections-optimizer` ← `affaan-m/everything-claude-code`
+- `content-engine` ← `affaan-m/everything-claude-code`
+- `content-hash-cache-pattern` ← `affaan-m/everything-claude-code`
+- `context-budget` ← `affaan-m/everything-claude-code`
+- `continuous-agent-loop` ← `affaan-m/everything-claude-code`
+- `continuous-learning` ← `affaan-m/everything-claude-code`
+- `continuous-learning-v2` ← `affaan-m/everything-claude-code`
+- `contract-first` ← `affaan-m/everything-claude-code`
+- `cost-aware-llm-pipeline` ← `affaan-m/everything-claude-code`
+- `cost-tracking` ← `affaan-m/everything-claude-code`
+- `council` ← `affaan-m/everything-claude-code`
+- `cpp-coding-standards` ← `affaan-m/everything-claude-code`
+- `cpp-testing` ← `affaan-m/everything-claude-code`
+- `crosspost` ← `affaan-m/everything-claude-code`
+- `csharp-testing` ← `affaan-m/everything-claude-code`
+- `customer-billing-ops` ← `affaan-m/everything-claude-code`
+- `customs-trade-compliance` ← `affaan-m/everything-claude-code`
+- `dart-flutter-patterns` ← `affaan-m/everything-claude-code`
+- `dashboard-builder` ← `affaan-m/everything-claude-code`
+- `data-pipeline` ← `kensaurus/cursor-kenji`
+- `data-scraper-agent` ← `affaan-m/everything-claude-code`
+- `data-throughput-accelerator` ← `affaan-m/everything-claude-code`
+- `data-visualization` ← `kensaurus/cursor-kenji`
+- `database-migrations` ← `affaan-m/everything-claude-code`
+- `debug-error` ← `kensaurus/cursor-kenji`
+- `debug-fe-be-integration` ← `kensaurus/cursor-kenji`
+- `debug-sentry-monitor` ← `kensaurus/cursor-kenji`
+- `decision-hold-lifecycle` ← `kunchenguid/firstmate`
+- `deep-research` ← `affaan-m/everything-claude-code`
+- `defi-amm-security` ← `affaan-m/everything-claude-code`
+- `delivery-gate` ← `affaan-m/everything-claude-code`
+- `deploy-npm` ← `kensaurus/cursor-kenji`
+- `deploy-verify` ← `kensaurus/cursor-kenji`
+- `deployment-patterns` ← `affaan-m/everything-claude-code`
+- `design-api` ← `kensaurus/cursor-kenji`
+- `design-button-hierarchy` ← `gnurio/refactoring-ui-plugin`
+- `design-canvas` ← `kensaurus/cursor-kenji`
+- `design-email` ← `kensaurus/cursor-kenji`
+- `design-empty-states` ← `gnurio/refactoring-ui-plugin`
+- `design-frontend` ← `kensaurus/cursor-kenji`
+- `design-generative-art` ← `kensaurus/cursor-kenji`
+- `design-mobile-first` ← `kensaurus/cursor-kenji`
+- `design-motion` ← `kensaurus/cursor-kenji`
+- `design-prd` ← `kensaurus/cursor-kenji`
+- `design-system` ← `affaan-m/everything-claude-code`
+- `design-taste-frontend` ← `Leonxlnx/taste-skill`
+- `design-taste-frontend-v1` ← `Leonxlnx/taste-skill`
+- `design-theme` ← `kensaurus/cursor-kenji`
+- `diagnosing-bugs` ← `mattpocock/skills`
+- `diagnostic-reasoning` ← `kunchenguid/firstmate`
+- `django-celery` ← `affaan-m/everything-claude-code`
+- `django-patterns` ← `affaan-m/everything-claude-code`
+- `django-security` ← `affaan-m/everything-claude-code`
+- `django-tdd` ← `affaan-m/everything-claude-code`
+- `django-verification` ← `affaan-m/everything-claude-code`
+- `dmux-workflows` ← `affaan-m/everything-claude-code`
+- `doc-coauthoring` ← `anthropics/skills`
+- `docker-patterns` ← `affaan-m/everything-claude-code`
+- `docs-writer` ← `kensaurus/cursor-kenji`
+- `documentation-lookup` ← `affaan-m/everything-claude-code`
+- `docx` ← `anthropics/skills`
+- `domain-modeling` ← `kensaurus/cursor-kenji`
+- `dotnet-patterns` ← `affaan-m/everything-claude-code`
+- `dynamic-workflow-mode` ← `affaan-m/everything-claude-code`
+- `e2e-testing` ← `affaan-m/everything-claude-code`
+- `ecc-guide` ← `affaan-m/everything-claude-code`
+- `ecc-recipes` ← `affaan-m/everything-claude-code`
+- `ecc-tools-cost-audit` ← `affaan-m/everything-claude-code`
+- `eddies-wallet-design` ← `kunchenguid/eddies-wallet`
+- `eliminate-visual-clutter` ← `gnurio/refactoring-ui-plugin`
+- `email-ops` ← `affaan-m/everything-claude-code`
+- `emil-design-eng` ← `emilkowalski/skills`
+- `energy-procurement` ← `affaan-m/everything-claude-code`
+- `enhance-agent-guardrails` ← `kensaurus/cursor-kenji`
+- `enhance-capacitor-ui` ← `kensaurus/cursor-kenji`
+- `enhance-motion` ← `kensaurus/cursor-kenji`
+- `enhance-pwa` ← `kensaurus/cursor-kenji`
+- `enhance-readme` ← `kensaurus/cursor-kenji`
+- `enhance-web-forms` ← `kensaurus/cursor-kenji`
+- `enhance-web-landing` ← `kensaurus/cursor-kenji`
+- `enhance-web-redesign` ← `kensaurus/cursor-kenji`
+- `enhance-web-seo` ← `kensaurus/cursor-kenji`
+- `enhance-web-ui` ← `kensaurus/cursor-kenji`
+- `enhance-web-ux` ← `kensaurus/cursor-kenji`
+- `enhance-web-web3d` ← `kensaurus/cursor-kenji`
+- `enterprise-agent-ops` ← `affaan-m/everything-claude-code`
+- `error-handling` ← `affaan-m/everything-claude-code`
+- `establish-visual-hierarchy` ← `gnurio/refactoring-ui-plugin`
+- `eval-harness` ← `affaan-m/everything-claude-code`
+- `everything-claude-code` ← `affaan-m/everything-claude-code`
+- `everything-claude-code-conventions` ← `affaan-m/everything-claude-code`
+- `evm-token-decimals` ← `affaan-m/everything-claude-code`
+- `exa-search` ← `affaan-m/everything-claude-code`
+- `fal-ai-media` ← `affaan-m/everything-claude-code`
+- `fastapi-patterns` ← `affaan-m/everything-claude-code`
+- `finance-billing-ops` ← `affaan-m/everything-claude-code`
+- `find-animation-opportunities` ← `emilkowalski/skills`
+- `firstmate-codexapp` ← `kunchenguid/firstmate`
+- `firstmate-coding-guidelines` ← `kunchenguid/firstmate`
+- `firstmate-orca` ← `kunchenguid/firstmate`
+- `flox-environments` ← `affaan-m/everything-claude-code`
+- `flutter-dart-code-review` ← `affaan-m/everything-claude-code`
+- `fmx-respond` ← `kunchenguid/firstmate`
+- `foundation-models-on-device` ← `affaan-m/everything-claude-code`
+- `frontend-a11y` ← `affaan-m/everything-claude-code`
+- `frontend-design` ← `anthropics/skills`
+- `frontend-design-direction` ← `affaan-m/everything-claude-code`
+- `frontend-patterns` ← `affaan-m/everything-claude-code`
+- `frontend-slides` ← `affaan-m/everything-claude-code`
+- `fsharp-testing` ← `affaan-m/everything-claude-code`
+- `full-output-enforcement` ← `Leonxlnx/taste-skill`
+- `gan-style-harness` ← `affaan-m/everything-claude-code`
+- `gateguard` ← `affaan-m/everything-claude-code`
+- `generating-python-installer` ← `affaan-m/everything-claude-code`
+- `gget` ← `affaan-m/everything-claude-code`
+- `gh-axi` ← `kunchenguid/gh-axi`
+- `git-guardrails-claude-code` ← `mattpocock/skills`
+- `git-workflow` ← `affaan-m/everything-claude-code`
+- `github-ops` ← `affaan-m/everything-claude-code`
+- `gnhf` ← `kunchenguid/gnhf`
+- `golang-patterns` ← `affaan-m/everything-claude-code`
+- `golang-testing` ← `affaan-m/everything-claude-code`
+- `google-workspace-ops` ← `affaan-m/everything-claude-code`
+- `gpt-taste` ← `Leonxlnx/taste-skill`
+- `grill-me` ← `mattpocock/skills`
+- `grill-with-docs` ← `mattpocock/skills`
+- `grilling` ← `kensaurus/cursor-kenji`
+- `group-related-elements` ← `gnurio/refactoring-ui-plugin`
+- `growth-log` ← `affaan-m/everything-claude-code`
+- `handoff` ← `kensaurus/cursor-kenji`
+- `harness-adapters` ← `kunchenguid/firstmate`
+- `health` ← `kunchenguid/programbench-bench`
+- `healthcare-cdss-patterns` ← `affaan-m/everything-claude-code`
+- `healthcare-emr-patterns` ← `affaan-m/everything-claude-code`
+- `healthcare-eval-harness` ← `affaan-m/everything-claude-code`
+- `healthcare-phi-compliance` ← `affaan-m/everything-claude-code`
+- `hermes-imports` ← `affaan-m/everything-claude-code`
+- `hexagonal-architecture` ← `affaan-m/everything-claude-code`
+- `high-end-visual-design` ← `Leonxlnx/taste-skill`
+- `hipaa-compliance` ← `affaan-m/everything-claude-code`
+- `homelab-network-readiness` ← `affaan-m/everything-claude-code`
+- `homelab-network-setup` ← `affaan-m/everything-claude-code`
+- `homelab-pihole-dns` ← `affaan-m/everything-claude-code`
+- `homelab-vlan-segmentation` ← `affaan-m/everything-claude-code`
+- `homelab-wireguard-vpn` ← `affaan-m/everything-claude-code`
+- `hookify-rules` ← `affaan-m/everything-claude-code`
+- `housekeep-design` ← `kensaurus/cursor-kenji`
+- `image-to-code` ← `Leonxlnx/taste-skill`
+- `imagegen-frontend-mobile` ← `Leonxlnx/taste-skill`
+- `imagegen-frontend-web` ← `Leonxlnx/taste-skill`
+- `impeccable` ← `pbakaus/impeccable`
+- `implement` ← `mattpocock/skills`
+- `improve-animations` ← `emilkowalski/skills`
+- `improve-codebase-architecture` ← `mattpocock/skills`
+- `industrial-brutalist-ui` ← `Leonxlnx/taste-skill`
+- `inherit-legacy-style` ← `affaan-m/everything-claude-code`
+- `intent-driven-development` ← `affaan-m/everything-claude-code`
+- `internal-comms` ← `anthropics/skills`
+- `inventory-demand-planning` ← `affaan-m/everything-claude-code`
+- `investigate` ← `kunchenguid/programbench-bench`
+- `investor-materials` ← `affaan-m/everything-claude-code`
+- `investor-outreach` ← `affaan-m/everything-claude-code`
+- `ios-icon-gen` ← `affaan-m/everything-claude-code`
+- `iterate-agent-harness` ← `kensaurus/cursor-kenji`
+- `iterate-post-launch` ← `kensaurus/cursor-kenji`
+- `iterative-retrieval` ← `affaan-m/everything-claude-code`
+- `ito-basket-compare` ← `affaan-m/everything-claude-code`
+- `ito-compute` ← `affaan-m/everything-claude-code`
+- `ito-data-atlas-agent` ← `affaan-m/everything-claude-code`
+- `ito-inference` ← `affaan-m/everything-claude-code`
+- `ito-market-intelligence` ← `affaan-m/everything-claude-code`
+- `ito-trade-planner` ← `affaan-m/everything-claude-code`
+- `ito-training` ← `affaan-m/everything-claude-code`
+- `java-coding-standards` ← `affaan-m/everything-claude-code`
+- `jira-integration` ← `affaan-m/everything-claude-code`
+- `jpa-patterns` ← `affaan-m/everything-claude-code`
+- `knowledge-ops` ← `affaan-m/everything-claude-code`
+- `kotlin-coroutines-flows` ← `affaan-m/everything-claude-code`
+- `kotlin-exposed-patterns` ← `affaan-m/everything-claude-code`
+- `kotlin-ktor-patterns` ← `affaan-m/everything-claude-code`
+- `kotlin-patterns` ← `affaan-m/everything-claude-code`
+- `kotlin-testing` ← `affaan-m/everything-claude-code`
+- `kubernetes-patterns` ← `affaan-m/everything-claude-code`
+- `laravel-patterns` ← `affaan-m/everything-claude-code`
+- `laravel-plugin-discovery` ← `affaan-m/everything-claude-code`
+- `laravel-security` ← `affaan-m/everything-claude-code`
+- `laravel-tdd` ← `affaan-m/everything-claude-code`
+- `laravel-verification` ← `affaan-m/everything-claude-code`
+- `last30days` ← `mvanhorn/last30days-skill`
+- `latency-critical-systems` ← `affaan-m/everything-claude-code`
+- `lavish` ← `kunchenguid/lavish-axi`
+- `lavish-design` ← `kunchenguid/lavish-axi`
+- `layers-conceptual-model` ← `jamiemill/layers-skills`
+- `layers-domain` ← `jamiemill/layers-skills`
+- `layers-interaction-flow` ← `jamiemill/layers-skills`
+- `layers-intro` ← `jamiemill/layers-skills`
+- `layers-observed-behaviour` ← `jamiemill/layers-skills`
+- `layers-orient` ← `jamiemill/layers-skills`
+- `layers-product-strategy` ← `jamiemill/layers-skills`
+- `layers-surface` ← `jamiemill/layers-skills`
+- `layers-user-needs` ← `jamiemill/layers-skills`
+- `lead-intelligence` ← `affaan-m/everything-claude-code`
+- `liquid-glass-design` ← `affaan-m/everything-claude-code`
+- `literature-review` ← `affaan-m/everything-claude-code`
+- `llm-trading-agent-security` ← `affaan-m/everything-claude-code`
+- `logistics-exception-management` ← `affaan-m/everything-claude-code`
+- `loop-design-check` ← `affaan-m/everything-claude-code`
+- `loop-me` ← `mattpocock/skills`
+- `mailtrap-email-integration` ← `affaan-m/everything-claude-code`
+- `make-interfaces-feel-better` ← `affaan-m/everything-claude-code`
+- `manage-color-contrast` ← `gnurio/refactoring-ui-plugin`
+- `manim-video` ← `affaan-m/everything-claude-code`
+- `market-research` ← `affaan-m/everything-claude-code`
+- `marketing-campaign` ← `affaan-m/everything-claude-code`
+- `mcp-builder` ← `anthropics/skills`
+- `mcp-server-patterns` ← `affaan-m/everything-claude-code`
+- `messages-ops` ← `affaan-m/everything-claude-code`
+- `meta-mcp-builder` ← `kensaurus/cursor-kenji`
+- `meta-skill-creator` ← `kensaurus/cursor-kenji`
+- `migrate-to-shoehorn` ← `mattpocock/skills`
+- `minimalist-ui` ← `Leonxlnx/taste-skill`
+- `ml-adoption-playbook` ← `affaan-m/everything-claude-code`
+- `mle-workflow` ← `affaan-m/everything-claude-code`
+- `mobile-emulator-start` ← `kensaurus/cursor-kenji`
+- `mobile-emulator-test` ← `kensaurus/cursor-kenji`
+- `mobile-rn-performance` ← `kensaurus/cursor-kenji`
+- `mobile-rn-screen` ← `kensaurus/cursor-kenji`
+- `motion-advanced` ← `affaan-m/everything-claude-code`
+- `motion-foundations` ← `affaan-m/everything-claude-code`
+- `motion-patterns` ← `affaan-m/everything-claude-code`
+- `motion-ui` ← `affaan-m/everything-claude-code`
+- `mushi-health` ← `kensaurus/cursor-kenji`
+- `mushi-integration` ← `kensaurus/cursor-kenji`
+- `mysql-patterns` ← `affaan-m/everything-claude-code`
+- `nanoclaw-repl` ← `affaan-m/everything-claude-code`
+- `nestjs-patterns` ← `affaan-m/everything-claude-code`
+- `netmiko-ssh-automation` ← `affaan-m/everything-claude-code`
+- `network-bgp-diagnostics` ← `affaan-m/everything-claude-code`
+- `network-config-validation` ← `affaan-m/everything-claude-code`
+- `network-interface-health` ← `affaan-m/everything-claude-code`
+- `nextjs-turbopack` ← `affaan-m/everything-claude-code`
+- `no-mistakes` ← `kunchenguid/no-mistakes`
+- `nodejs-keccak256` ← `affaan-m/everything-claude-code`
+- `nutrient-document-processing` ← `affaan-m/everything-claude-code`
+- `nuxt4-patterns` ← `affaan-m/everything-claude-code`
+- `openclaw-persona-forge` ← `affaan-m/everything-claude-code`
+- `opensource-pipeline` ← `affaan-m/everything-claude-code`
+- `orch-add-feature` ← `affaan-m/everything-claude-code`
+- `orch-build-mvp` ← `affaan-m/everything-claude-code`
+- `orch-change-feature` ← `affaan-m/everything-claude-code`
+- `orch-fix-defect` ← `affaan-m/everything-claude-code`
+- `orch-pipeline` ← `affaan-m/everything-claude-code`
+- `orch-refine-code` ← `affaan-m/everything-claude-code`
+- `parallel-execution-optimizer` ← `affaan-m/everything-claude-code`
+- `pdf` ← `anthropics/skills`
+- `perl-patterns` ← `affaan-m/everything-claude-code`
+- `perl-security` ← `affaan-m/everything-claude-code`
+- `perl-testing` ← `affaan-m/everything-claude-code`
+- `pick-ui-library` ← `emilkowalski/skills`
+- `plan-aeo-readiness` ← `kensaurus/cursor-kenji`
+- `plan-antislop` ← `kensaurus/cursor-kenji`
+- `plan-canvas` ← `affaan-m/everything-claude-code`
+- `plan-capacitor-hardening` ← `kensaurus/cursor-kenji`
+- `plan-data-integrity` ← `kensaurus/cursor-kenji`
+- `plan-dependency-provenance` ← `kensaurus/cursor-kenji`
+- `plan-docs-sync` ← `kensaurus/cursor-kenji`
+- `plan-eng-review` ← `kunchenguid/programbench-bench`
+- `plan-error-handling` ← `kensaurus/cursor-kenji`
+- `plan-input-validation` ← `kensaurus/cursor-kenji`
+- `plan-llm-cost-guardrails` ← `kensaurus/cursor-kenji`
+- `plan-mobile-readiness` ← `kensaurus/cursor-kenji`
+- `plan-orchestrate` ← `affaan-m/everything-claude-code`
+- `plan-perf-audit` ← `kensaurus/cursor-kenji`
+- `plan-rls-audit` ← `kensaurus/cursor-kenji`
+- `plan-secrets-audit` ← `kensaurus/cursor-kenji`
+- `plan-security-audit` ← `kensaurus/cursor-kenji`
+- `plan-stub-checker` ← `kensaurus/cursor-kenji`
+- `plan-test-coverage` ← `kensaurus/cursor-kenji`
+- `plan-uiux-unification` ← `kensaurus/cursor-kenji`
+- `plankton-code-quality` ← `affaan-m/everything-claude-code`
+- `postgres-patterns` ← `affaan-m/everything-claude-code`
+- `pptx` ← `anthropics/skills`
+- `prediction-market-oracle-research` ← `affaan-m/everything-claude-code`
+- `prediction-market-risk-review` ← `affaan-m/everything-claude-code`
+- `prisma-patterns` ← `affaan-m/everything-claude-code`
+- `process-event-sources` ← `kunchenguid/firstmate`
+- `product-capability` ← `affaan-m/everything-claude-code`
+- `product-lens` ← `affaan-m/everything-claude-code`
+- `production-audit` ← `affaan-m/everything-claude-code`
+- `production-scheduling` ← `affaan-m/everything-claude-code`
+- `project-flow-ops` ← `affaan-m/everything-claude-code`
+- `project-management` ← `kunchenguid/firstmate`
+- `prompt-optimizer` ← `affaan-m/everything-claude-code`
+- `protocol-browser-anti-stall` ← `kensaurus/cursor-kenji`
+- `prototype` ← `emilkowalski/skills`
+- `pubmed-database` ← `affaan-m/everything-claude-code`
+- `python-patterns` ← `affaan-m/everything-claude-code`
+- `python-testing` ← `affaan-m/everything-claude-code`
+- `pytorch-patterns` ← `affaan-m/everything-claude-code`
+- `quality-nonconformance` ← `affaan-m/everything-claude-code`
+- `quarkus-patterns` ← `affaan-m/everything-claude-code`
+- `quarkus-security` ← `affaan-m/everything-claude-code`
+- `quarkus-tdd` ← `affaan-m/everything-claude-code`
+- `quarkus-verification` ← `affaan-m/everything-claude-code`
+- `quota-array-dispatch` ← `kunchenguid/firstmate`
+- `quota-axi` ← `kunchenguid/quota-axi`
+- `ralphinho-rfc-pipeline` ← `affaan-m/everything-claude-code`
+- `react-native-patterns` ← `affaan-m/everything-claude-code`
+- `react-patterns` ← `affaan-m/everything-claude-code`
+- `react-performance` ← `affaan-m/everything-claude-code`
+- `react-testing` ← `affaan-m/everything-claude-code`
+- `recsys-pipeline-architect` ← `affaan-m/everything-claude-code`
+- `recursive-decision-ledger` ← `affaan-m/everything-claude-code`
+- `redesign-existing-projects` ← `Leonxlnx/taste-skill`
+- `redis-patterns` ← `affaan-m/everything-claude-code`
+- `refactor-ui` ← `gnurio/refactoring-ui-plugin`
+- `regex-vs-llm-structured-text` ← `affaan-m/everything-claude-code`
+- `remotion-video-creation` ← `affaan-m/everything-claude-code`
+- `repo-scan` ← `affaan-m/everything-claude-code`
+- `research` ← `mattpocock/skills`
+- `research-ops` ← `affaan-m/everything-claude-code`
+- `resolving-merge-conflicts` ← `mattpocock/skills`
+- `returns-reverse-logistics` ← `affaan-m/everything-claude-code`
+- `review` ← `kunchenguid/programbench-bench`
+- `review-animations` ← `emilkowalski/skills`
+- `rough-cut-design` ← `kunchenguid/rough-cut-axi`
+- `rules-distill` ← `affaan-m/everything-claude-code`
+- `rust-patterns` ← `affaan-m/everything-claude-code`
+- `rust-testing` ← `affaan-m/everything-claude-code`
+- `safety-guard` ← `affaan-m/everything-claude-code`
+- `santa-method` ← `affaan-m/everything-claude-code`
+- `scaffold-exercises` ← `mattpocock/skills`
+- `scholar-evaluation` ← `affaan-m/everything-claude-code`
+- `search-first` ← `affaan-m/everything-claude-code`
+- `secondmate-provisioning` ← `kunchenguid/firstmate`
+- `security-bounty-hunter` ← `affaan-m/everything-claude-code`
+- `security-review` ← `affaan-m/everything-claude-code`
+- `security-scan` ← `affaan-m/everything-claude-code`
+- `seo` ← `affaan-m/everything-claude-code`
+- `setup-matt-pocock-skills` ← `mattpocock/skills`
+- `setup-pre-commit` ← `mattpocock/skills`
+- `setup-ts-deep-modules` ← `mattpocock/skills`
+- `short-pipe-design` ← `kunchenguid/short-pipe`
+- `shorts-from-longform` ← `kunchenguid/short-pipe`
+- `simple-words-design` ← `kunchenguid/simplewords`
+- `skill-comply` ← `affaan-m/everything-claude-code`
+- `skill-creator` ← `anthropics/skills`
+- `skill-scout` ← `affaan-m/everything-claude-code`
+- `skill-stocktake` ← `affaan-m/everything-claude-code`
+- `slack-gif-creator` ← `anthropics/skills`
+- `social-graph-ranker` ← `affaan-m/everything-claude-code`
+- `social-publisher` ← `affaan-m/everything-claude-code`
+- `springboot-patterns` ← `affaan-m/everything-claude-code`
+- `springboot-security` ← `affaan-m/everything-claude-code`
+- `springboot-tdd` ← `affaan-m/everything-claude-code`
+- `springboot-verification` ← `affaan-m/everything-claude-code`
+- `stitch-design-taste` ← `Leonxlnx/taste-skill`
+- `stow` ← `kunchenguid/firstmate`
+- `strategic-compact` ← `affaan-m/everything-claude-code`
+- `stuck-crewmate-recovery` ← `kunchenguid/firstmate`
+- `swift-actor-persistence` ← `affaan-m/everything-claude-code`
+- `swift-concurrency-6-2` ← `affaan-m/everything-claude-code`
+- `swift-protocol-di-testing` ← `affaan-m/everything-claude-code`
+- `swiftui-patterns` ← `affaan-m/everything-claude-code`
+- `tasks-axi` ← `kunchenguid/tasks-axi`
+- `taste` ← `affaan-m/everything-claude-code`
+- `tdd` ← `mattpocock/skills`
+- `tdd-workflow` ← `affaan-m/everything-claude-code`
+- `teach` ← `mattpocock/skills`
+- `team-agent-orchestration` ← `affaan-m/everything-claude-code`
+- `team-builder` ← `affaan-m/everything-claude-code`
+- `template-skill` ← `anthropics/skills`
+- `terminal-opener` ← `affaan-m/everything-claude-code`
+- `terminal-ops` ← `affaan-m/everything-claude-code`
+- `test-driven-development` ← `kunchenguid/programbench-bench`
+- `test-playwright` ← `kensaurus/cursor-kenji`
+- `test-qa` ← `kensaurus/cursor-kenji`
+- `test-red-team` ← `kensaurus/cursor-kenji`
+- `test-unit` ← `kensaurus/cursor-kenji`
+- `theme-factory` ← `anthropics/skills`
+- `thirdparty-emil-design-eng` ← `kensaurus/cursor-kenji`
+- `thirdparty-ui-ux-pro-max` ← `kensaurus/cursor-kenji`
+- `thirdparty-web-interface-guidelines` ← `kensaurus/cursor-kenji`
+- `tinystruct-patterns` ← `affaan-m/everything-claude-code`
+- `to-questionnaire` ← `mattpocock/skills`
+- `to-spec` ← `mattpocock/skills`
+- `to-tickets` ← `mattpocock/skills`
+- `token-budget-advisor` ← `affaan-m/everything-claude-code`
+- `triage` ← `mattpocock/skills`
+- `ui-demo` ← `affaan-m/everything-claude-code`
+- `ui-slop-score` ← `uizze/uizze`
+- `ui-to-vue` ← `affaan-m/everything-claude-code`
+- `uncloud` ← `affaan-m/everything-claude-code`
+- `unified-memory` ← `affaan-m/everything-claude-code`
+- `unified-notifications-ops` ← `affaan-m/everything-claude-code`
+- `updatefirstmate` ← `kunchenguid/firstmate`
+- `use-kunchenguid-design-system` ← `kunchenguid/kunchenguid-design-system`
+- `use-shadows-appropriately` ← `gnurio/refactoring-ui-plugin`
+- `uspto-database` ← `affaan-m/everything-claude-code`
+- `verification-loop` ← `affaan-m/everything-claude-code`
+- `video-editing` ← `affaan-m/everything-claude-code`
+- `videodb` ← `affaan-m/everything-claude-code`
+- `visa-doc-translate` ← `affaan-m/everything-claude-code`
+- `vite-patterns` ← `affaan-m/everything-claude-code`
+- `vue-patterns` ← `affaan-m/everything-claude-code`
+- `wait-what` ← `mattpocock/skills`
+- `wayfinder` ← `mattpocock/skills`
+- `web-artifacts-builder` ← `anthropics/skills`
+- `webapp-testing` ← `anthropics/skills`
+- `whathappened` ← `kunchenguid/whathappened`
+- `windows-desktop-e2e` ← `affaan-m/everything-claude-code`
+- `wizard` ← `mattpocock/skills`
+- `workflow-build-feature` ← `kensaurus/cursor-kenji`
+- `workflow-coding-discipline` ← `kensaurus/cursor-kenji`
+- `workflow-environment-ready` ← `kensaurus/cursor-kenji`
+- `workflow-feature-flag` ← `kensaurus/cursor-kenji`
+- `workflow-feedback-to-closure` ← `kensaurus/cursor-kenji`
+- `workflow-fix-and-ship` ← `kensaurus/cursor-kenji`
+- `workflow-git-commit` ← `kensaurus/cursor-kenji`
+- `workflow-green-repo` ← `kensaurus/cursor-kenji`
+- `workflow-housekeep` ← `kensaurus/cursor-kenji`
+- `workflow-launch-ready` ← `kensaurus/cursor-kenji`
+- `workflow-merge-conflicts` ← `kensaurus/cursor-kenji`
+- `workflow-onboard` ← `kensaurus/cursor-kenji`
+- `workflow-parallel-agents` ← `kensaurus/cursor-kenji`
+- `workflow-pr` ← `kensaurus/cursor-kenji`
+- `workflow-quality-gate` ← `kensaurus/cursor-kenji`
+- `workflow-refactor` ← `kensaurus/cursor-kenji`
+- `workflow-ship-and-observe` ← `kensaurus/cursor-kenji`
+- `workflow-spec-tdd` ← `kensaurus/cursor-kenji`
+- `workspace-surface-audit` ← `affaan-m/everything-claude-code`
+- `writing-beats` ← `mattpocock/skills`
+- `writing-for-agents` ← `mattpocock/skills`
+- `writing-fragments` ← `mattpocock/skills`
+- `writing-shape` ← `mattpocock/skills`
+- `x-api` ← `affaan-m/everything-claude-code`
+- `xlsx` ← `anthropics/skills`
