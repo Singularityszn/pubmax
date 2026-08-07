@@ -247,7 +247,9 @@ test("mobile map shell controls stay inside the coordinated chrome at 390px", as
   await filters.click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
   await expect(sheet).toHaveCount(1);
-  await expect(sheet.getByRole("heading", { name: "Drinks and price" })).toBeVisible();
+  // PR #695 (9b588362) renamed the filters sheet heading from "Drinks and
+  // price" to "Prices and places" (see lib/mobileShell.ts).
+  await expect(sheet.getByRole("heading", { name: "Prices and places" })).toBeVisible();
 });
 
 // Mirrors lib/venues.ts venueGroupingKey + stableVenueIdFromKey exactly (a
