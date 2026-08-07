@@ -11,7 +11,7 @@
 // walkRouteStore() seam. Every op is fail-soft — a cache miss/failure just means
 // the leg gets routed (or drawn straight), never a broken map.
 
-import { createDualBackendStore, createFailSoftGuard } from "@/lib/storeBackend";
+import { createFailSoftGuard, selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { DAY_MS } from "@/lib/dayMs";
 import { isValidLngLat, type LngLat } from "@/lib/walkRoute";
@@ -115,7 +115,9 @@ export const supabaseWalkRouteStore: WalkRouteStore = {
 };
 
 /** The single backend selection point (mirrors the other stores). */
-export const walkRouteStore = createDualBackendStore(memoryWalkRouteStore, supabaseWalkRouteStore);
+export function walkRouteStore(): WalkRouteStore {
+  return selectStore(memoryWalkRouteStore, supabaseWalkRouteStore);
+}
 
 /** Test-only: clear the in-memory rows and warn dedupe. */
 export function __resetWalkRouteStore(): void {

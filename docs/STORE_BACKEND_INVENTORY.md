@@ -1,4 +1,4 @@
-# Store factory inventory and pilot
+# Store backend inventory and factory pilot
 
 Companion to issue #727 ("Spec: reduce store/review bloat without hiding
 policy"). This is the inventory the issue asks for, plus a report on the
@@ -24,10 +24,10 @@ with the simplest conformant shape." That has aged. As of this pilot:
   (`planCollaborationStore`, `planGroupPrefsStore`, `planInviteRsvpStore`,
   `weatherRecommendationStore`) already route through `selectStore`, so
   globalThis-anchoring and factory-eligibility are independent axes.
-- `communityPriceStore` was named in this task's brief as an example of the
-  globalThis pattern. It is not: it keeps its memory state in a plain
+- `communityPriceStore` was named in this task's original brief as an example
+  of the globalThis pattern. It is not: it keeps its memory state in a plain
   module-level `Map`, not `globalThis`, and already uses `selectStore` +
-  `createFailSoftGuard`. It is excluded from this pilot for a different
+  `createFailSoftGuard`. It is excluded from the pilot for a different
   reason: it is the most policy-heavy store in the codebase (moderation,
   corroboration counting, round-source ownership, ~2,000 lines).
 - This task migrates exactly ONE store onto the factory, not the issue's
@@ -39,46 +39,53 @@ with the simplest conformant shape." That has aged. As of this pilot:
 
 Categories:
 
-- **factory-ready** — single `selectStore` (or now `createDualBackendStore`)
+- **factory-ready** - single `selectStore` (or now `createDualBackendStore`)
   seam, one memory implementation, one Supabase implementation, no domain
   policy beyond CRUD and fail-soft reads. The factory's target shape.
-- **factory-eligible, policy-heavy** — same single-seam shape, but the store
+- **factory-eligible, policy-heavy** - same single-seam shape, but the store
   carries real domain policy (moderation, trust scoring, authorization,
   multi-step write rules) beyond the backend choice itself. Adopting the
   one-line factory wrapper would be equally safe, but the store is a worse
   pilot pick: a defect there is expensive, and the factory change is not what
   most needs proving on a file that big.
-- **legacy-exception** — the store does not use the shared seam at all; it
+- **legacy-exception** - the store does not use the shared seam at all; it
   checks `isSupabaseConfigured()` (or calls `requireSupabaseAdmin()`)
   inline, multiple times, scattered across its own operations. Needs its own
   refactor to a single seam before the factory helps it. Out of scope here.
-- **not dual-backend** — the store does not follow the
+- **not dual-backend** - the store does not follow the
   memory-or-Supabase-by-env shape at all (file-backed, static+live merge,
   Supabase-only). Out of scope for this factory by definition.
 
+### Table 1: factory-ready (candidates for the wrapper)
+
+| Store | Lines | Notes |
+|---|---|---|
+| feedFreshnessStore | 131 | Pilot. Migrated. No TTL, identity, or moderation coupling in the seam. |
+| walkRouteStore | 126 | Smallest factory-ready store, but its `putLeg` computes a TTL expiry inline next to the seam - held back this round. |
+| weatherSnapshotStore | 183 | Same shape as walkRouteStore; cron-written weather cache. |
+| areaDemandStore | 172 | Same shape family (comment on walkRouteStore names it as a sibling). |
+| checkInStore | 185 | |
+| followStore | 279 | |
+| nightProfileStore | 159 | |
+| notificationsStore | 390 | |
+| pendingPlanRecapStore | 188 | Top-3 candidate. Next adopter. |
+| planCollaborationStore | 852 | globalThis-anchored memory state; still a single `selectStore` seam. |
+| planGroupPrefsStore | 252 | globalThis-anchored memory state; single seam. |
+| planInviteRsvpStore | 281 | globalThis-anchored memory state; single seam (2 selectStore call sites). |
+| presenceStore | 272 | |
+| privateIdentityStore | 293 | |
+| pushTokenStore | 144 | Top-3 candidate. Next adopter. |
+| reactionsStore | 196 | |
+| socialConnectionStore | 169 | |
+| priceConfirmStore | 300 | |
+| profileStore | 501 | |
+| ratingsStore | 288 | |
+| operatorProposalsStore | 251 | |
+
+### Table 2: not factory-ready this round
+
 | Store | Lines | Category | Notes |
 |---|---|---|---|
-| walkRouteStore | 126 | factory-ready (migrated) | Pilot. TTL leg cache. |
-| weatherSnapshotStore | 183 | factory-ready | Same shape as walkRouteStore; cron-written weather cache. |
-| areaDemandStore | 172 | factory-ready | Same shape family (comment on walkRouteStore names it as a sibling). |
-| checkInStore | 185 | factory-ready | |
-| feedFreshnessStore | 131 | factory-ready | |
-| followStore | 279 | factory-ready | |
-| nightProfileStore | 159 | factory-ready | |
-| notificationsStore | 390 | factory-ready | |
-| pendingPlanRecapStore | 188 | factory-ready | |
-| planCollaborationStore | 852 | factory-ready | globalThis-anchored memory state; still a single `selectStore` seam. |
-| planGroupPrefsStore | 252 | factory-ready | globalThis-anchored memory state; single seam. |
-| planInviteRsvpStore | 281 | factory-ready | globalThis-anchored memory state; single seam (2 selectStore call sites). |
-| presenceStore | 272 | factory-ready | |
-| privateIdentityStore | 293 | factory-ready | |
-| pushTokenStore | 144 | factory-ready | |
-| reactionsStore | 196 | factory-ready | |
-| socialConnectionStore | 169 | factory-ready | |
-| priceConfirmStore | 300 | factory-ready | |
-| profileStore | 501 | factory-ready | |
-| ratingsStore | 288 | factory-ready | |
-| operatorProposalsStore | 251 | factory-ready | |
 | commentsStore | 418 | factory-eligible, policy-heavy | Moderation/report flow. |
 | communityPriceStore | 2065 | factory-eligible, policy-heavy | Moderation, corroboration, round-source ownership. See deviation note. |
 | emailSubscribersStore | 341 | factory-eligible, policy-heavy | |
@@ -93,7 +100,7 @@ Categories:
 | weatherRecommendationStore | 469 | factory-eligible, policy-heavy | globalThis-anchored memory state; single seam. |
 | analyticsReceiptStore | 87 | legacy-exception | globalThis-anchored memory state; inline `isSupabaseConfigured()`, not `selectStore`. |
 | planStore | 954 | legacy-exception | globalThis-anchored memory state; 11 inline `isSupabaseConfigured()` call sites, not one seam. |
-| crawlStoryStore | 644 | legacy-exception | 6 inline `isSupabaseConfigured()` call sites. |
+| crawlStoryStore | 644 | legacy-exception | 6 inline `isSupabaseConfigured()` call sites, one per crawl-source site. |
 | nightMemoryStore | 1202 | legacy-exception | 25 inline `isSupabaseConfigured()` call sites - the most scattered store in the codebase. |
 | pubPalStore | 221 | legacy-exception | 8 inline `isSupabaseConfigured()` call sites. |
 | contributorLeaderboardStore | 81 | legacy-exception | 1 inline `isSupabaseConfigured()` call; not on the shared seam. |
@@ -102,9 +109,30 @@ Categories:
 | whatsOnStore | 294 | not dual-backend | Static bundle + injectable live-fetch merge. No Supabase path. |
 | socialCrewStore | 591 | not dual-backend | Supabase-only (RPC calls); no memory backend. |
 | socialPostConsentStore | 260 | not dual-backend | Supabase-only (RPC calls); no memory backend. |
-| savedPubsStore | 680 | unclassified - needs its own look | The file reads as binary to `grep`/`file` in this worktree (pre-existing, unrelated to this task); its dual-backend shape could not be confirmed by the same method as the other 44 and needs a direct read outside this pilot's scope. |
+| savedPubsStore | 680 | unclassified - needs its own look | Reads as binary to `grep`/`file` in this worktree (pre-existing, unrelated to this task); its dual-backend shape could not be confirmed by the same method as the other 44 and needs a direct read outside this pilot's scope. |
 
-That accounts for all 45 `lib/*Store.ts` modules.
+Both tables together account for all 45 `lib/*Store.ts` modules.
+
+## Top-3 pilot candidates
+
+Ranked by lowest risk to prove zero behavior change:
+
+1. **feedFreshnessStore** (chosen) - a bare stamp/read pair (last-revalidated
+   metadata only). No TTL math, no identity, no moderation. Its callers
+   never import the seam function itself, only `memoryFeedFreshnessStore`
+   and `__resetFeedFreshnessStore`, so the migration touches zero test
+   surface.
+2. **pushTokenStore** - similarly small (144 lines) and single-purpose
+   (register/clear a device push token). Named as the next adopter after
+   this pilot lands.
+3. **pendingPlanRecapStore** - 188 lines, same plain CRUD shape, no policy
+   layer. Named as the next adopter after `pushTokenStore`.
+
+`walkRouteStore` was the first pick in an earlier pass of this task, but its
+`putLeg` computes a TTL expiry (`WALK_ROUTE_LEG_TTL_MS`) right next to the
+seam call - not disqualifying, but more surface than the three above. It
+reverted to its original hand-written wrapper for this round and stays a
+fine next-next candidate.
 
 ## Exception list
 
@@ -166,28 +194,50 @@ infer table names, generate queries, or decide authorization. It replaces
 one boilerplate line per store and decides nothing `selectStore` did not
 already decide.
 
-## Pilot: walkRouteStore
+### Open questions (deliberately not answered by this pilot)
 
-Picked `lib/walkRouteStore.ts` for the pilot:
+- **Fail-soft guards.** Most factory-ready stores also wrap their Supabase
+  implementation in `createFailSoftGuard` (schema-miss detection, degraded
+  writes). The factory does not absorb this. `createFailSoftGuard` takes a
+  per-store table name and migration hint, which is exactly the kind of
+  domain detail the issue's non-goals say a shared factory must not infer.
+  Whether a second, still-narrow helper should exist to compose
+  `createFailSoftGuard` + `selectStore` together, or whether every store
+  should keep wiring both by hand as `feedFreshnessStore` still does, is
+  left open for the next wave.
+- **Schema-miss warners.** `resetSchemaMissWarnings()` (the dedupe reset each
+  guard exposes) is store-specific and test-only. The factory does not touch
+  it, and no attempt was made to fold it in.
 
-- It is a plain TTL cache for routed walk-leg geometry - the smallest
-  factory-ready store (126 lines before the pilot change).
-- Its seam was a direct, unmodified `selectStore(memoryWalkRouteStore,
-  supabaseWalkRouteStore)` wrapper - the exact boilerplate the factory
+## Pilot: feedFreshnessStore
+
+Picked `lib/feedFreshnessStore.ts` for the pilot:
+
+- Smallest-surface, cleanest-seam candidate of the top-3 above: a bare
+  stamp/read pair with zero identity, moderation, or TTL coupling anywhere
+  near the seam.
+- Its seam was a direct, unmodified `selectStore(memoryFeedFreshnessStore,
+  supabaseFeedFreshnessStore)` wrapper - the exact boilerplate the factory
   removes, with no extra policy in the way.
-- Its existing test file, `__tests__/walkRouteStore.test.ts`, tests
-  `memoryWalkRouteStore` and `supabaseWalkRouteStore` directly and never
-  imports the `walkRouteStore()` selector itself, so the migration changes
-  zero test surface - the tests stayed untouched and green, which is the
-  proof of zero behavior change.
-- It is called as a plain function at its two call sites
-  (`app/api/walk-route/route.ts`, `lib/walkRouteLegs.ts`), so converting it
-  from a `function` declaration to a `const` arrow-returning factory result
-  changes nothing at either call site.
+- Its callers (`app/api/cron/refresh-night-signals/route.ts`,
+  `app/api/cron/refresh-whats-on/route.ts`,
+  `app/api/cron/refresh-prices/route.ts`, `lib/freshnessStoreOverlay.ts`)
+  all call it as a plain function, so converting it from a `function`
+  declaration to a `const` arrow-returning factory result changes nothing at
+  any call site.
+- No test file imports the `feedFreshnessStore()` selector itself. The tests
+  that exercise it (`__tests__/cronRefreshWhatsOnRoute.test.ts`,
+  `__tests__/cronRefreshNightSignalsRoute.test.ts`,
+  `__tests__/cronRefreshPricesRoute.test.ts`) import
+  `memoryFeedFreshnessStore` and `__resetFeedFreshnessStore` directly and
+  exercise the route handlers, which call the real, unmocked selector under
+  test env conditions where Supabase is not configured. The migration
+  touches zero test surface - the tests stayed untouched and green, which is
+  the proof of zero behavior change.
 
-The change: `lib/walkRouteStore.ts` now exports
-`export const walkRouteStore = createDualBackendStore(memoryWalkRouteStore, supabaseWalkRouteStore);`
+The change: `lib/feedFreshnessStore.ts` now exports
+`export const feedFreshnessStore = createDualBackendStore(memoryFeedFreshnessStore, supabaseFeedFreshnessStore);`
 instead of hand-writing the wrapper function. `lib/storeBackend.ts` gained
-`createDualBackendStore`, with a new unit test in
-`__tests__/storeBackend.test.ts` proving it curries `selectStore` correctly
-under both configured and unconfigured Supabase env states.
+`createDualBackendStore`, with a unit test in `__tests__/storeBackend.test.ts`
+proving it curries `selectStore` correctly under both configured and
+unconfigured Supabase env states.
