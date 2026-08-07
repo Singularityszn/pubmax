@@ -296,6 +296,7 @@ describe("VenueOverviewTab community signals", () => {
       createElement(VenueOverviewTab, {
         venue: overviewVenue,
         tab: "overview",
+        onOpenVisitReports: () => {},
         cityId: "london",
         mode: "suggest",
         inCrawl: false,

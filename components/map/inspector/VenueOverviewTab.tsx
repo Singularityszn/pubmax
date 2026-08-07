@@ -39,6 +39,7 @@ import VenueHygiene from "@/components/map/VenueHygiene";
 import VenueGettingThere, {
   type LocationRequestStatus,
 } from "@/components/map/VenueGettingThere";
+import VisitReportPanel from "@/components/visits/VisitReportPanel";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
 import type { CityId } from "@/lib/cities";
 import type { JourneyPoint } from "@/lib/venueJourney";
@@ -226,6 +227,7 @@ export default function VenueOverviewTab({
   onRequestLocation,
   onClearLocation,
   onStartFirstDrop,
+  onOpenVisitReports,
   priceEntryAllowed,
   priceSignInRequested,
   priceAuthLoading,
@@ -256,6 +258,8 @@ export default function VenueOverviewTab({
   /** Opens the existing Pint Drop composer prefilled for this venue (Pints
    *  tab + composer open). Fired by the first-drop nudge on unpriced venues. */
   onStartFirstDrop: () => void;
+  /** Opens Lore, where the full Visit Report composer and list live. */
+  onOpenVisitReports: () => void;
   priceEntryAllowed: boolean;
   priceSignInRequested: boolean;
   priceAuthLoading: boolean;
@@ -337,6 +341,15 @@ export default function VenueOverviewTab({
     >
       <p className="venueAddress">{venue.address}</p>
       <VenueActionStrip venue={venue} />
+      {/* Visit Report peek: newest accounts only. The full composer stays on
+          Lore (VenueStoryTab), so Overview never grows a second rating system. */}
+      <VisitReportPanel
+        venueId={venue.id}
+        venueName={venue.name}
+        mode="peek"
+        active={tab === "overview"}
+        onOpenFull={onOpenVisitReports}
+      />
       {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
           server-side. Renders nothing for an unmatched pub. Kept above the
           practical-info disclosure so a matched rating is not buried. */}
