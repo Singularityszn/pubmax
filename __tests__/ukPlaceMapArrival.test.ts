@@ -137,8 +137,8 @@ describe("UK place map arrival", () => {
       "utf8",
     );
 
-    expect(pubMap).toContain("limitedCoverage={Boolean(ukPlaceArrival)}");
-    expect(pubMap).toContain("ukPlaceArrival ? null : (");
+    expect(pubMap).toContain("limitedCoverage={baseLedChrome}");
+    expect(pubMap).toContain("baseLedChrome ? null : (");
     expect(pubMap).toMatch(
       /\{selectionNotice \? \([\s\S]*?\) : ukPlaceArrival \? \(/,
     );
