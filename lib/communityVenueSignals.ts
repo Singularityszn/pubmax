@@ -8,7 +8,8 @@ export type CommunityVenueSignalKey =
   | "step-free-venue"
   | "step-free-toilets"
   | "door-policy"
-  | "people-eating";
+  | "people-eating"
+  | "na-friendly";
 
 export type CommunityVenueSignalValue =
   | "rough"
@@ -20,7 +21,9 @@ export type CommunityVenueSignalValue =
   | "groups"
   | "late"
   | "eating"
-  | "drinks-only";
+  | "drinks-only"
+  | "good-na-options"
+  | "limited-na";
 
 export type CommunityVenueSignalCandidate = {
   signalValue: CommunityVenueSignalValue;
@@ -78,6 +81,10 @@ export const COMMUNITY_VENUE_SIGNAL_OPTIONS = {
     { value: "eating", label: "People eating" },
     { value: "drinks-only", label: "Drinks only" },
   ],
+  "na-friendly": [
+    { value: "good-na-options", label: "Good alcohol-free options" },
+    { value: "limited-na", label: "Limited alcohol-free options" },
+  ],
 } as const satisfies Record<
   CommunityVenueSignalKey,
   readonly CommunityVenueSignalOption[]
@@ -92,6 +99,7 @@ export const COMMUNITY_VENUE_SIGNAL_LABELS: Record<
   "step-free-toilets": "Toilets",
   "door-policy": "Door",
   "people-eating": "Eating",
+  "na-friendly": "Alcohol-free",
 };
 
 const SIGNAL_KEYS = new Set<CommunityVenueSignalKey>(
@@ -224,6 +232,10 @@ function onePersonText(
       return value === "eating"
         ? "One drinker saw people eating."
         : "One drinker saw a drinks-only room.";
+    case "na-friendly":
+      return value === "good-na-options"
+        ? "One drinker called the alcohol-free options good."
+        : "One drinker called the alcohol-free options limited.";
   }
 }
 
@@ -246,6 +258,10 @@ function establishedText(
       return value === "eating"
         ? "Drinkers saw people eating."
         : "Drinkers saw a drinks-only room.";
+    case "na-friendly":
+      return value === "good-na-options"
+        ? "Drinkers called the alcohol-free options good."
+        : "Drinkers called the alcohol-free options limited.";
   }
 }
 
@@ -273,6 +289,10 @@ function olderText(
       return value === "eating"
         ? "Older drinker reports saw people eating."
         : "Older drinker reports saw a drinks-only room.";
+    case "na-friendly":
+      return value === "good-na-options"
+        ? "Older drinker reports called the alcohol-free options good."
+        : "Older drinker reports called the alcohol-free options limited.";
   }
 }
 

@@ -23,6 +23,7 @@ import {
 import type { VenueMenuCategoryTile } from "@/lib/venueMenuEnrichment";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { parseZoneParam, venueMatchesZone } from "@/lib/zones";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
 
 export type CrawlStyle =
   | "balanced"
@@ -31,7 +32,8 @@ export type CrawlStyle =
   | "writerTrail"
   | "beerGarden"
   | "sports"
-  | "dateNight";
+  | "dateNight"
+  | "noAlcoholFirst";
 
 export type VenuePrice = {
   app_price_id: string;
@@ -709,7 +711,11 @@ export function distanceKm(a: Venue, b: Venue): number {
   return haversineKm([a.longitude, a.latitude], [b.longitude, b.latitude]);
 }
 
-export function scoreVenue(venue: Venue, style: CrawlStyle): number {
+export function scoreVenue(
+  venue: Venue,
+  style: CrawlStyle,
+  naLensPrices?: ReadonlyMap<string, MapLensPrice>,
+): number {
   const price = venue.cheapestPrice ?? 8;
   const cheapness = Math.max(0, 10 - price);
   const amenityScore =
@@ -743,13 +749,29 @@ export function scoreVenue(venue: Venue, style: CrawlStyle): number {
       cheapness
     );
   }
+  if (style === "noAlcoholFirst") {
+    // A corroborated no-alcohol price is the same trust seam as pint pricing
+    // (trustedNoAlcoholLensPrices), never a name-only amenity guess. A venue
+    // with no corroborated price stays neutral - it never scores below a
+    // venue this style has no evidence on either way.
+    const hasCorroboratedNaPrice = naLensPrices?.has(venue.id) ?? false;
+    return (hasCorroboratedNaPrice ? 7 : 0) + cheapness + sourceTrust;
+  }
   return cheapness * 1.5 + amenityScore + hasVenueContext + hasHeritage + nearWater + sourceTrust;
 }
 
-export function buildCrawlRoute(venues: Venue[], filters: Filters): Venue[] {
+export function buildCrawlRoute(
+  venues: Venue[],
+  filters: Filters,
+  naLensPrices?: ReadonlyMap<string, MapLensPrice>,
+): Venue[] {
   if (!venues.length) return [];
   const sorted = [...venues]
-    .sort((a, b) => scoreVenue(b, filters.crawlStyle) - scoreVenue(a, filters.crawlStyle))
+    .sort(
+      (a, b) =>
+        scoreVenue(b, filters.crawlStyle, naLensPrices) -
+        scoreVenue(a, filters.crawlStyle, naLensPrices),
+    )
     .slice(0, 180);
   const maxLegKm = filters.routeWindow <= 15 ? 1.4 : filters.routeWindow <= 20 ? 1.9 : 2.8;
 
@@ -765,7 +787,7 @@ export function buildCrawlRoute(venues: Venue[], filters: Filters): Venue[] {
           return {
             venue,
             distance,
-            score: scoreVenue(venue, filters.crawlStyle) - distance * 2.4,
+            score: scoreVenue(venue, filters.crawlStyle, naLensPrices) - distance * 2.4,
           };
         })
         .filter((candidate) => candidate.distance <= maxLegKm)
@@ -778,7 +800,7 @@ export function buildCrawlRoute(venues: Venue[], filters: Filters): Venue[] {
 
     const summary = crawlSummary(route);
     const routeScore =
-      route.reduce((sum, venue) => sum + scoreVenue(venue, filters.crawlStyle), 0) -
+      route.reduce((sum, venue) => sum + scoreVenue(venue, filters.crawlStyle, naLensPrices), 0) -
       summary.distance * 3 +
       route.length * 4;
 
