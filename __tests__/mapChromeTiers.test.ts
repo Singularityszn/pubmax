@@ -33,6 +33,20 @@ describe("buildFiltersChip", () => {
     ).toBe("Filters: no-alcohol view active");
   });
 
+  it("counts Saved only as a filters refinement when on", () => {
+    expect(
+      buildFiltersChip({
+        drinkFiltersActive: false,
+        priceCapActive: false,
+        priceLabel: "Price",
+        savedOnlyActive: true,
+      }),
+    ).toMatchObject({
+      refinements: 1,
+      ariaLabel: "Filters: saved only active",
+    });
+  });
+
   it("counts Open now as a filters refinement when on", () => {
     expect(
       buildFiltersChip({
@@ -44,6 +58,21 @@ describe("buildFiltersChip", () => {
     ).toMatchObject({
       refinements: 1,
       ariaLabel: "Filters: open now active",
+    });
+  });
+
+  it("counts Saved only and Open now together as separate refinements", () => {
+    expect(
+      buildFiltersChip({
+        drinkFiltersActive: false,
+        priceCapActive: false,
+        priceLabel: "Price",
+        savedOnlyActive: true,
+        openNowActive: true,
+      }),
+    ).toMatchObject({
+      refinements: 2,
+      ariaLabel: "Filters: saved only and open now active",
     });
   });
 });
