@@ -738,6 +738,73 @@ describe("validate-data.mjs pubmaxxing seed validation", () => {
   });
 });
 
+describe("validate-data.mjs artifact resilience (required vs optional)", () => {
+  // Pins the crash this suite exists to prevent: validate-data.mjs runs in
+  // EVERY production build (vercel.json buildCommand), so an artifact that
+  // is genuinely optional at runtime must degrade the build to a named
+  // WARN and exit 0, never crash or hard-fail it. See ARTIFACT_CLASSIFICATION
+  // in scripts/validate-data.mjs for the full required/optional table.
+
+  it("degrades to a named WARN (exit 0) when the postcode-coordinate reference data is missing, rather than failing the build", () => {
+    const scriptsDir = setupScratch({});
+    rmSync(join(scriptsDir, "..", "data", "postcode_coordinate_exceptions.json"));
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(0);
+    expect(stdout).toContain("WARN postcode_coordinate_reference_data:");
+    expect(stdout).toContain("degrading, not failing the build");
+    expect(stdout).toContain("DATA VALIDATION PASSED");
+  });
+
+  it("degrades to a named WARN (exit 0) when the postcode-coordinate build-decision registries are missing, rather than crashing", () => {
+    const scriptsDir = setupScratch({});
+    // Originally reproduced crash: an uncaught ENOENT reading these files
+    // during the rebuild-and-diff cross-check took the whole process down
+    // instead of failing (or degrading) gracefully.
+    rmSync(join(scriptsDir, "..", "data", "postcode_coordinate_quarantine.json"));
+    rmSync(join(scriptsDir, "..", "data", "postcode_coordinate_corrections.json"));
+    rmSync(join(scriptsDir, "..", "data", "postcode_coordinate_build_report.json"));
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(0);
+    expect(stdout).toContain("WARN postcode_coordinate_build_decisions:");
+    expect(stdout).toContain("degrading, not failing the build");
+    expect(stdout).toContain("DATA VALIDATION PASSED");
+  });
+
+  it("degrades to a named WARN (exit 0) when the heritage famous-venues seed is missing, and still validates venues_slim.json and venue_details.jsonl clean", () => {
+    const scriptsDir = setupScratch({});
+    rmSync(join(scriptsDir, "..", "data", "famous_venues"), { recursive: true, force: true });
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(0);
+    expect(stdout).toContain(
+      "SKIP data/famous_venues/: directory does not exist (optional heritage enrichment)",
+    );
+    expect(stdout).toContain("WARN famous_venues_seed:");
+    expect(stdout).toContain("degrading, not failing the build");
+    expect(stdout).toContain("PASS public/data/venues_slim.json");
+    expect(stdout).toContain("PASS data/generated/venue_details.jsonl");
+    expect(stdout).toContain("DATA VALIDATION PASSED");
+  });
+
+  it("still hard-fails (exit 1) with a one-line named error and no raw stack trace when a REQUIRED artifact is missing", () => {
+    const scriptsDir = setupScratch({});
+    rmSync(join(scriptsDir, "..", "public", "data", "pint_prices_app_dataset.json"));
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("FAIL public/data/pint_prices_app_dataset.json:");
+    expect(stdout).toContain("DATA VALIDATION FAILED");
+    // No raw stack trace: a stack frame line looks like "    at ...".
+    expect(stdout).not.toMatch(/^\s+at .+/m);
+  });
+});
+
 describe("validate-data.mjs venue detail row validation", () => {
   it("validates the shipped lazy venue detail artifact against the full pint dataset", () => {
     const scriptsDir = setupScratch({});

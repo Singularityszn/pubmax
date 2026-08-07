@@ -96,6 +96,77 @@ const DRINK_CATEGORIES = new Set([
   "other",
 ]);
 
+// ---------------------------------------------------------------------------
+// Artifact classification. Single source of truth for what a missing or
+// invalid artifact means to the build: a REQUIRED artifact fails the build
+// with a one-line named error; an OPTIONAL artifact degrades to a named WARN
+// and the build still exits 0. Judged by how the app itself degrades at
+// runtime, not by how validation happens to be implemented.
+//
+// Two entries (postcode_coordinate_build_decisions, famous_venues_seed) are
+// sub-artifacts enforced inline inside a larger REQUIRED validator, via
+// runOptionalSubCheck below, rather than as a top-level dataset run; they
+// are still listed here so the whole required/optional decision lives in one
+// table, not scattered through the file.
+const ARTIFACT_CLASSIFICATION = [
+  { id: "london_pois", required: true, reason: "core map layer, no runtime fallback" },
+  { id: "london_localities", required: true, reason: "area search and routing depend on it" },
+  { id: "tfl_lines", required: true, reason: "core map layer, no runtime fallback" },
+  { id: "pint_prices_app_dataset", required: true, reason: "source of the priced venue dataset" },
+  { id: "venues_slim", required: true, reason: "the map's first-paint venue index" },
+  { id: "venues_slim_shards", required: true, reason: "lazy detail shards for the venue index" },
+  { id: "uk_base_shards", required: true, reason: "base pub layer streamed per viewport" },
+  { id: "venue_details", required: true, reason: "venue sheet detail data" },
+  { id: "pubmaxxing_seed", required: true, reason: "seeds the curated venue anchors the index is built from" },
+  { id: "drink_price_updates", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the directory or files are absent; a file that IS present with bad data is a genuine defect and stays a hard gate" },
+  { id: "whats_on", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the directory or files are absent; a file that IS present with bad data is a genuine defect and stays a hard gate" },
+  { id: "pint_index_editions", required: true, reason: "the validator itself passes cleanly (ok: true) when no dated editions exist yet; a published edition that fails its hash/shape checks is a genuine defect and stays a hard gate" },
+  { id: "night_signals", required: false, reason: "advisory tonight signal; map and app work without it. Unlike the three above, a missing/unreadable file here is not internally self-guarded to ok: true, so this flag is what keeps that case a WARN instead of a build failure" },
+  { id: "famous_venues_seed", required: false, reason: "heritage enrichment; venues_slim/venue_details validate fine without it" },
+  { id: "postcode_coordinate_build_decisions", required: false, reason: "build-provenance cross-check on top of the already-validated pint_prices_app_dataset; not needed for the app to boot" },
+  { id: "postcode_coordinate_reference_data", required: false, reason: "backs the postcode-coordinate contradiction cross-check only; pint_prices_app_dataset's own rows are already validated without it" },
+  { id: "weather_snapshot", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
+  { id: "pint_index_snapshot", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
+  { id: "late_food_evidence", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
+  { id: "night_out_places", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
+];
+
+function classificationFor(id) {
+  const entry = ARTIFACT_CLASSIFICATION.find((a) => a.id === id);
+  if (!entry) {
+    throw new Error(
+      `validate-data.mjs: dataset "${id}" is missing from ARTIFACT_CLASSIFICATION`,
+    );
+  }
+  return entry;
+}
+
+// Runs an optional sub-check embedded inside a REQUIRED validator's control
+// flow (its data does not have its own top-level dataset run). If reading or
+// verifying its artifact throws for any reason, including a missing file
+// deep inside a helper this function doesn't control, the failure degrades
+// to a named WARN instead of crashing or failing the required validator
+// around it. This is the one sanctioned try/catch boundary for this class of
+// check, not a scattered one.
+function runOptionalSubCheck(id, fn) {
+  try {
+    return { skipped: false, errors: fn() };
+  } catch (e) {
+    const { reason } = classificationFor(id);
+    console.log(
+      `  WARN ${id}: optional check could not run (${e.message}), degrading, not failing the build (${reason})`,
+    );
+    return { skipped: true, errors: [] };
+  }
+}
+
+// Prints the same named-WARN shape as runOptionalSubCheck, for optional
+// artifacts read inline (not wrapped in a try/catch around a function call).
+function warnOptionalArtifact(id, message) {
+  const { reason } = classificationFor(id);
+  console.log(`  WARN ${id}: ${message}, degrading, not failing the build (${reason})`);
+}
+
 // Kept dependency-free because validation tests copy this single script into a
 // scratch repository. Mirrors refresh_night_signal_claims.mjs.
 function isValidNightSignalClaim(row) {
@@ -320,7 +391,17 @@ function expectedVenueGroupsFromPintRows(rows) {
   return byId;
 }
 
+// data/famous_venues/*.json: heritage seed rows (bars, late food,
+// restaurants). Optional: the directory may not exist yet. Absence of the
+// directory is NOT a failure; a bad file inside it IS (same idiom as
+// drink_price_updates/whats_on below).
 function loadFamousVenues() {
+  if (!existsSync(FAMOUS_VENUES_DIR)) {
+    console.log(
+      "SKIP data/famous_venues/: directory does not exist (optional heritage enrichment)",
+    );
+    return [];
+  }
   return ["bars.json", "late_food.json", "restaurants.json"].flatMap((name) =>
     JSON.parse(readFileSync(join(FAMOUS_VENUES_DIR, name), "utf8")),
   );
@@ -868,15 +949,17 @@ function validatePintPrices() {
   try {
     const osmData = JSON.parse(readFileSync(UK_OSM_PUBS_FILE, "utf8"));
     if (!Array.isArray(osmData?.pubs)) {
-      errs.add(
-        "postcode-coordinate reference data: data/osm/uk/uk_osm_pubs.json must contain a pubs array",
+      warnOptionalArtifact(
+        "postcode_coordinate_reference_data",
+        "data/osm/uk/uk_osm_pubs.json must contain a pubs array",
       );
     } else {
       osmPubs = osmData.pubs;
     }
   } catch (e) {
-    errs.add(
-      `postcode-coordinate reference data: could not read/parse data/osm/uk/uk_osm_pubs.json (${e.message})`,
+    warnOptionalArtifact(
+      "postcode_coordinate_reference_data",
+      `could not read/parse data/osm/uk/uk_osm_pubs.json (${e.message})`,
     );
   }
 
@@ -885,8 +968,9 @@ function validatePintPrices() {
       readFileSync(POSTCODE_COORDINATE_EXCEPTIONS_FILE, "utf8"),
     );
   } catch (e) {
-    errs.add(
-      `postcode-coordinate exceptions: could not read/parse data/postcode_coordinate_exceptions.json (${e.message})`,
+    warnOptionalArtifact(
+      "postcode_coordinate_reference_data",
+      `could not read/parse data/postcode_coordinate_exceptions.json (${e.message})`,
     );
   }
   try {
@@ -894,8 +978,9 @@ function validatePintPrices() {
       readFileSync(POSTCODE_COORDINATE_QUARANTINE_FILE, "utf8"),
     );
   } catch (e) {
-    errs.add(
-      `postcode-coordinate quarantine: could not read/parse data/postcode_coordinate_quarantine.json (${e.message})`,
+    warnOptionalArtifact(
+      "postcode_coordinate_build_decisions",
+      `could not read/parse data/postcode_coordinate_quarantine.json (${e.message})`,
     );
   }
   try {
@@ -903,8 +988,9 @@ function validatePintPrices() {
       readFileSync(POSTCODE_COORDINATE_CORRECTIONS_FILE, "utf8"),
     );
   } catch (e) {
-    errs.add(
-      `postcode-coordinate corrections: could not read/parse data/postcode_coordinate_corrections.json (${e.message})`,
+    warnOptionalArtifact(
+      "postcode_coordinate_build_decisions",
+      `could not read/parse data/postcode_coordinate_corrections.json (${e.message})`,
     );
   }
   try {
@@ -912,8 +998,9 @@ function validatePintPrices() {
       readFileSync(POSTCODE_COORDINATE_BUILD_REPORT_FILE, "utf8"),
     );
   } catch (e) {
-    errs.add(
-      `postcode-coordinate build report: could not read/parse data/postcode_coordinate_build_report.json (${e.message})`,
+    warnOptionalArtifact(
+      "postcode_coordinate_build_decisions",
+      `could not read/parse data/postcode_coordinate_build_report.json (${e.message})`,
     );
   }
 
@@ -988,19 +1075,31 @@ function validatePintPrices() {
     postcodeCoordinateCorrections &&
     postcodeCoordinateBuildReport
   ) {
-    const decisionErrors = validatePostcodeCoordinateBuildDecisions({
-      publishedRows: data,
-      osmPubs,
-      quarantineRegistry: postcodeCoordinateQuarantine,
-      correctionRegistry: postcodeCoordinateCorrections,
-      buildReport: postcodeCoordinateBuildReport,
-    });
+    // This build-decision provenance check re-hashes files on disk
+    // (POSTCODE_COORDINATE_DECISION_INPUTS and the output CSV) that are
+    // never guarded elsewhere. It is an optional cross-check layered on top
+    // of the required checks above, not something the app needs to boot, so
+    // any failure to run it, including a missing input file, degrades to a
+    // named WARN instead of failing this REQUIRED dataset.
+    const { errors: decisionErrors, skipped } = runOptionalSubCheck(
+      "postcode_coordinate_build_decisions",
+      () =>
+        validatePostcodeCoordinateBuildDecisions({
+          publishedRows: data,
+          osmPubs,
+          quarantineRegistry: postcodeCoordinateQuarantine,
+          correctionRegistry: postcodeCoordinateCorrections,
+          buildReport: postcodeCoordinateBuildReport,
+        }),
+    );
     for (const error of decisionErrors) {
       errs.add(error);
     }
-    console.log(
-      `  postcode-coordinate build decisions: ${postcodeCoordinateBuildReport.corrections?.length ?? 0} correction row(s), ${postcodeCoordinateBuildReport.quarantines?.length ?? 0} quarantine row(s), ${decisionErrors.length} error(s)`,
-    );
+    if (!skipped) {
+      console.log(
+        `  postcode-coordinate build decisions: ${postcodeCoordinateBuildReport.corrections?.length ?? 0} correction row(s), ${postcodeCoordinateBuildReport.quarantines?.length ?? 0} quarantine row(s), ${decisionErrors.length} error(s)`,
+      );
+    }
   }
 
   const ok = errs.count === 0;
@@ -1108,13 +1207,27 @@ function validateSlimVenues() {
     });
   }
 
+  // The rebuilt index can only be a true parity check when heritage seed
+  // data is present. Without it, `expected` is missing every famous-venue
+  // row on purpose (see loadFamousVenues), so a size/id mismatch here means
+  // nothing about a real data problem. Downgrade to one named WARN instead
+  // of failing the required venues_slim dataset.
+  const famousVenuesAvailable = existsSync(FAMOUS_VENUES_DIR);
   if (slim.length !== expected.size) {
-    errs.add(
-      `venue count ${slim.length} does not match rebuilt expected count ${expected.size}`,
-    );
+    if (famousVenuesAvailable) {
+      errs.add(
+        `venue count ${slim.length} does not match rebuilt expected count ${expected.size}`,
+      );
+    } else {
+      warnOptionalArtifact(
+        "famous_venues_seed",
+        `venue count ${slim.length} does not match rebuilt expected count ${expected.size} (heritage seed data unavailable, parity unverifiable)`,
+      );
+    }
   }
 
   const seenIds = new Set();
+  let unverifiableFamousRows = 0;
   slim.forEach((row, i) => {
     const where = `row ${i}`;
     if (typeof row !== "object" || row === null) {
@@ -1163,6 +1276,15 @@ function validateSlimVenues() {
       );
     }
 
+    // Without heritage seed data, `expected` cannot tell a pint-derived row
+    // that a real build would replace/enrich with famous-venue fields (kind,
+    // cheapestPrice, priceBand) from one that legitimately stayed plain, so
+    // id presence AND every field comparison below are unverifiable, not
+    // just the count. Skip the whole parity check per row in that case.
+    if (!famousVenuesAvailable) {
+      unverifiableFamousRows += 1;
+      return;
+    }
     const exp = expected.get(id);
     if (!exp) {
       errs.add(
@@ -1201,6 +1323,13 @@ function validateSlimVenues() {
       );
     }
   });
+
+  if (unverifiableFamousRows > 0) {
+    warnOptionalArtifact(
+      "famous_venues_seed",
+      `${unverifiableFamousRows} venue row(s) could not be parity-checked against the rebuilt index (heritage seed data unavailable)`,
+    );
+  }
 
   const ok = errs.count === 0;
   console.log(
@@ -1822,13 +1951,25 @@ function validateVenueDetails() {
       `venue count ${entries.length} is below the floor of ${DETAIL_VENUE_FLOOR} — detail artifact looks truncated`,
     );
   }
+  // Same rationale as validateSlimVenues: without heritage seed data,
+  // expectedIds deliberately omits every famous-venue id, so a mismatch
+  // here reflects that absence, not a real data problem.
+  const famousVenuesAvailable = existsSync(FAMOUS_VENUES_DIR);
   if (entries.length !== expectedIds.size) {
-    errs.add(
-      `venue count ${entries.length} does not match rebuilt expected count ${expectedIds.size}`,
-    );
+    if (famousVenuesAvailable) {
+      errs.add(
+        `venue count ${entries.length} does not match rebuilt expected count ${expectedIds.size}`,
+      );
+    } else {
+      warnOptionalArtifact(
+        "famous_venues_seed",
+        `venue count ${entries.length} does not match rebuilt expected count ${expectedIds.size} (heritage seed data unavailable, parity unverifiable)`,
+      );
+    }
   }
 
   const spans = [];
+  let unverifiableFamousRows = 0;
   entries.forEach(([id, entry], i) => {
     const where = `entry ${i + 1} (${id})`;
     if (typeof id !== "string" || id.length === 0) {
@@ -1841,7 +1982,11 @@ function validateVenueDetails() {
       seenIds.add(id);
     }
     if (!expectedIds.has(id)) {
-      errs.add(`${where}: id is not present in rebuilt full-dataset index`);
+      if (famousVenuesAvailable) {
+        errs.add(`${where}: id is not present in rebuilt full-dataset index`);
+      } else {
+        unverifiableFamousRows += 1;
+      }
     }
     if (typeof entry !== "object" || entry === null) {
       errs.add(`${where}: manifest entry is not an object`);
@@ -1900,6 +2045,17 @@ function validateVenueDetails() {
         where,
         errs,
       });
+      return;
+    }
+    // Without heritage seed data, famousById is empty and expectedGroups
+    // never excludes a famous-replaced id (isReplacedByFamousVenue has
+    // nothing to match against), so a genuine famous-venue detail artifact
+    // (a different row shape entirely) is indistinguishable from a plain
+    // pint-price artifact whose id happens to still group normally. Content
+    // shape can't be determined for any entry in that state. Already
+    // counted as unverifiable above; skip content validation rather than
+    // misjudge it against the wrong shape.
+    if (!famousVenuesAvailable) {
       return;
     }
     if (!Array.isArray(artifact.rows) || artifact.rows.length === 0) {
@@ -1964,6 +2120,13 @@ function validateVenueDetails() {
   }
   if (missing.length > 20) {
     errs.add(`...and ${missing.length - 20} more missing detail rows`);
+  }
+
+  if (unverifiableFamousRows > 0) {
+    warnOptionalArtifact(
+      "famous_venues_seed",
+      `${unverifiableFamousRows} detail entrie(s) could not be parity-checked against the rebuilt index (heritage seed data unavailable)`,
+    );
   }
 
   const ok = errs.count === 0;
@@ -2905,28 +3068,46 @@ function validateNightOutPlacesSnapshot() {
 // Runner
 // ---------------------------------------------------------------------------
 
+// One id/run pair per top-level dataset, in report order. Each id must have a
+// matching entry in ARTIFACT_CLASSIFICATION: that is what decides whether a
+// failing run below fails the build or degrades to a WARN.
+const DATASET_RUNS = [
+  { id: "london_pois", run: validatePois },
+  { id: "london_localities", run: validateLondonLocalities },
+  { id: "tfl_lines", run: validateTflLines },
+  { id: "pint_prices_app_dataset", run: validatePintPrices },
+  { id: "venues_slim", run: validateSlimVenues },
+  { id: "venues_slim_shards", run: validateSlimShards },
+  { id: "uk_base_shards", run: validateUkBaseShards },
+  { id: "venue_details", run: validateVenueDetails },
+  { id: "drink_price_updates", run: validateDrinkPriceUpdates },
+  { id: "whats_on", run: validateWhatsOnUpdates },
+  { id: "night_signals", run: validateNightSignalSnapshot },
+  { id: "weather_snapshot", run: validateWeatherSnapshotData },
+  { id: "pint_index_snapshot", run: validatePintIndexSnapshot },
+  { id: "pint_index_editions", run: validatePintIndexEditions },
+  { id: "late_food_evidence", run: validateLateFoodEvidenceSnapshot },
+  { id: "night_out_places", run: validateNightOutPlacesSnapshot },
+  { id: "pubmaxxing_seed", run: validatePubmaxxingSeed },
+];
+
 async function main() {
   console.log("Validating bundled datasets in public/data …\n");
-  const results = [
-    validatePois(),
-    validateLondonLocalities(),
-    validateTflLines(),
-    validatePintPrices(),
-    validateSlimVenues(),
-    validateSlimShards(),
-    validateUkBaseShards(),
-    validateVenueDetails(),
-    validateDrinkPriceUpdates(),
-    validateWhatsOnUpdates(),
-    validateNightSignalSnapshot(),
-    validateWeatherSnapshotData(),
-    validatePintIndexSnapshot(),
-    validatePintIndexEditions(),
-    validateLateFoodEvidenceSnapshot(),
-    validateNightOutPlacesSnapshot(),
-    validatePubmaxxingSeed(),
-  ];
-  const failed = results.filter((r) => !r.ok).length;
+  const results = DATASET_RUNS.map(({ id, run }) => ({
+    id,
+    ...classificationFor(id),
+    ...run(),
+  }));
+  const hardFailures = results.filter((r) => !r.ok && r.required);
+  const softDegradations = results.filter((r) => !r.ok && !r.required);
+  if (softDegradations.length > 0) {
+    console.log("");
+    for (const r of softDegradations) {
+      console.log(
+        `  WARN ${r.id}: optional artifact missing or invalid, degrading, not failing the build (${r.reason})`,
+      );
+    }
+  }
 
   // Freshness spine (WARN, never fail): schema validation above is a build gate
   // — a malformed dataset must block the merge. Cadence is different: a daily
@@ -2963,11 +3144,20 @@ async function main() {
   }
 
   console.log("");
-  if (failed > 0) {
+  if (hardFailures.length > 0) {
     console.log(
-      `DATA VALIDATION FAILED: ${failed} of ${results.length} dataset(s) invalid.`,
+      `DATA VALIDATION FAILED: ${hardFailures.length} of ${results.length} dataset(s) invalid (required).` +
+        (softDegradations.length > 0
+          ? ` ${softDegradations.length} optional dataset(s) also degraded.`
+          : ""),
     );
     process.exit(1);
+  }
+  if (softDegradations.length > 0) {
+    console.log(
+      `DATA VALIDATION PASSED with ${softDegradations.length} optional dataset(s) degraded: all required datasets valid.`,
+    );
+    return;
   }
   console.log(`DATA VALIDATION PASSED: all ${results.length} datasets valid.`);
 }
