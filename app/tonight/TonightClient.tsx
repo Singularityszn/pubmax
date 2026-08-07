@@ -664,7 +664,7 @@ export default function TonightClient({
       {lanePlacement.below}
 
       <div className="tonightAfterPrimary">
-      {/* Heritage quiet-pint module — same TodayQuietPintCard as /today. Lives
+      {/* Heritage quiet-pint module: same TodayQuietPintCard as /today. Lives
           after the listing spine so main-list-first stays intact, and only when
           the server quiet window allows (null renders nothing). Not the thin-
           night CTA strip below: that invents no pubs; this surfaces cited ones. */}

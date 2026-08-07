@@ -1,4 +1,4 @@
-// "A quiet pint" card — heritage-cited pubs that also read as quiet right now,
+// "A quiet pint" card: heritage-cited pubs that also read as quiet right now,
 // for the calmer cohort the youth-skewing surfaces under-serve. Hosted on
 // /today and /tonight from the same server compose (lib/quietPint over the
 // cited historic-pub set); this component only renders it, so there is no
