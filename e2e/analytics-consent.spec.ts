@@ -178,7 +178,7 @@ test("map prompt leaves the primary planning control usable", async ({ page }) =
   await page.goto("/map", { waitUntil: "domcontentloaded" });
 
   const prompt = page.getByLabel("Anonymous analytics choice");
-  const planControl = page.getByRole("button", { name: "Describe your night" });
+  const planControl = page.getByRole("button", { name: "Describe the outing" });
   await expect(prompt).toBeVisible();
   await expect(planControl).toBeVisible({ timeout: 30_000 });
 
@@ -195,5 +195,5 @@ test("map prompt leaves the primary planning control usable", async ({ page }) =
   ).toBe(0);
 
   await planControl.click();
-  await expect(page.getByRole("heading", { name: "Describe your night" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible();
 });

@@ -2851,7 +2851,7 @@ export default function PubMap({
           mode toggle, search box, featured routes and the full filter stack. The
           phone already owns every one of those in its own chrome (the one-bar
           search overlay, the Filters sheet, the Near me control) and opens its
-          own "Describe your night" form above, so mounting the rail here stacked
+          own "Describe the outing" form above, so mounting the rail here stacked
           a second planner under the first inside one bottom sheet. */}
       {!mobileViewport ? (
         <ControlRail

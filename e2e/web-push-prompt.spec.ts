@@ -150,11 +150,11 @@ test("installed PWA asks for the honest London brief only after a useful plan ac
 
   await page.goto("/map?plan=1");
   const webPrompt = page.getByRole("dialog", { name: "Get the London brief" });
-  await expect(page.getByRole("heading", { name: "Describe your night" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
   await expect(webPrompt).toHaveCount(0);
   await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Build 3-stop route" }).click();
+  await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(webPrompt).toBeVisible();
   await expect(page.getByText("Weather verdict and one sourced pick for tonight. No crew or personal alerts yet.")).toBeVisible();
   await expect(page.getByText("Get pinged when your crew votes or the get-in closes.")).toHaveCount(0);

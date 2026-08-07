@@ -131,15 +131,15 @@ for (const viewport of MOBILE_VIEWPORTS) {
     test.setTimeout(120_000);
     await loadMobileMap(page, viewport);
     await expect(
-      page.getByRole("button", { name: "Describe your night" }),
+      page.getByRole("button", { name: "Describe the outing" }),
     ).toBeVisible();
     await openVenueList(page);
     await expect(
-      page.getByRole("button", { name: "Describe your night" }),
+      page.getByRole("button", { name: "Describe the outing" }),
     ).toHaveCount(0);
     await page.getByRole("button", { name: "Close venue list" }).click();
     const plannerAction = page.getByRole("button", {
-      name: "Describe your night",
+      name: "Describe the outing",
     });
     await expect(plannerAction).toBeVisible();
     await plannerAction.click();

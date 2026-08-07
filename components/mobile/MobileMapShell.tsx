@@ -288,13 +288,13 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
         <button
           type="button"
           className={`mobilePlanActivation${planActive ? " isActive" : ""}`}
-          aria-label={planActive ? `Edit active ${planStopCount}-stop plan` : "Describe your night"}
+          aria-label={planActive ? `Edit active ${planStopCount}-stop plan` : "Describe the outing"}
           disabled={!planInteractive}
           onClick={onPlan}
         >
           <Route size={19} aria-hidden="true" />
           <span>
-            <strong>{planActive ? `${planStopCount}-stop plan` : "Describe your night"}</strong>
+            <strong>{planActive ? `${planStopCount}-stop plan` : "Describe the outing"}</strong>
             {planActive ? <small>Edit route</small> : null}
           </span>
         </button>

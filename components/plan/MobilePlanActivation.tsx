@@ -210,15 +210,15 @@ export function MobilePlanActivation({
       <div className="mobilePlannerIntentHeading">
         <Sparkles size={20} aria-hidden="true" />
         <div>
-          <h3 id="mobile-plan-intent-title">Describe your night</h3>
+          <h3 id="mobile-plan-intent-title">Describe the outing</h3>
           <p>Three stops you can edit, all straight off the map.</p>
         </div>
       </div>
       <div className="mobilePlannerIntentInput">
-        <label htmlFor="mobile-plan-query">What do you need?</label>
+        <label htmlFor="mobile-plan-query">Describe the outing</label>
         <div>
           <input id="mobile-plan-query" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Quiet in Soho, four of us, under £25" maxLength={500} />
-          {speech.supported ? <Button type="button" variant="ghost" size="icon" aria-label={speech.listening ? "Stop describing the night" : "Describe the night by voice"} aria-pressed={speech.listening} onClick={speech.toggle}>{speech.listening ? <MicOff size={18} /> : <Mic size={18} />}</Button> : null}
+          {speech.supported ? <Button type="button" variant="ghost" size="icon" aria-label={speech.listening ? "Stop describing the outing" : "Describe the outing by voice"} aria-pressed={speech.listening} onClick={speech.toggle}>{speech.listening ? <MicOff size={18} /> : <Mic size={18} />}</Button> : null}
         </div>
         {speech.listening ? <small role="status">Listening. The transcript stays in this field only.</small> : null}
       </div>
@@ -232,10 +232,10 @@ export function MobilePlanActivation({
         area={area}
         areaLabel={areas.find((nightArea) => nightArea.slug === area)?.name ?? area}
       />
-      <div className="mobilePlannerIntentChips" role="group" aria-label="Night mood">
+      <div className="mobilePlannerIntentChips" role="group" aria-label="Outing mood">
         {MOODS.map((value) => <Chip key={value} aria-pressed={moodTouched && mood === value} onClick={() => { setMoodTouched(true); setMood(value); }}>{value}</Chip>)}
       </div>
-      <div className="mobilePlannerIntentChips" role="group" aria-label="Night pace">
+      <div className="mobilePlannerIntentChips" role="group" aria-label="Outing pace">
         {PACES.map((value) => <Chip key={value} aria-pressed={paceTouched && pace === value} onClick={() => { setPaceTouched(true); setPace(value); }}>{value.replace(" pace", "")}</Chip>)}
       </div>
       <div className="mobilePlannerIntentChips" role="group" aria-label="Route needs">
@@ -244,7 +244,7 @@ export function MobilePlanActivation({
             The chip names the drink the way the rest of the app does. */}
         <Chip aria-pressed={zeroProof} onClick={() => setZeroProof((current) => !current)}>Alcohol-free</Chip>
       </div>
-      <Button type="button" size="large" className="w-full" disabled={loading} aria-busy={loading} onClick={() => void generate()}>{loading ? <span className="mobilePlannerIntentPending"><PubmaxxLoadingEmber size={15} />Building route</span> : "Build 3-stop route"}</Button>
+      <Button type="button" size="large" className="w-full" disabled={loading} aria-busy={loading} onClick={() => void generate()}>{loading ? <span className="mobilePlannerIntentPending"><PubmaxxLoadingEmber size={15} />Planning…</span> : "Make a plan"}</Button>
       {error ? <p className="mobilePlannerIntentError" role="alert">{error}</p> : null}
       {result ? (
         <div className="mobilePlannerResult" role="status">
