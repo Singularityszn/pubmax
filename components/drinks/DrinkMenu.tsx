@@ -1,4 +1,5 @@
 import { categoryColor } from "@/lib/categoryColors";
+import { DAY_MS } from "@/lib/dayMs";
 import { formatPrice } from "@/lib/venues";
 import DrinkRatingRow from "@/components/ratings/DrinkRatingRow";
 import PriceBadge from "@/components/PriceBadge";
@@ -19,7 +20,6 @@ import { DrinkGlyph } from "./DrinkGlyph";
 
 import "./drinkMenu.css";
 
-const DAY_MS = 86_400_000;
 
 function drinkMenuObservationMeta(
   observedAt: string,

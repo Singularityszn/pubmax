@@ -14,9 +14,10 @@ import {
 } from "@/lib/planIntake";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
 import type { Budget, NightAreaSlug } from "@/lib/nightPlanning";
+import { DAY_MS } from "@/lib/dayMs";
 
 export const PLAN_GENERATION_HORIZON_DAYS = 14;
-export const PLAN_GENERATION_HORIZON_MS = PLAN_GENERATION_HORIZON_DAYS * 24 * 60 * 60 * 1000;
+export const PLAN_GENERATION_HORIZON_MS = PLAN_GENERATION_HORIZON_DAYS * DAY_MS;
 
 const INTAKE_KEYS = [
   "version",

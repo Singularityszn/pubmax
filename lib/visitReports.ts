@@ -18,6 +18,7 @@
 
 import { londonDayKey } from "@/lib/pintContributions";
 import { presentableDescription } from "@/lib/slopFilter";
+import { DAY_MS } from "@/lib/dayMs";
 
 // ── Fixed vocabularies ───────────────────────────────────────────────────────
 // Small, closed sets. The client can only ever send one of these; anything else
@@ -55,8 +56,6 @@ export const MAX_VISIT_NOTE = 140;
  * covering a visit someone writes up long after the night itself.
  */
 export const MAX_VISIT_AGE_DAYS = 90;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const MAX_VENUE_ID = 64;
 const MAX_HANDLE = 40;

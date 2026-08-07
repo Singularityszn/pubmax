@@ -37,6 +37,7 @@
 
 import { isLimited } from "@/lib/pintDrops";
 import { log } from "@/lib/log";
+import { DAY_MS } from "@/lib/dayMs";
 
 /** Default daily cap on outbound ORS calls. 2000 leaves ~500 headroom under the
  *  ~2500/day free tier so a burst that trips the soft cap still can't 403 ORS. */
@@ -44,7 +45,7 @@ export const ORS_DAILY_BUDGET_DEFAULT = 2000;
 
 /** One UTC day. The bucket key already rolls per calendar day; the matching
  *  window makes the durable counter prune anything older than a day too. */
-export const ORS_BUDGET_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const ORS_BUDGET_WINDOW_MS = DAY_MS;
 
 /** Once exhausted, cache that verdict this long so we stop paying a durable
  *  round-trip (and stop making provider calls) for the rest of the window. Short

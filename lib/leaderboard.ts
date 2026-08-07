@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/dayMs";
 import type { Venue } from "@/lib/venues";
 
 // Pure ranking helpers over grouped Venue[] for the /discover leaderboard.
@@ -114,8 +115,6 @@ export type TonightEntry = {
 // The friendly label used when a drop carries no resolvable pub name — kept in
 // step with the API's VENUE_FALLBACK_LABEL so the board never shows a raw id.
 const TONIGHT_FALLBACK_VENUE = "A London pub";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 function isFinitePrice(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);

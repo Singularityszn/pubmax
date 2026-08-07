@@ -8,6 +8,7 @@ import {
   type OsmPub,
   type TavilyEnrichmentResult,
 } from "@/scripts/lib/tavilyPubEnrichment.mjs";
+import { DAY_MS } from "@/lib/dayMs";
 
 const CITY_ROTATION = [
   "manchester",
@@ -17,7 +18,6 @@ const CITY_ROTATION = [
   "leeds",
   "bristol",
 ] as const;
-const DAY_MS = 24 * 60 * 60 * 1000;
 export const TAVILY_CRON_QUERY_CAP = 25;
 
 type UkPack = { pubs?: OsmPub[] };

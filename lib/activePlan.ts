@@ -13,6 +13,7 @@
 // + focus), so the two "what's live right now" pointers behave identically.
 
 import { isPlanId, type CrawlEnding, type PlanMemberRole } from "@/lib/plan";
+import { DAY_MS } from "@/lib/dayMs";
 
 export const ACTIVE_PLAN_KEY = "pubmax_active_plan";
 export const ACTIVE_PLAN_VERSION = 1 as const;
@@ -28,7 +29,7 @@ export const ACTIVE_PLAN_POST_MS = 8 * 60 * 60 * 1000; // 8h after (last-train o
 // can save it, so it stays reachable for a bounded grace period past the ending
 // — long enough to catch it the morning after, short enough never to haunt the
 // shell for days. Measured from the completion instant, not the plan start.
-export const RECAP_GRACE_MS = 24 * 60 * 60 * 1000; // 24h after the ending was confirmed
+export const RECAP_GRACE_MS = DAY_MS; // 24h after the ending was confirmed
 
 /** Same-tab notify so the shell card re-reads after a write without a focus hop. */
 const CHANGE_EVENT = "pubmax:active-plan";

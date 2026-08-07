@@ -24,6 +24,8 @@
 // never throw. A historical price with no source URL or no date is not evidence,
 // so it is dropped rather than shown.
 
+import { DAY_MS } from "@/lib/dayMs";
+
 /** One dated historical price for a venue, as published by a citable source. */
 export type PriceHistoryObservation = {
   venueId: string;
@@ -179,7 +181,7 @@ export function venuePriceArc(
   const then = ordered[0];
   const thenMs = Date.parse(`${then.observedOn}T00:00:00.000Z`);
   const years = Number.isFinite(thenMs)
-    ? Math.max(0, Math.floor((asOf - thenMs) / (365.2425 * 24 * 60 * 60 * 1000)))
+    ? Math.max(0, Math.floor((asOf - thenMs) / (365.2425 * DAY_MS)))
     : 0;
   const now = isFiniteNumber(nowGbp) ? nowGbp : null;
   return {

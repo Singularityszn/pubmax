@@ -57,7 +57,7 @@ export const DEFAULT_PRIOR_MEAN = 3.5;
 /** Default recency window for "top …" lists — roughly "this month". */
 export const TOP_RATED_WINDOW_DAYS = 30;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+import { DAY_MS } from "@/lib/dayMs";
 
 /** True for a legal star value: finite number, 1–5, on a 0.5 step. */
 export function isRatingValue(value: unknown): value is RatingValue {
