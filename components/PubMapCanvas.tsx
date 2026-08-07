@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Landmark as LandmarkIcon,
   MapPinned,
+  Navigation2,
   X,
 } from "lucide-react";
 import {
@@ -43,7 +44,20 @@ import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
 import MapHeroCard from "@/components/map/MapHeroCard";
 import type { CityId } from "@/lib/cities";
 import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
+import { resolveCompassAction } from "@/lib/mapCompass";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
+import {
+  createIdleOrbit,
+  orbitBearingStep,
+  ORBIT_DEG_PER_SEC,
+  ORBIT_FIRST_DELAY_MS,
+  ORBIT_FRAME_INTERVAL_MS,
+  ORBIT_INTERACTION_DELAY_MS,
+  ORBIT_MAX_BEARING_STEP_DEG,
+  ORBIT_VIEWPORT_PUBLISH_INTERVAL_MS,
+  shouldPublishOrbitViewport,
+  type IdleOrbit,
+} from "@/lib/mapOrbit";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { opportunitiesToGeoJSON } from "@/lib/thingsToDoMap";
 import { formatPrice, type Venue } from "@/lib/venues";
@@ -484,6 +498,10 @@ export default function PubMapCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapBearing, setMapBearing] = useState(() => mapView.bearing ?? 0);
+  const orbitRef = useRef<IdleOrbit | null>(null);
+  const lastOrbitViewportPublishAtRef = useRef(0);
+  const publishCurrentViewportRef = useRef<(() => void) | null>(null);
   // Keep the latest parent callback without reading/writing refs during render
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
   const onMapReadyRef = useRef(onMapReady);
@@ -921,6 +939,7 @@ export default function PubMapCanvas({
     reducedRef.current = reducedQuery.matches;
     const onReducedChange = () => {
       reducedRef.current = reducedQuery.matches;
+      orbitRef.current?.refreshGate();
     };
     reducedQuery.addEventListener("change", onReducedChange);
 
@@ -1096,7 +1115,10 @@ export default function PubMapCanvas({
       );
       return;
     }
-    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+    map.addControl(
+      new maplibregl.NavigationControl({ visualizePitch: true, showCompass: false }),
+      "top-right",
+    );
     mapRef.current = map;
     // Context-loss re-init: restore the pre-teardown camera so selection fly-ins
     // and the user's place on the map survive the rebuild. Selection/landmark
@@ -1132,6 +1154,17 @@ export default function PubMapCanvas({
         north: b.getNorth(),
       });
     };
+    const publishCurrentViewport = () => {
+      const center = map.getCenter();
+      onViewportChangeRef.current?.({
+        center: [center.lng, center.lat],
+        zoom: map.getZoom(),
+        pitch: map.getPitch(),
+        bearing: map.getBearing(),
+      });
+      emitBounds();
+    };
+    publishCurrentViewportRef.current = publishCurrentViewport;
     // A gesture carries an originalEvent; a programmatic fly does not. That is
     // the whole test: a banner steps off the map when the READER moves it, and
     // never when the app flies the camera for them.
@@ -1146,15 +1179,20 @@ export default function PubMapCanvas({
       // fresh present. A repaint moves no camera, so this cannot re-fire
       // moveend; deliberately NOT hooked on `idle` (that would loop).
       map.triggerRepaint();
-      const center = map.getCenter();
-      onViewportChangeRef.current?.({
-        center: [center.lng, center.lat],
-        zoom: map.getZoom(),
-        pitch: map.getPitch(),
-        bearing: map.getBearing(),
-      });
-      emitBounds();
+      setMapBearing(map.getBearing());
+      const orbiting = orbitRef.current?.state() === "orbiting";
+      const now = performance.now();
+      if (!shouldPublishOrbitViewport(
+        orbiting,
+        lastOrbitViewportPublishAtRef.current,
+        now,
+        ORBIT_VIEWPORT_PUBLISH_INTERVAL_MS,
+      )) return;
+      lastOrbitViewportPublishAtRef.current = orbiting ? now : 0;
+      publishCurrentViewport();
     });
+    // Pure rotation can finish without a moveend on touch devices.
+    map.on("rotateend", () => setMapBearing(map.getBearing()));
     // Kick the initial viewport's shards (a restored session may open on an
     // Outer-London borough that core doesn't cover).
     map.once("idle", emitBounds);
@@ -2338,6 +2376,9 @@ export default function PubMapCanvas({
       window.removeEventListener("focus", onFocus);
       donutSync.destroy();
       removePaintedPinProbe();
+      if (publishCurrentViewportRef.current === publishCurrentViewport) {
+        publishCurrentViewportRef.current = null;
+      }
       {
         const fallback = (map as maplibregl.Map & { __pubmaxTransitFallback?: number })
           .__pubmaxTransitFallback;
@@ -2799,6 +2840,79 @@ export default function PubMapCanvas({
   const selectedPresent =
     Boolean(selectedVenueId) &&
     (venues.some((item) => item.id === selectedVenueId) || isUkBaseId(selectedVenueId));
+
+  // Ambient orbit starts only after first pin reveal. Camera updates are fixed
+  // at four per second with a 0.15 degree maximum. This removes continuous
+  // rotateTo rendering that caused tile churn during phone QA.
+  useEffect(() => {
+    const map = mapRef.current;
+    const container = containerRef.current;
+    if (!map || !mapReady || !container) return;
+
+    let onScreen = true;
+    const step = orbitBearingStep(
+      ORBIT_DEG_PER_SEC,
+      ORBIT_FRAME_INTERVAL_MS,
+      ORBIT_MAX_BEARING_STEP_DEG,
+    );
+    const orbit = createIdleOrbit({
+      firstDelayMs: ORBIT_FIRST_DELAY_MS,
+      interactionDelayMs: ORBIT_INTERACTION_DELAY_MS,
+      frameIntervalMs: ORBIT_FRAME_INTERVAL_MS,
+      isReduced: () => reducedRef.current,
+      startStep: () => {
+        const live = mapRef.current;
+        if (!live) return;
+        live.jumpTo({ bearing: live.getBearing() - step });
+      },
+      stop: () => {
+        const live = mapRef.current;
+        if (!live) return;
+        live.stop();
+        lastOrbitViewportPublishAtRef.current = 0;
+        setMapBearing(live.getBearing());
+        publishCurrentViewportRef.current?.();
+      },
+      setTimer: (callback, ms) => window.setTimeout(callback, ms),
+      clearTimer: (id) => window.clearTimeout(id),
+    });
+    orbitRef.current = orbit;
+
+    const interact = () => orbit.noteInteraction();
+    const enable = () => orbit.setEnabled(true);
+    const syncSuspended = () => {
+      orbit.setSuspended(document.hidden || !onScreen);
+    };
+    const listenerOptions = { capture: true, passive: true } as const;
+    container.addEventListener("pointerdown", interact, listenerOptions);
+    container.addEventListener("wheel", interact, listenerOptions);
+    container.addEventListener("touchstart", interact, listenerOptions);
+    container.addEventListener("keydown", interact, listenerOptions);
+    window.addEventListener("pubmax:camera-intent", interact);
+    window.addEventListener("pubmax:pin-reveal", enable);
+    document.addEventListener("visibilitychange", syncSuspended);
+
+    const observer = new IntersectionObserver((entries) => {
+      onScreen = entries[0]?.isIntersecting ?? true;
+      syncSuspended();
+    });
+    observer.observe(container);
+    syncSuspended();
+
+    return () => {
+      container.removeEventListener("pointerdown", interact, listenerOptions);
+      container.removeEventListener("wheel", interact, listenerOptions);
+      container.removeEventListener("touchstart", interact, listenerOptions);
+      container.removeEventListener("keydown", interact, listenerOptions);
+      window.removeEventListener("pubmax:camera-intent", interact);
+      window.removeEventListener("pubmax:pin-reveal", enable);
+      document.removeEventListener("visibilitychange", syncSuspended);
+      observer.disconnect();
+      orbit.dispose();
+      if (orbitRef.current === orbit) orbitRef.current = null;
+    };
+  }, [mapReady]);
+
   useEffect(() => {
     if (!selectedVenueId) return;
     // Any venue selection — map pin, route stop, or the sidebar list — retires
@@ -3101,6 +3215,40 @@ export default function PubMapCanvas({
             Recenter
           </button>
         ) : null}
+        {(() => {
+          const action = resolveCompassAction(mapBearing, getCity(cityId).mapView);
+          if (action.kind === "none") return null;
+          const rotated = action.kind === "reset-north";
+          return (
+            <button
+              type="button"
+              className="mapCompassBtn"
+              onClick={() => {
+                const map = mapRef.current;
+                if (!map) return;
+                orbitRef.current?.noteInteraction();
+                map.easeTo(
+                  rotated
+                    ? { bearing: 0, duration: reducedRef.current ? 0 : 450 }
+                    : {
+                        bearing: action.bearing,
+                        pitch: action.pitch,
+                        duration: reducedRef.current ? 0 : 450,
+                      },
+                );
+              }}
+              aria-label={rotated ? "Point north" : "Tilt the city view"}
+              title={rotated ? "Point north" : "Tilt the city view"}
+            >
+              <Navigation2
+                size={14}
+                aria-hidden
+                style={{ transform: `rotate(${-mapBearing}deg)` }}
+              />
+              N
+            </button>
+          );
+        })()}
       </div>
       {activeLandmark ? (
         <aside className="landmarkCard" aria-label={`${activeLandmark.name} history`}>

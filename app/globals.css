@@ -1081,7 +1081,8 @@ input[type="range"] {
 }
 
 .mapFitLondonBtn,
-.mapRecenterBtn {
+.mapRecenterBtn,
+.mapCompassBtn {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1104,16 +1105,22 @@ input[type="range"] {
 }
 
 .mapFitLondonBtn:hover,
-.mapRecenterBtn:not(:disabled):hover {
+.mapRecenterBtn:not(:disabled):hover,
+.mapCompassBtn:hover {
   border-color: var(--ink-soft);
   background: var(--panel);
   color: var(--ink);
 }
 
 .mapFitLondonBtn:focus-visible,
-.mapRecenterBtn:focus-visible {
+.mapRecenterBtn:focus-visible,
+.mapCompassBtn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--river);
+}
+
+.mapCompassBtn svg {
+  transition: transform var(--duration-base) var(--ease-out);
 }
 
 .mapRecenterBtn:disabled {

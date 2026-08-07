@@ -67,14 +67,24 @@
     display: none !important;
   }
 
-  /* MapLibre owns the sole compass. Keep its group below the phone floaters,
-     hide zoom only, and use neutral camera-control colours. */
+  /* Keep one compass. App compass owns the city-attitude toggle; native zoom
+     stays hidden on phone. */
   .appShell .mapStage .mapCameraControls {
-    display: none;
+    display: grid;
+    top: calc(var(--mobile-map-chrome-h) + 66px);
+    right: 10px;
   }
 
-  /* The compass sits under the TfL button in the same right lane: chrome
-     bottom + 12px gap + the 44px button + a 10px gap. */
+  .appShell .mapStage .mapCameraControls .mapCompassBtn {
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  /* Native zoom group remains in same right lane when MapLibre creates it. */
   .appShell .mapStage .maplibregl-ctrl-top-right {
     top: calc(var(--mobile-map-chrome-h) + 66px);
     right: 10px;
