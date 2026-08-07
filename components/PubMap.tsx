@@ -1358,6 +1358,8 @@ export default function PubMap({
     ],
   );
   const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);
+  /** Resident streamed base pubs (padded viewport), for map-search name match. */
+  const [residentUkBasePubs, setResidentUkBasePubs] = useState<UkBasePub[]>([]);
   const provisionalRestoreResolved = useRef(!ukBaseRestore);
   useEffect(() => {
     if (
@@ -2486,15 +2488,25 @@ export default function PubMap({
     },
     [selectVenue, trimmedMapQuery],
   );
+  const selectUkBasePubFromSearch = useCallback(
+    (pub: UkBasePub) => {
+      searchQueryCameraOwnedRef.current = trimmedMapQuery;
+      setSelectedBasePub(pub);
+      selectVenue(pub.id, "overview", "map-search");
+    },
+    [selectVenue, trimmedMapQuery],
+  );
   const sharedMapSearchProps = {
     cityId,
     query: filters.query,
     onQueryChange: changeMapSearchQuery,
     venues: ukPlaceArrival ? [] : venues,
     localities: ukPlaceArrival ? [] : localities,
+    ukBasePubs: residentUkBasePubs,
     userLocation,
     mapCenter: mapViewport.center,
     onSelectVenue: selectVenueFromSearch,
+    onSelectUkBasePub: selectUkBasePubFromSearch,
     onFlyToArea: selectSearchArea,
     onSubmitQuery: ukPlaceArrival ? undefined : selectTopSearchMatch,
   } satisfies Omit<MapSearchSuggestProps, "id" | "mode" | "placeholder" | "onClose">;
@@ -3175,6 +3187,7 @@ export default function PubMap({
           onVenueClick={handleVenueClick}
           onUkBasePubClick={handleUkBasePubClick}
           onUkBasePubsChange={setRenderedBasePubs}
+          onUkBaseResidentPubsChange={setResidentUkBasePubs}
           onVisibleVenueIdsChange={handleVisibleVenueIdsChange}
           onRenderedStateChange={handleRenderedMapStateChange}
           venueListOpen={mapListOpen}
