@@ -267,7 +267,7 @@ export default function FeedCard({
       <CheckInCard
         handle={shownHandle}
         initial={initial}
-        areaName={item.areaName ?? item.venueName}
+        areaName={item.areaName ?? null}
         note={item.caption}
         createdAt={item.createdAt}
         ago={ago}
@@ -565,7 +565,7 @@ function CheckInCard({
 }: {
   handle: string;
   initial: string;
-  areaName: string;
+  areaName: string | null;
   note: string;
   createdAt: string;
   ago: string;
@@ -574,7 +574,7 @@ function CheckInCard({
   return (
     <article
       className={`feedCard feedCheckIn ${entered ? "feedCardEntered" : "feedCardEnter"}`}
-      aria-label={`${handle} is out in ${areaName}`}
+      aria-label={areaName ? `${handle} is out in ${areaName}` : `${handle} is out tonight`}
     >
       <div className="feedCheckInBody">
         <span className="feedAvatar feedCheckInAvatar" aria-hidden="true">
@@ -584,7 +584,7 @@ function CheckInCard({
           <p className="feedCheckInLine">
             <span className="feedCheckInHandle">{handle}</span>
             <span className="feedCheckInVerb"> is out</span>
-            <span className="feedCheckInWhere"> in {areaName}</span>
+            {areaName ? <span className="feedCheckInWhere"> in {areaName}</span> : null}
           </p>
           {note ? <p className="feedCheckInNote">{note}</p> : null}
           <span className="feedCheckInMeta">

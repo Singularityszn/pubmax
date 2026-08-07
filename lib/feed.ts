@@ -185,8 +185,11 @@ export function normalizePintDrop(dto: PintDropDTO): FeedItem {
  * but the card leads with the area). Pure.
  */
 export function normalizeCheckIn(checkIn: CheckIn): FeedItem {
-  const area = getNightArea(checkIn.areaSlug);
-  const areaName = area?.name ?? "London";
+  // No area is a valid, first-class case (a plain "out tonight" signal) — it
+  // must never fall back to a place name (e.g. "London") that the author never
+  // named. `areaName` stays undefined; the card renders "is out" with no
+  // "in <area>" clause.
+  const areaName = checkIn.areaSlug ? getNightArea(checkIn.areaSlug)?.name : undefined;
   return {
     type: "check_in",
     id: checkIn.id,
@@ -195,7 +198,7 @@ export function normalizeCheckIn(checkIn: CheckIn): FeedItem {
     venueId: checkIn.venueId ?? "",
     // A check-in's "venue" line is its area; the map link opens the tagged venue
     // when one exists, otherwise it is unused (the card links to the area).
-    venueName: areaName,
+    venueName: areaName ?? "",
     venueMapUrl: checkIn.venueId ? buildVenueMapUrl(checkIn.venueId) : "",
     photoUrls: [],
     caption: checkIn.note ?? "",
