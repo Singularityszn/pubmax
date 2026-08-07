@@ -6,7 +6,10 @@
 // identity (see components/DailyActivityPulse.tsx), so counting distinct
 // day buckets per anon/auth id over a trailing window is the return rate.
 
-export const MS_PER_DAY = 86_400_000;
+import { DAY_MS } from "@/lib/dayMs";
+
+/** Milliseconds in one UTC day. Shared owner: lib/dayMs.ts. */
+export const MS_PER_DAY = DAY_MS;
 
 /** Whole UTC days since the epoch for the given instant. */
 export function dayBucketFromDate(date: Date): number {

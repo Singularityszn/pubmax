@@ -132,6 +132,12 @@ function parseAuthResponseFragment(hash: string): AuthResponseFragment | null {
 export type CapturedAuthCallback = {
   attempt: AuthCallbackAttempt;
   cleanUrl: string;
+  /**
+   * True only when this browser owned and claimed the local attempt record.
+   * False for attempt-less / cross-browser token landings (login-CSRF surface):
+   * the UI then shows a visible "Signed in as …" confirmation.
+   */
+  localAttemptOwned: boolean;
   /** Release only after exchange and matching persistent cleanup complete. */
   releaseCoordination: () => void;
 };
@@ -523,6 +529,7 @@ function rejectedAuthCallback(cleanUrl: string): CapturedAuthCallback {
   return {
     attempt: { attemptId: null, tokens: null, providerError: true },
     cleanUrl,
+    localAttemptOwned: false,
     releaseCoordination: () => {},
   };
 }
@@ -544,6 +551,9 @@ function fallbackAuthCallback(
   return {
     attempt: parsedAttempt,
     cleanUrl,
+    // Tokens completed without a matching local claim (cross-browser link,
+    // expired attempt, or clamped landing). Not this browser's started attempt.
+    localAttemptOwned: false,
     releaseCoordination: () => {},
   };
 }
@@ -623,6 +633,7 @@ function claimAuthCallback(
     return {
       attempt: parsedAttempt,
       cleanUrl: fragment ? restoreAuthFragment(cleanUrl, fragment) : cleanUrl,
+      localAttemptOwned: true,
       releaseCoordination: () => {},
     };
   } catch {

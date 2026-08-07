@@ -157,6 +157,11 @@
   transform: translateX(-50%);
 }
 
+/* Success path for attempt-less token sign-in confirmation (not an error). */
+.authCallbackNotice--ok {
+  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+}
+
 .authCallbackNotice span {
   flex: 1;
   font-size: 0.88rem;

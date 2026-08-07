@@ -197,7 +197,9 @@
 
   /* — Type scale: a deliberate step system (~1.22 ratio) rather than ad-hoc
        rem values. Existing components keep their own literal sizes (unchanged
-       per-component); new work should reach for these. */
+       per-component); new work should reach for these.
+       --text-2xs is defined ONCE here (0.68rem). The only redefinition is the
+       scoped html[data-legacy="1"] a11y bump below — never a second root value. */
   --text-2xs: 0.68rem;
   --text-xs: 0.76rem;
   --text-sm: 0.85rem;
@@ -5308,7 +5310,10 @@ button:disabled {
    ──────────────────────────────────────────────────────────────────────── */
 html[data-legacy="1"] {
   /* — Larger base type (~112-120% across the scale). Components that read
-       var(--text-base) etc. (not literal rem values) grow automatically. */
+       var(--text-base) etc. (not literal rem values) grow automatically.
+       Scoped ONLY under data-legacy — not a second global --text-2xs. Default
+       remains 0.68rem on :root so eyebrows (messagesThreadEyebrow etc.) stay
+       predictable unless the reader opted into Legacy Mode. */
   --text-2xs: 0.78rem;
   --text-xs: 0.88rem;
   --text-sm: 0.98rem;

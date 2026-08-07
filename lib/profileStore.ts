@@ -18,8 +18,14 @@ export type ProfileRecord = {
   handle: string;
   // The linked Supabase Auth user id, or undefined while a legacy/demo profile
   // remains unlinked. NEVER serialized to the public /u/[handle] read. It is an
-  // internal ownership key only.
+  // internal ownership key only. Null alone is NOT a tombstone — production
+  // still holds live anonymous-era rows with user_id null.
   userId?: string;
+  /**
+   * Set when the linked auth.users row is deleted (migration 0078). Null means
+   * live, including legacy user_id-null handles. Public "gone" gates on this.
+   */
+  tombstonedAt?: string;
   displayName?: string;
   avatarUrl?: string;
   homeCity?: string;
@@ -27,6 +33,13 @@ export type ProfileRecord = {
   createdAt: string;
   updatedAt: string;
 };
+
+/** True only when the auth-deletion trigger stamped tombstoned_at. */
+export function isProfileTombstoned(
+  profile: Pick<ProfileRecord, "tombstonedAt"> | null | undefined,
+): boolean {
+  return typeof profile?.tombstonedAt === "string" && profile.tombstonedAt.length > 0;
+}
 
 // The subset of columns a caller may set. Handle is the identity key and is
 // never patchable here (renaming a handle is a different, auth-gated operation).
@@ -131,6 +144,7 @@ function fromRow(row: Record<string, unknown>): ProfileRecord {
     id: String(row.id),
     handle: String(row.handle),
     userId: row.user_id ? String(row.user_id) : undefined,
+    tombstonedAt: row.tombstoned_at ? String(row.tombstoned_at) : undefined,
     displayName: row.display_name ? String(row.display_name) : undefined,
     avatarUrl: row.avatar_url ? String(row.avatar_url) : undefined,
     homeCity: row.home_city ? String(row.home_city) : undefined,
@@ -463,4 +477,25 @@ export function __seedMemoryLegacyProfile(handle: string): ProfileRecord {
   };
   memoryProfiles.set(key, record);
   return record;
+}
+
+/**
+ * Test-only: model auth.users deletion.
+ * Trigger stamps tombstoned_at; FK then clears user_id. Row and handle stay
+ * (attribution + reservation). Legacy null-user_id rows are NOT tombstones.
+ */
+export function __tombstoneMemoryProfile(handle: string): ProfileRecord | null {
+  const key = normalizeHandle(handle);
+  if (!key) return null;
+  const existing = memoryProfiles.get(key);
+  if (!existing) return null;
+  const now = new Date().toISOString();
+  const next: ProfileRecord = {
+    ...existing,
+    userId: undefined,
+    tombstonedAt: existing.tombstonedAt ?? now,
+    updatedAt: now,
+  };
+  memoryProfiles.set(key, next);
+  return next;
 }
