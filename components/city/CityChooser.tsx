@@ -21,6 +21,10 @@ import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
 import { resolveLocateMapDestination } from "@/lib/locateMapDestination";
 import {
+  UK_NATIONAL_ENTRY_LABEL,
+  UK_NATIONAL_MAP_HREF,
+} from "@/lib/ukNationalBrowse";
+import {
   normaliseUkPlaceQuery,
   parseUkPlaceIndex,
   UK_PLACE_INDEX_PATH,
@@ -269,6 +273,12 @@ export default function CityChooser({
             </p>
           ) : null}
         </div>
+
+        <p className="cityChooserNational">
+          <Link href={UK_NATIONAL_MAP_HREF} className="cityChooserNationalLink">
+            {UK_NATIONAL_ENTRY_LABEL}
+          </Link>
+        </p>
 
         {normalizedQuery.length >= 2 ? (
           <section

@@ -55,14 +55,16 @@ describe("resolveLocateMapDestination", () => {
   });
 
   it("opens an uncovered place when outside every curated city", () => {
-    const dest = resolveLocateMapDestination(53.4, -1.5, places);
+    // South of Sheffield: outside the ~80km curated-city window but still
+    // near enough for the place index to name Sheffield.
+    const dest = resolveLocateMapDestination(53.0, -0.5, places);
     expect(dest.kind).toBe("place");
     if (dest.kind !== "place") return;
     expect(dest.arrival.name).toBe("Sheffield");
-    expect(dest.arrival.lat).toBe(53.4);
-    expect(dest.arrival.lng).toBe(-1.5);
+    expect(dest.arrival.lat).toBe(53.0);
+    expect(dest.arrival.lng).toBe(-0.5);
     expect(dest.href).toContain("place=Sheffield");
-    expect(dest.href).toContain("lat=53.4");
+    expect(dest.href).toContain("lat=53");
   });
 
   it("returns none when neither city nor place is near", () => {

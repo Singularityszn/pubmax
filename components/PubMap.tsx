@@ -14,6 +14,7 @@ import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
 import "@/components/map/mapBannerStaging.css";
 import UkPlaceArrivalBanner from "@/components/map/UkPlaceArrivalBanner";
+import UkNationalBrowseBanner from "@/components/map/UkNationalBrowseBanner";
 
 import {
   buildCrawlRoute,
@@ -327,6 +328,10 @@ import {
   type UkPlaceMapArrival,
 } from "@/lib/ukPlaceSearch";
 import {
+  isUkNationalBrowse,
+  UK_NATIONAL_MAP_VIEW,
+} from "@/lib/ukNationalBrowse";
+import {
   readPlanningIntent,
   writePlanningIntent,
   type PlanningIntentSource,
@@ -492,6 +497,7 @@ export default function PubMap({
   cityId = DEFAULT_CITY_ID,
   flags = TRUSTED_HANDOFF_FLAGS_OFF,
   placeArrival = null,
+  nationalBrowse = false,
 }: {
   cityId?: CityId;
   flags?: TrustedHandoffFlagsDTO;
@@ -503,12 +509,28 @@ export default function PubMap({
    * this component an empty search string at mount.
    */
   placeArrival?: UkPlaceMapArrival | null;
+  /**
+   * Explicit UK-wide browse (`/map?uk=1`). Opens at a national overview; pubs
+   * appear once the camera crosses the base zoom gate. Never invents prices.
+   */
+  nationalBrowse?: boolean;
 }) {
   const city = getCity(cityId);
   const [ukPlaceArrival] = useState(() => placeArrival);
-  const [initialMapView] = useState<MapViewportSnapshot>(() =>
-    ukPlaceArrival ? ukPlaceMapView(ukPlaceArrival, city.mapView) : city.mapView,
+  const [ukNationalBrowse] = useState(
+    () => nationalBrowse || isUkNationalBrowse(currentSearch()),
   );
+  const [initialMapView] = useState<MapViewportSnapshot>(() => {
+    if (ukPlaceArrival) return ukPlaceMapView(ukPlaceArrival, city.mapView);
+    if (ukNationalBrowse) {
+      return {
+        ...UK_NATIONAL_MAP_VIEW,
+        pitch: city.mapView.pitch ?? 0,
+        bearing: city.mapView.bearing ?? 0,
+      };
+    }
+    return city.mapView;
+  });
   const mobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
     mobileViewportSnapshot,
@@ -536,11 +558,13 @@ export default function PubMap({
     desktopRailViewportSnapshot,
     () => false,
   );
-  const isLondon = cityId === "london" && !ukPlaceArrival;
-  const mapDisplayName = ukPlaceArrival?.name ?? city.displayName;
+  const isLondon = cityId === "london" && !ukPlaceArrival && !ukNationalBrowse;
+  const mapDisplayName = ukPlaceArrival?.name ?? (ukNationalBrowse ? "UK" : city.displayName);
   const mapSearchPlaceholder = ukPlaceArrival
     ? "Search priced pub names"
-    : `Search ${city.displayName} venues or areas`;
+    : ukNationalBrowse
+      ? "Search pubs or UK places"
+      : `Search ${city.displayName} venues or areas`;
   const cityLandmarks = useMemo(() => landmarksForCity(cityId), [cityId]);
   const cityStoryBands = useMemo(() => storyBandsForCity(cityId), [cityId]);
   const cityCuratedCrawls = useMemo(() => curatedCrawlsForCity(cityId), [cityId]);
@@ -3148,6 +3172,8 @@ export default function PubMap({
           </aside>
         ) : ukPlaceArrival ? (
           <UkPlaceArrivalBanner arrival={ukPlaceArrival} />
+        ) : ukNationalBrowse ? (
+          <UkNationalBrowseBanner />
         ) : null}
         {/* Keep pitched-London loading chrome until slim data and the canvas's
             viewport-specific handoff are ready. Phone requires a guarded frame
@@ -3299,7 +3325,7 @@ export default function PubMap({
             moment the reader moves the camera (design judgement 2026-08-01,
             finding 2.15). They used to park in the exact centre of the
             viewport, over the pins the map exists to show. */}
-        {ambientBannerLane && !ukPlaceArrival ? (
+        {ambientBannerLane && !ukPlaceArrival && !ukNationalBrowse ? (
           <CitySuggestBanner
             cityId={cityId}
             onLocationFound={setUserLocation}
