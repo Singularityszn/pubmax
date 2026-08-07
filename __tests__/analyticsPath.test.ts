@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   analyticsPageviewSurfaceFromPath,
   analyticsReferrerFromUrl,
-  analyticsSurfaceFromPath,
 } from "@/lib/analyticsPath";
+import { analyticsSurfaceFromPath } from "@/lib/analyticsSurface";
 
 describe("analytics referrer boundary", () => {
   it("allows only query-free canonical Social surface names", () => {

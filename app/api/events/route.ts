@@ -25,10 +25,8 @@
 
 import { isIP } from "node:net";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
-import {
-  analyticsReferrerFromUrl,
-  analyticsSurfaceFromPath,
-} from "@/lib/analyticsPath";
+import { analyticsReferrerFromUrl } from "@/lib/analyticsPath";
+import { analyticsSurfaceFromPath } from "@/lib/analyticsSurface";
 import { isAnonymousAnalyticsId } from "@/lib/analyticsIdentity";
 import { isEventsRateLimited } from "@/lib/eventsRateLimit";
 import { capturePosthogEvent, isPosthogConfigured } from "@/lib/posthogServer";

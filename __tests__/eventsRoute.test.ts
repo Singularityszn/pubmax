@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/events/route";
-import { analyticsSurfaceFromPath } from "@/lib/analyticsPath";
+import { analyticsSurfaceFromPath } from "@/lib/analyticsSurface";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryAnalyticsReceipts } from "@/lib/analyticsReceiptStore";
 import {
