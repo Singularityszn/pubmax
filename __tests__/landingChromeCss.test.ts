@@ -19,12 +19,44 @@ const nightSignalsCss = readFileSync(
 );
 
 function ruleBody(css: string, selector: string): string {
-  // Escape regex metacharacters in the selector, then grab the first block.
+  // Escape regex metacharacters, then grab the first block whose selector list
+  // STARTS at a line boundary with this selector - `.lpSectionLabel` must not
+  // match the descendant rule `.lpWhyCopy .lpSectionLabel`.
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return css.match(new RegExp(`${escaped}\\s*{([^}]*)}`))?.[1] ?? "";
+  return css.match(new RegExp(`(?:^|\\n)${escaped}\\s*{([^}]*)}`))?.[1] ?? "";
 }
 
 describe("landing chrome CSS audit", () => {
+  it("keeps the blueprint ground theme-derived and limited to paper sections", () => {
+    expect(ruleBody(landingCss, ".lp")).toMatch(
+      /--lp-blueprint-dot:\s*color-mix\([^;]*var\(--river\)/,
+    );
+    expect(landingCss).toMatch(
+      /\.lpSignalSection,\s*\.lpProofSection,\s*\.lpCityChooser\s*{[\s\S]*?background-image:\s*radial-gradient\([^}]*var\(--lp-blueprint-dot\)[^}]*background-size:\s*24px 24px/,
+    );
+  });
+
+  it("draws blueprint rules and slash-prefixes mono section labels", () => {
+    expect(landingCss).toMatch(
+      /\.lpSignalSection::after,\s*\.lpProofSection::after,\s*\.lpCityChooser::after\s*{[\s\S]*?pointer-events:\s*none[^}]*var\(--lp-blueprint-rule\)[^}]*100% 1px no-repeat[^}]*1px 10px no-repeat/,
+    );
+    expect(ruleBody(landingCss, ".lpSectionLabel")).toMatch(
+      /font:[^;]*var\(--font-data\)/,
+    );
+    expect(ruleBody(landingCss, ".lpSectionLabel::before")).toMatch(
+      /content:\s*"\/\/ "\s*\/\s*""/,
+    );
+  });
+
+  it("uses the blueprint label treatment for the landing city eyebrow", () => {
+    expect(
+      ruleBody(landingCss, ".lpCityChooser .cityChooserEyebrow"),
+    ).toMatch(/gap:\s*\.5ch[^}]*font:[^;]*var\(--font-data\)/);
+    expect(
+      ruleBody(landingCss, ".lpCityChooser .cityChooserEyebrow::before"),
+    ).toMatch(/content:\s*"\/\/ "\s*\/\s*""/);
+  });
+
   it("clears the notch on the fixed nav in both default and mobile widths", () => {
     // The base .lpNav and the <=700px override both honour the top inset.
     expect(landingCss).toMatch(/top:\s*max\(14px,\s*env\(safe-area-inset-top\)\)/);

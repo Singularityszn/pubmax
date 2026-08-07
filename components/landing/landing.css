@@ -1,5 +1,7 @@
 .lp {
   --lp-max: var(--content-max-wide);
+  --lp-blueprint-dot: color-mix(in srgb, var(--river) 12%, transparent);
+  --lp-blueprint-rule: color-mix(in srgb, var(--river) 24%, var(--line));
   /* Landing keeps its generous up-to-52px desktop gutter, but never dips below
      the global --page-gutter (≥20px + safe-area) on phones — the owner's hero
      letters were nearly touching the glass at the old 18px floor. */
@@ -329,6 +331,27 @@
 }
 .lpWhyCopy .lpTextLink:hover { color: var(--brass); }
 
+.lpSignalSection,
+.lpProofSection,
+.lpCityChooser {
+  position: relative;
+  background-color: var(--paper);
+  background-image: radial-gradient(circle at 1px 1px, var(--lp-blueprint-dot) .65px, transparent .8px);
+  background-size: 24px 24px;
+}
+.lpSignalSection::after,
+.lpProofSection::after,
+.lpCityChooser::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--lp-blueprint-rule), var(--lp-blueprint-rule)) left top / 100% 1px no-repeat,
+    linear-gradient(var(--lp-blueprint-rule), var(--lp-blueprint-rule)) left top / 1px 10px no-repeat,
+    linear-gradient(var(--lp-blueprint-rule), var(--lp-blueprint-rule)) right top / 1px 10px no-repeat;
+}
+
 .lpSignalSection, .lpProofSection { width: min(var(--lp-max), calc(100% - 2 * var(--lp-pad))); margin: 0 auto; padding: clamp(86px, 10vw, 144px) 0; }
 .lpSectionIntro { max-width: 700px; }
 .lpSectionIntro h2, .lpMemoryCopy h2, .lpFinalCta h2 { margin: 0; font: 700 clamp(40px, 5vw, 72px)/.96 var(--font-display); letter-spacing: -.052em; text-wrap: balance; }
@@ -369,6 +392,9 @@
 .lpMemorySection { padding: clamp(76px, 8vw, 124px) var(--lp-pad); background: var(--ink-deep); color: var(--color-on-inverse); }
 .lpMemoryCanvas { width: min(var(--lp-max), 100%); margin: 0 auto; display: grid; grid-template-columns: .92fr 1.08fr; gap: clamp(44px, 8vw, 110px); align-items: center; }
 .lpSectionLabel { margin: 0 0 18px; color: var(--brass-bright); font: 650 var(--text-2xs)/1 var(--font-data); letter-spacing: .01em; }
+.lpSectionLabel::before { content: "// " / ""; }
+.lpCityChooser .cityChooserEyebrow { gap: .5ch; font: 650 var(--text-2xs)/1 var(--font-data); }
+.lpCityChooser .cityChooserEyebrow::before { content: "// " / ""; width: auto; height: auto; background: none; opacity: 1; }
 .lpMemoryCopy > p { color: color-mix(in srgb, var(--color-on-inverse) 70%, transparent); }
 .lpMemoryActions { margin-top: 28px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
 .lpMemorySection .lpButtonPrimary { background: var(--brass); color: var(--color-on-accent); }
@@ -406,7 +432,7 @@
 .lpPalIcon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 15px; background: var(--ink-deep); color: var(--color-on-inverse); }
 .lpPalCallout h3 { margin: 0; font: 680 20px/1.1 var(--font-display); }.lpPalCallout p { margin: 6px 0 0; color: var(--ink-soft); font-size: 13px; line-height: 1.45; }
 
-.lpCityChooser { padding: 28px var(--lp-pad) 90px; background: var(--paper); }
+.lpCityChooser { padding: 28px var(--lp-pad) 90px; }
 .lpFinalCta { position: relative; min-height: 66vh; padding: 90px var(--lp-pad); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; background: var(--ink-deep); color: var(--color-on-inverse); }
 .lpFinalCta > p { margin: 0 0 20px; color: rgba(255,255,255,.7); font: 600 var(--text-2xs)/1 var(--font-data); letter-spacing: .01em; }
 .lpFinalCta h2 { max-width: 10ch; }
