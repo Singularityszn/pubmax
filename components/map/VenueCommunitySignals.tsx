@@ -48,13 +48,19 @@ type VenueCommunitySignalsProps = {
   venueName: string;
   signals: readonly CommunityVenueSignal[];
   readStatus: VenuePriceReadStatus;
-  submitting: boolean;
-  onSubmit: (input: {
+  /**
+   * Overview mounts a read-first block so drinkers see character / access /
+   * eating without opening price submit. Authoring stays on the price-entry
+   * path (`VenuePriceEntryPanel`), which keeps the full composer.
+   */
+  readOnly?: boolean;
+  submitting?: boolean;
+  onSubmit?: (input: {
     venueId: string;
     signalKey: CommunityVenueSignalKey;
     signalValue: CommunityVenueSignalValue;
   }, auth: AccountAuthSnapshot) => Promise<CommunityVenueSignalSubmitResult>;
-  canSubmit: boolean;
+  canSubmit?: boolean;
   /** Fixed test clock. The app leaves it undefined. */
   now?: number;
 };
@@ -93,14 +99,43 @@ function accessSummary(
   return "Access reported";
 }
 
+/**
+ * A failed or pending venue-price read must never word as an empty pub. The
+ * collapsed access chip already says unread / checking; the expanded rows
+ * owe the same honesty so Overview never reads as "no signals".
+ */
+function readerSignalText(
+  readStatus: VenuePriceReadStatus,
+  signalKey: CommunityVenueSignalKey,
+  signal: CommunityVenueSignal | undefined,
+  now: number,
+) {
+  if (readStatus === "degraded") {
+    return {
+      primary: "Unread just now.",
+      detail: "We could not read what drinkers have logged.",
+      trust: "unknown" as const,
+    };
+  }
+  if (readStatus !== "ready") {
+    return {
+      primary: "Checking…",
+      detail: "Looking up what drinkers have logged.",
+      trust: "unknown" as const,
+    };
+  }
+  return communityVenueSignalText(signalKey, signal, now);
+}
+
 export default function VenueCommunitySignals({
   venueId,
   venueName,
   signals,
   readStatus,
-  submitting,
+  readOnly = false,
+  submitting = false,
   onSubmit,
-  canSubmit,
+  canSubmit = false,
   now,
 }: VenueCommunitySignalsProps) {
   const { requestContribution, contributionGateDialog } =
@@ -129,13 +164,14 @@ export default function VenueCommunitySignals({
     () =>
       READER_KEYS.map((key) => ({
         key,
-        text: communityVenueSignalText(
+        text: readerSignalText(
+          readStatus,
           key,
           rowFor(signals, key),
           observationNow,
         ),
       })),
-    [observationNow, signals],
+    [observationNow, readStatus, signals],
   );
 
   function chooseQuestion(next: AuthorQuestion) {
@@ -155,7 +191,7 @@ export default function VenueCommunitySignals({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting) return;
+    if (readOnly || submitting || !onSubmit) return;
     setError(null);
     setSaved(false);
     await requestContribution(async (auth) => {
@@ -211,7 +247,7 @@ export default function VenueCommunitySignals({
           ))}
         </dl>
 
-        {canSubmit ? (
+        {readOnly ? null : canSubmit ? (
           <form className="vpsigForm" onSubmit={(event) => void submit(event)}>
             <p className="vpsigFormTitle">Add what you noticed</p>
             <fieldset
@@ -300,7 +336,7 @@ export default function VenueCommunitySignals({
         ) : (
           <p className="vpsigSignIn">Sign in to add what you noticed.</p>
         )}
-        {contributionGateDialog}
+        {readOnly ? null : contributionGateDialog}
       </div>
     </details>
   );

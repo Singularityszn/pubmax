@@ -22,6 +22,7 @@ import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
+import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
 import VenueWeatherRecommendations from "@/components/map/VenueWeatherRecommendations";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
@@ -426,6 +427,18 @@ export default function VenueOverviewTab({
               decision about this venue. Keep them with the optional detail. */}
           <NextBadgeChips />
       </Disclosure>
+      {/* Read-first community observations: character, access and eating sit
+          here so drinkers see them without opening price submit. Authoring
+          stays on the price-entry path below (VenuePriceEntryPanel). The same
+          venue-price read status feeds both, so a failed lookup never words
+          as an empty pub. */}
+      <VenueCommunitySignals
+        venueId={venue.id}
+        venueName={venue.name}
+        signals={communityPrices.signalsByVenueId.get(venue.id) ?? []}
+        readStatus={venueReadStatus}
+        readOnly
+      />
       {/* Tonight's community price sits ATOP the price on record, never
           instead of it: its own row, its own dated badge, and the sourced /
           baseline row below still renders untouched. A submission is an extra
