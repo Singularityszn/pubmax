@@ -10,28 +10,11 @@ import {
   readPlanCapabilitySnapshot,
   restorePlanCapability,
 } from "@/lib/planSessionCapability";
-import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
+import { REACTION_KEYS, REACTION_META, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 
-// The handle-free RSVP + reaction island on a Plan's public invite page (Task:
-// plan-invite-page, ruling 2). No account: a guest types a name, picks Going
-// or Maybe, and that's the whole write. Same resilience contract as
-// CommentThread — a failed fetch shows a quiet inline message and never takes
-// the static invite card down with it.
-//
-// Identity is the device's own anon id (lib/anonId.ts), hashed server-side —
-// never a handle, never an account. Resubmitting just updates this device's
-// own row (server-side unique(plan_id, submitter_hash)), so changing Going to
-// Maybe never stacks a second entry.
-//
-// Emoji meanings mirror components/feed/FeedCard.tsx's REACTION_META exactly,
-// so the same chip means the same thing everywhere in the product.
-const REACTION_META: Record<ReactionKey, { label: string; emoji: string }> = {
-  cheers: { label: "Cheers", emoji: "🍺" },
-  bargain: { label: "Bargain", emoji: "💷" },
-  chaos: { label: "Chaos", emoji: "🔥" },
-  proper: { label: "Proper", emoji: "👌" },
-  legendary: { label: "Legendary", emoji: "🏆" },
-};
+// Handle-free RSVP + reaction island on a Plan's public invite page. No
+// account: name + Going/Maybe. Failed fetches stay inline and never take the
+// static invite card down. Identity is the device anon id (hashed server-side).
 
 // Deliberately its own key, not `pubmax_handle` — RSVP is handle-free by
 // design (ruling 2), so a guest's typed name here is a per-invite convenience,
@@ -77,11 +60,9 @@ export default function PlanInviteRsvp({
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
 
-  // Host RSVP moderation (Task: plan-invite-host-ui, deliverable 2). Same
-  // capability-restoration idiom as PlanCrew.tsx — the row control only shows
-  // once this browser session resolves a live host capability for the Plan
-  // the invite belongs to. DELETE /api/invite/[token]/rsvp is already
-  // participant-fenced host-only server-side; this is purely the UI gate.
+  // Host row control only after this browser restores a live host capability
+  // for the Plan. Removal hits /api/plans/[id]/invite-rsvp so the path-scoped
+  // HttpOnly member cookie authorizes after a hard /invite/[token] open.
   const tokenEvent = planCapabilityEvent(planId);
   const capabilitySnapshot = useSyncExternalStore(
     (onChange) => {
@@ -99,13 +80,34 @@ export default function PlanInviteRsvp({
     void restorePlanCapability(planId).catch(() => undefined);
   }, [memberToken, planId]);
 
+  // SSR ships empty `mine` (no device id). Hydrate once with this device's anon id.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/invite/${encodeURIComponent(token)}/reactions?submitterId=${encodeURIComponent(getAnonId())}`,
+          { cache: "no-store" },
+        );
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { summary?: ReactionSummary };
+        if (data.summary && !cancelled) setReactions(data.summary);
+      } catch {
+        // Counts from SSR still render; pressed state stays empty until a toggle.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
   const removeGuest = useCallback(
     async (rsvpId: string) => {
       if (removingId) return;
       setRemovingId(rsvpId);
       setRemoveError(null);
       try {
-        const res = await fetch(`/api/invite/${encodeURIComponent(token)}/rsvp`, {
+        const res = await fetch(`/api/plans/${planId}/invite-rsvp`, {
           method: "DELETE",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ rsvpId, memberToken }),
@@ -128,7 +130,7 @@ export default function PlanInviteRsvp({
         setRemovingId(null);
       }
     },
-    [memberToken, removingId, token],
+    [memberToken, planId, removingId],
   );
 
   const submitRsvp = useCallback(
@@ -207,18 +209,15 @@ export default function PlanInviteRsvp({
     [pendingReaction, token],
   );
 
-  const goingCount = rsvp.counts.going;
-  const maybeCount = rsvp.counts.maybe;
-
   return (
     <div className="inviteRsvp">
       <div className="inviteRsvp__summary">
         <span>
-          <span className="inviteRsvp__count">{goingCount}</span>{" "}
+          <span className="inviteRsvp__count">{rsvp.counts.going}</span>{" "}
           <span className="inviteRsvp__countLabel">going</span>
         </span>
         <span>
-          <span className="inviteRsvp__count">{maybeCount}</span>{" "}
+          <span className="inviteRsvp__count">{rsvp.counts.maybe}</span>{" "}
           <span className="inviteRsvp__countLabel">maybe</span>
         </span>
       </div>

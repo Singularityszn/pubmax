@@ -1,33 +1,45 @@
 // Emoji reactions on a plan's public invite page. Same closed allowlist as
 // pint-drop reactions (lib/reactions.ts REACTION_KEYS) and the same toggle
 // shape as app/api/pint-drops/reactions/route.ts, keyed to a plan instead of
-// a drop.
+// a drop. GET hydrates "mine" for the device's anon id after SSR (which has
+// no device id and therefore ships empty mine).
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
-import { isReactionKey } from "@/lib/reactions";
-import { resolvePlanIdByInviteToken } from "@/lib/planStore";
+import { resolveClassicInvitePlan } from "@/lib/planInviteResolve";
 import { UnknownPlanError, reactionStore } from "@/lib/planInviteRsvpStore";
+import { isReactionKey } from "@/lib/reactions";
 import { hashActor } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 
-// Cheap toggles, generous budget — mirrors the pint-drop reactions route.
 const REACTION_LIMIT = 40;
 const REACTION_WINDOW_MS = 60_000;
+
+export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }): Promise<Response> {
+  const { token } = await params;
+  const resolved = await resolveClassicInvitePlan(token);
+  if ("response" in resolved) return resolved.response;
+
+  const submitterId = new URL(request.url).searchParams.get("submitterId")?.trim() ?? "";
+  if (!submitterId) return jsonNoStore({ error: "Missing submitter." }, { status: 400 });
+
+  try {
+    const summary = await reactionStore().summarize(resolved.planId, hashActor(submitterId));
+    return jsonNoStore({ summary }, { status: 200 });
+  } catch (err) {
+    console.error("[invite-reactions] GET failed:", err instanceof Error ? err.stack || err.message : err);
+    return jsonNoStore({ error: "Reactions are unavailable." }, { status: 503 });
+  }
+}
 
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }): Promise<Response> {
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
 
   const { token } = await params;
-  const lookup = await resolvePlanIdByInviteToken(token);
-  if (!lookup.ok) {
-    return jsonNoStore({ error: "This invite is unavailable." }, { status: 503 });
-  }
-  if (!lookup.planId) {
-    return jsonNoStore({ error: "This invite link isn't valid." }, { status: 404 });
-  }
+  const resolved = await resolveClassicInvitePlan(token);
+  if ("response" in resolved) return resolved.response;
 
   let body: Record<string, unknown>;
   try {
@@ -39,7 +51,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const reaction = body.reaction;
   if (!isReactionKey(reaction)) return jsonNoStore({ error: "Unknown reaction." }, { status: 400 });
 
-  const submitterHash = hashActor(readString(body.submitterId));
+  const submitterId = readString(body.submitterId);
+  if (!submitterId) return jsonNoStore({ error: "Couldn't save that reaction." }, { status: 400 });
+  const submitterHash = hashActor(submitterId);
   if (
     await isLimited(`invite-reaction:${submitterHash}`, `invite-reaction:${submitterHash}`, REACTION_LIMIT, REACTION_WINDOW_MS)
   ) {
@@ -47,7 +61,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   }
 
   try {
-    const summary = await reactionStore().toggle(lookup.planId, submitterHash, reaction);
+    const summary = await reactionStore().toggle(resolved.planId, submitterHash, reaction);
     return jsonNoStore({ summary }, { status: 200 });
   } catch (err) {
     if (err instanceof UnknownPlanError) {

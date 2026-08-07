@@ -15,7 +15,7 @@ import { drinkCategoryFromText } from "@/lib/drinkCategoryFromText";
 import type { FeedItem, OptimisticSpillState } from "@/lib/feed";
 import { CHEERS_GATE_PROMPT } from "@/lib/optimisticToggle";
 import { displayHandle } from "@/lib/handleDisplay";
-import { REACTION_KEYS, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
+import { REACTION_KEYS, REACTION_META, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import prefetchVenue from "@/lib/prefetchVenue";
 // Shared chip vocabulary — seeded content always reads "Demo", never "Sample".
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
@@ -34,19 +34,7 @@ import "./cheersButton.css";
 // (feed.css already loads via FeedPageClient after cheersButton; the dupe dedupes).
 import "@/app/feed/feed.css";
 
-// Pub-native reactions — no likes/hearts. The chip set is derived from the
-// canonical server allowlist (REACTION_KEYS) so the UI and the reactions route
-// can never drift; each key gets a label + emoji here. Counts + which the viewer
-// has used come from the durable backend (the page batch-loads them and owns the
-// toggle); this card just renders the summary it is handed.
-const REACTION_META: Record<ReactionKey, { label: string; emoji: string }> = {
-  cheers: { label: "Cheers", emoji: "🍺" },
-  bargain: { label: "Bargain", emoji: "💷" },
-  chaos: { label: "Chaos", emoji: "🔥" },
-  proper: { label: "Proper", emoji: "👌" },
-  legendary: { label: "Legendary", emoji: "🏆" },
-};
-
+// Pub-native reactions — chip labels/emoji live in lib/reactions.ts REACTION_META.
 function formatGbp(price: number): string {
   return `£${price.toFixed(2)}`;
 }

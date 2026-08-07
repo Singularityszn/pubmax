@@ -1804,6 +1804,13 @@ export default function PubMap({
     [loadNoAlcoholPriceIndex],
   );
 
+  // Alcohol-free-first crawl style needs the same corroborated NA index as the
+  // no-alcohol experience lens. Selecting the style (or restoring ?style=…)
+  // must load it; otherwise scoreVenue's NA bias is always empty.
+  useEffect(() => {
+    if (filters.crawlStyle === "noAlcoholFirst") loadNoAlcoholPriceIndex();
+  }, [filters.crawlStyle, loadNoAlcoholPriceIndex]);
+
   // Persona "Drink like..." lens. The picker sets filters.drinkCategory so the
   // lens RIDES the existing drink-category filter path (filterVenues +
   // pubsToGeoJSON) instead of forking a new pin pipeline; we only track WHICH
