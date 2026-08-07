@@ -1,0 +1,85 @@
+.tonightAgent {
+  margin: 1.25rem 0 0;
+  padding: 1rem 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--ink, #1a1410) 12%, transparent);
+}
+
+.tonightAgentTitle {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.tonightAgentDek,
+.tonightAgentNext,
+.tonightAgentScarcity,
+.tonightAgentError {
+  margin: 0 0 0.75rem;
+  max-width: 40rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.tonightAgentForm {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 36rem;
+}
+
+.tonightAgentLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.tonightAgentInput,
+.tonightAgentDraft {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--ink, #1a1410) 22%, transparent);
+  border-radius: 0.4rem;
+  font: inherit;
+  background: var(--paper, #fff);
+  color: var(--ink, #1a1410);
+}
+
+.tonightAgentSubmit {
+  justify-self: start;
+  padding: 0.55rem 0.9rem;
+  border: 0;
+  border-radius: 0.4rem;
+  font: inherit;
+  font-weight: 600;
+  background: var(--ink, #1a1410);
+  color: var(--paper, #fff);
+  cursor: pointer;
+}
+
+.tonightAgentSubmit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tonightAgentStops {
+  margin: 0 0 0.85rem;
+  padding-left: 1.2rem;
+}
+
+.tonightAgentStops li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  margin: 0.25rem 0;
+}
+
+.tonightAgentStopPrice--unknown {
+  opacity: 0.75;
+}
+
+.tonightAgentScarcity {
+  color: color-mix(in srgb, var(--ink, #1a1410) 88%, transparent);
+}
+
+.tonightAgentError {
+  color: color-mix(in srgb, #8b1e1e 80%, var(--ink, #1a1410));
+}

@@ -287,6 +287,8 @@ export function nightAreaMapHref(area: NightArea): string {
 }
 
 export function errorMessageFromBody(body: unknown, fallback: string): string {
+  // Concierge / plan generate scarcity must stay the server's sentence. Never
+  // replace a grounded 422 with a softer invented route or a generic shrug.
   if (!body || typeof body !== "object") return fallback;
   const error = (body as { error?: unknown }).error;
   if (typeof error === "string") return error;

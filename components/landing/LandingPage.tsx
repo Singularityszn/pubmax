@@ -39,10 +39,15 @@ import {
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { CONTACT_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
+import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 
 import PintDropStripLoading from "./PintDropStripLoading";
 import ThamesHero from "./ThamesHero";
 import "./landing.css";
+
+function trackLandingCta(target: LandingCtaTarget) {
+  trackEvent("landing_cta_clicked", { target });
+}
 
 const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
   ssr: false,
@@ -156,13 +161,22 @@ export default function LandingPage({
 
   // Flag-on primary: Find my pint (geo-primary experiment, untouched).
   const heroPrimaryFindMyPint = (
-    <Link className="lpButton lpButtonPrimary" href="/near">
+    <Link
+      className="lpButton lpButtonPrimary"
+      href="/near"
+      onClick={() => trackLandingCta("near")}
+    >
       <LocateFixed size={18} aria-hidden="true" /> Find my pint
     </Link>
   );
   // Flag-off primary: Open the map (acquisition default, no geolocation gate).
   const heroPrimaryMap = (
-    <Link className="lpButton lpButtonPrimary" href={primaryCtaHref} {...warmProps}>
+    <Link
+      className="lpButton lpButtonPrimary"
+      href={primaryCtaHref}
+      {...warmProps}
+      onClick={() => trackLandingCta("map")}
+    >
       <MapPin size={18} aria-hidden="true" /> Open the map
     </Link>
   );
@@ -170,10 +184,15 @@ export default function LandingPage({
     <div className="lpHeroActions lpHeroActions--findMyPint">
       {heroPrimaryFindMyPint}
       <div className="lpHeroSecondaryRow">
-        <Link className="lpTextLink" href={primaryCtaHref} {...warmProps}>
+        <Link
+          className="lpTextLink"
+          href={primaryCtaHref}
+          {...warmProps}
+          onClick={() => trackLandingCta("map")}
+        >
           <MapPin size={17} aria-hidden="true" /> Open the map
         </Link>
-        <Link className="lpTextLink" href="/plan">
+        <Link className="lpTextLink" href="/plan" onClick={() => trackLandingCta("plan")}>
           <MessageSquareText size={17} aria-hidden="true" /> Plan with friends
         </Link>
       </div>
@@ -182,10 +201,10 @@ export default function LandingPage({
     <div className="lpHeroActions lpHeroActions--mapFirst">
       {heroPrimaryMap}
       <div className="lpHeroSecondaryRow">
-        <Link className="lpTextLink" href="/near">
+        <Link className="lpTextLink" href="/near" onClick={() => trackLandingCta("near")}>
           <LocateFixed size={17} aria-hidden="true" /> Find my pint
         </Link>
-        <Link className="lpTextLink" href="/plan">
+        <Link className="lpTextLink" href="/plan" onClick={() => trackLandingCta("plan")}>
           <MessageSquareText size={17} aria-hidden="true" /> Plan with friends
         </Link>
       </div>
@@ -346,22 +365,36 @@ export default function LandingPage({
           <h2 id="final-title">Your city is already happening.</h2>
           {landingFindMyPint ? (
             <>
-              <Link href="/near" className="lpButton lpButtonPrimary">
+              <Link
+                href="/near"
+                className="lpButton lpButtonPrimary"
+                onClick={() => trackLandingCta("near")}
+              >
                 Find my pint <ArrowRight size={18} aria-hidden="true" />
               </Link>
-              <Link href={primaryCtaHref} className="lpTextLink" {...warmProps}>
+              <Link
+                href={primaryCtaHref}
+                className="lpTextLink"
+                {...warmProps}
+                onClick={() => trackLandingCta("map")}
+              >
                 Open the map <ArrowRight size={16} aria-hidden="true" />
               </Link>
-              <Link href="/plan" className="lpTextLink">
+              <Link href="/plan" className="lpTextLink" onClick={() => trackLandingCta("plan")}>
                 Plan with friends <ArrowRight size={16} aria-hidden="true" />
               </Link>
             </>
           ) : (
             <>
-              <Link href={primaryCtaHref} className="lpButton lpButtonPrimary" {...warmProps}>
+              <Link
+                href={primaryCtaHref}
+                className="lpButton lpButtonPrimary"
+                {...warmProps}
+                onClick={() => trackLandingCta("map")}
+              >
                 Open the map <ArrowRight size={18} aria-hidden="true" />
               </Link>
-              <Link href="/plan" className="lpTextLink">
+              <Link href="/plan" className="lpTextLink" onClick={() => trackLandingCta("plan")}>
                 Plan with friends <ArrowRight size={16} aria-hidden="true" />
               </Link>
               <Link href="/about" className="lpTextLink">

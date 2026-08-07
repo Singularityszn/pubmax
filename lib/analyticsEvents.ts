@@ -186,6 +186,8 @@ export const ANALYTICS_EVENTS = {
   invite_rsvp_submitted: ["status", "isUpdate"],
   invite_reaction_toggled: ["reaction", "active"],
   invite_map_opened: [],
+  // Landing Wave 0 acquisition CTAs. Closed target enum only — never free text.
+  landing_cta_clicked: ["target"],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
@@ -301,6 +303,10 @@ export type PriceSubmitFailureReason = (typeof PRICE_SUBMIT_FAILURE_REASONS)[num
  */
 export const PINT_INDEX_SURFACES = ["index", "archive"] as const;
 export type PintIndexSurface = (typeof PINT_INDEX_SURFACES)[number];
+
+/** Landing hero / final CTA destinations (docs/plans/LANDING_ACQUISITION.md W6). */
+export const LANDING_CTA_TARGETS = ["map", "near", "plan"] as const;
+export type LandingCtaTarget = (typeof LANDING_CTA_TARGETS)[number];
 
 /** First time this browser has opened a Pint Index page, or a return. */
 export const PINT_INDEX_VISITS = ["first", "repeat"] as const;
@@ -428,6 +434,7 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   invite_page_viewed: ["hasRsvps"],
   invite_rsvp_submitted: ["status", "isUpdate"],
   invite_reaction_toggled: ["reaction", "active"],
+  landing_cta_clicked: ["target"],
 } as const satisfies Partial<Record<AnalyticsEventName, readonly string[]>>;
 
 function includesValue(values: readonly string[], value: string | number | boolean): boolean {
@@ -544,16 +551,27 @@ function isSafeVitalTarget(value: unknown): value is string {
 const CUSTOM_PROP_VALIDATORS: Partial<Record<string, (value: unknown) => value is string | number | boolean>> = {
   inviteId: isUuidLike,
   route: isKnownRoutePattern,
-  target: isSafeVitalTarget,
+  // `target` is shared by web_vital (selector) and landing_cta_clicked (CTA enum).
+  // Those checks live in isAllowedVitalProp / isAllowedLandingCtaProp below.
 };
 
-/** web_vital metric/rating/value strictness (route/target use custom validators). */
+/** web_vital metric/rating/value/target strictness (route uses CUSTOM_PROP_VALIDATORS). */
 function isAllowedVitalProp(name: AnalyticsEventName, key: string, value: string | number | boolean): boolean {
   if (name !== "web_vital") return true;
   if (key === "metric") return includesValue(VITAL_METRICS, value);
   if (key === "rating") return includesValue(VITAL_RATINGS, value);
   if (key === "value") return typeof value === "number" && Number.isFinite(value) && value >= 0;
+  if (key === "target") return isSafeVitalTarget(value);
   return true;
+}
+
+function isAllowedLandingCtaProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name !== "landing_cta_clicked" || key !== "target") return true;
+  return includesValue(LANDING_CTA_TARGETS, value);
 }
 
 /**
@@ -669,7 +687,8 @@ export function sanitizeEvent(
             && isAllowedPriceFunnelProp(name, key, value)
             && isAllowedContributionGateProp(name, key, value)
             && isAllowedPintIndexArrivalProp(name, key, value)
-            && isAllowedInviteLoopProp(name, key, value);
+            && isAllowedInviteLoopProp(name, key, value)
+            && isAllowedLandingCtaProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }
