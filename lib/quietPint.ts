@@ -5,8 +5,8 @@
 //   - no fs, no serverEnv, no DOM, no clock of its own (every function takes
 //     `now`), so it is hermetically unit-testable with fixed dates, and
 //   - shaped as a structural derivation over (candidates, prices, now) rather
-//     than over any one surface's types, so /tonight can adopt the same lens
-//     later without importing anything /today-specific.
+//     than over any one surface's types, so /today and /tonight share the lens
+//     without either importing the other's page types.
 //
 // The honesty rules the rest of the app lives by hold here:
 //   - heritage-cited only: a candidate whose only fact is seed example material

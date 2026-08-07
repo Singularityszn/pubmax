@@ -36,6 +36,7 @@ import TonightGetHomeStrip from "./TonightGetHomeStrip";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
+import TodayQuietPintCard from "@/app/today/TodayQuietPintCard";
 import { trackEvent } from "@/lib/analytics";
 import { firstHttp } from "@/lib/httpUrl";
 import {
@@ -50,6 +51,7 @@ import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
 import { dealDigestNote } from "@/lib/dealsDigest";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
+import type { QuietPintModule } from "@/lib/quietPint";
 import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import {
@@ -142,7 +144,14 @@ const QUIET_ALTERNATIVES: QuietAlternative[] = [
   },
 ];
 
-export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO }) {
+export default function TonightClient({
+  flags,
+  quietPint = null,
+}: {
+  flags: TrustedHandoffFlagsDTO;
+  /** Server-composed quiet-pint module; null outside a quiet window. */
+  quietPint?: QuietPintModule | null;
+}) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
   // The area the viewer last chose anywhere in the app (#427 nightPatches
@@ -655,6 +664,16 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
       {lanePlacement.below}
 
       <div className="tonightAfterPrimary">
+      {/* Heritage quiet-pint module — same TodayQuietPintCard as /today. Lives
+          after the listing spine so main-list-first stays intact, and only when
+          the server quiet window allows (null renders nothing). Not the thin-
+          night CTA strip below: that invents no pubs; this surfaces cited ones. */}
+      {quietPint ? (
+        <div className="tonightQuietPint">
+          <TodayQuietPintCard module={quietPint} />
+        </div>
+      ) : null}
+
       {thinNight ? (
         <section className="tonightQuiet" aria-label="While it's quiet">
           <p className="tonightQuietLede">
