@@ -61,11 +61,12 @@ const CITIES_DIR = path.join(ROOT, "data", "cities");
 
 const OVERPASS_ENDPOINTS = [
   "https://overpass.private.coffee/api/interpreter",
-  "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass-api.de/api/interpreter",
 ];
 
 const INTER_CHUNK_DELAY_MS = 8_000;
+const INTER_CHUNK_DELAY_STALE_MS = 3_000;
 const MAX_ATTEMPTS = 6;
 const MAX_BACKOFF_MS = 180_000;
 const QUERY_TIMEOUT_S = 90;
@@ -383,8 +384,9 @@ async function main() {
       }
     } else {
       if (needDelay) {
-        console.log(`  waiting ${INTER_CHUNK_DELAY_MS}ms before next chunk (Overpass etiquette)…`);
-        await sleep(INTER_CHUNK_DELAY_MS);
+        const delayMs = options.allowStale ? INTER_CHUNK_DELAY_STALE_MS : INTER_CHUNK_DELAY_MS;
+        console.log(`  waiting ${delayMs}ms before next chunk (Overpass etiquette)…`);
+        await sleep(delayMs);
       }
       // One chunk exhausting its retries must not throw away the other 131:
       // the raw files already on disk are the resume state, so record the
