@@ -16,9 +16,12 @@ import {
   communityTrustNote,
   submitCategoryLabel,
 } from "@/lib/communityPrice";
+import type { DrinkCategory } from "@/lib/drinks";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { COMMUNITY_PRICE_NOTE, formatPrice } from "@/lib/venues";
 import {
+  drinkLensEmptyVenueNote,
+  drinkLensPriceNoun,
   NO_ALCOHOL_LENS_PRICE_NOUN,
   type MapExperienceLens,
 } from "@/lib/mapExperienceLens";
@@ -38,12 +41,15 @@ type UnverifiedPubSheetProps = {
   pub: UkBasePub;
   communityPrices: CommunityPricesState;
   experienceLens?: MapExperienceLens;
+  /** Selected-drink map lens (e.g. coffee). Never the no-alcohol experience. */
+  drinkLensCategory?: DrinkCategory | null;
 };
 
 export default function UnverifiedPubSheet({
   pub,
   communityPrices,
   experienceLens = "all",
+  drinkLensCategory = null,
 }: UnverifiedPubSheetProps) {
   const { user, loading: authLoading, configured: authConfigured } = useAuth();
   const readStatus = communityPrices.venuePriceStatus.get(pub.id) ?? "idle";
@@ -59,11 +65,16 @@ export default function UnverifiedPubSheet({
             row.drinkCategory === "soft-drink" ||
             row.drinkCategory === "alcohol-free",
         )
-      : rows,
+      : drinkLensCategory
+        ? rows?.filter((row) => row.drinkCategory === drinkLensCategory)
+        : rows,
   );
   const communityTrustStanding = communityPrice
     ? communityTrustNote(communityPrice, undefined, "mark")
     : "";
+  const drinkLensNoun = drinkLensCategory
+    ? drinkLensPriceNoun(drinkLensCategory)
+    : null;
 
   return (
     <div className="unverifiedPub">
@@ -117,7 +128,11 @@ export default function UnverifiedPubSheet({
         </>
       ) : pricesKnown && experienceLens === "no-alcohol" ? (
         <p className="unverifiedPubLead">
-          No {NO_ALCOHOL_LENS_PRICE_NOUN} price logged here yet.
+          {drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, "ready")}
+        </p>
+      ) : pricesKnown && drinkLensNoun ? (
+        <p className="unverifiedPubLead">
+          {drinkLensEmptyVenueNote(drinkLensNoun, "ready")}
         </p>
       ) : pricesKnown && experienceLens === "food" ? (
         <p className="unverifiedPubLead">

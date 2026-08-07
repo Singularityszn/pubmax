@@ -9,6 +9,7 @@ import type {
   MapExperienceLens,
   VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
+import type { DrinkCategory } from "@/lib/drinks";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 
 const pub: UkBasePub = {
@@ -49,12 +50,14 @@ function renderSheet(
   rows: CommunityPrice[],
   experienceLens: MapExperienceLens = "all",
   readStatus: VenuePriceReadStatus = "ready",
+  drinkLensCategory: DrinkCategory | null = null,
 ) {
   return renderToStaticMarkup(
     createElement(UnverifiedPubSheet, {
       pub,
       communityPrices: state(rows, true, readStatus),
       experienceLens,
+      drinkLensCategory,
     }),
   );
 }
@@ -150,6 +153,23 @@ describe("UnverifiedPubSheet", () => {
     const empty = renderSheet([beer], "no-alcohol");
     expect(empty).toContain("No alcohol-free or soft drink price logged here yet");
     expect(empty).not.toContain("£5.80");
+  });
+
+
+  it("shows a coffee empty state without beer, pint or no-alcohol wording", () => {
+    const beer: CommunityPrice = {
+      venueId: pub.id,
+      drinkCategory: "beer",
+      priceGbp: 5.8,
+      submittedAt: Date.now(),
+      source: "community",
+      corroborations: 2,
+    };
+    const empty = renderSheet([beer], "all", "ready", "coffee");
+    expect(empty).toContain("No coffee price logged here yet");
+    expect(empty).not.toContain("£5.80");
+    expect(empty).not.toContain("alcohol-free or soft drink");
+    expect(empty).not.toMatch(/pint/i);
   });
 
   it("never shows a beer price in the food view", () => {

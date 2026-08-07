@@ -46,11 +46,17 @@ import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import {
+  drinkLensEmptyVenueNote,
+  drinkLensPriceNoun,
   NO_ALCOHOL_LENS_PRICE_NOUN,
   type MapExperienceLens,
   type VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
-import { namedLegacyPintPriceSource } from "@/lib/drinks";
+import {
+  CATEGORY_META,
+  namedLegacyPintPriceSource,
+  type DrinkCategory,
+} from "@/lib/drinks";
 
 function VenuePriceSummary({
   venue,
@@ -197,13 +203,7 @@ function VenuePriceSummary({
  * the first is a fact about the pub, so the three never share a sentence.
  */
 function noAlcoholEmptyNote(status: VenuePriceReadStatus): string {
-  if (status === "ready") {
-    return `No ${NO_ALCOHOL_LENS_PRICE_NOUN} price logged here yet.`;
-  }
-  if (status === "degraded") {
-    return `We could not read this pub's ${NO_ALCOHOL_LENS_PRICE_NOUN} prices just now.`;
-  }
-  return `Checking ${NO_ALCOHOL_LENS_PRICE_NOUN} prices logged here.`;
+  return drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, status);
 }
 
 export default function VenueOverviewTab({
@@ -216,6 +216,7 @@ export default function VenueOverviewTab({
   latestPintDropAt,
   communityPrices,
   experienceLens,
+  drinkLensCategory = null,
   onToggleStop,
   presenceState,
   markPresenceHere,
@@ -242,6 +243,8 @@ export default function VenueOverviewTab({
   /** Community price layer - the dated submission row plus the submit card. */
   communityPrices: CommunityPricesState;
   experienceLens: MapExperienceLens;
+  /** Selected-drink map lens (e.g. coffee). Never the no-alcohol experience. */
+  drinkLensCategory?: DrinkCategory | null;
   onToggleStop: (id: string) => void;
   presenceState: PresenceState;
   markPresenceHere: () => void;
@@ -295,13 +298,21 @@ export default function VenueOverviewTab({
       row.drinkCategory === "soft-drink" ||
       row.drinkCategory === "alcohol-free",
   );
+  const drinkLensRows = drinkLensCategory
+    ? communityRows?.filter((row) => row.drinkCategory === drinkLensCategory)
+    : undefined;
   const communityPrice = freshestCommunityPrice(
     experienceLens === "food"
       ? undefined
       : experienceLens === "no-alcohol"
         ? noAlcoholRows
-        : communityRows,
+        : drinkLensCategory
+          ? drinkLensRows
+          : communityRows,
   );
+  const drinkLensNoun = drinkLensCategory
+    ? drinkLensPriceNoun(drinkLensCategory)
+    : null;
   // The sheet is deliberately UNGATED - it shows what people reported, so an
   // uncorroborated or aged-out figure still renders here in full. What changes
   // is that the row admits its standing instead of implying it moved the map.
@@ -467,6 +478,16 @@ export default function VenueOverviewTab({
           </span>
           <small className="communityPriceNote">
             {noAlcoholEmptyNote(venueReadStatus)}
+          </small>
+        </div>
+      ) : drinkLensCategory && drinkLensNoun ? (
+        <div className="contributorPrice communityPriceRow">
+          <span>
+            <ClaimBadge kind="baseline" />{" "}
+            {CATEGORY_META[drinkLensCategory].label} prices
+          </span>
+          <small className="communityPriceNote">
+            {drinkLensEmptyVenueNote(drinkLensNoun, venueReadStatus)}
           </small>
         </div>
       ) : null}

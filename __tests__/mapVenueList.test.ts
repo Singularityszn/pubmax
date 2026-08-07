@@ -1,3 +1,4 @@
+import { drinkLensPriceNoun } from "@/lib/mapExperienceLens";
 import { describe, it, expect } from "vitest";
 
 import {
@@ -334,6 +335,34 @@ describe("buildMapVenueListModel — the accessible parallel to the pins", () =>
     expect(model.coverageNote).toContain("part of the whisky prices");
     expect(model.coverageNote).not.toContain("could not");
     expect(model.rows[0].priceLabel).toBe("No whisky price in what we read");
+  });
+
+
+  it("uses a coffee noun for unknown rows and coverage, never pint wording", () => {
+    const noun = drinkLensPriceNoun("coffee");
+    const model = buildMapVenueListModel(
+      [venue({ id: "unknown", cheapestPrice: 5.8 })],
+      null,
+      MAP_VENUE_LIST_LIMIT,
+      new Map(),
+      noun,
+      "ready",
+    );
+    expect(model.rows[0].priceLabel).toBe("No coffee price logged");
+    expect(model.coverageNote).toBeNull();
+    expect(model.rows[0].priceLabel).not.toMatch(/pint|beer|alcohol-free/i);
+
+    const degraded = buildMapVenueListModel(
+      [venue({ id: "unknown", cheapestPrice: 5.8 })],
+      null,
+      MAP_VENUE_LIST_LIMIT,
+      new Map(),
+      noun,
+      "degraded",
+    );
+    expect(degraded.coverageNote).toContain("coffee prices");
+    expect(degraded.rows[0].priceLabel).toBe("Coffee price could not be read");
+    expect(JSON.stringify(degraded)).not.toContain("alcohol-free or soft drink");
   });
 
   it("leaves the pint default with no lens wording at all", () => {

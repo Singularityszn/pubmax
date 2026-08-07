@@ -111,15 +111,11 @@ describe("MapExperienceLens", () => {
       'communityPrices.venuePriceStatus.get(venue.id) ?? "idle"',
     );
     expect(overview).toContain("{noAlcoholEmptyNote(venueReadStatus)}");
-    expect(overview).toMatch(
-      /status === "ready"[\s\S]*?`No \$\{NO_ALCOHOL_LENS_PRICE_NOUN\} price logged here yet\.`/,
+    expect(overview).toContain(
+      "return drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, status);",
     );
-    expect(overview).toMatch(
-      /status === "degraded"[\s\S]*?`We could not read/,
-    );
-    expect(overview).toMatch(
-      /return `Checking \$\{NO_ALCOHOL_LENS_PRICE_NOUN\} prices logged here\.`/,
-    );
+    expect(overview).toContain("drinkLensEmptyVenueNote");
+    expect(overview).toContain("drinkLensPriceNoun");
 
     const sheet = readFileSync(
       join(process.cwd(), "components/map/UnverifiedPubSheet.tsx"),
