@@ -568,15 +568,19 @@ export default function PubMap({
   // Freeze arrival search with the seed so fit-on-arrival does not flip when the
   // user later maps a route or the address bar syncs.
   const [arrivalSearch] = useState(() => currentSearch());
-  // A restored /map?sel=venue-uk-* arrival: the base pub's id plus the `at=`
-  // location hint the selecting tap wrote alongside sel. The id alone carries
-  // no coordinates and no shard cell, so without the hint an older link
-  // degrades honestly — selection ring only once the user zooms in, no sheet —
-  // rather than opening a guessed pub.
+  // A restored /map?sel=venue-uk-* arrival. The selecting tap usually writes an
+  // `at=` location hint so the cold restore can fetch one shard by point; a
+  // shared link without the hint still resolves via /api/uk-base/[id]. Either
+  // path fails closed (unknown / lookup-failed) rather than opening a guessed
+  // pub or waiting forever for a viewport that never carries the id.
   const [ukBaseRestore] = useState(() => {
     if (!seed.selectedVenueId || !isUkBaseId(seed.selectedVenueId)) return null;
     const hint = parseSelectionHint(currentSearch());
-    return hint ? { id: seed.selectedVenueId, ...hint } : null;
+    return {
+      id: seed.selectedVenueId,
+      lat: hint?.lat ?? null,
+      lng: hint?.lng ?? null,
+    };
   });
   // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
@@ -1611,11 +1615,9 @@ export default function PubMap({
   // The tapped UK base pub, held whole because it exists in no index this
   // component has: the map hands the record up with the tap. Selection itself
   // still runs through selectedVenueId, so Back/close and the selection ring
-  // behave as they do for a curated pin. ?sel= deep-linking needs one extra
-  // step the curated path doesn't: the id alone carries no record, so restore
-  // rides the `at=` location hint (ukBaseRestore above) — the canvas flies
-  // there, streams the one cell, and hands the resolved pub back through this
-  // same click handler. A link without the hint gets the ring only, no sheet.
+  // behave as they do for a curated pin. ?sel= deep-linking cold-resolves the
+  // record (hint-scoped shard or /api/uk-base/[id]) and hands it back through
+  // this same click handler — before the viewport stream has that cell.
   const [selectedBasePub, setSelectedBasePub] = useState<UkBasePub | null>(null);
   const handleUkBasePubClick = useCallback(
     (pub: UkBasePub) => {
@@ -1629,8 +1631,9 @@ export default function PubMap({
   // while it IS the selection.
   const basePubOpen = Boolean(selectedBasePub && selectedBasePub.id === selectedVenueId);
   // The sel entry's `at=` companion: a base pub's coordinates ride in the URL
-  // because the id alone could not say which shard cell a shared/reloaded
-  // link should stream. Empty for curated selections, which clears the param.
+  // so a shared link can cold-fetch one shard by point. Empty for curated
+  // selections, which clears the param. Id-only links still resolve via the
+  // server lookup; the hint is an optimisation, not the only path.
   const selectionHint =
     basePubOpen && selectedBasePub
       ? formatSelectionHint(selectedBasePub.lat, selectedBasePub.lng)
@@ -2642,6 +2645,20 @@ export default function PubMap({
     rejectSelection: rejectMapSelection,
     resolveSelection: resolveMapSelection,
   } = mapSurfaceTrail;
+  const handleUkBaseRestoreFailed = useCallback(
+    (reason: "missing" | "unavailable") => {
+      const unresolvedVenueId = ukBaseRestore?.id;
+      if (!unresolvedVenueId) return;
+      setSelectionNotice(reason === "missing" ? "unknown" : "lookup-failed");
+      if (reason === "missing") {
+        rejectMapSelection(unresolvedVenueId);
+        setSelectedVenueId((current) =>
+          current === unresolvedVenueId ? "" : current,
+        );
+      }
+    },
+    [rejectMapSelection, ukBaseRestore?.id],
+  );
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
     surfaceOpenRef.current = mapSurfaceTrail.open;
@@ -3179,6 +3196,7 @@ export default function PubMap({
           onRenderedStateChange={handleRenderedMapStateChange}
           venueListOpen={mapListOpen}
           ukBaseRestore={ukBaseRestore}
+          onUkBaseRestoreFailed={handleUkBaseRestoreFailed}
           onRouteStopClick={selectVenue}
           onVenuePrefetch={prefetchVenueDetail}
           venueSignals={venueSignals}

@@ -179,15 +179,13 @@ type PubMapCanvasProps = {
    */
   venueListOpen?: boolean;
   /**
-   * A restored `?sel=venue-uk-*` arrival: the base pub's id plus the `at=`
-   * location hint the selecting tap wrote alongside it. Seeds the selection
-   * camera (the id names no venue record, so nothing else knows where to fly)
-   * and asks the base stream to hand the whole record up once its cell loads,
-   * so the unverified sheet reopens like a curated ?sel= does. Null when the
-   * arrival named no base pub or the link carried no hint (older links
-   * degrade to the selection ring only).
+   * A restored `?sel=venue-uk-*` arrival. Optional `at=` coords seed the
+   * selection camera and scope the cold shard fetch; id-only links still
+   * cold-resolve via /api/uk-base/[id]. Null when the arrival named no base pub.
    */
-  ukBaseRestore?: { id: string; lat: number; lng: number } | null;
+  ukBaseRestore?: { id: string; lat: number | null; lng: number | null } | null;
+  /** Fail-closed callback when cold restore cannot find the pub. */
+  onUkBaseRestoreFailed?: (reason: "missing" | "unavailable") => void;
   onRouteStopClick: (id: string) => void;
   /** Speculative warm of `/api/venue/[id]` on press-start / hover intent. */
   onVenuePrefetch?: (id: string) => void;
@@ -402,6 +400,7 @@ export default function PubMapCanvas({
   onRenderedStateChange,
   venueListOpen = false,
   ukBaseRestore = null,
+  onUkBaseRestoreFailed,
   onRouteStopClick,
   onVenuePrefetch,
   venueSignals = new Map(),
@@ -621,8 +620,17 @@ export default function PubMapCanvas({
   // never move the camera for a different selection. Seeded from a restored
   // ?sel= arrival's `at=` hint so the selection fly-to works before (and
   // without) any tap.
+  const [ukBaseRestoreCenter, setUkBaseRestoreCenter] = useState<[number, number] | null>(() =>
+    ukBaseRestore &&
+      ukBaseRestore.lat !== null &&
+      ukBaseRestore.lng !== null
+      ? [ukBaseRestore.lng, ukBaseRestore.lat]
+      : null,
+  );
   const ukBaseSelectionRef = useRef<{ id: string; center: [number, number] } | null>(
-    ukBaseRestore
+    ukBaseRestore &&
+      ukBaseRestore.lat !== null &&
+      ukBaseRestore.lng !== null
       ? { id: ukBaseRestore.id, center: [ukBaseRestore.lng, ukBaseRestore.lat] }
       : null,
   );
@@ -2488,8 +2496,18 @@ export default function PubMapCanvas({
     // slow shard must never steal a selection the user has already moved on
     // from.
     if (selectedIdRef.current !== pub.id) return;
+    // Cold id-only restore has no `at=` seed; stamp coords so the selection
+    // camera can fly once the record arrives.
+    ukBaseSelectionRef.current = { id: pub.id, center: [pub.lng, pub.lat] };
+    setUkBaseRestoreCenter([pub.lng, pub.lat]);
     onUkBasePubClickRef.current?.(pub);
   }, []);
+  const handleRestoreFailed = useCallback(
+    (reason: "missing" | "unavailable") => {
+      onUkBaseRestoreFailed?.(reason);
+    },
+    [onUkBaseRestoreFailed],
+  );
   const drawableVenueIds = useMemo(
     () => new Set(venues.map((venue) => venue.id)),
     [venues],
@@ -2506,7 +2524,14 @@ export default function PubMapCanvas({
     suspended: lensPrices !== null,
     scopeKey: cityId,
     restoreId: ukBaseRestore?.id ?? null,
+    restoreHint:
+      ukBaseRestore &&
+      ukBaseRestore.lat !== null &&
+      ukBaseRestore.lng !== null
+        ? { lat: ukBaseRestore.lat, lng: ukBaseRestore.lng }
+        : null,
     onRestorePub: handleRestoredBasePub,
+    onRestoreFailed: handleRestoreFailed,
   });
 
   // Project coordinates through MapLibre rather than using getBounds(): at a
@@ -2928,9 +2953,11 @@ export default function PubMapCanvas({
     // coordinates come from the feature the tap just resolved.
     const center = venue
       ? ([venue.longitude, venue.latitude] as [number, number])
-      : ukBaseSelectionRef.current?.id === selectedVenueId
-        ? ukBaseSelectionRef.current.center
-        : null;
+      : ukBaseRestoreCenter && selectedVenueId && isUkBaseId(selectedVenueId)
+        ? ukBaseRestoreCenter
+        : ukBaseSelectionRef.current?.id === selectedVenueId
+          ? ukBaseSelectionRef.current.center
+          : null;
     if (!center) return;
     // Mobile: offset the camera so the pin sits in the visible band above the
     // half-sheet (not under it); soften pitch so 3D buildings don't bury it.
@@ -2944,7 +2971,7 @@ export default function PubMapCanvas({
       easing: easeOutCubic,
       ...(offset ? { offset } : {}),
     });
-  }, [selectedVenueId, selectedPresent, mapReady, cinematic, selectLandmark]);
+  }, [selectedVenueId, selectedPresent, mapReady, cinematic, selectLandmark, ukBaseRestoreCenter]);
 
   // --- Story bands (issue #15) -------------------------------------------
   // Resolve the active band + its member pubs under the CURRENT (filtered)
