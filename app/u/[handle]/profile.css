@@ -152,6 +152,7 @@
 
 .profilePage .youIdentityIntro h1 { margin: .25rem 0 .45rem; font: 700 clamp(1.8rem, 4vw, 3rem)/1 var(--font-display); }
 .profilePage .youIdentityIntro p { margin: 0; color: var(--ink-soft); line-height: 1.5; }
+.profilePage .youMemoriesInvite { margin-top: .65rem; color: var(--ink); }
 .profilePage .youIdentityActions { display: grid; gap: 8px; }
 .profilePage .youIdentityActions a,
 .profilePage .profilePalLink {
