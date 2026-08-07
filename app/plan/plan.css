@@ -470,57 +470,181 @@
 
 /* Describe-first entry: the default open for /plan. One question, one input,
    a handful of real example chips. The five-step wizard (.planIntake below)
-   sits one quiet link away rather than gating the free-text path. */
+   sits one quiet link away rather than gating the free-text path.
+
+   Taste: one paper/atmosphere plane rather than a card-in-a-card. The outer
+   composer shell goes quiet when describe-first owns the surface alone; the
+   H2 speaks in display ink with a soft brass wash; chips stay scannable and
+   whisper active state (never a coral CTA hijack). */
+.planComposer:has(> .planDescribeFirst):not(:has(.planComposer__concierge)) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
 .planDescribeFirst {
   grid-column: 1 / -1;
   min-width: 0;
-  padding: clamp(18px, 4vw, 30px);
-  border: 1px solid color-mix(in srgb, var(--plan-accent) 34%, var(--line));
-  border-radius: 20px;
+  padding: clamp(28px, 5.5vw, 52px) clamp(18px, 4vw, 40px) clamp(24px, 4vw, 40px);
+  border: 0;
+  border-radius: clamp(18px, 3vw, 28px);
   background:
-    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--plan-accent) 9%, transparent), transparent 38%),
-    color-mix(in srgb, var(--panel) 92%, var(--paper));
+    radial-gradient(ellipse 90% 70% at 50% -18%, color-mix(in srgb, var(--brass) 14%, transparent), transparent 58%),
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--panel-raised) 82%, var(--paper)) 0%,
+      color-mix(in srgb, var(--paper) 88%, var(--panel)) 55%,
+      var(--paper) 100%
+    );
   text-align: center;
+  overflow: hidden;
 }
-.planDescribeFirst h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3rem); line-height: 0.98; letter-spacing: -0.035em; }
-.planDescribeFirst__form { margin: 20px auto 0; max-width: 560px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.planDescribeFirst__form input { min-height: 48px; border: 1px solid var(--line); border-radius: 11px; padding: 0 16px; font: inherit; background: var(--panel-raised); color: var(--ink); }
-.planDescribeFirst__form button { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; background: var(--accent-action); color: var(--color-on-accent); font: inherit; font-weight: 800; cursor: pointer; }
-.planDescribeFirst__form button:hover:not(:disabled) { background: var(--accent-action-strong); }
-.planDescribeFirst__form button:disabled { opacity: 0.5; cursor: not-allowed; }
-.planDescribeFirst__chips { margin: 16px auto 0; max-width: 640px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+
+.planDescribeFirst__atmosphere {
+  margin: 0 auto;
+  max-width: 34ch;
+}
+
+.planDescribeFirst h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 760;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.planDescribeFirst__form {
+  margin: 26px auto 0;
+  max-width: 560px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.planDescribeFirst__form input {
+  min-height: 48px;
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, var(--line));
+  border-radius: 11px;
+  padding: 0 16px;
+  font: inherit;
+  background: color-mix(in srgb, var(--panel-raised) 92%, var(--paper));
+  color: var(--ink);
+}
+
+.planDescribeFirst__form input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--brass) 55%, var(--ink));
+  outline-offset: 2px;
+  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
+}
+
+.planDescribeFirst__form button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 11px;
+  padding: 0 20px;
+  background: var(--accent-action);
+  color: var(--color-on-accent);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.planDescribeFirst__form button:hover:not(:disabled) {
+  background: var(--accent-action-strong);
+}
+
+.planDescribeFirst__form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.planDescribeFirst__chips {
+  margin: 20px auto 0;
+  max-width: 640px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
 .planDescribeFirst__chip {
   min-height: 44px;
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, var(--line));
   border-radius: var(--control-radius, 14px);
   padding: 8px 14px;
-  background: var(--panel);
+  background: color-mix(in srgb, var(--panel) 55%, var(--paper));
   color: var(--ink);
   font: inherit;
   font-size: 0.82rem;
   font-weight: 750;
   cursor: pointer;
+  transition:
+    background var(--duration-base, 0.15s) var(--ease-out, ease),
+    border-color var(--duration-base, 0.15s) var(--ease-out, ease),
+    color var(--duration-base, 0.15s) var(--ease-out, ease);
 }
+
 .planDescribeFirst__chip:hover,
-.planDescribeFirst__chip:focus-visible { border-color: var(--plan-accent); color: var(--plan-accent-strong); outline: none; }
+.planDescribeFirst__chip:focus-visible {
+  border-color: var(--state-active-border);
+  background: var(--state-active-surface);
+  color: var(--state-active-ink);
+  outline: none;
+}
+
 .planDescribeFirst__guide {
-  margin: 20px auto 0;
-  display: block;
+  margin: 22px auto 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 44px;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: var(--control-radius, 14px);
   padding: 8px 14px;
-  background: var(--panel-raised);
+  background: transparent;
   color: var(--ink-soft);
   font: inherit;
   font-size: 0.78rem;
   font-weight: 800;
   cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--ink) 22%, transparent);
+  text-underline-offset: 0.18em;
 }
+
 .planDescribeFirst__guide:hover,
-.planDescribeFirst__guide:focus-visible { border-color: var(--plan-accent); color: var(--plan-accent-strong); outline: none; }
+.planDescribeFirst__guide:focus-visible {
+  color: var(--ink);
+  text-decoration-color: color-mix(in srgb, var(--brass) 55%, var(--ink));
+  outline: none;
+}
+
+.planDescribeFirst__guide:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brass) 45%, transparent);
+}
+
 @media (max-width: 640px) {
   .planDescribeFirst__form { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .planDescribeFirst h2 {
+    animation: planDescribeRise 0.55s var(--ease-out-strong) both;
+  }
+
+  .planDescribeFirst__form {
+    animation: planDescribeRise 0.55s var(--ease-out-strong) both;
+    animation-delay: 70ms;
+  }
+}
+
+@keyframes planDescribeRise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
 }
 
 /* Progressive Plan intake. This is inline, resumable planning context rather

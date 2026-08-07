@@ -40,8 +40,10 @@ export default function PlanDescribeFirst({
   }
 
   return (
-    <section className="planDescribeFirst" aria-labelledby="plan-describe-first-title">
-      <h2 id="plan-describe-first-title">What&rsquo;s the plan?</h2>
+    <section className="planDescribeFirst textured-panel" aria-labelledby="plan-describe-first-title">
+      <div className="planDescribeFirst__atmosphere">
+        <h2 id="plan-describe-first-title">What&rsquo;s the plan?</h2>
+      </div>
       {/* Plain markup, not a form: this whole surface already sits inside
           PlanComposerForm's own <form>, and a nested <form> is invalid HTML
           that browsers silently reparent, breaking native submission. */}
