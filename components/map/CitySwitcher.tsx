@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, useTransition } from "react";
 
@@ -10,11 +11,18 @@ import {
 } from "@/lib/cities";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
+import {
+  UK_CHOOSE_CITY_SEARCH_HREF,
+  UK_NATIONAL_ENTRY_LABEL,
+  UK_NATIONAL_MAP_HREF,
+} from "@/lib/ukNationalBrowse";
 
 import "./citySwitcher.css";
 
 type CitySwitcherProps = {
   cityId?: CityId;
+  /** Soften the trigger label when the camera is outside the priced city box. */
+  outsideCurated?: boolean;
 };
 
 /** Narrow-chrome abbreviations — keeps the map toolbar row usable at ~390px. */
@@ -36,6 +44,7 @@ const CITY_SHORT_LABELS: Record<CityId, string> = {
  */
 export default function CitySwitcher({
   cityId = DEFAULT_CITY_ID,
+  outsideCurated = false,
 }: CitySwitcherProps) {
   const cities = listEnabledCities();
   const listId = useId();
@@ -140,7 +149,7 @@ export default function CitySwitcher({
           aria-label="Choose city map"
         >
           {cities.map((city) => {
-            const selected = city.id === current.id;
+            const selected = city.id === current.id && !outsideCurated;
             return (
               <li key={city.id} role="option" aria-selected={selected}>
                 <button
@@ -155,6 +164,22 @@ export default function CitySwitcher({
               </li>
             );
           })}
+          <li role="option" aria-selected={false} className="citySwitcherNational">
+            <Link
+              href={UK_NATIONAL_MAP_HREF}
+              className="citySwitcherLink citySwitcherNationalLink"
+              onClick={() => setOpen(false)}
+            >
+              {UK_NATIONAL_ENTRY_LABEL}
+            </Link>
+            <Link
+              href={UK_CHOOSE_CITY_SEARCH_HREF}
+              className="citySwitcherLink citySwitcherNationalLink"
+              onClick={() => setOpen(false)}
+            >
+              Search a UK town
+            </Link>
+          </li>
         </ul>
       ) : null}
     </div>

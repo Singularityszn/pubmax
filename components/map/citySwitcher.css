@@ -159,3 +159,16 @@
     transition: none;
   }
 }
+
+.citySwitcherNational {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+}
+
+.citySwitcherNationalLink {
+  color: var(--ink-soft);
+  font-weight: 600;
+  text-decoration: none;
+  box-sizing: border-box;
+}

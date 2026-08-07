@@ -88,6 +88,11 @@ type AreaSheetProps = {
    * picker is the next thing under it.
    */
   locationNote?: string | null;
+  /**
+   * Camera is outside the priced city pack (UK base layer is primary). Soften
+   * cheapest-pint empty promises; never invent prices for the base map.
+   */
+  baseLed?: boolean;
   /** Close the sheet (the map is already in view). */
   onClose: () => void;
 };
@@ -110,6 +115,7 @@ export default function AreaSheet({
   onUseMyLocation,
   locationBusy = false,
   locationNote = null,
+  baseLed = false,
   onClose,
 }: AreaSheetProps) {
   const closeTimer = useRef<number | null>(null);
@@ -188,19 +194,27 @@ export default function AreaSheet({
     <div className="areaSheet">
       <section
         className="areaSheetSection"
-        aria-label={`Cheapest ${drinkNoun} in this area`}
+        aria-label={
+          baseLed
+            ? "Pubs in this area"
+            : `Cheapest ${drinkNoun} in this area`
+        }
       >
         <h3 className="areaSheetHeading">
-          {focusName
-            ? `Cheapest ${drinkNoun} in ${focusName}`
-            : `Cheapest ${drinkNoun} here`}
+          {baseLed
+            ? focusName
+              ? `Pubs around ${focusName}`
+              : "Pubs on the base map"
+            : focusName
+              ? `Cheapest ${drinkNoun} in ${focusName}`
+              : `Cheapest ${drinkNoun} here`}
         </h3>
-        {coverageNote ? (
+        {coverageNote && !baseLed ? (
           <p className="areaSheetEmpty areaSheetCoverage" role="status">
             {coverageNote}
           </p>
         ) : null}
-        {focusName && pubs.length > 0 ? (
+        {focusName && pubs.length > 0 && !baseLed ? (
           <ul className="areaSheetList">
             {leadPubs.map((pub) => (
               <li key={pub.id}>
@@ -235,13 +249,15 @@ export default function AreaSheet({
           </ul>
         ) : (
           <p className="areaSheetEmpty">
-            {!placeFocus && !area
-              ? `Pan the map over an area to see its cheapest ${drinkNoun}.`
-              : coverageNote
-                ? "Try somewhere else below."
-                : placeFocus
-                  ? `No ${drinkNoun} prices nearby yet. Try somewhere else below.`
-                  : `No ${drinkNoun} prices in this area yet. Try somewhere else below.`}
+            {baseLed
+              ? "Zoom in to load pubs. Prices only where people have logged them."
+              : !placeFocus && !area
+                ? `Pan the map over an area to see its cheapest ${drinkNoun}.`
+                : coverageNote
+                  ? "Try somewhere else below."
+                  : placeFocus
+                    ? `No ${drinkNoun} prices nearby yet. Try somewhere else below.`
+                    : `No ${drinkNoun} prices in this area yet. Try somewhere else below.`}
           </p>
         )}
       </section>
