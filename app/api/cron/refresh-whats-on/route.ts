@@ -50,7 +50,7 @@ export async function GET(request: Request): Promise<Response> {
       `[cron:refresh-whats-on] full ingest not performed (serverless-bound). ` +
         `Absent ingest keys: [${missingIngest.join(", ") || "none"}]; ` +
         `absent event-provider keys: [${missingEvents.join(", ") || "none"}]. ` +
-        `Slim tonight-window revalidation only — see docs/CRON_PLANE_RUNBOOK.md.`,
+        `Slim tonight-window revalidation only: see docs/CRON_PLANE_RUNBOOK.md.`,
     );
   }
 
