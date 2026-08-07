@@ -1,6 +1,6 @@
 # Pavement Answers Wave — quench the thirst
 
-> Status: **EXECUTING** (2026-08-07). Research-led product wave on `main`.
+> Status: **SHIPPING** (2026-08-07). Research-led product wave on `main`.
 > Distinct from utility mounts (#861–#869), night-OS (#829/#832), UK national map (#840), and taste CSS.
 
 ---
@@ -53,6 +53,18 @@ PubMaxxing already owns the honesty monopoly (corroborated prices on a map → s
 **Branch:** `cursor/share-logged-price-dd0b`  
 **Job:** Venue share text prefers corroborated community price + day when present, not only curated `cheapestPrice`.  
 **Done when:** share helper tests.
+
+## Opened PRs
+
+| Item | PR |
+|---|---|
+| Plan | [#872](https://github.com/Singularityszn/pubmax/pull/872) |
+| P1 Open now filter | [#874](https://github.com/Singularityszn/pubmax/pull/874) |
+| P2 Sheet mug-check | [#876](https://github.com/Singularityszn/pubmax/pull/876) |
+| P3 Viewport cheapest sort | [#873](https://github.com/Singularityszn/pubmax/pull/873) |
+| P4 Saved pubs on phone | [#878](https://github.com/Singularityszn/pubmax/pull/878) |
+| P5 Tonight cold-start | [#875](https://github.com/Singularityszn/pubmax/pull/875) |
+| P6 Share logged price | [#877](https://github.com/Singularityszn/pubmax/pull/877) |
 
 ## Anti-goals
 
