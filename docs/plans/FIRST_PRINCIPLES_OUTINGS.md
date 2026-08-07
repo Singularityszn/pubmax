@@ -2,7 +2,7 @@
 
 > Next-phase strategy for PubMaxxing, **separate from** the landing acquisition wave ([`LANDING_ACQUISITION.md`](./LANDING_ACQUISITION.md)) and the PLG / invite monopoly plan ([`PLG_STRATEGY.md`](./PLG_STRATEGY.md)).
 >
-> Status: **READY FOR OWNER REVIEW** — research-backed plan. Wave **S3 scaffolding landed** (source ledger + Open Pubs dry-run evaluate; no slim merge). S1/S2/S4 still need owner choices before copy/product work.
+> Status: **WAVES S1–S4 LANDED on this branch** — story (`/about`), landing why-beat, occasion chips + coffee taxonomy + migration `0082`, source ledger + Open Pubs dry-run. Captain still applies migrations. Optional follow-ups: owner biography dump to deepen `/about`, Open Pubs match report on full UK CSV, Skiddle commercial approval.
 >
 > Drafted 2026-08-07 from shipped product, `docs/VOICE.md`, live `/` + `/about`, existing data pipelines (OSM UK base, FSA hygiene, Wetherspoons first-party fence, Tavily official-site enrichment), UK going-out market research, and open-data / competitor mapping.
 
