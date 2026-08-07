@@ -131,7 +131,7 @@
       "artifact": "public/data/pint_index_snapshot.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
       "cadence": "event-sourced — grows as confirmed Pint Drops / official-publisher observations arrive",
-      "stalenessBudgetHours": null,
+      "stalenessBudgetHours": 2160,
       "refreshWorkflow": "user-cadence (the growth loop IS the refresh mechanism)",
       "gate": "none; only confirmed Pint Drops + official-publisher / open-data sources are eligible"
     },
@@ -142,7 +142,7 @@
       "artifact": "public/data/late_food_evidence.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
       "cadence": "episodic — evidenced by hand per Night Area",
-      "stalenessBudgetHours": null,
+      "stalenessBudgetHours": 2160,
       "refreshWorkflow": "manual (evidence curation)",
       "gate": "none"
     },
@@ -164,7 +164,7 @@
       "artifact": "public/data/pubmaxxing_seed_snapshot.json",
       "stamp": { "kind": "field", "pointer": "sourceImportedAt" },
       "cadence": "episodic — imported from the sibling pubmaxxing repo",
-      "stalenessBudgetHours": null,
+      "stalenessBudgetHours": 8760,
       "refreshWorkflow": "manual (npm run build:pubmaxxing-seed)",
       "gate": "none"
     },
@@ -175,7 +175,7 @@
       "artifact": "public/data/wetherspoons/pubs.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
       "cadence": "episodic — OSM / directory harvest",
-      "stalenessBudgetHours": null,
+      "stalenessBudgetHours": 4320,
       "refreshWorkflow": "manual (npm run fetch:city-pubs / scripts/fetch_wetherspoons_pubs.mjs)",
       "gate": "FIRECRAWL_API_KEY for the directory refresh path; OSM Overpass is keyless"
     },
