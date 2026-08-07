@@ -70,17 +70,21 @@ export function buildFiltersChip(input: {
   zoneActive?: boolean;
   /** Dedicated experience view, named separately from drink filters. */
   experienceLabel?: "no-alcohol view" | "food view";
+  /** Open now is on (known-closed pubs dropped; unknown hours stay). */
+  openNowActive?: boolean;
 }): FiltersChipModel {
   const refinements =
     (input.drinkFiltersActive ? 1 : 0) +
     (input.priceCapActive ? 1 : 0) +
     (input.zoneActive ? 1 : 0) +
-    (input.experienceLabel ? 1 : 0);
+    (input.experienceLabel ? 1 : 0) +
+    (input.openNowActive ? 1 : 0);
   const parts: string[] = [];
   if (input.experienceLabel) parts.push(input.experienceLabel);
   if (input.drinkFiltersActive) parts.push("drinks");
   if (input.priceCapActive) parts.push(input.priceLabel);
   if (input.zoneActive) parts.push("zone");
+  if (input.openNowActive) parts.push("open now");
   return {
     label: "Filters",
     refinements,

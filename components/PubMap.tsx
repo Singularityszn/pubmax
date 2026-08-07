@@ -3484,6 +3484,7 @@ export default function PubMap({
             filters.zone !== "" &&
             filters.zone !== "all"
           }
+          openNowActive={filters.openNow}
           priceCapActive={
             experienceLens === "all" &&
             mapDrinkLensCategory === null &&
