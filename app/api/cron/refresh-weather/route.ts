@@ -53,7 +53,7 @@ export async function GET(request: Request): Promise<Response> {
   const outcome = await weatherSnapshotStore().writeSnapshot(observations, generatedAt);
 
   if (outcome.failed) {
-    console.error("[cron:refresh-weather] durable write failed — snapshot NOT persisted.");
+    console.error("[cron:refresh-weather] durable write failed: snapshot NOT persisted.");
     return publicApiError("Weather store unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 

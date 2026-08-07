@@ -46,7 +46,7 @@ export async function GET(request: Request): Promise<Response> {
 
   if (result.status === "skipped") {
     // Documented keyless default: safe no-op, never a fake stamp.
-    console.warn("[cron:refresh-night-signals] EXA_API_KEY absent — candidate ingestion skipped (safe no-op).");
+    console.warn("[cron:refresh-night-signals] EXA_API_KEY absent: candidate ingestion skipped (safe no-op).");
     return jsonNoStore({ ok: true, feed: "night_signal_candidates", skipped: "no-exa-key", staged: 0 });
   }
 
@@ -59,7 +59,7 @@ export async function GET(request: Request): Promise<Response> {
   });
   if (outcome.failed) {
     console.error(
-      "[cron:refresh-night-signals][night-signals][ALERT] freshness stamp failed — ingestion ran but freshness NOT recorded.",
+      "[cron:refresh-night-signals][night-signals][ALERT] freshness stamp failed: ingestion ran but freshness NOT recorded.",
     );
     return publicApiError("Night Signal freshness store unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }

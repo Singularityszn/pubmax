@@ -294,7 +294,7 @@ export async function DELETE(
         }
       } catch (err) {
         console.error(
-          `[redaction] account deletion for @${handle}: FAILED to mark Story contributions departed — reconcile manually`,
+          `[redaction] account deletion for @${handle}: FAILED to mark Story contributions departed: reconcile manually`,
           err,
         );
       }

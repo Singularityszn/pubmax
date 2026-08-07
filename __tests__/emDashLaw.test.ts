@@ -37,14 +37,23 @@ import { describe, expect, it } from "vitest";
 const ROOT = process.cwd();
 
 // Surfaces the law governs. Every .tsx under app/ and components/ is a rendered
-// surface. lib/ is scanned WHOLESALE: every .ts/.tsx under lib/ is fenced by
-// default, so a new copy-bearing module (a digest, a nudge, an empty state) is
-// covered the day it lands, with no list to remember to extend. The allowlist
-// below names the plumbing files whose only dashes live in server logs, thrown
-// developer errors, or never-rendered bookkeeping: words no reader ever sees.
-// Adding a file here is a claim that NOTHING in it reaches a reader. If a
-// listed file grows real copy, remove it and fix the dashes instead.
-const SCAN_DIRS = ["app", "components"] as const;
+// surface. app/ and lib/ are ALSO scanned wholesale for plain .ts: a route
+// handler's JSON error strings and a digest generator's copy reach a reader
+// exactly like JSX text does, and used to slip past this fence entirely
+// because the old scan only walked .tsx. components/ stays .tsx-only for now
+// - its .ts files are hooks and helpers, not string owners, and widening that
+// scan is a separate call. The allowlists below name the plumbing files whose
+// only dashes live in server logs, thrown developer errors, or never-rendered
+// bookkeeping: words no reader ever sees. Adding a file here is a claim that
+// NOTHING in it reaches a reader. If a listed file grows real copy, remove it
+// and fix the dashes instead.
+const APP_NON_COPY_ALLOWLIST: ReadonlySet<string> = new Set([
+  // Route/sitemap machinery: URLs and config, not reader-facing strings.
+  "app/robots.ts",
+  "app/sitemap.ts",
+  // Local font manifest: font-family and file metadata, never copy.
+  "app/fonts/partyFace.ts",
+]);
 const LIB_NON_COPY_ALLOWLIST: ReadonlySet<string> = new Set([
   // Server stores and providers: degraded-write and fallback log lines only.
   "lib/areaDemandStore.ts",
@@ -101,7 +110,19 @@ function walkDir(dir: string, out: string[], ext: RegExp): void {
 
 function collectFiles(): string[] {
   const files: string[] = [];
-  for (const d of SCAN_DIRS) walkDir(join(ROOT, d), files, /\.tsx$/);
+  // components/ stays .tsx-only: its .ts files are hooks and helpers.
+  walkDir(join(ROOT, "components"), files, /\.tsx$/);
+
+  // app/ is scanned wholesale for .ts and .tsx: route handlers, sitemap/robots
+  // config, and page/layout components all live here, and a route's JSON
+  // error string reaches a reader the same as JSX text does.
+  const appFiles: string[] = [];
+  walkDir(join(ROOT, "app"), appFiles, /\.tsx?$/);
+  for (const f of appFiles) {
+    const rel = f.replace(ROOT + "/", "");
+    if (!APP_NON_COPY_ALLOWLIST.has(rel)) files.push(f);
+  }
+
   const libFiles: string[] = [];
   walkDir(join(ROOT, "lib"), libFiles, /\.tsx?$/);
   for (const f of libFiles) {
@@ -195,6 +216,9 @@ describe("the em-dash law (docs/VOICE.md house law)", () => {
     // The wholesale lib sweep is really in the net, not just app/components.
     expect(files).toContain(join(ROOT, "lib/weeklyDigest.ts"));
     expect(files).toContain(join(ROOT, "lib/apiError.ts"));
+    // The wholesale app/ .ts sweep reaches route handlers, not just page.tsx.
+    expect(files).toContain(join(ROOT, "app/api/pint-drops/route.ts"));
+    expect(files).toContain(join(ROOT, "app/today/todayArea.ts"));
   });
 
   it("keeps the lib allowlist honest (every entry exists; none is a rendered surface)", () => {
@@ -205,6 +229,18 @@ describe("the em-dash law (docs/VOICE.md house law)", () => {
       // rendered .tsx surface from the law.
       expect(rel.startsWith("lib/"), `allowlist entry outside lib/: ${rel}`).toBe(true);
       expect(rel.endsWith(".tsx"), `allowlist must not exempt a rendered surface: ${rel}`).toBe(false);
+    }
+  });
+
+  it("keeps the app allowlist honest (every entry exists; none is a rendered surface)", () => {
+    for (const rel of APP_NON_COPY_ALLOWLIST) {
+      // A stale entry (file deleted or renamed) must be pruned, not carried.
+      expect(() => statSync(join(ROOT, rel)), `allowlisted file missing: ${rel}`).not.toThrow();
+      // The allowlist is for app/ config and manifest files only; it must
+      // never grow to exempt a rendered .tsx surface or a route handler.
+      expect(rel.startsWith("app/"), `allowlist entry outside app/: ${rel}`).toBe(true);
+      expect(rel.endsWith(".tsx"), `allowlist must not exempt a rendered surface: ${rel}`).toBe(false);
+      expect(rel.endsWith("route.ts"), `allowlist must not exempt a route handler: ${rel}`).toBe(false);
     }
   });
 
