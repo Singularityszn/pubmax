@@ -408,6 +408,10 @@ test("theme toggle flips html[data-theme], persists to localStorage, survives re
   await dismissMapFirstRunTour(page);
   await page.goto("/map");
   await page.getByRole("button", { name: "More map controls" }).click();
+  // PR #677 (3740a132, accessible context-aware map key) added the "Key" tab
+  // and made it the default, pushing the ThemeToggle behind the "Layers" tab
+  // (components/PubMap.tsx, mobileLayersTab).
+  await page.getByRole("tab", { name: "Layers", exact: true }).click();
 
   const html = page.locator("html");
   const before = await html.getAttribute("data-theme");
