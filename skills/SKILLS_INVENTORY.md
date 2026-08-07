@@ -29,3 +29,7 @@ Mirrored 2026-08-07. `.agents/` stays gitignored; this tree is the committed cop
 - `cursor-plugin/supabase`: 2
 
 - other/local: 33
+
+## kunchenguid / Firstmate
+
+See `kunchenguid-SOURCE.md`. Firstmate home: `~/firstmate`.
