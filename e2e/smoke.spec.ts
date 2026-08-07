@@ -104,25 +104,26 @@ test("/feed mounts the social feed scaffold without uncaught errors", async ({ p
   expect(errors).toEqual([]);
 });
 
-test("/feed exposes the current London lane filters (issue #36)", async ({ page }) => {
+test("/feed redirects to Social, whose Post lanes are interactive (issue #36)", async ({
+  page,
+}) => {
   const errors = watchPageErrors(page);
   await dismissMapFirstRunTour(page);
   const response = await page.goto("/feed");
   expect(response?.status()).toBe(200);
 
-  // B1 splits the top-level social axis (Your lot / Nearby / London) from the
-  // city-wide lane filters. Select London explicitly, then prove the canonical
-  // filter group is interactive instead of asserting a retired default lane.
-  const london = page.getByRole("tab", { name: "London", exact: true });
-  await expect(london).toBeVisible();
-  await london.click();
-  await expect(london).toHaveAttribute("aria-selected", "true");
-
-  const lanes = page.getByRole("group", { name: "Feed lanes" });
+  // PR #765 (5adfb689) retired /feed's London-tab + Feed-lanes filter group
+  // in favour of the unified Social shell. /feed now redirects to /social,
+  // whose Post lanes are Following / Nearby / Across town (see
+  // app/social/SocialPageClient.tsx). Deep lane-switching behaviour (Nearby
+  // area select, pagination, stale-response guarding) is covered by
+  // e2e/social-shell.spec.ts; this smoke test only proves the redirect lands
+  // on a working, interactive lane nav.
+  const lanes = page.getByRole("navigation", { name: "Post lanes" });
   await expect(lanes).toBeVisible();
-  const tonight = lanes.getByRole("button", { name: "Tonight", exact: true });
-  await tonight.click();
-  await expect(tonight).toHaveAttribute("aria-pressed", "true");
+  const nearby = lanes.getByRole("link", { name: "Nearby", exact: true });
+  await nearby.click();
+  await expect(nearby).toHaveAttribute("aria-current", "page");
   expect(errors).toEqual([]);
 });
 
