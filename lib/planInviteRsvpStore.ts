@@ -57,9 +57,16 @@ function summarizeRsvpRows(rows: RsvpRow[]): PlanInviteRsvpSummary {
   return { counts, guests: guests.slice(0, GUEST_LIST_DISPLAY_CAP) };
 }
 
+export type PlanInviteRsvpUpsertResult = { summary: PlanInviteRsvpSummary; isUpdate: boolean };
+
 export type PlanInviteRsvpStore = {
-  /** Insert-or-update a guest's RSVP for a plan; returns the plan's fresh summary. */
-  upsert(planId: string, submitterHash: string, displayName: string, status: RsvpStatus): Promise<PlanInviteRsvpSummary>;
+  /**
+   * Insert-or-update a guest's RSVP for a plan. `isUpdate` reports whether
+   * this device already held an RSVP for the plan (Going/Maybe change) versus
+   * a brand-new guest, sourced from the existence check the write already
+   * makes rather than a second query.
+   */
+  upsert(planId: string, submitterHash: string, displayName: string, status: RsvpStatus): Promise<PlanInviteRsvpUpsertResult>;
   /** Current RSVP summary for a plan's invite page. */
   summarize(planId: string): Promise<PlanInviteRsvpSummary>;
   /** Host-only removal of one guest's RSVP row. No-op if already gone. */
@@ -95,7 +102,8 @@ export const supabaseRsvpStore: PlanInviteRsvpStore = {
       if (isForeignKeyViolation(error)) throw new UnknownPlanError(planId);
       throw new Error(error.message);
     }
-    return supabaseRsvpStore.summarize(planId);
+    const summary = await supabaseRsvpStore.summarize(planId);
+    return { summary, isUpdate: Boolean(existing) };
   },
   async summarize(planId) {
     const { data, error } = await admin()
@@ -138,7 +146,8 @@ export const memoryRsvpStore: PlanInviteRsvpStore = {
       createdAt: existing?.createdAt ?? new Date().toISOString(),
     });
     memoryRsvps.set(planId, byPlan);
-    return memoryRsvpStore.summarize(planId);
+    const summary = await memoryRsvpStore.summarize(planId);
+    return { summary, isUpdate: Boolean(existing) };
   },
   async summarize(planId) {
     const byPlan = memoryRsvps.get(planId);

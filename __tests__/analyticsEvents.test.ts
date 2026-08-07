@@ -373,3 +373,90 @@ describe("community-price funnel events", () => {
     expect(sanitizeEvent("contribution_gate", {})).toBeNull();
   });
 });
+
+describe("invite loop events", () => {
+  it("registers all six invite-loop events", () => {
+    expect(isKnownEvent("plan_invite_link_copied")).toBe(true);
+    expect(isKnownEvent("plan_invite_link_rotated")).toBe(true);
+    expect(isKnownEvent("invite_page_viewed")).toBe(true);
+    expect(isKnownEvent("invite_rsvp_submitted")).toBe(true);
+    expect(isKnownEvent("invite_reaction_toggled")).toBe(true);
+    expect(isKnownEvent("invite_map_opened")).toBe(true);
+  });
+
+  it("carries no props for the link copy/rotate/map-open events, and no planId", () => {
+    expect(sanitizeEvent("plan_invite_link_copied")).toEqual({
+      name: "plan_invite_link_copied",
+      props: {},
+    });
+    expect(sanitizeEvent("plan_invite_link_rotated", { planId: "should-be-dropped" })).toEqual({
+      name: "plan_invite_link_rotated",
+      props: {},
+    });
+    expect(sanitizeEvent("invite_map_opened", { planId: "should-be-dropped" })).toEqual({
+      name: "invite_map_opened",
+      props: {},
+    });
+  });
+
+  it("keeps hasRsvps for invite_page_viewed and fails closed without it", () => {
+    expect(sanitizeEvent("invite_page_viewed", { hasRsvps: true })).toEqual({
+      name: "invite_page_viewed",
+      props: { hasRsvps: true },
+    });
+    expect(sanitizeEvent("invite_page_viewed", { hasRsvps: false })).toEqual({
+      name: "invite_page_viewed",
+      props: { hasRsvps: false },
+    });
+    expect(sanitizeEvent("invite_page_viewed", { hasRsvps: "yes" })).toBeNull();
+    expect(sanitizeEvent("invite_page_viewed", {})).toBeNull();
+  });
+
+  it("keeps only the closed Going/Maybe vocabulary for invite_rsvp_submitted, with isUpdate", () => {
+    expect(sanitizeEvent("invite_rsvp_submitted", { status: "going", isUpdate: false })).toEqual({
+      name: "invite_rsvp_submitted",
+      props: { status: "going", isUpdate: false },
+    });
+    expect(sanitizeEvent("invite_rsvp_submitted", { status: "maybe", isUpdate: true })).toEqual({
+      name: "invite_rsvp_submitted",
+      props: { status: "maybe", isUpdate: true },
+    });
+    expect(sanitizeEvent("invite_rsvp_submitted", { status: "not_going", isUpdate: false })).toBeNull();
+    expect(sanitizeEvent("invite_rsvp_submitted", { status: "going", isUpdate: "false" })).toBeNull();
+    expect(sanitizeEvent("invite_rsvp_submitted", { status: "going" })).toBeNull();
+    expect(sanitizeEvent("invite_rsvp_submitted", {})).toBeNull();
+  });
+
+  it("keeps only the closed reaction vocabulary for invite_reaction_toggled, with active", () => {
+    for (const reaction of ["cheers", "bargain", "chaos", "proper", "legendary"]) {
+      expect(sanitizeEvent("invite_reaction_toggled", { reaction, active: true })).toEqual({
+        name: "invite_reaction_toggled",
+        props: { reaction, active: true },
+      });
+    }
+    expect(sanitizeEvent("invite_reaction_toggled", { reaction: "sad", active: true })).toBeNull();
+    expect(sanitizeEvent("invite_reaction_toggled", { reaction: "cheers", active: "true" })).toBeNull();
+    expect(sanitizeEvent("invite_reaction_toggled", { reaction: "cheers" })).toBeNull();
+    expect(sanitizeEvent("invite_reaction_toggled", {})).toBeNull();
+  });
+
+  it("never carries a guest display name, device id, or invite token", () => {
+    const ev = sanitizeEvent("invite_rsvp_submitted", {
+      status: "going",
+      isUpdate: false,
+      displayName: "Jamie",
+      submitterHash: "abc123",
+      inviteToken: "one-use-token",
+    });
+    expect(ev).toEqual({ name: "invite_rsvp_submitted", props: { status: "going", isUpdate: false } });
+  });
+
+  it("registers the invite-loop prop allow-lists exactly", () => {
+    expect(ANALYTICS_EVENTS.plan_invite_link_copied).toEqual([]);
+    expect(ANALYTICS_EVENTS.plan_invite_link_rotated).toEqual([]);
+    expect(ANALYTICS_EVENTS.invite_page_viewed).toEqual(["hasRsvps"]);
+    expect(ANALYTICS_EVENTS.invite_rsvp_submitted).toEqual(["status", "isUpdate"]);
+    expect(ANALYTICS_EVENTS.invite_reaction_toggled).toEqual(["reaction", "active"]);
+    expect(ANALYTICS_EVENTS.invite_map_opened).toEqual([]);
+  });
+});

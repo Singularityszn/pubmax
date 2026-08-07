@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 
+import { trackEvent } from "@/lib/analytics";
 import {
   parsePlanCapabilitySnapshot,
   planCapabilityEvent,
@@ -65,6 +66,7 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
     const url = `${window.location.origin}/invite/${inviteToken}`;
     await navigator.clipboard?.writeText(url).catch(() => undefined);
     setStatus("Invite link copied.");
+    trackEvent("plan_invite_link_copied");
   }
 
   async function rotateLink() {
@@ -93,6 +95,7 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
       if (data.inviteToken) {
         setInviteToken(data.inviteToken);
         setStatus("New link ready. The old one stopped working.");
+        trackEvent("plan_invite_link_rotated");
       }
     } catch {
       setStatus("Couldn't make a new link.");

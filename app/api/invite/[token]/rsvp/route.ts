@@ -48,8 +48,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   }
 
   try {
-    const summary = await rsvpStore().upsert(resolved.planId, submitterHash, displayName, status);
-    return jsonNoStore({ summary }, { status: 200 });
+    const { summary, isUpdate } = await rsvpStore().upsert(resolved.planId, submitterHash, displayName, status);
+    return jsonNoStore({ summary, isUpdate }, { status: 200 });
   } catch (err) {
     if (err instanceof UnknownPlanError) {
       return jsonNoStore({ error: "This invite link isn't valid." }, { status: 404 });

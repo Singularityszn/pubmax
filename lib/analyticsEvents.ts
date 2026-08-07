@@ -17,6 +17,8 @@ import {
   ROUTE_READY_GATE_VERSION,
 } from "@/lib/nightAreas";
 import { boroughCode, LONDON_BOROUGH_NAMES } from "@/lib/pintIndex";
+import { RSVP_STATUSES } from "@/lib/planInvite";
+import { REACTION_KEYS } from "@/lib/reactions";
 import { ROUTE_PATTERNS, ROUTE_PATTERN_OTHER } from "@/lib/routePattern";
 import { VITAL_METRICS, VITAL_RATINGS, sanitizeVitalTarget } from "@/lib/webVitals";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -172,6 +174,17 @@ export const ANALYTICS_EVENTS = {
   // explicit loop actions below qualify; route generation, claim steps, and
   // passive opens never do.
   meaningful_core_action: ["action"],
+  // Invite loop (a Plan's public /invite/[token] page). Consent-gated, same
+  // treatment as the press-arrival and price funnels above: fixed enums and
+  // booleans only. No planId, inviteId, guest display name, or invite token
+  // ever rides in these props - see docs/METRICS_FUNNEL.md §7 for why the
+  // link-copy/rotate events carry no plan identifier at all.
+  plan_invite_link_copied: [],
+  plan_invite_link_rotated: [],
+  invite_page_viewed: ["hasRsvps"],
+  invite_rsvp_submitted: ["status", "isUpdate"],
+  invite_reaction_toggled: ["reaction", "active"],
+  invite_map_opened: [],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
@@ -359,6 +372,9 @@ const SAFE_STRING_VALUES = new Set([
   ...NIGHT_AREA_SLUGS,
   ...COVERAGE_STATUSES,
   ...ROUTE_READY_GATE_CODES,
+  // Invite loop vocabulary: RSVP status and the closed reaction set.
+  ...RSVP_STATUSES,
+  ...REACTION_KEYS,
 ]);
 
 const DISTRICT_EVENT_PROP_VALUES = {
@@ -405,6 +421,12 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   // Field RUM: a vital is meaningless without which metric, its value, rating,
   // and the route it happened on. `target` (attribution selector) is optional.
   web_vital: ["metric", "value", "rating", "route"],
+  // Invite loop: a page view with no RSVP context, an RSVP with no status, or
+  // a reaction toggle with no reaction/direction is an uncountable step in a
+  // funnel whose whole value is the ratio between its steps - fail closed.
+  invite_page_viewed: ["hasRsvps"],
+  invite_rsvp_submitted: ["status", "isUpdate"],
+  invite_reaction_toggled: ["reaction", "active"],
 } as const satisfies Partial<Record<AnalyticsEventName, readonly string[]>>;
 
 function includesValue(values: readonly string[], value: string | number | boolean): boolean {
@@ -575,6 +597,27 @@ function isAllowedPintIndexArrivalProp(
   return true;
 }
 
+/**
+ * Invite loop strictness. `status` and `reaction` each have their own closed
+ * vocabulary and share no key name with another event, so the check is
+ * scoped to the two invite events rather than to the keys.
+ */
+function isAllowedInviteLoopProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name === "invite_rsvp_submitted") {
+    if (key === "status") return includesValue(RSVP_STATUSES, value);
+    if (key === "isUpdate") return typeof value === "boolean";
+  }
+  if (name === "invite_reaction_toggled") {
+    if (key === "reaction") return includesValue(REACTION_KEYS, value);
+    if (key === "active") return typeof value === "boolean";
+  }
+  return true;
+}
+
 export function isKnownEvent(name: string): name is AnalyticsEventName {
   return Object.prototype.hasOwnProperty.call(ANALYTICS_EVENTS, name);
 }
@@ -624,7 +667,8 @@ export function sanitizeEvent(
             && isAllowedVitalProp(name, key, value)
             && isAllowedPriceFunnelProp(name, key, value)
             && isAllowedContributionGateProp(name, key, value)
-            && isAllowedPintIndexArrivalProp(name, key, value);
+            && isAllowedPintIndexArrivalProp(name, key, value)
+            && isAllowedInviteLoopProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }

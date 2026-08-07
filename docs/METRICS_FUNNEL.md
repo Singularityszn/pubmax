@@ -209,6 +209,82 @@ second_session_rate = count(distinct ids with pint_index_viewed on day D
                     / count(distinct ids with pint_index_viewed)
 ```
 
+## 7. Invite loop (a Plan's public invite page)
+
+The invite k-factor in §2 counts a redeemed invite, but says nothing about
+the separate public invite page itself (`/invite/[token]`, a Partiful-style
+card any guest with the link can open, RSVP on, and react to with no
+account). These events measure that page as its own funnel: copy/rotate on
+the host side, then view, RSVP, react and map-click on the guest side.
+
+**Events (all new):**
+- `plan_invite_link_copied` — no props. Fires in
+  `components/plan/PlanHostInviteLink.tsx` (`copyLink`) after the link is
+  written to the clipboard.
+- `plan_invite_link_rotated` — no props. Fires in the same file
+  (`rotateLink`), only after `POST /api/plans/[id]/invite-rotate` confirms a
+  new token, never on a failed or refused rotation.
+- `invite_page_viewed` — `{ hasRsvps: boolean }`. Fires once per mount of
+  `/invite/[token]` from a new render-nothing client component,
+  `components/plan/InvitePageView.tsx`, mirroring
+  `PintIndexArrival.tsx`'s ref-guarded mount-once pattern so a re-running
+  effect cannot inflate the count. `hasRsvps` is server-computed from the
+  RSVP summary the page already loads to render the card, so the funnel can
+  split "guest lands on an empty invite" from "guest lands on one with a
+  guest list already".
+- `invite_rsvp_submitted` — `{ status: "going" | "maybe", isUpdate: boolean
+  }`. Fires in `components/plan/PlanInviteRsvp.tsx` (`submitRsvp`) after
+  `POST /api/invite/[token]/rsvp` confirms. `isUpdate` reports whether this
+  device already held an RSVP for the Plan (a Going/Maybe change) versus a
+  brand-new guest — sourced server-side from the existence check the write
+  already makes (`PlanInviteRsvpStore.upsert`'s widened
+  `{ summary, isUpdate }` return), not a second query.
+- `invite_reaction_toggled` — `{ reaction, active: boolean }`. Fires in the
+  same file (`toggleReaction`) after `POST /api/invite/[token]/reactions`
+  confirms. `reaction` is the closed pub-reaction vocabulary
+  (`REACTION_KEYS` in `lib/reactions.ts`). `active` is derived client-side
+  from whether the confirmed summary's `mine` list now includes the reaction
+  — no server change needed, since the toggle response already carries that
+  answer.
+- `invite_map_opened` — no props. Fires from a new small client component,
+  `components/plan/InviteMapLink.tsx`, on the "See these pubs on the map"
+  link under the stop list — new UI this wave, added because the page had no
+  way through to the map before. It opens `/map?venue=<firstStopVenueId>`,
+  reusing `PlanRoute.tsx`'s own `/map?venue=` precedent (no multi-stop deep
+  link exists yet).
+
+**Id hygiene — no `planId` on the link events.** `plan_invite_link_copied`
+and `plan_invite_link_rotated` carry no plan identifier at all, by design.
+The brief that requested these events offered `planId-hashed or none`; this
+wave chose none, because a raw or hashed `planId` here would have no working
+precedent to follow and no use once added. `inviteId` on `invite_created` /
+`invite_redeemed` (§2) exists specifically to join two named events
+together into a redemption rate — that join is the only reason an opaque
+row id is allowed to ride in a prop at all. The copy/rotate events have no
+paired event to join against, and PostHog already aggregates every event
+per pseudonymous `distinct_id` without needing a plan-level key. Adding one
+would carry a real plan row id off the device for no measurable gain, which
+is exactly what the registry's allow-list exists to prevent.
+
+**Privacy:** no raw device id, guest display name, or invite token ever
+rides in any of these six events — `submitterId`/`submitterHash` and the
+invite token stay server-side, matching the pattern below every other event
+in this rail. The "See these pubs on the map" link is pure navigation, not
+a new data practice: `/privacy` already discloses, under "If you use an
+invite link", that a guest can RSVP and react without an account and that
+PUBMAXX stores the display name, RSVP choice, reaction choices, and a
+salted device-id hash — a link to the map adds no new collection, so no
+privacy-page change was needed for this wave.
+
+```
+invite_link_share_rate  = count(plan_invite_link_copied) / distinct hosts
+invite_view_to_rsvp_rate = count(invite_rsvp_submitted) / count(invite_page_viewed)
+invite_view_to_reaction_rate = count(invite_reaction_toggled) / count(invite_page_viewed)
+invite_view_to_map_rate = count(invite_map_opened) / count(invite_page_viewed)
+rsvp_change_rate        = count(invite_rsvp_submitted where isUpdate = true)
+                        / count(invite_rsvp_submitted)
+```
+
 ## Registry additions
 
 All six new event names were added to `ANALYTICS_EVENTS` in
@@ -244,6 +320,25 @@ pint_index_area_opened: ["surface", "area"],
 pint_index_map_reached: [],
 ```
 
+The invite loop (§7) added six more, with a new scoped validator
+(`isAllowedInviteLoopProp`) covering `status` and `reaction`'s closed
+vocabularies:
+
+```ts
+plan_invite_link_copied: [],
+plan_invite_link_rotated: [],
+invite_page_viewed: ["hasRsvps"],
+invite_rsvp_submitted: ["status", "isUpdate"],
+invite_reaction_toggled: ["reaction", "active"],
+invite_map_opened: [],
+```
+
+`invite_page_viewed`, `invite_rsvp_submitted`, and `invite_reaction_toggled`
+were also added to `TRUSTED_HANDOFF_REQUIRED_KEYS`: a page view with no RSVP
+context, an RSVP with no status, or a reaction toggle with no reaction/
+direction is an uncountable step in a ratio-based funnel, so each fails
+closed rather than landing partial.
+
 ## Tests
 
 - `__tests__/pintIndexArrival.test.ts` — the arrival strip's area selection and
@@ -261,6 +356,13 @@ pint_index_map_reached: [],
 - `__tests__/planCollaborationRoutes.test.ts` (pre-existing, unmodified)
   still passes with `upgradeMemberInvite`'s widened return type — it asserts
   via `toMatchObject`, so the added `inviteId` field is additive.
+- `__tests__/analyticsEvents.test.ts` — also covers all six invite-loop
+  events: the three no-prop events accept no input and ignore extras; `status`
+  and `reaction` are pinned to their closed vocabularies (`going`/`maybe`,
+  the five `REACTION_KEYS`) with an off-list value rejected; `isUpdate` and
+  `active` accept only booleans; `invite_page_viewed`,
+  `invite_rsvp_submitted`, and `invite_reaction_toggled` fail closed when
+  their required prop is missing.
 
 ## Wave 0.5 loop metrics
 
