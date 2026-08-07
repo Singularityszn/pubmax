@@ -534,6 +534,7 @@ export default function VenueOverviewTab({
           baselinePriceGbp={latestContributorPrice ?? venue.cheapestPrice}
           latestPintDropAt={latestPintDropAt}
           focusRequest={priceFocusRequest}
+          includeSignals={false}
         />
       ) : null}
       {mode === "build" && isPubVenue(venue) ? (

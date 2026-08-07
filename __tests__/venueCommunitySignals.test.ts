@@ -335,6 +335,14 @@ describe("VenueOverviewTab community signals", () => {
     const firstBlock = html.slice(signalsAt, priceStoryAt);
     expect(firstBlock).not.toContain("Add what you noticed");
     expect(firstBlock).not.toContain("Sign in to add what you noticed.");
+    expect(
+      html.match(/class=\"venueCommunitySignals\"/g) ?? [],
+      "Overview must not double-mount VenueCommunitySignals",
+    ).toHaveLength(1);
+    expect(
+      html.match(/What drinkers noticed/g) ?? [],
+      "Overview must not repeat the signals heading",
+    ).toHaveLength(1);
   });
 
   it("keeps a degraded Overview read from looking like no signals", () => {
