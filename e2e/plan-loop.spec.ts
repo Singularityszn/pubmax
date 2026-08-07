@@ -24,8 +24,8 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     )
     .toBeLessThanOrEqual(1);
 
-  await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Plan my night" }).click();
+  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
+  await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(page.getByText("Three stops we can stand behind, shaped by the night you set below.")).toBeVisible();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await expect(page.getByRole("spinbutton", { name: /People/i })).toHaveValue("4");
@@ -112,8 +112,8 @@ test("host still gets night mode ambushed at their own plan's start time", async
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   await page.goto("/plan");
-  await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Plan my night" }).click();
+  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
+  await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(page.getByText("Three stops we can stand behind, shaped by the night you set below.")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   await page.getByRole("button", { name: "Lock it in" }).click();

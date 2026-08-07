@@ -17,6 +17,7 @@ import {
   trustedNoAlcoholLensPrices,
 } from "@/lib/mapExperienceLens";
 import {
+  NO_ALCOHOL_DRINK_CATEGORIES,
   SUBMITTABLE_DRINK_CATEGORIES,
   type CommunityPrice,
 } from "@/lib/communityPrice";
@@ -321,6 +322,14 @@ describe("map lens drink categories", () => {
     expect(isMapLensDrinkCategory("beer")).toBe(true);
     expect(isMapLensDrinkCategory("not-a-drink")).toBe(false);
     expect(isMapLensDrinkCategory(null)).toBe(false);
+  });
+
+  it("lets coffee own a map lens without joining the no-alcohol lens", () => {
+    expect(MAP_LENS_DRINK_CATEGORIES).toContain("coffee");
+    expect(SUBMITTABLE_DRINK_CATEGORIES).toContain("coffee");
+    expect(isMapLensDrinkCategory("coffee")).toBe(true);
+    expect(NO_ALCOHOL_DRINK_CATEGORIES).not.toContain("coffee");
+    expect(CATEGORY_META.coffee.label).toBe("Coffee");
   });
 
   it("offers every other closed-taxonomy category", () => {

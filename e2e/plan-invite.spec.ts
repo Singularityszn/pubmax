@@ -106,8 +106,8 @@ test("Copy invite link shows for the host's own session and never for an anonymo
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   await page.goto("/plan");
-  await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Plan my night" }).click();
+  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
+  await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await page.getByLabel("Your name").fill("Karan");
   await page.getByRole("button", { name: "Lock it in" }).click();

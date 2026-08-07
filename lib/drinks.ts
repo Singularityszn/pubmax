@@ -5,7 +5,7 @@ import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
 // The all-drinks data model (PRD E1 — "extend, do not fork"). A venue today
 // carries `prices: VenuePrice[]` — cheapest-pint beer rows. This module
 // generalises that to a `Drink` across every category (wine, whisky, gin,
-// vodka, rum, cocktail, shot, soft drink, alcohol-free, other), WITHOUT
+// vodka, rum, cocktail, shot, soft drink, alcohol-free, coffee, other), WITHOUT
 // touching the pint/cheapest-price
 // paths: a pint is simply `category:"beer"`, and the existing VenuePrice[] can
 // be VIEWED as Drink[] through the `legacyPricesToDrinks` adapter below, so the
@@ -19,9 +19,10 @@ import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
 // ── Category taxonomy ────────────────────────────────────────────────────────
 // The closed set of drink categories. A pint is "beer". "other" is the honest
 // catch-all (a liqueur, a cider, an aperitif) so the CHECK constraint in the
-// migration and this union never lie about what a row can be. Soft drinks and
-// alcohol-free drinks remain distinct because they answer different orders and
-// carry different prices.
+// migration and this union never lie about what a row can be. Soft drinks,
+// alcohol-free drinks and coffee remain distinct because they answer different
+// orders and carry different prices. Coffee may own a map lens; it never joins
+// cheapest-pint buckets or the Pint Index.
 export const DRINK_CATEGORIES = [
   "beer",
   "wine",
@@ -33,6 +34,7 @@ export const DRINK_CATEGORIES = [
   "shot",
   "alcohol-free",
   "soft-drink",
+  "coffee",
   "other",
 ] as const;
 
@@ -113,12 +115,13 @@ export const CATEGORY_META: Record<DrinkCategory, CategoryMeta> = {
   cocktail: { label: "Cocktails", order: 2 },
   "alcohol-free": { label: "Alcohol-free", order: 3 },
   "soft-drink": { label: "Soft drinks", order: 4 },
-  whisky: { label: "Whisky", order: 5 },
-  gin: { label: "Gin", order: 6 },
-  rum: { label: "Rum", order: 7 },
-  vodka: { label: "Vodka", order: 8 },
-  shot: { label: "Shots", order: 9 },
-  other: { label: "Other", order: 10 },
+  coffee: { label: "Coffee", order: 5 },
+  whisky: { label: "Whisky", order: 6 },
+  gin: { label: "Gin", order: 7 },
+  rum: { label: "Rum", order: 8 },
+  vodka: { label: "Vodka", order: 9 },
+  shot: { label: "Shots", order: 10 },
+  other: { label: "Other", order: 11 },
 };
 
 export function isDrinkCategory(value: unknown): value is DrinkCategory {

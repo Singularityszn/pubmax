@@ -1,13 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
 
 /**
- * /plan opens on the describe-first question (components/plan/PlanDescribeFirst.tsx),
- * whose own free-text field shares its accessible label ("Describe the
- * night") with the full composer's concierge field. These tests need the
- * full composer (including .planComposer__coverage, which only renders once
- * composerVisible is true) without first generating a route, so this reaches
- * it through the wizard's own "Describe instead" skip rather than trusting
- * the describe-first field's visibility, which would false-positive.
+ * /plan opens on the describe-first question (components/plan/PlanDescribeFirst.tsx).
+ * These tests need the full composer (including .planComposer__coverage, which
+ * only renders once composerVisible is true) without first generating a route,
+ * so this reaches it through the wizard's own "Describe instead" skip rather
+ * than trusting the describe-first field's visibility, which would false-positive.
  */
 async function openComposer(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Guide me instead" }).click();

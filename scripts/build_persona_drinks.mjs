@@ -45,6 +45,7 @@ const DRINK_CATEGORIES = [
   "shot",
   "alcohol-free",
   "soft-drink",
+  "coffee",
   "other",
 ];
 const KINDS = ["person", "fictional"];

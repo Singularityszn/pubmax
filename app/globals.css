@@ -5435,6 +5435,7 @@ html[data-legacy="1"] *::after {
   --cat-shot: #6a3fb0; /* electric — 6.71 */
   --cat-alcohol-free: #176b72; /* clear teal */
   --cat-soft-drink: #7a4f00; /* citrus */
+  --cat-coffee: #6b3d16; /* roasted brown */
   --cat-other: #5c5347; /* neutral bark — 7.11 */
 }
 
@@ -5450,6 +5451,7 @@ html[data-theme="dark"] {
   --cat-shot: #b28ae8; /* 6.59 */
   --cat-alcohol-free: #67cbd0;
   --cat-soft-drink: #f0b65a;
+  --cat-coffee: #d4a06a;
   --cat-other: #a89e8c; /* 6.79 */
 }
 
@@ -5467,6 +5469,7 @@ html[data-legacy="1"] {
   --cat-shot: #522d90;
   --cat-alcohol-free: #0e555b;
   --cat-soft-drink: #5f3c00;
+  --cat-coffee: #522e10;
   --cat-other: #463f34;
 }
 
@@ -5481,6 +5484,7 @@ html[data-theme="dark"][data-legacy="1"] {
   --cat-shot: #c8a6f2;
   --cat-alcohol-free: #86e0e2;
   --cat-soft-drink: #ffd17f;
+  --cat-coffee: #e8b87a;
   --cat-other: #c2b8a4;
 }
 

@@ -106,13 +106,14 @@ describe("validateCommunityPrice", () => {
     }
   });
 
-  it("lets a person log a soft drink and an alcohol-free pint", () => {
-    expect(SUBMITTABLE_DRINK_CATEGORIES.slice(0, 3)).toEqual([
+  it("lets a person log a soft drink, coffee and an alcohol-free pint", () => {
+    expect(SUBMITTABLE_DRINK_CATEGORIES.slice(0, 4)).toEqual([
       "beer",
       "alcohol-free",
       "soft-drink",
+      "coffee",
     ]);
-    for (const drinkCategory of ["soft-drink", "alcohol-free"] as const) {
+    for (const drinkCategory of ["soft-drink", "alcohol-free", "coffee"] as const) {
       const result = validateCommunityPrice({
         venueId: "venue-16pnwmm",
         drinkCategory,

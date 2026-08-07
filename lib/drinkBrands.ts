@@ -90,6 +90,7 @@ export const DRINK_BRANDS: DrinkBrandCatalog = {
   shot: [],
   "alcohol-free": [],
   "soft-drink": [],
+  coffee: [],
   other: [],
 };
 
@@ -123,6 +124,14 @@ export const CATEGORY_SEARCH_TOKENS: Record<DrinkCategory, string[]> = {
     "lime and soda",
     "tonic water",
     "juice",
+  ],
+  coffee: [
+    "coffee",
+    "espresso",
+    "americano",
+    "latte",
+    "cappuccino",
+    "flat white",
   ],
   other: [],
 };
