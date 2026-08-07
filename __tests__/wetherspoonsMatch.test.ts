@@ -46,8 +46,6 @@ function pub(
 
 function venue(overrides: Partial<Venue> & Pick<Venue, "id" | "name">): Venue {
   return {
-    id: overrides.id,
-    name: overrides.name,
     address: "Test Street",
     latitude: 51.54,
     longitude: -0.14,
