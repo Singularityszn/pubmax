@@ -323,8 +323,17 @@
   font-size: 17px;
   line-height: 1.65;
 }
-.lpWhyCopy .lpTextLink {
+.lpWhyActions {
   margin-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  align-items: center;
+}
+.lpWhyCopy .lpTextLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 5px;

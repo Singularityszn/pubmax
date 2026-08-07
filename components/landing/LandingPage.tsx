@@ -339,24 +339,35 @@ export default function LandingPage({
         </section>
 
         {/* Human beat (S1/S4): why this exists, between hero and the feature
-            grid. Desire first, honesty second. Not a mission statement. */}
+            grid. Desire first, honesty second. Not a mission statement.
+            Outing jobs (coffee, food, quiet Spoons, soft drink / AF) sit here
+            so the hero can stay map-first and pint-led. */}
         <section className="lpWhySection" id="why" aria-labelledby="why-title">
           <div className="lpWhyCopy">
             <p className="lpSectionLabel">Why PUBMAXX</p>
             <h2 id="why-title">Built for the bit before you set off.</h2>
             <p>
               You want somewhere that will not mug you on the first round. A
-              cheap pint near the station, coffee when you are not drinking,
-              food before the last train, a quiet seat on a slow afternoon. One
-              map should answer that without the usual three-app shuffle.
+              cheap pint near the station. Coffee and a quiet Spoons when the
+              afternoon is the outing. Food before the last train. Soft drink
+              or alcohol-free with mates who are not drinking. One map should
+              answer that without the usual three-app shuffle.
             </p>
             <p>
               Keeping those prices honest takes real work. We would rather
               leave a gap than invent a figure. The longer why is on Our story.
             </p>
-            <Link href="/about" className="lpTextLink">
-              Our story <ArrowRight size={16} aria-hidden="true" />
-            </Link>
+            <div className="lpWhyActions">
+              <Link href={primaryCtaHref} className="lpTextLink" {...warmProps}>
+                Open the map <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+              <Link href="/plan" className="lpTextLink">
+                Plan an outing <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+              <Link href="/about" className="lpTextLink">
+                Our story <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+            </div>
           </div>
         </section>
 
@@ -383,8 +394,8 @@ export default function LandingPage({
           <div className="lpMemoryCanvas">
             <div className="lpMemoryCopy">
               <p className="lpSectionLabel">From a pin to a story</p>
-              <h2 id="memory-title">Plan the night. Keep the parts that mattered.</h2>
-              <p>Your night stays private until you say otherwise. When the crew&rsquo;s ready, turn the moments everyone likes into a story worth keeping.</p>
+              <h2 id="memory-title">Plan the outing. Keep the parts that mattered.</h2>
+              <p>Your outing stays private until you say otherwise. When the crew&rsquo;s ready, turn the moments everyone likes into a story worth keeping.</p>
               <div className="lpMemoryActions">
                 <Link href="/plan" className="lpButton lpButtonPrimary">Start a plan</Link>
                 {socialInviteBetaEnabled ? (
