@@ -68,13 +68,12 @@ const POUND_PRICE = /£\s*(\d+(?:\.\d{2})?)/;
 const BARE_PRICE = /^\s*(\d+\.\d{2})\s*$/;
 
 function mapMbplcSectionToCategory(section) {
+  // Keep in sync with lib/mbplcMenuParser.ts.
   const s = section.toLowerCase();
   if (
     s.includes("fever-tree") ||
     s.includes("mixer") ||
-    s.includes("soft drink") ||
     s.includes("tonic") ||
-    s.includes("soda") ||
     s.includes("main menu") ||
     s.includes("sandwich") ||
     s.includes("buffet") ||
@@ -85,14 +84,26 @@ function mapMbplcSectionToCategory(section) {
   }
   if (s.includes("wine") || s.includes("champagne") || s.includes("spark")) return "wine";
   if (s.includes("cocktail") || s.includes("spritz")) return "cocktail";
+  if (s.includes("coffee") || s.includes("hot drink")) return "coffee";
+  if (
+    s.includes("alcohol-free") ||
+    s.includes("alcohol free") ||
+    s.includes("non-alcoholic") ||
+    s.includes("low and no") ||
+    s.includes("no & low") ||
+    s.includes("no and low") ||
+    s.includes("0.0")
+  ) {
+    return "alcohol-free";
+  }
+  if (s.includes("soft drink") || s.includes("soda")) return "soft-drink";
   if (
     s.includes("beer") ||
     s.includes("lager") ||
     s.includes("ale") ||
     s.includes("cider") ||
     s.includes("draught") ||
-    s.includes("craft") ||
-    s.includes("low and no")
+    s.includes("craft")
   ) {
     return "beer";
   }

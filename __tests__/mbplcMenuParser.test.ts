@@ -20,6 +20,9 @@ describe("mbplcMenuParser", () => {
     expect(mapMbplcSectionToCategory("Cask Ale, Craft Beer & Cider")).toBe("beer");
     expect(mapMbplcSectionToCategory("Gin")).toBe("gin");
     expect(mapMbplcSectionToCategory("Fever-Tree Mixers")).toBeNull();
+    expect(mapMbplcSectionToCategory("Soft drinks")).toBe("soft-drink");
+    expect(mapMbplcSectionToCategory("Coffee")).toBe("coffee");
+    expect(mapMbplcSectionToCategory("Low and No")).toBe("alcohol-free");
   });
 
   it("extracts pub name from page heading", () => {
