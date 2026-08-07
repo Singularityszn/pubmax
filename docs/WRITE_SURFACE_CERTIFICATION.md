@@ -87,6 +87,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/plans/[id]/constraints`
 - `POST app/api/plans/[id]/constraints/[constraintId]/resolve`
 - `POST app/api/plans/[id]/group-prefs`
+- `POST app/api/plans/[id]/invite-rotate`
 - `POST app/api/plans/[id]/invites`
 - `POST app/api/plans/[id]/invites/redeem`
 - `POST app/api/plans/[id]/join`
@@ -925,14 +926,15 @@ commit.
   birth stays until profile deletion; full name and sex stay until edited,
   cleared or profile deletion. No contribution eligibility is derived.
 
-### `app/api/invite/[token]/rsvp`, `app/api/invite/[token]/reactions`, and `app/api/plans/[id]/invite-rsvp` - Plan public invite RSVP and reactions (route 89)
+### `app/api/invite/[token]/rsvp`, `app/api/invite/[token]/reactions`, `app/api/plans/[id]/invite-rsvp`, and `app/api/plans/[id]/invite-rotate` - Plan public invite RSVP, reactions, and link rotation (route 89)
 
 - **Route / method:** `POST` on `app/api/invite/[token]/rsvp/route.ts`,
-  `GET` + `POST` on `app/api/invite/[token]/reactions/route.ts`, and host-only
-  `DELETE` on `app/api/plans/[id]/invite-rsvp/route.ts`. Public guest writes
-  stay on the invite bearer URL; host removal lives under `/api/plans/[id]/…`
-  so the path-scoped HttpOnly member cookie can authorize after a hard
-  `/invite/[token]` open.
+  `GET` + `POST` on `app/api/invite/[token]/reactions/route.ts`, host-only
+  `DELETE` on `app/api/plans/[id]/invite-rsvp/route.ts`, and host-only `POST`
+  on `app/api/plans/[id]/invite-rotate/route.ts`. Public guest writes stay on
+  the invite bearer URL; host removal and rotation live under
+  `/api/plans/[id]/…` so the path-scoped HttpOnly member cookie can authorize
+  after a hard `/invite/[token]` open.
 - **Identity is handle-free by design:** the RSVP POST accepts a
   server-hygiened display name and a Going/Maybe status, keyed by
   `hashActor(submitterId)` where `submitterId` is the visitor's own device id
@@ -956,6 +958,19 @@ commit.
   requires a valid plan-member session resolved through
   `planMemberCapability`/`planMemberIdentity` and rejects a guest member with
   403. Only the host may remove another guest's RSVP.
+- **Host-only link rotation:** `POST` on `/api/plans/[id]/invite-rotate`
+  requires the same `planMemberCapability`/`planMemberIdentity` host check and
+  rejects a guest or missing capability with 403. A successful rotation mints
+  a fresh `invite_token` (`rotateInviteToken`, `lib/planStore.ts`) and
+  overwrites the plan's stored token, so the old `/invite/[token]` link 404s
+  on its very next use through `resolveClassicInvitePlan`.
+- **Guest-list caps:** `GUEST_LIST_DISPLAY_CAP` (40, `lib/planInvite.ts`)
+  trims the invite page's visible guest list; `counts` still tallies every
+  row, so the shown "+N more" line stays honest. `RSVP_PLAN_CEILING` (200)
+  is a hard write-side limit enforced in both `PlanInviteRsvpStore`
+  implementations: a brand-new guest is refused with `RsvpCapExceededError`,
+  surfaced as a 409, once a plan already holds that many RSVP rows; an
+  existing guest may still change Going/Maybe at the ceiling.
 - **Rollback / kill:** durable rows live in `plan_invite_rsvps` and
   `plan_invite_reactions` (migration 0081, shipped not applied). RLS denies
   `anon`/`authenticated` outright; every access is service-role only, the same
