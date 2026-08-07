@@ -71,12 +71,14 @@ type PubMaxingShellProps = {
   // the query string, so no stranger's copy can be rendered as ours, and a soft
   // navigation cannot lose the arrival to an empty location.search at mount.
   placeArrival?: UkPlaceMapArrival | null;
+  nationalBrowse?: boolean;
 };
 
 export default function PubMaxingShell({
   cityId = DEFAULT_CITY_ID,
   flags = TRUSTED_HANDOFF_FLAGS_OFF,
   placeArrival = null,
+  nationalBrowse = false,
 }: PubMaxingShellProps) {
   // Lazy initializer = runs exactly once, before the dynamic PubMap (ssr:false)
   // can possibly have mounted and read the sessionStorage flag.
@@ -103,6 +105,7 @@ export default function PubMaxingShell({
       cityId={cityId}
       flags={flags}
       placeArrival={placeArrival}
+      nationalBrowse={nationalBrowse}
     />
   );
 }

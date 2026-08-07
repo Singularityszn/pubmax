@@ -14,6 +14,7 @@ import {
 } from "@/lib/cityShare";
 import { resolveUkPlaceMapArrival } from "@/lib/ukPlaceIndex.server";
 import { ukPlaceMapUrl } from "@/lib/ukPlaceSearch";
+import { isUkNationalBrowse, UK_NATIONAL_MAP_HREF } from "@/lib/ukNationalBrowse";
 
 // /map stays London for back-compat bookmarks. Other cities live at /map/[city].
 // An uncovered UK town is not a city route: it rides /map as a `?place=` arrival
@@ -40,6 +41,11 @@ export async function generateMetadata({
 }: MapPageProps): Promise<Metadata> {
   const sp = searchParams ? await searchParams : undefined;
   const placeArrival = placeArrivalFor(sp);
+  const nationalBrowse = isUkNationalBrowse(
+    new URLSearchParams({
+      uk: firstSearchParam(sp?.uk) ?? "",
+    }),
+  );
   if (placeArrival) {
     const title = `${placeArrival.name} pub map`;
     const description =
@@ -63,6 +69,27 @@ export async function generateMetadata({
         card: "summary",
         title,
         description,
+      },
+    };
+  }
+  if (nationalBrowse) {
+    return {
+      title: "UK pub map",
+      description:
+        "Browse pubs across the UK. Zoom in to load them. Priced city maps keep their packs.",
+      alternates: { canonical: "/map" },
+      openGraph: {
+        title: "UK pub map",
+        description:
+          "Browse pubs across the UK. Zoom in to load them. Priced city maps keep their packs.",
+        type: "website",
+        url: UK_NATIONAL_MAP_HREF,
+      },
+      twitter: {
+        card: "summary",
+        title: "UK pub map",
+        description:
+          "Browse pubs across the UK. Zoom in to load them. Priced city maps keep their packs.",
       },
     };
   }
@@ -97,12 +124,21 @@ export async function generateMetadata({
 
 export default async function MapPage({ searchParams }: MapPageProps) {
   const sp = searchParams ? await searchParams : undefined;
+  const placeArrival = placeArrivalFor(sp);
+  const nationalBrowse =
+    !placeArrival &&
+    isUkNationalBrowse(
+      new URLSearchParams({
+        uk: firstSearchParam(sp?.uk) ?? "",
+      }),
+    );
   return (
     <>
       <PubMaxingShell
         cityId="london"
         flags={readTrustedHandoffFlags()}
-        placeArrival={placeArrivalFor(sp)}
+        placeArrival={placeArrival}
+        nationalBrowse={nationalBrowse}
       />
       {/* Records that a Pint Index arrival reached the map. Renders nothing and
           owns no map state; it only reads its own arrival marker off the URL. */}

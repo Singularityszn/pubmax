@@ -14,6 +14,7 @@ import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
 import "@/components/map/mapBannerStaging.css";
 import UkPlaceArrivalBanner from "@/components/map/UkPlaceArrivalBanner";
+import UkNationalBrowseBanner from "@/components/map/UkNationalBrowseBanner";
 
 import {
   buildCrawlRoute,
@@ -327,6 +328,10 @@ import {
   type UkPlaceMapArrival,
 } from "@/lib/ukPlaceSearch";
 import {
+  UK_NATIONAL_MAP_VIEW,
+  isUkNationalBrowse,
+} from "@/lib/ukNationalBrowse";
+import {
   readPlanningIntent,
   writePlanningIntent,
   type PlanningIntentSource,
@@ -492,6 +497,7 @@ export default function PubMap({
   cityId = DEFAULT_CITY_ID,
   flags = TRUSTED_HANDOFF_FLAGS_OFF,
   placeArrival = null,
+  nationalBrowse = false,
 }: {
   cityId?: CityId;
   flags?: TrustedHandoffFlagsDTO;
@@ -503,12 +509,28 @@ export default function PubMap({
    * this component an empty search string at mount.
    */
   placeArrival?: UkPlaceMapArrival | null;
+  /**
+   * Explicit UK-wide browse (`/map?uk=1`). Opens at a national overview; pubs
+   * appear once the camera crosses the base zoom gate. Never invents prices.
+   */
+  nationalBrowse?: boolean;
 }) {
   const city = getCity(cityId);
   const [ukPlaceArrival] = useState(() => placeArrival);
-  const [initialMapView] = useState<MapViewportSnapshot>(() =>
-    ukPlaceArrival ? ukPlaceMapView(ukPlaceArrival, city.mapView) : city.mapView,
+  const [ukNationalBrowse] = useState(
+    () => nationalBrowse || isUkNationalBrowse(currentSearch()),
   );
+  const [initialMapView] = useState<MapViewportSnapshot>(() => {
+    if (ukPlaceArrival) return ukPlaceMapView(ukPlaceArrival, city.mapView);
+    if (ukNationalBrowse) {
+      return {
+        ...UK_NATIONAL_MAP_VIEW,
+        pitch: city.mapView.pitch ?? 0,
+        bearing: city.mapView.bearing ?? 0,
+      };
+    }
+    return city.mapView;
+  });
   const mobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
     mobileViewportSnapshot,
@@ -536,11 +558,13 @@ export default function PubMap({
     desktopRailViewportSnapshot,
     () => false,
   );
-  const isLondon = cityId === "london" && !ukPlaceArrival;
-  const mapDisplayName = ukPlaceArrival?.name ?? city.displayName;
-  const mapSearchPlaceholder = ukPlaceArrival
-    ? "Search priced pub names"
-    : `Search ${city.displayName} venues or areas`;
+  const isLondon = cityId === "london" && !ukPlaceArrival && !ukNationalBrowse;
+  const mapDisplayName =
+    ukPlaceArrival?.name ?? (ukNationalBrowse ? "UK" : city.displayName);
+  const mapSearchPlaceholder =
+    ukPlaceArrival || ukNationalBrowse
+      ? "Search priced pub names"
+      : `Search ${city.displayName} venues or areas`;
   const cityLandmarks = useMemo(() => landmarksForCity(cityId), [cityId]);
   const cityStoryBands = useMemo(() => storyBandsForCity(cityId), [cityId]);
   const cityCuratedCrawls = useMemo(() => curatedCrawlsForCity(cityId), [cityId]);
@@ -1405,10 +1429,23 @@ export default function PubMap({
   );
   const mapContextName =
     ukPlaceArrival?.name ??
-    (!mapViewport.center ||
-    pointInCityBounds(mapViewport.center[1], mapViewport.center[0], city)
-      ? city.displayName
-      : "UK");
+    (ukNationalBrowse
+      ? "UK"
+      : !mapViewport.center ||
+          pointInCityBounds(mapViewport.center[1], mapViewport.center[0], city)
+        ? city.displayName
+        : "UK");
+  const outsideCuratedBounds =
+    !ukPlaceArrival &&
+    !ukNationalBrowse &&
+    Boolean(
+      mapViewport.center &&
+        !pointInCityBounds(mapViewport.center[1], mapViewport.center[0], city),
+    );
+  // Base-led chrome: uncovered place, national browse, or pan past cityMaxBounds.
+  const baseLedChrome = Boolean(
+    ukPlaceArrival || ukNationalBrowse || outsideCuratedBounds,
+  );
 
   const hasReactiveLogIntent = hasMapLogIntent(searchParams) && !logIntentCleared;
   const shouldBuildSuggestedRoute = !hasReactiveLogIntent || planningOpen || routeMapped;
@@ -2490,13 +2527,13 @@ export default function PubMap({
     cityId,
     query: filters.query,
     onQueryChange: changeMapSearchQuery,
-    venues: ukPlaceArrival ? [] : venues,
-    localities: ukPlaceArrival ? [] : localities,
+    venues: baseLedChrome ? [] : venues,
+    localities: baseLedChrome ? [] : localities,
     userLocation,
     mapCenter: mapViewport.center,
     onSelectVenue: selectVenueFromSearch,
     onFlyToArea: selectSearchArea,
-    onSubmitQuery: ukPlaceArrival ? undefined : selectTopSearchMatch,
+    onSubmitQuery: baseLedChrome ? undefined : selectTopSearchMatch,
   } satisfies Omit<MapSearchSuggestProps, "id" | "mode" | "placeholder" | "onClose">;
 
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
@@ -3099,7 +3136,7 @@ export default function PubMap({
         {/* Desktop only. On a phone these toggles are a section of the Filters
             sheet instead, so the map keeps the band the third chrome bar used
             to take (design judgement 2026-08-01, finding 2.3). */}
-        {!ukPlaceArrival && !mobileViewport ? (
+        {!baseLedChrome && !mobileViewport ? (
           <TonightArcChips
             visibility={venueKindVisibility}
             experienceLens={experienceLens}
@@ -3136,6 +3173,10 @@ export default function PubMap({
           </aside>
         ) : ukPlaceArrival ? (
           <UkPlaceArrivalBanner arrival={ukPlaceArrival} />
+        ) : ukNationalBrowse ? (
+          <UkNationalBrowseBanner variant="national" />
+        ) : outsideCuratedBounds ? (
+          <UkNationalBrowseBanner variant="outside" />
         ) : null}
         {/* Keep pitched-London loading chrome until slim data and the canvas's
             viewport-specific handoff are ready. Phone requires a guarded frame
@@ -3223,12 +3264,13 @@ export default function PubMap({
           onBoundsChange={handleMapBoundsChange}
         />
         {!mobileViewport ? <MapToolbar
+          outsideCurated={outsideCuratedBounds || ukNationalBrowse}
           query={filters.query}
           onQueryChange={changeMapSearchQuery}
           searchContent={
             // Nothing here is priced, so venue search can never answer. The
             // mobile shell drops it for the same reason.
-            ukPlaceArrival ? null : (
+            baseLedChrome ? null : (
               <MapSearchSuggest
                 {...sharedMapSearchProps}
                 id="mapSearchInput"
@@ -3286,7 +3328,7 @@ export default function PubMap({
             moment the reader moves the camera (design judgement 2026-08-01,
             finding 2.15). They used to park in the exact centre of the
             viewport, over the pins the map exists to show. */}
-        {ambientBannerLane && !ukPlaceArrival ? (
+        {ambientBannerLane && !baseLedChrome ? (
           <CitySuggestBanner
             cityId={cityId}
             onLocationFound={setUserLocation}
@@ -3298,7 +3340,7 @@ export default function PubMap({
         {/* F3: concierge as map home — a first-class grounded ask affordance in
             the bottom map-home lane. Rendered before the Tonight lane so its
             sibling CSS lifts the lane above the collapsed pill (no collision). */}
-        {!mobileViewport && !ukPlaceArrival ? <MapConciergeAsk cityId={cityId} onSelectVenue={(id) => selectVenue(id)} /> : null}
+        {!mobileViewport && !baseLedChrome ? <MapConciergeAsk cityId={cityId} onSelectVenue={(id) => selectVenue(id)} /> : null}
         {!mobileViewport && isLondon ? (
           <TonightLane
             rows={whatsOnTonight.rows}
@@ -3412,7 +3454,7 @@ export default function PubMap({
         <MobileMapShell
           cityLabel={ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName}
           cityLabelOrigin={areaChipOrigin}
-          limitedCoverage={Boolean(ukPlaceArrival)}
+          limitedCoverage={baseLedChrome}
           overlay={mobileShellState.overlay}
           onOverlayChange={changeMapOverlay}
           backLabel={mapSurfaceTrail.backLabel}
@@ -3454,7 +3496,7 @@ export default function PubMap({
           planOpen={planningOpen}
           planActive={routeMappedActive || activePlanRoute.length >= 2}
           planStopCount={routeMappedActive ? route.length : activePlanRoute.length}
-          planInteractive={mobileViewport && !ukPlaceArrival}
+          planInteractive={mobileViewport && !baseLedChrome}
           venueListOpen={mapListOpen}
           bandNoticeOpen={showBandChip}
           onPlan={openPlanning}
@@ -3684,6 +3726,7 @@ export default function PubMap({
               cityId={cityId}
               area={searchAreaTarget ? (searchAreaTarget.kind === "area" ? searchAreaTarget.area : null) : centreArea}
               placeFocus={searchAreaTarget?.kind === "place" ? searchAreaTarget : null}
+              baseLed={baseLedChrome}
               venues={pubVenues}
               lensPrices={drinkLensPrices}
               drinkLabel={
