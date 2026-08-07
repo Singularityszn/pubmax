@@ -40,6 +40,7 @@ export const SUBMITTABLE_DRINK_CATEGORIES: readonly DrinkCategory[] = [
   "beer",
   "alcohol-free",
   "soft-drink",
+  "coffee",
   "wine",
   "cocktail",
   "whisky",

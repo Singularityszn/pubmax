@@ -17,16 +17,16 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   await page.goto("/plan");
-  await expect(page.getByRole("heading", { name: "Describe the night. We’ll put it in order." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Describe the outing. We’ll put it in order." })).toBeVisible();
   await expect
     .poll(async () =>
       page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
     )
     .toBeLessThanOrEqual(1);
 
-  await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Plan my night" }).click();
-  await expect(page.getByText("Three stops we can stand behind, shaped by the night you set below.")).toBeVisible();
+  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
+  await page.getByRole("button", { name: "Make a plan" }).click();
+  await expect(page.getByText("Three stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await expect(page.getByRole("spinbutton", { name: /People/i })).toHaveValue("4");
   await page.getByText("Area coverage", { exact: true }).click();
@@ -112,9 +112,9 @@ test("host still gets night mode ambushed at their own plan's start time", async
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   await page.goto("/plan");
-  await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Plan my night" }).click();
-  await expect(page.getByText("Three stops we can stand behind, shaped by the night you set below.")).toBeVisible();
+  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
+  await page.getByRole("button", { name: "Make a plan" }).click();
+  await expect(page.getByText("Three stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   await page.getByRole("button", { name: "Lock it in" }).click();
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}$/);

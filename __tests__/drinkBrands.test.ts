@@ -99,6 +99,8 @@ describe("drinkBrands", () => {
     expect(parseDrinkCategoryParam("GIN")).toBe("gin");
     expect(parseDrinkCategoryParam("SOFT-DRINK")).toBe("soft-drink");
     expect(parseDrinkCategoryParam("alcohol-free")).toBe("alcohol-free");
+    expect(parseDrinkCategoryParam("coffee")).toBe("coffee");
+    expect(parseDrinkCategoryParam("COFFEE")).toBe("coffee");
     expect(parseDrinkCategoryParam("low-no")).toBeNull();
     expect(parseDrinkCategoryParam("wizard")).toBeNull();
   });

@@ -70,9 +70,13 @@ function snapshot(
   };
 }
 
-async function renderStoryHooks(): Promise<string> {
+async function renderAbout(): Promise<string> {
   const page = await AboutPage();
-  const html = renderToStaticMarkup(createElement(() => page));
+  return renderToStaticMarkup(createElement(() => page));
+}
+
+async function renderStoryHooks(): Promise<string> {
+  const html = await renderAbout();
   const start = html.indexOf('aria-labelledby="press-hooks"');
   const end = html.indexOf('aria-labelledby="cta"', start);
   return html.slice(start, end);
@@ -121,5 +125,27 @@ describe("About Pint Index story", () => {
     expect(story).toContain("<strong>2</strong> dated prices");
     expect(story).toContain("<strong>2</strong> pubs");
     expect(story).not.toContain("2,796");
+  });
+});
+
+describe("About outings story (Wave S1)", () => {
+  beforeEach(() => {
+    fixtures.snapshot = snapshot([]);
+  });
+
+  it("names daytime and sober outings without inventing biography or metrics", async () => {
+    const html = await renderAbout();
+
+    expect(html).toContain("coffee and a laptop at a Spoons");
+    expect(html).toContain("alcohol-free hang");
+    expect(html).toContain("Food anchors stay honest");
+    expect(html).toContain("Fake Wetherspoons prices");
+    expect(html).toContain("second independent drinker");
+    expect(html).toContain("founder-led by");
+    expect(html).toContain("Karan Manoharan");
+    expect(html).toContain("one map for nights out and daytime hangs");
+    expect(html).not.toMatch(/\b(journey|unlock|seamless|curated|discover|elevate)\b/iu);
+    expect(html).not.toMatch(/co-founder|Discord|thousands of/iu);
+    expect(html).not.toContain("!");
   });
 });

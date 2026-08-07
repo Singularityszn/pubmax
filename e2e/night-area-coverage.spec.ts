@@ -1,18 +1,16 @@
 import { expect, type Page, test } from "@playwright/test";
 
 /**
- * /plan opens on the describe-first question (components/plan/PlanDescribeFirst.tsx),
- * whose own free-text field shares its accessible label ("Describe the
- * night") with the full composer's concierge field. These tests need the
- * full composer (including .planComposer__coverage, which only renders once
- * composerVisible is true) without first generating a route, so this reaches
- * it through the wizard's own "Describe instead" skip rather than trusting
- * the describe-first field's visibility, which would false-positive.
+ * /plan opens on the describe-first question (components/plan/PlanDescribeFirst.tsx).
+ * These tests need the full composer (including .planComposer__coverage, which
+ * only renders once composerVisible is true) without first generating a route,
+ * so this reaches it through the wizard's own "Describe instead" skip rather
+ * than trusting the describe-first field's visibility, which would false-positive.
  */
 async function openComposer(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Guide me instead" }).click();
   await page.getByRole("button", { name: "Describe instead" }).click();
-  await expect(page.getByLabel("Describe the night")).toBeVisible();
+  await expect(page.getByLabel("Describe the outing")).toBeVisible();
 }
 
 test("mobile planner explains planning confidence and evidence warnings", async ({ page }) => {
@@ -87,10 +85,10 @@ test("mobile planner announces concierge progress while it finds a route", async
   await openComposer(page);
 
   const concierge = page.locator(".planComposer__concierge");
-  const description = page.getByLabel("Describe the night");
+  const description = page.getByLabel("Describe the outing");
   await description.fill("A calm, affordable night near Clapham");
   await expect(description).toHaveValue("A calm, affordable night near Clapham");
-  const submit = page.getByRole("button", { name: "Plan my night" });
+  const submit = page.getByRole("button", { name: "Make a plan" });
   await expect(submit).toBeEnabled();
   await submit.click();
 
@@ -139,8 +137,8 @@ test("mobile planner keeps the inferred Night Area context editable", async ({ p
   const response = await page.goto("/plan");
   expect(response?.status()).toBe(200);
   await openComposer(page);
-  await page.getByLabel("Describe the night").fill("A calm night in Clapham for four");
-  await page.getByRole("button", { name: "Plan my night" }).click();
+  await page.getByLabel("Describe the outing").fill("A calm night in Clapham for four");
+  await page.getByRole("button", { name: "Make a plan" }).click();
 
   await expect(page.getByRole("combobox", { name: "Area" })).toHaveValue("clapham");
   await page.getByRole("combobox", { name: "Area" }).selectOption("victoria");

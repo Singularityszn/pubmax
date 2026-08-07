@@ -59,6 +59,7 @@ const DRINK_CATEGORIES = new Set([
   "shot",
   "alcohol-free",
   "soft-drink",
+  "coffee",
   "other",
 ]);
 

@@ -292,6 +292,43 @@
 .thamesHeroPinPlace { font-size: 10px; font-weight: 700; white-space: nowrap; }
 .thamesHeroPinPrice { color: #fff; font: 700 10px/1.2 var(--font-data); }
 
+/* Human why beat: one column of copy between hero and the signal grid.
+   No card grid, no pill cluster. Brass rule + night ink type on paper. */
+.lpWhySection {
+  width: min(var(--lp-max), calc(100% - 2 * var(--lp-pad)));
+  margin: 0 auto;
+  padding: clamp(64px, 8vw, 108px) 0 clamp(20px, 3vw, 36px);
+}
+.lpWhyCopy {
+  max-width: 38rem;
+  padding-left: clamp(18px, 2.8vw, 28px);
+  border-left: 3px solid var(--brass);
+}
+.lpWhyCopy .lpSectionLabel {
+  color: var(--brass);
+}
+.lpWhyCopy h2 {
+  margin: 0;
+  font: 700 clamp(32px, 4.2vw, 52px)/.98 var(--font-display);
+  letter-spacing: -.045em;
+  text-wrap: balance;
+  color: var(--ink);
+}
+.lpWhyCopy > p {
+  max-width: 36rem;
+  margin: 18px 0 0;
+  color: var(--ink-soft);
+  font-size: 17px;
+  line-height: 1.65;
+}
+.lpWhyCopy .lpTextLink {
+  margin-top: 22px;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+.lpWhyCopy .lpTextLink:hover { color: var(--brass); }
+
 .lpSignalSection, .lpProofSection { width: min(var(--lp-max), calc(100% - 2 * var(--lp-pad))); margin: 0 auto; padding: clamp(86px, 10vw, 144px) 0; }
 .lpSectionIntro { max-width: 700px; }
 .lpSectionIntro h2, .lpMemoryCopy h2, .lpFinalCta h2 { margin: 0; font: 700 clamp(40px, 5vw, 72px)/.96 var(--font-display); letter-spacing: -.052em; text-wrap: balance; }
@@ -471,6 +508,9 @@
   .thamesHeroPin:nth-child(2) { left: 34% !important; top: 66% !important; }
   .thamesHeroPin:nth-child(3) { left: 70% !important; top: 28% !important; }
   .thamesHeroPin:nth-child(4) { left: 80% !important; top: 70% !important; }
+  .lpWhySection { width: calc(100% - 2 * var(--lp-pad)); padding: 56px 0 12px; }
+  .lpWhyCopy h2 { font-size: clamp(30px, 9vw, 44px); }
+  .lpWhyCopy > p { font-size: 16px; }
   .lpSignalSection, .lpProofSection { width: calc(100% - 2 * var(--lp-pad)); padding: 82px 0; }.lpSectionIntro h2, .lpMemoryCopy h2, .lpFinalCta h2 { font-size: clamp(39px, 12vw, 56px); }
   .lpSignalGrid { margin-top: 38px; grid-template-columns: 1fr; grid-template-rows: auto; }
   .lpSignalGrid article { padding-block: 28px; border-right: 0; border-bottom: 1px solid var(--line); }
