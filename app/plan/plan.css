@@ -903,6 +903,34 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   color: var(--muted);
 }
 
+/* Task: plan-invite-host-ui — Copy-invite-link control on the Plan share panel. */
+.planHostInviteLink {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+}
+.planHostInviteLink__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--plan-accent, var(--amber)) 45%, var(--line));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--plan-accent, var(--amber)) 14%, var(--panel-raised));
+  color: var(--ink);
+  font-weight: 750;
+  cursor: pointer;
+}
+.planHostInviteLink__status {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .planPage *, .planPage *::before, .planPage *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
