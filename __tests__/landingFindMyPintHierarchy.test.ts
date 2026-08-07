@@ -31,14 +31,23 @@ describe("L19 landing Find my pint hierarchy", () => {
     expect(landingTsx).not.toMatch(/PUBMAX_LANDING_FIND_MY_PINT/);
   });
 
-  it("flag-off snapshot: three equal-slot hero buttons, Find my pint primary", () => {
-    // Quiet-button branch still present for Map + Plan.
-    expect(landingTsx).toMatch(/lpButtonQuiet[\s\S]*Open the map/);
-    expect(landingTsx).toMatch(/lpButtonQuiet[\s\S]*Plan with friends/);
-    // Primary is always Find my pint → /near.
+  it("flag-off snapshot: map-first hero, Open the map primary, Find my pint and Plan secondary", () => {
+    // Wave 0: flag-off default primary is Open the map, no geolocation gate.
+    expect(landingTsx).toMatch(/lpHeroActions--mapFirst/);
+    expect(landingTsx).toMatch(/lp--mapFirst/);
+    const mapFirstBlock = landingTsx.match(
+      /lpHeroActions--mapFirst[\s\S]*?lpHeroSecondaryRow[\s\S]*?<\/div>\s*<\/div>/,
+    )?.[0];
+    expect(mapFirstBlock, "flag-off map-first branch present").toBeTruthy();
+    // Primary is Open the map, via primaryCtaHref (city-aware, no geo gate).
     expect(landingTsx).toMatch(
-      /className="lpButton lpButtonPrimary" href="\/near"[\s\S]*Find my pint/,
+      /className="lpButton lpButtonPrimary" href=\{primaryCtaHref\}[\s\S]*Open the map/,
     );
+    // Find my pint and Plan with friends are demoted to secondary text links.
+    expect(mapFirstBlock).toMatch(/lpTextLink/);
+    expect(mapFirstBlock).toMatch(/Find my pint/);
+    expect(mapFirstBlock).toMatch(/Plan with friends/);
+    expect(mapFirstBlock).not.toMatch(/lpButtonQuiet/);
     // Final CTA still opens the map when the flag is off.
     expect(landingTsx).toMatch(
       /primaryCtaHref[\s\S]*lpButtonPrimary[\s\S]*Open the map/,

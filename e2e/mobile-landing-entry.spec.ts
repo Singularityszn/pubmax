@@ -41,7 +41,7 @@ test.describe("mobile landing entry", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "Real pint prices on a live map. Plan a crawl your mates will actually walk.",
+        name: "London pints can cost eight quid.",
         exact: true,
       }),
     ).toBeVisible();
@@ -51,8 +51,8 @@ test.describe("mobile landing entry", () => {
       page.getByRole("link", { name: "Open the map" }).first(),
       "hero Open the map CTA",
     );
-    await expectTappable(page.getByRole("link", { name: "How it works" }).first(), "hero How it works CTA");
-    await expectTappable(page.getByRole("link", { name: "Plan with friends" }).first(), "hero Plan with friends CTA");
+    await expectTappable(page.getByRole("link", { name: "Find my pint" }).first(), "hero Find my pint link");
+    await expectTappable(page.getByRole("link", { name: "Plan with friends" }).first(), "hero Plan with friends link");
     await expectTappable(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Map" }), "bottom Map tab");
 
     const visibleHeroPins = page.locator(".thamesHeroPin:visible");
@@ -69,8 +69,10 @@ test.describe("mobile landing entry", () => {
   test("routes primary mobile CTAs to the map and secondary exploration", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByRole("link", { name: "How it works" }).first().click();
-    await expect(page).toHaveURL(/\/#wedge$/);
+    // Primary CTA opens the map with no city preference set, straight to
+    // choose-city, no geolocation prompt.
+    await page.getByRole("link", { name: "Open the map" }).first().click();
+    await expect(page).toHaveURL(/\/(choose-city|map)/);
     await page.goto("/");
     await expectNoHorizontalOverflow(page);
 
@@ -78,8 +80,8 @@ test.describe("mobile landing entry", () => {
     await expect(page).toHaveURL(/\/plan$/);
     await page.goto("/");
 
-    await page.getByRole("link", { name: "Open the map" }).first().click();
-    await expect(page).toHaveURL(/\/(choose-city|map)/);
+    await page.getByRole("link", { name: "Find my pint" }).first().click();
+    await expect(page).toHaveURL(/\/near$/);
   });
 });
 
