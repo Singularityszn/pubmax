@@ -104,7 +104,7 @@ Everything below is MERGED, deployed to production (pubmaxxing.com, chengdu Verc
 
 ### Arc 2 — owner-steered mobile taste (#421-#434)
 
-- **Interactive map camera stays put:** map movement follows explicit venue, route, city, cluster, or reader input. Ambient rotation belongs only on a non-interactive surface or behind a deliberate opt-in. MapLibre owns the single compass.
+- **Interactive map camera has gated ambience:** after pins appear and six idle seconds pass, map orbits slowly with capped bearing steps. Any map or camera input stops it for 20 seconds. Reduced motion, hidden tabs, and off-screen canvases suspend it. App owns one compass that resets north or adopts designed city attitude.
 - **Six-tab nav (#414, #422):** count-driven `--tab-count`/`--tab-inset` CSS model in `components/nav/mobileNav.css`; Moment circle 28px with -8px top margin = single label baseline; `buildTabs` exported with contract test.
 - **Borough wall DEAD (#427, #429):** location-denied no longer shows a form-wall. `lib/nightPatches.ts`: 8 curated patches in nightlife-gravity order (Soho→Hackney), pints-first denied state through the same `rankNearMe` ranker, remembered-patch localStorage seam. `resolveTonightNear(origin, remembered)` precedence: real position > remembered patch heart > null; absent-near requests byte-identical (test-pinned).
 - **Voice sweeps (#411, #426, #432):** friction states show value before apology; `__tests__/frictionVoice.test.ts` is a source-reading CI fence banning removed registers ("the upstream", "Check back later", "side quest", "For You") + em dashes. Do not fight the fence; it is the spec.

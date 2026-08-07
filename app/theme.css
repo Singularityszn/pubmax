@@ -200,7 +200,8 @@ html[data-theme="dark"] .mapToolbar {
 }
 
 html[data-theme="dark"] .mapFitLondonBtn,
-html[data-theme="dark"] .mapRecenterBtn {
+html[data-theme="dark"] .mapRecenterBtn,
+html[data-theme="dark"] .mapCompassBtn {
   /* dark-mode-v1: resting edge neutral (was 45% coral); brass returns on hover. */
   border-color: var(--hairline);
   background: var(--panel-raised);
@@ -209,7 +210,8 @@ html[data-theme="dark"] .mapRecenterBtn {
 }
 
 html[data-theme="dark"] .mapFitLondonBtn:hover,
-html[data-theme="dark"] .mapRecenterBtn:not(:disabled):hover {
+html[data-theme="dark"] .mapRecenterBtn:not(:disabled):hover,
+html[data-theme="dark"] .mapCompassBtn:hover {
   background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
   color: var(--ink);
   border-color: var(--brass);
