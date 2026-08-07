@@ -94,6 +94,12 @@ Production migration history already contains
 earlier timestamps, so Captain must apply them with
 `supabase db push --include-all`; a normal push can skip them as out of order.
 
+Supabase installs the pgcrypto extension in the `extensions` schema, not
+`public`. Local test Postgres installs it in `public`, which hides the
+difference until a live apply. Write any `digest()`/pgcrypto call as
+`extensions.digest(...)`, or include `extensions` in the function's
+`search_path`, so the same migration runs on both.
+
 Quick post-migration smoke:
 
 - `POST /api/messages` with `{ "action": "send", "handle": "alice", "other": "bob", "body": "hello" }` returns `201`.
