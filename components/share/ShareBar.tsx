@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
+import { whatsappShareHref } from "@/lib/shareArtifacts";
 
 import "./share.css";
 
@@ -113,8 +114,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
   const tweetHref = (absolute: string) =>
     `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(absolute)}`;
 
-  const whatsappHref = (absolute: string) =>
-    `https://wa.me/?text=${encodeURIComponent(`${shareText} ${absolute}`)}`;
+  const whatsappHref = (absolute: string) => whatsappShareHref(shareText, absolute);
 
   return (
     <div

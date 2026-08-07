@@ -1,3 +1,5 @@
+import { whatsappShareHref } from "@/lib/shareArtifacts";
+
 // TfL "last drink / last train home" helpers — pure, unit-tested, no network.
 //
 // This module holds only the deterministic bits of the last-train feature: the
@@ -426,8 +428,9 @@ export function buildLastPintShareText(input: LastPintShareInput): string {
   return lines.join("\n");
 }
 
-// WhatsApp deep link for the crew message (matches components/share/ShareBar
-// wa.me idiom). The share text is self-contained, so no URL is appended.
+// WhatsApp deep link for the crew message. The share text is self-contained,
+// so no URL is appended. Delegates to the one wa.me builder in
+// lib/shareArtifacts.ts.
 export function lastPintShareHref(shareText: string): string {
-  return `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+  return whatsappShareHref(shareText);
 }
