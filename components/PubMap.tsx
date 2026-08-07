@@ -3038,6 +3038,7 @@ export default function PubMap({
           locationRequestStatus={locationRequestStatus}
           onRequestLocation={requestVenueLocation}
           onClearLocation={clearVenueLocation}
+          zoneIndex={zoneIndex}
         />
       </>
     );
