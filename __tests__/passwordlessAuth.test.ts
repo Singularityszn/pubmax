@@ -1054,7 +1054,7 @@ describe("auth callback URL safety", () => {
     expect(tabValues.size).toBe(0);
   });
 
-  it("restores the local fragment on a marked tokenless callback and releases both claims", async () => {
+  it("restores the local fragment on provider error and releases both claims", async () => {
     const {
       persistentStorage,
       persistentValues,
@@ -1074,7 +1074,7 @@ describe("auth callback URL safety", () => {
       2_000,
     );
     expect(callback).toMatchObject({
-      attempt: { attemptId: ATTEMPT_A, tokens: null, providerError: false },
+      attempt: { attemptId: ATTEMPT_A, tokens: null, providerError: true },
       cleanUrl: "/plan/abc#invite=SECRET-A",
     });
 
@@ -1402,6 +1402,13 @@ describe("auth callback URL safety", () => {
     ).toEqual({ attemptId: ATTEMPT_A, tokens: null, providerError: true });
     expect(readAuthCallbackAttempt("https://pubmaxxing.com/login?authError=1"))
       .toEqual({ attemptId: null, tokens: null, providerError: true });
+    // A marked callback carries a live local attempt, so an error fragment
+    // still surfaces even when the redirect landed on a non-auth page.
+    expect(
+      readAuthCallbackAttempt(
+        `https://pubmaxxing.com/plan/abc?_authCallback=1&_authAttempt=${ATTEMPT_A}#error=access_denied&error_code=otp_expired`,
+      ),
+    ).toEqual({ attemptId: ATTEMPT_A, tokens: null, providerError: true });
     // Supabase's redirect allowlist clamps unlisted redirect_to values to the
     // bare site URL, which lands the token fragment on the landing page with
     // no callback marker. Those tokens still complete sign-in.

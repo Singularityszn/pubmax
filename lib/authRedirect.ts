@@ -661,10 +661,13 @@ export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt
     const current = new URL(currentUrl);
     const fragment = parseAuthResponseFragment(current.hash);
     const authPage = isAuthPage(current.pathname);
-    const providerError =
-      authPage &&
-      (current.searchParams.get("authError") === "1" || fragment?.kind === "error");
     const marked = current.searchParams.get(AUTH_CALLBACK_MARKER) === "1";
+    // A marked callback is tied to a live local attempt, not a crafted
+    // fragment, so it keeps reporting a provider error on any page. An
+    // unmarked bare signal only counts on an auth page (anti-spoof scoping).
+    const providerError =
+      (marked || authPage) &&
+      (current.searchParams.get("authError") === "1" || fragment?.kind === "error");
     if (!marked && !providerError && fragment?.kind !== "tokens") return null;
     const rawAttemptId = current.searchParams.get(AUTH_ATTEMPT_PARAM);
     const attemptId = isAuthAttemptId(rawAttemptId) ? rawAttemptId : null;
