@@ -7,7 +7,7 @@ test("Today keeps Plan and Near below the initial phone viewport", async ({ page
   await page.goto("/today");
   await page.locator('[data-testid="today-screen"]:visible').waitFor();
 
-  for (const label of ["Find pubs near you", "Plan tonight"]) {
+  for (const label of ["Find pubs near you", "Plan an outing"]) {
     const link = page.getByRole("link", { name: label, exact: true });
     const box = await link.boundingBox();
 

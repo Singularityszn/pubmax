@@ -982,7 +982,7 @@ export default function PubMap({
   const openPlanning = useCallback(() => {
     surfaceOpenRef.current({
       id: "planner",
-      title: "Plan tonight",
+      title: "Plan an outing",
       state: surfaceStateRef.current,
     });
     claimMapDrawer("planner");
@@ -2560,7 +2560,7 @@ export default function PubMap({
         ? selectedBasePub?.name ?? "Pub detail"
         : selectedVenue?.name ?? selectedVenueLabels.detailLabel
       : mapSurfaceId === "planner"
-        ? "Plan tonight"
+        ? "Plan an outing"
         : mapSurfaceId === "venue-list"
           ? "List view"
           : mapSurfaceId === "search"
@@ -3566,7 +3566,7 @@ export default function PubMap({
                 <div className="mobileLayerShortcuts">
                   <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
                     <MapPinned size={18} aria-hidden="true" />
-                    Plan tonight
+                    Plan an outing
                   </Button>
                   <Button
                     type="button"
@@ -3728,7 +3728,7 @@ export default function PubMap({
               ? basePubOpen
                 ? selectedBasePub?.name ?? "Pub detail"
                 : selectedVenue?.name ?? selectedVenueLabels.detailLabel
-              : "Plan tonight"
+              : "Plan an outing"
           }
           initialSnap="half"
           requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}

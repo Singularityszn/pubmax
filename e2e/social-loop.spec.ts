@@ -445,7 +445,7 @@ test("desktop map control rail exposes the 'Saved only' filter checkbox", async 
 
   // The reset keeps planner controls out of the map until explicitly requested.
   // Open the desktop planner, then verify the saved-only entry remains present.
-  await page.getByRole("button", { name: "Plan tonight" }).click();
+  await page.getByRole("button", { name: "Plan an outing" }).click();
   const rail = page.locator(".controlRail");
   await expect(rail).toHaveCount(1);
 

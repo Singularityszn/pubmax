@@ -1361,7 +1361,7 @@ input[type="range"] {
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  /* Louder than Drinks — primary Plan tonight CTA in map chrome.
+  /* Louder than Drinks — primary Plan an outing CTA in map chrome.
      D3: layered micro-shadow stack (Linear's crafted-button depth). */
   box-shadow: var(--shadow-btn);
   box-sizing: border-box;

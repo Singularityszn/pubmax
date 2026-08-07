@@ -24,7 +24,7 @@ describe("desktop map toolbar rhythm", () => {
     ["Search", searchCss, ".mapSearchSuggest--toolbar > label"],
     ["Drink", toolbarCss, ".mapToolbarDesktopExtras .favoritePintControl"],
     ["Zone", zonePickerCss, ".zonePickerBtn"],
-    ["Plan tonight", globalsCss, ".planBtn"],
+    ["Plan an outing", globalsCss, ".planBtn"],
     ["City", citySwitcherCss, ".citySwitcherTrigger"],
     ["Conditions", conditionsCss, ".conditionsChip"],
   ])("keeps %s at the shared 44px row height", (_name, css, selector) => {
