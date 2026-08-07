@@ -49,12 +49,14 @@ function renderSheet(
   rows: CommunityPrice[],
   experienceLens: MapExperienceLens = "all",
   readStatus: VenuePriceReadStatus = "ready",
+  drinkLensCategory: CommunityPrice["drinkCategory"] | null = null,
 ) {
   return renderToStaticMarkup(
     createElement(UnverifiedPubSheet, {
       pub,
       communityPrices: state(rows, true, readStatus),
       experienceLens,
+      drinkLensCategory,
     }),
   );
 }
@@ -150,6 +152,44 @@ describe("UnverifiedPubSheet", () => {
     const empty = renderSheet([beer], "no-alcohol");
     expect(empty).toContain("No alcohol-free or soft drink price logged here yet");
     expect(empty).not.toContain("£5.80");
+  });
+
+  it("shows only the drink-lens category and names coffee empties honestly", () => {
+    const beer: CommunityPrice = {
+      venueId: pub.id,
+      drinkCategory: "beer",
+      priceGbp: 5.8,
+      submittedAt: Date.now(),
+      source: "community",
+      corroborations: 2,
+    };
+    const coffee: CommunityPrice = {
+      venueId: pub.id,
+      drinkCategory: "coffee",
+      priceGbp: 3.2,
+      submittedAt: Date.now() - 1,
+      source: "community",
+      corroborations: 2,
+    };
+
+    const priced = renderSheet([beer, coffee], "all", "ready", "coffee");
+    expect(priced).toContain("£3.20");
+    expect(priced).not.toContain("£5.80");
+
+    const empty = renderSheet([beer], "all", "ready", "coffee");
+    expect(empty).toContain("No coffee price logged here yet.");
+    expect(empty).not.toContain("£5.80");
+    expect(empty).not.toContain("alcohol-free or soft drink");
+    expect(empty).not.toContain("Nobody has logged");
+
+    const loading = renderSheet([], "all", "loading", "coffee");
+    expect(loading).toContain("Checking coffee prices logged here.");
+    expect(loading).not.toContain("No coffee price logged here yet.");
+
+    const degraded = renderSheet([], "all", "degraded", "coffee");
+    expect(degraded).toContain("could not read this pub");
+    expect(degraded).toContain("coffee prices just now");
+    expect(degraded).not.toContain("No coffee price logged here yet.");
   });
 
   it("never shows a beer price in the food view", () => {

@@ -239,6 +239,7 @@ import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import {
+  drinkLensPriceNoun,
   drinkLensUnknownRowLabel,
   experienceLensSummary,
   NO_ALCOHOL_LENS_PRICE_NOUN,
@@ -1284,7 +1285,7 @@ export default function PubMap({
   // no-alcohol lens is titled with a negative, and "no no-alcohol price
   // logged" hides the one fact that is about the pub.
   const activeLensNoun = mapDrinkLensCategory
-    ? CATEGORY_META[mapDrinkLensCategory].label
+    ? drinkLensPriceNoun(mapDrinkLensCategory)
     : experienceLens === "no-alcohol"
       ? NO_ALCOHOL_LENS_PRICE_NOUN
       : experienceLens === "food"
@@ -2940,6 +2941,7 @@ export default function PubMap({
           pub={selectedBasePub}
           communityPrices={communityPrices}
           experienceLens={experienceLens}
+          drinkLensCategory={mapDrinkLensCategory}
         />
       );
     }
@@ -3026,6 +3028,7 @@ export default function PubMap({
           pintDrops={pintDrops}
           communityPrices={communityPrices}
           experienceLens={experienceLens}
+          drinkLensCategory={mapDrinkLensCategory}
           onGrabDragStart={mobileViewport ? undefined : onSheetDragStart}
           onGrabDragMove={mobileViewport ? undefined : onSheetDragMove}
           onGrabDragEnd={mobileViewport ? undefined : onSheetDragEnd}
@@ -3453,7 +3456,7 @@ export default function PubMap({
           }
           areaPriceNoun={
             mapDrinkLensCategory
-              ? CATEGORY_META[mapDrinkLensCategory].label.toLowerCase()
+              ? drinkLensPriceNoun(mapDrinkLensCategory)
               : "pints"
           }
           planOpen={planningOpen}
