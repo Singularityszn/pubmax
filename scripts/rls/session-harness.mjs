@@ -85,11 +85,11 @@ function findPostgrestBin() {
   return null;
 }
 
-function jwt(secret, sub) {
+function jwt(secret, sub, role = "authenticated") {
   const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
   const header = encode({ alg: "HS256", typ: "JWT" });
   const payload = encode({
-    role: "authenticated",
+    role,
     sub,
     exp: Math.floor(Date.now() / 1000) + 300,
   });
@@ -474,6 +474,11 @@ export async function startRlsSession() {
   restProc.stderr?.on("data", (chunk) => restLogs.push(chunk.toString()));
 
   const restBaseUrl = `http://127.0.0.1:${restPort}`;
+  const serviceRoleKey = jwt(
+    jwtSecret,
+    "00000000-0000-4000-8000-000000000000",
+    "service_role",
+  );
   let restReady = false;
   for (let i = 0; i < 100; i++) {
     try {
@@ -568,6 +573,8 @@ export async function startRlsSession() {
     catalogSnapshot,
     port,
     dataDir,
+    restBaseUrl,
+    serviceRoleKey,
     sql,
     sqlFile,
     rest,

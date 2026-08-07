@@ -24,7 +24,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "5 August 2026";
+const LAST_UPDATED = "6 August 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -441,6 +441,47 @@ export default function PrivacyPage() {
         </p>
       </section>
 
+      <section className="legalSection" aria-labelledby="crews">
+        <h2 id="crews" className="legalH2">Social Crews</h2>
+        <p className="legalBody">
+          A Social Crew uses its linked Planned Night title as its name. We
+          store whether it is private or friends-only, its owner, and a roster
+          with each member&rsquo;s account, role, join time and current state.
+          The owner, and active members who remain Mutual with the owner, can
+          read the full roster and Crew-bound Plan, including its stops, night
+          details, actions and ending.
+        </p>
+        <p className="legalBody">
+          A private Crew is readable only by the owner and active members who
+          remain Mutual with the owner. Friends visibility lets current Mutuals
+          of the owner read a limited preview with the Planned Night title,
+          phase, area, start time and their own Join Request state. That preview
+          does not show the roster or Crew-bound Plan details. A block in either
+          direction closes the read.
+        </p>
+        <p className="legalBody">
+          Each invitation records its sender member, recipient account, expiry
+          and state. A Join Request records the requester account. The owner and
+          cohosts can see who asked while it is pending. A pending request
+          expires at its deadline, and its final state, decision time and
+          deciding member remain as decision history.
+        </p>
+        <p className="legalBody">
+          Private Crew write receipts record the actor account, action,
+          idempotency key, content digest and returned result. They exist for
+          safe retries and audit only. These write receipts are never public.
+        </p>
+        <p className="legalBody">
+          Crew and roster records stay with the Crew-bound Plan. A left or
+          removed member keeps a terminal membership row as history rather than
+          disappearing. Invitations and Join Requests keep their final states
+          until the Crew-bound Plan is deleted. Pending rows become expired
+          rather than being rewritten as accepted or declined. Private write
+          receipts stay until an account deletion request is carried out,
+          unless a legal or security hold needs a narrower record for longer.
+        </p>
+      </section>
+
       <section className="legalSection" aria-labelledby="why">
         <h2 id="why" className="legalH2">Why we&rsquo;re allowed to</h2>
         <p className="legalBody">
@@ -649,6 +690,13 @@ export default function PrivacyPage() {
             check time, expiry and audit status would stay with the Social
             account until deletion, unless a narrower legal or moderation hold
             applies.
+          </li>
+          <li>
+            <strong>Social Crews:</strong>{" "}the Crew, membership history,
+            invitations and Join Requests stay with the Crew-bound Plan until
+            that Plan is deleted. Private write receipts stay for safe retries
+            and audit until the actor&rsquo;s account deletion request is carried
+            out, unless a legal or security hold applies.
           </li>
           <li>
             <strong>Community prices and venue reports:</strong>{" "}the report

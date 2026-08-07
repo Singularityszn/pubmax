@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { isPlanId, type PlanMemberRole, type PlanState, type PlanStopDTO } from "@/lib/plan";
-import { grantMemoryPlanCollaboration, hashPlanMemberToken, isPlanIdempotencyKey, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStore } from "@/lib/planStore";
+import { grantMemoryPlanCollaboration, hashPlanMemberToken, isPlanIdempotencyKey, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStateResult, planStore } from "@/lib/planStore";
 import { cleanText } from "@/lib/textClean";
 import { selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
@@ -75,6 +75,14 @@ export type PlanCollaborationError = "invalid" | "not_found" | "forbidden" | "ex
 type Failure = { ok: false; error: PlanCollaborationError };
 type StoredInvite = PlanInvite & { tokenHash: string };
 
+class LegacyPlanNotFoundError extends Error {}
+
+async function legacyPlanBoundary(planId: string): Promise<Failure | null> {
+  const result = await planStateResult(planId);
+  if (!result.ok) return { ok: false, error: "error" };
+  return result.plan ? null : { ok: false, error: "not_found" };
+}
+
 type CollaborationMemory = {
   invites: Map<string, StoredInvite>;
   constraints: Map<string, PlanConstraint>;
@@ -134,6 +142,17 @@ function strings(value: unknown): string[] {
 
 function inviteFromRow(row: Record<string, unknown>): PlanInvite {
   return { id: String(row.id), planId: String(row.plan_id), role: "guest", createdAt: String(row.created_at), expiresAt: String(row.expires_at), revokedAt: typeof row.revoked_at === "string" ? row.revoked_at : null, redeemedAt: typeof row.redeemed_at === "string" ? row.redeemed_at : null };
+}
+
+function atomicRow(data: unknown): { code: string; row: Record<string, unknown> | null } | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const value = data as Record<string, unknown>;
+  return {
+    code: typeof value.code === "string" ? value.code : "",
+    row: value.row && typeof value.row === "object" && !Array.isArray(value.row)
+      ? value.row as Record<string, unknown>
+      : null,
+  };
 }
 
 function constraintFromRow(row: Record<string, unknown>): PlanConstraint {
@@ -199,6 +218,11 @@ function vibeKey(planId: string, memberId: string): string {
 }
 
 async function member(planId: string, token: unknown, role?: PlanMemberRole) {
+  const boundary = await legacyPlanBoundary(planId);
+  if (boundary) {
+    if (boundary.error === "not_found") throw new LegacyPlanNotFoundError();
+    throw new Error("plan collaboration Plan lookup failed");
+  }
   const result = await planMemberIdentityResult(planId, token);
   if (!result.ok) throw new Error("plan collaboration capability lookup failed");
   const identity = result.identity;
@@ -511,46 +535,62 @@ const supabaseStore: PlanCollaborationStore = {
     const admin = requireSupabaseAdmin();
     const key = input.idempotencyKey.trim();
     const rawToken = createHash("sha256").update(`${process.env.PLAN_INVITE_TOKEN_SALT ?? process.env.ACTOR_HASH_SALT ?? "pubmax-plan-invite"}:${planId}:${identity.memberId}:${token}:${key}`).digest("hex");
-    const existing = await admin.from(INVITES).select("id,plan_id,role,created_at,expires_at,revoked_at,redeemed_at").eq("plan_id", planId).eq("created_by_member_id", identity.memberId).eq("idempotency_key", key).maybeSingle();
-    if (existing.error) return { ok: false, error: "error" };
-    if (existing.data) return { ok: true, invite: inviteFromRow(existing.data as Record<string, unknown>), token: rawToken };
     const now = input.now ?? new Date();
     const expires = await resolveInviteExpiresAt(planId, input.expiresInMinutes, now);
     if (!expires.ok) return expires;
-    const row = { id: randomUUID(), plan_id: planId, created_by_member_id: identity.memberId, role: "guest", token_hash: inviteHash(rawToken), idempotency_key: key, created_at: now.toISOString(), expires_at: expires.expiresAt, revoked_at: null, redeemed_at: null };
-    const inserted = await admin.from(INVITES).insert(row).select("id,plan_id,role,created_at,expires_at,revoked_at,redeemed_at").single();
-    if (inserted.data) return { ok: true, invite: inviteFromRow(inserted.data as Record<string, unknown>), token: rawToken };
-    const replay = await admin.from(INVITES).select("id,plan_id,role,created_at,expires_at,revoked_at,redeemed_at").eq("plan_id", planId).eq("created_by_member_id", identity.memberId).eq("idempotency_key", key).maybeSingle();
-    return replay.data ? { ok: true, invite: inviteFromRow(replay.data as Record<string, unknown>), token: rawToken } : { ok: false, error: "error" };
+    const { data, error } = await admin.rpc("create_plan_invite_atomic", {
+      p_plan_id: planId,
+      p_invite_id: randomUUID(),
+      p_created_by_member_id: identity.memberId,
+      p_token_hash: inviteHash(rawToken),
+      p_idempotency_key: key,
+      p_created_at: now.toISOString(),
+      p_expires_at: expires.expiresAt,
+    });
+    if (error) return { ok: false, error: "error" };
+    const result = atomicRow(data);
+    if (result?.code === "not_found") return { ok: false, error: "not_found" };
+    return result?.row
+      ? { ok: true, invite: inviteFromRow(result.row), token: rawToken }
+      : { ok: false, error: "error" };
   },
 
   async revokeInvite(planId, token, inviteId, key, now = new Date()) {
     if (!isPlanId(planId) || !validKey(key)) return { ok: false, error: "invalid" };
     if (!(await member(planId, token, "host"))) return { ok: false, error: "forbidden" };
     const admin = requireSupabaseAdmin();
-    const existing = await admin.from(INVITES).select("id,plan_id,role,created_at,expires_at,revoked_at,redeemed_at").eq("id", inviteId).eq("plan_id", planId).maybeSingle();
-    if (existing.error) return { ok: false, error: "error" };
-    if (!existing.data) return { ok: false, error: "not_found" };
-    if ((existing.data as Record<string, unknown>).revoked_at) return { ok: true, invite: inviteFromRow(existing.data as Record<string, unknown>) };
-    const updated = await admin.from(INVITES).update({ revoked_at: now.toISOString() }).eq("id", inviteId).eq("plan_id", planId).is("revoked_at", null).select("id,plan_id,role,created_at,expires_at,revoked_at,redeemed_at").maybeSingle();
-    return updated.error || !updated.data ? { ok: false, error: "conflict" } : { ok: true, invite: inviteFromRow(updated.data as Record<string, unknown>) };
+    const { data, error } = await admin.rpc("revoke_plan_invite_atomic", {
+      p_plan_id: planId,
+      p_invite_id: inviteId,
+      p_revoked_at: now.toISOString(),
+    });
+    if (error) return { ok: false, error: "error" };
+    const result = atomicRow(data);
+    if (result?.code === "not_found") return { ok: false, error: "not_found" };
+    return result?.row
+      ? { ok: true, invite: inviteFromRow(result.row) }
+      : { ok: false, error: "conflict" };
   },
 
   async consumeInvite(planId, rawToken, now = new Date()) {
     if (!isPlanId(planId) || typeof rawToken !== "string" || !rawToken.trim()) return { ok: false, error: "invalid" };
+    const boundary = await legacyPlanBoundary(planId);
+    if (boundary) return boundary;
     const admin = requireSupabaseAdmin();
-    const hash = inviteHash(rawToken.trim());
-    const found = await admin.from(INVITES).select("id,expires_at,revoked_at,redeemed_at").eq("plan_id", planId).eq("token_hash", hash).maybeSingle();
-    if (found.error) return { ok: false, error: "error" };
-    if (!found.data) return { ok: false, error: "not_found" };
-    const row = found.data as Record<string, unknown>;
-    if (row.revoked_at) return { ok: false, error: "revoked" };
-    if (Date.parse(String(row.expires_at)) <= now.getTime()) return { ok: false, error: "expired" };
-    const ended = await rejectIfPlanEnded(planId, now);
-    if (ended) return ended;
-    if (row.redeemed_at) return { ok: false, error: "replayed" };
-    const updated = await admin.from(INVITES).update({ redeemed_at: now.toISOString() }).eq("id", String(row.id)).is("redeemed_at", null).select("id").maybeSingle();
-    return updated.data ? { ok: true, inviteId: String(row.id), role: "guest" } : { ok: false, error: "replayed" };
+    const { data, error } = await admin.rpc("consume_plan_invite_atomic", {
+      p_plan_id: planId,
+      p_token_hash: inviteHash(rawToken.trim()),
+      p_redeemed_at: now.toISOString(),
+    });
+    if (error) return { ok: false, error: "error" };
+    const result = atomicRow(data);
+    if (result?.code === "not_found") return { ok: false, error: "not_found" };
+    if (["revoked", "expired", "replayed"].includes(result?.code ?? "")) {
+      return { ok: false, error: result!.code as "revoked" | "expired" | "replayed" };
+    }
+    return result?.code === "consumed" && result.row
+      ? { ok: true, inviteId: String(result.row.id), role: "guest" }
+      : { ok: false, error: "error" };
   },
 
   async redeemInviteAndJoin(planId, rawToken, name, now = new Date(), options = {}) {
@@ -610,13 +650,22 @@ const supabaseStore: PlanCollaborationStore = {
     if (!identity) return { ok: false, error: "forbidden" };
     const admin = requireSupabaseAdmin();
     const key = input.idempotencyKey.trim();
-    const existing = await admin.from(CONSTRAINTS).select("*").eq("plan_id", planId).eq("member_id", identity.memberId).eq("idempotency_key", key).maybeSingle();
-    if (existing.error) return { ok: false, error: "error" };
-    if (existing.data) return { ok: true, constraint: constraintFromRow(existing.data as Record<string, unknown>) };
-    const inserted = await admin.from(CONSTRAINTS).insert({ id: randomUUID(), plan_id: planId, member_id: identity.memberId, kind: input.kind, value, priority: input.priority, idempotency_key: key, created_at: (input.now ?? new Date()).toISOString() }).select("*").single();
-    if (inserted.data) return { ok: true, constraint: constraintFromRow(inserted.data as Record<string, unknown>) };
-    const replay = await admin.from(CONSTRAINTS).select("*").eq("plan_id", planId).eq("member_id", identity.memberId).eq("idempotency_key", key).maybeSingle();
-    return replay.data ? { ok: true, constraint: constraintFromRow(replay.data as Record<string, unknown>) } : { ok: false, error: "error" };
+    const { data, error } = await admin.rpc("add_plan_constraint_atomic", {
+      p_plan_id: planId,
+      p_constraint_id: randomUUID(),
+      p_member_id: identity.memberId,
+      p_kind: input.kind,
+      p_value: value,
+      p_priority: input.priority,
+      p_idempotency_key: key,
+      p_created_at: (input.now ?? new Date()).toISOString(),
+    });
+    if (error) return { ok: false, error: "error" };
+    const result = atomicRow(data);
+    if (result?.code === "not_found") return { ok: false, error: "not_found" };
+    return result?.row
+      ? { ok: true, constraint: constraintFromRow(result.row) }
+      : { ok: false, error: "error" };
   },
 
   async resolveConstraint(planId, token, constraintId, input) {
@@ -633,10 +682,20 @@ const supabaseStore: PlanCollaborationStore = {
     if (!proposalRow.data) return { ok: false, error: "not_found" };
     const evidence = cleanConstraintEvidence(input.evidence, proposalFromRow(proposalRow.data as Record<string, unknown>), now);
     if (!evidence) return { ok: false, error: "invalid" };
-    const updated = await admin.from(CONSTRAINTS).update({ resolved_at: now.toISOString(), resolved_by_member_id: identity.memberId, resolution_evidence: evidence, resolution_idempotency_key: input.idempotencyKey.trim() }).eq("id", constraintId).eq("plan_id", planId).select("*").maybeSingle();
-    if (updated.data) return { ok: true, constraint: constraintFromRow(updated.data as Record<string, unknown>) };
-    const replay = await admin.from(CONSTRAINTS).select("*").eq("id", constraintId).eq("plan_id", planId).maybeSingle();
-    return replay.data ? { ok: true, constraint: constraintFromRow(replay.data as Record<string, unknown>) } : { ok: false, error: "error" };
+    const { data, error } = await admin.rpc("resolve_plan_constraint_atomic", {
+      p_plan_id: planId,
+      p_constraint_id: constraintId,
+      p_resolved_by_member_id: identity.memberId,
+      p_resolution_evidence: evidence,
+      p_resolution_idempotency_key: input.idempotencyKey.trim(),
+      p_resolved_at: now.toISOString(),
+    });
+    if (error) return { ok: false, error: "error" };
+    const result = atomicRow(data);
+    if (result?.code === "not_found") return { ok: false, error: "not_found" };
+    return result?.row
+      ? { ok: true, constraint: constraintFromRow(result.row) }
+      : { ok: false, error: "error" };
   },
 
   async createProposal(planId, token, input) {
@@ -646,18 +705,29 @@ const supabaseStore: PlanCollaborationStore = {
     if (!identity) return { ok: false, error: "forbidden" };
     const admin = requireSupabaseAdmin();
     const key = input.idempotencyKey.trim();
-    const existing = await admin.from(PROPOSALS).select("*").eq("plan_id", planId).eq("proposed_by_member_id", identity.memberId).eq("idempotency_key", key).maybeSingle();
-    if (existing.error) return { ok: false, error: "error" };
-    if (existing.data) return { ok: true, proposal: proposalFromRow(existing.data as Record<string, unknown>) };
     const constraints = await admin.from(CONSTRAINTS).select("id,priority,resolved_at").eq("plan_id", planId);
     if (constraints.error) return { ok: false, error: "error" };
     const rows = (constraints.data ?? []) as Array<{ id: string; priority: string; resolved_at: string | null }>;
     const resolved: string[] = [];
     const unresolved = rows.filter((item) => item.priority === "required" && !resolved.includes(String(item.id))).map((item) => String(item.id));
-    const inserted = await admin.from(PROPOSALS).insert({ id: randomUUID(), plan_id: planId, proposed_by_member_id: identity.memberId, expected_route_revision: input.expectedRouteRevision, stops: input.stops, reason, resolved_constraint_ids: resolved, unresolved_constraint_ids: unresolved, status: "pending", idempotency_key: key, created_at: (input.now ?? new Date()).toISOString(), decided_at: null }).select("*").single();
-    if (inserted.data) return { ok: true, proposal: proposalFromRow(inserted.data as Record<string, unknown>) };
-    const replay = await admin.from(PROPOSALS).select("*").eq("plan_id", planId).eq("proposed_by_member_id", identity.memberId).eq("idempotency_key", key).maybeSingle();
-    return replay.data ? { ok: true, proposal: proposalFromRow(replay.data as Record<string, unknown>) } : { ok: false, error: "error" };
+    const { data, error } = await admin.rpc("create_plan_route_proposal_atomic", {
+      p_plan_id: planId,
+      p_proposal_id: randomUUID(),
+      p_proposed_by_member_id: identity.memberId,
+      p_expected_route_revision: input.expectedRouteRevision,
+      p_stops: input.stops,
+      p_reason: reason,
+      p_resolved_constraint_ids: resolved,
+      p_unresolved_constraint_ids: unresolved,
+      p_idempotency_key: key,
+      p_created_at: (input.now ?? new Date()).toISOString(),
+    });
+    if (error) return { ok: false, error: "error" };
+    const result = atomicRow(data);
+    if (result?.code === "not_found") return { ok: false, error: "not_found" };
+    return result?.row
+      ? { ok: true, proposal: proposalFromRow(result.row) }
+      : { ok: false, error: "error" };
   },
 
   async vote(planId, token, proposalId, value, key, now = new Date()) {
@@ -671,6 +741,7 @@ const supabaseStore: PlanCollaborationStore = {
     });
     if (error) return { ok: false, error: "error" };
     if (!voteRow || typeof voteRow !== "object") return { ok: false, error: "conflict" };
+    if ((voteRow as Record<string, unknown>).code === "not_found") return { ok: false, error: "not_found" };
     return { ok: true, vote: voteFromRow(voteRow as Record<string, unknown>) };
   },
 
@@ -685,11 +756,14 @@ const supabaseStore: PlanCollaborationStore = {
     });
     if (error) return { ok: false, error: "error" };
     if (!voteRow || typeof voteRow !== "object") return { ok: false, error: "conflict" };
+    if ((voteRow as Record<string, unknown>).code === "not_found") return { ok: false, error: "not_found" };
     return { ok: true, vote: vibeVoteFromRow(voteRow as Record<string, unknown>) };
   },
 
   async vibeTally(planId) {
     if (!isPlanId(planId)) return { ok: false, error: "invalid" };
+    const boundary = await legacyPlanBoundary(planId);
+    if (boundary) return boundary;
     const admin = requireSupabaseAdmin();
     const { data, error } = await admin.from(VIBE_VOTES).select("plan_id,member_id,vibe,created_at").eq("plan_id", planId);
     if (error) return { ok: false, error: "error" };
@@ -741,23 +815,31 @@ const supabaseStore: PlanCollaborationStore = {
   },
 };
 
-const safeSupabaseStore = new Proxy(supabaseStore, {
-  get(target, property, receiver) {
-    const value = Reflect.get(target, property, receiver) as unknown;
-    if (typeof value !== "function") return value;
-    return async (...args: unknown[]) => {
-      try {
-        return await Reflect.apply(value, target, args);
-      } catch (error) {
-        console.error("[plan-collaboration] configured store failed:", error instanceof Error ? error.message : error);
-        return { ok: false, error: "error" };
-      }
-    };
-  },
-}) as PlanCollaborationStore;
+function safeStore(store: PlanCollaborationStore): PlanCollaborationStore {
+  return new Proxy(store, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver) as unknown;
+      if (typeof value !== "function") return value;
+      return async (...args: unknown[]) => {
+        try {
+          return await Reflect.apply(value, target, args);
+        } catch (error) {
+          if (error instanceof LegacyPlanNotFoundError) {
+            return { ok: false, error: "not_found" };
+          }
+          console.error("[plan-collaboration] store failed:", error instanceof Error ? error.message : error);
+          return { ok: false, error: "error" };
+        }
+      };
+    },
+  }) as PlanCollaborationStore;
+}
+
+const safeMemoryStore = safeStore(memoryStore);
+const safeSupabaseStore = safeStore(supabaseStore);
 
 export function planCollaborationStore(): PlanCollaborationStore {
-  return selectStore(memoryStore, safeSupabaseStore);
+  return selectStore(safeMemoryStore, safeSupabaseStore);
 }
 
 export function __resetPlanCollaboration(): void {

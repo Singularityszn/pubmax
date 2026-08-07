@@ -157,6 +157,30 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/chronological[^]*not popularity/i);
   });
 
+  it("discloses Social Crew reads, authority records, and retention", () => {
+    for (const page of [privacy, terms]) {
+      expect(page).toMatch(/Social Crews/);
+      expect(page).toMatch(/Planned Night title/i);
+      expect(page).toMatch(/private or friends/i);
+      expect(page).toMatch(/Crew-bound Plan/i);
+    }
+    expect(privacy).toMatch(/owner[^]*active members who remain Mutual with the owner[^]*full roster[^]*Crew-bound Plan/i);
+    expect(privacy).toMatch(/friends[^]*current Mutuals[^]*preview/i);
+    expect(privacy).toMatch(/private Crew[^]*owner[^]*active members who\s+remain Mutual with the owner/i);
+    expect(privacy).toMatch(/invitation[^]*sender[^]*recipient[^]*expiry[^]*state/i);
+    expect(privacy).toMatch(/Join Request[^]*requester[^]*owner and\s+cohosts/i);
+    expect(privacy).toMatch(/pending request[^]*expires[^]*decision history/i);
+    expect(privacy).toMatch(/write receipts[^]*actor[^]*action[^]*audit/i);
+    expect(privacy).toMatch(/write receipts[^]*never public/i);
+    expect(privacy).toMatch(/left or\s+removed[^]*membership\s+row[^]*history/i);
+    expect(privacy).toMatch(/invitations and Join Requests[^]*Crew-bound Plan is deleted/i);
+    expect(privacy).toMatch(/write\s+receipts[^]*account deletion request/i);
+    expect(terms).toMatch(/owner chooses whether[^]*private or friends/i);
+    expect(terms).toMatch(/active members\s+who remain Mutual with the owner[^]*roster[^]*Crew-bound Plan/i);
+    expect(terms).toMatch(/owner can\s+change roles[^]*owner or a cohost[^]*remove a non-owner/i);
+    expect(terms).toMatch(/leaving or removal[^]*doesn&rsquo;t erase/i);
+  });
+
   it("discloses interrupted Social upload retention without widening local drafts", () => {
     expect(privacy).toMatch(/failed or interrupted Social photo uploads/i);
     expect(privacy).toMatch(/can stay temporarily/i);

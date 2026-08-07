@@ -17,6 +17,8 @@ describe("RLS session runner", () => {
     expect(result.stdout).toContain("RLS SESSION SUITE SKIPPED");
     expect(result.stdout).toContain("THIS IS NOT A PASS");
     expect(result.stdout).toContain("__tests__/rlsWave2Session.test.ts");
+    expect(result.stdout).toContain("__tests__/socialCrewMigration.test.ts");
+    expect(result.stdout).toContain("__tests__/socialCrewLegacyRoutesRls.test.ts");
     expect(result.stdout).toContain("PostgreSQL 16+ binaries not found");
     expect(result.stdout).toContain("They were NOT executed");
     expect(result.stdout).toContain("zero policy proofs ran on this host");
