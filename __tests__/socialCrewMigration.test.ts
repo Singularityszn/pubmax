@@ -73,7 +73,10 @@ async function startDatabase(): Promise<Database> {
     "-c", "shared_memory_type=mmap", "-c", "dynamic_shared_memory_type=mmap",
   ], { stdio: "pipe" });
   writeFileSync(join(directory, "postgresql.auto.conf"), `listen_addresses='127.0.0.1'\nport=${port}\nfsync=off\n`);
-  const server: ChildProcess = spawn(postgres, ["-D", directory, "-h", "127.0.0.1", "-p", String(port)], {
+  // -k puts the unix socket in the data directory. The compiled-in socket
+  // directory (/var/run/postgresql) is not writable on a CI runner, so the
+  // cluster refuses to boot without it. Connections still go over TCP.
+  const server: ChildProcess = spawn(postgres, ["-D", directory, "-k", directory, "-h", "127.0.0.1", "-p", String(port)], {
     stdio: ["ignore", "ignore", "pipe"],
   });
   // Keep the server log so a boot failure names its own reason. The stream is
