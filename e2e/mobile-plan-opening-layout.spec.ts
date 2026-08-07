@@ -24,6 +24,14 @@ for (const viewport of MOBILE_VIEWPORTS) {
     expect(response?.status()).toBe(200);
     await expect(page.locator(".mobileTabBar")).toBeVisible();
 
+    // /plan opens on the describe-first question; the wizard this test
+    // measures sits behind that entry surface's "Guide me instead" link.
+    // Clicking it can scroll the link itself into view first; the wizard is
+    // its own fresh opening screen, so reset to the top before measuring
+    // its layout, the same as any other screen transition would start.
+    await page.getByRole("button", { name: "Guide me instead" }).click();
+    await page.evaluate(() => window.scrollTo(0, 0));
+
     const heading = page.getByRole("heading", {
       name: "Where should the night happen?",
     });

@@ -360,6 +360,9 @@ test.describe("screenshot baseline", () => {
         await mockGeolocation(page, { latitude: 51.527, longitude: -0.08 });
         const response = await page.goto("/plan");
         expect(response?.status()).toBe(200);
+        // /plan opens on the describe-first question; these screenshots
+        // exercise the wizard, reached behind its "Guide me instead" link.
+        await page.getByRole("button", { name: "Guide me instead" }).click();
         await waitForStableAreaStep(page);
         const locate = page.locator(".planIntake__locate");
         await locate.click();
@@ -377,6 +380,9 @@ test.describe("screenshot baseline", () => {
         await mockGeolocation(page, { latitude: 53.48, longitude: -2.24 });
         const response = await page.goto("/plan");
         expect(response?.status()).toBe(200);
+        // /plan opens on the describe-first question; these screenshots
+        // exercise the wizard, reached behind its "Guide me instead" link.
+        await page.getByRole("button", { name: "Guide me instead" }).click();
         await waitForStableAreaStep(page);
         await page.getByRole("button", { name: "Clapham" }).click();
         const locate = page.locator(".planIntake__locate");

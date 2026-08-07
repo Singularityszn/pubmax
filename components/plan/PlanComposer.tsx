@@ -51,9 +51,11 @@ import {
   reopenPlanIntakeStep,
   resolveFutureLondonStartIso,
   resolvePlanIntakeAreaSeed,
+  skipRemainingPlanIntake,
   writePlanIntakeDraft,
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
+import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 
 export type RouteRevision = string | number;
 export type RouteAlternative = { venueId: string; venueName: string };
@@ -608,6 +610,12 @@ function PlanComposerForm({
   const [conciergeQuery, setConciergeQuery] = useState(draftFields.conciergeQuery);
   const [planIntake, setPlanIntake] = useState(recoveredIntake);
   const initialPlanIntakeRef = useRef(recoveredIntake);
+  // Describe-first is the default open. A returning visitor with real,
+  // unfinished wizard progress lands back on the wizard instead, so their
+  // answers so far are not hidden behind the question they already passed.
+  const [entryMode, setEntryMode] = useState<"describe" | "wizard">(
+    hasDurableIntakeDraft && !recoveredIntake.completed ? "wizard" : "describe",
+  );
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
@@ -765,7 +773,22 @@ function PlanComposerForm({
       ? londonDateTimeInputFromIso(next.answers.exactStartIso)
       : null;
     if (exactStartInput) setStartTime(exactStartInput);
+    // A step change through the wizard itself (including "Tune details"
+    // reopening a settled step) always means the wizard is the active
+    // surface, so the describe-first question never reappears mid-edit.
+    if (!next.completed) setEntryMode("wizard");
     setPlanIntake(next);
+  }
+
+  function submitFromEntry(query: string) {
+    // Computed once and threaded through explicitly: setPlanIntake has not
+    // re-rendered yet when sortWithConcierge runs below, so reading the
+    // planIntake state variable here would still see the pre-skip draft and
+    // send a body the server flags as PLAN_INTAKE_MALFORMED.
+    const skippedIntake = skipRemainingPlanIntake(planIntake);
+    setConciergeQuery(query);
+    updatePlanIntake(skippedIntake);
+    sortWithConcierge(query, skippedIntake);
   }
 
   function updatePlanStartTime(value: string) {
@@ -826,8 +849,15 @@ function PlanComposerForm({
     setRouteStatus(`Stop ${stops.findIndex((stop) => stop.key === key) + 1} swapped to ${next.venueName}.`);
   }
 
-  async function sortWithConcierge() {
-    if (!canSortWithCurrentGenerator) return;
+  async function sortWithConcierge(queryOverride?: string, intakeOverride?: PlanIntakeDraft) {
+    // Both overrides (from the describe-first entry surface) are used as-is:
+    // they are set in the same event as the call, before React re-renders,
+    // so reading the query/planIntake state here would still see stale
+    // values (the pre-skip intake would fail the server's consistency check).
+    const query = queryOverride ?? conciergeQuery;
+    const intake = intakeOverride ?? planIntake;
+    if (queryOverride === undefined && !canSortWithCurrentGenerator) return;
+    if (queryOverride !== undefined && unsupportedIntakePatch) return;
     setSorting(true);
     setError("");
     setRouteStatus("Refreshing the route, rechecking every stop against your updated night.");
@@ -836,8 +866,8 @@ function PlanComposerForm({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(buildPlanGenerationIntakeBody(
-          planIntake,
-          conciergeQuery,
+          intake,
+          query,
           nightContext,
           explicitNightContext,
         )),
@@ -989,10 +1019,17 @@ function PlanComposerForm({
   return (
     <form className="planComposer" onSubmit={submit} noValidate>
       {handoff && <AcceptedContextPanel handoff={handoff} />}
-      <PlanIntake
-        draft={planIntake}
-        onChange={updatePlanIntake}
-      />
+      {!planIntake.completed && entryMode === "describe" ? (
+        <PlanDescribeFirst
+          onSubmit={submitFromEntry}
+          onGuideMeInstead={() => setEntryMode("wizard")}
+        />
+      ) : (
+        <PlanIntake
+          draft={planIntake}
+          onChange={updatePlanIntake}
+        />
+      )}
       {composerVisible ? (
         <>
       <section className="planComposer__concierge" aria-labelledby="plan-concierge-title" aria-busy={sorting}>
@@ -1003,7 +1040,7 @@ function PlanComposerForm({
         <div className="planComposer__conciergeInput">
           <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the night</label>
           <input id="plan-concierge-query" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
-          <button type="button" onClick={sortWithConcierge} disabled={sorting || !canSortWithCurrentGenerator} aria-busy={sorting}>{sorting ? "Planning…" : "Plan my night"}</button>
+          <button type="button" onClick={() => sortWithConcierge()} disabled={sorting || !canSortWithCurrentGenerator} aria-busy={sorting}>{sorting ? "Planning…" : "Plan my night"}</button>
         </div>
         <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
           {conciergeStatus}
@@ -1017,7 +1054,7 @@ function PlanComposerForm({
             <button
               type="button"
               className="planComposer__regenerate"
-              onClick={sortWithConcierge}
+              onClick={() => sortWithConcierge()}
               disabled={sorting || !canSortWithCurrentGenerator}
               aria-busy={sorting}
             >

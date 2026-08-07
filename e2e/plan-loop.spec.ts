@@ -24,7 +24,6 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     )
     .toBeLessThanOrEqual(1);
 
-  await page.getByRole("button", { name: "Describe instead" }).click();
   await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
   await page.getByRole("button", { name: "Plan my night" }).click();
   await expect(page.getByText("Three stops we can stand behind, shaped by the night you set below.")).toBeVisible();
@@ -75,13 +74,31 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
   });
   await matePage.setViewportSize({ width: 390, height: 844 });
   await matePage.goto(publicUrl);
-  await expect(matePage.getByText("No account. Just your name.")).toBeVisible();
+  // Night mode (components/plan/NightCrawlMode.tsx) auto-opens on mobile
+  // whenever the plan is "on tonight" (lib/activePlan.ts's active window).
+  // ActivePlanMarker mounts on every /plan/[id] view - host or mate alike -
+  // and marks the plan active unconditionally (components/plan/ActivePlanMarker.tsx),
+  // so the mate here gets it too, since this plan's inferred start is now.
+  // The dialog can open a beat after mount, racing this test's early actions,
+  // so dismiss it wherever it might land rather than trusting a single
+  // check right after goto.
+  const nightMode = matePage.getByRole("dialog", { name: "Night mode" });
+  async function dismissNightModeIfOpen(): Promise<void> {
+    if (await nightMode.isVisible().catch(() => false)) {
+      await nightMode.getByRole("button", { name: "View full plan" }).click();
+      await expect(nightMode).toBeHidden();
+    }
+  }
+  await dismissNightModeIfOpen();
+  await expect(matePage.getByText("Your name is enough.")).toBeVisible();
+  await dismissNightModeIfOpen();
   await expect
     .poll(async () =>
       matePage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
     )
     .toBeLessThanOrEqual(1);
-  await matePage.getByLabel("No account. Just your name.").fill("Luna");
+  await matePage.getByLabel("Your name is enough.").fill("Luna");
+  await dismissNightModeIfOpen();
   await matePage.getByRole("button", { name: /I.m in/ }).click();
   await expect.poll(() => joinIdempotencyKey).toMatch(/^join:[0-9a-f-]{36}-[0-9a-f-]{36}$/);
   await expect(matePage.getByText("Luna", { exact: true })).toBeVisible();
