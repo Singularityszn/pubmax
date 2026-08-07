@@ -24,6 +24,7 @@ import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
+import VenueAreaPriceCompare from "@/components/map/VenueAreaPriceCompare";
 import VenueWeatherRecommendations from "@/components/map/VenueWeatherRecommendations";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import { communityStampLabel, communityTrustNote, submitCategoryLabel } from "@/lib/communityPrice";
@@ -59,6 +60,8 @@ import {
   namedLegacyPintPriceSource,
   type DrinkCategory,
 } from "@/lib/drinks";
+import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
+import type { ZonePintIndex } from "@/lib/zones";
 
 function VenuePriceSummary({
   venue,
@@ -232,6 +235,7 @@ export default function VenueOverviewTab({
   priceSignInRequested,
   priceAuthLoading,
   priceFocusRequest,
+  zoneIndex,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -264,6 +268,9 @@ export default function VenueOverviewTab({
   priceSignInRequested: boolean;
   priceAuthLoading: boolean;
   priceFocusRequest: number;
+  /** Per-zone median pint index from the map's priced pubs — zone fallback
+   *  when the Pint Index league has no borough row for this pub. */
+  zoneIndex?: ZonePintIndex | null;
 }) {
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
@@ -322,6 +329,13 @@ export default function VenueOverviewTab({
   // uncorroborated or aged-out figure still renders here in full. What changes
   // is that the row admits its standing instead of implying it moved the map.
   const communityTrustStanding = communityPrice ? communityTrustNote(communityPrice) : "";
+
+  const overviewPintGbp = overviewDisplayablePintGbp({
+    cheapestPrice: venue.cheapestPrice,
+    latestContributorPrice,
+    latestPintDropAt,
+    communityRows: communityRows,
+  });
 
   // Sourced attribution from mergePriceUpdates (optional field on the runtime
   // venue object). Absent when community is fresher or no refresh exists.
@@ -549,9 +563,18 @@ export default function VenueOverviewTab({
         // "Now" is only offered where today's figure is a pint. A bar or food
         // venue's cheapestPrice is an anchor price (a cocktail, a dish), so it
         // is withheld rather than compared against an old pint.
-          currentPriceGbp={
-            isPubVenue(venue) ? (latestContributorPrice ?? venue.cheapestPrice) : null
-          }
+          currentPriceGbp={isPubVenue(venue) ? overviewPintGbp : null}
+        />
+      ) : null}
+      {/* Patch yardstick: this pint against the borough Pint Index average, or
+          the fare-zone median when the Index has no row. Same displayable pint
+          stack as the then-and-now block. Renders nothing without a yardstick. */}
+      {experienceLens === "all" && isPubVenue(venue) ? (
+        <VenueAreaPriceCompare
+          priceGbp={overviewPintGbp}
+          primaryBorough={venue.primaryBorough}
+          zone={venue.zone}
+          zoneIndex={zoneIndex}
         />
       ) : null}
       {/* The submission loop itself: pick a drink, type tonight's price, and

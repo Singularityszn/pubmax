@@ -19,6 +19,7 @@ import type { JourneyPoint } from "@/lib/venueJourney";
 import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { DrinkCategory } from "@/lib/drinks";
+import type { ZonePintIndex } from "@/lib/zones";
 import { prefetchLastRide } from "@/lib/lastRideClient";
 import {
   runPriceContributionRequest,
@@ -89,6 +90,8 @@ type VenueInspectorProps = {
   experienceLens?: MapExperienceLens;
   /** Selected-drink map lens (e.g. coffee). Never the no-alcohol experience. */
   drinkLensCategory?: DrinkCategory | null;
+  /** Per-zone median pint index for the Overview area-price compare line. */
+  zoneIndex?: ZonePintIndex | null;
 };
 
 function focusPriceDestination(id: string): void {
@@ -135,6 +138,7 @@ export default function VenueInspector({
   onClearLocation,
   experienceLens = "all",
   drinkLensCategory = null,
+  zoneIndex = null,
 }: VenueInspectorProps) {
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const { user, handle, loading: authLoading, configured: authConfigured } = useAuth();
@@ -319,6 +323,7 @@ export default function VenueInspector({
             ? priceFocusRequest.count
             : 0
         }
+        zoneIndex={zoneIndex}
       />
 
       {/* Pints — the primary tab: demo note, drops list, composer / log bar. */}
