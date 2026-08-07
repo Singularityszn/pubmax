@@ -218,6 +218,14 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/existing session can&rsquo;t recreate/);
   });
 
+  it("discloses handle-free Plan public invite RSVPs and reactions", () => {
+    expect(privacy).toMatch(/Plan can also publish a separate public invite link/i);
+    expect(privacy).toMatch(/RSVP with a display name/i);
+    expect(privacy).toMatch(/salted hash of a browser device id/i);
+    expect(privacy).toMatch(/do not store the raw\s+device id/i);
+    expect(privacy).toMatch(/Plan host can remove an RSVP/i);
+  });
+
   it("discloses precise location processing without overstating retention", () => {
     expect(privacy).toMatch(/coordinates never leave your\s+device/);
     expect(privacy).toMatch(/Viewer coordinates never leave your\s+device at full precision/i);

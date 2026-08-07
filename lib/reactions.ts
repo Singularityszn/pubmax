@@ -10,6 +10,15 @@
 export const REACTION_KEYS = ["cheers", "bargain", "chaos", "proper", "legendary"] as const;
 export type ReactionKey = (typeof REACTION_KEYS)[number];
 
+/** Closed chip labels + emoji. Feed and invite UI import this so meanings cannot drift. */
+export const REACTION_META: Record<ReactionKey, { label: string; emoji: string }> = {
+  cheers: { label: "Cheers", emoji: "🍺" },
+  bargain: { label: "Bargain", emoji: "💷" },
+  chaos: { label: "Chaos", emoji: "🔥" },
+  proper: { label: "Proper", emoji: "👌" },
+  legendary: { label: "Legendary", emoji: "🏆" },
+};
+
 const REACTION_SET = new Set<string>(REACTION_KEYS);
 export function isReactionKey(value: unknown): value is ReactionKey {
   return typeof value === "string" && REACTION_SET.has(value);

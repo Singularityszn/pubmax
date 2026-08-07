@@ -20,9 +20,9 @@ Protection in a sibling method cannot certify another method.
 <!-- mutation-handler-inventory:start -->
 - `DELETE app/api/admin/session`
 - `DELETE app/api/crawls/[slug]`
-- `DELETE app/api/invite/[token]/rsvp`
 - `DELETE app/api/night-stories/[id]/contributors`
 - `DELETE app/api/plans/[id]/group-prefs`
+- `DELETE app/api/plans/[id]/invite-rsvp`
 - `DELETE app/api/plans/[id]/invites/[inviteId]`
 - `DELETE app/api/profiles/[handle]`
 - `DELETE app/api/pub-pal`
@@ -925,34 +925,37 @@ commit.
   birth stays until profile deletion; full name and sex stay until edited,
   cleared or profile deletion. No contribution eligibility is derived.
 
-### `app/api/invite/[token]/rsvp` and `app/api/invite/[token]/reactions` - Plan public invite RSVP and reactions (route 89)
+### `app/api/invite/[token]/rsvp`, `app/api/invite/[token]/reactions`, and `app/api/plans/[id]/invite-rsvp` - Plan public invite RSVP and reactions (route 89)
 
-- **Route / method:** `POST` and `DELETE` on `app/api/invite/[token]/rsvp/route.ts`,
-  plus `POST` on `app/api/invite/[token]/reactions/route.ts` (Task:
-  plan-invite-page). These are the only writes reachable from a Plan's public
-  invite card; the page itself only reads.
+- **Route / method:** `POST` on `app/api/invite/[token]/rsvp/route.ts`,
+  `GET` + `POST` on `app/api/invite/[token]/reactions/route.ts`, and host-only
+  `DELETE` on `app/api/plans/[id]/invite-rsvp/route.ts`. Public guest writes
+  stay on the invite bearer URL; host removal lives under `/api/plans/[id]/…`
+  so the path-scoped HttpOnly member cookie can authorize after a hard
+  `/invite/[token]` open.
 - **Identity is handle-free by design:** the RSVP POST accepts a
   server-hygiened display name and a Going/Maybe status, keyed by
   `hashActor(submitterId)` where `submitterId` is the visitor's own device id
   from `lib/anonId.ts`. No account, no Pubmaxx handle, no session. A unique
   `(plan_id, submitter_hash)` row means resubmitting from the same device
   updates that device's own RSVP rather than adding a second guest.
-- **Token boundary:** the token resolves to a plan id only through
-  `resolvePlanIdByInviteToken` (`lib/planStore.ts`), a deliberate,
-  unguessable-token-scoped read seam distinct from the Plan's own participant-
-  fenced RLS row. Neither write route ever accepts or trusts a plan id
-  directly from the client.
+- **Token boundary:** public invite writes resolve the token through
+  `resolveClassicInvitePlan` (`lib/planInviteResolve.ts`), which requires the
+  same classic-plan `planStateResult` gate as the invite page (Crew-bound plans
+  404). Neither public write route accepts a plan id from the client.
 - **Text hygiene (boundary):** guest display names pass through
   `cleanText`/`readString` (`lib/textClean.ts`), the same hygiene already used
   for handles and comments, before persistence.
 - **Rate limit (boundary):** `isLimited` (`lib/pintDrops.ts`) allows 8 RSVP
-  writes and 40 reaction writes per submitter-hash per 60 seconds.
-- **Freeze gate:** both routes call `socialFreezeResponse` (`lib/opsFreeze.ts`)
-  first, the same ops-freeze posture as every other social write.
-- **Host-only removal:** RSVP `DELETE` requires a valid plan-member session
-  resolved through `planMemberCapability`/`planMemberIdentity`
-  (`lib/planMemberCapability.ts`, `lib/planStore.ts`) and rejects a guest
-  member with 403 - only the host may remove another guest's RSVP.
+  writes per submitter-hash and 32 per invite-token hash per 60 seconds, plus
+  40 reaction writes per submitter-hash per 60 seconds. Missing submitter ids
+  are rejected.
+- **Freeze gate:** mutating invite routes call `socialFreezeResponse`
+  (`lib/opsFreeze.ts`) first, the same ops-freeze posture as every other social write.
+- **Host-only removal:** RSVP `DELETE` on `/api/plans/[id]/invite-rsvp`
+  requires a valid plan-member session resolved through
+  `planMemberCapability`/`planMemberIdentity` and rejects a guest member with
+  403. Only the host may remove another guest's RSVP.
 - **Rollback / kill:** durable rows live in `plan_invite_rsvps` and
   `plan_invite_reactions` (migration 0081, shipped not applied). RLS denies
   `anon`/`authenticated` outright; every access is service-role only, the same

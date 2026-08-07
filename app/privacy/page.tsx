@@ -179,6 +179,18 @@ export default function PrivacyPage() {
           don&rsquo;t grant paid features today, because sign-in doesn&rsquo;t prove that
           one person has only one account.
         </p>
+        <p className="legalBody">
+          A Plan can also publish a separate public invite link. Anyone with
+          that link can RSVP with a display name (Going or Maybe) and leave a
+          closed set of emoji reactions, without creating an account. We store
+          the display name you type, your RSVP choice, your reaction choices,
+          and a salted hash of a browser device id so the same device can update
+          its own RSVP instead of stacking duplicates. We do not store the raw
+          device id. Anyone who has the link can see the guest list and reaction
+          counts on that invite page. The Plan host can remove an RSVP from the
+          list. Closing or deleting the Plan removes those invite RSVPs and
+          reactions with it.
+        </p>
 
         <h3 className="legalH3">What you post</h3>
         <p className="legalBody">
