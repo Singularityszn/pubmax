@@ -1456,10 +1456,23 @@ export default function PubMap({
   );
   const mapContextName =
     ukPlaceArrival?.name ??
-    (!mapViewport.center ||
-    pointInCityBounds(mapViewport.center[1], mapViewport.center[0], city)
-      ? city.displayName
-      : "UK");
+    (ukNationalBrowse
+      ? "UK"
+      : !mapViewport.center ||
+          pointInCityBounds(mapViewport.center[1], mapViewport.center[0], city)
+        ? city.displayName
+        : "UK");
+  const outsideCuratedBounds =
+    !ukPlaceArrival &&
+    !ukNationalBrowse &&
+    Boolean(
+      mapViewport.center &&
+        !pointInCityBounds(mapViewport.center[1], mapViewport.center[0], city),
+    );
+  // Base-led chrome: uncovered place, national browse, or pan past cityMaxBounds.
+  const baseLedChrome = Boolean(
+    ukPlaceArrival || ukNationalBrowse || outsideCuratedBounds,
+  );
 
   const hasReactiveLogIntent = hasMapLogIntent(searchParams) && !logIntentCleared;
   const shouldBuildSuggestedRoute = !hasReactiveLogIntent || planningOpen || routeMapped;
@@ -3204,7 +3217,7 @@ export default function PubMap({
         {/* Desktop only. On a phone these toggles are a section of the Filters
             sheet instead, so the map keeps the band the third chrome bar used
             to take (design judgement 2026-08-01, finding 2.3). */}
-        {!ukPlaceArrival && !mobileViewport ? (
+        {!baseLedChrome && !mobileViewport ? (
           <TonightArcChips
             visibility={venueKindVisibility}
             experienceLens={experienceLens}
@@ -3242,7 +3255,9 @@ export default function PubMap({
         ) : ukPlaceArrival ? (
           <UkPlaceArrivalBanner arrival={ukPlaceArrival} />
         ) : ukNationalBrowse ? (
-          <UkNationalBrowseBanner />
+          <UkNationalBrowseBanner variant="national" />
+        ) : outsideCuratedBounds ? (
+          <UkNationalBrowseBanner variant="outside" />
         ) : null}
         {/* Keep pitched-London loading chrome until slim data and the canvas's
             viewport-specific handoff are ready. Phone requires a guarded frame
@@ -3331,6 +3346,7 @@ export default function PubMap({
           onBoundsChange={handleMapBoundsChange}
         />
         {!mobileViewport ? <MapToolbar
+          outsideCurated={outsideCuratedBounds || ukNationalBrowse}
           query={filters.query}
           onQueryChange={changeMapSearchQuery}
           searchContent={
@@ -3392,7 +3408,7 @@ export default function PubMap({
             moment the reader moves the camera (design judgement 2026-08-01,
             finding 2.15). They used to park in the exact centre of the
             viewport, over the pins the map exists to show. */}
-        {ambientBannerLane && !ukPlaceArrival && !ukNationalBrowse ? (
+        {ambientBannerLane && !baseLedChrome ? (
           <CitySuggestBanner
             cityId={cityId}
             onLocationFound={setUserLocation}
@@ -3807,6 +3823,7 @@ export default function PubMap({
               onUseMyLocation={showNearbyMap}
               locationBusy={nearbyLoading}
               locationNote={nearbyError}
+              baseLed={baseLedChrome}
               onClose={() => changeMapOverlay("none")}
             />
           }

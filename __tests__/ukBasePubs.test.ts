@@ -2,14 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   BOUNDS_PAD_RATIO,
+  MAX_PAN_PREFETCH_SHARDS,
   MAX_RESIDENT_SHARDS,
+  PAN_AHEAD_PAD_RATIO,
   UK_BASE_ID_PREFIX,
   UK_BASE_MANIFEST_PATH,
   createUkBaseLoader,
   isUkBaseId,
   padBounds,
+  padBoundsForPan,
+  panDeltaBetween,
   parseUkBaseManifest,
   parseUkBaseShard,
+  selectPanPrefetchShards,
   ukBasePubsForDrawableVenues,
   ukBaseIdFor,
   ukBasePubFromFeature,
@@ -336,7 +341,101 @@ describe("createUkBaseLoader", () => {
   it("keeps residency bounded so panning the country cannot grow the tab", () => {
     // The cap stops the country-wide pack accumulating across a long session;
     // the fetch path is exercised above, this pins the contract itself.
-    expect(MAX_RESIDENT_SHARDS).toBeGreaterThan(0);
+    expect(MAX_RESIDENT_SHARDS).toBe(12);
     expect(MAX_RESIDENT_SHARDS).toBeLessThanOrEqual(12);
+    expect(MAX_PAN_PREFETCH_SHARDS).toBeGreaterThan(0);
+    expect(MAX_PAN_PREFETCH_SHARDS).toBeLessThan(MAX_RESIDENT_SHARDS);
+  });
+
+  it("restorePub resolves a pub by id via the hint cell without a viewport stream", async () => {
+    const loader = createUkBaseLoader();
+    const pub = await loader.restorePub("venue-uk-n1", { lat: 51.42, lng: -0.18 });
+    expect(pub?.name).toBe("The Anchor");
+    // No hint and not resident → null (caller fails closed or asks the server).
+    const cold = createUkBaseLoader();
+    expect(await cold.restorePub("venue-uk-n1")).toBeNull();
+    expect(await cold.restorePub("venue-uk-n0000000000", { lat: 51.42, lng: -0.18 })).toBeNull();
+  });
+
+  it("warms a pan-ahead neighbour into residency without returning it as drawn", async () => {
+    const loader = createUkBaseLoader();
+    // First settle over cell a only.
+    await loader.pubsForBounds({
+      west: -0.19,
+      south: 51.42,
+      east: -0.17,
+      north: 51.44,
+    });
+    fetched = [];
+    // Pan east: draw pad still only a, but the pan-ahead stretch reaches b.
+    const drawn = await loader.pubsForBounds({
+      west: -0.13,
+      south: 51.42,
+      east: -0.11,
+      north: 51.44,
+    });
+    expect(drawn.map((p) => p.name).sort()).toEqual(["The Anchor", "The Bell"]);
+    expect(drawn.map((p) => p.name)).not.toContain("The Crown");
+    // Prefetch warmed b into residency; find must not need another fetch.
+    const before = [...fetched];
+    expect(loader.find("venue-uk-n3")?.name).toBe("The Crown");
+    expect(fetched).toEqual(before);
+    expect(before).toContain("/data/uk_base/b.json");
+  });
+});
+
+describe("pan residency helpers", () => {
+  it("ignores zoom-only settles and stretches only the leading pan edges", () => {
+    const a = { west: -0.2, south: 51.4, east: -0.1, north: 51.5 };
+    const zoomOnly = { west: -0.19, south: 51.41, east: -0.11, north: 51.49 };
+    // Centres identical → no pan.
+    expect(
+      panDeltaBetween(a, { west: -0.2, south: 51.4, east: -0.1, north: 51.5 }),
+    ).toBeNull();
+    const east = panDeltaBetween(a, {
+      west: -0.1,
+      south: 51.4,
+      east: 0.0,
+      north: 51.5,
+    });
+    expect(east?.dLng).toBeGreaterThan(0);
+    const padded = padBoundsForPan(a, east);
+    const plain = padBounds(a);
+    expect(padded.east).toBeGreaterThan(plain.east);
+    expect(padded.west).toBe(plain.west);
+    expect(padded.east - plain.east).toBeCloseTo(
+      Math.abs(a.east - a.west) * PAN_AHEAD_PAD_RATIO,
+    );
+  });
+
+  it("selects only non-drawn shards inside the pan-ahead pad, up to budget", () => {
+    const shards = [
+      {
+        id: "a",
+        core: false,
+        url: "/data/uk_base/a.json",
+        count: 1,
+        bbox: [-0.2, 51.4, -0.1, 51.5] as [number, number, number, number],
+      },
+      {
+        id: "b",
+        core: false,
+        url: "/data/uk_base/b.json",
+        count: 1,
+        bbox: [-0.1, 51.4, 0.0, 51.5] as [number, number, number, number],
+      },
+      {
+        id: "far",
+        core: false,
+        url: "/data/uk_base/far.json",
+        count: 1,
+        bbox: [-2.3, 53.4, -2.2, 53.5] as [number, number, number, number],
+      },
+    ];
+    const drawn = new Set(["/data/uk_base/a.json"]);
+    const panPad = { west: -0.2, south: 51.4, east: 0.05, north: 51.5 };
+    const picked = selectPanPrefetchShards(shards, drawn, panPad, 1);
+    expect(picked.map((s) => s.id)).toEqual(["b"]);
+    expect(selectPanPrefetchShards(shards, drawn, panPad, 0)).toEqual([]);
   });
 });

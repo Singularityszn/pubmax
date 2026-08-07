@@ -3,7 +3,7 @@ import path from "path";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getUkBaseIdIndex, resetUkBaseIndexForTests } from "@/lib/ukBaseIndex";
+import { getUkBaseIdIndex, lookupUkBasePub, resetUkBaseIndexForTests } from "@/lib/ukBaseIndex";
 import {
   UK_BASE_ID_PREFIX,
   parseUkBaseManifest,
@@ -174,5 +174,28 @@ describe("getUkBaseIdIndex", () => {
         pubs.pop();
       }),
     ).toEqual({ status: "unavailable" });
+  });
+});
+
+describe("lookupUkBasePub", () => {
+  it("returns the full record for a committed shard row", async () => {
+    const osmRef = await firstCommittedOsmRef();
+    const result = await lookupUkBasePub(ukBaseIdFor(osmRef));
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") return;
+    expect(result.pub.id).toBe(ukBaseIdFor(osmRef));
+    expect(result.pub.name.length).toBeGreaterThan(0);
+    expect(Number.isFinite(result.pub.lat)).toBe(true);
+    expect(Number.isFinite(result.pub.lng)).toBe(true);
+  });
+
+  it("fails closed for a well-formed id the pack does not carry", async () => {
+    expect(await lookupUkBasePub(`${UK_BASE_ID_PREFIX}n0000000000`)).toEqual({
+      status: "missing",
+    });
+  });
+
+  it("rejects a curated venue id without opening the pack as found", async () => {
+    expect(await lookupUkBasePub("venue-7l4pei")).toEqual({ status: "missing" });
   });
 });
