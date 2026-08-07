@@ -88,13 +88,10 @@ type VenueInspectorProps = {
   onRequestLocation: () => void;
   onClearLocation: () => void;
   experienceLens?: MapExperienceLens;
-<<<<<<< HEAD
   /** Selected-drink map lens (e.g. coffee). Never the no-alcohol experience. */
   drinkLensCategory?: DrinkCategory | null;
-=======
   /** Per-zone median pint index for the Overview area-price compare line. */
   zoneIndex?: ZonePintIndex | null;
->>>>>>> origin/cursor/sheet-area-price-compare-dd0b
 };
 
 function focusPriceDestination(id: string): void {
@@ -140,11 +137,8 @@ export default function VenueInspector({
   onRequestLocation,
   onClearLocation,
   experienceLens = "all",
-<<<<<<< HEAD
   drinkLensCategory = null,
-=======
   zoneIndex = null,
->>>>>>> origin/cursor/sheet-area-price-compare-dd0b
 }: VenueInspectorProps) {
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const { user, handle, loading: authLoading, configured: authConfigured } = useAuth();

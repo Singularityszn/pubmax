@@ -393,6 +393,7 @@ describe("VenueOverviewTab area-price compare mount", () => {
       createElement(VenueOverviewTab, {
         venue,
         tab: "overview",
+        onOpenVisitReports: () => {},
         cityId: "london",
         mode: "suggest",
         inCrawl: false,
