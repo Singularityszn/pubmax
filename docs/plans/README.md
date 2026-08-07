@@ -7,7 +7,8 @@ Strategy and sequencing docs. Prefer one plan per concern; do not implement from
 | [`FIRST_PRINCIPLES_OUTINGS.md`](./FIRST_PRINCIPLES_OUTINGS.md) | WAVES S1–S4 LANDED | Story / anti-slop voice, occasion expansion beyond pints, legal data densification |
 | [`OUTINGS_WAVE_REVIEW.md`](./OUTINGS_WAVE_REVIEW.md) | REVIEW + FIXES | Code review of S1–S4 and follow-up taxonomy/outing-copy patches |
 | [`FABLE_REVIEW_ITERATION.md`](./FABLE_REVIEW_ITERATION.md) | SHIPPING | Multi-PR overnight queue for Fable; avoids duplicating #816 |
-| [`OUTINGS_WAVE2_EXECUTION.md`](./OUTINGS_WAVE2_EXECUTION.md) | EXECUTING | Wave 2: map outing chips, submit lens default, ranking signals, lens analytics, Spoons map filter |
+| [`OUTINGS_WAVE2_EXECUTION.md`](./OUTINGS_WAVE2_EXECUTION.md) | SHIPPING | Wave 2: map outing chips, submit lens default, ranking signals, lens analytics, Spoons map filter |
+| [`OUTINGS_TASTE_WAVE.md`](./OUTINGS_TASTE_WAVE.md) | EXECUTING | Wave S4 taste: plan/about composition, empty material, chip strip, Discover breath, map glass, landing motion |
 | [`LANDING_ACQUISITION.md`](./LANDING_ACQUISITION.md) | READY (dual-model review) | Map-first landing + first map open |
 | [`PLG_STRATEGY.md`](./PLG_STRATEGY.md) | READY FOR REVIEW | Invite k-factor, price flywheel, lot density |
 | [`desktop-feature-parity.md`](./desktop-feature-parity.md) | FINAL — parked | Desktop parity waves D1–D6 (no implementation until unblocked) |
