@@ -1,12 +1,16 @@
 import { expect, type Page, test } from "@playwright/test";
 
 /**
- * /plan opens on the step-by-step intake (components/plan/PlanIntake.tsx) and
- * keeps the composer body behind it. These tests are about the composer, so
- * they take the intake's own way past it. Without this they only ever saw step
- * 1 of 5, which is what made every assertion below look like a broken planner.
+ * /plan opens on the describe-first question (components/plan/PlanDescribeFirst.tsx),
+ * whose own free-text field shares its accessible label ("Describe the
+ * night") with the full composer's concierge field. These tests need the
+ * full composer (including .planComposer__coverage, which only renders once
+ * composerVisible is true) without first generating a route, so this reaches
+ * it through the wizard's own "Describe instead" skip rather than trusting
+ * the describe-first field's visibility, which would false-positive.
  */
 async function openComposer(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Guide me instead" }).click();
   await page.getByRole("button", { name: "Describe instead" }).click();
   await expect(page.getByLabel("Describe the night")).toBeVisible();
 }

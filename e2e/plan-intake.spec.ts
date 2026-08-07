@@ -6,6 +6,10 @@ async function continueIntake(page: Page): Promise<void> {
   await continueButton.click();
 }
 
+async function openWizard(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Guide me instead" }).click();
+}
+
 async function chooseClaphamAndContinue(page: Page): Promise<void> {
   const timeHeading = page.getByRole("heading", { name: "When are you heading out?" });
   await page.getByRole("button", { name: "Clapham" }).click();
@@ -29,32 +33,41 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("blank Plan uses one progressive entry before showing the full composer", async ({
+test("blank Plan opens on describe-first, with the wizard reachable behind Guide me instead", async ({
   page,
 }) => {
   await page.goto("/plan");
 
+  await expect(page.getByRole("heading", { name: /What.s the plan\?/ })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Where should the night happen?" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", {
-      name: "Say what you need. Get three useful stops.",
-    }),
   ).toHaveCount(0);
   await expect(page.getByLabel("Venue name")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Lock it in" })).toHaveCount(0);
 
   await page.waitForLoadState("networkidle");
-  await page.getByRole("button", { name: "Describe instead" }).click();
+  await openWizard(page);
 
   await expect(
-    page.getByRole("heading", {
-      name: "Say what you need. Get three useful stops.",
-    }),
+    page.getByRole("heading", { name: "Where should the night happen?" }),
   ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /What.s the plan\?/ })).toHaveCount(0);
   await expect(page.getByLabel("Venue name")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Lock it in" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Lock it in" })).toHaveCount(0);
+});
+
+test("a suggestion chip generates a real priced route end to end, keyless", async ({ page }) => {
+  await page.goto("/plan");
+
+  await page
+    .getByRole("button", { name: "Quiet in Clapham for 4, not pricey", exact: true })
+    .click();
+
+  await expect(
+    page.getByText("Three stops we can stand behind, shaped by the night you set below."),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("This route needs a refresh")).toHaveCount(0);
+  await expect(page.locator(".planComposer__error")).toHaveCount(0);
 });
 
 test("reloading a recovered draft does not extend its near expiry", async ({ page }) => {
@@ -97,9 +110,15 @@ test("reloading a recovered draft does not extend its near expiry", async ({ pag
 });
 
 test("location is opt-in and selects the nearest patch without advancing", async ({ page, context }) => {
+  // Geolocation permission is granted only after the wizard opens, not before
+  // goto. PlanComposer runs its own silent area-detect effect on mount
+  // (independent of the wizard); granting permission too early lets that
+  // effect win the race and silently answer "area" before this test's own
+  // "Use my location" click, which is what this test means to exercise.
+  await page.goto("/plan");
+  await openWizard(page);
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 51.527, longitude: -0.08 });
-  await page.goto("/plan");
 
   const locate = page.getByRole("button", { name: "Use my location" });
   await expect(locate).toBeVisible();
@@ -118,9 +137,12 @@ test("location is opt-in and selects the nearest patch without advancing", async
 });
 
 test("an outside-London location preserves the selected area", async ({ page, context }) => {
+  // See the "location is opt-in" test above for why the grant happens after
+  // the wizard opens rather than before goto.
+  await page.goto("/plan");
+  await openWizard(page);
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 53.48, longitude: -2.24 });
-  await page.goto("/plan");
   await page.getByRole("button", { name: "Clapham" }).click();
 
   await page.getByRole("button", { name: "Use my location" }).click();
@@ -131,9 +153,12 @@ test("an outside-London location preserves the selected area", async ({ page, co
 });
 
 test("an unsupported Hackney location preserves the selected generation area", async ({ page, context }) => {
+  // See the "location is opt-in" test above for why the grant happens after
+  // the wizard opens rather than before goto.
+  await page.goto("/plan");
+  await openWizard(page);
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 51.5346, longitude: -0.0611 });
-  await page.goto("/plan");
   await page.getByRole("button", { name: "Clapham" }).click();
 
   await page.getByRole("button", { name: "Use my location" }).click();
@@ -170,6 +195,7 @@ test("a delayed location result cannot overwrite the area after Continue", async
     });
   });
   await page.goto("/plan");
+  await openWizard(page);
   await page.getByRole("button", { name: "Clapham" }).click();
   await page.getByRole("button", { name: "Use my location" }).click();
   await continueIntake(page);
@@ -190,6 +216,7 @@ test("a delayed location result cannot overwrite the area after Continue", async
 test("a typed exact time rejects an autumn overlap once both occurrences have passed", async ({ page }) => {
   await page.clock.setFixedTime(new Date("2026-10-25T01:30:00.000Z"));
   await page.goto("/plan");
+  await openWizard(page);
   await chooseClaphamAndContinue(page);
   await page.getByRole("button", { name: /Evening/ }).click();
 
@@ -207,6 +234,7 @@ test("single-value intake fields advance with Enter without submitting the Plan"
   });
 
   await page.goto("/plan");
+  await openWizard(page);
   await chooseClaphamAndContinue(page);
   await page.getByRole("button", { name: /Evening/ }).click();
 
@@ -236,6 +264,10 @@ test("single-value intake fields advance with Enter without submitting the Plan"
 });
 
 test("editing the exact start marks a generated preview stale", async ({ page }) => {
+  // Pinned so the edited exact start below stays in the future no matter
+  // when this suite actually runs; londonDateTimeInputToIso only accepts a
+  // candidate after "now".
+  await page.clock.setFixedTime(new Date("2026-07-20T17:00:00.000Z"));
   await page.route("**/api/plans/generate", async (route) => {
     await route.fulfill({
       status: 200,
@@ -266,6 +298,7 @@ test("editing the exact start marks a generated preview stale", async ({ page })
   });
 
   await page.goto("/plan");
+  await openWizard(page);
   await chooseClaphamAndContinue(page);
   await page.getByRole("button", { name: /Evening/ }).click();
   await continueIntake(page);
@@ -317,6 +350,7 @@ test("submission revalidates that the exact start is still in the future", async
   });
 
   await page.goto("/plan");
+  await openWizard(page);
   await chooseClaphamAndContinue(page);
   await page.getByRole("button", { name: /Evening/ }).click();
   await continueIntake(page);

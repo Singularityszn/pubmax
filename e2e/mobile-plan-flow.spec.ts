@@ -28,6 +28,10 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
 
   await expect(page.getByRole("heading", { name: "Describe the night. We’ll put it in order." })).toBeVisible();
   await page.waitForLoadState("networkidle");
+  // This test exercises the full composer (its own template chips, editable
+  // context fields), which needs the wizard's own "Describe instead" skip,
+  // not the describe-first entry surface's own free-text field.
+  await page.getByRole("button", { name: "Guide me instead" }).click();
   await page.getByRole("button", { name: "Describe instead" }).click();
   await expectTouchHeight(page.getByRole("textbox", { name: "Describe the night" }));
   await expectTouchHeight(page.getByRole("button", { name: "Plan my night" }));
@@ -72,7 +76,7 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   await regenerateRoute.click();
   await expect(page.locator("#plan-route-status")).toContainText("Route refreshed");
 
-  await page.getByText("Night Area coverage", { exact: true }).click();
+  await page.getByText("Area coverage", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "Higher-confidence planning" })).toBeVisible();
   await expectTouchHeight(page.getByRole("link", { name: "Explore Clapham pubs on the map" }));
   await expectNoHorizontalOverflow(page);
