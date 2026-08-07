@@ -30,10 +30,10 @@
       "label": "Permissible-source price retrieval (scheduled sweep, unpublished)",
       "class": "cron",
       "artifact": null,
-      "stamp": null,
+      "stamp": { "kind": "store", "feedKey": "price_update_retrieval" },
       "cadence": "weekly, Monday 07:00 UTC via Vercel cron",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-prices retrieves and validates first-party/open-data rows, then stamps feed_freshness (durable store, migration 0047 plane) only when at least one valid row was fetched; empty, invalid, or failed runs log the no-op and preserve the prior stamp. Store-only: the freshness overlay surfaces the real observedAt (visible in /api/freshness); there is no committed artifact, so the file-based check treats it as untracked. This feed reports when RETRIEVAL last succeeded, not that any price shipped.",
+      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-prices retrieves and validates first-party/open-data rows, then stamps feed_freshness (durable store, migration 0047 plane) only when at least one valid row was fetched; empty, invalid, or failed runs log the no-op and preserve the prior stamp. Store-only, no committed artifact: /api/freshness and the freshness-audit cron both read the store's real observedAt directly (never a disk fallback, because none exists), and scripts/check_freshness.mjs queries the same table dependency-free. A store the checker cannot reach reports unmeasurable, never fresh and never stale. This feed reports when RETRIEVAL last succeeded, not that any price shipped; the parsers are stubbed today (see gate), so the store stays empty and this feed reads unmeasurable until a real parser lands.",
       "gate": "none to run; first-party parsers are STUBBED (fetchFromSource returns []), so the sweep never stamps until a real per-source parser lands. Publishing retrieved rows to the served price_updates artifact still requires the human-reviewed script path."
     },
     {
@@ -74,10 +74,10 @@
       "label": "Night Signal candidate ingestion (Exa sweep, pending review)",
       "class": "cron",
       "artifact": null,
-      "stamp": null,
+      "stamp": { "kind": "store", "feedKey": "night_signal_candidates" },
       "cadence": "daily, 05:15 UTC via Vercel cron",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-night-signals sweeps Exa for dated, attributable London pub buzz and stamps feed_freshness (durable store, migration 0047 plane). Store-only: the freshness overlay surfaces the real observedAt (visible in /api/freshness); there is no committed artifact, so the file-based check treats it as untracked. Hard staleness-budgeting an artifact-less cron feed is a registry-model follow-up. This feed reports when INGESTION last ran, not that any claim shipped.",
+      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-night-signals sweeps Exa for dated, attributable London pub buzz and stamps feed_freshness (durable store, migration 0047 plane). Store-only, no committed artifact: /api/freshness and the freshness-audit cron both read the store's real observedAt directly (never a disk fallback, because none exists), and scripts/check_freshness.mjs queries the same table dependency-free. A store the checker cannot reach reports unmeasurable, never fresh and never stale. Hard staleness-budgeting an artifact-less cron feed is a registry-model follow-up. This feed reports when INGESTION last ran, not that any claim shipped.",
       "gate": "EXA_API_KEY (present in Vercel Preview + Production). Keyless = safe no-op. Candidates stay PENDING; durable candidate persistence and a store-based review surface remain follow-up work. Reviewed night_signals still advances only through an approved human publish."
     },
     {

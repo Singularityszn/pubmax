@@ -16,12 +16,17 @@ import { join } from "node:path";
 
 import {
   evaluateRegistry,
+  resolveStoreStamp,
   type FreshnessDataset,
   type FreshnessRegistry,
   type StampResolution,
+  type StoreRead,
 } from "@/lib/freshness";
 import { resolveDatasetStamp } from "@/lib/freshnessArtifact";
-import { resolveStoreObservedAt } from "@/lib/freshnessStoreOverlay";
+import {
+  resolveDurableFeedStoreReads,
+  resolveStoreObservedAt,
+} from "@/lib/freshnessStoreOverlay";
 import { countCorroboratedCommunityCategories } from "@/lib/communityPriceStore";
 
 export const runtime = "nodejs";
@@ -61,7 +66,16 @@ export async function GET(): Promise<Response> {
   // read-only on serverless and would report a frozen stamp); every other feed
   // keeps its disk-derived stamp. Fail-soft: no store configured → empty overlay.
   const overlay = await resolveStoreObservedAt();
+  // The two artifact-less cron feeds (price_update_retrieval, night_signal_candidates)
+  // declare a `{kind:"store"}` stamp in the registry: they have no committed file at
+  // all, so their stamp resolves ONLY from the durable store's real four-way read
+  // (unconfigured/unreachable/empty/ok), never from a disk fallback that does not exist.
+  const durableReads = await resolveDurableFeedStoreReads();
   const stampFor = (dataset: FreshnessDataset): StampResolution => {
+    if (dataset.stamp?.kind === "store") {
+      const read: StoreRead = durableReads[dataset.id] ?? { kind: "unconfigured" };
+      return resolveStoreStamp(dataset.stamp, read);
+    }
     const stored = overlay[dataset.id];
     if (stored) return { observedAt: stored, reason: null };
     return resolveDatasetStamp(rootDir, dataset);

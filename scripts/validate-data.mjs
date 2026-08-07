@@ -3254,7 +3254,7 @@ async function main() {
   // check_freshness.mjs / the registry aren't alongside it, this SKIPs cleanly.
   try {
     const { evaluateFreshness } = await import("./check_freshness.mjs");
-    const { results: fresh, breached } = evaluateFreshness();
+    const { results: fresh, breached } = await evaluateFreshness();
     const stale = fresh.filter((r) => r.status === "stale");
     const unknown = fresh.filter((r) => r.status === "unknown");
     console.log(
