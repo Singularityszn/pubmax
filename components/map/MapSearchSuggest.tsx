@@ -1,28 +1,45 @@
 "use client";
 
 import { MapPin } from "lucide-react";
-import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { SearchField } from "@/components/ui/search-field";
 import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
 import {
   buildMapSearchSuggestions,
+  UK_PLACE_SEARCH_GROUP_LABEL,
   type AreaSuggestion,
   type MapSearchAreaOption,
+  type PlaceSuggestion,
   type PubSuggestion,
 } from "@/lib/mapSearchSuggest";
 import type { Locality } from "@/lib/localities";
+import {
+  normaliseUkPlaceQuery,
+  parseUkPlaceIndex,
+  UK_PLACE_INDEX_PATH,
+  type UkPlace,
+} from "@/lib/ukPlaceSearch";
 import type { Venue } from "@/lib/venues";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 
 import "./mapSearchSuggest.css";
 
 // The map's as-you-type search: the house SearchField plus a suggestions popup
-// beneath it, listing matching AREAS (the modelled areas + boroughs) and PUBS,
-// each with an honest distance from the viewer (or the map centre). This is the
-// same search surface PubMap already owns — same filters.query, same
-// selectVenue fly, same flyToArea camera — extended, not forked.
+// beneath it, listing matching AREAS (the modelled areas + boroughs), PUBS, and
+// UK places from the national gazetteer, each with an honest distance from the
+// viewer (or the map centre). This is the same search surface PubMap already
+// owns — same filters.query, same selectVenue fly, same flyToArea camera —
+// extended, not forked.
 //
 // aria-combobox pattern: the input is the combobox, the panel is its listbox,
 // options are addressed by aria-activedescendant so focus never leaves the
@@ -30,9 +47,16 @@ import "./mapSearchSuggest.css";
 
 type FlatItem =
   | { type: "area"; item: AreaSuggestion }
-  | { type: "pub"; item: PubSuggestion };
+  | { type: "pub"; item: PubSuggestion }
+  | { type: "place"; item: PlaceSuggestion };
 
-const NO_RESULTS_MESSAGE = "Nothing matching that. Try a pub name or an area.";
+type PlaceIndexState =
+  | { status: "idle" | "loading"; places: UkPlace[] }
+  | { status: "ready"; places: UkPlace[] }
+  | { status: "error"; places: UkPlace[] };
+
+const NO_RESULTS_MESSAGE =
+  "Nothing matching that. Try a pub name, an area, or a UK town.";
 const NO_RESULTS_ANNOUNCE_DELAY_MS = 300;
 
 export type MapSearchSuggestProps = {
@@ -44,6 +68,11 @@ export type MapSearchSuggestProps = {
   venues: Venue[];
   /** Greater London locality gazetteer; [] for other cities / before it loads. */
   localities: Locality[];
+  /**
+   * When false, skip local areas/pubs (limited-coverage UK place arrival) so
+   * the national gazetteer can fill the panel alone.
+   */
+  includeLocalResults?: boolean;
   userLocation: { lat: number; lng: number } | null;
   mapCenter: [number, number];
   placeholder: string;
@@ -51,6 +80,12 @@ export type MapSearchSuggestProps = {
   onSelectVenue: (id: string) => void;
   /** Fly the map to an area/borough centre (reduced-motion safe in the canvas). */
   onFlyToArea: (option: MapSearchAreaOption) => void;
+  /**
+   * Open a UK place via the chooser arrival path (`/map?place=` or a city
+   * guide). Prefer a document navigation so PubMap remounts with the
+   * server-resolved arrival (soft nav freezes placeArrival at mount).
+   */
+  onSelectPlace: (place: PlaceSuggestion) => void;
   /** Enter with nothing highlighted and no suggestions: keep the old behaviour. */
   onSubmitQuery?: () => void;
   /** Escape on the field: close the search overlay. */
@@ -65,28 +100,50 @@ export default function MapSearchSuggest({
   onQueryChange,
   venues,
   localities,
+  includeLocalResults = true,
   userLocation,
   mapCenter,
   placeholder,
   onSelectVenue,
   onFlyToArea,
+  onSelectPlace,
   // onSubmitQuery intentionally not used: zero-result Enter keeps the miss
   // empty state open (hits use activate). Prop stays on the type for callers.
   onClose,
 }: MapSearchSuggestProps) {
-
   const listboxId = useId();
   const emptyStateId = useId();
   const optionId = useCallback((index: number) => `${listboxId}-opt-${index}`, [listboxId]);
   const [toolbarFocused, setToolbarFocused] = useState(false);
   const [announcedQuery, setAnnouncedQuery] = useState("");
   const lastAnnouncedQuery = useRef("");
+  const [placeIndex, setPlaceIndex] = useState<PlaceIndexState>({
+    status: "idle",
+    places: [],
+  });
+  const placeIndexRequested = useRef(false);
   const closeToolbarPanel = useCallback(() => {
     if (mode !== "toolbar") return;
     setToolbarFocused(false);
     const active = document.activeElement;
     if (active instanceof HTMLElement) active.blur();
   }, [mode]);
+
+  const loadPlaceIndex = useCallback(() => {
+    if (placeIndexRequested.current) return;
+    placeIndexRequested.current = true;
+    setPlaceIndex({ status: "loading", places: [] });
+    void fetch(UK_PLACE_INDEX_PATH)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const raw: unknown = await response.json();
+        setPlaceIndex({ status: "ready", places: parseUkPlaceIndex(raw) });
+      })
+      .catch(() => {
+        placeIndexRequested.current = false;
+        setPlaceIndex({ status: "error", places: [] });
+      });
+  }, []);
 
   // Deferred query keeps the input responsive while the (single-pass, whole-set)
   // match recompute runs off the keystroke — the "debounced" behaviour the spec
@@ -99,16 +156,28 @@ export default function MapSearchSuggest({
         query: deferredQuery,
         venues,
         localities,
+        places: placeIndex.places,
+        includeLocalResults,
         userLocation,
         mapCenter,
       }),
-    [cityId, deferredQuery, venues, localities, userLocation, mapCenter],
+    [
+      cityId,
+      deferredQuery,
+      venues,
+      localities,
+      placeIndex.places,
+      includeLocalResults,
+      userLocation,
+      mapCenter,
+    ],
   );
 
   const items = useMemo<FlatItem[]>(
     () => [
       ...suggestions.areas.map((item) => ({ type: "area" as const, item })),
       ...suggestions.pubs.map((item) => ({ type: "pub" as const, item })),
+      ...suggestions.places.map((item) => ({ type: "place" as const, item })),
     ],
     [suggestions],
   );
@@ -133,8 +202,9 @@ export default function MapSearchSuggest({
       chooseActiveIndex(-1);
       if (mode === "toolbar") setToolbarFocused(true);
       onQueryChange(next);
+      if (normaliseUkPlaceQuery(next).length >= 2) loadPlaceIndex();
     },
-    [chooseActiveIndex, mode, onQueryChange],
+    [chooseActiveIndex, loadPlaceIndex, mode, onQueryChange],
   );
 
   const trimmed = query.trim();
@@ -145,7 +215,13 @@ export default function MapSearchSuggest({
   // leaves the search surface; overlay search remains open until Escape/X.
   const panelEnabled = mode === "overlay" || toolbarFocused;
   const showPanel = panelEnabled && (trimmed.length > 0 || items.length > 0);
-  const showEmptyLine = showPanel && trimmed.length > 0 && querySettled && !suggestions.hasResults;
+  const showEmptyLine =
+    showPanel && trimmed.length > 0 && querySettled && !suggestions.hasResults;
+  const placesLoading =
+    showPanel &&
+    normaliseUkPlaceQuery(trimmed).length >= 2 &&
+    placeIndex.status === "loading" &&
+    !suggestions.hasResults;
 
   useEffect(() => {
     if (!showEmptyLine) {
@@ -172,21 +248,26 @@ export default function MapSearchSuggest({
       if (entry.type === "pub") {
         onSelectVenue(entry.item.id);
         closeToolbarPanel();
-      } else {
-        const { item } = entry;
-        onFlyToArea({
-          slug: item.slug,
-          name: item.name,
-          center: item.center,
-          coverage: item.coverage,
-          zoom: item.flyZoom,
-          kind: item.kind,
-          areaNewsArea: item.areaNewsArea,
-        });
-        closeToolbarPanel();
+        return;
       }
+      if (entry.type === "place") {
+        onSelectPlace(entry.item);
+        closeToolbarPanel();
+        return;
+      }
+      const { item } = entry;
+      onFlyToArea({
+        slug: item.slug,
+        name: item.name,
+        center: item.center,
+        coverage: item.coverage,
+        zoom: item.flyZoom,
+        kind: item.kind,
+        areaNewsArea: item.areaNewsArea,
+      });
+      closeToolbarPanel();
     },
-    [closeToolbarPanel, onFlyToArea, onSelectVenue],
+    [closeToolbarPanel, onFlyToArea, onSelectPlace, onSelectVenue],
   );
 
   const handleKeyDown = useCallback(
@@ -239,10 +320,13 @@ export default function MapSearchSuggest({
   );
 
   const pubStartIndex = suggestions.areas.length;
+  const placeStartIndex = pubStartIndex + suggestions.pubs.length;
   const originNote =
     suggestions.origin === "user" ? "Distances from you" : "Distances from the map centre";
   const liveAnnouncement =
-    showEmptyLine && announcedQuery === deferredTrimmed.toLocaleLowerCase() ? NO_RESULTS_MESSAGE : "";
+    showEmptyLine && announcedQuery === deferredTrimmed.toLocaleLowerCase()
+      ? NO_RESULTS_MESSAGE
+      : "";
 
   return (
     <div className={`mapSearchSuggest mapSearchSuggest--${mode}`}>
@@ -254,7 +338,7 @@ export default function MapSearchSuggest({
         aria-describedby={showEmptyLine ? emptyStateId : undefined}
         aria-autocomplete="list"
         aria-activedescendant={safeActive >= 0 ? optionId(safeActive) : undefined}
-        aria-busy={!querySettled}
+        aria-busy={!querySettled || placesLoading}
         value={query}
         onChange={changeQuery}
         onFocus={() => setToolbarFocused(true)}
@@ -268,7 +352,12 @@ export default function MapSearchSuggest({
 
       {showPanel ? (
         <div className="mapSearchSuggestPanel">
-          <div id={listboxId} role="listbox" aria-label="Search suggestions" className="mapSearchSuggestScroll">
+          <div
+            id={listboxId}
+            role="listbox"
+            aria-label="Search suggestions"
+            className="mapSearchSuggestScroll"
+          >
             {suggestions.areas.length > 0 ? (
               <div role="group" aria-label="Areas" className="mapSearchSuggestGroup">
                 <p className="mapSearchSuggestGroupHead">
@@ -352,9 +441,56 @@ export default function MapSearchSuggest({
               </div>
             ) : null}
 
+            {suggestions.places.length > 0 ? (
+              <div
+                role="group"
+                aria-label={UK_PLACE_SEARCH_GROUP_LABEL}
+                className="mapSearchSuggestGroup"
+              >
+                <p className="mapSearchSuggestGroupHead">
+                  <span>{UK_PLACE_SEARCH_GROUP_LABEL}</span>
+                </p>
+                {suggestions.places.map((place, offset) => {
+                  const index = placeStartIndex + offset;
+                  return (
+                    <div
+                      key={place.key}
+                      id={optionId(index)}
+                      role="option"
+                      aria-selected={safeActive === index}
+                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => activate({ type: "place", item: place })}
+                      onPointerEnter={() => chooseActiveIndex(index)}
+                    >
+                      <span className="mapSearchSuggestRowMain">
+                        <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
+                        <span className="mapSearchSuggestRowName">{place.name}</span>
+                        {place.contextLabel ? (
+                          <span className="mapSearchSuggestBorough">{place.contextLabel}</span>
+                        ) : null}
+                        <span className="mapSearchSuggestBorough">
+                          {place.placeKind === "curated" ? "City guide" : "No prices yet"}
+                        </span>
+                      </span>
+                      {place.distanceLabel ? (
+                        <span className="mapSearchSuggestDistance">{place.distanceLabel}</span>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {placesLoading ? (
+              <p className="mapSearchSuggestEmpty" role="status">
+                Looking across the UK pub map…
+              </p>
+            ) : null}
+
             {/* Empty state lives inside the listbox so the combobox panel keeps a
                 non-zero accessible surface on a miss (Enter must not collapse it). */}
-            {showEmptyLine ? (
+            {showEmptyLine && !placesLoading ? (
               <div
                 id={emptyStateId}
                 className="mapSearchSuggestEmpty"
@@ -363,7 +499,7 @@ export default function MapSearchSuggest({
               >
                 <p className="mapSearchSuggestEmptyTitle">{NO_RESULTS_MESSAGE}</p>
                 <p className="mapSearchSuggestEmptyHint">
-                  Try Soho, Willesden, or The Crown. Clear search to see every venue.
+                  Try Soho, Sheffield, or The Crown. Clear search to see every venue.
                 </p>
               </div>
             ) : null}

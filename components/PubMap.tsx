@@ -326,6 +326,7 @@ import {
   ukPlaceMapView,
   type UkPlaceMapArrival,
 } from "@/lib/ukPlaceSearch";
+import type { PlaceSuggestion } from "@/lib/mapSearchSuggest";
 import {
   readPlanningIntent,
   writePlanningIntent,
@@ -539,8 +540,8 @@ export default function PubMap({
   const isLondon = cityId === "london" && !ukPlaceArrival;
   const mapDisplayName = ukPlaceArrival?.name ?? city.displayName;
   const mapSearchPlaceholder = ukPlaceArrival
-    ? "Search priced pub names"
-    : `Search ${city.displayName} venues or areas`;
+    ? "Search a UK town or place"
+    : `Search ${city.displayName} venues, areas, or UK places`;
   const cityLandmarks = useMemo(() => landmarksForCity(cityId), [cityId]);
   const cityStoryBands = useMemo(() => storyBandsForCity(cityId), [cityId]);
   const cityCuratedCrawls = useMemo(() => curatedCrawlsForCity(cityId), [cityId]);
@@ -2486,16 +2487,40 @@ export default function PubMap({
     },
     [selectVenue, trimmedMapQuery],
   );
+  // UK place pick: same arrival path as /choose-city so UkPlaceArrivalBanner
+  // works. Already on the matching curated city → fly in place. Otherwise a
+  // document navigation remounts PubMap with the server-resolved arrival
+  // (soft nav freezes placeArrival at mount).
+  const selectPlaceFromSearch = useCallback(
+    (place: PlaceSuggestion) => {
+      searchQueryCameraOwnedRef.current = trimmedMapQuery;
+      if (place.placeKind === "curated" && place.cityId === cityId) {
+        setAreaFocus((prev) => ({
+          center: place.center,
+          zoom: place.flyZoom,
+          token: (prev?.token ?? 0) + 1,
+        }));
+        clearLogIntent();
+        setMapOverlay("none");
+        changeMapSearchQuery("");
+        return;
+      }
+      window.location.assign(place.href);
+    },
+    [changeMapSearchQuery, cityId, clearLogIntent, trimmedMapQuery],
+  );
   const sharedMapSearchProps = {
     cityId,
     query: filters.query,
     onQueryChange: changeMapSearchQuery,
     venues: ukPlaceArrival ? [] : venues,
     localities: ukPlaceArrival ? [] : localities,
+    includeLocalResults: !ukPlaceArrival,
     userLocation,
     mapCenter: mapViewport.center,
     onSelectVenue: selectVenueFromSearch,
     onFlyToArea: selectSearchArea,
+    onSelectPlace: selectPlaceFromSearch,
     onSubmitQuery: ukPlaceArrival ? undefined : selectTopSearchMatch,
   } satisfies Omit<MapSearchSuggestProps, "id" | "mode" | "placeholder" | "onClose">;
 
@@ -3226,16 +3251,12 @@ export default function PubMap({
           query={filters.query}
           onQueryChange={changeMapSearchQuery}
           searchContent={
-            // Nothing here is priced, so venue search can never answer. The
-            // mobile shell drops it for the same reason.
-            ukPlaceArrival ? null : (
-              <MapSearchSuggest
-                {...sharedMapSearchProps}
-                id="mapSearchInput"
-                mode="toolbar"
-                placeholder={mapSearchPlaceholder}
-              />
-            )
+            <MapSearchSuggest
+              {...sharedMapSearchProps}
+              id="mapSearchInput"
+              mode="toolbar"
+              placeholder={mapSearchPlaceholder}
+            />
           }
           favoritePint={favoritePint}
           onFavoritePintChange={changeFavoritePint}

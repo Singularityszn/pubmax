@@ -18,6 +18,9 @@ export type CityChooserSearchResult =
       description: string;
       href: string;
       cityId: CityId;
+      /** Navigation point — city map centre, or the matched place inside it. */
+      lat: number;
+      lng: number;
     }
   | {
       kind: "uncovered";
@@ -25,6 +28,8 @@ export type CityChooserSearchResult =
       description: string;
       href: string;
       context: string;
+      lat: number;
+      lng: number;
     };
 
 const UNCOVERED_DESCRIPTION =
@@ -42,15 +47,18 @@ export function buildCityChooserSearchResults(
     .filter((city) =>
       normaliseUkPlaceQuery(city.displayName).includes(normalizedQuery),
     )
-    .map(
-      (city): CityChooserSearchResult => ({
+    .map((city): CityChooserSearchResult => {
+      const [lng, lat] = city.mapView.center;
+      return {
         kind: "curated",
         name: city.displayName,
         description: city.tagline,
         href: cityMapShareUrl(city.id),
         cityId: city.id,
-      }),
-    );
+        lat,
+        lng,
+      };
+    });
   const routedCityIds = new Set<CityId>(
     curated.flatMap((result) =>
       result.kind === "curated" ? [result.cityId] : [],
@@ -73,6 +81,8 @@ export function buildCityChooserSearchResults(
         description: UNCOVERED_DESCRIPTION,
         href: ukPlaceMapUrl(place),
         context: place.context,
+        lat: place.lat,
+        lng: place.lng,
       });
       continue;
     }
@@ -84,6 +94,8 @@ export function buildCityChooserSearchResults(
       description: `Part of the ${city.displayName} city guide, with prices and crawls.`,
       href: cityMapShareUrl(city.id),
       cityId: city.id,
+      lat: place.lat,
+      lng: place.lng,
     });
   }
   return [...curated, ...matched].slice(0, limit);
