@@ -32,13 +32,16 @@ import {
 } from "@/lib/drinkSubtypes";
 import type { Filters } from "@/lib/venues";
 
-const CHIP_CATEGORIES: DrinkCategory[] = [
+export const CHIP_CATEGORIES: DrinkCategory[] = [
   "beer",
   "wine",
   "cocktail",
   "whisky",
   "gin",
   "rum",
+  "coffee",
+  "alcohol-free",
+  "soft-drink",
 ];
 
 type DrinkShapeChipsProps = {
@@ -153,7 +156,7 @@ export default function DrinkShapeChips({
               {/* The glyph keeps its own drink colour in BOTH states now that
                   selection is a neutral fill, not a coral one. Inheriting the
                   label colour on selection dropped the chosen drink to
-                  monochrome while the five unchosen ones stayed in colour,
+                  monochrome while the unchosen ones stayed in colour,
                   which read backwards. */}
               <DrinkGlyph category={cat} size={22} />
               <span className="drinkShapeChipLabel">{categoryLabel(cat)}</span>

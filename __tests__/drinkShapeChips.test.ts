@@ -4,11 +4,13 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  CHIP_CATEGORIES,
   nextDrinkShapeFilters,
   nextDrinkSubtypeFilters,
   nextTopShelfFilters,
   showsDrinkRefinements,
 } from "@/components/map/DrinkShapeChips";
+import { categoryLabel } from "@/lib/drinks";
 import type { Filters } from "@/lib/venues";
 
 function filters(overrides: Partial<Filters> = {}): Filters {
@@ -172,6 +174,53 @@ describe("selected drink price lens controls", () => {
   it("does not offer brandless subtype claims for non-pint price lenses", () => {
     expect(showsDrinkRefinements(filters({ drinkCategory: "whisky" }))).toBe(false);
     expect(showsDrinkRefinements(filters({ drinkCategory: "beer" }))).toBe(true);
+  });
+});
+
+
+describe("CHIP_CATEGORIES outing lenses", () => {
+  it("ends the compact strip with coffee, alcohol-free, and soft-drink", () => {
+    expect(CHIP_CATEGORIES).toEqual([
+      "beer",
+      "wine",
+      "cocktail",
+      "whisky",
+      "gin",
+      "rum",
+      "coffee",
+      "alcohol-free",
+      "soft-drink",
+    ]);
+  });
+
+  it("uses British category labels for accessible names", () => {
+    expect(CHIP_CATEGORIES.map(categoryLabel)).toEqual([
+      "Beer",
+      "Wine",
+      "Cocktails",
+      "Whisky",
+      "Gin",
+      "Rum",
+      "Coffee",
+      "Alcohol-free",
+      "Soft drinks",
+    ]);
+    for (const label of CHIP_CATEGORIES.map(categoryLabel)) {
+      expect(label).not.toMatch(/!/);
+      expect(label).not.toMatch(/\u2014|\u2013/);
+    }
+  });
+
+  it("sets the drink lens for an outing category without disclosing beer refinements", () => {
+    expect(nextDrinkShapeFilters(filters(), "coffee")).toMatchObject({
+      drinkCategory: "coffee",
+      drinkBrand: "",
+      drinkSubtype: "",
+      requireCocktails: false,
+    });
+    expect(showsDrinkRefinements(filters({ drinkCategory: "coffee" }))).toBe(false);
+    expect(showsDrinkRefinements(filters({ drinkCategory: "alcohol-free" }))).toBe(false);
+    expect(showsDrinkRefinements(filters({ drinkCategory: "soft-drink" }))).toBe(false);
   });
 });
 
