@@ -31,6 +31,14 @@ describe("buildFiltersChip", () => {
         experienceLabel: "no-alcohol view",
       }).ariaLabel,
     ).toBe("Filters: no-alcohol view active");
+    expect(
+      buildFiltersChip({
+        drinkFiltersActive: false,
+        priceCapActive: false,
+        priceLabel: "Price",
+        savedOnlyActive: true,
+      }).ariaLabel,
+    ).toBe("Filters: saved only active");
   });
 });
 

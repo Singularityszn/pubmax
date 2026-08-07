@@ -87,6 +87,10 @@ import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import MobilePriceChoices from "@/components/map/MobilePriceChoices";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
 import PersonaLensCard from "@/components/map/PersonaLensCard";
+import {
+  SAVED_ONLY_ARIA_LABEL,
+  SAVED_ONLY_EMPTY_NOTE,
+} from "@/lib/savedOnlyFilter";
 import { useTonightLaneCue } from "@/components/map/usePersonaTonight";
 import type { WhatsOnKind } from "@/lib/whatsOn";
 import { findPersonaById, personaHighlightsPubs, type PersonaDrink } from "@/lib/personaDrinks";
@@ -2911,8 +2915,7 @@ export default function PubMap({
           savedOnly && !hasSavedPub ? (
             <section className="venueInspector" style={{ textAlign: "center" }}>
               <p className="description" style={{ marginTop: 0 }}>
-                No saved pubs yet. Tap a pub and Save it, then flip &ldquo;Saved only&rdquo;
-                back on to see just your list.
+                {SAVED_ONLY_EMPTY_NOTE}
               </p>
               <button type="button" className="addStopBtn" onClick={() => changeSavedOnly(false)}>
                 Show all pubs
@@ -3446,6 +3449,7 @@ export default function PubMap({
             filters.zone !== "" &&
             filters.zone !== "all"
           }
+          savedOnlyActive={savedOnly}
           priceCapActive={
             experienceLens === "all" &&
             mapDrinkLensCategory === null &&
@@ -3487,6 +3491,32 @@ export default function PubMap({
                 variant="sheet"
                 onChange={setVenueKindVisibility}
               />
+              {/* Same Saved only field as the desktop ControlRail — narrows the
+                  map to this device's saved pubs. Empty state when nothing is
+                  saved yet points at Save on a pub sheet. */}
+              <section className="toggles mobileMapSavedOnly">
+                <label aria-label={SAVED_ONLY_ARIA_LABEL} style={{ minHeight: 44 }}>
+                  <input
+                    type="checkbox"
+                    checked={savedOnly}
+                    onChange={(event) => changeSavedOnly(event.target.checked)}
+                  />
+                  Saved only
+                </label>
+                {savedOnly && !hasSavedPub ? (
+                  <div className="mobileMapSavedOnlyEmpty" role="status">
+                    <p>{SAVED_ONLY_EMPTY_NOTE}</p>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full"
+                      onClick={() => changeSavedOnly(false)}
+                    >
+                      Show all pubs
+                    </Button>
+                  </div>
+                ) : null}
+              </section>
               {experienceLens === "all" ? (
                 <>
                   <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
