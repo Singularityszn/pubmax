@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
+import { NO_ALCOHOL_DRINK_CATEGORIES, type CommunityPrice } from "@/lib/communityPrice";
+import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { trustedNoAlcoholLensPrices } from "@/lib/mapExperienceLens";
 import { getNightArea, isNightAreaRouteReady, publicNightAreaCoverage, type NightArea } from "@/lib/nightAreas";
 import type { NightContext } from "@/lib/nightPlanning";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
@@ -249,12 +252,23 @@ export async function POST(request: Request): Promise<Response> {
 		current.push(row);
 		tonightByVenue.set(row.venueId, current);
 	}
+	// Same trust seam as the map's no-alcohol lens (trustedNoAlcoholLensPrices):
+	// corroborated community prices, never a name-match amenity guess, decide
+	// which venues carry a real alcohol-free price for zeroProof scoring.
+	const noAlcoholPriceRows = await readCommunityPriceCategoryIndex(NO_ALCOHOL_DRINK_CATEGORIES, requestNow);
+	const noAlcoholRowsByVenue = new Map<string, CommunityPrice[]>();
+	for (const row of noAlcoholPriceRows.prices) {
+		const current = noAlcoholRowsByVenue.get(row.venueId) ?? [];
+		current.push(row);
+		noAlcoholRowsByVenue.set(row.venueId, current);
+	}
+	const naLensPrices = trustedNoAlcoholLensPrices(noAlcoholRowsByVenue, requestNow);
 	  const candidates = (await loadConciergeVenues(cityId))
 	    .map((venue) => {
 	      const distance = distanceKm(area.centre, venue);
 	      const tonightEvents = tonightByVenue.get(venue.id) ?? [];
 	      const signalClaims = claimsForEntity(reviewedSignalClaims, "venue", venue.id);
-	      const scored = scoreVenueForPlan(venue, context, distance, tonightEvents, signalClaims, planningWeather);
+	      const scored = scoreVenueForPlan(venue, context, distance, tonightEvents, signalClaims, planningWeather, naLensPrices);
 	      return { venue, distance, tonightEvents, signalClaims, ...scored };
 	    })
     .filter(({ distance, venue, signalClaims }) =>
@@ -315,7 +329,7 @@ export async function POST(request: Request): Promise<Response> {
 		hasDatedWindow: Boolean(intake?.routeWindow),
 		allOpeningListed: Boolean(groundedStops?.every((stop) => stop.opening.state === "listed_open")),
 		hasCompletePriceEvidence,
-		allZeroProofConfirmed: chosen.every(({ venue }) => venue.amenities.nonAlcoholic === true),
+		allZeroProofConfirmed: chosen.every(({ venue }) => naLensPrices.has(venue.id) || venue.amenities.nonAlcoholic === true),
 		hasTonightEvidence: chosen.some(({ tonightEvents }) => tonightEvents.length > 0),
 		hasWeatherEvidence: Boolean(planningWeather),
 	});

@@ -558,6 +558,42 @@ describe("scoreVenue", () => {
       scoreVenue(alsoCheap, "noAlcoholFirst"),
     );
   });
+
+  // Among two NA-priced venues, rank on the NA figure itself, not pint
+  // cheapness - a dearer pint with a cheaper corroborated lemonade still wins.
+  it("cheaper corroborated NA price outranks a dearer one under noAlcoholFirst, even against a cheaper pint", () => {
+    const cheaperNa = groupVenuePrices([
+      makeRow({ address: "A", pub_name: "The Dry Arms", price_gbp: 9 }),
+    ])[0];
+    const dearerNa = groupVenuePrices([
+      makeRow({ address: "B", pub_name: "The Dry Anchor", price_gbp: 4 }),
+    ])[0];
+    const naLensPrices: ReadonlyMap<string, MapLensPrice> = new Map([
+      [
+        cheaperNa.id,
+        {
+          venueId: cheaperNa.id,
+          category: "alcohol-free",
+          categoryLabel: "Alcohol-free",
+          priceGbp: 2,
+          source: "community",
+        },
+      ],
+      [
+        dearerNa.id,
+        {
+          venueId: dearerNa.id,
+          category: "alcohol-free",
+          categoryLabel: "Alcohol-free",
+          priceGbp: 3.5,
+          source: "community",
+        },
+      ],
+    ]);
+    expect(scoreVenue(cheaperNa, "noAlcoholFirst", naLensPrices)).toBeGreaterThan(
+      scoreVenue(dearerNa, "noAlcoholFirst", naLensPrices),
+    );
+  });
 });
 
 describe("buildCrawlRoute", () => {

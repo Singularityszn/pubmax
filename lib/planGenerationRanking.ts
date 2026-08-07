@@ -1,12 +1,17 @@
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { canAffectRoute, type NightSignalClaim } from "@/lib/nightSignalClaims";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { NightContext } from "@/lib/nightPlanning";
 import type { PlanningWeather } from "@/lib/weatherSnapshots";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 type ScoreAccumulator = { score: number; reasons: string[] };
 
-function priceAndZeroProof(venue: ConciergeVenue, context: NightContext): ScoreAccumulator {
+function priceAndZeroProof(
+  venue: ConciergeVenue,
+  context: NightContext,
+  naLensPrices: ReadonlyMap<string, MapLensPrice> | undefined,
+): ScoreAccumulator {
   const reasons: string[] = [];
   const price = venue.cheapestPrice;
   let score = 0;
@@ -18,10 +23,19 @@ function priceAndZeroProof(venue: ConciergeVenue, context: NightContext): ScoreA
     reasons.push("fits a treat-night brief");
   }
   if (context.zeroProof) {
-    if (venue.amenities.nonAlcoholic === true) {
-      score += 3;
+    // A corroborated alcohol-free price is the same trust seam as pint pricing
+    // (trustedNoAlcoholLensPrices), so it earns the strong signal. The venue
+    // dataset amenity is a name-match guess, so it earns a weaker signal and
+    // only when no corroborated price exists. A venue with neither stays
+    // neutral - it never scores below a venue this style has no evidence on.
+    const naPrice = naLensPrices?.get(venue.id);
+    if (naPrice !== undefined) {
+      score += 4;
+      reasons.push(`corroborated alcohol-free price from £${naPrice.priceGbp.toFixed(2)}`);
+    } else if (venue.amenities.nonAlcoholic === true) {
+      score += 1.5;
       reasons.push("confirmed alcohol-free option in the Venue Dataset");
-    } else score -= 2;
+    }
   }
   return { score, reasons };
 }
@@ -106,9 +120,10 @@ export function scoreVenueForPlan(
   tonightEvents: readonly WhatsOnRow[],
   signalClaims: readonly NightSignalClaim[],
   weather: PlanningWeather | null,
+  naLensPrices?: ReadonlyMap<string, MapLensPrice>,
 ): { score: number; reasons: string[] } {
   const pieces = [
-    priceAndZeroProof(venue, context),
+    priceAndZeroProof(venue, context, naLensPrices),
     occasionFit(venue, context),
     atmosphereFit(venue, context, weather),
     liveSignals(context, tonightEvents, signalClaims),
