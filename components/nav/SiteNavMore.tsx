@@ -26,7 +26,7 @@ import {
 import { createPortal } from "react-dom";
 
 export const SITE_NAV_MORE_LINKS = [
-  { href: "/plan", label: "Plan", description: "Build a three-stop night out" },
+  { href: "/plan", label: "Plan", description: "Build a three-stop outing" },
   { href: "/near", label: "Near", description: "Find priced pubs close to you" },
   { href: "/pubs", label: "Pubs", description: "Browse every listed pub" },
   { href: "/historic", label: "Historic", description: "Read the stories behind old pubs" },
