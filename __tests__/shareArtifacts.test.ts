@@ -70,10 +70,52 @@ describe("buildCrawlShareText", () => {
 });
 
 describe("buildVenueShareText", () => {
-  it("leads with the cheapest pint when known", () => {
+  it("leads with the curated cheapest pint when no logged price", () => {
     expect(buildVenueShareText({ name: "The Red Lion", cheapestPintGbp: 4.2 })).toBe(
       "The Red Lion. Pints from £4.20. On the PUBMAXXING map.",
     );
+  });
+
+  it("prefers a map-authority logged pint with its day over curated", () => {
+    expect(
+      buildVenueShareText({
+        name: "The Red Lion",
+        cheapestPintGbp: 5.5,
+        loggedPintGbp: 4.2,
+        loggedDay: "today",
+      }),
+    ).toBe("The Red Lion. £4.20 a pint, logged today. On the PUBMAXXING map.");
+  });
+
+  it("dates a logged pint on a calendar day when not today", () => {
+    expect(
+      buildVenueShareText({
+        name: "The Crown",
+        loggedPintGbp: 5.1,
+        loggedDay: "3 Jul",
+      }),
+    ).toBe("The Crown. £5.10 a pint, logged 3 Jul. On the PUBMAXXING map.");
+  });
+
+  it("falls back to curated when a logged figure arrives without a day", () => {
+    expect(
+      buildVenueShareText({
+        name: "The Red Lion",
+        cheapestPintGbp: 4.2,
+        loggedPintGbp: 3.9,
+        loggedDay: "",
+      }),
+    ).toBe("The Red Lion. Pints from £4.20. On the PUBMAXXING map.");
+  });
+
+  it("falls back to curated when only the day is present", () => {
+    expect(
+      buildVenueShareText({
+        name: "The Red Lion",
+        cheapestPintGbp: 4.2,
+        loggedDay: "yesterday",
+      }),
+    ).toBe("The Red Lion. Pints from £4.20. On the PUBMAXXING map.");
   });
 
   it("stays honest with no price", () => {

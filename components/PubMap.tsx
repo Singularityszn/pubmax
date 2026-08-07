@@ -3019,6 +3019,10 @@ export default function PubMap({
           // Only the pins/list - which can show one number - take the merged one.
           latestContributorPrice={dropSignals.get(selectedVenue.id)?.latestContributorPrice}
           latestPintDropAt={dropSignals.get(selectedVenue.id)?.latestContributorAt}
+          // Share copy prefers the MERGED map-authority figure (same seam as
+          // pins), dated — never a sheet-only uncorroborated report.
+          shareLoggedPintGbp={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
+          shareLoggedAt={venueSignals.get(selectedVenue.id)?.latestContributorAt ?? null}
           onToggleStop={toggleBuiltStop}
           onSelectVenue={selectVenue}
           onAcceptStop1={flags.intentWrite && selectedVenueIsPub ? acceptStop1 : undefined}

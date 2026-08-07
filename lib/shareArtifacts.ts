@@ -103,11 +103,33 @@ export function buildCrawlShareText(input: CrawlShareInput): string {
 
 export type VenueShareInput = {
   name: string;
-  // Cheapest known pint at the venue — omitted from the message when unknown.
+  // Curated / baseline cheapest pint — used when no shareable logged price.
+  // Omitted from the message when unknown.
   cheapestPintGbp?: number | null;
+  /**
+   * People-logged pint that already earns map authority (a corroborated,
+   * in-window community candidate, or a contributor figure the product
+   * already paints on the pin). Shared with its observation day. An
+   * uncorroborated sheet-only report must never arrive here: that would
+   * share a figure as if it painted the map.
+   */
+  loggedPintGbp?: number | null;
+  /**
+   * Day label for the logged pint ("today" / "yesterday" / "3 Jul" from
+   * formatPriceDay). Required with loggedPintGbp — without a day the
+   * builder falls back to the curated line rather than dating nothing.
+   */
+  loggedDay?: string | null;
 };
 
 export function buildVenueShareText(input: VenueShareInput): string {
+  const logged = gbp(input.loggedPintGbp);
+  const day = input.loggedDay?.trim() ?? "";
+  // People-logged wins when it carries both a figure and a day: that is the
+  // honesty the share owes. Curated "Pints from" stays the fallback tone.
+  if (logged && day) {
+    return `${input.name}. ${logged} a pint, logged ${day}. On the PUBMAXXING map.`;
+  }
   const price = gbp(input.cheapestPintGbp);
   return price
     ? `${input.name}. Pints from ${price}. On the PUBMAXXING map.`
