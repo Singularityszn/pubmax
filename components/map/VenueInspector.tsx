@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { ContributionGateDialog } from "@/components/identity/ContributionGateDialog";
 import { type Venue } from "@/lib/venues";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
@@ -132,10 +133,11 @@ export default function VenueInspector({
   experienceLens = "all",
 }: VenueInspectorProps) {
   const { dropsByVenueId, setComposerOpen } = pintDrops;
-  const { user, loading: authLoading, configured: authConfigured } = useAuth();
+  const { user, handle, loading: authLoading, configured: authConfigured } = useAuth();
   const [priceSignInVenueId, setPriceSignInVenueId] = useState<string | null>(
     null,
   );
+  const [priceOnboardingOpen, setPriceOnboardingOpen] = useState(false);
   const [priceFocusRequest, setPriceFocusRequest] = useState<{
     venueId: string | null;
     count: number;
@@ -182,6 +184,14 @@ export default function VenueInspector({
   }, [selectTab, venue.id]);
 
   function requestPriceEntry(): void {
+    // Signed-in but unfinished profile: send to claim before the form, so the
+    // drinker never types a price and only then learns they need a handle.
+    if (authConfigured && user && !handle) {
+      selectTab("overview");
+      setPriceSignInVenueId(null);
+      setPriceOnboardingOpen(true);
+      return;
+    }
     runPriceContributionRequest({
       authConfigured,
       userPresent: Boolean(user),
@@ -295,7 +305,7 @@ export default function VenueInspector({
         onRequestLocation={onRequestLocation}
         onClearLocation={onClearLocation}
         onStartFirstDrop={startPintDrop}
-        priceEntryAllowed={!authConfigured || Boolean(user)}
+        priceEntryAllowed={!authConfigured || Boolean(user && handle)}
         priceSignInRequested={priceSignInVenueId === venue.id}
         priceAuthLoading={authLoading}
         priceFocusRequest={
@@ -359,6 +369,13 @@ export default function VenueInspector({
         shareVenue={shareVenue}
         currentShareFeedback={currentShareFeedback}
       />
+      {priceOnboardingOpen ? (
+        <ContributionGateDialog
+          mode="onboarding_required"
+          error={null}
+          onClose={() => setPriceOnboardingOpen(false)}
+        />
+      ) : null}
     </section>
   );
 }

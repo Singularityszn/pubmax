@@ -79,6 +79,12 @@ describe("shouldShowCuratedOnboarding priority vs band chip", () => {
     expect(shouldShowCuratedOnboarding({ ...clean, showBandChip: true })).toBe(false);
   });
 
+  it("suppresses curated onboarding while first-map orientation is pending", () => {
+    expect(
+      shouldShowCuratedOnboarding({ ...clean, mapOrientationPending: true }),
+    ).toBe(false);
+  });
+
   it("suppresses curated onboarding when the city has no crawls", () => {
     expect(shouldShowCuratedOnboarding({ ...clean, curatedCrawlCount: 0 })).toBe(false);
     expect(shouldShowCuratedOnboarding({ ...clean, curatedCrawlCount: undefined })).toBe(false);

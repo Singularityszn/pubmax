@@ -1,18 +1,9 @@
 "use client";
 
-// First-run onboarding tour — a one-time, dismissible welcome that orients a
-// first-timer to the three core moves: the map (find pints near you), DROP
-// (log/share a pint — the signature verb), and Discover (drinks, prices,
-// crawls). Complementary to the city picker and the map band-onboarding chip;
-// it does NOT duplicate the city flow.
-//
-// Gating: useSyncExternalStore reads hasSeenTour() reactively; a mount guard
-// keeps the first client render null (matches the SSR "seen" snapshot, so no
-// hydration mismatch). Once dismissed we play an exit animation, then
-// markTourSeen() — which flips the store and unmounts. Renders nothing on the
-// server, for returning users, or off the /map surfaces (see
-// shouldShowFirstRunTour in lib/firstRunTour.ts) — the tour spotlights the
-// map + mobile tab bar, so landing/tonight/feed/pint-index/etc. render clean.
+// First-run map orientation — one band-colour beat after analytics consent.
+// Landing acquisition W3: teach green / amber / dear / grey from the same
+// vocabulary as MapKey / MapPriceControl, then dismiss. Moment/Social and the
+// multi-step welcome are demoted; curated crawl waits until this is done.
 
 import {
   useCallback,
@@ -21,11 +12,8 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type CSSProperties,
 } from "react";
 import { usePathname } from "next/navigation";
-
-import { tourSpotlightColumn } from "@/components/nav/MobileTabBar";
 
 import {
   claimTourPromptBudget,
@@ -40,53 +28,19 @@ import {
   restoredSessionHasExplicitIntent,
   searchHasExplicitMapIntent,
 } from "@/lib/explicitMapIntent";
+import {
+  ORIENTATION_LEGEND_TITLE,
+  orientationLegendRows,
+} from "@/lib/mapPriceLegend";
 import { readMobileMapSession } from "@/lib/mobileShell";
 import { trackEvent } from "@/lib/analytics";
 import { subscribePromptBudget } from "@/lib/promptBudget";
 import "./firstRunTour.css";
 
-type TabTarget = "map" | "drop" | "social" | null;
-
-type TourStep = {
-  /** Short overline tag, e.g. THE MAP. */
-  eyebrow: string;
-  title: string;
-  body: string;
-  /** Which mobile tab to softly spotlight, if any. */
-  target: TabTarget;
-};
-
-// Keep it SHORT — four beats, one line each. Sentence case, warm and decisive.
-const STEPS: readonly TourStep[] = [
-  {
-    eyebrow: "Welcome",
-    title: "PUBMAXXING",
-    body: "Pint prices on an interactive map, with pub stories and crawl plans.",
-    target: null,
-  },
-  {
-    eyebrow: "The map",
-    title: "Find pints near you",
-    body: "See listed pint prices, then plan a crawl worth the walk.",
-    target: "map",
-  },
-  {
-    eyebrow: "Moment",
-    title: "Keep the night",
-    body: "Log what you're drinking and what it cost. Next Friday, that's somebody's tip-off.",
-    target: "drop",
-  },
-  {
-    eyebrow: "Social",
-    title: "Compare listed prices",
-    body: "Browse drinks, compare prices, and open a listed crawl.",
-    target: "social",
-  },
-];
-
-const LAST = STEPS.length - 1;
 /** Fallback finalize delay so we unmount even if animationend never fires. */
 const EXIT_MS = 260;
+
+const LEGEND_ROWS = orientationLegendRows();
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
@@ -125,9 +79,6 @@ export default function FirstRunTour(): React.JSX.Element | null {
       restoredSessionHasExplicitIntent(readMobileMapSession())
     );
   });
-  const [step, setStep] = useState(0);
-  // 1 = advancing (slide from right), -1 = going back (slide from left).
-  const [dir, setDir] = useState<1 | -1>(1);
   const [closing, setClosing] = useState(false);
 
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -155,8 +106,8 @@ export default function FirstRunTour(): React.JSX.Element | null {
 
   // Dismiss → play exit, then persist. Idempotent via finalizedRef, with a
   // timer fallback so reduced-motion (no animationend) still finalizes.
-  // `completed` distinguishes finishing all steps (Get me to a pub) from an
-  // early skip/close/backdrop/Esc dismissal, for the tour_complete event.
+  // `completed` distinguishes finishing (Got it) from an early skip/close/
+  // backdrop/Esc dismissal, for the tour_complete event.
   const dismiss = useCallback((completed: boolean = false) => {
     if (finalizedRef.current) return;
     setClosing(true);
@@ -169,21 +120,6 @@ export default function FirstRunTour(): React.JSX.Element | null {
     window.setTimeout(finalize, prefersReducedMotion() ? 0 : EXIT_MS);
   }, []);
 
-  const goNext = useCallback(() => {
-    if (step >= LAST) {
-      dismiss(true);
-      return;
-    }
-    setDir(1);
-    setStep(step + 1);
-  }, [step, dismiss]);
-
-  const goBack = useCallback(() => {
-    if (step <= 0) return;
-    setDir(-1);
-    setStep(step - 1);
-  }, [step]);
-
   // Remember the pre-open focus so we can restore it on dismiss.
   useEffect(() => {
     if (!active) return;
@@ -192,7 +128,6 @@ export default function FirstRunTour(): React.JSX.Element | null {
     // Focus the card so the first Tab lands inside and SR announces the dialog.
     const id = window.requestAnimationFrame(() => cardRef.current?.focus());
     return () => window.cancelAnimationFrame(id);
-    // Only re-run when the overlay opens, not on every step.
   }, [active]);
 
   // Restore focus once the overlay is gone (seen flips true → unmount).
@@ -239,9 +174,6 @@ export default function FirstRunTour(): React.JSX.Element | null {
 
   if (!active) return null;
 
-  const current = STEPS[step]!;
-  const isLast = step === LAST;
-
   return (
     <div
       className={`tourScrim${closing ? " isClosing" : ""}`}
@@ -251,27 +183,6 @@ export default function FirstRunTour(): React.JSX.Element | null {
       }}
       onKeyDown={onKeyDown}
     >
-      {/* Approximate spotlight toward the real bottom tab bar (mobile only;
-          CSS hides it on desktop where the tab bar is display:none). We own
-          this overlay entirely — the nav components are untouched. */}
-      {current.target ? (
-        <div
-          className="tourSpotlight"
-          data-target={current.target}
-          aria-hidden="true"
-          // Position from the LIVE tab geometry (column index + total), not a
-          // hardcoded viewport %, so the ring always sits under its real tab.
-          style={
-            {
-              "--tour-col": tourSpotlightColumn(current.target).index,
-              "--tour-cols": tourSpotlightColumn(current.target).total,
-            } as CSSProperties
-          }
-        >
-          <span className="tourSpotlightArrow" />
-        </div>
-      ) : null}
-
       <div
         ref={cardRef}
         className="tourCard"
@@ -297,40 +208,39 @@ export default function FirstRunTour(): React.JSX.Element | null {
           </svg>
         </button>
 
-        <div className="tourStep" key={step} data-dir={dir}>
-          <p className="tourEyebrow">{current.eyebrow}</p>
+        <div className="tourStep">
+          <p className="tourEyebrow">The map</p>
           <h2 id={titleId} className="tourTitle">
-            {current.title}
+            {ORIENTATION_LEGEND_TITLE}
           </h2>
           <p id={bodyId} className="tourBody">
-            {current.body}
+            Pin colour is the listed pint band. Grey means nobody has logged a
+            price the map can trust yet.
           </p>
-        </div>
-
-        <div
-          className="tourDots"
-          role="group"
-          aria-label={`Step ${step + 1} of ${STEPS.length}`}
-        >
-          {STEPS.map((s, i) => (
-            <span
-              key={s.eyebrow}
-              className={`tourDot${i === step ? " isActive" : ""}`}
-              aria-hidden="true"
-            />
-          ))}
+          <ul className="tourLegend" aria-label="Pint price colours">
+            {LEGEND_ROWS.map((row) => (
+              <li key={row.tone} className="tourLegendRow">
+                <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
+                <span>{row.label}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="tourActions">
           <button
             type="button"
             className="tourSkip pressable"
-            onClick={step > 0 ? goBack : () => dismiss(false)}
+            onClick={() => dismiss(false)}
           >
-            {step > 0 ? "Back" : "Skip"}
+            Skip
           </button>
-          <button type="button" className="tourNext pressable" onClick={goNext}>
-            {isLast ? "Get me to a pub" : "Next"}
+          <button
+            type="button"
+            className="tourNext pressable"
+            onClick={() => dismiss(true)}
+          >
+            Got it
           </button>
         </div>
       </div>
