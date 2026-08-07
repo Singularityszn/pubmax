@@ -1353,6 +1353,7 @@ export default function PubMap({
         activeLensNoun ?? undefined,
         drinkIndexStatus,
         mapListSortMode,
+        venueSignals,
       ),
     [
       activeLensNoun,
@@ -1361,6 +1362,7 @@ export default function PubMap({
       mapListSortMode,
       mapVenueListVenues,
       mapViewport.center,
+      venueSignals,
     ],
   );
   const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);

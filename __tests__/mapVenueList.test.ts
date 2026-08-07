@@ -279,7 +279,7 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
     expect(model.rows[2].priceLabel).toBe("No soft drink price logged");
   });
 
-  it("cheapest sort prefers a contributor override the way AreaSheet does", () => {
+  it("cheapest sort prefers map-authority contributor price over the baseline", () => {
     const baselineCheap = venue({
       id: "baseline-cheap",
       latitude: 51.5,
@@ -292,8 +292,14 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
       latitude: 51.51,
       longitude: -0.13,
       cheapestPrice: 6,
-      latestContributorPrice: 3.5,
+      latestContributorPrice: null,
     });
+    const venueSignals = new Map([
+      [
+        "contributor-cheaper",
+        { hasPintDrops: true, latestContributorPrice: 3.5 },
+      ],
+    ]);
     const model = buildMapVenueListModel(
       [baselineCheap, contributorCheaper],
       [-0.12, 51.5],
@@ -302,11 +308,68 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
       "this view",
       "ready",
       "cheapest",
+      venueSignals,
     );
     expect(model.rows.map((r) => r.id)).toEqual([
       "contributor-cheaper",
       "baseline-cheap",
     ]);
+    expect(model.rows[0].priceLabel).toBe("£3.50");
+  });
+
+  it("ignores venue.latestContributorPrice when venueSignals is the map authority", () => {
+    const staleOnVenue = venue({
+      id: "stale-on-venue",
+      latitude: 51.5,
+      longitude: -0.12,
+      cheapestPrice: 5,
+      latestContributorPrice: 2.5,
+    });
+    const model = buildMapVenueListModel(
+      [staleOnVenue],
+      [-0.12, 51.5],
+      undefined,
+      null,
+      "this view",
+      "ready",
+      "nearest",
+      null,
+    );
+    expect(model.rows[0].priceLabel).toBe("£5.00");
+  });
+
+  it("cheapest sort order matches the visible pint price label from venueSignals", () => {
+    const dearBaseline = venue({
+      id: "dear-baseline",
+      latitude: 51.5,
+      longitude: -0.12,
+      cheapestPrice: 8,
+    });
+    const cheapViaSignal = venue({
+      id: "cheap-via-signal",
+      latitude: 51.51,
+      longitude: -0.13,
+      cheapestPrice: 7,
+    });
+    const venueSignals = new Map([
+      ["cheap-via-signal", { hasPintDrops: false, latestContributorPrice: 3.2 }],
+    ]);
+    const model = buildMapVenueListModel(
+      [dearBaseline, cheapViaSignal],
+      [-0.12, 51.5],
+      undefined,
+      null,
+      "this view",
+      "ready",
+      "cheapest",
+      venueSignals,
+    );
+    expect(model.rows.map((r) => r.id)).toEqual([
+      "cheap-via-signal",
+      "dear-baseline",
+    ]);
+    expect(model.rows[0].priceLabel).toBe("£3.20");
+    expect(model.rows[1].priceLabel).toBe("£8.00");
   });
 });
 

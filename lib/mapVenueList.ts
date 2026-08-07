@@ -10,6 +10,9 @@ import {
 } from "@/lib/mapExperienceLens";
 import { compactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
+import type { VenueSignal } from "@/components/map/canvas/types";
+
+type MapVenueListVenueSignals = ReadonlyMap<string, Pick<VenueSignal, "latestContributorPrice">>;
 
 // Accessibility contract (WCAG 2.1.1): WebGL pins are pointer-only. This is the
 // pure model behind the DOM "List view", the keyboard-reachable parallel to
@@ -103,14 +106,42 @@ export function projectedItemIdsInViewport<T extends { id: string }>(
 }
 
 /**
+ * Pint-default figure the list rows and pins share: map-authority contributor
+ * price from venueSignals when present, else the curated cheapest. A bare
+ * non-pub figure without complete provenance is not shown on the row.
+ */
+function mapVenueListPintPrice(
+  venue: Venue,
+  venueSignals: MapVenueListVenueSignals | null,
+): number | null {
+  if (!isPubVenueKind(venue.kind) && compactVenueAnchor(venue) === null) {
+    return null;
+  }
+  const price =
+    venueSignals?.get(venue.id)?.latestContributorPrice ?? venue.cheapestPrice ?? null;
+  return typeof price === "number" && Number.isFinite(price) && price > 0
+    ? price
+    : null;
+}
+
+function mapVenueListPintPriceLabel(
+  venue: Venue,
+  venueSignals: MapVenueListVenueSignals | null,
+): string {
+  const price = mapVenueListPintPrice(venue, venueSignals);
+  return price !== null ? `£${price.toFixed(2)}` : "Price TBD";
+}
+
+/**
  * The figure List view may rank on: an active drink lens uses that lens price
- * alone (same stack as AreaSheet), and the pint default uses the contributor
- * override then the curated cheapest. A bare non-pub figure without complete
- * provenance is not shown on the row, so it cannot climb the cheapest sort.
+ * alone (same stack as AreaSheet), and the pint default mirrors pin authority
+ * via venueSignals. A bare non-pub figure without complete provenance is not
+ * shown on the row, so it cannot climb the cheapest sort.
  */
 export function mapVenueListSortPrice(
   venue: Venue,
   lensPrices: ReadonlyMap<string, MapLensPrice> | null,
+  venueSignals: MapVenueListVenueSignals | null = null,
 ): number | null {
   if (lensPrices !== null) {
     const price = lensPrices.get(venue.id)?.priceGbp;
@@ -118,14 +149,7 @@ export function mapVenueListSortPrice(
       ? price
       : null;
   }
-  const price = venue.latestContributorPrice ?? venue.cheapestPrice;
-  if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) {
-    return null;
-  }
-  if (!isPubVenueKind(venue.kind) && compactVenueAnchor(venue) === null) {
-    return null;
-  }
-  return price;
+  return mapVenueListPintPrice(venue, venueSignals);
 }
 
 /**
@@ -145,6 +169,7 @@ export function buildMapVenueListModel(
   lensCategoryLabel: string = "this view",
   lensStatus: CategoryPriceIndexStatus = "ready",
   sortMode: MapVenueListSortMode = "nearest",
+  venueSignals: MapVenueListVenueSignals | null = null,
 ): MapVenueListModel {
   const total = venues.length;
   const origin =
@@ -154,13 +179,19 @@ export function buildMapVenueListModel(
       ? { lng: viewportCenter[0], lat: viewportCenter[1] }
       : null;
   const baseRows = buildLogNearbyCandidates(venues, limit, origin);
+  const venueById = new Map(venues.map((item) => [item.id, item]));
   const drinkNoun = lensCategoryLabel.toLowerCase();
   // A row is read on its own, so its unknown wording carries the finding too -
   // the note below is not always heard beside it.
   const unknownLabel = drinkLensUnknownSentence(drinkNoun, lensStatus);
   const labelledRows =
     lensPrices === null
-      ? baseRows
+      ? baseRows.map((row) => {
+          const item = venueById.get(row.id);
+          return item
+            ? { ...row, priceLabel: mapVenueListPintPriceLabel(item, venueSignals) }
+            : row;
+        })
       : baseRows.map((row) => {
           const lensPrice = lensPrices.get(row.id);
           return {
@@ -172,7 +203,12 @@ export function buildMapVenueListModel(
         });
   const rows =
     sortMode === "cheapest"
-      ? sortMapVenueListRowsCheapest(labelledRows, venues, lensPrices)
+      ? sortMapVenueListRowsCheapest(
+          labelledRows,
+          venues,
+          lensPrices,
+          venueSignals,
+        )
       : labelledRows;
   return {
     rows,
@@ -188,16 +224,17 @@ function sortMapVenueListRowsCheapest(
   rows: LogNearbyCandidate[],
   venues: Venue[],
   lensPrices: ReadonlyMap<string, MapLensPrice> | null,
+  venueSignals: MapVenueListVenueSignals | null,
 ): LogNearbyCandidate[] {
   const venueById = new Map(venues.map((venue) => [venue.id, venue]));
   return [...rows].sort((left, right) => {
     const leftVenue = venueById.get(left.id);
     const rightVenue = venueById.get(right.id);
     const leftPrice = leftVenue
-      ? mapVenueListSortPrice(leftVenue, lensPrices)
+      ? mapVenueListSortPrice(leftVenue, lensPrices, venueSignals)
       : null;
     const rightPrice = rightVenue
-      ? mapVenueListSortPrice(rightVenue, lensPrices)
+      ? mapVenueListSortPrice(rightVenue, lensPrices, venueSignals)
       : null;
     if (leftPrice !== null && rightPrice !== null) {
       return (
