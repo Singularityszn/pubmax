@@ -94,6 +94,7 @@ const CONTEXT_FIELDS = [
   "budget",
   "budgetLimitPence",
   "zeroProof",
+  "wetherspoonsPreferred",
   "atmosphere",
   "foodNeeds",
   "accessibility",

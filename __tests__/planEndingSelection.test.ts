@@ -10,7 +10,7 @@ import type { EndingSelection, PlanState } from "@/lib/plan";
 
 const plan: PlanState = {
   plan: { id: "11111111-1111-4111-8111-111111111111", title: "Soho", startTime: "2026-07-16T20:00:00.000Z", createdAt: "2026-07-16T18:00:00.000Z" },
-  context: { nightArea: "piccadilly-soho", daypart: "late_night", partyType: "friends", groupSize: 2, budget: "value", budgetLimitPence: null, atmosphere: [], foodNeeds: [], accessibility: [], transportConstraints: [], zeroProof: false },
+  context: { nightArea: "piccadilly-soho", daypart: "late_night", partyType: "friends", groupSize: 2, budget: "value", budgetLimitPence: null, atmosphere: [], foodNeeds: [], accessibility: [], transportConstraints: [], zeroProof: false, wetherspoonsPreferred: false },
   stops: [
     { venueId: "venue-7tarkc", venueName: "The Lyric", position: 0 },
     { venueId: "venue-122cuu1", venueName: "The Queen's Head", position: 1 },

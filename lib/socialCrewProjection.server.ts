@@ -336,6 +336,8 @@ function parseContext(value: PlanState["context"]): NightContext | null {
     budget: value.budget,
     budgetLimitPence: value.budgetLimitPence as number | null,
     zeroProof: value.zeroProof,
+    // Older stored plans omit the flag; absence means no soft prefer.
+    wetherspoonsPreferred: value.wetherspoonsPreferred === true,
     atmosphere: parseContextList(value.atmosphere),
     foodNeeds: parseContextList(value.foodNeeds),
     accessibility: parseContextList(value.accessibility),

@@ -39,6 +39,7 @@ describe("parsePlanGenerationRequest", () => {
     ["an array", []],
     ["an unknown key", { unknown: true }],
     ["an invalid known value", { groupSize: 0 }],
+    ["a non-boolean wetherspoonsPreferred", { wetherspoonsPreferred: "yes" }],
   ])("still rejects non-null malformed context: %s", async (_label, context) => {
     const result = await parsePlanGenerationRequest(request({ query: "Clapham classics", context }), NOW);
 
@@ -47,6 +48,26 @@ describe("parsePlanGenerationRequest", () => {
       code: "MALFORMED_REQUEST",
       message: "Night Context is invalid.",
       status: 400,
+    });
+  });
+
+  it("allowlists wetherspoonsPreferred as a boolean Night Context field", async () => {
+    const result = await parsePlanGenerationRequest(
+      request({ query: "Spoons in Clapham", context: { wetherspoonsPreferred: true } }),
+      NOW,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        query: "Spoons in Clapham",
+        context: { wetherspoonsPreferred: true },
+        cityId: null,
+        intake: null,
+        hasIntake: false,
+        operationKey: null,
+        anchor: null,
+      },
     });
   });
 });

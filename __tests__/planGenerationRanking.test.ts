@@ -3,11 +3,14 @@ import { describe, expect, it } from "vitest";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { NightContext } from "@/lib/nightPlanning";
-import { scoreVenueForPlan } from "@/lib/planGenerationRanking";
+import {
+  scoreVenueForPlan,
+  WETHERSPOONS_DIRECTORY_PREFER_BOOST,
+} from "@/lib/planGenerationRanking";
 
-function venue(canonical: boolean): ConciergeVenue {
+function venue(canonical: boolean, id?: string): ConciergeVenue {
   return {
-    id: canonical ? "canonical" : "non-canonical",
+    id: id ?? (canonical ? "canonical" : "non-canonical"),
     name: canonical ? "Canonical venue" : "Non-canonical venue",
     area: "Camden",
     lat: 51.54,
@@ -34,6 +37,7 @@ const AFTER_WORK_GROUP: NightContext = {
   budget: "standard",
   budgetLimitPence: null,
   zeroProof: false,
+  wetherspoonsPreferred: false,
   atmosphere: [],
   foodNeeds: [],
   accessibility: [],
@@ -118,5 +122,50 @@ describe("Plan generation ranking evidence", () => {
     expect(canonical.score).toBe(nonCanonical.score);
     expect(canonical.reasons).toEqual(nonCanonical.reasons);
     expect(canonical.reasons.join(" ")).not.toMatch(/reliable after-work|safer pick|bigger group|capacity/i);
+  });
+
+  it("soft-boosts a directory-matched Spoons when preferred, without inventing a price", () => {
+    const matched = venue(true, "ice-wharf");
+    const unmatched = venue(false, "local-indie");
+    const matchedIds = new Set(["ice-wharf"]);
+    const preferred = { ...AFTER_WORK_GROUP, wetherspoonsPreferred: true };
+
+    const boosted = scoreVenueForPlan(matched, preferred, 0.5, [], [], null, undefined, matchedIds);
+    const plain = scoreVenueForPlan(unmatched, preferred, 0.5, [], [], null, undefined, matchedIds);
+
+    expect(boosted.score - plain.score).toBe(WETHERSPOONS_DIRECTORY_PREFER_BOOST);
+    expect(boosted.reasons).toContain("matched the first-party J D Wetherspoon directory");
+    expect(boosted.reasons.join(" ")).not.toMatch(/£|pence|price/i);
+    expect(plain.reasons.join(" ")).not.toMatch(/Wetherspoon/i);
+  });
+
+  it("does not boost an unmatched venue, or any venue when prefer is off", () => {
+    const matched = venue(true, "ice-wharf");
+    const matchedIds = new Set(["ice-wharf"]);
+
+    const preferOff = scoreVenueForPlan(
+      matched,
+      AFTER_WORK_GROUP,
+      0.5,
+      [],
+      [],
+      null,
+      undefined,
+      matchedIds,
+    );
+    const preferOnUnmatched = scoreVenueForPlan(
+      matched,
+      { ...AFTER_WORK_GROUP, wetherspoonsPreferred: true },
+      0.5,
+      [],
+      [],
+      null,
+      undefined,
+      new Set(),
+    );
+
+    expect(preferOff.score).toBe(preferOnUnmatched.score);
+    expect(preferOff.reasons.join(" ")).not.toMatch(/Wetherspoon/i);
+    expect(preferOnUnmatched.reasons.join(" ")).not.toMatch(/Wetherspoon/i);
   });
 });

@@ -234,6 +234,7 @@ describe("PlanComposer route preview seam", () => {
       budget: "standard" as const,
       budgetLimitPence: null,
       zeroProof: false,
+      wetherspoonsPreferred: false,
       atmosphere: [],
       foodNeeds: [],
       accessibility: [],

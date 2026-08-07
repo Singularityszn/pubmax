@@ -39,6 +39,7 @@ function plan(overrides: Partial<NonNullable<PlanState["context"]>> = {}): PlanS
       ...overrides,
       budgetLimitPence: overrides.budgetLimitPence ?? null,
       zeroProof: overrides.zeroProof ?? false,
+      wetherspoonsPreferred: overrides.wetherspoonsPreferred ?? false,
     },
   };
 }
