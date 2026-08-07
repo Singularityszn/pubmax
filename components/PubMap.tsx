@@ -258,6 +258,7 @@ import {
   shouldShowBandOnboardingChip,
   shouldShowCuratedOnboarding,
 } from "@/lib/bandOnboardingChip";
+import { hasSeenTour } from "@/lib/firstRunTour";
 import {
   locationAllowsInterruptivePrompt,
   subscribePromptBudget,
@@ -2814,6 +2815,9 @@ export default function PubMap({
   const tonightLaneHasRows =
     isLondon && whatsOnTonight.status === "ready" && whatsOnTonight.rows.length > 0;
   const tonightLanePending = isLondon && whatsOnTonight.status === "idle";
+  // W3: curated crawl waits until first-map orientation (band-colour tour) is
+  // done — at most one orientation surface after consent.
+  const mapOrientationPending = !hasSeenTour();
   const showOnboarding =
     locationAllowsOnboarding &&
     shouldShowCuratedOnboarding({
@@ -2828,6 +2832,7 @@ export default function PubMap({
       curatedCrawlCount: cityCuratedCrawls.length,
       tonightLaneHasRows,
       tonightLanePending,
+      mapOrientationPending,
     });
   // Show the first four curated crawls as the onboarding picks.
   const onboardingCrawls = cityCuratedCrawls.slice(0, 4);

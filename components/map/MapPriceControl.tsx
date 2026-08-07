@@ -6,8 +6,13 @@ import { Coins, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
+import {
+  markMapLegendOneshotConsumed,
+  shouldAutoOpenMapLegendOneshot,
+} from "@/lib/mapLegendOneshot";
 import { NO_PINT_PRICE_CAP, type Filters } from "@/lib/venues";
 import MapKey from "@/components/map/MapKey";
+import { trackEvent } from "@/lib/analytics";
 
 import "./mapPriceControl.css";
 
@@ -43,12 +48,25 @@ export default function MapPriceControl({
   lensLabel,
   priceFiltersEnabled,
 }: MapPriceControlProps) {
+  // W3 one-shot: never open during SSR (hydration-safe). After mount, amplify
+  // once when the tour is already seen and the session gate is free.
   const [open, setOpen] = useState(false);
+  const oneshotTracked = useRef(false);
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   // Default is ≤£7; "Any" (9) is the wide/unfiltered option — neither looks "on".
   // Only a tightened band (≤£5.50) marks the FAB as actively filtered.
   const filtered = priceFiltersEnabled && filters.maxPrice <= 5.5;
+
+  useEffect(() => {
+    if (placement !== "map") return;
+    if (oneshotTracked.current) return;
+    if (!shouldAutoOpenMapLegendOneshot()) return;
+    oneshotTracked.current = true;
+    markMapLegendOneshotConsumed();
+    // Async setState — never the sync effect body (react-hooks/set-state-in-effect).
+    void Promise.resolve().then(() => setOpen(true));
+  }, [placement]);
 
   useEffect(() => {
     if (!open) return;
@@ -57,6 +75,7 @@ export default function MapPriceControl({
         // Claim the key so the map-level Escape (close drawer) doesn't also fire.
         event.preventDefault();
         setOpen(false);
+        trackEvent("map_legend_dismissed");
       }
     }
     function onPointer(event: MouseEvent | TouchEvent) {
@@ -149,7 +168,10 @@ export default function MapPriceControl({
               type="button"
               className="mapPriceClose"
               aria-label="Close map key"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                trackEvent("map_legend_dismissed");
+              }}
             >
               <X size={16} aria-hidden="true" />
             </button>

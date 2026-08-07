@@ -1008,7 +1008,7 @@ function PlanComposerForm({
       try { localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY); } catch { /* best effort */ }
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
-      router.push(`/plan/${body.plan.plan.id}`);
+      router.push(`/plan/${body.plan.plan.id}#share`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The plan could not be created.");
     } finally {

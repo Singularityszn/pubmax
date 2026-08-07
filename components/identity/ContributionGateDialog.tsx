@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   useCallback,
   useReducer,
@@ -10,6 +11,7 @@ import {
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
+import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { trackEvent } from "@/lib/analytics";
 
@@ -59,8 +61,15 @@ export function ContributionGateDialog({
             <h2 id="contribution-gate-title">Finish account setup</h2>
             <p>
               Choose a public handle and add your date of birth before
-              contributing.
+              contributing. The claim form lives on your account page.
             </p>
+            <Link
+              className="contributionGatePrimary"
+              href={HANDLE_CLAIM_NEXT}
+              onClick={onClose}
+            >
+              Finish setup
+            </Link>
           </>
         )}
         {error ? (

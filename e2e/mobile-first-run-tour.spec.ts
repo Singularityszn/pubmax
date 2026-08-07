@@ -22,6 +22,7 @@ test.describe("mobile first-run tour", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.addInitScript(() => {
       window.localStorage.removeItem("pubmax-tour-v1-done");
+      window.localStorage.removeItem("pubmax-tour-v2-done");
       window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
       window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     });
@@ -31,21 +32,18 @@ test.describe("mobile first-run tour", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/pubs");
 
-    const tour = page.getByRole("dialog", { name: "PUBMAXXING" });
+    const tour = page.getByRole("dialog", { name: "Pint price colours" });
     await expect(tour).toBeVisible();
+    await expect(tour.getByText("£5.50 or less")).toBeVisible();
+    await expect(tour.getByText("Over £7")).toBeVisible();
     await expectTappable(tour.getByRole("button", { name: "Skip the tour" }), "tour close");
     await expectTappable(tour.getByRole("button", { name: "Skip", exact: true }), "tour skip");
-    await expectTappable(tour.getByRole("button", { name: "Next", exact: true }), "tour next");
+    await expectTappable(tour.getByRole("button", { name: "Got it", exact: true }), "tour confirm");
     await expectNoHorizontalOverflow(page);
 
-    await tour.getByRole("button", { name: "Next", exact: true }).click();
-    const nextStepTour = page.getByRole("dialog", { name: "Find pints near you" });
-    await expect(nextStepTour.getByRole("heading", { name: "Find pints near you" })).toBeVisible();
-    await expectTappable(nextStepTour.getByRole("button", { name: "Back", exact: true }), "tour back");
-
-    await nextStepTour.getByRole("button", { name: "Skip the tour" }).click();
-    await expect(nextStepTour).toBeHidden();
-    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax-tour-v1-done"))).toBe("1");
+    await tour.getByRole("button", { name: "Skip the tour" }).click();
+    await expect(tour).toBeHidden();
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax-tour-v2-done"))).toBe("1");
   });
 
   test("does not cover the dedicated You or Pub Pal onboarding", async ({ page }) => {

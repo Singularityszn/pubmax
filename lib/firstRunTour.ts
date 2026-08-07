@@ -20,8 +20,11 @@ import {
 } from "@/lib/promptBudget";
 import { PAL_ONBOARDING_SPECIES } from "@/lib/pubPal";
 
-/** Bump the `v1` suffix if the tour content changes enough to re-show it. */
-const STORAGE_KEY = "pubmax-tour-v1-done";
+/** Bump the `vN` suffix if the tour content changes enough to re-show it. */
+const STORAGE_KEY = "pubmax-tour-v2-done";
+/** Legacy key from the four-step welcome; still counts as seen so e2e seeds and
+ * returning devices that finished the old tour are not interrupted again. */
+const LEGACY_STORAGE_KEY = "pubmax-tour-v1-done";
 /** Device-level choice that seeds the later, account-owned Pub Pal setup. */
 const COMPANION_KEY = "pubmax:first-run-companion:v1";
 /** Same-tab notify so useSyncExternalStore clients re-read after a write. */
@@ -44,11 +47,16 @@ function notifyTourChange(): void {
  * Whether the viewer has already seen (and dismissed) the first-run tour.
  * Returns `true` on SSR and on any storage failure so the overlay never
  * flashes for returning users or when storage is unavailable/private.
+ * Accepts the legacy v1 key so existing e2e seeds keep dismissing the tour.
  */
 export function hasSeenTour(): boolean {
   if (!hasStorage()) return true;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "1";
+    const store = window.localStorage;
+    return (
+      store.getItem(STORAGE_KEY) === "1" ||
+      store.getItem(LEGACY_STORAGE_KEY) === "1"
+    );
   } catch {
     return true;
   }
@@ -71,6 +79,7 @@ export function resetTour(): void {
   if (!hasStorage()) return;
   try {
     window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
     notifyTourChange();
   } catch {
     // ignore
