@@ -2,7 +2,7 @@
 
 > Next-phase strategy for PubMaxxing, **separate from** the landing acquisition wave ([`LANDING_ACQUISITION.md`](./LANDING_ACQUISITION.md)) and the PLG / invite monopoly plan ([`PLG_STRATEGY.md`](./PLG_STRATEGY.md)).
 >
-> Status: **READY FOR OWNER REVIEW** — research-backed plan only. Do not implement from this file until you name the wave(s) to ship.
+> Status: **READY FOR OWNER REVIEW** — research-backed plan. Wave **S3 scaffolding landed** (source ledger + Open Pubs dry-run evaluate; no slim merge). S1/S2/S4 still need owner choices before copy/product work.
 >
 > Drafted 2026-08-07 from shipped product, `docs/VOICE.md`, live `/` + `/about`, existing data pipelines (OSM UK base, FSA hygiene, Wetherspoons first-party fence, Tavily official-site enrichment), UK going-out market research, and open-data / competitor mapping.
 
@@ -230,7 +230,7 @@ Social media is a **lead and research** channel (what people complain about, whi
 | P0 | Curated London slim index | Product pins, search, crawls | Shipped |
 | P0 | OSM UK base shards | Country canvas, provisional marks | Shipped |
 | P1 | FSA hygiene open data | Food-safety context on sheets | Shipped (`lib/foodHygiene.ts`) |
-| P1 | Open Pubs (FSA-derived CSV) | Cross-check names/locations vs OSM | Not wired as ingest; open licence — evaluate |
+| P1 | Open Pubs (FSA-derived CSV) | Cross-check names/locations vs OSM | Dry-run scaffold (`scripts/evaluate_open_pubs.mjs`); ledger in `docs/data/SOURCE_LEDGER.md` (no auto-merge) |
 | P1 | Tavily official-site enrichment | First-party menus where robots allow | Shipped scripts |
 | P1 | Chain first-party pages (GK, Nicholson’s, etc.) | Priced rows only when extractable | Partial / harvest lanes |
 | P2 | Ticketmaster / Skiddle (approved) | Tonight events, not prices | Researched; Skiddle needs commercial OK |
