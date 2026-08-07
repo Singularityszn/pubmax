@@ -48,10 +48,31 @@ export function emitIdentityHandleChanged(
   );
 }
 
+// App-wide device-handle convention shared with the composers and /u/you.
+export const DEVICE_HANDLE_KEY = "pubmax_handle";
+
+/**
+ * Write the server-owned handle onto this device. Fresh browsers after sign-in
+ * have no local handle yet; without this write the claim form and local
+ * composers act as if the account were handle-less.
+ */
+export function syncDeviceHandle(
+  storage: Pick<Storage, "setItem"> | null | undefined,
+  handle: string,
+): void {
+  const normalised = normalizeHandle(handle);
+  if (!storage || !normalised) return;
+  try {
+    storage.setItem(DEVICE_HANDLE_KEY, normalised);
+  } catch {
+    // Account ownership is durable even when browser storage is blocked.
+  }
+}
+
 export async function resolveCanonicalIdentity(
   expectedUserId: string,
   session: Pick<Session, "access_token" | "user"> | null,
-  storage: Pick<Storage, "getItem" | "removeItem"> | null,
+  storage: Pick<Storage, "getItem" | "removeItem" | "setItem"> | null,
   request: AccountBoundRequest = fetch,
 ): Promise<CanonicalIdentityResolution> {
   const auth = captureAccountAuth(expectedUserId, session);
@@ -70,14 +91,12 @@ export async function resolveCanonicalIdentity(
     typeof body?.handle === "string" ? normalizeHandle(body.handle) : "";
   if (!handle) return { ok: true, identity: null };
   clearClaimedRoundAnonymousHandle(handle, storage);
+  syncDeviceHandle(storage, handle);
   return {
     ok: true,
     identity: { ownerId: auth.userId, handle },
   };
 }
-
-// App-wide device-handle convention shared with the composers and /u/you.
-const DEVICE_HANDLE_KEY = "pubmax_handle";
 
 /**
  * Post-callback routing. Creating the account comes first and choosing a
@@ -86,12 +105,13 @@ const DEVICE_HANDLE_KEY = "pubmax_handle";
  * Returns the destination path, or null to stay put. Never bounces the user on
  * doubt: a restored return fragment (an invite) owns the destination, a device
  * handle means /u/you would just redirect back out, and a failed or unreadable
- * server answer is not evidence the account has no handle.
+ * server answer is not evidence the account has no handle. When the server
+ * already owns a handle, sync it onto this device before staying put.
  */
 export async function handleClaimRouteAfterSignIn(
   session: Pick<Session, "access_token" | "user"> | null,
   landedUrl: string,
-  storage: Pick<Storage, "getItem" | "removeItem"> | null,
+  storage: Pick<Storage, "getItem" | "removeItem" | "setItem"> | null,
   request: AccountBoundRequest = fetch,
 ): Promise<string | null> {
   const userId = session?.user?.id;

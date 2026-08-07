@@ -15,6 +15,7 @@
 // so stale capability state cannot strand someone on a raw provider error.
 // ──────────────────────────────────────────────────────────────────────────
 
+import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { LogIn } from "lucide-react";
 
@@ -28,6 +29,9 @@ import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
   authMenuFocusBoundary,
 } from "@/lib/authFocus";
+
+/** Phone band: full-page /login instead of the nav popover. */
+const PHONE_LOGIN_MEDIA = "(max-width: 640px)";
 
 /** Best-effort initials for the avatar fallback when the IdP gives us no photo. */
 function initials(name: string): string {
@@ -67,11 +71,22 @@ export default function SignInButton({
   const [busy, setBusy] = useState<"google" | "apple" | "out" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [phoneLogin, setPhoneLogin] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const wasOpenRef = useRef(false);
   const menuId = useId();
+
+  // Phone viewports own a full /login page. Desktop keeps the compact popover.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia(PHONE_LOGIN_MEDIA);
+    const apply = () => setPhoneLogin(mq.matches);
+    apply();
+    mq.addEventListener?.("change", apply);
+    return () => mq.removeEventListener?.("change", apply);
+  }, []);
 
   // A successful provider start normally navigates away before its promise
   // settles, leaving `busy` set. If Back restores this page from the BFCache,
@@ -319,8 +334,27 @@ export default function SignInButton({
     );
   }
 
-  // Compact nav host: this single disclosure is the whole sign-in footprint,
-  // so the nav links never get crowded or clipped.
+  // Compact nav host: phone goes to the dedicated /login page; desktop keeps
+  // the disclosure so the nav links never get crowded or clipped.
+  if (phoneLogin) {
+    return (
+      <div className="authUser authUserNav">
+        <div className="authCompact">
+          <Link
+            href="/login"
+            className="authCompactTrigger"
+            aria-label="Sign in"
+          >
+            <LogIn size={16} strokeWidth={2} aria-hidden="true" />
+            <span className="authCompactLabel" aria-hidden="true">
+              Sign in
+            </span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="authUser authUserNav" ref={rootRef}>
       <div className="authCompact">
@@ -328,7 +362,11 @@ export default function SignInButton({
           type="button"
           ref={triggerRef}
           className="authCompactTrigger"
-          onClick={() => setMenuOpen((open) => !open)}
+          onClick={() => {
+            // Desktop fast path: popover. Also expose the full page as a link
+            // inside the menu for anyone who wants the dedicated surface.
+            setMenuOpen((open) => !open);
+          }}
           aria-expanded={menuOpen}
           aria-controls={menuId}
           aria-haspopup="true"
@@ -354,6 +392,13 @@ export default function SignInButton({
                     cancelAuthAttempt={cancelAuthAttempt}
                   />
                 ) : null}
+                <Link
+                  href="/login"
+                  className="authMagicLinkCancel"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Open full sign-in page
+                </Link>
               </>
             ) : null}
           </div>

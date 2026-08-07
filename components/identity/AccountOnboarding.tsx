@@ -13,12 +13,16 @@ import {
   checkAccountHandleAvailability,
   loadAccountOnboardingStatus,
 } from "@/lib/accountOnboardingClient";
-import { emitIdentityHandleChanged } from "@/lib/identityClient";
+import {
+  emitIdentityHandleChanged,
+  syncDeviceHandle,
+} from "@/lib/identityClient";
 import {
   cleanDateOfBirth,
   PRIVATE_IDENTITY_SEX_VALUES,
   type PrivateIdentitySex,
 } from "@/lib/privateIdentity";
+import { normalizeHandle } from "@/lib/profiles";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 
 import "./accountOnboarding.css";
@@ -248,6 +252,103 @@ export function AccountOnboardingLoadError({
   );
 }
 
+export function AccountOwnedIdentity({
+  handle,
+  renameValue,
+  busy,
+  error,
+  message,
+  onRenameChange,
+  onRename,
+  onContinue,
+}: {
+  handle: string;
+  renameValue: string;
+  busy: boolean;
+  error: string | null;
+  message: string | null;
+  onRenameChange: (value: string) => void;
+  onRename: () => void;
+  onContinue: () => void;
+}): React.JSX.Element {
+  const presented = normalizeHandle(handle) || handle;
+  const canRename =
+    !busy &&
+    normalizeHandle(renameValue) !== "" &&
+    normalizeHandle(renameValue) !== presented;
+  return (
+    <div className="accountOnboardingBackdrop" role="presentation">
+      <section
+        className="accountOnboarding"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="account-owned-title"
+        aria-describedby="account-owned-lead"
+      >
+        <header className="accountOnboardingHead">
+          <p className="accountOnboardingEyebrow">Your PUBMAXX identity</p>
+          <h2 id="account-owned-title">You are @{presented}</h2>
+          <p id="account-owned-lead">
+            This account already has a public handle. Contributions use it
+            automatically on this device.
+          </p>
+        </header>
+        <p className="accountOnboardingStatus is-available" role="status">
+          Signed in as @{presented}
+        </p>
+        <label className="accountOnboardingField accountOnboardingHandle">
+          <span>
+            Rename handle <small>Optional</small>
+          </span>
+          <span className="accountOnboardingInputWrap">
+            <i aria-hidden="true">@</i>
+            <input
+              value={renameValue}
+              onChange={(event) => onRenameChange(event.target.value)}
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              maxLength={31}
+              aria-describedby="account-owned-rename-hint"
+            />
+          </span>
+        </label>
+        <p id="account-owned-rename-hint" className="accountOnboardingPrivacy">
+          Renames are limited to once every 30 days. Old links keep working.
+        </p>
+        {error ? (
+          <p className="accountOnboardingError" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {message ? (
+          <p className="accountOnboardingStatus is-available" role="status">
+            {message}
+          </p>
+        ) : null}
+        <div className="accountOnboardingActions">
+          <button
+            type="button"
+            className="accountOnboardingPrimary"
+            disabled={!canRename}
+            onClick={onRename}
+          >
+            {busy ? "Renaming…" : "Rename handle"}
+          </button>
+          <button
+            type="button"
+            className="accountOnboardingSkip"
+            disabled={busy}
+            onClick={onContinue}
+          >
+            Continue
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function suggestedHandle(): string {
   try {
     const stored = window.localStorage.getItem("pubmax_handle") ?? "";
@@ -264,7 +365,7 @@ function AccountOnboardingForUser({
   auth: AccountAuthSnapshot;
 }): React.JSX.Element | null {
   const [status, setStatus] = useState<
-    "loading" | "needed" | "complete" | "unavailable"
+    "loading" | "needed" | "owned" | "complete" | "unavailable"
   >("loading");
   const [statusError, setStatusError] = useState(
     "Account setup is unavailable right now.",
@@ -274,6 +375,9 @@ function AccountOnboardingForUser({
     attempt: 0,
   }));
   const [handle, setHandle] = useState(suggestedHandle);
+  const [ownedHandle, setOwnedHandle] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [ownedMessage, setOwnedMessage] = useState<string | null>(null);
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [fullName, setFullName] = useState("");
   const [sex, setSex] = useState<"" | PrivateIdentitySex>("");
@@ -292,32 +396,59 @@ function AccountOnboardingForUser({
   }, []);
 
   useEffect(() => {
-    let active = true;
+    let activeLoad = true;
     const controller = new AbortController();
     void loadAccountOnboardingStatus(
       (input, init) => accountBoundFetch(statusRequest.auth, input, init),
       controller.signal,
     ).then(
       (result) => {
-        if (!active) return;
-        if (result.status === "complete") {
-          setStatus("complete");
-          return;
-        }
+        if (!activeLoad) return;
         if (result.status === "unavailable") {
+          // Fetch failed: never fall through to the claim form.
           setStatusError(result.error);
           setStatus("unavailable");
           return;
         }
-        const suggestion = result.handle ?? suggestedHandle();
+        const serverHandle =
+          typeof result.handle === "string"
+            ? normalizeHandle(result.handle)
+            : "";
+        if (serverHandle) {
+          try {
+            syncDeviceHandle(window.localStorage, serverHandle);
+          } catch {
+            // Storage blocked: account ownership is still server-truth.
+          }
+          emitIdentityHandleChanged({
+            ownerId: statusRequest.auth.userId,
+            handle: serverHandle,
+          });
+          setOwnedHandle(serverHandle);
+          setRenameValue(serverHandle);
+          // Existing handle: show identity + rename, never the claim form.
+          // Complete accounts dismiss; incomplete (e.g. missing DOB) still
+          // must not offer a second claim.
+          if (result.status === "complete") {
+            setStatus("complete");
+            return;
+          }
+          setStatus("owned");
+          return;
+        }
+        if (result.status === "complete") {
+          setStatus("complete");
+          return;
+        }
+        const suggestion = suggestedHandle();
         setHandle(suggestion);
-        setCheckedHandle(result.handle ?? null);
-        setAvailability(result.handle ? "available" : suggestion ? "checking" : "idle");
+        setCheckedHandle(null);
+        setAvailability(suggestion ? "checking" : "idle");
         setStatus("needed");
       },
     );
     return () => {
-      active = false;
+      activeLoad = false;
       controller.abort();
     };
   }, [statusRequest]);
@@ -407,6 +538,28 @@ function AccountOnboardingForUser({
         };
         if (!active.current) return;
         if (!response.ok) {
+          if (body.code === "already_has_handle") {
+            // Server already owns a handle: never stay on the claim form.
+            const existing =
+              typeof body.error === "string"
+                ? body.error.match(/@([A-Za-z0-9_]+)/)?.[1]
+                : null;
+            if (existing) {
+              const owned = normalizeHandle(existing);
+              try {
+                syncDeviceHandle(window.localStorage, owned);
+              } catch {}
+              emitIdentityHandleChanged({
+                ownerId: auth.userId,
+                handle: owned,
+              });
+              setOwnedHandle(owned);
+              setRenameValue(owned);
+              setError(null);
+              setStatus("owned");
+              return;
+            }
+          }
           if (body.code === "taken") setAvailability("taken");
           if (body.code === "reserved") setAvailability("reserved");
           setCheckedHandle(null);
@@ -420,7 +573,7 @@ function AccountOnboardingForUser({
         const claimed =
           typeof body.handle === "string" ? body.handle : handle;
         try {
-          window.localStorage.setItem("pubmax_handle", claimed);
+          syncDeviceHandle(window.localStorage, claimed);
         } catch {
           // Account ownership is durable even when browser storage is blocked.
         }
@@ -447,6 +600,53 @@ function AccountOnboardingForUser({
     ],
   );
 
+  const renameOwned = useCallback(async () => {
+    if (!ownedHandle || busy) return;
+    const next = normalizeHandle(renameValue);
+    if (!next || next === ownedHandle) return;
+    setBusy(true);
+    setError(null);
+    setOwnedMessage(null);
+    try {
+      const response = await accountBoundFetch(
+        auth,
+        "/api/identity/handle/rename",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ handle: next }),
+        },
+      );
+      const body = (await response.json().catch(() => ({}))) as {
+        handle?: unknown;
+        error?: unknown;
+      };
+      if (!active.current) return;
+      if (!response.ok || typeof body.handle !== "string") {
+        setError(
+          typeof body.error === "string"
+            ? body.error
+            : "That handle could not be renamed.",
+        );
+        return;
+      }
+      const renamed = normalizeHandle(body.handle);
+      try {
+        syncDeviceHandle(window.localStorage, renamed);
+      } catch {}
+      emitIdentityHandleChanged({ ownerId: auth.userId, handle: renamed });
+      setOwnedHandle(renamed);
+      setRenameValue(renamed);
+      setOwnedMessage(`You are now @${renamed}.`);
+    } catch {
+      if (active.current) {
+        setError("That handle could not be renamed. Check your connection.");
+      }
+    } finally {
+      if (active.current) setBusy(false);
+    }
+  }, [auth, busy, ownedHandle, renameValue]);
+
   if (status === "loading" || status === "complete") return null;
   if (status === "unavailable") {
     return (
@@ -459,6 +659,24 @@ function AccountOnboardingForUser({
             attempt: current.attempt + 1,
           }));
         }}
+      />
+    );
+  }
+  if (status === "owned" && ownedHandle) {
+    return (
+      <AccountOwnedIdentity
+        handle={ownedHandle}
+        renameValue={renameValue}
+        busy={busy}
+        error={error}
+        message={ownedMessage}
+        onRenameChange={(value) => {
+          setRenameValue(value.trim().replace(/^@/, "").toLowerCase());
+          setError(null);
+          setOwnedMessage(null);
+        }}
+        onRename={() => void renameOwned()}
+        onContinue={() => setStatus("complete")}
       />
     );
   }
