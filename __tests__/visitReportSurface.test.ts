@@ -6,8 +6,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import VisitReportPanel, {
+  VISIT_REPORT_PEEK_LIMIT,
   visitReportComposerMode,
+  visitReportEmptyCopy,
+  visitReportPeekAffordanceLabel,
+  visitReportsForPanel,
 } from "@/components/visits/VisitReportPanel";
+import type { VisitReportDTO } from "@/lib/visitReports";
 
 const authState = vi.hoisted(() => ({
   user: null as { id: string } | null,
@@ -23,6 +28,21 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 
 function source(relative: string): string {
   return readFileSync(path.join(process.cwd(), relative), "utf8");
+}
+
+function reportStub(id: string): VisitReportDTO {
+  return {
+    id,
+    venueId: "venue-1",
+    handle: `drinker-${id}`,
+    visitedAt: "2026-08-01",
+    createdAt: "2026-08-01T12:00:00.000Z",
+    busyness: null,
+    noise: null,
+    seating: null,
+    serviceWait: null,
+    note: `Account ${id}`,
+  };
 }
 
 describe("Visit Report venue surface", () => {
@@ -99,6 +119,78 @@ describe("Visit Report venue surface", () => {
       'import VisitReportPanel from "@/components/visits/VisitReportPanel"',
     );
     expect(storyTab).toContain("<VisitReportPanel");
+  });
+
+  it("keeps the full composer on Lore and a read-only peek on Overview", () => {
+    const storyTab = source("components/map/inspector/VenueStoryTab.tsx");
+    const overview = source("components/map/inspector/VenueOverviewTab.tsx");
+    const inspector = source("components/map/VenueInspector.tsx");
+
+    expect(overview).toContain('mode="peek"');
+    expect(overview).toContain("onOpenFull={onOpenVisitReports}");
+    expect(overview).toMatch(
+      /<VisitReportPanel[\s\S]*active=\{tab === "overview"\}/,
+    );
+    expect(storyTab).not.toContain('mode="peek"');
+    expect(storyTab).toMatch(
+      /<VisitReportPanel[\s\S]*active=\{tab === "story"\}/,
+    );
+    expect(inspector).toContain('onOpenVisitReports={() => selectTab("story")}');
+  });
+
+  it("limits the Overview peek to the newest one or two accounts", () => {
+    const reports = [
+      reportStub("a"),
+      reportStub("b"),
+      reportStub("c"),
+    ];
+
+    expect(VISIT_REPORT_PEEK_LIMIT).toBe(2);
+    expect(visitReportsForPanel(reports, "peek")).toEqual(reports.slice(0, 2));
+    expect(visitReportsForPanel(reports, "full")).toEqual(reports);
+  });
+
+  it("never collapses a failed peek read into an empty visits claim", () => {
+    expect(visitReportEmptyCopy("ready")).toBe(
+      "No visits have been written up here yet.",
+    );
+    expect(visitReportEmptyCopy("degraded")).toBe(
+      "We couldn't check the visit notes here just now.",
+    );
+    expect(visitReportEmptyCopy("degraded")).not.toMatch(/no visits/i);
+    expect(visitReportPeekAffordanceLabel({ status: "degraded", reports: [] })).toBe(
+      "Open Lore",
+    );
+    expect(visitReportPeekAffordanceLabel({ status: "ready", reports: [] })).toBe(
+      "Write yours on Lore",
+    );
+    expect(
+      visitReportPeekAffordanceLabel({
+        status: "ready",
+        reports: [reportStub("a")],
+      }),
+    ).toBe("More on Lore");
+  });
+
+  it("keeps the Overview peek free of the composer fields", () => {
+    authState.user = null;
+    authState.session = null;
+
+    const html = renderToStaticMarkup(
+      createElement(VisitReportPanel, {
+        venueId: "venue-1",
+        venueName: "The Crown",
+        mode: "peek",
+        onOpenFull: () => {},
+      }),
+    );
+
+    expect(html).toContain("visitReportPanel--peek");
+    expect(html).toContain("Open Lore");
+    expect(html).not.toContain("Sign in to contribute");
+    expect(html).not.toContain("Write yours");
+    expect(html).not.toContain('type="date"');
+    expect(html).not.toContain("<textarea");
   });
 
   it("defers the venue read to the opened tab without unmounting the composer", () => {

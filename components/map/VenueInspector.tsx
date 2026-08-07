@@ -305,6 +305,7 @@ export default function VenueInspector({
         onRequestLocation={onRequestLocation}
         onClearLocation={onClearLocation}
         onStartFirstDrop={startPintDrop}
+        onOpenVisitReports={() => selectTab("story")}
         priceEntryAllowed={!authConfigured || Boolean(user && handle)}
         priceSignInRequested={priceSignInVenueId === venue.id}
         priceAuthLoading={authLoading}
