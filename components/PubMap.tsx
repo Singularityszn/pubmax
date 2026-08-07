@@ -29,6 +29,15 @@ import {
   TYPED_SEARCH_MIN_QUERY,
 } from "@/lib/mapSearchCamera";
 import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
+import {
+  OPEN_NOW_FILTER_CAPTION,
+  openNowStatesForVenues,
+} from "@/lib/openNow";
+import {
+  loadWetherspoonsDirectory,
+  type WetherspoonsPub,
+} from "@/lib/wetherspoonsDirectory";
+import type { WetherspoonsMatchVenue } from "@/lib/wetherspoonsMatch";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds } from "@/lib/nearby";
 import {
@@ -627,6 +636,24 @@ export default function PubMap({
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
+  // First-party Wetherspoon directory for Open now hours. Loaded once; match is
+  // name+distance only and never invents hours for unmatched pubs.
+  const [wetherspoonsDirectoryPubs, setWetherspoonsDirectoryPubs] = useState<
+    WetherspoonsPub[] | null
+  >(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadWetherspoonsDirectory()
+      .then((directory) => {
+        if (!cancelled) setWetherspoonsDirectoryPubs(directory.pubs);
+      })
+      .catch(() => {
+        if (!cancelled) setWetherspoonsDirectoryPubs([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [experienceLens, setExperienceLens] =
     useState<MapExperienceLensValue>("all");
   const [experiencePolicyNow] = useState(() => Date.now());
@@ -1215,14 +1242,25 @@ export default function PubMap({
       ),
     [experienceLens, filters, mapDrinkLensCategory],
   );
+  const openNowStateById = useMemo(() => {
+    if (!wetherspoonsDirectoryPubs || !filters.openNow) return null;
+    const matchVenues: WetherspoonsMatchVenue[] = venues.map((venue) => ({
+      id: venue.id,
+      name: venue.name,
+      lat: venue.latitude,
+      lng: venue.longitude,
+    }));
+    return openNowStatesForVenues(matchVenues, wetherspoonsDirectoryPubs);
+  }, [venues, wetherspoonsDirectoryPubs, filters.openNow]);
   const pipelineVenues = useMemo(
     () =>
       filterMapVenues(
         venues,
         effectiveMapFilters,
         (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
+        (id) => openNowStateById?.get(id) ?? "unknown",
       ),
-    [effectiveMapFilters, venues, venueSignals],
+    [effectiveMapFilters, venues, venueSignals, openNowStateById],
   );
   // "Saved only" composes ON TOP of the pipeline: when on, keep only venues in
   // the saved set. When off it's a no-op, so all existing behavior is preserved.
@@ -3458,6 +3496,7 @@ export default function PubMap({
             filters.zone !== "" &&
             filters.zone !== "all"
           }
+          openNowActive={filters.openNow}
           priceCapActive={
             experienceLens === "all" &&
             mapDrinkLensCategory === null &&
@@ -3541,6 +3580,26 @@ export default function PubMap({
                   setFilters((current) => ({ ...current, maxPrice }))
                 }
               />
+              <label className="mobileMapFilterToggle">
+                <input
+                  type="checkbox"
+                  checked={filters.openNow}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      openNow: event.target.checked,
+                    }))
+                  }
+                />
+                <span>
+                  <strong>Open now</strong>
+                  {filters.openNow ? (
+                    <small>{OPEN_NOW_FILTER_CAPTION}</small>
+                  ) : (
+                    <small>Hide pubs we know are closed. Pubs without hours stay visible.</small>
+                  )}
+                </span>
+              </label>
             </div>
           }
           tflContent={<MobileTflPanel status={tflStatus} />}

@@ -32,6 +32,20 @@ describe("buildFiltersChip", () => {
       }).ariaLabel,
     ).toBe("Filters: no-alcohol view active");
   });
+
+  it("counts Open now as a filters refinement when on", () => {
+    expect(
+      buildFiltersChip({
+        drinkFiltersActive: false,
+        priceCapActive: false,
+        priceLabel: "Price",
+        openNowActive: true,
+      }),
+    ).toMatchObject({
+      refinements: 1,
+      ariaLabel: "Filters: open now active",
+    });
+  });
 });
 
 describe("buildTflCorner", () => {
