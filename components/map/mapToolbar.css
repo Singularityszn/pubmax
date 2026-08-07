@@ -200,15 +200,42 @@
      gesture, and its scroll must not chain into the map behind it. */
   touch-action: pan-x;
   overscroll-behavior-x: contain;
+  /* Nine chips overflow at 320–390px. Edge-fade marks the strip as a
+     deliberate lane (same idiom as TonightNearbyLane / category showcase),
+     not a clipped row. Soften scroll landing so a chip is not parked under
+     the mask. */
+  scroll-padding-inline: 14px;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 16px,
+    #000 calc(100% - 16px),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 16px,
+    #000 calc(100% - 16px),
+    transparent
+  );
 }
 
 .drinkShapeChips::-webkit-scrollbar {
   display: none;
 }
 
+/* The mobile filter sheet lays chips in a 3×3 grid (mobileMapShell.css). A
+   horizontal scroll mask would ghost the outer columns for no reason. */
+.mobileMapFilters .drinkShapeChips {
+  -webkit-mask-image: none;
+  mask-image: none;
+  scroll-padding-inline: 0;
+}
+
 /* De-box (design judgement 2026-08-01, finding 2.4): a drink category is a
    glyph and a label, not a container. No border at rest; selection is the fill.
-   Six identical 1px boxes ranked nothing against each other. */
+   Nine chips in one strip; boxes would rank nothing against each other. */
 .drinkShapeChip {
   flex: 0 0 auto;
   display: inline-flex;
@@ -225,11 +252,16 @@
   letter-spacing: 0.01em;
   cursor: pointer;
   touch-action: manipulation;
-  transition:
-    background var(--duration-base) var(--ease-out),
-    border-color var(--duration-base) var(--ease-out),
-    color var(--duration-base) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .drinkShapeChip {
+    transition:
+      background var(--duration-base) var(--ease-out),
+      color var(--duration-base) var(--ease-out),
+      box-shadow var(--duration-base) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
 }
 
 .drinkShapeChip:active {
@@ -248,21 +280,46 @@
   outline-offset: -2px;
 }
 
-/* Selection is the raised fill. Coral belongs to the primary CTA and the
-   selected pin ring (DESIGN.md, The One Accent Rule), never to a filter chip. */
+/* Selection is panel-raised + ink, with a brass underline as the quiet cue.
+   Coral fill belongs to the primary CTA and the selected pin ring
+   (DESIGN.md, The One Accent Rule), never to a filter chip. */
 .drinkShapeChip.isOn {
   background: var(--panel-raised);
   color: var(--ink);
   font-weight: 800;
-  box-shadow: var(--shadow-sm);
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 -2px 0 color-mix(in srgb, var(--brass) 42%, transparent);
+}
+
+/* Night toolbar is already --panel-raised (theme.css). Lift the selected chip
+   one luminance step and keep the brass underline so coffee / AF / soft stay
+   readable against charcoal rather than vanishing into the chrome. */
+html[data-theme="dark"] .drinkShapeChip.isOn {
+  background: color-mix(in srgb, var(--ink) 8%, var(--panel-raised));
+  color: var(--ink);
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 -2px 0 color-mix(in srgb, var(--brass) 52%, transparent);
+}
+
+html[data-theme="dark"] .drinkShapeChip {
+  color: var(--ink-soft);
 }
 
 .drinkShapeChip > svg {
   flex: 0 0 auto;
+  /* DrinkGlyph paints --cat-* inline. Never inherit the label colour, or the
+     outing glyphs flatten to monochrome while beer/wine stay in colour. */
+  opacity: 1;
 }
 
 .drinkShapeChipLabel {
   white-space: nowrap;
+}
+
+html[data-theme="dark"] .drinkShapeChipLabel {
+  color: inherit;
 }
 
 /* Progressive disclosure: the subtype row only mounts once a category is
@@ -290,6 +347,27 @@
      never claimed by the map, and its scroll never chains into it. */
   touch-action: pan-x;
   overscroll-behavior-x: contain;
+  scroll-padding-inline: 14px;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 16px,
+    #000 calc(100% - 16px),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 16px,
+    #000 calc(100% - 16px),
+    transparent
+  );
+}
+
+.mobileMapFilters .drinkSubtypeChips {
+  -webkit-mask-image: none;
+  mask-image: none;
+  scroll-padding-inline: 0;
 }
 
 .drinkSubtypeChips::-webkit-scrollbar {
