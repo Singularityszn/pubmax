@@ -356,6 +356,8 @@
 .lpMemoryCanvas { width: min(var(--lp-max), 100%); margin: 0 auto; display: grid; grid-template-columns: .92fr 1.08fr; gap: clamp(44px, 8vw, 110px); align-items: center; }
 .lpSectionLabel { margin: 0 0 18px; color: var(--brass-bright); font: 650 var(--text-2xs)/1 var(--font-data); letter-spacing: .01em; }
 .lpSectionLabel::before { content: "// " / ""; }
+.lpCityChooser .cityChooserEyebrow { gap: .5ch; font: 650 var(--text-2xs)/1 var(--font-data); }
+.lpCityChooser .cityChooserEyebrow::before { content: "// " / ""; width: auto; height: auto; background: none; opacity: 1; }
 .lpMemoryCopy > p { color: color-mix(in srgb, var(--color-on-inverse) 70%, transparent); }
 .lpMemoryActions { margin-top: 28px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
 .lpMemorySection .lpButtonPrimary { background: var(--brass); color: var(--color-on-accent); }

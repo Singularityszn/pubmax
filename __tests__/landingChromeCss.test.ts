@@ -46,6 +46,15 @@ describe("landing chrome CSS audit", () => {
     );
   });
 
+  it("uses the blueprint label treatment for the landing city eyebrow", () => {
+    expect(
+      ruleBody(landingCss, ".lpCityChooser .cityChooserEyebrow"),
+    ).toMatch(/gap:\s*\.5ch[^}]*font:[^;]*var\(--font-data\)/);
+    expect(
+      ruleBody(landingCss, ".lpCityChooser .cityChooserEyebrow::before"),
+    ).toMatch(/content:\s*"\/\/ "\s*\/\s*""/);
+  });
+
   it("clears the notch on the fixed nav in both default and mobile widths", () => {
     // The base .lpNav and the <=700px override both honour the top inset.
     expect(landingCss).toMatch(/top:\s*max\(14px,\s*env\(safe-area-inset-top\)\)/);
