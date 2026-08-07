@@ -168,110 +168,148 @@ function warnOptionalArtifact(id, message) {
 }
 
 // Kept dependency-free because validation tests copy this single script into a
-// scratch repository. Mirrors refresh_night_signal_claims.mjs.
-function isValidNightSignalClaim(row) {
-  const text = (value, max) =>
-    typeof value === "string" && value.trim().length > 0 && value.length <= max;
-  const iso = (value) =>
-    typeof value === "string" && Number.isFinite(Date.parse(value));
-  const publicUrl = (value) => {
-    if (!text(value, 2_000)) return false;
-    try {
-      const url = new URL(value);
-      return (
-        ["http:", "https:"].includes(url.protocol) &&
-        !url.username &&
-        !url.password &&
-        !url.port &&
-        !url.search &&
-        !url.hash
-      );
-    } catch {
-      return false;
-    }
-  };
-  const source = (value) =>
+// scratch repository. Mirrors refresh_night_signal_claims.mjs. Split into
+// single-purpose predicates so no one check's branching swamps the shape of
+// the whole claim contract; isValidNightSignalClaim below reads as the
+// sequence of gates it always was.
+function nightSignalClaimText(value, max) {
+  return (
+    typeof value === "string" && value.trim().length > 0 && value.length <= max
+  );
+}
+
+function nightSignalClaimIso(value) {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
+function nightSignalClaimPublicUrl(value) {
+  if (!nightSignalClaimText(value, 2_000)) return false;
+  try {
+    const url = new URL(value);
+    return (
+      ["http:", "https:"].includes(url.protocol) &&
+      !url.username &&
+      !url.password &&
+      !url.port &&
+      !url.search &&
+      !url.hash
+    );
+  } catch {
+    return false;
+  }
+}
+
+function nightSignalClaimSource(value) {
+  return (
     value &&
     typeof value === "object" &&
-    publicUrl(value.sourceUrl) &&
-    text(value.publisher, 160) &&
-    iso(value.publishedAt);
+    nightSignalClaimPublicUrl(value.sourceUrl) &&
+    nightSignalClaimText(value.publisher, 160) &&
+    nightSignalClaimIso(value.publishedAt)
+  );
+}
+
+function hasValidNightSignalShape(row) {
   if (
     !row ||
     typeof row !== "object" ||
-    !text(row.id, 120) ||
-    !text(row.claim, 500)
+    !nightSignalClaimText(row.id, 120) ||
+    !nightSignalClaimText(row.claim, 500)
   )
     return false;
   if (!["event", "price", "access", "opening", "transport"].includes(row.kind))
     return false;
+  return (
+    !!row.entity &&
+    ["venue", "night_area", "transport"].includes(row.entity.type) &&
+    nightSignalClaimText(row.entity.id, 120)
+  );
+}
+
+function hasValidNightSignalProvenance(row) {
   if (
-    !row.entity ||
-    !["venue", "night_area", "transport"].includes(row.entity.type) ||
-    !text(row.entity.id, 120)
-  )
-    return false;
-  if (
-    !source(row) ||
-    !iso(row.observedAt) ||
-    !iso(row.expiresAt) ||
+    !nightSignalClaimSource(row) ||
+    !nightSignalClaimIso(row.observedAt) ||
+    !nightSignalClaimIso(row.expiresAt) ||
     Date.parse(row.expiresAt) <= Date.parse(row.observedAt)
   )
     return false;
   if (Date.parse(row.publishedAt) > Date.parse(row.observedAt)) return false;
-  if (
-    typeof row.confidence !== "number" ||
-    row.confidence < 0 ||
-    row.confidence > 1
-  )
-    return false;
-  if (
-    !["pending", "approved", "rejected"].includes(row.reviewState) ||
-    !["single_source", "corroborated", "manual_review"].includes(
+  return (
+    typeof row.confidence === "number" &&
+    row.confidence >= 0 &&
+    row.confidence <= 1
+  );
+}
+
+function hasValidNightSignalStateFields(row) {
+  return (
+    ["pending", "approved", "rejected"].includes(row.reviewState) &&
+    ["single_source", "corroborated", "manual_review"].includes(
       row.verification,
-    ) ||
-    !["none", "boost", "avoid"].includes(row.routeEffect)
-  )
-    return false;
+    ) &&
+    ["none", "boost", "avoid"].includes(row.routeEffect)
+  );
+}
+
+function hasValidCorroboratingSources(row) {
   if (
     !Array.isArray(row.corroboratingSources) ||
     row.corroboratingSources.length > 5 ||
-    !row.corroboratingSources.every(source)
+    !row.corroboratingSources.every(nightSignalClaimSource)
   )
     return false;
-  if (
-    row.corroboratingSources.some(
-      (item) => Date.parse(item.publishedAt) > Date.parse(row.observedAt),
-    )
-  )
-    return false;
+  return !row.corroboratingSources.some(
+    (item) => Date.parse(item.publishedAt) > Date.parse(row.observedAt),
+  );
+}
+
+// Duplicate corroborating sources fail the same way as sources that all
+// trace back to the one voice: both collapse to "not independent" here, so
+// the caller's two independence gates apply to either case identically.
+function corroboratingSourcesAreIndependent(row) {
   const keys = row.corroboratingSources.map(
     (item) =>
       `${new URL(item.sourceUrl).toString()}|${item.publisher.trim().toLocaleLowerCase("en-GB")}`,
   );
   if (new Set(keys).size !== keys.length) return false;
-  const independent = row.corroboratingSources.some(
+  return row.corroboratingSources.some(
     (item) =>
       new URL(item.sourceUrl).hostname !== new URL(row.sourceUrl).hostname &&
       item.publisher.trim().toLocaleLowerCase("en-GB") !==
         row.publisher.trim().toLocaleLowerCase("en-GB"),
   );
-  if (row.corroboratingSources.length > 0 && !independent) return false;
-  if (row.verification === "corroborated" && !independent) return false;
+}
+
+function nightSignalRoutingRuleSatisfied(row) {
   if (row.routeEffect !== "none" && row.verification === "single_source")
     return false;
-  if (
+  return !(
     row.routeEffect !== "none" &&
     row.verification === "manual_review" &&
     !["operations", "editorial"].includes(row.reviewAuthority)
-  )
-    return false;
+  );
+}
+
+function nightSignalReviewApprovalValid(row) {
   return (
     row.reviewState !== "approved" ||
-    (iso(row.reviewedAt) &&
+    (nightSignalClaimIso(row.reviewedAt) &&
       ["operations", "editorial", "automated"].includes(row.reviewAuthority) &&
       Date.parse(row.reviewedAt) >= Date.parse(row.observedAt))
   );
+}
+
+function isValidNightSignalClaim(row) {
+  if (!hasValidNightSignalShape(row)) return false;
+  if (!hasValidNightSignalProvenance(row)) return false;
+  if (!hasValidNightSignalStateFields(row)) return false;
+  if (!hasValidCorroboratingSources(row)) return false;
+  const independent = corroboratingSourcesAreIndependent(row);
+  if (row.corroboratingSources.length > 0 && !independent) return false;
+  if (row.verification === "corroborated" && !independent) return false;
+  if (!nightSignalRoutingRuleSatisfied(row)) return false;
+  return nightSignalReviewApprovalValid(row);
 }
 
 // ---------------------------------------------------------------------------
@@ -2658,6 +2696,81 @@ function validateNightSignalSnapshot() {
   return { ok, count: data.claims.length };
 }
 
+// One per-observation check each, so the loop in validateWeatherSnapshotData
+// reads as the checklist it enforces rather than one long branch chain.
+function isKnownUniqueNightArea(row, areas, seen) {
+  return areas.has(row?.nightArea) && !seen.has(row?.nightArea);
+}
+
+function hasValidWeatherEvidenceInterval(row, iso) {
+  return (
+    iso(row?.observedAt) &&
+    iso(row?.expiresAt) &&
+    Date.parse(row.expiresAt) > Date.parse(row.observedAt)
+  );
+}
+
+function isWeatherObservationNoNewerThanSnapshot(row, generatedAt) {
+  return Date.parse(row?.observedAt) <= Date.parse(generatedAt);
+}
+
+function hasValidWeatherCondition(row) {
+  return typeof row?.condition === "string" && !!row.condition.trim();
+}
+
+function hasValidFeelsLikeC(row) {
+  return (
+    typeof row?.feelsLikeC === "number" &&
+    row.feelsLikeC >= -40 &&
+    row.feelsLikeC <= 60
+  );
+}
+
+function hasValidPrecipitationProbability(row) {
+  return (
+    typeof row?.precipitationProbabilityPct === "number" &&
+    row.precipitationProbabilityPct >= 0 &&
+    row.precipitationProbabilityPct <= 100
+  );
+}
+
+function hasValidWindKph(row) {
+  return (
+    row?.windKph === null ||
+    (typeof row?.windKph === "number" && row.windKph >= 0 && row.windKph <= 300)
+  );
+}
+
+function hasValidWeatherSourceProvenance(row, iso) {
+  return (
+    !!row?.source &&
+    isHttpUrl(row.source.sourceUrl) &&
+    typeof row.source.publisher === "string" &&
+    !!row.source.publisher.trim() &&
+    iso(row.source.publishedAt) &&
+    Date.parse(row.source.publishedAt) <= Date.parse(row.observedAt)
+  );
+}
+
+function validateWeatherObservation(row, index, areas, seen, iso, errs, generatedAt) {
+  if (!isKnownUniqueNightArea(row, areas, seen))
+    errs.add(`observation ${index}: invalid or duplicate Night Area`);
+  seen.add(row?.nightArea);
+  if (!hasValidWeatherEvidenceInterval(row, iso))
+    errs.add(`observation ${index}: invalid evidence interval`);
+  if (!isWeatherObservationNoNewerThanSnapshot(row, generatedAt))
+    errs.add(`observation ${index}: newer than snapshot`);
+  if (!hasValidWeatherCondition(row))
+    errs.add(`observation ${index}: condition is required`);
+  if (!hasValidFeelsLikeC(row))
+    errs.add(`observation ${index}: invalid feelsLikeC`);
+  if (!hasValidPrecipitationProbability(row))
+    errs.add(`observation ${index}: invalid precipitation probability`);
+  if (!hasValidWindKph(row)) errs.add(`observation ${index}: invalid windKph`);
+  if (!hasValidWeatherSourceProvenance(row, iso))
+    errs.add(`observation ${index}: invalid source provenance`);
+}
+
 function validateWeatherSnapshotData() {
   const name = "public/data/weather/latest.json";
   const errs = makeCollector();
@@ -2704,45 +2817,7 @@ function validateWeatherSnapshotData() {
   }
   const seen = new Set();
   for (const [index, row] of data.observations.entries()) {
-    if (!areas.has(row?.nightArea) || seen.has(row?.nightArea))
-      errs.add(`observation ${index}: invalid or duplicate Night Area`);
-    seen.add(row?.nightArea);
-    if (
-      !iso(row?.observedAt) ||
-      !iso(row?.expiresAt) ||
-      Date.parse(row.expiresAt) <= Date.parse(row.observedAt)
-    )
-      errs.add(`observation ${index}: invalid evidence interval`);
-    if (Date.parse(row?.observedAt) > Date.parse(data.generatedAt))
-      errs.add(`observation ${index}: newer than snapshot`);
-    if (typeof row?.condition !== "string" || !row.condition.trim())
-      errs.add(`observation ${index}: condition is required`);
-    if (
-      typeof row?.feelsLikeC !== "number" ||
-      row.feelsLikeC < -40 ||
-      row.feelsLikeC > 60
-    )
-      errs.add(`observation ${index}: invalid feelsLikeC`);
-    if (
-      typeof row?.precipitationProbabilityPct !== "number" ||
-      row.precipitationProbabilityPct < 0 ||
-      row.precipitationProbabilityPct > 100
-    )
-      errs.add(`observation ${index}: invalid precipitation probability`);
-    if (
-      row?.windKph !== null &&
-      (typeof row?.windKph !== "number" || row.windKph < 0 || row.windKph > 300)
-    )
-      errs.add(`observation ${index}: invalid windKph`);
-    if (
-      !row?.source ||
-      !isHttpUrl(row.source.sourceUrl) ||
-      typeof row.source.publisher !== "string" ||
-      !row.source.publisher.trim() ||
-      !iso(row.source.publishedAt) ||
-      Date.parse(row.source.publishedAt) > Date.parse(row.observedAt)
-    )
-      errs.add(`observation ${index}: invalid source provenance`);
+    validateWeatherObservation(row, index, areas, seen, iso, errs, data.generatedAt);
   }
   if (data.observations.length !== 0 && data.observations.length !== areas.size)
     errs.add("a non-empty refresh must be atomic across all 20 Night Areas");
@@ -2752,6 +2827,96 @@ function validateWeatherSnapshotData() {
   );
   if (!ok) errs.report();
   return { ok, count: data.observations.length };
+}
+
+// The snapshot's own top-level shape: status/generatedAt, classification
+// provenance, and the three required arrays. Kept as one small gate so
+// validatePintIndexSnapshot reads as "shape, then sources, then observations,
+// then counts" rather than one long branch chain.
+function validatePintIndexSnapshotShape(data, errs, iso) {
+  if (
+    data?.schemaVersion !== 1 ||
+    !["published", "partial", "empty"].includes(data?.status) ||
+    !iso(data?.generatedAt)
+  )
+    errs.add("expected a v1 snapshot with valid status and generatedAt");
+  if (
+    data?.classification?.version !== "london-borough-point-v1" ||
+    data?.classification?.method !== "point_in_polygon" ||
+    typeof data?.classification?.licence !== "string"
+  )
+    errs.add("invalid classification provenance");
+  if (
+    !Array.isArray(data?.sources) ||
+    !Array.isArray(data?.observations) ||
+    !Array.isArray(data?.excluded)
+  )
+    errs.add("sources, observations and excluded must be arrays");
+}
+
+// One source's eligibility: id/dup, kind, public URL, then the kind-specific
+// evidence each pint-index source type must carry. Mutates `ids` exactly as
+// the original inline loop did, so later observations can check membership.
+function validatePintIndexSource(source, index, ids, errs, publicUrl, hostname) {
+  if (!source?.id || ids.has(source.id))
+    errs.add(`source ${index}: missing or duplicate id`);
+  ids.add(source?.id);
+  if (
+    !["confirmed_pint_drop", "official_publisher", "open_data"].includes(
+      source?.kind,
+    )
+  )
+    errs.add(`source ${index}: ineligible kind`);
+  if (!publicUrl(source?.sourceUrl))
+    errs.add(`source ${index}: invalid public URL`);
+  if (
+    source?.kind === "confirmed_pint_drop" &&
+    (source?.reviewState !== "confirmed" || !source?.confirmationId)
+  ) {
+    errs.add(`source ${index}: Pint Drop requires confirmed review evidence`);
+  }
+  if (source?.kind === "official_publisher") {
+    const domain =
+      typeof source?.officialDomain === "string"
+        ? source.officialDomain.toLowerCase().replace(/^www\./, "")
+        : "";
+    const sourceHost = hostname(source?.sourceUrl);
+    if (
+      !["pub", "brewery"].includes(source?.publisherType) ||
+      !domain ||
+      !sourceHost ||
+      (sourceHost !== domain && !sourceHost.endsWith(`.${domain}`))
+    ) {
+      errs.add(
+        `source ${index}: official pub/brewery domain must match source URL`,
+      );
+    }
+  }
+  if (
+    source?.kind === "open_data" &&
+    (!source?.licence || !source?.datasetName)
+  )
+    errs.add(`source ${index}: open data requires a named, licensed dataset`);
+}
+
+// One observation's borough, price, timestamp, and source-id checks.
+function validatePintIndexObservation(row, index, ids, errs, boroughs, code, iso) {
+  if (
+    !boroughs.has(row?.boroughName) ||
+    code(row.boroughName ?? "") !== row?.boroughCode
+  )
+    errs.add(`observation ${index}: non-canonical borough`);
+  if (!Number.isInteger(row?.pricePence) || row.pricePence <= 0)
+    errs.add(`observation ${index}: invalid pricePence`);
+  if (!iso(row?.observedAt)) errs.add(`observation ${index}: invalid observedAt`);
+  if (!ids.has(row?.sourceId)) errs.add(`observation ${index}: unknown source`);
+}
+
+function validatePintIndexObservationCounts(data, errs) {
+  if (data?.status === "empty" && (data?.observations?.length ?? 0) !== 0)
+    errs.add("empty snapshot contains observations");
+  if (data?.status !== "empty" && (data?.observations?.length ?? 0) === 0)
+    errs.add("non-empty snapshot has no observations");
 }
 
 function validatePintIndexSnapshot() {
@@ -2826,89 +2991,111 @@ function validatePintIndexSnapshot() {
       .replace(/&/g, " and ")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
-  if (
-    data?.schemaVersion !== 1 ||
-    !["published", "partial", "empty"].includes(data?.status) ||
-    !iso(data?.generatedAt)
-  )
-    errs.add("expected a v1 snapshot with valid status and generatedAt");
-  if (
-    data?.classification?.version !== "london-borough-point-v1" ||
-    data?.classification?.method !== "point_in_polygon" ||
-    typeof data?.classification?.licence !== "string"
-  )
-    errs.add("invalid classification provenance");
-  if (
-    !Array.isArray(data?.sources) ||
-    !Array.isArray(data?.observations) ||
-    !Array.isArray(data?.excluded)
-  )
-    errs.add("sources, observations and excluded must be arrays");
+  validatePintIndexSnapshotShape(data, errs, iso);
   const ids = new Set();
   for (const [index, source] of (data?.sources ?? []).entries()) {
-    if (!source?.id || ids.has(source.id))
-      errs.add(`source ${index}: missing or duplicate id`);
-    ids.add(source?.id);
-    if (
-      !["confirmed_pint_drop", "official_publisher", "open_data"].includes(
-        source?.kind,
-      )
-    )
-      errs.add(`source ${index}: ineligible kind`);
-    if (!publicUrl(source?.sourceUrl))
-      errs.add(`source ${index}: invalid public URL`);
-    if (
-      source?.kind === "confirmed_pint_drop" &&
-      (source?.reviewState !== "confirmed" || !source?.confirmationId)
-    ) {
-      errs.add(`source ${index}: Pint Drop requires confirmed review evidence`);
-    }
-    if (source?.kind === "official_publisher") {
-      const domain =
-        typeof source?.officialDomain === "string"
-          ? source.officialDomain.toLowerCase().replace(/^www\./, "")
-          : "";
-      const sourceHost = hostname(source?.sourceUrl);
-      if (
-        !["pub", "brewery"].includes(source?.publisherType) ||
-        !domain ||
-        !sourceHost ||
-        (sourceHost !== domain && !sourceHost.endsWith(`.${domain}`))
-      ) {
-        errs.add(
-          `source ${index}: official pub/brewery domain must match source URL`,
-        );
-      }
-    }
-    if (
-      source?.kind === "open_data" &&
-      (!source?.licence || !source?.datasetName)
-    )
-      errs.add(`source ${index}: open data requires a named, licensed dataset`);
+    validatePintIndexSource(source, index, ids, errs, publicUrl, hostname);
   }
   for (const [index, row] of (data?.observations ?? []).entries()) {
-    if (
-      !boroughs.has(row?.boroughName) ||
-      code(row.boroughName ?? "") !== row?.boroughCode
-    )
-      errs.add(`observation ${index}: non-canonical borough`);
-    if (!Number.isInteger(row?.pricePence) || row.pricePence <= 0)
-      errs.add(`observation ${index}: invalid pricePence`);
-    if (!iso(row?.observedAt))
-      errs.add(`observation ${index}: invalid observedAt`);
-    if (!ids.has(row?.sourceId))
-      errs.add(`observation ${index}: unknown source`);
+    validatePintIndexObservation(row, index, ids, errs, boroughs, code, iso);
   }
-  if (data?.status === "empty" && (data?.observations?.length ?? 0) !== 0)
-    errs.add("empty snapshot contains observations");
-  if (data?.status !== "empty" && (data?.observations?.length ?? 0) === 0)
-    errs.add("non-empty snapshot has no observations");
+  validatePintIndexObservationCounts(data, errs);
   const ok = errs.count === 0;
   console.log(
     `${ok ? "PASS" : "FAIL"} ${name}: ${data?.observations?.length ?? 0} public observations, ${errs.count} error(s)`,
   );
   if (!ok) errs.report();
   return { ok, count: data?.observations?.length ?? 0 };
+}
+
+function validatePintIndexEditionArchiveMeta(file, month, archive, data, start, end, errs, iso) {
+  if (archive?.month !== month) errs.add(`${file}: archive.month does not match the file`);
+  if (!iso(archive?.publishedAt)) errs.add(`${file}: archive.publishedAt must be an ISO date`);
+  if (Date.parse(archive?.publishedAt) <= end.getTime()) errs.add(`${file}: published before the month closed`);
+  if (data?.observationWindow?.start !== start.toISOString() ||
+      data?.observationWindow?.end !== end.toISOString()) {
+    errs.add(`${file}: observationWindow is not exactly ${month}`);
+  }
+}
+
+function validatePintIndexEditionCorrections(file, archive, errs, iso, hex64) {
+  const corrections = Array.isArray(archive?.corrections) ? archive.corrections : null;
+  if (!corrections) errs.add(`${file}: archive.corrections must be an array`);
+  else if (archive?.revision !== corrections.length + 1) errs.add(`${file}: revision must be corrections + 1`);
+  corrections?.forEach((correction, index) => {
+    if (!iso(correction?.issuedAt)) errs.add(`${file}: correction ${index} needs an ISO issuedAt`);
+    if (typeof correction?.note !== "string" || !correction.note.trim()) errs.add(`${file}: correction ${index} needs a note`);
+    if (correction?.previousRevision !== index + 1) errs.add(`${file}: correction ${index} must replace revision ${index + 1}`);
+    if (!hex64.test(correction?.previousObservationsSha256 ?? "")) errs.add(`${file}: correction ${index} needs the replaced hash`);
+  });
+}
+
+// Which month an observation belongs to, parsed to UTC exactly as
+// lib/pintIndexArchive.ts pintIndexMonthOf does. A raw string prefix would
+// read "2026-06-30T23:30:00-05:00" as June while the runtime validator reads
+// it as July, and the build would stay green while the edition, its CSV and
+// its sitemap entry silently stopped being served.
+function validatePintIndexEditionObservationDates(file, month, rows, errs, observedMonth) {
+  let datesParse = true;
+  for (const [index, row] of rows.entries()) {
+    const observed = observedMonth(row?.observedAt);
+    if (observed === null) {
+      datesParse = false;
+      errs.add(`${file}: observation ${index} has no parseable observedAt`);
+    } else if (observed !== month) {
+      errs.add(`${file}: observation ${index} was not observed in ${month}`);
+    }
+  }
+  return datesParse;
+}
+
+// A published month that no longer hashes to its stored digest has been
+// rewritten, which is exactly the thing a citation must be able to rule out.
+// The canonical form is imported, never restated here: a copy that drifts by
+// one character would fail a correctly published edition, and the only
+// reading of that failure is that someone rewrote a citation.
+function validatePintIndexEditionIntegrityHash(file, archive, rows, errs, hex64) {
+  if (!hex64.test(archive?.observationsSha256 ?? "")) {
+    errs.add(`${file}: archive.observationsSha256 must be a hex sha256`);
+  } else if (
+    createHash("sha256").update(canonicalObservationsPayload(rows), "utf8").digest("hex") !==
+    archive.observationsSha256
+  ) {
+    errs.add(`${file}: observations no longer match the published integrity hash`);
+  }
+}
+
+// Validates one dated edition file and returns how many observations it
+// contributes. Returns 0 (contributing nothing) for the two cases that used
+// to `continue` past the whole file: unparseable JSON and a non-YYYY-MM name.
+function validatePintIndexEditionFile(file, dir, errs, iso, hex64, observedMonth) {
+  const month = file.slice(0, -".json".length);
+  let data;
+  try {
+    data = JSON.parse(readFileSync(join(dir, file), "utf8"));
+  } catch (e) {
+    errs.add(`${file}: could not read/parse (${e.message})`);
+    return 0;
+  }
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    errs.add(`${file}: not a YYYY-MM edition`);
+    return 0;
+  }
+
+  const archive = data?.archive;
+  const start = new Date(`${month}-01T00:00:00.000Z`);
+  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1) - 1);
+  validatePintIndexEditionArchiveMeta(file, month, archive, data, start, end, errs, iso);
+  validatePintIndexEditionCorrections(file, archive, errs, iso, hex64);
+
+  const rows = Array.isArray(data?.observations) ? data.observations : [];
+  const datesParse = validatePintIndexEditionObservationDates(file, month, rows, errs, observedMonth);
+  // The canonical form the hash covers needs every date to parse; an
+  // unparseable one is already reported, so do not crash re-deriving it.
+  if (datesParse) {
+    validatePintIndexEditionIntegrityHash(file, archive, rows, errs, hex64);
+  }
+  return rows.length;
 }
 
 function validatePintIndexEditions() {
@@ -2922,66 +3109,13 @@ function validatePintIndexEditions() {
   const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
   const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
   const hex64 = /^[0-9a-f]{64}$/;
-  // A published month that no longer hashes to its stored digest has been
-  // rewritten, which is exactly the thing a citation must be able to rule out.
-  // The canonical form is imported, never restated here: a copy that drifts by
-  // one character would fail a correctly published edition, and the only
-  // reading of that failure is that someone rewrote a citation.
-  // Which month an observation belongs to, parsed to UTC exactly as
-  // lib/pintIndexArchive.ts pintIndexMonthOf does. A raw string prefix would
-  // read "2026-06-30T23:30:00-05:00" as June while the runtime validator reads
-  // it as July, and the build would stay green while the edition, its CSV and
-  // its sitemap entry silently stopped being served.
   const observedMonth = (value) => {
     const parsed = Date.parse(value);
     return Number.isFinite(parsed) ? new Date(parsed).toISOString().slice(0, 7) : null;
   };
   let observations = 0;
   for (const file of files) {
-    const month = file.slice(0, -".json".length);
-    let data;
-    try { data = JSON.parse(readFileSync(join(dir, file), "utf8")); }
-    catch (e) { errs.add(`${file}: could not read/parse (${e.message})`); continue; }
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) { errs.add(`${file}: not a YYYY-MM edition`); continue; }
-
-    const archive = data?.archive;
-    const start = new Date(`${month}-01T00:00:00.000Z`);
-    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1) - 1);
-    if (archive?.month !== month) errs.add(`${file}: archive.month does not match the file`);
-    if (!iso(archive?.publishedAt)) errs.add(`${file}: archive.publishedAt must be an ISO date`);
-    if (Date.parse(archive?.publishedAt) <= end.getTime()) errs.add(`${file}: published before the month closed`);
-    if (data?.observationWindow?.start !== start.toISOString() ||
-        data?.observationWindow?.end !== end.toISOString()) {
-      errs.add(`${file}: observationWindow is not exactly ${month}`);
-    }
-    const corrections = Array.isArray(archive?.corrections) ? archive.corrections : null;
-    if (!corrections) errs.add(`${file}: archive.corrections must be an array`);
-    else if (archive?.revision !== corrections.length + 1) errs.add(`${file}: revision must be corrections + 1`);
-    corrections?.forEach((correction, index) => {
-      if (!iso(correction?.issuedAt)) errs.add(`${file}: correction ${index} needs an ISO issuedAt`);
-      if (typeof correction?.note !== "string" || !correction.note.trim()) errs.add(`${file}: correction ${index} needs a note`);
-      if (correction?.previousRevision !== index + 1) errs.add(`${file}: correction ${index} must replace revision ${index + 1}`);
-      if (!hex64.test(correction?.previousObservationsSha256 ?? "")) errs.add(`${file}: correction ${index} needs the replaced hash`);
-    });
-    const rows = Array.isArray(data?.observations) ? data.observations : [];
-    observations += rows.length;
-    let datesParse = true;
-    for (const [index, row] of rows.entries()) {
-      const observed = observedMonth(row?.observedAt);
-      if (observed === null) {
-        datesParse = false;
-        errs.add(`${file}: observation ${index} has no parseable observedAt`);
-      } else if (observed !== month) {
-        errs.add(`${file}: observation ${index} was not observed in ${month}`);
-      }
-    }
-    // The canonical form the hash covers needs every date to parse; an
-    // unparseable one is already reported, so do not crash re-deriving it.
-    if (!datesParse) continue;
-    if (!hex64.test(archive?.observationsSha256 ?? "")) errs.add(`${file}: archive.observationsSha256 must be a hex sha256`);
-    else if (createHash("sha256").update(canonicalObservationsPayload(rows), "utf8").digest("hex") !== archive.observationsSha256) {
-      errs.add(`${file}: observations no longer match the published integrity hash`);
-    }
+    observations += validatePintIndexEditionFile(file, dir, errs, iso, hex64, observedMonth);
   }
   const ok = errs.count === 0;
   console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${files.length} dated edition(s), ${observations} frozen observation(s), ${errs.count} error(s)`);
