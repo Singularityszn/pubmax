@@ -79,11 +79,13 @@ describe("searchUkBasePubsByName — resident shards only", () => {
   });
 
   it("ranks prefix matches ahead of substring matches, then nearest", () => {
+    // "Ahead Arms" only hits via includes (tier 2); the Head* names start a
+    // word (tier 1). Nearest wins inside a tier.
     const result = searchUkBasePubsByName({
       pubs: [
         basePub({
           id: "venue-uk-n-sub",
-          name: "Queen's Head",
+          name: "Ahead Arms",
           lat: 53.38,
           lng: -1.47,
         }),
