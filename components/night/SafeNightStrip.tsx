@@ -17,6 +17,7 @@ import { LifeBuoy, ChevronDown, Share2, Phone } from "lucide-react";
 
 import type { CityId } from "@/lib/cities";
 import { isPlanId } from "@/lib/plan";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import "./safeNightStrip.css";
 
@@ -80,11 +81,6 @@ export function writeSafeNightDismissed(scope: string): void {
   }
 }
 
-function venueMapsUrl(venue: SafeNightVenueShare): string {
-  const query = `${venue.latitude},${venue.longitude}`;
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-}
-
 export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
   const scope = resolveSafeNightDismissScope(planId);
   const bodyId = useId();
@@ -135,7 +131,7 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
 
   const shareVenue = async () => {
     if (typeof window === "undefined" || !venue) return;
-    const url = venueMapsUrl(venue);
+    const url = new URL(venueMapUrl(venue.id), window.location.origin).toString();
     const shareData = {
       title: venue.name,
       text: `I'm at ${venue.name}.`,
@@ -212,7 +208,7 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
                   .
                 </>
               ) : (
-                "Live trains for this pin sit above."
+                "Getting-home times for this pin sit above."
               )}
             </p>
           ) : null}

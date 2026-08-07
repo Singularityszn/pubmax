@@ -13,6 +13,7 @@ import {
   writeSafeNightDismissed,
 } from "@/components/night/SafeNightStrip";
 import type { Venue } from "@/lib/venues";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 
 const PLAN_ID = "11111111-2222-4333-8444-555555555555";
 
@@ -150,6 +151,36 @@ describe("SafeNightStrip Getting Home mount", () => {
     expect(html).toContain("Share your live plan link with someone who is not out tonight.");
     expect(html).not.toContain("Share this pin");
     expect(html).not.toContain("Plan a journey on TfL");
+  });
+
+  it("uses honest getting-home copy outside London without claiming live trains", () => {
+    const html = renderToStaticMarkup(
+      createElement(SafeNightStrip, {
+        venue: {
+          id: "venue-mcr-1lwo5lo",
+          name: "The Northern Fixture",
+          latitude: 53.48,
+          longitude: -2.24,
+        },
+        cityId: "manchester",
+      }),
+    );
+
+    expect(html).toContain("Getting-home times for this pin sit above.");
+    expect(html).not.toContain("Live trains");
+    expect(html).not.toContain("TfL");
+    expect(html).not.toContain("tfl.gov.uk");
+  });
+
+  it("shares the product pin URL, not Google Maps", () => {
+    const origin = "http://localhost:3000";
+    const url = new URL(venueMapUrl("venue-safe-night"), origin).toString();
+
+    expect(url).toBe("http://localhost:3000/map?sel=venue-safe-night");
+    expect(url).not.toContain("google.com/maps");
+
+    const cityUrl = new URL(venueMapUrl("venue-mcr-1lwo5lo"), origin).toString();
+    expect(cityUrl).toBe("http://localhost:3000/map/manchester?sel=venue-mcr-1lwo5lo");
   });
 
   it("returns nothing once Getting Home hide-for-tonight is set", () => {
