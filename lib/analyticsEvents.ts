@@ -99,6 +99,9 @@ export const ANALYTICS_EVENTS = {
   // Wave D — sharing is a return-loop signal; alcohol quantity is never
   // represented as progression telemetry.
   poster_shared: ["surface"],
+  // PLG Wave 2 physical QR: a drinker landed on /near from /?src=poster.
+  // No props — the closed name is the whole signal (no free text, no UTM).
+  poster_landing: [],
   // London Capture — reviewed catalogue identifiers and gate codes only.
   district_catalogue_viewed: [],
   district_viewed: ["district", "coverageStatus", "demandWave"],
