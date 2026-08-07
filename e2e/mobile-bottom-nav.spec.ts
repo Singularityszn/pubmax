@@ -27,7 +27,7 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(nav).toHaveCSS("opacity", "1");
 
     await page.getByRole("button", { name: "More map controls" }).click();
-    await page.getByRole("button", { name: "Plan tonight" }).click();
+    await page.getByRole("button", { name: "Plan an outing" }).click();
     await expect(page.locator(".appShell")).toHaveClass(/planning-open/);
     await expect(page.locator(".mapDrawer.left")).toHaveClass(/open/);
     await expect(nav).toHaveCSS("opacity", "0");

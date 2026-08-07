@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 /**
  * Taste gate 2026-08-02, finding M4 - two planners stacked in one sheet.
  *
- * The phone "Plan tonight" sheet and the desktop planner drawer render the same
+ * The phone "Plan an outing" sheet and the desktop planner drawer render the same
  * `plannerPanel` tree. The desktop rail (ControlRail: brand block, mode toggle,
  * search box, featured routes, the whole filter stack) had no viewport guard, so
  * the phone sheet held the phone intake form, the built route, AND the entire

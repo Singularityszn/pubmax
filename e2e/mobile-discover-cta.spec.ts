@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("mobile discover Plan tonight card opens a mapped crawl on the map", async ({ page }) => {
+test("mobile discover Plan an outing card opens a mapped crawl on the map", async ({ page }) => {
   test.setTimeout(90_000);
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -13,12 +13,12 @@ test("mobile discover Plan tonight card opens a mapped crawl on the map", async 
   expect(response?.status()).toBe(200);
 
   await page.getByRole("heading", { name: "Ways to drink through the city" }).scrollIntoViewIfNeeded();
-  const planTonightCta = page.getByRole("link", { name: "Plan tonight" });
+  const planTonightCta = page.getByRole("link", { name: "Plan an outing" });
   await expect(planTonightCta).toBeVisible();
 
   const ctaBox = await planTonightCta.boundingBox();
-  expect(ctaBox, "Discover Plan tonight CTA has a tappable box").not.toBeNull();
-  expect(ctaBox!.height, "Discover Plan tonight CTA touch target height").toBeGreaterThanOrEqual(44);
+  expect(ctaBox, "Discover Plan an outing CTA has a tappable box").not.toBeNull();
+  expect(ctaBox!.height, "Discover Plan an outing CTA touch target height").toBeGreaterThanOrEqual(44);
 
   await expect
     .poll(

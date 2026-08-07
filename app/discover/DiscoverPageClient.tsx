@@ -170,7 +170,7 @@ function buildEditorial(): EditorialCardData[] {
       title: "Tonight's crawl, sorted",
       dek: "Pick a borough and set your price before opening the route on the map.",
       href: packMapHref("late-train", DEFAULT_CITY_ID),
-      cta: "Plan tonight",
+      cta: "Plan an outing",
     },
   ];
 }

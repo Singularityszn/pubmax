@@ -30,7 +30,7 @@ describe("contextual Plan and Near entry points", () => {
     );
 
     expect(html).toContain('href="/plan"');
-    expect(html).toContain("Plan tonight");
+    expect(html).toContain("Plan an outing");
   });
 
   it("offers Near inside the location-based Getting home card", () => {

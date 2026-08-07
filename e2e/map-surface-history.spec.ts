@@ -103,7 +103,7 @@ test.describe("one Map surface history owner", () => {
 
     await page
       .locator(".mapToolbar")
-      .getByRole("button", { name: "Plan tonight" })
+      .getByRole("button", { name: "Plan an outing" })
       .evaluate((button) => (button as HTMLElement).click());
 
     await expectSoleDrawer(page, "planner");
@@ -114,7 +114,7 @@ test.describe("one Map surface history owner", () => {
     await openMap(page);
     await page
       .locator(".mapToolbar")
-      .getByRole("button", { name: "Plan tonight" })
+      .getByRole("button", { name: "Plan an outing" })
       .click();
     await expectSoleDrawer(page, "planner");
 
@@ -173,7 +173,7 @@ test.describe("one Map surface history owner", () => {
 
     await page
       .locator(".mapToolbar")
-      .getByRole("button", { name: "Plan tonight" })
+      .getByRole("button", { name: "Plan an outing" })
       .evaluate((button) => {
         (button as HTMLElement).click();
         window.history.back();
@@ -189,7 +189,7 @@ test.describe("one Map surface history owner", () => {
     const toolbar = page.locator(".mapToolbar");
     const search = toolbar.getByRole("combobox", { name: "Search pubs" });
     await search.fill("Soho");
-    await toolbar.getByRole("button", { name: "Plan tonight" }).click();
+    await toolbar.getByRole("button", { name: "Plan an outing" }).click();
     await expectSoleDrawer(page, "planner");
     await selectFirstToolbarVenue(page, "Soho");
     await expectSoleDrawer(page, "venue");
@@ -255,7 +255,7 @@ test.describe("one Map surface history owner", () => {
       await openMap(page, `/map?history-proof=${theme}-1440`);
       await page
         .locator(".mapToolbar")
-        .getByRole("button", { name: "Plan tonight" })
+        .getByRole("button", { name: "Plan an outing" })
         .click();
       await expectSoleDrawer(page, "planner");
       await expect(
