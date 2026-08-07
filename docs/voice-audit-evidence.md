@@ -122,7 +122,7 @@ The earlier metadata inventory overstated its coverage. It listed 19 files, but 
 
 ### API route modules that may own verbatim errors
 
-Total: 131. Inspected: 45. Not inspected: 86.
+Total: 131. Inspected: 48. Not inspected: 83.
 
 Command:
 
@@ -180,9 +180,6 @@ This deliberately treats every API route as a candidate because client code can 
 - `app/api/night-stories/[id]/workspace/route.ts`
 - `app/api/night-stories/route.ts`
 - `app/api/notifications/route.ts`
-- `app/api/pint-drops/[id]/route.ts`
-- `app/api/pint-drops/comments/route.ts`
-- `app/api/pint-drops/reactions/route.ts`
 - `app/api/plan-card/route.tsx`
 - `app/api/plans/[id]/actions/route.ts`
 - `app/api/plans/[id]/collaboration/route.ts`
@@ -926,3 +923,33 @@ dashes, no British-spelling misses, honest staleness disclosure that only ever
 rounds down, and no copy assuming the reader drinks alcohol ("pint-in-the-garden
 day" names a weather mood, not a drink order; the product noun "pint" stays). No
 code changed; this is a clean-audit closeout for one surface, not a widened sweep.
+
+### Surface pass 3 (2026-08-07)
+
+After two clean passes on metadata surfaces, this pass switched category to "API
+route modules that may own verbatim errors", the list of user-facing failure text
+most likely to hide a violation. The Pint Drops cluster was chosen as the
+highest-exposure surface in that category: it is the product's core log-a-price
+write path plus its two social read/write actions, so its error strings are the
+ones a real user hits most often. The audit covered `app/api/pint-drops/route.ts`,
+`app/api/pint-drops/[id]/route.ts`, `app/api/pint-drops/comments/route.ts`, and
+`app/api/pint-drops/reactions/route.ts`, together with `lib/pintDrops.ts`,
+`lib/profileOwnership.ts`, and `lib/commentsStore.ts`, the direct generators
+behind every error string those routes return. Every string was traced to its
+code guarantee (validation failures, storage-unavailable states, rate-limit
+messages, handle-gating messages) and checked against `docs/VOICE.md`. None
+violated the rules: no banned words, no em dashes, no exclamation marks, no
+begging language, no plumbing words, and no copy assuming the reader drinks
+alcohol.
+
+To corroborate that this category is broadly clean and not just this one
+cluster, every one of the 86 not-inspected files in this category was also
+swept with pattern searches for em dashes in string literals, exclamation
+marks, begging phrases, banned marketing words, plumbing words, "0.0" literals,
+and Latinate words outside comments and imports. The sweep found no violations
+outside code comments. Separately, `__tests__/emDashLaw.test.ts` only walks
+`.tsx` files under `app` and `components`; plain `.ts` route files such as
+these are not covered by that test's em-dash scan. This is a pre-existing gap
+in test coverage, not a copy violation, and is noted here for awareness rather
+than fixed in this pass. No code changed; this is a clean-audit closeout for
+one surface, not a widened sweep.
