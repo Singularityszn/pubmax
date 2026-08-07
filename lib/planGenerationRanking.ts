@@ -11,6 +11,7 @@ function priceAndZeroProof(
   venue: ConciergeVenue,
   context: NightContext,
   naLensPrices: ReadonlyMap<string, MapLensPrice> | undefined,
+  coffeeLensPrices: ReadonlyMap<string, MapLensPrice> | undefined,
 ): ScoreAccumulator {
   const reasons: string[] = [];
   const price = venue.cheapestPrice;
@@ -35,6 +36,17 @@ function priceAndZeroProof(
     } else if (venue.amenities.nonAlcoholic === true) {
       score += 1.5;
       reasons.push("confirmed alcohol-free option in the Venue Dataset");
+    }
+  }
+  // Coffee occasions pass a trusted coffee MapLensPrice map (same corroboration
+  // seam as zeroProof NA). Presence of the map means the query asked for coffee;
+  // a venue without a corroborated coffee price stays neutral, never penalised,
+  // and never invents a figure.
+  if (coffeeLensPrices !== undefined) {
+    const coffeePrice = coffeeLensPrices.get(venue.id);
+    if (coffeePrice !== undefined) {
+      score += 4;
+      reasons.push(`corroborated coffee price from £${coffeePrice.priceGbp.toFixed(2)}`);
     }
   }
   return { score, reasons };
@@ -89,7 +101,28 @@ function atmosphereFit(
     score += 1.25;
     reasons.push("livelier atmosphere signal");
   }
-  if (context.atmosphere.includes("quiet") && (venue.amenities.liveMusic || venue.amenities.liveSports)) score -= 2;
+  if (context.atmosphere.includes("quiet")) {
+    const loud = venue.amenities.liveMusic || venue.amenities.liveSports;
+    if (loud) {
+      score -= 2;
+      reasons.push("live music or sports works against a quiet brief");
+    } else {
+      // Prefer positive evidence over penalties alone. quietHours is the
+      // strongest published calm signal; a garden without loud amenities is
+      // next; bare absence of live music/sports is a soft preference only.
+      const quietHours = typeof venue.quietHours === "string" ? venue.quietHours.trim() : "";
+      if (quietHours) {
+        score += 2;
+        reasons.push("published quiet hours on record");
+      } else if (venue.amenities.beerGarden) {
+        score += 1.5;
+        reasons.push("garden without live music or sports");
+      } else {
+        score += 0.75;
+        reasons.push("no live music or sports on record");
+      }
+    }
+  }
   return { score, reasons };
 }
 
@@ -113,6 +146,11 @@ function liveSignals(
   return { score, reasons };
 }
 
+/** True when free-text asks for coffee, so generate can wire coffee lens prices. */
+export function planQueryWantsCoffee(query: string): boolean {
+  return /\bcoffee\b/i.test(query);
+}
+
 export function scoreVenueForPlan(
   venue: ConciergeVenue,
   context: NightContext,
@@ -121,9 +159,10 @@ export function scoreVenueForPlan(
   signalClaims: readonly NightSignalClaim[],
   weather: PlanningWeather | null,
   naLensPrices?: ReadonlyMap<string, MapLensPrice>,
+  coffeeLensPrices?: ReadonlyMap<string, MapLensPrice>,
 ): { score: number; reasons: string[] } {
   const pieces = [
-    priceAndZeroProof(venue, context, naLensPrices),
+    priceAndZeroProof(venue, context, naLensPrices, coffeeLensPrices),
     occasionFit(venue, context),
     atmosphereFit(venue, context, weather),
     liveSignals(context, tonightEvents, signalClaims),

@@ -6,7 +6,11 @@ import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
 import { NO_ALCOHOL_DRINK_CATEGORIES, type CommunityPrice } from "@/lib/communityPrice";
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
-import { trustedNoAlcoholLensPrices } from "@/lib/mapExperienceLens";
+import {
+	trustedDrinkLensPrices,
+	trustedNoAlcoholLensPrices,
+	type MapLensPrice,
+} from "@/lib/mapExperienceLens";
 import { getNightArea, isNightAreaRouteReady, publicNightAreaCoverage, type NightArea } from "@/lib/nightAreas";
 import type { NightContext } from "@/lib/nightPlanning";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
@@ -28,7 +32,12 @@ import {
 	planBudgetSummary,
 	planRouteTimingDisclosure,
 } from "@/lib/planGenerationDto";
-import { planEvidenceWarning, planGenerationEvidenceGaps, scoreVenueForPlan } from "@/lib/planGenerationRanking";
+import {
+	planEvidenceWarning,
+	planGenerationEvidenceGaps,
+	planQueryWantsCoffee,
+	scoreVenueForPlan,
+} from "@/lib/planGenerationRanking";
 import { selectAnchoredPlanGenerationCandidates, selectPlanGenerationCandidates, type ScoredPlanCandidate } from "@/lib/planGenerationSelection.server";
 import type { PlanGenerationAnchor } from "@/lib/planGenerationRequest";
 import { planTemporalEvidence } from "@/lib/planGenerationTemporalEvidence";
@@ -263,12 +272,37 @@ export async function POST(request: Request): Promise<Response> {
 		noAlcoholRowsByVenue.set(row.venueId, current);
 	}
 	const naLensPrices = trustedNoAlcoholLensPrices(noAlcoholRowsByVenue, requestNow);
+	// Coffee occasions soft-boost corroborated coffee MapLensPrices the same way
+	// zeroProof prefers AF. Load only when the query asks for coffee so daytime
+	// lunch / catch-up without coffee stays unboosted. Empty map = occasion on,
+	// no trusted prices yet (venues stay neutral).
+	const wantsCoffee = planQueryWantsCoffee(query);
+	let coffeeLensPrices: ReadonlyMap<string, MapLensPrice> | undefined;
+	if (wantsCoffee) {
+		const coffeePriceRows = await readCommunityPriceCategoryIndex(["coffee"], requestNow);
+		const coffeeRowsByVenue = new Map<string, CommunityPrice[]>();
+		for (const row of coffeePriceRows.prices) {
+			const current = coffeeRowsByVenue.get(row.venueId) ?? [];
+			current.push(row);
+			coffeeRowsByVenue.set(row.venueId, current);
+		}
+		coffeeLensPrices = trustedDrinkLensPrices(coffeeRowsByVenue, "coffee", requestNow);
+	}
 	  const candidates = (await loadConciergeVenues(cityId))
 	    .map((venue) => {
 	      const distance = distanceKm(area.centre, venue);
 	      const tonightEvents = tonightByVenue.get(venue.id) ?? [];
 	      const signalClaims = claimsForEntity(reviewedSignalClaims, "venue", venue.id);
-	      const scored = scoreVenueForPlan(venue, context, distance, tonightEvents, signalClaims, planningWeather, naLensPrices);
+	      const scored = scoreVenueForPlan(
+	        venue,
+	        context,
+	        distance,
+	        tonightEvents,
+	        signalClaims,
+	        planningWeather,
+	        naLensPrices,
+	        coffeeLensPrices,
+	      );
 	      return { venue, distance, tonightEvents, signalClaims, ...scored };
 	    })
     .filter(({ distance, venue, signalClaims }) =>

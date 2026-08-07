@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { getCity, type CityId } from "@/lib/cities";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
+import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 
 type SlimRow = Record<string, unknown>;
 
@@ -38,6 +39,11 @@ function toVenue(value: unknown): ConciergeVenue | null {
     ? hints.curation as Record<string, unknown>
     : {};
   const nonAlcoholic = optionalBool(amenities, "nonAlcoholic");
+  const access = getVenueAccessibility(row.name, row.borough);
+  const quietHours =
+    typeof access?.quietHours === "string" && access.quietHours.trim()
+      ? access.quietHours.trim()
+      : undefined;
 
   return {
     id: row.id,
@@ -61,6 +67,7 @@ function toVenue(value: unknown): ConciergeVenue | null {
     // Future datasets may carry placements. Preserve only the exclusion flag;
     // never pass placement metadata into ranking or the response.
     ...(row.promoted === true || hints.promoted === true ? { promoted: true } : {}),
+    ...(quietHours ? { quietHours } : {}),
   };
 }
 

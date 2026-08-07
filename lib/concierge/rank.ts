@@ -52,6 +52,11 @@ export type ConciergeVenue = {
   searchText?: string;
   /** Paid placements are never eligible for concierge results. */
   promoted?: boolean;
+  /**
+   * Published quiet-hours note when documented (accessibility seed). Absent
+   * means unknown, never a claim that the pub is loud.
+   */
+  quietHours?: string;
 };
 
 export type RankedConciergeVenue = {
