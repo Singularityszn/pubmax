@@ -9,7 +9,8 @@ import {
   marksMapProvisionally,
   paintsMap,
   COMMUNITY_PRICE_MAX_GBP,
-  DEFAULT_SUBMIT_CATEGORY,
+  priceSubmitHeading,
+  resolveSubmitCategory,
   submitCategoryLabel,
   SUBMITTABLE_DRINK_CATEGORIES,
   validateCommunityPrice,
@@ -67,6 +68,12 @@ type VenuePriceSubmitProps = {
   mapReach?: CommunityPriceMapReach;
   /** Increment to bring this existing form under the drinker's thumb. */
   focusRequest?: number;
+  /**
+   * Active map drink lens, when it is a submittable category. Opens the form
+   * on that drink instead of always beer - coffee under a coffee lens, and so
+   * on. Non-submittable or absent values fall back inside resolveSubmitCategory.
+   */
+  initialCategory?: DrinkCategory | null;
 };
 
 /**
@@ -88,10 +95,13 @@ export default function VenuePriceSubmit({
   latestPintDropAt = null,
   mapReach = "paint",
   focusRequest = 0,
+  initialCategory = null,
 }: VenuePriceSubmitProps) {
   const titleId = `vpsubTitle-${venueId}`;
   const priceInputRef = useRef<HTMLInputElement>(null);
-  const [category, setCategory] = useState<DrinkCategory>(DEFAULT_SUBMIT_CATEGORY);
+  const [category, setCategory] = useState<DrinkCategory>(() =>
+    resolveSubmitCategory(initialCategory),
+  );
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
   // Which drink this viewer just logged, so the receipt celebrates THEIR tap.
@@ -195,7 +205,7 @@ export default function VenuePriceSubmit({
       <div className="vpsubHead">
         <Tag size={15} aria-hidden="true" />
         <h3 id={titleId} className="vpsubTitle">
-          What&rsquo;s it tonight?
+          {priceSubmitHeading(category)}
         </h3>
       </div>
 

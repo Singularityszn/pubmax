@@ -17,6 +17,7 @@ import { isPubVenue } from "@/lib/venueKindFilters";
 import type { JourneyPoint } from "@/lib/venueJourney";
 import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import type { DrinkCategory } from "@/lib/drinks";
 import { prefetchLastRide } from "@/lib/lastRideClient";
 import {
   runPriceContributionRequest,
@@ -59,8 +60,8 @@ type VenueInspectorProps = {
   initialTab?: TabKey;
   pintDrops: PintDropsState;
   /**
-   * Community price layer - backs the fast "What's it tonight?" submission on
-   * the Overview tab and the restamp every other surface reads.
+   * Community price layer - backs the fast price submission on the Overview
+   * tab and the restamp every other surface reads.
    */
   communityPrices: CommunityPricesState;
   // The mobile bottom-sheet drag gesture (GH #17) lives in PubMap.tsx (the
@@ -85,6 +86,11 @@ type VenueInspectorProps = {
   onRequestLocation: () => void;
   onClearLocation: () => void;
   experienceLens?: MapExperienceLens;
+  /**
+   * Active map drink lens when present. Overview hands it to the price form
+   * so a coffee / soft-drink / alcohol-free lens opens on that category.
+   */
+  initialSubmitCategory?: DrinkCategory | null;
 };
 
 function focusPriceDestination(id: string): void {
@@ -130,6 +136,7 @@ export default function VenueInspector({
   onRequestLocation,
   onClearLocation,
   experienceLens = "all",
+  initialSubmitCategory = null,
 }: VenueInspectorProps) {
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const { user, loading: authLoading, configured: authConfigured } = useAuth();
@@ -303,6 +310,7 @@ export default function VenueInspector({
             ? priceFocusRequest.count
             : 0
         }
+        initialSubmitCategory={initialSubmitCategory}
       />
 
       {/* Pints — the primary tab: demo note, drops list, composer / log bar. */}

@@ -56,6 +56,52 @@ export const NO_ALCOHOL_DRINK_CATEGORIES: readonly DrinkCategory[] = [
 /** The default category the submit surface opens on - a pub is a pint first. */
 export const DEFAULT_SUBMIT_CATEGORY: DrinkCategory = "beer";
 
+/** True when the category is offered on the price-submit surface. */
+export function isSubmittableDrinkCategory(
+  value: unknown,
+): value is DrinkCategory {
+  return (
+    isDrinkCategory(value) &&
+    (SUBMITTABLE_DRINK_CATEGORIES as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * Resolve the category the submit form should open on. An active map drink
+ * lens that is itself submittable wins; anything else (empty, unknown, or a
+ * lensable-but-not-submittable spirit) falls back to the pint default.
+ */
+export function resolveSubmitCategory(
+  initial: unknown = null,
+): DrinkCategory {
+  return isSubmittableDrinkCategory(initial)
+    ? initial
+    : DEFAULT_SUBMIT_CATEGORY;
+}
+
+/**
+ * Heading for the price-submit card. Beer keeps the pub-night question;
+ * daytime drinks and other lenses get a category-aware or outing-neutral
+ * line so coffee never asks what it is "tonight".
+ */
+export function priceSubmitHeading(category: DrinkCategory): string {
+  // Typographic apostrophe matches the previous JSX &rsquo; so voice and
+  // snapshot pins keep reading the same character.
+  const a = "’";
+  switch (category) {
+    case "coffee":
+      return `What${a}s the coffee?`;
+    case "soft-drink":
+      return `What${a}s the soft drink?`;
+    case "alcohol-free":
+      return `What${a}s the alcohol-free?`;
+    case "beer":
+      return `What${a}s it tonight?`;
+    default:
+      return `What${a}s the price?`;
+  }
+}
+
 /**
  * The MAP's candidate figure for a drink category: the best-corroborated
  * in-window report, which is not necessarily the freshest one. The sheet shows
@@ -175,7 +221,7 @@ export function validateCommunityPrice(input: unknown): CommunityPriceValidation
 
   const parsed = readNumber(raw.priceGbp);
   if (parsed === null) {
-    return { ok: false, error: "Type tonight's price, like 4.20." };
+    return { ok: false, error: "Type the price, like 4.20." };
   }
   if (parsed < COMMUNITY_PRICE_MIN_GBP) {
     // A sub-£1 entry is almost always a dropped digit (£4.50 typed as £0.45),

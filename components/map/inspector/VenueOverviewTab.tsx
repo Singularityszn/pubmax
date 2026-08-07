@@ -50,7 +50,7 @@ import {
   type MapExperienceLens,
   type VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
-import { namedLegacyPintPriceSource } from "@/lib/drinks";
+import { namedLegacyPintPriceSource, type DrinkCategory } from "@/lib/drinks";
 
 function VenuePriceSummary({
   venue,
@@ -228,6 +228,7 @@ export default function VenueOverviewTab({
   priceSignInRequested,
   priceAuthLoading,
   priceFocusRequest,
+  initialSubmitCategory = null,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -256,6 +257,8 @@ export default function VenueOverviewTab({
   priceSignInRequested: boolean;
   priceAuthLoading: boolean;
   priceFocusRequest: number;
+  /** Active map drink lens when it should preselect the submit category. */
+  initialSubmitCategory?: DrinkCategory | null;
 }) {
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
@@ -503,7 +506,7 @@ export default function VenueOverviewTab({
           }
         />
       ) : null}
-      {/* The submission loop itself: pick a drink, type tonight's price, and
+      {/* The submission loop itself: pick a drink, type the price, and
           the pin, the list row and the row above restamp on the same tap.
           Pubs only — a Pint Drop at a bar or late-food venue would
           feed a non-pint figure into the pint record. */}
@@ -521,6 +524,7 @@ export default function VenueOverviewTab({
           baselinePriceGbp={latestContributorPrice ?? venue.cheapestPrice}
           latestPintDropAt={latestPintDropAt}
           focusRequest={priceFocusRequest}
+          initialCategory={initialSubmitCategory}
         />
       ) : null}
       {mode === "build" && isPubVenue(venue) ? (

@@ -7,9 +7,10 @@ import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
 import { trackEvent } from "@/lib/analytics";
 import {
-  DEFAULT_SUBMIT_CATEGORY,
+  resolveSubmitCategory,
   type CommunityPriceMapReach,
 } from "@/lib/communityPrice";
+import type { DrinkCategory } from "@/lib/drinks";
 
 import VenuePriceSignInGate from "./VenuePriceSignInGate";
 import "../venuePriceSubmit.css";
@@ -25,6 +26,11 @@ type VenuePriceEntryPanelProps = {
   latestPintDropAt?: number | null;
   mapReach?: CommunityPriceMapReach;
   focusRequest?: number;
+  /**
+   * Active map drink lens when present. Preselects that category on the form
+   * when it is submittable; ignored otherwise.
+   */
+  initialCategory?: DrinkCategory | null;
 };
 
 /**
@@ -44,13 +50,15 @@ export default function VenuePriceEntryPanel({
   latestPintDropAt = null,
   mapReach = "paint",
   focusRequest = 0,
+  initialCategory = null,
 }: VenuePriceEntryPanelProps) {
+  const shownCategory = resolveSubmitCategory(initialCategory);
   const viewedVenueId = useRef<string | null>(null);
   useEffect(() => {
     if (viewedVenueId.current === venueId) return;
     viewedVenueId.current = venueId;
-    trackEvent("price_submit_viewed", { category: DEFAULT_SUBMIT_CATEGORY });
-  }, [venueId]);
+    trackEvent("price_submit_viewed", { category: shownCategory });
+  }, [shownCategory, venueId]);
 
   const loadVenue = communityPrices.loadVenue;
   useEffect(() => {
@@ -59,7 +67,7 @@ export default function VenuePriceEntryPanel({
 
   const priceEntry = canSubmitPrice ? (
     <VenuePriceSubmit
-      key={venueId}
+      key={`${venueId}:${shownCategory}`}
       venueId={venueId}
       venueName={venueName}
       communityPrices={communityPrices}
@@ -67,6 +75,7 @@ export default function VenuePriceEntryPanel({
       latestPintDropAt={latestPintDropAt}
       mapReach={mapReach}
       focusRequest={focusRequest}
+      initialCategory={shownCategory}
     />
   ) : showSignInGate ? (
     <VenuePriceSignInGate

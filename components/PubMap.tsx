@@ -253,6 +253,7 @@ import {
   type MapExperienceLens as MapExperienceLensValue,
 } from "@/lib/mapExperienceLens";
 import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
+import { isSubmittableDrinkCategory } from "@/lib/communityPrice";
 import {
   bandChipDismissedKey,
   shouldShowBandOnboardingChip,
@@ -822,6 +823,14 @@ export default function PubMap({
     selectedDrinkCategory !== "beer"
       ? selectedDrinkCategory
       : null;
+  // Price submit opens on the active drink lens when that lens is itself a
+  // category someone can log - coffee under coffee, soft drink under soft
+  // drink. Beer and an empty lens both leave the form on its pint default.
+  const priceSubmitInitialCategory = isSubmittableDrinkCategory(
+    filters.drinkCategory,
+  )
+    ? filters.drinkCategory
+    : null;
   useEffect(() => {
     if (mapDrinkLensCategory) {
       loadDrinkCategoryIndex(mapDrinkLensCategory);
@@ -2935,6 +2944,7 @@ export default function PubMap({
           pub={selectedBasePub}
           communityPrices={communityPrices}
           experienceLens={experienceLens}
+          initialSubmitCategory={priceSubmitInitialCategory}
         />
       );
     }
@@ -3021,6 +3031,7 @@ export default function PubMap({
           pintDrops={pintDrops}
           communityPrices={communityPrices}
           experienceLens={experienceLens}
+          initialSubmitCategory={priceSubmitInitialCategory}
           onGrabDragStart={mobileViewport ? undefined : onSheetDragStart}
           onGrabDragMove={mobileViewport ? undefined : onSheetDragMove}
           onGrabDragEnd={mobileViewport ? undefined : onSheetDragEnd}

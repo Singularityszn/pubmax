@@ -22,6 +22,7 @@ import {
   NO_ALCOHOL_LENS_PRICE_NOUN,
   type MapExperienceLens,
 } from "@/lib/mapExperienceLens";
+import type { DrinkCategory } from "@/lib/drinks";
 
 import "./unverifiedPubSheet.css";
 
@@ -38,12 +39,14 @@ type UnverifiedPubSheetProps = {
   pub: UkBasePub;
   communityPrices: CommunityPricesState;
   experienceLens?: MapExperienceLens;
+  initialSubmitCategory?: DrinkCategory | null;
 };
 
 export default function UnverifiedPubSheet({
   pub,
   communityPrices,
   experienceLens = "all",
+  initialSubmitCategory = null,
 }: UnverifiedPubSheetProps) {
   const { user, loading: authLoading, configured: authConfigured } = useAuth();
   const readStatus = communityPrices.venuePriceStatus.get(pub.id) ?? "idle";
@@ -131,7 +134,7 @@ export default function UnverifiedPubSheet({
       ) : readFailed ? (
         <p className="unverifiedPubLead">
           We could not read what has been logged here just now. You can still add
-          tonight&rsquo;s price below.
+          a price below.
         </p>
       ) : null}
 
@@ -144,6 +147,7 @@ export default function UnverifiedPubSheet({
         showSignInGate
         authLoading={authLoading}
         mapReach="mark"
+        initialCategory={initialSubmitCategory}
       />
 
       {/* ODbL requires attribution wherever these pins are publicly displayed

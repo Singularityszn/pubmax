@@ -14,6 +14,9 @@ import {
   isWithinMaxAge,
   mapCandidateOf,
   paintsMap,
+  isSubmittableDrinkCategory,
+  priceSubmitHeading,
+  resolveSubmitCategory,
   submitCategoryLabel,
   SUBMITTABLE_DRINK_CATEGORIES,
   validateCommunityPrice,
@@ -328,5 +331,40 @@ describe("communityReachNote", () => {
       if (category === "beer") continue;
       expect(communityReachNote(category, "mark")).not.toMatch(/moves the map/i);
     }
+  });
+});
+
+describe("resolveSubmitCategory and priceSubmitHeading", () => {
+  it("opens on a submittable map lens and falls back to beer otherwise", () => {
+    expect(resolveSubmitCategory("coffee")).toBe("coffee");
+    expect(resolveSubmitCategory("soft-drink")).toBe("soft-drink");
+    expect(resolveSubmitCategory("alcohol-free")).toBe("alcohol-free");
+    expect(resolveSubmitCategory("beer")).toBe("beer");
+    expect(resolveSubmitCategory(null)).toBe("beer");
+    expect(resolveSubmitCategory("")).toBe("beer");
+    expect(resolveSubmitCategory("gin")).toBe("beer");
+    expect(isSubmittableDrinkCategory("coffee")).toBe(true);
+    expect(isSubmittableDrinkCategory("gin")).toBe(false);
+  });
+
+  it("keeps beer on tonight and daytime drinks off it", () => {
+    expect(priceSubmitHeading("beer")).toBe("What’s it tonight?");
+    expect(priceSubmitHeading("coffee")).toBe("What’s the coffee?");
+    expect(priceSubmitHeading("soft-drink")).toBe("What’s the soft drink?");
+    expect(priceSubmitHeading("alcohol-free")).toBe("What’s the alcohol-free?");
+    expect(priceSubmitHeading("wine")).toBe("What’s the price?");
+    expect(priceSubmitHeading("coffee")).not.toMatch(/tonight/i);
+  });
+
+  it("asks for the price without forcing tonight when the figure is missing", () => {
+    const result = validateCommunityPrice({
+      venueId: "venue-16pnwmm",
+      drinkCategory: "coffee",
+      priceGbp: "",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe("Type the price, like 4.20.");
+    expect(result.error).not.toMatch(/tonight/i);
   });
 });
