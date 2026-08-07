@@ -53,17 +53,28 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   if (areaMatch) reasons.push({ field: "nightArea", evidence: areaMatch.label, explanation: "Matched the requested area." });
 
   let daypart = defaultDaypart(now);
+  // Explicit clock words win over occasion language. Coffee / catch-up / Spoons
+  // are daytime occasions only when no stronger time-of-day word is present.
   const daypartMatchers: Array<[Daypart, RegExp, string]> = [
     ["after_work", /after[ -]?work|leaving do/, "after work"],
     ["get_home", /get home|last train|heading home/, "get home"],
     ["late_night", /late[ -]?night|after midnight/, "late night"],
-    ["daytime", /daytime|lunch|afternoon/, "daytime"],
     ["evening", /evening|tonight/, "evening"],
+    ["daytime", /daytime|lunch|afternoon|brunch|\bcoffee\b|catch[ -]?up/, "daytime"],
   ];
   const explicitDaypart = daypartMatchers.find(([, pattern]) => pattern.test(lower));
   if (explicitDaypart) {
     daypart = explicitDaypart[0];
     reasons.push({ field: "daypart", evidence: explicitDaypart[2], explanation: "Matched the requested time of day." });
+  }
+
+  // Spoons is a value chain with no generate-time directory filter: when the
+  // query names it and no clock word won above, stick daytime + value so the
+  // chip's chill-Spoons occasion still shapes ranking (see chip honesty tests).
+  const spoonsMentioned = /\bwetherspoons?\b|\bspoons\b/.test(lower);
+  if (!explicitDaypart && spoonsMentioned) {
+    daypart = "daytime";
+    reasons.push({ field: "daypart", evidence: "Wetherspoons", explanation: "Spoons outing defaults to daytime when no clock word is stated." });
   }
 
   const numeric =
@@ -76,17 +87,27 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   if (groupSize) reasons.push({ field: "groupSize", evidence: numeric?.[1] ?? (word?.[0].replace(/^./, (c) => c.toUpperCase()) ?? ""), explanation: "Matched the stated group size." });
 
   const partyType: PartyType = /colleague|team|work social|leaving do/.test(lower) ? "work" : /solo|just me|on my own/.test(lower) ? "solo" : "friends";
-  const budget: Budget = /cheap|budget|value|not pricey/.test(lower) ? "value" : /special|splash out|treat/.test(lower) ? "treat" : "standard";
+  const budget: Budget = /cheap|budget|value|not pricey|wetherspoons?|\bspoons\b/.test(lower)
+    ? "value"
+    : /special|splash out|treat/.test(lower)
+      ? "treat"
+      : "standard";
   const budgetLimitMatch = lower.match(/(?:under|up to|max(?:imum)?|budget(?: of)?)\s*£\s*(\d{1,3})(?:[.,](\d{1,2}))?(?:\s*(?:each|per person))?/);
   const budgetLimitPence = budgetLimitMatch
     ? Number(budgetLimitMatch[1]) * 100 + Number((budgetLimitMatch[2] ?? "").padEnd(2, "0") || 0)
     : null;
   if (budgetLimitPence) reasons.push({ field: "budgetLimitPence", evidence: `£${(budgetLimitPence / 100).toFixed(2)}`, explanation: "Matched the explicit per-person route budget." });
   const atmosphere = ["quiet", "lively", "historic", "cosy", "sports", "music", "garden"].filter((value) => lower.includes(value));
+  // Chill is the everyday synonym for quiet on describe-first chips; ranking
+  // only scores the closed "quiet" token, so map rather than invent a new one.
+  if (/\bchill\b/.test(lower) && !atmosphere.includes("quiet")) atmosphere.push("quiet");
   const foodNeeds = ["kebab", "pizza", "chips", "vegan", "vegetarian", "halal"].filter((value) => lower.includes(value));
+  // Bare "food" marks the outing as food-aware for ranking and endings. It is
+  // not a cuisine filter (lateFood drops this non-specific tag).
+  if (/\bfood\b/.test(lower) && !foodNeeds.includes("food")) foodNeeds.push("food");
   const accessibility = /wheelchair|step[- ]free|accessible/.test(lower) ? ["step-free"] : [];
   const transportConstraints = /tube/.test(lower) ? ["tube"] : /walk/.test(lower) ? ["walking"] : [];
-  const zeroProof = /zero[ -]?proof|alcohol[ -]?free|not drinking|sober|0\.0/.test(lower);
+  const zeroProof = /zero[ -]?proof|alcohol[ -]?free|soft[ -]?drinks?|not drinking|sober|0\.0/.test(lower);
 
   return {
     context: { nightArea: areaMatch?.slug ?? null, daypart, partyType, groupSize, budget, budgetLimitPence, zeroProof, atmosphere, foodNeeds, accessibility, transportConstraints },

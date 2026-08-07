@@ -113,6 +113,16 @@ describe("late-food evidence catalogue", () => {
     ).toEqual([]);
   });
 
+  it("treats a bare food need as food-requested, not a cuisine name filter", () => {
+    const unfiltered = getLateFoodForArea("shoreditch", [], { now: SNAPSHOT_NOW });
+    expect(getLateFoodForArea("shoreditch", ["food"], { now: SNAPSHOT_NOW })).toEqual(
+      unfiltered,
+    );
+    expect(getLateFoodForArea("shoreditch", ["meal", "eat"], { now: SNAPSHOT_NOW })).toEqual(
+      unfiltered,
+    );
+  });
+
   it("filters an evidenced option when it is closed at the requested time", () => {
     expect(
       getLateFoodForArea("piccadilly-soho", [], {

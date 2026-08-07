@@ -5,9 +5,9 @@ import { describe, expect, it } from "vitest";
 
 import { DESCRIBE_FIRST_CHIPS } from "@/components/plan/PlanDescribeFirst";
 
-// Chips are promises of a priced three-stop route. Shipping an unverified
-// example that 422s is a lie — this fence holds the verified set and the
-// voice rules the surface owes.
+// Chips are promises of a priced three-stop route. Shipping an example that
+// 422s is a lie. Occasion-field honesty for each label is pinned beside
+// inferNightContext in __tests__/nightPlanning.test.ts, not here.
 
 describe("PlanDescribeFirst occasion chips", () => {
   it("keeps at least two classic night chips that already generate", () => {
