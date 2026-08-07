@@ -23,6 +23,10 @@ describe("mbplcMenuParser", () => {
     expect(mapMbplcSectionToCategory("Soft drinks")).toBe("soft-drink");
     expect(mapMbplcSectionToCategory("Coffee")).toBe("coffee");
     expect(mapMbplcSectionToCategory("Low and No")).toBe("alcohol-free");
+    // Drop-not-coerce: an unrecognised section is null, never silently
+    // "other". Only an explicit Other section earns the honest catch-all.
+    expect(mapMbplcSectionToCategory("Seasonal Specials Board")).toBeNull();
+    expect(mapMbplcSectionToCategory("Other drinks")).toBe("other");
   });
 
   it("extracts pub name from page heading", () => {
