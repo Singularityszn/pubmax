@@ -803,6 +803,31 @@ describe("validate-data.mjs artifact resilience (required vs optional)", () => {
     // No raw stack trace: a stack frame line looks like "    at ...".
     expect(stdout).not.toMatch(/^\s+at .+/m);
   });
+
+  it("still catches a genuine defect in a later-validated artifact when the heritage seed is also missing, rather than truncating the run", () => {
+    // cursorreview.md F14: the missing optional heritage seed must degrade
+    // only its own famous_venues_seed check, never skip or shadow validation
+    // of any other artifact. pubmaxxing_seed_snapshot.json runs last in
+    // DATASET_RUNS, so a defect there is the strongest proof the run did not
+    // stop early: every dataset between the missing heritage seed and this
+    // one still had to execute for its own FAIL line to appear too.
+    const scriptsDir = setupScratch({});
+    rmSync(join(scriptsDir, "..", "data", "famous_venues"), { recursive: true, force: true });
+    const snapshotPath = join(scriptsDir, "..", "public", "data", "pubmaxxing_seed_snapshot.json");
+    const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
+    snapshot.pubs[0] = { ...snapshot.pubs[0], pubId: "" };
+    writeFileSync(snapshotPath, JSON.stringify(snapshot), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("WARN famous_venues_seed:");
+    expect(stdout).toContain("PASS public/data/venues_slim.json");
+    expect(stdout).toContain("PASS data/generated/venue_details.jsonl");
+    expect(stdout).toContain("FAIL public/data/pubmaxxing_seed_snapshot.json:");
+    expect(stdout).toContain("pub 0: missing pubId");
+    expect(stdout).toContain("DATA VALIDATION FAILED");
+  });
 });
 
 describe("validate-data.mjs venue detail row validation", () => {
