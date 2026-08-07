@@ -105,7 +105,7 @@ const DRINK_CATEGORIES = new Set([
 //
 // Two entries (postcode_coordinate_build_decisions, famous_venues_seed) are
 // sub-artifacts enforced inline inside a larger REQUIRED validator, via
-// runOptionalSubCheck below, rather than as a top-level dataset run — they
+// runOptionalSubCheck below, rather than as a top-level dataset run; they
 // are still listed here so the whole required/optional decision lives in one
 // table, not scattered through the file.
 const ARTIFACT_CLASSIFICATION = [
@@ -121,7 +121,7 @@ const ARTIFACT_CLASSIFICATION = [
   { id: "drink_price_updates", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the directory or files are absent; a file that IS present with bad data is a genuine defect and stays a hard gate" },
   { id: "whats_on", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the directory or files are absent; a file that IS present with bad data is a genuine defect and stays a hard gate" },
   { id: "pint_index_editions", required: true, reason: "the validator itself passes cleanly (ok: true) when no dated editions exist yet; a published edition that fails its hash/shape checks is a genuine defect and stays a hard gate" },
-  { id: "night_signals", required: false, reason: "advisory tonight signal; map and app work without it — unlike the three above, a missing/unreadable file here is not internally self-guarded to ok: true, so this flag is what keeps that case a WARN instead of a build failure" },
+  { id: "night_signals", required: false, reason: "advisory tonight signal; map and app work without it. Unlike the three above, a missing/unreadable file here is not internally self-guarded to ok: true, so this flag is what keeps that case a WARN instead of a build failure" },
   { id: "famous_venues_seed", required: false, reason: "heritage enrichment; venues_slim/venue_details validate fine without it" },
   { id: "postcode_coordinate_build_decisions", required: false, reason: "build-provenance cross-check on top of the already-validated pint_prices_app_dataset; not needed for the app to boot" },
   { id: "postcode_coordinate_reference_data", required: false, reason: "backs the postcode-coordinate contradiction cross-check only; pint_prices_app_dataset's own rows are already validated without it" },
@@ -143,8 +143,8 @@ function classificationFor(id) {
 
 // Runs an optional sub-check embedded inside a REQUIRED validator's control
 // flow (its data does not have its own top-level dataset run). If reading or
-// verifying its artifact throws for any reason — including a missing file
-// deep inside a helper this function doesn't control — the failure degrades
+// verifying its artifact throws for any reason, including a missing file
+// deep inside a helper this function doesn't control, the failure degrades
 // to a named WARN instead of crashing or failing the required validator
 // around it. This is the one sanctioned try/catch boundary for this class of
 // check, not a scattered one.
@@ -154,7 +154,7 @@ function runOptionalSubCheck(id, fn) {
   } catch (e) {
     const { reason } = classificationFor(id);
     console.log(
-      `  WARN ${id}: optional check could not run (${e.message}) — degrading, not failing the build (${reason})`,
+      `  WARN ${id}: optional check could not run (${e.message}), degrading, not failing the build (${reason})`,
     );
     return { skipped: true, errors: [] };
   }
@@ -164,7 +164,7 @@ function runOptionalSubCheck(id, fn) {
 // artifacts read inline (not wrapped in a try/catch around a function call).
 function warnOptionalArtifact(id, message) {
   const { reason } = classificationFor(id);
-  console.log(`  WARN ${id}: ${message} — degrading, not failing the build (${reason})`);
+  console.log(`  WARN ${id}: ${message}, degrading, not failing the build (${reason})`);
 }
 
 // Kept dependency-free because validation tests copy this single script into a
@@ -391,7 +391,7 @@ function expectedVenueGroupsFromPintRows(rows) {
   return byId;
 }
 
-// data/famous_venues/*.json — heritage seed rows (bars, late food,
+// data/famous_venues/*.json: heritage seed rows (bars, late food,
 // restaurants). Optional: the directory may not exist yet. Absence of the
 // directory is NOT a failure; a bad file inside it IS (same idiom as
 // drink_price_updates/whats_on below).
@@ -1079,7 +1079,7 @@ function validatePintPrices() {
     // (POSTCODE_COORDINATE_DECISION_INPUTS and the output CSV) that are
     // never guarded elsewhere. It is an optional cross-check layered on top
     // of the required checks above, not something the app needs to boot, so
-    // any failure to run it — a missing input file included — degrades to a
+    // any failure to run it, including a missing input file, degrades to a
     // named WARN instead of failing this REQUIRED dataset.
     const { errors: decisionErrors, skipped } = runOptionalSubCheck(
       "postcode_coordinate_build_decisions",
@@ -1208,7 +1208,7 @@ function validateSlimVenues() {
   }
 
   // The rebuilt index can only be a true parity check when heritage seed
-  // data is present — without it, `expected` is missing every famous-venue
+  // data is present. Without it, `expected` is missing every famous-venue
   // row on purpose (see loadFamousVenues), so a size/id mismatch here means
   // nothing about a real data problem. Downgrade to one named WARN instead
   // of failing the required venues_slim dataset.
@@ -1278,7 +1278,7 @@ function validateSlimVenues() {
 
     // Without heritage seed data, `expected` cannot tell a pint-derived row
     // that a real build would replace/enrich with famous-venue fields (kind,
-    // cheapestPrice, priceBand) from one that legitimately stayed plain — so
+    // cheapestPrice, priceBand) from one that legitimately stayed plain, so
     // id presence AND every field comparison below are unverifiable, not
     // just the count. Skip the whole parity check per row in that case.
     if (!famousVenuesAvailable) {
@@ -2049,10 +2049,10 @@ function validateVenueDetails() {
     }
     // Without heritage seed data, famousById is empty and expectedGroups
     // never excludes a famous-replaced id (isReplacedByFamousVenue has
-    // nothing to match against) — so a genuine famous-venue detail artifact
+    // nothing to match against), so a genuine famous-venue detail artifact
     // (a different row shape entirely) is indistinguishable from a plain
     // pint-price artifact whose id happens to still group normally. Content
-    // shape can't be determined for any entry in that state — already
+    // shape can't be determined for any entry in that state. Already
     // counted as unverifiable above; skip content validation rather than
     // misjudge it against the wrong shape.
     if (!famousVenuesAvailable) {
@@ -3069,7 +3069,7 @@ function validateNightOutPlacesSnapshot() {
 // ---------------------------------------------------------------------------
 
 // One id/run pair per top-level dataset, in report order. Each id must have a
-// matching entry in ARTIFACT_CLASSIFICATION — that is what decides whether a
+// matching entry in ARTIFACT_CLASSIFICATION: that is what decides whether a
 // failing run below fails the build or degrades to a WARN.
 const DATASET_RUNS = [
   { id: "london_pois", run: validatePois },
@@ -3104,7 +3104,7 @@ async function main() {
     console.log("");
     for (const r of softDegradations) {
       console.log(
-        `  WARN ${r.id}: optional artifact missing or invalid — degrading, not failing the build (${r.reason})`,
+        `  WARN ${r.id}: optional artifact missing or invalid, degrading, not failing the build (${r.reason})`,
       );
     }
   }
