@@ -235,6 +235,11 @@ export type Filters = {
   requireHeritage: boolean;
   requirePintDrops: boolean;
   canonicalOnly: boolean;
+  /**
+   * Narrow to curated venues that join the first-party Wetherspoon directory
+   * under the shared name+distance rule. Identity only — never invents prices.
+   */
+  wetherspoonsOnly: boolean;
   // Accessible-venue filters (PRD issue #28). Each, when on, narrows to pubs
   // KNOWN to have that facet — an unknown fact fails the filter (see
   // lib/venueAccessibility.matchesAccessibilityFilters). Off = no-op.
@@ -635,6 +640,7 @@ export function filterVenues(
   venues: Venue[],
   filters: Filters,
   hasPintDrops: (venueId: string) => boolean = () => false,
+  isDirectoryWetherspoons: (venueId: string) => boolean = () => false,
 ): Venue[] {
   const query = filters.query.trim().toLowerCase();
   const drinkCategory = filters.drinkCategory?.trim() ?? "";
@@ -660,6 +666,9 @@ export function filterVenues(
     const matchesPintDrops =
       !filters.requirePintDrops ||
       (isPubVenueKind(venue.kind) && hasPintDrops(venue.id));
+
+    const matchesWetherspoons =
+      !filters.wetherspoonsOnly || isDirectoryWetherspoons(venue.id);
 
     // Accessible-venue filters: an unknown fact fails a positive filter, so
     // filtering to step-free shows only pubs KNOWN step-free (never guessed).
@@ -687,6 +696,7 @@ export function filterVenues(
       matchesVenueCuration(venue, filters) &&
       matchesCanonicalFilter(venue, filters.canonicalOnly) &&
       matchesPintDrops &&
+      matchesWetherspoons &&
       matchesAccessibility &&
       matchesCategory &&
       matchesDrinkBrand(venue, drinkBrand) &&

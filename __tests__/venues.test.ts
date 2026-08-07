@@ -83,6 +83,7 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     requireAccessibleToilet: false,
     requireSeatedService: false,
     canonicalOnly: false,
+    wetherspoonsOnly: false,
     drinkCategory: "",
     drinkBrand: "",
     drinkSubtype: "",

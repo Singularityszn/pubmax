@@ -741,3 +741,31 @@
 @media (max-width: 640px) and (prefers-reduced-motion: reduce) {
   .mobilePlanActivation:active, .mobileMapLocateFab:active { transform: none; }
 }
+
+.mobileMapFilterToggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.mobileMapFilterToggle input {
+  margin-top: 0.2rem;
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+  flex: 0 0 auto;
+}
+.mobileMapFilterToggle span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.mobileMapFilterToggle strong {
+  font-weight: 650;
+}
+.mobileMapFilterToggle small {
+  opacity: 0.78;
+  line-height: 1.35;
+}

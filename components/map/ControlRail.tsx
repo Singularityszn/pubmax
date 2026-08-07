@@ -29,6 +29,10 @@ import {
   isKnownStepFree,
 } from "@/lib/venueAccessibility";
 import { NO_PINT_PRICE_CAP, type CrawlStyle, type Filters, type Venue } from "@/lib/venues";
+import {
+  WETHERSPOONS_FILTER_EMPTY_TITLE,
+  WETHERSPOONS_FILTER_IDENTITY_NOTE,
+} from "@/lib/wetherspoonsMatch";
 
 /** City-aware search placeholder examples (neighbourhoods, not Tube jargon). */
 export function citySearchPlaceholder(cityId: CityId, displayName: string): string {
@@ -93,6 +97,7 @@ export const initialFilters: Filters = {
   // Default OFF so scraped / gazetteer pubs (Young's, Nicholson's, Eating Europe
   // seeds) appear on first paint. Users can still tighten to verified-only.
   canonicalOnly: false,
+  wetherspoonsOnly: false,
   requireStepFree: false,
   requireAccessibleToilet: false,
   requireSeatedService: false,
@@ -469,6 +474,19 @@ export default function ControlRail({
         <p className="accessibilityHint" style={{ marginTop: 4 }}>
           Off by default so scraped Young&apos;s / Nicholson&apos;s / guide pins stay on the map.
         </p>
+        <label>
+          <input
+            type="checkbox"
+            checked={filters.wetherspoonsOnly}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, wetherspoonsOnly: event.target.checked })
+            }
+          />
+          Wetherspoons
+        </label>
+        <p className="accessibilityHint" style={{ marginTop: 4 }}>
+          {WETHERSPOONS_FILTER_IDENTITY_NOTE}
+        </p>
       </section>
 
       <section className="panelSection toggles accessibilityFilters">
@@ -542,8 +560,23 @@ export default function ControlRail({
 
       {filteredVenues.length === 0 ? (
         <section className="emptyState">
-          <strong>Nothing fits that</strong>
-          <p>You&rsquo;ve asked for something this patch hasn&rsquo;t got. Widen the pint price, or clear a story or amenity filter.</p>
+          {filters.wetherspoonsOnly ? (
+            <>
+              <strong>{WETHERSPOONS_FILTER_EMPTY_TITLE}</strong>
+              <p>
+                {WETHERSPOONS_FILTER_IDENTITY_NOTE} Turn the filter off to see every pub
+                again.
+              </p>
+            </>
+          ) : (
+            <>
+              <strong>Nothing fits that</strong>
+              <p>
+                You&rsquo;ve asked for something this patch hasn&rsquo;t got. Widen the pint
+                price, or clear a story or amenity filter.
+              </p>
+            </>
+          )}
           <button onClick={() => onFiltersChange(initialFilters)}>Reset filters</button>
         </section>
       ) : null}

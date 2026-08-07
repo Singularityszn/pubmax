@@ -29,6 +29,16 @@ import {
   TYPED_SEARCH_MIN_QUERY,
 } from "@/lib/mapSearchCamera";
 import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
+import {
+  loadWetherspoonsDirectory,
+  type WetherspoonsPub,
+} from "@/lib/wetherspoonsDirectory";
+import {
+  matchedWetherspoonsVenueIds,
+  WETHERSPOONS_FILTER_EMPTY_TITLE,
+  WETHERSPOONS_FILTER_IDENTITY_NOTE,
+  type WetherspoonsMatchVenue,
+} from "@/lib/wetherspoonsMatch";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds } from "@/lib/nearby";
 import {
@@ -624,6 +634,25 @@ export default function PubMap({
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
+  // First-party Wetherspoon directory for the map identity filter. Loaded once;
+  // match is name+distance only and never invents prices.
+  const [wetherspoonsDirectoryPubs, setWetherspoonsDirectoryPubs] = useState<
+    WetherspoonsPub[] | null
+  >(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadWetherspoonsDirectory()
+      .then((directory) => {
+        if (!cancelled) setWetherspoonsDirectoryPubs(directory.pubs);
+      })
+      .catch(() => {
+        if (!cancelled) setWetherspoonsDirectoryPubs([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [experienceLens, setExperienceLens] =
     useState<MapExperienceLensValue>("all");
   const [experiencePolicyNow] = useState(() => Date.now());
@@ -1210,14 +1239,26 @@ export default function PubMap({
       ),
     [experienceLens, filters, mapDrinkLensCategory],
   );
+  const wetherspoonsMatchedIds = useMemo(() => {
+    if (!wetherspoonsDirectoryPubs) return null;
+    const matchVenues: WetherspoonsMatchVenue[] = venues.map((venue) => ({
+      id: venue.id,
+      name: venue.name,
+      lat: venue.latitude,
+      lng: venue.longitude,
+    }));
+    return matchedWetherspoonsVenueIds(matchVenues, wetherspoonsDirectoryPubs);
+  }, [venues, wetherspoonsDirectoryPubs]);
+
   const pipelineVenues = useMemo(
     () =>
       filterMapVenues(
         venues,
         effectiveMapFilters,
         (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
+        (id) => Boolean(wetherspoonsMatchedIds?.has(id)),
       ),
-    [effectiveMapFilters, venues, venueSignals],
+    [effectiveMapFilters, venues, venueSignals, wetherspoonsMatchedIds],
   );
   // "Saved only" composes ON TOP of the pipeline: when on, keep only venues in
   // the saved set. When off it's a no-op, so all existing behavior is preserved.
@@ -2916,7 +2957,9 @@ export default function PubMap({
           ) : (
             <section className="venueInspector" style={{ textAlign: "center" }}>
               <p className="description" style={{ marginTop: 0 }}>
-                No pubs match these filters. Try widening your price or clearing your story filters.
+                {filters.wetherspoonsOnly
+                  ? `${WETHERSPOONS_FILTER_EMPTY_TITLE}. ${WETHERSPOONS_FILTER_IDENTITY_NOTE} Turn the filter off to see every pub again.`
+                  : "No pubs match these filters. Try widening your price or clearing your story filters."}
               </p>
               <button type="button" className="addStopBtn" onClick={() => setFilters(seedCrawlState("").filters)}>
                 Clear filters
@@ -3441,6 +3484,7 @@ export default function PubMap({
             filters.zone !== "" &&
             filters.zone !== "all"
           }
+          wetherspoonsActive={filters.wetherspoonsOnly}
           priceCapActive={
             experienceLens === "all" &&
             mapDrinkLensCategory === null &&
@@ -3524,6 +3568,22 @@ export default function PubMap({
                   setFilters((current) => ({ ...current, maxPrice }))
                 }
               />
+              <label className="mobileMapFilterToggle">
+                <input
+                  type="checkbox"
+                  checked={filters.wetherspoonsOnly}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      wetherspoonsOnly: event.target.checked,
+                    }))
+                  }
+                />
+                <span>
+                  <strong>Wetherspoons</strong>
+                  <small>{WETHERSPOONS_FILTER_IDENTITY_NOTE}</small>
+                </span>
+              </label>
             </div>
           }
           tflContent={<MobileTflPanel status={tflStatus} />}

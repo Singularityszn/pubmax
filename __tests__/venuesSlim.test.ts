@@ -134,6 +134,7 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     requireHeritage: false,
     requirePintDrops: false,
     canonicalOnly: false,
+    wetherspoonsOnly: false,
     requireStepFree: false,
     requireAccessibleToilet: false,
     requireSeatedService: false,

@@ -11,6 +11,7 @@ export function filterMapVenues(
   venues: readonly Venue[],
   filters: Filters,
   hasPintDrops: (venueId: string) => boolean,
+  isDirectoryWetherspoons: (venueId: string) => boolean = () => false,
 ): Venue[] {
   const slimPinFilters: Filters = {
     ...filters,
@@ -35,8 +36,8 @@ export function filterMapVenues(
   }
 
   return [
-    ...filterVenues(slim, slimPinFilters, hasPintDrops),
-    ...filterVenues(hydrated, filters, hasPintDrops),
+    ...filterVenues(slim, slimPinFilters, hasPintDrops, isDirectoryWetherspoons),
+    ...filterVenues(hydrated, filters, hasPintDrops, isDirectoryWetherspoons),
   ];
 }
 

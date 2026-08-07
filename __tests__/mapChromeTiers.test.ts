@@ -18,6 +18,17 @@ describe("buildFiltersChip", () => {
     expect(buildFiltersChip({ drinkFiltersActive: true, priceCapActive: true, priceLabel: "≤£8.00" }).refinements).toBe(2);
   });
 
+  it("counts the Wetherspoons identity filter as its own refinement", () => {
+    expect(
+      buildFiltersChip({
+        drinkFiltersActive: false,
+        priceCapActive: false,
+        priceLabel: "Price",
+        wetherspoonsActive: true,
+      }),
+    ).toMatchObject({ refinements: 1, ariaLabel: "Filters: Wetherspoons active" });
+  });
+
   it("speaks the active refinements to screen readers", () => {
     expect(buildFiltersChip({ drinkFiltersActive: false, priceCapActive: false, priceLabel: "Price" }).ariaLabel).toBe("Filters");
     expect(

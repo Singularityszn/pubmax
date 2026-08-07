@@ -129,3 +129,26 @@ describe("mobile map session adapter", () => {
     })).toMatchObject({ drinkCategory: "", topShelfOnly: false });
   });
 });
+
+describe("wetherspoonsOnly session upgrade", () => {
+  beforeEach(() => {
+    (globalThis as { window?: { localStorage: Storage } }).window = {
+      localStorage: memoryStorage(),
+    };
+  });
+
+  afterEach(() => {
+    delete (globalThis as { window?: unknown }).window;
+  });
+
+  it("defaults a pre-Spoons session to wetherspoonsOnly off instead of discarding it", () => {
+    const filters = seedCrawlState("").filters;
+    const legacy = { ...filters } as Record<string, unknown>;
+    delete legacy.wetherspoonsOnly;
+    expect(validateMobileMapFilters(legacy)).toMatchObject({ wetherspoonsOnly: false });
+    expect(validateMobileMapFilters({ ...filters, wetherspoonsOnly: true })).toMatchObject({
+      wetherspoonsOnly: true,
+    });
+  });
+});
+

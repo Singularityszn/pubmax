@@ -186,6 +186,9 @@ export function validateMobileMapFilters(value: unknown): Filters | null {
     drinkCategory: category ?? "",
     drinkSubtype: subtype?.id ?? "",
     topShelfOnly: raw.topShelfOnly === true && Boolean(category),
+    // Sessions saved before the Spoons filter existed upgrade to off rather than
+    // discarding the whole map restore.
+    wetherspoonsOnly: raw.wetherspoonsOnly === true,
   };
 }
 
