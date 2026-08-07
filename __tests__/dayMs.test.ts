@@ -10,8 +10,14 @@ describe("DAY_MS owner", () => {
     expect(DAY_MS).toBe(24 * 60 * 60 * 1000);
   });
 
-  it("is the only 86_400_000 in the scoped weeklyDigest and pintContributions files", () => {
-    for (const rel of ["lib/weeklyDigest.ts", "lib/pintContributions.ts"]) {
+  it("is the only 86_400_000 in the scoped day-window owner consumers", () => {
+    for (const rel of [
+      "lib/weeklyDigest.ts",
+      "lib/pintContributions.ts",
+      "lib/a2hsPrompt.ts",
+      "lib/dailyActivity.ts",
+      "lib/priceConfirmStore.ts",
+    ]) {
       const source = readFileSync(join(process.cwd(), rel), "utf8");
       expect(source).not.toMatch(/86_400_000/);
       expect(source).toMatch(/DAY_MS/);

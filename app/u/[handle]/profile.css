@@ -229,6 +229,31 @@
   line-height: 1.55;
 }
 
+/* Reserved handle after auth deletion: honest gone, not a live empty profile. */
+.profilePage .profileGoneState {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 36rem;
+  margin: 1.5rem auto 0;
+  padding: clamp(22px, 4vw, 32px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow);
+}
+
+.profilePage .profileGoneState h1 {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+}
+
+.profilePage .profileGoneState .profileEmpty {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 /* ── Header ──────────────────────────────────────────────────────────── */
 .profilePage .profileHeader {
   display: grid;

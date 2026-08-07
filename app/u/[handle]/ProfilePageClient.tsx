@@ -75,7 +75,7 @@ type PublicDrop = ProfileDrop & {
   createdAt?: string;
 };
 
-type LoadState = "loading" | "ready" | "error";
+type LoadState = "loading" | "ready" | "error" | "gone";
 
 const BADGE_EVENT_IDS = BADGE_EVENTS.map((event) => event.id);
 const BADGE_EVENT_OPT_IN_CHANGED = "pubmax-badge-event-opt-ins-changed";
@@ -210,8 +210,19 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     async function resolveAlias() {
       const response = await fetch(`/api/identity/handle/resolve?handle=${encodeURIComponent(routeHandle)}`, { signal: controller.signal }).catch(() => null);
       if (!response?.ok || controller.signal.aborted) return;
-      const resolution = await response.json() as { currentHandle?: string; redirect?: boolean };
-      if (resolution.redirect && resolution.currentHandle) router.replace(`/u/${encodeURIComponent(resolution.currentHandle)}`);
+      const resolution = await response.json() as {
+        status?: string;
+        currentHandle?: string;
+        redirect?: boolean;
+      };
+      // Auth user deleted: handle stays reserved, public profile is gone.
+      if (resolution.status === "gone") {
+        setState("gone");
+        return;
+      }
+      if (resolution.redirect && resolution.currentHandle) {
+        router.replace(`/u/${encodeURIComponent(resolution.currentHandle)}`);
+      }
     }
     void resolveAlias();
     return () => controller.abort();
@@ -237,11 +248,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             : [];
         const mine = all.filter((d) => normalizeHandle(d.handle) === routeHandle);
         setDrops(mine);
-        setState("ready");
+        // Tombstone wins over a later drops load: never paint a live profile.
+        setState((prev) => (prev === "gone" ? prev : "ready"));
       } catch {
         // An aborted fetch (unmount / handle change) is not an error state.
         if (controller.signal.aborted) return;
-        setState("error");
+        setState((prev) => (prev === "gone" ? prev : "error"));
       }
     }
 
@@ -358,9 +370,16 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         if (!res.ok) return;
         const body = (await res.json()) as {
           profile?: ProfileRecord | null;
+          status?: string;
           counts?: FollowCounts;
           viewerFollowing?: boolean;
         };
+        if (body.status === "gone") {
+          setStored(null);
+          setState("gone");
+          if (body.counts) setCounts(body.counts);
+          return;
+        }
         setStored(body.profile ?? null);
         if (body.counts) setCounts(body.counts);
         setFollowing(Boolean(body.viewerFollowing));
@@ -561,6 +580,18 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       <main id="main" className="container profileMain">
         {!routeHandle ? (
           <p className="profileEmpty">That profile link is missing a handle.</p>
+        ) : state === "gone" ? (
+          <section className="profileGoneState" aria-labelledby="profile-gone-title">
+            <p className="profileSectionKicker">@{routeHandle}</p>
+            <h1 id="profile-gone-title">This account has left</h1>
+            <p className="profileEmpty">
+              The handle is still reserved. Past pints stay attributed, but
+              there is no live profile here any more.
+            </p>
+            <p className="profileEmpty">
+              <Link href="/map">Back to the map</Link>
+            </p>
+          </section>
         ) : state === "error" ? (
           <div className="profileErrorState">
             <ProfileHeader

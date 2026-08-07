@@ -76,6 +76,11 @@ import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 const AUTH_CALLBACK_ERROR_MESSAGE =
   "Sign-in could not be completed. The link may be invalid or expired. Try again.";
 
+function signedInAsMessage(email: string | null | undefined): string {
+  const address = typeof email === "string" ? email.trim() : "";
+  return address ? `Signed in as ${address}.` : "Signed in.";
+}
+
 function browserLocalStorage(): Storage | null {
   try {
     return window.localStorage;
@@ -176,6 +181,8 @@ export function AuthProvider({
   const [canonicalIdentity, setCanonicalIdentity] =
     useState<IdentityHandleChangedDetail | null>(null);
   const [authCallbackError, setAuthCallbackError] = useState<string | null>(null);
+  /** Attempt-less / cross-browser success confirmation (login-CSRF mitigation). */
+  const [authSignedInNotice, setAuthSignedInNotice] = useState<string | null>(null);
   const [socialProviders, setSocialProviders] =
     useState<SocialAuthProviderAvailability>(NO_SOCIAL_AUTH_PROVIDERS);
   const [rejectedContributionAuth, setRejectedContributionAuth] =
@@ -414,6 +421,13 @@ export function AuthProvider({
           window.clearTimeout(loadingTimeout);
           updateSession(exchangedSession);
           setSessionLoading(false);
+          // Attempt-less token sign-in (cross-browser email link, clamped
+          // landing): show who signed in so a surprise session is never silent.
+          if (callbackAttempt && !captured?.localAttemptOwned) {
+            setAuthSignedInNotice(
+              signedInAsMessage(exchangedSession.user?.email),
+            );
+          }
           // The PKCE flow this app ran before left one-time code-verifier keys
           // behind; the implicit flow never clears them, so sweep them here.
           clearLegacyPkceVerifiers(browserLocalStorage());
@@ -629,6 +643,13 @@ export function AuthProvider({
         <div className="authCallbackNotice" role="alert">
           <span>{authCallbackError}</span>
           <button type="button" onClick={() => setAuthCallbackError(null)}>
+            Dismiss
+          </button>
+        </div>
+      ) : authSignedInNotice ? (
+        <div className="authCallbackNotice authCallbackNotice--ok" role="status">
+          <span>{authSignedInNotice}</span>
+          <button type="button" onClick={() => setAuthSignedInNotice(null)}>
             Dismiss
           </button>
         </div>

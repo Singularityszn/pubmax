@@ -132,6 +132,12 @@ function parseAuthResponseFragment(hash: string): AuthResponseFragment | null {
 export type CapturedAuthCallback = {
   attempt: AuthCallbackAttempt;
   cleanUrl: string;
+  /**
+   * True only when this browser owned and claimed the local attempt record.
+   * False for attempt-less / cross-browser token landings (login-CSRF surface):
+   * the UI then shows a visible "Signed in as …" confirmation.
+   */
+  localAttemptOwned: boolean;
   /** Release only after exchange and matching persistent cleanup complete. */
   releaseCoordination: () => void;
 };
@@ -523,6 +529,7 @@ function rejectedAuthCallback(cleanUrl: string): CapturedAuthCallback {
   return {
     attempt: { attemptId: null, tokens: null, providerError: true },
     cleanUrl,
+    localAttemptOwned: false,
     releaseCoordination: () => {},
   };
 }
@@ -544,11 +551,17 @@ function fallbackAuthCallback(
   return {
     attempt: parsedAttempt,
     cleanUrl,
+    // Tokens completed without a matching local claim (cross-browser link,
+    // expired attempt, or clamped landing). Not this browser's started attempt.
+    localAttemptOwned: false,
     releaseCoordination: () => {},
   };
 }
 
 function restoreAuthFragment(cleanUrl: string, fragment: string): string {
+  // Return fragments are app state. Never restore a one-time auth response
+  // after the callback URL has scrubbed it from browser history.
+  if (!fragment.startsWith("#") || parseAuthResponseFragment(fragment)) return cleanUrl;
   try {
     const restored = new URL(cleanUrl, "https://pubmax.invalid");
     restored.hash = fragment;
@@ -623,11 +636,16 @@ function claimAuthCallback(
     return {
       attempt: parsedAttempt,
       cleanUrl: fragment ? restoreAuthFragment(cleanUrl, fragment) : cleanUrl,
+      localAttemptOwned: true,
       releaseCoordination: () => {},
     };
   } catch {
     return fallbackAuthCallback(parsedAttempt, cleanUrl);
   }
+}
+
+export function isAuthPage(pathname: string): boolean {
+  return pathname === "/login" || pathname === "/signin" || pathname === "/auth/callback";
 }
 
 /**
@@ -642,9 +660,14 @@ export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt
   try {
     const current = new URL(currentUrl);
     const fragment = parseAuthResponseFragment(current.hash);
-    const providerError =
-      current.searchParams.get("authError") === "1" || fragment?.kind === "error";
+    const authPage = isAuthPage(current.pathname);
     const marked = current.searchParams.get(AUTH_CALLBACK_MARKER) === "1";
+    // A marked callback is tied to a live local attempt, not a crafted
+    // fragment, so it keeps reporting a provider error on any page. An
+    // unmarked bare signal only counts on an auth page (anti-spoof scoping).
+    const providerError =
+      (marked || authPage) &&
+      (current.searchParams.get("authError") === "1" || fragment?.kind === "error");
     if (!marked && !providerError && fragment?.kind !== "tokens") return null;
     const rawAttemptId = current.searchParams.get(AUTH_ATTEMPT_PARAM);
     const attemptId = isAuthAttemptId(rawAttemptId) ? rawAttemptId : null;

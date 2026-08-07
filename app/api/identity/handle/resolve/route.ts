@@ -9,9 +9,18 @@ export async function GET(request: Request): Promise<Response> {
   if (!assessed.ok) return jsonNoStore({ error: "Profile not found." }, { status: 404 });
   try {
     const resolved = await identityHandleStore().resolve(assessed.handle);
-    return resolved
-      ? jsonNoStore(resolved)
-      : jsonNoStore({ error: "Profile not found." }, { status: 404 });
+    if (!resolved) {
+      return jsonNoStore({ error: "Profile not found." }, { status: 404 });
+    }
+    // Tombstone: handle remains reserved; public surface answers gone, not live.
+    if (resolved.status === "gone") {
+      return jsonNoStore({
+        status: "gone",
+        handle: resolved.requestedHandle,
+        profileId: resolved.profileId,
+      });
+    }
+    return jsonNoStore(resolved);
   } catch {
     return jsonNoStore({ error: "Profile storage is unavailable." }, { status: 503 });
   }

@@ -19,10 +19,11 @@
 // distinct buckets tells us "came back on another day" with nothing private in
 // it.
 
+import { DAY_MS } from "@/lib/dayMs";
 import { isNativeApp } from "@/lib/nativePlatform";
 
-/** Milliseconds in one UTC day. */
-export const MS_PER_DAY = 86_400_000;
+/** Milliseconds in one UTC day. Shared owner: lib/dayMs.ts. */
+export const MS_PER_DAY = DAY_MS;
 
 /** How long a decline suppresses the prompt before it may re-offer. */
 export const A2HS_DECLINE_COOLDOWN_DAYS = 14;

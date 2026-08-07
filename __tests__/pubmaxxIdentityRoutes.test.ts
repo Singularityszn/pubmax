@@ -24,7 +24,13 @@ import { POST as rename } from "@/app/api/identity/handle/rename/route";
 import { GET as resolve } from "@/app/api/identity/handle/resolve/route";
 import { GET as current } from "@/app/api/identity/handle/current/route";
 import { __resetMemoryIdentityHandles } from "@/lib/identityHandleStore";
-import { __resetMemoryProfiles } from "@/lib/profileStore";
+import { GET as getProfile } from "@/app/api/profiles/[handle]/route";
+import {
+  __resetMemoryProfiles,
+  __seedMemoryLegacyProfile,
+  __tombstoneMemoryProfile,
+  memoryProfileStore,
+} from "@/lib/profileStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
 function request(path: string, method = "GET", body?: unknown): Request {
@@ -99,10 +105,126 @@ describe("PUBMAXX handle APIs", () => {
       requestedHandle: "night_owl",
       currentHandle: "dawn_owl",
       redirect: true,
+      status: "live",
     });
     expect(
       await (await current(request("/api/identity/handle/current"))).json(),
     ).toEqual({ handle: "dawn_owl" });
+  });
+
+  // ── Reviewer-proven failure shapes under the old user_id-null predicate ──
+  // Old code treated every null user_id as gone and would have killed:
+  //   (a) pre-0071 self-declared legacy rows
+  //   (b) ensure()-created anonymous contributor rows (pint-drop path)
+  // Gone is gated only on tombstoned_at. Alias presence is NOT a discriminator
+  // (claim_pubmaxx_handle writes aliases for owned claims).
+
+  it("(a) seeded pre-0071 legacy profile (user_id null) resolves LIVE, not gone", async () => {
+    const legacy = __seedMemoryLegacyProfile("legacy_owl");
+    expect(legacy.userId).toBeUndefined();
+    expect(legacy.tombstonedAt).toBeUndefined();
+
+    const resolved = await resolve(
+      request("/api/identity/handle/resolve?handle=legacy_owl"),
+    );
+    expect(resolved.status).toBe(200);
+    const body = await resolved.json();
+    expect(body).toMatchObject({
+      profileId: legacy.id,
+      requestedHandle: "legacy_owl",
+      currentHandle: "legacy_owl",
+      redirect: false,
+      status: "live",
+    });
+    // Explicit anti-regression: must never be the gone envelope.
+    expect(body).not.toMatchObject({ status: "gone" });
+    expect(body).not.toHaveProperty("handle", "legacy_owl");
+
+    const availabilityResponse = await availability(
+      request("/api/identity/handle/availability?handle=legacy_owl"),
+    );
+    expect(await availabilityResponse.json()).toEqual({
+      handle: "legacy_owl",
+      available: false,
+      reason: "taken",
+    });
+  });
+
+  it("(b) ensure()-created anonymous contributor stays live on /api/profiles/<handle>", async () => {
+    // Pint-drop path: profileStore().ensure(handle) inserts without user_id and
+    // without a handle alias. Must not read as gone on the public profile GET.
+    const ensured = await memoryProfileStore.ensure("drop_contributor");
+    expect(ensured.userId).toBeUndefined();
+    expect(ensured.tombstonedAt).toBeUndefined();
+
+    const res = await getProfile(
+      request(`/api/profiles/${encodeURIComponent(ensured.handle)}`),
+      { params: Promise.resolve({ handle: ensured.handle }) },
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).not.toBe("gone");
+    expect(body.profile).toMatchObject({
+      id: ensured.id,
+      handle: "drop_contributor",
+    });
+    // Internal ownership / tombstone keys never cross the public wire.
+    expect(JSON.stringify(body)).not.toMatch(/userId|user_id|tombstoned/i);
+
+    // Resolve agrees: live, not gone. No alias row exists for ensure()-only.
+    const resolved = await resolve(
+      request("/api/identity/handle/resolve?handle=drop_contributor"),
+    );
+    expect(resolved.status).toBe(200);
+    expect(await resolved.json()).toMatchObject({
+      profileId: ensured.id,
+      status: "live",
+      redirect: false,
+    });
+  });
+
+  it("answers gone only when tombstoned_at is stamped, and keeps the handle reserved", async () => {
+    authState.userId = "user-1";
+    const claimed = await claim(
+      request("/api/identity/handle/claim", "POST", { handle: "ghost_owl" }),
+    );
+    expect(claimed.status).toBe(201);
+    const body = await claimed.json();
+
+    // Auth.users deletion: trigger stamps tombstoned_at; FK clears user_id.
+    // Alias from claim may remain — gone still keys off tombstoned_at alone.
+    const tombstoned = __tombstoneMemoryProfile("ghost_owl");
+    expect(tombstoned?.userId).toBeUndefined();
+    expect(tombstoned?.tombstonedAt).toBeTruthy();
+
+    const resolved = await resolve(
+      request("/api/identity/handle/resolve?handle=ghost_owl"),
+    );
+    expect(resolved.status).toBe(200);
+    expect(await resolved.json()).toEqual({
+      status: "gone",
+      handle: "ghost_owl",
+      profileId: body.profileId,
+    });
+
+    const profileRes = await getProfile(
+      request("/api/profiles/ghost_owl"),
+      { params: Promise.resolve({ handle: "ghost_owl" }) },
+    );
+    expect(profileRes.status).toBe(200);
+    expect(await profileRes.json()).toMatchObject({
+      status: "gone",
+      profile: null,
+    });
+
+    const availabilityResponse = await availability(
+      request("/api/identity/handle/availability?handle=ghost_owl"),
+    );
+    expect(await availabilityResponse.json()).toEqual({
+      handle: "ghost_owl",
+      available: false,
+      reason: "taken",
+    });
   });
 
   it.each(NEW_RESERVED_CONTRIBUTOR_HANDLE_INPUTS)(

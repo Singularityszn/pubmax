@@ -576,6 +576,7 @@ describe("auth callback URL safety", () => {
     expect(replacedCallback).toMatchObject({
       attempt: { attemptId: ATTEMPT_A, tokens: TOKENS, providerError: false },
       cleanUrl: "/plan/abc",
+      localAttemptOwned: false,
     });
     expect([...persistentValues.values()].join(" ")).toContain("#venue-b");
 
@@ -588,6 +589,7 @@ describe("auth callback URL safety", () => {
     expect(liveCallback).toMatchObject({
       attempt: { attemptId: ATTEMPT_B, tokens: TOKENS, providerError: false },
       cleanUrl: "/map#venue-b",
+      localAttemptOwned: true,
     });
   });
 
@@ -621,6 +623,7 @@ describe("auth callback URL safety", () => {
     expect(newTabCallback).toMatchObject({
       attempt: { attemptId: ATTEMPT_A, tokens: TOKENS, providerError: false },
       cleanUrl: "/plan/abc#invite=SECRET-A",
+      localAttemptOwned: true,
     });
     expect([...persistentValues.values()].join(" ")).not.toContain("SECRET-A");
     expect(tabAValues.size).toBe(1);
@@ -632,6 +635,7 @@ describe("auth callback URL safety", () => {
       .toMatchObject({
         attempt: { attemptId: ATTEMPT_A, tokens: TOKENS, providerError: false },
         cleanUrl: "/plan/abc",
+        localAttemptOwned: false,
       });
 
     releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabBStorage);
@@ -656,6 +660,36 @@ describe("auth callback URL safety", () => {
         cleanUrl: "/plan/abc",
       });
     expect([...persistentValues.values()].join(" ")).toContain("#venue-b");
+  });
+
+  it.each([
+    "#error=access_denied",
+    TOKEN_FRAGMENT,
+  ])("does not restore stored auth-response fragment %s after callback scrub", async (hash) => {
+    const { persistentStorage, persistentValues, tabStorage } = authStores();
+    beginAuthAttempt(
+      "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
+      undefined,
+      { persistentStorage, tabStorage, cryptoProvider: fixedCrypto(0xaa), now: 1_000 },
+    );
+    const fragmentEntry = [...persistentValues.entries()].find(([key]) =>
+      key.startsWith("pubmax_auth_return_fragment:"),
+    );
+    expect(fragmentEntry).toBeDefined();
+    const [fragmentKey, rawFragment] = fragmentEntry!;
+    persistentValues.set(
+      fragmentKey,
+      JSON.stringify({ ...JSON.parse(rawFragment), hash }),
+    );
+
+    const captured = await claimCallback(
+      `https://pubmaxxing.com/plan/abc?_authCallback=1&_authAttempt=${ATTEMPT_A}${TOKEN_FRAGMENT}`,
+      persistentStorage,
+      tabStorage,
+      2_000,
+    );
+
+    expect(captured?.cleanUrl).toBe("/plan/abc");
   });
 
   it("rolls back a failed same-tab replacement and leaves the original callback live", async () => {
@@ -731,6 +765,8 @@ describe("auth callback URL safety", () => {
       tokens: TOKENS,
       providerError: false,
     });
+    // Cross-browser / unrelated attempt: no local claim → confirmation surface.
+    expect(unrelated?.localAttemptOwned).toBe(false);
     expect(persistentValues).toEqual(beforePersistent);
     expect(tabValues).toEqual(beforeTab);
 
@@ -1031,19 +1067,19 @@ describe("auth callback URL safety", () => {
       { persistentStorage, tabStorage, cryptoProvider: fixedCrypto(0xaa), now: 1_000 },
     );
 
-    const providerError = await claimCallback(
+    const callback = await claimCallback(
       `https://pubmaxxing.com/plan/abc?_authCallback=1&_authAttempt=${ATTEMPT_A}&authError=1`,
       persistentStorage,
       tabStorage,
       2_000,
     );
-    expect(providerError).toMatchObject({
+    expect(callback).toMatchObject({
       attempt: { attemptId: ATTEMPT_A, tokens: null, providerError: true },
       cleanUrl: "/plan/abc#invite=SECRET-A",
     });
 
     releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabStorage);
-    providerError?.releaseCoordination();
+    callback?.releaseCoordination();
     expect(persistentValues.size).toBe(0);
     expect(tabValues.size).toBe(0);
   });
@@ -1358,25 +1394,31 @@ describe("auth callback URL safety", () => {
         `https://pubmaxxing.com/map?_authCallback=1&_authAttempt=${ATTEMPT_A}`,
       ),
     ).toEqual({ attemptId: ATTEMPT_A, tokens: null, providerError: false });
-    // Supabase reports link failures in the fragment; they surface as errors.
+    // Supabase reports link failures in the fragment; auth pages surface them.
     expect(
       readAuthCallbackAttempt(
-        `https://pubmaxxing.com/map?_authCallback=1&_authAttempt=${ATTEMPT_A}#error=access_denied&error_code=otp_expired`,
+        `https://pubmaxxing.com/auth/callback?_authCallback=1&_authAttempt=${ATTEMPT_A}#error=access_denied&error_code=otp_expired`,
       ),
     ).toEqual({ attemptId: ATTEMPT_A, tokens: null, providerError: true });
-    expect(readAuthCallbackAttempt("https://pubmaxxing.com/?authError=1"))
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/login?authError=1"))
       .toEqual({ attemptId: null, tokens: null, providerError: true });
+    // A marked callback carries a live local attempt, so an error fragment
+    // still surfaces even when the redirect landed on a non-auth page.
+    expect(
+      readAuthCallbackAttempt(
+        `https://pubmaxxing.com/plan/abc?_authCallback=1&_authAttempt=${ATTEMPT_A}#error=access_denied&error_code=otp_expired`,
+      ),
+    ).toEqual({ attemptId: ATTEMPT_A, tokens: null, providerError: true });
     // Supabase's redirect allowlist clamps unlisted redirect_to values to the
     // bare site URL, which lands the token fragment on the landing page with
     // no callback marker. Those tokens still complete sign-in.
     expect(readAuthCallbackAttempt(`https://pubmaxxing.com/${TOKEN_FRAGMENT}`))
       .toEqual({ attemptId: null, tokens: TOKENS, providerError: false });
-    // A bare error fragment on any page is a genuine failure.
-    expect(
-      readAuthCallbackAttempt(
-        "https://pubmaxxing.com/#error=access_denied&error_code=otp_expired",
-      ),
-    ).toEqual({ attemptId: null, tokens: null, providerError: true });
+    // Bare provider-error signals cannot raise an auth banner outside auth pages.
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/map#error=1")).toBeNull();
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/map?authError=1")).toBeNull();
+    expect(readAuthCallbackAttempt("https://pubmaxxing.com/signin#error=1"))
+      .toEqual({ attemptId: null, tokens: null, providerError: true });
     // A marked callback whose attempt id was stripped still carries tokens.
     expect(
       readAuthCallbackAttempt(
