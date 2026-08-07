@@ -158,6 +158,49 @@ function AnswerCards({
   );
 }
 
+/** The active browse area's display label, or null for a located answer. */
+function resolveAreaLabel(borough: string | null, patch: NightPatch | null): string | null {
+  return borough ?? patch?.label ?? null;
+}
+
+/** Evidence receipt (§L06): what "Use this pub" carries into the plan. */
+function acceptanceReceiptText(intentWrite: boolean, areaLabel: string | null): string | null {
+  return intentWrite
+    ? `Keeps this pub for tonight${areaLabel ? ` in ${areaLabel}` : ""}.`
+    : null;
+}
+
+/** Why we're answering from a patch instead of the viewer's own spot, in words. */
+function patchStatusMessage(areaLabel: string | null, patchReason: PatchReason): string | null {
+  return areaLabel && patchReason
+    ? patchReason === "denied"
+      ? `Location's off, so here's ${areaLabel}. Not your patch?`
+      : patchReason === "none"
+        ? `Nothing priced within reach, so here's ${areaLabel}.`
+        : `No location on this device, so here's ${areaLabel}.`
+    : null;
+}
+
+/**
+ * Honest, derived coverage note for the active patch: real priced-pub counts
+ * from the slim index in memory, never a uniform claim. Borough view carries
+ * no patch profile, so it stays null.
+ */
+function patchCoverageNote(
+  patch: NightPatch | null,
+  patchProfile: PatchCapabilityProfile | null,
+): string | null {
+  return patch && patchProfile ? summarisePatchEvidence(patchProfile) : null;
+}
+
+/** Whether the active patch's real coverage is thin (the #474 demand-capture ask). */
+function patchCoverageIsLimited(
+  patch: NightPatch | null,
+  patchProfile: PatchCapabilityProfile | null,
+): boolean {
+  return Boolean(patch && patchProfile && patchIsLimited(patchProfile));
+}
+
 export default function NearMeNow({
   cityId = DEFAULT_CITY_ID,
   onSelectVenue,
@@ -406,176 +449,306 @@ export default function NearMeNow({
     [patch, borough, cityId, router],
   );
 
-  const areaLabel = borough ?? patch?.label ?? null;
+  const areaLabel = resolveAreaLabel(borough, patch);
   // Evidence receipt (§L06): what "Use this pub" carries into the plan. Shown
   // only when acceptance is live, so the browse-only surface stays uncluttered.
-  const acceptReceipt = intentWrite
-    ? `Keeps this pub for tonight${areaLabel ? ` in ${areaLabel}` : ""}.`
-    : null;
-  const patchMessage =
-    areaLabel && patchReason
-      ? patchReason === "denied"
-        ? `Location's off, so here's ${areaLabel}. Not your patch?`
-        : patchReason === "none"
-          ? `Nothing priced within reach, so here's ${areaLabel}.`
-          : `No location on this device, so here's ${areaLabel}.`
-      : null;
+  const acceptReceipt = acceptanceReceiptText(intentWrite, areaLabel);
+  const patchMessage = patchStatusMessage(areaLabel, patchReason);
 
   // Honest, derived coverage tier for the active patch. The note reads from real
   // priced-pub counts (slim index in memory); a "limited" patch also gets the
   // #474 demand-capture ask so a thin zone captures demand — value first, always
   // after the pints. Borough view carries no patch profile, so it is skipped.
-  const patchEvidenceNote = patch && patchProfile ? summarisePatchEvidence(patchProfile) : null;
-  const patchLimited = Boolean(patch && patchProfile && patchIsLimited(patchProfile));
+  const patchEvidenceNote = patchCoverageNote(patch, patchProfile);
+  const patchLimited = patchCoverageIsLimited(patch, patchProfile);
 
   return (
     <section className="nmn" aria-label="Find nearby cheap pints">
       {state === "idle" ? (
-        <div className="nmnIntro">
-          <p className="nmnLede">{nearIntroLede()}</p>
-          <button type="button" className="nmnLocate" onClick={locate}>
-            <LocateFixed size={18} aria-hidden="true" /> Find my pint
-          </button>
-          <p className="nmnHint">We only use your location to rank pubs nearby. Nothing is stored.</p>
-          <div className="nmnQuickPatches">
-            <p className="nmnQuickPatchesLabel">Or pick a patch</p>
-            <ul className="nmnAreaChips" aria-label="Pick an area">
-              {NIGHT_PATCHES.map((entry) => (
-                <li key={entry.id}>
-                  <button
-                    type="button"
-                    className="nmnBoroughChip"
-                    onClick={() => pickPatch(entry)}
-                  >
-                    {entry.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+        <NearMeIdleIntro onLocate={locate} onPickPatch={pickPatch} />
       ) : null}
 
-      {state === "requesting" ? (
-        <div className="nmnStatus" role="status">
-          <span className="nmnSpinner" aria-hidden="true" />
-          {patch
-            ? `Checking listed pint prices around ${patch.label}…`
-            : "Checking listed pint prices near you…"}
-        </div>
-      ) : null}
+      {state === "requesting" ? <NearMeRequestingStatus patch={patch} /> : null}
 
       {state === "denied" || state === "unavailable" ? (
         // answerWithoutFix is already resolving an area answer; this shows only
         // for the beat the slim index takes to arrive.
-        <div className="nmnStatus" role="status">
-          <span className="nmnSpinner" aria-hidden="true" />
-          Checking listed pint prices in town…
-        </div>
+        <NearMeFallbackStatus />
       ) : null}
 
       {state === "ready" && outsideCoverage ? (
-        <div className="nmnOutside">
-          <UnsupportedAreaPreview
-            nearest={outsideCoverage}
-            source="near-empty"
-            onPickPatch={(next: NightPatch) => pickPatch(next)}
-          />
-          <footer className="nmnFoot nmnFootArea">
-            <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
-              <LocateFixed size={15} aria-hidden="true" /> Try my location again
-            </button>
-          </footer>
-        </div>
+        <NearMeOutsideCoverage
+          outsideCoverage={outsideCoverage}
+          onPickPatch={pickPatch}
+          onLocate={locate}
+        />
       ) : null}
 
       {state === "ready" && !outsideCoverage && !borough && !patch ? (
-        <>
-          <header className="nmnHead">
-            <AnswerHeadline
-              text={nearMeAnswerHeadline({ scope })}
-              titledByHost={titledByHost}
-            />
-            {scope === "widened" ? (
-              <p className="nmnWiden">Not many priced pubs on your doorstep. These are the nearest, a bit further out.</p>
-            ) : (
-              <p className="nmnSub">Within about a 12-minute walk.</p>
-            )}
-          </header>
-          <AnswerCards
-            cards={cards}
-            onOpen={openVenue}
-            onAccept={acceptVenue}
-            accept={intentWrite}
-            receipt={acceptReceipt}
-          />
-          <footer className="nmnFoot">
-            <a className="nmnRetry" href={resolvedMapHref}>
-              <MapPin size={16} aria-hidden="true" /> Open the full map
-            </a>
-            <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
-              <RotateCw size={15} aria-hidden="true" /> Update location
-            </button>
-          </footer>
-        </>
+        <NearMeLocatedAnswer
+          scope={scope}
+          titledByHost={titledByHost}
+          cards={cards}
+          onOpen={openVenue}
+          onAccept={acceptVenue}
+          intentWrite={intentWrite}
+          acceptReceipt={acceptReceipt}
+          resolvedMapHref={resolvedMapHref}
+          onLocate={locate}
+        />
       ) : null}
 
       {state === "ready" && areaLabel ? (
-        <>
-          <header className="nmnHead">
-            <AnswerHeadline
-              text={nearMeAnswerHeadline({
-                scope,
-                borough,
-                patchLabel: patch?.label ?? null,
-              })}
-              titledByHost={titledByHost}
-            />
-            {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
-            {patchEvidenceNote ? <p className="nmnPatchTier">{patchEvidenceNote}</p> : null}
-          </header>
-          <AnswerCards
-            cards={cards}
-            onOpen={openVenue}
-            onAccept={acceptVenue}
-            accept={intentWrite}
-            receipt={acceptReceipt}
-          />
-          {cards.length === 0 ? (
-            <div className="nmnOutside">
-              <UnsupportedAreaPreview
-                area={areaLabel}
-                source="area-picker"
-                onPickPatch={(next: NightPatch) => pickPatch(next)}
-              />
-            </div>
-          ) : patchLimited ? (
-            // Covered but thin: pints shown above, now capture demand for MORE
-            // here (the #474 seam wired to LIMITED patches, not just unsupported).
-            <div className="nmnOutside">
-              <UnsupportedAreaPreview
-                area={areaLabel}
-                variant="limited"
-                evidenceNote={patchProfile?.prices.explanation ?? null}
-                source="area-picker"
-                onPickPatch={(next: NightPatch) => pickPatch(next)}
-              />
-            </div>
-          ) : null}
-          <footer className="nmnFoot nmnFootArea">
-            <AreaPicker
-              activeLabel={areaLabel}
-              loadSlim={loadSlim}
-              onPickPatch={(next) => pickPatch(next)}
-              onPickBorough={pickBorough}
-            />
-            <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
-              <LocateFixed size={15} aria-hidden="true" /> Try my location again
-            </button>
-          </footer>
-        </>
+        <NearMeAreaAnswer
+          scope={scope}
+          borough={borough}
+          patch={patch}
+          patchProfile={patchProfile}
+          areaLabel={areaLabel}
+          titledByHost={titledByHost}
+          patchMessage={patchMessage}
+          patchEvidenceNote={patchEvidenceNote}
+          patchLimited={patchLimited}
+          cards={cards}
+          onOpen={openVenue}
+          onAccept={acceptVenue}
+          intentWrite={intentWrite}
+          acceptReceipt={acceptReceipt}
+          loadSlim={loadSlim}
+          onPickPatch={pickPatch}
+          onPickBorough={pickBorough}
+          onLocate={locate}
+        />
       ) : null}
     </section>
+  );
+}
+
+function NearMeIdleIntro({
+  onLocate,
+  onPickPatch,
+}: {
+  onLocate: () => void;
+  onPickPatch: (patch: NightPatch) => void;
+}) {
+  return (
+    <div className="nmnIntro">
+      <p className="nmnLede">{nearIntroLede()}</p>
+      <button type="button" className="nmnLocate" onClick={onLocate}>
+        <LocateFixed size={18} aria-hidden="true" /> Find my pint
+      </button>
+      <p className="nmnHint">We only use your location to rank pubs nearby. Nothing is stored.</p>
+      <div className="nmnQuickPatches">
+        <p className="nmnQuickPatchesLabel">Or pick a patch</p>
+        <ul className="nmnAreaChips" aria-label="Pick an area">
+          {NIGHT_PATCHES.map((entry) => (
+            <li key={entry.id}>
+              <button
+                type="button"
+                className="nmnBoroughChip"
+                onClick={() => onPickPatch(entry)}
+              >
+                {entry.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function NearMeRequestingStatus({ patch }: { patch: NightPatch | null }) {
+  return (
+    <div className="nmnStatus" role="status">
+      <span className="nmnSpinner" aria-hidden="true" />
+      {patch
+        ? `Checking listed pint prices around ${patch.label}…`
+        : "Checking listed pint prices near you…"}
+    </div>
+  );
+}
+
+function NearMeFallbackStatus() {
+  return (
+    <div className="nmnStatus" role="status">
+      <span className="nmnSpinner" aria-hidden="true" />
+      Checking listed pint prices in town…
+    </div>
+  );
+}
+
+function NearMeOutsideCoverage({
+  outsideCoverage,
+  onPickPatch,
+  onLocate,
+}: {
+  outsideCoverage: NearestPatch;
+  onPickPatch: (patch: NightPatch) => void;
+  onLocate: () => void;
+}) {
+  return (
+    <div className="nmnOutside">
+      <UnsupportedAreaPreview
+        nearest={outsideCoverage}
+        source="near-empty"
+        onPickPatch={onPickPatch}
+      />
+      <footer className="nmnFoot nmnFootArea">
+        <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
+          <LocateFixed size={15} aria-hidden="true" /> Try my location again
+        </button>
+      </footer>
+    </div>
+  );
+}
+
+function NearMeLocatedAnswer({
+  scope,
+  titledByHost,
+  cards,
+  onOpen,
+  onAccept,
+  intentWrite,
+  acceptReceipt,
+  resolvedMapHref,
+  onLocate,
+}: {
+  scope: NearMeScope;
+  titledByHost: boolean;
+  cards: NearMeCard[];
+  onOpen: (id: string) => void;
+  onAccept: (id: string) => void;
+  intentWrite: boolean;
+  acceptReceipt: string | null;
+  resolvedMapHref: string;
+  onLocate: () => void;
+}) {
+  return (
+    <>
+      <header className="nmnHead">
+        <AnswerHeadline
+          text={nearMeAnswerHeadline({ scope })}
+          titledByHost={titledByHost}
+        />
+        {scope === "widened" ? (
+          <p className="nmnWiden">Not many priced pubs on your doorstep. These are the nearest, a bit further out.</p>
+        ) : (
+          <p className="nmnSub">Within about a 12-minute walk.</p>
+        )}
+      </header>
+      <AnswerCards
+        cards={cards}
+        onOpen={onOpen}
+        onAccept={onAccept}
+        accept={intentWrite}
+        receipt={acceptReceipt}
+      />
+      <footer className="nmnFoot">
+        <a className="nmnRetry" href={resolvedMapHref}>
+          <MapPin size={16} aria-hidden="true" /> Open the full map
+        </a>
+        <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
+          <RotateCw size={15} aria-hidden="true" /> Update location
+        </button>
+      </footer>
+    </>
+  );
+}
+
+function NearMeAreaAnswer({
+  scope,
+  borough,
+  patch,
+  patchProfile,
+  areaLabel,
+  titledByHost,
+  patchMessage,
+  patchEvidenceNote,
+  patchLimited,
+  cards,
+  onOpen,
+  onAccept,
+  intentWrite,
+  acceptReceipt,
+  loadSlim,
+  onPickPatch,
+  onPickBorough,
+  onLocate,
+}: {
+  scope: NearMeScope;
+  borough: string | null;
+  patch: NightPatch | null;
+  patchProfile: PatchCapabilityProfile | null;
+  areaLabel: string;
+  titledByHost: boolean;
+  patchMessage: string | null;
+  patchEvidenceNote: string | null;
+  patchLimited: boolean;
+  cards: NearMeCard[];
+  onOpen: (id: string) => void;
+  onAccept: (id: string) => void;
+  intentWrite: boolean;
+  acceptReceipt: string | null;
+  loadSlim: () => Promise<PricedPoint[]>;
+  onPickPatch: (patch: NightPatch) => void;
+  onPickBorough: (name: string) => void;
+  onLocate: () => void;
+}) {
+  return (
+    <>
+      <header className="nmnHead">
+        <AnswerHeadline
+          text={nearMeAnswerHeadline({
+            scope,
+            borough,
+            patchLabel: patch?.label ?? null,
+          })}
+          titledByHost={titledByHost}
+        />
+        {patchMessage ? <p className="nmnSub">{patchMessage}</p> : null}
+        {patchEvidenceNote ? <p className="nmnPatchTier">{patchEvidenceNote}</p> : null}
+      </header>
+      <AnswerCards
+        cards={cards}
+        onOpen={onOpen}
+        onAccept={onAccept}
+        accept={intentWrite}
+        receipt={acceptReceipt}
+      />
+      {cards.length === 0 ? (
+        <div className="nmnOutside">
+          <UnsupportedAreaPreview
+            area={areaLabel}
+            source="area-picker"
+            onPickPatch={onPickPatch}
+          />
+        </div>
+      ) : patchLimited ? (
+        // Covered but thin: pints shown above, now capture demand for MORE
+        // here (the #474 seam wired to LIMITED patches, not just unsupported).
+        <div className="nmnOutside">
+          <UnsupportedAreaPreview
+            area={areaLabel}
+            variant="limited"
+            evidenceNote={patchProfile?.prices.explanation ?? null}
+            source="area-picker"
+            onPickPatch={onPickPatch}
+          />
+        </div>
+      ) : null}
+      <footer className="nmnFoot nmnFootArea">
+        <AreaPicker
+          activeLabel={areaLabel}
+          loadSlim={loadSlim}
+          onPickPatch={onPickPatch}
+          onPickBorough={onPickBorough}
+        />
+        <button type="button" className="nmnRetry nmnRetryGhost" onClick={onLocate}>
+          <LocateFixed size={15} aria-hidden="true" /> Try my location again
+        </button>
+      </footer>
+    </>
   );
 }
 
