@@ -1413,8 +1413,11 @@ export default function PubMap({
   const hasReactiveLogIntent = hasMapLogIntent(searchParams) && !logIntentCleared;
   const shouldBuildSuggestedRoute = !hasReactiveLogIntent || planningOpen || routeMapped;
   const suggestedRoute = useMemo(
-    () => (shouldBuildSuggestedRoute ? buildCrawlRoute(filteredPubVenues, filters) : EMPTY_ROUTE),
-    [shouldBuildSuggestedRoute, filteredPubVenues, filters],
+    () =>
+      shouldBuildSuggestedRoute
+        ? buildCrawlRoute(filteredPubVenues, filters, noAlcoholLensPrices)
+        : EMPTY_ROUTE,
+    [shouldBuildSuggestedRoute, filteredPubVenues, filters, noAlcoholLensPrices],
   );
   // C2 — a plan that's "on tonight" (lib/activePlan) draws on the map through
   // the SAME route paint the crawl planner uses. useActivePlanRoute carries the

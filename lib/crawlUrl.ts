@@ -84,6 +84,7 @@ const CROSS_STYLES = new Set<CrawlStyle>([
   "beerGarden",
   "sports",
   "dateNight",
+  "noAlcoholFirst",
 ]);
 const MAX_PRICE = { min: 4, max: NO_PINT_PRICE_CAP };
 const STOPS = { min: 4, max: 7 };

@@ -96,6 +96,7 @@ const CRAWL_STYLES = new Set([
   "beerGarden",
   "sports",
   "dateNight",
+  "noAlcoholFirst",
 ]);
 const FILTER_BOOLEAN_KEYS = [
   "requireBeerGarden",

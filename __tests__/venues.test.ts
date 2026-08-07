@@ -14,6 +14,7 @@ import {
   type VenuePrice,
   type Filters,
 } from "@/lib/venues";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
 
 function makeRow(overrides: Partial<VenuePrice> = {}): VenuePrice {
   return {
@@ -515,6 +516,47 @@ describe("scoreVenue", () => {
     const heritage = groupVenuePrices([makeRow({ pub_name: "The Lamb" })])[0];
     const plain = groupVenuePrices([makeRow({ pub_name: "The Nothing" })])[0];
     expect(scoreVenue(heritage, "heritage")).toBeGreaterThan(scoreVenue(plain, "heritage"));
+  });
+
+  // noAlcoholFirst biases toward a corroborated NA price the same way filters
+  // travel: a Map keyed by venue id, never a new VenueSignal or pint bucket.
+  it("corroborated-NA venue outscores one without under noAlcoholFirst", () => {
+    const withNa = groupVenuePrices([
+      makeRow({ address: "A", pub_name: "The Dry Arms" }),
+    ])[0];
+    const withoutNa = groupVenuePrices([
+      makeRow({ address: "B", pub_name: "The Wet Arms" }),
+    ])[0];
+    const naLensPrices: ReadonlyMap<string, MapLensPrice> = new Map([
+      [
+        withNa.id,
+        {
+          venueId: withNa.id,
+          category: "alcohol-free",
+          categoryLabel: "Alcohol-free",
+          priceGbp: 3.5,
+          source: "community",
+        },
+      ],
+    ]);
+    expect(scoreVenue(withNa, "noAlcoholFirst", naLensPrices)).toBeGreaterThan(
+      scoreVenue(withoutNa, "noAlcoholFirst", naLensPrices),
+    );
+  });
+
+  // Missing NA price is neutral, not penalised, mirroring lensPriceForVenue:
+  // two venues absent from the map score identically under noAlcoholFirst.
+  it("treats a missing NA price as neutral rather than a penalty", () => {
+    const cheap = groupVenuePrices([makeRow({ address: "A", price_gbp: 4 })])[0];
+    const alsoCheap = groupVenuePrices([makeRow({ address: "B", price_gbp: 4 })])[0];
+    const emptyNaLensPrices: ReadonlyMap<string, MapLensPrice> = new Map();
+    expect(scoreVenue(cheap, "noAlcoholFirst", emptyNaLensPrices)).toBe(
+      scoreVenue(alsoCheap, "noAlcoholFirst", emptyNaLensPrices),
+    );
+    // Neutral holds with no map at all, too.
+    expect(scoreVenue(cheap, "noAlcoholFirst")).toBe(
+      scoreVenue(alsoCheap, "noAlcoholFirst"),
+    );
   });
 });
 

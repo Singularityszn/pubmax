@@ -20,7 +20,8 @@ type AuthorQuestion =
   | "character"
   | "access"
   | "door-policy"
-  | "people-eating";
+  | "people-eating"
+  | "na-friendly";
 
 const AUTHOR_QUESTIONS: readonly {
   value: AuthorQuestion;
@@ -30,6 +31,7 @@ const AUTHOR_QUESTIONS: readonly {
   { value: "access", label: "Access" },
   { value: "door-policy", label: "Door" },
   { value: "people-eating", label: "Eating" },
+  { value: "na-friendly", label: "Alcohol-free" },
 ];
 
 const READER_KEYS: readonly CommunityVenueSignalKey[] = [
@@ -38,6 +40,7 @@ const READER_KEYS: readonly CommunityVenueSignalKey[] = [
   "step-free-toilets",
   "door-policy",
   "people-eating",
+  "na-friendly",
 ];
 
 type VenueCommunitySignalsProps = {

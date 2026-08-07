@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   COMMUNITY_VENUE_SIGNAL_OPTIONS,
@@ -290,8 +292,89 @@ describe("communityVenueSignalText", () => {
   it("names access as the questions that only corroboration can answer", () => {
     expect(isAccessSignalKey("step-free-venue")).toBe(true);
     expect(isAccessSignalKey("step-free-toilets")).toBe(true);
-    for (const signalKey of ["character", "door-policy", "people-eating"] as const) {
+    for (const signalKey of [
+      "character",
+      "door-policy",
+      "people-eating",
+      "na-friendly",
+    ] as const) {
       expect(isAccessSignalKey(signalKey)).toBe(false);
     }
+  });
+
+  // na-friendly is a taste/welcome signal, not an access fact: standard
+  // (non-access) trust rules apply, and the wording always names the choice
+  // in words ("alcohol-free"), never a bare "NA" shorthand.
+  it("keeps na-friendly reports attributed to drinkers and named in words", () => {
+    expect(
+      communityVenueSignalText(
+        "na-friendly",
+        signal("na-friendly", "good-na-options"),
+        NOW,
+      ),
+    ).toEqual({
+      primary: "One drinker called the alcohol-free options good.",
+      trust: "reported",
+    });
+    expect(
+      communityVenueSignalText(
+        "na-friendly",
+        signal("na-friendly", "limited-na", { corroborations: 2 }),
+        NOW,
+      ),
+    ).toEqual({
+      primary: "Drinkers called the alcohol-free options limited.",
+      detail: "Confirmed by 2 drinkers.",
+      trust: "established",
+    });
+  });
+
+  it("does not present an old corroborated na-friendly report as established tonight", () => {
+    const old = signal("na-friendly", "good-na-options", {
+      corroborations: 3,
+      submittedAt: NOW - COMMUNITY_PRICE_MAX_AGE_MS - 1,
+      establishedCandidate: {
+        signalValue: "good-na-options",
+        submittedAt: NOW - COMMUNITY_PRICE_MAX_AGE_MS - 1,
+        corroborations: 3,
+      },
+    });
+    expect(communityVenueSignalText("na-friendly", old, NOW)).toEqual({
+      primary: "Older drinker reports called the alcohol-free options good.",
+      detail: "Needs a fresh check.",
+      trust: "reported",
+    });
+  });
+});
+
+describe("0080 na-friendly signal migration", () => {
+  it("widens community_prices_signal_pair_check to a na-friendly branch, keeping all five prior branches byte-equal", () => {
+    const sql = readFileSync(
+      join(
+        process.cwd(),
+        "supabase/migrations/20260807020000_0080_na_friendly_signal.sql",
+      ),
+      "utf8",
+    );
+
+    expect(sql).toMatch(
+      /drop constraint if exists community_prices_signal_pair_check/,
+    );
+    expect(sql).toMatch(/\(signal_key is null and signal_value is null\)/);
+    expect(sql).toMatch(
+      /signal_key = 'character' and signal_value in \('rough', 'posh'\)/,
+    );
+    expect(sql).toMatch(
+      /signal_key in \('step-free-venue', 'step-free-toilets'\)\s+and signal_value in \('step-free', 'steps'\)/,
+    );
+    expect(sql).toMatch(
+      /signal_key = 'door-policy'\s+and signal_value in \('no-issue', 'trainers', 'groups', 'late'\)/,
+    );
+    expect(sql).toMatch(
+      /signal_key = 'people-eating'\s+and signal_value in \('eating', 'drinks-only'\)/,
+    );
+    expect(sql).toMatch(
+      /signal_key = 'na-friendly'\s+and signal_value in \('good-na-options', 'limited-na'\)/,
+    );
   });
 });

@@ -43,13 +43,29 @@ describe("VenueCommunitySignals", () => {
     expect(html).toContain("Nobody has confirmed step-free toilet access.");
   });
 
-  it("offers all four decisions without four new cards", () => {
+  it("offers all five decisions without five new cards", () => {
     const html = render();
-    for (const label of ["Character", "Access", "Door", "Eating"]) {
+    for (const label of ["Character", "Access", "Door", "Eating", "Alcohol-free"]) {
       expect(html).toContain(`>${label}<`);
     }
     expect(html).not.toContain("signalCard");
     expect(html).toContain("Neither character answer is a score.");
+  });
+
+  it("gives na-friendly the same reader row and typographic weight as the rest", () => {
+    const html = render([
+      {
+        venueId: "venue-xjf3n0",
+        signalKey: "na-friendly",
+        signalValue: "good-na-options",
+        submittedAt: NOW,
+        source: "community",
+        corroborations: 1,
+      },
+    ]);
+    expect(html).toContain(">Alcohol-free<");
+    expect(html).toContain("One drinker called the alcohol-free options good.");
+    expect(html).not.toContain(">NA<");
   });
 
   it("attributes character to one drinker's judgement", () => {

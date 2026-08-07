@@ -66,6 +66,7 @@ export type CrawlMode = "suggest" | "build";
 
 export const styleLabels: Record<CrawlStyle, string> = {
   balanced: "Balanced",
+  noAlcoholFirst: "Alcohol-free first",
   cheapest: "Cheapest",
   heritage: "Historic",
   writerTrail: "Writer Trail",
