@@ -25,6 +25,14 @@ describe("mapSectionToCategory", () => {
   it("skips food sections", () => {
     expect(mapSectionToCategory("main menu")).toBeNull();
   });
+  it("maps coffee, soft drink, and alcohol-free sections", () => {
+    expect(mapSectionToCategory("Coffee")).toBe("coffee");
+    expect(mapSectionToCategory("Hot drinks")).toBe("coffee");
+    expect(mapSectionToCategory("Soft Drinks (8)")).toBe("soft-drink");
+    expect(mapSectionToCategory("Drinks")).toBe("soft-drink");
+    expect(mapSectionToCategory("Alcohol-free")).toBe("alcohol-free");
+    expect(mapSectionToCategory("No & Low")).toBe("alcohol-free");
+  });
 });
 
 describe("parseGreeneKingMenuMarkdown", () => {
