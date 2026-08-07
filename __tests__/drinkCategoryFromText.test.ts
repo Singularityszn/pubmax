@@ -50,10 +50,21 @@ describe("drinkCategoryFromText", () => {
   });
 
   it("prefers the more specific family over the broad beer net", () => {
-    // "ginger beer" contains "beer" but reads as a real ginger beer → beer is
-    // acceptable here; the guard we care about is wine/spirits winning first.
     expect(drinkCategoryFromText("Red wine")).toBe("wine");
     expect(drinkCategoryFromText("Whisky sour")).toBe("whisky");
+    // Soft-drink keywords beat the beer net so ginger beer is not a pint.
+    expect(drinkCategoryFromText("Ginger beer")).toBe("soft-drink");
+  });
+
+  it("classifies alcohol-free, soft drink, and coffee daytime lanes", () => {
+    expect(drinkCategoryFromText("Heineken 0.0")).toBe("alcohol-free");
+    expect(drinkCategoryFromText("Alcohol-free pint")).toBe("alcohol-free");
+    expect(drinkCategoryFromText("Coke")).toBe("soft-drink");
+    expect(drinkCategoryFromText("Lime and lemonade")).toBe("soft-drink");
+    expect(drinkCategoryFromText("Flat white")).toBe("coffee");
+    expect(drinkCategoryFromText("Americano")).toBe("coffee");
+    // Espresso martini stays a spirit/cocktail lane, not coffee.
+    expect(drinkCategoryFromText("Espresso martini")).toBe("vodka");
   });
 
   it("returns one-level subtype and top-shelf evidence without changing legacy category order", () => {

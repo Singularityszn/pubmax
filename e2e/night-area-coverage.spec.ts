@@ -10,7 +10,7 @@ import { expect, type Page, test } from "@playwright/test";
 async function openComposer(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Guide me instead" }).click();
   await page.getByRole("button", { name: "Describe instead" }).click();
-  await expect(page.getByLabel("Describe the night")).toBeVisible();
+  await expect(page.getByLabel("Describe the outing")).toBeVisible();
 }
 
 test("mobile planner explains planning confidence and evidence warnings", async ({ page }) => {
@@ -85,10 +85,10 @@ test("mobile planner announces concierge progress while it finds a route", async
   await openComposer(page);
 
   const concierge = page.locator(".planComposer__concierge");
-  const description = page.getByLabel("Describe the night");
+  const description = page.getByLabel("Describe the outing");
   await description.fill("A calm, affordable night near Clapham");
   await expect(description).toHaveValue("A calm, affordable night near Clapham");
-  const submit = page.getByRole("button", { name: "Plan my night" });
+  const submit = page.getByRole("button", { name: "Make a plan" });
   await expect(submit).toBeEnabled();
   await submit.click();
 
@@ -137,8 +137,8 @@ test("mobile planner keeps the inferred Night Area context editable", async ({ p
   const response = await page.goto("/plan");
   expect(response?.status()).toBe(200);
   await openComposer(page);
-  await page.getByLabel("Describe the night").fill("A calm night in Clapham for four");
-  await page.getByRole("button", { name: "Plan my night" }).click();
+  await page.getByLabel("Describe the outing").fill("A calm night in Clapham for four");
+  await page.getByRole("button", { name: "Make a plan" }).click();
 
   await expect(page.getByRole("combobox", { name: "Area" })).toHaveValue("clapham");
   await page.getByRole("combobox", { name: "Area" }).selectOption("victoria");

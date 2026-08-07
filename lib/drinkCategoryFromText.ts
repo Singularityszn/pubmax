@@ -29,14 +29,23 @@ export type DrinkTextTaxonomy = {
 // Ordered keyword table. Order matters: the first category with a hit wins, so
 // the more specific / less ambiguous families are checked before the broad
 // "beer" bucket (which would otherwise swallow "ginger beer", "root beer"…).
+// Bare "red"/"white" are NOT wine keywords: they steal "flat white". Use
+// "house red", "red wine", grape names, etc. instead. Coffee sits after vodka
+// so "espresso martini" stays a spirit.
 // Keywords are lowercase; matched as whole words against a normalised label.
 const CATEGORY_KEYWORDS: Array<[DrinkCategory, string[]]> = [
   [
     "wine",
     [
       "wine",
-      "red",
-      "white",
+      "house red",
+      "house white",
+      "red wine",
+      "white wine",
+      "large red",
+      "large white",
+      "glass of red",
+      "glass of white",
       "rose",
       "rosé",
       "merlot",
@@ -68,11 +77,12 @@ const CATEGORY_KEYWORDS: Array<[DrinkCategory, string[]]> = [
       "dram",
     ],
   ],
+  // Vodka before gin so "espresso martini" is not stolen by gin's "martini".
+  ["vodka", ["vodka", "moscow mule", "espresso martini"]],
   [
     "gin",
     ["gin", "g&t", "gin and tonic", "gin & tonic", "negroni", "martini"],
   ],
-  ["vodka", ["vodka", "moscow mule", "espresso martini"]],
   ["rum", ["rum", "mojito", "daiquiri", "pina colada", "piña colada", "rhum"]],
   [
     "cocktail",
@@ -92,6 +102,58 @@ const CATEGORY_KEYWORDS: Array<[DrinkCategory, string[]]> = [
     ],
   ],
   ["shot", ["shot", "shots", "sambuca", "tequila", "jägerbomb", "jagerbomb", "jager", "jäger"]],
+  // No-alcohol and daytime lanes sit above the broad beer net so "ginger beer"
+  // / "root beer" stay soft-drink when the label says so, and coffee never
+  // collapses into other. Spirits/cocktail (incl. espresso martini) already won
+  // above.
+  [
+    "alcohol-free",
+    [
+      "alcohol-free",
+      "alcohol free",
+      "alcoholfree",
+      "0.0",
+      "0.0%",
+      "af pint",
+      "af beer",
+      "non-alcoholic beer",
+      "non alcoholic beer",
+      "heineken 0.0",
+      "guinness 0.0",
+    ],
+  ],
+  [
+    "soft-drink",
+    [
+      "soft drink",
+      "soft drinks",
+      "soda",
+      "cola",
+      "coke",
+      "pepsi",
+      "lemonade",
+      "ginger beer",
+      "root beer",
+      "squash",
+      "juice",
+      "tonic water",
+      "sparkling water",
+    ],
+  ],
+  [
+    "coffee",
+    [
+      "coffee",
+      "latte",
+      "cappuccino",
+      "flat white",
+      "americano",
+      "mocha",
+      "espresso",
+      "macchiato",
+      "cortado",
+    ],
+  ],
   [
     "beer",
     [

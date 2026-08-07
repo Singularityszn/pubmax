@@ -93,7 +93,12 @@ describe("category mapping (their sections → our taxonomy)", () => {
     expect(mapSectionToCategory("Rum")).toBe("rum");
     expect(mapSectionToCategory("Cocktails")).toBe("cocktail");
     expect(mapSectionToCategory("Shots")).toBe("shot");
-    expect(mapSectionToCategory("Soft drinks")).toBe("other");
+    expect(mapSectionToCategory("Soft drinks")).toBe("soft-drink");
+    expect(mapSectionToCategory("Coffee")).toBe("coffee");
+    expect(mapSectionToCategory("Hot drinks")).toBe("coffee");
+    expect(mapSectionToCategory("Alcohol-free")).toBe("alcohol-free");
+    expect(mapSectionToCategory("No & Low")).toBe("alcohol-free");
+    expect(mapSectionToCategory("Other")).toBe("other");
   });
 
   it("drops (null) an unmappable section — never guesses", () => {

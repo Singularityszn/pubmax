@@ -254,9 +254,10 @@ export default async function AboutPage() {
         <p className="aboutBody">
           Also the daytime jobs: coffee and a laptop at a Spoons, food then a
           soft drink, an alcohol-free hang, a chill afternoon that never needed
-          a crawl. Soft-drink and alcohol-free prices share the same trust
-          rules as beer. Food anchors stay honest about their source and never
-          masquerade as a pint on the pin.
+          a crawl. Soft drink and alcohol-free prices share the same trust
+          rules as beer. Coffee joins that honesty once someone logs it. Food
+          anchors stay honest about their source and never masquerade as a pint
+          on the pin.
         </p>
         <p className="aboutBody">
           We&rsquo;re building this for people who notice an eight-quid lager,
