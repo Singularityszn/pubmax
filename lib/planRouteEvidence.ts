@@ -1,5 +1,6 @@
 import { priceConfidence, type PriceConfidenceState } from "@/lib/priceConfidence";
 import type { PlanAccessibilityNeed } from "@/lib/planIntake";
+import { DAY_MS } from "@/lib/dayMs";
 
 const LONDON_TIME_ZONE = "Europe/London";
 export const OPENING_EVIDENCE_FRESH_DAYS = 30;
@@ -120,7 +121,7 @@ function londonClock(iso: string): { weekday: string; minute: number; localDay: 
     && Number.isInteger(day)
     && Number.isFinite(hour)
     && Number.isFinite(minute)
-    ? { weekday, minute: hour * 60 + minute, localDay: Date.UTC(year, month - 1, day) / 86_400_000 }
+    ? { weekday, minute: hour * 60 + minute, localDay: Date.UTC(year, month - 1, day) / DAY_MS }
     : null;
 }
 
@@ -196,7 +197,7 @@ export function assessOpeningSchedule(
   if (!visit) return { state: "unknown", source: null, warning: null };
   if (!schedule) return { state: "unknown", source: null, warning: "Opening hours are not checked for this visit." };
   const observed = validIso(schedule.source.observedAt);
-  const ageDays = observed === null ? Number.POSITIVE_INFINITY : (now - observed) / 86_400_000;
+  const ageDays = observed === null ? Number.POSITIVE_INFINITY : (now - observed) / DAY_MS;
   if (ageDays < 0 || ageDays > OPENING_EVIDENCE_FRESH_DAYS) {
     return { state: "unknown", source: schedule.source, warning: "The venue's regular opening hours are stale." };
   }

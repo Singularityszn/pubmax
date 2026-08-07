@@ -1,4 +1,5 @@
 import { haversineKm } from "@/lib/haversine";
+import { DAY_MS } from "@/lib/dayMs";
 import type { PlanAccessibilityNeed } from "@/lib/planIntake";
 import type { Budget, NightAreaSlug } from "@/lib/nightPlanning";
 import type {
@@ -282,7 +283,7 @@ function hasCurrentAttributableOpeningSchedule(
   ) return false;
   const observedAt = Date.parse(source.observedAt);
   if (!Number.isFinite(observedAt)) return false;
-  const ageDays = (now - observedAt) / 86_400_000;
+  const ageDays = (now - observedAt) / DAY_MS;
   return ageDays >= 0 && ageDays <= OPENING_EVIDENCE_FRESH_DAYS;
 }
 

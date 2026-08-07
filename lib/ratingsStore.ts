@@ -33,6 +33,7 @@ import {
   TOP_RATED_WINDOW_DAYS,
 } from "@/lib/ratings";
 import { normalizeHandle } from "@/lib/profiles";
+import { DAY_MS } from "@/lib/dayMs";
 import {
   admin,
   createSchemaMissWarner,
@@ -195,7 +196,7 @@ export const supabaseRatingsStore: RatingsStore = {
     try {
       const now = Date.now();
       const cutoff = new Date(
-        now - TOP_RATED_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+        now - TOP_RATED_WINDOW_DAYS * DAY_MS,
       ).toISOString();
       const columns: string = `${refColumn}, rating, created_at`;
       const { data, error } = await admin()

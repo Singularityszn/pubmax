@@ -1,8 +1,10 @@
+import { DAY_MS } from "@/lib/dayMs";
+
 export const PLAN_DRAFT_KEY = "pubmaxx:plan-draft:v1";
 export const PLAN_DRAFT_V2_KEY = "pubmax:plan-draft:v2";
 export const PLAN_DRAFT_STORAGE_VERSION = 2 as const;
 export const PLAN_DRAFT_MAX_RAW_BYTES = 20 * 1024;
-export const PLAN_DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+export const PLAN_DRAFT_TTL_MS = DAY_MS;
 export const PLAN_DRAFT_MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
 
 export const PLAN_DRAFT_ORIGINS = [

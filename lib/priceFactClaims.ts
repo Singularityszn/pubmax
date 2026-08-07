@@ -18,8 +18,7 @@ import {
   type FactSource,
 } from "@/lib/factClaims";
 import { FRESH_WITHIN_DAYS } from "@/lib/priceConfidence";
-
-const DAY_MS = 86_400_000;
+import { DAY_MS } from "@/lib/dayMs";
 
 // A price disagreement counts as "live" for the same fortnight priceConfidence
 // treats a community vouch as fresh (FRESH_WITHIN_DAYS = 14). Beyond it, an old

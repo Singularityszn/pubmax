@@ -12,6 +12,7 @@ import { getNightArea } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import type { LastPintDecisionKind } from "@/lib/tfl";
 import { venueMapUrl as buildVenueMapUrl } from "@/lib/venueMapUrl";
+import { DAY_MS } from "@/lib/dayMs";
 
 // The public read shape as it arrives over the wire from GET /api/pint-drops
 // ({ drops: [...] }). Kept structural (not imported from the store's DTO type)
@@ -251,7 +252,7 @@ export const FEED_FILTERS: FeedFilterDef[] = [
 ];
 
 const CHEAP_MAX_GBP = 5.5;
-const TONIGHT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const TONIGHT_WINDOW_MS = DAY_MS;
 
 function createdMs(item: FeedItem): number {
   const t = Date.parse(item.createdAt);

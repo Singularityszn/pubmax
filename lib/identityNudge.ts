@@ -32,6 +32,8 @@
 // action if `!isIdentityNudgePending()`. On the web the push gate is inert
 // (native-only), so there is no conflict there.
 
+import { DAY_MS } from "@/lib/dayMs";
+
 export type IdentityNudgeTrigger = "plan" | "moment";
 
 const DISMISSED_AT_KEY = "pubmax:identityNudge:dismissedAt:v1";
@@ -40,7 +42,6 @@ const PENDING_AT_KEY = "pubmax:identityNudge:pendingAt:v1";
 
 /** How long a "not now" keeps the gate shut before the next qualifying action can re-open it. */
 export const IDENTITY_NUDGE_COOLDOWN_DAYS = 7;
-const DAY_MS = 24 * 60 * 60 * 1000;
 export const IDENTITY_NUDGE_COOLDOWN_MS = IDENTITY_NUDGE_COOLDOWN_DAYS * DAY_MS;
 
 /**

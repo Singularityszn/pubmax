@@ -21,13 +21,13 @@
 // A price with zero confirm history simply shows no confidence line — absence
 // of signal is not a state we dress up.
 
+import { DAY_MS } from "@/lib/dayMs";
+
 export type PriceConfidenceState = "fresh" | "aging" | "stale";
 
 export const CONFIRM_WINDOW_DAYS = 7;
 export const FRESH_WITHIN_DAYS = 14;
 export const STALE_AFTER_DAYS = 60;
-
-const DAY_MS = 86_400_000;
 
 export type PriceConfidenceInput = {
   /** Distinct confirmers, all time. */

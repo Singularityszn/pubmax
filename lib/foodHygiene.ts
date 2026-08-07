@@ -15,6 +15,8 @@
 //      The resolved FHRSID rides in the cached value — the same cheap-re-fetch
 //      idiom the CityMCP proxies use (short in-process TTLs, ADR 0007 seam).
 
+import { DAY_MS } from "@/lib/dayMs";
+
 const FHRS_ENDPOINT = "https://api.ratings.food.gov.uk/Establishments";
 const FHRS_API_VERSION = "2";
 
@@ -22,7 +24,7 @@ const FHRS_API_VERSION = "2";
 // cadence). A day-long per-instance TTL keeps a warm lambda from re-hitting the
 // upstream while never outliving a deploy. Negative matches are cached too, so
 // the ~658 unmatched pubs cost one upstream call per instance, not one per open.
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const CACHE_TTL_MS = DAY_MS;
 
 // Only the numeric England/Wales/NI scheme (FHRS 0–5) renders a badge. Scotland
 // (FHIS: "Pass"/"Improvement Required") and the non-numeric statuses

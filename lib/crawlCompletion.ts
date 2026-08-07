@@ -5,6 +5,8 @@
 // inject a Map-backed stub; browser callers omit it and use window.localStorage.
 // SSR / missing storage is fail-soft (reads return empty, writes are no-ops).
 
+import { DAY_MS } from "@/lib/dayMs";
+
 export const CRAWL_PROGRESS_KEY = "pubmax_crawl_progress";
 /** Per-crawl one-shot celebration flags (Wave G2) — survives remounts. */
 export const CRAWL_CELEBRATION_KEY = "pubmax_crawl_celebration";
@@ -55,7 +57,7 @@ export type CrawlQuestChip = {
 };
 
 /** Seven-day window for place/crawl breadth quests (Wave H3). */
-export const PLACE_QUEST_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+export const PLACE_QUEST_WEEK_MS = 7 * DAY_MS;
 
 function emptyProgress(): CrawlProgressMap {
   return { crawls: {} };

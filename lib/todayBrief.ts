@@ -22,6 +22,7 @@ import {
   type DrinkWeatherRuleId,
   type VenueLens,
 } from "@/lib/drinkWeather";
+import { DAY_MS } from "@/lib/dayMs";
 import { haversineKm } from "@/lib/haversine";
 import { sanitizeHeritageFacts, type HeritageFact } from "@/lib/heritageFacts";
 import { firstHttp } from "@/lib/httpUrl";
@@ -306,7 +307,7 @@ function londonDayIndex(now: Date): number {
     day: "2-digit",
   }).formatToParts(now);
   const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? "0");
-  return Math.floor(Date.UTC(get("year"), get("month") - 1, get("day")) / 86_400_000);
+  return Math.floor(Date.UTC(get("year"), get("month") - 1, get("day")) / DAY_MS);
 }
 
 function titleCasePubName(name: string): string {

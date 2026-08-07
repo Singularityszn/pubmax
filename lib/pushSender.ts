@@ -16,6 +16,7 @@
 // Sending to ALL tokens for a plan-scoped event would be a privacy leak (crew A
 // gets crew B's Plan updates), so that path stays closed until identity exists.
 
+import { DAY_MS } from "@/lib/dayMs";
 import { isLimited } from "@/lib/pintDrops";
 import {
   PerTokenResult,
@@ -184,7 +185,7 @@ const broadcastedVersions = new Set<string>();
 // version broadcasts at most once globally. The window is long because a
 // snapshot version (its generatedAt) is monotonic and never recurs — the claim
 // only has to outlive the deploy generation, not forever.
-const BROADCAST_CLAIM_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const BROADCAST_CLAIM_WINDOW_MS = 7 * DAY_MS;
 
 async function claimNightSignalBroadcast(version: string): Promise<boolean> {
   const key = `night-signal-broadcast:${version}`;

@@ -13,11 +13,12 @@
 
 import { createFailSoftGuard, selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
+import { DAY_MS } from "@/lib/dayMs";
 import { isValidLngLat, type LngLat } from "@/lib/walkRoute";
 
 // ~1 month. Long because pavement geometry is effectively static; the cache just
 // spares ORS quota, so a stale-but-correct leg is fine well past this too.
-export const WALK_ROUTE_LEG_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+export const WALK_ROUTE_LEG_TTL_MS = 30 * DAY_MS;
 
 export type WalkRouteStore = {
   /** Cached routed geometry for a leg key, or null on miss/expiry/failure. */

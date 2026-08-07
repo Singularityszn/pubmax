@@ -12,11 +12,11 @@ import {
   buildCandidates,
   type NightSignalCandidate,
 } from "@/scripts/ingest_night_signal_candidates.mjs";
+import { DAY_MS } from "@/lib/dayMs";
 
 const EXA_ENDPOINT = "https://api.exa.ai/search";
 const LOOKBACK_DAYS = 30;
 const RESULTS_PER_QUERY = 15;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type { NightSignalCandidate };
 

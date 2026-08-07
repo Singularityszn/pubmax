@@ -14,6 +14,7 @@
 // SUBMITTED. Together they are the whole community price loop.
 
 import { CATEGORY_META, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+import { DAY_MS } from "@/lib/dayMs";
 
 /**
  * Plausible-price envelope for a UK drink, in GBP. Below the floor is a
@@ -197,8 +198,6 @@ export function validateCommunityPrice(input: unknown): CommunityPriceValidation
     value: { venueId, drinkCategory: category, priceGbp: roundToPennies(parsed) },
   };
 }
-
-const DAY_MS = 86_400_000;
 
 // ── Trust policy: what a community figure has to earn before it moves the map ─
 //

@@ -10,10 +10,11 @@ import type {
   NightContext,
   NightAreaSlug,
 } from "@/lib/nightPlanning";
+import { DAY_MS } from "@/lib/dayMs";
 
 export const PLAN_INTAKE_VERSION = 1 as const;
 export const PLAN_INTAKE_STORAGE_KEY = "pubmax:plan-intake:v1";
-export const PLAN_INTAKE_DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+export const PLAN_INTAKE_DRAFT_TTL_MS = DAY_MS;
 export const PLAN_INTAKE_MAX_RAW_BYTES = 12 * 1024;
 const LONDON_TIME_ZONE = "Europe/London";
 
