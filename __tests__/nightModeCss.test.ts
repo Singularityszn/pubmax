@@ -7,8 +7,13 @@ const css = readFileSync(join(process.cwd(), "components/night/nightMode.css"), 
 
 describe("Night Mode CSS token safety", () => {
   it("keeps Night Mode dismiss and restore controls thumb-sized", () => {
-    expect(css).toMatch(/\.nightCard__close\s*{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px;/);
+    expect(css).toMatch(/\.nightCard__close\s*{[\s\S]*?min-width:\s*56px;[\s\S]*?min-height:\s*56px;/);
     expect(css).toMatch(/\.nightPill\s*{[\s\S]*?min-height:\s*44px;/);
+  });
+
+  it("gives the pavement-glance next-stop button a pavement-grade tap floor", () => {
+    expect(css).toMatch(/\.nightCard__next\s*{[\s\S]*?min-height:\s*68px;/);
+    expect(css).toMatch(/\.nightCard__nextAction\s*{[\s\S]*?min-height:\s*44px;/);
   });
 
   it("uses semantic theme tokens for accent, success, and danger states", () => {
