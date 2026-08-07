@@ -176,10 +176,10 @@ test("native first run hands one useful Plan to the contextual push ask", async 
   await page.getByRole("button", { name: "Plan my night" }).click();
 
   await expect(page).toHaveURL(/\/map\?plan=1$/);
-  await expect(page.getByRole("heading", { name: "Describe your night" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Build 3-stop route" }).click();
+  await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toBeVisible();
   await expect(page.getByText("Get pinged when your crew votes or the get-in closes.")).toBeVisible();
 
@@ -243,8 +243,8 @@ test("Skip releases onboarding budget for the next Plan but never prompts on reb
   )).toBeNull();
 
   await page.goto("/map?plan=1");
-  await expect(page.getByRole("heading", { name: "Describe your night" })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("button", { name: "Build 3-stop route" }).click();
+  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(page.getByRole("dialog", { name: "Stay in the loop" })).toBeVisible();
 
   await page.goto("/");

@@ -46,7 +46,7 @@ test("mobile Rounds index explains link-based joining and routes to the map", as
   await expect(page).toHaveURL(/\/map$/);
   await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
   await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Describe your night" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible();
 
   await page.getByRole("button", { name: "Search the map" }).click();
   await expect(page.getByRole("searchbox", { name: "Search pubs" })).toBeVisible();

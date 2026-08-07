@@ -406,7 +406,7 @@ async function measureSurfaceAssertions(
   if (surface === "map-first-visit") {
     const names =
       viewport.width <= 640
-        ? ["mobile map topbar", "Describe your night"]
+        ? ["mobile map topbar", "Describe the outing"]
         : [
             "desktop map navigation",
             "Tonight Arc panel",
@@ -444,7 +444,7 @@ async function measureSurfaceAssertions(
       (candidate) => candidate.name === "analytics notice",
     );
     const planAction = panels.find(
-      (candidate) => candidate.name === "Describe your night",
+      (candidate) => candidate.name === "Describe the outing",
     );
     const credit = panels.find(
       (candidate) => candidate.name === "map credit",
@@ -696,7 +696,7 @@ async function captureSurface(
     panel(page, "mobile map chrome", ".mobileMapChrome"),
     panel(page, "mobile map topbar", ".mobileMapTopbar"),
     panel(page, "Tonight Arc panel", ".tonightArcChips"),
-    panel(page, "Describe your night", ".mobilePlanActivation"),
+    panel(page, "Describe the outing", ".mobilePlanActivation"),
     panel(page, "analytics notice", ".analyticsConsentPrompt"),
     panel(page, "desktop map navigation", ".siteNavBarFloating"),
     panel(page, "desktop map toolbar", ".mapToolbar"),
