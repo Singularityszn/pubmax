@@ -31,6 +31,7 @@ function makePlanState(overrides: Partial<PlanState> = {}): PlanState {
       budget: "standard",
       budgetLimitPence: null,
       zeroProof: false,
+      wetherspoonsPreferred: false,
       atmosphere: ["lively"],
       foodNeeds: [],
       accessibility: ["step-free"],

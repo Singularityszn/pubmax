@@ -228,6 +228,7 @@ export function nightContextChanged(before: NightContext | null, after: NightCon
     || before.budget !== after.budget
     || before.budgetLimitPence !== after.budgetLimitPence
     || before.zeroProof !== after.zeroProof
+    || before.wetherspoonsPreferred !== after.wetherspoonsPreferred
     || !sameList(before.atmosphere, after.atmosphere)
     || !sameList(before.foodNeeds, after.foodNeeds)
     || !sameList(before.accessibility, after.accessibility)

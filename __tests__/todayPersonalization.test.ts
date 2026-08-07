@@ -153,6 +153,7 @@ describe("resolveTodayPersonalization", () => {
         context: {
           ...DEFAULT_NIGHT_PROFILE_INPUT.context,
           zeroProof: true,
+          wetherspoonsPreferred: false,
           budgetLimitPence: 2_000,
         },
       }),

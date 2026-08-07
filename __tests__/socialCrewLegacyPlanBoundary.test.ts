@@ -170,6 +170,7 @@ describe("legacy Plan boundary for Social Crews", () => {
       budget: "standard" as const,
       budgetLimitPence: null,
       zeroProof: false,
+      wetherspoonsPreferred: false,
       atmosphere: [],
       foodNeeds: [],
       accessibility: [],

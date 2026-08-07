@@ -18,6 +18,11 @@ export type NightContext = {
   /** Explicit per-person budget for the three-stop route. Never inferred from profile history. */
   budgetLimitPence: number | null;
   zeroProof: boolean;
+  /**
+   * Soft-prefer pubs that join the first-party J D Wetherspoon directory.
+   * Never a hard filter: areas with few Spoons must still return three stops.
+   */
+  wetherspoonsPreferred: boolean;
   atmosphere: string[];
   foodNeeds: string[];
   accessibility: string[];
@@ -45,6 +50,9 @@ function defaultDaypart(now: Date): Daypart {
 
 const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8 };
 
+/** Names the chain in free text (Wetherspoon / Wetherspoons / Spoons). */
+export const WETHERSPOONS_QUERY_PATTERN = /\bwetherspoons?\b|\bspoons\b/i;
+
 export function inferNightContext(rawQuery: unknown, now = new Date()): InferredNightContext {
   const query = cleanText(rawQuery, 500);
   const lower = query.toLocaleLowerCase();
@@ -68,10 +76,10 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
     reasons.push({ field: "daypart", evidence: explicitDaypart[2], explanation: "Matched the requested time of day." });
   }
 
-  // Spoons is a value chain with no generate-time directory filter: when the
-  // query names it and no clock word won above, stick daytime + value so the
-  // chip's chill-Spoons occasion still shapes ranking (see chip honesty tests).
-  const spoonsMentioned = /\bwetherspoons?\b|\bspoons\b/.test(lower);
+  const spoonsMentioned = WETHERSPOONS_QUERY_PATTERN.test(lower);
+  // Spoons is a value chain with no generate-time hard filter: when the query
+  // names it and no clock word won above, stick daytime + value so the chill
+  // Spoons occasion still shapes ranking (see chip honesty tests).
   if (!explicitDaypart && spoonsMentioned) {
     daypart = "daytime";
     reasons.push({ field: "daypart", evidence: "Wetherspoons", explanation: "Spoons outing defaults to daytime when no clock word is stated." });
@@ -108,9 +116,30 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   const accessibility = /wheelchair|step[- ]free|accessible/.test(lower) ? ["step-free"] : [];
   const transportConstraints = /tube/.test(lower) ? ["tube"] : /walk/.test(lower) ? ["walking"] : [];
   const zeroProof = /zero[ -]?proof|alcohol[ -]?free|soft[ -]?drinks?|not drinking|sober|0\.0/.test(lower);
+  const wetherspoonsPreferred = spoonsMentioned;
+  if (wetherspoonsPreferred) {
+    reasons.push({
+      field: "wetherspoonsPreferred",
+      evidence: "Wetherspoons",
+      explanation: "Soft-prefers pubs matched to the first-party J D Wetherspoon directory.",
+    });
+  }
 
   return {
-    context: { nightArea: areaMatch?.slug ?? null, daypart, partyType, groupSize, budget, budgetLimitPence, zeroProof, atmosphere, foodNeeds, accessibility, transportConstraints },
+    context: {
+      nightArea: areaMatch?.slug ?? null,
+      daypart,
+      partyType,
+      groupSize,
+      budget,
+      budgetLimitPence,
+      zeroProof,
+      wetherspoonsPreferred,
+      atmosphere,
+      foodNeeds,
+      accessibility,
+      transportConstraints,
+    },
     confidence: areaMatch ? 0.86 : 0.62,
     reasons,
   };
@@ -165,6 +194,7 @@ export function cleanNightContextPatch(value: unknown): Partial<NightContext> | 
         ? { budgetLimitPence: row.budgetLimitPence }
         : {}),
     ...(typeof row.zeroProof === "boolean" ? { zeroProof: row.zeroProof } : {}),
+    ...(typeof row.wetherspoonsPreferred === "boolean" ? { wetherspoonsPreferred: row.wetherspoonsPreferred } : {}),
     ...(atmosphere ? { atmosphere } : {}),
     ...(foodNeeds ? { foodNeeds } : {}),
     ...(accessibility ? { accessibility } : {}),
@@ -188,6 +218,7 @@ export function cleanNightContext(value: unknown): NightContext | null {
       ? row.budgetLimitPence
       : null,
     zeroProof: row.zeroProof === true,
+    wetherspoonsPreferred: row.wetherspoonsPreferred === true,
     atmosphere: cleanContextList(row.atmosphere) ?? [],
     foodNeeds: cleanContextList(row.foodNeeds) ?? [],
     accessibility: cleanContextList(row.accessibility) ?? [],

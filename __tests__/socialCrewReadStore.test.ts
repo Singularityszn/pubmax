@@ -74,6 +74,7 @@ const plan: PlanState = {
     budget: "standard",
     budgetLimitPence: null,
     zeroProof: false,
+    wetherspoonsPreferred: false,
     atmosphere: [],
     foodNeeds: [],
     accessibility: [],
