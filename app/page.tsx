@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import LandingPage from "@/components/landing/LandingPage";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { loadAboutStats } from "@/lib/aboutStats";
+import { isSocialInviteBetaEnabled } from "@/lib/socialAccess";
 import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 
 // Self-canonical for the homepage (Wave S1.4). Title/description inherit the
@@ -23,6 +24,12 @@ export default async function Home() {
   // flag is threaded as an immutable prop — the client never reads env itself
   // (same pattern as Map RSC → shell for L05).
   const { landingFindMyPint } = readTrustedHandoffFlags();
+  // Soft launch keeps Social invite beta unset/off. Thread the same gate the
+  // Social APIs use so Memory CTAs never promise "Open Social" while /social
+  // still answers "not open yet."
+  const socialInviteBetaEnabled = isSocialInviteBetaEnabled(
+    process.env.SOCIAL_INVITE_BETA_ENABLED,
+  );
 
   return (
     <>
@@ -38,7 +45,11 @@ export default async function Home() {
           native first-run opens the one-time onboarding, browser visits
           stay here. Deep links never mount this. No-op on web/SSR. */}
       <AppEntryRoute />
-      <LandingPage stats={stats} landingFindMyPint={landingFindMyPint} />
+      <LandingPage
+        stats={stats}
+        landingFindMyPint={landingFindMyPint}
+        socialInviteBetaEnabled={socialInviteBetaEnabled}
+      />
     </>
   );
 }
