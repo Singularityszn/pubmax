@@ -279,10 +279,32 @@ export default function LandingPage({
           </figure>
         </section>
 
+        {/* Human beat (S1/S4): why this exists, between hero and the feature
+            grid. Desire first, honesty second. Not a mission statement. */}
+        <section className="lpWhySection" id="why" aria-labelledby="why-title">
+          <div className="lpWhyCopy">
+            <p className="lpSectionLabel">Why PUBMAXX</p>
+            <h2 id="why-title">Built for the bit before you set off.</h2>
+            <p>
+              You want somewhere that will not mug you on the first round. A
+              cheap pint near the station, coffee when you are not drinking,
+              food before the last train, a quiet seat on a slow afternoon. One
+              map should answer that without the usual three-app shuffle.
+            </p>
+            <p>
+              Keeping those prices honest takes real work. We would rather
+              leave a gap than invent a figure. The longer why is on Our story.
+            </p>
+            <Link href="/about" className="lpTextLink">
+              Our story <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          </div>
+        </section>
+
         <section className="lpSignalSection" id="wedge" aria-labelledby="signal-title">
           <div className="lpSectionIntro">
             <h2 id="signal-title">Listed pint prices near you</h2>
-            <p>Three things decide where you go.</p>
+            <p>Start with the pint price. The hour and the route come with it.</p>
           </div>
           <div className="lpSignalGrid">
             {PRODUCT_SIGNALS.map(({ icon: Icon, title, body }, index) => (
