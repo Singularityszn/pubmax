@@ -24,8 +24,14 @@ export type HeroPub = {
   category: DrinkCategory;
   /** Short place cue shown under the glyph (all-ages readability). */
   place: string;
-  /** Optional price tag for atmosphere — illustrative only. */
+  /** Optional price tag for atmosphere, illustrative only, never in the accessible name. */
   price: string;
+  /**
+   * Decorative rim colour, drawn from the real map price key (green/amber/
+   * red, `mapPriceLegend.ts`: <=£5.50 green, up to £7 amber, over £7 red).
+   * Styling only, carries no authority claim, unlike a live pin band.
+   */
+  band: "green" | "amber" | "red";
   /** Percent positions inside the photo plane. */
   left: string;
   top: string;
@@ -39,6 +45,7 @@ const HERO_PUBS: HeroPub[] = [
     category: "beer",
     place: "The Dove",
     price: "£4.20",
+    band: "green",
     left: "14%",
     top: "26%",
     query: { drink: "beer", style: "cheapest" },
@@ -48,6 +55,7 @@ const HERO_PUBS: HeroPub[] = [
     category: "gin",
     place: "Mayflower",
     price: "£5.10",
+    band: "green",
     left: "36%",
     top: "64%",
     query: { drink: "gin", style: "balanced" },
@@ -57,6 +65,7 @@ const HERO_PUBS: HeroPub[] = [
     category: "whisky",
     place: "Cheshire Cheese",
     price: "£4.60",
+    band: "green",
     left: "68%",
     top: "28%",
     query: { drink: "whisky", style: "heritage" },
@@ -66,6 +75,7 @@ const HERO_PUBS: HeroPub[] = [
     category: "wine",
     place: "Prospect of Whitby",
     price: "£5.40",
+    band: "green",
     left: "82%",
     top: "68%",
     query: { drink: "wine", style: "dateNight" },
@@ -75,6 +85,7 @@ const HERO_PUBS: HeroPub[] = [
     category: "cocktail",
     place: "Soho spritz",
     price: "£7.50",
+    band: "red",
     left: "52%",
     top: "16%",
     query: { drink: "cocktail", cocktails: "1" },
@@ -84,6 +95,7 @@ const HERO_PUBS: HeroPub[] = [
     category: "rum",
     place: "Dockside rum",
     price: "£5.80",
+    band: "amber",
     left: "18%",
     top: "78%",
     query: { drink: "rum", style: "balanced" },
@@ -123,6 +135,9 @@ export default function ThamesHero() {
         quality={78}
       />
       <div className="thamesHeroScrim" aria-hidden="true" />
+      {/* Warm basemap wash: decoration only, no live MapLibre and no map
+          screenshot. Grounds the photo plane toward map truth. */}
+      <div className="thamesHeroMapWash" aria-hidden="true" />
       <p className="thamesHeroHint">
         {/* Copy is pointer-aware via CSS: touch devices see "Tap", mice see
             "Choose" — desktop never says "tap" when there's no tapping. */}
@@ -145,10 +160,10 @@ export default function ThamesHero() {
               <Link
                 href={href}
                 className="thamesHeroPinLink"
-                aria-label={`${categoryLabel(pub.category)} at ${pub.place}, about ${pub.price}. Open on the map`}
+                aria-label={`${categoryLabel(pub.category)} at ${pub.place}. Open on the map`}
                 {...mapWarmProps}
               >
-                <span className="thamesHeroPinGlyph" data-cat={pub.category}>
+                <span className="thamesHeroPinGlyph" data-cat={pub.category} data-band={pub.band}>
                   <DrinkGlyph category={pub.category} size={36} />
                 </span>
                 <span className="thamesHeroPinMeta">

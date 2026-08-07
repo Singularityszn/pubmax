@@ -154,14 +154,21 @@ export default function LandingPage({
     trackEvent("discovery_viewed", { surface: "landing", daypart });
   }, []);
 
-  const heroPrimary = (
+  // Flag-on primary: Find my pint (geo-primary experiment, untouched).
+  const heroPrimaryFindMyPint = (
     <Link className="lpButton lpButtonPrimary" href="/near">
       <LocateFixed size={18} aria-hidden="true" /> Find my pint
     </Link>
   );
+  // Flag-off primary: Open the map (acquisition default, no geolocation gate).
+  const heroPrimaryMap = (
+    <Link className="lpButton lpButtonPrimary" href={primaryCtaHref} {...warmProps}>
+      <MapPin size={18} aria-hidden="true" /> Open the map
+    </Link>
+  );
   const heroActions = landingFindMyPint ? (
     <div className="lpHeroActions lpHeroActions--findMyPint">
-      {heroPrimary}
+      {heroPrimaryFindMyPint}
       <div className="lpHeroSecondaryRow">
         <Link className="lpTextLink" href={primaryCtaHref} {...warmProps}>
           <MapPin size={17} aria-hidden="true" /> Open the map
@@ -172,25 +179,27 @@ export default function LandingPage({
       </div>
     </div>
   ) : (
-    <div className="lpHeroActions">
-      {heroPrimary}
-      <Link className="lpButton lpButtonQuiet" href={primaryCtaHref} {...warmProps}>
-        <MapPin size={17} aria-hidden="true" /> Open the map
-      </Link>
-      <Link className="lpButton lpButtonQuiet" href="/plan">
-        <MessageSquareText size={17} aria-hidden="true" /> Plan with friends
-      </Link>
+    <div className="lpHeroActions lpHeroActions--mapFirst">
+      {heroPrimaryMap}
+      <div className="lpHeroSecondaryRow">
+        <Link className="lpTextLink" href="/near">
+          <LocateFixed size={17} aria-hidden="true" /> Find my pint
+        </Link>
+        <Link className="lpTextLink" href="/plan">
+          <MessageSquareText size={17} aria-hidden="true" /> Plan with friends
+        </Link>
+      </div>
     </div>
   );
   const heroLede = (
     <p className="lpHeroLede">
-      Price records show their publisher when one is recorded and say when none
-      is. Pick your drink and see which nearby pubs pour it cheapest.
+      Open the map, pick a drink, and see which nearby pubs pour it cheapest.
+      We name the source when there is one, and say when there is not.
     </p>
   );
 
   return (
-    <div className={landingFindMyPint ? "lp lp--findMyPint" : "lp"}>
+    <div className={landingFindMyPint ? "lp lp--findMyPint" : "lp lp--mapFirst"}>
       <header className="lpNav">
         <Link href="/" className="lpWordmark" aria-label="PUBMAXXING home">
           <PubmaxxWordmark />
@@ -225,10 +234,12 @@ export default function LandingPage({
           </div>
 
           <div className="lpHeroCopy">
-            <h1 id="hero-title">Listed pint prices for nights out.</h1>
-            {/* Flag off: lede then three equal-slot buttons (shipped).
-                Flag on: actions immediately under the title so Find my pint
-                owns the first screen; Map + Plan as secondary text. */}
+            <h1 id="hero-title">London pints can cost eight quid.</h1>
+            {/* Flag off: lede then Open the map (primary) with Find my pint /
+                Plan with friends as secondary text (map-first acquisition
+                default). Flag on: actions immediately under the title so
+                Find my pint owns the first screen; Map + Plan as secondary
+                text (geo-primary experiment, untouched). */}
             {landingFindMyPint ? (
               <>
                 {heroActions}
@@ -261,7 +272,10 @@ export default function LandingPage({
 
           <figure className="lpHeroMap">
             <ThamesHero />
-            <figcaption>Each shape is a drink. Pick one to see the pubs that pour it.</figcaption>
+            <figcaption>
+              Each shape is a drink. Pick one to see the pubs that pour it.
+              Prices shown here are examples, not live listed prices.
+            </figcaption>
           </figure>
         </section>
 
