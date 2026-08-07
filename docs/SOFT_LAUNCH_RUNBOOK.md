@@ -33,7 +33,7 @@ vercel deploy
 vercel promote <deployment-url>
 ```
 
-Deploying from a Mac is fine; a plain `vercel deploy` builds in Vercel's cloud, not on your machine. Never pass `--prebuilt` from a Mac: a locally built `--prebuilt` upload carries the `sharp` binary compiled for `darwin-arm64`, and that crashes the Linux runtime in production. `docs/DEPLOYMENT.md` documents why promotion is safe to use after a build: the promotion API points production traffic at an existing deployment and does not rebuild it. The exact `vercel deploy` / `vercel promote` command pair above is operator practice; it is not itself written down in `docs/DEPLOYMENT.md`, so treat this section as the source for it going forward.
+Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime. `docs/DEPLOYMENT.md` documents why promotion is safe to use after a build: the promotion API points production traffic at an existing deployment and does not rebuild it. The exact `vercel deploy` / `vercel promote` command pair above is operator practice; it is not itself written down in `docs/DEPLOYMENT.md`, so treat this section as the source for it going forward.
 
 After promotion, confirm both hosts serve the release:
 
