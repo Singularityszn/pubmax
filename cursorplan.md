@@ -222,7 +222,7 @@ Do not ship copy that promises map-band literacy until ThamesHero shows band lan
 
 ## 10. Dual-model review log
 
-> Grok 4.5 and Composer 2.5 will each: (a) walk the live site with computer use, (b) read landing/map/voice/taste code, (c) challenge this draft, (d) write a joint refinement into this file.
+> Grok 4.5 and Composer 2.5 each: (a) walked the live site with computer use, (b) read landing/map/voice/taste code, (c) challenged the draft, (d) locked joint decisions in §10.3. Plan body (§2–§9) rewritten to those decisions.
 
 ### 10.1 Grok 4.5 — 2026-08-07
 
