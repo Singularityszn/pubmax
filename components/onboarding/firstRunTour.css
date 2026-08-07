@@ -236,6 +236,20 @@
     line-height: 1.4;
   }
 
+  .tourLegend {
+    margin-top: var(--space-2);
+    gap: var(--space-1);
+  }
+
+  .tourLegendRow {
+    min-height: 24px;
+    font-size: var(--text-xs);
+  }
+
+  .tourActions {
+    margin-top: var(--space-3);
+  }
+
   .tourDots {
     margin: var(--space-3) 0;
   }

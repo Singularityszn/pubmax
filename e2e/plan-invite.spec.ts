@@ -91,6 +91,22 @@ test("an unknown invite token renders the honest not-found state", async ({ page
 // plan creation), so the host must be driven through the actual composer UI —
 // a Plan created via a bare API call, as the other test in this file does,
 // never populates that memory.
+async function futureLondonFirstPint(): Promise<string> {
+  // datetime-local value in Europe/London, at least an hour ahead so lock stays enabled.
+  const when = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(when);
+  const lookup = (type: string) => parts.find((part) => part.type === type)?.value ?? "00";
+  return `${lookup("year")}-${lookup("month")}-${lookup("day")}T${lookup("hour")}:${lookup("minute")}`;
+}
+
 test("Copy invite link shows for the host's own session and never for an anonymous visitor", async ({
   page,
   browser,
@@ -109,7 +125,15 @@ test("Copy invite link shows for the host's own session and never for an anonymo
   await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
   await page.getByRole("button", { name: "Plan my night" }).click();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
+  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
+  // Evening defaults can land in the past after ~19:00 London; a past First
+  // pint keeps Lock disabled. Setting a future time marks the route stale, so
+  // regenerate before locking.
+  await page.getByLabel("First pint").fill(await futureLondonFirstPint());
+  await page.getByRole("button", { name: "Plan my night" }).click();
+  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);
 
@@ -147,7 +171,12 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
   await page.getByRole("button", { name: "Plan my night" }).click();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
+  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
+  await page.getByLabel("First pint").fill(await futureLondonFirstPint());
+  await page.getByRole("button", { name: "Plan my night" }).click();
+  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}/);
 

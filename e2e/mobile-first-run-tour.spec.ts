@@ -30,7 +30,8 @@ test.describe("mobile first-run tour", () => {
 
   test("presents thumb-safe onboarding controls before first value", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto("/pubs");
+    // Map-only gate (lib/firstRunTour.ts); /pubs is a gallery, not the map.
+    await page.goto("/map");
 
     const tour = page.getByRole("dialog", { name: "Pint price colours" });
     await expect(tour).toBeVisible();

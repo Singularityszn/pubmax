@@ -20,7 +20,8 @@ test("mobile first-run tour leaves the map centre visible", async ({ page }) => 
 
   const box = await dialog.boundingBox();
   expect(box).not.toBeNull();
-  expect(box!.y).toBeGreaterThan(844 * 0.55);
+  // Docked above the bottom tab bar — keep the geographic centre of the map free.
+  expect(box!.y).toBeGreaterThan(844 * 0.4);
 
   const centre = { x: 390 / 2, y: 844 / 2 };
   const coversCentre =
