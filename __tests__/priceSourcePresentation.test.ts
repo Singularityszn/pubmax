@@ -10,6 +10,10 @@ import { venueDrinkMenu } from "@/lib/drinkMenu";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue, VenuePrice } from "@/lib/venues";
 
+vi.mock("@/components/visits/VisitReportPanel", () => ({
+  default: () => createElement("div", { "data-testid": "visit-report-peek" }),
+}));
+
 const noop = () => {};
 const OBSERVED = "2026-07-01T12:00:00.000Z";
 
@@ -169,6 +173,7 @@ function renderOverview(
       onRequestLocation: noop,
       onClearLocation: noop,
       onStartFirstDrop: noop,
+      onOpenVisitReports: noop,
       priceEntryAllowed: false,
       priceSignInRequested: false,
       priceAuthLoading: false,
