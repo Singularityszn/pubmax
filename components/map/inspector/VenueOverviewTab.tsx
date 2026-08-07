@@ -325,18 +325,19 @@ export default function VenueOverviewTab({
     >
       <p className="venueAddress">{venue.address}</p>
       <VenueActionStrip venue={venue} />
-      <Disclosure
-        className="venueOverviewMore"
-        bodyClassName="venueOverviewMoreBody"
-        summary="Details and practical info"
-      >
       {/* FSA food hygiene rating (FHRS), matched by postcode + fuzzy name
-          server-side. Renders nothing for an unmatched pub. */}
+          server-side. Renders nothing for an unmatched pub. Kept above the
+          practical-info disclosure so a matched rating is not buried. */}
       <VenueHygiene
         venueId={venue.id}
         venueName={venue.name}
         address={venue.address}
       />
+      <Disclosure
+        className="venueOverviewMore"
+        bodyClassName="venueOverviewMoreBody"
+        summary="Details and practical info"
+      >
       <VenueGettingThere
         userLocation={userLocation}
         venueLocation={{ lat: venue.latitude, lng: venue.longitude }}
