@@ -8,7 +8,7 @@ import { planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { resolvePlanProjection } from "@/lib/planPrivacyBoundary.server";
 import { canonicalPlanRoute } from "@/lib/planRoute";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
-import { planStateResult, planStore, type PlanWriteError } from "@/lib/planStore";
+import { planInviteToken, planMemberIdentityResult, planStateResult, planStore, type PlanWriteError } from "@/lib/planStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { planAcceptedEventTokens } from "@/lib/verifiedAnalytics.server";
@@ -94,6 +94,29 @@ async function safeVibeTally(id: string) {
   }
 }
 
+/**
+ * A member's own Plan invite token, independent of the friendMemberRehydrationV2
+ * read flag (Task: plan-invite-page). That flag governs one thing only —
+ * whether resolvePlanProjection returns the full identity-bearing PlanState
+ * (§4.10) — never whether a genuine host/guest may learn their own Plan's
+ * public invite link. A real capability that resolves to an active identity is
+ * enough; the token itself is never a public read (that stays behind
+ * resolvePlanIdByInviteToken's own token-scoped seam at app/invite/[token]).
+ */
+async function ownInviteToken(request: Request, id: string): Promise<string | null> {
+  const capabilityToken = planMemberCapability(request, undefined);
+  if (!capabilityToken) return null;
+  let identity: Awaited<ReturnType<typeof planMemberIdentityResult>>;
+  try {
+    identity = await planMemberIdentityResult(id, capabilityToken);
+  } catch {
+    return null;
+  }
+  if (!identity.ok || !identity.identity) return null;
+  const lookup = await planInviteToken(id);
+  return lookup.ok ? lookup.inviteToken : null;
+}
+
 export async function GET(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
@@ -108,7 +131,11 @@ export async function GET(request: Request, context: Context): Promise<Response>
     state: lookup.plan,
     vibeTally: await safeVibeTally(id),
   });
-  return jsonNoStore(projection.visibility === "member" ? projection.state : projection, { status: 200 });
+  const inviteToken = await ownInviteToken(request, id);
+  if (projection.visibility !== "member") {
+    return jsonNoStore(inviteToken ? { ...projection, inviteToken } : projection, { status: 200 });
+  }
+  return jsonNoStore({ ...projection.state, inviteToken }, { status: 200 });
 }
 
 export async function PATCH(request: Request, context: Context): Promise<Response> {

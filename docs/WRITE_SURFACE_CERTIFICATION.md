@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 109 mutating handlers across 90 route files.** Each exported
+> **Inventory: 112 mutating handlers across 92 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -20,6 +20,7 @@ Protection in a sibling method cannot certify another method.
 <!-- mutation-handler-inventory:start -->
 - `DELETE app/api/admin/session`
 - `DELETE app/api/crawls/[slug]`
+- `DELETE app/api/invite/[token]/rsvp`
 - `DELETE app/api/night-stories/[id]/contributors`
 - `DELETE app/api/plans/[id]/group-prefs`
 - `DELETE app/api/plans/[id]/invites/[inviteId]`
@@ -62,6 +63,8 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/identity/handle/claim`
 - `POST app/api/identity/handle/rename`
 - `POST app/api/identity/onboarding`
+- `POST app/api/invite/[token]/reactions`
+- `POST app/api/invite/[token]/rsvp`
 - `POST app/api/me/pending-plan-recaps`
 - `POST app/api/messages`
 - `POST app/api/messages/[id]`
@@ -921,6 +924,41 @@ commit.
   private account table and are not returned by public profile routes. Date of
   birth stays until profile deletion; full name and sex stay until edited,
   cleared or profile deletion. No contribution eligibility is derived.
+
+### `app/api/invite/[token]/rsvp` and `app/api/invite/[token]/reactions` - Plan public invite RSVP and reactions (route 89)
+
+- **Route / method:** `POST` and `DELETE` on `app/api/invite/[token]/rsvp/route.ts`,
+  plus `POST` on `app/api/invite/[token]/reactions/route.ts` (Task:
+  plan-invite-page). These are the only writes reachable from a Plan's public
+  invite card; the page itself only reads.
+- **Identity is handle-free by design:** the RSVP POST accepts a
+  server-hygiened display name and a Going/Maybe status, keyed by
+  `hashActor(submitterId)` where `submitterId` is the visitor's own device id
+  from `lib/anonId.ts`. No account, no Pubmaxx handle, no session. A unique
+  `(plan_id, submitter_hash)` row means resubmitting from the same device
+  updates that device's own RSVP rather than adding a second guest.
+- **Token boundary:** the token resolves to a plan id only through
+  `resolvePlanIdByInviteToken` (`lib/planStore.ts`), a deliberate,
+  unguessable-token-scoped read seam distinct from the Plan's own participant-
+  fenced RLS row. Neither write route ever accepts or trusts a plan id
+  directly from the client.
+- **Text hygiene (boundary):** guest display names pass through
+  `cleanText`/`readString` (`lib/textClean.ts`), the same hygiene already used
+  for handles and comments, before persistence.
+- **Rate limit (boundary):** `isLimited` (`lib/pintDrops.ts`) allows 8 RSVP
+  writes and 40 reaction writes per submitter-hash per 60 seconds.
+- **Freeze gate:** both routes call `socialFreezeResponse` (`lib/opsFreeze.ts`)
+  first, the same ops-freeze posture as every other social write.
+- **Host-only removal:** RSVP `DELETE` requires a valid plan-member session
+  resolved through `planMemberCapability`/`planMemberIdentity`
+  (`lib/planMemberCapability.ts`, `lib/planStore.ts`) and rejects a guest
+  member with 403 - only the host may remove another guest's RSVP.
+- **Rollback / kill:** durable rows live in `plan_invite_rsvps` and
+  `plan_invite_reactions` (migration 0081, shipped not applied). RLS denies
+  `anon`/`authenticated` outright; every access is service-role only, the same
+  posture as the Social interaction tables. A missing migration falls back to
+  memory outside deployed production; production writes fail closed. Truncating
+  these tables removes only RSVPs and reactions, never the Plan itself.
 
 ## Certification command
 
