@@ -754,8 +754,15 @@ export function scoreVenue(
     // (trustedNoAlcoholLensPrices), never a name-only amenity guess. A venue
     // with no corroborated price stays neutral - it never scores below a
     // venue this style has no evidence on either way.
-    const hasCorroboratedNaPrice = naLensPrices?.has(venue.id) ?? false;
-    return (hasCorroboratedNaPrice ? 7 : 0) + cheapness + sourceTrust;
+    const naPrice = naLensPrices?.get(venue.id)?.priceGbp;
+    const hasCorroboratedNaPrice = naPrice !== undefined;
+    // Among NA-priced venues, rank on the NA figure itself - cheaper alcohol-
+    // free lemonade beats dearer - and only fall back to pint cheapness as the
+    // final tiebreak. The 10000x weight puts one penny of NA-price difference
+    // ahead of the tiebreak's entire span (cheapness + sourceTrust tops out
+    // near 11), so pint price can never outrank a real NA-price gap.
+    const naCheapness = hasCorroboratedNaPrice ? Math.max(0, 10 - naPrice) : 0;
+    return (hasCorroboratedNaPrice ? 7 : 0) + naCheapness * 10000 + cheapness + sourceTrust;
   }
   return cheapness * 1.5 + amenityScore + hasVenueContext + hasHeritage + nearWater + sourceTrust;
 }
