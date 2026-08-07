@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState, useSyncExternalStore } from "react";
 
+import ClaimMomentWelcome from "@/components/profile/ClaimMomentWelcome";
+import ContributionLanesCard from "@/components/profile/ContributionLanesCard";
+import FirstActionsRow from "@/components/profile/FirstActionsRow";
 import FollowButton from "@/components/profile/FollowButton";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
@@ -678,6 +681,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
                   {isOwnProfile ? (
                     <YourContributionsCard handle={routeHandle} claimNudge />
+                  ) : null}
+
+                  {isOwnProfile ? (
+                    <>
+                      <ClaimMomentWelcome />
+                      <FirstActionsRow />
+                      <ContributionLanesCard handle={routeHandle} />
+                    </>
                   ) : null}
 
                   {(isYouRoute || isOwnProfile) && !youSignedOut ? (

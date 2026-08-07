@@ -79,3 +79,42 @@ export async function readContributorLeaderboard(): Promise<ContributorLeaderboa
   if (isSupabaseConfigured()) return readDurableBoard();
   return rankContributors([], "degraded");
 }
+
+export type ContributorLaneStats =
+  | {
+    status: "ready";
+    handle: string;
+    prices: number;
+    reviews: number;
+    recommendations: number;
+    total: number;
+  }
+  | { status: "degraded"; handle: string };
+
+/**
+ * Narrow, single-handle projection of the same durable board: the three-lane
+ * counts (prices, reviews, recommendations) for one viewed handle, never the
+ * full ranked list. Still routes through public_contributor_leaderboard() (the
+ * 0079 claimed_at bound lives only there), so this can never resurrect the
+ * handle-claim back-dating bug the way a direct table read would. A handle
+ * with no ranked row (no visible identity-backed contributions yet) reads as
+ * honest zeroes, not an error.
+ */
+export async function readContributorLaneStats(
+  handle: string,
+): Promise<ContributorLaneStats> {
+  const normalized = normalizeHandle(handle);
+  const board = await readContributorLeaderboard();
+  if (board.status === "degraded") {
+    return { status: "degraded", handle: normalized };
+  }
+  const entry = board.entries.find((row) => row.handle === normalized);
+  return {
+    status: "ready",
+    handle: normalized,
+    prices: entry?.prices ?? 0,
+    reviews: entry?.reviews ?? 0,
+    recommendations: entry?.recommendations ?? 0,
+    total: entry?.total ?? 0,
+  };
+}
