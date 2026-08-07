@@ -173,6 +173,22 @@ function chipLabel(html: string): string {
     ?? "";
 }
 
+describe("Phone Tonight cold-start chip", () => {
+  it("stays off the map when What's On is empty", () => {
+    const html = renderShell({ tonightCount: 0 });
+    expect(html).not.toContain("mobileMapTonightChip");
+    expect(html).not.toContain("On tonight");
+  });
+
+  it("opens the Tonight sheet from one labelled chip when listings exist", () => {
+    const html = renderShell({ tonightCount: 4 });
+    expect(html).toContain("mobileMapTonightChip");
+    expect(html).toContain('aria-label="On tonight: 4 listings near you"');
+    expect(html).toContain("On tonight");
+    expect(html).toContain(">4<");
+  });
+});
+
 describe("Phone Area chip — whose place it names", () => {
   it("wears the map, not a location pin, when no location was granted", () => {
     const html = renderShell();

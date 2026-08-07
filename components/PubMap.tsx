@@ -1,6 +1,6 @@
 "use client";
 
-import { List, MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
+import { CalendarClock, List, MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -3430,6 +3430,7 @@ export default function PubMap({
           nearMeError={nearbyError}
           onDismissNearMeError={() => setNearbyError(null)}
           nearbyCount={nearbyMapResult?.venueIds.length ?? 0}
+          tonightCount={whatsOnTonight.rows.length}
           tflCount={tflStatus.issueCount}
           tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
           priceLabel={filters.maxPrice < NO_PINT_PRICE_CAP ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
@@ -3573,6 +3574,18 @@ export default function PubMap({
                     <MapPinned size={18} aria-hidden="true" />
                     Plan tonight
                   </Button>
+                  {isLondon ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full justify-start"
+                      aria-label="On tonight near you"
+                      onClick={() => changeMapOverlay("tonight")}
+                    >
+                      <CalendarClock size={18} aria-hidden="true" />
+                      On tonight
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     variant="secondary"

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildFiltersChip, buildNearMeChip, buildTflCorner } from "@/lib/mapChromeTiers";
+import {
+  buildFiltersChip,
+  buildNearMeChip,
+  buildTflCorner,
+  buildTonightChip,
+} from "@/lib/mapChromeTiers";
 
 describe("buildNearMeChip", () => {
   it("labels every status honestly", () => {
@@ -45,5 +50,26 @@ describe("buildTflCorner", () => {
   it("aria labels carry the status meaning", () => {
     expect(buildTflCorner("issues", 15).ariaLabel).toBe("TfL live: 15 updates");
     expect(buildTflCorner("clear", 3).ariaLabel).toBe("TfL live: lines running well");
+  });
+});
+
+describe("buildTonightChip", () => {
+  it("stays silent when What's On has nothing to open", () => {
+    expect(buildTonightChip(0)).toBeNull();
+    expect(buildTonightChip(-1)).toBeNull();
+    expect(buildTonightChip(Number.NaN)).toBeNull();
+  });
+
+  it("names the listing count for a one-tap cold start", () => {
+    expect(buildTonightChip(1)).toMatchObject({
+      label: "On tonight",
+      count: 1,
+      ariaLabel: "On tonight: 1 listing near you",
+    });
+    expect(buildTonightChip(3)).toMatchObject({
+      label: "On tonight",
+      count: 3,
+      ariaLabel: "On tonight: 3 listings near you",
+    });
   });
 });

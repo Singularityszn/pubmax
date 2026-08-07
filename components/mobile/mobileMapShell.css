@@ -268,6 +268,59 @@
     color: var(--color-text-soft);
   }
 
+  /* P5 cold-start — What's On → Tonight sheet in one tap. Lives under the one
+     top bar (never a sixth bar slot), stops short of the published map-edge
+     lane, and keeps the 44px tap floor. Quiet nights omit the row entirely. */
+  .mobileMapTonightRow {
+    display: flex;
+    pointer-events: auto;
+    /* Chrome already insets by --mobile-map-stack-right; reserve the rest of
+       the corner lane so TfL cannot steal the chip's right-edge taps. */
+    padding-right: calc(
+      var(--mobile-map-corner-lane) - var(--mobile-map-stack-right)
+    );
+  }
+  .mobileMapTonightChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    max-width: 100%;
+    min-height: 44px;
+    padding: 6px 14px;
+    border: 1px solid color-mix(in srgb, var(--color-border) 80%, var(--amber, #d3a44a) 20%);
+    border-radius: var(--control-radius, 14px);
+    background: color-mix(in srgb, var(--color-surface-raised) 94%, var(--amber, #d3a44a) 6%);
+    color: var(--color-text);
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+    font: inherit;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    transition: transform 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
+  }
+  .mobileMapTonightChip:active { transform: scale(.98); --shared-press-scale: 1; }
+  .mobileMapTonightChip.isActive {
+    border-color: color-mix(in srgb, var(--amber, #d3a44a) 45%, var(--color-border));
+    background: color-mix(in srgb, var(--amber, #d3a44a) 16%, var(--color-surface-raised));
+  }
+  .mobileMapTonightChipLabel {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mobileMapTonightChipCount {
+    min-width: 1.2rem;
+    height: 1.2rem;
+    display: grid;
+    place-items: center;
+    padding: 0 5px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--line) 70%, var(--amber, #d3a44a) 30%);
+    background: var(--panel-raised);
+    color: var(--ink);
+    font-family: var(--font-data);
+    font-size: 0.62rem;
+  }
+
   /* The refinement count on the Filters control. The button's accessible name
      already names the active refinements, so this is a decorative mark. */
   .mobileMapFiltersButton { position: relative; }

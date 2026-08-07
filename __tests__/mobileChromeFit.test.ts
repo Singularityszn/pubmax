@@ -61,7 +61,8 @@ describe("mobile chrome fit at 390px", () => {
     // and at 360px and below the wordmark yields its column so the place name
     // is never cut to nothing. Measured at 390x844x3, a sixth control left
     // "King's Cross" 54px of a 72px name. The arithmetic below is what stops a
-    // sixth slot coming back (finding 2.3).
+    // sixth slot coming back (finding 2.3). Tonight's cold-start chip docks
+    // under the bar, never inside it.
     const bar = mobileMapCss.match(/\.mobileMapTopbar\s*{([^}]*)}/)?.[1] ?? "";
     expect(bar, ".mobileMapTopbar rule present").not.toBe("");
     const fixedColumns = (columns: string): number[] =>
@@ -96,6 +97,37 @@ describe("mobile chrome fit at 390px", () => {
     const taken = narrowFixed.reduce((sum, width) => sum + width, 0);
     // The place name keeps a readable column at 320px rather than zero.
     expect(content - taken, "area name column at 320px").toBeGreaterThanOrEqual(60);
+  });
+
+  it("keeps the Tonight cold-start chip inside chrome budgets and the corner lane", () => {
+    // Bar (~52) + chrome gap (6) + 44px chip stays under the 164px phone budget
+    // that e2e/ui-consistency-layout.spec.ts and mobile-map-chrome-fit hold.
+    const barH = Number(mobileMapCss.match(/--mobile-map-bar-h:\s*(\d+)px/)?.[1]);
+    const chromeGap = Number(
+      mobileMapCss.match(/\.mobileMapChrome\s*{[^}]*gap:\s*(\d+)px/)?.[1],
+    );
+    const chip = mobileMapCss.match(/\.mobileMapTonightChip\s*{([^}]*)}/)?.[1] ?? "";
+    expect(chip, ".mobileMapTonightChip rule present").not.toBe("");
+    expect(chip).toMatch(/min-height:\s*44px/);
+    const chipMin = Number(chip.match(/min-height:\s*(\d+)px/)?.[1]);
+    for (const [label, value] of [
+      ["bar height", barH],
+      ["chrome gap", chromeGap],
+      ["tonight chip floor", chipMin],
+    ] as const) {
+      expect(Number.isFinite(value), `${label} parsed from CSS`).toBe(true);
+    }
+    expect(barH + chromeGap + chipMin, "bar + tonight chip under 164px").toBeLessThanOrEqual(
+      164,
+    );
+
+    // The row clears the published map-edge lane so TfL cannot steal taps.
+    expect(mobileMapCss).toMatch(
+      /\.mobileMapTonightRow\s*{[^}]*padding-right:\s*calc\(\s*var\(--mobile-map-corner-lane\)\s*-\s*var\(--mobile-map-stack-right\)/,
+    );
+    // And the shell still publishes the balanced stack the chip sits inside.
+    expect(mobileMapCss).toMatch(/--mobile-map-stack-left:\s*\d+px/);
+    expect(mobileMapCss).toMatch(/--mobile-map-stack-right:\s*\d+px/);
   });
 
   it("never truncates the venue price caption", () => {
