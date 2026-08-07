@@ -412,8 +412,8 @@ export function DiscoverBody({
         <p className="discoverEyebrow">Pint stories</p>
         <h1 className="discoverTitle">Pint prices, pub stories and routes worth walking.</h1>
         <p className="discoverLede">
-          Browse beer, wine, gin, vodka, rum, cocktails, shots, coffee,
-          alcohol-free drinks and soft drinks.
+          Browse beer, wine, gin, vodka, rum, cocktails, shots, alcohol-free
+          drinks and soft drinks.
         </p>
         {/* Hub rule (docs/MOBILE_FLOW_SPEC.md §1): Tonight, Feed, and Crawls have no tab
             of their own on mobile, so this page is their hub — every surface
