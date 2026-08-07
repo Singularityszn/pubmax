@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const VIEWPORT = { width: 390, height: 844 };
-const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum"];
+const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
 
 test.use({
   launchOptions: {
