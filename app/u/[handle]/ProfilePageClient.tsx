@@ -371,7 +371,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   useEffect(() => {
     if (!isYouRoute || viewerHandle !== "") return;
     if (!isNightMemoriesHash(window.location.hash)) return;
-    setNightMemoriesInvite(true);
+    // Frame callback keeps the effect body free of synchronous setState; the
+    // scroll work below already happens against the painted DOM.
+    const inviteFrame = window.requestAnimationFrame(() =>
+      setNightMemoriesInvite(true),
+    );
+    void inviteFrame;
     const target = document.getElementById("account-settings");
     if (!target) return;
     window.history.replaceState(null, "", "#account-settings");

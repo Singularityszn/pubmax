@@ -78,7 +78,7 @@ export function useVenueShare(
     } catch {
       setShareStatus("error", "Couldn't copy the link. Copy it from your browser bar.");
     }
-  }, [venue, loggedPint?.priceGbp, loggedPint?.atMs]);
+  }, [venue, loggedPint]);
 
   return { currentShareFeedback, shareVenue };
 }
