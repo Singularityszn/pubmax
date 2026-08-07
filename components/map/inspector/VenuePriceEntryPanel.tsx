@@ -25,6 +25,8 @@ type VenuePriceEntryPanelProps = {
   latestPintDropAt?: number | null;
   mapReach?: CommunityPriceMapReach;
   focusRequest?: number;
+  /** When false, omit the signals block (Overview mounts its own read-first copy). */
+  includeSignals?: boolean;
 };
 
 /**
@@ -44,6 +46,7 @@ export default function VenuePriceEntryPanel({
   latestPintDropAt = null,
   mapReach = "paint",
   focusRequest = 0,
+  includeSignals = true,
 }: VenuePriceEntryPanelProps) {
   const viewedVenueId = useRef<string | null>(null);
   useEffect(() => {
@@ -78,15 +81,17 @@ export default function VenuePriceEntryPanel({
   return (
     <div className="venuePriceEntryPanel">
       {priceEntry}
-      <VenueCommunitySignals
-        venueId={venueId}
-        venueName={venueName}
-        signals={communityPrices.signalsByVenueId.get(venueId) ?? []}
-        readStatus={communityPrices.venuePriceStatus.get(venueId) ?? "idle"}
-        submitting={communityPrices.submitting}
-        onSubmit={communityPrices.submitVenueSignal}
-        canSubmit={canSubmitPrice}
-      />
+      {includeSignals ? (
+        <VenueCommunitySignals
+          venueId={venueId}
+          venueName={venueName}
+          signals={communityPrices.signalsByVenueId.get(venueId) ?? []}
+          readStatus={communityPrices.venuePriceStatus.get(venueId) ?? "idle"}
+          submitting={communityPrices.submitting}
+          onSubmit={communityPrices.submitVenueSignal}
+          canSubmit={canSubmitPrice}
+        />
+      ) : null}
     </div>
   );
 }
