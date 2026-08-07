@@ -354,7 +354,7 @@
 
 .lpMemorySection { padding: clamp(76px, 8vw, 124px) var(--lp-pad); background: var(--ink-deep); color: var(--color-on-inverse); }
 .lpMemoryCanvas { width: min(var(--lp-max), 100%); margin: 0 auto; display: grid; grid-template-columns: .92fr 1.08fr; gap: clamp(44px, 8vw, 110px); align-items: center; }
-.lpSectionLabel { margin: 0 0 18px; color: var(--brass-bright); font: 650 var(--text-2xs)/1 var(--font-data); letter-spacing: .08em; text-transform: uppercase; }
+.lpSectionLabel { margin: 0 0 18px; color: var(--brass-bright); font: 650 var(--text-2xs)/1 var(--font-data); letter-spacing: .01em; }
 .lpSectionLabel::before { content: "// " / ""; }
 .lpMemoryCopy > p { color: color-mix(in srgb, var(--color-on-inverse) 70%, transparent); }
 .lpMemoryActions { margin-top: 28px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
