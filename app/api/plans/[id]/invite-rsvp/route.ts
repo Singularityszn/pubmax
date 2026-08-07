@@ -5,6 +5,7 @@
 // guest write path stays on /api/invite/[token]/rsvp.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { publicApiError } from "@/lib/apiError";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isPlanId } from "@/lib/plan";
 import { planMemberCapability } from "@/lib/planMemberCapability";
@@ -20,31 +21,31 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
 
   const { id: planId } = await context.params;
   if (!isPlanId(planId)) {
-    return jsonNoStore({ error: "That Plan doesn't exist." }, { status: 404 });
+    return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
   }
 
   const state = await planStateResult(planId);
   if (!state.ok) {
-    return jsonNoStore({ error: "Couldn't remove that RSVP." }, { status: 503 });
+    return publicApiError("Couldn't remove that RSVP.", "PLAN_INVITE_RSVP_UNAVAILABLE", 503, { retryable: true });
   }
   if (!state.plan) {
-    return jsonNoStore({ error: "That Plan doesn't exist." }, { status: 404 });
+    return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const rsvpId = readString(body.rsvpId);
-  if (!rsvpId) return jsonNoStore({ error: "Missing RSVP id." }, { status: 400 });
+  if (!rsvpId) return publicApiError("Missing RSVP id.", "PLAN_INVITE_RSVP_MISSING_ID", 400);
 
   const memberToken = planMemberCapability(request, body.memberToken);
   const identity = await planMemberIdentity(planId, memberToken);
   if (!identity || identity.role !== "host") {
-    return jsonNoStore({ error: "Only the host can remove an RSVP." }, { status: 403 });
+    return publicApiError("Only the host can remove an RSVP.", "PLAN_INVITE_RSVP_FORBIDDEN", 403);
   }
 
   try {
@@ -52,6 +53,6 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
     return jsonNoStore({ ok: true }, { status: 200 });
   } catch (err) {
     console.error("[plan-invite-rsvp] DELETE failed:", err instanceof Error ? err.stack || err.message : err);
-    return jsonNoStore({ error: "Couldn't remove that RSVP." }, { status: 503 });
+    return publicApiError("Couldn't remove that RSVP.", "PLAN_INVITE_RSVP_UNAVAILABLE", 503, { retryable: true });
   }
 }
