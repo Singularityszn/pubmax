@@ -514,6 +514,71 @@ export function PlanComposerErrorNotice({ message }: { message: string }) {
   return <p className="planComposer__error" role="alert">{message}</p>;
 }
 
+type ComposerDraftFields = {
+  title: string;
+  creatorName: string;
+  startTime: string | (() => string);
+  conciergeQuery: string;
+};
+
+/**
+ * L11: prefer arbitrated accepted context when the handoff is active; the ??
+ * chain keeps the generic Plan values when handoff is null (flags off).
+ * `startTime` keeps the bare `nextEvening` function reference (not a call) so
+ * `useState` still lazily initialises it when neither source has a value.
+ */
+function initialComposerDraftFields(
+  handoff: ComposerHydration | null,
+  recoveredDraft: ReturnType<typeof parsePlanDraft>,
+): ComposerDraftFields {
+  return {
+    title: handoff?.title ?? recoveredDraft?.title ?? "Tonight, sorted",
+    creatorName: handoff?.creatorName ?? recoveredDraft?.creatorName ?? "",
+    startTime: handoff?.startsAt ?? recoveredDraft?.startTime ?? nextEvening,
+    conciergeQuery: recoveredDraft?.conciergeQuery ?? "",
+  };
+}
+
+function initialComposerStops(
+  recoveredRouteDraft: StoredRouteDraft | null,
+  recoveredDraft: ReturnType<typeof parsePlanDraft>,
+): DraftStop[] {
+  return (
+    recoveredRouteDraft?.stops ??
+    recoveredDraft?.stops.map((stop) => ({
+      ...stop,
+      alternatives: [],
+    })) ??
+    []
+  );
+}
+
+type ComposerRouteDraftFields = {
+  nightContext: NightContext | null;
+  routeRevision: RouteRevision | null;
+  routeStale: boolean;
+  groundingProof: string | null;
+  createOperationKey: string | null;
+  routeStatus: string;
+};
+
+function initialComposerRouteDraft(
+  recoveredRouteDraft: StoredRouteDraft | null,
+): ComposerRouteDraftFields {
+  return {
+    nightContext: recoveredRouteDraft?.nightContext ?? null,
+    routeRevision: recoveredRouteDraft?.routeRevision ?? null,
+    routeStale: recoveredRouteDraft?.routeStale ?? false,
+    groundingProof: recoveredRouteDraft?.groundingProof ?? null,
+    createOperationKey: recoveredRouteDraft?.createOperationKey ?? null,
+    routeStatus: recoveredRouteDraft
+      ? recoveredRouteDraft.routeStale
+        ? "Recovered a route that needs refreshing before it can be locked."
+        : "Recovered your route preview. Nothing is published until you lock it in."
+      : "",
+  };
+}
+
 function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
@@ -532,40 +597,29 @@ function PlanComposerForm({
   const areaGroups = nightAreaSelectorGroups();
   const readyAreas = areaGroups[0]?.areas ?? [];
   const areasInProgress = areaGroups[1]?.areas ?? [];
-  // L11: prefer arbitrated accepted context when the handoff is active; the
-  // ?? chain keeps the generic Plan values when handoff is null (flags off).
-  const [title, setTitle] = useState(handoff?.title ?? recoveredDraft?.title ?? "Tonight, sorted");
-  const [creatorName, setCreatorName] = useState(handoff?.creatorName ?? recoveredDraft?.creatorName ?? "");
-  const [startTime, setStartTime] = useState(handoff?.startsAt ?? recoveredDraft?.startTime ?? nextEvening);
+  const draftFields = initialComposerDraftFields(handoff, recoveredDraft);
+  const [title, setTitle] = useState(draftFields.title);
+  const [creatorName, setCreatorName] = useState(draftFields.creatorName);
+  const [startTime, setStartTime] = useState(draftFields.startTime);
   const [stops, setStops] = useState<DraftStop[]>(
-    recoveredRouteDraft?.stops ??
-      recoveredDraft?.stops.map((stop) => ({
-        ...stop,
-        alternatives: [],
-      })) ??
-      [],
+    initialComposerStops(recoveredRouteDraft, recoveredDraft),
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
-  const [conciergeQuery, setConciergeQuery] = useState(recoveredDraft?.conciergeQuery ?? "");
+  const [conciergeQuery, setConciergeQuery] = useState(draftFields.conciergeQuery);
   const [planIntake, setPlanIntake] = useState(recoveredIntake);
   const initialPlanIntakeRef = useRef(recoveredIntake);
   const [conciergeNote, setConciergeNote] = useState("");
-  const [nightContext, setNightContext] = useState<NightContext | null>(recoveredRouteDraft?.nightContext ?? null);
+  const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
+  const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
   const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>({});
-  const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(recoveredRouteDraft?.routeRevision ?? null);
-  const [routeStale, setRouteStale] = useState(recoveredRouteDraft?.routeStale ?? false);
-  const [groundingProof, setGroundingProof] = useState(recoveredRouteDraft?.groundingProof ?? null);
-  const [createOperationKey, setCreateOperationKey] = useState(recoveredRouteDraft?.createOperationKey ?? null);
+  const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
+  const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
+  const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
+  const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
   const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [routeStatus, setRouteStatus] = useState(
-    recoveredRouteDraft
-      ? recoveredRouteDraft.routeStale
-        ? "Recovered a route that needs refreshing before it can be locked."
-        : "Recovered your route preview. Nothing is published until you lock it in."
-      : "",
-  );
+  const [routeStatus, setRouteStatus] = useState(routeDraftFields.routeStatus);
   const usualLot = useSyncExternalStore(subscribeLastCrew, readLastCrew, () => null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 

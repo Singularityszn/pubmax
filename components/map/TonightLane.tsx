@@ -113,84 +113,176 @@ export default function TonightLane({
   // Honest outage state: the PRIMARY spine failed — say so quietly instead of
   // pretending it's a quiet night. Badges are simply absent in this state.
   if (status === "error" && !toggleOverlay) {
-    return (
-      <section
-        className={`tonightLane tonightLane--error${inSheet ? " tonightLane--sheet" : ""}`}
-        aria-label="On tonight near you"
-      >
-        <div className="tonightLaneTitleRow" role="status">
-          <div className="tonightLaneTitleMeta">
-            <h2 className="tonightLaneTitle">On tonight</h2>
-            <span className="tonightLaneChecked">
-              Tonight&rsquo;s listings unavailable right now
-            </span>
-          </div>
-        </div>
-      </section>
-    );
+    return <TonightErrorState inSheet={inSheet} />;
   }
 
   if (rows.length === 0 && !toggleOverlay) {
     // In-sheet the viewer explicitly opened Tonight, so an empty portal reads as
     // broken — say quietly that nothing is on rather than rendering nothing.
     if (inSheet) {
-      return (
-        <section
-          className="tonightLane tonightLane--sheet tonightLane--open"
-          aria-label="On tonight near you"
-        >
-          <p className="tonightLaneEmpty" role="status">
-            Nothing listed on tonight near you right now.
-          </p>
-        </section>
-      );
+      return <TonightLaneEmptySheet />;
     }
     return null;
   }
 
   if (!isOpen) {
     return (
-      <section
-        className="tonightLane tonightLane--collapsed"
-        aria-label="On tonight near you"
-      >
-        <div className="tonightLaneCollapsed">
-          {rows.length > 0 ? (
-            <button
-              type="button"
-              className="tonightLaneCollapsedMain pressable"
-              data-testid="tonight-lane-chip"
-              aria-expanded={false}
-              onClick={() => changeOpen(true)}
-            >
-              <span className="tonightLaneCollapsedTitle">
-                On tonight <span aria-hidden="true">·</span> {rows.length}
-              </span>
-              <span className="tonightLaneCollapsedChecked">{checkedLabel(asOf)}</span>
-            </button>
-          ) : (
-            <span className="tonightLaneCollapsedMain" role="status">
-              <span className="tonightLaneCollapsedTitle">Tonight nearby</span>
-              {status === "error" ? (
-                <span className="tonightLaneCollapsedChecked">Listings unavailable</span>
-              ) : null}
-            </span>
-          )}
-          {toggleOverlay ? (
-            <TonightOverlayToggle
-              count={overlayCount}
-              active={overlayActive}
-              onToggle={toggleOverlay}
-            />
-          ) : null}
-          {toggleOverlay && overlayActive && onDismissOverlay ? (
-            <TonightOverlayDismiss onDismiss={onDismissOverlay} />
-          ) : null}
-        </div>
-      </section>
+      <TonightLaneCollapsed
+        rows={rows}
+        asOf={asOf}
+        status={status}
+        toggleOverlay={toggleOverlay}
+        overlayCount={overlayCount}
+        overlayActive={overlayActive}
+        onDismissOverlay={onDismissOverlay}
+        onOpen={() => changeOpen(true)}
+      />
     );
   }
 
+  return (
+    <TonightLaneOpen
+      inSheet={inSheet}
+      asOf={asOf}
+      gardenCue={gardenCue}
+      toggleOverlay={toggleOverlay}
+      overlayCount={overlayCount}
+      overlayActive={overlayActive}
+      onDismissOverlay={onDismissOverlay}
+      onCollapse={() => changeOpen(false)}
+      facets={facets}
+      activeKind={activeKind}
+      onSetActiveKind={setActiveKind}
+      cards={cards}
+      rowsById={rowsById}
+      onSelectVenue={onSelectVenue}
+    />
+  );
+}
+
+function TonightErrorState({ inSheet }: { inSheet: boolean }) {
+  return (
+    <section
+      className={`tonightLane tonightLane--error${inSheet ? " tonightLane--sheet" : ""}`}
+      aria-label="On tonight near you"
+    >
+      <div className="tonightLaneTitleRow" role="status">
+        <div className="tonightLaneTitleMeta">
+          <h2 className="tonightLaneTitle">On tonight</h2>
+          <span className="tonightLaneChecked">
+            Tonight&rsquo;s listings unavailable right now
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TonightLaneEmptySheet() {
+  return (
+    <section
+      className="tonightLane tonightLane--sheet tonightLane--open"
+      aria-label="On tonight near you"
+    >
+      <p className="tonightLaneEmpty" role="status">
+        Nothing listed on tonight near you right now.
+      </p>
+    </section>
+  );
+}
+
+function TonightLaneCollapsed({
+  rows,
+  asOf,
+  status,
+  toggleOverlay,
+  overlayCount,
+  overlayActive,
+  onDismissOverlay,
+  onOpen,
+}: {
+  rows: WhatsOnRow[];
+  asOf: string | null;
+  status: "idle" | "ready" | "empty" | "error";
+  toggleOverlay: (() => void) | undefined;
+  overlayCount: number;
+  overlayActive: boolean;
+  onDismissOverlay?: () => void;
+  onOpen: () => void;
+}) {
+  return (
+    <section
+      className="tonightLane tonightLane--collapsed"
+      aria-label="On tonight near you"
+    >
+      <div className="tonightLaneCollapsed">
+        {rows.length > 0 ? (
+          <button
+            type="button"
+            className="tonightLaneCollapsedMain pressable"
+            data-testid="tonight-lane-chip"
+            aria-expanded={false}
+            onClick={onOpen}
+          >
+            <span className="tonightLaneCollapsedTitle">
+              On tonight <span aria-hidden="true">·</span> {rows.length}
+            </span>
+            <span className="tonightLaneCollapsedChecked">{checkedLabel(asOf)}</span>
+          </button>
+        ) : (
+          <span className="tonightLaneCollapsedMain" role="status">
+            <span className="tonightLaneCollapsedTitle">Tonight nearby</span>
+            {status === "error" ? (
+              <span className="tonightLaneCollapsedChecked">Listings unavailable</span>
+            ) : null}
+          </span>
+        )}
+        {toggleOverlay ? (
+          <TonightOverlayToggle
+            count={overlayCount}
+            active={overlayActive}
+            onToggle={toggleOverlay}
+          />
+        ) : null}
+        {toggleOverlay && overlayActive && onDismissOverlay ? (
+          <TonightOverlayDismiss onDismiss={onDismissOverlay} />
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function TonightLaneOpen({
+  inSheet,
+  asOf,
+  gardenCue,
+  toggleOverlay,
+  overlayCount,
+  overlayActive,
+  onDismissOverlay,
+  onCollapse,
+  facets,
+  activeKind,
+  onSetActiveKind,
+  cards,
+  rowsById,
+  onSelectVenue,
+}: {
+  inSheet: boolean;
+  asOf: string | null;
+  gardenCue: string | null;
+  toggleOverlay: (() => void) | undefined;
+  overlayCount: number;
+  overlayActive: boolean;
+  onDismissOverlay?: () => void;
+  onCollapse: () => void;
+  facets: ReturnType<typeof laneKindFacets>;
+  activeKind: WhatsOnKind | null;
+  onSetActiveKind: (kind: WhatsOnKind | null) => void;
+  cards: ReturnType<typeof laneCardsFromRows>;
+  rowsById: Map<string, WhatsOnRow>;
+  onSelectVenue: (venueId: string) => void;
+}) {
   return (
     <section
       className={`tonightLane tonightLane--open${inSheet ? " tonightLane--sheet" : ""}`}
@@ -230,7 +322,7 @@ export default function TonightLane({
                 type="button"
                 className="tonightLaneClose pressable"
                 aria-label="Collapse on tonight"
-                onClick={() => changeOpen(false)}
+                onClick={onCollapse}
               >
                 <X size={17} aria-hidden="true" />
               </button>
@@ -249,7 +341,7 @@ export default function TonightLane({
               data-active={activeKind === null}
               aria-pressed={activeKind === null}
               onClick={() => {
-                setActiveKind(null);
+                onSetActiveKind(null);
                 trackEvent("whats_on_filter");
               }}
             >
@@ -264,7 +356,7 @@ export default function TonightLane({
                 data-kind={facet.kind}
                 aria-pressed={activeKind === facet.kind}
                 onClick={() => {
-                  setActiveKind(facet.kind);
+                  onSetActiveKind(facet.kind);
                   trackEvent("whats_on_filter");
                 }}
               >
