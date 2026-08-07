@@ -348,7 +348,7 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   await expect(sheet).toHaveCount(0);
 });
 
-test("mobile venue sheet sticky actions switch to Train and price form", async ({
+test("mobile venue sheet sticky actions switch to Train and price sign-in gate", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -384,14 +384,18 @@ test("mobile venue sheet sticky actions switch to Train and price form", async (
   await expect(sheet).toHaveClass(/sheet-half/);
   await expect(stickyActions).toBeInViewport();
 
+  // Anonymous sessions have always been routed to sign-in before the price
+  // form (runPriceContributionRequest in lib/priceContributionIntent.ts,
+  // unchanged since PR #675 — not a tonight regression). The default e2e
+  // chromium project injects a configured-but-fake Supabase URL/key
+  // (playwright.config.ts), so authConfigured is true and an anonymous click
+  // always shows the sign-in gate, never the price textbox directly.
   await stickyActions.getByRole("button", { name: /add a price/i }).click();
   const overviewTab = page.getByRole("tab", { name: "Overview", exact: true });
   await expect(overviewTab).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#venuePanel-overview")).toBeVisible();
   await expect(
-    page.getByRole("textbox", {
-      name: /price of a beer .* in pounds/i,
-    }),
+    page.getByRole("heading", { name: "Sign in to add a price" }),
   ).toBeVisible();
 });
 
