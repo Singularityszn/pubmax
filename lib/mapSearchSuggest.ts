@@ -27,6 +27,15 @@ import {
   isPubVenue,
   venueKindLabel,
 } from "@/lib/venueKindFilters";
+import {
+  searchUkBasePubsByName,
+  SUGGEST_UK_BASE_PUB_LIMIT,
+  type UkBasePubSuggestion,
+} from "@/lib/ukBasePubSearch";
+import type { UkBasePub } from "@/lib/ukBasePubs";
+
+export type { UkBasePubSuggestion };
+export { SUGGEST_UK_BASE_PUB_LIMIT, UK_BASE_SEARCH_GROUP_LABEL } from "@/lib/ukBasePubSearch";
 
 /** How many pub name-matches the panel shows at most. Kept tight so the popup
  *  stays scannable on a phone; the map itself already narrows to every match. */
@@ -93,6 +102,11 @@ export type MapSearchSuggestions = {
   query: string;
   areas: AreaSuggestion[];
   pubs: PubSuggestion[];
+  /**
+   * Resident UK base pubs matching the query. Empty when no shards are loaded
+   * or the query is empty — never a country-wide scan.
+   */
+  ukBasePubs: UkBasePubSuggestion[];
   hasResults: boolean;
   isEmptyQuery: boolean;
 };
@@ -105,6 +119,12 @@ export type MapSearchSuggestInput = {
    *  Optional + defaults to []: a non-London city, or a fetch that hasn't
    *  landed yet, simply falls back to the modelled areas + boroughs. */
   localities?: Locality[];
+  /**
+   * UK base pubs currently resident from useUkBaseStreaming. Optional +
+   * defaults to []: below the zoom gate, or before the first shard lands, the
+   * base group simply does not appear. Never the full 38k pack.
+   */
+  ukBasePubs?: readonly UkBasePub[];
   /** The viewer's GPS position when Near me granted it; else null. */
   userLocation: { lat: number; lng: number } | null;
   /** Live map centre [lng, lat] — the honest fallback origin. */
@@ -112,6 +132,7 @@ export type MapSearchSuggestInput = {
   now?: Date;
   pubLimit?: number;
   areaLimit?: number;
+  ukBasePubLimit?: number;
 };
 
 function normalize(value: string): string {
@@ -413,12 +434,29 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
     .slice(0, Math.max(0, pubLimit))
     .map((entry) => entry.suggestion);
 
+  // Resident base pubs only (lib/ukBasePubSearch.ts). Curated venues keep the
+  // Venues group; this is a separate "Pubs on the map" lane so an unpriced OSM
+  // pin never masquerades as a priced product row.
+  const rankedUkBasePubs = isEmptyQuery
+    ? []
+    : searchUkBasePubsByName({
+        pubs: input.ukBasePubs ?? [],
+        query,
+        userLocation,
+        mapCenter,
+        limit: input.ukBasePubLimit ?? SUGGEST_UK_BASE_PUB_LIMIT,
+      });
+
   return {
     origin,
     query,
     areas: rankedAreas,
     pubs: rankedPubs,
-    hasResults: rankedAreas.length > 0 || rankedPubs.length > 0,
+    ukBasePubs: rankedUkBasePubs,
+    hasResults:
+      rankedAreas.length > 0 ||
+      rankedPubs.length > 0 ||
+      rankedUkBasePubs.length > 0,
     isEmptyQuery,
   };
 }

@@ -4,9 +4,11 @@
 // These are not venues in the product sense. They have no price, no amenities,
 // no curation and no detail record - only "a pub is here, and nobody has said
 // what a pint costs yet". So they deliberately live OUTSIDE the venue index:
-// they never enter `venues`, which is what keeps them out of search, the price
-// filters and the crawl router. They exist as map features, a separate
-// in-viewport unverified list, and price-submission targets.
+// they never enter `venues`, which is what keeps them out of curated search,
+// the price filters and the crawl router. Map search may match RESIDENT
+// streamed pubs only (lib/ukBasePubSearch.ts) — never the country-wide pack.
+// They exist as map features, a separate in-viewport unverified list, and
+// price-submission targets.
 //
 // DELIVERY. scripts/build_uk_base_shards.mjs emits a manifest plus one file per
 // ~28 x ~17 km cell under /data/uk_base/. This module fetches:
