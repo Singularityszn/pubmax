@@ -1,14 +1,19 @@
 "use client";
 
-import { Suspense, useSyncExternalStore } from "react";
+import { Suspense, useEffect, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 
 import SiteNav from "@/components/nav/SiteNav";
+import {
+  clearPosterLandingSession,
+  isPosterLandingSrc,
+} from "@/lib/posterLanding";
 import { readPreferredCity, subscribePreferredCity } from "@/lib/cityPreference";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { resolveNightPatch } from "@/lib/nightPatches";
 
 import NearMeNow from "./NearMeNow";
+import PosterLandingNote from "./PosterLandingNote";
 import "./nearPage.css";
 
 function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
@@ -22,6 +27,14 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
   const patchParam = searchParams.get("patch");
   const initialPatchId = resolveNightPatch(patchParam)?.id ?? null;
 
+  // Mount-only: a fresh /near load without src=poster must not inherit a stale
+  // poster session from an earlier scan in the same tab.
+  useEffect(() => {
+    if (!isPosterLandingSrc(searchParams.get("src"))) {
+      clearPosterLandingSession();
+    }
+  }, []);
+
   return (
     <div className="nmnPage">
       {/* Standard app chrome (journey audit P0): same floating SiteNav pill as
@@ -29,6 +42,9 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
           active key is set (Map stays unlit). */}
       <SiteNav />
       <main id="main" className="nmnPageBody">
+        {/* Physical QR arrival (PLG Wave 2): one honest orientation line when
+            the drinker scanned a bar poster into /near?src=poster. */}
+        <PosterLandingNote src={searchParams.get("src")} />
         {/* Idle-first on /near so patch chips are reachable without granting
             location. Shareable ?patch= deep links answer immediately. */}
         <NearMeNow

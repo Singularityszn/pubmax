@@ -41,9 +41,10 @@ Print production, both pieces:
 
 ## QR code spec (both pieces)
 
-- Target URL: `https://pubmaxxing.com`. If a partner wants attribution, append a
-  campaign tag, for example `https://pubmaxxing.com/?src=poster`, and keep the
-  same tag across their print run.
+- Target URL: `https://pubmaxxing.com/?src=poster` (optional `utm_*` tags). The
+  site redirects that arrival to `/near` with the same query kept, so a scan
+  opens nearby prices rather than the marketing landing. Keep the same tag
+  across a partner's print run.
 - Error correction: level H (30 percent). Bar-room posters get scuffed and part
   covered; H survives it.
 - Quiet zone: at least 4 modules of clear space on all sides. Do not let artwork
