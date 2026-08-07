@@ -586,6 +586,15 @@
   .mobileSharedSheetFooter:empty { display: none; }
 
   .mobileMapFilters { display: grid; gap: 18px; }
+  /* Saved only — same checkbox field as the desktop ControlRail. Empty note
+     sits under the toggle when the device has nothing saved yet. */
+  .mobileMapSavedOnlyEmpty { display: grid; gap: 10px; padding: 4px 0 0; }
+  .mobileMapSavedOnlyEmpty p {
+    margin: 0;
+    color: var(--color-text-soft);
+    font-size: var(--text-sm);
+    line-height: 1.4;
+  }
   .mobilePlannerIntent { display: grid; gap: 14px; margin: 0 0 18px; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
   .mobilePlannerIntentHeading { display: flex; align-items: flex-start; gap: 10px; color: var(--color-accent); }
   .mobilePlannerIntentHeading > div { display: grid; gap: 3px; color: var(--color-text); }
