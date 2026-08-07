@@ -96,7 +96,7 @@ const HOOK_MANIFEST_TARGETS = [
   },
   {
     provider: '.agents',
-    skillRel: 'skills/impeccable',
+    skillRel: '.agents/skills/impeccable',
     destRel: '.codex/hooks.json',
     manifest: () => ({
       hooks: {
@@ -106,27 +106,27 @@ const HOOK_MANIFEST_TARGETS = [
             hooks: [
               {
                 type: 'command',
-                command: 'node "skills/impeccable/scripts/hook.mjs"',
+                command: 'node ".agents/skills/impeccable/scripts/hook.mjs"',
                 timeout: TIMEOUT_SECONDS,
                 statusMessage: STATUS_MESSAGE,
               },
             ],
           },
         ],
-        Stop: [stopManifestEntry('node "skills/impeccable/scripts/hook.mjs"')],
+        Stop: [stopManifestEntry('node ".agents/skills/impeccable/scripts/hook.mjs"')],
       },
     }),
   },
   {
     provider: '.cursor',
-    skillRel: 'skills/impeccable',
+    skillRel: '.cursor/skills/impeccable',
     destRel: '.cursor/hooks.json',
     manifest: () => ({
       version: 1,
       hooks: {
         preToolUse: [
           {
-            command: 'node "skills/impeccable/scripts/hook-before-edit.mjs"',
+            command: 'node ".cursor/skills/impeccable/scripts/hook-before-edit.mjs"',
             timeout: TIMEOUT_SECONDS,
           },
         ],
