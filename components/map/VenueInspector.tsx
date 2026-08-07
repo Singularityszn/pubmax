@@ -17,6 +17,7 @@ import { isPubVenue } from "@/lib/venueKindFilters";
 import type { JourneyPoint } from "@/lib/venueJourney";
 import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import type { DrinkCategory } from "@/lib/drinks";
 import { prefetchLastRide } from "@/lib/lastRideClient";
 import {
   runPriceContributionRequest,
@@ -85,6 +86,8 @@ type VenueInspectorProps = {
   onRequestLocation: () => void;
   onClearLocation: () => void;
   experienceLens?: MapExperienceLens;
+  /** Selected-drink map lens (e.g. coffee). Never the no-alcohol experience. */
+  drinkLensCategory?: DrinkCategory | null;
 };
 
 function focusPriceDestination(id: string): void {
@@ -130,6 +133,7 @@ export default function VenueInspector({
   onRequestLocation,
   onClearLocation,
   experienceLens = "all",
+  drinkLensCategory = null,
 }: VenueInspectorProps) {
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const { user, loading: authLoading, configured: authConfigured } = useAuth();
@@ -287,6 +291,7 @@ export default function VenueInspector({
         latestPintDropAt={latestPintDropAt}
         communityPrices={communityPrices}
         experienceLens={experienceLens}
+        drinkLensCategory={drinkLensCategory}
         onToggleStop={onToggleStop}
         presenceState={presenceState}
         markPresenceHere={markPresenceHere}

@@ -59,6 +59,8 @@ describe("MapExperienceLens", () => {
     );
     expect(pubMap).not.toContain("No price logged");
     expect(pubMap).toContain("experienceLens={experienceLens}");
+    expect(pubMap).toContain("drinkLensCategory={mapDrinkLensCategory}");
+    expect(pubMap).toContain("drinkLensPriceNoun(mapDrinkLensCategory)");
     expect(pubMap).toContain(
       'drinkCategory={experienceLens === "all" ? filters.drinkCategory || null : null}',
     );
@@ -91,10 +93,10 @@ describe("MapExperienceLens", () => {
     );
     expect(overview).toContain('experienceLens === "food"');
     expect(overview).toMatch(
-      /experienceLens !== "no-alcohol" \|\|[\s\S]*?venue\.kind === "food"[\s\S]*?<VenuePriceSummary/,
+      /!drinkLensCategory &&[\s\S]*?experienceLens !== "no-alcohol" \|\|[\s\S]*?venue\.kind === "food"[\s\S]*?<VenuePriceSummary/,
     );
     expect(overview).toMatch(
-      /experienceLens === "all"\s*\?\s*\([\s\S]*?<VenuePriceThen/,
+      /experienceLens === "all" && !drinkLensCategory\s*\?\s*\([\s\S]*?<VenuePriceThen/,
     );
   });
 
@@ -111,14 +113,8 @@ describe("MapExperienceLens", () => {
       'communityPrices.venuePriceStatus.get(venue.id) ?? "idle"',
     );
     expect(overview).toContain("{noAlcoholEmptyNote(venueReadStatus)}");
-    expect(overview).toMatch(
-      /status === "ready"[\s\S]*?`No \$\{NO_ALCOHOL_LENS_PRICE_NOUN\} price logged here yet\.`/,
-    );
-    expect(overview).toMatch(
-      /status === "degraded"[\s\S]*?`We could not read/,
-    );
-    expect(overview).toMatch(
-      /return `Checking \$\{NO_ALCOHOL_LENS_PRICE_NOUN\} prices logged here\.`/,
+    expect(overview).toContain(
+      "return drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, status);",
     );
 
     const sheet = readFileSync(
@@ -136,6 +132,47 @@ describe("MapExperienceLens", () => {
     expect(overview).toContain(effect);
     expect(overview.indexOf(effect)).toBeLessThan(
       overview.indexOf("{isPubVenue(venue) ? ("),
+    );
+  });
+
+  it("threads the drink lens into both sheets and names coffee, not no-alcohol", () => {
+    const overview = readFileSync(
+      join(process.cwd(), "components/map/inspector/VenueOverviewTab.tsx"),
+      "utf8",
+    );
+    const sheet = readFileSync(
+      join(process.cwd(), "components/map/UnverifiedPubSheet.tsx"),
+      "utf8",
+    );
+    const inspector = readFileSync(
+      join(process.cwd(), "components/map/VenueInspector.tsx"),
+      "utf8",
+    );
+    const helpers = readFileSync(
+      join(process.cwd(), "lib/mapExperienceLens.ts"),
+      "utf8",
+    );
+
+    expect(inspector).toContain("drinkLensCategory={drinkLensCategory}");
+    expect(overview).toContain("drinkLensPriceNoun(drinkLensCategory)");
+    expect(overview).toContain(
+      "drinkLensEmptyVenueNote(drinkLensNoun, venueReadStatus)",
+    );
+    expect(overview).toContain(
+      'row.drinkCategory === drinkLensCategory',
+    );
+    expect(sheet).toContain("drinkLensCategory");
+    expect(sheet).toContain(
+      "drinkLensEmptyVenueNote(drinkLensNoun, readStatus)",
+    );
+    expect(sheet).toContain(
+      "row.drinkCategory === drinkLensCategory",
+    );
+    // The experience noun is only for the joined no-alcohol view.
+    expect(helpers).toContain('case "soft-drink":');
+    expect(helpers).toContain('return "soft drink";');
+    expect(helpers).toMatch(
+      /Never return NO_ALCOHOL_LENS_PRICE_NOUN[\s\S]*drinkLensPriceNoun/,
     );
   });
 
