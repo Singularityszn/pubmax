@@ -71,7 +71,7 @@ function MapEdgeControls({
   );
 }
 
-export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
   /**
    * Whether that name is where the READER is, or only what the map is looking
@@ -110,6 +110,11 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
    * night) keeps the chip off the map; a positive count opens overlay "tonight".
    */
   tonightCount: number;
+  /**
+   * Whether that count was fetched with a reader location (the /api/whats-on
+   * near= seam). City-wide cold-start must not claim "near you".
+   */
+  tonightNearReader: boolean;
   tflCount: number;
   tflStatus: "checking" | "clear" | "issues" | "unavailable";
   priceLabel: string;
@@ -179,7 +184,7 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
     zoneActive,
   });
   const tflCorner = buildTflCorner(tflStatus, tflCount);
-  const tonightChip = buildTonightChip(tonightCount);
+  const tonightChip = buildTonightChip(tonightCount, tonightNearReader);
   const sheetKind = CONTEXTUAL_SHEETS.includes(overlay as MapSheetKind)
     ? (overlay as MapSheetKind)
     : null;

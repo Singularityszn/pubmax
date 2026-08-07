@@ -55,20 +55,29 @@ describe("buildTflCorner", () => {
 
 describe("buildTonightChip", () => {
   it("stays silent when What's On has nothing to open", () => {
-    expect(buildTonightChip(0)).toBeNull();
-    expect(buildTonightChip(-1)).toBeNull();
-    expect(buildTonightChip(Number.NaN)).toBeNull();
+    expect(buildTonightChip(0, false)).toBeNull();
+    expect(buildTonightChip(-1, true)).toBeNull();
+    expect(buildTonightChip(Number.NaN, false)).toBeNull();
   });
 
   it("names the listing count for a one-tap cold start", () => {
-    expect(buildTonightChip(1)).toMatchObject({
+    expect(buildTonightChip(1, false)).toMatchObject({
       label: "On tonight",
       count: 1,
-      ariaLabel: "On tonight: 1 listing near you",
+      ariaLabel: "On tonight: 1 listing",
     });
-    expect(buildTonightChip(3)).toMatchObject({
+    expect(buildTonightChip(3, false)).toMatchObject({
       label: "On tonight",
       count: 3,
+      ariaLabel: "On tonight: 3 listings",
+    });
+  });
+
+  it("claims near you only when the fetch was location-scoped", () => {
+    expect(buildTonightChip(1, true)).toMatchObject({
+      ariaLabel: "On tonight: 1 listing near you",
+    });
+    expect(buildTonightChip(3, true)).toMatchObject({
       ariaLabel: "On tonight: 3 listings near you",
     });
   });

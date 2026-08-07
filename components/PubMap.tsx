@@ -3431,6 +3431,7 @@ export default function PubMap({
           onDismissNearMeError={() => setNearbyError(null)}
           nearbyCount={nearbyMapResult?.venueIds.length ?? 0}
           tonightCount={whatsOnTonight.rows.length}
+          tonightNearReader={userLocation != null}
           tflCount={tflStatus.issueCount}
           tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
           priceLabel={filters.maxPrice < NO_PINT_PRICE_CAP ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}

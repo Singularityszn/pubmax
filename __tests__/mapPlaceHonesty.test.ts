@@ -132,6 +132,7 @@ function shellProps(overrides: Record<string, unknown> = {}) {
     onDismissNearMeError: vi.fn(),
     nearbyCount: 0,
     tonightCount: 0,
+    tonightNearReader: false,
     tflCount: 0,
     tflStatus: "clear" as const,
     priceLabel: "Any price",
@@ -183,9 +184,14 @@ describe("Phone Tonight cold-start chip", () => {
   it("opens the Tonight sheet from one labelled chip when listings exist", () => {
     const html = renderShell({ tonightCount: 4 });
     expect(html).toContain("mobileMapTonightChip");
-    expect(html).toContain('aria-label="On tonight: 4 listings near you"');
+    expect(html).toContain('aria-label="On tonight: 4 listings"');
     expect(html).toContain("On tonight");
     expect(html).toContain(">4<");
+  });
+
+  it("claims near you only when the count was fetched with reader location", () => {
+    const html = renderShell({ tonightCount: 4, tonightNearReader: true });
+    expect(html).toContain('aria-label="On tonight: 4 listings near you"');
   });
 });
 

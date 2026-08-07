@@ -44,7 +44,7 @@ export type FiltersChipModel = {
 export type TonightChipModel = {
   label: "On tonight";
   count: number;
-  /** Screen-reader detail, e.g. "On tonight: 3 listings near you". */
+  /** Screen-reader detail, e.g. "On tonight: 3 listings" or "... near you". */
   ariaLabel: string;
 };
 
@@ -119,15 +119,19 @@ export function buildTflCorner(status: TflStatus, count: number): CornerUtilityM
  * What's On spine has nothing to show, so a quiet night never advertises a
  * dead door. The shell mounts this under the one top bar, never inside it.
  */
-export function buildTonightChip(rowCount: number): TonightChipModel | null {
+export function buildTonightChip(
+  rowCount: number,
+  nearReader: boolean,
+): TonightChipModel | null {
   if (!Number.isFinite(rowCount) || rowCount <= 0) return null;
   const count = Math.floor(rowCount);
+  const nearSuffix = nearReader ? " near you" : "";
   return {
     label: "On tonight",
     count,
     ariaLabel:
       count === 1
-        ? "On tonight: 1 listing near you"
-        : `On tonight: ${count} listings near you`,
+        ? `On tonight: 1 listing${nearSuffix}`
+        : `On tonight: ${count} listings${nearSuffix}`,
   };
 }
