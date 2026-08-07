@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import LandingPage from "@/components/landing/LandingPage";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { loadAboutStats } from "@/lib/aboutStats";
+import {
+  isPosterLandingSrc,
+  posterNearHref,
+  readPosterLandingSrc,
+} from "@/lib/posterLanding";
 import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 
 // Self-canonical for the homepage (Wave S1.4). Title/description inherit the
@@ -11,7 +17,21 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-export default async function Home() {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  // Physical QR path (PLG Wave 2): printed codes use /?src=poster (+ optional
+  // utm_*). Send that arrival straight to /near with the campaign query kept,
+  // so a scan opens nearby prices rather than the marketing landing.
+  const params = await searchParams;
+  if (isPosterLandingSrc(readPosterLandingSrc(params))) {
+    redirect(posterNearHref(params));
+  }
+
   // Real coverage numbers, derived at build/request time from the same bundled
   // pint-price dataset + enabled-city config the rest of the app reads (via the
   // provenance-honest lib/aboutStats). No invented counts — loadAboutStats

@@ -19,3 +19,14 @@
   padding: var(--space-6, 24px) 0 var(--space-10, 48px);
   box-sizing: border-box;
 }
+
+/* Poster QR arrival: one orientation line above the near-me answer. */
+.nmnPosterNote {
+  margin: 0 0 var(--space-4, 16px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  border-left: 3px solid var(--brass);
+  background: color-mix(in srgb, var(--brass) 10%, transparent);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
