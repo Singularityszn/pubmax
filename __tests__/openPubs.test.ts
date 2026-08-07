@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // prettier-ignore
-// @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
 import {
   OPEN_PUBS_MATCH_RADIUS_M,
   buildIdentityIndex,
@@ -15,6 +14,7 @@ import {
   normalizeOpenPubsCells,
   parseOpenPubsCsv,
   parseCsvNull,
+  // @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
 } from "../scripts/lib/openPubs.mjs";
 
 const FIXTURE = readFileSync(
