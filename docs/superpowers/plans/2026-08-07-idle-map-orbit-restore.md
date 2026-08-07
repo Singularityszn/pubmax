@@ -33,21 +33,21 @@
 - Produces: `ORBIT_DEG_PER_SEC`, `ORBIT_FRAME_INTERVAL_MS`, `ORBIT_MAX_BEARING_STEP_DEG`, `ORBIT_FIRST_DELAY_MS`, `ORBIT_INTERACTION_DELAY_MS`
 - Produces: `resolveCompassAction(currentBearing, designed): CompassAction`
 
-- [ ] **Step 1: Restore tests from `ba4b4e71^` and add capped-step expectations**
+- [x] **Step 1: Restore tests from `ba4b4e71^` and add capped-step expectations**
 
   Restore state-transition coverage for enable, interaction, reduced motion, suspend, dispose, 6 second first delay, and 20 second interaction delay. Add literal assertions that orbit step timers use `ORBIT_FRAME_INTERVAL_MS` and that derived step size never exceeds `ORBIT_MAX_BEARING_STEP_DEG`.
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
   Run: `npm test -- __tests__/mapOrbit.test.ts __tests__/mapCompass.test.ts`
 
   Expected: FAIL because `@/lib/mapOrbit` and `@/lib/mapCompass` do not exist.
 
-- [ ] **Step 3: Restore helpers and implement timer-driven steps**
+- [x] **Step 3: Restore helpers and implement timer-driven steps**
 
   `createIdleOrbit` must arm one idle timer, enter `orbiting`, call one step, then schedule the next step after `frameIntervalMs`. `noteInteraction`, `setEnabled(false)`, `setSuspended(true)`, reduced-motion checks, and `dispose` must clear every pending timer and call the stop callback when orbit is active.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
   Run: `npm test -- __tests__/mapOrbit.test.ts __tests__/mapCompass.test.ts`
 
@@ -64,25 +64,25 @@
 - Consumes: `resolveCompassAction` from Task 1
 - Produces: map bearing changes only after `pubmax:pin-reveal`, at capped interval and capped step
 
-- [ ] **Step 1: Add a failing integration fence at the narrowest practical seam**
+- [x] **Step 1: Add a failing integration fence at the narrowest practical seam**
 
   Extend orbit tests to prove interaction and suspend cancel a pending frame timer, including an interaction after first orbit starts. This catches a canvas integration that cannot stop timer-driven orbit immediately.
 
-- [ ] **Step 2: Run focused test and verify RED**
+- [x] **Step 2: Run focused test and verify RED**
 
   Run: `npm test -- __tests__/mapOrbit.test.ts`
 
   Expected: FAIL because active frame timer remains or restarts after a gate closes.
 
-- [ ] **Step 3: Restore canvas wiring against current code**
+- [x] **Step 3: Restore canvas wiring against current code**
 
   Import helpers and constants. Restore `mapBearing` and `orbitRef`. Track bearing on `moveend` and `rotateend`. Add effect keyed on `mapReady`; enable only from `pubmax:pin-reveal`; stop on pointer, wheel, touch, key, `pubmax:camera-intent`, and compass press; suspend on hidden tab and off-screen canvas. Each orbit step must call `jumpTo` with a bearing delta limited by `ORBIT_MAX_BEARING_STEP_DEG`, then schedule through pure orbit state machine.
 
-- [ ] **Step 4: Restore compass control and current-theme styling**
+- [x] **Step 4: Restore compass control and current-theme styling**
 
   Use `resolveCompassAction` to reset north from a rotated view or adopt city pitch and bearing from north. Use current neutral control tokens and 44 pixel phone tap target rules. Compass click must call `orbitRef.current?.noteInteraction()` before camera movement.
 
-- [ ] **Step 5: Run focused tests, lint, and type check**
+- [x] **Step 5: Run focused tests, lint, and type check**
 
   Run: `npm test -- __tests__/mapOrbit.test.ts __tests__/mapCompass.test.ts __tests__/mapChromeDebris.test.ts`
 
@@ -101,15 +101,15 @@
 - Consumes: final phone decision from browser proof
 - Produces: accurate product description and PR evidence
 
-- [ ] **Step 1: Update README**
+- [x] **Step 1: Update README**
 
   State that orbit begins only after idle readiness, stops on input, and uses capped steps. If phone flicker remains, state desktop-only behavior.
 
-- [ ] **Step 2: Browser-check desktop in dark and light themes**
+- [x] **Step 2: Browser-check desktop in dark and light themes**
 
   Run app with production output in `.next-prod`. At desktop width, record compass transform or map bearing before and after at least 10 idle seconds after pin reveal. Confirm bearing changes. Interact and confirm bearing stops immediately. Repeat dark and light.
 
-- [ ] **Step 3: Browser-check phone in dark and light themes**
+- [x] **Step 3: Browser-check phone in dark and light themes**
 
   Emulate `390x844x3,mobile,touch`, reload in place, then repeat 10 second idle bearing check. Inspect screenshots and network/console activity for tile flicker or churn. If flicker persists, add desktop-width gate, update tests and README, and repeat desktop proof.
 
