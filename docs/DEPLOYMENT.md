@@ -264,15 +264,17 @@ dev/test.
 
 ## Continuous integration and deployment checks
 
-`vercel.json` sets the build command to the full gate:
+`vercel.json` sets the build command:
 
 ```json
-{ "buildCommand": "npm run ci" }
+{ "buildCommand": "npm run validate-data && npm run build" }
 ```
 
-So **every Vercel deploy runs `npm run ci` = validate data · lint · typecheck · coverage · Next build**. If any step fails, the deploy fails and production is never updated — this is the reliable automatic gate while GitHub-hosted Actions is unstable.
+**Every Vercel deploy runs the data validation gate and the Next build only.** It does not run lint, typecheck, tests, or coverage. PR [#748](https://github.com/Singularityszn/pubmax/pull/748) narrowed the build command on 2026-08-06 to cut Vercel build-minute cost. Lint, typecheck, and tests moved to GitHub Actions (`.github/workflows/ci.yml`).
 
-GitHub Actions is configured for `push`, `pull_request`, and `workflow_dispatch`, but GitHub-hosted runs are currently failing before job allocation on this private repo (`startup_failure` with zero jobs and no logs). That is a runner/account allocation problem, not a product-code problem. Keep the workflow definition boring and use Vercel as the enforced deploy gate until GitHub runner allocation is fixed.
+GitHub Actions is configured for `push`, `pull_request`, and `workflow_dispatch`, but GitHub-hosted runs are currently failing before job allocation on this private repo (`startup_failure` with zero jobs and no logs). That is a runner/account allocation problem, not a product-code problem. The fix, PR [#747](https://github.com/Singularityszn/pubmax/pull/747) (migrate to Blacksmith runners), is open and unmerged.
+
+**Result: nothing automated currently checks lint, typecheck, or tests before a deploy reaches production.** See `docs/SOFT_LAUNCH_RUNBOOK.md` section 1.1 for the operator consequence: run `npm run ci` locally before every push until #747 lands.
 
 When GitHub Actions runner allocation is fixed, the existing triggers should start producing useful first-party checks. The workflow itself is intentionally boring:
 
@@ -285,6 +287,19 @@ When GitHub Actions runner allocation is fixed, the existing triggers should sta
 
 The workflow supports `workflow_dispatch`, so it can be rerun manually from GitHub Actions after account/runners are fixed.
 
+### Manual deploy and promote
+
+This project does not auto-assign the production domain to every deploy. After a Vercel deploy, promote it explicitly:
+
+```sh
+vercel deploy
+vercel promote <deployment-url>
+```
+
+Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime.
+
+`docs/SOFT_LAUNCH_RUNBOOK.md` section 1.2 is the operator source for this command pair and the promotion mechanics behind it.
+
 ### Known GitHub check sources
 
 The latest code-level gate is healthy locally and on Vercel. If GitHub shows red checks, identify which app owns the failure before changing product code:
@@ -292,9 +307,9 @@ The latest code-level gate is healthy locally and on Vercel. If GitHub shows red
 | Check source | What it means | Fix path |
 |---|---|---|
 | `CI / Verify and build` | First-party GitHub Actions workflow from `.github/workflows/ci.yml`. Currently configured for push/PR/manual, but GitHub-hosted runs fail before job allocation. | If a run reports `startup_failure` with zero jobs, fix GitHub account/runners/settings rather than product code. |
-| `Vercel` | Automatic deployment gate. Runs `npm run ci` before deploy. | Fix code/build/env, then redeploy. |
+| `Vercel` | Automatic deployment gate. Runs `npm run validate-data` and the Next build before deploy; does not run lint, typecheck, or tests (see above). | Fix code/build/env, then redeploy. |
 | `Supabase Preview` | Supabase GitHub integration. | If it says `Remote migration versions not found in local migrations directory`, sync migration history: pull/export the missing remote migrations or repair the Supabase migration table so remote and `supabase/migrations/` agree. Do not delete local migrations to make this pass. |
-| GitHub Actions `startup_failure` | GitHub failed before allocating a job. GitHub shows no jobs and no logs. | It is not a code test failure. Use Vercel as the automatic gate until account/runners/settings are fixed. |
+| GitHub Actions `startup_failure` | GitHub failed before allocating a job. GitHub shows no jobs and no logs. | It is not a code test failure. Vercel still blocks broken builds; run `npm run ci` locally for the full gate until runners are fixed. |
 | `Greptile Review` | External AI review/check app. | Treat as code-review signal, not a build gate. Address concrete findings in PR comments. |
 | `dbt Cloud`, `starslingdev`, other queued app suites | External GitHub Apps attached to the repo. | Disable unused apps or remove them from required checks; they are not part of PubMaxing's build unless explicitly configured. |
 
