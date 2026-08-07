@@ -23,6 +23,7 @@ import { estimateBusyness } from "@/lib/busyness";
 import type { HeritageFact } from "@/lib/heritageFacts";
 import { eraStartYear, heritageSourceLabel, listedBadge } from "@/lib/historicFilter";
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 
 /** The calm cohort sees a tight handful, not a wall. Between MIN and LIMIT. */
 export const QUIET_PINT_LIMIT = 5;
@@ -70,7 +71,7 @@ export type QuietPintRow = {
   quietLabel: string;
   /** "£4.80" when a verified price exists for this venue, else null. */
   priceLabel: string | null;
-  /** Deep link to the venue on the map (the /map?venue= pattern). */
+  /** Deep link to the venue on the map ({@link venueMapUrl}). */
   mapHref: string;
 };
 
@@ -199,7 +200,7 @@ export function buildQuietPint(input: BuildQuietPintInput): QuietPintModule | nu
     sourceRef: typeof best.sourceRef === "string" && best.sourceRef.trim() ? best.sourceRef : null,
     quietLabel,
     priceLabel: priceLabel(priceById.get(candidate.venueId)),
-    mapHref: `/map?venue=${encodeURIComponent(candidate.venueId)}`,
+    mapHref: venueMapUrl(candidate.venueId),
   }));
 
   return { weekdayName, rows };

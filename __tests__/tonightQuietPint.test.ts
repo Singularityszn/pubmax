@@ -26,8 +26,9 @@ vi.mock("@/components/discovery/DealsTonightLane", () => ({ default: () => null 
 vi.mock("@/components/discovery/MusicTonightLane", () => ({ default: () => null }));
 
 import TonightClient from "@/app/tonight/TonightClient";
-import { TRUSTED_HANDOFF_FLAGS_OFF } from "@/lib/trustedHandoffFlags";
 import type { QuietPintModule } from "@/lib/quietPint";
+import { TRUSTED_HANDOFF_FLAGS_OFF } from "@/lib/trustedHandoffFlags";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 
 const QUIET_PINT: QuietPintModule = {
   weekdayName: "Tuesday",
@@ -43,7 +44,7 @@ const QUIET_PINT: QuietPintModule = {
       sourceRef: "https://en.wikipedia.org/wiki/Example",
       quietLabel: "Usually quiet on a Tuesday",
       priceLabel: "£4.50",
-      mapHref: "/map?venue=venue-quiet",
+      mapHref: venueMapUrl("venue-quiet"),
     },
     {
       id: "venue-calm",
@@ -56,7 +57,7 @@ const QUIET_PINT: QuietPintModule = {
       sourceRef: null,
       quietLabel: "Usually quiet on a Tuesday",
       priceLabel: null,
-      mapHref: "/map?venue=venue-calm",
+      mapHref: venueMapUrl("venue-calm"),
     },
     {
       id: "venue-soft",
@@ -69,7 +70,7 @@ const QUIET_PINT: QuietPintModule = {
       sourceRef: "https://en.wikipedia.org/wiki/Example-2",
       quietLabel: "Usually quiet on a Tuesday",
       priceLabel: "£5.00",
-      mapHref: "/map?venue=venue-soft",
+      mapHref: venueMapUrl("venue-soft"),
     },
   ],
 };
@@ -95,7 +96,7 @@ describe("Tonight quiet pint module", () => {
     expect(html).toContain('data-testid="today-quiet-pint"');
     expect(html).toContain("The Quiet Bell");
     expect(html).toContain("A quiet pint, and a bit of history.");
-    expect(html).toContain('href="/map?venue=venue-quiet"');
+    expect(html).toContain(`href="${venueMapUrl("venue-quiet")}"`);
     expect(html).toContain("Usually quiet on a Tuesday");
   });
 

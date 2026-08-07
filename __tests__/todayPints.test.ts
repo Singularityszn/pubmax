@@ -44,7 +44,7 @@ describe("buildTodayPintsForPatch — the area's cheapest priced pints", () => {
     expect(mod?.rows[0]).toMatchObject({
       price: 3.9,
       priceLabel: "£3.90",
-      mapHref: "/map?venue=c",
+      mapHref: "/map?sel=c",
     });
   });
 
