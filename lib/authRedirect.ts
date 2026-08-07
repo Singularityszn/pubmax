@@ -559,6 +559,9 @@ function fallbackAuthCallback(
 }
 
 function restoreAuthFragment(cleanUrl: string, fragment: string): string {
+  // Return fragments are app state. Never restore a one-time auth response
+  // after the callback URL has scrubbed it from browser history.
+  if (!fragment.startsWith("#") || parseAuthResponseFragment(fragment)) return cleanUrl;
   try {
     const restored = new URL(cleanUrl, "https://pubmax.invalid");
     restored.hash = fragment;
@@ -641,6 +644,10 @@ function claimAuthCallback(
   }
 }
 
+export function isAuthPage(pathname: string): boolean {
+  return pathname === "/login" || pathname === "/signin" || pathname === "/auth/callback";
+}
+
 /**
  * Read callback parameters minted by our server callback route, or a token
  * fragment delivered straight to any page. Supabase's redirect allowlist clamps
@@ -653,9 +660,14 @@ export function readAuthCallbackAttempt(currentUrl: string): AuthCallbackAttempt
   try {
     const current = new URL(currentUrl);
     const fragment = parseAuthResponseFragment(current.hash);
-    const providerError =
-      current.searchParams.get("authError") === "1" || fragment?.kind === "error";
+    const authPage = isAuthPage(current.pathname);
     const marked = current.searchParams.get(AUTH_CALLBACK_MARKER) === "1";
+    // A marked callback is tied to a live local attempt, not a crafted
+    // fragment, so it keeps reporting a provider error on any page. An
+    // unmarked bare signal only counts on an auth page (anti-spoof scoping).
+    const providerError =
+      (marked || authPage) &&
+      (current.searchParams.get("authError") === "1" || fragment?.kind === "error");
     if (!marked && !providerError && fragment?.kind !== "tokens") return null;
     const rawAttemptId = current.searchParams.get(AUTH_ATTEMPT_PARAM);
     const attemptId = isAuthAttemptId(rawAttemptId) ? rawAttemptId : null;
