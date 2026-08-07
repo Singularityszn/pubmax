@@ -19,9 +19,11 @@ const nightSignalsCss = readFileSync(
 );
 
 function ruleBody(css: string, selector: string): string {
-  // Escape regex metacharacters in the selector, then grab the first block.
+  // Escape regex metacharacters, then grab the first block whose selector list
+  // STARTS at a line boundary with this selector - `.lpSectionLabel` must not
+  // match the descendant rule `.lpWhyCopy .lpSectionLabel`.
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return css.match(new RegExp(`${escaped}\\s*{([^}]*)}`))?.[1] ?? "";
+  return css.match(new RegExp(`(?:^|\\n)${escaped}\\s*{([^}]*)}`))?.[1] ?? "";
 }
 
 describe("landing chrome CSS audit", () => {
