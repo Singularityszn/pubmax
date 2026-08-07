@@ -10,6 +10,8 @@ import FirstActionsRow from "@/components/profile/FirstActionsRow";
 import FollowButton from "@/components/profile/FollowButton";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
+import OutTonightCrewLine from "@/components/profile/OutTonightCrewLine";
+import OutTonightToggle from "@/components/profile/OutTonightToggle";
 import PintPassport from "@/components/profile/PintPassport";
 import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
@@ -688,6 +690,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                       <ClaimMomentWelcome />
                       <FirstActionsRow />
                       <ContributionLanesCard handle={routeHandle} />
+                      <OutTonightToggle handle={routeHandle} />
                     </>
                   ) : null}
 
@@ -708,6 +711,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                       isOwn={passportIsOwn}
                       hero={false}
                     />
+                  ) : null}
+
+                  {!isOwnProfile && routeHandle && routeHandle !== YOU_SENTINEL ? (
+                    <OutTonightCrewLine ownerHandle={routeHandle} viewerHandle={viewerHandle} />
                   ) : null}
 
                   {/* Quest chips (Loop 2): next-badge progress for the viewed handle.

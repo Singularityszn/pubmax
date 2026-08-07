@@ -186,6 +186,10 @@ export const ANALYTICS_EVENTS = {
   invite_rsvp_submitted: ["status", "isUpdate"],
   invite_reaction_toggled: ["reaction", "active"],
   invite_map_opened: [],
+  // "Out tonight" beacon (You page toggle). No handle and no area ever ride in
+  // these props - only that a crew-only beacon was switched on or off.
+  out_tonight_beacon_on: [],
+  out_tonight_beacon_off: [],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;

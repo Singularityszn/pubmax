@@ -30,12 +30,21 @@ describe("validateCheckInInput", () => {
     });
   });
 
-  it("rejects an empty area", () => {
-    const result = validateCheckInInput({ handle: "karan", areaSlug: "" });
-    expect(result).toMatchObject({ ok: false });
+  it("accepts an absent/empty area as a plain 'out tonight' signal (areaSlug: null)", () => {
+    const noField = validateCheckInInput({ handle: "karan" });
+    expect(noField.ok).toBe(true);
+    if (noField.ok) expect(noField.value.areaSlug).toBeNull();
+
+    const blank = validateCheckInInput({ handle: "karan", areaSlug: "" });
+    expect(blank.ok).toBe(true);
+    if (blank.ok) expect(blank.value.areaSlug).toBeNull();
+
+    const whitespace = validateCheckInInput({ handle: "karan", areaSlug: "   " });
+    expect(whitespace.ok).toBe(true);
+    if (whitespace.ok) expect(whitespace.value.areaSlug).toBeNull();
   });
 
-  it("rejects an unknown area (never coerces a bad slug)", () => {
+  it("rejects an unknown, non-empty area (never coerces a bad slug)", () => {
     const result = validateCheckInInput({ handle: "karan", areaSlug: "atlantis" });
     expect(result.ok).toBe(false);
   });

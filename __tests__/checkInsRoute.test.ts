@@ -33,7 +33,7 @@ vi.mock("@/lib/pintDropViewer", async (importOriginal) => {
   };
 });
 
-import { GET, POST } from "@/app/api/check-ins/route";
+import { DELETE, GET, POST } from "@/app/api/check-ins/route";
 import { __resetMemoryCheckIns } from "@/lib/checkInStore";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import { resolveViewerFromRequest } from "@/lib/pintDropViewer";
@@ -42,6 +42,14 @@ import { __resetMemoryProfiles } from "@/lib/profileStore";
 function postBody(body: unknown): Request {
   return new Request("http://localhost/api/check-ins", {
     method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function deleteBody(body: unknown): Request {
+  return new Request("http://localhost/api/check-ins", {
+    method: "DELETE",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -86,6 +94,47 @@ describe("POST /api/check-ins", () => {
   it("400s an unknown area", async () => {
     const res = await POST(postBody({ handle: "reader", areaSlug: "atlantis" }));
     expect(res.status).toBe(400);
+  });
+
+  it("creates a no-area check-in (the out-tonight beacon shape)", async () => {
+    const res = await POST(postBody({ handle: "reader" }));
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { checkIn?: { handle: string; areaSlug: string | null } };
+    expect(data.checkIn?.handle).toBe("reader");
+    expect(data.checkIn?.areaSlug).toBeNull();
+  });
+});
+
+describe("DELETE /api/check-ins", () => {
+  it("ends the caller's own check-in early (200)", async () => {
+    await POST(postBody({ handle: "reader", areaSlug: "shoreditch" }));
+    const res = await DELETE(deleteBody({ handle: "reader" }));
+    expect(res.status).toBe(200);
+
+    vi.mocked(resolveViewerFromRequest).mockResolvedValue({
+      handle: "reader",
+      authenticated: true,
+    });
+    const after = await GET(new Request("http://localhost/api/check-ins"));
+    const data = (await after.json()) as { checkIns: unknown[] };
+    expect(data.checkIns).toEqual([]);
+  });
+
+  it("400s a missing handle", async () => {
+    const res = await DELETE(deleteBody({}));
+    expect(res.status).toBe(400);
+  });
+
+  it("400s a malformed body", async () => {
+    const res = await DELETE(
+      new Request("http://localhost/api/check-ins", { method: "DELETE", body: "{oops" }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("does not error when the caller has no active check-in (idempotent off)", async () => {
+    const res = await DELETE(deleteBody({ handle: "reader" }));
+    expect(res.status).toBe(200);
   });
 });
 

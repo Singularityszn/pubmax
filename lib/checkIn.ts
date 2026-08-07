@@ -6,6 +6,9 @@
 // Privacy shape, by construction:
 //   • Location is AREA-LEVEL ONLY — a night-area slug (lib/nightAreas.ts). There
 //     is no lat/lng field anywhere in this model; coordinates cannot be stored.
+//   • The area is OPTIONAL. A check-in with no area is a plain presence signal
+//     ("out tonight") rather than a broken area name — see normalizeCheckIn in
+//     lib/feed.ts and the CheckInCard it feeds.
 //   • `venueId` is present ONLY when the author explicitly tagged a venue.
 //   • `visibility` defaults to 'friends' (friends-only). 'area' is reserved for a
 //     future public opt-in (owner decision pending) — the field is extensible so
@@ -35,7 +38,7 @@ const MAX_VENUE_ID = 200;
 // trimmed id (or absent), and visibility is one of the allowlist values.
 export type NormalizedCheckInInput = {
   handle: string;
-  areaSlug: NightAreaSlug;
+  areaSlug: NightAreaSlug | null;
   venueId: string | null;
   note: string | null;
   visibility: CheckInVisibility;
@@ -45,7 +48,7 @@ export type NormalizedCheckInInput = {
 export type CheckIn = {
   id: string;
   handle: string;
-  areaSlug: NightAreaSlug;
+  areaSlug: NightAreaSlug | null;
   venueId: string | null;
   note: string | null;
   visibility: CheckInVisibility;
@@ -76,8 +79,10 @@ function readString(value: unknown): string {
 /**
  * Validate + normalise an untrusted check-in body. Fails closed with a flat
  * error string; on success returns the exact shape a store persists. Pure — no
- * clock, no IO. The area MUST be a known night-area slug (area-level location,
- * never coordinates); an unknown area is rejected rather than coerced.
+ * clock, no IO. The area is OPTIONAL: a blank area normalises to `null` (a
+ * plain "out tonight" signal), but a NAMED area MUST be a known night-area
+ * slug (area-level location, never coordinates) — an unknown area is rejected
+ * rather than coerced.
  */
 export function validateCheckInInput(raw: CheckInInputRaw): CheckInValidation {
   const handle = normalizeHandle(readString(raw.handle));
@@ -85,10 +90,13 @@ export function validateCheckInInput(raw: CheckInInputRaw): CheckInValidation {
     return { ok: false, error: "Choose a handle in your account first." };
   }
 
-  const areaSlug = readString(raw.areaSlug).trim();
-  if (!areaSlug) return { ok: false, error: "Pick an area." };
-  if (!AREA_SET.has(areaSlug)) {
-    return { ok: false, error: "That area isn't one we cover." };
+  const areaRaw = readString(raw.areaSlug).trim();
+  let areaSlug: NightAreaSlug | null = null;
+  if (areaRaw) {
+    if (!AREA_SET.has(areaRaw)) {
+      return { ok: false, error: "That area isn't one we cover." };
+    }
+    areaSlug = areaRaw as NightAreaSlug;
   }
 
   // Optional explicit venue tag. Trimmed + capped; blank/oversized -> no tag
