@@ -1,4 +1,4 @@
-import { profileStore } from "@/lib/profileStore";
+import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 import {
   assessPubmaxxHandle,
   evaluateHandleRename,
@@ -23,9 +23,10 @@ export type HandleRenameResult =
 
 /**
  * Live resolution or a reserved tombstone.
- * `profiles.user_id` null (ON DELETE SET NULL after auth user deletion) is the
- * tombstone: the handle stays reserved so attribution attacks cannot reclaim it,
- * but public profile surfaces answer "gone" rather than a live profile.
+ * Gone is gated strictly on `profiles.tombstoned_at` (auth-deletion trigger).
+ * A null `user_id` alone is NOT a tombstone: production still holds live
+ * legacy anonymous-era handles with user_id null. The handle stays reserved
+ * either way so attribution attacks cannot reclaim it.
  */
 export type HandleResolution = {
   profileId: string;
@@ -225,8 +226,9 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
         (await profileStore().getByHandle(alias.currentHandle)) ??
         (await profileStore().getByUserId(alias.ownerId)) ??
         (await profileStore().getByHandle(handle));
-      // No owner left on the row → reserved tombstone (auth user deleted).
-      if (!current?.userId) {
+      if (!current) return null;
+      // Auth-deletion stamp only — legacy user_id null stays live.
+      if (isProfileTombstoned(current)) {
         return {
           profileId: alias.profileId,
           requestedHandle: handle,
@@ -245,7 +247,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
     }
     const profile = await profileStore().getByHandle(handle);
     if (!profile) return null;
-    if (!profile.userId) {
+    if (isProfileTombstoned(profile)) {
       return {
         profileId: profile.id,
         requestedHandle: handle,
@@ -363,16 +365,18 @@ export const supabaseIdentityHandleStore: IdentityHandleStore = {
     if (alias?.profile_id) {
       const { data: profiles, error: profileError } = await requireSupabaseAdmin()
         .from("profiles")
-        .select("handle,user_id")
+        .select("handle,user_id,tombstoned_at")
         .eq("id", String(alias.profile_id))
         .limit(1);
       if (profileError) throw new Error(profileError.message);
       const current = (profiles ?? [])[0] as
-        | { handle?: unknown; user_id?: unknown }
+        | { handle?: unknown; user_id?: unknown; tombstoned_at?: unknown }
         | undefined;
       if (!current?.handle) return null;
       const currentHandle = String(current.handle);
-      if (!current.user_id) {
+      // Gone only when auth-deletion stamped tombstoned_at. user_id null alone
+      // is a live legacy row.
+      if (current.tombstoned_at) {
         return {
           profileId: String(alias.profile_id),
           requestedHandle: handle,
@@ -389,19 +393,19 @@ export const supabaseIdentityHandleStore: IdentityHandleStore = {
         status: "live",
       };
     }
-    // Alias miss: fall back to the profiles row so a pre-alias owned handle
-    // still resolves, and a tombstone (user_id null) still answers gone.
+    // Alias miss: fall back to the profiles row so a pre-alias handle still
+    // resolves, and an explicit tombstone still answers gone.
     const { data: rows, error: profileError } = await requireSupabaseAdmin()
       .from("profiles")
-      .select("id,handle,user_id")
+      .select("id,handle,user_id,tombstoned_at")
       .eq("handle", handle)
       .limit(1);
     if (profileError) throw new Error(profileError.message);
     const row = (rows ?? [])[0] as
-      | { id?: unknown; handle?: unknown; user_id?: unknown }
+      | { id?: unknown; handle?: unknown; user_id?: unknown; tombstoned_at?: unknown }
       | undefined;
     if (!row?.id || !row.handle) return null;
-    if (!row.user_id) {
+    if (row.tombstoned_at) {
       return {
         profileId: String(row.id),
         requestedHandle: handle,

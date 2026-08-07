@@ -26,6 +26,7 @@ import { GET as current } from "@/app/api/identity/handle/current/route";
 import { __resetMemoryIdentityHandles } from "@/lib/identityHandleStore";
 import {
   __resetMemoryProfiles,
+  __seedMemoryLegacyProfile,
   __tombstoneMemoryProfile,
 } from "@/lib/profileStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
@@ -109,7 +110,36 @@ describe("PUBMAXX handle APIs", () => {
     ).toEqual({ handle: "dawn_owl" });
   });
 
-  it("answers gone for a tombstoned handle and keeps the handle reserved", async () => {
+  it("keeps legacy null-user_id profiles live (not tombstoned)", async () => {
+    // Production still has anonymous-era handles with user_id null. Those are
+    // live and attributed — user_id null alone must never answer gone.
+    const legacy = __seedMemoryLegacyProfile("legacy_owl");
+    expect(legacy.userId).toBeUndefined();
+    expect(legacy.tombstonedAt).toBeUndefined();
+
+    const resolved = await resolve(
+      request("/api/identity/handle/resolve?handle=legacy_owl"),
+    );
+    expect(resolved.status).toBe(200);
+    expect(await resolved.json()).toMatchObject({
+      profileId: legacy.id,
+      requestedHandle: "legacy_owl",
+      currentHandle: "legacy_owl",
+      redirect: false,
+      status: "live",
+    });
+
+    const availabilityResponse = await availability(
+      request("/api/identity/handle/availability?handle=legacy_owl"),
+    );
+    expect(await availabilityResponse.json()).toEqual({
+      handle: "legacy_owl",
+      available: false,
+      reason: "taken",
+    });
+  });
+
+  it("answers gone only when tombstoned_at is stamped, and keeps the handle reserved", async () => {
     authState.userId = "user-1";
     const claimed = await claim(
       request("/api/identity/handle/claim", "POST", { handle: "ghost_owl" }),
@@ -117,8 +147,10 @@ describe("PUBMAXX handle APIs", () => {
     expect(claimed.status).toBe(201);
     const body = await claimed.json();
 
-    // Model auth.users ON DELETE SET NULL: profile row stays, user_id clears.
-    expect(__tombstoneMemoryProfile("ghost_owl")?.userId).toBeUndefined();
+    // Auth.users deletion: trigger stamps tombstoned_at; FK clears user_id.
+    const tombstoned = __tombstoneMemoryProfile("ghost_owl");
+    expect(tombstoned?.userId).toBeUndefined();
+    expect(tombstoned?.tombstonedAt).toBeTruthy();
 
     const resolved = await resolve(
       request("/api/identity/handle/resolve?handle=ghost_owl"),

@@ -12,6 +12,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import {
+  isProfileTombstoned,
   profileStore,
   type ProfilePatch,
   type ProfileRecord,
@@ -36,15 +37,16 @@ function stores() {
   return { profiles: profileStore(), follows: followStore() };
 }
 
-// Public projection of a profile row: strips the internal ownership key
-// (user_id) so it never crosses the wire on the public /u/[handle] read. Only
-// the display-facing fields are exposed.
+// Public projection of a profile row: strips internal ownership / tombstone
+// keys so they never cross the wire on the public /u/[handle] read. Only the
+// display-facing fields are exposed.
 function toPublicProfile(
   profile: ProfileRecord | null,
-): Omit<ProfileRecord, "userId"> | null {
+): Omit<ProfileRecord, "userId" | "tombstonedAt"> | null {
   if (!profile) return null;
-  const { userId: _userId, ...rest } = profile;
+  const { userId: _userId, tombstonedAt: _tombstonedAt, ...rest } = profile;
   void _userId;
+  void _tombstonedAt;
   return rest;
 }
 
@@ -127,9 +129,8 @@ export async function GET(
     const viewerFollowing =
       viewer && viewer !== handle ? await follows.isFollowing(viewer, handle) : false;
 
-    // user_id null after auth deletion is a reserved tombstone, not a live
-    // public profile. The row stays for attribution; the read answers gone.
-    if (profile && !profile.userId) {
+    // Auth-deletion stamp only. Legacy user_id-null rows stay fully live.
+    if (isProfileTombstoned(profile)) {
       return jsonNoStore(
         {
           profile: null,
