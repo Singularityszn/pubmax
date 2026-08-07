@@ -1,0 +1,53 @@
+{
+  "venues": [
+    { "id": "venue-camden-a", "borough": "Camden", "name": "The Camden Test Arms" },
+    { "id": "venue-camden-b", "borough": "Camden", "name": "Another Camden Pub" },
+    { "id": "venue-west-a", "borough": "Westminster", "name": "West End Pint" },
+    { "id": "venue-clapham-a", "nightArea": "clapham", "name": "Clapham Without Borough" },
+    { "id": "venue-empty", "borough": "Islington", "name": "No Coffee Yet" }
+  ],
+  "prices": [
+    {
+      "venueId": "venue-camden-a",
+      "drinkCategory": "coffee",
+      "priceGbp": 2.8,
+      "submittedAt": 1770000000000,
+      "corroborations": 2
+    },
+    {
+      "venueId": "venue-camden-b",
+      "drinkCategory": "coffee",
+      "priceGbp": 3.0,
+      "submittedAt": 1770000000000,
+      "corroborations": 1
+    },
+    {
+      "venueId": "venue-west-a",
+      "drinkCategory": "coffee",
+      "priceGbp": 3.5,
+      "submittedAt": 1770000000000,
+      "corroborations": 3
+    },
+    {
+      "venueId": "venue-west-a",
+      "drinkCategory": "alcohol-free",
+      "priceGbp": 4.0,
+      "submittedAt": 1770000000000,
+      "corroborations": 2
+    },
+    {
+      "venueId": "venue-clapham-a",
+      "drinkCategory": "soft-drink",
+      "priceGbp": 2.5,
+      "submittedAt": 1770000000000,
+      "corroborations": 2
+    },
+    {
+      "venueId": "venue-camden-a",
+      "drinkCategory": "coffee",
+      "priceGbp": 2.9,
+      "submittedAt": 1000000000000,
+      "corroborations": 5
+    }
+  ]
+}

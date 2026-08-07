@@ -26,6 +26,7 @@
     "prevalidate-data": "npm run build:slim && npm run build:pubmaxxing-seed && npm run build:uk-base",
     "validate-data": "node scripts/validate-data.mjs",
     "check:freshness": "node scripts/check_freshness.mjs",
+    "report:coffee-borough": "node scripts/report_coffee_borough_coverage.mjs",
     "publish:pint-index-month": "tsx scripts/publish_pint_index_month.mjs",
     "export:data": "python3 scripts/export_app_dataset_json.py",
     "postexport:data": "npm run canonicalize:venues",
