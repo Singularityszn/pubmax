@@ -141,6 +141,7 @@ describe("shared inspector venue copy", () => {
     expect(html).toContain('aria-label="Last train"');
     expect(html).toContain("Checking live trains");
     expect(html).toContain("Buses nearby");
+    expect(html).toContain('aria-label="Look after each other"');
     expect(html).not.toContain("Last Pint");
   });
 

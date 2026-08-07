@@ -1,5 +1,6 @@
 import LastTrainCard from "../LastTrainCard";
 import NearbyBusDepartures from "../NearbyBusDepartures";
+import { SafeNightStrip } from "@/components/night/SafeNightStrip";
 import type { Venue } from "@/lib/venues";
 import type { LastPintDecision } from "@/lib/tfl";
 import type { CityId } from "@/lib/cities";
@@ -45,6 +46,15 @@ export default function VenueGettingHomeTab({
               lng={venue.longitude}
             />
           ) : null}
+          <SafeNightStrip
+            venue={{
+              id: venue.id,
+              name: venue.name,
+              latitude: venue.latitude,
+              longitude: venue.longitude,
+            }}
+            cityId={cityId}
+          />
         </>
       ) : null}
     </div>
