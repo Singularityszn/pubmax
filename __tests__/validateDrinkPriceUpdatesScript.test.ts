@@ -493,13 +493,35 @@ describe("validate-data.mjs drink-price-update extension", () => {
   });
 
   it("FAILS on a category outside the closed drinks taxonomy", () => {
-    const badRow = { ...GOOD_ROW, category: "coffee" };
+    // tea is not a DrinkCategory; coffee is in the closed taxonomy.
+    const badRow = { ...GOOD_ROW, category: "tea" };
     const scriptsDir = setupScratch({
       "prices_bad.json": { version: 1, generatedAt: "2020-01-01T00:00:00.000Z", updates: [badRow] },
     });
     const { code, stdout } = runValidate(scriptsDir);
     expect(code).toBe(1);
-    expect(stdout).toContain('invalid category "coffee"');
+    expect(stdout).toContain('invalid category "tea"');
+  });
+
+  it("accepts coffee as a closed-taxonomy drink category", () => {
+    const coffeeRow = {
+      ...GOOD_ROW,
+      drinkName: "Flat white",
+      category: "coffee",
+      priceGbp: 3.2,
+    };
+    const scriptsDir = setupScratch({
+      "prices_coffee.json": {
+        version: 1,
+        generatedAt: "2020-01-01T00:00:00.000Z",
+        updates: [coffeeRow],
+      },
+    });
+    const { code, stdout } = runValidate(scriptsDir);
+    expect(code).toBe(0);
+    expect(stdout).toContain(
+      "PASS public/data/drink_price_updates/prices_coffee.json: 1 rows, 0 error(s)",
+    );
   });
 
   it("FAILS when the file is not valid JSON", () => {
