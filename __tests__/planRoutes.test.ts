@@ -17,7 +17,9 @@ import { GET, PATCH } from "@/app/api/plans/[id]/route";
 import { POST as ACTION } from "@/app/api/plans/[id]/actions/route";
 import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
 import { POST as PRESENCE } from "@/app/api/plans/[id]/presence/route";
+import { POST as CREATE_INVITE } from "@/app/api/plans/[id]/invites/route";
 import { GET as SESSION, POST as EXCHANGE_SESSION } from "@/app/api/plans/[id]/session/route";
+import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
 import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 import { __resetMemoryPlans } from "@/lib/planStore";
 import type { PlanState } from "@/lib/plan";
@@ -28,7 +30,7 @@ const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 async function createPlan() {
   const response = await CREATE(new Request(URL, {
     method: "POST",
-    headers: { "idempotency-key": "plan-routes-create" },
+    headers: { "idempotency-key": `plan-routes-${crypto.randomUUID()}` },
     body: JSON.stringify({
       title: "Friday near Bank",
       startTime: "2026-07-11T17:30:00.000Z",
@@ -39,10 +41,18 @@ async function createPlan() {
       ],
     }),
   }));
-  return { response, body: await response.json() as { plan: PlanState; memberToken: string; role: string } };
+  const body = await response.json() as {
+    plan: PlanState;
+    memberToken: string;
+    role: string;
+  };
+  return { response, body };
 }
 
-beforeEach(() => __resetMemoryPlans());
+beforeEach(() => {
+  __resetMemoryPlans();
+  __resetPlanCollaboration();
+});
 
 describe("Plan public HTTP contract", () => {
   it("creates an ordered Plan with a start time", async () => {
@@ -144,12 +154,53 @@ describe("Plan public HTTP contract", () => {
     }
   });
 
-  it("joins with only a name and returns a private presence token", async () => {
+  it("rejects join without an invite token", async () => {
     const { body } = await createPlan();
     const response = await JOIN(new Request(`${URL}/${body.plan.plan.id}/join`, {
       method: "POST",
-      headers: { "idempotency-key": "plan-routes-guest-join" },
+      headers: { "idempotency-key": "plan-routes-open-join" },
       body: JSON.stringify({ name: "Luna" }),
+    }), ctx(body.plan.plan.id));
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: "PLAN_INVITE_REQUIRED" });
+  });
+
+  it("joins with a host invite and returns a private presence token", async () => {
+    const startTime = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    const created = await CREATE(new Request(URL, {
+      method: "POST",
+      headers: { "idempotency-key": `plan-routes-invite-join-${crypto.randomUUID()}` },
+      body: JSON.stringify({
+        title: "Friday near Bank",
+        startTime,
+        creatorName: "Karan",
+        stops: [
+          { venueId: "venue-xjf3n0" },
+          { venueId: "venue-16pnwmm" },
+        ],
+      }),
+    }));
+    const body = await created.json() as {
+      plan: PlanState;
+      memberToken: string;
+      role: string;
+    };
+    expect(created.status).toBe(201);
+    const inviteResponse = await CREATE_INVITE(new Request(`${URL}/${body.plan.plan.id}/invites`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${body.memberToken}`,
+        "idempotency-key": "plan-routes-guest-invite",
+      },
+      body: JSON.stringify({ expiresInMinutes: 30 }),
+    }), ctx(body.plan.plan.id));
+    expect(inviteResponse.status).toBe(201);
+    const invite = await inviteResponse.json() as { token?: string };
+    expect(invite.token).toMatch(/^[0-9a-f]{64}$/);
+    const response = await JOIN(new Request(`${URL}/${body.plan.plan.id}/join`, {
+      method: "POST",
+      headers: { "idempotency-key": "plan-routes-guest-join" },
+      body: JSON.stringify({ name: "Luna", inviteToken: invite.token }),
     }), ctx(body.plan.plan.id));
     expect(response.status).toBe(200);
     const joined = await response.json() as { plan: PlanState; memberToken: string; role: string };

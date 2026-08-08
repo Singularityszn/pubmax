@@ -18,9 +18,11 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 import { POST as CREATE } from "@/app/api/plans/route";
 import { GET as GET_PLAN } from "@/app/api/plans/[id]/route";
 import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
+import { POST as CREATE_INVITE } from "@/app/api/plans/[id]/invites/route";
 import { POST as RSVP } from "@/app/api/invite/[token]/rsvp/route";
 import { GET as GET_REACTIONS, POST as TOGGLE_REACTION } from "@/app/api/invite/[token]/reactions/route";
 import { DELETE as REMOVE_RSVP } from "@/app/api/plans/[id]/invite-rsvp/route";
+import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
 import { __resetMemoryPlans } from "@/lib/planStore";
 import { __resetMemoryRsvps, __resetMemoryReactions } from "@/lib/planInviteRsvpStore";
 
@@ -33,6 +35,7 @@ beforeEach(() => {
   __resetMemoryPlans();
   __resetMemoryRsvps();
   __resetMemoryReactions();
+  __resetPlanCollaboration();
 });
 
 async function createPlan() {
@@ -112,14 +115,29 @@ describe("DELETE /api/plans/[id]/invite-rsvp", () => {
     const inviteToken = await ownInviteToken(host.plan.plan.id, host.memberToken);
     const rsvpId = await submitRsvp(inviteToken, "Priya");
 
+    // Open join is closed. Mint a one-use collaboration invite for the guest.
+    const inviteResponse = await CREATE_INVITE(
+      new Request(`${PLANS_URL}/${host.plan.plan.id}/invites`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${host.memberToken}`,
+          "idempotency-key": "rsvp-mod-guest-invite",
+        },
+        body: JSON.stringify({ expiresInMinutes: 30 }),
+      }),
+      ctx(host.plan.plan.id),
+    );
+    expect(inviteResponse.status).toBe(201);
+    const collabInvite = (await inviteResponse.json()) as { token: string };
     const joined = await JOIN(
       new Request(`${PLANS_URL}/${host.plan.plan.id}/join`, {
         method: "POST",
         headers: { "idempotency-key": "rsvp-mod-guest-join" },
-        body: JSON.stringify({ name: "Guest" }),
+        body: JSON.stringify({ name: "Guest", inviteToken: collabInvite.token }),
       }),
       ctx(host.plan.plan.id),
     );
+    expect(joined.status).toBe(200);
     const guest = (await joined.json()) as { memberToken: string };
 
     const response = await REMOVE_RSVP(

@@ -28,7 +28,7 @@ describe("contribution identity gate", () => {
     expect(html).toContain("Finish setup");
     expect(html).toContain('href="/u/you"');
     expect(html).toContain(
-      "Choose a public handle and add your date of birth before contributing.",
+      "Choose a public handle and add your date of birth before contributing. The setup dialog collects both together.",
     );
   });
 

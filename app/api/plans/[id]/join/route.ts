@@ -4,7 +4,7 @@ import { cleanCrewName } from "@/lib/crew";
 import { isLimited } from "@/lib/pintDrops";
 import { isPlanId, type PlanState } from "@/lib/plan";
 import { planRouteReady } from "@/lib/planPrivacy";
-import { planStateResult, planStore } from "@/lib/planStore";
+import { planStateResult } from "@/lib/planStore";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { collaborationErrorResponse } from "@/lib/planCollaborationHttp";
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
@@ -51,29 +51,37 @@ export async function POST(request: Request, context: Context): Promise<Response
   const lookup = await planStateResult(id);
   if (!lookup.ok) return publicApiError("Plan data is temporarily unavailable.", "PLAN_JOIN_UNAVAILABLE", 503, { retryable: true });
   if (!lookup.plan) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
-  if (body.inviteToken !== undefined) {
-    const joined = await planCollaborationStore().redeemInviteAndJoin(id, body.inviteToken, name, new Date(), { idempotencyKey });
-    if (!joined.ok) {
-      if (joined.error === "full") return publicApiError("This Plan's crew is full.", "PLAN_CREW_FULL", 409);
-      return collaborationErrorResponse(joined.error);
-    }
-    return attachPlanMemberSession(
-      jsonNoStore({ ...joined, crewCommitted: crewCommittedToken(joined.plan) }, { status: 200 }),
-      request,
-      id,
-      joined.memberToken,
+  // Invite-only: a bare plan id must never join the crew or return PlanState.
+  // Open join was an IDOR (know the UUID → read stops/names and stuff the crew).
+  const inviteToken =
+    typeof body.inviteToken === "string" ? body.inviteToken.trim() : "";
+  if (!inviteToken) {
+    return publicApiError(
+      "This Plan needs an invite link to join.",
+      "PLAN_INVITE_REQUIRED",
+      403,
     );
   }
-  const result = await planStore().join(id, name, { collaborationAuthorized: false, idempotencyKey });
-  if (!result.ok) {
-    const status = result.error === "invalid" ? 400 : result.error === "not_found" ? 404 : result.error === "full" || result.error === "conflict" ? 409 : 503;
-    const error = result.error === "full" ? "This Plan's crew is full." : result.error === "invalid" ? "Add your name." : result.error === "not_found" ? "That Plan doesn't exist." : result.error === "conflict" ? "That request key was already used for a different join." : "Could not join the Plan.";
-    return publicApiError(error, result.error === "error" ? "PLAN_JOIN_UNAVAILABLE" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "full" ? "PLAN_CREW_FULL" : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_JOIN_INVALID", status, { retryable: result.error === "error" });
+  const joined = await planCollaborationStore().redeemInviteAndJoin(
+    id,
+    inviteToken,
+    name,
+    new Date(),
+    { idempotencyKey },
+  );
+  if (!joined.ok) {
+    if (joined.error === "full") {
+      return publicApiError("This Plan's crew is full.", "PLAN_CREW_FULL", 409);
+    }
+    return collaborationErrorResponse(joined.error);
   }
   return attachPlanMemberSession(
-    jsonNoStore({ plan: result.plan, memberToken: result.memberToken, role: result.role, collaborationAuthorized: result.collaborationAuthorized, crewCommitted: crewCommittedToken(result.plan) }, { status: 200 }),
+    jsonNoStore(
+      { ...joined, crewCommitted: crewCommittedToken(joined.plan) },
+      { status: 200 },
+    ),
     request,
     id,
-    result.memberToken,
+    joined.memberToken,
   );
 }

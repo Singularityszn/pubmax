@@ -277,8 +277,8 @@ describe("legacy Plan HTTP routes against production-order migrations", () => {
       }),
       planContext,
     );
-    expect(openJoin.status).toBe(200);
-    await expect(openJoin.json()).resolves.toMatchObject({ collaborationAuthorized: false });
+    expect(openJoin.status).toBe(403);
+    await expect(openJoin.json()).resolves.toMatchObject({ code: "PLAN_INVITE_REQUIRED" });
 
     const browserRead = await handlers.readPlan(
       request(`/api/plans/${PLAN_ID}`, { method: "GET", token: HOST_TOKEN }),

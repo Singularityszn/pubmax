@@ -22,7 +22,7 @@ import { POST as DECIDE } from "@/app/api/plans/[id]/proposals/[proposalId]/deci
 import { POST as ACTION } from "@/app/api/plans/[id]/actions/route";
 import { POST as COMPLETE } from "@/app/api/plans/[id]/complete/route";
 import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
-import { __resetMemoryPlans } from "@/lib/planStore";
+import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
 
 const URL = "http://localhost/api/plans";
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -136,21 +136,21 @@ describe("Plan collaboration HTTP contract", () => {
     expect(completed.status).toBe(403);
   });
 
-  it("keeps legacy public-link joins readable but denies collaboration mutations", async () => {
+  it("refuses open joins without an invite token", async () => {
     const host = await createPlan();
-    const joined = await JOIN(new Request(`${URL}/${host.plan.plan.id}/join`, { method: "POST", headers: { "idempotency-key": "legacy-guest-join" }, body: JSON.stringify({ name: "Legacy guest" }) }), ctx(host.plan.plan.id));
-    const guest = await joined.json() as { memberToken: string; collaborationAuthorized: boolean };
-    expect(guest.collaborationAuthorized).toBe(false);
-    const constraint = await ADD_CONSTRAINT(new Request(`${URL}/${host.plan.plan.id}/constraints`, { method: "POST", headers: { authorization: `Bearer ${guest.memberToken}`, "idempotency-key": "legacy-constraint-1" }, body: JSON.stringify({ kind: "other", value: "Mutate", priority: "preference" }) }), ctx(host.plan.plan.id));
-    expect(constraint.status).toBe(403);
-    const arrived = await ACTION(new Request(`${URL}/${host.plan.plan.id}/actions`, { method: "POST", headers: { "idempotency-key": "legacy-arrived-denied" }, body: JSON.stringify({ memberToken: guest.memberToken, type: "arrived", stopPosition: 0 }) }), ctx(host.plan.plan.id));
-    expect(arrived.status).toBe(403);
+    const open = await JOIN(new Request(`${URL}/${host.plan.plan.id}/join`, { method: "POST", headers: { "idempotency-key": "legacy-guest-join" }, body: JSON.stringify({ name: "Legacy guest" }) }), ctx(host.plan.plan.id));
+    expect(open.status).toBe(403);
+    expect(await open.json()).toMatchObject({ code: "PLAN_INVITE_REQUIRED" });
   });
 
   it("atomically upgrades an existing read-only member with a secure invite", async () => {
     const host = await createPlan();
-    const legacyJoin = await JOIN(new Request(`${URL}/${host.plan.plan.id}/join`, { method: "POST", headers: { "idempotency-key": "upgrade-legacy-join" }, body: JSON.stringify({ name: "Existing guest" }) }), ctx(host.plan.plan.id));
-    const legacy = await legacyJoin.json() as { memberToken: string };
+    const legacy = await memoryPlanStore.join(host.plan.plan.id, "Existing guest", {
+      collaborationAuthorized: false,
+      idempotencyKey: "upgrade-legacy-join",
+    });
+    expect(legacy.ok).toBe(true);
+    if (!legacy.ok) return;
     const inviteResponse = await CREATE_INVITE(new Request(`${URL}/${host.plan.plan.id}/invites`, { method: "POST", headers: { authorization: `Bearer ${host.memberToken}`, "idempotency-key": "upgrade-existing-1" }, body: JSON.stringify({ expiresInMinutes: 30 }) }), ctx(host.plan.plan.id));
     const invite = await inviteResponse.json() as { token: string };
     const upgraded = await REDEEM_INVITE(new Request(`${URL}/${host.plan.plan.id}/invites/redeem`, { method: "POST", headers: { authorization: `Bearer ${legacy.memberToken}` }, body: JSON.stringify({ inviteToken: invite.token }) }), ctx(host.plan.plan.id));

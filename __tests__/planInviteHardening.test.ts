@@ -18,8 +18,10 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 import { POST as CREATE } from "@/app/api/plans/route";
 import { GET as GET_PLAN } from "@/app/api/plans/[id]/route";
 import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
+import { POST as CREATE_INVITE } from "@/app/api/plans/[id]/invites/route";
 import { POST as ROTATE } from "@/app/api/plans/[id]/invite-rotate/route";
 import { POST as RSVP } from "@/app/api/invite/[token]/rsvp/route";
+import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
 import { __resetMemoryPlans } from "@/lib/planStore";
 import { __resetMemoryRsvps } from "@/lib/planInviteRsvpStore";
 import { GUEST_LIST_DISPLAY_CAP, RSVP_PLAN_CEILING } from "@/lib/planInvite";
@@ -33,6 +35,7 @@ const route = [{ venueId: "venue-1f5ygjb" }, { venueId: "venue-xjf3n0" }, { venu
 beforeEach(() => {
   __resetMemoryPlans();
   __resetMemoryRsvps();
+  __resetPlanCollaboration();
 });
 
 async function createPlan() {
@@ -97,14 +100,28 @@ describe("POST /api/plans/[id]/invite-rotate", () => {
 
   it("rejects rotation from a guest's own capability token", async () => {
     const host = await createPlan();
+    const inviteResponse = await CREATE_INVITE(
+      new Request(`${PLANS_URL}/${host.plan.plan.id}/invites`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${host.memberToken}`,
+          "idempotency-key": "invite-hardening-guest-invite",
+        },
+        body: JSON.stringify({ expiresInMinutes: 30 }),
+      }),
+      ctx(host.plan.plan.id),
+    );
+    expect(inviteResponse.status).toBe(201);
+    const collabInvite = (await inviteResponse.json()) as { token: string };
     const joined = await JOIN(
       new Request(`${PLANS_URL}/${host.plan.plan.id}/join`, {
         method: "POST",
         headers: { "idempotency-key": "invite-hardening-guest-join" },
-        body: JSON.stringify({ name: "Guest" }),
+        body: JSON.stringify({ name: "Guest", inviteToken: collabInvite.token }),
       }),
       ctx(host.plan.plan.id),
     );
+    expect(joined.status).toBe(200);
     const guest = (await joined.json()) as { memberToken: string };
 
     const response = await ROTATE(
