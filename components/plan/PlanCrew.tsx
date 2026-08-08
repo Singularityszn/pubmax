@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore, type
 import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
 import { trackEvent } from "@/lib/analytics";
+import { isClassicPlanInviteToken } from "@/lib/planCrewInviteUrl";
 import { planRouteReady } from "@/lib/planPrivacy";
 import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
 import { isIdentityNudgePending, recordPlanNudgeTrigger } from "@/lib/identityNudge";
@@ -13,6 +14,11 @@ import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySna
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { subscribeToAuthFragmentRestored } from "@/lib/authRedirect";
+
+function readInviteTokenFromHash(): string | null {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.hash.replace(/^#/, "")).get("invite");
+}
 
 const STATUS_LABELS: Record<CrewPresenceStatus, string> = {
   in: "In",
@@ -34,6 +40,9 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   const [sessionUnavailable, setSessionUnavailable] = useState(false);
   const [sessionAttempt, setSessionAttempt] = useState(0);
   const [restoredHashVersion, setRestoredHashVersion] = useState(0);
+  // Invite in #invite= — bumped by hashchange, auth-fragment restore, and
+  // replaceState clears after join/redeem (replaceState does not fire hashchange).
+  const [hashInviteToken, setHashInviteToken] = useState<string | null>(null);
   const tokenEvent = planCapabilityEvent(planId);
   const statusKey = `pubmax-plan-status:${planId}`;
   const statusEvent = `pubmax-plan-status-change:${planId}`;
@@ -104,11 +113,29 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   }, []);
 
   useEffect(() => {
+    const sync = () => setHashInviteToken(readInviteTokenFromHash());
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, [planId, restoredHashVersion]);
+
+  useEffect(() => {
     if (!memberToken) return;
-    const inviteToken = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("invite");
+    const inviteToken = hashInviteToken;
     if (!inviteToken) return;
-    if (collaborationAuthorized || role === "host") {
+    const clearInviteHash = () => {
       history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+      setHashInviteToken(null);
+    };
+    // Classic multi-use tokens authorize crew join only. Collaboration upgrade
+    // needs a one-use invite from PlanCollaborationPanel — never POST redeem
+    // with the classic token (it is a different capability shape).
+    if (isClassicPlanInviteToken(inviteToken)) {
+      if (role === "host" || collaborationAuthorized) clearInviteHash();
+      return;
+    }
+    if (collaborationAuthorized || role === "host") {
+      clearInviteHash();
       return;
     }
     const controller = new AbortController();
@@ -129,13 +156,13 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
         if (typeof body?.inviteId === "string" && body.inviteId) {
           trackEvent("invite_redeemed", { inviteId: body.inviteId });
         }
-        history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+        clearInviteHash();
       })
       .catch((caught) => {
         if (!controller.signal.aborted) setError(caught instanceof Error ? caught.message : "Could not load crew decisions.");
       });
     return () => controller.abort();
-  }, [collaborationAuthorized, memberToken, planId, restoredHashVersion, role]);
+  }, [collaborationAuthorized, hashInviteToken, memberToken, planId, role]);
 
   const refetchCrew = useCallback(async () => {
     if (document.visibilityState !== "visible") return;
@@ -178,12 +205,17 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   async function join(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!name.trim()) return;
+    const inviteToken = hashInviteToken ?? undefined;
+    // Bare /plan/{id} must never POST join (invite-only after the IDOR close).
+    if (!inviteToken) {
+      setError("Open the invite link your host sent.");
+      return;
+    }
     setPending(true);
     setError("");
     try {
-      const inviteToken = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("invite") ?? undefined;
       const operationScope = `join:${planId}`;
-      const operationKey = await persistentPlanMutationKey(operationScope, { name: name.trim(), inviteToken: inviteToken ?? null });
+      const operationKey = await persistentPlanMutationKey(operationScope, { name: name.trim(), inviteToken });
       const response = await fetch(`/api/plans/${planId}/join`, {
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": operationKey },
@@ -193,7 +225,8 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       if (!response.ok || !body?.memberToken) throw new Error(body?.error || "Could not join this plan.");
       writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: body.collaborationAuthorized === true, role: "guest" });
       clearPersistentPlanMutationKey(operationScope, operationKey);
-      if (inviteToken) history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+      history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+      setHashInviteToken(null);
       rememberStatus("in");
       const nextCrew = body.plan?.crew ?? crew;
       setCrew(nextCrew);
@@ -267,6 +300,10 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
         <p className="planCrew__empty" role="status">
           {sessionUnavailable ? "Your private crew session is temporarily unavailable." : "Restoring your private crew session…"}
           {sessionUnavailable ? <button type="button" onClick={() => { setSessionUnavailable(false); setSessionAttempt((value) => value + 1); }}>Retry</button> : null}
+        </p>
+      ) : !memberToken && !hashInviteToken ? (
+        <p className="planCrew__empty" role="status">
+          Open the invite link your host sent to join this crew.
         </p>
       ) : !memberToken ? (
         <form className="planCrew__join" onSubmit={join}>

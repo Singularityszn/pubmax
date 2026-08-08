@@ -172,7 +172,7 @@ export default async function PlanPage({ params }: Props) {
                 text={shareText}
                 initialVibeSlug={topVibeSlug}
               />
-              <LastCrewInvite planId={id} planTitle={safeTitle} planUrl={`/plan/${id}`} />
+              <LastCrewInvite planId={id} planTitle={safeTitle} />
             </section>
           ) : null}
           <PlanCrew planId={id} hostName={preview.hostDisplayName} />

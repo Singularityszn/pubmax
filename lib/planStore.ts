@@ -2,6 +2,7 @@ import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 
 import { cleanCrewName, CREW_MAX_MEMBERS, isCrewPresenceStatus, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { canTransitionPlannedNight, cleanCreatePlan, cleanEndingSelection, isPlanId, type CleanPlanInput, type CrawlEnding, type CreatePlanInput, type EndingSelection, type PlanActionDTO, type PlanAnchorMetadata, type PlanCompletionDTO, type PlanDTO, type PlanMemberRole, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
+import { CLASSIC_PLAN_INVITE_TOKEN_PATTERN } from "@/lib/planCrewInviteUrl";
 import type { NightContext } from "@/lib/nightPlanning";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -879,8 +880,6 @@ export function __resetMemoryPlans(): void {
   planMemory.sequence = 0;
 }
 
-const INVITE_TOKEN_PATTERN = /^[0-9a-f]{32}$/;
-
 export type PlanInviteTokenLookupResult = { ok: true; planId: string | null } | { ok: false; error: "error" };
 
 /**
@@ -893,7 +892,7 @@ export type PlanInviteTokenLookupResult = { ok: true; planId: string | null } | 
 export async function resolvePlanIdByInviteToken(rawToken: unknown): Promise<PlanInviteTokenLookupResult> {
   if (typeof rawToken !== "string") return { ok: true, planId: null };
   const token = rawToken.trim().toLowerCase();
-  if (!INVITE_TOKEN_PATTERN.test(token)) return { ok: true, planId: null };
+  if (!CLASSIC_PLAN_INVITE_TOKEN_PATTERN.test(token)) return { ok: true, planId: null };
   if (!isSupabaseConfigured()) return { ok: true, planId: planMemory.inviteTokens.get(token) ?? null };
   try {
     const { data, error } = await requireSupabaseAdmin().from(PLANS).select("id")

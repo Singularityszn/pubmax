@@ -165,6 +165,47 @@ describe("Plan public HTTP contract", () => {
     expect(await response.json()).toMatchObject({ code: "PLAN_INVITE_REQUIRED" });
   });
 
+  it("joins with the classic multi-use plan invite token from WhatsApp share", async () => {
+    const { response: created, body } = await createPlan();
+    expect(created.status).toBe(201);
+    const memberGet = await GET(
+      new Request(`${URL}/${body.plan.plan.id}`, {
+        headers: { authorization: `Bearer ${body.memberToken}` },
+      }),
+      ctx(body.plan.plan.id),
+    );
+    expect(memberGet.status).toBe(200);
+    const projection = await memberGet.json() as { inviteToken?: string | null };
+    expect(projection.inviteToken).toMatch(/^[0-9a-f]{32}$/);
+    const classicToken = projection.inviteToken as string;
+
+    const joined = await JOIN(new Request(`${URL}/${body.plan.plan.id}/join`, {
+      method: "POST",
+      headers: { "idempotency-key": "plan-routes-classic-join" },
+      body: JSON.stringify({ name: "Priya", inviteToken: classicToken }),
+    }), ctx(body.plan.plan.id));
+    expect(joined.status).toBe(200);
+    const guest = await joined.json() as {
+      plan: PlanState;
+      memberToken: string;
+      role: string;
+      collaborationAuthorized: boolean;
+    };
+    expect(guest.plan.crew.map((member) => member.name)).toEqual(["Karan", "Priya"]);
+    expect(guest.memberToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(guest.role).toBe("guest");
+    expect(guest.collaborationAuthorized).toBe(false);
+
+    const wrongPlan = await createPlan();
+    const cross = await JOIN(new Request(`${URL}/${wrongPlan.body.plan.plan.id}/join`, {
+      method: "POST",
+      headers: { "idempotency-key": "plan-routes-classic-cross" },
+      body: JSON.stringify({ name: "Mallory", inviteToken: classicToken }),
+    }), ctx(wrongPlan.body.plan.plan.id));
+    expect(cross.status).toBe(403);
+    expect(await cross.json()).toMatchObject({ code: "PLAN_INVITE_INVALID" });
+  });
+
   it("joins with a host invite and returns a private presence token", async () => {
     const startTime = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
     const created = await CREATE(new Request(URL, {
