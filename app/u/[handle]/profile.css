@@ -1344,6 +1344,7 @@
 .accountHubSignIn { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .75rem; }
 .accountHubSignIn p { margin: 0; max-width: 42rem; }
 @media (max-width: 760px) { .accountHubGrid { grid-template-columns: 1fr; } }
+.profilePrivateDetails { grid-template-columns: 1fr; margin-top: .75rem; }
 @media (max-width: 520px) { .accountHubNightProfileGrid { grid-template-columns: 1fr; } .accountHubSignIn { align-items: stretch; flex-direction: column; } }
 
 .memoryStudio {

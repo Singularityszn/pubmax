@@ -1,7 +1,10 @@
 import { identityHandleStore } from "@/lib/identityHandleStore";
 import {
   cleanDateOfBirth,
+  MAX_GENDER_SELF_DESCRIBED,
+  PRIVATE_IDENTITY_GENDER_VALUES,
   PRIVATE_IDENTITY_SEX_VALUES,
+  type PrivateIdentityGender,
   type PrivateIdentitySex,
 } from "@/lib/privateIdentity";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
@@ -14,8 +17,19 @@ type PrivateIdentityRecord = {
   dateOfBirth: string;
   fullName?: string;
   sex?: PrivateIdentitySex;
+  gender?: PrivateIdentityGender;
+  genderSelfDescribed?: string;
   createdAt: string;
   updatedAt: string;
+};
+
+type PrivateIdentityDetailsInput = {
+  fullName?: unknown;
+  sex?: unknown;
+  gender?: unknown;
+  genderSelfDescribed?: unknown;
+  /** Already validated by the route via cleanDateOfBirth. */
+  dateOfBirth?: string;
 };
 
 type CompleteOnboardingInput = {
@@ -49,7 +63,7 @@ type PrivateIdentityStore = {
   erase(userId: string): Promise<void>;
   updateDetails(
     userId: string,
-    details: { fullName?: unknown; sex?: unknown },
+    details: PrivateIdentityDetailsInput,
   ): Promise<PrivateIdentityRecord | null>;
   completeOnboarding(
     input: CompleteOnboardingInput,
@@ -75,6 +89,24 @@ function cleanSex(value: unknown): PrivateIdentitySex | undefined {
     : undefined;
 }
 
+const genderValues = new Set<string>(PRIVATE_IDENTITY_GENDER_VALUES);
+
+function cleanGender(value: unknown): PrivateIdentityGender | undefined {
+  return typeof value === "string" && genderValues.has(value)
+    ? (value as PrivateIdentityGender)
+    : undefined;
+}
+
+// The self-described line only exists beside gender = "self_described"; the
+// database CHECK enforces the same pairing.
+function cleanGenderSelfDescribed(
+  gender: PrivateIdentityGender | undefined,
+  value: unknown,
+): string | undefined {
+  if (gender !== "self_described" || typeof value !== "string") return undefined;
+  return cleanText(value, MAX_GENDER_SELF_DESCRIBED) || undefined;
+}
+
 function fromRow(row: Record<string, unknown>): PrivateIdentityRecord {
   return {
     dateOfBirth:
@@ -84,6 +116,12 @@ function fromRow(row: Record<string, unknown>): PrivateIdentityRecord {
       : {}),
     ...(typeof row.sex === "string" && sexValues.has(row.sex)
       ? { sex: row.sex as PrivateIdentitySex }
+      : {}),
+    ...(typeof row.gender === "string" && genderValues.has(row.gender)
+      ? { gender: row.gender as PrivateIdentityGender }
+      : {}),
+    ...(typeof row.gender_self_described === "string" && row.gender_self_described
+      ? { genderSelfDescribed: row.gender_self_described }
       : {}),
     createdAt:
       typeof row.created_at === "string" ? row.created_at : new Date(0).toISOString(),
@@ -145,6 +183,18 @@ export const memoryPrivateIdentityStore: PrivateIdentityStore = {
       if (sex) record.sex = sex;
       else delete record.sex;
     }
+    if ("gender" in details) {
+      const gender = cleanGender(details.gender);
+      if (gender) record.gender = gender;
+      else delete record.gender;
+      const selfDescribed = cleanGenderSelfDescribed(
+        gender,
+        details.genderSelfDescribed,
+      );
+      if (selfDescribed) record.genderSelfDescribed = selfDescribed;
+      else delete record.genderSelfDescribed;
+    }
+    if (details.dateOfBirth) record.dateOfBirth = details.dateOfBirth;
     memoryPrivateIdentities.set(key, record);
     return record;
   },
@@ -221,7 +271,7 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
     if (!current) return null;
     const row: Record<string, unknown> = {
       user_id: key,
-      date_of_birth: current.dateOfBirth,
+      date_of_birth: details.dateOfBirth || current.dateOfBirth,
       updated_at: new Date().toISOString(),
     };
     if ("fullName" in details) {
@@ -229,6 +279,12 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
     }
     if ("sex" in details) {
       row.sex = cleanSex(details.sex) ?? null;
+    }
+    if ("gender" in details) {
+      const gender = cleanGender(details.gender);
+      row.gender = gender ?? null;
+      row.gender_self_described =
+        cleanGenderSelfDescribed(gender, details.genderSelfDescribed) ?? null;
     }
     const { data, error } = await requireSupabaseAdmin()
       .from(TABLE)
