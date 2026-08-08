@@ -141,9 +141,16 @@ export default function MapSearchSuggest({
   useEffect(() => {
     const q = deferredQuery.trim();
     if (q.length < NATIONAL_FETCH_MIN_CHARS) {
-      setNationalPubs([]);
-      setNationalGroupLabel(UK_BASE_SEARCH_GROUP_LABEL);
-      return;
+      // Defer setState out of the effect body (react-hooks/set-state-in-effect).
+      let cancelled = false;
+      void Promise.resolve().then(() => {
+        if (cancelled) return;
+        setNationalPubs([]);
+        setNationalGroupLabel(UK_BASE_SEARCH_GROUP_LABEL);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
