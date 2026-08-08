@@ -300,6 +300,9 @@ export default defineConfig({
           ...(process.env.PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE
             ? { PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE: process.env.PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE }
             : {}),
+          ...(process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH
+            ? { PUBMAX_SOCIAL_FRIENDS_LAUNCH: process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH }
+            : {}),
         },
         url: BASE_URL,
         reuseExistingServer: !process.env.CI && !SCREENSHOT_RUN,
