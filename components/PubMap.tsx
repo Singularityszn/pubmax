@@ -265,8 +265,10 @@ import {
   filterVenuesForExperienceLens,
   isMapLensDrinkCategory,
   lensPricesForVenues,
+  parseMapExperienceLensParam,
   trustedDrinkLensPrices,
   trustedNoAlcoholLensPrices,
+  MAP_EXPERIENCE_LENS_URL_PARAM,
   type CategoryPriceIndexStatus,
   type MapExperienceLens as MapExperienceLensValue,
 } from "@/lib/mapExperienceLens";
@@ -1927,6 +1929,13 @@ export default function PubMap({
     },
     [loadNoAlcoholPriceIndex],
   );
+
+  useEffect(() => {
+    const seeded = parseMapExperienceLensParam(
+      new URLSearchParams(currentSearch()).get(MAP_EXPERIENCE_LENS_URL_PARAM),
+    );
+    if (seeded && seeded !== "all") changeExperienceLens(seeded);
+  }, [changeExperienceLens]);
 
   // Alcohol-free-first crawl style needs the same corroborated NA index as the
   // no-alcohol experience lens. Selecting the style (or restoring ?style=…)

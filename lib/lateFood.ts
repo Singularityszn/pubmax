@@ -1,5 +1,11 @@
+import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
+import { cityAwareMapPath } from "@/lib/curatedCrawls";
+import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { haversineKm } from "@/lib/haversine";
+import {
+  MAP_EXPERIENCE_LENS_URL_PARAM,
+} from "@/lib/mapExperienceLens";
 import evidenceSnapshot from "@/public/data/late_food_evidence.json";
 
 // Food endings are deliberately separate from the Venue Dataset: their hours,
@@ -23,6 +29,30 @@ export type LateFoodCategory = (typeof LATE_FOOD_CATEGORIES)[number];
 export type LateFoodDietary = "vegan" | "vegetarian" | "gluten-free";
 export type LateFoodConfidence = "high" | "medium" | "low";
 export const MAX_LATE_FOOD_HANDOFFS = 3;
+
+/** Honest link label for an operator-published menu URL on a food ending surface. */
+export const LATE_FOOD_OPERATOR_MENU_LINK_LABEL = "Opens operator menu";
+
+/** Map deep link: food view around the route's last stop (not a delivery handoff). */
+export function lateFoodNearMapUrl(
+  lastStopVenueId: string,
+  cityId?: CityId | string | null,
+): string {
+  const params = new URLSearchParams();
+  params.set("sel", lastStopVenueId);
+  params.set(MAP_EXPERIENCE_LENS_URL_PARAM, "food");
+  const resolvedCity =
+    cityId ?? cityIdFromVenueId(lastStopVenueId) ?? DEFAULT_CITY_ID;
+  return cityAwareMapPath(resolvedCity, params);
+}
+
+export function lateFoodHoursConfidenceLabel(
+  confidence: LateFoodConfidence,
+): string {
+  if (confidence === "high") return "Hours confidence: high";
+  if (confidence === "medium") return "Hours confidence: medium";
+  return "Hours confidence: low";
+}
 
 const WEEKDAYS = [
   "monday",
