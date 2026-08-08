@@ -4392,6 +4392,17 @@ input[type="range"] {
   border-color: var(--brass);
 }
 
+/* Desktop: reserve foot clearance while the fixed consent bar is mounted so
+   list cards and page footers are not half-covered. Mobile map surfaces already
+   lift their own controls; other mobile pages clear acceptably without this. */
+@media (min-width: 641px) {
+  body:has(.analyticsConsentPrompt) {
+    padding-bottom: calc(
+      var(--analytics-consent-clearance, 72px) + max(12px, env(safe-area-inset-bottom))
+    );
+  }
+}
+
 @media (max-width: 640px) {
   .analyticsConsentPrompt {
     bottom: calc(var(--tabbar-h, 58px) + env(safe-area-inset-bottom) + 8px);
