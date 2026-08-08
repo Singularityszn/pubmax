@@ -421,6 +421,7 @@ The full release matrix includes:
 | `PRD_YOU_PUB_PAL_SOCIAL_PROFILE_2026-07-15.md` | Authoritative appendix | Owned profile and Pal implementation seam |
 | `prd/PUBPAL_CONNECTIONS_PRD.md` | Authoritative appendix | PubPal voice, get-home ride handoff, and food-ending connection packages |
 | `prd/SOCIAL_LAUNCH_PRD.md` | Authoritative appendix | Friends-only social launch and uploaded, pre-publish-moderated profile pictures; captain decisions D1-D3 locked |
+| `prd/UK_MAP_COVERAGE_AND_SEARCH_PRD.md` | Draft execution appendix | National UK pub search, intent classifier, Wikidata notable pubs, London bar densification roadmap; never merge base into slim |
 | `prd/UI_UX_FIX_PRD.md` | Authoritative appendix | Screenshot-audited UI/UX fix wave with mission preamble; one PR per numbered item |
 | `PUBMAXXING_ULTIMATE_PRD_2026-07-07.md` | Superseded | Vision and personas reconciled here |
 | `SECURITY_AND_RELIABILITY_PRD_2026-07-07.md` | Authoritative appendix | Threat model and control catalogue |

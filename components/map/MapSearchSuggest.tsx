@@ -7,22 +7,28 @@ import { SearchField } from "@/components/ui/search-field";
 import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
 import {
+  formatSuggestDistance,
   buildMapSearchSuggestions,
   type AreaSuggestion,
   type MapSearchAreaOption,
   type PlaceSuggestion,
   type PubSuggestion,
+  type SuggestOrigin,
   type UkBasePubSuggestion,
   UK_BASE_SEARCH_GROUP_LABEL,
   UK_PLACE_SEARCH_GROUP_LABEL,
 } from "@/lib/mapSearchSuggest";
 import type { Locality } from "@/lib/localities";
+import { haversineKm } from "@/lib/haversine";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { UkPlace } from "@/lib/ukPlaceSearch";
 import type { Venue } from "@/lib/venues";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 
 import "./mapSearchSuggest.css";
+
+const UK_NATIONAL_SEARCH_GROUP_LABEL = "Pubs across the UK";
+const NATIONAL_FETCH_MIN_CHARS = 3;
 
 // The map's as-you-type search: the house SearchField plus a suggestions popup
 // beneath it, listing matching AREAS (the modelled areas + boroughs) and PUBS,
@@ -127,10 +133,109 @@ export default function MapSearchSuggest({
     if (active instanceof HTMLElement) active.blur();
   }, [mode]);
 
-  // Deferred query keeps the input responsive while the (single-pass, whole-set)
-  // match recompute runs off the keystroke — the "debounced" behaviour the spec
-  // asks for, without a manual timer to leak.
   const deferredQuery = useDeferredValue(query);
+  const [nationalPubs, setNationalPubs] = useState<UkBasePubSuggestion[]>([]);
+  const [nationalGroupLabel, setNationalGroupLabel] = useState(UK_BASE_SEARCH_GROUP_LABEL);
+  const nationalTrackedQuery = useRef("");
+
+  useEffect(() => {
+    const q = deferredQuery.trim();
+    if (q.length < NATIONAL_FETCH_MIN_CHARS) {
+      setNationalPubs([]);
+      setNationalGroupLabel(UK_BASE_SEARCH_GROUP_LABEL);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `/api/map-search?q=${encodeURIComponent(q.slice(0, 80))}`,
+          { signal: controller.signal, headers: { accept: "application/json" } },
+        );
+        if (!response.ok) {
+          setNationalPubs([]);
+          return;
+        }
+        const body = (await response.json()) as {
+          intent?: { primary?: string };
+          nationalPubs?: Array<{
+            id: string;
+            name: string;
+            address?: string;
+            lat: number;
+            lng: number;
+          }>;
+          nationalStatus?: "ready" | "degraded";
+        };
+        const origin: SuggestOrigin = userLocation ? "user" : "map-centre";
+        const originPoint: [number, number] = userLocation
+          ? [userLocation.lng, userLocation.lat]
+          : mapCenter;
+        const residentIds = new Set(ukBasePubs.map((pub) => pub.id));
+        const curatedIds = new Set(venues.map((venue) => venue.id));
+        const hits = (body.nationalPubs ?? [])
+          .filter(
+            (hit) =>
+              hit &&
+              typeof hit.id === "string" &&
+              typeof hit.name === "string" &&
+              Number.isFinite(hit.lat) &&
+              Number.isFinite(hit.lng) &&
+              !residentIds.has(hit.id) &&
+              !curatedIds.has(hit.id),
+          )
+          .map((hit) => {
+            const pub: UkBasePub = {
+              id: hit.id,
+              name: hit.name,
+              address: typeof hit.address === "string" ? hit.address : "",
+              lat: hit.lat,
+              lng: hit.lng,
+              curatedVenueId: "",
+            };
+            const distanceKm = haversineKm(originPoint, [hit.lng, hit.lat]);
+            return {
+              id: hit.id,
+              name: hit.name,
+              address: pub.address,
+              distanceKm,
+              distanceLabel: formatSuggestDistance(distanceKm, origin),
+              pub,
+            } satisfies UkBasePubSuggestion;
+          });
+        setNationalPubs(hits);
+        setNationalGroupLabel(
+          hits.length > 0 ? UK_NATIONAL_SEARCH_GROUP_LABEL : UK_BASE_SEARCH_GROUP_LABEL,
+        );
+        if (nationalTrackedQuery.current !== q) {
+          nationalTrackedQuery.current = q;
+          const intent = body.intent?.primary;
+          if (
+            intent === "borough" ||
+            intent === "city" ||
+            intent === "area" ||
+            intent === "uk_place" ||
+            intent === "venue" ||
+            intent === "unknown"
+          ) {
+            trackEvent("map_search_ran", {
+              intent,
+              nationalHits: hits.length,
+              nationalStatus: body.nationalStatus ?? "degraded",
+            });
+          }
+        }
+      } catch (error) {
+        if ((error as { name?: string } | null)?.name === "AbortError") return;
+        setNationalPubs([]);
+      }
+    }, 120);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [deferredQuery, mapCenter, ukBasePubs, userLocation, venues]);
+
   const suggestions = useMemo(
     () =>
       buildMapSearchSuggestions({
@@ -157,14 +262,20 @@ export default function MapSearchSuggest({
     ],
   );
 
+  const mergedUkBasePubs = useMemo(() => {
+    const seen = new Set(suggestions.ukBasePubs.map((pub) => pub.id));
+    const extras = nationalPubs.filter((pub) => !seen.has(pub.id));
+    return [...suggestions.ukBasePubs, ...extras].slice(0, 12);
+  }, [nationalPubs, suggestions.ukBasePubs]);
+
   const items = useMemo<FlatItem[]>(
     () => [
       ...suggestions.areas.map((item) => ({ type: "area" as const, item })),
       ...suggestions.pubs.map((item) => ({ type: "pub" as const, item })),
       ...suggestions.places.map((item) => ({ type: "place" as const, item })),
-      ...suggestions.ukBasePubs.map((item) => ({ type: "ukBase" as const, item })),
+      ...mergedUkBasePubs.map((item) => ({ type: "ukBase" as const, item })),
     ],
-    [suggestions],
+    [mergedUkBasePubs, suggestions],
   );
 
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -199,11 +310,12 @@ export default function MapSearchSuggest({
   // leaves the search surface; overlay search remains open until Escape/X.
   const panelEnabled = mode === "overlay" || toolbarFocused;
   const showPanel = panelEnabled && (trimmed.length > 0 || items.length > 0);
-  const showEmptyLine = showPanel && trimmed.length > 0 && querySettled && !suggestions.hasResults;
+  const hasResults = suggestions.hasResults || mergedUkBasePubs.length > 0;
+  const showEmptyLine = showPanel && trimmed.length > 0 && querySettled && !hasResults;
 
   useEffect(() => {
     if (!showEmptyLine) {
-      if (trimmed.length === 0 || suggestions.hasResults) lastAnnouncedQuery.current = "";
+      if (trimmed.length === 0 || hasResults) lastAnnouncedQuery.current = "";
       return;
     }
 
@@ -218,7 +330,7 @@ export default function MapSearchSuggest({
     }, NO_RESULTS_ANNOUNCE_DELAY_MS);
 
     return () => window.clearTimeout(timer);
-  }, [deferredTrimmed, showEmptyLine, suggestions.hasResults, trimmed.length]);
+  }, [deferredTrimmed, hasResults, showEmptyLine, trimmed.length]);
 
   const activate = useCallback(
     (entry: FlatItem | undefined) => {
@@ -460,16 +572,16 @@ export default function MapSearchSuggest({
               </div>
             ) : null}
 
-            {suggestions.ukBasePubs.length > 0 ? (
+            {mergedUkBasePubs.length > 0 ? (
               <div
                 role="group"
-                aria-label={UK_BASE_SEARCH_GROUP_LABEL}
+                aria-label={nationalGroupLabel}
                 className="mapSearchSuggestGroup"
               >
                 <p className="mapSearchSuggestGroupHead">
-                  <span>{UK_BASE_SEARCH_GROUP_LABEL}</span>
+                  <span>{nationalGroupLabel}</span>
                 </p>
-                {suggestions.ukBasePubs.map((pub, offset) => {
+                {mergedUkBasePubs.map((pub, offset) => {
                   const index = ukBaseStartIndex + offset;
                   return (
                     <div

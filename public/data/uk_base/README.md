@@ -47,6 +47,12 @@ separate, and each result points at a real source pub nearest the locality
 median. The chooser loads the file only after someone searches. No pub count or
 price claim is derived from it.
 
+National **pub name** search is a separate server index
+(`data/generated/uk_pub_search.json`, built by
+`scripts/build_uk_pub_search_index.mjs` inside `npm run build:uk-base`).
+`GET /api/map-search` opens that file; the browser never downloads the
+country-wide pack. See `docs/prd/UK_MAP_COVERAGE_AND_SEARCH_PRD.md`.
+
 Each build installs a new immutable generation, then atomically replaces only
 `manifest.json`. A crash before that final rename leaves the previous manifest
 and all files it references available. After the manifest switches, the prior

@@ -6,7 +6,9 @@
 // what a pint costs yet". So they deliberately live OUTSIDE the venue index:
 // they never enter `venues`, which is what keeps them out of curated search,
 // the price filters and the crawl router. Map search may match RESIDENT
-// streamed pubs only (lib/ukBasePubSearch.ts) — never the country-wide pack.
+// streamed pubs client-side (lib/ukBasePubSearch.ts) and NATIONAL name hits
+// via GET /api/map-search (lib/ukNationalPubSearch.server.ts) — the browser
+// never downloads the country-wide pack.
 // They exist as map features, a separate in-viewport unverified list, and
 // price-submission targets.
 //
