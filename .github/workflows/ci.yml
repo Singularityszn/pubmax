@@ -79,5 +79,17 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci
 
+      # Postgres/PostgREST proofs live in rls-session.yml. Hosted images can
+      # expose partial postgres client/server tools, which makes the RLS harness
+      # fail hard instead of skip; force the loud-skip path and omit the
+      # migration/RLS suites that need a real cluster.
       - name: Unit tests
-        run: npx vitest run --shard=${{ matrix.shard }}/4
+        env:
+          PUBMAX_RLS_NO_PG: "1"
+        run: >-
+          npx vitest run
+          --shard=${{ matrix.shard }}/4
+          --exclude '__tests__/rlsWave2Session.test.ts'
+          --exclude '__tests__/socialCrewLegacyRoutesRls.test.ts'
+          --exclude '__tests__/socialCrewMigration.test.ts'
+          --exclude '__tests__/**/*Migration.test.ts'
