@@ -683,7 +683,11 @@ export default function PubmaxxAccountHub() {
     // activation. The promise is observed afterwards; a dismissed sheet is
     // not an error.
     navigator
-      .share({ title: "PUBMAXX", url: referralLink })
+      .share({
+        title: "PUBMAXX",
+        text: "Listed pub prices name and link their publisher when recorded and say when none is recorded.",
+        url: referralLink,
+      })
       .then(() => setReferralNotice("Invite link shared."))
       .catch((error: unknown) => {
         if ((error as { name?: unknown })?.name === "AbortError") return;
