@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { partyFace } from "@/app/fonts/partyFace";
 import { loadHistoricPubs } from "@/lib/historic";
-import { buildQuietPint } from "@/lib/quietPint";
+import { buildQuietPint, isQuietPintWindow } from "@/lib/quietPint";
 import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import TonightClient from "./TonightClient";
@@ -26,6 +26,7 @@ export default async function TonightPage() {
   // Tonight behaviour byte-for-byte.
   const flags = readTrustedHandoffFlags();
   const now = new Date();
+  const softPlansWindow = isQuietPintWindow(now);
 
   // Same fail-soft compose as /today: heritage-cited candidates joined to
   // verified pint prices. buildQuietPint returns null outside a quiet window
@@ -62,7 +63,7 @@ export default async function TonightPage() {
   // (display:contents adds no layout box; the custom property still inherits).
   return (
     <div className={partyFace.variable} style={{ display: "contents" }}>
-      <TonightClient flags={flags} quietPint={quietPint} />
+      <TonightClient flags={flags} quietPint={quietPint} softPlansWindow={softPlansWindow} />
     </div>
   );
 }

@@ -37,6 +37,7 @@ import TonightOnTonightSummary from "./TonightOnTonightSummary";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
+import TonightSoftPlansModule from "./TonightSoftPlansModule";
 import TodayQuietPintCard from "@/app/today/TodayQuietPintCard";
 import { trackEvent } from "@/lib/analytics";
 import { firstHttp } from "@/lib/httpUrl";
@@ -145,10 +146,13 @@ const QUIET_ALTERNATIVES: QuietAlternative[] = [
 export default function TonightClient({
   flags,
   quietPint = null,
+  softPlansWindow = false,
 }: {
   flags: TrustedHandoffFlagsDTO;
   /** Server-composed quiet-pint module; null outside a quiet window. */
   quietPint?: QuietPintModule | null;
+  /** Typical-pattern hour reads quiet — surfaces soft plan handoffs. */
+  softPlansWindow?: boolean;
 }) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
@@ -669,12 +673,16 @@ export default function TonightClient({
       {mobileLanes}
 
       <div className="tonightAfterPrimary">
+      {softPlansWindow ? (
+        <TonightSoftPlansModule hasQuietPint={Boolean(quietPint)} />
+      ) : null}
+
       {/* Heritage quiet-pint module: same TodayQuietPintCard as /today. Lives
           after the listing spine so main-list-first stays intact, and only when
           the server quiet window allows (null renders nothing). Not the thin-
           night CTA strip below: that invents no pubs; this surfaces cited ones. */}
       {quietPint ? (
-        <div className="tonightQuietPint">
+        <div className="tonightQuietPint" id="tonight-quiet-pint">
           <TodayQuietPintCard module={quietPint} />
         </div>
       ) : null}

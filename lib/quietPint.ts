@@ -124,6 +124,15 @@ function priceLabel(price: number | null | undefined): string | null {
   return typeof price === "number" && Number.isFinite(price) ? `£${price.toFixed(2)}` : null;
 }
 
+/**
+ * Whether the typical-pattern hour reads quiet right now — the same gate
+ * buildQuietPint uses before surfacing heritage picks. Surfaces may use this
+ * without composing the full module when they only need the window.
+ */
+export function isQuietPintWindow(now = new Date()): boolean {
+  return estimateBusyness({ now, timeZone: "Europe/London" }).level === "quiet";
+}
+
 export type BuildQuietPintInput = {
   candidates: readonly QuietPintCandidate[];
   /** venueId → verified cheapest pint in pounds. Absent = no verified price. */
