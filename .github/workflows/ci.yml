@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build:
     name: Verify and build
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -61,7 +61,7 @@ jobs:
   # still green `npm run ci` while this job fails if sessions regress.
   rls-session:
     name: Effective RLS (Postgres 16 + PostgREST 14)
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
     services:
       postgres:
