@@ -12,7 +12,13 @@ import {
 } from "@/components/map/canvas/geojson";
 import type { VenueSignal } from "@/components/map/canvas/types";
 import { summariseWhatsOnByVenue } from "@/lib/whatsOnBadges";
-import type { Venue } from "@/lib/venues";
+import {
+  corroboratedPriceDrop,
+  mergeVenueDrops,
+  provisionalPintDropVenueIds,
+  type SummaryDrop,
+  type Venue,
+} from "@/lib/venues";
 import type { StoryBand } from "@/lib/storyBands";
 import type { Landmark } from "@/lib/landmarks";
 
@@ -607,5 +613,97 @@ describe("pubsToGeoJSON whats-on badge join (W1)", () => {
     expect(pa?.whatsOn).toBe("quiz");
     expect(pa?.whatsOnTimed).toBe(true);
     expect(pb?.whatsOn).toBeUndefined();
+  });
+});
+
+describe("pubsToGeoJSON Pint Drop trust gate (AGENTS.md pin law: an uncorroborated report cannot reach either lane)", () => {
+  // The composed drop-lane pipeline, exactly as PubMap wires it: drops fold
+  // into the venue through mergeVenueDrops, into signals through
+  // corroboratedPriceDrop (usePintDrops.venueSignals), and into the mark set
+  // through provisionalPintDropVenueIds. The pin then reads all three.
+  const NOW = Date.parse("2026-06-02T10:00:00.000Z");
+
+  function makeDrop(overrides: Partial<SummaryDrop> = {}): SummaryDrop {
+    return {
+      drink: "Lager",
+      priceGbp: 4.5,
+      passedDownNote: "",
+      provenance: "contributor",
+      createdAt: "2026-06-01T10:00:00.000Z",
+      handle: "first_drinker",
+      ...overrides,
+    };
+  }
+
+  function pinPropsFor(venue: Venue, drops: SummaryDrop[]) {
+    const dropsByVenueId = new Map([[venue.id, drops]]);
+    const [merged] = mergeVenueDrops([venue], dropsByVenueId, NOW);
+    const candidate = corroboratedPriceDrop(drops, NOW);
+    const signals = new Map<string, VenueSignal>([
+      [
+        venue.id,
+        {
+          hasPintDrops: drops.length > 0,
+          latestContributorPrice: candidate?.priceGbp ?? null,
+          latestContributorAt: candidate ? Date.parse(candidate.createdAt) : null,
+          latestDemoPrice: null,
+        },
+      ],
+    ]);
+    const provisional = provisionalPintDropVenueIds(dropsByVenueId, NOW);
+    return (
+      pubsToGeoJSON([merged], signals, null, null, null, provisional)
+        .features[0]?.properties ?? {}
+    );
+  }
+
+  it("a single uncorroborated drop changes no band, prints no figure, and wears the mark", () => {
+    const venue = makeVenue({ id: "lone-report", cheapestPrice: 6 });
+    const props = pinPropsFor(venue, [makeDrop({ priceGbp: 4.5 })]);
+    // Band and figure stay on the curated price - the drop moved neither lane.
+    expect(props.bucket).toBe(priceBucket(6));
+    expect(props.priceLabel).toBe("£6");
+    // Visibility without authority: the pin says someone reported here.
+    expect(props.provisional).toBe(true);
+  });
+
+  it("a single drop on an unpriced pub leaves it unpriced - no band, no label, just the mark", () => {
+    const venue = makeVenue({ id: "lone-unpriced", cheapestPrice: null });
+    const props = pinPropsFor(venue, [makeDrop({ priceGbp: 4.5 })]);
+    expect(props.bucket).toBe(priceBucket(null));
+    expect("priceLabel" in props).toBe(false);
+    expect(props.provisional).toBe(true);
+  });
+
+  it("a corroborated pair paints band and figure, exactly as community submissions do", () => {
+    const venue = makeVenue({ id: "confirmed", cheapestPrice: 6 });
+    const props = pinPropsFor(venue, [
+      makeDrop({ priceGbp: 4.5, handle: "first_drinker" }),
+      makeDrop({
+        priceGbp: 4.5,
+        handle: "second_drinker",
+        createdAt: "2026-05-31T10:00:00.000Z",
+      }),
+    ]);
+    expect(props.bucket).toBe(priceBucket(4.5));
+    expect(props.priceLabel).toBe("£4.50");
+    // A painting lane has nothing pending.
+    expect(props.provisional).toBe(false);
+  });
+
+  it("the demo seed path still tints an unpriced pin and still never prints", () => {
+    // Demo seeds ride VenueSignal.latestDemoPrice, not the drop gate - the
+    // gate must not regress the unpriced-city colouring the law allows.
+    const venue = makeVenue({ id: "seeded-city", cheapestPrice: null });
+    const signals = new Map<string, VenueSignal>([
+      [
+        "seeded-city",
+        { hasPintDrops: true, latestContributorPrice: null, latestDemoPrice: 5.2 },
+      ],
+    ]);
+    const props =
+      pubsToGeoJSON([venue], signals, null).features[0]?.properties ?? {};
+    expect(props.bucket).toBe(priceBucket(5.2));
+    expect("priceLabel" in props).toBe(false);
   });
 });

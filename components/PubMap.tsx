@@ -21,6 +21,7 @@ import {
   formatPrice,
   mergeVenueDrops,
   NO_PINT_PRICE_CAP,
+  provisionalPintDropVenueIds,
   type Filters,
   type Venue,
 } from "@/lib/venues";
@@ -983,10 +984,18 @@ export default function PubMap({
         combined.add(venueId);
       }
     }
+    // The Pint Drop lane feeds the same mark: a lone in-window drop no longer
+    // paints a band or prints a figure (corroboratedPriceDrop gate), so its
+    // first submitter sees the map change HERE instead — visibility without
+    // authority, the same deal community submissions get.
+    for (const venueId of provisionalPintDropVenueIds(dropsByVenueId)) {
+      combined.add(venueId);
+    }
     return provisionalVenueIdKey(combined);
   }, [
     communityPrices.freshestByVenueId,
     communityPrices.provisionalBaseVenueIds,
+    dropsByVenueId,
   ]);
   const provisionalVenueIds = useMemo(
     () => provisionalVenueIdsFromKey(provisionalVenueIdKeyValue),
