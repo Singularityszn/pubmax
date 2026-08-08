@@ -531,7 +531,17 @@
   .mobilePlanActivation.isActive { background: var(--color-surface-raised); color: var(--color-accent); }
   .mobilePlanActivation:disabled { cursor: wait; opacity: .72; }
 
-  .mobileSheetPortal { position: fixed; inset: 0; z-index: var(--z-overlay-top); }
+  /* Stop above the primary tab bar so bottom-nav taps are never swallowed by
+     the scrim or sheet body (QA H02). --z-tabbar still lifts the bar when a
+     modal shares the band; this clip is what makes hit-testing honest. */
+  .mobileSheetPortal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+    z-index: var(--z-overlay-top);
+  }
   .mobileSheetScrim { position: absolute; inset: 0; width: 100%; border: 0; background: color-mix(in srgb, var(--ink-deep) 32%, transparent); }
 
   /* ── Bottom-sheet box model (systemic rebuild) ──────────────────────────────
@@ -541,10 +551,10 @@
      natively: short content hugs (box = header+body+footer natural height); tall
      content caps at --sheet-cap and the body (the only shrinkable child) scrolls
      while header/footer stay pinned. The box's visible bottom edge is the
-     viewport bottom (bottom:0) — the sheet covers the tab bar, which is already
-     hidden on detail-open / planning-open and scrim-covered for contextual
-     sheets, so NO --mobile-map-dock-clearance is reserved (that phantom band was
-     the five-patch void). The only reserved bottom space is the safe-area inset,
+     viewport bottom within the portal (bottom:0) — the portal itself stops above
+     the primary tab bar (see .mobileSheetPortal), so NO --mobile-map-dock-clearance
+     is reserved inside the sheet (that phantom band was the five-patch void).
+     The only reserved bottom space is the safe-area inset,
      carried on the last element (footer for venue, body for the others). */
   /* The sheet takes focus on open so assistive technology lands inside it, but
      it is a container, not a control, so it never draws a focus ring of its
@@ -558,7 +568,9 @@
     --sheet-cap: 55dvh;
     display: flex;
     flex-direction: column;
-    position: fixed;
+    /* Absolute inside the clipped .mobileSheetPortal — fixed would escape to the
+       viewport bottom and swallow primary-tab taps (QA H02). */
+    position: absolute;
     left: 0;
     right: 0;
     bottom: 0;

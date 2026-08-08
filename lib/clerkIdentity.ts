@@ -51,16 +51,44 @@ export function readClerkPublishableKey(): string | undefined {
   return key && key.trim() ? key.trim() : undefined;
 }
 
+/** True when the publishable key is a Clerk development instance (`pk_test_*`). */
+export function isClerkDevelopmentPublishableKey(
+  publishableKey: string | undefined = readClerkPublishableKey(),
+): boolean {
+  const key = publishableKey?.trim();
+  return Boolean(key?.startsWith("pk_test_"));
+}
+
+/**
+ * Production deploys must not load Clerk with a development publishable key.
+ * Preview and local dev keep the current behaviour so Social beta can still
+ * exercise Clerk before production keys land.
+ */
+export function clerkDevelopmentKeyBlockedInProduction(
+  publishableKey: string | undefined = readClerkPublishableKey(),
+): boolean {
+  if (!isClerkDevelopmentPublishableKey(publishableKey)) return false;
+  if (process.env.NODE_ENV !== "production") return false;
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (vercelEnv === "preview" || vercelEnv === "development") return false;
+  return true;
+}
+
 /**
  * Whether the browser SDK and CSP origins may run. clerk-js needs only the
  * publishable key, but visible account controls also require an established
  * product Supabase session until the identity bridge exists end to end. With
  * no key, nothing Clerk-shaped renders and the Content-Security-Policy is
  * byte-for-byte its pre-Clerk self.
+ *
+ * A `pk_test_*` key on a production deploy is treated as unconfigured so dev
+ * instances never ship to pubmaxxing.com (they hit strict rate limits and log
+ * console noise). The captain must add production keys to enable Clerk live.
  */
 export function isClerkConfigured(
   publishableKey: string | undefined = readClerkPublishableKey(),
 ): boolean {
+  if (clerkDevelopmentKeyBlockedInProduction(publishableKey)) return false;
   return clerkFrontendApiOrigin(publishableKey) !== null;
 }
 

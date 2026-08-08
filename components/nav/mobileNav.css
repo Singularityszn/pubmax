@@ -108,8 +108,8 @@
     left: 0;
     right: 0;
     bottom: 0;
-    /* Above map chrome; below modal/dialog layers. */
-    z-index: 700;
+    /* Above map sheets; below modal/dialog layers. */
+    z-index: var(--z-tabbar);
     background: linear-gradient(
       to top,
       color-mix(in srgb, var(--paper) 88%, transparent),

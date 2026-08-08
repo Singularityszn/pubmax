@@ -20,6 +20,7 @@ import {
   type PrimaryNavKey,
   type TourSpotlightTarget,
 } from "@/components/nav/navigationModel";
+import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
@@ -149,6 +150,14 @@ export default function MobileTabBar() {
     if (primary) markPubmaxTiming("pubmax:drop-tap");
   }, []);
 
+  const onPrimaryTabNavigate = useCallback(
+    (primary?: boolean) => {
+      requestMobileSheetDismiss();
+      markDropTap(primary);
+    },
+    [markDropTap],
+  );
+
   return (
     <nav className="mobileTabBar" role="navigation" aria-label="Primary">
       {/* --tab-count feeds the count-driven layout model in mobileNav.css:
@@ -188,7 +197,7 @@ export default function MobileTabBar() {
                 }
                 aria-current={active ? "page" : undefined}
                 onPointerDown={() => warmTab(tab.href)}
-                onClick={() => markDropTap(tab.primary)}
+                onClick={() => onPrimaryTabNavigate(tab.primary)}
                 onMouseEnter={() => warmTab(tab.href)}
                 onFocus={() => warmTab(tab.href)}
                 onTouchStart={() => warmTab(tab.href)}

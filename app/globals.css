@@ -347,7 +347,7 @@
   --z-map-toolbar: 560;      /* mapToolbar, citySwitcher */
   --z-night-card: 640;       /* nightCard fixed sheet — above map chrome, below planning drawer (650) and tab bar (700) */
   --z-nav: 650;              /* planning-open drawer lift */
-  --z-tabbar: 700;           /* mobile bottom tab bar (above map/nav, below modals) */
+  --z-tabbar: 1350;          /* mobile bottom tab bar (above map sheets, below modals) */
   --z-modal: 1200;           /* siteNav floating rails, full-screen overlays */
   --z-overlay-top: 1300;     /* map onboarding — topmost transient overlay */
   --z-splash: 1400;          /* aperture splash - pre-paint full-viewport takeover, above everything */
@@ -4390,6 +4390,13 @@ input[type="range"] {
 .analyticsConsentPromptActions button:hover,
 .analyticsConsentPromptActions button:focus-visible {
   border-color: var(--brass);
+}
+
+/* Any open map sheet owns the reader's attention; the consent card must not
+   bleed through semi-transparent scrims or sit above sheet chrome. */
+body:has(.mobileSheetPortal) .analyticsConsentPrompt {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Desktop: reserve foot clearance while the fixed consent bar is mounted so

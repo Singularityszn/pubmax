@@ -313,6 +313,7 @@ import { venueSheetLabels } from "@/lib/venueSheetLabels";
 import {
   MAP_SHEET_TITLES,
   readMobileMapSession,
+  MOBILE_SHEET_DISMISS_EVENT,
   withCityCameraAttitude,
   writeMobileMapSession,
   type MobileShellState,
@@ -2788,6 +2789,12 @@ export default function PubMap({
     setPlanningOpen(false);
     setMapListOpen(false);
   }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen, setSelectedVenueId]);
+
+  useEffect(() => {
+    const onDismiss = () => closeEverySurface();
+    window.addEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
+    return () => window.removeEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
+  }, [closeEverySurface]);
   const restoreMapSurface = useCallback(
     (entry: SurfaceEntry<MapSurfaceState> | null) => {
       closeEverySurface();

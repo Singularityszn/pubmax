@@ -377,6 +377,16 @@ describe("the middleware gate needs BOTH keys", () => {
     expect(isClerkMiddlewareConfigured()).toBe(true);
   });
 
+  it("treats a development publishable key as unconfigured on production deploys", () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test_not_a_real_key");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
+
+    expect(isClerkConfigured()).toBe(false);
+    expect(isClerkMiddlewareConfigured()).toBe(false);
+  });
+
   it("exports the plain security proxy and serves pages when the secret is missing", async () => {
     // The boolean gate above is necessary but not enough: the ship risk is that
     // proxy.ts still calls clerkMiddleware() at module load and that throw
