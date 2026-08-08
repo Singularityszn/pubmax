@@ -3,7 +3,7 @@
  *
  * Background: after #544 the map kicks a repaint on discrete events
  * (style.load scene build, pin-reveal, moveend). Those are all event-driven.
- * A failure mode dodges every one of them: a "Plan tonight" sheet opening
+ * A failure mode dodges every one of them: a "Plan an outing" sheet opening
  * resizes the map container, and if that resize is missed (or the RAF present
  * is throttled — iOS Low Power Mode — or the tab was backgrounded and resumed)
  * the renderer parks on its pre-tile black backbuffer with no further event to

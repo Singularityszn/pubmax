@@ -280,6 +280,7 @@
        pressed-ink utility below and are shared by both themes. */
   --shadow: 0 18px 45px rgba(60, 30, 20, 0.11), 0 8px 18px rgba(255, 90, 95, 0.07);
   --shadow-sm: 0 7px 18px rgba(60, 30, 20, 0.09);
+  --shadow-float: var(--shadow); /* chrome floating over the map (arc chips, arrival banner); follows the theme.css dark --shadow override */
   --shadow-inset-press: inset 0 1px 2px rgba(22, 18, 42, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.55);
 
   /* — Motion: durations + easings, all consumed behind prefers-reduced-motion
@@ -302,6 +303,15 @@
   --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1); /* on-screen morph / reposition */
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* iOS-like sheet / drawer travel */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* subtle overshoot — momentum entrances only */
+  --ease-weighted: cubic-bezier(0.22, 1, 0.36, 1); /* damped physical settle (cinema house curve) — mirrors motionEase.weighted in lib/motionVocabulary.ts */
+  --duration-cinema-settle: 480ms; /* hero-cinema state-change settle — mirrors motionDuration.cinemaSettle in lib/motionVocabulary.ts; never for the scroll-scrubbed transform */
+  --duration-lift: 0.18s; /* hover lift / colour transitions (landing buttons, hero pins) */
+  --duration-entrance: 640ms; /* staggered element entrance (landing hero pins) */
+  /* Ambient atmosphere presence (landing orbit drift / scanline breathe):
+     slow decorative loops, always gated on prefers-reduced-motion. */
+  --duration-drift: 22s;
+  --duration-drift-slow: 28s;
+  --duration-breathe: 7s;
   --press-scale: 0.97; /* default pressed scale — subtle, "the UI heard you" */
   --press-scale-firm: 0.94; /* small icon buttons can press a touch firmer */
 
@@ -328,16 +338,19 @@
   --z-map-hover: 470;        /* venueHoverCard + map price/layers FABs */
   --z-map-panel: 500;        /* routePanel, mapDrawer */
   --z-map-suggest: 512;      /* citySuggestBanner — below cityStatusBanner, as on main */
+  --z-map-ask: 514;          /* mapConciergeAsk pill — above the Tonight lane (512), below cityStatusBanner */
   --z-map-banner: 515;       /* cityStatusBanner */
   --z-map-camera: 530;       /* mapCameraControls */
   --z-map-route-chip: 540;   /* mappedRouteChip — below activeRoundChip, as on main */
   --z-map-chip: 541;         /* activeRoundChip */
   --z-map-onboard-chip: 545; /* bandOnboardingChip, logIntentFallback */
   --z-map-toolbar: 560;      /* mapToolbar, citySwitcher */
+  --z-night-card: 640;       /* nightCard fixed sheet — above map chrome, below planning drawer (650) and tab bar (700) */
   --z-nav: 650;              /* planning-open drawer lift */
   --z-tabbar: 700;           /* mobile bottom tab bar (above map/nav, below modals) */
   --z-modal: 1200;           /* siteNav floating rails, full-screen overlays */
   --z-overlay-top: 1300;     /* map onboarding — topmost transient overlay */
+  --z-splash: 1400;          /* aperture splash - pre-paint full-viewport takeover, above everything */
 
   /* — Spill (always-dark) palette: the "spilling right now" / spill-composer
        surfaces stay dark in BOTH themes by design. One shared token set so
@@ -1361,7 +1374,7 @@ input[type="range"] {
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  /* Louder than Drinks — primary Plan tonight CTA in map chrome.
+  /* Louder than Drinks — primary Plan an outing CTA in map chrome.
      D3: layered micro-shadow stack (Linear's crafted-button depth). */
   box-shadow: var(--shadow-btn);
   box-sizing: border-box;
@@ -3408,6 +3421,29 @@ input[type="range"] {
   font-variant-numeric: tabular-nums;
 }
 
+.firstDropNudgeTrust {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.firstDropNudgeSecondary {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  cursor: pointer;
+}
+
 .firstDropNudgeCta {
   flex: 0 0 auto;
   display: inline-flex;
@@ -5435,6 +5471,7 @@ html[data-legacy="1"] *::after {
   --cat-shot: #6a3fb0; /* electric — 6.71 */
   --cat-alcohol-free: #176b72; /* clear teal */
   --cat-soft-drink: #7a4f00; /* citrus */
+  --cat-coffee: #6b3d16; /* roasted brown */
   --cat-other: #5c5347; /* neutral bark — 7.11 */
 }
 
@@ -5450,6 +5487,7 @@ html[data-theme="dark"] {
   --cat-shot: #b28ae8; /* 6.59 */
   --cat-alcohol-free: #67cbd0;
   --cat-soft-drink: #f0b65a;
+  --cat-coffee: #d4a06a;
   --cat-other: #a89e8c; /* 6.79 */
 }
 
@@ -5467,6 +5505,7 @@ html[data-legacy="1"] {
   --cat-shot: #522d90;
   --cat-alcohol-free: #0e555b;
   --cat-soft-drink: #5f3c00;
+  --cat-coffee: #522e10;
   --cat-other: #463f34;
 }
 
@@ -5481,6 +5520,7 @@ html[data-theme="dark"][data-legacy="1"] {
   --cat-shot: #c8a6f2;
   --cat-alcohol-free: #86e0e2;
   --cat-soft-drink: #ffd17f;
+  --cat-coffee: #e8b87a;
   --cat-other: #c2b8a4;
 }
 

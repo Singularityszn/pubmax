@@ -87,13 +87,13 @@ test("Gate Z mobile lab budgets stay inside the release targets", async ({ page 
   });
   const paint = await page.evaluate(() => window.__pubmaxGateZ ?? { lcpMs: 0, cls: 0, maxInteractionMs: 0, interactions: [] });
 
-  await expect(page.getByRole("button", { name: "Describe your night" })).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({ timeout: 45_000 });
   const planningWarmup = page.waitForResponse((response) => response.request().method() === "GET" && response.url().includes("/api/plans/generate?cityId=") && response.status() === 204);
-  await page.getByRole("button", { name: "Describe your night" }).click();
+  await page.getByRole("button", { name: "Describe the outing" }).click();
   await planningWarmup;
   const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
-  await planner.getByLabel("What do you need?").fill("Three quiet pubs in Barnes under £24");
-  const buildRoute = planner.getByRole("button", { name: "Build 3-stop route" });
+  await planner.getByLabel("Describe the outing").fill("Three quiet pubs in Barnes under £24");
+  const buildRoute = planner.getByRole("button", { name: "Make a plan" });
   await buildRoute.evaluate((button) => button.addEventListener("click", () => {
     window.__pubmaxRouteReadinessStart = performance.now();
     const plannerRoot = button.closest(".mobilePlannerIntent");

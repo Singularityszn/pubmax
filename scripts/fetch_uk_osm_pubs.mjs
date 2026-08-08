@@ -60,12 +60,14 @@ const OUTER_LONDON_SEED = path.join(ROOT, "data", "osm", "outer_london_osm_pubs.
 const CITIES_DIR = path.join(ROOT, "data", "cities");
 
 const OVERPASS_ENDPOINTS = [
-  "https://overpass-api.de/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass-api.de/api/interpreter",
 ];
 
 const INTER_CHUNK_DELAY_MS = 8_000;
-const MAX_ATTEMPTS = 5;
+const INTER_CHUNK_DELAY_STALE_MS = 3_000;
+const MAX_ATTEMPTS = 6;
 const MAX_BACKOFF_MS = 180_000;
 const QUERY_TIMEOUT_S = 90;
 const MAX_SOURCE_AGE_MS = 48 * 60 * 60 * 1_000;
@@ -79,6 +81,7 @@ function parseArgs(argv) {
     refresh: false,
     list: false,
     chunk: null,
+    allowStale: false,
   };
   for (const arg of argv) {
     if (arg === "--from-raw") options.fromRaw = true;
@@ -88,6 +91,7 @@ function parseArgs(argv) {
       continue;
     }
     else if (arg === "--refresh") options.refresh = true;
+    else if (arg === "--allow-stale") options.allowStale = true;
     else if (arg === "--list") options.list = true;
     else if (arg.startsWith("--chunk=")) options.chunk = arg.slice("--chunk=".length).trim();
     else {
@@ -151,7 +155,7 @@ export function isFreshOverpassSnapshot(raw, nowMs = Date.now()) {
   );
 }
 
-async function fetchOverpass(query) {
+async function fetchOverpass(query, { allowStale = false } = {}) {
   let lastError = null;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     const endpoint = OVERPASS_ENDPOINTS[attempt % OVERPASS_ENDPOINTS.length];
@@ -183,9 +187,11 @@ async function fetchOverpass(query) {
         throw new Error(`Invalid Overpass JSON from ${endpoint}: missing elements or contains remark`);
       }
       if (!isFreshOverpassSnapshot(raw)) {
-        throw new Error(
-          `Stale Overpass snapshot from ${endpoint}: ${raw.osm3s?.timestamp_osm_base ?? "missing timestamp"}`,
-        );
+        const stamp = raw.osm3s?.timestamp_osm_base ?? "missing timestamp";
+        if (!allowStale) {
+          throw new Error(`Stale Overpass snapshot from ${endpoint}: ${stamp}`);
+        }
+        console.warn(`  accepting stale Overpass snapshot from ${endpoint}: ${stamp}`);
       }
       return raw;
     } catch (err) {
@@ -227,12 +233,18 @@ async function writePretty(filePath, value) {
   await writeJsonAtomic(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-async function fetchChunk(chunk, { refresh }) {
+async function fetchChunk(chunk, { refresh, allowStale }) {
   const rawPath = path.join(RAW_DIR, chunkFileName(chunk));
   if (!refresh) {
     const raw = await readChunkRaw(chunk);
-    if (raw && isFreshOverpassSnapshot(raw)) {
-      console.log(`skip ${chunk.id} (raw present, ${raw.elements.length} elements) - use --refresh to refetch`);
+    if (raw && (isFreshOverpassSnapshot(raw) || allowStale)) {
+      if (!isFreshOverpassSnapshot(raw) && allowStale) {
+        console.warn(
+          `skip ${chunk.id} (stale raw kept via --allow-stale, ${raw.elements.length} elements)`,
+        );
+      } else {
+        console.log(`skip ${chunk.id} (raw present, ${raw.elements.length} elements) - use --refresh to refetch`);
+      }
       return { raw, fetched: false };
     }
     if (await fileExists(rawPath)) {
@@ -243,7 +255,9 @@ async function fetchChunk(chunk, { refresh }) {
     }
   }
   console.log(`fetching ${chunk.id} bbox=${chunk.bbox.join(",")} …`);
-  const raw = await fetchOverpass(buildUkOverpassQuery(chunk.bbox, { timeout: QUERY_TIMEOUT_S }));
+  const raw = await fetchOverpass(buildUkOverpassQuery(chunk.bbox, { timeout: QUERY_TIMEOUT_S }), {
+    allowStale,
+  });
   await writeCompact(rawPath, raw);
   const count = Array.isArray(raw?.elements) ? raw.elements.length : 0;
   console.log(`  wrote ${path.relative(ROOT, rawPath)} (${count} elements)`);
@@ -370,15 +384,19 @@ async function main() {
       }
     } else {
       if (needDelay) {
-        console.log(`  waiting ${INTER_CHUNK_DELAY_MS}ms before next chunk (Overpass etiquette)…`);
-        await sleep(INTER_CHUNK_DELAY_MS);
+        const delayMs = options.allowStale ? INTER_CHUNK_DELAY_STALE_MS : INTER_CHUNK_DELAY_MS;
+        console.log(`  waiting ${delayMs}ms before next chunk (Overpass etiquette)…`);
+        await sleep(delayMs);
       }
       // One chunk exhausting its retries must not throw away the other 131:
       // the raw files already on disk are the resume state, so record the
       // failure, keep going, and let a rerun pick the chunk up.
       let result;
       try {
-        result = await fetchChunk(chunk, { refresh: options.refresh });
+        result = await fetchChunk(chunk, {
+          refresh: options.refresh,
+          allowStale: options.allowStale,
+        });
       } catch (err) {
         failures.push({ id: chunk.id, error: err instanceof Error ? err.message : String(err) });
         console.error(`  FAILED ${chunk.id}: ${err instanceof Error ? err.message : String(err)}`);

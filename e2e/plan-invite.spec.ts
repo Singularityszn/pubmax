@@ -122,8 +122,8 @@ test("Copy invite link shows for the host's own session and never for an anonymo
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   await page.goto("/plan");
-  await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Plan my night" }).click();
+  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
+  await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
@@ -202,7 +202,8 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   const mapLink = guestPage.getByRole("link", { name: "See these pubs on the map" });
   await expect(mapLink).toBeVisible();
   const mapHref = await mapLink.getAttribute("href");
-  expect(mapHref).toMatch(/^\/map\?venue=/);
+  // Multi-stop invites open the ordered crawl; a single stop uses ?sel=.
+  expect(mapHref).toMatch(/^\/map\?(?:mode=build&.*pubs=|sel=)/);
 
   await guestPage.locator(".inviteRsvp__nameInput").fill("Priya");
   await guestPage.getByRole("button", { name: "Going", exact: true }).click();
@@ -211,7 +212,7 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
 
   // Guest map handoff.
   await mapLink.click();
-  await expect(guestPage).toHaveURL(/\/map\?venue=/);
+  await expect(guestPage).toHaveURL(/\/map\?(?:mode=build&.*pubs=|sel=)/);
   await guest.close();
 
   // Host revisits the invite page in the same context that created the plan

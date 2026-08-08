@@ -8,6 +8,7 @@
 // Robustness: NEVER 500s — bad coords → 400; empty seed / unexpected errors →
 // 200 with an error string the card can show gracefully.
 
+import { publicApiError } from "@/lib/apiError";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -101,10 +102,10 @@ export async function GET(request: Request): Promise<Response> {
     const lat = Number.parseFloat(params.get("lat") ?? "");
     const lng = Number.parseFloat(params.get("lng") ?? "");
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return json({ error: "Add valid lat and lng coordinates." }, { status: 400 });
+      return publicApiError("Add valid lat and lng coordinates.", "INVALID_REQUEST", 400);
     }
     if (await isLastRideLimited(request, "last-subway")) {
-      return json({ error: "Too many requests, slow down." }, { status: 429 });
+      return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
 
     // Destination is client-only — ignore any legacy ?destination= query.

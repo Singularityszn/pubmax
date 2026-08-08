@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 
 import { partyFace } from "@/app/fonts/partyFace";
+import { loadHistoricPubs } from "@/lib/historic";
+import { buildQuietPint } from "@/lib/quietPint";
 import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 import TonightClient from "./TonightClient";
 
 // First-class "Tonight" screen. The client owns the PRIMARY What's-On spine
-// (/api/whats-on — same as the map Tonight lane) and all interactivity; this
-// server shell only carries route metadata.
+// (/api/whats-on — same as the map Tonight lane) and all interactivity. This
+// server shell carries route metadata plus the quiet-pint module when the
+// typical-pattern hour allows it (same buildQuietPint seam as /today).
 export const metadata: Metadata = {
   title: "Tonight in London · PUBMAXXING",
   description:
@@ -14,16 +18,51 @@ export const metadata: Metadata = {
   alternates: { canonical: "/tonight" },
 };
 
-export default function TonightPage() {
+export const runtime = "nodejs";
+
+export default async function TonightPage() {
   // Server reads the trusted-handoff flags once; the client receives an immutable
   // DTO and never interprets env itself (contract 4.1). All-off keeps today's
   // Tonight behaviour byte-for-byte.
   const flags = readTrustedHandoffFlags();
+  const now = new Date();
+
+  // Same fail-soft compose as /today: heritage-cited candidates joined to
+  // verified pint prices. buildQuietPint returns null outside a quiet window
+  // or when cited candidates are too few; the card then renders nothing.
+  const [pricedVenues, historicPubs] = await Promise.all([
+    getPricedVenues(),
+    loadHistoricPubs(),
+  ]);
+  const priceById = new Map<string, number>();
+  for (const venue of pricedVenues) {
+    if (typeof venue.cheapestPrice === "number") priceById.set(venue.id, venue.cheapestPrice);
+  }
+  const quietPint = buildQuietPint({
+    candidates: historicPubs.flatMap((pub) =>
+      pub.venueId
+        ? [
+            {
+              venueId: pub.venueId,
+              name: pub.name,
+              slug: pub.slug,
+              hook: pub.hook,
+              facts: pub.facts,
+              era: pub.era,
+              listed: pub.listed,
+            },
+          ]
+        : [],
+    ),
+    priceById,
+    now,
+  });
+
   // Scope the party accent to this route: the wrapper only sets --font-party
   // (display:contents adds no layout box; the custom property still inherits).
   return (
     <div className={partyFace.variable} style={{ display: "contents" }}>
-      <TonightClient flags={flags} />
+      <TonightClient flags={flags} quietPint={quietPint} />
     </div>
   );
 }

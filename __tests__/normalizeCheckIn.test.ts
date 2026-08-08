@@ -36,8 +36,15 @@ describe("normalizeCheckIn", () => {
     expect(item.venueMapUrl).toContain("venue-abc");
   });
 
-  it("falls back to London for an unknown area slug", () => {
+  it("never fabricates a place name for an unresolved area slug", () => {
     const item = normalizeCheckIn(mk({ areaSlug: "atlantis" as CheckIn["areaSlug"] }));
-    expect(item.areaName).toBe("London");
+    expect(item.areaName).toBeUndefined();
+  });
+
+  it("reads as a plain 'out tonight' signal for a genuinely no-area check-in", () => {
+    const item = normalizeCheckIn(mk({ areaSlug: null, note: null }));
+    expect(item.type).toBe("check_in");
+    expect(item.areaName).toBeUndefined();
+    expect(item.caption).toBe("");
   });
 });

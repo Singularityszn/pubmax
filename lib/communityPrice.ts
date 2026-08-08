@@ -13,7 +13,12 @@
 // is ALREADY displayed. This module is its sibling: the first time a price is
 // SUBMITTED. Together they are the whole community price loop.
 
-import { CATEGORY_META, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+import {
+  CATEGORY_META,
+  isDrinkCategory,
+  isMapLensDrinkCategory,
+  type DrinkCategory,
+} from "@/lib/drinks";
 import { DAY_MS } from "@/lib/dayMs";
 
 /**
@@ -40,6 +45,7 @@ export const SUBMITTABLE_DRINK_CATEGORIES: readonly DrinkCategory[] = [
   "beer",
   "alcohol-free",
   "soft-drink",
+  "coffee",
   "wine",
   "cocktail",
   "whisky",
@@ -407,23 +413,34 @@ export type CommunityPriceMapReach = "paint" | "mark" | "page";
 /**
  * The pre-submit promise about a category's REACH, kept per category and per
  * surface so the note can never promise more than the pin behind it can pay:
- * pins, list rows and cheapest buckets are pint surfaces, so only beer ever
- * restamps, and only a curated pin restamps at all.
+ * beer restamps the default pint map on a curated pin; other map-lens drinks
+ * colour the map only under their own drink lens once corroborated; submit-only
+ * non-lens categories (today: `other`) stay on the pub's page.
  */
 export function communityReachNote(
   category: DrinkCategory,
   reach: CommunityPriceMapReach = "paint",
 ): string {
-  if (category !== "beer") {
-    return "The map prices pints, so it stays on this pub's page.";
+  if (category === "beer") {
+    if (reach === "paint") {
+      return "It moves the map once a second drinker reports a similar price.";
+    }
+    if (reach === "mark") {
+      return "It marks this pub's pin straight away. A second drinker reporting a similar price confirms the figure here.";
+    }
+    return "It stays on this pub's page.";
   }
-  if (reach === "paint") {
-    return "It moves the map once a second drinker reports a similar price.";
+  if (isMapLensDrinkCategory(category)) {
+    // A curated pin can wear this category under its drink lens. A base pin
+    // never earns colour (and the UK base layer is suspended while a lens owns
+    // the map), and a pinless surface has nowhere to paint, so both stay page-only.
+    if (reach === "paint") {
+      const lens = CATEGORY_META[category].label.toLocaleLowerCase("en-GB");
+      return `It colours the map under the ${lens} lens once a second drinker reports a similar price.`;
+    }
+    return "It stays on this pub's page.";
   }
-  if (reach === "mark") {
-    return "It marks this pub's pin straight away. A second drinker reporting a similar price confirms the figure here.";
-  }
-  return "It stays on this pub's page.";
+  return "The map prices pints, so it stays on this pub's page.";
 }
 
 /**

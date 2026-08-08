@@ -46,6 +46,10 @@ describe("isValidDrinkPriceUpdate", () => {
     expect(isValidDrinkPriceUpdate(makeUpdate(), NOW)).toBe(true);
     // price 0 (free-drink promo) is allowed.
     expect(isValidDrinkPriceUpdate(makeUpdate({ priceGbp: 0 }), NOW)).toBe(true);
+    // Coffee is a first-class DrinkCategory, not an outside-taxonomy token.
+    expect(
+      isValidDrinkPriceUpdate(makeUpdate({ drinkName: "Flat white", category: "coffee" }), NOW),
+    ).toBe(true);
   });
 
   it("rejects non-objects and missing fields", () => {
@@ -57,7 +61,8 @@ describe("isValidDrinkPriceUpdate", () => {
     expect(isValidDrinkPriceUpdate(makeUpdate({ venueKey: "" }), NOW)).toBe(false);
     expect(isValidDrinkPriceUpdate(makeUpdate({ drinkName: "" }), NOW)).toBe(false);
     expect(isValidDrinkPriceUpdate({ ...makeUpdate(), category: "" }, NOW)).toBe(false);
-    expect(isValidDrinkPriceUpdate({ ...makeUpdate(), category: "coffee" }, NOW)).toBe(false);
+    // tea is not a DrinkCategory (cider likewise lives under beer/other).
+    expect(isValidDrinkPriceUpdate({ ...makeUpdate(), category: "tea" }, NOW)).toBe(false);
   });
 
   it("rejects bad prices", () => {

@@ -135,6 +135,8 @@ describe("/api/identity/onboarding", () => {
     expect(response.status).toBe(429);
     expect(await response.json()).toEqual({
       error: "Too many handle attempts. Try again shortly.",
+      code: "RATE_LIMITED",
+      retryable: true,
     });
   });
 
@@ -154,6 +156,7 @@ describe("/api/identity/onboarding", () => {
     expect(await response.json()).toEqual({
       code: "taken",
       error: "That handle is already taken.",
+      retryable: false,
     });
     expect(await memoryProfileStore.getByUserId("user-1")).toBeNull();
     expect((await memoryProfileStore.getByHandle("old_timer"))?.id).toBe(legacy.id);

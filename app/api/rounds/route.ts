@@ -10,6 +10,7 @@
 // configured, process-memory otherwise. Writes are rate-limited per handle +
 // hashed IP, like the app's other write routes.
 
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
@@ -27,20 +28,20 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const handle = await resolveMessageHandle(request, readString(body.handle) ?? "");
-  if (!handle) return jsonNoStore({ error: "Add a handle to start a Round." }, { status: 400 });
+  if (!handle) return publicApiError("Add a handle to start a Round.", "INVALID_REQUEST", 400);
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   const key = `round-create:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
-    return jsonNoStore({ error: "Too many Rounds, slow down." }, { status: 429 });
+    return publicApiError("Too many Rounds, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   const result = await roundsStore().create({ title: body.title, createdByHandle: handle });
@@ -48,7 +49,7 @@ export async function POST(request: Request): Promise<Response> {
     // A store failure is a degraded dependency (503, fail-soft), not a bug (500)
     // — the house contract every other write route uses (see pint-drops).
     const status = result.error === "invalid" ? 400 : 503;
-    return jsonNoStore({ error: "Could not start the Round." }, { status });
+    return publicApiErrorFromStatus("Could not start the Round.", status);
   }
   return jsonNoStore(await projectRoundView(request, result.state), {
     status: 201,

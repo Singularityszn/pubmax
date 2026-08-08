@@ -10,6 +10,8 @@ import FirstActionsRow from "@/components/profile/FirstActionsRow";
 import FollowButton from "@/components/profile/FollowButton";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
+import OutTonightCrewLine from "@/components/profile/OutTonightCrewLine";
+import OutTonightToggle from "@/components/profile/OutTonightToggle";
 import PintPassport from "@/components/profile/PintPassport";
 import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
@@ -162,6 +164,10 @@ function localSavedDTOs(): Partial<Record<ListType, SavedPubDTO[]>> {
 // real profile; without either, /u/you renders the first-run passport (story 30).
 const YOU_SENTINEL = "you";
 
+function isNightMemoriesHash(hash: string): boolean {
+  return hash.replace(/^#/, "").toLowerCase() === "night-memories";
+}
+
 export default function ProfilePageClient({ params }: { params: Promise<{ handle: string }> }) {
   // Route params are a promise in the App Router; unwrap with `use`.
   const routeHandle = normalizeHandle(use(params)?.handle);
@@ -206,6 +212,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // Feeds the Pint Passport's "story posts" stat. Starts at 0 so the first paint
   // matches the zeroed passport, then fills in after the fetch.
   const [storyCount, setStoryCount] = useState(0);
+  const [nightMemoriesInvite, setNightMemoriesInvite] = useState(false);
 
   useEffect(() => {
     if (!routeHandle || isYouRoute) return;
@@ -348,13 +355,37 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
   // /u/you resolution: once viewer identity is known, redirect the sentinel
   // route to its real profile. With no signed-out fallback, /u/you stays put and
-  // renders the anonymous first-run passport below.
+  // renders the anonymous first-run passport below. Preserve any hash (e.g.
+  // #night-memories from the landing CTA) so the destination can honour it.
   useEffect(() => {
     if (!isYouRoute) return;
     if (viewerHandle && viewerHandle !== YOU_SENTINEL) {
-      router.replace(`/u/${encodeURIComponent(viewerHandle)}`);
+      const hash = window.location.hash;
+      router.replace(`/u/${encodeURIComponent(viewerHandle)}${hash}`);
     }
   }, [isYouRoute, router, viewerHandle]);
+
+  // Signed-out /u/you#night-memories: NightMemoryStudio only mounts on a signed-in
+  // own profile, so the hash would be a dead end. Scroll to claim and say honestly
+  // that Memories need a claimed handle first.
+  useEffect(() => {
+    if (!isYouRoute || viewerHandle !== "") return;
+    if (!isNightMemoriesHash(window.location.hash)) return;
+    // Frame callback keeps the effect body free of synchronous setState; the
+    // scroll work below already happens against the painted DOM.
+    const inviteFrame = window.requestAnimationFrame(() =>
+      setNightMemoriesInvite(true),
+    );
+    void inviteFrame;
+    const target = document.getElementById("account-settings");
+    if (!target) return;
+    window.history.replaceState(null, "", "#account-settings");
+    target.scrollIntoView({ block: "start" });
+    const claimLink = document.querySelector<HTMLAnchorElement>(
+      '.youIdentityActions a[href="#account-settings"]',
+    );
+    claimLink?.focus({ preventScroll: true });
+  }, [isYouRoute, viewerHandle]);
 
   // Fetch the durable profile row + follow counts + whether the viewer follows
   // this handle. Best-effort: a failure just leaves the synthesized identity and
@@ -624,6 +655,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                     <p className="profileSectionKicker">Your PUBMAXX identity</p>
                     <h1 id="you-title">Make the night yours.</h1>
                     <p>Claim a unique @handle, meet your Pub Pal, and keep every moment in one place.</p>
+                    {nightMemoriesInvite ? (
+                      <p className="youMemoriesInvite" role="status">
+                        Private Memories need a claimed @handle on your account. Claim yours below to keep nights in one place.
+                      </p>
+                    ) : null}
                   </div>
                   <div className="youIdentityActions">
                     <a href="#account-settings">Claim your @handle</a>
@@ -688,6 +724,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                       <ClaimMomentWelcome />
                       <FirstActionsRow />
                       <ContributionLanesCard handle={routeHandle} />
+                      <OutTonightToggle handle={routeHandle} />
                     </>
                   ) : null}
 
@@ -708,6 +745,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                       isOwn={passportIsOwn}
                       hero={false}
                     />
+                  ) : null}
+
+                  {!isOwnProfile && routeHandle && routeHandle !== YOU_SENTINEL ? (
+                    <OutTonightCrewLine ownerHandle={routeHandle} viewerHandle={viewerHandle} />
                   ) : null}
 
                   {/* Quest chips (Loop 2): next-badge progress for the viewed handle.

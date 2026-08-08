@@ -459,4 +459,20 @@ describe("invite loop events", () => {
     expect(ANALYTICS_EVENTS.invite_reaction_toggled).toEqual(["reaction", "active"]);
     expect(ANALYTICS_EVENTS.invite_map_opened).toEqual([]);
   });
+
+  it("accepts landing CTA targets and rejects free text", () => {
+    expect(ANALYTICS_EVENTS.landing_cta_clicked).toEqual(["target"]);
+    expect(sanitizeEvent("landing_cta_clicked", { target: "map" })).toEqual({
+      name: "landing_cta_clicked",
+      props: { target: "map" },
+    });
+    expect(sanitizeEvent("landing_cta_clicked", { target: "near" })?.props).toEqual({
+      target: "near",
+    });
+    expect(sanitizeEvent("landing_cta_clicked", { target: "plan" })?.props).toEqual({
+      target: "plan",
+    });
+    expect(sanitizeEvent("landing_cta_clicked", { target: "social" })).toBeNull();
+    expect(sanitizeEvent("landing_cta_clicked", {})).toBeNull();
+  });
 });

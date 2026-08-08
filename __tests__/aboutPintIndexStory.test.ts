@@ -22,6 +22,12 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
 }));
 
+// SiteNav is a client shell with pathname/auth hooks; the about story pins
+// only the server-rendered prose and brand-first hero markup.
+vi.mock("@/components/nav/SiteNav", () => ({
+  default: () => createElement("nav", { "data-testid": "site-nav", "aria-label": "PUBMAXX" }),
+}));
+
 vi.mock("@/lib/aboutStats", () => ({
   loadAboutStats: async () => fixtures.stats,
 }));
@@ -70,9 +76,13 @@ function snapshot(
   };
 }
 
-async function renderStoryHooks(): Promise<string> {
+async function renderAbout(): Promise<string> {
   const page = await AboutPage();
-  const html = renderToStaticMarkup(createElement(() => page));
+  return renderToStaticMarkup(createElement(() => page));
+}
+
+async function renderStoryHooks(): Promise<string> {
+  const html = await renderAbout();
   const start = html.indexOf('aria-labelledby="press-hooks"');
   const end = html.indexOf('aria-labelledby="cta"', start);
   return html.slice(start, end);
@@ -121,5 +131,49 @@ describe("About Pint Index story", () => {
     expect(story).toContain("<strong>2</strong> dated prices");
     expect(story).toContain("<strong>2</strong> pubs");
     expect(story).not.toContain("2,796");
+  });
+});
+
+describe("About outings story (Wave S1)", () => {
+  beforeEach(() => {
+    fixtures.snapshot = snapshot([]);
+  });
+
+  it("names daytime and sober outings without inventing biography or metrics", async () => {
+    const html = await renderAbout();
+
+    expect(html).toContain("coffee and a laptop at a Spoons");
+    expect(html).toContain("alcohol-free hang");
+    expect(html).toContain("Food anchors stay honest");
+    expect(html).toContain("Fake Wetherspoons prices");
+    expect(html).toContain("second independent drinker");
+    expect(html).toContain("founder-led by");
+    expect(html).toContain("Karan Manoharan");
+    expect(html).toContain("one map for nights out and daytime hangs");
+    expect(html).not.toMatch(/small team/iu);
+    expect(html).toContain(
+      "where to go for a night out, a coffee, food, or a quiet afternoon",
+    );
+    expect(html).not.toMatch(/\b(journey|unlock|seamless|curated|discover|elevate)\b/iu);
+    expect(html).not.toMatch(/co-founder|Discord|thousands of/iu);
+    expect(html).not.toContain("!");
+  });
+
+  it("leads the first viewport with PUBMAXX brand + one lede composition", async () => {
+    const html = await renderAbout();
+
+    expect(html).toContain('data-testid="site-nav"');
+    expect(html).toContain('class="aboutHero"');
+    expect(html).toContain('class="aboutBrand"');
+    expect(html).toContain('class="aboutBrassRule"');
+    expect(html).toContain('class="aboutLede"');
+    // Brand signal sits ahead of the story title (nav is mocked above both).
+    const brandAt = html.indexOf('class="aboutBrand"');
+    const titleAt = html.indexOf('class="aboutTitle"');
+    expect(brandAt).toBeGreaterThan(-1);
+    expect(titleAt).toBeGreaterThan(brandAt);
+    expect(html.slice(brandAt, brandAt + 80)).toContain("PUBMAXX");
+    // No invented biography / vanity theatre in the hero.
+    expect(html).not.toMatch(/team scars|Discord|thousands of/iu);
   });
 });

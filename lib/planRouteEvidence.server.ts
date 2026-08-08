@@ -2,7 +2,6 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
-import { haversineKm } from "@/lib/haversine";
 import {
   buildPriceEvidence,
   type AccessEvidenceSource,
@@ -12,7 +11,10 @@ import {
 } from "@/lib/planRouteEvidence";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
-import type { WetherspoonsPub } from "@/lib/wetherspoonsDirectory";
+import {
+  loadWetherspoonsDirectoryPubs,
+  matchWetherspoonsDirectoryPub,
+} from "@/lib/wetherspoonsMatch.server";
 
 type EvidenceVenue = { id: string; name: string; area: string; lat: number; lng: number };
 
@@ -65,13 +67,6 @@ export async function planPriceEvidenceForVenues(
   }));
 }
 
-function normalizeName(value: string): string {
-  return value.toLocaleLowerCase("en-GB").normalize("NFKD")
-    .replace(/[’']/g, "").replace(/\([^)]*\)/g, " ")
-    .replace(/\bjd wetherspoons?\b/g, " ").replace(/[^a-z0-9]+/g, " ")
-    .trim().replace(/^the\s+/, "");
-}
-
 const ACCESS_SOURCES: Record<string, Partial<Record<"stepFree" | "accessibleToilet", AccessEvidenceSource>>> = {
   "the ice wharf - jd wetherspoon": {
     stepFree: { label: "J D Wetherspoon: The Ice Wharf", url: "https://www.jdwetherspoon.com/pubs/the-ice-wharf-camden/", observedAt: null },
@@ -103,31 +98,15 @@ export function planAccessEvidenceForVenue(venue: EvidenceVenue): PlanAccessEvid
   };
 }
 
-let openingRows: Promise<WetherspoonsPub[]> | null = null;
-
-async function loadOpeningRows(): Promise<WetherspoonsPub[]> {
-  openingRows ??= (async () => {
-    try {
-      const raw = JSON.parse(await readFile(path.join(process.cwd(), "public/data/wetherspoons/pubs.json"), "utf8")) as { pubs?: unknown };
-      return Array.isArray(raw.pubs) ? raw.pubs as WetherspoonsPub[] : [];
-    } catch {
-      return [];
-    }
-  })();
-  return openingRows;
-}
-
 export async function planOpeningSchedulesForVenues(
   venues: readonly EvidenceVenue[],
 ): Promise<Map<string, PlanOpeningSchedule | null>> {
-  const rows = await loadOpeningRows();
+  const rows = await loadWetherspoonsDirectoryPubs();
   return new Map(venues.map((venue) => {
-    const match = rows
-      .filter((pub) => normalizeName(pub.name) === normalizeName(venue.name))
-      .filter((pub) => typeof pub.latitude === "number" && typeof pub.longitude === "number")
-      .map((pub) => ({ pub, distance: haversineKm([venue.lng, venue.lat], [pub.longitude!, pub.latitude!]) }))
-      .filter(({ distance }) => distance <= 0.25)
-      .sort((left, right) => left.distance - right.distance)[0]?.pub;
+    const match = matchWetherspoonsDirectoryPub(
+      { name: venue.name, lat: venue.lat, lng: venue.lng },
+      rows,
+    );
     if (
       !match
       || typeof match.observedAt !== "string"

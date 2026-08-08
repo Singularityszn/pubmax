@@ -59,6 +59,7 @@ const DRINK_CATEGORIES = new Set([
   "shot",
   "alcohol-free",
   "soft-drink",
+  "coffee",
   "other",
 ]);
 
@@ -99,8 +100,19 @@ function mapSectionToCategory(section) {
   if (s.includes("vodka")) return "vodka";
   if (s.includes("rum")) return "rum";
   if (s.includes("spirit") || s.includes("shot")) return "shot";
-  // Explicit soft-/non-alcoholic "…Drinks" section → catch-all drink bucket.
-  if (s.includes("drink")) return "other";
+  // Keep in sync with lib/greeneKingMenuParser.ts.
+  if (s.includes("coffee") || s.includes("hot drink")) return "coffee";
+  if (
+    s.includes("alcohol-free") ||
+    s.includes("alcohol free") ||
+    s.includes("non-alcoholic") ||
+    s.includes("no & low") ||
+    s.includes("no and low")
+  ) {
+    return "alcohol-free";
+  }
+  if (s.includes("soft drink")) return "soft-drink";
+  if (s.includes("drink")) return "soft-drink";
   // Unknown headings are food sections (sharers, burgers, pizza, grills, sides,
   // …), never drinks — skip them so food never leaks into the drink payload.
   return null;

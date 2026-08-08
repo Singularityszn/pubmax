@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const VIEWPORT = { width: 390, height: 844 };
-const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum"];
+const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
 
 test.use({
   launchOptions: {
@@ -385,7 +385,7 @@ for (const width of [390, 320]) {
     await expect(fullCredit).toContainText("OpenMapTiles");
     await expect(fullCredit).toContainText("Data from OpenStreetMap");
 
-    const plan = page.getByRole("button", { name: "Describe your night" });
+    const plan = page.getByRole("button", { name: "Describe the outing" });
     await expect(plan).toBeVisible();
     const geometry = await page.evaluate(() => {
       const attributionElement = document.querySelector<HTMLElement>(

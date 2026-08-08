@@ -18,3 +18,17 @@ Installed **project-level for Cursor** into `.agents/skills/` (committed) and li
 3. **Customize → Skills**, or `/ask-matt`, `/no-ai-slop`, `/better-ui`, `/make-interfaces-feel-better`, `/create-ryos-app`
 
 Details: [`docs/WHERE_ARE_THE_SKILLS.md`](../docs/WHERE_ARE_THE_SKILLS.md)
+
+## Merge note (main, 2026-08-08)
+
+While merging `main`, several top-level `skills/<name>` paths were **add/add** conflicts where `main` and this branch shipped different skill bodies under the same folder name. Resolution kept this branch (requested-source installs under `.agents/skills/`).
+
+| Name | This branch (kept) | `main` (displaced at top-level) |
+|------|--------------------|----------------------------------|
+| `prototype` | Matt Pocock throwaway prototype | Emil Kowalski multi-variant picker (still at `skills/emilkowalski-skills/skills/prototype/`) |
+| `react-best-practices` | ryOS / Vercel performance guide | ECC TSX quality checklist |
+| `backend-patterns` | Kenji fuller backend pack | ECC short backend patterns |
+| `design-system` | Kenji design-system pack | ECC design-system audit |
+| `make-interfaces-feel-better` | jakubkrehel upstream | shorter community vendored copy |
+
+Cursor discovery uses one folder name under `.agents/skills/` / `.cursor/skills/`, so only one body can win per name.

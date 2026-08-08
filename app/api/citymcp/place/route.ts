@@ -9,6 +9,7 @@
 // the venue-sheet dossier strip can degrade silently. A missing `id` is a
 // client mistake and returns 400.
 
+import { publicApiError } from "@/lib/apiError";
 import {
   CityMcpError,
   fetchCityPlace,
@@ -50,16 +51,16 @@ export const GET = withRouteTiming("citymcp/place", getHandler);
 
 async function getHandler(request: Request): Promise<Response> {
   if (await isCityMcpLimited(request)) {
-    return jsonResponse({ error: "Too many requests, slow down.", place: null }, { status: 429 });
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true, compatibilityFields: { place: null } });
   }
 
   const params = new URL(request.url).searchParams;
   const id = params.get("id")?.trim() ?? "";
   if (id.length === 0) {
-    return jsonResponse({ error: "Place id is missing.", place: null }, { status: 400 });
+    return publicApiError("Place id is missing.", "INVALID_REQUEST", 400, { compatibilityFields: { place: null } });
   }
   if (id.length > MAX_ID_LEN) {
-    return jsonResponse({ error: "id is too long.", place: null }, { status: 400 });
+    return publicApiError("id is too long.", "INVALID_REQUEST", 400, { compatibilityFields: { place: null } });
   }
   const deep = parseBool(params.get("deep"));
 

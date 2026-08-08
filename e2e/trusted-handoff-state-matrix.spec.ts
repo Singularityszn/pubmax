@@ -16,7 +16,7 @@ const INTENT_KEY = "pubmax:planning-intent:v1";
 const PLAN_DRAFT_V1 = "pubmaxx:plan-draft:v1";
 const PLAN_DRAFT_V2 = "pubmax:plan-draft:v2";
 const CONSENT_KEY = "pubmaxx:analytics-consent:v1";
-const COMPOSER_HEADING = "Describe the night. We’ll put it in order.";
+const COMPOSER_HEADING = "Describe the outing. We’ll put it in order.";
 
 type Seed = {
   session?: Record<string, string>;

@@ -6,7 +6,7 @@
   left: 0;
   right: 0;
   bottom: calc(84px + env(safe-area-inset-bottom, 0px));
-  z-index: 514; /* above the Tonight lane (512), below toolbar/banners */
+  z-index: var(--z-map-ask); /* above the Tonight lane (512), below toolbar/banners — house z ledger */
   display: flex;
   justify-content: center;
   padding: 0 12px;
@@ -272,6 +272,48 @@
   font-weight: 800;
   letter-spacing: 0.02em;
   color: color-mix(in srgb, var(--river, #2f80ed) 60%, var(--ink));
+}
+
+.mapConciergeAskMsg--degraded {
+  opacity: 0.82;
+  font-size: 0.8rem;
+}
+
+.mapConciergeAskProposals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mapConciergeAskProposal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.mapConciergeAskProposalConfirm,
+.mapConciergeAskProposalDismiss {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.mapConciergeAskProposalConfirm {
+  border: 1px solid color-mix(in srgb, var(--line) 50%, var(--brass) 50%);
+  background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
+  color: var(--ink);
+}
+
+.mapConciergeAskProposalDismiss {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
 }
 
 @media (prefers-reduced-motion: reduce) {

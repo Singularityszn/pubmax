@@ -1,4 +1,6 @@
 import { jsonNoStore } from "@/lib/apiResponses";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { isPlanId, type PlanActionDTO } from "@/lib/plan";
 import { planStore } from "@/lib/planStore";
@@ -11,6 +13,11 @@ type Context = { params: Promise<{ id: string }> };
 const ACTIONS: PlanActionDTO["type"][] = ["arrived", "skipped", "swapped"];
 
 export async function POST(request: Request, context: Context): Promise<Response> {
+  const limiterKey = `plan-actions:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const { id } = await context.params;
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
   let body: Record<string, unknown>;

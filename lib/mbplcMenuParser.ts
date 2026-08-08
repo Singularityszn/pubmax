@@ -15,12 +15,11 @@ const BARE_PRICE = /^\s*(\d+\.\d{2})\s*$/;
 /** Map Nicholson's / M&B menu section headings to drink taxonomy. */
 export function mapMbplcSectionToCategory(section: string): DrinkCategory | null {
   const s = section.toLowerCase();
+  // Mixers stay out of the drink graph; soft drinks and coffee are real lanes.
   if (
     s.includes("fever-tree") ||
     s.includes("mixer") ||
-    s.includes("soft drink") ||
     s.includes("tonic") ||
-    s.includes("soda") ||
     s.includes("main menu") ||
     s.includes("sandwich") ||
     s.includes("buffet") ||
@@ -31,14 +30,26 @@ export function mapMbplcSectionToCategory(section: string): DrinkCategory | null
   }
   if (s.includes("wine") || s.includes("champagne") || s.includes("spark")) return "wine";
   if (s.includes("cocktail") || s.includes("spritz")) return "cocktail";
+  if (s.includes("coffee") || s.includes("hot drink")) return "coffee";
+  if (
+    s.includes("alcohol-free") ||
+    s.includes("alcohol free") ||
+    s.includes("non-alcoholic") ||
+    s.includes("low and no") ||
+    s.includes("no & low") ||
+    s.includes("no and low") ||
+    s.includes("0.0")
+  ) {
+    return "alcohol-free";
+  }
+  if (s.includes("soft drink") || s.includes("soda")) return "soft-drink";
   if (
     s.includes("beer") ||
     s.includes("lager") ||
     s.includes("ale") ||
     s.includes("cider") ||
     s.includes("draught") ||
-    s.includes("craft") ||
-    s.includes("low and no")
+    s.includes("craft")
   ) {
     return "beer";
   }
@@ -48,7 +59,11 @@ export function mapMbplcSectionToCategory(section: string): DrinkCategory | null
   if (s.includes("rum")) return "rum";
   if (s.includes("tequila")) return "shot";
   if (s.includes("spirit") || s.includes("shot")) return "shot";
-  return "other";
+  // Unrecognised section: DROP (null), never coerce into "other" - same rule
+  // as the Greene King and Wetherspoons mappers. An explicit Other section is
+  // the one honest "other".
+  if (s.includes("other")) return "other";
+  return null;
 }
 
 function priceFromLines(lines: string[]): number | null {

@@ -26,15 +26,15 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   const response = await page.goto("/plan");
   expect(response?.status()).toBe(200);
 
-  await expect(page.getByRole("heading", { name: "Describe the night. We’ll put it in order." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Describe the outing. We’ll put it in order." })).toBeVisible();
   await page.waitForLoadState("networkidle");
   // This test exercises the full composer (its own template chips, editable
   // context fields), which needs the wizard's own "Describe instead" skip,
   // not the describe-first entry surface's own free-text field.
   await page.getByRole("button", { name: "Guide me instead" }).click();
   await page.getByRole("button", { name: "Describe instead" }).click();
-  await expectTouchHeight(page.getByRole("textbox", { name: "Describe the night" }));
-  await expectTouchHeight(page.getByRole("button", { name: "Plan my night" }));
+  await expectTouchHeight(page.getByRole("textbox", { name: "Describe the outing" }));
+  await expectTouchHeight(page.getByRole("button", { name: "Make a plan" }));
   await expectNoHorizontalOverflow(page);
 
   const templateChips = page.locator(".planComposer__template");
@@ -45,11 +45,11 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   }
 
   await page.getByRole("button", { name: "Watch the match" }).click();
-  await expect(page.getByLabel("Describe the night")).toHaveValue("pubs screening live sport tonight in Clapham");
+  await expect(page.getByLabel("Describe the outing")).toHaveValue("pubs screening live sport tonight in Clapham");
   await expectNoHorizontalOverflow(page);
 
-  await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Plan my night" }).click();
+  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
+  await page.getByRole("button", { name: "Make a plan" }).click();
 
   await expect(page.locator("#plan-concierge-status")).toContainText("Three stops we can stand behind");
   await expect(page.getByRole("combobox", { name: "Area" })).toHaveValue("clapham");

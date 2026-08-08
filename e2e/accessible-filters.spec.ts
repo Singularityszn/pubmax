@@ -20,7 +20,7 @@ async function openPlanner(page: Page) {
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
   await expect(page.locator(".mapCanvasWrap")).toBeVisible();
-  const activation = page.getByRole("button", { name: "Describe your night" });
+  const activation = page.getByRole("button", { name: "Describe the outing" });
   await expect(activation).toBeEnabled();
   await activation.click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
@@ -49,7 +49,7 @@ test("a Step-free route surfaces unknown accessibility evidence instead of claim
   const stepFreeChip = planner.getByRole("button", { name: "Step-free", exact: true });
   await stepFreeChip.click();
   await expect(stepFreeChip).toHaveAttribute("aria-pressed", "true");
-  await planner.getByRole("button", { name: "Build 3-stop route" }).click();
+  await planner.getByRole("button", { name: "Make a plan" }).click();
   await expect(planner.getByText("Check venue accessibility before relying on this route.")).toBeVisible({ timeout: 45_000 });
   await expect(planner.locator(".mobilePlannerRouteTotal")).toBeVisible();
 

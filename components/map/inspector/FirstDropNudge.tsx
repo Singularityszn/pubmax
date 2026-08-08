@@ -2,56 +2,52 @@ import { useEffect } from "react";
 import { PlusCircle } from "lucide-react";
 
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
+import { UNPRICED_VENUE_TRUST_LINE } from "@/lib/mapPriceTrust";
 
 /**
- * First-drop nudge (Cycle-8 item 3). Rendered in the overview price area ONLY
- * when the venue has no price on any honest source (see isVenueUnpriced). It
- * turns the empty price slot into a dry, London-toned invitation to log the
- * first Pint Drop for this pub — one line + one CTA, never a banner.
- *
- * The CTA opens the EXISTING Pint Drop composer prefilled for this venue via
- * the onStartFirstDrop seam (VenueInspector wires it to selectTab("pints") +
- * setComposerOpen(true) — the composer is per-venue by its venueId prop). This
- * component owns no composer state and no #303/#315 dependency: it renders
- * wherever an unpriced venue's overview renders.
+ * Unpriced-pub nudge. Primary CTA opens the community price path (map trust).
+ * Optional secondary opens the Pint Drop composer for drinkers who still want it.
  */
 export default function FirstDropNudge({
   venueId,
   venueName,
+  onLogTonightPrice,
   onStartFirstDrop,
 }: {
   venueId: string;
   venueName: string;
-  onStartFirstDrop: () => void;
+  /** Community price / contribution gate path — moves map trust. */
+  onLogTonightPrice: () => void;
+  /** Optional Pint Drop composer (secondary). */
+  onStartFirstDrop?: () => void;
 }) {
   const copy = firstDropNudgeCopy(venueId);
 
   useEffect(() => {
-    // POST-#301: analytics beacon lands once the first_drop_nudge_shown event is
-    // registered in lib/analyticsEvents.ts (no registry edits on this branch).
-    //   trackEvent("first_drop_nudge_shown", { venueId });
+    // Nudge visibility is product-local; conversion rides price_submit_viewed.
   }, [venueId]);
 
   return (
     <div className="firstDropNudge" role="note">
       <p className="firstDropNudgeLine">{copy.line}</p>
-      {/* POST-#303: when the drop-streak lands, the contributor's "your streak"
-          line goes here — e.g. "Day 3 — keep it going." Kept out until #303 so
-          the nudge never promises a streak that doesn't exist yet. */}
+      <p className="firstDropNudgeTrust">{UNPRICED_VENUE_TRUST_LINE}</p>
       <button
         type="button"
         className="firstDropNudgeCta"
-        onClick={() => {
-          // POST-#301: analytics beacon lands once first_drop_nudge_tapped is
-          // registered in lib/analyticsEvents.ts (no registry edits on this
-          // branch).
-          //   trackEvent("first_drop_nudge_tapped", { venueId });
-          onStartFirstDrop();
-        }}
-        aria-label={`Log the first Pint Drop at ${venueName}`}
+        onClick={onLogTonightPrice}
+        aria-label={`Log tonight's price at ${venueName}`}
       >
         <PlusCircle size={15} aria-hidden="true" /> {copy.cta}
       </button>
+      {onStartFirstDrop ? (
+        <button
+          type="button"
+          className="firstDropNudgeSecondary"
+          onClick={onStartFirstDrop}
+        >
+          Or leave a Pint Drop
+        </button>
+      ) : null}
     </div>
   );
 }

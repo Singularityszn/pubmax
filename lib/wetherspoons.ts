@@ -188,12 +188,13 @@ function cleanName(value: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Category mapping (their sections → our 9-category taxonomy)
+// Category mapping (their sections → our closed DrinkCategory taxonomy)
 // ---------------------------------------------------------------------------
 
 // Ordered, longest-match-wins keyword rules from Wetherspoons' own drink section
 // vocabulary to our closed DrinkCategory set. Anything unmatched → null (DROPPED,
-// never coerced into "other" silently unless it's an explicit soft/other section).
+// never coerced into "other" silently unless the section is explicitly Other).
+// Soft drinks and alcohol-free are distinct lanes; coffee is its own daytime lane.
 const CATEGORY_RULES: Array<{ test: RegExp; category: DrinkCategory }> = [
   { test: /cocktail|pitcher|spritz/i, category: "cocktail" },
   { test: /\bshots?\b|shooter/i, category: "shot" },
@@ -203,7 +204,13 @@ const CATEGORY_RULES: Array<{ test: RegExp; category: DrinkCategory }> = [
   { test: /\brum\b/i, category: "rum" },
   { test: /wine|prosecco|champagne|sparkling/i, category: "wine" },
   { test: /beer|lager|ale|cider|stout|draught|pint|craft/i, category: "beer" },
-  { test: /soft drink|non-alcoholic|no & low|no and low|other/i, category: "other" },
+  { test: /coffee|hot drink/i, category: "coffee" },
+  {
+    test: /alcohol.?free|non-alcoholic|no & low|no and low|0\.0/i,
+    category: "alcohol-free",
+  },
+  { test: /soft drink/i, category: "soft-drink" },
+  { test: /\bother\b/i, category: "other" },
 ];
 
 // Map a Wetherspoons section label to our DrinkCategory, or null if unmappable

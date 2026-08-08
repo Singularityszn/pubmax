@@ -34,7 +34,7 @@ test("landing / serves, shows hero + Demo honesty label + a working city-first m
   // Hero headline (stable id in components/landing/LandingPage.tsx). Assert the
   // current product promise rather than retired campaign copy.
   await expect(page.locator("#hero-title")).toContainText(
-    "Listed pint prices for nights out",
+    "London pints can cost eight quid.",
   );
 
   // Honesty guarantee: seeded demo cards are labelled "Demo" (P4 unified
@@ -104,25 +104,30 @@ test("/feed mounts the social feed scaffold without uncaught errors", async ({ p
   expect(errors).toEqual([]);
 });
 
-test("/feed exposes the current London lane filters (issue #36)", async ({ page }) => {
+test("/feed redirects to Social and renders its reachable boundary state (issue #36)", async ({
+  page,
+}) => {
   const errors = watchPageErrors(page);
   await dismissMapFirstRunTour(page);
   const response = await page.goto("/feed");
   expect(response?.status()).toBe(200);
 
-  // B1 splits the top-level social axis (Your lot / Nearby / London) from the
-  // city-wide lane filters. Select London explicitly, then prove the canonical
-  // filter group is interactive instead of asserting a retired default lane.
-  const london = page.getByRole("tab", { name: "London", exact: true });
-  await expect(london).toBeVisible();
-  await london.click();
-  await expect(london).toHaveAttribute("aria-selected", "true");
-
-  const lanes = page.getByRole("group", { name: "Feed lanes" });
-  await expect(lanes).toBeVisible();
-  const tonight = lanes.getByRole("button", { name: "Tonight", exact: true });
-  await tonight.click();
-  await expect(tonight).toHaveAttribute("aria-pressed", "true");
+  // PR #765 (5adfb689) retired /feed's London-tab + Feed-lanes filter group
+  // in favour of the unified Social shell. /feed now redirects to /social.
+  // The interactive Post lanes nav (app/social/SocialPageClient.tsx) only
+  // renders once client-side access resolves to "verified", which needs
+  // SOCIAL_INVITE_BETA_ENABLED=1 plus a configured Clerk session
+  // (NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY / CLERK_SECRET_KEY). playwright.config.ts
+  // has never passed any of the three to the e2e webServer (checked its full
+  // git history), so under a real, unmocked e2e run access can only ever
+  // settle at "preview" and the Post lanes nav can never appear - asserting
+  // it here was never reachable. e2e/social-shell.spec.ts covers the
+  // interactive lanes by mocking /api/social/access to "verified"; this
+  // smoke test proves the real, unmocked redirect lands on a working,
+  // honest boundary instead of a blank or crashed page.
+  await expect(
+    page.getByRole("heading", { name: "Social is not open yet." }),
+  ).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -157,7 +162,7 @@ test("/pubs lists scraped pubs with drink card art", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /pubs with a drink/i })).toBeVisible();
   await expect(page.locator(".pubsCard").first()).toBeVisible();
   await expect(
-    page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Stories" }),
+    page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Social" }),
   ).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -246,7 +251,9 @@ test("mobile map shell controls stay inside the coordinated chrome at 390px", as
   await filters.click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
   await expect(sheet).toHaveCount(1);
-  await expect(sheet.getByRole("heading", { name: "Drinks and price" })).toBeVisible();
+  // PR #695 (9b588362) renamed the filters sheet heading from "Drinks and
+  // price" to "Prices and places" (see lib/mobileShell.ts).
+  await expect(sheet.getByRole("heading", { name: "Prices and places" })).toBeVisible();
 });
 
 // Mirrors lib/venues.ts venueGroupingKey + stableVenueIdFromKey exactly (a
@@ -345,7 +352,7 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   await expect(sheet).toHaveCount(0);
 });
 
-test("mobile venue sheet sticky actions switch to Train and price form", async ({
+test("mobile venue sheet sticky actions switch to Train and price sign-in gate", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -381,14 +388,18 @@ test("mobile venue sheet sticky actions switch to Train and price form", async (
   await expect(sheet).toHaveClass(/sheet-half/);
   await expect(stickyActions).toBeInViewport();
 
+  // Anonymous sessions have always been routed to sign-in before the price
+  // form (runPriceContributionRequest in lib/priceContributionIntent.ts,
+  // unchanged since PR #675 — not a tonight regression). The default e2e
+  // chromium project injects a configured-but-fake Supabase URL/key
+  // (playwright.config.ts), so authConfigured is true and an anonymous click
+  // always shows the sign-in gate, never the price textbox directly.
   await stickyActions.getByRole("button", { name: /add a price/i }).click();
   const overviewTab = page.getByRole("tab", { name: "Overview", exact: true });
   await expect(overviewTab).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#venuePanel-overview")).toBeVisible();
   await expect(
-    page.getByRole("textbox", {
-      name: /price of a beer .* in pounds/i,
-    }),
+    page.getByRole("heading", { name: "Sign in to add a price" }),
   ).toBeVisible();
 });
 
@@ -401,6 +412,10 @@ test("theme toggle flips html[data-theme], persists to localStorage, survives re
   await dismissMapFirstRunTour(page);
   await page.goto("/map");
   await page.getByRole("button", { name: "More map controls" }).click();
+  // PR #677 (3740a132, accessible context-aware map key) added the "Key" tab
+  // and made it the default, pushing the ThemeToggle behind the "Layers" tab
+  // (components/PubMap.tsx, mobileLayersTab).
+  await page.getByRole("tab", { name: "Layers", exact: true }).click();
 
   const html = page.locator("html");
   const before = await html.getAttribute("data-theme");

@@ -70,6 +70,7 @@ const DRINK_CATEGORIES = new Set([
   "shot",
   "alcohol-free",
   "soft-drink",
+  "coffee",
   "other",
 ]);
 
@@ -234,6 +235,7 @@ const MULTIWORD_LOCALITY_TAILS = [
   "ruislip-manor",
   "st-andrews",
 ];
+// Keep taxonomy lanes aligned with lib/wetherspoons.ts CATEGORY_RULES.
 const CATEGORY_RULES = [
   { test: /cocktail|pitcher|spritz/i, category: "cocktail" },
   { test: /\bshots?\b|shooter/i, category: "shot" },
@@ -243,7 +245,13 @@ const CATEGORY_RULES = [
   { test: /\brum\b/i, category: "rum" },
   { test: /wine|prosecco|champagne|sparkling/i, category: "wine" },
   { test: /beer|lager|ale|cider|stout|draught|pint|craft/i, category: "beer" },
-  { test: /soft drink|non-alcoholic|no & low|no and low|other/i, category: "other" },
+  { test: /coffee|hot drink/i, category: "coffee" },
+  {
+    test: /alcohol.?free|non-alcoholic|no & low|no and low|0\.0/i,
+    category: "alcohol-free",
+  },
+  { test: /soft drink/i, category: "soft-drink" },
+  { test: /\bother\b/i, category: "other" },
 ];
 
 function titleCase(v) {

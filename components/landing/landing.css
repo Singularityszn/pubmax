@@ -1,5 +1,7 @@
 .lp {
   --lp-max: var(--content-max-wide);
+  --lp-blueprint-dot: color-mix(in srgb, var(--river) 12%, transparent);
+  --lp-blueprint-rule: color-mix(in srgb, var(--river) 24%, var(--line));
   /* Landing keeps its generous up-to-52px desktop gutter, but never dips below
      the global --page-gutter (≥20px + safe-area) on phones — the owner's hero
      letters were nearly touching the glass at the old 18px floor. */
@@ -25,7 +27,7 @@
      fixed, so without the safe-area inset it hides under the status bar. */
   top: max(14px, env(safe-area-inset-top));
   left: 50%;
-  z-index: 720;
+  z-index: var(--z-float); /* floating landing topbar — house z ledger (app/globals.css) */
   width: min(var(--lp-max), calc(100vw - 28px));
   min-height: 64px;
   padding: 8px 10px 8px 16px;
@@ -150,6 +152,10 @@
    as quiet intentional structure that stays clean in light and dark. */
 .lpScanline { position: absolute; left: 7%; top: 17%; width: 1px; height: 68%; background: linear-gradient(transparent, color-mix(in srgb, var(--hairline) 82%, transparent), transparent); }
 
+/* Presence motions (orbit drift, scanline breathe, pin stagger) live under
+   prefers-reduced-motion: no-preference only. The page-wide reduce rule below
+   also kills animation/transition as a second gate. */
+
 .lpHeroCopy { position: relative; z-index: 2; max-width: 610px; }
 .lpHeroKicker {
   width: fit-content;
@@ -247,7 +253,7 @@
   font-weight: 750;
   text-decoration: none;
   white-space: nowrap;
-  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+  transition: transform var(--duration-lift) var(--ease-standard), background var(--duration-lift) var(--ease-standard), border-color var(--duration-lift) var(--ease-standard);
 }
 .lpButton:active { transform: scale(.98); --shared-press-scale: 1; }
 .lpButtonPrimary { background: var(--brass); color: var(--color-on-accent); box-shadow: 0 14px 34px color-mix(in srgb, var(--brass) 24%, transparent); }
@@ -260,7 +266,16 @@
 
 .lpHeroMap { position: relative; margin: 0; min-width: 0; }
 .lpHeroMap::before { content: ""; position: absolute; inset: -12px; border: 1px solid color-mix(in srgb, var(--river) 28%, transparent); border-radius: 38px; transform: rotate(2deg); }
-.lpHeroMap figcaption { margin: 12px 4px 0; color: var(--ink-soft); font: 550 10px/1.4 var(--font-data); text-align: right; }
+.lpHeroMap figcaption,
+.lpHeroMapCaption {
+  margin: 12px 4px 0;
+  color: var(--ink-soft);
+  font: 550 10px/1.4 var(--font-data);
+  text-align: right;
+}
+/* Invite copy sits in the caption lane, never as a detached badge on the photo. */
+.lpHeroMapInvite { display: inline; }
+.thamesHeroHintPointer { display: none; }
 .thamesHeroPhoto { position: relative; width: 100%; min-height: 0; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 32px; background: var(--ink-deep); box-shadow: 0 34px 90px color-mix(in srgb, var(--ink-deep) 28%, transparent); }
 .thamesHeroImg { object-fit: cover; object-position: 50% 50%; }
 .thamesHeroScrim { position: absolute; inset: 0; background: linear-gradient(145deg, color-mix(in srgb, var(--ink-deep) 10%, transparent), color-mix(in srgb, var(--ink-deep) 60%, transparent)); }
@@ -274,12 +289,10 @@
   background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--brass) 24%, var(--ink-deep) 76%) 100%);
   opacity: .5;
 }
-.thamesHeroHint { position: absolute; left: 18px; top: 18px; z-index: 2; max-width: 230px; margin: 0; padding: 8px 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; background: rgba(8,12,20,.62); color: white; font-size: 10px; font-weight: 650; backdrop-filter: blur(8px); }
-.thamesHeroHintPointer { display: none; }
 .thamesHeroPins { position: absolute; inset: 0; z-index: 2; margin: 0; padding: 0; list-style: none; }
 .thamesHeroPin { position: absolute; transform: translate(-50%, -50%); }
 .thamesHeroPinLink { min-width: 44px; min-height: 44px; display: flex; align-items: center; gap: 7px; color: white; text-decoration: none; }
-.thamesHeroPinGlyph { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.4); border-radius: 16px; background: rgba(7,11,18,.68); box-shadow: 0 9px 30px rgba(0,0,0,.28); backdrop-filter: blur(10px); transition: transform 180ms ease; }
+.thamesHeroPinGlyph { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.4); border-radius: 16px; background: rgba(7,11,18,.68); box-shadow: 0 9px 30px rgba(0,0,0,.28); backdrop-filter: blur(10px); transition: transform var(--duration-lift) var(--ease-standard); }
 /* Decorative rim only, drawn from the real map price key vocabulary
    (green/amber/red, see lib/mapPriceLegend.ts). Styling, not a claim:
    the hero carries no live price band or authority. */
@@ -291,6 +304,82 @@
 .thamesHeroPinCat { color: rgba(255,255,255,.7); font-size: 8px; letter-spacing: .01em; }
 .thamesHeroPinPlace { font-size: 10px; font-weight: 700; white-space: nowrap; }
 .thamesHeroPinPrice { color: #fff; font: 700 10px/1.2 var(--font-data); }
+
+/* Human why beat: one column of copy between hero and the signal grid.
+   No card grid, no pill cluster. Brass rule + night ink type on paper. */
+.lpWhySection {
+  width: min(var(--lp-max), calc(100% - 2 * var(--lp-pad)));
+  margin: 0 auto;
+  padding: clamp(64px, 8vw, 108px) 0 clamp(20px, 3vw, 36px);
+}
+.lpWhyCopy {
+  max-width: 38rem;
+  padding-left: clamp(18px, 2.8vw, 28px);
+  border-left: 3px solid var(--brass);
+}
+.lpWhyCopy .lpSectionLabel {
+  color: var(--brass);
+}
+.lpWhyCopy h2 {
+  margin: 0;
+  font: 700 clamp(32px, 4.2vw, 52px)/.98 var(--font-display);
+  letter-spacing: -.045em;
+  text-wrap: balance;
+  color: var(--ink);
+}
+.lpWhyCopy > p {
+  max-width: 36rem;
+  margin: 18px 0 0;
+  color: var(--ink-soft);
+  font-size: 17px;
+  line-height: 1.65;
+}
+.lpWhyActions {
+  margin-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  align-items: center;
+}
+.lpWhyCopy .lpTextLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+.lpWhyCopy .lpTextLink:hover { color: var(--brass); }
+
+.lpSignalSection,
+.lpProofSection,
+.lpCityChooser {
+  position: relative;
+  background-color: var(--paper);
+  background-image: radial-gradient(circle at 1px 1px, var(--lp-blueprint-dot) .65px, transparent .8px);
+  background-size: 24px 24px;
+}
+.lpSignalSection::after,
+.lpProofSection::after,
+.lpCityChooser::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--lp-blueprint-rule), var(--lp-blueprint-rule)) left top / 100% 1px no-repeat,
+    linear-gradient(var(--lp-blueprint-rule), var(--lp-blueprint-rule)) left top / 1px 10px no-repeat,
+    linear-gradient(var(--lp-blueprint-rule), var(--lp-blueprint-rule)) right top / 1px 10px no-repeat;
+}
+/* The texture ::after is a positioned box, so it paints over the sections'
+   in-flow (unpositioned) children. Lift the children above it so copy never
+   sits under the blueprint rules. */
+.lpSignalSection > *,
+.lpProofSection > *,
+.lpCityChooser > * {
+  position: relative;
+  z-index: 1;
+}
 
 .lpSignalSection, .lpProofSection { width: min(var(--lp-max), calc(100% - 2 * var(--lp-pad))); margin: 0 auto; padding: clamp(86px, 10vw, 144px) 0; }
 .lpSectionIntro { max-width: 700px; }
@@ -332,6 +421,9 @@
 .lpMemorySection { padding: clamp(76px, 8vw, 124px) var(--lp-pad); background: var(--ink-deep); color: var(--color-on-inverse); }
 .lpMemoryCanvas { width: min(var(--lp-max), 100%); margin: 0 auto; display: grid; grid-template-columns: .92fr 1.08fr; gap: clamp(44px, 8vw, 110px); align-items: center; }
 .lpSectionLabel { margin: 0 0 18px; color: var(--brass-bright); font: 650 var(--text-2xs)/1 var(--font-data); letter-spacing: .01em; }
+.lpSectionLabel::before { content: "// " / ""; }
+.lpCityChooser .cityChooserEyebrow { gap: .5ch; font: 650 var(--text-2xs)/1 var(--font-data); }
+.lpCityChooser .cityChooserEyebrow::before { content: "// " / ""; width: auto; height: auto; background: none; opacity: 1; }
 .lpMemoryCopy > p { color: color-mix(in srgb, var(--color-on-inverse) 70%, transparent); }
 .lpMemoryActions { margin-top: 28px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
 .lpMemorySection .lpButtonPrimary { background: var(--brass); color: var(--color-on-accent); }
@@ -361,7 +453,7 @@
 .provChip { padding: 5px 7px; border-radius: 999px; background: color-mix(in srgb, var(--brass) 10%, transparent); }
 .dropStripEmpty { padding: 24px; border-block: 1px solid var(--line); color: var(--ink-soft); }
 .dropStripCardSkeleton { gap: 15px; }
-.skelLine { height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--line) 72%, transparent); animation: lpSkeleton 1.4s ease-in-out infinite alternate; }
+.skelLine { height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--line) 72%, transparent); animation: lpSkeleton var(--duration-ambient) ease-in-out infinite alternate; }
 .skelLineTop { width: 45%; height: 18px; }.skelLineShort { width: 62%; }
 @keyframes lpSkeleton { to { opacity: .42; } }
 
@@ -369,7 +461,7 @@
 .lpPalIcon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 15px; background: var(--ink-deep); color: var(--color-on-inverse); }
 .lpPalCallout h3 { margin: 0; font: 680 20px/1.1 var(--font-display); }.lpPalCallout p { margin: 6px 0 0; color: var(--ink-soft); font-size: 13px; line-height: 1.45; }
 
-.lpCityChooser { padding: 28px var(--lp-pad) 90px; background: var(--paper); }
+.lpCityChooser { padding: 28px var(--lp-pad) 90px; }
 .lpFinalCta { position: relative; min-height: 66vh; padding: 90px var(--lp-pad); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; background: var(--ink-deep); color: var(--color-on-inverse); }
 .lpFinalCta > p { margin: 0 0 20px; color: rgba(255,255,255,.7); font: 600 var(--text-2xs)/1 var(--font-data); letter-spacing: .01em; }
 .lpFinalCta h2 { max-width: 10ch; }
@@ -471,6 +563,9 @@
   .thamesHeroPin:nth-child(2) { left: 34% !important; top: 66% !important; }
   .thamesHeroPin:nth-child(3) { left: 70% !important; top: 28% !important; }
   .thamesHeroPin:nth-child(4) { left: 80% !important; top: 70% !important; }
+  .lpWhySection { width: calc(100% - 2 * var(--lp-pad)); padding: 56px 0 12px; }
+  .lpWhyCopy h2 { font-size: clamp(30px, 9vw, 44px); }
+  .lpWhyCopy > p { font-size: 16px; }
   .lpSignalSection, .lpProofSection { width: calc(100% - 2 * var(--lp-pad)); padding: 82px 0; }.lpSectionIntro h2, .lpMemoryCopy h2, .lpFinalCta h2 { font-size: clamp(39px, 12vw, 56px); }
   .lpSignalGrid { margin-top: 38px; grid-template-columns: 1fr; grid-template-rows: auto; }
   .lpSignalGrid article { padding-block: 28px; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -492,7 +587,6 @@
 @media (max-width: 700px) {
   .lpLiveReadout, .lpLiveReadout span { font-size: 12px; }
   .lpReadoutStat dt { font-size: 12px; }
-  .thamesHeroHint { font-size: 12px; }
   .thamesHeroPinCat { font-size: 12px; letter-spacing: .04em; }
   .lpSignalTopline { font-size: 12px; }
   .lpSectionLabel { font-size: 12px; }
@@ -524,12 +618,46 @@
   .lpHeroActions--mapFirst { grid-template-columns: 1fr; }
 }
 
+/* Hero / atmosphere presence. Three quiet motions only: orbit drift, scanline
+   breathe, staggered pin rise. No glow, no purple. Gated on no-preference so
+   prefers-reduced-motion: reduce never schedules them; the kill rule below is
+   the second gate. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes lpOrbitDrift {
+    from { transform: translate3d(0, 0, 0) scale(1); opacity: .9; }
+    to { transform: translate3d(-1.2%, 1.4%, 0) scale(1.03); opacity: 1; }
+  }
+  @keyframes lpScanlineBreathe {
+    from { opacity: .35; }
+    to { opacity: .95; }
+  }
+  @keyframes lpPinEnter {
+    from { opacity: 0; transform: translate(-50%, calc(-50% + 10px)); }
+    to { opacity: 1; transform: translate(-50%, -50%); }
+  }
+
+  .lpOrbitOne {
+    animation: lpOrbitDrift var(--duration-drift) ease-in-out infinite alternate;
+  }
+  .lpOrbitTwo {
+    animation: lpOrbitDrift var(--duration-drift-slow) ease-in-out infinite alternate-reverse;
+  }
+  .lpScanline {
+    animation: lpScanlineBreathe var(--duration-breathe) ease-in-out infinite alternate;
+  }
+  .thamesHeroPin {
+    /* --ease-weighted is the cinema house curve (was a retyped literal here). */
+    animation: lpPinEnter var(--duration-entrance) var(--ease-weighted) both;
+    animation-delay: calc(120ms + (var(--pin-i, 0) * 70ms));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lp *, .lp *::before, .lp *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .lpNav, .thamesHeroHint, .thamesHeroPinGlyph, .thamesHeroPinMeta { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--panel-raised); color: var(--ink); }
+  .lpNav, .thamesHeroPinGlyph, .thamesHeroPinMeta { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--panel-raised); color: var(--ink); }
 }
 
 @media (prefers-contrast: more) {

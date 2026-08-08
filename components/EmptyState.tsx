@@ -56,6 +56,8 @@ export default function EmptyState({
       className={rootClassName}
       role={role}
     >
+      {/* Decorative brass seal — pressed-paper material, not content. */}
+      <span className="emptyStateStamp" aria-hidden="true" />
       {eyebrow ? <p className="emptyStateEyebrow">{eyebrow}</p> : null}
       <h2 className="emptyStateTitle">{title}</h2>
       {body ? <p className="emptyStateBody">{body}</p> : null}

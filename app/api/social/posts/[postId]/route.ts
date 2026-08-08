@@ -1,4 +1,5 @@
 import { assertServerEnv } from "@/lib/serverEnv";
+import { publicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
@@ -22,31 +23,21 @@ function privateJson(body: unknown, init: ResponseInit = {}): Response {
 }
 
 function accessError(access: Exclude<Awaited<ReturnType<typeof requireVerifiedSocialActor>>, { ok: true }>): Response {
-  return privateJson({
-    code: access.code,
-    error: access.error,
-    ...(access.retryable ? { retryable: true } : {}),
-  }, { status: access.status });
+  return publicApiError(access.error, access.code, access.status, { retryable: access.retryable === true, headers: { "Cache-Control": "private, no-store" } });
 }
 
 function storeError(error: unknown): Response {
   if (error instanceof Error && /invalid Social tags/i.test(error.message)) {
-    return privateJson(
-      { code: "INVALID_TAGS", error: "Photo tags are not valid." },
-      { status: 400 },
-    );
+    return publicApiError("Photo tags are not valid.", "INVALID_TAGS", 400, { headers: { "Cache-Control": "private, no-store" } });
   }
   if (error instanceof SocialPostStoreError) {
     const status = error.code === "FORBIDDEN" ? 403
       : error.code === "NOT_FOUND" ? 404
         : error.code === "EDIT_CONFLICT" || error.code === "IDEMPOTENCY_CONFLICT" ? 409
           : 400;
-    return privateJson({ code: error.code, error: error.message }, { status });
+    return publicApiError(error.message, error.code, status, { headers: { "Cache-Control": "private, no-store" } });
   }
-  return privateJson(
-    { code: "SOCIAL_POSTS_UNAVAILABLE", error: "Social posts are unavailable right now.", retryable: true },
-    { status: 503 },
-  );
+  return publicApiError("Social posts are unavailable right now.", "SOCIAL_POSTS_UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
 }
 
 function validId(value: string): boolean {
@@ -69,7 +60,7 @@ export async function GET(_request: Request, context: Context): Promise<Response
   const access = await requireVerifiedSocialActor();
   if (!access.ok) return accessError(access);
   const { postId } = await context.params;
-  if (!validId(postId)) return privateJson({ code: "NOT_FOUND", error: "Post not found." }, { status: 404 });
+  if (!validId(postId)) return publicApiError("Post not found.", "NOT_FOUND", 404, { headers: { "Cache-Control": "private, no-store" } });
   try {
     const store = socialPostStore();
     const post = await store.read(postId, access.actor) ?? await store.readOwned(postId, access.actor);
@@ -82,7 +73,7 @@ export async function GET(_request: Request, context: Context): Promise<Response
             ? { ...post, photo: { ...post.photo, tags } }
             : post),
         })
-      : privateJson({ code: "NOT_FOUND", error: "Post not found." }, { status: 404 });
+      : publicApiError("Post not found.", "NOT_FOUND", 404, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return storeError(error);
   }
@@ -94,13 +85,13 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   const access = await requireVerifiedSocialActor();
   if (!access.ok) return accessError(access);
   const { postId } = await context.params;
-  if (!validId(postId)) return privateJson({ code: "NOT_FOUND", error: "Post not found." }, { status: 404 });
+  if (!validId(postId)) return publicApiError("Post not found.", "NOT_FOUND", 404, { headers: { "Cache-Control": "private, no-store" } });
   let input: unknown;
   let photo: File | null = null;
   try {
     ({ input, photo } = await readPatchInput(request));
   } catch {
-    return privateJson({ code: "MALFORMED_REQUEST", error: "Request body is not valid JSON." }, { status: 400 });
+    return publicApiError("Request body is not valid JSON.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   }
   if (input && typeof input === "object" && !Array.isArray(input) &&
     Object.keys(input).every((key) => key === "action" || key === "expectedMutationVersion") &&
@@ -108,33 +99,27 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
     Number.isInteger((input as { expectedMutationVersion?: unknown }).expectedMutationVersion)) {
     const limitKey = `social-post-edit:${hashActor(access.actor.profileId)}`;
     if (await isLimited(limitKey, limitKey)) {
-      return privateJson(
-        { code: "RATE_LIMITED", error: "Too many Social post changes. Slow down.", retryable: true },
-        { status: 429 },
-      );
+      return publicApiError("Too many Social post changes. Slow down.", "RATE_LIMITED", 429, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
     }
     try {
       const idempotencyKey = request.headers.get("Idempotency-Key");
-      if (!idempotencyKey || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) return privateJson({ code: "INVALID_IDEMPOTENCY_KEY", error: "Post request key is not valid." }, { status: 400 });
+      if (!idempotencyKey || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) return publicApiError("Post request key is not valid.", "INVALID_IDEMPOTENCY_KEY", 400, { headers: { "Cache-Control": "private, no-store" } });
       const removed = await socialPostStore().remove(postId, access.actor,
         Number((input as { expectedMutationVersion: number }).expectedMutationVersion), idempotencyKey);
       return removed
         ? privateJson({ ok: true })
-        : privateJson({ code: "NOT_FOUND", error: "Post not found." }, { status: 404 });
+        : publicApiError("Post not found.", "NOT_FOUND", 404, { headers: { "Cache-Control": "private, no-store" } });
     } catch (error) {
       return storeError(error);
     }
   }
   const validation = parseSocialEditSubmission(input, photo !== null);
   if (!validation.ok) {
-    return privateJson({ code: validation.code, error: validation.error }, { status: 400 });
+    return publicApiError(validation.error, validation.code, 400, { headers: { "Cache-Control": "private, no-store" } });
   }
   const limitKey = `social-post-edit:${hashActor(access.actor.profileId)}`;
   if (await isLimited(limitKey, limitKey)) {
-    return privateJson(
-      { code: "RATE_LIMITED", error: "Too many Social post changes. Slow down.", retryable: true },
-      { status: 429 },
-    );
+    return publicApiError("Too many Social post changes. Slow down.", "RATE_LIMITED", 429, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
   }
   let uploaded: UploadedSocialPhoto | null = null;
   let reserved: UploadedSocialPhoto | null = null;
@@ -143,12 +128,9 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
     if (changes.venueId) {
       const venue = await resolveSocialVenueId(changes.venueId);
       if (!venue.ok) {
-        return privateJson(
-          venue.unavailable
-            ? { code: "VENUE_LOOKUP_UNAVAILABLE", error: "Venue search is unavailable right now.", retryable: true }
-            : { code: "INVALID_VENUE", error: "Choose a pub from Venue search." },
-          { status: venue.unavailable ? 503 : 400 },
-        );
+        return venue.unavailable
+          ? publicApiError("Venue search is unavailable right now.", "VENUE_LOOKUP_UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } })
+          : publicApiError("Choose a pub from Venue search.", "INVALID_VENUE", 400, { headers: { "Cache-Control": "private, no-store" } });
       }
       changes = { ...changes, venueId: venue.venueId };
     }
@@ -184,7 +166,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
       await reconcileSocialPhotoUpload(access.actor.profileId, reserved.mediaId, reserved.generation).catch(() => false);
     }
     if (error instanceof SocialPhotoError) {
-      return privateJson({ code: error.code, error: error.message }, { status: error.code === "STORAGE_UNAVAILABLE" ? 503 : 400 });
+      return publicApiError(error.message, error.code, error.code === "STORAGE_UNAVAILABLE" ? 503 : 400, { headers: { "Cache-Control": "private, no-store" } });
     }
     return storeError(error);
   }

@@ -16,6 +16,7 @@
 // anyone who knows it can read + (as a member) build the Round. Writes are
 // rate-limited per handle + IP.
 
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import {
   resolveContributionIdentity,
@@ -65,29 +66,29 @@ async function roundStateResponse(
 
 // Map a store write-error to an HTTP status + a grounded message.
 function errorResponse(error: RoundWriteError): Response {
-  const map: Record<RoundWriteError, { status: number; message: string }> = {
-    not_found: { status: 404, message: "That Round doesn't exist." },
-    closed: { status: 409, message: "This Round has been called. It's closed." },
-    invalid: { status: 400, message: "Check the details and try again." },
-    forbidden: { status: 403, message: "You're not in this Round." },
+  const map: Record<RoundWriteError, { status: number; code: string; message: string }> = {
+    not_found: { status: 404, code: "ROUND_NOT_FOUND", message: "That Round doesn't exist." },
+    closed: { status: 409, code: "ROUND_CLOSED", message: "This Round has been called. It's closed." },
+    invalid: { status: 400, code: "INVALID_REQUEST", message: "Check the details and try again." },
+    forbidden: { status: 403, code: "FORBIDDEN", message: "You're not in this Round." },
     // A store failure is a degraded dependency (503, fail-soft), not a bug (500)
     // — the house contract every other write route uses (see pint-drops).
-    error: { status: 503, message: "Couldn't save that. Try again." },
+    error: { status: 503, code: "STORE_UNAVAILABLE", message: "Couldn't save that. Try again." },
   };
-  const { status, message } = map[error];
-  return jsonNoStore({ error: message }, { status });
+  const { status, code, message } = map[error];
+  return publicApiError(message, code, status, { retryable: status >= 500 });
 }
 
 export async function GET(request: Request, ctx: Ctx): Promise<Response> {
   const { code } = await ctx.params;
   if (!isValidRoundCode(code)) {
-    return jsonNoStore({ error: "That Round doesn't exist." }, { status: 404 });
+    return publicApiError("That Round doesn't exist.", "NOT_FOUND", 404);
   }
   if (await isRoundsReadLimited(request)) {
-    return jsonNoStore({ error: "Too many requests, slow down." }, { status: 429 });
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
   const state = await roundsStore().getByCode(code);
-  if (!state) return jsonNoStore({ error: "That Round doesn't exist." }, { status: 404 });
+  if (!state) return publicApiError("That Round doesn't exist.", "NOT_FOUND", 404);
   return roundStateResponse(request, state);
 }
 
@@ -99,29 +100,20 @@ type ResolvedContributor = Extract<
 function roundBudgetFailure(budget: RoundPriceBudget): Response | null {
   if (budget.allowed) return null;
   if (budget.mode === "degraded") {
-    return jsonNoStore(
+    return publicApiError(
+      "Your round is kept, but price sharing is unavailable. Try again shortly.",
+      "UNAVAILABLE",
+      503,
       {
-        error:
-          "Your round is kept, but price sharing is unavailable. Try again shortly.",
-      },
-      {
-        status: 503,
+        retryable: true,
         headers: { "Retry-After": String(ROUND_PRICE_DEGRADED_RETRY_SECONDS) },
       },
     );
   }
   if (budget.mode === "rejected") {
-    return jsonNoStore(
-      {
-        error: "Your round is kept, but price sharing could not be checked.",
-      },
-      { status: 503 },
-    );
+    return publicApiError("Your round is kept, but price sharing could not be checked.", "UNAVAILABLE", 503, { retryable: true });
   }
-  return jsonNoStore(
-    { error: "Your round is kept. Price logging is busy. Try those prices again." },
-    { status: 429 },
-  );
+  return publicApiError("Your round is kept. Price logging is busy. Try those prices again.", "RATE_LIMITED", 429, { retryable: true });
 }
 
 async function preparePendingRoundPrices(input: {
@@ -210,10 +202,7 @@ async function promoteReadyRoundPrices(input: {
   }
 
   if (completed !== ready.length) {
-    return jsonNoStore(
-      { error: "Your round is kept, but some prices need another try." },
-      { status: 503 },
-    );
+    return publicApiError("Your round is kept, but some prices need another try.", "UNAVAILABLE", 503, { retryable: true });
   }
   const state = await input.store.getByCode(input.code);
   if (!state) return errorResponse("error");
@@ -231,13 +220,10 @@ async function recordSpend(
   const requestedVenueId = readString(body.venueId) ?? "";
   const venueLookup = await lookupCanonicalVenue(requestedVenueId);
   if (venueLookup.status === "unavailable") {
-    return jsonNoStore(
-      { error: "Venue list is unavailable right now, try again shortly." },
-      { status: 503 },
-    );
+    return publicApiError("Venue list is unavailable right now, try again shortly.", "UNAVAILABLE", 503, { retryable: true });
   }
   if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
-    return jsonNoStore({ error: "Pick a pub from this Round." }, { status: 400 });
+    return publicApiError("Pick a pub from this Round.", "INVALID_REQUEST", 400);
   }
   const spendInput = {
     clientRef: body.clientRef,
@@ -256,12 +242,7 @@ async function recordSpend(
   const contributor =
     observed.length > 0 ? await resolveContributionIdentity(request) : null;
   if (contributor?.ok && observed.length > ROUND_SPEND_PRICE_LINE_MAX) {
-    return jsonNoStore(
-      {
-        error: `Log up to ${ROUND_SPEND_PRICE_LINE_MAX} drink prices in one round. Keep this one, then start another.`,
-      },
-      { status: 400 },
-    );
+    return publicApiError(`Log up to ${ROUND_SPEND_PRICE_LINE_MAX} drink prices in one round. Keep this one, then start another.`, "INVALID_REQUEST", 400);
   }
 
   const hasBearer = /^Bearer\s+\S+/i.test(
@@ -300,10 +281,7 @@ async function recordSpend(
   );
   if (!owner.ok) {
     return owner.error === "forbidden"
-      ? jsonNoStore(
-          { error: "This saved round belongs to another account." },
-          { status: 403 },
-        )
+      ? publicApiError("This saved round belongs to another account.", "FORBIDDEN", 403)
       : errorResponse(owner.error);
   }
   const reconciled = await store.reconcilePromotionKeys(
@@ -313,10 +291,7 @@ async function recordSpend(
   );
   if (!reconciled.ok) {
     return reconciled.error === "forbidden"
-      ? jsonNoStore(
-          { error: "This saved round belongs to another account." },
-          { status: 403 },
-        )
+      ? publicApiError("This saved round belongs to another account.", "FORBIDDEN", 403)
       : errorResponse(reconciled.error);
   }
 
@@ -341,29 +316,29 @@ async function recordSpend(
 export async function POST(request: Request, ctx: Ctx): Promise<Response> {
   const { code } = await ctx.params;
   if (!isValidRoundCode(code)) {
-    return jsonNoStore({ error: "That Round doesn't exist." }, { status: 404 });
+    return publicApiError("That Round doesn't exist.", "NOT_FOUND", 404);
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const action = readString(body.action);
   const handle = await resolveMessageHandle(request, readString(body.handle) ?? "");
-  if (!handle) return jsonNoStore({ error: "Add a handle." }, { status: 400 });
+  if (!handle) return publicApiError("Add a handle.", "INVALID_REQUEST", 400);
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   // One limiter budget per handle+IP across every Round action.
   const key = `round-action:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
-    return jsonNoStore({ error: "Too many updates, slow down." }, { status: 429 });
+    return publicApiError("Too many updates, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   const store = roundsStore();
@@ -382,13 +357,10 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
       const requestedVenueId = readString(body.venueId) ?? "";
       const venueLookup = await lookupCanonicalVenue(requestedVenueId);
       if (venueLookup.status === "unavailable") {
-        return jsonNoStore(
-          { error: "Venue list is unavailable right now, try again shortly." },
-          { status: 503 },
-        );
+        return publicApiError("Venue list is unavailable right now, try again shortly.", "UNAVAILABLE", 503, { retryable: true });
       }
       if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
-        return jsonNoStore({ error: "Pick a pub from the map." }, { status: 400 });
+        return publicApiError("Pick a pub from the map.", "INVALID_REQUEST", 400);
       }
       const result = await store.addStop(code, {
         venueId: venueLookup.canonicalId,
@@ -409,6 +381,6 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
         : errorResponse(result.error);
     }
     default:
-      return jsonNoStore({ error: "Unknown action." }, { status: 400 });
+      return publicApiError("Unknown action.", "INVALID_REQUEST", 400);
   }
 }

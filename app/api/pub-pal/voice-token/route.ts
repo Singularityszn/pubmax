@@ -1,7 +1,9 @@
 import { callerUserId } from "@/lib/authServer";
+import { isLimited } from "@/lib/pintDrops";
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { log } from "@/lib/log";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { clientIp, hashIp, isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 const usage = new Map<string, { count: number; month: string }>();
 const MONTHLY_TRIAL_SESSIONS = 10;
@@ -32,17 +34,22 @@ function logReleaseFailure(input: {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const limiterKey = `pub-pal-voice-token:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const userId = await callerUserId(request);
-  if (!userId) return jsonNoStore({ error: "Sign in to talk with your Pub Pal." }, { status: 401 });
+  if (!userId) return publicApiError("Sign in to talk with your Pub Pal.", "UNAUTHENTICATED", 401);
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim();
-  if (!apiKey || !agentId) return jsonNoStore({ error: "Voice is not configured yet.", fallback: "text" }, { status: 503 });
+  if (!apiKey || !agentId) return publicApiError("Voice is not configured yet.", "UNAVAILABLE", 503, { retryable: true, compatibilityFields: { fallback: "text" } });
   const month = new Date().toISOString().slice(0, 7);
   const usageMonth = `${month}-01`;
   const supabaseConfigured = isSupabaseConfigured();
   const current = usage.get(userId);
   const meter = current?.month === month ? current : { count: 0, month };
-  if (!supabaseConfigured && meter.count >= MONTHLY_TRIAL_SESSIONS) return jsonNoStore({ error: "Your trial voice allowance is used for this month.", fallback: "text", remaining: 0 }, { status: 429 });
+  if (!supabaseConfigured && meter.count >= MONTHLY_TRIAL_SESSIONS) return publicApiError("Your trial voice allowance is used for this month.", "VOICE_ALLOWANCE_USED", 429, { compatibilityFields: { fallback: "text", remaining: 0 } });
 
   const admin = supabaseConfigured ? requireSupabaseAdmin() : null;
   if (admin) {
@@ -52,10 +59,10 @@ export async function POST(request: Request): Promise<Response> {
         p_month: usageMonth,
         p_limit: MONTHLY_TRIAL_SESSIONS,
       });
-      if (error) return jsonNoStore({ error: "Voice allowance could not be checked.", fallback: "text" }, { status: 503 });
-      if (data === false) return jsonNoStore({ error: "Your trial voice allowance is used for this month.", fallback: "text", remaining: 0 }, { status: 429 });
+      if (error) return publicApiError("Voice allowance could not be checked.", "UNAVAILABLE", 503, { retryable: true, compatibilityFields: { fallback: "text" } });
+      if (data === false) return publicApiError("Your trial voice allowance is used for this month.", "VOICE_ALLOWANCE_USED", 429, { compatibilityFields: { fallback: "text", remaining: 0 } });
     } catch {
-      return jsonNoStore({ error: "Voice allowance could not be checked.", fallback: "text" }, { status: 503 });
+      return publicApiError("Voice allowance could not be checked.", "UNAVAILABLE", 503, { retryable: true, compatibilityFields: { fallback: "text" } });
     }
   } else {
     meter.count += 1;
@@ -70,13 +77,13 @@ export async function POST(request: Request): Promise<Response> {
     url.searchParams.set("agent_id", agentId);
     url.searchParams.set("include_conversation_id", "true");
     const response = await fetch(url, { headers: { "xi-api-key": apiKey }, signal: controller.signal, cache: "no-store" });
-    if (!response.ok) return jsonNoStore({ error: "Voice service is temporarily unavailable.", fallback: "text" }, { status: 502 });
+    if (!response.ok) return publicApiError("Voice service is temporarily unavailable.", "PROVIDER_UNAVAILABLE", 502, { retryable: true, compatibilityFields: { fallback: "text" } });
     const body = await response.json() as { signed_url?: string };
-    if (!body.signed_url) return jsonNoStore({ error: "Voice service returned no session.", fallback: "text" }, { status: 502 });
+    if (!body.signed_url) return publicApiError("Voice service returned no session.", "PROVIDER_UNAVAILABLE", 502, { retryable: true, compatibilityFields: { fallback: "text" } });
     providerAllocated = true;
     return jsonNoStore({ signedUrl: body.signed_url, connectionType: "websocket", remaining: supabaseConfigured ? null : MONTHLY_TRIAL_SESSIONS - meter.count, retention: "zero", mutationPolicy: "propose_then_confirm" });
   } catch {
-    return jsonNoStore({ error: "Voice service did not respond in time.", fallback: "text" }, { status: 504 });
+    return publicApiError("Voice service did not respond in time.", "PROVIDER_TIMEOUT", 504, { retryable: true, compatibilityFields: { fallback: "text" } });
   } finally {
     clearTimeout(timeout);
     if (!providerAllocated) {

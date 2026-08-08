@@ -11,4 +11,5 @@ export { CocktailGlyph } from "./CocktailGlyph";
 export { ShotGlyph } from "./ShotGlyph";
 export { AlcoholFreeGlyph } from "./AlcoholFreeGlyph";
 export { SoftDrinkGlyph } from "./SoftDrinkGlyph";
+export { CoffeeGlyph } from "./CoffeeGlyph";
 export { OtherGlyph } from "./OtherGlyph";

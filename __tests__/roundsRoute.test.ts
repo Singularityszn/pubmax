@@ -336,7 +336,7 @@ describe("POST /api/rounds — create", () => {
     createOverride.fn = async () => ({ ok: false, error: "error" as const });
     const res = await create({ handle: "ken", title: "Big night" });
     expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({ error: "Could not start the Round." });
+    expect(await res.json()).toEqual({ error: "Could not start the Round.", code: "UNAVAILABLE", retryable: true });
   });
 });
 
@@ -375,7 +375,7 @@ describe("GET /api/rounds/[code]", () => {
 
     expect(responses.slice(0, 120).every((res) => res.status === 200)).toBe(true);
     expect(responses[120].status).toBe(429);
-    expect(await responses[120].json()).toEqual({ error: "Too many requests, slow down." });
+    expect(await responses[120].json()).toEqual({ error: "Too many requests, slow down.", code: "RATE_LIMITED", retryable: true });
   });
 });
 
@@ -454,6 +454,8 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({
       error: "Venue list is unavailable right now, try again shortly.",
+      code: "UNAVAILABLE",
+      retryable: true,
     });
   });
 
@@ -1418,6 +1420,8 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(await res.json()).toEqual({
       error:
         "Your round is kept, but price sharing is unavailable. Try again shortly.",
+      code: "UNAVAILABLE",
+      retryable: true,
     });
     const held = (await (await get(round.code)).json()) as RoundState;
     expect(held.spends).toHaveLength(1);
@@ -1464,6 +1468,8 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(tooMany.status).toBe(400);
     expect(await tooMany.json()).toEqual({
       error: "Log up to 10 drink prices in one round. Keep this one, then start another.",
+      code: "INVALID_REQUEST",
+      retryable: false,
     });
     expect(((await (await get(round.code)).json()) as RoundState).spends).toEqual([]);
 
@@ -1545,7 +1551,7 @@ describe("POST /api/rounds/[code] — actions", () => {
     joinOverride.fn = async () => ({ ok: false, error: "error" as const });
     const res = await action(round.code, { action: "join", handle: "ale" });
     expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({ error: "Couldn't save that. Try again." });
+    expect(await res.json()).toEqual({ error: "Couldn't save that. Try again.", code: "STORE_UNAVAILABLE", retryable: true });
   });
 
   it("close by the creator, then addStop is 409 (closed)", async () => {

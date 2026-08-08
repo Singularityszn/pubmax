@@ -40,6 +40,7 @@ import { mintPlanGroundingProof, mintPlanGroundingProofV2 } from "@/lib/planGrou
 import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
+import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
 import weatherSnapshot from "@/public/data/weather/latest.json";
 
 assertServerEnv();
@@ -213,7 +214,7 @@ export async function POST(request: Request): Promise<Response> {
 			{ details: { patchId: intake.unsupportedPatch } },
 		);
 	}
-	if (!query && !contextPatch && !intake?.exactNightArea) return publicApiError("Describe the night or add its time, group and area.", "NIGHT_CONTEXT_REQUIRED", 400);
+	if (!query && !contextPatch && !intake?.exactNightArea) return publicApiError("Describe the outing or add its time, group and area.", "NIGHT_CONTEXT_REQUIRED", 400);
 	const reconciled = reconcilePlanContext(query, contextPatch, intake, new Date(requestNow));
 	const context = reconciled.context;
   if (!context.nightArea) return publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422);
@@ -263,12 +264,27 @@ export async function POST(request: Request): Promise<Response> {
 		noAlcoholRowsByVenue.set(row.venueId, current);
 	}
 	const naLensPrices = trustedNoAlcoholLensPrices(noAlcoholRowsByVenue, requestNow);
-	  const candidates = (await loadConciergeVenues(cityId))
+	const venues = await loadConciergeVenues(cityId);
+	// Soft prefer only: directory matches boost ranking when asked for Spoons,
+	// and never filter the candidate set (Clapham has too few for three stops).
+	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
+		? await matchedWetherspoonsVenueIds(venues)
+		: undefined;
+	  const candidates = venues
 	    .map((venue) => {
 	      const distance = distanceKm(area.centre, venue);
 	      const tonightEvents = tonightByVenue.get(venue.id) ?? [];
 	      const signalClaims = claimsForEntity(reviewedSignalClaims, "venue", venue.id);
-	      const scored = scoreVenueForPlan(venue, context, distance, tonightEvents, signalClaims, planningWeather, naLensPrices);
+	      const scored = scoreVenueForPlan(
+					venue,
+					context,
+					distance,
+					tonightEvents,
+					signalClaims,
+					planningWeather,
+					naLensPrices,
+					wetherspoonsMatchedIds,
+				);
 	      return { venue, distance, tonightEvents, signalClaims, ...scored };
 	    })
     .filter(({ distance, venue, signalClaims }) =>
@@ -521,6 +537,7 @@ export async function POST(request: Request): Promise<Response> {
 	      ...(context.foodNeeds.length ? ["foodNeeds"] : []),
 			...(context.budgetLimitPence ? ["budgetLimitPence"] : []),
 			...(context.zeroProof ? ["zeroProof"] : []),
+			...(context.wetherspoonsPreferred ? ["wetherspoonsPreferred"] : []),
 			...(planningWeather ? ["weather"] : []),
 	    ],
 	    missingContextEvidence: contextEvidenceGaps,

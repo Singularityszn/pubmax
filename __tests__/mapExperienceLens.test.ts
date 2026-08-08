@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   drinkLensCoverageNote,
+  drinkLensEmptyVenueNote,
+  drinkLensPriceNoun,
   drinkLensUnknownRowLabel,
   drinkLensUnknownSentence,
   experienceLensSummary,
@@ -17,6 +19,7 @@ import {
   trustedNoAlcoholLensPrices,
 } from "@/lib/mapExperienceLens";
 import {
+  NO_ALCOHOL_DRINK_CATEGORIES,
   SUBMITTABLE_DRINK_CATEGORIES,
   type CommunityPrice,
 } from "@/lib/communityPrice";
@@ -323,6 +326,14 @@ describe("map lens drink categories", () => {
     expect(isMapLensDrinkCategory(null)).toBe(false);
   });
 
+  it("lets coffee own a map lens without joining the no-alcohol lens", () => {
+    expect(MAP_LENS_DRINK_CATEGORIES).toContain("coffee");
+    expect(SUBMITTABLE_DRINK_CATEGORIES).toContain("coffee");
+    expect(isMapLensDrinkCategory("coffee")).toBe(true);
+    expect(NO_ALCOHOL_DRINK_CATEGORIES).not.toContain("coffee");
+    expect(CATEGORY_META.coffee.label).toBe("Coffee");
+  });
+
   it("offers every other closed-taxonomy category", () => {
     for (const category of DRINK_CATEGORIES) {
       if (category === "other") continue;
@@ -376,6 +387,77 @@ describe("drinkLensUnknownRowLabel — a row read on its own", () => {
       expect(drinkLensUnknownRowLabel("whisky", status)).not.toContain(
         "logged",
       );
+    }
+  });
+});
+
+describe("drink lens sentence nouns", () => {
+  it("names coffee from CATEGORY_META, never beer or the no-alcohol noun", () => {
+    expect(drinkLensPriceNoun("coffee")).toBe("coffee");
+    expect(drinkLensPriceNoun("coffee")).toBe(
+      CATEGORY_META.coffee.label.toLowerCase(),
+    );
+    expect(drinkLensPriceNoun("coffee")).not.toBe(NO_ALCOHOL_LENS_PRICE_NOUN);
+    expect(drinkLensPriceNoun("coffee")).not.toMatch(/pint|beer|alcohol/i);
+  });
+
+  it("uses a singular soft-drink noun inside empty sentences", () => {
+    // Menu label is "Soft drinks"; "no Soft drinks price" fails grammar.
+    expect(CATEGORY_META["soft-drink"].label).toBe("Soft drinks");
+    expect(drinkLensPriceNoun("soft-drink")).toBe("soft drink");
+    expect(drinkLensUnknownRowLabel("soft drink", "ready")).toBe(
+      "no soft drink price logged",
+    );
+    expect(drinkLensEmptyVenueNote("soft drink", "ready")).toBe(
+      "No soft drink price logged here yet.",
+    );
+    expect(drinkLensEmptyVenueNote("soft drink", "ready")).not.toMatch(
+      /Soft drinks|soft drinks/,
+    );
+  });
+
+  it("keeps unknown, coverage and venue empty copy on the coffee noun", () => {
+    expect(drinkLensUnknownRowLabel("coffee", "ready")).toBe(
+      "no coffee price logged",
+    );
+    expect(drinkLensUnknownSentence("coffee", "ready")).toBe(
+      "No coffee price logged",
+    );
+    expect(drinkLensCoverageNote("coffee", "degraded")).toContain(
+      "coffee prices",
+    );
+    expect(drinkLensCoverageNote("coffee", "degraded")).not.toContain("pint");
+    expect(drinkLensEmptyVenueNote("coffee", "ready")).toBe(
+      "No coffee price logged here yet.",
+    );
+    expect(drinkLensEmptyVenueNote("coffee", "ready")).not.toContain(
+      NO_ALCOHOL_LENS_PRICE_NOUN,
+    );
+    expect(drinkLensEmptyVenueNote("coffee", "degraded")).toContain(
+      "this pub's coffee prices",
+    );
+    expect(drinkLensEmptyVenueNote("coffee", "loading")).toContain(
+      "Checking coffee prices",
+    );
+  });
+
+  it("never hands the no-alcohol experience noun to a coffee category lens", () => {
+    const noun = drinkLensPriceNoun("coffee");
+    for (const status of [
+      "idle",
+      "loading",
+      "ready",
+      "partial",
+      "degraded",
+    ] as const) {
+      expect(drinkLensUnknownRowLabel(noun, status)).not.toContain(
+        NO_ALCOHOL_LENS_PRICE_NOUN,
+      );
+      const note = drinkLensCoverageNote(noun, status);
+      if (note !== null) {
+        expect(note).not.toContain(NO_ALCOHOL_LENS_PRICE_NOUN);
+        expect(note).toContain("coffee");
+      }
     }
   });
 });

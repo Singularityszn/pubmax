@@ -372,7 +372,10 @@ describe("VOICE.md compliance audit", () => {
 
     expect(tour).not.toContain("See who pours cheap tonight");
     expect(tour).not.toContain('title: "Cheapest tonight"');
-    expect(tour).toContain('title: "Compare listed prices"');
+    // #816 collapsed the tour to one legend beat: the title is the shared
+    // ORIENTATION_LEGEND_TITLE and the body owns the honest grey-pin line.
+    expect(tour).toContain("ORIENTATION_LEGEND_TITLE");
+    expect(tour).toContain("Grey means nobody has logged a");
     expect(stories).not.toContain("There is a story behind every pint.");
     expect(stories).not.toContain("Cheapest Pints Tonight");
     expect(stories).not.toContain("not gospel");
@@ -519,7 +522,6 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
     ["components/emptyState.css", [".emptyStateEyebrow"]],
     ["app/messages/messages.css", [".messagesThreadEyebrow"]],
     ["components/landing/landing.css", [".lpSectionLabel", ".thamesHeroPinCat"]],
-    ["components/landing/nightSignals.css", [".nsKicker"]],
     ["components/plan/nightCrawl.css", [
       ".nightCrawl__kicker",
       ".nightCrawl__eyebrow",

@@ -59,6 +59,7 @@ async function createPlan() {
       accessibility: [],
       transportConstraints: [],
       zeroProof: false,
+      wetherspoonsPreferred: false,
     },
   });
   expect(updated.ok).toBe(true);

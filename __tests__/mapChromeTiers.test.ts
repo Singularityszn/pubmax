@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildFiltersChip, buildNearMeChip, buildTflCorner } from "@/lib/mapChromeTiers";
+import {
+  buildFiltersChip,
+  buildNearMeChip,
+  buildTflCorner,
+  buildTonightChip,
+} from "@/lib/mapChromeTiers";
 
 describe("buildNearMeChip", () => {
   it("labels every status honestly", () => {
@@ -32,6 +37,49 @@ describe("buildFiltersChip", () => {
       }).ariaLabel,
     ).toBe("Filters: no-alcohol view active");
   });
+
+  it("counts Saved only as a filters refinement when on", () => {
+    expect(
+      buildFiltersChip({
+        drinkFiltersActive: false,
+        priceCapActive: false,
+        priceLabel: "Price",
+        savedOnlyActive: true,
+      }),
+    ).toMatchObject({
+      refinements: 1,
+      ariaLabel: "Filters: saved only active",
+    });
+  });
+
+  it("counts Open now as a filters refinement when on", () => {
+    expect(
+      buildFiltersChip({
+        drinkFiltersActive: false,
+        priceCapActive: false,
+        priceLabel: "Price",
+        openNowActive: true,
+      }),
+    ).toMatchObject({
+      refinements: 1,
+      ariaLabel: "Filters: open now active",
+    });
+  });
+
+  it("counts Saved only and Open now together as separate refinements", () => {
+    expect(
+      buildFiltersChip({
+        drinkFiltersActive: false,
+        priceCapActive: false,
+        priceLabel: "Price",
+        savedOnlyActive: true,
+        openNowActive: true,
+      }),
+    ).toMatchObject({
+      refinements: 2,
+      ariaLabel: "Filters: saved only and open now active",
+    });
+  });
 });
 
 describe("buildTflCorner", () => {
@@ -45,5 +93,35 @@ describe("buildTflCorner", () => {
   it("aria labels carry the status meaning", () => {
     expect(buildTflCorner("issues", 15).ariaLabel).toBe("TfL live: 15 updates");
     expect(buildTflCorner("clear", 3).ariaLabel).toBe("TfL live: lines running well");
+  });
+});
+
+describe("buildTonightChip", () => {
+  it("stays silent when What's On has nothing to open", () => {
+    expect(buildTonightChip(0, false)).toBeNull();
+    expect(buildTonightChip(-1, true)).toBeNull();
+    expect(buildTonightChip(Number.NaN, false)).toBeNull();
+  });
+
+  it("names the listing count for a one-tap cold start", () => {
+    expect(buildTonightChip(1, false)).toMatchObject({
+      label: "On tonight",
+      count: 1,
+      ariaLabel: "On tonight: 1 listing",
+    });
+    expect(buildTonightChip(3, false)).toMatchObject({
+      label: "On tonight",
+      count: 3,
+      ariaLabel: "On tonight: 3 listings",
+    });
+  });
+
+  it("claims near you only when the fetch was location-scoped", () => {
+    expect(buildTonightChip(1, true)).toMatchObject({
+      ariaLabel: "On tonight: 1 listing near you",
+    });
+    expect(buildTonightChip(3, true)).toMatchObject({
+      ariaLabel: "On tonight: 3 listings near you",
+    });
   });
 });

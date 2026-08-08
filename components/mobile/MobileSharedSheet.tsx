@@ -113,7 +113,13 @@ export default function MobileSharedSheet({
     openAtSnap(initialSnap);
     const frame = requestAnimationFrame(() => sheetRef.current?.focus({ preventScroll: true }));
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") requestEscape();
+      // Claim the key so useMapKeyboardShortcuts' own Escape fallback (which
+      // checks event.defaultPrevented) does not also step back for the same
+      // press - otherwise one Escape pops two surface-stack levels at once.
+      if (event.key === "Escape") {
+        event.preventDefault();
+        requestEscape();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => {

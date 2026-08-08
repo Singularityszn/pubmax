@@ -15,7 +15,11 @@
 //
 import { NextResponse } from "next/server";
 
+import { publicApiError } from "@/lib/apiError";
+
 import { canGroupGetIn, estimateBusyness, resolveBookingOption } from "@/lib/busyness";
+import { isLimited } from "@/lib/pintDrops";
+import { clientIp, hashIp } from "@/lib/supabase";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 
 export async function GET(
@@ -23,13 +27,20 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
+  const ipHash = hashIp(clientIp(request));
+  if (
+    (await isLimited(`venue-detail:${ipHash}`, `venue-detail:${ipHash}`, 120)) ||
+    (await isLimited("venue-detail:global", "venue-detail:global", 1200))
+  ) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
   const lookup = await lookupVenueDetail(id);
 
   if (lookup.status === "missing") {
-    return NextResponse.json({ error: "Venue not found." }, { status: 404 });
+    return publicApiError("Venue not found.", "NOT_FOUND", 404);
   }
   if (lookup.status === "unavailable") {
-    return NextResponse.json({ error: "Venue details unavailable." }, { status: 503 });
+    return publicApiError("Venue details unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
   const { venue } = lookup;
 

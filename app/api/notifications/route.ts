@@ -14,6 +14,7 @@
 // notifications outage can never 500 the bell / activity page. Store choice is the
 // usual seam: Supabase when configured, process-memory otherwise.
 
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { notificationsStore } from "@/lib/notificationsStore";
@@ -35,7 +36,7 @@ export async function GET(request: Request): Promise<Response> {
     if (ownership.status === 503) {
       return jsonNoStore({ notifications: [], unread: 0 }, { status: 200 });
     }
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
   const inbox = await notificationsStore().list(handle);
   return jsonNoStore(inbox, { status: 200 });
@@ -46,20 +47,20 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const handle = await resolveMessageHandle(request, readString(body.handle) ?? "");
-  if (!handle) return jsonNoStore({ error: "Add a handle." }, { status: 400 });
+  if (!handle) return publicApiError("Add a handle.", "INVALID_REQUEST", 400);
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   const key = `notif-read:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
-    return jsonNoStore({ error: "Too many updates, slow down." }, { status: 429 });
+    return publicApiError("Too many updates, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   const id = readString(body.id);

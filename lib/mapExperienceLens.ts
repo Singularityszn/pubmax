@@ -309,6 +309,48 @@ export function drinkLensUnknownSentence(
  */
 export const NO_ALCOHOL_LENS_PRICE_NOUN = "alcohol-free or soft drink";
 
+/**
+ * What a selected-drink map lens is called INSIDE a sentence. Display labels
+ * can be plural menu-section names ("Soft drinks", "Cocktails", "Shots"); the
+ * empty-state helpers need the drink itself. Coffee falls out of CATEGORY_META
+ * as "coffee" with no special case. Never return NO_ALCOHOL_LENS_PRICE_NOUN
+ * here: that noun is only for the experience lens that joins two categories.
+ */
+export function drinkLensPriceNoun(category: DrinkCategory): string {
+  switch (category) {
+    case "cocktail":
+      return "cocktail";
+    case "soft-drink":
+      return "soft drink";
+    case "shot":
+      return "shot";
+    case "alcohol-free":
+      // "no alcohol-free price logged" buries the pub's own fact the same way
+      // the experience lens does; name the drink positively.
+      return "alcohol-free drink";
+    default:
+      return CATEGORY_META[category].label.toLowerCase();
+  }
+}
+
+/**
+ * Empty / unread / failed copy for ONE pub under a drink lens. Shares the row
+ * helpers' three findings: "none logged here" is only offered after a ready
+ * read, and never borrows the no-alcohol experience noun for a coffee lens.
+ */
+export function drinkLensEmptyVenueNote(
+  drinkNoun: string,
+  status: VenuePriceReadStatus,
+): string {
+  if (status === "ready") {
+    return `${drinkLensUnknownSentence(drinkNoun, status)} here yet.`;
+  }
+  if (status === "degraded") {
+    return `We could not read this pub's ${drinkNoun} prices just now.`;
+  }
+  return `Checking ${drinkNoun} prices logged here.`;
+}
+
 export function experienceLensSummary(
   lens: MapExperienceLens,
   noAlcoholPriceCount: number,

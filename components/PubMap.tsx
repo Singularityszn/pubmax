@@ -1,6 +1,6 @@
 "use client";
 
-import { List, MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
+import { CalendarClock, List, MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -14,12 +14,14 @@ import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
 import "@/components/map/mapBannerStaging.css";
 import UkPlaceArrivalBanner from "@/components/map/UkPlaceArrivalBanner";
+import UkNationalBrowseBanner from "@/components/map/UkNationalBrowseBanner";
 
 import {
   buildCrawlRoute,
   formatPrice,
   mergeVenueDrops,
   NO_PINT_PRICE_CAP,
+  provisionalPintDropVenueIds,
   type Filters,
   type Venue,
 } from "@/lib/venues";
@@ -29,6 +31,15 @@ import {
   TYPED_SEARCH_MIN_QUERY,
 } from "@/lib/mapSearchCamera";
 import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
+import {
+  OPEN_NOW_FILTER_CAPTION,
+  openNowStatesForVenues,
+} from "@/lib/openNow";
+import {
+  loadWetherspoonsDirectory,
+  type WetherspoonsPub,
+} from "@/lib/wetherspoonsDirectory";
+import type { WetherspoonsMatchVenue } from "@/lib/wetherspoonsMatch";
 import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds } from "@/lib/nearby";
 import {
@@ -45,6 +56,7 @@ import {
 import {
   buildMapVenueListModel,
   buildUkBasePubListModel,
+  type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import { useFocusTrap } from "@/lib/useFocusTrap";
@@ -87,6 +99,10 @@ import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import MobilePriceChoices from "@/components/map/MobilePriceChoices";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
 import PersonaLensCard from "@/components/map/PersonaLensCard";
+import {
+  SAVED_ONLY_ARIA_LABEL,
+  SAVED_ONLY_EMPTY_NOTE,
+} from "@/lib/savedOnlyFilter";
 import { useTonightLaneCue } from "@/components/map/usePersonaTonight";
 import type { WhatsOnKind } from "@/lib/whatsOn";
 import { findPersonaById, personaHighlightsPubs, type PersonaDrink } from "@/lib/personaDrinks";
@@ -225,6 +241,7 @@ import AreaSheet from "@/components/map/AreaSheet";
 import MapSearchSuggest, {
   type MapSearchSuggestProps,
 } from "@/components/map/MapSearchSuggest";
+import type { PlaceSuggestion } from "@/lib/mapSearchSuggest";
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
@@ -239,6 +256,7 @@ import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import {
+  drinkLensPriceNoun,
   drinkLensUnknownRowLabel,
   experienceLensSummary,
   NO_ALCOHOL_LENS_PRICE_NOUN,
@@ -324,9 +342,16 @@ import {
 } from "@/lib/pubMap";
 import { explicitMapIntent } from "@/lib/explicitMapIntent";
 import {
+  parseUkPlaceIndex,
+  UK_PLACE_INDEX_PATH,
   ukPlaceMapView,
+  type UkPlace,
   type UkPlaceMapArrival,
 } from "@/lib/ukPlaceSearch";
+import {
+  isUkNationalBrowse,
+  UK_NATIONAL_MAP_VIEW,
+} from "@/lib/ukNationalBrowse";
 import {
   readPlanningIntent,
   writePlanningIntent,
@@ -493,6 +518,7 @@ export default function PubMap({
   cityId = DEFAULT_CITY_ID,
   flags = TRUSTED_HANDOFF_FLAGS_OFF,
   placeArrival = null,
+  nationalBrowse = false,
 }: {
   cityId?: CityId;
   flags?: TrustedHandoffFlagsDTO;
@@ -504,12 +530,49 @@ export default function PubMap({
    * this component an empty search string at mount.
    */
   placeArrival?: UkPlaceMapArrival | null;
+  /**
+   * Explicit UK-wide browse (`/map?uk=1`). Opens at a national overview; pubs
+   * appear once the camera crosses the base zoom gate. Never invents prices.
+   */
+  nationalBrowse?: boolean;
 }) {
   const city = getCity(cityId);
   const [ukPlaceArrival] = useState(() => placeArrival);
-  const [initialMapView] = useState<MapViewportSnapshot>(() =>
-    ukPlaceArrival ? ukPlaceMapView(ukPlaceArrival, city.mapView) : city.mapView,
+  const [ukNationalBrowse] = useState(
+    () => nationalBrowse || isUkNationalBrowse(currentSearch()),
   );
+  // National gazetteer for map search (same places.json as /choose-city).
+  // Loaded once when the reader types two characters or arrives on a national
+  // / uncovered surface — never on every keystroke.
+  const [ukPlaces, setUkPlaces] = useState<readonly UkPlace[]>([]);
+  const ukPlacesPromiseRef = useRef<Promise<readonly UkPlace[]> | null>(null);
+  const loadUkPlaces = useCallback((): Promise<readonly UkPlace[]> => {
+    if (ukPlacesPromiseRef.current) return ukPlacesPromiseRef.current;
+    const pending = fetch(UK_PLACE_INDEX_PATH)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const places = parseUkPlaceIndex(await response.json());
+        setUkPlaces(places);
+        return places;
+      })
+      .catch(() => {
+        ukPlacesPromiseRef.current = null;
+        return [] as readonly UkPlace[];
+      });
+    ukPlacesPromiseRef.current = pending;
+    return pending;
+  }, []);
+  const [initialMapView] = useState<MapViewportSnapshot>(() => {
+    if (ukPlaceArrival) return ukPlaceMapView(ukPlaceArrival, city.mapView);
+    if (ukNationalBrowse) {
+      return {
+        ...UK_NATIONAL_MAP_VIEW,
+        pitch: city.mapView.pitch ?? 0,
+        bearing: city.mapView.bearing ?? 0,
+      };
+    }
+    return city.mapView;
+  });
   const mobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
     mobileViewportSnapshot,
@@ -537,11 +600,13 @@ export default function PubMap({
     desktopRailViewportSnapshot,
     () => false,
   );
-  const isLondon = cityId === "london" && !ukPlaceArrival;
-  const mapDisplayName = ukPlaceArrival?.name ?? city.displayName;
+  const isLondon = cityId === "london" && !ukPlaceArrival && !ukNationalBrowse;
+  const mapDisplayName = ukPlaceArrival?.name ?? (ukNationalBrowse ? "UK" : city.displayName);
   const mapSearchPlaceholder = ukPlaceArrival
     ? "Search priced pub names"
-    : `Search ${city.displayName} venues or areas`;
+    : ukNationalBrowse
+      ? "Search pubs or UK places"
+      : `Search ${city.displayName} venues or areas`;
   const cityLandmarks = useMemo(() => landmarksForCity(cityId), [cityId]);
   const cityStoryBands = useMemo(() => storyBandsForCity(cityId), [cityId]);
   const cityCuratedCrawls = useMemo(() => curatedCrawlsForCity(cityId), [cityId]);
@@ -625,6 +690,24 @@ export default function PubMap({
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
+  // First-party Wetherspoon directory for Open now hours. Loaded once; match is
+  // name+distance only and never invents hours for unmatched pubs.
+  const [wetherspoonsDirectoryPubs, setWetherspoonsDirectoryPubs] = useState<
+    WetherspoonsPub[] | null
+  >(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadWetherspoonsDirectory()
+      .then((directory) => {
+        if (!cancelled) setWetherspoonsDirectoryPubs(directory.pubs);
+      })
+      .catch(() => {
+        if (!cancelled) setWetherspoonsDirectoryPubs([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [experienceLens, setExperienceLens] =
     useState<MapExperienceLensValue>("all");
   const [experiencePolicyNow] = useState(() => Date.now());
@@ -765,6 +848,8 @@ export default function PubMap({
   /** Once the viewer collapses a deep-linked lane, don't keep forcing it open. */
   const [dismissedTonightSrc, setDismissedTonightSrc] = useState<string | null>(null);
   const [mapListOpen, setMapListOpen] = useState(false);
+  const [mapListSortMode, setMapListSortMode] =
+    useState<MapVenueListSortMode>("nearest");
   const [visibleVenueState, setVisibleVenueState] = useState<{
     cityId: CityId;
     curatedVenueIds: string[];
@@ -899,10 +984,18 @@ export default function PubMap({
         combined.add(venueId);
       }
     }
+    // The Pint Drop lane feeds the same mark: a lone in-window drop no longer
+    // paints a band or prints a figure (corroboratedPriceDrop gate), so its
+    // first submitter sees the map change HERE instead — visibility without
+    // authority, the same deal community submissions get.
+    for (const venueId of provisionalPintDropVenueIds(dropsByVenueId)) {
+      combined.add(venueId);
+    }
     return provisionalVenueIdKey(combined);
   }, [
     communityPrices.freshestByVenueId,
     communityPrices.provisionalBaseVenueIds,
+    dropsByVenueId,
   ]);
   const provisionalVenueIds = useMemo(
     () => provisionalVenueIdsFromKey(provisionalVenueIdKeyValue),
@@ -983,7 +1076,7 @@ export default function PubMap({
   const openPlanning = useCallback(() => {
     surfaceOpenRef.current({
       id: "planner",
-      title: "Plan tonight",
+      title: "Plan an outing",
       state: surfaceStateRef.current,
     });
     claimMapDrawer("planner");
@@ -1211,14 +1304,25 @@ export default function PubMap({
       ),
     [experienceLens, filters, mapDrinkLensCategory],
   );
+  const openNowStateById = useMemo(() => {
+    if (!wetherspoonsDirectoryPubs || !filters.openNow) return null;
+    const matchVenues: WetherspoonsMatchVenue[] = venues.map((venue) => ({
+      id: venue.id,
+      name: venue.name,
+      lat: venue.latitude,
+      lng: venue.longitude,
+    }));
+    return openNowStatesForVenues(matchVenues, wetherspoonsDirectoryPubs);
+  }, [venues, wetherspoonsDirectoryPubs, filters.openNow]);
   const pipelineVenues = useMemo(
     () =>
       filterMapVenues(
         venues,
         effectiveMapFilters,
         (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
+        (id) => openNowStateById?.get(id) ?? "unknown",
       ),
-    [effectiveMapFilters, venues, venueSignals],
+    [effectiveMapFilters, venues, venueSignals, openNowStateById],
   );
   // "Saved only" composes ON TOP of the pipeline: when on, keep only venues in
   // the saved set. When off it's a no-op, so all existing behavior is preserved.
@@ -1284,7 +1388,7 @@ export default function PubMap({
   // no-alcohol lens is titled with a negative, and "no no-alcohol price
   // logged" hides the one fact that is about the pub.
   const activeLensNoun = mapDrinkLensCategory
-    ? CATEGORY_META[mapDrinkLensCategory].label
+    ? drinkLensPriceNoun(mapDrinkLensCategory)
     : experienceLens === "no-alcohol"
       ? NO_ALCOHOL_LENS_PRICE_NOUN
       : experienceLens === "food"
@@ -1349,16 +1453,22 @@ export default function PubMap({
         activeLensPrices,
         activeLensNoun ?? undefined,
         drinkIndexStatus,
+        mapListSortMode,
+        venueSignals,
       ),
     [
       activeLensNoun,
       activeLensPrices,
       drinkIndexStatus,
+      mapListSortMode,
       mapVenueListVenues,
       mapViewport.center,
+      venueSignals,
     ],
   );
   const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);
+  /** Resident streamed base pubs (padded viewport), for map-search name match. */
+  const [residentUkBasePubs, setResidentUkBasePubs] = useState<UkBasePub[]>([]);
   const provisionalRestoreResolved = useRef(!ukBaseRestore);
   useEffect(() => {
     if (
@@ -1406,10 +1516,23 @@ export default function PubMap({
   );
   const mapContextName =
     ukPlaceArrival?.name ??
-    (!mapViewport.center ||
-    pointInCityBounds(mapViewport.center[1], mapViewport.center[0], city)
-      ? city.displayName
-      : "UK");
+    (ukNationalBrowse
+      ? "UK"
+      : !mapViewport.center ||
+          pointInCityBounds(mapViewport.center[1], mapViewport.center[0], city)
+        ? city.displayName
+        : "UK");
+  const outsideCuratedBounds =
+    !ukPlaceArrival &&
+    !ukNationalBrowse &&
+    Boolean(
+      mapViewport.center &&
+        !pointInCityBounds(mapViewport.center[1], mapViewport.center[0], city),
+    );
+  // Base-led chrome: uncovered place, national browse, or pan past cityMaxBounds.
+  const baseLedChrome = Boolean(
+    ukPlaceArrival || ukNationalBrowse || outsideCuratedBounds,
+  );
 
   const hasReactiveLogIntent = hasMapLogIntent(searchParams) && !logIntentCleared;
   const shouldBuildSuggestedRoute = !hasReactiveLogIntent || planningOpen || routeMapped;
@@ -2487,17 +2610,71 @@ export default function PubMap({
     },
     [selectVenue, trimmedMapQuery],
   );
+  const selectUkBasePubFromSearch = useCallback(
+    (pub: UkBasePub) => {
+      searchQueryCameraOwnedRef.current = trimmedMapQuery;
+      setSelectedBasePub(pub);
+      selectVenue(pub.id, "overview", "map-search");
+    },
+    [selectVenue, trimmedMapQuery],
+  );
+  const selectPlaceFromSearch = useCallback(
+    (place: PlaceSuggestion) => {
+      searchQueryCameraOwnedRef.current = trimmedMapQuery;
+      // Already on that curated city guide → fly in place (no remount).
+      if (place.placeKind === "curated" && place.cityId === cityId) {
+        setAreaFocus((prev) => ({
+          center: place.center,
+          zoom: place.flyZoom,
+          token: (prev?.token ?? 0) + 1,
+        }));
+        clearLogIntent();
+        setMapOverlay("none");
+        changeMapSearchQuery("");
+        return;
+      }
+      // Uncovered / other-city arrivals must full-load so PubMap remounts with
+      // the server-resolved placeArrival (frozen at mount). Soft push would
+      // leave the old arrival banner and emptied venues.
+      window.location.assign(place.href);
+    },
+    [changeMapSearchQuery, cityId, clearLogIntent, trimmedMapQuery],
+  );
+  // Prefetch the national place index once the reader is typing a place-shaped
+  // query, or already on a national / uncovered surface that needs it.
+  useEffect(() => {
+    if (ukPlaces.length > 0) return;
+    if (
+      ukNationalBrowse ||
+      ukPlaceArrival ||
+      trimmedMapQuery.length >= TYPED_SEARCH_MIN_QUERY
+    ) {
+      void loadUkPlaces();
+    }
+  }, [
+    loadUkPlaces,
+    trimmedMapQuery.length,
+    ukNationalBrowse,
+    ukPlaceArrival,
+    ukPlaces.length,
+  ]);
+  const limitedCoverageSearch = Boolean(ukPlaceArrival || ukNationalBrowse);
   const sharedMapSearchProps = {
     cityId,
     query: filters.query,
     onQueryChange: changeMapSearchQuery,
-    venues: ukPlaceArrival ? [] : venues,
-    localities: ukPlaceArrival ? [] : localities,
+    venues: limitedCoverageSearch ? [] : venues,
+    localities: limitedCoverageSearch ? [] : localities,
+    places: ukPlaces,
+    includeLocalResults: !limitedCoverageSearch,
+    ukBasePubs: residentUkBasePubs,
     userLocation,
     mapCenter: mapViewport.center,
     onSelectVenue: selectVenueFromSearch,
+    onSelectUkBasePub: selectUkBasePubFromSearch,
+    onSelectPlace: selectPlaceFromSearch,
     onFlyToArea: selectSearchArea,
-    onSubmitQuery: ukPlaceArrival ? undefined : selectTopSearchMatch,
+    onSubmitQuery: limitedCoverageSearch ? undefined : selectTopSearchMatch,
   } satisfies Omit<MapSearchSuggestProps, "id" | "mode" | "placeholder" | "onClose">;
 
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
@@ -2561,7 +2738,7 @@ export default function PubMap({
         ? selectedBasePub?.name ?? "Pub detail"
         : selectedVenue?.name ?? selectedVenueLabels.detailLabel
       : mapSurfaceId === "planner"
-        ? "Plan tonight"
+        ? "Plan an outing"
         : mapSurfaceId === "venue-list"
           ? "List view"
           : mapSurfaceId === "search"
@@ -2856,7 +3033,7 @@ export default function PubMap({
           mode toggle, search box, featured routes and the full filter stack. The
           phone already owns every one of those in its own chrome (the one-bar
           search overlay, the Filters sheet, the Near me control) and opens its
-          own "Describe your night" form above, so mounting the rail here stacked
+          own "Describe the outing" form above, so mounting the rail here stacked
           a second planner under the first inside one bottom sheet. */}
       {!mobileViewport ? (
         <ControlRail
@@ -2911,8 +3088,7 @@ export default function PubMap({
           savedOnly && !hasSavedPub ? (
             <section className="venueInspector" style={{ textAlign: "center" }}>
               <p className="description" style={{ marginTop: 0 }}>
-                No saved pubs yet. Tap a pub and Save it, then flip &ldquo;Saved only&rdquo;
-                back on to see just your list.
+                {SAVED_ONLY_EMPTY_NOTE}
               </p>
               <button type="button" className="addStopBtn" onClick={() => changeSavedOnly(false)}>
                 Show all pubs
@@ -2940,6 +3116,7 @@ export default function PubMap({
           pub={selectedBasePub}
           communityPrices={communityPrices}
           experienceLens={experienceLens}
+          drinkLensCategory={mapDrinkLensCategory}
         />
       );
     }
@@ -3019,6 +3196,10 @@ export default function PubMap({
           // Only the pins/list - which can show one number - take the merged one.
           latestContributorPrice={dropSignals.get(selectedVenue.id)?.latestContributorPrice}
           latestPintDropAt={dropSignals.get(selectedVenue.id)?.latestContributorAt}
+          // Share copy prefers the MERGED map-authority figure (same seam as
+          // pins), dated — never a sheet-only uncorroborated report.
+          shareLoggedPintGbp={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
+          shareLoggedAt={venueSignals.get(selectedVenue.id)?.latestContributorAt ?? null}
           onToggleStop={toggleBuiltStop}
           onSelectVenue={selectVenue}
           onAcceptStop1={flags.intentWrite && selectedVenueIsPub ? acceptStop1 : undefined}
@@ -3026,6 +3207,7 @@ export default function PubMap({
           pintDrops={pintDrops}
           communityPrices={communityPrices}
           experienceLens={experienceLens}
+          drinkLensCategory={mapDrinkLensCategory}
           onGrabDragStart={mobileViewport ? undefined : onSheetDragStart}
           onGrabDragMove={mobileViewport ? undefined : onSheetDragMove}
           onGrabDragEnd={mobileViewport ? undefined : onSheetDragEnd}
@@ -3038,6 +3220,7 @@ export default function PubMap({
           locationRequestStatus={locationRequestStatus}
           onRequestLocation={requestVenueLocation}
           onClearLocation={clearVenueLocation}
+          zoneIndex={zoneIndex}
         />
       </>
     );
@@ -3104,7 +3287,7 @@ export default function PubMap({
         {/* Desktop only. On a phone these toggles are a section of the Filters
             sheet instead, so the map keeps the band the third chrome bar used
             to take (design judgement 2026-08-01, finding 2.3). */}
-        {!ukPlaceArrival && !mobileViewport ? (
+        {!baseLedChrome && !mobileViewport ? (
           <TonightArcChips
             visibility={venueKindVisibility}
             experienceLens={experienceLens}
@@ -3141,6 +3324,10 @@ export default function PubMap({
           </aside>
         ) : ukPlaceArrival ? (
           <UkPlaceArrivalBanner arrival={ukPlaceArrival} />
+        ) : ukNationalBrowse ? (
+          <UkNationalBrowseBanner variant="national" />
+        ) : outsideCuratedBounds ? (
+          <UkNationalBrowseBanner variant="outside" />
         ) : null}
         {/* Keep pitched-London loading chrome until slim data and the canvas's
             viewport-specific handoff are ready. Phone requires a guarded frame
@@ -3180,6 +3367,7 @@ export default function PubMap({
           onVenueClick={handleVenueClick}
           onUkBasePubClick={handleUkBasePubClick}
           onUkBasePubsChange={setRenderedBasePubs}
+          onUkBaseResidentPubsChange={setResidentUkBasePubs}
           onVisibleVenueIdsChange={handleVisibleVenueIdsChange}
           onRenderedStateChange={handleRenderedMapStateChange}
           venueListOpen={mapListOpen}
@@ -3228,19 +3416,18 @@ export default function PubMap({
           onBoundsChange={handleMapBoundsChange}
         />
         {!mobileViewport ? <MapToolbar
+          outsideCurated={outsideCuratedBounds || ukNationalBrowse}
           query={filters.query}
           onQueryChange={changeMapSearchQuery}
           searchContent={
-            // Nothing here is priced, so venue search can never answer. The
-            // mobile shell drops it for the same reason.
-            ukPlaceArrival ? null : (
-              <MapSearchSuggest
-                {...sharedMapSearchProps}
-                id="mapSearchInput"
-                mode="toolbar"
-                placeholder={mapSearchPlaceholder}
-              />
-            )
+            // Limited-coverage arrivals keep search so UK places (and any
+            // resident base pubs) can still answer when venues are emptied.
+            <MapSearchSuggest
+              {...sharedMapSearchProps}
+              id="mapSearchInput"
+              mode="toolbar"
+              placeholder={mapSearchPlaceholder}
+            />
           }
           favoritePint={favoritePint}
           onFavoritePintChange={changeFavoritePint}
@@ -3291,7 +3478,7 @@ export default function PubMap({
             moment the reader moves the camera (design judgement 2026-08-01,
             finding 2.15). They used to park in the exact centre of the
             viewport, over the pins the map exists to show. */}
-        {ambientBannerLane && !ukPlaceArrival ? (
+        {ambientBannerLane && !baseLedChrome ? (
           <CitySuggestBanner
             cityId={cityId}
             onLocationFound={setUserLocation}
@@ -3407,6 +3594,8 @@ export default function PubMap({
           onSelectVenue={selectVenue}
           onSelectUkBasePub={handleUkBasePubClick}
           onPrefetchVenue={prefetchVenueDetail}
+          sortMode={mapListSortMode}
+          onSortModeChange={setMapListSortMode}
           backLabel={mapListOpen && mapSurfaceId === "venue-list" ? mapSurfaceTrail.backLabel : null}
           onBack={mapSurfaceTrail.back}
           onHome={mapSurfaceTrail.home}
@@ -3430,6 +3619,8 @@ export default function PubMap({
           nearMeError={nearbyError}
           onDismissNearMeError={() => setNearbyError(null)}
           nearbyCount={nearbyMapResult?.venueIds.length ?? 0}
+          tonightCount={whatsOnTonight.rows.length}
+          tonightNearReader={userLocation != null}
           tflCount={tflStatus.issueCount}
           tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
           priceLabel={filters.maxPrice < NO_PINT_PRICE_CAP ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
@@ -3446,6 +3637,8 @@ export default function PubMap({
             filters.zone !== "" &&
             filters.zone !== "all"
           }
+          openNowActive={filters.openNow}
+          savedOnlyActive={savedOnly}
           priceCapActive={
             experienceLens === "all" &&
             mapDrinkLensCategory === null &&
@@ -3453,7 +3646,7 @@ export default function PubMap({
           }
           areaPriceNoun={
             mapDrinkLensCategory
-              ? CATEGORY_META[mapDrinkLensCategory].label.toLowerCase()
+              ? drinkLensPriceNoun(mapDrinkLensCategory)
               : "pints"
           }
           planOpen={planningOpen}
@@ -3487,6 +3680,32 @@ export default function PubMap({
                 variant="sheet"
                 onChange={setVenueKindVisibility}
               />
+              {/* Same Saved only field as the desktop ControlRail — narrows the
+                  map to this device's saved pubs. Empty state when nothing is
+                  saved yet points at Save on a pub sheet. */}
+              <section className="toggles mobileMapSavedOnly">
+                <label aria-label={SAVED_ONLY_ARIA_LABEL} style={{ minHeight: 44 }}>
+                  <input
+                    type="checkbox"
+                    checked={savedOnly}
+                    onChange={(event) => changeSavedOnly(event.target.checked)}
+                  />
+                  Saved only
+                </label>
+                {savedOnly && !hasSavedPub ? (
+                  <div className="mobileMapSavedOnlyEmpty" role="status">
+                    <p>{SAVED_ONLY_EMPTY_NOTE}</p>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full"
+                      onClick={() => changeSavedOnly(false)}
+                    >
+                      Show all pubs
+                    </Button>
+                  </div>
+                ) : null}
+              </section>
               {experienceLens === "all" ? (
                 <>
                   <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
@@ -3529,6 +3748,26 @@ export default function PubMap({
                   setFilters((current) => ({ ...current, maxPrice }))
                 }
               />
+              <label className="mobileMapFilterToggle">
+                <input
+                  type="checkbox"
+                  checked={filters.openNow}
+                  onChange={(event) =>
+                    setFilters((current) => ({
+                      ...current,
+                      openNow: event.target.checked,
+                    }))
+                  }
+                />
+                <span>
+                  <strong>Open now</strong>
+                  {filters.openNow ? (
+                    <small>{OPEN_NOW_FILTER_CAPTION}</small>
+                  ) : (
+                    <small>Hide pubs we know are closed. Pubs without hours stay visible.</small>
+                  )}
+                </span>
+              </label>
             </div>
           }
           tflContent={<MobileTflPanel status={tflStatus} />}
@@ -3571,8 +3810,20 @@ export default function PubMap({
                 <div className="mobileLayerShortcuts">
                   <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
                     <MapPinned size={18} aria-hidden="true" />
-                    Plan tonight
+                    Plan an outing
                   </Button>
+                  {isLondon ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full justify-start"
+                      aria-label="On tonight near you"
+                      onClick={() => changeMapOverlay("tonight")}
+                    >
+                      <CalendarClock size={18} aria-hidden="true" />
+                      On tonight
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     variant="secondary"
@@ -3706,6 +3957,7 @@ export default function PubMap({
               onUseMyLocation={showNearbyMap}
               locationBusy={nearbyLoading}
               locationNote={nearbyError}
+              baseLed={baseLedChrome}
               onClose={() => changeMapOverlay("none")}
             />
           }
@@ -3733,7 +3985,7 @@ export default function PubMap({
               ? basePubOpen
                 ? selectedBasePub?.name ?? "Pub detail"
                 : selectedVenue?.name ?? selectedVenueLabels.detailLabel
-              : "Plan tonight"
+              : "Plan an outing"
           }
           initialSnap="half"
           requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}

@@ -7,6 +7,7 @@
 // No Reddit/X polling — staff-entered research notes only.
 
 import { isModerator } from "@/lib/adminAuth";
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import {
   dismissImportNote,
@@ -19,7 +20,7 @@ import { isImportNotesLimited } from "@/lib/importNotesRateLimit";
 import { assertServerEnv } from "@/lib/serverEnv";
 
 function forbidden(): Response {
-  return jsonNoStore({ error: "Not authorised." }, { status: 403 });
+  return publicApiError("Not authorised.", "FORBIDDEN", 403);
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -37,18 +38,18 @@ export async function POST(request: Request): Promise<Response> {
   assertServerEnv();
   if (!isModerator(request)) return forbidden();
   if (await isImportNotesLimited(request)) {
-    return jsonNoStore({ error: "Too many requests, slow down." }, { status: 429 });
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const validated = validateImportNote(body);
   if (!validated.ok) {
-    return jsonNoStore({ error: validated.error }, { status: 400 });
+    return publicApiError(validated.error, "INVALID_REQUEST", 400);
   }
 
   const note = enqueueImportNote(validated.note);
@@ -65,18 +66,18 @@ export async function PATCH(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const id = typeof body.id === "string" ? body.id.trim() : "";
   const action = body.action;
-  if (!id) return jsonNoStore({ error: "Note id is missing." }, { status: 400 });
+  if (!id) return publicApiError("Note id is missing.", "INVALID_REQUEST", 400);
   if (action !== "dismiss" && action !== "restore") {
-    return jsonNoStore({ error: "Action must be dismiss or restore." }, { status: 400 });
+    return publicApiError("Action must be dismiss or restore.", "INVALID_REQUEST", 400);
   }
 
   const ok = action === "dismiss" ? dismissImportNote(id) : restoreImportNote(id);
-  if (!ok) return jsonNoStore({ error: "Note not found." }, { status: 404 });
+  if (!ok) return publicApiError("Note not found.", "NOT_FOUND", 404);
 
   const notes = listImportNotes({ includeDismissed: true });
   const note = notes.find((n) => n.id === id) ?? null;

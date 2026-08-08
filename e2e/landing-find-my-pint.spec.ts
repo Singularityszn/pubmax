@@ -14,42 +14,51 @@ async function openLanding(page: Page, viewport: { width: number; height: number
   expect(response?.status()).toBe(200);
   await expect(
     page.getByRole("heading", {
-      name: "Listed pint prices for nights out.",
+      name: "London pints can cost eight quid.",
       exact: true,
     }),
   ).toBeVisible();
 }
 
 test.describe("landing Find my pint hierarchy (flag off / default)", () => {
-  test("keeps three hero buttons: Find my pint primary, Map and Plan quiet", async ({ page }) => {
+  test("keeps the map-first hero: Open the map primary, Find my pint and Plan secondary text", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
 
     const hero = page.locator(".lpHeroActions");
     await expect(hero).toBeVisible();
+    await expect(hero).toHaveClass(/lpHeroActions--mapFirst/);
     await expect(hero).not.toHaveClass(/findMyPint/);
 
-    const buttons = hero.locator(".lpButton");
-    await expect(buttons).toHaveCount(3);
-    await expect(buttons.nth(0)).toHaveClass(/lpButtonPrimary/);
-    await expect(buttons.nth(0)).toHaveAttribute("href", "/near");
-    await expect(buttons.nth(0)).toContainText("Find my pint");
-    await expect(buttons.nth(1)).toHaveClass(/lpButtonQuiet/);
-    await expect(buttons.nth(1)).toContainText("Open the map");
-    await expect(buttons.nth(2)).toHaveClass(/lpButtonQuiet/);
-    await expect(buttons.nth(2)).toContainText("Plan with friends");
+    const primaries = hero.locator(".lpButtonPrimary");
+    await expect(primaries).toHaveCount(1);
+    // No preferred city stored in a fresh session, so primaryCtaHref falls
+    // back to the city chooser rather than a fixed map route.
+    await expect(primaries.first()).toHaveAttribute("href", "/choose-city");
+    await expect(primaries.first()).toContainText("Open the map");
 
-    // Map and Plan remain reachable; no secondary text demotion while off.
-    await expect(hero.locator(".lpHeroSecondaryRow")).toHaveCount(0);
+    // No quiet equal-weight button pair under the map-first hero.
+    await expect(hero.locator(".lpButtonQuiet")).toHaveCount(0);
+
+    const secondary = hero.locator(".lpHeroSecondaryRow");
+    await expect(secondary).toBeVisible();
+    const findLink = secondary.getByRole("link", { name: /Find my pint/i });
+    const planLink = secondary.getByRole("link", { name: /Plan with friends/i });
+    await expect(findLink).toBeVisible();
+    await expect(planLink).toBeVisible();
+    await expect(findLink).toHaveClass(/lpTextLink/);
+    await expect(planLink).toHaveClass(/lpTextLink/);
+    await expect(findLink).toHaveAttribute("href", "/near");
+    await expect(planLink).toHaveAttribute("href", "/plan");
   });
 
-  test("hero primary targets /near and secondary Map/Plan stay linked", async ({ page }) => {
+  test("hero primary targets the map and secondary Find my pint/Plan stay linked", async ({ page }) => {
     await openLanding(page, { width: 390, height: 844 });
     const hero = page.locator(".lpHeroActions");
     await expect(hero.getByRole("link", { name: /Find my pint/i })).toHaveAttribute("href", "/near");
-    await expect(hero.getByRole("link", { name: /Open the map/i })).toBeVisible();
     await expect(hero.getByRole("link", { name: /Plan with friends/i })).toHaveAttribute("href", "/plan");
     const primary = hero.locator(".lpButtonPrimary");
     await expect(primary).toHaveCount(1);
+    await expect(primary).toContainText("Open the map");
     const box = await primary.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
   });

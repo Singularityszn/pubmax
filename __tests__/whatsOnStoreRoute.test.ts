@@ -456,6 +456,8 @@ describe("GET /api/whats-on (handleWhatsOnRequest)", () => {
     expect(await responses[60].json()).toEqual({
       rows: [],
       error: "Too many requests, slow down.",
+      code: "RATE_LIMITED",
+      retryable: true,
     });
   });
 });

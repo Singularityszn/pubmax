@@ -4,8 +4,10 @@ import {
   filterVenues,
   scoreVenue,
   buildCrawlRoute,
+  corroboratedPriceDrop,
   crawlSummary,
   mergeVenueDrops,
+  provisionalPintDropVenueIds,
   formatFreshness,
   formatObservedAt,
   stableVenueIdFromKey,
@@ -83,6 +85,7 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
     requireAccessibleToilet: false,
     requireSeatedService: false,
     canonicalOnly: false,
+    openNow: false,
     drinkCategory: "",
     drinkBrand: "",
     drinkSubtype: "",
@@ -617,15 +620,34 @@ describe("buildCrawlRoute", () => {
 });
 
 describe("mergeVenueDrops", () => {
+  // A fixed clock keeps the 30-day age window deterministic. Drops default to
+  // one day old (in window) and carry a handle so corroboration can count
+  // independent drinkers.
+  const NOW = Date.parse("2026-06-02T10:00:00.000Z");
+
   function makeSummaryDrop(overrides: Partial<SummaryDrop> = {}): SummaryDrop {
     return {
       drink: "Lager",
       priceGbp: null,
       passedDownNote: "",
       provenance: "contributor",
-      createdAt: "2026-01-01T00:00:00.000Z",
+      createdAt: "2026-06-01T10:00:00.000Z",
+      handle: "first_drinker",
       ...overrides,
     };
+  }
+
+  // A corroborated pair: two independent drinkers, in window, agreeing within
+  // the shared tolerance. The minimum a price needs to move the map.
+  function corroboratedPair(priceGbp = 4.5): SummaryDrop[] {
+    return [
+      makeSummaryDrop({ priceGbp, handle: "first_drinker" }),
+      makeSummaryDrop({
+        priceGbp,
+        handle: "second_drinker",
+        createdAt: "2026-05-31T10:00:00.000Z",
+      }),
+    ];
   }
 
   // A venue with no editorial heritage note → hasStory starts false.
@@ -638,13 +660,116 @@ describe("mergeVenueDrops", () => {
     expect(venue.hasStory).toBe(false);
     const [merged] = mergeVenueDrops(
       [venue],
-      new Map([[venue.id, [makeSummaryDrop({ priceGbp: 4.5 })]]]),
+      new Map([[venue.id, corroboratedPair(4.5)]]),
+      NOW,
     );
     expect(merged.hasStory).toBe(false);
     // ...and therefore no heritage-score boost either.
     expect(scoreVenue(merged, "heritage")).toBe(scoreVenue(venue, "heritage"));
-    // The price signal itself still merges.
+    // The corroborated price signal itself still merges.
     expect(merged.cheapestPrice).toBe(4.5);
+  });
+
+  it("a lone uncorroborated drop never moves cheapestPrice or the contributor layer (AGENTS.md pin law: an uncorroborated report cannot reach either lane)", () => {
+    const venue = plainVenue();
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([[venue.id, [makeSummaryDrop({ priceGbp: 4.5 })]]]),
+      NOW,
+    );
+    expect(merged.cheapestPrice).toBe(venue.cheapestPrice);
+    expect(merged.cheapestPint).toBe(venue.cheapestPint);
+    expect(merged.latestContributorPrice).toBeNull();
+    expect(merged.latestContributorAt).toBeNull();
+  });
+
+  it("two drops from the SAME handle stay one report - no self-corroboration", () => {
+    const venue = plainVenue();
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([
+        [
+          venue.id,
+          [
+            makeSummaryDrop({ priceGbp: 4.5, handle: "first_drinker" }),
+            makeSummaryDrop({
+              priceGbp: 4.6,
+              handle: "@First_Drinker", // normalises to the same handle
+              createdAt: "2026-05-31T10:00:00.000Z",
+            }),
+          ],
+        ],
+      ]),
+      NOW,
+    );
+    expect(merged.latestContributorPrice).toBeNull();
+    expect(merged.cheapestPrice).toBe(venue.cheapestPrice);
+  });
+
+  it("two independent drinkers disagreeing beyond tolerance do not corroborate", () => {
+    const venue = plainVenue();
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([
+        [
+          venue.id,
+          [
+            makeSummaryDrop({ priceGbp: 4.5, handle: "first_drinker" }),
+            makeSummaryDrop({
+              priceGbp: 7.5,
+              handle: "second_drinker",
+              createdAt: "2026-05-31T10:00:00.000Z",
+            }),
+          ],
+        ],
+      ]),
+      NOW,
+    );
+    expect(merged.latestContributorPrice).toBeNull();
+  });
+
+  it("a second report outside the 30-day window does not corroborate", () => {
+    const venue = plainVenue();
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([
+        [
+          venue.id,
+          [
+            makeSummaryDrop({ priceGbp: 4.5, handle: "first_drinker" }),
+            makeSummaryDrop({
+              priceGbp: 4.5,
+              handle: "second_drinker",
+              createdAt: "2026-04-01T10:00:00.000Z", // 62 days before NOW
+            }),
+          ],
+        ],
+      ]),
+      NOW,
+    );
+    expect(merged.latestContributorPrice).toBeNull();
+  });
+
+  it("drops without a handle cannot prove independence, so they never corroborate", () => {
+    const venue = plainVenue();
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([
+        [
+          venue.id,
+          [
+            makeSummaryDrop({ priceGbp: 4.5, handle: undefined }),
+            makeSummaryDrop({
+              priceGbp: 4.5,
+              handle: undefined,
+              createdAt: "2026-05-31T10:00:00.000Z",
+            }),
+          ],
+        ],
+      ]),
+      NOW,
+    );
+    expect(merged.latestContributorPrice).toBeNull();
   });
 
   it("a drop WITH a passed-down note lights hasStory", () => {
@@ -654,6 +779,7 @@ describe("mergeVenueDrops", () => {
       new Map([
         [venue.id, [makeSummaryDrop({ passedDownNote: "My grandad's corner table.", provenance: "anecdote" })]],
       ]),
+      NOW,
     );
     expect(merged.hasStory).toBe(true);
   });
@@ -663,6 +789,7 @@ describe("mergeVenueDrops", () => {
     const [merged] = mergeVenueDrops(
       [venue],
       new Map([[venue.id, [makeSummaryDrop({ passedDownNote: "   ", priceGbp: 5 })]]]),
+      NOW,
     );
     expect(merged.hasStory).toBe(false);
   });
@@ -683,13 +810,14 @@ describe("mergeVenueDrops", () => {
           ],
         ],
       ]),
+      NOW,
     );
     expect(merged.hasStory).toBe(false);
     expect(merged.cheapestPrice).toBe(venue.cheapestPrice);
     expect(merged).toEqual(venue);
   });
 
-  it("a demo drop ahead of an organic one never wins the latest-price or story slot", () => {
+  it("a demo drop ahead of corroborated organic ones never wins the latest-price or story slot", () => {
     const venue = plainVenue();
     const [merged] = mergeVenueDrops(
       [venue],
@@ -697,19 +825,26 @@ describe("mergeVenueDrops", () => {
         [
           venue.id,
           [
-            // Newest-first list: the demo seed sits ahead of the organic drop.
+            // Newest-first list: the demo seed sits ahead of the organic pair.
             makeSummaryDrop({
               provenance: "demo",
               drink: "Seeded Stout",
               priceGbp: 1.0,
               passedDownNote: "A seeded story that must not count.",
             }),
-            makeSummaryDrop({ drink: "Organic Ale", priceGbp: 4.5 }),
+            makeSummaryDrop({ drink: "Organic Ale", priceGbp: 4.5, handle: "first_drinker" }),
+            makeSummaryDrop({
+              drink: "Organic Ale",
+              priceGbp: 4.5,
+              handle: "second_drinker",
+              createdAt: "2026-05-31T10:00:00.000Z",
+            }),
           ],
         ],
       ]),
+      NOW,
     );
-    // The organic drop's signals win; the demo drop is invisible to them.
+    // The corroborated organic signals win; the demo drop is invisible to them.
     expect(merged.cheapestPrice).toBe(4.5);
     expect(merged.cheapestPint).toBe("Organic Ale");
     expect(merged.hasStory).toBe(false);
@@ -719,22 +854,23 @@ describe("mergeVenueDrops", () => {
     const venue = groupVenuePrices([makeRow({ pub_name: "The Lamb" })])[0];
     const [merged] = mergeVenueDrops(
       [venue],
-      new Map([[venue.id, [makeSummaryDrop({ priceGbp: 5 })]]]),
+      new Map([[venue.id, corroboratedPair(5)]]),
+      NOW,
     );
     expect(merged.hasStory).toBe(true);
   });
 
-  it("carries the organic price drop's createdAt through as latestContributorAt", () => {
+  it("carries the corroborated price drop's createdAt through as latestContributorAt", () => {
     const venue = plainVenue();
     expect(venue.latestContributorPrice).toBeNull();
     expect(venue.latestContributorAt).toBeNull();
     const [merged] = mergeVenueDrops(
       [venue],
-      new Map([
-        [venue.id, [makeSummaryDrop({ priceGbp: 4.5, createdAt: "2026-06-01T10:00:00.000Z" })]],
-      ]),
+      new Map([[venue.id, corroboratedPair(4.5)]]),
+      NOW,
     );
     expect(merged.latestContributorPrice).toBe(4.5);
+    // The candidate is the newest agreeing drop; its timestamp travels with it.
     expect(merged.latestContributorAt).toBe("2026-06-01T10:00:00.000Z");
   });
 
@@ -743,9 +879,74 @@ describe("mergeVenueDrops", () => {
     const [merged] = mergeVenueDrops(
       [venue],
       new Map([[venue.id, [makeSummaryDrop({ passedDownNote: "Grandad's local.", provenance: "anecdote" })]]]),
+      NOW,
     );
     expect(merged.latestContributorPrice).toBeNull();
     expect(merged.latestContributorAt).toBeNull();
+  });
+
+  describe("corroboratedPriceDrop", () => {
+    it("a corroborated pair yields the newest agreeing drop as the candidate", () => {
+      const drops = corroboratedPair(4.5);
+      const candidate = corroboratedPriceDrop(drops, NOW);
+      expect(candidate).toBe(drops[0]);
+    });
+
+    it("a lone fresh disagreement cannot un-paint a corroborated older figure", () => {
+      const drops = [
+        // Newest-first: a lone £9 report ahead of a corroborated £4.50 pair.
+        makeSummaryDrop({ priceGbp: 9, handle: "third_drinker" }),
+        makeSummaryDrop({
+          priceGbp: 4.5,
+          handle: "first_drinker",
+          createdAt: "2026-05-30T10:00:00.000Z",
+        }),
+        makeSummaryDrop({
+          priceGbp: 4.6,
+          handle: "second_drinker",
+          createdAt: "2026-05-29T10:00:00.000Z",
+        }),
+      ];
+      const candidate = corroboratedPriceDrop(drops, NOW);
+      expect(candidate?.priceGbp).toBe(4.5);
+    });
+
+    it("returns null for a single drop, however fresh", () => {
+      expect(corroboratedPriceDrop([makeSummaryDrop({ priceGbp: 4.5 })], NOW)).toBeNull();
+    });
+  });
+
+  describe("provisionalPintDropVenueIds", () => {
+    it("a lone in-window drop marks the venue provisional (visibility without authority)", () => {
+      const ids = provisionalPintDropVenueIds(
+        new Map([["venue-a", [makeSummaryDrop({ priceGbp: 4.5 })]]]),
+        NOW,
+      );
+      expect(ids.has("venue-a")).toBe(true);
+    });
+
+    it("a corroborated lane is painting, so nothing is pending", () => {
+      const ids = provisionalPintDropVenueIds(
+        new Map([["venue-a", corroboratedPair(4.5)]]),
+        NOW,
+      );
+      expect(ids.size).toBe(0);
+    });
+
+    it("demo-only, note-only, and aged-out lanes never mark", () => {
+      const ids = provisionalPintDropVenueIds(
+        new Map([
+          ["venue-demo", [makeSummaryDrop({ provenance: "demo", priceGbp: 4.5 })]],
+          ["venue-note", [makeSummaryDrop({ passedDownNote: "Grandad's local." })]],
+          [
+            "venue-aged",
+            [makeSummaryDrop({ priceGbp: 4.5, createdAt: "2026-01-01T00:00:00.000Z" })],
+          ],
+        ]),
+        NOW,
+      );
+      expect(ids.size).toBe(0);
+    });
   });
 });
 

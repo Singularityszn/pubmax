@@ -336,6 +336,25 @@ describe("POST /api/plans/generate", () => {
     ]));
   });
 
+  it("records wetherspoonsPreferred in contextEffects without hard-filtering the route", async () => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "chill Wetherspoons in Clapham for 3" }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.inferredContext).toMatchObject({
+      nightArea: "clapham",
+      daypart: "daytime",
+      groupSize: 3,
+      budget: "value",
+      wetherspoonsPreferred: true,
+    });
+    expect(body.contextEffects).toEqual(expect.arrayContaining(["wetherspoonsPreferred", "budget", "daypart"]));
+    expect(body.stops).toHaveLength(3);
+  });
+
   it("always returns an editable route with honest confidence for a reviewed area", async () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",

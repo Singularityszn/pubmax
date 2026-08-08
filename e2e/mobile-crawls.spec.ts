@@ -105,7 +105,7 @@ test.describe("mobile Crawls surfaces", () => {
     if ((await planner.count()) === 0) await page.locator(".mobilePlanActivation").click();
     await expect(planner).toBeVisible({ timeout: 20_000 });
     await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
-    await expect(planner.getByRole("heading", { name: "Plan tonight" })).toBeVisible();
+    await expect(planner.getByRole("heading", { name: "Plan an outing" })).toBeVisible();
 
     const routePanel = planner.locator(".routePanel");
     const stops = routePanel.locator("ol.routeList > li");

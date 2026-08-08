@@ -1,5 +1,11 @@
+import {
+  agreesWithinTolerance,
+  COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
+  isWithinMaxAge,
+} from "@/lib/communityPrice";
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
 import { haversineKm } from "@/lib/haversine";
+import { normalizeHandle } from "@/lib/profiles";
 import { firstHttp } from "@/lib/httpUrl";
 import {
   findBrand,
@@ -235,6 +241,12 @@ export type Filters = {
   requireHeritage: boolean;
   requirePintDrops: boolean;
   canonicalOnly: boolean;
+  /**
+   * Drop pubs we know are closed right now. Pubs without trusted hours stay
+   * visible (honest unknown). Hours currently come from Wetherspoon directory
+   * match only — never invented, never CityMCP bulk.
+   */
+  openNow: boolean;
   // Accessible-venue filters (PRD issue #28). Each, when on, narrows to pubs
   // KNOWN to have that facet — an unknown fact fails the filter (see
   // lib/venueAccessibility.matchesAccessibilityFilters). Off = no-op.
@@ -390,6 +402,13 @@ export type SummaryDrop = {
   // ISO timestamp the drop was logged. Carried through so the UI can show how
   // fresh the live community price is ("logged 2h ago") — see formatFreshness.
   createdAt: string;
+  // Public handle of the drinker who logged the drop — the independence axis
+  // the corroboration gate counts on. Optional so old callers still typecheck,
+  // but a drop without one has unknown identity, and unknown identity can never
+  // prove a SECOND independent drinker: unattributed drops corroborate nothing.
+  // (Anonymous drops all wear ANON_HANDLE_LABEL, so they collapse to one
+  // submitter here too — the cautious reading, on purpose.)
+  handle?: string;
 };
 
 // Honesty note the venue detail can render alongside a community-updated price,
@@ -445,9 +464,88 @@ export function formatObservedAt(iso: string | null | undefined, now: Date = new
   return formatAgeLabel(iso, "observed", now);
 }
 
+// The Pint Drop lane's trust gate — the drop-side twin of the community-price
+// gate (lib/communityPrice.ts `drivesMap`), reusing its predicates and
+// constants so "corroborated" means ONE thing across both price lanes.
+//
+// AGENTS.md pin law: "an uncorroborated report cannot reach either lane" (the
+// pin's colour band and its printed figure). A lone Pint Drop used to reach
+// both through mergeVenueDrops / usePintDrops.venueSignals; this gate closes
+// that. What earns the map is the drop lane's best-corroborated in-window
+// candidate:
+// - only organic (non-demo) drops carrying a real price count;
+// - only drops inside the community max-age window count — an aged report is a
+//   record of a night, not evidence about tonight;
+// - independence is counted on normalised handles (a drinker agreeing with
+//   themselves is still one report), agreement within the shared tolerance of
+//   the candidate figure;
+// - the best-backed candidate wins, so a lone fresh disagreement can neither
+//   repaint the map nor un-paint an already-corroborated figure — the same
+//   rule mapCandidateOf keeps for community submissions.
+// Returns null when nothing on offer has earned the map. Ties keep the earlier
+// (newest-first) drop, matching the store's ordering.
+export function corroboratedPriceDrop<D extends SummaryDrop>(
+  drops: readonly D[],
+  now: number = Date.now(),
+): D | null {
+  const inWindow = drops.filter(
+    (drop) =>
+      drop.provenance !== "demo" &&
+      typeof drop.priceGbp === "number" &&
+      Number.isFinite(drop.priceGbp) &&
+      isWithinMaxAge({ submittedAt: Date.parse(drop.createdAt) }, now),
+  );
+  if (inWindow.length < COMMUNITY_PRICE_CORROBORATION_THRESHOLD) return null;
+  let best: D | null = null;
+  let bestBackers = 0;
+  for (const candidate of inWindow) {
+    const backers = new Set<string>();
+    for (const other of inWindow) {
+      const handle = normalizeHandle(other.handle);
+      if (!handle) continue;
+      if (!agreesWithinTolerance(candidate.priceGbp as number, other.priceGbp as number)) {
+        continue;
+      }
+      backers.add(handle);
+    }
+    if (backers.size > bestBackers) {
+      best = candidate;
+      bestBackers = backers.size;
+    }
+  }
+  return bestBackers >= COMMUNITY_PRICE_CORROBORATION_THRESHOLD ? best : null;
+}
+
+// The venues whose drop lane holds an in-window pint report that has NOT
+// earned the map — the drop-side feeder for the provisional mark
+// (provisionalCommunityPriceVenueIds seam). VISIBILITY without AUTHORITY: a
+// first drop marks the pin as "someone reported here" while the colour band
+// and printed figure wait for a second independent drinker.
+export function provisionalPintDropVenueIds<D extends SummaryDrop>(
+  dropsByVenueId: ReadonlyMap<string, readonly D[]>,
+  now: number = Date.now(),
+): Set<string> {
+  const pending = new Set<string>();
+  for (const [venueId, drops] of dropsByVenueId) {
+    const inWindow = drops.some(
+      (drop) =>
+        drop.provenance !== "demo" &&
+        typeof drop.priceGbp === "number" &&
+        isWithinMaxAge({ submittedAt: Date.parse(drop.createdAt) }, now),
+    );
+    if (!inWindow) continue;
+    // A corroborated lane is painting the pin already — nothing is pending.
+    if (corroboratedPriceDrop(drops, now)) continue;
+    pending.add(venueId);
+  }
+  return pending;
+}
+
 // Fold Pint Drops into the venue's DERIVED SUMMARY SIGNALS only — never into
 // the editorial curation note. Rules:
-// - an organic contributor price can update cheapestPrice/cheapestPint;
+// - an organic contributor price can update cheapestPrice/cheapestPint, but
+//   ONLY once corroborated (corroboratedPriceDrop above) — a lone drop stays
+//   on the venue sheet, dated, and never moves the map's price surfaces;
 // - hasStory lights ONLY from a drop carrying a passed-down note — a bare
 //   price log is not a story and must not boost heritage scoring;
 // - "demo" seeds are display-only: they never move prices or story signals,
@@ -455,6 +553,7 @@ export function formatObservedAt(iso: string | null | undefined, now: Date = new
 export function mergeVenueDrops<D extends SummaryDrop>(
   venues: Venue[],
   dropsByVenueId: Map<string, D[]>,
+  now: number = Date.now(),
 ): Venue[] {
   if (dropsByVenueId.size === 0) return venues;
   return venues.map((venue) => {
@@ -463,7 +562,7 @@ export function mergeVenueDrops<D extends SummaryDrop>(
     );
     if (organic.length === 0) return venue;
 
-    const latestPriceDrop = organic.find((drop) => typeof drop.priceGbp === "number");
+    const latestPriceDrop = corroboratedPriceDrop(organic, now);
     const contributorPrice = latestPriceDrop?.priceGbp ?? null;
     const cheapestPrice =
       contributorPrice === null
@@ -635,6 +734,11 @@ export function filterVenues(
   venues: Venue[],
   filters: Filters,
   hasPintDrops: (venueId: string) => boolean = () => false,
+  /**
+   * Open-now state for a venue id. Defaults to `"unknown"` so an unwired
+   * caller never invents closures. Only `false` is dropped when openNow is on.
+   */
+  openNowState: (venueId: string) => boolean | "unknown" = () => "unknown",
 ): Venue[] {
   const query = filters.query.trim().toLowerCase();
   const drinkCategory = filters.drinkCategory?.trim() ?? "";
@@ -660,6 +764,10 @@ export function filterVenues(
     const matchesPintDrops =
       !filters.requirePintDrops ||
       (isPubVenueKind(venue.kind) && hasPintDrops(venue.id));
+
+    // Open now: known-closed drops; known-open and unknown both stay.
+    const matchesOpenNow =
+      !filters.openNow || openNowState(venue.id) !== false;
 
     // Accessible-venue filters: an unknown fact fails a positive filter, so
     // filtering to step-free shows only pubs KNOWN step-free (never guessed).
@@ -687,6 +795,7 @@ export function filterVenues(
       matchesVenueCuration(venue, filters) &&
       matchesCanonicalFilter(venue, filters.canonicalOnly) &&
       matchesPintDrops &&
+      matchesOpenNow &&
       matchesAccessibility &&
       matchesCategory &&
       matchesDrinkBrand(venue, drinkBrand) &&

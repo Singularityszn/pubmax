@@ -150,7 +150,7 @@ export function lastRideDecisionCopy(
 // same CSS custom properties the rest of the map panel reads from.
 const DECISION_COLOUR: Record<LastPintDecisionKind, string> = {
   order_one_more: "var(--accent-good, #2f7a3d)",
-  half_pint_only: "var(--accent-brass, #9b7a2a)",
+  half_pint_only: "var(--brass, #ff5a5f)",
   settle_up_now: "var(--accent-warn, #b5651d)",
   train_risk: "var(--accent-risk, #b3261e)",
   live_data_unavailable: "var(--ink-soft, #6b726a)",
@@ -814,7 +814,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 0,
     border: "none",
     background: "none",
-    color: "var(--accent-brass, #9b7a2a)",
+    color: "var(--brass, #ff5a5f)",
     font: "inherit",
     fontSize: 12,
     cursor: "pointer",
@@ -851,7 +851,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "6px 10px",
     borderRadius: "var(--radius-sm, 6px)",
     border: "1px solid var(--line, #d9d4c7)",
-    background: "var(--accent-brass, #9b7a2a)",
+    background: "var(--brass, #ff5a5f)",
     color: "var(--paper, #fff)",
     font: "inherit",
     fontSize: 12,

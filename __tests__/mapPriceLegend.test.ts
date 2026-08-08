@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { NO_ALCOHOL_LENS_PRICE_NOUN } from "@/lib/mapExperienceLens";
+import {
+  drinkLensPriceNoun,
+  NO_ALCOHOL_LENS_PRICE_NOUN,
+} from "@/lib/mapExperienceLens";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 
 const ALL_RENDERED_STATE = {
@@ -145,6 +148,23 @@ describe("mapPriceLegend", () => {
     expect(legend.title).toBe("Whisky price bands");
     expect(legend.hint).toContain("unknown");
     expect(legend.hint).not.toContain("pint");
+  });
+
+  it("names coffee empty bands without pint or no-alcohol wording", () => {
+    const noun = drinkLensPriceNoun("coffee");
+    const legend = mapPriceLegend({
+      kind: "drink",
+      label: "Coffee",
+      noun,
+      status: "ready",
+      renderedState: ALL_RENDERED_STATE,
+    });
+    expect(noun).toBe("coffee");
+    expect(legend.title).toBe("Coffee price bands");
+    expect(legend.rows.at(-1)?.label).toBe("No coffee price on the map");
+    expect(legend.hint).toContain("trusted coffee prices");
+    expect(legend.hint).not.toContain("pint");
+    expect(JSON.stringify(legend)).not.toContain(NO_ALCOHOL_LENS_PRICE_NOUN);
   });
 
   it("keeps the no-alcohol title while using a positive sentence noun", () => {

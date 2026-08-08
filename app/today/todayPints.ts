@@ -17,6 +17,7 @@ import {
   type RememberedArea,
 } from "@/lib/nightPatches";
 import type { Venue } from "@/lib/venues";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 
 /** The morning brief shows a tight five, not the full area list. */
 export const TODAY_PINTS_LIMIT = 5;
@@ -31,7 +32,7 @@ export type TodayPintRow = {
   price: number;
   /** "£4.80", ready to render. */
   priceLabel: string;
-  /** Deep link to the venue on the map (the /map?venue= pattern). */
+  /** Deep link to the venue on the map ({@link venueMapUrl}). */
   mapHref: string;
 };
 
@@ -46,10 +47,6 @@ export type TodayPintsModule = {
 
 /** Small bundled map keyed by patch id, one entry per patch that has priced pints. */
 export type TodayPintsIndex = Record<string, TodayPintsModule>;
-
-function venueMapHref(id: string): string {
-  return `/map?venue=${encodeURIComponent(id)}`;
-}
 
 /**
  * The cheapest priced pints for the area around a patch centre, or null when
@@ -84,7 +81,7 @@ export function buildTodayPintsForPatch(
       name: row.name,
       price: row.price as number,
       priceLabel: row.priceLabel,
-      mapHref: venueMapHref(row.id),
+      mapHref: venueMapUrl(row.id),
     })),
   };
 }

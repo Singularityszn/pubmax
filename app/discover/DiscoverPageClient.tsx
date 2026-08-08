@@ -24,7 +24,11 @@ import ThenVsNowCard from "@/components/discovery/ThenVsNowCard";
 import SiteNav from "@/components/nav/SiteNav";
 import { CategoryShowcase } from "@/components/drinks/CategoryShowcase";
 import { brandsForCategory } from "@/lib/drinkBrands";
-import type { DrinkCategory } from "@/lib/drinks";
+import {
+  categoryLabel,
+  MAP_LENS_DRINK_CATEGORIES,
+  type DrinkCategory,
+} from "@/lib/drinks";
 import { KNOWN_CUISINE_TAGS } from "@/lib/cuisineTags";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import { runDiscoverAnalysisLoad, scheduleDiscoverAnalysisLoad } from "@/lib/discoverLazy";
@@ -65,6 +69,25 @@ const DISCOVER_CUISINE_CHIPS = [
 
 /** Brand jump chips — beer + wine only (honest coverage on the map). */
 const JUMP_BY_BRAND_CATEGORIES = ["beer", "wine"] as const satisfies ReadonlyArray<DrinkCategory>;
+
+/**
+ * Discover lede lists every drink the map can lens, derived from
+ * `MAP_LENS_DRINK_CATEGORIES` so a new lens (coffee today) cannot drift out of
+ * the browse sentence. `alcohol-free` keeps the noun "drinks" so the bare
+ * adjective does not hang in the list.
+ */
+export function discoverDrinkBrowseLede(
+  categories: readonly DrinkCategory[] = MAP_LENS_DRINK_CATEGORIES,
+): string {
+  const labels = categories.map((category) => {
+    const label = categoryLabel(category).toLocaleLowerCase("en-GB");
+    return category === "alcohol-free" ? "alcohol-free drinks" : label;
+  });
+  if (labels.length === 0) return "Browse drinks on the map.";
+  if (labels.length === 1) return `Browse ${labels[0]}.`;
+  const last = labels[labels.length - 1]!;
+  return `Browse ${labels.slice(0, -1).join(", ")} and ${last}.`;
+}
 
 // "Explore by drink" → /map deep-link. decodeCrawl (lib/crawlUrl) maps these:
 //   cocktail → requireCocktails + drinkCategory
@@ -147,7 +170,7 @@ function buildEditorial(): EditorialCardData[] {
       title: "Tonight's crawl, sorted",
       dek: "Pick a borough and set your price before opening the route on the map.",
       href: packMapHref("late-train", DEFAULT_CITY_ID),
-      cta: "Plan tonight",
+      cta: "Plan an outing",
     },
   ];
 }
@@ -411,10 +434,7 @@ export function DiscoverBody({
       {!embedded ? <header className="discoverHead">
         <p className="discoverEyebrow">Pint stories</p>
         <h1 className="discoverTitle">Pint prices, pub stories and routes worth walking.</h1>
-        <p className="discoverLede">
-          Browse beer, wine, gin, vodka, rum, cocktails, shots, alcohol-free
-          drinks and soft drinks.
-        </p>
+        <p className="discoverLede">{discoverDrinkBrowseLede()}</p>
         {/* Hub rule (docs/MOBILE_FLOW_SPEC.md §1): Tonight, Feed, and Crawls have no tab
             of their own on mobile, so this page is their hub — every surface
             reachable in ≤2 taps from a tab. */}

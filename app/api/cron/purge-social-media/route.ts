@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { assertCronRequest } from "@/lib/cronAuth";
 import {
@@ -19,10 +20,9 @@ export async function GET(request: Request): Promise<Response> {
     ]);
     return jsonNoStore({ ok: true, detached, orphaned });
   } catch {
-    return jsonNoStore({
-      ok: false,
-      error: "Social photo cleanup is unavailable.",
+    return publicApiError("Social photo cleanup is unavailable.", "UNAVAILABLE", 503, {
       retryable: true,
-    }, { status: 503 });
+      compatibilityFields: { ok: false },
+    });
   }
 }

@@ -1,12 +1,15 @@
 // "We're out" check-ins (Social Loop v1). POST creates a lightweight, area-level
-// check-in; GET reads the viewer's "Your lot" check-ins (friends-only, mutual
-// follows) OR the area-public set — always through the single privacy choke
-// (lib/socialFeed.ts), never straight from the store.
+// check-in — area is optional, so a no-area check-in is a plain "out tonight"
+// presence signal; GET reads the viewer's "Your lot" check-ins (friends-only,
+// mutual follows) OR the area-public set — always through the single privacy
+// choke (lib/socialFeed.ts), never straight from the store; DELETE ends the
+// caller's own check-in early ("turn off").
 //
-// The POST author is the self-asserted handle (resolved to the JWT-linked handle
-// when signed in), the same demo identity that authors a pint drop or a follow.
-// Writes go through the service role (check_ins has no anon policy). Certified as
-// a mutating surface via the durable rate limit boundary (isLimited).
+// The POST/DELETE author is the self-asserted handle (resolved to the
+// JWT-linked handle when signed in), the same demo identity that authors a
+// pint drop or a follow. Writes go through the service role (check_ins has no
+// anon policy). Certified as a mutating surface via the durable rate limit
+// boundary (isLimited).
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -134,6 +137,62 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const checkIn = await checkInStore().create(validation.value);
     return jsonNoStore({ checkIn }, { status: 201 });
+  } catch {
+    return publicApiError("Check-in storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+}
+
+// DELETE /api/check-ins → ends a check-in early ("turn off"). Deliberately
+// skips socialFreezeResponse: turning off is safety-reducing, so it must never
+// be blocked by a solo-operator emergency freeze of social writes. Hard-deletes
+// every check-in the caller authored — a check-in is single-purpose (one
+// "we're out" state per handle) and short-lived by design (12h TTL), so
+// deleteForHandle needs no extra scoping to stay correct.
+export async function DELETE(request: Request): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
+
+  const handle = await resolveMessageHandle(request, readString(body.handle));
+  if (!handle) {
+    return publicApiError(
+      "Choose a handle in your account first.",
+      "HANDLE_REQUIRED",
+      400,
+    );
+  }
+
+  const ownership = await gateHandleAction(request, handle);
+  if (!ownership.allowed) {
+    const retryable = ownership.status >= 500;
+    return publicApiError(
+      ownership.error,
+      retryable ? "STORE_UNAVAILABLE" : "HANDLE_FORBIDDEN",
+      ownership.status,
+      { retryable },
+    );
+  }
+
+  if (await isCheckInLimited(request, ownership.handle)) {
+    return publicApiError("Too many check-ins, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
+  }
+
+  if (requiresSupabaseStore() && !isSupabaseConfigured()) {
+    return publicApiError("Check-in storage is not configured.", "STORE_UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+
+  try {
+    await checkInStore().deleteForHandle(ownership.handle);
+    return jsonNoStore({ ok: true }, { status: 200 });
   } catch {
     return publicApiError("Check-in storage is unavailable.", "STORE_UNAVAILABLE", 503, {
       retryable: true,

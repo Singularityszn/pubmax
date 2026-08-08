@@ -5,6 +5,7 @@
 // `borough` param) surfaces as a 200 with nulls — never a hard 500 — so the
 // card can quietly not render rather than break the page.
 
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { fetchCityArea } from "@/lib/citymcp/area";
 import { CityMcpError } from "@/lib/citymcp/client";
@@ -20,10 +21,10 @@ export const GET = withRouteTiming("citymcp/area", getHandler);
 
 async function getHandler(request: Request): Promise<Response> {
   if (await isCityMcpLimited(request)) {
-    return jsonNoStore(
-      { borough: null, averagePintGbp: null, asOf: null, error: "Too many requests, slow down." },
-      { status: 429 },
-    );
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+      compatibilityFields: { borough: null, averagePintGbp: null, asOf: null },
+    });
   }
 
   const params = new URL(request.url).searchParams;

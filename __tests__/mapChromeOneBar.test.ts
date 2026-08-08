@@ -42,9 +42,12 @@ describe("finding 2.3 — the phone map chrome is one bar", () => {
     // The rail was the second container. Nothing may bring it back.
     expect(chrome, "no control rail").not.toContain("mobileMapRail");
     expect(shellCss, "and no rail styling survives").not.toContain(".mobileMapRail");
-    // The only other child is the search field, which replaces nothing at
-    // rest: it mounts on the reader's own tap and unmounts on close.
+    // The only other children at rest are optional: the search field (mounts
+    // on the reader's own tap) and the Tonight cold-start chip (mounts only
+    // when What's On has listings). Neither is a second control rail.
     expect(chrome).toMatch(/overlay === "search" \? \([\s\S]*?mobileMapSearchRow/);
+    expect(chrome).toMatch(/tonightChip \? \([\s\S]*?mobileMapTonightRow/);
+    expect(chrome, "no control rail").not.toContain("mobileMapRail");
   });
 
   it("puts Near me on the map edge as a round control, not in the bar", () => {
@@ -67,7 +70,11 @@ describe("finding 2.3 — the phone map chrome is one bar", () => {
   it("keeps the bar to controls, and the category toggles out of it", () => {
     const chrome = mapChromeMarkup();
     expect(chrome, "no venue-type toggles in the chrome").not.toContain("TonightArcChips");
-    expect(chrome, "and no Tonight chip either").not.toContain("Sparkles");
+    // A permanent Tonight slot used Sparkles inside the bar rail. The cold-start
+    // chip docks under the bar with MoonStar and never reclaims a sixth slot.
+    expect(chrome, "no Sparkles Tonight chip in the bar").not.toContain("Sparkles");
+    expect(chrome).toContain("MoonStar");
+    expect(chrome).toMatch(/set\("tonight"\)/);
   });
 });
 
@@ -79,7 +86,7 @@ describe("finding 2.3 — the category toggles have exactly one home per viewpor
     expect(floating?.length, "TonightArcChips mount sites").toBe(2);
     // The map copy is desktop only.
     expect(pubMap).toMatch(
-      /!ukPlaceArrival && !mobileViewport \? \(\s*<TonightArcChips/,
+      /!baseLedChrome && !mobileViewport \? \(\s*<TonightArcChips/,
     );
     // The other copy is the Filters sheet section, which is where a phone
     // reads them.
@@ -154,7 +161,7 @@ describe("finding 2.15 — the banners dock under the bar and step off the map",
     expect(pubMap).toMatch(
       /const ambientBannerLane = !mobileViewport && !mapCameraTouched/,
     );
-    expect(pubMap).toMatch(/\{ambientBannerLane && !ukPlaceArrival \?/);
+    expect(pubMap).toMatch(/\{ambientBannerLane && !baseLedChrome \?/);
     expect(pubMap).toMatch(/\{ambientBannerLane && isLondon \?/);
   });
 });

@@ -172,7 +172,7 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
   await expect(page.locator(".maplibreMap, .mapFallback").first()).toBeVisible();
 
   // Open the planner so the control rail's filter toggles become visible.
-  const planBtn = page.getByRole("button", { name: "Describe your night" });
+  const planBtn = page.getByRole("button", { name: "Describe the outing" });
   await expect(planBtn).toBeVisible();
   await planBtn.click();
   const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');

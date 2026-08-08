@@ -18,7 +18,7 @@ import {
   Smartphone,
   UsersRound,
 } from "lucide-react";
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
@@ -37,12 +37,19 @@ import {
   subscribePreferredCity,
 } from "@/lib/cityPreference";
 import { warmMapRoute } from "@/lib/mapWarmup";
+import { onReducedMotionChange, prefersReducedMotion } from "@/lib/motionVocabulary";
 import { CONTACT_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
+import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 
 import PintDropStripLoading from "./PintDropStripLoading";
 import ThamesHero from "./ThamesHero";
 import "./landing.css";
+import "./heroCinema.css";
+
+function trackLandingCta(target: LandingCtaTarget) {
+  trackEvent("landing_cta_clicked", { target });
+}
 
 const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
   ssr: false,
@@ -124,9 +131,13 @@ export default function LandingPage({
   stats,
   // Server-threaded trusted-handoff flag (default off = current hierarchy).
   landingFindMyPint = false,
+  // Server-threaded Social invite beta (default off = soft-launch preview).
+  // Memory CTAs must not promise "Open Social" while the product is closed.
+  socialInviteBetaEnabled = false,
 }: {
   stats?: AboutStats;
   landingFindMyPint?: boolean;
+  socialInviteBetaEnabled?: boolean;
 }) {
   const router = useRouter();
   const preferredCity = useSyncExternalStore(
@@ -154,15 +165,86 @@ export default function LandingPage({
     trackEvent("discovery_viewed", { surface: "landing", daypart });
   }, []);
 
+  // Hero scroll cinema (PIECE 2 of feat(landing): hero scroll cinema with
+  // aperture splash). Drives --cinema-progress on .lpHero from scroll
+  // position, 0 to 1 over CINEMA_SCROLL_DISTANCE px. Eligibility (viewport
+  // width, prefers-reduced-motion) mirrors the compound media query in
+  // heroCinema.css exactly. The CSS default is the settled, composed card
+  // (progress 1) so no-JS and pre-JS readers get the finished hero; this
+  // effect's first write at the top of the page (progress 0) is therefore a
+  // deliberate state change that plays heroCinema.css's cinema-settle
+  // transition as the open. Scroll-driven writes then set data-cinema-scrub
+  // first, which turns those transitions off so the card tracks the wheel
+  // 1:1. Reduced motion and phones (<=700px) never attach the listener; the
+  // card stays the plain, static, settled treatment heroCinema.css falls
+  // back to.
+  const heroRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const hero = heroRef.current;
+    if (!hero) return;
+
+    const CINEMA_SCROLL_DISTANCE = 520;
+    const wideQuery = window.matchMedia("(min-width: 701px)");
+    let frame = 0;
+    let listening = false;
+
+    const applyProgress = () => {
+      frame = 0;
+      const progress = Math.min(1, Math.max(0, window.scrollY / CINEMA_SCROLL_DISTANCE));
+      hero.style.setProperty("--cinema-progress", String(progress));
+    };
+    const onScroll = () => {
+      if (frame) return;
+      if (!hero.hasAttribute("data-cinema-scrub")) {
+        hero.setAttribute("data-cinema-scrub", "");
+      }
+      frame = requestAnimationFrame(applyProgress);
+    };
+    const evaluate = () => {
+      const eligible = wideQuery.matches && !prefersReducedMotion();
+      if (eligible && !listening) {
+        listening = true;
+        applyProgress();
+        window.addEventListener("scroll", onScroll, { passive: true });
+      } else if (!eligible && listening) {
+        listening = false;
+        window.removeEventListener("scroll", onScroll);
+        if (frame) cancelAnimationFrame(frame);
+        hero.removeAttribute("data-cinema-scrub");
+        hero.style.removeProperty("--cinema-progress");
+      }
+    };
+
+    evaluate();
+    const unsubscribeMotion = onReducedMotionChange(evaluate);
+    wideQuery.addEventListener("change", evaluate);
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+      wideQuery.removeEventListener("change", evaluate);
+      unsubscribeMotion();
+    };
+  }, []);
+
   // Flag-on primary: Find my pint (geo-primary experiment, untouched).
   const heroPrimaryFindMyPint = (
-    <Link className="lpButton lpButtonPrimary" href="/near">
+    <Link
+      className="lpButton lpButtonPrimary"
+      href="/near"
+      onClick={() => trackLandingCta("near")}
+    >
       <LocateFixed size={18} aria-hidden="true" /> Find my pint
     </Link>
   );
   // Flag-off primary: Open the map (acquisition default, no geolocation gate).
   const heroPrimaryMap = (
-    <Link className="lpButton lpButtonPrimary" href={primaryCtaHref} {...warmProps}>
+    <Link
+      className="lpButton lpButtonPrimary"
+      href={primaryCtaHref}
+      {...warmProps}
+      onClick={() => trackLandingCta("map")}
+    >
       <MapPin size={18} aria-hidden="true" /> Open the map
     </Link>
   );
@@ -170,10 +252,15 @@ export default function LandingPage({
     <div className="lpHeroActions lpHeroActions--findMyPint">
       {heroPrimaryFindMyPint}
       <div className="lpHeroSecondaryRow">
-        <Link className="lpTextLink" href={primaryCtaHref} {...warmProps}>
+        <Link
+          className="lpTextLink"
+          href={primaryCtaHref}
+          {...warmProps}
+          onClick={() => trackLandingCta("map")}
+        >
           <MapPin size={17} aria-hidden="true" /> Open the map
         </Link>
-        <Link className="lpTextLink" href="/plan">
+        <Link className="lpTextLink" href="/plan" onClick={() => trackLandingCta("plan")}>
           <MessageSquareText size={17} aria-hidden="true" /> Plan with friends
         </Link>
       </div>
@@ -182,10 +269,10 @@ export default function LandingPage({
     <div className="lpHeroActions lpHeroActions--mapFirst">
       {heroPrimaryMap}
       <div className="lpHeroSecondaryRow">
-        <Link className="lpTextLink" href="/near">
+        <Link className="lpTextLink" href="/near" onClick={() => trackLandingCta("near")}>
           <LocateFixed size={17} aria-hidden="true" /> Find my pint
         </Link>
-        <Link className="lpTextLink" href="/plan">
+        <Link className="lpTextLink" href="/plan" onClick={() => trackLandingCta("plan")}>
           <MessageSquareText size={17} aria-hidden="true" /> Plan with friends
         </Link>
       </div>
@@ -226,7 +313,7 @@ export default function LandingPage({
       </header>
 
       <main id="main">
-        <section className="lpHero" aria-labelledby="hero-title">
+        <section className="lpHero" aria-labelledby="hero-title" ref={heroRef}>
           <div className="lpHeroAtmosphere" aria-hidden="true">
             <span className="lpOrbit lpOrbitOne" />
             <span className="lpOrbit lpOrbitTwo" />
@@ -272,17 +359,56 @@ export default function LandingPage({
 
           <figure className="lpHeroMap">
             <ThamesHero />
-            <figcaption>
-              Each shape is a drink. Pick one to see the pubs that pour it.
+            <figcaption className="lpHeroMapCaption">
+              {/* Pointer-aware invite lives in the caption lane (not a floating
+                  badge on the photo). Touch devices see Tap; fine pointers see Pick. */}
+              <span className="lpHeroMapInvite">
+                <span className="thamesHeroHintTouch">Each shape is a drink. Tap one to see the pubs that pour it.</span>
+                <span className="thamesHeroHintPointer">Each shape is a drink. Pick one to see the pubs that pour it.</span>
+              </span>
+              {" "}
               Prices shown here are examples, not live listed prices.
             </figcaption>
           </figure>
         </section>
 
+        {/* Human beat (S1/S4): why this exists, between hero and the feature
+            grid. Desire first, honesty second. Not a mission statement.
+            Outing jobs (coffee, food, quiet Spoons, soft drink / AF) sit here
+            so the hero can stay map-first and pint-led. */}
+        <section className="lpWhySection" id="why" aria-labelledby="why-title">
+          <div className="lpWhyCopy">
+            <p className="lpSectionLabel">Why PUBMAXX</p>
+            <h2 id="why-title">Built for the bit before you set off.</h2>
+            <p>
+              You want somewhere that will not mug you on the first round. A
+              cheap pint near the station. Coffee and a quiet Spoons when the
+              afternoon is the outing. Food before the last train. Soft drink
+              or alcohol-free with mates who are not drinking. One map should
+              answer that without the usual three-app shuffle.
+            </p>
+            <p>
+              Keeping those prices honest takes real work. We would rather
+              leave a gap than invent a figure. The longer why is on Our story.
+            </p>
+            <div className="lpWhyActions">
+              <Link href={primaryCtaHref} className="lpTextLink" {...warmProps}>
+                Open the map <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+              <Link href="/plan" className="lpTextLink">
+                Plan an outing <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+              <Link href="/about" className="lpTextLink">
+                Our story <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+            </div>
+          </div>
+        </section>
+
         <section className="lpSignalSection" id="wedge" aria-labelledby="signal-title">
           <div className="lpSectionIntro">
             <h2 id="signal-title">Listed pint prices near you</h2>
-            <p>Three things decide where you go.</p>
+            <p>Start with the pint price. The hour and the route come with it.</p>
           </div>
           <div className="lpSignalGrid">
             {PRODUCT_SIGNALS.map(({ icon: Icon, title, body }, index) => (
@@ -302,11 +428,19 @@ export default function LandingPage({
           <div className="lpMemoryCanvas">
             <div className="lpMemoryCopy">
               <p className="lpSectionLabel">From a pin to a story</p>
-              <h2 id="memory-title">Plan the night. Keep the parts that mattered.</h2>
-              <p>Your night stays private until you say otherwise. When the crew&rsquo;s ready, turn the moments everyone likes into a story worth keeping.</p>
+              <h2 id="memory-title">Plan the outing. Keep the parts that mattered.</h2>
+              <p>Your outing stays private until you say otherwise. When the crew&rsquo;s ready, turn the moments everyone likes into a story worth keeping.</p>
               <div className="lpMemoryActions">
                 <Link href="/plan" className="lpButton lpButtonPrimary">Start a plan</Link>
-              <Link href="/social" className="lpTextLink">Open Social <ArrowRight size={16} aria-hidden="true" /></Link>
+                {socialInviteBetaEnabled ? (
+                  <Link href="/social" className="lpTextLink">
+                    Open Social <ArrowRight size={16} aria-hidden="true" />
+                  </Link>
+                ) : (
+                  <Link href="/u/you#night-memories" className="lpTextLink">
+                    Open Memories <ArrowRight size={16} aria-hidden="true" />
+                  </Link>
+                )}
               </div>
             </div>
             <ol className="lpMemorySteps">
@@ -346,22 +480,36 @@ export default function LandingPage({
           <h2 id="final-title">Your city is already happening.</h2>
           {landingFindMyPint ? (
             <>
-              <Link href="/near" className="lpButton lpButtonPrimary">
+              <Link
+                href="/near"
+                className="lpButton lpButtonPrimary"
+                onClick={() => trackLandingCta("near")}
+              >
                 Find my pint <ArrowRight size={18} aria-hidden="true" />
               </Link>
-              <Link href={primaryCtaHref} className="lpTextLink" {...warmProps}>
+              <Link
+                href={primaryCtaHref}
+                className="lpTextLink"
+                {...warmProps}
+                onClick={() => trackLandingCta("map")}
+              >
                 Open the map <ArrowRight size={16} aria-hidden="true" />
               </Link>
-              <Link href="/plan" className="lpTextLink">
+              <Link href="/plan" className="lpTextLink" onClick={() => trackLandingCta("plan")}>
                 Plan with friends <ArrowRight size={16} aria-hidden="true" />
               </Link>
             </>
           ) : (
             <>
-              <Link href={primaryCtaHref} className="lpButton lpButtonPrimary" {...warmProps}>
+              <Link
+                href={primaryCtaHref}
+                className="lpButton lpButtonPrimary"
+                {...warmProps}
+                onClick={() => trackLandingCta("map")}
+              >
                 Open the map <ArrowRight size={18} aria-hidden="true" />
               </Link>
-              <Link href="/plan" className="lpTextLink">
+              <Link href="/plan" className="lpTextLink" onClick={() => trackLandingCta("plan")}>
                 Plan with friends <ArrowRight size={16} aria-hidden="true" />
               </Link>
               <Link href="/about" className="lpTextLink">

@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { getPintDropById } from "@/lib/pintDropLookup";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
@@ -23,7 +24,7 @@ export async function GET(
   );
   const drop = await getPintDropById(id, viewer);
   if (!drop) {
-    return jsonNoStore({ error: "Pint drop not found." }, { status: 404 });
+    return publicApiError("Pint drop not found.", "NOT_FOUND", 404);
   }
   return jsonNoStore({ drop });
 }

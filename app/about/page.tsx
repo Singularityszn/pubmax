@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 
+import SiteNav from "@/components/nav/SiteNav";
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
 import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
 import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
@@ -9,19 +10,21 @@ import { CONTACT_EMAIL } from "@/lib/siteContact";
 
 import "./about.css";
 
-// /about — the founder story surface (PRD_SEARCH_GROWTH S4.5). One page that
-// triples as: (1) the "why PUBMAXX exists" narrative, (2) a press bio + press
-// kit, and (3) an investor link surface. Server component, zero client JS — it
-// renders once from the bundled datasets and the site's design tokens.
+// /about — the founder story surface (PRD_SEARCH_GROWTH S4.5; Wave S1 of
+// docs/plans/FIRST_PRINCIPLES_OUTINGS.md). One page that triples as: (1) the
+// "why PUBMAXX exists" narrative, (2) a press bio + press kit, and (3) an
+// investor link surface. Server component, zero client JS — it renders once
+// from the bundled datasets and the site's design tokens.
 //
 // Provenance rule (CONTEXT.md / PRODUCT.md): every number in the traction band
 // is computed at request time from the same data the map reads (lib/aboutStats)
-// — no invented users, revenue, or growth metrics. The prose is the owner's own
-// narrative in brand voice (docs/VOICE.md); there are no fabricated quotes.
+// — no invented users, revenue, or growth metrics. The prose sticks to public
+// product decisions and founder-led wording already on this page; no invented
+// biography, co-founder names, or fake counts (docs/VOICE.md).
 
 const PAGE_TITLE = "Our story: why PUBMAXX exists";
 const PAGE_DESCRIPTION =
-  "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map, names and links publishers when recorded, and says when none is recorded. Free, and nobody pays to rank.";
+  "A pint in London can cost eight quid. PUBMAXX puts listed prices on one map for nights out, coffee, food, and sober hangs. We name and link publishers when recorded, and say when none is recorded. Free, and nobody pays to rank.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -128,7 +131,7 @@ export default async function AboutPage() {
       url: "https://pubmaxxing.com",
       logo: "https://pubmaxxing.com/icon-512.png",
       description:
-        "Listed pint prices with explicit source status, mapped with cited pub heritage. A free pub-crawl planner for the UK that never lets anyone pay to rank.",
+        "Listed prices with explicit source status for UK pubs, mapped for nights out, daytime hangs, food, coffee, and alcohol-free rounds. A free outing planner that never lets anyone pay to rank.",
       email: CONTACT_EMAIL,
       sameAs: ["https://x.com/karansznx"],
     },
@@ -148,19 +151,25 @@ export default async function AboutPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* ── Story ──────────────────────────────────────────────── */}
-      <header className="aboutHead">
-        <p className="aboutEyebrow">Our story</p>
+      {/* Wordmark + way out: same SiteNav shell as /pint-index and /plan. */}
+      <SiteNav />
+
+      {/* ── Brand-first story lede (one composition, not a card grid) ── */}
+      <header className="aboutHero">
+        <p className="aboutBrand">PUBMAXX</p>
+        <span className="aboutBrassRule" aria-hidden="true" />
         <h1 className="aboutTitle">
-          A pint in London can cost eight quid. Nobody tells you where it doesn&rsquo;t.
+          A pint in London can cost eight quid. Nobody tells you where it
+          doesn&rsquo;t.
         </h1>
         <p className="aboutLede">
-          You finish work, you want a good pint nearby, maybe two, maybe
-          somewhere your mates can actually find. So you open Google Maps, then
-          another map, then reviews, then you&rsquo;re asking ChatGPT, and an
-          hour later you&rsquo;re back at the same place as last time. We built
-          PUBMAXX so you don&rsquo;t have to do that. One map. Real prices. The
-          whole night in one place.
+          You finish work, you want somewhere nearby that will not mug you:
+          a good pint, a coffee and a seat, food before the last train, or a
+          quiet room with mates who are not drinking. So you open Google Maps,
+          then another map, then reviews, then you&rsquo;re asking ChatGPT, and
+          an hour later you&rsquo;re back at the same place as last time. We
+          built PUBMAXX so you don&rsquo;t have to do that. One map. Real
+          prices with honest source status. The outing in one place.
         </p>
       </header>
 
@@ -174,8 +183,9 @@ export default async function AboutPage() {
         </p>
         <p className="aboutBody">
           So most nights you don&rsquo;t plan. You give up and end up where you
-          always end up. We got tired of that. A pint shouldn&rsquo;t cost a
-          day&rsquo;s lunch, and finding the one that doesn&rsquo;t
+          always end up. Same for a daytime Spoons with a laptop, a soft-drink
+          round, or a catch-up that never needed a lager. A seat shouldn&rsquo;t
+          cost a day&rsquo;s lunch, and finding the one that doesn&rsquo;t
           shouldn&rsquo;t cost your whole evening.
         </p>
       </section>
@@ -183,11 +193,16 @@ export default async function AboutPage() {
       <section className="aboutSection" aria-labelledby="did">
         <h2 id="did" className="aboutH2">What we did about it</h2>
         <p className="aboutBody">
-          We put real prices on the map. When a price record names a publisher,
-          we name and link it. When no publisher is recorded, the price says so.
-          The ones logged by drinkers carry the day they were seen. Tap a pub and
-          you see what a pint costs before you set off, not after you&rsquo;ve
-          handed over a note.
+          We put real prices on the map, starting in London. When a price record
+          names a publisher, we name and link it. When no publisher is recorded,
+          the price says so. The ones logged by drinkers carry the day they were
+          seen. Tap a pub and you see what a drink costs before you set off, not
+          after you&rsquo;ve handed over a note.
+        </p>
+        <p className="aboutBody">
+          A first report can mark a pin straight away. Pin colour, list rows,
+          and cheapest buckets wait for a second independent drinker. Speed is
+          nice. A figure that survives a challenge is the product.
         </p>
         <p className="aboutBody">
           We kept the stories too. Most of these pubs have been pouring for a
@@ -195,25 +210,81 @@ export default async function AboutPage() {
           heritage, and we never make it up.
         </p>
         <p className="aboutBody">
-          And we made it one link for the crew. You plan the night, you send it,
-          everyone lands in the same place walking the same route. No group-chat
-          archaeology at half six.
+          And we made it one link for the crew. You plan the outing, you send
+          it, everyone lands in the same place walking the same route. No
+          group-chat archaeology at half six.
         </p>
         <p className="aboutBody">
-          Nobody pays to rank. Not ever. There&rsquo;s a wall in the code between anyone&rsquo;s money
-          and the prices you see. A sponsored thing says so and sits in its own
-          slot. The order of pubs on your map is never for sale.
+          Nobody pays to rank. Not ever. There&rsquo;s a wall in the code
+          between anyone&rsquo;s money and the prices you see. A sponsored thing
+          says so and sits in its own slot. The order of pubs on your map is
+          never for sale.
         </p>
+      </section>
+
+      <section className="aboutSection" aria-labelledby="fights">
+        <h2 id="fights" className="aboutH2">What we refused to ship</h2>
+        <ul className="aboutEthos">
+          <li>
+            <strong>Every report as map truth.</strong> An uncorroborated price
+            can show on the pub&rsquo;s own sheet. It does not paint the pin
+            until a second independent drinker agrees inside the age window.
+          </li>
+          <li>
+            <strong>Fake Wetherspoons prices.</strong> Their public web menus do
+            not yield per-pub drink prices today, so we refuse to invent them.
+            Identity and honest gaps beat a made-up board.
+          </li>
+          <li>
+            <strong>UK spray before London depth.</strong> We ship London first
+            with priced pubs you can plan around. A separate OpenStreetMap layer
+            shows more pubs across the country without pretending they carry the
+            same price truth.
+          </li>
+          <li>
+            <strong>Paid placement in the price order.</strong> Sponsored slots
+            stay labelled and separate. Rank is not a product we sell.
+          </li>
+        </ul>
       </section>
 
       <section className="aboutSection" aria-labelledby="who">
         <h2 id="who" className="aboutH2">Who it&rsquo;s for</h2>
         <p className="aboutBody">
-          Everyone who actually goes to the pub. The after-work crowd who want a
-          cheap round before the last train. The quiet-pint person who just
-          wants a good one and a seat by the window. The birthday mob who need
-          somewhere that&rsquo;ll take twelve of them on a Friday. We&rsquo;re
-          building this for people who notice an eight-quid lager.
+          Everyone who actually goes out. The after-work crowd who want a cheap
+          round before the last train. The quiet-pint person who just wants a
+          good one and a seat by the window. The birthday mob who need somewhere
+          that&rsquo;ll take twelve of them on a Friday.
+        </p>
+        <p className="aboutBody">
+          Also the daytime jobs: coffee and a laptop at a Spoons, food then a
+          soft drink, an alcohol-free hang, a chill afternoon that never needed
+          a crawl. Soft drink and alcohol-free prices share the same trust
+          rules as beer. Coffee joins that honesty once someone logs it. Food
+          anchors stay honest about their source and never masquerade as a pint
+          on the pin.
+        </p>
+        <p className="aboutBody">
+          We&rsquo;re building this for people who notice an eight-quid lager,
+          and for people who open a pub when they are not drinking at all.
+        </p>
+      </section>
+
+      <section className="aboutSection" aria-labelledby="team">
+        <h2 id="team" className="aboutH2">Who builds it</h2>
+        <p className="aboutBody">
+          PUBMAXX is founder-led by{" "}
+          <a
+            href="https://x.com/karansznx"
+            target="_blank"
+            rel="noreferrer"
+            className="aboutLink"
+          >
+            Karan Manoharan
+          </a>
+          . We argue about corroboration versus speed, London depth versus a
+          thinner national map, and what a price is allowed to claim. Those
+          fights land in the product, not in a brand deck.
         </p>
       </section>
 
@@ -282,13 +353,18 @@ export default async function AboutPage() {
           <div className="aboutPressRow">
             <dt>One line</dt>
             <dd>
-              Listed pint prices with explicit source status, one map, and the
-              whole night in a single plan. Free, and nobody pays to rank.
+              Listed prices with explicit source status, one map for nights out
+              and daytime hangs, and a plan you can send. Free, and nobody pays
+              to rank.
             </dd>
           </div>
           <div className="aboutPressRow">
             <dt>Positioning</dt>
-            <dd>London runs on its pubs. This is the app that runs your night.</dd>
+            <dd>
+              London runs on its pubs. This is the app that helps you decide
+              where to go for a night out, a coffee, food, or a quiet afternoon,
+              what it costs, and who you&rsquo;re meeting.
+            </dd>
           </div>
           <div className="aboutPressRow">
             <dt>Contact</dt>
@@ -314,7 +390,7 @@ export default async function AboutPage() {
             </dd>
           </div>
           <div className="aboutPressRow">
-            <dt>Explore</dt>
+            <dt>Also see</dt>
             <dd>
               <Link href="/pint-index" className="aboutLink">
                 The Pint Index
@@ -344,9 +420,10 @@ export default async function AboutPage() {
       <section className="aboutSection aboutPress" aria-labelledby="press-hooks">
         <h2 id="press-hooks" className="aboutH2">Story hooks</h2>
         <p className="aboutBody">
-          London runs on its pubs. This is the app that runs your night. If
-          you&rsquo;re writing about the cost of a night out, the Pint Index is
-          your angle.
+          London runs on its pubs. This is the app that helps you decide where
+          to go. If you&rsquo;re writing about the cost of a night out, the Pint
+          Index is your angle. If you&rsquo;re writing about daytime pubs,
+          coffee, food, or alcohol-free rounds, the same honesty rules apply.
         </p>
         <ul className="aboutEthos">
           {pintIndexRows.length > 0 && pintIndexSnapshot ? (
@@ -386,8 +463,9 @@ export default async function AboutPage() {
       <section className="aboutSection aboutCta" aria-labelledby="cta">
         <h2 id="cta" className="aboutH2">Come pubmaxxing</h2>
         <p className="aboutBody">
-          Press, investors, and anyone who just wants a cheaper pint: you&rsquo;re
-          all welcome. Start on the map, or say hello.
+          Press, investors, and anyone who just wants a cheaper pint or a
+          quieter afternoon: you&rsquo;re all welcome. Start on the map, or say
+          hello.
         </p>
         <div className="aboutCtaRow">
           <Link href="/map" className="aboutBtn aboutBtnPrimary">

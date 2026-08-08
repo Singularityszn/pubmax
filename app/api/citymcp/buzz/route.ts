@@ -9,6 +9,7 @@
 // the venue sheet degrades silently. A missing `id` is a client mistake and
 // returns 400.
 
+import { publicApiError } from "@/lib/apiError";
 import { CityMcpError } from "@/lib/citymcp/client";
 import { fetchCityBuzz, type CityBuzz } from "@/lib/citymcp/buzz";
 import { isCityMcpLimited } from "@/lib/citymcpRateLimit";
@@ -41,16 +42,16 @@ export const GET = withRouteTiming("citymcp/buzz", getHandler);
 
 async function getHandler(request: Request): Promise<Response> {
   if (await isCityMcpLimited(request)) {
-    return jsonResponse({ error: "Too many requests, slow down.", buzz: null }, { status: 429 });
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true, compatibilityFields: { buzz: null } });
   }
 
   const params = new URL(request.url).searchParams;
   const id = params.get("id")?.trim() ?? "";
   if (id.length === 0) {
-    return jsonResponse({ error: "Place id is missing.", buzz: null }, { status: 400 });
+    return publicApiError("Place id is missing.", "INVALID_REQUEST", 400, { compatibilityFields: { buzz: null } });
   }
   if (id.length > MAX_ID_LEN) {
-    return jsonResponse({ error: "id is too long.", buzz: null }, { status: 400 });
+    return publicApiError("id is too long.", "INVALID_REQUEST", 400, { compatibilityFields: { buzz: null } });
   }
 
   let buzz: CityBuzz | null;

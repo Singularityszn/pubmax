@@ -87,6 +87,8 @@ function openingState(clock: LocalClock, hours?: WeeklyOpeningHours): boolean | 
   if (!hours) return "unknown";
   const windows = hours[clock.weekday];
   if (!windows) return "unknown";
+  // Empty day list is evidence of a closed day, not a missing schedule.
+  if (windows.length === 0) return false;
   return windows.some((window) => {
     const opens = parseClock(window.opens);
     const closes = parseClock(window.closes);
@@ -97,6 +99,20 @@ function openingState(clock: LocalClock, hours?: WeeklyOpeningHours): boolean | 
       : clock.minutes;
     return adjustedNow >= opens && adjustedNow < adjustedClose;
   });
+}
+
+/**
+ * Whether listed weekly hours cover `now`. Missing hours stay `"unknown"` —
+ * callers that filter must never treat unknown as closed.
+ */
+export function evaluateOpenState(input: {
+  now?: Date;
+  timeZone?: string;
+  openingHours?: WeeklyOpeningHours;
+}): boolean | "unknown" {
+  const now = input.now ?? new Date();
+  const timeZone = input.timeZone ?? "Europe/London";
+  return openingState(localClock(now, timeZone), input.openingHours);
 }
 
 function typicalLevel(weekday: number, minutes: number): BusynessLevel {

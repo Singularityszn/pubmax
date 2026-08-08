@@ -6,6 +6,7 @@
 // answers for ONE stop point (a comma-joined id list is a 404, not a batch), so
 // the capped stops are asked concurrently inside a single arrivals deadline.
 
+import { publicApiError } from "@/lib/apiError";
 import { CITIES, pointInCityBounds } from "@/lib/cities";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import {
@@ -113,7 +114,7 @@ export async function GET(request: Request): Promise<Response> {
   const lat = Number.parseFloat(params.get("lat") ?? "");
   const lng = Number.parseFloat(params.get("lng") ?? "");
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return json({ error: "Add valid lat and lng coordinates." }, 400);
+    return publicApiError("Add valid lat and lng coordinates.", "INVALID_REQUEST", 400);
   }
 
   const now = new Date();
@@ -121,7 +122,7 @@ export async function GET(request: Request): Promise<Response> {
     return json(unavailable(now));
   }
   if (await isLastRideLimited(request, "bus-departures")) {
-    return json({ error: "Too many requests, slow down." }, 429);
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   const startedAt = Date.now();

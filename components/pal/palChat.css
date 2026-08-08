@@ -551,3 +551,39 @@
 .palChatCardAccept:hover {
   background: var(--brass-bright);
 }
+
+.palChatProposals {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.palChatProposal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.palChatProposalConfirm,
+.palChatProposalDismiss {
+  min-height: 44px;
+  padding: 0 0.85rem;
+  border-radius: 0.65rem;
+  font: 700 0.82rem/1 var(--font-body);
+}
+
+.palChatProposalConfirm {
+  border: 1px solid color-mix(in srgb, var(--line) 50%, var(--brass) 50%);
+  background: color-mix(in srgb, var(--brass) 22%, transparent);
+  color: var(--ink);
+}
+
+.palChatProposalDismiss {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+}

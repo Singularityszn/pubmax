@@ -11,6 +11,7 @@
 // The reader NEVER 500s: a GET failure falls through to 200 { presence: [] } so
 // the "Live tonight" strip degrades to nothing rather than a broken band.
 
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
@@ -30,17 +31,17 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const handle = await resolveMessageHandle(request, readString(body.handle));
   const venueId = readString(body.venueId).trim();
-  if (!handle) return jsonNoStore({ error: "Add a handle first." }, { status: 400 });
-  if (!venueId) return jsonNoStore({ error: "Choose a venue." }, { status: 400 });
+  if (!handle) return publicApiError("Add a handle first.", "INVALID_REQUEST", 400);
+  if (!venueId) return publicApiError("Choose a venue.", "INVALID_REQUEST", 400);
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   // Identity is server-derived from the hashed client IP — never the body. The
@@ -53,7 +54,7 @@ export async function POST(request: Request): Promise<Response> {
   // keyed on handle alone (same shape as the pint-drops write path).
   const durableKey = `presence:${ownership.handle.toLowerCase()}:${ipHash}`;
   if (await isLimited(ownership.handle, durableKey)) {
-    return jsonNoStore({ error: "Too many check-ins, slow down." }, { status: 429 });
+    return publicApiError("Too many check-ins, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   // markPresence is fail-soft (never throws) — a presence hiccup must not fail

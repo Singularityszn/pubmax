@@ -397,7 +397,7 @@ export default function TodayClient({
           <ArrowUpRight size={14} aria-hidden="true" />
         </Link>
         <Link href="/plan" className="todayCardFootLink">
-          Plan tonight
+          Plan an outing
           <ArrowUpRight size={14} aria-hidden="true" />
         </Link>
         <Link href="/map" className="todayCardFootLink">

@@ -171,7 +171,7 @@ describe("routes distinguish outage (503) from gated/unknown (404)", () => {
       }),
     );
     expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({ error: "Comments are unavailable." });
+    expect(await res.json()).toEqual({ error: "Comments are unavailable.", code: "UNAVAILABLE", retryable: true });
   });
 
   it("POST /reactions returns 503 when the visibility lookup is out", async () => {
@@ -183,7 +183,7 @@ describe("routes distinguish outage (503) from gated/unknown (404)", () => {
       }),
     );
     expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({ error: "Reactions are unavailable." });
+    expect(await res.json()).toEqual({ error: "Reactions are unavailable.", code: "UNAVAILABLE", retryable: true });
   });
 
   it("GET /comments stays fail-soft (200 + empty) on a visibility outage", async () => {
@@ -294,7 +294,7 @@ describe("POST /api/pint-drops/comments — parent visibility gate (F3)", () => 
         }),
       );
       expect(res.status).toBe(404);
-      expect(await res.json()).toEqual({ error: "Pint drop not found." });
+      expect(await res.json()).toEqual({ error: "Pint drop not found.", code: "NOT_FOUND", retryable: false });
     }
   });
 });
@@ -309,7 +309,7 @@ describe("POST /api/pint-drops/reactions — parent visibility gate (F3)", () =>
         }),
       );
       expect(res.status).toBe(404);
-      expect(await res.json()).toEqual({ error: "Pint drop not found." });
+      expect(await res.json()).toEqual({ error: "Pint drop not found.", code: "NOT_FOUND", retryable: false });
     }
   });
 

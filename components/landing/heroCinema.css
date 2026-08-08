@@ -1,0 +1,79 @@
+/* Hero scroll cinema (PIECE 2 of feat(landing): hero scroll cinema with
+   aperture splash). Drives a scroll-linked transform on the existing
+   .thamesHeroPhoto card via a single JS-owned custom property,
+   --cinema-progress (0 = full-bleed dark open, 1 = settled contained card),
+   set on .lpHero in components/landing/LandingPage.tsx.
+
+   The card's own column footprint never changes - only transform, opacity,
+   and border-radius (paint-only, no layout box change) respond to
+   --cinema-progress, so .lpHeroCopy (h1, lede, actions) stays in normal
+   flow, visible and above the fold at rest. "Full bleed" here means the
+   card's own presentation (square edges, no ring, a near-black wash, a
+   small self-contained scale), not a viewport-covering takeover.
+
+   Reduced motion and phones (<=700px) get none of this: the whole block is
+   gated behind the same compound media query the mount effect checks, so
+   .thamesHeroPhoto renders with its plain landing.css treatment there -
+   the static composed hero required by the hard gate.
+
+   Progress defaults to 1 (the composed, settled hero) EVERYWHERE, including
+   wide viewports: without JS the reader must see the same finished hero
+   reduced-motion gets, never the dark progress-0 start frame. Only the mount
+   effect ever moves progress off 1 - its first write (0 at the top of the
+   page) rides the cinema-settle transition below as an authored open, a
+   state change rather than a scrub.
+
+   Scrubbing and transitions are mutually exclusive: while the effect is
+   scroll-scrubbing it sets data-cinema-scrub on .lpHero, which zeroes every
+   transition on the scrubbed properties so the card tracks the wheel 1:1
+   (motionDuration.cinemaSettle is documented as NOT for the scrubbed
+   transform - see lib/motionVocabulary.ts). The transitions only ever play
+   on state-driven jumps: the mount open above and an eligibility flip
+   (reduced-motion toggle / viewport crossing 701px) restoring the settled
+   card. */
+
+/* Timing comes from the house motion ledger (app/globals.css):
+   --duration-cinema-settle + --ease-weighted, which mirror
+   motionDuration.cinemaSettle / motionEase.weighted in lib/motionVocabulary.ts. */
+:root {
+  --cinema-progress: 1; /* safe default: settled, composed card (no-JS, mobile, reduced-motion) */
+}
+
+@media (min-width: 701px) and (prefers-reduced-motion: no-preference) {
+  .lpHeroMap::before {
+    opacity: var(--cinema-progress);
+    transition: opacity var(--duration-cinema-settle) var(--ease-weighted);
+  }
+
+  .thamesHeroPhoto {
+    border-radius: calc(32px * var(--cinema-progress));
+    transform: scale(calc(1.06 - 0.06 * var(--cinema-progress)));
+    transform-origin: 50% 42%;
+    will-change: transform, border-radius;
+    transition:
+      border-radius var(--duration-cinema-settle) var(--ease-weighted),
+      transform var(--duration-cinema-settle) var(--ease-weighted);
+  }
+
+  /* Near-black to warm off-white: a uniform ink-deep wash over the whole
+     card that fades away as the card settles, revealing the existing
+     thamesHeroScrim/photo treatment underneath. pointer-events: none keeps
+     the pins clickable through the wash. */
+  .thamesHeroPhoto::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--ink-deep);
+    opacity: calc(0.55 * (1 - var(--cinema-progress)));
+    transition: opacity var(--duration-cinema-settle) var(--ease-weighted);
+    pointer-events: none;
+  }
+
+  /* Scroll is the clock while scrubbing: any duration here would make the
+     card answer this wheel event half a second from now. */
+  .lpHero[data-cinema-scrub] .lpHeroMap::before,
+  .lpHero[data-cinema-scrub] .thamesHeroPhoto,
+  .lpHero[data-cinema-scrub] .thamesHeroPhoto::after {
+    transition: none;
+  }
+}

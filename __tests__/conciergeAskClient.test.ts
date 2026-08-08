@@ -140,6 +140,43 @@ describe("createAskSession", () => {
     const result = await ask("anything", "london");
     expect(result).toEqual({ status: "error", message: ASK_FALLBACK_MESSAGE });
   });
+  it("posts to /api/ask with prior turns for in-thread memory", async () => {
+    const seen: { url: string; body: Record<string, unknown> } = {
+      url: "",
+      body: {},
+    };
+    const ask = createAskSession({
+      fetchImpl: async (input, init) => {
+        seen.url = String(input);
+        seen.body = JSON.parse(String(init?.body ?? "{}")) as Record<
+          string,
+          unknown
+        >;
+        return jsonResponse({
+          answer: "One grounded pick.",
+          cards: [
+            {
+              key: "venue-1",
+              venueId: "venue-1",
+              title: "The Lamb",
+              place: "Bloomsbury",
+              note: "Quiet",
+              price: 5.4,
+            },
+          ],
+          proposals: [],
+          sources: [],
+          status: "ready",
+          toolsUsed: ["search_venues"],
+        });
+      },
+    });
+    await ask("quiet near bank", "london");
+    await ask("cheaper", "london");
+    expect(seen.url).toContain("/api/ask");
+    expect(Array.isArray(seen.body.turns)).toBe(true);
+    expect((seen.body.turns as unknown[]).length).toBeGreaterThan(0);
+  });
 });
 
 describe("answerFromBody", () => {
@@ -194,6 +231,43 @@ describe("answerFromBody", () => {
     if (result.status === "answered") {
       expect(result.cards).toHaveLength(0);
       expect(result.message).toContain("won't make any up");
+    }
+  });
+
+  it("normalises the Night OS Ask agent body with proposals", () => {
+    const result = answerFromBody({
+      answer: "3 grounded picks. Confirm to open one.",
+      cards: [
+        {
+          key: "venue-1",
+          venueId: "venue-1",
+          title: "The Lamb",
+          place: "Bloomsbury",
+          note: "Quiet back room",
+          price: 5.4,
+        },
+      ],
+      proposals: [
+        {
+          id: "open:venue-1",
+          kind: "open_venue",
+          label: "Open The Lamb",
+          venueId: "venue-1",
+        },
+      ],
+      sources: [{ label: "On record", kind: "directory" }],
+      status: "ready",
+      toolsUsed: ["search_venues"],
+    });
+    expect(result.status).toBe("answered");
+    if (result.status === "answered") {
+      expect(result.message).toContain("grounded picks");
+      expect(result.proposals).toHaveLength(1);
+      expect(result.proposals[0]).toMatchObject({
+        kind: "open_venue",
+        venueId: "venue-1",
+      });
+      expect(result.responseStatus).toBe("ready");
     }
   });
 

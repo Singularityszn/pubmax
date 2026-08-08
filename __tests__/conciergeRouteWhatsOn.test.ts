@@ -90,6 +90,8 @@ describe("POST /api/concierge — What's-On intents", () => {
     expect(res.status).toBe(400);
     await expect(res.json()).resolves.toEqual({
       error: "Choose a listed city.",
+      code: "INVALID_REQUEST",
+      retryable: false,
     });
   });
 

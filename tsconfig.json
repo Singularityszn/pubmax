@@ -37,10 +37,15 @@
     ".next-prod/types/**/*.ts",
     ".next-prod/dev/types/**/*.ts",
     ".next-mobile-qa/types/**/*.ts",
-    ".next-mobile-qa/dev/types/**/*.ts"
+    ".next-mobile-qa/dev/types/**/*.ts",
+    ".next-854/types/**/*.ts",
+    ".next-854/dev/types/**/*.ts",
+    ".next-shots/types/**/*.ts",
+    ".next-shots/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    "e2e"
+    "e2e",
+    "skills"
   ]
 }

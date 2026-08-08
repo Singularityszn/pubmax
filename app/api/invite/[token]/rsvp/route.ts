@@ -3,6 +3,7 @@
 // Host removal of a guest row lives under /api/plans/[id]/invite-rsvp so the
 // path-scoped HttpOnly member cookie can authorize after a hard invite open.
 
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
@@ -27,16 +28,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const displayName = cleanText(readString(body.displayName), GUEST_DISPLAY_NAME_MAX);
   const status = body.status;
-  if (!displayName) return jsonNoStore({ error: "Add a name to RSVP." }, { status: 400 });
-  if (!isRsvpStatus(status)) return jsonNoStore({ error: "Choose Going or Maybe." }, { status: 400 });
+  if (!displayName) return publicApiError("Add a name to RSVP.", "INVALID_REQUEST", 400);
+  if (!isRsvpStatus(status)) return publicApiError("Choose Going or Maybe.", "INVALID_REQUEST", 400);
 
   const submitterId = readString(body.submitterId);
-  if (!submitterId) return jsonNoStore({ error: "Couldn't save that RSVP." }, { status: 400 });
+  if (!submitterId) return publicApiError("Couldn't save that RSVP.", "INVALID_REQUEST", 400);
   const submitterHash = hashActor(submitterId);
   const tokenHash = hashActor(token);
   // Per-device and per-invite budgets: rotating submitterId alone must not flood one guest list.
@@ -44,7 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     (await isLimited(`invite-rsvp:${submitterHash}`, `invite-rsvp:${submitterHash}`, RSVP_LIMIT, RSVP_WINDOW_MS)) ||
     (await isLimited(`invite-rsvp-token:${tokenHash}`, `invite-rsvp-token:${tokenHash}`, RSVP_LIMIT * 4, RSVP_WINDOW_MS))
   ) {
-    return jsonNoStore({ error: "Too many RSVPs, slow down." }, { status: 429 });
+    return publicApiError("Too many RSVPs, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   try {
@@ -52,12 +53,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     return jsonNoStore({ summary, isUpdate }, { status: 200 });
   } catch (err) {
     if (err instanceof UnknownPlanError) {
-      return jsonNoStore({ error: "This invite link isn't valid." }, { status: 404 });
+      return publicApiError("This invite link isn't valid.", "NOT_FOUND", 404);
     }
     if (err instanceof RsvpCapExceededError) {
-      return jsonNoStore({ error: "This guest list is full." }, { status: 409 });
+      return publicApiError("This guest list is full.", "CONFLICT", 409);
     }
     console.error("[invite-rsvp] POST failed:", err instanceof Error ? err.stack || err.message : err);
-    return jsonNoStore({ error: "RSVPs are unavailable." }, { status: 503 });
+    return publicApiError("RSVPs are unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
 }

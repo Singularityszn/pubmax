@@ -81,6 +81,8 @@ describe("PUBMAXX handle APIs", () => {
       expect(await response.json()).toEqual({
         reason: "reserved",
         error: "That handle is not available.",
+        code: "INVALID_REQUEST",
+        retryable: false,
       });
     },
   );
@@ -249,6 +251,8 @@ describe("PUBMAXX handle APIs", () => {
       expect(await response.json()).toEqual({
         reason: "reserved",
         error: "That handle is not available.",
+        code: "INVALID_REQUEST",
+        retryable: false,
       });
       expect(
         await (await current(request("/api/identity/handle/current"))).json(),

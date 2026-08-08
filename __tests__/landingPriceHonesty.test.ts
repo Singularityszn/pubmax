@@ -67,3 +67,58 @@ describe("landing price-provenance copy", () => {
     expect(lower).toContain("the ones drinkers log come with the day they were seen");
   });
 });
+
+describe("landing outing beat (Wave S4)", () => {
+  const copy = landingCopy();
+  const flat = copy.replace(/\s+/g, " ");
+
+  it("keeps one #why beat that names coffee, food, quiet Spoons, and AF jobs", () => {
+    expect(copy).toContain('id="why"');
+    expect(flat).toContain("Built for the bit before you set off.");
+    expect(flat).toContain("Coffee and a quiet Spoons when the afternoon is the outing.");
+    expect(flat).toContain("Food before the last train.");
+    expect(flat).toContain(
+      "Soft drink or alcohol-free with mates who are not drinking.",
+    );
+    expect(flat).toContain("We would rather leave a gap than invent a figure.");
+    // One human beat, not a second mission statement stacked beside it.
+    expect(copy.match(/id="why"/g)?.length).toBe(1);
+    expect(copy.match(/lpWhySection/g)?.length).toBe(1);
+  });
+
+  it("links map, plan, and story from #why without fighting the hero CTA stack", () => {
+    const whyBlock = copy.match(
+      /id="why"[\s\S]*?lpWhyActions[\s\S]*?<\/div>\s*<\/div>\s*<\/section>/,
+    )?.[0];
+    expect(whyBlock, "#why actions present").toBeTruthy();
+    expect(whyBlock).toContain("Open the map");
+    expect(whyBlock).toContain('href="/plan"');
+    expect(whyBlock).toContain("Plan an outing");
+    expect(whyBlock).toContain('href="/about"');
+    expect(whyBlock).toContain("Our story");
+    // Hero stays map-first; #why must not promote a second primary button.
+    expect(whyBlock).not.toMatch(/lpButtonPrimary/);
+  });
+
+  it("widens the memory beat to outings without fake counts or banned words", () => {
+    const memoryBlock = copy.match(
+      /id="memory-title"[\s\S]*?<\/section>/,
+    )?.[0];
+    expect(memoryBlock, "memory section present").toBeTruthy();
+    const memoryFlat = String(memoryBlock).replace(/\s+/g, " ");
+    expect(memoryFlat).toContain(
+      "Plan the outing. Keep the parts that mattered.",
+    );
+    expect(memoryFlat).toContain(
+      "Your outing stays private until you say otherwise.",
+    );
+    const whyBlock = flat.match(/id="why"[\s\S]*?<\/section>/)?.[0] ?? "";
+    const voiceSurface = `${whyBlock} ${memoryFlat}`;
+    expect(voiceSurface).not.toMatch(
+      /\b(journey|unlock|seamless|curated|elevate|empower)\b/iu,
+    );
+    // Product-copy ban: no exclamation marks in the outing beats.
+    expect(voiceSurface).not.toContain("!");
+    expect(voiceSurface).not.toMatch(/thousands of|Discord|co-founder/iu);
+  });
+});

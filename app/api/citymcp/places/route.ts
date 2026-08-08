@@ -5,6 +5,7 @@
 // upstream errors surface as a 200 with `{ error, places: [] }` (except a
 // missing/invalid `q`, which is a client mistake and gets a 400).
 
+import { publicApiError } from "@/lib/apiError";
 import {
   CityMcpError,
   searchCityPlaces,
@@ -99,16 +100,16 @@ export const GET = withRouteTiming("citymcp/places", getHandler);
 
 async function getHandler(request: Request): Promise<Response> {
   if (await isCityMcpLimited(request)) {
-    return jsonResponse({ error: "Too many requests, slow down.", places: [] }, 429);
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true, compatibilityFields: { places: [] } });
   }
 
   const params = new URL(request.url).searchParams;
   const q = params.get("q")?.trim() ?? "";
   if (q.length === 0) {
-    return jsonResponse({ error: "Add a search term." }, 400);
+    return publicApiError("Add a search term.", "INVALID_REQUEST", 400);
   }
   if (q.length > MAX_QUERY_LEN) {
-    return jsonResponse({ error: "q is too long." }, 400);
+    return publicApiError("q is too long.", "INVALID_REQUEST", 400);
   }
   const limit = parseLimit(params.get("limit"));
   const openNow = parseBoolean(params.get("openNow"));

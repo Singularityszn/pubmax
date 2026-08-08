@@ -8,6 +8,7 @@
 //
 // Fail-soft: any upstream failure lands as 200 + `{ error, opportunities: [] }`.
 
+import { publicApiError } from "@/lib/apiError";
 import {
   CityMcpError,
   fetchThingsToDo,
@@ -101,22 +102,21 @@ export const GET = withRouteTiming("citymcp/things-to-do", getHandler);
 
 async function getHandler(request: Request): Promise<Response> {
   if (await isCityMcpLimited(request)) {
-    return jsonResponse(
-      { error: "Too many requests, slow down.", opportunities: [] },
-      { status: 429 },
-    );
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+      compatibilityFields: { opportunities: [] },
+    });
   }
 
   const params = new URL(request.url).searchParams;
 
   const windowParam = parseWindow(params.get("window"));
   if (!windowParam) {
-    return jsonResponse(
-      {
-        error: `window must be one of ${THINGS_TO_DO_WINDOWS.join(", ")}.`,
-        opportunities: [],
-      },
-      { status: 400 },
+    return publicApiError(
+      `window must be one of ${THINGS_TO_DO_WINDOWS.join(", ")}.`,
+      "INVALID_REQUEST",
+      400,
+      { compatibilityFields: { opportunities: [] } },
     );
   }
 

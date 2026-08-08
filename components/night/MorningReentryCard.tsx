@@ -1,9 +1,9 @@
 "use client";
 
 // Morning re-entry card (U22). The morning after a completed plan, the first
-// time the app opens we greet the user once with "last night, sorted" and a way
-// into the recap that wrote itself overnight. Everything else about it is quiet:
-// no rating (see note below), no push, no re-appearing.
+// time the app opens we greet the user once with a quiet "last night's kept"
+// beat and a way into the recap. Everything else about it is quiet: no rating,
+// no push, no re-appearing.
 //
 // It renders NOTHING unless lib/morningReentry has a pending completed night
 // that is inside its ~36h TTL, was not completed in this very session, and has
@@ -18,7 +18,7 @@
 // Rating: the brief asks for a "Rate the night" affordance ONLY IF an
 // allow-listed analytics event already exists for it. lib/analyticsEvents.ts has
 // no `night_rating` event, and that registry is owned by another team, so this
-// card ships WITHOUT rating. The proposed event is noted in the PR body.
+// card ships WITHOUT rating.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -29,6 +29,7 @@ import {
   readShowableMorningNight,
   type CompletedNight,
 } from "@/lib/morningReentry";
+import { nightsKeptLabel, readNightsKept, recordNightKept } from "@/lib/nightsKept";
 import "./morningReentry.css";
 
 export default function MorningReentryCard() {
@@ -38,17 +39,25 @@ export default function MorningReentryCard() {
   // here; it becomes eligible on the next open.
   const [night] = useState<CompletedNight | null>(() => readShowableMorningNight(Date.now()));
   const [dismissed, setDismissed] = useState(false);
+  const [keptLabel, setKeptLabel] = useState("");
 
   // As soon as the card is eligible, mark it shown so it is one-time across every
   // future open. Local state keeps it on screen for this view regardless.
   useEffect(() => {
-    if (night) markMorningCardShown(night.planId);
+    if (!night) return;
+    markMorningCardShown(night.planId);
+    try {
+      const record = recordNightKept(night.planId, window.localStorage);
+      queueMicrotask(() => setKeptLabel(nightsKeptLabel(record)));
+    } catch {
+      queueMicrotask(() => setKeptLabel(nightsKeptLabel(readNightsKept(null))));
+    }
   }, [night]);
 
   if (!night || dismissed) return null;
 
   return (
-    <section className="morningCard" role="dialog" aria-modal="false" aria-label="Last night, sorted">
+    <section className="morningCard" role="dialog" aria-modal="false" aria-label="Last night's kept">
       <button
         type="button"
         className="morningCard__close"
@@ -63,16 +72,19 @@ export default function MorningReentryCard() {
           <Sunrise size={16} />
         </span>
         <div>
-          <p className="morningCard__eyebrow">Last night, sorted</p>
-          <p className="morningCard__lede">Your recap wrote itself overnight.</p>
+          <p className="morningCard__eyebrow">Last night&rsquo;s kept</p>
+          <p className="morningCard__lede">
+            Open it when you want to remember why.
+          </p>
         </div>
       </div>
 
       {night.title ? <p className="morningCard__title">{night.title}</p> : null}
+      {keptLabel ? <p className="morningCard__habit">{keptLabel}</p> : null}
 
       <Link className="morningCard__link" href={`/plan/${night.planId}/recap`} onClick={() => setDismissed(true)}>
         <BookOpen size={16} aria-hidden="true" />
-        See your recap
+        Open your recap
       </Link>
     </section>
   );

@@ -1,3 +1,6 @@
+import { publicApiError } from "@/lib/apiError";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import {
@@ -7,27 +10,23 @@ import {
 import { siteOrigin } from "@/lib/siteUrl";
 
 export async function POST(request: Request): Promise<Response> {
+  const limiterKey = `referral-invite-link:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const userId = await callerUserId(request);
   if (!userId) {
-    return jsonNoStore(
-      { error: "Sign in to get your invite link." },
-      { status: 401 },
-    );
+    return publicApiError("Sign in to get your invite link.", "UNAUTHENTICATED", 401);
   }
   let code: string;
   try {
     ({ code } = await referralStore().getOrCreateInviteCode(userId));
   } catch (error) {
     if (error instanceof ReferralIdentityDeletedError) {
-      return jsonNoStore(
-        { error: error.message },
-        { status: 409 },
-      );
+      return publicApiError(error.message, "CONFLICT", 409);
     }
-    return jsonNoStore(
-      { error: "Your invite link could not be made right now." },
-      { status: 503 },
-    );
+    return publicApiError("Your invite link could not be made right now.", "UNAVAILABLE", 503, { retryable: true });
   }
   const url = new URL(
     `/r/${encodeURIComponent(code)}`,

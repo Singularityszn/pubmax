@@ -13,7 +13,7 @@ type Held = { venueId: string; tab: string };
 
 const planner = {
   id: "planner",
-  title: "Plan tonight",
+  title: "Plan an outing",
   state: { venueId: "", tab: "route" },
 };
 const venue = {

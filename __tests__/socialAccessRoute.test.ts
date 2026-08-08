@@ -114,6 +114,7 @@ describe("/api/social/access", () => {
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({
       code: "SOCIAL_BETA_DISABLED",
+      retryable: false,
       error: "Social account migration is not available in preview.",
     });
     expect(state.authVerifierCalls).toBe(0);
@@ -134,6 +135,7 @@ describe("/api/social/access", () => {
     expect(await response.json()).toEqual({
       code: "ACCOUNT_OWNERSHIP_CONFLICT",
       error: "Those sign-in accounts already belong to different PUBMAX accounts.",
+      retryable: false,
     });
   });
 });

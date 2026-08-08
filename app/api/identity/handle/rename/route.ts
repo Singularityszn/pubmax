@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { identityHandleStore, validateHandleForStore } from "@/lib/identityHandleStore";
@@ -9,23 +10,30 @@ assertServerEnv();
 
 export async function POST(request: Request): Promise<Response> {
   const ownerId = await callerUserId(request);
-  if (!ownerId) return jsonNoStore({ error: "Sign in to rename your PUBMAXX handle." }, { status: 401 });
+  if (!ownerId) return publicApiError("Sign in to rename your PUBMAXX handle.", "UNAUTHENTICATED", 401);
   if (requiresSupabaseStore() && !isSupabaseConfigured()) {
-    return jsonNoStore({ error: "Profile storage is not configured." }, { status: 503 });
+    return publicApiError("Profile storage is not configured.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
   const rateKey = `handle-rename:${ownerId}:${hashIp(clientIp(request))}`;
   if (await isLimited(rateKey, rateKey, 12)) {
-    return jsonNoStore({ error: "Too many rename attempts. Try again shortly." }, { status: 429 });
+    return publicApiError("Too many rename attempts. Try again shortly.", "RATE_LIMITED", 429, { retryable: true });
   }
   let body: Record<string, unknown>;
   try { body = (await request.json()) as Record<string, unknown>; }
-  catch { return jsonNoStore({ error: "Malformed request body." }, { status: 400 }); }
+  catch { return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400); }
   const assessed = validateHandleForStore(body?.handle);
-  if (!assessed.ok) return jsonNoStore({ error: assessed.error, reason: assessed.reason }, { status: 400 });
+  if (!assessed.ok) {
+    return publicApiError(assessed.error, "INVALID_REQUEST", 400, {
+      compatibilityFields: { reason: assessed.reason },
+    });
+  }
   const result = await identityHandleStore().rename(ownerId, assessed.handle);
   if (!result.ok) {
     const status = result.code === "not_found" ? 404 : result.code === "storage" ? 503 : result.code === "cooldown" ? 429 : 409;
-    return jsonNoStore({ error: result.error, code: result.code, ...(result.retryAt ? { retryAt: result.retryAt } : {}) }, { status });
+    return publicApiError(result.error, result.code, status, {
+      retryable: status === 429 || status >= 500,
+      compatibilityFields: { ...(result.retryAt ? { retryAt: result.retryAt } : {}) },
+    });
   }
   return jsonNoStore(result);
 }

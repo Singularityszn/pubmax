@@ -1,8 +1,9 @@
-// "A quiet pint" card (/today) — heritage-cited pubs that also read as quiet
-// right now, for the calmer cohort the youth-skewing surfaces under-serve. The
-// module is composed on the server (lib/quietPint over the cited historic-pub
-// set); this component only renders it, so there is no client fetch and the
-// first paint is deterministic. Fail-soft: a null module renders nothing.
+// "A quiet pint" card: heritage-cited pubs that also read as quiet right now,
+// for the calmer cohort the youth-skewing surfaces under-serve. Hosted on
+// /today and /tonight from the same server compose (lib/quietPint over the
+// cited historic-pub set); this component only renders it, so there is no
+// client fetch and the first paint is deterministic. Fail-soft: a null module
+// renders nothing.
 //
 // Follows /today's card idiom exactly (the #528 Tube/pints cards). The cited
 // heritage line does the selling; the copy never markets at the reader. The
@@ -14,6 +15,8 @@ import { ArrowUpRight, ExternalLink, Wine } from "lucide-react";
 
 import { ProseDisclosure } from "@/components/Disclosure";
 import type { QuietPintModule } from "@/lib/quietPint";
+
+import "./quietPintCard.css";
 
 type Props = { module: QuietPintModule | null };
 

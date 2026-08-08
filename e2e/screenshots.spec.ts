@@ -348,7 +348,7 @@ test.describe("screenshot baseline", () => {
         // Deterministic: the plan builder's h1 guards against shooting a
         // loading/error shell.
         await page
-          .getByRole("heading", { level: 1, name: "Describe the night. We’ll put it in order." })
+          .getByRole("heading", { level: 1, name: "Describe the outing. We’ll put it in order." })
           .waitFor({ state: "visible", timeout: 15000 });
         await page.waitForLoadState("networkidle").catch(() => {});
         await shot(page, `plan-${theme}-${viewportName}`);

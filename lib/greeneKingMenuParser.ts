@@ -43,9 +43,20 @@ export function mapSectionToCategory(section: string): DrinkCategory | null {
   if (s.includes("vodka")) return "vodka";
   if (s.includes("rum")) return "rum";
   if (s.includes("spirit") || s.includes("shot")) return "shot";
-  // An explicit "…Drinks" / "Soft Drinks" section is a real (non-alcoholic)
-  // drink bucket, so it maps to the catch-all drink category.
-  if (s.includes("drink")) return "other";
+  // Daytime / no-alcohol lanes before a bare "Drinks" catch.
+  if (s.includes("coffee") || s.includes("hot drink")) return "coffee";
+  if (
+    s.includes("alcohol-free") ||
+    s.includes("alcohol free") ||
+    s.includes("non-alcoholic") ||
+    s.includes("no & low") ||
+    s.includes("no and low")
+  ) {
+    return "alcohol-free";
+  }
+  if (s.includes("soft drink")) return "soft-drink";
+  // A remaining "…Drinks" heading is still a non-beer drink bucket (usually soft).
+  if (s.includes("drink")) return "soft-drink";
   // Unknown section headings (food sharers, burgers, pizza, grills, sides, …)
   // are NOT drinks — skip them. Returning "other" here previously leaked whole
   // food menus into the drink payload; a drink parser must never emit food.

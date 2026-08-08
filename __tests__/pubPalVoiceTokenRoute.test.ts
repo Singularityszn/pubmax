@@ -14,6 +14,9 @@ vi.mock("@/lib/authServer", () => ({
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => voiceState.configured,
   requireSupabaseAdmin: () => ({ rpc: voiceState.rpc }),
+  clientIp: () => "203.0.113.10",
+  hashIp: (ip: string) => `hashed:${ip}`,
+  checkRateLimitDurableDetailed: async () => ({ verdict: false, reason: "counted" }),
 }));
 
 import { POST } from "@/app/api/pub-pal/voice-token/route";

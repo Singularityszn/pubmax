@@ -1,4 +1,6 @@
 import { jsonNoStore } from "@/lib/apiResponses";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { callerUserId } from "@/lib/authServer";
 import { isPlanId } from "@/lib/plan";
@@ -37,6 +39,11 @@ export async function GET(request: Request, context: Context): Promise<Response>
 }
 
 export async function POST(request: Request, context: Context): Promise<Response> {
+  const limiterKey = `plan-recap:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const { id } = await context.params;
   if (!isPlanId(id)) return error("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
   const ownerId = await callerUserId(request);

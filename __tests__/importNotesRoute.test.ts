@@ -110,6 +110,6 @@ describe("POST /api/admin/import-notes", () => {
 
     expect(responses.slice(0, 10).every((res) => res.status === 200)).toBe(true);
     expect(responses[10].status).toBe(429);
-    expect(await responses[10].json()).toEqual({ error: "Too many requests, slow down." });
+    expect(await responses[10].json()).toEqual({ error: "Too many requests, slow down.", code: "RATE_LIMITED", retryable: true });
   });
 });

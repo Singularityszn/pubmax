@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { assertCronRequest } from "@/lib/cronAuth";
 import { socialInteractionStore } from "@/lib/socialInteractionStore";
@@ -17,9 +18,9 @@ export async function GET(request: Request): Promise<Response> {
     );
     return jsonNoStore({ ok: true, ...result });
   } catch {
-    return jsonNoStore(
-      { ok: false, error: "Social interaction moderation is unavailable.", retryable: true },
-      { status: 503 },
-    );
+    return publicApiError("Social interaction moderation is unavailable.", "UNAVAILABLE", 503, {
+      retryable: true,
+      compatibilityFields: { ok: false },
+    });
   }
 }

@@ -112,7 +112,7 @@ describe("POST /api/pint-drops/comments", () => {
   it("400s a missing dropId", async () => {
     const res = await post({ handle: "ale", body: "hi" });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Missing pint drop id." });
+    expect(await res.json()).toEqual({ error: "Missing pint drop id.", code: "INVALID_REQUEST", retryable: false });
   });
 
   it("400s an empty body", async () => {
@@ -151,7 +151,7 @@ describe("POST /api/pint-drops/comments", () => {
   it("400s a malformed JSON body", async () => {
     const res = await POST(new Request(URL_BASE, { method: "POST", body: "{oops" }));
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Malformed request body." });
+    expect(await res.json()).toEqual({ error: "Malformed request body.", code: "MALFORMED_REQUEST", retryable: false });
   });
 
   it("429s the 9th rapid comment on one drop from one actor", async () => {
@@ -165,7 +165,7 @@ describe("POST /api/pint-drops/comments", () => {
       last = await post({ dropId, handle: "flooder", body: `spam ${i}` }, headers);
     }
     expect(last!.status).toBe(429);
-    expect(await last!.json()).toEqual({ error: "Too many comments, slow down." });
+    expect(await last!.json()).toEqual({ error: "Too many comments, slow down.", code: "RATE_LIMITED", retryable: true });
   });
 
   it("never leaks actor_hash/status/moderation fields in the created DTO", async () => {

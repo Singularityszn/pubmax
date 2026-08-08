@@ -18,6 +18,9 @@ const VIEWER_COORDINATE_EGRESS_FILES = [
   "app/api/tfl-disruption/route.ts",
   "app/api/citymcp/journey/route.ts",
   "app/api/last-train/route.ts",
+  // The locate fix reaches a URL (server logs, history, shareable), so it
+  // must coarsen before it leaves the browser (#901 review finding).
+  "lib/locateMapDestination.ts",
 ] as const;
 
 describe("viewer coordinate egress", () => {

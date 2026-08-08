@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import PlanIntake from "@/components/plan/PlanIntake";
+import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
+import { ASK_PLAN_DRAFT_STORAGE_KEY, type AskPlanDraft } from "@/lib/ask/types";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX } from "@/lib/crew";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
@@ -55,7 +57,6 @@ import {
   writePlanIntakeDraft,
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
-import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 
 export type RouteRevision = string | number;
 export type RouteAlternative = { venueId: string; venueName: string };
@@ -228,6 +229,7 @@ export function nightContextChanged(before: NightContext | null, after: NightCon
     || before.budget !== after.budget
     || before.budgetLimitPence !== after.budgetLimitPence
     || before.zeroProof !== after.zeroProof
+    || before.wetherspoonsPreferred !== after.wetherspoonsPreferred
     || !sameList(before.atmosphere, after.atmosphere)
     || !sameList(before.foodNeeds, after.foodNeeds)
     || !sameList(before.accessibility, after.accessibility)
@@ -287,6 +289,8 @@ export function nightAreaMapHref(area: NightArea): string {
 }
 
 export function errorMessageFromBody(body: unknown, fallback: string): string {
+  // Concierge / plan generate scarcity must stay the server's sentence. Never
+  // replace a grounded 422 with a softer invented route or a generic shrug.
   if (!body || typeof body !== "object") return fallback;
   const error = (body as { error?: unknown }).error;
   if (typeof error === "string") return error;
@@ -459,7 +463,7 @@ function conciergeStatusText(
   unsupportedPatch: NightPatch | null,
   note: string,
 ): string {
-  if (sorting) return "Planning your night, checking confidence and picking stops we can back up.";
+  if (sorting) return "Planning your outing, checking confidence and picking stops we can back up.";
   if (unsupportedPatch) {
     return `${unsupportedPatch.label} is saved. Exact Plan generation is not available for this patch yet. Pick another area to build the route now.`;
   }
@@ -616,6 +620,25 @@ function PlanComposerForm({
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(
     hasDurableIntakeDraft && !recoveredIntake.completed ? "wizard" : "describe",
   );
+  const [askDraftQuery, setAskDraftQuery] = useState("");
+  const askDraftConsumedRef = useRef(false);
+  useEffect(() => {
+    if (askDraftConsumedRef.current) return;
+    askDraftConsumedRef.current = true;
+    try {
+      const raw = sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
+      const parsed = JSON.parse(raw) as AskPlanDraft;
+      const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
+      if (!query) return;
+      // Defer setState out of the effect body in a microtask so it never
+      // fires synchronously (react-hooks/set-state-in-effect).
+      void Promise.resolve().then(() => setAskDraftQuery(query));
+    } catch {
+      /* private mode or bad JSON */
+    }
+  }, []);
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
@@ -894,7 +917,7 @@ function PlanComposerForm({
       setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
       markPalRouteActivation();
       trackEvent("plan_generated", { stops: suggested.length, grounded });
-      setConciergeNote("Three stops we can stand behind, shaped by the night you set below.");
+      setConciergeNote("Three stops we can stand behind, shaped by the outing you set below.");
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
       if (body.inferredContext) {
         trackEvent("night_description_submitted", { area: body.inferredContext.nightArea, daypart: body.inferredContext.daypart });
@@ -1017,10 +1040,11 @@ function PlanComposerForm({
   }
 
   return (
-    <form className="planComposer" onSubmit={submit} noValidate>
+    <form id="plan-composer" className="planComposer" onSubmit={submit} noValidate>
       {handoff && <AcceptedContextPanel handoff={handoff} />}
       {!planIntake.completed && entryMode === "describe" ? (
         <PlanDescribeFirst
+          initialQuery={askDraftQuery}
           onSubmit={submitFromEntry}
           onGuideMeInstead={() => setEntryMode("wizard")}
         />
@@ -1034,13 +1058,13 @@ function PlanComposerForm({
         <>
       <section className="planComposer__concierge" aria-labelledby="plan-concierge-title" aria-busy={sorting}>
         <div>
-          <span className="planPage__eyebrow">Describe your night</span>
+          <span className="planPage__eyebrow">Describe your outing</span>
           <h2 id="plan-concierge-title">Say what you need. Get three useful stops.</h2>
         </div>
         <div className="planComposer__conciergeInput">
-          <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the night</label>
+          <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
           <input id="plan-concierge-query" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
-          <button type="button" onClick={() => sortWithConcierge()} disabled={sorting || !canSortWithCurrentGenerator} aria-busy={sorting}>{sorting ? "Planning…" : "Plan my night"}</button>
+          <button type="button" onClick={() => sortWithConcierge()} disabled={sorting || !canSortWithCurrentGenerator} aria-busy={sorting}>{sorting ? "Planning…" : "Make a plan"}</button>
         </div>
         <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
           {conciergeStatus}

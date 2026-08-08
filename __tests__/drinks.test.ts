@@ -72,6 +72,17 @@ describe("database CHECK constraints mirror the closed taxonomy", () => {
       expect(checked).toContain("alcohol-free");
     }
   });
+
+  it("names coffee as its own lane, never collapsed into soft-drink or other", () => {
+    expect(DRINK_CATEGORIES).toContain("coffee");
+    for (const constraint of [
+      "drinks_category_check",
+      "community_prices_category_check",
+    ]) {
+      const checked = latestCheckedCategories(constraint) ?? [];
+      expect(checked).toContain("coffee");
+    }
+  });
 });
 
 function drink(overrides: Partial<Drink> = {}): Drink {
@@ -108,6 +119,7 @@ describe("category taxonomy", () => {
     expect(isDrinkCategory("gin")).toBe(true);
     expect(isDrinkCategory("soft-drink")).toBe(true);
     expect(isDrinkCategory("alcohol-free")).toBe(true);
+    expect(isDrinkCategory("coffee")).toBe(true);
     expect(isDrinkCategory("cider")).toBe(false);
     expect(isDrinkCategory(42)).toBe(false);
     expect(isDrinkCategory(undefined)).toBe(false);
@@ -118,6 +130,7 @@ describe("category taxonomy", () => {
     expect(categoryLabel("beer")).toBe("Beer");
     expect(categoryLabel("soft-drink")).toBe("Soft drinks");
     expect(categoryLabel("alcohol-free")).toBe("Alcohol-free");
+    expect(categoryLabel("coffee")).toBe("Coffee");
   });
 });
 

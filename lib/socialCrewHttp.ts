@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { boundedJson } from "@/lib/boundedRequest.server";
 import { isLimited } from "@/lib/pintDrops";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
@@ -25,44 +26,27 @@ export function socialCrewPrivateJson(body: unknown, init: ResponseInit = {}): R
 }
 
 export function socialCrewInvalidResponse(): Response {
-  return socialCrewPrivateJson(
-    {
-      code: "INVALID_SOCIAL_CREW_REQUEST",
-      error: "Social Crew request is not valid.",
-    },
-    { status: 422 },
-  );
+  return publicApiError("Social Crew request is not valid.", "INVALID_SOCIAL_CREW_REQUEST", 422, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export function socialCrewNotFoundResponse(): Response {
-  return socialCrewPrivateJson(
-    { code: "SOCIAL_CREW_NOT_FOUND", error: "Social Crew not found." },
-    { status: 404 },
-  );
+  return publicApiError("Social Crew not found.", "SOCIAL_CREW_NOT_FOUND", 404, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export function socialCrewUnavailableResponse(): Response {
-  return socialCrewPrivateJson(
-    {
-      code: "SOCIAL_CREW_UNAVAILABLE",
-      error: "Social Crew is unavailable right now.",
-      retryable: true,
-    },
-    { status: 503 },
-  );
+  return publicApiError("Social Crew is unavailable right now.", "SOCIAL_CREW_UNAVAILABLE", 503, {
+    retryable: true,
+    headers: { "Cache-Control": "private, no-store" },
+  });
 }
 
 function accessError(
   access: Exclude<Awaited<ReturnType<typeof requireVerifiedSocialActor>>, { ok: true }>,
 ): Response {
-  return socialCrewPrivateJson(
-    {
-      code: access.code,
-      error: access.error,
-      ...(access.retryable ? { retryable: true } : {}),
-    },
-    { status: access.status },
-  );
+  return publicApiError(access.error, access.code, access.status, {
+    retryable: access.retryable === true,
+    headers: { "Cache-Control": "private, no-store" },
+  });
 }
 
 export async function socialCrewActor(
@@ -82,14 +66,10 @@ export async function socialCrewActor(
     )) {
       return {
         ok: false,
-        response: socialCrewPrivateJson(
-          {
-            code: "SOCIAL_CREW_RATE_LIMITED",
-            error: "Too many Social Crew changes. Slow down.",
-            retryable: true,
-          },
-          { status: 429 },
-        ),
+        response: publicApiError("Too many Social Crew changes. Slow down.", "SOCIAL_CREW_RATE_LIMITED", 429, {
+          retryable: true,
+          headers: { "Cache-Control": "private, no-store" },
+        }),
       };
     }
   } catch {
@@ -153,13 +133,7 @@ export function socialCrewErrorResponse(error: unknown): Response {
     if (error.code === "INVALID") return socialCrewInvalidResponse();
     if (error.code === "NOT_FOUND") return socialCrewNotFoundResponse();
     if (error.code === "CONFLICT") {
-      return socialCrewPrivateJson(
-        {
-          code: "SOCIAL_CREW_CONFLICT",
-          error: "Social Crew changed before this request.",
-        },
-        { status: 409 },
-      );
+      return publicApiError("Social Crew changed before this request.", "SOCIAL_CREW_CONFLICT", 409, { headers: { "Cache-Control": "private, no-store" } });
     }
   }
   return socialCrewUnavailableResponse();
