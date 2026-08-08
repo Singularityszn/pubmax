@@ -65,6 +65,7 @@ describe("PUBMAXX handle APIs", () => {
     response = await current(request("/api/identity/handle/current"));
     expect(await response.json()).toEqual({ handle: "night_owl" });
 
+    authState.userId = null;
     response = await availability(request("/api/identity/handle/availability?handle=NIGHT_OWL"));
     expect(await response.json()).toEqual({ handle: "night_owl", available: false, reason: "taken" });
   });
@@ -219,6 +220,7 @@ describe("PUBMAXX handle APIs", () => {
       profile: null,
     });
 
+    authState.userId = null;
     const availabilityResponse = await availability(
       request("/api/identity/handle/availability?handle=ghost_owl"),
     );

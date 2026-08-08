@@ -74,9 +74,57 @@ If a later agent finds the live ledger behind the tree again, re-run `supabase m
 
 ### 1.4 Feature flags
 
-Social ships behind one server-checked flag, `SOCIAL_INVITE_BETA_ENABLED` (read in `lib/socialAccessServer.ts`). Set it to `"1"` to open the invite beta; any other value, including unset, keeps every Social surface in `preview` state (`isSocialInviteBetaEnabled`, `lib/socialAccess.ts`).
+Social ships behind two independent server-checked switches:
 
-Do not enable it yet. Issue [#736](https://github.com/Singularityszn/pubmax/issues/736) blocks the beta on a primary and backup moderator, and `docs/social/SOCIAL_BETA_CONTRACT.md` lists both as **Unassigned, Blocking**. Check that table before flipping the flag.
+| Flag | Read in | When off (default) | When on |
+|---|---|---|---|
+| `PUBMAX_SOCIAL_FRIENDS_LAUNCH` | `lib/socialAccessServer.ts` | Every Social surface stays in **preview** (today's behaviour). Landing and `/we-are-out` keep pointing at Memories, not Open Social. | Signed-in Supabase accounts with a claimed handle and self-asserted 18+ date of birth reach **verified** access. Friends-only reads use mutual follows (WP6). |
+| `SOCIAL_INVITE_BETA_ENABLED` | `lib/socialAccessServer.ts` (legacy Clerk beta path) | Clerk invite beta stays dormant beside the Supabase path. | **Do not enable** for the friends launch; it is the retired Clerk+Yoti stack. |
+
+**Dark launch default:** leave `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset in Production and Preview. `npm run ci` green with the flag unset proves the dark state.
+
+**Friends launch flip (captain act, after WP5 rehearsal):**
+
+1. Set `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1` in Vercel **Production** environment variables.
+2. Confirm `OPENAI_API_KEY`, `SUPABASE_*`, `ADMIN_TOKEN`, and `RATE_LIMIT_SALT` are already set (avatar scan + moderation queue).
+3. Promote a fresh production deployment (`vercel --prod` or dashboard promote). The flag is read at request time, but a redeploy is the audited change record.
+4. Run the captain demo script below on the production host (or a staging env with the same flag and secrets).
+5. Keep `PUBMAX_SOCIAL_FREEZE` unset unless ops needs to pause writes without hiding the surface.
+
+Do not enable `SOCIAL_INVITE_BETA_ENABLED` for this wave. Issue [#736](https://github.com/Singularityszn/pubmax/issues/736) still blocks the legacy Clerk beta on moderator rota; `docs/social/SOCIAL_BETA_CONTRACT.md` lists both roles as **Unassigned, Blocking** for that path.
+
+### 1.5 Captain demo script (Social + avatars dress rehearsal)
+
+Run after `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1` is live in the demo environment. Flag **off** must match today's site on Social surfaces (preview boundary only, no feed content).
+
+**Flag off check (byte-identical social surfaces):**
+
+1. Open `https://pubmaxxing.com/social` signed out.
+2. Confirm the preview heading: "Social is invite-only for now. It opens more widely soon."
+3. Confirm no post lanes, compose button, or protected feed content appears.
+
+**Flag on check (full loop):**
+
+1. **Sign in** at `/login` with a fresh Supabase test account (magic link).
+2. **Claim a handle** and enter a date of birth that passes the 18+ gate (self-asserted, D2).
+3. Confirm `/social` lands in **verified** state (compose + Posts lane visible).
+4. **Upload a profile photo** on `/u/<handle>` → Edit profile. A normal photo should appear on the public profile after one request.
+5. **Join a plan crew** with a second account and confirm the mutual follow edge forms (WP7); search handles from Social if needed.
+6. Post a **friends-only** update from account A; confirm account B (mutual) sees it and account C (non-mutual) does not.
+7. **Flag a photo** via the reader report path; confirm it queues in Admin → profile avatars (reported lane).
+8. **Hide** the reported avatar from the admin console; confirm the public profile falls back to initials.
+9. Attempt a **known-bad test image** upload; confirm instant honest refusal (no silent publish).
+10. Temporarily unset `OPENAI_API_KEY` in a staging slot and retry upload; confirm "We could not check this photo. Try again." with the profile unchanged.
+
+**Automated rehearsal (Playwright):**
+
+```sh
+# Dark default (flag off) — included in npm run ci via verify + build; e2e smoke pins preview.
+npm run test:e2e -- e2e/smoke.spec.ts e2e/profile-avatar.spec.ts
+
+# Opt-in flag-on social dress rehearsal (exports must match the webServer build):
+PW_SOCIAL_OPEN=1 PUBMAX_SOCIAL_FRIENDS_LAUNCH=1 npm run test:e2e -- e2e/social-open.spec.ts
+```
 
 ---
 
@@ -94,7 +142,7 @@ Run each check on the production host after every promoted deploy.
 | Plan invite share | After locking in a plan on `/plan/[id]` | "Send on WhatsApp" is the primary next action; "Copy invite link" works for the host session and never for an anonymous visitor to the same URL. |
 | Public invite RSVP | `/invite/[token]` from the host copy | Guest can RSVP with a name only; "See these pubs on the map" opens `/map?venue=<first stop>`. |
 | Host Remove (cookie path) | Host revisits `/invite/[token]` after a guest RSVP | Remove appears for the host; after Remove the guest row is gone and stays gone on reload. Guest browsers never see Remove. |
-| Social tab | `https://pubmaxxing.com/social` | While the beta flag is off: safe preview copy only, no post content, no sign-in-required content leak. Once the flag is on: verified adults see the feed; everyone else sees the correct `sign_in_required` or `age_verification_required` state. Keep the flag unset for V1 drinker invites. |
+| Social tab | `https://pubmaxxing.com/social` | While `PUBMAX_SOCIAL_FRIENDS_LAUNCH` is off: safe preview copy only, no post content, no sign-in-required content leak. Once the friends launch flag is on: verified adults see the feed; everyone else sees the correct `sign_in_required` or `age_verification_required` state. Keep the launch flag unset until after the WP5 rehearsal. |
 
 ---
 
