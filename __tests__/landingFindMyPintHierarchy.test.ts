@@ -40,8 +40,9 @@ describe("L19 landing Find my pint hierarchy", () => {
     )?.[0];
     expect(mapFirstBlock, "flag-off map-first branch present").toBeTruthy();
     // Primary is Open the map, via primaryCtaHref (city-aware, no geo gate).
+    // Attributes may span multiple JSX lines, so allow whitespace between them.
     expect(landingTsx).toMatch(
-      /className="lpButton lpButtonPrimary" href=\{primaryCtaHref\}[\s\S]*Open the map/,
+      /className="lpButton lpButtonPrimary"[\s\S]*?href=\{primaryCtaHref\}[\s\S]*Open the map/,
     );
     // Find my pint and Plan with friends are demoted to secondary text links.
     expect(mapFirstBlock).toMatch(/lpTextLink/);

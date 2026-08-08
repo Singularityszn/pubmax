@@ -193,6 +193,8 @@ export const ANALYTICS_EVENTS = {
   // these props - only that a crew-only beacon was switched on or off.
   out_tonight_beacon_on: [],
   out_tonight_beacon_off: [],
+  // Landing Wave 0 acquisition CTAs. Closed target enum only — never free text.
+  landing_cta_clicked: ["target"],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
@@ -680,20 +682,31 @@ export function sanitizeEvent(
       const value = (props as Record<string, unknown>)[key];
       if (value === undefined) continue;
       const customValidator = CUSTOM_PROP_VALIDATORS[key];
+      // `target` is shared by web_vital (a sanitized selector, never a fixed
+      // enum member) and landing_cta_clicked (a closed enum). Its real
+      // strictness is fully delegated to isAllowedVitalProp /
+      // isAllowedLandingCtaProp below, so it must bypass the generic
+      // isSafeValue enum gate the same way a CUSTOM_PROP_VALIDATORS entry
+      // would - otherwise a legitimate selector like "main>img.hero" never
+      // reaches those checks at all.
       const valid = name === "sign_in_initiated" && key === "provider"
         ? value === "google" || value === "apple" || value === "email"
-        : customValidator
-          ? customValidator(value)
-          : isSafeValue(value)
-            && isAllowedDistrictEventProp(name, key, value)
-            && isAllowedLoopEventProp(name, key, value)
-            && isAllowedTrustedHandoffEventProp(name, key, value)
+        : key === "target" && (name === "web_vital" || name === "landing_cta_clicked")
+          ? typeof value === "string"
             && isAllowedVitalProp(name, key, value)
-            && isAllowedPriceFunnelProp(name, key, value)
-            && isAllowedContributionGateProp(name, key, value)
-            && isAllowedPintIndexArrivalProp(name, key, value)
-            && isAllowedInviteLoopProp(name, key, value)
-            && isAllowedLandingCtaProp(name, key, value);
+            && isAllowedLandingCtaProp(name, key, value)
+          : customValidator
+            ? customValidator(value)
+            : isSafeValue(value)
+              && isAllowedDistrictEventProp(name, key, value)
+              && isAllowedLoopEventProp(name, key, value)
+              && isAllowedTrustedHandoffEventProp(name, key, value)
+              && isAllowedVitalProp(name, key, value)
+              && isAllowedPriceFunnelProp(name, key, value)
+              && isAllowedContributionGateProp(name, key, value)
+              && isAllowedPintIndexArrivalProp(name, key, value)
+              && isAllowedInviteLoopProp(name, key, value)
+              && isAllowedLandingCtaProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }
