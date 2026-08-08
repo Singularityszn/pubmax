@@ -310,6 +310,7 @@ describe("VenueOverviewTab community signals", () => {
         locationRequestStatus: "idle",
         onRequestLocation: noop,
         onClearLocation: noop,
+        onLogTonightPrice: noop,
         onStartFirstDrop: noop,
         priceEntryAllowed: false,
         priceSignInRequested: false,

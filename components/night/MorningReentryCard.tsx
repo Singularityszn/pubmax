@@ -48,9 +48,9 @@ export default function MorningReentryCard() {
     markMorningCardShown(night.planId);
     try {
       const record = recordNightKept(night.planId, window.localStorage);
-      setKeptLabel(nightsKeptLabel(record));
+      queueMicrotask(() => setKeptLabel(nightsKeptLabel(record)));
     } catch {
-      setKeptLabel(nightsKeptLabel(readNightsKept(null)));
+      queueMicrotask(() => setKeptLabel(nightsKeptLabel(readNightsKept(null))));
     }
   }, [night]);
 

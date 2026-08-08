@@ -51,9 +51,10 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
 
   useEffect(() => {
     try {
-      setNightsLabel(nightsKeptLabel(readNightsKept(window.localStorage)));
+      const label = nightsKeptLabel(readNightsKept(window.localStorage));
+      queueMicrotask(() => setNightsLabel(label));
     } catch {
-      setNightsLabel("");
+      queueMicrotask(() => setNightsLabel(""));
     }
   }, []);
 

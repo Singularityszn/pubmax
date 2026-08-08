@@ -47,11 +47,11 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
 
   useEffect(() => {
     if (!memberToken) {
-      setInviteLoad("idle");
+      queueMicrotask(() => setInviteLoad("idle"));
       return;
     }
     let active = true;
-    setInviteLoad("loading");
+    queueMicrotask(() => setInviteLoad("loading"));
     fetch(`/api/plans/${planId}`, { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((body: { inviteToken?: string | null } | null) => {
