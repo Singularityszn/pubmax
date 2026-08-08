@@ -114,15 +114,16 @@ export default function PrivacyPage() {
           must choose one public handle, which is linked to your authenticated
           account and is the only identity shown with contributions. Handle
           is needed to finish signup. Date of birth is needed to finish signup
-          too. Full name and sex are optional. We collect and store date of
-          birth, full name and sex as private details for existing account tools.
+          too. Full name, gender and sex are optional. We collect and store date
+          of birth, full name, gender and sex as private details for existing
+          account tools.
           Social adult access does not use them. They are never shown on prices,
           reports, signals, Recommendations, leaderboards or the public
           contributor record.
         </p>
         <p className="legalBody">
-          We keep date of birth until you delete your profile. Full name and sex
-          stay until you edit or clear them, or delete your profile.
+          We keep date of birth until you delete your profile. Full name, gender
+          and sex stay until you edit or clear them, or delete your profile.
           Deleting your profile removes these private identity fields and clears its
           editable public details. That action keeps your authentication account,
           public handle and handle-keyed contribution history. You can

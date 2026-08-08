@@ -14,6 +14,7 @@ import OutTonightCrewLine from "@/components/profile/OutTonightCrewLine";
 import OutTonightToggle from "@/components/profile/OutTonightToggle";
 import PintPassport from "@/components/profile/PintPassport";
 import ProfileEditor from "@/components/profile/ProfileEditor";
+import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileTimeline from "@/components/profile/ProfileTimeline";
 import PubmaxxAccountHub from "@/components/profile/PubmaxxAccountHub";
@@ -786,6 +787,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                   ) : null}
 
                   {isOwnProfile && editing ? (
+                    <>
                     <ProfileEditor
                       handle={routeHandle}
                       initial={{
@@ -800,6 +802,16 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                       onSaved={handleSaved}
                       onClose={() => setEditing(false)}
                     />
+                    {/* Private personal fields (email, date of birth, gender)
+                        live beside the public editor so the owner finds them
+                        where they expect to edit themselves. Signed-out demo
+                        owners see the editor's own sign-in prompt. */}
+                    {user ? (
+                      <div className="accountHubGrid profilePrivateDetails">
+                        <PrivateIdentityEditor />
+                      </div>
+                    ) : null}
+                    </>
                   ) : null}
 
                   {!youSignedOut ? (

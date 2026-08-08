@@ -8,6 +8,19 @@ export const PRIVATE_IDENTITY_SEX_VALUES = [
 export type PrivateIdentitySex =
   (typeof PRIVATE_IDENTITY_SEX_VALUES)[number];
 
+export const PRIVATE_IDENTITY_GENDER_VALUES = [
+  "woman",
+  "man",
+  "non_binary",
+  "self_described",
+  "prefer_not_to_say",
+] as const;
+
+export type PrivateIdentityGender =
+  (typeof PRIVATE_IDENTITY_GENDER_VALUES)[number];
+
+export const MAX_GENDER_SELF_DESCRIBED = 60;
+
 export function londonCalendarDate(now: number): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",

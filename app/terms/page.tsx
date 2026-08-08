@@ -103,12 +103,13 @@ export default function TermsPage() {
           deletes analytics events 12 months after collection and pseudonymous
           person and device records 12 months after their last activity. Handle
           is needed to finish signup. Date of birth is needed to finish signup
-          too. Full name and sex are optional. We collect and store date of
-          birth, full name and sex as private details for existing account tools.
+          too. Full name, gender and sex are optional. We collect and store date
+          of birth, full name, gender and sex as private details for existing
+          account tools.
           Social adult access does not use them.
           Date of birth stays until you delete your profile.
-          Full name and sex stay until you edit or clear them, or delete your
-          profile. Deleting your profile removes these private identity fields and clears
+          Full name, gender and sex stay until you edit or clear them, or
+          delete your profile. Deleting your profile removes these private identity fields and clears
           its editable public details, while keeping your
           authentication account, public handle and handle-keyed contribution
           history. Only your handle is public.

@@ -2,11 +2,41 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { isHandleClaimLimited } from "@/lib/identityHandleClaimRateLimit";
+import { cleanDateOfBirth } from "@/lib/privateIdentity";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 
 assertServerEnv();
+
+// Owner-only payload: this route requires the caller's verified JWT, so the
+// private fields (date of birth, gender, sex, full name) may appear here and
+// nowhere public. Public profile payloads must never carry them —
+// __tests__/profilesRoutePrivacy.test.ts pins that.
+type PrivateIdentityView = {
+  dateOfBirth: string;
+  fullName?: string;
+  sex?: string;
+  gender?: string;
+  genderSelfDescribed?: string;
+};
+
+function privateDetails(
+  privateIdentity: PrivateIdentityView | null,
+): Record<string, string> {
+  if (!privateIdentity) return {};
+  return {
+    ...(privateIdentity.dateOfBirth
+      ? { dateOfBirth: privateIdentity.dateOfBirth }
+      : {}),
+    ...(privateIdentity.fullName ? { fullName: privateIdentity.fullName } : {}),
+    ...(privateIdentity.sex ? { sex: privateIdentity.sex } : {}),
+    ...(privateIdentity.gender ? { gender: privateIdentity.gender } : {}),
+    ...(privateIdentity.genderSelfDescribed
+      ? { genderSelfDescribed: privateIdentity.genderSelfDescribed }
+      : {}),
+  };
+}
 
 export async function GET(request: Request): Promise<Response> {
   const userId = await callerUserId(request);
@@ -19,23 +49,10 @@ export async function GET(request: Request): Promise<Response> {
       privateIdentityStore().read(userId),
     ]);
     if (!profile) return jsonNoStore({ complete: false });
-    if (!privateIdentity?.dateOfBirth) {
-      return jsonNoStore({
-        complete: false,
-        handle: profile.handle,
-        ...(privateIdentity?.fullName
-          ? { fullName: privateIdentity.fullName }
-          : {}),
-        ...(privateIdentity?.sex ? { sex: privateIdentity.sex } : {}),
-      });
-    }
     return jsonNoStore({
-      complete: true,
+      complete: Boolean(privateIdentity?.dateOfBirth),
       handle: profile.handle,
-      ...(privateIdentity?.fullName
-        ? { fullName: privateIdentity.fullName }
-        : {}),
-      ...(privateIdentity?.sex ? { sex: privateIdentity.sex } : {}),
+      ...privateDetails(privateIdentity),
     });
   } catch {
     return publicApiError("Account details are unavailable right now.", "UNAVAILABLE", 503, { retryable: true });
@@ -78,12 +95,7 @@ export async function POST(request: Request): Promise<Response> {
     {
       complete: true,
       handle: result.handle,
-      ...(result.privateIdentity.fullName
-        ? { fullName: result.privateIdentity.fullName }
-        : {}),
-      ...(result.privateIdentity.sex
-        ? { sex: result.privateIdentity.sex }
-        : {}),
+      ...privateDetails(result.privateIdentity),
     },
     { status: 201 },
   );
@@ -100,12 +112,27 @@ export async function PATCH(request: Request): Promise<Response> {
   } catch {
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
+  let dateOfBirth: string | undefined;
+  if ("dateOfBirth" in body) {
+    const cleaned = cleanDateOfBirth(body.dateOfBirth);
+    if (!cleaned) {
+      return publicApiError("Enter a valid date of birth.", "INVALID", 400);
+    }
+    dateOfBirth = cleaned;
+  }
   try {
     const [profile, privateIdentity] = await Promise.all([
       profileStore().getByUserId(userId),
       privateIdentityStore().updateDetails(userId, {
         ...("fullName" in body ? { fullName: body.fullName } : {}),
         ...("sex" in body ? { sex: body.sex } : {}),
+        ...("gender" in body
+          ? {
+              gender: body.gender,
+              genderSelfDescribed: body.genderSelfDescribed,
+            }
+          : {}),
+        ...(dateOfBirth ? { dateOfBirth } : {}),
       }),
     ]);
     if (!profile || !privateIdentity) {
@@ -114,10 +141,7 @@ export async function PATCH(request: Request): Promise<Response> {
     return jsonNoStore({
       complete: true,
       handle: profile.handle,
-      ...(privateIdentity.fullName
-        ? { fullName: privateIdentity.fullName }
-        : {}),
-      ...(privateIdentity.sex ? { sex: privateIdentity.sex } : {}),
+      ...privateDetails(privateIdentity),
     });
   } catch {
     return publicApiError("Account details could not be saved.", "UNAVAILABLE", 503, { retryable: true });

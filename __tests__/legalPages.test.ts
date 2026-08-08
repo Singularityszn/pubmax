@@ -363,16 +363,16 @@ describe("legal content pages", () => {
   it("states exactly what private profile data is retained", () => {
     expect(privacy).toMatch(/Google or Apple sign-in/);
     expect(privacy).toMatch(/date of birth is needed to finish signup/i);
-    expect(privacy).toMatch(/Full name and sex are optional/);
+    expect(privacy).toMatch(/Full name, gender and sex are optional/);
     expect(privacy).toMatch(/only identity shown with contributions/);
     expect(privacy).toMatch(
-      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing account tools[\s\S]*Social adult access does not use them/i,
+      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing\s+account tools[\s\S]*Social adult access does not use them/i,
     );
     expect(privacy).toMatch(
       /date of birth[\s\S]*until you delete your profile/i,
     );
     expect(privacy).toMatch(
-      /Full name and sex[\s\S]*until you edit or clear them[\s\S]*delete your profile/i,
+      /Full name, gender and sex[\s\S]*until you edit or clear them[\s\S]*delete your profile/i,
     );
     expect(privacy).toMatch(
       /Deleting your profile[\s\S]*removes these\s+private identity fields/,
@@ -384,7 +384,7 @@ describe("legal content pages", () => {
       /date of birth is needed to finish signup/i,
     );
     expect(terms).toMatch(
-      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing account tools[\s\S]*Social adult access does not use them/i,
+      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing\s+account tools[\s\S]*Social adult access does not use them/i,
     );
     expect(terms).toMatch(/date of birth[\s\S]*until you delete your profile/i);
     expect(terms).toMatch(

@@ -4,7 +4,9 @@ import {
   type AccountBoundRequest,
 } from "@/lib/accountBoundFetch";
 import {
+  PRIVATE_IDENTITY_GENDER_VALUES,
   PRIVATE_IDENTITY_SEX_VALUES,
+  type PrivateIdentityGender,
   type PrivateIdentitySex,
 } from "@/lib/privateIdentity";
 
@@ -13,6 +15,9 @@ type PrivateIdentityLoadResult =
       status: "ready";
       fullName: string;
       sex: "" | PrivateIdentitySex;
+      gender: "" | PrivateIdentityGender;
+      genderSelfDescribed: string;
+      dateOfBirth: string;
     }
   | { status: "unavailable"; error: string };
 
@@ -31,6 +36,9 @@ export async function loadPrivateIdentity(
     const body = (await response.json().catch(() => ({}))) as {
       fullName?: unknown;
       sex?: unknown;
+      gender?: unknown;
+      genderSelfDescribed?: unknown;
+      dateOfBirth?: unknown;
       error?: unknown;
     };
     if (!response.ok) {
@@ -50,6 +58,19 @@ export async function loadPrivateIdentity(
         PRIVATE_IDENTITY_SEX_VALUES.includes(body.sex as PrivateIdentitySex)
           ? (body.sex as PrivateIdentitySex)
           : "",
+      gender:
+        typeof body.gender === "string" &&
+        PRIVATE_IDENTITY_GENDER_VALUES.includes(
+          body.gender as PrivateIdentityGender,
+        )
+          ? (body.gender as PrivateIdentityGender)
+          : "",
+      genderSelfDescribed:
+        typeof body.genderSelfDescribed === "string"
+          ? body.genderSelfDescribed
+          : "",
+      dateOfBirth:
+        typeof body.dateOfBirth === "string" ? body.dateOfBirth : "",
     };
   } catch (error) {
     return {

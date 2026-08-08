@@ -78,6 +78,7 @@ describe("/api/identity/onboarding", () => {
     expect(await response.json()).toEqual({
       complete: true,
       handle: "night_owl",
+      dateOfBirth: "2015-02-03",
     });
   });
 
@@ -184,7 +185,70 @@ describe("/api/identity/onboarding", () => {
       complete: true,
       handle: "night_person",
       fullName: "New Name",
+      dateOfBirth: "1990-01-01",
     });
+  });
+
+  it("lets the account owner set gender and correct their date of birth", async () => {
+    authState.userId = "user-1";
+    await POST(
+      request("POST", {
+        handle: "night_person",
+        dateOfBirth: "1990-01-01",
+      }),
+    );
+
+    const saved = await PATCH(
+      request("PATCH", {
+        gender: "self_described",
+        genderSelfDescribed: "genderfluid",
+        dateOfBirth: "1991-02-03",
+      }),
+    );
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toEqual({
+      complete: true,
+      handle: "night_person",
+      gender: "self_described",
+      genderSelfDescribed: "genderfluid",
+      dateOfBirth: "1991-02-03",
+    });
+
+    const cleared = await PATCH(request("PATCH", { gender: "" }));
+    expect(await cleared.json()).toEqual({
+      complete: true,
+      handle: "night_person",
+      dateOfBirth: "1991-02-03",
+    });
+
+    const reread = await GET(request());
+    expect(await reread.json()).toEqual({
+      complete: true,
+      handle: "night_person",
+      dateOfBirth: "1991-02-03",
+    });
+  });
+
+  it("rejects an invalid or future date of birth edit", async () => {
+    authState.userId = "user-1";
+    await POST(
+      request("POST", {
+        handle: "night_person",
+        dateOfBirth: "1990-01-01",
+      }),
+    );
+
+    const invalid = await PATCH(request("PATCH", { dateOfBirth: "not-a-date" }));
+    expect(invalid.status).toBe(400);
+    expect(await invalid.json()).toMatchObject({
+      error: "Enter a valid date of birth.",
+    });
+
+    const future = await PATCH(request("PATCH", { dateOfBirth: "2999-01-01" }));
+    expect(future.status).toBe(400);
+
+    const reread = await GET(request());
+    expect(await reread.json()).toMatchObject({ dateOfBirth: "1990-01-01" });
   });
 
   it("stores an under-18 date without blocking signup", async () => {
@@ -200,6 +264,7 @@ describe("/api/identity/onboarding", () => {
     expect(await response.json()).toEqual({
       complete: true,
       handle: "young_person",
+      dateOfBirth: "2015-02-03",
     });
   });
 });
