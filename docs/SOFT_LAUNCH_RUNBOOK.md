@@ -162,7 +162,7 @@ Do not enable `SOCIAL_INVITE_BETA_ENABLED` until both roles are named and the ha
 
 ## 6. V1 invite cohort (map + plan invite + price logging)
 
-V1 is not a Social launch. Invite 15–40 London drinkers you already WhatsApp nights with. Product strategy: [docs/plans/PLG_STRATEGY.md](plans/PLG_STRATEGY.md). Weekly scoreboard detail: [docs/growth/V1_INVITE_SCOREBOARD.md](growth/V1_INVITE_SCOREBOARD.md).
+V1 is not a Social launch. Invite 15–40 London drinkers you already WhatsApp nights with. Product strategy: [docs/plans/PLG_STRATEGY.md](plans/PLG_STRATEGY.md). Weekly scoreboard detail: [docs/growth/V1_INVITE_SCOREBOARD.md](growth/V1_INVITE_SCOREBOARD.md). Full Horizon 0 merge / promote / smoke / anti-goals checklist: [docs/growth/HORIZON0_OPS_CHECKLIST.md](growth/HORIZON0_OPS_CHECKLIST.md). Seed density playbook: [docs/growth/SEED_BOROUGH_PLAYBOOK.md](growth/SEED_BOROUGH_PLAYBOOK.md).
 
 ### 6.1 What you send
 
@@ -174,12 +174,12 @@ One WhatsApp message with:
 
 ### 6.2 Seed density before the blast
 
-Captain + early cohort pre-log corroborated prices in 1–2 boroughs guests will open first (for example Soho + Camden). Grey pins in the first viewport kill trust.
+Captain + early cohort pre-log corroborated prices in 1–2 boroughs guests will open first (for example Soho + Camden). Grey pins in the first viewport kill trust. Follow [SEED_BOROUGH_PLAYBOOK.md](growth/SEED_BOROUGH_PLAYBOOK.md).
 
 ### 6.3 Weekly scoreboard (PostHog)
 
-Instrument already lives in [docs/METRICS_FUNNEL.md](METRICS_FUNNEL.md). Track invite k-factor / RSVP rate, corroborated coverage in seed boroughs, meaningful plan actions (`plan_saved`, `plan_invite_sent`, `plan_invite_link_copied`), return `activity_pulse`. Do not track Social DAU while the beta flag is off.
+Instrument already lives in [docs/METRICS_FUNNEL.md](METRICS_FUNNEL.md). Track invite k-factor / RSVP rate, corroborated coverage in seed boroughs, meaningful plan actions (`plan_saved`, `plan_invite_sent`, `plan_invite_link_copied`), return `activity_pulse`, and landing CTA mix (`landing_cta_clicked`). Do not track Social DAU while the beta flag is off.
 
 ### 6.4 Done when
 
-At least 10 distinct humans completed a map open and at least 5 RSVPs or price logs in week 1 without paid ads.
+At least 10 distinct humans completed a map open and at least 5 RSVPs or price logs in week 1 without paid ads. Seed boroughs must not read as empty grey; invite share should appear on most successful locked plans.

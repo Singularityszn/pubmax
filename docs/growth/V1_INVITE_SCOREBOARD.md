@@ -3,7 +3,8 @@
 Operator scoreboard for the soft-launch London cohort. Not a Social launch:
 `SOCIAL_INVITE_BETA_ENABLED` stays unset. Product stance lives in
 [`docs/plans/PLG_STRATEGY.md`](../plans/PLG_STRATEGY.md); the operator checklist
-is [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md) §6.
+is [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md) §6 and
+[`docs/growth/HORIZON0_OPS_CHECKLIST.md`](HORIZON0_OPS_CHECKLIST.md).
 
 ## Cohort
 
@@ -21,18 +22,22 @@ Project: `https://eu.posthog.com/project/219466`.
 
 | Metric | How to read it |
 |---|---|
-| Invite share actions | `plan_invite_sent` + `plan_invite_link_copied` after `plan_saved` |
+| Invite share after `plan_saved` | `plan_invite_sent` + `plan_invite_link_copied` |
 | Invite k-factor (public page) | `invite_rsvp_submitted` / `invite_page_viewed`; also `invite_map_opened` / `invite_page_viewed` |
 | Classic invite redeem (if used) | `invite_redeemed` / `invite_created` |
-| Price conversion | `price_submitted` / `price_submit_viewed` (signed-in sheet opens) |
-| Meaningful plan actions | `plan_saved`, crew joins, invite share |
+| Price conversion (signed-in) | `price_submitted` / `price_submit_viewed` |
+| Landing CTA mix | `landing_cta_clicked` by `target` (`map` / `near` / `plan`) |
+| Meaningful plan actions | `plan_saved`, crew joins, invite share; also `meaningful_core_action` |
 | Return pulse | `activity_pulse` |
+| Seed borough coverage | Pint Index seed strip + corroborated beer counts (playbook) |
 | Social DAU | Do not track while Social stays in preview |
 
 ## Week-1 pass bar
 
 - ≥10 distinct humans opened the map
 - ≥5 RSVPs or price logs
+- Invite share on most successful locked plans
+- Seed boroughs not empty grey on first open
 - No paid ads
 - Social surfaces remain preview-only
 

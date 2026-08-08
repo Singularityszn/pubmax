@@ -3,18 +3,26 @@
 import Link from "next/link";
 
 import { trackEvent } from "@/lib/analytics";
+import { buildCrawlMapHref } from "@/lib/crawlUrl";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 
-// The guest's own way from the invite card to the map, tracked as
-// invite_map_opened. Reuses PlanRoute.tsx's own /map?venue=<id> precedent —
-// no multi-stop deep link exists yet, so this opens the map on the first
-// stop, from where the rest of the route is visible. firstVenueId is
-// undefined only when a plan somehow has no stops, in which case the page
-// omits this link entirely rather than pointing at nothing.
-export default function InviteMapLink({ firstVenueId }: { firstVenueId: string }) {
+/**
+ * Guest handoff from the invite card to the map. One stop opens with `?sel=`;
+ * two or more open the ordered crawl in build mode (`buildCrawlMapHref`).
+ */
+export default function InviteMapLink({ venueIds }: { venueIds: string[] }) {
+  const ids = venueIds.filter(Boolean);
+  if (ids.length === 0) return null;
+
+  const href =
+    ids.length >= 2
+      ? buildCrawlMapHref(ids) ?? venueMapUrl(ids[0]!)
+      : venueMapUrl(ids[0]!);
+
   return (
     <Link
       className="invite__mapLink"
-      href={`/map?venue=${encodeURIComponent(firstVenueId)}`}
+      href={href}
       onClick={() => trackEvent("invite_map_opened")}
     >
       See these pubs on the map

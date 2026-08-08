@@ -5,10 +5,12 @@ import Link from "next/link";
 import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
 import NationalPintBenchmarks from "@/components/pintindex/NationalPintBenchmarks";
+import BoroughCoverageStatus from "@/components/pintindex/BoroughCoverageStatus";
 import PintIndexArrival from "@/components/pintindex/PintIndexArrival";
 import PintIndexEditions from "@/components/pintindex/PintIndexEditions";
 import PintIndexLeagueTable from "@/components/pintindex/PintIndexLeagueTable";
 import ZonePintIndexStrip from "@/components/zones/ZonePintIndexStrip";
+import { loadSeedBoroughCoverage } from "@/lib/boroughCoverageStatus.server";
 import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { citableNationalBenchmarks, NATIONAL_PINT_BENCHMARKS } from "@/lib/nationalPintBenchmarks";
 import { buildLeagueTable, dearestFirst, formatPintIndexDate, indexSummary, type PintIndexSnapshot } from "@/lib/pintIndex";
@@ -69,6 +71,7 @@ export default async function PintIndexPage() {
     loadPintIndexArchive(),
     loadGroupedVenues(),
   ]);
+  const seedBoroughCoverage = await loadSeedBoroughCoverage(venues);
   const rows = snapshot ? buildLeagueTable(snapshot) : [];
   const summary = indexSummary(rows);
   const jsonLd = snapshot ? datasetJsonLd(snapshot, summary.boroughCount, summary.pubCount) : null;
@@ -141,6 +144,8 @@ export default async function PintIndexPage() {
         surface="index"
         collectedLabel={`collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`}
       />
+
+      <BoroughCoverageStatus rows={seedBoroughCoverage} />
 
       <section className="pintIndexSection" aria-labelledby="leagueHeading">
         <h2 id="leagueHeading" className="pintIndexSectionTitle">Borough league table</h2>
