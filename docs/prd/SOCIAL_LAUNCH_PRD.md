@@ -2,7 +2,8 @@
 
 > Status: APPROVED direction (captain, 2026-08-08): three locked decisions below.
 > Executor: Cursor. One PR per work package unless a package notes a split.
-> Sibling PRDs: `PUBPAL_CONNECTIONS_PRD.md`, `UI_UX_FIX_PRD.md`.
+> Sibling PRDs: `PUBPAL_CONNECTIONS_PRD.md`, `UI_UX_FIX_PRD.md`,
+> `SOCIAL_NIGHT_OS_VISION_PRD.md` (next social waves after this launch floor).
 > Panel evidence: firstmate builder and skeptic seat reports of 2026-08-08.
 > Every file:line reference below was verified against the worktree at `46da5cb3`.
 > Laws: root `CLAUDE.md` + `docs/VOICE.md` bind every package. The four

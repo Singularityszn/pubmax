@@ -316,7 +316,10 @@ the end-to-end acceptance seam passes per city.
 
 Finish You, media grid, durable drafts, crawl/recap share pages, consent, kudos,
 replies, discovery, collections, quests, mastery, and provider capability fallbacks.
-Gate: share-to-Plan is measurable and consent withdrawal is correct.
+The friends-only launch floor is `prd/SOCIAL_LAUNCH_PRD.md`. The post-launch
+Night OS thesis (Wanted + reel paste, taste personality, Tonight snaps, Stories)
+is `prd/SOCIAL_NIGHT_OS_VISION_PRD.md`. Gate: share-to-Plan is measurable and
+consent withdrawal is correct.
 
 ### Wave 4 — Pub Pal concierge
 
@@ -421,6 +424,7 @@ The full release matrix includes:
 | `PRD_YOU_PUB_PAL_SOCIAL_PROFILE_2026-07-15.md` | Authoritative appendix | Owned profile and Pal implementation seam |
 | `prd/PUBPAL_CONNECTIONS_PRD.md` | Authoritative appendix | PubPal voice, get-home ride handoff, and food-ending connection packages |
 | `prd/SOCIAL_LAUNCH_PRD.md` | Authoritative appendix | Friends-only social launch and uploaded, pre-publish-moderated profile pictures; captain decisions D1-D3 locked |
+| `prd/SOCIAL_NIGHT_OS_VISION_PRD.md` | Draft vision appendix | Post-launch social Night OS: Wanted + reel paste import, taste personality, friends-only Tonight snaps, Night Stories, kudos; sits on Social Launch floor |
 | `prd/UK_MAP_COVERAGE_AND_SEARCH_PRD.md` | Draft execution appendix | National UK pub search, intent classifier, Wikidata notable pubs, London bar densification roadmap; never merge base into slim |
 | `prd/UI_UX_FIX_PRD.md` | Authoritative appendix | Screenshot-audited UI/UX fix wave with mission preamble; one PR per numbered item |
 | `PUBMAXXING_ULTIMATE_PRD_2026-07-07.md` | Superseded | Vision and personas reconciled here |
