@@ -41,7 +41,8 @@ describe("Social interaction moderation worker", () => {
     };
     expect(config.crons).toContainEqual({
       path: "/api/cron/moderate-social-interactions",
-      schedule: "* * * * *",
+      // Services audit 2026-08: every-minute invocations while social tables are empty.
+      schedule: "*/10 * * * *",
     });
   });
 });
