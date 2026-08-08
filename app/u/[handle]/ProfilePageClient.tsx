@@ -20,6 +20,7 @@ import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileTimeline from "@/components/profile/ProfileTimeline";
 import PubmaxxAccountHub from "@/components/profile/PubmaxxAccountHub";
 import SavedPubList from "@/components/profile/SavedPubList";
+import WantedList from "@/components/wanted/WantedList";
 import YourContributionsCard from "@/components/profile/YourContributionsCard";
 import SiteNav from "@/components/nav/SiteNav";
 import SiteNavMore, {
@@ -697,6 +698,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                   </div>
                 </section>
 
+                <WantedList />
+
                 <div id="account-settings">
                   <PubmaxxAccountHub />
                 </div>
@@ -763,6 +766,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                     <nav className="youProfileTabs" aria-label="Your profile sections">
                       <a href="#timeline">Moments</a>
                       <a href="#passport">Passport</a>
+                      <a href="#wanted">Wanted</a>
                       <a href="#saved-pubs">Saved</a>
                       <a href="#account-settings">Settings</a>
                     </nav>
@@ -881,6 +885,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                       )}
                     </section>
                   ) : null}
+
+                  {isYouRoute ? <WantedList /> : null}
 
                   {!youSignedOut ? (
                     <div id="saved-pubs">
