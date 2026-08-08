@@ -189,6 +189,21 @@ describe("/api/identity/onboarding", () => {
     });
   });
 
+  it("round-trips a saved name back through GET", async () => {
+    // Defect 3: the founder must see the name land and read back through the
+    // app's own read path (private_account_identities.full_name).
+    authState.userId = "user-1";
+    await POST(
+      request("POST", { handle: "night_person", dateOfBirth: "1990-01-01" }),
+    );
+    const saved = await PATCH(request("PATCH", { fullName: "Karan Founder" }));
+    expect(saved.status).toBe(200);
+
+    const readBack = await GET(request());
+    expect(readBack.status).toBe(200);
+    expect(await readBack.json()).toMatchObject({ fullName: "Karan Founder" });
+  });
+
   it("lets the account owner set gender and correct their date of birth", async () => {
     authState.userId = "user-1";
     await POST(

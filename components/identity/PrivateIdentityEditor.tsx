@@ -36,6 +36,7 @@ const GENDER_LABELS: Record<PrivateIdentityGender, string> = {
 type PrivateIdentityEditorFormProps = {
   email: string;
   fullName: string;
+  fullNameError: string;
   sex: "" | PrivateIdentitySex;
   gender: "" | PrivateIdentityGender;
   genderSelfDescribed: string;
@@ -55,6 +56,7 @@ type PrivateIdentityEditorFormProps = {
 export function PrivateIdentityEditorForm({
   email,
   fullName,
+  fullNameError,
   sex,
   gender,
   genderSelfDescribed,
@@ -75,6 +77,22 @@ export function PrivateIdentityEditorForm({
   return (
     <form onSubmit={onSubmit}>
       <h3>Private account details</h3>
+      <label>
+        Name
+        <input
+          value={fullName}
+          maxLength={100}
+          autoComplete="name"
+          aria-invalid={fullNameError ? true : undefined}
+          aria-describedby={fullNameError ? "private-name-error" : undefined}
+          onChange={(event) => onFullNameChange(event.target.value)}
+        />
+      </label>
+      {fullNameError ? (
+        <small id="private-name-error" role="alert">
+          {fullNameError}
+        </small>
+      ) : null}
       {email ? (
         <label>
           Email
@@ -84,15 +102,6 @@ export function PrivateIdentityEditorForm({
           </small>
         </label>
       ) : null}
-      <label>
-        Full name <small>Optional</small>
-        <input
-          value={fullName}
-          maxLength={100}
-          autoComplete="name"
-          onChange={(event) => onFullNameChange(event.target.value)}
-        />
-      </label>
       <label>
         Date of birth <small>Optional</small>
         <input
@@ -190,6 +199,7 @@ function PrivateIdentityEditorForAccount({
   }));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [fullNameError, setFullNameError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -223,6 +233,13 @@ function PrivateIdentityEditorForAccount({
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (loadStatus !== "ready" || saving) return;
+    // A name is required to SAVE this form only. Onboarding handle claims and
+    // every other flow stay unaffected - the gate lives here, not the API.
+    if (!fullName.trim()) {
+      setFullNameError("Add your name.");
+      return;
+    }
+    setFullNameError("");
     setSaving(true);
     setMessage("");
     try {
@@ -236,7 +253,7 @@ function PrivateIdentityEditorForAccount({
           // would read as invalid, and untouched gender keeps saves working
           // for rows that predate the gender columns.
           body: JSON.stringify({
-            fullName,
+            fullName: fullName.trim(),
             sex,
             ...(gender !== loaded.gender ||
             genderSelfDescribed !== loaded.genderSelfDescribed
@@ -269,6 +286,7 @@ function PrivateIdentityEditorForAccount({
     <PrivateIdentityEditorForm
       email={email}
       fullName={fullName}
+      fullNameError={fullNameError}
       sex={sex}
       gender={gender}
       genderSelfDescribed={genderSelfDescribed}
@@ -288,7 +306,10 @@ function PrivateIdentityEditorForAccount({
             }
           : null
       }
-      onFullNameChange={setFullName}
+      onFullNameChange={(value) => {
+        if (value.trim()) setFullNameError("");
+        setFullName(value);
+      }}
       onSexChange={setSex}
       onGenderChange={setGender}
       onGenderSelfDescribedChange={setGenderSelfDescribed}
@@ -307,6 +328,7 @@ export default function PrivateIdentityEditor(): React.JSX.Element {
       <PrivateIdentityEditorForm
         email=""
         fullName=""
+        fullNameError=""
         sex=""
         gender=""
         genderSelfDescribed=""

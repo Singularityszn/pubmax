@@ -1,4 +1,6 @@
 import { createElement } from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -8,6 +10,7 @@ import { loadPrivateIdentity } from "@/lib/privateIdentityClient";
 const formProps = {
   email: "",
   fullName: "",
+  fullNameError: "",
   sex: "" as const,
   gender: "" as const,
   genderSelfDescribed: "",
@@ -30,7 +33,7 @@ describe("private identity editor", () => {
       createElement(PrivateIdentityEditorForm, formProps),
     );
 
-    expect(html).toContain("Full name");
+    expect(html).toContain("Name");
     expect(html).toContain("Date of birth");
     expect(html).toContain('type="date"');
     expect(html).toContain("Gender");
@@ -76,6 +79,43 @@ describe("private identity editor", () => {
     );
     expect(open).toContain("Your words");
     expect(open).toContain("genderfluid");
+  });
+
+  it("puts the required Name field first and surfaces its inline error", () => {
+    // Defect 3: names are not optional on this form and must be findable -
+    // the first field of the private details editor, labelled plainly.
+    const html = renderToStaticMarkup(
+      createElement(PrivateIdentityEditorForm, formProps),
+    );
+    const firstLabel = html.indexOf("<label>Name");
+    expect(firstLabel).toBeGreaterThan(-1);
+    expect(firstLabel).toBe(html.indexOf("<label>"));
+    expect(html).not.toContain("Name <small>Optional</small>");
+
+    const withError = renderToStaticMarkup(
+      createElement(PrivateIdentityEditorForm, {
+        ...formProps,
+        fullNameError: "Add your name.",
+      }),
+    );
+    expect(withError).toContain("Add your name.");
+    expect(withError).toContain('role="alert"');
+    expect(withError).toContain('aria-invalid="true"');
+  });
+
+  it("requires a name only when saving this form, never at onboarding", () => {
+    const editorSource = readFileSync(
+      join(process.cwd(), "components/identity/PrivateIdentityEditor.tsx"),
+      "utf8",
+    );
+    expect(editorSource).toContain('setFullNameError("Add your name.")');
+    // The gate is client-side in save(); the API keeps accepting nameless
+    // onboarding claims (AccountOnboarding is untouched).
+    const onboardingSource = readFileSync(
+      join(process.cwd(), "components/identity/AccountOnboarding.tsx"),
+      "utf8",
+    );
+    expect(onboardingSource).not.toContain("Add your name.");
   });
 
   it("keeps save disabled and offers retry after a failed load", async () => {
