@@ -1,3 +1,5 @@
+import { isAdultDateOfBirth } from "@/lib/socialLaunch";
+
 export type SocialAccessState =
   | "preview"
   | "sign_in_required"
@@ -37,6 +39,33 @@ export const SOCIAL_BETA_DISABLED = {
 
 export function isSocialInviteBetaEnabled(value: string | undefined): boolean {
   return value === "1";
+}
+
+export type FriendsLaunchSocialAccessInput = {
+  friendsLaunchEnabled: boolean;
+  supabaseUserId: string | null;
+  claimedHandle: string | null;
+  dateOfBirth: string | null;
+  ownershipState: "active" | "suspended" | null;
+  now: string | Date;
+};
+
+export function decideFriendsLaunchSocialAccess(
+  input: FriendsLaunchSocialAccessInput,
+): SocialAccessState {
+  if (!input.friendsLaunchEnabled) return "preview";
+  if (!input.supabaseUserId) return "sign_in_required";
+  if (input.ownershipState === "suspended") return "suspended";
+  const handle = input.claimedHandle?.trim() ?? "";
+  if (!handle) return "age_verification_required";
+  const dob = input.dateOfBirth?.trim() ?? "";
+  if (!dob) return "age_verification_required";
+  const now =
+    input.now instanceof Date ? input.now.getTime() : Date.parse(input.now);
+  if (!Number.isFinite(now) || !isAdultDateOfBirth(dob, now)) {
+    return "age_verification_required";
+  }
+  return "verified";
 }
 
 function validTime(value: string): number | null {

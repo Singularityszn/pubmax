@@ -63,6 +63,12 @@ export const TRUSTED_HANDOFF_FLAG_DEFINITIONS = Object.freeze({
     removalCondition: "Remove after capability-aware member rehydration is the only supported full-state path.",
     offBehavior: "Everyone receives the safe privacy preview; anonymous Route leakage remains impossible.",
   },
+  socialFriendsLaunch: {
+    env: "PUBMAX_SOCIAL_FRIENDS_LAUNCH",
+    ownerLane: "L21",
+    removalCondition: "Remove after friends-only Social is the stable default and the registry flag is no longer needed to dark-launch.",
+    offBehavior: "Social surfaces stay in preview; landing and we-are-out CTAs keep pointing to Memories instead of Open Social.",
+  },
 } satisfies Record<TrustedHandoffFlagKey, TrustedHandoffFlagDefinition>);
 
 export function parseTrustedHandoffFlag(value: string | undefined): boolean {
@@ -81,6 +87,7 @@ export function readTrustedHandoffFlags(
     palHandoff: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.palHandoff.env]),
     landingFindMyPint: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.landingFindMyPint.env]),
     friendMemberRehydrationV2: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.friendMemberRehydrationV2.env]),
+    socialFriendsLaunch: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.socialFriendsLaunch.env]),
   });
 }
 

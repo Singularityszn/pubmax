@@ -56,8 +56,8 @@ async function readPatchInput(request: Request): Promise<{ input: unknown; photo
   return { input: JSON.parse(post), photo: photo as File | null };
 }
 
-export async function GET(_request: Request, context: Context): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
+export async function GET(request: Request, context: Context): Promise<Response> {
+  const access = await requireVerifiedSocialActor(request);
   if (!access.ok) return accessError(access);
   const { postId } = await context.params;
   if (!validId(postId)) return publicApiError("Post not found.", "NOT_FOUND", 404, { headers: { "Cache-Control": "private, no-store" } });
@@ -82,7 +82,7 @@ export async function GET(_request: Request, context: Context): Promise<Response
 export async function PATCH(request: Request, context: Context): Promise<Response> {
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   if (!access.ok) return accessError(access);
   const { postId } = await context.params;
   if (!validId(postId)) return publicApiError("Post not found.", "NOT_FOUND", 404, { headers: { "Cache-Control": "private, no-store" } });

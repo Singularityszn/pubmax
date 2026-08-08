@@ -21,6 +21,14 @@ const ROLLBACK = join(
   process.cwd(),
   "supabase/migrations/rollback/20260806145754_0071_social_identity_assurance_rollback.sql",
 );
+const PROVISION_FORWARD = join(
+  process.cwd(),
+  "supabase/migrations/20260808200000_0092_social_friends_provision.sql",
+);
+const PROVISION_ROLLBACK = join(
+  process.cwd(),
+  "supabase/migrations/rollback/20260808200000_0092_social_friends_provision_rollback.sql",
+);
 
 function postgresBinary(name: "initdb" | "postgres" | "psql"): string | null {
   for (const path of [
@@ -207,6 +215,14 @@ describe("social identity migration shape", () => {
     expect(rollback).toContain("drop table if exists public.private_social_age_verifications");
     expect(rollback).toContain("drop table if exists public.private_social_accounts");
   });
+
+  it("ships the friends-launch auto-provision RPC and rollback", () => {
+    const forward = readFileSync(PROVISION_FORWARD, "utf8").toLowerCase();
+    const rollback = readFileSync(PROVISION_ROLLBACK, "utf8").toLowerCase();
+    expect(forward).toContain("function public.provision_social_product_account");
+    expect(forward).toContain("grant execute on function public.provision_social_product_account");
+    expect(rollback).toContain("drop function if exists public.provision_social_product_account");
+  });
 });
 
 let database: Database | null = null;
@@ -214,6 +230,7 @@ let database: Database | null = null;
 beforeAll(async () => {
   database = await startDatabase();
   database.apply(FORWARD);
+  database.apply(PROVISION_FORWARD);
 }, 60_000);
 
 afterAll(async () => {
@@ -487,6 +504,30 @@ describe("social identity migration runtime", () => {
         )`),
       ),
     ).toMatchObject({ ok: true, handle: "new_timer" });
+  });
+
+  it("auto-provisions a Supabase-only product account for a claimed profile", () => {
+    const db = database!;
+    db.sql(`
+      insert into public.profiles(user_id, handle)
+      values ('77777777-7777-4777-8777-777777777777', 'friends_launch');
+    `);
+    const first = JSON.parse(
+      db.sql(`select public.provision_social_product_account(
+        '77777777-7777-4777-8777-777777777777'
+      )`),
+    );
+    const replay = JSON.parse(
+      db.sql(`select public.provision_social_product_account(
+        '77777777-7777-4777-8777-777777777777'
+      )`),
+    );
+    expect(first).toMatchObject({ ok: true, provisioned: true });
+    expect(replay).toMatchObject({
+      ok: true,
+      provisioned: false,
+      product_account_id: first.product_account_id,
+    });
   });
 
   it("rolls back new private state and restores the prior handle-claim function", () => {

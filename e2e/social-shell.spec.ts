@@ -10,6 +10,7 @@ const post = (id: string, body: string, createdAt: string) => ({
   body,
   area: "camden",
   venueId: null,
+  venueName: null,
   hashtags: [],
   commentPolicy: "open",
   photo: null,
@@ -19,6 +20,7 @@ const post = (id: string, body: string, createdAt: string) => ({
   editedAt: null,
   createdAt,
   updatedAt: createdAt,
+  ownedByViewer: false,
   author: { handle: "night_owl" },
 });
 
@@ -45,7 +47,15 @@ async function mockAccess(
     await route.fulfill({
       status,
       contentType: "application/json",
-      body: JSON.stringify({ state }),
+      body: JSON.stringify(
+        state === "verified"
+          ? {
+              state,
+              viewerHandle: "night_owl",
+              draftScope: "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijk",
+            }
+          : { state },
+      ),
     });
   });
 }
@@ -84,7 +94,7 @@ test("preview shows one safe boundary and never requests or leaks protected post
   await mockAccess(page, "preview");
   let postReads = 0;
   let activityReads = 0;
-  await page.route("**/api/social/posts?**", async (route) => {
+  await page.route("**/api/social/posts**", async (route) => {
     postReads += 1;
     await fulfil(route, [
       post("protected", "Protected words", "2026-08-05T19:00:00.000Z"),
@@ -125,7 +135,7 @@ test("invalid public post DTO cannot render exact Venue context", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await mockAccess(page, "verified");
   await mockActivity(page);
-  await page.route("**/api/social/posts?**", async (route) => {
+  await page.route("**/api/social/posts**", async (route) => {
     await fulfil(route, [
       {
         ...post(
@@ -154,7 +164,7 @@ test("verified lanes stay chronological, wait for Nearby area, paginate explicit
   await mockAccess(page, "verified");
   await mockActivity(page);
   const requests: string[] = [];
-  await page.route("**/api/social/posts?**", async (route) => {
+  await page.route("**/api/social/posts**", async (route) => {
     const url = new URL(route.request().url());
     requests.push(`${url.pathname}?${url.searchParams.toString()}`);
     const lane = url.searchParams.get("lane");
@@ -186,6 +196,10 @@ test("verified lanes stay chronological, wait for Nearby area, paginate explicit
   await expect(
     page.locator(".socialPostBody").allTextContents(),
   ).resolves.toEqual(["Newest first", "Older second"]);
+  await page.screenshot({
+    path: "/tmp/social-wp1-verified-feed-390.png",
+    fullPage: true,
+  });
 
   await page.getByRole("button", { name: "Load more" }).click();
   await expect(page.locator(".socialPostCard")).toHaveCount(3);
@@ -208,7 +222,7 @@ test("Nearby area survives refresh and browser Back restores its exact URL state
 }) => {
   await mockAccess(page, "verified");
   await mockActivity(page);
-  await page.route("**/api/social/posts?**", async (route) => {
+  await page.route("**/api/social/posts**", async (route) => {
     const lane = new URL(route.request().url()).searchParams.get("lane");
     await fulfil(route, [
       post(`${lane}-post`, `${lane} restored`, "2026-08-05T19:00:00.000Z"),
@@ -244,7 +258,7 @@ test("stale lane responses cannot replace the active Across town lane", async ({
   await mockAccess(page, "verified");
   await mockActivity(page);
   let releaseFollowing: (() => void) | undefined;
-  await page.route("**/api/social/posts?**", async (route) => {
+  await page.route("**/api/social/posts**", async (route) => {
     const lane = new URL(route.request().url()).searchParams.get("lane");
     if (lane === "following") {
       await new Promise<void>((resolve) => {
@@ -403,7 +417,7 @@ test("feed retry repeats only the failed chronological read", async ({
   });
   let feedReads = 0;
   await mockActivity(page);
-  await page.route("**/api/social/posts?**", async (route) => {
+  await page.route("**/api/social/posts**", async (route) => {
     feedReads += 1;
     if (feedReads === 1) {
       await route.fulfill({
@@ -435,7 +449,7 @@ test("verified Activity rail shows reauthorised generic notifications only", asy
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await mockAccess(page, "verified");
-  await page.route("**/api/social/posts?**", async (route) => {
+  await page.route("**/api/social/posts**", async (route) => {
     await fulfil(route, [
       post("post-a", "Visible post", "2026-08-05T19:00:00.000Z"),
     ]);
@@ -546,7 +560,7 @@ test("Social shell fits target viewports in light and dark themes", async ({
           createdAt: "2026-08-05T19:00:00.000Z",
         },
       ]);
-      await page.route("**/api/social/posts?**", async (route) => {
+      await page.route("**/api/social/posts**", async (route) => {
         const lane = new URL(route.request().url()).searchParams.get("lane");
         if (lane === "nearby") {
           await fulfil(route, [longFeaturePost], "proof-next-page");

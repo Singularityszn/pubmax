@@ -4,7 +4,7 @@ import { SocialPostConsentStoreError, socialPostConsentStore } from "@/lib/socia
 import { projectSocialVenueNames } from "@/lib/socialPostVenue.server";
 
 export async function GET(request: Request): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   const headers = { "Cache-Control": "private, no-store" };
   if (!access.ok) return publicApiError(access.error, access.code, access.status, { headers });
   const params = new URL(request.url).searchParams;

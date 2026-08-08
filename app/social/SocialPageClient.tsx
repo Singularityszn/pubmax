@@ -8,6 +8,7 @@ import { DiscoverBody } from "@/app/discover/DiscoverPageClient";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import FindYourLot from "@/components/social/FindYourLot";
+import { authedFetch } from "@/lib/authedFetch";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import { getNightArea, NIGHT_AREAS } from "@/lib/nightAreas";
@@ -367,7 +368,7 @@ export default function SocialPageClient({
 
     const controller = new AbortController();
     void Promise.resolve().then(() => setAccess("checking"));
-    fetch("/api/social/access", {
+    authedFetch("/api/social/access", {
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
@@ -418,7 +419,7 @@ export default function SocialPageClient({
       setFeedStatus("loading");
       setLoadingMore(false);
     });
-    fetch(feedHref, {
+    authedFetch(feedHref, {
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
@@ -454,7 +455,7 @@ export default function SocialPageClient({
 
     const controller = new AbortController();
     void Promise.resolve().then(() => setActivityStatus("loading"));
-    fetch("/api/social/interactions?view=notifications&limit=5", {
+    authedFetch("/api/social/interactions?view=notifications&limit=5", {
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
@@ -488,7 +489,7 @@ export default function SocialPageClient({
     moreController.current = controller;
     setLoadingMore(true);
     try {
-      const response = await fetch(href, {
+      const response = await authedFetch(href, {
         cache: "no-store",
         credentials: "same-origin",
         signal: controller.signal,

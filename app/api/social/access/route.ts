@@ -21,8 +21,8 @@ function privateJson(body: unknown, init: ResponseInit = {}): Response {
   return Response.json(body, { ...init, headers });
 }
 
-export async function GET(): Promise<Response> {
-  const access = await resolveSocialAccess();
+export async function GET(request: Request): Promise<Response> {
+  const access = await resolveSocialAccess(request);
   if (!access.available) {
     return publicApiError(access.error, access.code, 503, {
       retryable: true,

@@ -17,7 +17,7 @@ type Context = { params: Promise<{ crewId: string; memberId: string }> };
 const store = createSocialCrewStore();
 
 export async function PATCH(request: Request, context: Context): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   const authority = await socialCrewActor(access, true);
   if (!authority.ok) return authority.response;
 
@@ -52,7 +52,7 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
 }
 
 export async function DELETE(request: Request, context: Context): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   const authority = await socialCrewActor(access, true);
   if (!authority.ok) return authority.response;
 

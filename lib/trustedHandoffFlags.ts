@@ -7,6 +7,7 @@ export const TRUSTED_HANDOFF_FLAG_KEYS = [
   "palHandoff",
   "landingFindMyPint",
   "friendMemberRehydrationV2",
+  "socialFriendsLaunch",
 ] as const;
 
 export type TrustedHandoffFlagKey = (typeof TRUSTED_HANDOFF_FLAG_KEYS)[number];
@@ -22,6 +23,7 @@ export const TRUSTED_HANDOFF_FLAGS_OFF: TrustedHandoffFlagsDTO = Object.freeze({
   palHandoff: false,
   landingFindMyPint: false,
   friendMemberRehydrationV2: false,
+  socialFriendsLaunch: false,
 });
 
 export function createTrustedHandoffFlagsDTO(
@@ -36,6 +38,7 @@ export function createTrustedHandoffFlagsDTO(
     palHandoff: values.palHandoff,
     landingFindMyPint: values.landingFindMyPint,
     friendMemberRehydrationV2: values.friendMemberRehydrationV2,
+    socialFriendsLaunch: values.socialFriendsLaunch,
   });
 }
 

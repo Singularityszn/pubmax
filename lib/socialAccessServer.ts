@@ -1,8 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 
 import type { CallerAuthVerification } from "@/lib/authServer";
+import { verifyCallerAuth } from "@/lib/authServer";
+import {
+  authResumeCookieFromHeader,
+  decodeAuthResumeCookie,
+  isPlausibleRefreshToken,
+} from "@/lib/authSessionResume";
 import { isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 import {
+  decideFriendsLaunchSocialAccess,
   decideSocialAccess,
   isSocialInviteBetaEnabled,
   SOCIAL_BETA_DISABLED,
@@ -10,6 +17,10 @@ import {
   type SocialAccessState,
   type SocialProductAccount,
 } from "@/lib/socialAccess";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+} from "@/lib/socialLaunch";
 import type { SocialPostActor } from "@/lib/socialPostStore";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -18,10 +29,21 @@ type ClerkSessionVerification =
   | { status: "unavailable" }
   | { status: "verified"; userId: string };
 
+type SupabaseSessionVerification =
+  | { status: "absent" }
+  | { status: "unavailable" }
+  | { status: "verified"; userId: string };
+
 type AccountAccessRecord = {
   account: SocialProductAccount | null;
   profile: { id: string; handle: string } | null;
   verification: SocialAdultVerification | null;
+};
+
+type FriendsLaunchAccessRecord = {
+  account: SocialProductAccount | null;
+  profile: { id: string; handle: string } | null;
+  dateOfBirth: string | null;
 };
 
 type AccountMigrationInput = {
@@ -36,11 +58,25 @@ type AccountMigrationStoreResult =
       reason: "legacy_profile_not_found" | "ownership_conflict" | "storage";
     };
 
+type ProvisionStoreResult =
+  | { ok: true; productAccountId: string; provisioned: boolean }
+  | {
+      ok: false;
+      reason:
+        | "profile_not_claimed"
+        | "ownership_conflict"
+        | "invalid"
+        | "storage";
+    };
+
 export type SocialAccessServerDependencies = {
+  friendsLaunchEnabled: boolean;
   betaEnabled: boolean;
   now: () => Date;
   verifyClerkSession: () => Promise<ClerkSessionVerification>;
+  verifySupabaseSession: (request?: Request) => Promise<SupabaseSessionVerification>;
   readAccountAccess: (clerkUserId: string) => Promise<AccountAccessRecord>;
+  readFriendsLaunchAccess: (supabaseUserId: string) => Promise<FriendsLaunchAccessRecord>;
   migrateAccounts: (
     input: AccountMigrationInput,
   ) => Promise<AccountMigrationStoreResult>;
@@ -72,6 +108,14 @@ export type SocialAccountMigrationResolution =
       retryable?: true;
     };
 
+const GOTRUE_TIMEOUT_MS = 10_000;
+
+function supabaseAuthConfig(): { url: string; key: string } | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  return url && key ? { url, key } : null;
+}
+
 async function verifyClerkSession(): Promise<ClerkSessionVerification> {
   if (!isClerkMiddlewareConfigured()) return { status: "unavailable" };
   try {
@@ -79,6 +123,54 @@ async function verifyClerkSession(): Promise<ClerkSessionVerification> {
     return session.userId
       ? { status: "verified", userId: session.userId }
       : { status: "absent" };
+  } catch {
+    return { status: "unavailable" };
+  }
+}
+
+async function verifySupabaseSessionFromRequest(
+  request?: Request,
+): Promise<SupabaseSessionVerification> {
+  if (request) {
+    const bearer = await verifyCallerAuth(request);
+    if (bearer.status === "verified") {
+      return { status: "verified", userId: bearer.identity.id };
+    }
+    if (bearer.status === "unavailable") return { status: "unavailable" };
+  }
+  if (!request) return { status: "absent" };
+
+  const payload = decodeAuthResumeCookie(
+    authResumeCookieFromHeader(request.headers.get("cookie")),
+  );
+  if (!payload?.refreshToken) return { status: "absent" };
+
+  const config = supabaseAuthConfig();
+  if (!config) return { status: "unavailable" };
+
+  try {
+    const response = await fetch(
+      new URL("/auth/v1/token?grant_type=refresh_token", config.url),
+      {
+        method: "POST",
+        headers: {
+          apikey: config.key,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ refresh_token: payload.refreshToken }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(GOTRUE_TIMEOUT_MS),
+      },
+    );
+    if (!response.ok) return { status: "absent" };
+    const session = (await response.json()) as Record<string, unknown>;
+    const user =
+      session.user && typeof session.user === "object"
+        ? (session.user as Record<string, unknown>)
+        : null;
+    const userId = user && typeof user.id === "string" ? user.id : null;
+    if (!userId) return { status: "unavailable" };
+    return { status: "verified", userId };
   } catch {
     return { status: "unavailable" };
   }
@@ -168,6 +260,110 @@ async function readAccountAccess(
   return { account, profile, verification };
 }
 
+async function provisionSocialAccount(
+  supabaseUserId: string,
+): Promise<ProvisionStoreResult> {
+  try {
+    const { data, error } = await requireSupabaseAdmin().rpc(
+      "provision_social_product_account",
+      { p_supabase_user_id: supabaseUserId },
+    );
+    if (error) return { ok: false, reason: "storage" };
+    const result = rowObject(Array.isArray(data) ? data[0] : data);
+    if (result?.ok === true && typeof result.product_account_id === "string") {
+      return {
+        ok: true,
+        productAccountId: result.product_account_id,
+        provisioned: result.provisioned === true,
+      };
+    }
+    return {
+      ok: false,
+      reason:
+        result?.code === "profile_not_claimed"
+          ? "profile_not_claimed"
+          : result?.code === "ownership_conflict"
+            ? "ownership_conflict"
+            : result?.code === "invalid"
+              ? "invalid"
+              : "storage",
+    };
+  } catch {
+    return { ok: false, reason: "storage" };
+  }
+}
+
+async function readFriendsLaunchAccess(
+  supabaseUserId: string,
+): Promise<FriendsLaunchAccessRecord> {
+  const provision = await provisionSocialAccount(supabaseUserId);
+  if (!provision.ok) {
+    if (provision.reason === "profile_not_claimed") {
+      return { account: null, profile: null, dateOfBirth: null };
+    }
+    throw new Error("Invalid Social friends-launch account state.");
+  }
+
+  const admin = requireSupabaseAdmin();
+  const { data: accountRows, error: accountError } = await admin
+    .from("private_social_accounts")
+    .select("id,clerk_user_id,profile_id,ownership_state")
+    .eq("id", provision.productAccountId)
+    .limit(1);
+  if (accountError) throw new Error(accountError.message);
+  const accountRow = rowObject((accountRows ?? [])[0]);
+  if (
+    !accountRow ||
+    typeof accountRow.id !== "string" ||
+    typeof accountRow.profile_id !== "string" ||
+    typeof accountRow.clerk_user_id !== "string" ||
+    !["active", "suspended"].includes(String(accountRow.ownership_state))
+  ) {
+    throw new Error("Invalid Social account state.");
+  }
+
+  const account: SocialProductAccount = {
+    id: accountRow.id,
+    clerkUserId: accountRow.clerk_user_id,
+    ownershipState:
+      accountRow.ownership_state === "suspended" ? "suspended" : "active",
+  };
+
+  const { data: profileRows, error: profileError } = await admin
+    .from("profiles")
+    .select("id,handle,user_id")
+    .eq("id", accountRow.profile_id)
+    .limit(1);
+  if (profileError) throw new Error(profileError.message);
+  const profileRow = rowObject((profileRows ?? [])[0]);
+  if (
+    !profileRow ||
+    profileRow.id !== accountRow.profile_id ||
+    profileRow.user_id !== supabaseUserId ||
+    typeof profileRow.handle !== "string" ||
+    !profileRow.handle.trim()
+  ) {
+    throw new Error("Invalid Social profile ownership state.");
+  }
+  const profile = {
+    id: profileRow.id as string,
+    handle: profileRow.handle.trim(),
+  };
+
+  const { data: identityRows, error: identityError } = await admin
+    .from("private_account_identities")
+    .select("date_of_birth")
+    .eq("user_id", supabaseUserId)
+    .limit(1);
+  if (identityError) throw new Error(identityError.message);
+  const identityRow = rowObject((identityRows ?? [])[0]);
+  const rawDob = identityRow?.date_of_birth;
+  const dateOfBirth =
+    typeof rawDob === "string" && rawDob.trim() ? rawDob.trim() : null;
+
+  return { account, profile, dateOfBirth };
+}
+
 async function migrateAccounts(
   input: AccountMigrationInput,
 ): Promise<AccountMigrationStoreResult> {
@@ -202,15 +398,22 @@ async function migrateAccounts(
   }
 }
 
-const defaultDependencies: SocialAccessServerDependencies = {
-  betaEnabled: isSocialInviteBetaEnabled(
-    process.env.SOCIAL_INVITE_BETA_ENABLED,
-  ),
-  now: () => new Date(),
-  verifyClerkSession,
-  readAccountAccess,
-  migrateAccounts,
-};
+function readDefaultDependencies(
+  env: Record<string, string | undefined> = process.env,
+): SocialAccessServerDependencies {
+  return {
+    friendsLaunchEnabled: isSocialFriendsLaunchEnabled(
+      env[SOCIAL_FRIENDS_LAUNCH_ENV],
+    ),
+    betaEnabled: isSocialInviteBetaEnabled(env.SOCIAL_INVITE_BETA_ENABLED),
+    now: () => new Date(),
+    verifyClerkSession,
+    verifySupabaseSession: verifySupabaseSessionFromRequest,
+    readAccountAccess,
+    readFriendsLaunchAccess,
+    migrateAccounts,
+  };
+}
 
 function unavailableAccess(): SocialAccessResolution {
   return {
@@ -223,18 +426,63 @@ function unavailableAccess(): SocialAccessResolution {
 }
 
 export async function resolveSocialAccess(
-  dependencies: SocialAccessServerDependencies = defaultDependencies,
+  request?: Request,
+  dependencies?: SocialAccessServerDependencies,
 ): Promise<SocialAccessResolution> {
-  if (!dependencies.betaEnabled) {
+  const deps = dependencies ?? readDefaultDependencies();
+  if (deps.friendsLaunchEnabled) {
+    const supabase = await deps.verifySupabaseSession(request);
+    if (supabase.status === "unavailable") return unavailableAccess();
+    if (supabase.status === "absent") {
+      return { available: true, state: "sign_in_required" };
+    }
+    try {
+      const { account, profile, dateOfBirth } =
+        await deps.readFriendsLaunchAccess(supabase.userId);
+      const state = decideFriendsLaunchSocialAccess({
+        friendsLaunchEnabled: true,
+        supabaseUserId: supabase.userId,
+        claimedHandle: profile?.handle ?? null,
+        dateOfBirth,
+        ownershipState: account?.ownershipState ?? null,
+        now: deps.now(),
+      });
+      if (state === "verified") {
+        if (
+          !account ||
+          !profile ||
+          account.id === "" ||
+          profile.id === "" ||
+          profile.handle === ""
+        ) {
+          return unavailableAccess();
+        }
+        return {
+          available: true,
+          state,
+          actor: {
+            accountId: account.id,
+            profileId: profile.id,
+            handle: profile.handle,
+          },
+        };
+      }
+      return { available: true, state };
+    } catch {
+      return unavailableAccess();
+    }
+  }
+
+  if (!deps.betaEnabled) {
     return { available: true, state: "preview" };
   }
-  const clerk = await dependencies.verifyClerkSession();
+  const clerk = await deps.verifyClerkSession();
   if (clerk.status === "unavailable") return unavailableAccess();
   if (clerk.status === "absent") {
     return { available: true, state: "sign_in_required" };
   }
   try {
-    const { account, profile, verification } = await dependencies.readAccountAccess(
+    const { account, profile, verification } = await deps.readAccountAccess(
       clerk.userId,
     );
     const state = decideSocialAccess({
@@ -242,7 +490,7 @@ export async function resolveSocialAccess(
       clerkUserId: clerk.userId,
       account,
       verification,
-      now: dependencies.now(),
+      now: deps.now(),
     });
     if (state === "verified") {
       if (!account || !profile || account.id === "" || profile.id === "" || profile.handle === "") {
@@ -279,9 +527,11 @@ export type VerifiedSocialActorResolution =
     };
 
 export async function requireVerifiedSocialActor(
-  dependencies: SocialAccessServerDependencies = defaultDependencies,
+  request?: Request,
+  dependencies?: SocialAccessServerDependencies,
 ): Promise<VerifiedSocialActorResolution> {
-  const access = await resolveSocialAccess(dependencies);
+  const deps = dependencies ?? readDefaultDependencies();
+  const access = await resolveSocialAccess(request, deps);
   if (!access.available) {
     return {
       ok: false,
@@ -321,12 +571,13 @@ function unavailableMigration(): SocialAccountMigrationResolution {
 
 export async function migrateSocialProductAccount(
   supabase: CallerAuthVerification,
-  dependencies: SocialAccessServerDependencies = defaultDependencies,
+  dependencies?: SocialAccessServerDependencies,
 ): Promise<SocialAccountMigrationResolution> {
-  if (!dependencies.betaEnabled) {
+  const deps = dependencies ?? readDefaultDependencies();
+  if (!deps.betaEnabled) {
     return SOCIAL_BETA_DISABLED;
   }
-  const clerk = await dependencies.verifyClerkSession();
+  const clerk = await deps.verifyClerkSession();
   if (clerk.status === "unavailable" || supabase.status === "unavailable") {
     return unavailableMigration();
   }
@@ -339,7 +590,7 @@ export async function migrateSocialProductAccount(
     };
   }
 
-  const result = await dependencies.migrateAccounts({
+  const result = await deps.migrateAccounts({
     clerkUserId: clerk.userId,
     supabaseUserId: supabase.identity.id,
   });
@@ -362,3 +613,5 @@ export async function migrateSocialProductAccount(
   }
   return unavailableMigration();
 }
+
+export { provisionSocialAccount, readDefaultDependencies };

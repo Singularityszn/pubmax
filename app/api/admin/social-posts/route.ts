@@ -7,8 +7,8 @@ import { boundedJson } from "@/lib/boundedRequest.server";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function json(body: unknown, status = 200): Response { return Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } }); }
-export async function GET(): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
+export async function GET(request: Request): Promise<Response> {
+  const access = await requireVerifiedSocialActor(request);
   if (!access.ok) return publicApiError(access.error, access.code, access.status, { headers: { "Cache-Control": "private, no-store" } });
   try { return json({ posts: await socialPostConsentStore.heldQueue(access.actor, 50) }); }
   catch { return publicApiError("Moderator access required.", "FORBIDDEN", 403, { headers: { "Cache-Control": "private, no-store" } }); }
@@ -18,7 +18,7 @@ export async function POST(request: Request): Promise<Response> {
   if (await isLimited(limiterKey, limiterKey, 30)) {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   if (!access.ok) return publicApiError(access.error, access.code, access.status, { headers: { "Cache-Control": "private, no-store" } });
   let input: unknown;
   try { input = await boundedJson(request); } catch { return publicApiError("Moderation request is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } }); }

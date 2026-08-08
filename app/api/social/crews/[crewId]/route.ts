@@ -20,8 +20,8 @@ type Context = { params: Promise<{ crewId: string }> };
 
 const store = createSocialCrewStore();
 
-export async function GET(_request: Request, context: Context): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
+export async function GET(request: Request, context: Context): Promise<Response> {
+  const access = await requireVerifiedSocialActor(request);
   const authority = await socialCrewActor(access);
   if (!authority.ok) return authority.response;
   const { crewId } = await context.params;
@@ -34,7 +34,7 @@ export async function GET(_request: Request, context: Context): Promise<Response
 }
 
 export async function PATCH(request: Request, context: Context): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   const authority = await socialCrewActor(access, true);
   if (!authority.ok) return authority.response;
 

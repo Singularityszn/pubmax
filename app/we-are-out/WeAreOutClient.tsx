@@ -19,11 +19,11 @@ import "./we-are-out.css";
 type PostState = "idle" | "posting" | "done" | "error";
 
 type Props = {
-  /** Server-threaded Social invite beta gate — client never reads env. */
-  socialInviteBetaEnabled?: boolean;
+  /** Server-threaded friends-launch gate — client never reads env. */
+  socialFriendsLaunchEnabled?: boolean;
 };
 
-export default function WeAreOutClient({ socialInviteBetaEnabled = false }: Props) {
+export default function WeAreOutClient({ socialFriendsLaunchEnabled = false }: Props) {
   const areas = useMemo(() => getNightAreasForCity("london"), []);
   const [handle, setHandle] = useState("");
   const [areaSlug, setAreaSlug] = useState<string>("");
@@ -91,7 +91,7 @@ export default function WeAreOutClient({ socialInviteBetaEnabled = false }: Prop
         <section className="weAreOutDone" role="status">
           <p className="weAreOutDoneTitle">You&rsquo;re out. Your lot can see it.</p>
           <div className="weAreOutDoneActions">
-            {socialInviteBetaEnabled ? (
+            {socialFriendsLaunchEnabled ? (
               <Link className="feedDropCta" href="/social">
                 Open Social
               </Link>

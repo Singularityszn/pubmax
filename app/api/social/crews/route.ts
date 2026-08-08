@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 const store = createSocialCrewStore();
 
 export async function POST(request: Request): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   const authority = await socialCrewActor(access, true);
   if (!authority.ok) return authority.response;
 

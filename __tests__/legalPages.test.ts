@@ -105,27 +105,23 @@ describe("legal content pages", () => {
     expect(terms).not.toMatch(/optional anonymous analytics/i);
   });
 
-  it("discloses Social ownership and the planned Yoti evidence foundation", () => {
+  it("discloses Social ownership and the self-asserted 18+ gate", () => {
     for (const page of [privacy, terms]) {
-      expect(page).toMatch(/Clerk/);
-      expect(page).toMatch(/Yoti/);
       expect(page).toMatch(/18\+/);
+      expect(page).toMatch(/date of birth you gave at onboarding/i);
     }
-    expect(privacy).toMatch(/Clerk user ID/);
-    expect(privacy).toMatch(/Supabase account ID/);
-    expect(privacy).toMatch(/Yoti subject reference/);
-    expect(privacy).toMatch(/over-18 decision/);
-    expect(privacy).toMatch(/expiry/);
-    expect(privacy).toMatch(/We don&rsquo;t store identity documents/);
-    expect(privacy).toMatch(/selfies/);
+    expect(privacy).toMatch(/Supabase sign-in/);
+    expect(privacy).toMatch(/private product account/);
     expect(terms).toMatch(/both signed-in sessions/);
     expect(terms).toMatch(/doesn&rsquo;t use your email or handle to join\s+them/);
+    expect(terms).toMatch(/do not run a separate hosted age check/i);
   });
 
-  it("describes Yoti as deferred service-only evidence plumbing", () => {
-    expect(privacy).toMatch(/does not currently start a Yoti check/i);
-    expect(privacy).toMatch(/service-only evidence fields/i);
-    expect(terms).toMatch(/Yoti integration is not active/i);
+  it("describes self-asserted 18+ honestly and keeps Yoti optional", () => {
+    expect(privacy).toMatch(/date of birth you gave at onboarding/i);
+    expect(privacy).toMatch(/do not run a separate hosted age check/i);
+    expect(terms).toMatch(/do not run a separate hosted age check/i);
+    expect(privacy).toMatch(/does not currently send data to Yoti/i);
     expect(privacy).not.toMatch(/Yoti runs the\s+adult check/i);
     expect(privacy).not.toMatch(/Hosted 18\+ age checking/i);
     expect(privacy).not.toMatch(/returns the authoritative result/i);
@@ -442,7 +438,7 @@ describe("legal content pages", () => {
     expect(terms).toMatch(
       /map and existing contribution tools don&rsquo;t use age to block an\s+account/i,
     );
-    expect(terms).toMatch(/full Social access is for verified adults aged 18\+/i);
+    expect(terms).toMatch(/date of birth you gave at onboarding for the 18\+ gate/i);
     expect(terms).toMatch(/Pubs\s+decide who they serve/i);
     expect(terms).toMatch(/drinkaware\.co\.uk/);
   });

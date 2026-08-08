@@ -20,7 +20,7 @@ function page(request: Request): { lane: "proposed" | "approved"; cursor: string
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   if (!access.ok) return publicApiError(access.error, access.code, access.status, { headers: { "Cache-Control": "private, no-store" } });
   const input = page(request);
   if (!input) return publicApiError("Tag page is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
@@ -39,7 +39,7 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   if (!access.ok) return publicApiError(access.error, access.code, access.status, { headers: { "Cache-Control": "private, no-store" } });
   let input: unknown;
   try { input = await boundedJson(request); } catch { return publicApiError("Tag request is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } }); }

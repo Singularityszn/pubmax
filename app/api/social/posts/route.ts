@@ -74,7 +74,7 @@ function storeError(error: unknown): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   if (!access.ok) return accessError(access);
   const params = new URL(request.url).searchParams;
   const lane = params.get("lane") ?? "discover";
@@ -122,7 +122,7 @@ export async function GET(request: Request): Promise<Response> {
 export async function POST(request: Request): Promise<Response> {
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   if (!access.ok) return accessError(access);
   const idempotencyKey = request.headers.get("Idempotency-Key");
   if (!validSocialPostIdempotencyKey(idempotencyKey)) return publicApiError("Post request key is not valid.", "INVALID_IDEMPOTENCY_KEY", 400, { headers: { "Cache-Control": "private, no-store" } });
