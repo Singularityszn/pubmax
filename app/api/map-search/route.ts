@@ -2,7 +2,6 @@
 // Keyless. The country-wide index stays on the server (phones never download it).
 
 import { publicApiError } from "@/lib/apiError";
-import { jsonNoStore } from "@/lib/apiResponses";
 import {
   classifyMapSearchIntent,
   intentLooksLikeVenueSearch,
@@ -71,13 +70,8 @@ export async function GET(request: Request): Promise<Response> {
     });
   } catch (error) {
     console.error("[map-search]", error);
-    return jsonNoStore(
-      {
-        error: "Search is unavailable right now.",
-        code: "SEARCH_UNAVAILABLE",
-        retryable: true,
-      },
-      { status: 503 },
-    );
+    return publicApiError("Search is unavailable right now.", "SEARCH_UNAVAILABLE", 503, {
+      retryable: true,
+    });
   }
 }
