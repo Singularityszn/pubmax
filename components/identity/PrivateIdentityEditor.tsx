@@ -70,6 +70,8 @@ export function PrivateIdentityEditorForm({
   onDateOfBirthChange,
   onSubmit,
 }: PrivateIdentityEditorFormProps): React.JSX.Element {
+  // Capture today once so the date ceiling stays stable across re-renders.
+  const [dateOfBirthMax] = useState(() => londonCalendarDate(Date.now()));
   return (
     <form onSubmit={onSubmit}>
       <h3>Private account details</h3>
@@ -97,7 +99,7 @@ export function PrivateIdentityEditorForm({
           type="date"
           value={dateOfBirth}
           min="1900-01-01"
-          max={londonCalendarDate(Date.now())}
+          max={dateOfBirthMax}
           onChange={(event) => onDateOfBirthChange(event.target.value)}
         />
       </label>
