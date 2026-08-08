@@ -391,17 +391,15 @@ export function isAuthor(drop: Pick<PintDrop, "handle">, viewer?: ViewerContext)
 }
 
 /**
- * Friends direction (JUSTIFICATION): a `friends` drop is visible to the author
- * and to the AUTHOR'S FOLLOWERS. A viewer qualifies as a follower of the author
- * when the author's handle is in the viewer's `followingHandles` (the viewer
- * follows the author). This is the simplest honest reading of the directed
- * follow graph in migration 0006 (follows.follower_id → followee_id): "people
- * who follow me see my friends-only drops". It is NOT mutual-only (that would
- * hide a drop from a brand-new follower the author hasn't followed back) and NOT
- * "people the author follows" (that would show it to strangers the author
- * follows). Followers-of-the-author matches the social intent of "my crew sees
- * this" and reuses the exact follow-set the Friends feed lane already computes
- * (lib/feed.ts followingHandles), so gating and the lane stay consistent.
+ * Friends direction (Social Launch D3 / WP6): a `friends` drop is visible to
+ * the author and to MUTUAL follows only. A viewer qualifies when the author's
+ * handle is in the viewer's `mutualHandles`. A one-way follower of the author
+ * sees nothing friends-only — attaching a face later must not turn stranger
+ * follows into "which pub this face is in tonight".
+ *
+ * Check-ins already use mutuals (`lib/socialFeed.ts`); this aligns pint drops
+ * with that definition. `followingHandles` is intentionally unused here (kept
+ * for feed ranking only).
  */
 export function qualifiesForFriends(
   drop: Pick<PintDrop, "handle">,
@@ -409,7 +407,7 @@ export function qualifiesForFriends(
 ): boolean {
   const author = normalizeViewerHandle(drop.handle);
   if (!author) return false;
-  return Boolean(viewer?.followingHandles?.has(author));
+  return Boolean(viewer?.mutualHandles?.has(author));
 }
 
 /**
@@ -418,7 +416,7 @@ export function qualifiesForFriends(
  *
  *   • public     → everyone.
  *   • anonymous  → everyone (the handle is withheld at DTO time, not here).
- *   • friends    → author + the author's followers (qualifiesForFriends).
+ *   • friends    → author + mutual follows (qualifiesForFriends).
  *   • legacy     → author ONLY on public surfaces; otherwise the ledger-only
  *                  capability (listLegacyForVenue) surfaces it. Kept out of every
  *                  public signal here.

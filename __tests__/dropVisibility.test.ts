@@ -50,7 +50,7 @@ import { getPintDropById } from "@/lib/pintDropLookup";
 import { GET as getPintDrops } from "@/app/api/pint-drops/route";
 import { callerUserId } from "@/lib/authServer";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
-import { followStore } from "@/lib/followStore";
+import { followStore, __resetMemoryFollows } from "@/lib/followStore";
 import {
   __resetMemoryProfiles,
   memoryProfileStore,
@@ -63,6 +63,7 @@ beforeEach(() => {
   vi.mocked(callerUserId).mockReset();
   vi.mocked(callerUserId).mockResolvedValue(null);
   __resetMemoryProfiles();
+  __resetMemoryFollows();
 });
 
 // A base drop for gate/DTO tests — override per case.
@@ -83,8 +84,20 @@ function makeDrop(overrides: Partial<PintDrop> = {}): PintDrop {
 }
 
 const author: ViewerContext = { handle: "author_ale" };
-const follower: ViewerContext = { handle: "mate_bob", followingHandles: new Set(["author_ale"]) };
-const stranger: ViewerContext = { handle: "rando", followingHandles: new Set(["someone_else"]) };
+const oneWayFollower: ViewerContext = {
+  handle: "mate_bob",
+  followingHandles: new Set(["author_ale"]),
+};
+const mutual: ViewerContext = {
+  handle: "mate_bob",
+  followingHandles: new Set(["author_ale"]),
+  mutualHandles: new Set(["author_ale"]),
+};
+const stranger: ViewerContext = {
+  handle: "rando",
+  followingHandles: new Set(["someone_else"]),
+  mutualHandles: new Set(),
+};
 const anonViewer: ViewerContext | undefined = undefined;
 
 // ── Model: validation + coercion ─────────────────────────────────────────────
@@ -133,14 +146,15 @@ describe("visibility gate — canViewOnPublicSurface", () => {
     expect(canViewOnPublicSurface(d, stranger)).toBe(true);
   });
 
-  it("friends: author + the author's followers only", () => {
+  it("friends: author + mutual follows only (never one-way followers)", () => {
     const d = makeDrop({ visibility: "friends" });
-    // FRIENDS DIRECTION: a follower of the author is a viewer who FOLLOWS the
-    // author (author is in the viewer's followingHandles).
-    expect(qualifiesForFriends(d, follower)).toBe(true);
+    // Social Launch D3: a one-way follower of the author does not qualify.
+    expect(qualifiesForFriends(d, oneWayFollower)).toBe(false);
+    expect(qualifiesForFriends(d, mutual)).toBe(true);
     expect(qualifiesForFriends(d, stranger)).toBe(false);
     expect(canViewOnPublicSurface(d, author)).toBe(true); // author sees own
-    expect(canViewOnPublicSurface(d, follower)).toBe(true);
+    expect(canViewOnPublicSurface(d, oneWayFollower)).toBe(false);
+    expect(canViewOnPublicSurface(d, mutual)).toBe(true);
     expect(canViewOnPublicSurface(d, stranger)).toBe(false);
     expect(canViewOnPublicSurface(d, anonViewer)).toBe(false);
   });
@@ -148,7 +162,7 @@ describe("visibility gate — canViewOnPublicSurface", () => {
   it("legacy: author only on public surfaces (ledger-only otherwise)", () => {
     const d = makeDrop({ visibility: "legacy" });
     expect(canViewOnPublicSurface(d, author)).toBe(true);
-    expect(canViewOnPublicSurface(d, follower)).toBe(false);
+    expect(canViewOnPublicSurface(d, oneWayFollower)).toBe(false);
     expect(canViewOnPublicSurface(d, stranger)).toBe(false);
     expect(canViewOnPublicSurface(d, anonViewer)).toBe(false);
   });
@@ -182,9 +196,11 @@ describe("store.listVisible — server-side visibility filtering", () => {
     expect(ids).not.toContain("leg");
   });
 
-  it("a follower of the author additionally sees the friends drop (never legacy)", async () => {
+  it("a one-way follower does not see the friends drop; a mutual does (never legacy)", async () => {
     seedAllLanes();
-    const dtos = await memoryPintDropStore.listVisible("the-crown", follower);
+    const oneWay = await memoryPintDropStore.listVisible("the-crown", oneWayFollower);
+    expect(oneWay.map((d) => d.id)).not.toContain("fr");
+    const dtos = await memoryPintDropStore.listVisible("the-crown", mutual);
     const ids = dtos.map((d) => d.id);
     expect(ids).toEqual(expect.arrayContaining(["pub", "anon", "fr"]));
     expect(ids).not.toContain("leg");
@@ -204,7 +220,7 @@ describe("store.listVisible — server-side visibility filtering", () => {
     const legacy = await memoryPintDropStore.listLegacyForVenue("the-crown");
     expect(legacy.map((d) => d.id)).toEqual(["leg"]);
     // And a public read at the same venue never includes it, for any viewer.
-    const pub = await memoryPintDropStore.listVisible("the-crown", follower);
+    const pub = await memoryPintDropStore.listVisible("the-crown", oneWayFollower);
     expect(pub.map((d) => d.id)).not.toContain("leg");
   });
 
@@ -268,18 +284,19 @@ describe("permalink — getPintDropById respects visibility", () => {
     expect(JSON.stringify(drop)).not.toContain(secret);
   });
 
-  it("friends drop: null (honest block) for a stranger, resolves for a follower/author", async () => {
+  it("friends drop: null for stranger and one-way follower; resolves for mutual/author", async () => {
     addPintDrop(makeDrop({ id: "fr1", visibility: "friends" }));
     expect(await getPintDropById("fr1")).toBeNull(); // anonymous viewer
     expect(await getPintDropById("fr1", stranger)).toBeNull();
-    expect(await getPintDropById("fr1", follower)).not.toBeNull();
+    expect(await getPintDropById("fr1", oneWayFollower)).toBeNull();
+    expect(await getPintDropById("fr1", mutual)).not.toBeNull();
     expect(await getPintDropById("fr1", author)).not.toBeNull();
   });
 
   it("legacy drop: null on the permalink for everyone but the author", async () => {
     addPintDrop(makeDrop({ id: "leg1", visibility: "legacy" }));
     expect(await getPintDropById("leg1")).toBeNull();
-    expect(await getPintDropById("leg1", follower)).toBeNull();
+    expect(await getPintDropById("leg1", oneWayFollower)).toBeNull();
     expect(await getPintDropById("leg1", author)).not.toBeNull();
   });
 
@@ -313,7 +330,9 @@ describe("friends visibility — verified viewer only in production", () => {
     vi.stubEnv("NODE_ENV", "production");
     addPintDrop(makeDrop({ id: "fr-jwt", visibility: "friends" }));
     await memoryProfileStore.createOwned("mate_bob", "user-bob");
+    await memoryProfileStore.createOwned("author_ale", "user-author");
     await followStore().follow("mate_bob", "author_ale");
+    await followStore().follow("author_ale", "mate_bob");
 
     vi.mocked(callerUserId).mockResolvedValueOnce("user-bob");
 
@@ -325,7 +344,27 @@ describe("friends visibility — verified viewer only in production", () => {
     );
     expect(viewer?.handle).toBe("mate_bob");
     expect(viewer?.followingHandles?.has("author_ale")).toBe(true);
+    expect(viewer?.mutualHandles?.has("author_ale")).toBe(true);
     expect(await getPintDropById("fr-jwt", viewer)).not.toBeNull();
+  });
+
+  it("one-way follow alone does not unlock friends-only drops", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    addPintDrop(makeDrop({ id: "fr-one-way", visibility: "friends" }));
+    await memoryProfileStore.createOwned("mate_bob", "user-bob");
+    await memoryProfileStore.createOwned("author_ale", "user-author");
+    await followStore().follow("mate_bob", "author_ale");
+
+    vi.mocked(callerUserId).mockResolvedValueOnce("user-bob");
+
+    const viewer = await resolveViewerContextFromRequest(
+      new Request("http://localhost/api/pint-drops", {
+        headers: { Authorization: "Bearer fake.jwt.token" },
+      }),
+    );
+    expect(viewer?.followingHandles?.has("author_ale")).toBe(true);
+    expect(viewer?.mutualHandles?.has("author_ale")).toBe(false);
+    expect(await getPintDropById("fr-one-way", viewer)).toBeNull();
   });
 
   it("GET /api/pint-drops omits friends drops when only ?viewer= is spoofed in production", async () => {
