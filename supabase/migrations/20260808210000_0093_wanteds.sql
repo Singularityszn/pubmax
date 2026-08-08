@@ -70,6 +70,7 @@ alter table public.wanteds enable row level security;
 
 -- Owner SELECT via JWT profile match. owner_actor is `profile:{uuid}`;
 -- rls_owns_profile takes the uuid. Extract with substring after the prefix.
+-- Helper lives in pubmax_private after migration 0070 (not public).
 revoke all on table public.wanteds from anon, authenticated;
 grant select, insert, update, delete on table public.wanteds to authenticated;
 grant select, insert, update, delete on table public.wanteds to service_role;
@@ -81,7 +82,7 @@ create policy wanteds_owner_select
   to authenticated
   using (
     owner_actor like 'profile:%'
-    and public.rls_owns_profile((substring(owner_actor from 9))::uuid)
+    and pubmax_private.rls_owns_profile((substring(owner_actor from 9))::uuid)
   );
 
 drop policy if exists wanteds_owner_insert on public.wanteds;
@@ -91,7 +92,7 @@ create policy wanteds_owner_insert
   to authenticated
   with check (
     owner_actor like 'profile:%'
-    and public.rls_owns_profile((substring(owner_actor from 9))::uuid)
+    and pubmax_private.rls_owns_profile((substring(owner_actor from 9))::uuid)
   );
 
 drop policy if exists wanteds_owner_update on public.wanteds;
@@ -101,11 +102,11 @@ create policy wanteds_owner_update
   to authenticated
   using (
     owner_actor like 'profile:%'
-    and public.rls_owns_profile((substring(owner_actor from 9))::uuid)
+    and pubmax_private.rls_owns_profile((substring(owner_actor from 9))::uuid)
   )
   with check (
     owner_actor like 'profile:%'
-    and public.rls_owns_profile((substring(owner_actor from 9))::uuid)
+    and pubmax_private.rls_owns_profile((substring(owner_actor from 9))::uuid)
   );
 
 drop policy if exists wanteds_owner_delete on public.wanteds;
@@ -115,7 +116,7 @@ create policy wanteds_owner_delete
   to authenticated
   using (
     owner_actor like 'profile:%'
-    and public.rls_owns_profile((substring(owner_actor from 9))::uuid)
+    and pubmax_private.rls_owns_profile((substring(owner_actor from 9))::uuid)
   );
 
 drop policy if exists wanteds_anon_deny on public.wanteds;

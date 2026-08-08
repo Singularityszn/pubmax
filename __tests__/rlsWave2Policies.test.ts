@@ -518,3 +518,16 @@ describe("coverage inventory (honest)", () => {
     );
   });
 });
+
+describe("post-0070 Wanteds policies (0093)", () => {
+  // Migration 0070 moved RLS helpers into pubmax_private. New policy SQL
+  // must qualify that schema; public.rls_owns_profile no longer exists.
+  const WANTEDS = readMigration("20260808210000_0093_wanteds.sql");
+  const N_WANTEDS = normalize(WANTEDS);
+
+  it("qualifies rls_owns_profile via pubmax_private, never public", () => {
+    expect(N_WANTEDS).toContain("pubmax_private.rls_owns_profile");
+    expect(WANTEDS).not.toMatch(/public\.rls_owns_profile\b/);
+    expect((WANTEDS.match(/pubmax_private\.rls_owns_profile/g) ?? []).length).toBe(5);
+  });
+});
