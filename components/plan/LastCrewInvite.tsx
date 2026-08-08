@@ -10,6 +10,7 @@ import { useState, useSyncExternalStore } from "react";
 import { trackEvent } from "@/lib/analytics";
 import {
   buildLastCrewShareText,
+  nextNightCommittedProps,
   readLastCrew,
   subscribeLastCrew,
 } from "@/lib/lastCrew";
@@ -57,6 +58,7 @@ export default function LastCrewInvite({
   const rosterNames = crew.names;
 
   async function handleInvite() {
+    if (!crew) return;
     if (!memberToken) {
       try {
         await restorePlanCapability(planId);
@@ -87,11 +89,13 @@ export default function LastCrewInvite({
     });
     if (outcome === "shared" || outcome === "whatsapp") {
       trackEvent("plan_invite_sent", { channel: outcome === "whatsapp" ? "whatsapp" : "native" });
+      trackEvent("next_night_committed", nextNightCommittedProps("crew-reinvite", crew));
       setStatus("Invite ready for the usual lot.");
     } else if (outcome === "failed") {
       try {
         await navigator.clipboard.writeText(message);
         trackEvent("plan_invite_sent", { channel: "copy" });
+        trackEvent("next_night_committed", nextNightCommittedProps("crew-reinvite", crew));
         setStatus("Invite copied. Paste it to the usual lot.");
       } catch {
         setStatus("");
