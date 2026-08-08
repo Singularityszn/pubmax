@@ -69,6 +69,7 @@ function VenuePriceSummary({
   sourcedPrice,
   sourcedObserved,
   anchorStamp,
+  onLogTonightPrice,
   onStartFirstDrop,
 }: {
   venue: Venue;
@@ -76,7 +77,8 @@ function VenuePriceSummary({
   sourcedPrice: PricedVenue["sourcedPrice"];
   sourcedObserved: string;
   anchorStamp: string | null;
-  onStartFirstDrop: () => void;
+  onLogTonightPrice: () => void;
+  onStartFirstDrop?: () => void;
 }) {
   const baselinePriceRow = venue.prices.find(
     (price) => price.price_gbp === venue.cheapestPrice,
@@ -198,6 +200,7 @@ function VenuePriceSummary({
     <FirstDropNudge
       venueId={venue.id}
       venueName={venue.name}
+      onLogTonightPrice={onLogTonightPrice}
       onStartFirstDrop={onStartFirstDrop}
     />
   ) : null;
@@ -229,6 +232,7 @@ export default function VenueOverviewTab({
   locationRequestStatus,
   onRequestLocation,
   onClearLocation,
+  onLogTonightPrice,
   onStartFirstDrop,
   onOpenVisitReports,
   priceEntryAllowed,
@@ -259,6 +263,8 @@ export default function VenueOverviewTab({
   locationRequestStatus: LocationRequestStatus;
   onRequestLocation: () => void;
   onClearLocation: () => void;
+  /** Community price path — primary unpriced CTA (map trust). */
+  onLogTonightPrice: () => void;
   /** Opens the existing Pint Drop composer prefilled for this venue (Pints
    *  tab + composer open). Fired by the first-drop nudge on unpriced venues. */
   onStartFirstDrop: () => void;
@@ -548,6 +554,7 @@ export default function VenueOverviewTab({
           sourcedPrice={sourcedPrice}
           sourcedObserved={sourcedObserved}
           anchorStamp={anchorStamp}
+          onLogTonightPrice={onLogTonightPrice}
           onStartFirstDrop={onStartFirstDrop}
         />
       ) : null}

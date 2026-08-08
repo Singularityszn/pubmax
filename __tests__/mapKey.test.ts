@@ -109,6 +109,9 @@ describe("MapKey", () => {
     );
 
     expect(sparseHtml).not.toContain(">Clusters<");
-    expect(sparseHtml).not.toContain("<details");
+    // The trust explainer ("Why this colour?") always renders, independent of
+    // the legend's declared rows/shapes/marks/routes - only the conditional
+    // per-legend detail sections are gated here.
+    expect(sparseHtml).not.toContain('class="mapKeyDetails"');
   });
 });

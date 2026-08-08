@@ -119,3 +119,10 @@
 .morningCard__link:active {
   transform: translateY(1px);
 }
+
+.morningCard__habit {
+  margin: 0.35rem 0 0;
+  color: color-mix(in srgb, var(--ink, #1a1410) 72%, transparent);
+  font-size: 0.85rem;
+  line-height: 1.35;
+}

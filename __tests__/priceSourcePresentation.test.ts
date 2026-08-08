@@ -172,6 +172,7 @@ function renderOverview(
       locationRequestStatus: "idle",
       onRequestLocation: noop,
       onClearLocation: noop,
+      onLogTonightPrice: noop,
       onStartFirstDrop: noop,
       onOpenVisitReports: noop,
       priceEntryAllowed: false,
