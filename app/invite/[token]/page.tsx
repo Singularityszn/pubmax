@@ -12,6 +12,7 @@ import { planStateResult, resolvePlanIdByInviteToken } from "@/lib/planStore";
 import type { ReactionSummary } from "@/lib/reactions";
 import { formatPrice } from "@/lib/venues";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { planAlcoholOptionalInviteLine } from "@/lib/planAlcoholOptional";
 
 import "./invite.css";
 
@@ -204,6 +205,10 @@ export default async function PlanInvitePage({ params }: PageProps) {
 
   const hostHandle = state.crew[0]?.name || "Your host";
   const startLabel = formatStartLabel(state.plan.startTime);
+  const alcoholOptionalLine = planAlcoholOptionalInviteLine({
+    title: state.plan.title,
+    context: state.context,
+  });
   const routePoints = stops
     .map((stop) => stop.coordinates)
     .filter((point): point is [number, number] => point !== null);
@@ -231,6 +236,9 @@ export default async function PlanInvitePage({ params }: PageProps) {
         <p className="invite__eyebrow">Hosted by {hostHandle}</p>
         <h1 className="invite__title">{state.plan.title}</h1>
         <p className="invite__start">{startLabel}</p>
+        {alcoholOptionalLine ? (
+          <p className="invite__softNote">{alcoholOptionalLine}</p>
+        ) : null}
 
         <ol className="invite__stops">
           {stops.map((stop) => (
