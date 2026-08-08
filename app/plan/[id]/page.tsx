@@ -7,6 +7,7 @@ import NightCrawlMode from "@/components/plan/NightCrawlMode";
 import PlanInviteOpened from "@/components/plan/PlanInviteOpened";
 import PlanCrew from "@/components/plan/PlanCrew";
 import PlanInviteNextStep from "@/components/plan/PlanInviteNextStep";
+import CompletedPlanUsualLot from "@/components/plan/CompletedPlanUsualLot";
 import LastCrewInvite from "@/components/plan/LastCrewInvite";
 import SiteNav from "@/components/nav/SiteNav";
 import PlanSummary from "@/components/plan/PlanSummary";
@@ -158,6 +159,7 @@ export default async function PlanPage({ params }: Props) {
           default full-screen surface on mobile and offers an inline entry
           otherwise. Client-only gating, no new route. */}
       {!completed ? <NightCrawlMode planId={id} initialState={redactedInitialState(state, safeTitle)} /> : null}
+      {completed ? <CompletedPlanUsualLot /> : null}
       <div className="planPage__grid">
         <PlanSummary planId={id} initialPreview={preview} vibeTally={vibeTally} />
         <aside className="planPage__side">

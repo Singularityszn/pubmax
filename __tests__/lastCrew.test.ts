@@ -3,9 +3,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   buildLastCrewShareText,
   LAST_CREW_STORAGE_KEY,
+  lastCrewWindowDays,
+  nextNightCommittedProps,
   parseLastCrew,
   rememberLastCrew,
 } from "@/lib/lastCrew";
+import { sanitizeEvent } from "@/lib/analyticsEvents";
 
 afterEach(() => {
   try {
@@ -50,5 +53,56 @@ describe("buildLastCrewShareText", () => {
     expect(text).toContain("Thursday lot");
     expect(text).toContain("Karan, Amy");
     expect(text).toContain("https://pubmaxxing.com/plan/abc");
+  });
+});
+
+describe("lastCrewWindowDays", () => {
+  it("counts whole days since the roster was saved", () => {
+    const crew = parseLastCrew({
+      names: ["Karan", "Amy"],
+      savedAt: "2026-08-01T12:00:00.000Z",
+    });
+    expect(crew).not.toBeNull();
+    expect(lastCrewWindowDays(crew!, new Date("2026-08-08T11:59:00.000Z"))).toBe(6);
+    expect(lastCrewWindowDays(crew!, new Date("2026-08-08T12:00:00.000Z"))).toBe(7);
+  });
+
+  it("returns zero when savedAt is not parseable", () => {
+    const crew = parseLastCrew({ names: ["Karan", "Amy"], savedAt: "not-a-date" });
+    expect(crew).not.toBeNull();
+    expect(lastCrewWindowDays(crew!)).toBe(0);
+  });
+});
+
+describe("nextNightCommittedProps", () => {
+  it("carries only closed source and windowDays for analytics", () => {
+    const crew = parseLastCrew({
+      names: ["Karan", "Amy"],
+      savedAt: "2026-08-01T12:00:00.000Z",
+    });
+    const now = new Date("2026-08-08T12:00:00.000Z");
+
+    expect(nextNightCommittedProps("crew-reinvite", crew, now)).toEqual({
+      source: "crew-reinvite",
+      windowDays: 7,
+    });
+    expect(nextNightCommittedProps("completed_plan", crew, now)).toEqual({
+      source: "completed_plan",
+      windowDays: 7,
+    });
+
+    expect(sanitizeEvent("next_night_committed", {
+      ...nextNightCommittedProps("crew-reinvite", crew, now),
+      names: "Karan, Amy",
+    })).toEqual({
+      name: "next_night_committed",
+      props: { source: "crew-reinvite", windowDays: 7 },
+    });
+  });
+
+  it("omits windowDays when no crew is on file", () => {
+    expect(nextNightCommittedProps("completed_plan", null)).toEqual({
+      source: "completed_plan",
+    });
   });
 });

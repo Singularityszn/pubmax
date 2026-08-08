@@ -16,6 +16,9 @@ export type LastCrew = {
   sourcePlanId?: string;
 };
 
+/** Closed `source` values for the `next_night_committed` analytics event. */
+export type NextNightCommittedSource = "crew-reinvite" | "completed_plan";
+
 function normalizeNames(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
@@ -96,6 +99,25 @@ export function rememberLastCrew(
     // Private mode / quota — planning still works without persistence.
   }
   return crew;
+}
+
+/** Whole calendar days since the usual lot was last saved (0 when unknown). */
+export function lastCrewWindowDays(crew: LastCrew, now = new Date()): number {
+  const saved = Date.parse(crew.savedAt);
+  if (!Number.isFinite(saved)) return 0;
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.max(0, Math.floor((now.getTime() - saved) / msPerDay));
+}
+
+/** Allow-listed props for `next_night_committed` — no names, no free text. */
+export function nextNightCommittedProps(
+  source: NextNightCommittedSource,
+  crew: LastCrew | null,
+  now = new Date(),
+): { source: NextNightCommittedSource; windowDays?: number } {
+  const props: { source: NextNightCommittedSource; windowDays?: number } = { source };
+  if (crew) props.windowDays = lastCrewWindowDays(crew, now);
+  return props;
 }
 
 /** WhatsApp-first nudge listing the usual lot + the plan link. */
