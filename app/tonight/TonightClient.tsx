@@ -50,6 +50,7 @@ import {
 import { acceptTonightVenue } from "@/lib/tonightAcceptance";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { VibeChipButton, VibeChipLink, VibeChips } from "@/components/vibe/VibeChips";
+import { planOccasionHref, TONIGHT_SOFT_PLAN_CHIPS } from "@/lib/planOccasion";
 import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
 import { dealDigestNote } from "@/lib/dealsDigest";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
@@ -410,7 +411,11 @@ export default function TonightClient({
             ) : (
               <VibeChipLink
                 key={chip.id}
-                href={palChatHref(chip)}
+                href={
+                  chip.id === "quiet"
+                    ? planOccasionHref("quiet", { src: "tonight-vibes" })
+                    : palChatHref(chip)
+                }
                 onClick={() =>
                   trackEvent("tonight_vibe_select", { vibe: chip.id })
                 }
@@ -419,6 +424,17 @@ export default function TonightClient({
               </VibeChipLink>
             ),
           )}
+          {TONIGHT_SOFT_PLAN_CHIPS.map((chip) => (
+            <VibeChipLink
+              key={chip.id}
+              href={planOccasionHref(chip.id, { src: "tonight-vibes" })}
+              onClick={() =>
+                trackEvent("tonight_vibe_select", { vibe: chip.id })
+              }
+            >
+              {chip.label}
+            </VibeChipLink>
+          ))}
         </VibeChips>
       ) : null}
 

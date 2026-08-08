@@ -9,6 +9,7 @@ import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { ASK_PLAN_DRAFT_STORAGE_KEY, type AskPlanDraft } from "@/lib/ask/types";
+import { parsePlanDescribeFromSearch } from "@/lib/planOccasion";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX } from "@/lib/crew";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
@@ -625,19 +626,24 @@ function PlanComposerForm({
   useEffect(() => {
     if (askDraftConsumedRef.current) return;
     askDraftConsumedRef.current = true;
-    try {
-      const raw = sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY);
-      if (!raw) return;
-      sessionStorage.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
-      const parsed = JSON.parse(raw) as AskPlanDraft;
-      const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
-      if (!query) return;
-      // Defer setState out of the effect body in a microtask so it never
-      // fires synchronously (react-hooks/set-state-in-effect).
-      void Promise.resolve().then(() => setAskDraftQuery(query));
-    } catch {
-      /* private mode or bad JSON */
-    }
+    void Promise.resolve().then(() => {
+      try {
+        const fromUrl = parsePlanDescribeFromSearch(window.location.search);
+        if (fromUrl) {
+          setAskDraftQuery(fromUrl);
+          return;
+        }
+        const raw = sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY);
+        if (!raw) return;
+        sessionStorage.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
+        const parsed = JSON.parse(raw) as AskPlanDraft;
+        const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
+        if (!query) return;
+        setAskDraftQuery(query);
+      } catch {
+        /* private mode or bad JSON */
+      }
+    });
   }, []);
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);

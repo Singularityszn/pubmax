@@ -38,6 +38,7 @@ import {
 } from "@/lib/cityPreference";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { onReducedMotionChange, prefersReducedMotion } from "@/lib/motionVocabulary";
+import { planOccasionHref } from "@/lib/planOccasion";
 import { CONTACT_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
@@ -397,6 +398,24 @@ export default function LandingPage({
               </Link>
               <Link href="/plan" className="lpTextLink">
                 Plan an outing <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+              <Link
+                href={planOccasionHref("coffee", { src: "landing-why" })}
+                className="lpTextLink"
+              >
+                Coffee catch-up <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+              <Link
+                href={planOccasionHref("af", { src: "landing-why" })}
+                className="lpTextLink"
+              >
+                Alcohol-free outing <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+              <Link
+                href={planOccasionHref("chill", { src: "landing-why" })}
+                className="lpTextLink"
+              >
+                Chill afternoon <ArrowRight size={16} aria-hidden="true" />
               </Link>
               <Link href="/about" className="lpTextLink">
                 Our story <ArrowRight size={16} aria-hidden="true" />
