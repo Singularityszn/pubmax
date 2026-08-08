@@ -134,7 +134,7 @@ describe("POST /api/pint-drops/reactions (toggle)", () => {
   it("400s a reaction off the server allowlist (never stored)", async () => {
     const res = await toggle({ id: "d1", actor: "dev-1", reaction: "spicy" });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Unknown reaction." });
+    expect(await res.json()).toEqual({ error: "Unknown reaction.", code: "INVALID_REQUEST", retryable: false });
 
     // Confirm the bad reaction did not land: the drop's summary is still zero.
     const check = await getSummaries("ids=d1&actor=dev-1");
@@ -144,25 +144,25 @@ describe("POST /api/pint-drops/reactions (toggle)", () => {
   it("400s a missing pint drop id", async () => {
     const res = await toggle({ actor: "dev-1", reaction: "cheers" });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Missing pint drop id." });
+    expect(await res.json()).toEqual({ error: "Missing pint drop id.", code: "INVALID_REQUEST", retryable: false });
   });
 
   it("400s a blank/whitespace-only id", async () => {
     const res = await toggle({ id: "   ", actor: "dev-1", reaction: "cheers" });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Missing pint drop id." });
+    expect(await res.json()).toEqual({ error: "Missing pint drop id.", code: "INVALID_REQUEST", retryable: false });
   });
 
   it("400s a non-string reaction", async () => {
     const res = await toggle({ id: "d1", actor: "dev-1", reaction: 42 });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Unknown reaction." });
+    expect(await res.json()).toEqual({ error: "Unknown reaction.", code: "INVALID_REQUEST", retryable: false });
   });
 
   it("400s a malformed JSON body", async () => {
     const res = await POST(new Request(URL_BASE, { method: "POST", body: "{not json" }));
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Malformed request body." });
+    expect(await res.json()).toEqual({ error: "Malformed request body.", code: "MALFORMED_REQUEST", retryable: false });
   });
 
   it("does NOT leak actor_hash/status/moderation fields in any response body", async () => {
@@ -207,7 +207,7 @@ describe("POST /api/pint-drops/reactions (toggle)", () => {
     // The 41st from the same actor is refused.
     const limited = await toggle({ id: "flood", actor: "spammer", reaction: "cheers" });
     expect(limited.status).toBe(429);
-    expect(await limited.json()).toEqual({ error: "Too many reactions, slow down." });
+    expect(await limited.json()).toEqual({ error: "Too many reactions, slow down.", code: "RATE_LIMITED", retryable: true });
 
     // A different actor has its own budget — the limit is keyed per hashed
     // actor, so it is completely unaffected by the spammer's flood.
@@ -272,7 +272,7 @@ describe("POST reaction — store error contracts (Supabase path)", () => {
       }),
     );
     expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "Pint drop not found." });
+    expect(await res.json()).toEqual({ error: "Pint drop not found.", code: "NOT_FOUND", retryable: false });
     vi.doUnmock("@/lib/reactionsStore");
     vi.doUnmock("@/lib/pintDropLookup");
   });
@@ -310,7 +310,7 @@ describe("POST reaction — store error contracts (Supabase path)", () => {
       }),
     );
     expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({ error: "Reactions are unavailable." });
+    expect(await res.json()).toEqual({ error: "Reactions are unavailable.", code: "UNAVAILABLE", retryable: true });
     vi.doUnmock("@/lib/reactionsStore");
     vi.doUnmock("@/lib/pintDropLookup");
   });

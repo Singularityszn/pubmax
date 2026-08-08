@@ -71,7 +71,7 @@ describe("POST /api/profiles/[handle]/follow", () => {
     const res = await follow("sam", { follower: "@Sam" });
     expect(res.status).toBe(400);
     expectNoStore(res);
-    expect(await res.json()).toEqual({ error: "You can't follow yourself." });
+    expect(await res.json()).toEqual({ error: "You can't follow yourself.", code: "INVALID_REQUEST", retryable: false });
   });
 });
 

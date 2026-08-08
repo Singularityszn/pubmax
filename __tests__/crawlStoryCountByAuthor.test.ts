@@ -200,6 +200,8 @@ describe("POST /api/crawls", () => {
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({
       error: "Venue list is unavailable right now, try again shortly.",
+      code: "UNAVAILABLE",
+      retryable: true,
     });
   });
 });
