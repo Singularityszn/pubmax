@@ -96,4 +96,46 @@ describe("landing chrome CSS audit", () => {
     expect(reduced).toMatch(/animation:\s*none\s*!important/);
     expect(reduced).toMatch(/transition:\s*none\s*!important/);
   });
+
+  it("keeps the drink invite in the figcaption lane, not a floating hero badge", () => {
+    // Detached pill overlays on hero media are banned (DESIGN.md / taste rules).
+    expect(landingCss).not.toMatch(
+      /\.thamesHeroHint\s*\{[^}]*position:\s*absolute/,
+    );
+    expect(landingCss).toMatch(/\.lpHeroMapCaption\s*\{/);
+    const heroTsx = readFileSync(
+      join(process.cwd(), "components/landing/ThamesHero.tsx"),
+      "utf8",
+    );
+    const landingTsx = readFileSync(
+      join(process.cwd(), "components/landing/LandingPage.tsx"),
+      "utf8",
+    );
+    expect(heroTsx).not.toMatch(/className=\"thamesHeroHint\"/);
+    expect(heroTsx).not.toMatch(/thamesHeroHintTouch/);
+    expect(landingTsx).toMatch(/lpHeroMapCaption/);
+    expect(landingTsx).toMatch(/thamesHeroHintTouch/);
+    expect(landingTsx).toMatch(/thamesHeroHintPointer/);
+    expect(landingTsx).toMatch(/examples, not live listed prices/);
+  });
+
+  it("ships three reduced-motion-safe hero presence motions", () => {
+    const motion = landingCss.match(
+      /@media \(prefers-reduced-motion: no-preference\) \{([\s\S]*?)\n\}/,
+    )?.[1] ?? "";
+    expect(motion, "presence motions gated on no-preference").toMatch(/@keyframes lpOrbitDrift/);
+    expect(motion).toMatch(/@keyframes lpScanlineBreathe/);
+    expect(motion).toMatch(/@keyframes lpPinEnter/);
+    expect(motion).toMatch(/\.lpOrbitOne\s*\{[\s\S]*?animation:\s*lpOrbitDrift/);
+    expect(motion).toMatch(/\.lpOrbitTwo\s*\{[\s\S]*?animation:\s*lpOrbitDrift/);
+    expect(motion).toMatch(/\.lpScanline\s*\{[\s\S]*?animation:\s*lpScanlineBreathe/);
+    expect(motion).toMatch(/\.thamesHeroPin\s*\{[\s\S]*?animation:\s*lpPinEnter/);
+    expect(motion).toMatch(/--pin-i/);
+
+    const reduced = landingCss.match(
+      /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\}/,
+    )?.[1] ?? "";
+    expect(reduced).toMatch(/animation:\s*none\s*!important/);
+    expect(reduced).toMatch(/transition:\s*none\s*!important/);
+  });
 });

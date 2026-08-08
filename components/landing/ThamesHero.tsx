@@ -138,12 +138,6 @@ export default function ThamesHero() {
       {/* Warm basemap wash: decoration only, no live MapLibre and no map
           screenshot. Grounds the photo plane toward map truth. */}
       <div className="thamesHeroMapWash" aria-hidden="true" />
-      <p className="thamesHeroHint">
-        {/* Copy is pointer-aware via CSS: touch devices see "Tap", mice see
-            "Choose" — desktop never says "tap" when there's no tapping. */}
-        <span className="thamesHeroHintTouch">Tap a drink to see the pubs that pour it</span>
-        <span className="thamesHeroHintPointer">Pick a drink to see the pubs that pour it</span>
-      </p>
       <ul className="thamesHeroPins">
         {HERO_PUBS.map((pub, i) => {
           const href = heroPubHref(pub.query, preferredCity);
