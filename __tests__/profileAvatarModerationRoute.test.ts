@@ -140,12 +140,12 @@ describe("profile avatar moderation (memory backend)", () => {
   });
 
   it("counts one report per actor, so a single reader cannot inflate the queue", async () => {
-    await seedApprovedAvatar("carol");
-    await reportProfileAvatar("carol", "wrong", "actor-1");
-    await reportProfileAvatar("carol", "still wrong", "actor-1");
+    await seedApprovedAvatar("cara");
+    await reportProfileAvatar("cara", "wrong", "actor-1");
+    await reportProfileAvatar("cara", "still wrong", "actor-1");
     expect((await listReportedProfileAvatars())[0]?.reportCount).toBe(1);
 
-    await reportProfileAvatar("carol", "agreed", "actor-2");
+    await reportProfileAvatar("cara", "agreed", "actor-2");
     expect((await listReportedProfileAvatars())[0]?.reportCount).toBe(2);
   });
 
@@ -161,7 +161,7 @@ describe("profile avatar moderation (memory backend)", () => {
   });
 
   it("returns unreported, visible avatars to nobody's queue", async () => {
-    await seedApprovedAvatar("erin");
+    await seedApprovedAvatar("elsie");
     expect(await listReportedProfileAvatars()).toEqual([]);
     expect(await listHiddenProfileAvatars()).toEqual([]);
   });
