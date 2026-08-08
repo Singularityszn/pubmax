@@ -17,38 +17,13 @@ import { pathToFileURL } from "node:url";
 const AUDIT_LEVELS = ["high", "critical"];
 
 // Advisories knowingly tolerated, keyed by GitHub advisory URL.
-//
-// GHSA-mh99-v99m-4gvg (brace-expansion, high, DoS via unbounded expansion):
-//   Chain: eslint 9 + eslint-config-next's eslint-plugin-{react,import,jsx-a11y}
-//   -> minimatch@3 -> brace-expansion@1.1.16. All dev dependencies; the app
-//   never ships brace-expansion, and the only inputs are our own lint globs.
-//   There is no honest fix available today:
-//   - The advisory is patched ONLY in brace-expansion 5.0.8. There is no
-//     backport to the 1.x / 2.x / 3.x maintenance lines, and minimatch's 3.x
-//     head (3.1.5) still depends on brace-expansion ^1.1.7.
-//   - Upgrading to eslint 10 (whose own chain is clean) is blocked upstream:
-//     eslint-plugin-react/-import/-jsx-a11y all peer-cap at eslint ^9, and
-//     eslint 10 in fact crashes eslint-plugin-react with
-//     "TypeError: contextOrFilename.getFilename is not a function".
-//   - An `overrides: { minimatch: "^10" }` entry reports zero vulnerabilities
-//     but is a FALSE green: minimatch 10's CJS build exports named bindings
-//     with no callable default, so the plugins' `require('minimatch')(...)`
-//     call sites throw. Proven: with that override,
-//     `jsx-a11y/label-has-associated-control` throws inside
-//     mayContainChildComponent.js. Repo lint only stays green because those
-//     paths are not exercised.
-//   - `overrides: { "brace-expansion": "^5.0.8" }` breaks minimatch@3 the same
-//     way (v1 exports a callable default, v5 exports a named `expand`).
-//   Every chain that CAN reach a patched version already does (see the lockfile:
-//   brace-expansion 5.0.8 under the minimatch@10 chains, tar 7.5.22).
-//   REVISIT AND REMOVE THIS ENTRY when either lands:
-//   (a) a brace-expansion backport for the 1.x line, or
-//   (b) an eslint-10-compatible eslint-plugin-react/-import/-jsx-a11y set
-//       (then upgrade eslint to 10 and drop this waiver).
-//   Re-checked: 2026-07-26.
-export const WAIVED_ADVISORIES = new Map([
-  ["https://github.com/advisories/GHSA-mh99-v99m-4gvg", "high"],
-]);
+// Empty on purpose after the eslint 10 bump removed the only prior entry
+// (GHSA-mh99-v99m-4gvg via eslint 9 -> minimatch@3 -> brace-expansion@1).
+// Add an entry only after upgrades and overrides are exhausted; never raise
+// --audit-level or omit dev deps to hide a finding. Each entry needs an
+// inline rationale and a removal condition, and only while a second
+// production-only audit proves the chain is dev-only.
+export const WAIVED_ADVISORIES = new Map();
 
 function runAudit(extraArgs = []) {
   const result = spawnSync("npm", ["audit", "--json", "--audit-level=high", ...extraArgs], {

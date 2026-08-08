@@ -42,9 +42,6 @@ that caught real bugs this week:
 
 - #747 Blacksmith runner migration: merges the moment the captain installs
   the Blacksmith GitHub app — merging earlier strands CI on missing runners.
-- #737 eslint 10: hard-blocked upstream (eslint-plugin-react has no ^10
-  support; lint crashes on real install). Re-check when eslint-config-next
-  bumps it.
 - Known follow-ups: `buildMapSearchSuggestions` complexity (45/35);
   `lib/ukBasePubSearch.ts` duplicates `lib/mapSearchSuggest.ts` ranking;
   `sanitizeEvent`'s `target` special case lives in three places;
