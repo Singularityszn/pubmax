@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DiscoverBody } from "@/app/discover/DiscoverPageClient";
 import SiteNav from "@/components/nav/SiteNav";
+import HandleAvatar from "@/components/profile/HandleAvatar";
 import FindYourLot from "@/components/social/FindYourLot";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
@@ -179,6 +180,13 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: 
   return (
     <article className="socialPostCard">
       <header className="socialPostMeta">
+        <HandleAvatar
+          handle={post.author.handle}
+          avatarUrl={post.author.avatarUrl}
+          className="socialPostAvatar"
+          imageClassName="socialPostAvatar"
+          size={32}
+        />
         <strong>@{post.author.handle}</strong>
         {when ? <time dateTime={post.createdAt}>{when}</time> : null}
       </header>

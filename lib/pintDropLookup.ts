@@ -10,7 +10,9 @@ import {
   type Visibility,
 } from "@/lib/pintDrops";
 import { resolveStorageUrl } from "@/lib/pintDropsStore";
+import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { normalizeHandle } from "@/lib/profiles";
 import { resolveVenue, venueMapUrl } from "@/lib/venueIndex";
 
 // Standalone Pint Drop permalink lookup (PRD §8). ONE public read: turn a drop
@@ -49,6 +51,8 @@ export type PublicDrop = {
   visibility: Visibility;
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
+  /** Approved owned avatar serve path for linked handles only. */
+  avatarUrl?: string;
 };
 
 // Shape of the public columns we select from Supabase. Loose on purpose — every
@@ -160,11 +164,20 @@ async function enrich(fields: EnrichFields, viewer?: ViewerContext): Promise<Pub
   // card. The author still reads their own anonymous drop with the label (their
   // choice); moderation reads a different, server-only path.
   const handle = fields.visibility === "anonymous" ? ANON_HANDLE_LABEL : fields.handle;
+  const avatarUrls =
+    fields.visibility === "anonymous"
+      ? new Map<string, string>()
+      : await resolveAvatarUrlsForHandles([fields.handle]);
+  const avatarUrl =
+    fields.visibility === "anonymous"
+      ? undefined
+      : avatarUrls.get(normalizeHandle(fields.handle));
   return {
     ...fields,
     handle,
     venueName: venue?.name ?? "A London pub",
     venueMapUrl: venueMapUrl(fields.venueId),
+    ...(avatarUrl ? { avatarUrl } : {}),
   };
 }
 

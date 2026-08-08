@@ -12,6 +12,7 @@ import { isModerator } from "@/lib/adminAuth";
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { enrichItemsWithAvatarUrls } from "@/lib/avatarResolve";
 import { parseCityId } from "@/lib/cities";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
@@ -393,7 +394,8 @@ export async function GET(request: Request): Promise<Response> {
       author,
       cityId,
     );
-    return jsonNoStore({ drops: await withVenueNames(drops) }, { status: 200 });
+    const enriched = await enrichItemsWithAvatarUrls(await withVenueNames(drops));
+    return jsonNoStore({ drops: enriched }, { status: 200 });
   } catch (err) {
     log("error", "pint_drops.list_visible_failed", {
       route: "GET /api/pint-drops",

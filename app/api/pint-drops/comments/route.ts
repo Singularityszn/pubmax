@@ -22,6 +22,7 @@
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { cleanComment, commentsStore, InvalidParentError } from "@/lib/commentsStore";
+import { enrichItemsWithAvatarUrls } from "@/lib/avatarResolve";
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
 import { isLimited } from "@/lib/pintDrops";
@@ -52,7 +53,7 @@ export async function GET(request: Request): Promise<Response> {
   }
   // listComments is fail-soft (returns [] on any store error), so a comments
   // outage can never surface as a 500 that breaks the host feed.
-  const comments = await commentsStore().listComments(dropId);
+  const comments = await enrichItemsWithAvatarUrls(await commentsStore().listComments(dropId));
   return jsonNoStore({ comments }, { status: 200 });
 }
 

@@ -13,6 +13,7 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { enrichItemsWithAvatarUrls } from "@/lib/avatarResolve";
 import { validateCheckInInput, type CheckInInputRaw } from "@/lib/checkIn";
 import { isCheckInLimited } from "@/lib/checkInRateLimit";
 import { checkInStore } from "@/lib/checkInStore";
@@ -61,14 +62,14 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     if (scope === "area") {
-      const checkIns = await areaPublicCheckIns();
+      const checkIns = await enrichItemsWithAvatarUrls(await areaPublicCheckIns());
       return jsonNoStore({ checkIns }, { status: 200 });
     }
     // Default + viewer path: the friends-only "Your lot" read. No verified
     // viewer (anonymous / spoofed query in production) resolves to an empty
     // list inside the choke, never a leak.
     const viewer = await resolveCheckInViewer(request, queryViewer);
-    const checkIns = await visibleCheckInsForViewer(viewer);
+    const checkIns = await enrichItemsWithAvatarUrls(await visibleCheckInsForViewer(viewer));
     return jsonNoStore({ checkIns }, { status: 200 });
   } catch {
     // Fail-soft read: an empty list keeps the feed tab honest, never a crash.

@@ -266,6 +266,26 @@ export async function signProfileAvatarObject(
   return storage.sign(objectKey, PROFILE_AVATAR_SIGNED_TTL_SECONDS);
 }
 
+export type DownloadedProfileAvatar = {
+  bytes: Buffer;
+  contentType: "image/jpeg";
+};
+
+/** Read approved serving bytes from the private bucket. Absent objects return null. */
+export async function downloadProfileAvatarObject(
+  objectKey: string,
+  storage: ProfileAvatarStorage = supabaseProfileAvatarStorage,
+): Promise<DownloadedProfileAvatar | null> {
+  if (!isSupabaseConfigured()) return null;
+  const { data, error } = await requireSupabaseAdmin()
+    .storage.from(STORAGE_BUCKET)
+    .download(objectKey);
+  if (error || !data) return null;
+  const bytes = Buffer.from(await data.arrayBuffer());
+  if (!magicBytesOk(bytes, "image/jpeg")) return null;
+  return { bytes, contentType: "image/jpeg" };
+}
+
 /** Delete every avatar object under a profile (all generations). */
 export async function purgeProfileAvatarObjects(
   profileId: string,

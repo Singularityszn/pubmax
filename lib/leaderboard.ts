@@ -100,6 +100,7 @@ export type TonightDrop = {
   createdAt: string;
   handle?: string;
   venueName?: string;
+  avatarUrl?: string;
 };
 
 // One ranked row of the tonight board, ready to hand straight to the board.
@@ -110,6 +111,7 @@ export type TonightEntry = {
   priceGbp: number;
   handle?: string;
   createdAt: string;
+  avatarUrl?: string;
 };
 
 // The friendly label used when a drop carries no resolvable pub name — kept in
@@ -163,6 +165,7 @@ export function cheapestTonight(
       priceGbp: drop.priceGbp,
       handle: drop.handle?.trim() || undefined,
       createdAt: drop.createdAt,
+      avatarUrl: drop.avatarUrl,
     };
 
     const current = cheapestPerVenue.get(drop.venueId);

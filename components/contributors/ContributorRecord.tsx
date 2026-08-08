@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import HandleAvatar from "@/components/profile/HandleAvatar";
 import type { ContributorLeaderboard } from "@/lib/contributorLeaderboard";
 
 function countLabel(total: number): string {
@@ -63,6 +64,13 @@ export default function ContributorRecord({
                   {entry.rank}
                 </span>
                 <div className="contributorIdentity">
+                  <HandleAvatar
+                    handle={entry.handle}
+                    avatarUrl={entry.avatarUrl}
+                    className="contributorAvatar"
+                    imageClassName="contributorAvatar"
+                    size={36}
+                  />
                   <Link href={`/u/${encodeURIComponent(entry.handle)}`}>
                     @{entry.handle}
                   </Link>

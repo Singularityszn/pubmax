@@ -7,6 +7,7 @@ import {
   type ContributorLeaderboard,
   type ContributorLeaderboardTally,
 } from "@/lib/contributorLeaderboard";
+import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   isSupabaseConfigured,
@@ -62,6 +63,22 @@ function durableBoard(rows: unknown): ContributorLeaderboard {
   }
   return rankContributorTallies(tallies, "ready");
 }
+
+async function enrichContributorBoard(
+  board: ContributorLeaderboard,
+): Promise<ContributorLeaderboard> {
+  if (board.status !== "ready" || board.entries.length === 0) return board;
+  const urls = await resolveAvatarUrlsForHandles(board.entries.map((entry) => entry.handle));
+  return {
+    ...board,
+    entries: board.entries.map((entry) => {
+      const avatarUrl = urls.get(entry.handle);
+      return avatarUrl ? { ...entry, avatarUrl } : entry;
+    }),
+  };
+}
+
+export { enrichContributorBoard };
 
 async function readDurableBoard(): Promise<ContributorLeaderboard> {
   try {

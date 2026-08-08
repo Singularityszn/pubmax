@@ -37,6 +37,8 @@ export type PintDropDTO = {
   // (or a demo seed for an id the dataset no longer carries) still normalises.
   venueName?: string;
   venueMapUrl?: string;
+  /** Approved owned avatar serve path for linked handles only. */
+  avatarUrl?: string;
   optimistic?: OptimisticSpillState;
   /**
    * Optional Last Train context captured when the Spill was posted (Wave F0).
@@ -67,6 +69,8 @@ export type FeedItem = {
   createdAt: string;
   handle: string;
   venueId: string;
+  /** Approved owned avatar serve path for linked handles only. */
+  avatarUrl?: string;
   // The human pub name, server-resolved from venueId (PRD §9). A friendly
   // fallback ("A London pub") when the id is unresolved — the card NEVER renders
   // the raw `venue-…` id.
@@ -173,6 +177,7 @@ export function normalizePintDrop(dto: PintDropDTO): FeedItem {
   }
   const optimistic = normalizeOptimistic(dto.optimistic);
   if (optimistic) item.optimistic = optimistic;
+  if (dto.avatarUrl) item.avatarUrl = dto.avatarUrl;
   return item;
 }
 
@@ -190,7 +195,7 @@ export function normalizeCheckIn(checkIn: CheckIn): FeedItem {
   // named. `areaName` stays undefined; the card renders "is out" with no
   // "in <area>" clause.
   const areaName = checkIn.areaSlug ? getNightArea(checkIn.areaSlug)?.name : undefined;
-  return {
+  const item: FeedItem = {
     type: "check_in",
     id: checkIn.id,
     createdAt: checkIn.createdAt,
@@ -209,6 +214,8 @@ export function normalizeCheckIn(checkIn: CheckIn): FeedItem {
     era: "",
     areaName,
   };
+  if (checkIn.avatarUrl) item.avatarUrl = checkIn.avatarUrl;
+  return item;
 }
 
 // ── Filters ──────────────────────────────────────────────────────────────────

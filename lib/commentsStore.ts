@@ -32,6 +32,8 @@ export type CommentDTO = {
   body: string;
   createdAt: string;
   parentId: string | null;
+  /** Approved owned avatar serve path for linked handles only. */
+  avatarUrl?: string;
 };
 
 // The write payload. actorHash is derived server-side from the request IP; the

@@ -1,4 +1,6 @@
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
+import { normalizeHandle } from "@/lib/profiles";
 
 export const SOCIAL_POST_KINDS = ["standard", "feature_request"] as const;
 export const SOCIAL_POST_VISIBILITIES = ["public", "friends", "private"] as const;
@@ -52,7 +54,7 @@ export type SocialPostDTO = Omit<
   SocialPost,
   "authorProfileId" | "authorHandle" | "status" | "moderatedAt"
 > & {
-  author: { handle: string };
+  author: { handle: string; avatarUrl?: string };
   ownedByViewer: boolean;
   venueName: string | null;
   venueProjected: boolean;
@@ -265,4 +267,17 @@ export function socialPostModerationClaim(
   if (post.hashtags.length > 0) sections.push(post.hashtags.map((tag) => `#${tag}`).join(" "));
   if (post.photo) sections.push(`Photo: ${post.photo.altText}`);
   return sections.filter(Boolean).join("\n\n");
+}
+
+export async function enrichSocialPostAuthors(
+  posts: readonly SocialPostDTO[],
+): Promise<SocialPostDTO[]> {
+  if (posts.length === 0) return [];
+  const urls = await resolveAvatarUrlsForHandles(posts.map((post) => post.author.handle));
+  return posts.map((post) => {
+    const avatarUrl = urls.get(normalizeHandle(post.author.handle));
+    return avatarUrl
+      ? { ...post, author: { ...post.author, avatarUrl } }
+      : post;
+  });
 }
