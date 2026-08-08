@@ -66,7 +66,7 @@ describe("boroughCoverageStatusCopy", () => {
         corroboratedPintCount: 3,
         status: "partial",
       }),
-    ).toContain("count is a floor");
+    ).toContain("the count may run higher");
   });
 });
 

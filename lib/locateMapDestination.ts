@@ -2,6 +2,7 @@
 
 import { getCity, type CityId } from "@/lib/cities";
 import { cityMapShareUrl } from "@/lib/cityShare";
+import { coarsenViewerPoint } from "@/lib/geo";
 import { nearestEnabledCity } from "@/lib/nearestCity";
 import { nearestUkPlace } from "@/lib/nearestUkPlace";
 import {
@@ -46,12 +47,16 @@ export function resolveLocateMapDestination(
   }
   const place = nearestUkPlace(lat, lng, places);
   if (!place) return { kind: "none" };
-  // Centre on the reader, name the nearest known place — same arrival shape as
-  // choose-city search, so UkPlaceArrivalBanner / server resolve stay shared.
+  // Centre near the reader, name the nearest known place — same arrival shape
+  // as choose-city search, so UkPlaceArrivalBanner / server resolve stay
+  // shared. The arrival lands in a URL (server logs, history, shareable), so
+  // the reader's fix MUST cross the one viewer-coordinate egress seam
+  // (lib/geo.ts) first — a raw building-level fix never leaves the browser.
+  const coarse = coarsenViewerPoint({ lat, lng });
   const arrival: UkPlaceMapArrival = {
     name: place.name,
-    lat,
-    lng,
+    lat: coarse.lat,
+    lng: coarse.lng,
   };
   return {
     kind: "place",

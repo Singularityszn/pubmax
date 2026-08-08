@@ -19,7 +19,7 @@ export function mapPriceTrustBeats(): readonly MapPriceTrustBeat[] {
       id: "trusted",
       title: "Coloured pin",
       detail:
-        "A trusted pint price is on the map: corroborated by a second drinker, and still inside the age window.",
+        "The shade is the pub's pint band, from a listed or logged price on record. A drinker-logged price only colours the pin once a second drinker reports a similar price inside the age window.",
     },
     {
       id: "provisional",
