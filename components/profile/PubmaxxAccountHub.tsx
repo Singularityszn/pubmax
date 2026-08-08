@@ -330,6 +330,12 @@ export default function PubmaxxAccountHub() {
   const [providers, setProviders] = useState<SocialProviderAvailability>(NO_SOCIAL_PROVIDERS);
   const [accountNightProfile, setAccountNightProfile] = useState<NightProfile | null>(null);
   const [nightProfileLoaded, setNightProfileLoaded] = useState(false);
+  const [nightProfileError, setNightProfileError] = useState(false);
+  // Bumping re-runs the signed-in account loads: the silent post-sign-in retry
+  // and the visible Try again affordance both go through here.
+  const [accountLoadNonce, setAccountLoadNonce] = useState(0);
+  const nightProfileAutoRetried = useRef(false);
+  const nightProfileOwnerRef = useRef<string | null>(null);
   const [deviceNightProfile, setDeviceNightProfile] = useState<NightProfileInput | null>(null);
   const [nightProfileDraft, setNightProfileDraft] = useState<NightProfileInput | null>(null);
   const [mergeDeferred, setMergeDeferred] = useState(false);
@@ -385,10 +391,17 @@ export default function PubmaxxAccountHub() {
 
   useEffect(() => {
     if (!user) return;
+    // A fresh account gets a fresh retry budget; a nonce bump (retry) keeps
+    // the spent one so a dead backend cannot loop silent refetches.
+    if (nightProfileOwnerRef.current !== user.id) {
+      nightProfileOwnerRef.current = user.id;
+      nightProfileAutoRetried.current = false;
+    }
     const controller = new AbortController();
     queueMicrotask(() => {
       if (!controller.signal.aborted) {
         setNightProfileLoaded(false);
+        setNightProfileError(false);
         setAccountNightProfile(null);
         setMergeDeferred(false);
         setPlanRecapMergeLoaded(false);
@@ -430,8 +443,17 @@ export default function PubmaxxAccountHub() {
         setNightProfileDraft(profile ? nightProfileInput(profile) : DEFAULT_NIGHT_PROFILE_INPUT);
         const mirrored = mirrorAccountNightProfileToDevice(profile);
         if (mirrored) setDeviceNightProfile(mirrored);
+        setNightProfileError(false);
+      } else if (!nightProfileAutoRetried.current) {
+        // Right after sign-in the first authed read can race session
+        // establishment and 401. That is transient: retry once, quietly,
+        // before showing anything. A dead error card here was defect 2.
+        nightProfileAutoRetried.current = true;
+        window.setTimeout(() => {
+          if (!controller.signal.aborted) setAccountLoadNonce((n) => n + 1);
+        }, 1_200);
       } else {
-        setMessage("Your account Night Profile could not be loaded.");
+        setNightProfileError(true);
       }
       if (referrals?.ok) {
         const status = await referrals.json().catch(() => null) as
@@ -446,12 +468,14 @@ export default function PubmaxxAccountHub() {
         setMemoryCompletionIds(body?.memoryCompletionIds ?? []);
       }
       if (!controller.signal.aborted) {
-        setNightProfileLoaded(true);
+        // A failed Night Profile read never counts as loaded: loaded gates the
+        // merge prompt and account save, which need the real account row.
+        if (nightProfile?.ok) setNightProfileLoaded(true);
         setPlanRecapMergeLoaded(true);
       }
     });
     return () => controller.abort();
-  }, [user]);
+  }, [user, accountLoadNonce]);
 
   useEffect(() => {
     const refresh = () => setDeviceNightProfile(readDeviceNightProfile());
@@ -745,10 +769,32 @@ export default function PubmaxxAccountHub() {
           </div>
         </div>
       ) : null}
+      {nightProfileError ? (
+        <div className="accountHubMerge accountHubNightProfileError" role="status">
+          <p>Your account Night Profile could not be loaded.</p>
+          <div className="accountHubActions">
+            <button
+              type="button"
+              onClick={() => {
+                setNightProfileError(false);
+                setAccountLoadNonce((nonce) => nonce + 1);
+              }}
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      ) : null}
       <NightProfileControls
         profile={nightProfileDraft ?? DEFAULT_NIGHT_PROFILE_INPUT}
         disabled={!nightProfileLoaded}
-        saveLabel={nightProfileLoaded ? "Save Night Profile" : "Loading Night Profile…"}
+        saveLabel={
+          nightProfileLoaded
+            ? "Save Night Profile"
+            : nightProfileError
+              ? "Night Profile not loaded"
+              : "Loading Night Profile…"
+        }
         onChange={setNightProfileDraft}
         onSave={() => void saveAccountNightProfile()}
       />
