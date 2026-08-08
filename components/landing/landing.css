@@ -152,6 +152,10 @@
    as quiet intentional structure that stays clean in light and dark. */
 .lpScanline { position: absolute; left: 7%; top: 17%; width: 1px; height: 68%; background: linear-gradient(transparent, color-mix(in srgb, var(--hairline) 82%, transparent), transparent); }
 
+/* Presence motions (orbit drift, scanline breathe, pin stagger) live under
+   prefers-reduced-motion: no-preference only. The page-wide reduce rule below
+   also kills animation/transition as a second gate. */
+
 .lpHeroCopy { position: relative; z-index: 2; max-width: 610px; }
 .lpHeroKicker {
   width: fit-content;
@@ -262,7 +266,16 @@
 
 .lpHeroMap { position: relative; margin: 0; min-width: 0; }
 .lpHeroMap::before { content: ""; position: absolute; inset: -12px; border: 1px solid color-mix(in srgb, var(--river) 28%, transparent); border-radius: 38px; transform: rotate(2deg); }
-.lpHeroMap figcaption { margin: 12px 4px 0; color: var(--ink-soft); font: 550 10px/1.4 var(--font-data); text-align: right; }
+.lpHeroMap figcaption,
+.lpHeroMapCaption {
+  margin: 12px 4px 0;
+  color: var(--ink-soft);
+  font: 550 10px/1.4 var(--font-data);
+  text-align: right;
+}
+/* Invite copy sits in the caption lane, never as a detached badge on the photo. */
+.lpHeroMapInvite { display: inline; }
+.thamesHeroHintPointer { display: none; }
 .thamesHeroPhoto { position: relative; width: 100%; min-height: 0; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 32px; background: var(--ink-deep); box-shadow: 0 34px 90px color-mix(in srgb, var(--ink-deep) 28%, transparent); }
 .thamesHeroImg { object-fit: cover; object-position: 50% 50%; }
 .thamesHeroScrim { position: absolute; inset: 0; background: linear-gradient(145deg, color-mix(in srgb, var(--ink-deep) 10%, transparent), color-mix(in srgb, var(--ink-deep) 60%, transparent)); }
@@ -276,8 +289,6 @@
   background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--brass) 24%, var(--ink-deep) 76%) 100%);
   opacity: .5;
 }
-.thamesHeroHint { position: absolute; left: 18px; top: 18px; z-index: 2; max-width: 230px; margin: 0; padding: 8px 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; background: rgba(8,12,20,.62); color: white; font-size: 10px; font-weight: 650; backdrop-filter: blur(8px); }
-.thamesHeroHintPointer { display: none; }
 .thamesHeroPins { position: absolute; inset: 0; z-index: 2; margin: 0; padding: 0; list-style: none; }
 .thamesHeroPin { position: absolute; transform: translate(-50%, -50%); }
 .thamesHeroPinLink { min-width: 44px; min-height: 44px; display: flex; align-items: center; gap: 7px; color: white; text-decoration: none; }
@@ -567,7 +578,6 @@
 @media (max-width: 700px) {
   .lpLiveReadout, .lpLiveReadout span { font-size: 12px; }
   .lpReadoutStat dt { font-size: 12px; }
-  .thamesHeroHint { font-size: 12px; }
   .thamesHeroPinCat { font-size: 12px; letter-spacing: .04em; }
   .lpSignalTopline { font-size: 12px; }
   .lpSectionLabel { font-size: 12px; }
@@ -599,12 +609,45 @@
   .lpHeroActions--mapFirst { grid-template-columns: 1fr; }
 }
 
+/* Hero / atmosphere presence. Three quiet motions only: orbit drift, scanline
+   breathe, staggered pin rise. No glow, no purple. Gated on no-preference so
+   prefers-reduced-motion: reduce never schedules them; the kill rule below is
+   the second gate. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes lpOrbitDrift {
+    from { transform: translate3d(0, 0, 0) scale(1); opacity: .9; }
+    to { transform: translate3d(-1.2%, 1.4%, 0) scale(1.03); opacity: 1; }
+  }
+  @keyframes lpScanlineBreathe {
+    from { opacity: .35; }
+    to { opacity: .95; }
+  }
+  @keyframes lpPinEnter {
+    from { opacity: 0; transform: translate(-50%, calc(-50% + 10px)); }
+    to { opacity: 1; transform: translate(-50%, -50%); }
+  }
+
+  .lpOrbitOne {
+    animation: lpOrbitDrift 22s ease-in-out infinite alternate;
+  }
+  .lpOrbitTwo {
+    animation: lpOrbitDrift 28s ease-in-out infinite alternate-reverse;
+  }
+  .lpScanline {
+    animation: lpScanlineBreathe 7s ease-in-out infinite alternate;
+  }
+  .thamesHeroPin {
+    animation: lpPinEnter 640ms cubic-bezier(.22, 1, .36, 1) both;
+    animation-delay: calc(120ms + (var(--pin-i, 0) * 70ms));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lp *, .lp *::before, .lp *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .lpNav, .thamesHeroHint, .thamesHeroPinGlyph, .thamesHeroPinMeta { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--panel-raised); color: var(--ink); }
+  .lpNav, .thamesHeroPinGlyph, .thamesHeroPinMeta { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--panel-raised); color: var(--ink); }
 }
 
 @media (prefers-contrast: more) {

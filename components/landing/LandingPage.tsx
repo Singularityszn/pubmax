@@ -350,8 +350,14 @@ export default function LandingPage({
 
           <figure className="lpHeroMap">
             <ThamesHero />
-            <figcaption>
-              Each shape is a drink. Pick one to see the pubs that pour it.
+            <figcaption className="lpHeroMapCaption">
+              {/* Pointer-aware invite lives in the caption lane (not a floating
+                  badge on the photo). Touch devices see Tap; fine pointers see Pick. */}
+              <span className="lpHeroMapInvite">
+                <span className="thamesHeroHintTouch">Each shape is a drink. Tap one to see the pubs that pour it.</span>
+                <span className="thamesHeroHintPointer">Each shape is a drink. Pick one to see the pubs that pour it.</span>
+              </span>
+              {" "}
               Prices shown here are examples, not live listed prices.
             </figcaption>
           </figure>
