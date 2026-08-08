@@ -1,5 +1,12 @@
 # Installed agent skills
 
+> **You can see these in Cursor under Customize → Skills, or type `/` in a new Agent chat.**
+>
+> Cursor loads **`.agents/skills/`** and **`.cursor/skills/`** only — not top-level `skills/`.
+> After pulling: quit/reopen Cursor (or new Agent chat), then try `/ask-matt`, `/grill-me`, `/afk`, `/last30days`.
+>
+> Details: [`docs/WHERE_ARE_THE_SKILLS.md`](docs/WHERE_ARE_THE_SKILLS.md)
+
 _Generated 2026-08-07 for PubMaxing / Cursor cloud agent._
 
 This catalog lists every skill available to this agent environment:
