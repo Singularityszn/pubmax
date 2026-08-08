@@ -36,7 +36,7 @@ export function boroughCoverageStatusCopy(input: BoroughCoverageInput): string {
   }
   const count = Math.max(0, Math.floor(input.corroboratedPintCount));
   const remaining = Math.max(0, target - count);
-  const partialNote = input.status === "partial" ? " (count is a floor; the scan was truncated)" : "";
+  const partialNote = input.status === "partial" ? " At least, that is: the count may run higher." : "";
   if (remaining === 0) {
     return `${input.name} has met its ${target} corroborated pints for this month.${partialNote}`;
   }
