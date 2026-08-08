@@ -25,6 +25,8 @@ import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { areaPublicCheckIns, visibleCheckInsForViewer } from "@/lib/socialFeed";
 import { isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+import { fulfilWantedsForHandleAtVenue } from "@/lib/wantedFulfil.server";
+import { wantedFulfilledLine } from "@/lib/wanted";
 
 assertServerEnv();
 
@@ -137,7 +139,23 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const checkIn = await checkInStore().create(validation.value);
-    return jsonNoStore({ checkIn }, { status: 201 });
+    let wantedNote: string | undefined;
+    let wantedFulfilled = 0;
+    if (validation.value.venueId) {
+      const fulfilled = await fulfilWantedsForHandleAtVenue(
+        ownership.handle,
+        validation.value.venueId,
+      );
+      wantedFulfilled = fulfilled.length;
+      if (fulfilled[0]) wantedNote = wantedFulfilledLine(fulfilled[0].venueName);
+    }
+    return jsonNoStore(
+      {
+        checkIn,
+        ...(wantedFulfilled > 0 ? { wantedFulfilled, wantedNote } : {}),
+      },
+      { status: 201 },
+    );
   } catch {
     return publicApiError("Check-in storage is unavailable.", "STORE_UNAVAILABLE", 503, {
       retryable: true,

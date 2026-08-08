@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
+import { trackEvent } from "@/lib/analytics";
+import { authedFetch } from "@/lib/authedFetch";
+import { isUkBaseVenueId } from "@/lib/wanted";
 import type { Venue } from "@/lib/venues";
 
 export type PresenceState = "idle" | "sending" | "here" | "no-handle";
@@ -43,7 +46,7 @@ export function usePresence(venue: Venue) {
     }
     setPresenceState("sending");
     try {
-      const res = await fetch("/api/presence", {
+      const res = await authedFetch("/api/presence", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle, venueId: venue.id }),
@@ -55,6 +58,28 @@ export function usePresence(venue: Venue) {
       // Presence is best-effort: a non-ok response still lands the viewer back on
       // an actionable state rather than a spinner. A 200 confirms "you're here".
       setPresenceState(res.ok ? "here" : "idle");
+      if (res.ok) {
+        try {
+          const body = (await res.json()) as {
+            wantedFulfilled?: number;
+            wantedNote?: string;
+          };
+          if (body.wantedFulfilled && body.wantedFulfilled > 0) {
+            trackEvent("wanted_fulfilled", {
+              venueKind: isUkBaseVenueId(requestVenueId) ? "uk_base" : "curated",
+            });
+            if (body.wantedNote && typeof window !== "undefined") {
+              window.dispatchEvent(
+                new CustomEvent("pubmax:wanted-fulfilled", {
+                  detail: { note: body.wantedNote },
+                }),
+              );
+            }
+          }
+        } catch {
+          // Body parse is optional beside presence success.
+        }
+      }
     } catch {
       if (currentVenueIdRef.current !== requestVenueId) return;
       setPresenceState("idle");

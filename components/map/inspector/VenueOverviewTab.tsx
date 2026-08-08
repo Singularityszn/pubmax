@@ -19,6 +19,7 @@ import {
 } from "@/lib/venueAccessibility";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
+import SaveForNightButton from "@/components/wanted/SaveForNightButton";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
@@ -619,6 +620,7 @@ export default function VenueOverviewTab({
         venueName={venue.name}
         venueKind={venue.kind}
       />
+      <SaveForNightButton venueId={venue.id} venueName={venue.name} />
       <div className="presenceHere">
         {presenceState === "here" ? (
           <p

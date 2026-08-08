@@ -2,6 +2,7 @@
 
 import { KeyboardEvent, useState } from "react";
 
+import WantedPlanChips from "@/components/wanted/WantedPlanChips";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
 
 export { DESCRIBE_FIRST_CHIPS };
@@ -48,6 +49,7 @@ export default function PlanDescribeFirst({
         />
         <button type="button" onClick={submit} disabled={!query.trim()}>Make a plan</button>
       </div>
+      <WantedPlanChips onPick={onSubmit} />
       <div className="planDescribeFirst__chips" role="group" aria-label="Try an example">
         {DESCRIBE_FIRST_CHIPS.map((chip) => (
           <button

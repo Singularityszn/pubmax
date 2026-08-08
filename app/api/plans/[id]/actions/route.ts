@@ -2,11 +2,14 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
+import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { isPlanId, type PlanActionDTO } from "@/lib/plan";
 import { planStore } from "@/lib/planStore";
 import { planMemberCapability } from "@/lib/planMemberCapability";
 import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { fulfilWantedsAtVenue } from "@/lib/wantedFulfil.server";
+import { wantedFulfilledLine } from "@/lib/wanted";
 
 assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
@@ -34,5 +37,27 @@ export async function POST(request: Request, context: Context): Promise<Response
     const code = result.error === "forbidden" ? "PLAN_ACTION_FORBIDDEN" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "error" ? "PLAN_ACTION_UNAVAILABLE" : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT" : "PLAN_ACTION_INVALID";
     return publicApiError(error, code, status, { retryable: result.error === "error" });
   }
-  return jsonNoStore(result.plan, { status: 201 });
+
+  // Quiet Wanted fulfilment when a signed-in owner arrives at a saved stop.
+  let wantedNote: string | undefined;
+  let wantedFulfilled = 0;
+  if (type === "arrived") {
+    const stop = result.plan.stops.find((row) => row.position === stopPosition);
+    if (stop?.venueId) {
+      const contributor = await resolveContributionIdentity(request);
+      if (contributor.ok) {
+        const fulfilled = await fulfilWantedsAtVenue(contributor.actor, stop.venueId);
+        wantedFulfilled = fulfilled.length;
+        if (fulfilled[0]) wantedNote = wantedFulfilledLine(fulfilled[0].venueName);
+      }
+    }
+  }
+
+  return jsonNoStore(
+    {
+      ...result.plan,
+      ...(wantedFulfilled > 0 ? { wantedFulfilled, wantedNote } : {}),
+    },
+    { status: 201 },
+  );
 }

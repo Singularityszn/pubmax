@@ -20,6 +20,8 @@ import { markPresence, recentPresenceWithAmbient } from "@/lib/presenceStore";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
+import { fulfilWantedsForHandleAtVenue } from "@/lib/wantedFulfil.server";
+import { wantedFulfilledLine } from "@/lib/wanted";
 
 assertServerEnv();
 
@@ -61,7 +63,19 @@ export async function POST(request: Request): Promise<Response> {
   // markPresence is fail-soft (never throws) — a presence hiccup must not fail
   // the tap. Cleaning/capping happens inside the store.
   await markPresence({ handle: ownership.handle, venueId, actorHash });
-  return jsonNoStore({ ok: true }, { status: 200 });
+  // Quiet Wanted fulfilment: landing at a saved place closes the Wanted.
+  const fulfilled = await fulfilWantedsForHandleAtVenue(ownership.handle, venueId);
+  const wantedNote =
+    fulfilled[0] != null ? wantedFulfilledLine(fulfilled[0].venueName) : undefined;
+  return jsonNoStore(
+    {
+      ok: true,
+      ...(fulfilled.length > 0
+        ? { wantedFulfilled: fulfilled.length, wantedNote }
+        : {}),
+    },
+    { status: 200 },
+  );
 }
 
 export async function GET(request: Request): Promise<Response> {

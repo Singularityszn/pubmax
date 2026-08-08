@@ -200,6 +200,10 @@ export const ANALYTICS_EVENTS = {
   friend_edge_via_crew: ["source"],
   // Landing Wave 0 acquisition CTAs. Closed target enum only — never free text.
   landing_cta_clicked: ["target"],
+  // Wanted Wave A — paste → save → fulfil. Closed enums only; never venue
+  // names, raw paste text, or source URLs.
+  wanted_created: ["venueKind", "hasSourceUrl"],
+  wanted_fulfilled: ["venueKind"],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
@@ -387,6 +391,8 @@ const SAFE_STRING_VALUES = new Set([
   // Wave 0.5 fixed loop vocabulary.
   "auth", "inline_recap", "full_recap",
   "plan_accepted", "plan_saved", "plan_completed", "memory_reviewed", "story_published",
+  // Wanted Wave A venue kinds (closed enum on wanted_created / wanted_fulfilled).
+  "curated", "uk_base", "pending",
   // Community-price funnel vocabulary: the drink taxonomy and the three
   // failure buckets.
   ...PRICE_SUBMIT_CATEGORIES,

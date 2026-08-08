@@ -543,4 +543,30 @@ describe("invite loop events", () => {
     expect(sanitizeEvent("landing_cta_clicked", { target: "social" })).toBeNull();
     expect(sanitizeEvent("landing_cta_clicked", {})).toBeNull();
   });
+
+  it("registers Wanted Wave A events with closed venueKind props only", () => {
+    expect(ANALYTICS_EVENTS.wanted_created).toEqual(["venueKind", "hasSourceUrl"]);
+    expect(ANALYTICS_EVENTS.wanted_fulfilled).toEqual(["venueKind"]);
+    expect(
+      sanitizeEvent("wanted_created", {
+        venueKind: "curated",
+        hasSourceUrl: true,
+        venueName: "The Dove",
+        sourceUrl: "https://instagram.com/x",
+      }),
+    ).toEqual({
+      name: "wanted_created",
+      props: { venueKind: "curated", hasSourceUrl: true },
+    });
+    expect(
+      sanitizeEvent("wanted_fulfilled", { venueKind: "uk_base", note: "secret" }),
+    ).toEqual({
+      name: "wanted_fulfilled",
+      props: { venueKind: "uk_base" },
+    });
+    expect(sanitizeEvent("wanted_created", { venueKind: "free-text-pub" })).toEqual({
+      name: "wanted_created",
+      props: {},
+    });
+  });
 });
