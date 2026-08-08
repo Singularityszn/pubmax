@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-07-26T01:07:30.747Z",
-  "ukPubs": 38215,
-  "matchedTotal": 3039,
-  "uniqueToUk": 35176,
+  "generatedAt": "2026-08-08T04:14:43.029Z",
+  "ukPubs": 38245,
+  "matchedTotal": 3026,
+  "uniqueToUk": 35219,
   "byMatchType": {
-    "osm-id": 2358,
+    "osm-id": 2345,
     "name-distance": 681
   },
   "matchRadiusM": 150,
@@ -12,17 +12,17 @@
     {
       "source": "city:bath",
       "entries": 68,
-      "matched": 67
+      "matched": 68
     },
     {
       "source": "city:bristol",
       "entries": 269,
-      "matched": 269
+      "matched": 268
     },
     {
       "source": "city:cambridge",
       "entries": 81,
-      "matched": 80
+      "matched": 81
     },
     {
       "source": "city:durham",
@@ -37,12 +37,12 @@
     {
       "source": "city:liverpool",
       "entries": 406,
-      "matched": 404
+      "matched": 403
     },
     {
       "source": "city:manchester",
       "entries": 544,
-      "matched": 543
+      "matched": 536
     },
     {
       "source": "city:oxford",
@@ -51,13 +51,13 @@
     },
     {
       "source": "curated-london-slim",
-      "entries": 1919,
-      "matched": 680
+      "entries": 1997,
+      "matched": 678
     },
     {
       "source": "outer-london-osm-seed",
       "entries": 722,
-      "matched": 575
+      "matched": 571
     }
   ],
   "samples": [
@@ -105,7 +105,7 @@
       "source": "curated-london-slim",
       "id": "venue-1bgjxe4",
       "matchType": "name-distance",
-      "distanceM": 3
+      "distanceM": 2
     },
     {
       "osmId": "node/454200832",
