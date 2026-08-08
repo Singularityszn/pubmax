@@ -710,36 +710,11 @@
     min-width: 0;
   }
 
-  .tonightDesktopGrid[data-secondary-placement="below"] > .tonightContext {
-    grid-row: 1;
-  }
-
   .tonightContext > .tonightConditions {
     margin: 0;
   }
 
-  .tonightContext .dealsTonight {
-    margin: 0;
-    padding: 16px 0 0;
-    border-top: 1px solid var(--line-soft);
-  }
-
-  .tonightContext .dealsTonightList,
-  .tonightDesktopGrid > .tonightSecondaryLanes .dealsTonightList {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .tonightContext .dealsTonightHead h2,
-  .tonightDesktopGrid > .tonightSecondaryLanes .dealsTonightHead h2 {
-    font-size: var(--text-md, 1.16rem);
-  }
-
-  .tonightDesktopGrid > .tonightSecondaryLanes {
-    grid-column: 2;
-    grid-row: 2;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    min-width: 0;
+  .tonightSecondaryLanes--mobile {
+    display: none;
   }
 }

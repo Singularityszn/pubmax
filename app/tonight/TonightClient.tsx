@@ -33,6 +33,7 @@ import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
 import TonightConditionsStrip from "./TonightConditionsStrip";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
+import TonightOnTonightSummary from "./TonightOnTonightSummary";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import TonightShareButton from "./TonightShareButton";
@@ -63,6 +64,7 @@ import {
 
 import "./tonight.css";
 import "./tonightDedup.css";
+import "./tonightOnTonightSummary.css";
 
 type Origin = { lat: number; lng: number };
 type LocationStatus = "idle" | "requesting" | "unavailable";
@@ -93,20 +95,14 @@ function freshnessLabel(kind: TonightFreshnessKind, asOf: string | null): string
 
 const UNDATED_SOURCE_LINE = "We can’t date these listings yet.";
 
-// Deals/Music placement. Flag off keeps their shipped slot above the main list.
-// Flag on wraps them so CSS can place them: on desktop they populate the right
-// rail (using the canvas, matching the flag-off desktop shape); below the rail
-// breakpoint they stack under the main list (§4.11 main-list-first). This helper
-// owns both placement and its CSS marker so the host does not repeat the branch.
-function placeSecondaryLanes(below: boolean, lanes: ReactNode): {
-  above: ReactNode;
-  below: ReactNode;
-  placement: "above" | "below";
-} {
-  const wrapped = <div className="tonightSecondaryLanes">{lanes}</div>;
-  return below
-    ? { above: null, below: wrapped, placement: "below" }
-    : { above: wrapped, below: null, placement: "above" };
+// Deals/Music full lanes only on phones when main-list-first grouping is on.
+// Desktop keeps a compact rail summary instead (UI_UX_FIX_PRD #1): the main
+// column owns the full spine; never mount duplicate card lists in the rail.
+function mobileSecondaryLanes(grouping: boolean, lanes: ReactNode): ReactNode {
+  if (!grouping) return null;
+  return (
+    <div className="tonightSecondaryLanes tonightSecondaryLanes--mobile">{lanes}</div>
+  );
 }
 
 // A thin night (0-2 confirmed listings) leaves the list short enough that the
@@ -284,16 +280,14 @@ export default function TonightClient({
       <MusicTonightLane rows={secondaryHeroes} asOf={asOf} />
     </>
   );
-  const lanePlacement = placeSecondaryLanes(flags.tonightGrouping, secondaryLanes);
+  const mobileLanes = mobileSecondaryLanes(flags.tonightGrouping, secondaryLanes);
+  const summaryRows = groupedAll.map((group) => group.row);
 
   return (
     <main id="main" className="tonightPage" data-testid="tonight-screen">
       <SiteNav active="tonight" />
 
-      <div
-        className="tonightDesktopGrid"
-        data-secondary-placement={lanePlacement.placement}
-      >
+      <div className="tonightDesktopGrid">
       <header className="tonightHead">
         <div className="tonightEyebrowRow">
           <p className="tonightEyebrow">Tonight in London</p>
@@ -332,11 +326,13 @@ export default function TonightClient({
 
       <aside className="tonightContext" aria-label="Tonight at a glance">
         <TonightConditionsStrip origin={origin} />
-        {/* Deals/Music secondary treatment. Flag off keeps their shipped position
-            here (above the main list); flag on moves them below the main list
-            (§4.11 main-list-first). The wrapper is display:contents below the
-            desktop breakpoint, so phone order and spacing stay unchanged. */}
-        {lanePlacement.above}
+        {ready ? (
+          <TonightOnTonightSummary
+            facets={facets}
+            rows={summaryRows}
+            totalCount={groupedAll.length}
+          />
+        ) : null}
         {/* Area news needs a coarse area: the shared location's nearest Night
             Area (never stored), else the heart of the viewer's remembered patch.
             This is the area they told us, so there is no new location ask. */}
@@ -470,7 +466,7 @@ export default function TonightClient({
             </div>
           ) : null}
 
-          <ul className="tonightList" data-testid="tonight-list">
+          <ul id="tonight-list" className="tonightList" data-testid="tonight-list">
             {grouped.map((group) => {
               const row = group.row;
               const link = rowHref(row);
@@ -658,10 +654,9 @@ export default function TonightClient({
 
       </div>
 
-      {/* Main-list-first (§4.11): under the canonical model the Deals/Music
-          treatment follows the main list on phones. Desktop CSS places this
-          direct grid child in the contextual rail. */}
-      {lanePlacement.below}
+      {/* Main-list-first (§4.11): full Deals/Music lanes follow the main list on
+          phones only when grouping is on. Desktop never mounts them. */}
+      {mobileLanes}
 
       <div className="tonightAfterPrimary">
       {/* Heritage quiet-pint module: same TodayQuietPintCard as /today. Lives
