@@ -9,6 +9,7 @@ import { transferGeneratedRouteToDraft } from "@/lib/mapRouteTransfer";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 import {
   interpretTonightAgentGenerateBody,
+  tonightStopPriceCaption,
   type TonightAgentResult,
 } from "@/lib/tonightAgent";
 
@@ -46,7 +47,7 @@ export default function TonightAgentPanel() {
       setResult({
         ok: false,
         kind: "error",
-        message: "PUBMAXX could not sort this one.",
+        message: "PUBMAXX couldn't sort this one.",
       });
     } finally {
       setBusy(false);
@@ -58,7 +59,7 @@ export default function TonightAgentPanel() {
       await navigator.clipboard?.writeText(text);
       setActionStatus("Invite draft copied.");
     } catch {
-      setActionStatus("Could not copy just now.");
+      setActionStatus("Couldn't copy just now.");
     }
   }
 
@@ -70,10 +71,10 @@ export default function TonightAgentPanel() {
       "plan-generated",
     );
     if (!wrote) {
-      setActionStatus("Could not hand those stops to the composer.");
+      setActionStatus("Couldn't move those stops over just now.");
       return;
     }
-    setActionStatus("Stops ready in the composer. Review and lock when you are.");
+    setActionStatus("Stops moved to your plan. Review and lock when you're ready.");
     window.location.assign("/plan#plan-composer");
   }
 
@@ -84,7 +85,7 @@ export default function TonightAgentPanel() {
       </h2>
       <p className="tonightAgentDek">
         Ask for a night. We only return stops we can stand behind, plus a draft
-        WhatsApp invite. If the area cannot meet your must-haves, we say so.
+        WhatsApp invite. If the area can&rsquo;t meet your must-haves, we say so.
       </p>
       <form className="tonightAgentForm" onSubmit={onSubmit}>
         <label className="tonightAgentLabel" htmlFor="tonightAgentQuery">
@@ -117,20 +118,28 @@ export default function TonightAgentPanel() {
       {result?.ok ? (
         <div className="tonightAgentResult">
           <ol className="tonightAgentStops">
-            {result.stops.map((stop) => (
-              <li key={stop.venueId}>
-                <span className="tonightAgentStopName">{stop.name}</span>
-                {typeof stop.priceGbp === "number" ? (
-                  <span className="tonightAgentStopPrice">
-                    £{stop.priceGbp.toFixed(2)}
-                  </span>
-                ) : (
-                  <span className="tonightAgentStopPrice tonightAgentStopPrice--unknown">
-                    No price on record
-                  </span>
-                )}
-              </li>
-            ))}
+            {result.stops.map((stop) => {
+              const caption = tonightStopPriceCaption(stop);
+              return (
+                <li key={stop.venueId}>
+                  <span className="tonightAgentStopName">{stop.name}</span>
+                  {typeof stop.pricePence === "number" ? (
+                    <span className="tonightAgentStopPrice">
+                      £{(stop.pricePence / 100).toFixed(2)}
+                      {caption ? (
+                        <span className="tonightAgentStopPriceCaption">
+                          {caption}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : (
+                    <span className="tonightAgentStopPrice tonightAgentStopPrice--unknown">
+                      No price on record
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ol>
           <label className="tonightAgentLabel" htmlFor="tonightAgentDraft">
             Invite draft

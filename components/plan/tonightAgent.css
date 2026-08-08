@@ -76,6 +76,14 @@
   opacity: 0.75;
 }
 
+/* The figure's source line. It wraps; a cut caption reads as a cut claim. */
+.tonightAgentStopPriceCaption {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.75;
+  overflow-wrap: anywhere;
+}
+
 .tonightAgentScarcity {
   color: color-mix(in srgb, var(--ink) 88%, transparent);
 }
