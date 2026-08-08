@@ -769,6 +769,39 @@
   outline-offset: 2px;
 }
 
+/* ── Edit mode: the editing state must be unmistakable ───────────────── */
+.profilePage .profileEditToggle[aria-expanded="true"] {
+  background: var(--brass);
+  color: var(--paper);
+}
+
+.profilePage .profileEditingSurface {
+  display: grid;
+  gap: 18px;
+  padding: clamp(18px, 4vw, 26px);
+  border: 2px solid var(--brass);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--brass) 8%, var(--panel));
+  scroll-margin-top: 84px;
+}
+
+.profilePage .profileEditingSurface > h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--brass-bright, var(--brass));
+}
+
+.profilePage .profileSavedNotice {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel));
+  color: var(--brass);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 /* ── Edit-profile inline form ────────────────────────────────────────── */
 .profilePage .profileEditor {
   display: grid;
@@ -1327,6 +1360,8 @@
 .accountHubReferralLink { display: grid; min-width: 0; gap: .35rem; color: var(--ink-muted); font-size: .8rem; font-weight: 700; }
 .accountHubReferralLink input { min-width: 0; }
 .accountHubActions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.accountHubConsentStatus { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.accountHubGrid .accountHubConsentChange { background: transparent; border: 1px solid var(--line); color: var(--ink); padding: .4rem .8rem; font-weight: 700; }
 .accountHubMessage { margin-top: .75rem; }
 .accountHubMerge { display: grid; gap: .65rem; margin: 0 0 .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
 .accountHubMerge h3, .accountHubMerge p, .accountHubNightProfile { margin: 0; }

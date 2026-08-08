@@ -17,6 +17,7 @@ import {
   readAuthCallbackAttempt,
   releaseAuthAttempt,
   scrubAuthCallback,
+  scrubLingeringAuthCallback,
   subscribeToAuthFragmentRestored,
   type AuthAttemptOptions,
   type AuthAttemptStart,
@@ -1266,6 +1267,65 @@ describe("auth callback URL safety", () => {
     captured?.releaseCoordination();
   });
 
+  it("still claims tokens and retries the scrub when the first replaceState throws", async () => {
+    // Safari rate-limits history calls during load. A refused scrub must not
+    // fail the sign-in closed: that left the credentials in the address bar
+    // AND signed nobody in (the founder's /u/you landing).
+    const { persistentStorage, tabStorage } = authStores();
+    beginAuthAttempt("https://pubmaxxing.com/u/you", undefined, {
+      persistentStorage,
+      tabStorage,
+      cryptoProvider: fixedCrypto(0xaa),
+      now: 1_000,
+    });
+    const scrubs: string[] = [];
+    let refusals = 1;
+    const replaceUrl = (url: string) => {
+      if (refusals > 0) {
+        refusals -= 1;
+        throw new Error("history rate limited");
+      }
+      scrubs.push(url);
+    };
+
+    const captured = await scrubAuthCallback(
+      `https://pubmaxxing.com/u/you?_authCallback=1&_authAttempt=${ATTEMPT_A}${TOKEN_FRAGMENT}`,
+      replaceUrl,
+      { persistentStorage, tabStorage, lockManager: immediateLocks, now: 2_000 },
+    );
+
+    expect(captured?.attempt.tokens).toEqual(TOKENS);
+    expect(captured?.attempt.providerError).toBe(false);
+    expect(scrubs).toEqual(["/u/you"]);
+    releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabStorage);
+    captured?.releaseCoordination();
+  });
+
+  it("scrubs a lingering callback URL after the exchange settles", () => {
+    const replaceUrl = vi.fn();
+    expect(
+      scrubLingeringAuthCallback(
+        `https://pubmaxxing.com/u/you?_authCallback=1&_authAttempt=${ATTEMPT_A}${TOKEN_FRAGMENT}`,
+        replaceUrl,
+      ),
+    ).toBe(true);
+    expect(replaceUrl).toHaveBeenCalledWith("/u/you");
+  });
+
+  it("leaves clean and app-fragment URLs alone in the lingering sweep", () => {
+    const replaceUrl = vi.fn();
+    expect(
+      scrubLingeringAuthCallback("https://pubmaxxing.com/u/you", replaceUrl),
+    ).toBe(false);
+    expect(
+      scrubLingeringAuthCallback(
+        "https://pubmaxxing.com/plan/abc#invite=SECRET-A",
+        replaceUrl,
+      ),
+    ).toBe(false);
+    expect(replaceUrl).not.toHaveBeenCalled();
+  });
+
   it("notifies a mounted invite consumer when the fragment is restored after an async claim", async () => {
     const { persistentStorage, tabStorage } = authStores();
     beginAuthAttempt("https://pubmaxxing.com/plan/abc#invite=SECRET-A", undefined, {
@@ -1318,31 +1378,41 @@ describe("auth callback URL safety", () => {
     captured?.releaseCoordination();
   });
 
-  it("fails closed when synchronous URL scrubbing throws", async () => {
-    const { persistentStorage, persistentValues, tabStorage } = authStores();
+  it("claims the callback and defers the scrub when synchronous URL scrubbing throws", async () => {
+    // The old fail-closed answer dropped the tokens AND left them in the
+    // address bar - nobody signed in and the credentials stayed on show. A
+    // refused replaceState now defers the scrub to the post-claim retry.
+    const { persistentStorage, tabStorage } = authStores();
     beginAuthAttempt("https://pubmaxxing.com/map#venue", undefined, {
       persistentStorage,
       tabStorage,
       cryptoProvider: fixedCrypto(0xaa),
       now: 1_000,
     });
-    const lockRequest = vi.fn();
-    const locks = {
-      request: lockRequest,
-    } as unknown as NonNullable<AuthAttemptOptions["lockManager"]>;
+    const scrubs: string[] = [];
+    let refusals = 1;
+    const replaceUrl = (url: string) => {
+      if (refusals > 0) {
+        refusals -= 1;
+        throw new Error("history denied");
+      }
+      scrubs.push(url);
+    };
 
-    // Tokens must never be used while they are still visible in the address
-    // bar and history; a blocked scrub fails the whole callback closed.
     const captured = await scrubAuthCallback(
       `https://pubmaxxing.com/map?_authCallback=1&_authAttempt=${ATTEMPT_A}${TOKEN_FRAGMENT}`,
-      () => {
-        throw new Error("history denied");
-      },
-      { persistentStorage, tabStorage, lockManager: locks, now: 2_000 },
+      replaceUrl,
+      { persistentStorage, tabStorage, lockManager: immediateLocks, now: 2_000 },
     );
-    expect(captured?.attempt).toEqual({ attemptId: null, tokens: null, providerError: true });
-    expect(lockRequest).not.toHaveBeenCalled();
-    expect([...persistentValues.values()].join(" ")).toContain("#venue");
+    expect(captured?.attempt).toMatchObject({
+      attemptId: ATTEMPT_A,
+      tokens: TOKENS,
+      providerError: false,
+    });
+    // The deferred scrub still lands, carrying the restored return fragment.
+    expect(scrubs).toEqual(["/map#venue"]);
+    releaseAuthAttempt(ATTEMPT_A, persistentStorage, tabStorage);
+    captured?.releaseCoordination();
   });
 
   it("still returns a claimed callback when fragment restoration replaceState throws", async () => {

@@ -195,4 +195,40 @@ describe("PubmaxxAccountHub provider gating", () => {
     }
     expect(migration).toContain("search_path = public, extensions, pg_temp");
   });
+
+  it("never renders a dead error card for a failed Night Profile read", () => {
+    // Defect 2: right after sign-in the first authed read can race session
+    // establishment and 401. The hub retries once, then shows a visible
+    // Try again affordance - never a permanent message with no way out.
+    const source = readFileSync(
+      join(process.cwd(), "components/profile/PubmaxxAccountHub.tsx"),
+      "utf8",
+    );
+    expect(source).not.toContain(
+      'setMessage("Your account Night Profile could not be loaded.")',
+    );
+    expect(source).toContain("nightProfileAutoRetried.current = true");
+    expect(source).toContain("setAccountLoadNonce");
+    expect(source).toContain("Try again");
+    // A failed read never counts as loaded: loaded gates the merge prompt and
+    // the account save, which need the real account row.
+    expect(source).toContain("if (nightProfile?.ok) setNightProfileLoaded(true);");
+  });
+
+  it("collapses the analytics choice card once a decision is made", () => {
+    // Defect 6: after Allow or No thanks the two-button card must go. The
+    // decided state is one status line with a small affordance to reverse it.
+    const source = readFileSync(
+      join(process.cwd(), "components/profile/PubmaxxAccountHub.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("analyticsConsent === null ? (");
+    expect(source).toContain('"Usage analytics on."');
+    expect(source).toContain('"Usage analytics off."');
+    expect(source).toContain('"Withdraw"');
+    expect(source).toContain('className="accountHubConsentStatus" role="status"');
+    // The old permanent confirmation sentences are gone with the card.
+    expect(source).not.toContain("Usage analytics enabled.");
+    expect(source).not.toContain("persistent browser analytics ID was removed");
+  });
 });

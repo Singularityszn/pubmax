@@ -60,6 +60,7 @@ vi.mock("@/lib/authRedirect", () => ({
   defaultEmailAuthNext: () => "/u/you",
   releaseAuthAttempt: vi.fn(),
   scrubAuthCallback: async () => null,
+  scrubLingeringAuthCallback: vi.fn(() => false),
 }));
 vi.mock("@/lib/identityClient", () => ({
   handleClaimRouteAfterSignIn: vi.fn(async () => null),

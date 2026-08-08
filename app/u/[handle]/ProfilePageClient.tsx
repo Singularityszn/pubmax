@@ -209,6 +209,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const [following, setFollowing] = useState(false);
   // Owner-only "edit my profile" panel; opened from the header's Edit button.
   const [editing, setEditing] = useState(false);
+  // Post-save confirmation shown back in view mode; clears itself shortly.
+  const [savedNotice, setSavedNotice] = useState(false);
   // Published crawl-story count for this handle, from /api/crawls?author= (the
   // crawl-story store is server-only, so a client route carries the number).
   // Feeds the Pint Passport's "story posts" stat. Starts at 0 so the first paint
@@ -513,11 +515,31 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     setEditing(true);
   }
 
+  useEffect(() => {
+    if (!savedNotice) return;
+    const timeout = window.setTimeout(() => setSavedNotice(false), 4_000);
+    return () => window.clearTimeout(timeout);
+  }, [savedNotice]);
+
+  // Editing must be unmistakable: opening it lands the reader on the editing
+  // surface itself, not wherever the toggle happened to sit.
+  function openEditor() {
+    setSavedNotice(false);
+    setEditing(true);
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById("profile-editing")
+        ?.scrollIntoView({ block: "start" });
+    });
+  }
+
   // Apply a saved profile row back onto the overlaid identity so the header
-  // updates the instant the editor reports success, without a refetch.
+  // updates the instant the editor reports success, without a refetch. The
+  // surface returns to view mode and says so.
   function handleSaved(saved: ProfileRecord) {
     setStored(saved);
     setEditing(false);
+    setSavedNotice(true);
   }
 
   // Header action slot. Three mutually-exclusive states:
@@ -538,7 +560,13 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         type="button"
         className="profileEditToggle"
         aria-expanded={editing}
-        onClick={() => setEditing((open) => !open)}
+        onClick={() => {
+          if (editing) {
+            setEditing(false);
+          } else {
+            openEditor();
+          }
+        }}
       >
         {editing ? "Close editor" : "Edit profile"}
       </button>
@@ -569,7 +597,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       id: "edit-profile",
       label: "Edit profile",
       description: "Change your public name, bio, city, or photo",
-      onSelect: () => setEditing(true),
+      onSelect: openEditor,
     },
     {
       id: "analytics-settings",
@@ -788,32 +816,43 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                     </section>
                   ) : null}
 
+                  {isOwnProfile && savedNotice && !editing ? (
+                    <p className="profileSavedNotice" role="status">
+                      Saved
+                    </p>
+                  ) : null}
+
                   {isOwnProfile && editing ? (
-                    <>
-                    <ProfileEditor
-                      handle={routeHandle}
-                      initial={{
-                        // Only pre-fill from durable, user-owned values — never the
-                        // synthesized bio/name (those are placeholders the user hasn't
-                        // authored, so the fields should read as empty and editable).
-                        displayName: stored?.displayName,
-                        bio: stored?.bio,
-                        homeCity: stored?.homeCity,
-                        avatarUrl: stored?.avatarUrl,
-                      }}
-                      onSaved={handleSaved}
-                      onClose={() => setEditing(false)}
-                    />
-                    {/* Private personal fields (email, date of birth, gender)
-                        live beside the public editor so the owner finds them
-                        where they expect to edit themselves. Signed-out demo
-                        owners see the editor's own sign-in prompt. */}
-                    {user ? (
-                      <div className="accountHubGrid profilePrivateDetails">
-                        <PrivateIdentityEditor />
-                      </div>
-                    ) : null}
-                    </>
+                    <section
+                      id="profile-editing"
+                      className="profileEditingSurface"
+                      aria-labelledby="profile-editing-title"
+                    >
+                      <h2 id="profile-editing-title">Editing your profile</h2>
+                      <ProfileEditor
+                        handle={routeHandle}
+                        initial={{
+                          // Only pre-fill from durable, user-owned values — never the
+                          // synthesized bio/name (those are placeholders the user hasn't
+                          // authored, so the fields should read as empty and editable).
+                          displayName: stored?.displayName,
+                          bio: stored?.bio,
+                          homeCity: stored?.homeCity,
+                          avatarUrl: stored?.avatarUrl,
+                        }}
+                        onSaved={handleSaved}
+                        onClose={() => setEditing(false)}
+                      />
+                      {/* Private personal fields (email, date of birth, gender)
+                          live beside the public editor so the owner finds them
+                          where they expect to edit themselves. Signed-out demo
+                          owners see the editor's own sign-in prompt. */}
+                      {user ? (
+                        <div className="accountHubGrid profilePrivateDetails">
+                          <PrivateIdentityEditor />
+                        </div>
+                      ) : null}
+                    </section>
                   ) : null}
 
                   {!youSignedOut ? (
