@@ -193,6 +193,10 @@ export const ANALYTICS_EVENTS = {
   // these props - only that a crew-only beacon was switched on or off.
   out_tonight_beacon_on: [],
   out_tonight_beacon_off: [],
+  // WP7 friend-graph byproduct: a mutual pair formed because both accounts were
+  // committed members of the same plan crew. Source is a closed enum; never a
+  // handle, plan id, or member id.
+  friend_edge_via_crew: ["source"],
   // Landing Wave 0 acquisition CTAs. Closed target enum only — never free text.
   landing_cta_clicked: ["target"],
 } as const;
@@ -350,7 +354,7 @@ const CONTRIBUTION_GATE_STEPS = [
 const SAFE_STRING_VALUES = new Set([
   // fixed product surfaces and provenance
   "landing", "home", "map", "tonight", "plan", "you", "pal", "borough", "crawl", "recap",
-  "shared-plan", "plan-link", "crew-reinvite", "completed_plan",
+  "shared-plan", "plan-link", "crew-reinvite", "completed_plan", "plan-crew",
   "near", "map-search", "direct-plan", "mobile-route-preview",
   "location", "remembered-area", "picked-area", "0", "1-3", "4+",
   "live-location", "remembered-patch", "remembered-borough", "london-default", "other",

@@ -2,9 +2,10 @@
 
 import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 
+import { trackEvent } from "@/lib/analytics";
+import { authedFetch } from "@/lib/authedFetch";
 import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
-import { trackEvent } from "@/lib/analytics";
 import { isClassicPlanInviteToken } from "@/lib/planCrewInviteUrl";
 import { planRouteReady } from "@/lib/planPrivacy";
 import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
@@ -216,7 +217,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
     try {
       const operationScope = `join:${planId}`;
       const operationKey = await persistentPlanMutationKey(operationScope, { name: name.trim(), inviteToken });
-      const response = await fetch(`/api/plans/${planId}/join`, {
+      const response = await authedFetch(`/api/plans/${planId}/join`, {
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": operationKey },
         body: JSON.stringify({ name, inviteToken }),
@@ -241,6 +242,9 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
         },
         deliveryToken ? { deliveryToken } : undefined,
       );
+      if (typeof body.friendEdgesFormed === "number" && body.friendEdgesFormed > 0) {
+        trackEvent("friend_edge_via_crew", { source: "plan-crew" });
+      }
       // Identity-first ordering (docs/PROMPT_ORCHESTRATION.md): the account
       // nudge wins the shared moment; push defers to a pending identity nudge.
       recordPlanNudgeTrigger();
@@ -308,6 +312,10 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       ) : !memberToken ? (
         <form className="planCrew__join" onSubmit={join}>
           <label htmlFor="join-name">Your name is enough.</label>
+          <p className="planCrew__joinNote">
+            If you&rsquo;re signed in with a claimed handle, joining connects you
+            with the host in your lot.
+          </p>
           <div><input id="join-name" autoComplete="name" maxLength={CREW_NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" required /><button type="submit" disabled={pending}>I&rsquo;m in</button></div>
         </form>
       ) : (

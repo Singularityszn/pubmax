@@ -125,6 +125,13 @@ export default function OutTonightBoard({ viewerHandle }: Props) {
         <p className="beaconPrivacy">
           Mutual follows only. Turn on out tonight above when you head out.
         </p>
+        <p className="beaconPrivacy">
+          <Link className="beaconBoardFindLot" href="/social">
+            Find your lot
+          </Link>
+          {" "}
+          to search handles or send an invite.
+        </p>
       </section>
     );
   }

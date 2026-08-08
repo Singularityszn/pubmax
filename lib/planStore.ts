@@ -450,7 +450,12 @@ export const supabasePlanStore: PlanStore = {
   },
 };
 
-type MemoryMember = CrewMemberDTO & { tokenHash: string; collaborationAuthorized: boolean };
+type MemoryMember = CrewMemberDTO & {
+  tokenHash: string;
+  collaborationAuthorized: boolean;
+  /** Auth user stamped when a signed-in claimed account creates/joins (WP7). */
+  userId?: string;
+};
 type StoredCompletion = PlanCompletionDTO & { actorMemberId: string };
 function publicCompletion(completion: StoredCompletion): PlanCompletionDTO {
   return {
@@ -466,7 +471,18 @@ function publicCompletion(completion: StoredCompletion): PlanCompletionDTO {
     completedAt: completion.completedAt,
   };
 }
-type MemoryPlan = { plan: PlanDTO; stops: PlanStopDTO[]; crew: MemoryMember[]; context: NightContext | null; actions: PlanActionDTO[]; ending: CrawlEnding | null; completion: StoredCompletion | null; inviteToken: string };
+type MemoryPlan = {
+  plan: PlanDTO;
+  stops: PlanStopDTO[];
+  crew: MemoryMember[];
+  context: NightContext | null;
+  actions: PlanActionDTO[];
+  ending: CrawlEnding | null;
+  completion: StoredCompletion | null;
+  inviteToken: string;
+  /** Host auth user when create stamped a signed-in account (WP7). */
+  ownerUserId?: string;
+};
 type PlanMemoryState = {
   plans: Map<string, MemoryPlan>;
   sequence: number;
@@ -878,6 +894,43 @@ export function __resetMemoryPlans(): void {
   planMemory.actionRequests.clear();
   planMemory.inviteTokens.clear();
   planMemory.sequence = 0;
+}
+
+/** Test/dev seam: stamp a crew member's auth user (mirrors plan_crew_members.user_id). */
+export function __linkMemoryPlanMemberUser(
+  planId: string,
+  memberId: string,
+  userId: string,
+): boolean {
+  const plan = memoryPlans.get(planId);
+  if (!plan) return false;
+  const member = plan.crew.find((row) => row.id === memberId);
+  if (!member) return false;
+  if (member.userId && member.userId !== userId) return false;
+  member.userId = userId;
+  return true;
+}
+
+/** Test/dev seam: stamp the plan owner (mirrors plans.owner_user_id). */
+export function __setMemoryPlanOwnerUserId(planId: string, userId: string): boolean {
+  const plan = memoryPlans.get(planId);
+  if (!plan) return false;
+  if (plan.ownerUserId && plan.ownerUserId !== userId) return false;
+  plan.ownerUserId = userId;
+  const host = plan.crew[0];
+  if (host && !host.userId) host.userId = userId;
+  return true;
+}
+
+/** Test/dev seam: list stamped member user ids for friend-edge formation. */
+export function __listMemoryPlanMemberUserIds(
+  planId: string,
+): Array<{ memberId: string; userId: string }> {
+  const plan = memoryPlans.get(planId);
+  if (!plan) return [];
+  return plan.crew
+    .filter((member): member is MemoryMember & { userId: string } => Boolean(member.userId))
+    .map((member) => ({ memberId: member.id, userId: member.userId }));
 }
 
 export type PlanInviteTokenLookupResult = { ok: true; planId: string | null } | { ok: false; error: "error" };

@@ -232,6 +232,14 @@ export type ProfileStore = {
   listReportedAvatars(limit?: number): Promise<ModeratorProfileAvatar[]>;
   /** Already-hidden owned avatars (hide stays reversible from this lane). */
   listHiddenAvatars(limit?: number): Promise<ModeratorProfileAvatar[]>;
+  /**
+   * Prefix search over claimed, non-tombstoned handles only (WP7 find-your-lot).
+   * Never returns unowned or tombstoned rows. Bounded; ordered by handle.
+   */
+  searchClaimedByHandlePrefix(
+    prefix: string,
+    limit?: number,
+  ): Promise<ProfileRecord[]>;
 };
 
 const TABLE = "profiles";
@@ -651,6 +659,23 @@ export const supabaseProfileStore: ProfileStore = {
       .map((row) => toModeratorAvatar(fromRow(row as Record<string, unknown>)))
       .filter((row): row is ModeratorProfileAvatar => row !== null);
   },
+
+  async searchClaimedByHandlePrefix(prefix, limit = 8) {
+    const key = normalizeHandle(prefix);
+    if (!key || key.length < 2) return [];
+    const bounded = Math.min(Math.max(limit, 1), 12);
+    // Claimed = user_id set; live = tombstoned_at null. ilike prefix only.
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("*")
+      .not("user_id", "is", null)
+      .is("tombstoned_at", null)
+      .ilike("handle", `${key}%`)
+      .order("handle", { ascending: true })
+      .limit(bounded);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => fromRow(row as Record<string, unknown>));
+  },
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -903,6 +928,21 @@ export const memoryProfileStore: ProfileStore = {
       .slice(0, bounded)
       .map((profile) => toModeratorAvatar(profile))
       .filter((row): row is ModeratorProfileAvatar => row !== null);
+  },
+
+  async searchClaimedByHandlePrefix(prefix, limit = 8) {
+    const key = normalizeHandle(prefix);
+    if (!key || key.length < 2) return [];
+    const bounded = Math.min(Math.max(limit, 1), 12);
+    return [...memoryProfiles.values()]
+      .filter(
+        (profile) =>
+          Boolean(profile.userId) &&
+          !isProfileTombstoned(profile) &&
+          profile.handle.startsWith(key),
+      )
+      .sort((a, b) => a.handle.localeCompare(b.handle))
+      .slice(0, bounded);
   },
 };
 

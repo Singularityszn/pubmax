@@ -45,4 +45,26 @@ describe("OutTonightBoard (crew tonight slice 4)", () => {
     expect(beaconCss).toMatch(/\.beaconBoardList/);
     expect(beaconCss).toMatch(/min-height:\s*44px/);
   });
+
+  it("empty state points to Find your lot instead of a dead end", () => {
+    expect(boardTsx).toMatch(/Find your lot/);
+    expect(boardTsx).toMatch(/href="\/social"/);
+  });
 });
+
+describe("profiles search privacy (WP7)", () => {
+  it("search route never selects private identity columns", () => {
+    const searchRoute = readFileSync(
+      join(process.cwd(), "app/api/profiles/search/route.ts"),
+      "utf8",
+    );
+    expect(searchRoute).toMatch(/publicApiError/);
+    expect(searchRoute).toMatch(/isLimited/);
+    expect(searchRoute).toMatch(/toPublicMatch/);
+    // Comment may mention email/DOB as excluded; the projection object must not.
+    expect(searchRoute).toContain("id: profile.id");
+    expect(searchRoute).toContain("handle: profile.handle");
+    expect(searchRoute).not.toMatch(/dateOfBirth:|fullName:|gender:|email:/);
+  });
+});
+

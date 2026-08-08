@@ -1,10 +1,13 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
+import { callerUserId } from "@/lib/authServer";
 import { parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { isLimited } from "@/lib/pintDrops";
 import { cleanPlanAnchor } from "@/lib/plan";
-import { planRequestDigest, planStore } from "@/lib/planStore";
+import { linkPlanMemberUser, linkPlanOwnerUser } from "@/lib/planCrewIdentity";
+import { planMemberIdentity, planRequestDigest, planStore } from "@/lib/planStore";
+import { profileStore } from "@/lib/profileStore";
 import {
   verifyAnchoredPlanGroundingProofV2,
   verifyPlanGroundingProof,
@@ -151,6 +154,31 @@ export async function POST(request: Request): Promise<Response> {
     if (unavailable) return unavailable;
     throw error;
   }
+  // WP7: when the host is signed in with a claimed handle, stamp owner + host
+  // member so a later claimed join can form the mutual follow pair.
+  try {
+    const hostUserId = await callerUserId(request);
+    if (hostUserId) {
+      const hostHandle = await profileStore().getHandleByUserId(hostUserId);
+      if (hostHandle) {
+        await linkPlanOwnerUser(result.plan.plan.id, hostUserId);
+        const hostIdentity = await planMemberIdentity(
+          result.plan.plan.id,
+          result.memberToken,
+        );
+        if (hostIdentity?.memberId) {
+          await linkPlanMemberUser(
+            result.plan.plan.id,
+            hostIdentity.memberId,
+            hostUserId,
+          );
+        }
+      }
+    }
+  } catch {
+    // Join still works without a stamped host; friend edges simply wait.
+  }
+
   return attachPlanMemberSession(
     jsonNoStore({
       plan: result.plan,
