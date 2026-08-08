@@ -281,6 +281,11 @@ export default async function PlanInvitePage({ params }: PageProps) {
           <InviteMapLink venueIds={stops.map((stop) => stop.venueId)} />
         ) : null}
 
+        <p className="invite__softNote">
+          Joining the crew with a signed-in claimed handle connects you with
+          the host in your lot.
+        </p>
+
         <PlanInviteRsvp
           token={token}
           planId={lookup.planId}

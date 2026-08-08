@@ -6,9 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DiscoverBody } from "@/app/discover/DiscoverPageClient";
 import SiteNav from "@/components/nav/SiteNav";
+import FindYourLot from "@/components/social/FindYourLot";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import { getNightArea, NIGHT_AREAS } from "@/lib/nightAreas";
+import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
 import type { SocialAccessState } from "@/lib/socialAccess";
 import {
@@ -79,6 +81,12 @@ function parseAccessState(value: unknown): SocialAccessState | null {
 function parseDraftScope(value: unknown): string | null {
   return isRecord(value) && typeof value.draftScope === "string" && /^[A-Za-z0-9_-]{43}$/.test(value.draftScope)
     ? value.draftScope : null;
+}
+
+function parseViewerHandle(value: unknown): string | null {
+  if (!isRecord(value) || typeof value.viewerHandle !== "string") return null;
+  const handle = normalizeHandle(value.viewerHandle);
+  return handle || null;
 }
 
 function parsePostPage(value: unknown): SocialPostPage | null {
@@ -328,6 +336,7 @@ export default function SocialPageClient({
 }: SocialPageClientProps) {
   const [access, setAccess] = useState<AccessLoadState>("checking");
   const [draftScope, setDraftScope] = useState<string | null>(null);
+  const [viewerHandle, setViewerHandle] = useState<string | null>(null);
   const [submittedPost, setSubmittedPost] = useState<SocialPostDTO | null>(null);
   const [accessAttempt, setAccessAttempt] = useState(0);
   const [feedAttempt, setFeedAttempt] = useState(0);
@@ -360,9 +369,17 @@ export default function SocialPageClient({
         const body = await response.json();
         const state = parseAccessState(body);
         if (!state) throw new Error("Social access malformed");
-        return { state, draftScope: parseDraftScope(body) };
+        return {
+          state,
+          draftScope: parseDraftScope(body),
+          viewerHandle: parseViewerHandle(body),
+        };
       })
-      .then((result) => { setAccess(result.state); setDraftScope(result.draftScope); })
+      .then((result) => {
+        setAccess(result.state);
+        setDraftScope(result.draftScope);
+        setViewerHandle(result.viewerHandle);
+      })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError")
           return;
@@ -520,6 +537,8 @@ export default function SocialPageClient({
               </Link>
             </nav>
             {showPostsControls ? <PostsControls state={initialState} /> : null}
+            {/* Friend-graph formation stays available while posts stay gated. */}
+            {isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
           </aside>
 
           {initialState.tab === "discover" ? (
@@ -535,14 +554,19 @@ export default function SocialPageClient({
               <h2>Checking Social access…</h2>
             </section>
           ) : access !== "verified" ? (
-            <SocialAccessBoundary
-              state={access}
-              onRetry={
-                access === "unavailable"
-                  ? () => setAccessAttempt((value) => value + 1)
-                  : undefined
-              }
-            />
+            <>
+              <SocialAccessBoundary
+                state={access}
+                onRetry={
+                  access === "unavailable"
+                    ? () => setAccessAttempt((value) => value + 1)
+                    : undefined
+                }
+              />
+              <section className="socialFeedEmpty" aria-label="Find your lot">
+                <FindYourLot myHandle={viewerHandle} />
+              </section>
+            </>
           ) : !feedHref ? (
             <section className="socialFeed" role="status">
               <h2>Choose a nearby area.</h2>
@@ -587,6 +611,11 @@ export default function SocialPageClient({
               ) : posts.length === 0 ? (
                 <div className="socialFeedEmpty" role="status">
                   <h2>No posts here yet.</h2>
+                  <p>
+                    Find your lot - search a handle or send an invite - and nights
+                    from mutuals land here.
+                  </p>
+                  <FindYourLot myHandle={viewerHandle} />
                 </div>
               ) : (
                 <div className="socialPostList">

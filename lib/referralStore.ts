@@ -42,7 +42,13 @@ export type ReferralPrivateStatus = {
 };
 
 export type RecordEdgeResult =
-  | { ok: true; status: "recorded" | "existing"; edgeId: string }
+  | {
+      ok: true;
+      status: "recorded" | "existing";
+      edgeId: string;
+      /** Inviter auth user id for WP7 follow-back. Never returned to browsers. */
+      inviterUserId: string;
+    }
   | {
       ok: false;
       reason:
@@ -252,7 +258,12 @@ export const memoryReferralStore: ReferralStore = {
     const existing = edgeByInvitee.get(invitee);
     if (existing) {
       return existing.inviterUserId === inviter
-        ? { ok: true, status: "existing", edgeId: existing.id }
+        ? {
+            ok: true,
+            status: "existing",
+            edgeId: existing.id,
+            inviterUserId: inviter,
+          }
         : { ok: false, reason: "already_attributed" };
     }
     const reverse = edgeByInvitee.get(inviter);
@@ -270,7 +281,12 @@ export const memoryReferralStore: ReferralStore = {
     };
     edgeByInvitee.set(invitee, edge);
     edgeById.set(edge.id, edge);
-    return { ok: true, status: "recorded", edgeId: edge.id };
+    return {
+      ok: true,
+      status: "recorded",
+      edgeId: edge.id,
+      inviterUserId: inviter,
+    };
   },
 
   async qualify({
@@ -408,10 +424,14 @@ function objectRow(data: unknown): Record<string, unknown> {
 function recordEdgeResult(data: unknown): RecordEdgeResult {
   const row = objectRow(data);
   if (row.ok === true) {
+    const inviterUserId = String(
+      row.inviter_user_id ?? row.inviterUserId ?? "",
+    );
     return {
       ok: true,
       status: row.status === "existing" ? "existing" : "recorded",
       edgeId: String(row.edge_id ?? ""),
+      inviterUserId,
     };
   }
   const reason = row.reason;

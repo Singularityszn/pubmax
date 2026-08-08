@@ -22,6 +22,8 @@ import { emitIdentityHandleChanged } from "@/lib/identityClient";
 import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
 import SetAccountPassword from "@/components/auth/SetAccountPassword";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
+import FindYourLot from "@/components/social/FindYourLot";
+import ReferralFollowBack from "@/components/social/ReferralFollowBack";
 import type { ReferralPrivateStatus } from "@/lib/referralStore";
 import {
   cleanNightProfileInput,
@@ -799,6 +801,8 @@ export default function PubmaxxAccountHub() {
   return (
     <section className="accountHub" aria-labelledby="account-hub-title">
       <p className="profileSectionKicker">Your PUBMAXX</p><h2 id="account-hub-title">Identity, connections and memories.</h2>
+      <ReferralFollowBack />
+      <FindYourLot />
       {mergeState.kind !== "none" ? (
         <div className="accountHubMerge" role="group" aria-labelledby="night-profile-merge-title">
           <h3 id="night-profile-merge-title">Bring your Night Profile?</h3>

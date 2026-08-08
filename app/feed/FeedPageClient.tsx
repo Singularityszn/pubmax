@@ -840,8 +840,8 @@ export default function FeedPageClient({
           actionTone="accent"
           eyebrow="Your lot"
           title="Your lot is quiet."
-          body="Your lot is the people you both follow. Add a friend by their handle or share your link at the table, and their nights, drops and check-ins land here."
-          action={<Link href="/social?tab=discover">Add your lot</Link>}
+          body="Your lot is the people you both follow. Find your lot to search a handle or send an invite, and their nights, drops and check-ins land here."
+          action={<Link href="/social">Find your lot</Link>}
         />
       ) : sightingSpot === "primary" ? (
         // London cold start: no drinker has logged yet, so the honestly-sourced

@@ -3,7 +3,9 @@ import {
   type AuthAttemptStart,
   type AuthCallbackAttempt,
 } from "@/lib/authRedirect";
+import { storeReferralFollowHandle } from "@/lib/referralFollowBack";
 import { referralSignupClaimFromUrl } from "@/lib/referrals";
+import { normalizeHandle } from "@/lib/profiles";
 
 type ReferralClaimRequest = (
   input: string,
@@ -54,7 +56,17 @@ export async function claimSignupReferral(
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ code, authAttemptId, signupProof }),
       });
-      if (response.ok || !(await responseIsRetryable(response))) return;
+      if (response.ok) {
+        const body = (await response.json().catch(() => null)) as
+          | { inviterHandle?: unknown }
+          | null;
+        const handle = normalizeHandle(
+          typeof body?.inviterHandle === "string" ? body.inviterHandle : "",
+        );
+        if (handle) storeReferralFollowHandle(handle);
+        return;
+      }
+      if (!(await responseIsRetryable(response))) return;
       delayMs = retryAfterMs(response, Date.now()) ?? delayMs;
     } catch {
       if (attempt === MAX_CLAIM_ATTEMPTS - 1) return;

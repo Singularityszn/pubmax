@@ -1,11 +1,18 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
+import { callerUserId } from "@/lib/authServer";
+import { formFriendEdgesForPlanJoin } from "@/lib/crewFriendEdges";
 import { cleanCrewName } from "@/lib/crew";
 import { isLimited } from "@/lib/pintDrops";
 import { isPlanId, type PlanState } from "@/lib/plan";
 import { isClassicPlanInviteToken } from "@/lib/planCrewInviteUrl";
 import { planRouteReady } from "@/lib/planPrivacy";
-import { planStateResult, planStore, resolvePlanIdByInviteToken } from "@/lib/planStore";
+import {
+  planMemberIdentity,
+  planStateResult,
+  planStore,
+  resolvePlanIdByInviteToken,
+} from "@/lib/planStore";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { collaborationErrorResponse } from "@/lib/planCollaborationHttp";
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
@@ -13,6 +20,28 @@ import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMu
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { crewCommittedEventToken } from "@/lib/verifiedAnalytics.server";
+
+/** Best-effort friend-graph byproduct after a committed join. Never fails the join. */
+async function maybeFormCrewFriendEdges(
+  request: Request,
+  planId: string,
+  memberToken: string,
+): Promise<number> {
+  try {
+    const userId = await callerUserId(request);
+    if (!userId) return 0;
+    const identity = await planMemberIdentity(planId, memberToken);
+    if (!identity?.memberId) return 0;
+    const result = await formFriendEdgesForPlanJoin({
+      planId,
+      joinerUserId: userId,
+      joinerMemberId: identity.memberId,
+    });
+    return result.formed;
+  } catch {
+    return 0;
+  }
+}
 
 assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
@@ -100,6 +129,11 @@ export async function POST(request: Request, context: Context): Promise<Response
         { retryable: result.error === "error" },
       );
     }
+    const friendEdgesFormed = await maybeFormCrewFriendEdges(
+      request,
+      id,
+      result.memberToken,
+    );
     return attachPlanMemberSession(
       jsonNoStore(
         {
@@ -108,6 +142,7 @@ export async function POST(request: Request, context: Context): Promise<Response
           role: result.role,
           collaborationAuthorized: result.collaborationAuthorized,
           crewCommitted: crewCommittedToken(result.plan),
+          friendEdgesFormed,
         },
         { status: 200 },
       ),
@@ -130,9 +165,18 @@ export async function POST(request: Request, context: Context): Promise<Response
     }
     return collaborationErrorResponse(joined.error);
   }
+  const friendEdgesFormed = await maybeFormCrewFriendEdges(
+    request,
+    id,
+    joined.memberToken,
+  );
   return attachPlanMemberSession(
     jsonNoStore(
-      { ...joined, crewCommitted: crewCommittedToken(joined.plan) },
+      {
+        ...joined,
+        crewCommitted: crewCommittedToken(joined.plan),
+        friendEdgesFormed,
+      },
       { status: 200 },
     ),
     request,

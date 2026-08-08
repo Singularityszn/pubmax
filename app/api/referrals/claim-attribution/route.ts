@@ -5,6 +5,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { callerAuthIdentity } from "@/lib/authServer";
 import { isAuthAttemptId } from "@/lib/authRedirect";
+import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 import { verifyReferralSignupProof } from "@/lib/referralSignupProof.server";
 import { isReferralCode } from "@/lib/referrals";
 import { referralStore } from "@/lib/referralStore";
@@ -86,7 +87,50 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
   if (result.ok) {
-    return reply({ attributed: true });
+    // Public handle only — never the inviter user id. Absent when they have no
+    // claimed live profile yet; follow-back simply stays hidden.
+    let inviterUserId = result.inviterUserId;
+    if (!inviterUserId) {
+      // Durable RPC success shapes before WP7 omit inviter_user_id; recover
+      // from the edge keyed by this invitee.
+      try {
+        const { requireSupabaseAdmin, isSupabaseConfigured } = await import(
+          "@/lib/supabase"
+        );
+        if (isSupabaseConfigured()) {
+          const { data } = await requireSupabaseAdmin()
+            .from("referral_edges")
+            .select("inviter_user_id")
+            .eq("invitee_user_id", identity.id)
+            .maybeSingle();
+          if (typeof data?.inviter_user_id === "string") {
+            inviterUserId = data.inviter_user_id;
+          }
+        }
+      } catch {
+        inviterUserId = "";
+      }
+    }
+    let inviterHandle: string | undefined;
+    if (inviterUserId) {
+      try {
+        const inviter = await profileStore().getByUserId(inviterUserId);
+        if (
+          inviter &&
+          inviter.userId &&
+          !isProfileTombstoned(inviter) &&
+          inviter.handle
+        ) {
+          inviterHandle = inviter.handle;
+        }
+      } catch {
+        inviterHandle = undefined;
+      }
+    }
+    return reply({
+      attributed: true,
+      ...(inviterHandle ? { inviterHandle } : {}),
+    });
   }
   return reply({ attributed: false, reason: result.reason });
 }
