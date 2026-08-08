@@ -27,7 +27,7 @@
      fixed, so without the safe-area inset it hides under the status bar. */
   top: max(14px, env(safe-area-inset-top));
   left: 50%;
-  z-index: 720;
+  z-index: var(--z-float); /* floating landing topbar — house z ledger (app/globals.css) */
   width: min(var(--lp-max), calc(100vw - 28px));
   min-height: 64px;
   padding: 8px 10px 8px 16px;
@@ -253,7 +253,7 @@
   font-weight: 750;
   text-decoration: none;
   white-space: nowrap;
-  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+  transition: transform var(--duration-lift) var(--ease-standard), background var(--duration-lift) var(--ease-standard), border-color var(--duration-lift) var(--ease-standard);
 }
 .lpButton:active { transform: scale(.98); --shared-press-scale: 1; }
 .lpButtonPrimary { background: var(--brass); color: var(--color-on-accent); box-shadow: 0 14px 34px color-mix(in srgb, var(--brass) 24%, transparent); }
@@ -292,7 +292,7 @@
 .thamesHeroPins { position: absolute; inset: 0; z-index: 2; margin: 0; padding: 0; list-style: none; }
 .thamesHeroPin { position: absolute; transform: translate(-50%, -50%); }
 .thamesHeroPinLink { min-width: 44px; min-height: 44px; display: flex; align-items: center; gap: 7px; color: white; text-decoration: none; }
-.thamesHeroPinGlyph { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.4); border-radius: 16px; background: rgba(7,11,18,.68); box-shadow: 0 9px 30px rgba(0,0,0,.28); backdrop-filter: blur(10px); transition: transform 180ms ease; }
+.thamesHeroPinGlyph { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.4); border-radius: 16px; background: rgba(7,11,18,.68); box-shadow: 0 9px 30px rgba(0,0,0,.28); backdrop-filter: blur(10px); transition: transform var(--duration-lift) var(--ease-standard); }
 /* Decorative rim only, drawn from the real map price key vocabulary
    (green/amber/red, see lib/mapPriceLegend.ts). Styling, not a claim:
    the hero carries no live price band or authority. */
@@ -371,6 +371,15 @@
     linear-gradient(var(--lp-blueprint-rule), var(--lp-blueprint-rule)) left top / 1px 10px no-repeat,
     linear-gradient(var(--lp-blueprint-rule), var(--lp-blueprint-rule)) right top / 1px 10px no-repeat;
 }
+/* The texture ::after is a positioned box, so it paints over the sections'
+   in-flow (unpositioned) children. Lift the children above it so copy never
+   sits under the blueprint rules. */
+.lpSignalSection > *,
+.lpProofSection > *,
+.lpCityChooser > * {
+  position: relative;
+  z-index: 1;
+}
 
 .lpSignalSection, .lpProofSection { width: min(var(--lp-max), calc(100% - 2 * var(--lp-pad))); margin: 0 auto; padding: clamp(86px, 10vw, 144px) 0; }
 .lpSectionIntro { max-width: 700px; }
@@ -444,7 +453,7 @@
 .provChip { padding: 5px 7px; border-radius: 999px; background: color-mix(in srgb, var(--brass) 10%, transparent); }
 .dropStripEmpty { padding: 24px; border-block: 1px solid var(--line); color: var(--ink-soft); }
 .dropStripCardSkeleton { gap: 15px; }
-.skelLine { height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--line) 72%, transparent); animation: lpSkeleton 1.4s ease-in-out infinite alternate; }
+.skelLine { height: 10px; border-radius: 999px; background: color-mix(in srgb, var(--line) 72%, transparent); animation: lpSkeleton var(--duration-ambient) ease-in-out infinite alternate; }
 .skelLineTop { width: 45%; height: 18px; }.skelLineShort { width: 62%; }
 @keyframes lpSkeleton { to { opacity: .42; } }
 
@@ -628,16 +637,17 @@
   }
 
   .lpOrbitOne {
-    animation: lpOrbitDrift 22s ease-in-out infinite alternate;
+    animation: lpOrbitDrift var(--duration-drift) ease-in-out infinite alternate;
   }
   .lpOrbitTwo {
-    animation: lpOrbitDrift 28s ease-in-out infinite alternate-reverse;
+    animation: lpOrbitDrift var(--duration-drift-slow) ease-in-out infinite alternate-reverse;
   }
   .lpScanline {
-    animation: lpScanlineBreathe 7s ease-in-out infinite alternate;
+    animation: lpScanlineBreathe var(--duration-breathe) ease-in-out infinite alternate;
   }
   .thamesHeroPin {
-    animation: lpPinEnter 640ms cubic-bezier(.22, 1, .36, 1) both;
+    /* --ease-weighted is the cinema house curve (was a retyped literal here). */
+    animation: lpPinEnter var(--duration-entrance) var(--ease-weighted) both;
     animation-delay: calc(120ms + (var(--pin-i, 0) * 70ms));
   }
 }

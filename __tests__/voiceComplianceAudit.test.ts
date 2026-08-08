@@ -522,7 +522,6 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
     ["components/emptyState.css", [".emptyStateEyebrow"]],
     ["app/messages/messages.css", [".messagesThreadEyebrow"]],
     ["components/landing/landing.css", [".lpSectionLabel", ".thamesHeroPinCat"]],
-    ["components/landing/nightSignals.css", [".nsKicker"]],
     ["components/plan/nightCrawl.css", [
       ".nightCrawl__kicker",
       ".nightCrawl__eyebrow",

@@ -36,7 +36,7 @@ html:has(.nightPill) {
   max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  z-index: 640; /* under tab bar (700) + modals (1200); above page content */
+  z-index: var(--z-night-card); /* under tab bar (700) + modals (1200); above page content — house z ledger */
   display: flex;
   flex-direction: column;
   gap: 8px;

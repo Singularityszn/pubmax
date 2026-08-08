@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-// Regression lock for the landing/night-signals chrome audit (safe-area insets,
+// Regression lock for the landing chrome audit (safe-area insets,
 // mobile legibility floor, touch-target sizes, dark-panel text contrast, and
 // the reduced-motion gate). These are text assertions over the shipped CSS, the
 // same house pattern as brandStrikeCss.test.ts — so a silent revert of any fix
@@ -11,10 +11,6 @@ import { describe, expect, it } from "vitest";
 
 const landingCss = readFileSync(
   join(process.cwd(), "components/landing/landing.css"),
-  "utf8",
-);
-const nightSignalsCss = readFileSync(
-  join(process.cwd(), "components/landing/nightSignals.css"),
   "utf8",
 );
 
@@ -85,16 +81,6 @@ describe("landing chrome CSS audit", () => {
 
   it("shows three hero pins on the 430px primary canvas", () => {
     expect(landingCss).toMatch(/@media \(max-width: 430px\)[\s\S]*?\.thamesHeroPin:nth-child\(n\+4\)\s*{\s*display:\s*none/);
-  });
-
-  it("night-signals: 44px confirm buttons, 12px micro-type, gated animation", () => {
-    expect(ruleBody(nightSignalsCss, ".signalConfirm button")).toMatch(/min-height:\s*44px/);
-    // The 8px span and other sub-12px labels are floored.
-    expect(nightSignalsCss).not.toMatch(/font:\s*600 8px/);
-    expect(ruleBody(nightSignalsCss, ".signalConfirm span")).toMatch(/12px/);
-    const reduced = nightSignalsCss.match(/@media \(prefers-reduced-motion: reduce\) {([\s\S]*?)}\s*}/)?.[1] ?? nightSignalsCss.match(/@media \(prefers-reduced-motion: reduce\) {([^}]*)}/)?.[1] ?? "";
-    expect(reduced).toMatch(/animation:\s*none\s*!important/);
-    expect(reduced).toMatch(/transition:\s*none\s*!important/);
   });
 
   it("keeps the drink invite in the figcaption lane, not a floating hero badge", () => {
