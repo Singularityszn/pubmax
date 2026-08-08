@@ -51,7 +51,7 @@ const defaultDeps: AvatarDeps = {
   moderation: () => new OpenAIProfileAvatarModerationAdapter(),
 };
 
-/** Test seam — production callers leave this unset. */
+/** Test seam: production callers leave this unset. */
 let testDeps: Partial<AvatarDeps> | null = null;
 
 export function __setProfileAvatarRouteDepsForTest(deps: Partial<AvatarDeps> | null): void {
