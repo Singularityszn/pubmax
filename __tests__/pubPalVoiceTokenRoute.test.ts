@@ -1,14 +1,44 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PAL_VOICE_MAX_SESSION_SECONDS, PAL_VOICE_MONTHLY_MINUTES } from "@/lib/palVoiceMetering";
 
 const voiceState = vi.hoisted(() => ({
   configured: true,
   events: [] as string[],
   rpc: vi.fn(),
   userId: "11111111-1111-4111-8111-111111111111",
+  pal: {
+    id: "pal-1",
+    ownerId: "11111111-1111-4111-8111-111111111111",
+    name: "Ripley",
+    adultAttestedAt: "2026-08-08T00:00:00.000Z",
+    appearance: {
+      species: "fox",
+      signalAffinity: "gin",
+      material: "hologram",
+      accessory: "none",
+    },
+    personality: {
+      playfulness: 62,
+      energy: 54,
+      storytelling: 58,
+      relationship: "sidekick",
+    },
+    voice: { id: "ember", pace: 50, warmth: 64, energy: 52 },
+    muted: false,
+    hidden: false,
+    proposalPreferences: { memories: false, routes: true },
+    masteryPoints: 0,
+    createdAt: "2026-08-08T00:00:00.000Z",
+    updatedAt: "2026-08-08T00:00:00.000Z",
+  },
 }));
 
 vi.mock("@/lib/authServer", () => ({
   callerUserId: async () => voiceState.userId,
+}));
+
+vi.mock("@/lib/pubPalStore", () => ({
+  getPubPal: async () => voiceState.pal,
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -21,7 +51,14 @@ vi.mock("@/lib/supabase", () => ({
 
 import { POST } from "@/app/api/pub-pal/voice-token/route";
 
-const request = () => new Request("http://localhost/api/pub-pal/voice-token", { method: "POST" });
+const issueRequest = () => new Request("http://localhost/api/pub-pal/voice-token", { method: "POST" });
+
+const releaseRequest = (durationSeconds = 0) =>
+  new Request("http://localhost/api/pub-pal/voice-token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "release", durationSeconds }),
+  });
 
 describe("Pub Pal voice token route", () => {
   beforeEach(() => {
@@ -31,12 +68,26 @@ describe("Pub Pal voice token route", () => {
     voiceState.userId = "11111111-1111-4111-8111-111111111111";
     vi.stubEnv("ELEVENLABS_API_KEY", "server-only-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "pub-pal-agent");
+    vi.stubEnv("ELEVENLABS_VOICE_EMBER", "voice-ember-id");
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it("returns 503 when ElevenLabs is not configured", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    const providerFetch = vi.fn();
+    vi.stubGlobal("fetch", providerFetch);
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ fallback: "text" });
+    expect(providerFetch).not.toHaveBeenCalled();
+    expect(voiceState.rpc).not.toHaveBeenCalled();
   });
 
   it("does not allocate a provider session when quota reservation is refused", async () => {
@@ -50,10 +101,10 @@ describe("Pub Pal voice token route", () => {
     });
     vi.stubGlobal("fetch", providerFetch);
 
-    const response = await POST(request());
+    const response = await POST(issueRequest());
 
     expect(response.status).toBe(429);
-    expect(await response.json()).toMatchObject({ remaining: 0, fallback: "text" });
+    expect(await response.json()).toMatchObject({ remaining: 0, remainingMinutes: 0, fallback: "text" });
     expect(providerFetch).not.toHaveBeenCalled();
     expect(voiceState.events).toEqual(["consume_pub_pal_voice_trial"]);
   });
@@ -66,7 +117,7 @@ describe("Pub Pal voice token route", () => {
     const providerFetch = vi.fn();
     vi.stubGlobal("fetch", providerFetch);
 
-    const response = await POST(request());
+    const response = await POST(issueRequest());
 
     expect(response.status).toBe(503);
     expect(providerFetch).not.toHaveBeenCalled();
@@ -83,7 +134,7 @@ describe("Pub Pal voice token route", () => {
       return new Response(null, { status: 503 });
     }));
 
-    const response = await POST(request());
+    const response = await POST(issueRequest());
 
     expect(response.status).toBe(502);
     expect(voiceState.events).toEqual([
@@ -103,13 +154,74 @@ describe("Pub Pal voice token route", () => {
       return Response.json({ signed_url: "wss://voice.example/session" });
     }));
 
-    const response = await POST(request());
+    const response = await POST(issueRequest());
 
     expect(response.status).toBe(200);
     expect(voiceState.events).toEqual([
       "consume_pub_pal_voice_trial",
       "provider_allocation",
     ]);
+  });
+
+  it("returns overrides, session cap, and pal-derived prompt fields", async () => {
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signed_url: "wss://voice.example/session" })));
+
+    const response = await POST(issueRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      signedUrl: "wss://voice.example/session",
+      connectionType: "websocket",
+      maxSessionSeconds: PAL_VOICE_MAX_SESSION_SECONDS,
+      mutationPolicy: "propose_then_confirm",
+      retention: "zero",
+    });
+    expect(body.overrides).toMatchObject({
+      voiceId: "voice-ember-id",
+      firstMessage: expect.stringContaining("Ripley"),
+      systemPrompt: expect.stringMatching(/Getting Home/i),
+    });
+    expect(body.overrides.systemPrompt).toContain("propose a fact");
+    expect(voiceState.rpc).toHaveBeenCalledWith("consume_pub_pal_voice_trial", {
+      p_owner_id: voiceState.userId,
+      p_month: expect.stringMatching(/^\d{4}-\d{2}-01$/),
+      p_limit: PAL_VOICE_MONTHLY_MINUTES,
+    });
+  });
+
+  it("releases a client-failed session without billing minutes", async () => {
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: true, error: null };
+    });
+
+    const response = await POST(releaseRequest(0));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ released: true });
+    expect(voiceState.events).toEqual(["release_pub_pal_voice_trial"]);
+  });
+
+  it("records billed minutes when the client releases after a live session", async () => {
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: true, error: null };
+    });
+
+    const response = await POST(releaseRequest(95));
+
+    expect(response.status).toBe(200);
+    expect(voiceState.events).toEqual([
+      "release_pub_pal_voice_trial",
+      "record_pub_pal_voice_minutes",
+    ]);
+    expect(voiceState.rpc).toHaveBeenCalledWith("record_pub_pal_voice_minutes", {
+      p_owner_id: voiceState.userId,
+      p_month: expect.stringMatching(/^\d{4}-\d{2}-01$/),
+      p_seconds: 95,
+    });
   });
 
   it.each([
@@ -142,7 +254,7 @@ describe("Pub Pal voice token route", () => {
     }));
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const response = await POST(request());
+    const response = await POST(issueRequest());
 
     expect(response.status).toBe(502);
     expect(consoleError).toHaveBeenCalledTimes(1);
@@ -165,10 +277,10 @@ describe("Pub Pal voice token route", () => {
       return Response.json({ signed_url: "wss://voice.example/session" });
     }));
 
-    const response = await POST(request());
+    const response = await POST(issueRequest());
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ remaining: 9 });
+    expect(await response.json()).toMatchObject({ remainingMinutes: PAL_VOICE_MONTHLY_MINUTES });
     expect(voiceState.rpc).not.toHaveBeenCalled();
   });
 
@@ -181,11 +293,11 @@ describe("Pub Pal voice token route", () => {
       .mockResolvedValueOnce(Response.json({ signed_url: "wss://voice.example/session" }));
     vi.stubGlobal("fetch", providerFetch);
 
-    expect((await POST(request())).status).toBe(502);
-    const recovered = await POST(request());
+    expect((await POST(issueRequest())).status).toBe(502);
+    const recovered = await POST(issueRequest());
 
     expect(recovered.status).toBe(200);
-    expect(await recovered.json()).toMatchObject({ remaining: 9 });
+    expect(await recovered.json()).toMatchObject({ remainingMinutes: PAL_VOICE_MONTHLY_MINUTES });
     expect(voiceState.rpc).not.toHaveBeenCalled();
   });
 });
