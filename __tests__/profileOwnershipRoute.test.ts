@@ -19,9 +19,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // before the ownership gate). Mock the seam itself instead: deterministic in
 // every environment, and the 503 guard case flips the same switch explicitly.
 const prodGuard = vi.hoisted(() => ({ requiresSupabase: false }));
+const authState = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return { ...actual, requiresSupabaseStore: () => prodGuard.requiresSupabase };
+});
+vi.mock("@/lib/authServer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authServer")>();
+  return { ...actual, callerUserId: async () => authState.userId };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
@@ -29,6 +34,7 @@ import { DELETE, PATCH } from "@/app/api/profiles/[handle]/route";
 import {
   __resetMemoryProfiles,
   __seedMemoryLegacyProfile,
+  __seedMemoryOwnedProfile,
   memoryProfileStore,
 } from "@/lib/profileStore";
 
@@ -55,6 +61,7 @@ beforeEach(() => {
   // production-store guard open (see the vi.mock above for why NODE_ENV
   // stubbing can't do this). The 503 guard case flips prodGuard itself.
   prodGuard.requiresSupabase = false;
+  authState.userId = null;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryProfiles();
@@ -81,6 +88,26 @@ describe("PATCH /api/profiles/[handle] — ownership gate", () => {
       expect(await memoryProfileStore.getByHandle(handle)).toBeNull();
     },
   );
+
+  it("allows the owner to PATCH a reserved handle they already own", async () => {
+    await __seedMemoryOwnedProfile("karan", "founder-user");
+    authState.userId = "founder-user";
+
+    const res = await patch("karan", { displayName: "Karan" });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.profile.displayName).toBe("Karan");
+  });
+
+  it("REJECTS a different signed-in user claiming a reserved handle", async () => {
+    await __seedMemoryOwnedProfile("karan", "founder-user");
+    authState.userId = "impostor-user";
+
+    const res = await patch("karan", { displayName: "Impostor" });
+
+    expect(res.status).toBe(403);
+  });
 
   it("REJECTS an anonymous edit of a handle LINKED to a user (403, no hijack)", async () => {
     // Pre-claim the handle for a real account.

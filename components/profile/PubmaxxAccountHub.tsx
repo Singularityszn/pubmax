@@ -20,6 +20,7 @@ import {
 import { authedFetch } from "@/lib/authedFetch";
 import { emitIdentityHandleChanged } from "@/lib/identityClient";
 import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
+import SetAccountPassword from "@/components/auth/SetAccountPassword";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
 import type { ReferralPrivateStatus } from "@/lib/referralStore";
 import {
@@ -825,6 +826,7 @@ export default function PubmaxxAccountHub() {
           </div>
         )}
         <PrivateIdentityEditor />
+        <SetAccountPassword />
         <div><h3>Connected accounts</h3><SocialConnectionActions providers={providers} onConnect={(provider) => void connectOAuth(provider)} />{providers.instagram.manual ? <form onSubmit={connectInstagram}><input type="url" value={instagramUrl} onChange={(event) => setInstagramUrl(event.target.value)} placeholder="Personal Instagram URL" required /><button type="submit">Add personal link</button></form> : null}<small>{connections.length} connected</small></div>
         <ReferralInviteCard
           status={referralStatus}

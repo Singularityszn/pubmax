@@ -3,6 +3,8 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { identityHandleStore, validateHandleForStore } from "@/lib/identityHandleStore";
 import { isLimited } from "@/lib/pintDrops";
+import { normalizeHandle } from "@/lib/profiles";
+import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
 
@@ -21,6 +23,19 @@ export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
   try { body = (await request.json()) as Record<string, unknown>; }
   catch { return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400); }
+  const requested = normalizeHandle(
+    typeof body.handle === "string" ? body.handle : "",
+  );
+  if (requested) {
+    const current = await profileStore().getByUserId(ownerId);
+    if (current && normalizeHandle(current.handle) === requested) {
+      return jsonNoStore({
+        profileId: current.id,
+        previousHandle: current.handle,
+        handle: current.handle,
+      });
+    }
+  }
   const assessed = validateHandleForStore(body?.handle);
   if (!assessed.ok) {
     return publicApiError(assessed.error, "INVALID_REQUEST", 400, {

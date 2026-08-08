@@ -1,29 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { displayHandle } from "@/lib/handleDisplay";
 import { computeBadges, type Badge, type Profile, type ProfileDrop, type ProfileStats } from "@/lib/profiles";
 
-// Presentational header for a public profile. Prop-driven and stateless — the
-// page owns all data. Renders an avatar (image or a fallback initial), the
-// display name + @handle, optional home city and bio, earned achievement badges
-// (brass chips), a stats row (pints · cheapest · crawls · memories, plus durable
-// follower/following counts), and an optional actions slot (the page drops the
-// follow button here so the header stays purely presentational).
 type ProfileHeaderProps = {
   profile: Profile;
   stats: ProfileStats;
-  // Crawls are demo/0 for now — the page passes it explicitly so the header
-  // stays purely presentational. Falls back to stats.crawlsPosted, then 0.
   crawls?: number;
-  // Passed-down memories count. Falls back to stats.memoriesPosted.
   memories?: number;
   followers?: number;
   following?: number;
-  // The handle's drops, used to derive badges. Optional so a caller that has no
-  // drops (an error/empty state) still renders a badge-free header cleanly.
   drops?: readonly ProfileDrop[];
   actions?: ReactNode;
 };
@@ -48,28 +37,32 @@ export default function ProfileHeader({
   actions,
 }: ProfileHeaderProps) {
   const { handle, displayName, homeCity, bio, avatarUrl } = profile;
+  const [avatarBroken, setAvatarBroken] = useState(false);
+  const showAvatar = Boolean(avatarUrl) && !avatarBroken;
 
-  // Prefer the explicit crawls prop; fall back to the stat the page computed.
+  useEffect(() => {
+    setAvatarBroken(false);
+  }, [avatarUrl]);
+
   const crawlsPosted =
     typeof crawls === "number" ? crawls : stats.crawlsPosted ?? 0;
   const memoriesPosted =
     typeof memories === "number" ? memories : stats.memoriesPosted ?? 0;
 
-  // Only surface EARNED badges — a public profile shows what you've done, not a
-  // to-do list of locked achievements.
   const earnedBadges: Badge[] = computeBadges(drops, stats).filter((b) => b.earned);
 
   return (
     <header className="profileHeader">
       <div className="profileIdentity">
-        {avatarUrl ? (
+        {showAvatar ? (
           <Image
             className="profileAvatar"
-            src={avatarUrl}
+            src={avatarUrl!}
             alt=""
             width={88}
             height={88}
             unoptimized
+            onError={() => setAvatarBroken(true)}
           />
         ) : (
           <div className="profileAvatar profileAvatarFallback" aria-hidden="true">
@@ -103,8 +96,6 @@ export default function ProfileHeader({
             >
               <span aria-hidden="true" className="profileBadgeDot" />
               <span className="profileBadgeLabel">{badge.label}</span>
-              {/* Description is announced to assistive tech but kept off-screen
-                  so the chip reads clean; sighted users get it via title. */}
               <span className="profileBadgeDesc">{badge.description}</span>
             </li>
           ))}

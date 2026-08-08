@@ -6,7 +6,7 @@ vi.mock("@/lib/authServer", () => ({
 
 import { callerUserId } from "@/lib/authServer";
 import { gateHandleAction } from "@/lib/profileOwnership";
-import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
+import { memoryProfileStore, __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 
 const mockedCaller = vi.mocked(callerUserId);
 
@@ -77,6 +77,19 @@ describe("gateHandleAction", () => {
         error: "That handle is not available.",
       });
       expect((await memoryProfileStore.getByHandle(handle))?.userId).toBeUndefined();
+    },
+  );
+
+  it.each(["karan", "Karan", "KARAN"])(
+    "allows the owner to save reserved handle %s idempotently",
+    async (handle) => {
+      await __seedMemoryOwnedProfile("karan", "founder-user");
+      mockedCaller.mockResolvedValue("founder-user");
+
+      const gate = await gateHandleAction(req({ method: "PATCH" }), handle);
+
+      expect(gate.allowed).toBe(true);
+      if (gate.allowed) expect(gate.callerUserId).toBe("founder-user");
     },
   );
 
