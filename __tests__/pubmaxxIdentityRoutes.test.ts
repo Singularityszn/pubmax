@@ -28,6 +28,7 @@ import { GET as getProfile } from "@/app/api/profiles/[handle]/route";
 import {
   __resetMemoryProfiles,
   __seedMemoryLegacyProfile,
+  __seedMemoryOwnedProfile,
   __tombstoneMemoryProfile,
   memoryProfileStore,
 } from "@/lib/profileStore";
@@ -228,6 +229,22 @@ describe("PUBMAXX handle APIs", () => {
       handle: "ghost_owl",
       available: false,
       reason: "taken",
+    });
+  });
+
+  it("allows an idempotent rename save for an owned reserved contributor handle", async () => {
+    const owned = __seedMemoryOwnedProfile("karan", "founder-user");
+    authState.userId = "founder-user";
+
+    const response = await rename(
+      request("/api/identity/handle/rename", "POST", { handle: "karan" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      profileId: owned.id,
+      previousHandle: "karan",
+      handle: "karan",
     });
   });
 

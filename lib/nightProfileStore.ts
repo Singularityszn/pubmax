@@ -66,6 +66,9 @@ function fromRow(row: Record<string, unknown>): NightProfile {
       budget: row.budget,
       budgetLimitPence: row.budget_limit_pence,
       zeroProof: row.zero_proof,
+      // The durable table has no wetherspoons column yet; planner context still
+      // requires the flag, so legacy rows default to false on read.
+      wetherspoonsPreferred: row.wetherspoons_preferred === true,
       atmosphere: row.atmosphere,
       foodNeeds: row.food_needs,
       accessibility: row.accessibility,
