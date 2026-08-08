@@ -32,6 +32,15 @@ describe("planViewModel", () => {
       "Thursday, sorted · 2 stops · starts 18:30. Open the link and tap I'm in.",
     );
   });
+
+  it("adds a spend band only when every listed stop price is known", () => {
+    expect(shareCopyForPlan(state, { listedStopPricesGbp: [4.5, 5.2] })).toBe(
+      "Thursday, sorted · 2 stops · starts 18:30 · £4.50–£5.20 per person. Open the link and tap I'm in.",
+    );
+    expect(shareCopyForPlan(state, { listedStopPricesGbp: [4.5, null] })).toBe(
+      "Thursday, sorted · 2 stops · starts 18:30. Open the link and tap I'm in.",
+    );
+  });
 });
 
 describe("routeHasChanged", () => {

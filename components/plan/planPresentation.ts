@@ -1,4 +1,7 @@
-import { buildPlanInviteShareText } from "@/lib/shareArtifacts";
+import {
+  buildPlanInviteShareText,
+  planInviteSpendBandFromListedPrices,
+} from "@/lib/shareArtifacts";
 import type { PlanState } from "@/lib/plan";
 
 function startLabel(startTime: string): string {
@@ -20,7 +23,10 @@ export function planViewModel(state: PlanState) {
   };
 }
 
-export function shareCopyForPlan(state: PlanState): string {
+export function shareCopyForPlan(
+  state: PlanState,
+  options?: { listedStopPricesGbp?: readonly (number | null | undefined)[] },
+): string {
   const view = planViewModel(state);
   // An unparseable start time is omitted from the invite (honest data), while
   // the on-page view still shows "Time to be confirmed" via startLabel.
@@ -29,6 +35,9 @@ export function shareCopyForPlan(state: PlanState): string {
     title: view.title,
     stopCount: view.stops.length,
     startClock: Number.isFinite(parsed) ? view.startLabel : null,
+    spendBand: options?.listedStopPricesGbp
+      ? planInviteSpendBandFromListedPrices(options.listedStopPricesGbp)
+      : null,
   });
 }
 

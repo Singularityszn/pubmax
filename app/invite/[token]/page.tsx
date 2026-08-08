@@ -10,6 +10,11 @@ import { reactionStore, rsvpStore } from "@/lib/planInviteRsvpStore";
 import { PLAN_STOP_MAX, type PlanStopDTO } from "@/lib/plan";
 import { planStateResult, resolvePlanIdByInviteToken } from "@/lib/planStore";
 import type { ReactionSummary } from "@/lib/reactions";
+import {
+  formatPlanInviteSpendBand,
+  planInviteSpendBandFromListedPrices,
+  type PlanInviteSpendBand,
+} from "@/lib/shareArtifacts";
 import { formatPrice } from "@/lib/venues";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { planAlcoholOptionalInviteLine } from "@/lib/planAlcoholOptional";
@@ -40,6 +45,7 @@ type InviteStop = {
   venueName: string;
   position: number;
   price: string | null;
+  priceGbp: number | null;
   coordinates: [number, number] | null;
 };
 
@@ -79,6 +85,7 @@ async function loadStops(stops: PlanStopDTO[]): Promise<InviteStop[]> {
       venueName: stop.venueName,
       position: stop.position,
       price: venue && typeof venue.cheapestPrice === "number" ? formatPrice(venue.cheapestPrice) : null,
+      priceGbp: venue && typeof venue.cheapestPrice === "number" ? venue.cheapestPrice : null,
       coordinates: venue ? ([venue.longitude, venue.latitude] as [number, number]) : null,
     };
   });
@@ -108,6 +115,22 @@ async function loadInitialSummaries(
   }
 }
 
+function inviteSpendBand(stops: readonly InviteStop[]): PlanInviteSpendBand | null {
+  return planInviteSpendBandFromListedPrices(stops.map((stop) => stop.priceGbp));
+}
+
+function inviteDescription(
+  startLabel: string,
+  stopCount: number,
+  spendBand: PlanInviteSpendBand | null,
+): string {
+  const stopLabel = `${stopCount} ${stopCount === 1 ? "stop" : "stops"}`;
+  const detail = spendBand
+    ? `${startLabel}. ${stopLabel} · ${formatPlanInviteSpendBand(spendBand)}`
+    : `${startLabel}. ${stopLabel}`;
+  return `${detail} on PUBMAXX.`;
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { token } = await params;
   const lookup = await resolvePlanIdByInviteToken(token);
@@ -131,8 +154,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const hostHandle = state.crew[0]?.name || "Your host";
   const startLabel = formatStartLabel(state.plan.startTime);
   const stopCount = state.stops.length;
+  const stops = await loadStops(state.stops);
+  const spendBand = inviteSpendBand(stops);
   const title = `${state.plan.title} · hosted by ${hostHandle}`;
-  const description = `${startLabel}. ${stopCount} ${stopCount === 1 ? "stop" : "stops"} on PUBMAXX.`;
+  const description = inviteDescription(startLabel, stopCount, spendBand);
 
   // opengraph-image.tsx sits beside this route, so Next auto-attaches it.
   return {
@@ -212,6 +237,7 @@ export default async function PlanInvitePage({ params }: PageProps) {
   const routePoints = stops
     .map((stop) => stop.coordinates)
     .filter((point): point is [number, number] => point !== null);
+  const spendBand = inviteSpendBand(stops);
 
   return (
     <main id="main" className="invite">
@@ -236,6 +262,7 @@ export default async function PlanInvitePage({ params }: PageProps) {
         <p className="invite__eyebrow">Hosted by {hostHandle}</p>
         <h1 className="invite__title">{state.plan.title}</h1>
         <p className="invite__start">{startLabel}</p>
+        {spendBand ? <p className="invite__spend">{formatPlanInviteSpendBand(spendBand)}</p> : null}
         {alcoholOptionalLine ? (
           <p className="invite__softNote">{alcoholOptionalLine}</p>
         ) : null}

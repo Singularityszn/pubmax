@@ -151,6 +151,38 @@ describe("interpretTonightAgentGenerateBody", () => {
     expect(result.stops.map((stop) => stop.priceEvidence)).toEqual([null, null, null]);
   });
 
+  it("adds a spend band to the invite draft only when every stop price is listed", () => {
+    const complete = interpretTonightAgentGenerateBody(
+      true,
+      {
+        stops: [
+          { venueId: "venue-a", venueName: "The A", estimatedPintPricePence: 450, priceEvidence: null },
+          { venueId: "venue-b", venueName: "The B", estimatedPintPricePence: 500, priceEvidence: null },
+          { venueId: "venue-c", venueName: "The C", estimatedPintPricePence: 620, priceEvidence: null },
+        ],
+      },
+      { title: "Quiet in Clapham for 4" },
+    );
+    expect(complete.ok).toBe(true);
+    if (!complete.ok) return;
+    expect(complete.inviteDraft).toContain("£4.50–£6.20 per person");
+
+    const incomplete = interpretTonightAgentGenerateBody(
+      true,
+      {
+        stops: [
+          { venueId: "venue-a", venueName: "The A", estimatedPintPricePence: 450, priceEvidence: null },
+          { venueId: "venue-b", venueName: "The B", estimatedPintPricePence: null, priceEvidence: null },
+          { venueId: "venue-c", venueName: "The C", estimatedPintPricePence: 620, priceEvidence: null },
+        ],
+      },
+      { title: "Quiet in Clapham for 4" },
+    );
+    expect(incomplete.ok).toBe(true);
+    if (!incomplete.ok) return;
+    expect(incomplete.inviteDraft).not.toContain("per person");
+  });
+
   it("treats an unrecognised 200 shape as an error, never a scarcity verdict", () => {
     for (const body of [
       { stops: [{ venueId: "venue-a", venueName: "Only one", estimatedPintPricePence: null, priceEvidence: null }] },

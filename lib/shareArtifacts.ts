@@ -48,18 +48,49 @@ function countNoun(count: number, noun: string): string {
 
 // ── Plan invite ──────────────────────────────────────────────────────────────
 
+export type PlanInviteSpendBand = {
+  minGbp: number;
+  maxGbp: number;
+};
+
+/** Listed stop prices in GBP. Returns null unless every stop carries a price. */
+export function planInviteSpendBandFromListedPrices(
+  pricesGbp: readonly (number | null | undefined)[],
+): PlanInviteSpendBand | null {
+  if (pricesGbp.length === 0) return null;
+  const resolved: number[] = [];
+  for (const price of pricesGbp) {
+    if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) return null;
+    resolved.push(price);
+  }
+  return { minGbp: Math.min(...resolved), maxGbp: Math.max(...resolved) };
+}
+
+/** "£4.50–£6.00 per person", collapsing when min and max match. */
+export function formatPlanInviteSpendBand(band: PlanInviteSpendBand): string {
+  const label = (value: number) => `£${value.toFixed(2)}`;
+  const range =
+    band.minGbp === band.maxGbp
+      ? label(band.minGbp)
+      : `${label(band.minGbp)}–${label(band.maxGbp)}`;
+  return `${range} per person`;
+}
+
 export type PlanInviteShareInput = {
   title: string;
   stopCount: number;
   // Pre-formatted London wall clock ("19:00") from planPresentation's
   // startLabel — null when the start time didn't parse (never guessed here).
   startClock?: string | null;
+  // Min–max of listed stop prices only. Omitted when any stop price is missing.
+  spendBand?: PlanInviteSpendBand | null;
 };
 
 export function buildPlanInviteShareText(input: PlanInviteShareInput): string {
-  const { title, stopCount, startClock } = input;
+  const { title, stopCount, startClock, spendBand } = input;
   const parts = [title, countNoun(stopCount, "stop")];
   if (startClock) parts.push(`starts ${startClock}`);
+  if (spendBand) parts.push(formatPlanInviteSpendBand(spendBand));
   return `${parts.join(" · ")}. Open the link and tap I'm in.`;
 }
 
