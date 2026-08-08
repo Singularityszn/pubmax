@@ -13,6 +13,9 @@
 // House-voice, deterministic connective copy only. No model narration runs here
 // (the server `narrated` seam stays OFF until a key is funded); the client never
 // requests it, so every message below is written in house, not generated.
+//
+// In-thread turns may be resent to `/api/ask` for refinement (ADR 0014). Durable
+// Pal memory stays confirm-gated (ADR 0006) and is never written from chat.
 
 // Which grounded source a card came from. `directory` = our own first-party
 // venue index (deterministic rank); `whats-on` = a verified What's-On row that

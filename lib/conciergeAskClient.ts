@@ -1,19 +1,15 @@
-// F3 concierge-as-map-home — pure client logic for asking the grounded
-// concierge from the map. Extracted from components/map/MapConciergeAsk.tsx so
-// the race guard, timeout, and error-curation are unit-testable in a node
-// environment (no React). The component stays a thin presentation layer.
-//
-// Guarantees:
-// - Latest-ask-wins: a session's stale response resolves to null so it can
-//   never overwrite a newer answer.
-// - Honest timeout: a hung request is aborted after `timeoutMs` and surfaces
-//   the curated error copy rather than spinning forever.
-// - No raw JS error text ever reaches the UI: only the route's own explicit
-//   `body.error` (or our curated copy) is user-facing; network TypeErrors,
-//   JSON SyntaxErrors, and AbortErrors all collapse to the curated fallback.
+// F3 / ADR 0014 — client session for Night OS Ask on the map.
+// Latest-wins, timeout, curated errors. Hits POST /api/ask.
 
-// A normalised, map-linkable answer card — from either concierge response shape
-// (venue ranking or a What's-On listing). `venueId` empty means "not tappable".
+import {
+  ASK_PLAN_DRAFT_STORAGE_KEY,
+  type AskCard as AskApiCard,
+  type AskPlanDraft,
+  type AskProposal,
+  type AskResponseBody,
+  type AskTurn,
+} from "@/lib/ask/types";
+
 export type AskCard = {
   key: string;
   venueId: string;
@@ -24,74 +20,104 @@ export type AskCard = {
 };
 
 export type AskResult =
-  | { status: "answered"; message: string; cards: AskCard[] }
+  | {
+      status: "answered";
+      message: string;
+      cards: AskCard[];
+      proposals: AskProposal[];
+      responseStatus: "ready" | "degraded";
+    }
   | { status: "error"; message: string };
 
 export const ASK_FALLBACK_MESSAGE = "Couldn't answer that. Try again.";
 
-// A hung request must end "Asking…" honestly rather than spin forever.
-export const ASK_TIMEOUT_MS = 10_000;
+export const ASK_TIMEOUT_MS = 12_000;
 
 type AskOptions = {
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
 };
 
-/**
- * Create an ask session with latest-wins ordering. Each call to the returned
- * function supersedes the previous: a superseded (stale) ask resolves to null,
- * which callers must treat as "do nothing". Never throws — every failure path
- * resolves to an error AskResult with curated copy.
- */
-export function createAskSession(options: AskOptions = {}) {
-  const timeoutMs = options.timeoutMs ?? ASK_TIMEOUT_MS;
-  const fetchImpl = options.fetchImpl ?? fetch;
-  let currentId = 0;
+function str(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
 
-  return async function ask(query: string, cityId: string): Promise<AskResult | null> {
-    const requestId = ++currentId;
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      let response: Response;
-      let body: Record<string, unknown> | null;
-      try {
-        response = await fetchImpl("/api/concierge", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ query, cityId, limit: 4 }),
-          signal: controller.signal,
-        });
-        // A non-JSON body throws here and falls through to curated copy.
-        const parsed: unknown = await response.json();
-        body =
-          parsed && typeof parsed === "object" && !Array.isArray(parsed)
-            ? (parsed as Record<string, unknown>)
-            : null;
-      } finally {
-        clearTimeout(timeoutId);
-      }
-      if (requestId !== currentId) return null; // superseded by a newer ask
-      if (!response.ok) {
-        // Only the route's own explicit error copy is user-facing.
-        return {
-          status: "error",
-          message: typeof body?.error === "string" ? body.error : ASK_FALLBACK_MESSAGE,
-        };
-      }
-      return answerFromBody(body);
-    } catch {
-      if (requestId !== currentId) return null;
-      return { status: "error", message: ASK_FALLBACK_MESSAGE };
+function num(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function asCards(raw: unknown): AskCard[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item, index) => {
+    const record =
+      item && typeof item === "object" && !Array.isArray(item)
+        ? (item as Record<string, unknown>)
+        : {};
+    return {
+      key: str(record.key) || `c-${index}`,
+      venueId: str(record.venueId),
+      title: str(record.title) || "Result",
+      place: str(record.place),
+      note: str(record.note),
+      price: num(record.price),
+    };
+  });
+}
+
+function asProposals(raw: unknown): AskProposal[] {
+  if (!Array.isArray(raw)) return [];
+  const out: AskProposal[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const record = item as Record<string, unknown>;
+    const id = str(record.id);
+    const label = str(record.label) || "Confirm";
+    if (record.kind === "open_venue" && str(record.venueId)) {
+      out.push({
+        id: id || `open:${record.venueId}`,
+        kind: "open_venue",
+        label,
+        venueId: str(record.venueId),
+      });
+      continue;
     }
-  };
+    if (
+      record.kind === "draft_plan" &&
+      Array.isArray(record.stopIds) &&
+      typeof record.query === "string"
+    ) {
+      out.push({
+        id: id || "draft_plan",
+        kind: "draft_plan",
+        label,
+        query: str(record.query),
+        stopIds: record.stopIds.filter((v): v is string => typeof v === "string"),
+        stopNames: Array.isArray(record.stopNames)
+          ? record.stopNames.filter((v): v is string => typeof v === "string")
+          : [],
+      });
+      continue;
+    }
+    if (
+      record.kind === "fly_to" &&
+      typeof record.lat === "number" &&
+      typeof record.lng === "number"
+    ) {
+      out.push({
+        id: id || `fly:${record.lat},${record.lng}`,
+        kind: "fly_to",
+        label,
+        lat: record.lat,
+        lng: record.lng,
+        ...(typeof record.place === "string" ? { place: record.place } : {}),
+      });
+    }
+  }
+  return out;
 }
 
 /**
- * Normalise either concierge response shape into map-linkable cards. Both paths
- * stay grounded: venue ranking returns real venues with reasons; the What's-On
- * path returns verified listings with provenance. We never fabricate a message —
- * the route always supplies its own honest copy (including refusals).
+ * Normalise `/api/ask` (and legacy `/api/concierge`) bodies into map cards.
  */
 export function answerFromBody(body: unknown): AskResult {
   const record =
@@ -99,7 +125,18 @@ export function answerFromBody(body: unknown): AskResult {
       ? (body as Record<string, unknown>)
       : {};
 
-  // What's-On answer (grounded listings). Carries its own honest message.
+  // New Ask agent shape (ADR 0014).
+  if (typeof record.answer === "string") {
+    return {
+      status: "answered",
+      message: record.answer,
+      cards: asCards(record.cards),
+      proposals: asProposals(record.proposals),
+      responseStatus: record.status === "degraded" ? "degraded" : "ready",
+    };
+  }
+
+  // Legacy What's-On answer.
   if (record.mode === "whats-on") {
     const listings = Array.isArray(record.listings) ? record.listings : [];
     const cards: AskCard[] = listings.map((raw, index) => {
@@ -117,10 +154,12 @@ export function answerFromBody(body: unknown): AskResult {
       status: "answered",
       message: str(record.message) || "Here's what I found.",
       cards,
+      proposals: [],
+      responseStatus: "ready",
     };
   }
 
-  // Venue-ranking answer. `message` is only present on the degraded/empty path.
+  // Legacy venue-ranking answer.
   const venues = Array.isArray(record.venues) ? record.venues : [];
   const cards: AskCard[] = venues.map((raw, index) => {
     const item = (raw ?? {}) as Record<string, unknown>;
@@ -143,13 +182,78 @@ export function answerFromBody(body: unknown): AskResult {
       ? `${cards.length} grounded ${cards.length === 1 ? "pick" : "picks"}. Tap to see it on the map.`
       : "No grounded matches for that. Try a nearby area or a broader mood.");
 
-  return { status: "answered", message, cards };
+  return {
+    status: "answered",
+    message,
+    cards,
+    proposals: [],
+    responseStatus: "ready",
+  };
 }
 
-function str(value: unknown): string {
-  return typeof value === "string" ? value : "";
+export function writeAskPlanDraft(draft: AskPlanDraft): void {
+  try {
+    sessionStorage.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+  } catch {
+    /* private mode */
+  }
 }
 
-function num(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+export function createAskSession(options: AskOptions = {}) {
+  const timeoutMs = options.timeoutMs ?? ASK_TIMEOUT_MS;
+  const fetchImpl = options.fetchImpl ?? fetch;
+  let currentId = 0;
+  const turns: AskTurn[] = [];
+
+  return async function ask(
+    query: string,
+    cityId: string,
+  ): Promise<AskResult | null> {
+    const requestId = ++currentId;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      let response: Response;
+      let body: Record<string, unknown> | null;
+      try {
+        response = await fetchImpl("/api/ask", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            query,
+            cityId,
+            turns: turns.slice(-6),
+          }),
+          signal: controller.signal,
+        });
+        const parsed: unknown = await response.json();
+        body =
+          parsed && typeof parsed === "object" && !Array.isArray(parsed)
+            ? (parsed as Record<string, unknown>)
+            : null;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      if (requestId !== currentId) return null;
+      if (!response.ok) {
+        return {
+          status: "error",
+          message:
+            typeof body?.error === "string" ? body.error : ASK_FALLBACK_MESSAGE,
+        };
+      }
+      const result = answerFromBody(body);
+      if (result.status === "answered") {
+        turns.push({ role: "user", content: query });
+        turns.push({ role: "assistant", content: result.message });
+        while (turns.length > 6) turns.shift();
+      }
+      return result;
+    } catch {
+      if (requestId !== currentId) return null;
+      return { status: "error", message: ASK_FALLBACK_MESSAGE };
+    }
+  };
 }
+
+export type { AskApiCard, AskProposal, AskResponseBody, AskTurn };

@@ -1,27 +1,20 @@
 "use client";
 
-// Pub Pal chat surface (/pal/chat) — a chat SKIN over the EXISTING grounded
-// concierge engine. The user asks in natural language; the engine parses intent
-// deterministically and ranks over OUR rows (or looks up a verified What's-On
-// row); the answer cards ARE the facts, each keeping its provenance label.
-//
-// No new backend and no paid-model additions: this composes the existing
-// /api/concierge route (durably rate-limited, fails closed on paid spend), which
-// keeps its grounded / honest-refusal behaviour. No model narration is
-// requested (the paid seam stays OFF); no web-search grounding is called (that
-// seam is a stub, OFF — see lib/palChat PAL_WEB_GROUNDING). This component is
-// pure presentation over the pure ask session in lib/palChatClient.
-//
-// Multi-turn memory is OUT: the visible transcript is ephemeral session display
-// only. Every ask forwards ONLY the current query, so the engine has no
-// conversational memory, and nothing is persisted.
+// Pub Pal chat surface (/pal/chat) — a chat SKIN over Night OS Ask (`/api/ask`,
+// ADR 0014). The user asks in natural language; the tool registry answers from
+// listed pubs, What's On, CityMCP, heritage, and prices. Cards keep provenance.
+// Proposals need an explicit Confirm (ADR 0006). In-thread turns may refine an
+// ask; durable Pal memory stays confirm-gated elsewhere. Web grounding stays
+// OFF (lib/palChat PAL_WEB_GROUNDING).
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
+import type { AskProposal } from "@/lib/ask/types";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
 import { rankNearMe } from "@/lib/nearMeAnswer";
 import { CENTRAL_PATCH, readRememberedArea, resolveNightPatch } from "@/lib/nightPatches";
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
@@ -45,7 +38,13 @@ import "./palChat.css";
 
 type Entry =
   | { kind: "user"; id: string; text: string }
-  | { kind: "answer"; id: string; answer: PalAnswer; locality: PalLocality | null }
+  | {
+      kind: "answer";
+      id: string;
+      answer: PalAnswer;
+      locality: PalLocality | null;
+      proposals: AskProposal[];
+    }
   | { kind: "error"; id: string; message: string };
 
 function VenueLink({
@@ -210,13 +209,57 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
       // Ground WHERE this answer applies from the query and remembered area,
       // only when the handoff is on. Off = no locality copy, byte-identical.
       const locality = palHandoff ? resolvePalLocality(text, readRememberedArea()) : null;
+      const proposals =
+        result.status === "answered" || result.status === "empty"
+          ? result.proposals ?? []
+          : [];
       setEntries((prev) => [
         ...prev,
-        { kind: "answer", id: nextId(), answer: result, locality },
+        { kind: "answer", id: nextId(), answer: result, locality, proposals },
       ]);
     },
     [nextId, pending, palHandoff],
   );
+
+  const confirmProposal = useCallback((proposal: AskProposal) => {
+    trackEvent("concierge_result_tap");
+    if (proposal.kind === "open_venue") {
+      window.location.assign(
+        `/map?sel=${encodeURIComponent(proposal.venueId)}`,
+      );
+      return;
+    }
+    if (proposal.kind === "fly_to") {
+      const params = new URLSearchParams({
+        lat: String(proposal.lat),
+        lng: String(proposal.lng),
+      });
+      if (proposal.place) params.set("place", proposal.place);
+      window.location.assign(`/map?${params.toString()}`);
+      return;
+    }
+    if (proposal.kind === "draft_plan") {
+      writeAskPlanDraft({
+        query: proposal.query,
+        stopIds: proposal.stopIds,
+        stopNames: proposal.stopNames,
+        createdAt: new Date().toISOString(),
+      });
+      window.location.assign("/plan");
+    }
+  }, []);
+
+  const dismissProposal = useCallback((entryId: string, proposalId: string) => {
+    setEntries((prev) =>
+      prev.map((entry) => {
+        if (entry.kind !== "answer" || entry.id !== entryId) return entry;
+        return {
+          ...entry,
+          proposals: entry.proposals.filter((p) => p.id !== proposalId),
+        };
+      }),
+    );
+  }, []);
 
   const onSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -343,7 +386,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                 </div>
               );
             }
-            const { answer, locality } = entry;
+            const { answer, locality, proposals } = entry;
             return (
               <div key={entry.id} className="palChatRow palChatRow--pal">
                 <p
@@ -357,6 +400,28 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                   <p className="palChatLocality" role="note">
                     {palLocalityLine(locality)}
                   </p>
+                ) : null}
+                {proposals.length > 0 ? (
+                  <ul className="palChatProposals" aria-label="Confirm an action">
+                    {proposals.map((proposal) => (
+                      <li key={proposal.id} className="palChatProposal">
+                        <button
+                          type="button"
+                          className="palChatProposalConfirm pressable"
+                          onClick={() => confirmProposal(proposal)}
+                        >
+                          {proposal.label}
+                        </button>
+                        <button
+                          type="button"
+                          className="palChatProposalDismiss pressable"
+                          onClick={() => dismissProposal(entry.id, proposal.id)}
+                        >
+                          Dismiss
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 ) : null}
                 {answer.cards.length > 0 ? (
                   <ul className="palChatCards">
