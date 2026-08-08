@@ -127,3 +127,15 @@ describe("Night OS Ask fences", () => {
     expect(PAL_WEB_GROUNDING).toBe(false);
   });
 });
+
+describe("modelProseIsGrounded (anti-fabrication gate)", () => {
+  it("discards model prose carrying a price the tools never returned", async () => {
+    const { modelProseIsGrounded } = await import("@/lib/ask/runAsk");
+    const hints = ["The Landor pours at £5.90, logged this week."];
+    const cards = [{ title: "The Landor", subtitle: "Pub in Clapham" }] as never[];
+    expect(modelProseIsGrounded("A pint there is £5.90.", hints, cards)).toBe(true);
+    expect(modelProseIsGrounded("A pint there is £4.20, a steal.", hints, cards)).toBe(false);
+    expect(modelProseIsGrounded("Open until 23:00 tonight.", hints, cards)).toBe(false);
+    expect(modelProseIsGrounded("Worth the walk from the station.", hints, cards)).toBe(true);
+  });
+});

@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { runAsk } from "@/lib/ask/runAsk";
 import { isLimited } from "@/lib/pintDrops";
@@ -20,7 +21,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = await request.json();
   } catch {
-    return jsonNoStore({ error: "Malformed JSON." }, { status: 400 });
+    return publicApiError("Malformed JSON.", "MALFORMED_REQUEST", 400);
   }
 
   const record =
@@ -33,7 +34,7 @@ export async function POST(request: Request): Promise<Response> {
       ? record.query.trim().slice(0, MAX_QUERY_LENGTH)
       : "";
   if (!query) {
-    return jsonNoStore({ error: "Ask a question." }, { status: 400 });
+    return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
   }
 
   const limiterKey = `ask:${hashIp(clientIp(request))}`;
@@ -42,7 +43,7 @@ export async function POST(request: Request): Promise<Response> {
       failClosed: true,
     })
   ) {
-    return jsonNoStore({ error: "Too many asks, slow down." }, { status: 429 });
+    return publicApiError("Too many asks, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   // Paid-spend guard: without Supabase the durable limiter is only per-instance.

@@ -86,13 +86,41 @@ function mergeToolResults(results: AskToolResult[]): {
   };
 }
 
+/**
+ * Every £ figure and every clock-time claim in the model's prose must appear
+ * verbatim in the grounded evidence (tool hints + cards). Model prose that
+ * carries a figure the tools never returned is DISCARDED, never trimmed - the
+ * anti-goals law is fail closed to grounded answers, and a single invented
+ * price on this surface would spend the whole product's trust argument.
+ */
+export function modelProseIsGrounded(
+  prose: string,
+  hints: string[],
+  cards: AskCard[],
+): boolean {
+  const evidence = [
+    ...hints,
+    ...cards.flatMap((card) => Object.values(card).map(String)),
+  ]
+    .join(" ")
+    .toLowerCase();
+  const claims = [
+    ...prose.matchAll(/£\s?\d+(?:\.\d{1,2})?/g),
+    ...prose.matchAll(/\b\d{1,2}:\d{2}\s?(?:am|pm)?\b/gi),
+  ].map((m) => m[0].replace(/\s/g, "").toLowerCase());
+  return claims.every((claim) => evidence.replace(/\s/g, "").includes(claim));
+}
+
 function composeAnswer(
   modelAnswer: string | null,
   hints: string[],
   cards: AskCard[],
 ): string {
-  if (modelAnswer && modelAnswer.trim()) {
-    // Strip common model flourishes that invent certainty without cards.
+  if (
+    modelAnswer &&
+    modelAnswer.trim() &&
+    modelProseIsGrounded(modelAnswer, hints, cards)
+  ) {
     return modelAnswer.trim().slice(0, 1200);
   }
   if (hints.length > 0) return hints.join(" ");
