@@ -95,11 +95,31 @@
   color: var(--brass);
 }
 
+.beaconCrewBlock {
+  margin-top: var(--space-2);
+}
+
 .beaconCrewLine {
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--brass);
+  margin: 0;
+}
+
+.beaconPlanCta {
   margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+}
+
+.beaconPlanCtaLink {
+  color: var(--ink-soft);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.beaconPlanCtaLink:hover {
+  color: var(--brass);
 }
 
 /* Friends-only "who's out tonight" board (You profile). */
