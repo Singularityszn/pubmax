@@ -59,6 +59,21 @@ type ModeratorVisitReport = {
   moderatorNote?: string;
 };
 
+// Moderator owned-avatar row as returned by GET /api/admin/profile-avatars
+// ?status=reported|hidden. Reporter actor hashes never ride along.
+type ModeratorProfileAvatar = {
+  handle: string;
+  profileId: string;
+  generation: string;
+  moderationState: string;
+  reportCount: number;
+  reportedAt?: string;
+  reportReason?: string;
+  moderatedAt?: string;
+  moderatorNote?: string;
+  previewUrl?: string;
+};
+
 type AdminTab = "moderation" | "import" | "operators";
 
 // Operator rail (Wayfinder 3.5) review DTOs, as returned by the moderator GETs.
@@ -135,6 +150,8 @@ export default function AdminClient() {
   const [comments, setComments] = useState<ModeratorComment[]>([]);
   const [visitReports, setVisitReports] = useState<ModeratorVisitReport[]>([]);
   const [hiddenVisitReports, setHiddenVisitReports] = useState<ModeratorVisitReport[]>([]);
+  const [reportedAvatars, setReportedAvatars] = useState<ModeratorProfileAvatar[]>([]);
+  const [hiddenAvatars, setHiddenAvatars] = useState<ModeratorProfileAvatar[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -288,6 +305,27 @@ export default function AdminClient() {
         setVisitReports([]);
         setHiddenVisitReports([]);
       }
+      // Load both owned-avatar lanes in the same pass: reported queue and
+      // already-hidden rows (a hide has to stay reversible from here).
+      try {
+        const [aRes, ahRes] = await Promise.all([
+          fetch("/api/admin/profile-avatars?status=reported", SESSION_FETCH),
+          fetch("/api/admin/profile-avatars?status=hidden", SESSION_FETCH),
+        ]);
+        setReportedAvatars(
+          aRes.ok
+            ? ((await aRes.json()) as { avatars: ModeratorProfileAvatar[] }).avatars ?? []
+            : [],
+        );
+        setHiddenAvatars(
+          ahRes.ok
+            ? ((await ahRes.json()) as { avatars: ModeratorProfileAvatar[] }).avatars ?? []
+            : [],
+        );
+      } catch {
+        setReportedAvatars([]);
+        setHiddenAvatars([]);
+      }
       if ((body.drops ?? []).length === 0) setMessage("No reported drops in the queue.");
     } catch {
       setDrops([]);
@@ -358,6 +396,54 @@ export default function AdminClient() {
             : lane === "hidden"
               ? "Visit report restored."
               : "Visit report kept visible.",
+        );
+      } catch {
+        setMessage("Could not reach the server.");
+      } finally {
+        setPendingId(null);
+      }
+    },
+    [],
+  );
+
+  // Same two-lane shape for owned profile avatars: hide lands in the hidden
+  // lane so it can go straight back; keep-visible / restore leave the queues.
+  const decideProfileAvatar = useCallback(
+    async (
+      avatar: ModeratorProfileAvatar,
+      action: "restore" | "hide",
+      lane: "reported" | "hidden",
+    ) => {
+      setPendingId(avatar.profileId);
+      setMessage(null);
+      try {
+        const res = await fetch("/api/admin/profile-avatars", {
+          ...SESSION_FETCH,
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action, handle: avatar.handle }),
+        });
+        if (res.status === 403) {
+          setMessage("Not authorised. Check the admin token.");
+          return;
+        }
+        if (!res.ok) {
+          setMessage("Action failed. Try again.");
+          return;
+        }
+        setReportedAvatars((current) => current.filter((a) => a.handle !== avatar.handle));
+        setHiddenAvatars((current) => {
+          const without = current.filter((a) => a.handle !== avatar.handle);
+          return action === "hide"
+            ? [{ ...avatar, moderationState: "hidden" }, ...without]
+            : without;
+        });
+        setMessage(
+          action === "hide"
+            ? "Profile picture hidden."
+            : lane === "hidden"
+              ? "Profile picture restored."
+              : "Profile picture kept visible.",
         );
       } catch {
         setMessage("Could not reach the server.");
@@ -913,6 +999,113 @@ export default function AdminClient() {
                       disabled={pendingId === v.id}
                     >
                       {pendingId === v.id ? "Working…" : "Restore"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {/* ── Profile picture report queue (Social Launch WP4) ─────────────── */}
+          <h2 className="admin-section">Reported profile pictures</h2>
+          <p className="admin-sub">
+            Check reported profile pictures. Keep the good visible, hide the rest.
+            A report never hides a face on its own.
+          </p>
+          {reportedAvatars.length === 0 ? (
+            <div className="admin-empty">
+              <strong>No reported profile pictures</strong>
+              <span>Faces appear here after a reader reports one.</span>
+            </div>
+          ) : (
+            <div className="admin-list">
+              {reportedAvatars.map((a) => (
+                <article className="admin-card" key={a.profileId}>
+                  <div className="admin-card-head">
+                    <span className="admin-handle">{a.handle}</span>
+                    {a.reportedAt ? (
+                      <span className="admin-report">
+                        Reported: {new Date(a.reportedAt).toLocaleString()}
+                      </span>
+                    ) : null}
+                  </div>
+                  {a.previewUrl ? (
+                    <div className="admin-photos">
+                      <Image
+                        className="admin-photo"
+                        src={a.previewUrl}
+                        alt={`Profile picture for ${a.handle}`}
+                        width={96}
+                        height={96}
+                        unoptimized
+                      />
+                    </div>
+                  ) : null}
+                  <div className="admin-meta">
+                    {a.reportReason ? (
+                      <span className="admin-report">Reason: {a.reportReason}</span>
+                    ) : null}
+                    <span className="admin-report">Reports: {a.reportCount || 1}</span>
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-restore"
+                      onClick={() => decideProfileAvatar(a, "restore", "reported")}
+                      disabled={pendingId === a.profileId}
+                    >
+                      {pendingId === a.profileId ? "Working…" : "Keep visible"}
+                    </button>
+                    <button
+                      className="admin-btn admin-keep"
+                      onClick={() => decideProfileAvatar(a, "hide", "reported")}
+                      disabled={pendingId === a.profileId}
+                    >
+                      {pendingId === a.profileId ? "Working…" : "Hide"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <h2 className="admin-section">Hidden profile pictures</h2>
+          <p className="admin-sub">
+            Profile pictures a moderator has hidden. Hiding never deletes one, so
+            any of these can go back on the profile.
+          </p>
+          {hiddenAvatars.length === 0 ? (
+            <div className="admin-empty">
+              <strong>No hidden profile pictures</strong>
+              <span>Faces you hide from the queue above appear here.</span>
+            </div>
+          ) : (
+            <div className="admin-list">
+              {hiddenAvatars.map((a) => (
+                <article className="admin-card" key={a.profileId}>
+                  <div className="admin-card-head">
+                    <span className="admin-handle">{a.handle}</span>
+                    {a.moderatedAt ? (
+                      <span className="admin-report">
+                        Hidden: {new Date(a.moderatedAt).toLocaleString()}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="admin-meta">
+                    {a.reportReason ? (
+                      <span className="admin-report">Reason: {a.reportReason}</span>
+                    ) : null}
+                    <span className="admin-report">Reports: {a.reportCount || 0}</span>
+                    {a.moderatorNote ? (
+                      <span className="admin-report">Note: {a.moderatorNote}</span>
+                    ) : null}
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-restore"
+                      onClick={() => decideProfileAvatar(a, "restore", "hidden")}
+                      disabled={pendingId === a.profileId}
+                    >
+                      {pendingId === a.profileId ? "Working…" : "Restore"}
                     </button>
                   </div>
                 </article>

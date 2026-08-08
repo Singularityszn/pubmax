@@ -144,6 +144,23 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/moderation queue/i);
   });
 
+  it("discloses OpenAI moderation and report/hide retention for profile pictures", () => {
+    for (const page of [privacy, terms]) {
+      expect(page).toMatch(/profile picture/i);
+      expect(page).toMatch(/OpenAI/);
+      expect(page).toMatch(/omni moderation/i);
+      expect(page).toMatch(/report/i);
+      expect(page).toMatch(/hide/i);
+    }
+    expect(privacy).toMatch(/profile pictures go to OpenAI/i);
+    expect(privacy).toMatch(/does not hide the picture on\s+its own/i);
+    expect(privacy).toMatch(/Hiding stops public delivery/i);
+    expect(privacy).toMatch(/never deletes the stored file/i);
+    expect(privacy).toMatch(/Removing\s+the picture yourself[^]*removes the stored\s+file/i);
+    expect(terms).toMatch(/Profile pictures use the same OpenAI omni\s+moderation/i);
+    expect(terms).toMatch(/hiding never deletes\s+the stored file/i);
+  });
+
   it("discloses Social interactions, private saves, governance, and held derivatives", () => {
     expect(privacy).toMatch(/Cheers, comments, private saves, reposts and quote posts/i);
     expect(privacy).toMatch(/comments and quote-post text[^]*OpenAI[^]*held/i);

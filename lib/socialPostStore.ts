@@ -60,6 +60,13 @@ export type SocialPostModerationResult = {
   terminalErrors: number;
 };
 
+/** Operator view of the moderation job queue (Social Launch WP4 alert lane). */
+export type SocialPostModerationBacklog = {
+  pending: number;
+  strandedTerminal: number;
+  oldestPendingAgeMs: number | null;
+};
+
 export type SocialPostWriteMedia = {
   mediaId: string;
   objectKey: string;
@@ -122,6 +129,11 @@ export type SocialPostStore = {
     limit?: number,
   ): Promise<SocialPostModerationResult>;
   requeueTerminalModeration(limit?: number): Promise<number>;
+  /**
+   * Count pending and stranded-terminal moderation jobs for the operator alert
+   * lane. A growing backlog or exhausted retries must never read as silence.
+   */
+  inspectModerationBacklog(nowMs?: number): Promise<SocialPostModerationBacklog>;
   applyFeatureRequestUpdate(
     id: string,
     status: "planned" | "shipped" | "declined",
@@ -601,6 +613,29 @@ export function createMemorySocialPostStore(options: {
       }
       return requeued;
     },
+    async inspectModerationBacklog(nowMs) {
+      const current = typeof nowMs === "number" ? nowMs : now().getTime();
+      let pending = 0;
+      let strandedTerminal = 0;
+      let oldestCreatedAt: number | null = null;
+      for (const job of jobs.values()) {
+        const post = rows.get(job.postId);
+        if (!post || post.status !== "visible" || post.moderationState !== "pending") continue;
+        pending += 1;
+        if (job.nextAttemptAt === Number.POSITIVE_INFINITY) strandedTerminal += 1;
+        const created = Date.parse(post.createdAt);
+        if (Number.isFinite(created)) {
+          oldestCreatedAt =
+            oldestCreatedAt == null ? created : Math.min(oldestCreatedAt, created);
+        }
+      }
+      return {
+        pending,
+        strandedTerminal,
+        oldestPendingAgeMs:
+          oldestCreatedAt == null ? null : Math.max(0, current - oldestCreatedAt),
+      };
+    },
   };
 }
 
@@ -919,6 +954,43 @@ export const supabaseSocialPostStore: SocialPostStore = {
       if (error) throw error;
       return Number(data ?? 0);
     }, () => memorySocialPostStore.requeueTerminalModeration(limit), true);
+  },
+  async inspectModerationBacklog(nowMs) {
+    return durableOrMemory(async () => {
+      const current = typeof nowMs === "number" ? nowMs : Date.now();
+      const { data, error } = await requireSupabaseAdmin()
+        .from("social_post_moderation_jobs")
+        .select("state, created_at, social_posts!inner(moderation_state, status, created_at)")
+        .in("state", ["pending", "processing", "error"]);
+      if (error) throw error;
+      let pending = 0;
+      let strandedTerminal = 0;
+      let oldestCreatedAt: number | null = null;
+      for (const raw of data ?? []) {
+        const row = raw as {
+          state?: string;
+          created_at?: string;
+          social_posts?:
+            | { moderation_state?: string; status?: string; created_at?: string }
+            | Array<{ moderation_state?: string; status?: string; created_at?: string }>;
+        };
+        const post = Array.isArray(row.social_posts) ? row.social_posts[0] : row.social_posts;
+        if (!post || post.status !== "visible" || post.moderation_state !== "pending") continue;
+        pending += 1;
+        if (row.state === "error") strandedTerminal += 1;
+        const created = Date.parse(post.created_at ?? row.created_at ?? "");
+        if (Number.isFinite(created)) {
+          oldestCreatedAt =
+            oldestCreatedAt == null ? created : Math.min(oldestCreatedAt, created);
+        }
+      }
+      return {
+        pending,
+        strandedTerminal,
+        oldestPendingAgeMs:
+          oldestCreatedAt == null ? null : Math.max(0, current - oldestCreatedAt),
+      };
+    }, () => memorySocialPostStore.inspectModerationBacklog(nowMs), false);
   },
 };
 

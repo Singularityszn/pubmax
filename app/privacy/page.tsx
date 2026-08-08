@@ -150,8 +150,20 @@ export default function PrivacyPage() {
           verification badge.
         </p>
         <p className="legalBody">
-          Your public profile may also contain a display name, avatar, home
-          city and short bio. If you connect an external social profile (X,
+          Your public profile may also contain a display name, home city and
+          short bio. A profile picture is an optional upload you choose: we
+          store the normalised JPEG under our own private storage (not a
+          hotlinked URL), strip embedded metadata before it is saved, and send
+          a short-lived signed copy to OpenAI for omni moderation before the
+          picture is publicly addressable. If that check is unavailable or
+          returns no usable decision, we refuse the upload and keep your
+          previous picture (or none). Readers may report a profile picture; a
+          report joins a private review queue and does not hide the picture on
+          its own. A named staff member must hide or restore it, and that
+          decision keeps a private audit record. Hiding stops public delivery
+          and never deletes the stored file or the report provenance. Removing
+          the picture yourself, or deleting your account, removes the stored
+          file from our storage. If you connect an external social profile (X,
           Instagram, TikTok) we store the account details you connected and any
           provider tokens encrypted at rest.
         </p>
@@ -603,8 +615,11 @@ export default function PrivacyPage() {
               Social post text goes to OpenAI for omni moderation after the
               post enters our moderation queue. It stays held until OpenAI
               returns a decision. We don&rsquo;t send the Social account ID,
-              handle, area or venue with that text. Normalised Social photos go
-              to OpenAI through short-lived signed links for the same moderation decision.
+              handle, area or venue with that text. Normalised Social photos and
+              profile pictures go to OpenAI through short-lived signed links for
+              the same moderation decision. A profile picture is scanned before
+              it is publicly addressable; a Social post stays held until a
+              usable decision returns.
             </dd>
           </div>
           <div className="legalRow">
