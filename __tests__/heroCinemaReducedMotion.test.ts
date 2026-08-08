@@ -36,7 +36,6 @@ describe("hero scroll cinema reduced-motion and phone gate", () => {
 
     // The progress-driven transform, opacity and border-radius rules all
     // live inside the gate - none of them may leak outside it.
-    expect(gatedBlock).toMatch(/--cinema-progress:\s*0;/);
     expect(gatedBlock).toMatch(/\.thamesHeroPhoto\s*\{/);
     expect(gatedBlock).toMatch(/border-radius:\s*calc\(32px \* var\(--cinema-progress\)\)/);
     expect(gatedBlock).toMatch(/transform:\s*scale\(calc\(1\.06 - 0\.06 \* var\(--cinema-progress\)\)\)/);
@@ -45,6 +44,26 @@ describe("hero scroll cinema reduced-motion and phone gate", () => {
     // (only the safe :root default at the top of the file may).
     const outsideGate = heroCinemaCss.replace(gate?.[0] ?? "", "");
     expect(outsideGate).not.toMatch(/border-radius:\s*calc\(32px \* var\(--cinema-progress\)\)/);
+  });
+
+  it("never forces the dark start frame from CSS: no-JS keeps the composed hero", () => {
+    // The dark progress-0 open is JS-owned. A CSS `--cinema-progress: 0`
+    // would leave a no-JS (or pre-hydration) wide viewport 55% ink-washed
+    // forever, so the stylesheet may only ever declare the settled default.
+    expect(heroCinemaCss).not.toMatch(/--cinema-progress:\s*0/);
+  });
+
+  it("scrubbed properties carry no transition while being scrubbed", () => {
+    // Scroll is the clock during a scrub: the effect flags .lpHero with
+    // data-cinema-scrub before every scroll-driven write, and the CSS zeroes
+    // the settle transitions under that flag so the card tracks the wheel
+    // 1:1 (motionDuration.cinemaSettle is documented as not for the scrubbed
+    // transform).
+    expect(heroCinemaCss).toMatch(
+      /\.lpHero\[data-cinema-scrub\][\s\S]*?\{\s*transition:\s*none;\s*\}/,
+    );
+    expect(landingTsx).toMatch(/hero\.setAttribute\("data-cinema-scrub", ""\);/);
+    expect(landingTsx).toMatch(/hero\.removeAttribute\("data-cinema-scrub"\);/);
   });
 
   it("JS scroll listener eligibility mirrors the CSS media query exactly", () => {

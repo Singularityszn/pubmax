@@ -280,6 +280,7 @@
        pressed-ink utility below and are shared by both themes. */
   --shadow: 0 18px 45px rgba(60, 30, 20, 0.11), 0 8px 18px rgba(255, 90, 95, 0.07);
   --shadow-sm: 0 7px 18px rgba(60, 30, 20, 0.09);
+  --shadow-float: var(--shadow); /* chrome floating over the map (arc chips, arrival banner); follows the theme.css dark --shadow override */
   --shadow-inset-press: inset 0 1px 2px rgba(22, 18, 42, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.55);
 
   /* — Motion: durations + easings, all consumed behind prefers-reduced-motion

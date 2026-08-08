@@ -14,19 +14,31 @@
    Reduced motion and phones (<=700px) get none of this: the whole block is
    gated behind the same compound media query the mount effect checks, so
    .thamesHeroPhoto renders with its plain landing.css treatment there -
-   the static composed hero required by the hard gate. */
+   the static composed hero required by the hard gate.
+
+   Progress defaults to 1 (the composed, settled hero) EVERYWHERE, including
+   wide viewports: without JS the reader must see the same finished hero
+   reduced-motion gets, never the dark progress-0 start frame. Only the mount
+   effect ever moves progress off 1 - its first write (0 at the top of the
+   page) rides the cinema-settle transition below as an authored open, a
+   state change rather than a scrub.
+
+   Scrubbing and transitions are mutually exclusive: while the effect is
+   scroll-scrubbing it sets data-cinema-scrub on .lpHero, which zeroes every
+   transition on the scrubbed properties so the card tracks the wheel 1:1
+   (motionDuration.cinemaSettle is documented as NOT for the scrubbed
+   transform - see lib/motionVocabulary.ts). The transitions only ever play
+   on state-driven jumps: the mount open above and an eligibility flip
+   (reduced-motion toggle / viewport crossing 701px) restoring the settled
+   card. */
 
 :root {
-  --cinema-progress: 1; /* safe default: settled, normal card (no-JS, mobile, reduced-motion) */
+  --cinema-progress: 1; /* safe default: settled, composed card (no-JS, mobile, reduced-motion) */
   --duration-cinema-settle: 480ms; /* mirrors motionDuration.cinemaSettle in lib/motionVocabulary.ts */
   --ease-cinema-weighted: cubic-bezier(0.22, 1, 0.36, 1); /* mirrors motionEase.weighted in lib/motionVocabulary.ts */
 }
 
 @media (min-width: 701px) and (prefers-reduced-motion: no-preference) {
-  :root {
-    --cinema-progress: 0; /* wide + motion allowed: open full-bleed and dark; JS advances this toward 1 on scroll */
-  }
-
   .lpHeroMap::before {
     opacity: var(--cinema-progress);
     transition: opacity var(--duration-cinema-settle) var(--ease-cinema-weighted);
@@ -54,5 +66,13 @@
     opacity: calc(0.55 * (1 - var(--cinema-progress)));
     transition: opacity var(--duration-cinema-settle) var(--ease-cinema-weighted);
     pointer-events: none;
+  }
+
+  /* Scroll is the clock while scrubbing: any duration here would make the
+     card answer this wheel event half a second from now. */
+  .lpHero[data-cinema-scrub] .lpHeroMap::before,
+  .lpHero[data-cinema-scrub] .thamesHeroPhoto,
+  .lpHero[data-cinema-scrub] .thamesHeroPhoto::after {
+    transition: none;
   }
 }

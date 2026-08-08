@@ -169,10 +169,15 @@ export default function LandingPage({
   // aperture splash). Drives --cinema-progress on .lpHero from scroll
   // position, 0 to 1 over CINEMA_SCROLL_DISTANCE px. Eligibility (viewport
   // width, prefers-reduced-motion) mirrors the compound media query in
-  // heroCinema.css exactly, so the CSS default and this effect's first
-  // computed value always agree - no flash on mount. Reduced motion and
-  // phones (<=700px) never attach the listener; the card stays the plain,
-  // static, settled treatment heroCinema.css falls back to.
+  // heroCinema.css exactly. The CSS default is the settled, composed card
+  // (progress 1) so no-JS and pre-JS readers get the finished hero; this
+  // effect's first write at the top of the page (progress 0) is therefore a
+  // deliberate state change that plays heroCinema.css's cinema-settle
+  // transition as the open. Scroll-driven writes then set data-cinema-scrub
+  // first, which turns those transitions off so the card tracks the wheel
+  // 1:1. Reduced motion and phones (<=700px) never attach the listener; the
+  // card stays the plain, static, settled treatment heroCinema.css falls
+  // back to.
   const heroRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const hero = heroRef.current;
@@ -190,6 +195,9 @@ export default function LandingPage({
     };
     const onScroll = () => {
       if (frame) return;
+      if (!hero.hasAttribute("data-cinema-scrub")) {
+        hero.setAttribute("data-cinema-scrub", "");
+      }
       frame = requestAnimationFrame(applyProgress);
     };
     const evaluate = () => {
@@ -202,6 +210,7 @@ export default function LandingPage({
         listening = false;
         window.removeEventListener("scroll", onScroll);
         if (frame) cancelAnimationFrame(frame);
+        hero.removeAttribute("data-cinema-scrub");
         hero.style.removeProperty("--cinema-progress");
       }
     };
