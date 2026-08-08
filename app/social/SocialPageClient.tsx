@@ -419,7 +419,7 @@ export default function SocialPageClient({
       setFeedStatus("loading");
       setLoadingMore(false);
     });
-    fetch(feedHref, {
+    authedFetch(feedHref, {
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
@@ -455,7 +455,7 @@ export default function SocialPageClient({
 
     const controller = new AbortController();
     void Promise.resolve().then(() => setActivityStatus("loading"));
-    fetch("/api/social/interactions?view=notifications&limit=5", {
+    authedFetch("/api/social/interactions?view=notifications&limit=5", {
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
@@ -489,7 +489,7 @@ export default function SocialPageClient({
     moreController.current = controller;
     setLoadingMore(true);
     try {
-      const response = await fetch(href, {
+      const response = await authedFetch(href, {
         cache: "no-store",
         credentials: "same-origin",
         signal: controller.signal,

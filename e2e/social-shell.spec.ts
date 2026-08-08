@@ -19,6 +19,7 @@ const post = (id: string, body: string, createdAt: string) => ({
   editedAt: null,
   createdAt,
   updatedAt: createdAt,
+  ownedByViewer: false,
   author: { handle: "night_owl" },
 });
 
@@ -45,7 +46,15 @@ async function mockAccess(
     await route.fulfill({
       status,
       contentType: "application/json",
-      body: JSON.stringify({ state }),
+      body: JSON.stringify(
+        state === "verified"
+          ? {
+              state,
+              viewerHandle: "night_owl",
+              draftScope: "abcdefghijklmnopqrstuvwxyz0123456789abcdef",
+            }
+          : { state },
+      ),
     });
   });
 }
@@ -186,6 +195,10 @@ test("verified lanes stay chronological, wait for Nearby area, paginate explicit
   await expect(
     page.locator(".socialPostBody").allTextContents(),
   ).resolves.toEqual(["Newest first", "Older second"]);
+  await page.screenshot({
+    path: "/tmp/social-wp1-verified-feed-390.png",
+    fullPage: true,
+  });
 
   await page.getByRole("button", { name: "Load more" }).click();
   await expect(page.locator(".socialPostCard")).toHaveCount(3);
