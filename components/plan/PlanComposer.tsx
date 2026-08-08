@@ -1020,7 +1020,7 @@ function PlanComposerForm({
   }
 
   return (
-    <form className="planComposer" onSubmit={submit} noValidate>
+    <form id="plan-composer" className="planComposer" onSubmit={submit} noValidate>
       {handoff && <AcceptedContextPanel handoff={handoff} />}
       {!planIntake.completed && entryMode === "describe" ? (
         <PlanDescribeFirst

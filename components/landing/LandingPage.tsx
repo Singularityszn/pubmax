@@ -51,6 +51,10 @@ function trackLandingCta(target: LandingCtaTarget) {
   trackEvent("landing_cta_clicked", { target });
 }
 
+function trackLandingCta(target: LandingCtaTarget) {
+  trackEvent("landing_cta_clicked", { target });
+}
+
 const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
   ssr: false,
   loading: PintDropStripLoading,

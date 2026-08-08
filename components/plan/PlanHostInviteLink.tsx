@@ -36,6 +36,7 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
   const isHost = Boolean(memberToken && role === "host");
 
   const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteLoad, setInviteLoad] = useState<"idle" | "loading" | "ready" | "missing">("idle");
   const [status, setStatus] = useState("");
   const [rotating, setRotating] = useState(false);
 
@@ -45,22 +46,60 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
   }, [memberToken, planId]);
 
   useEffect(() => {
-    if (!memberToken) return;
+    if (!memberToken) {
+      setInviteLoad("idle");
+      return;
+    }
     let active = true;
+    setInviteLoad("loading");
     fetch(`/api/plans/${planId}`, { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((body: { inviteToken?: string | null } | null) => {
-        if (active && typeof body?.inviteToken === "string" && body.inviteToken) {
+        if (!active) return;
+        if (typeof body?.inviteToken === "string" && body.inviteToken) {
           setInviteToken(body.inviteToken);
+          setInviteLoad("ready");
+          return;
         }
+        setInviteLoad("missing");
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (active) setInviteLoad("missing");
+      });
     return () => {
       active = false;
     };
   }, [memberToken, planId]);
 
-  if (!inviteToken) return null;
+  if (!memberToken) {
+    return (
+      <div className="planHostInviteLink" aria-busy="true">
+        <p className="planHostInviteLink__status" role="status">
+          Restoring your invite tools…
+        </p>
+      </div>
+    );
+  }
+
+  if (inviteLoad === "loading" || inviteLoad === "idle") {
+    return (
+      <div className="planHostInviteLink" aria-busy="true">
+        <p className="planHostInviteLink__status" role="status">
+          Fetching your invite link…
+        </p>
+      </div>
+    );
+  }
+
+  if (!inviteToken || inviteLoad === "missing") {
+    return (
+      <div className="planHostInviteLink">
+        <p className="planHostInviteLink__status" role="status">
+          Invite link not ready yet. Try refreshing in a moment.
+        </p>
+      </div>
+    );
+  }
 
   async function copyLink() {
     const url = `${window.location.origin}/invite/${inviteToken}`;

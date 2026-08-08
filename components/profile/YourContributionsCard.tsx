@@ -7,6 +7,7 @@ import {
   streakLabel,
   type ContributionSummary,
 } from "@/lib/pintContributions";
+import { nightsKeptLabel, readNightsKept } from "@/lib/nightsKept";
 
 import "./yourContributionsCard.css";
 
@@ -46,6 +47,15 @@ function ContributorRecordLink() {
 
 export default function YourContributionsCard({ handle, claimNudge = false }: Props) {
   const [state, setState] = useState<State>({ kind: "loading" });
+  const [nightsLabel, setNightsLabel] = useState("");
+
+  useEffect(() => {
+    try {
+      setNightsLabel(nightsKeptLabel(readNightsKept(window.localStorage)));
+    } catch {
+      setNightsLabel("");
+    }
+  }, []);
 
   useEffect(() => {
     if (!handle) return;
@@ -96,6 +106,8 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
   return (
     <section className="contribCard" aria-labelledby="contrib-title">
       <p className="contribKicker" id="contrib-title">Your contributions</p>
+
+      {nightsLabel ? <p className="contribNightsKept">{nightsLabel}</p> : null}
 
       {!hasContributed ? (
         <p className="contribEmpty">

@@ -51,10 +51,10 @@ export type FirstDropCopy = {
 // cluster of unpriced outer pubs. Selection is deterministic per venue (below)
 // so the same pub always speaks the same way — no reshuffling on re-render.
 const FIRST_DROP_VARIANTS: readonly FirstDropCopy[] = [
-  { line: "No pint price logged here yet. Be the first.", cta: "Log the first drop" },
-  { line: "£?.??. Nobody's logged this one. Claim the first drop.", cta: "Claim it" },
-  { line: "No pint on record here. First drop's yours for the taking.", cta: "Log the first drop" },
-  { line: "Prices here: none. Someone's got to log the first.", cta: "Be the first" },
+  { line: "No pint price logged here yet. Be the first.", cta: "Log tonight's price" },
+  { line: "Nobody has logged a pint here. Yours can mark the pin.", cta: "Log tonight's price" },
+  { line: "No pint on record here. A dated log starts the trust path.", cta: "Log tonight's price" },
+  { line: "Prices here: none. Log one so mates can corroborate it.", cta: "Log tonight's price" },
 ];
 
 /** Stable non-negative hash of a venue id — deterministic variant selection. */
