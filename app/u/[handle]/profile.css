@@ -865,6 +865,73 @@
   line-height: 1.4;
 }
 
+.profilePage .profileEditorAvatarField {
+  gap: 10px;
+}
+
+.profilePage .profileEditorAvatarLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.profilePage .profileEditorAvatarRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.profilePage .profileEditorAvatarPreview {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--line);
+}
+
+.profilePage .profileEditorAvatarFallback {
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--brass) 18%, var(--panel));
+  color: var(--ink);
+}
+
+.profilePage .profileEditorAvatarActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.profilePage .profileEditorAvatarFile {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.profilePage .profileEditorAvatarUpload,
+.profilePage .profileEditorAvatarRemove {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.profilePage .profileEditorAvatarRemove {
+  border-color: color-mix(in srgb, var(--brick) 40%, var(--line));
+  color: var(--brick);
+}
+
 .profilePage .profileEditorActions {
   display: flex;
   flex-wrap: wrap;

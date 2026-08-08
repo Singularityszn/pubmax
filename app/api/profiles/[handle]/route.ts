@@ -28,7 +28,7 @@ import {
   isSupabaseConfigured,
   requiresSupabaseStore,
 } from "@/lib/supabase";
-import { cleanText, isHttpUrl } from "@/lib/textClean";
+import { cleanText } from "@/lib/textClean";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -79,23 +79,8 @@ function toPublicProfile(
 const MAX_DISPLAY_NAME = 60;
 const MAX_BIO = 280;
 const MAX_HOME_CITY = 60;
-const MAX_AVATAR_URL = 400;
 
-// An avatar must be an http(s) URL within the cap, or empty (which clears it).
-// Anything else — javascript:, data:, a bare string, an over-long URL — is
-// rejected rather than stored, so the header's <Image src> only ever gets a
-// real remote image URL. Empty is a *valid* clear (ok:true, url:""); junk is a
-// rejection (ok:false) the caller turns into a 400 — so this keeps its own
-// discriminated result and delegates only the URL check to the shared isHttpUrl.
-function cleanAvatarUrl(value: unknown): { ok: true; url: string } | { ok: false } {
-  if (value == null || value === "") return { ok: true, url: "" };
-  if (typeof value !== "string") return { ok: false };
-  if (value.trim() === "") return { ok: true, url: "" };
-  const url = isHttpUrl(value, MAX_AVATAR_URL);
-  return url ? { ok: true, url } : { ok: false };
-}
-
-// Build a ProfilePatch from an untrusted body. Only keys the caller actually
+// Build a ProfilePatch from an untrusted body.
 // sent are included, so an edit form that omits a field never clears it. Empty
 // strings are meaningful: they clear an optional field (stored as null).
 function buildPatch(
@@ -116,11 +101,10 @@ function buildPatch(
     patch.homeCity = city || null;
   }
   if ("avatarUrl" in body) {
-    const avatar = cleanAvatarUrl(body.avatarUrl);
-    if (!avatar.ok) {
-      return { ok: false, error: "Avatar must be an http(s) image URL (or left blank)." };
-    }
-    patch.avatarUrl = avatar.url || null;
+    return {
+      ok: false,
+      error: "Use the photo upload on your profile to change your avatar.",
+    };
   }
 
   return { ok: true, patch };

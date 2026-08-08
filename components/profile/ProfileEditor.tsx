@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
+import { useRef, useState } from "react";
 
 import { getAccessToken } from "@/lib/authClient";
 import type { ProfileRecord } from "@/lib/profileStore";
@@ -11,29 +12,17 @@ import type { ProfileRecord } from "@/lib/profileStore";
 // editable fields to /api/profiles/[handle], mirrors the SERVER's caps for
 // instant feedback (the server is still the trust boundary — see the route),
 // and reports the saved row back up so the page can update the header
-// optimistically. React 19: every setState here runs in an event handler.
-//
-// OWNERSHIP NOTE: for an UNLINKED handle, identity is still the self-asserted
-// handle (localStorage `pubmax_handle`) and anyone may edit — the demo stance.
-// But once a handle is LINKED to a signed-in account (first authenticated edit
-// stamps profiles.user_id), the server requires the caller's Supabase JWT to
-// match the owner (auth.uid() -> profiles.user_id). This form attaches that
-// token when signed in (getAccessToken); the server is the trust boundary and
-// returns 403 to a non-owner. See app/api/profiles/[handle]/route.ts + 0009.
+// optimistically. Avatar changes use POST/DELETE /api/profiles/[handle]/avatar.
 
-// Caps mirror the server (app/api/profiles/[handle]/route.ts). Kept here purely
-// for UX (live counters, an early avatar hint) — never as the source of truth.
 const MAX_DISPLAY_NAME = 60;
 const MAX_BIO = 280;
 const MAX_HOME_CITY = 60;
-const MAX_AVATAR_URL = 400;
 
 type SaveState = "idle" | "saving" | "saved" | "error";
+type AvatarState = "idle" | "uploading" | "removing" | "error";
 
 type ProfileEditorProps = {
   handle: string;
-  // The currently-displayed values, so the form opens pre-filled with whatever
-  // the visitor sees (durable row overlaid on the synthesized identity).
   initial: {
     displayName?: string;
     bio?: string;
@@ -44,74 +33,125 @@ type ProfileEditorProps = {
   onClose: () => void;
 };
 
-// Client-side avatar hint — must be an http(s) URL within the cap, or blank.
-// Blank is allowed (it clears the avatar). Not a security boundary; the server
-// re-validates and is authoritative.
-function avatarHint(value: string): string | null {
-  const trimmed = value.trim();
-  if (trimmed === "") return null;
-  if (trimmed.length > MAX_AVATAR_URL) return "That URL is too long.";
-  try {
-    const url = new URL(trimmed);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return "Use an http(s) image URL.";
-    }
-  } catch {
-    return "That doesn't look like a URL.";
+function initialOf(name: string, handle: string): string {
+  const source = name.trim() || handle.trim();
+  return (source.charAt(0) || "?").toUpperCase();
+}
+
+function parseApiError(body: unknown, fallback: string): string {
+  if (
+    body &&
+    typeof body === "object" &&
+    typeof (body as { error?: unknown }).error === "string"
+  ) {
+    return (body as { error: string }).error;
   }
-  return null;
+  return fallback;
 }
 
 export default function ProfileEditor({ handle, initial, onSaved, onClose }: ProfileEditorProps) {
   const [displayName, setDisplayName] = useState(initial.displayName ?? "");
   const [bio, setBio] = useState(initial.bio ?? "");
   const [homeCity, setHomeCity] = useState(initial.homeCity ?? "");
-  const [avatarUrl, setAvatarUrl] = useState(initial.avatarUrl ?? "");
+  const [avatarPreview, setAvatarPreview] = useState(initial.avatarUrl ?? "");
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarState, setAvatarState] = useState<AvatarState>("idle");
   const [state, setState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const localAvatarHint = avatarHint(avatarUrl);
+  const avatarBusy = avatarState === "uploading" || avatarState === "removing";
+  const formBusy = state === "saving" || avatarBusy;
+
+  async function authHeaders(json = false): Promise<Record<string, string>> {
+    const token = await getAccessToken();
+    const headers: Record<string, string> = {};
+    if (json) headers["content-type"] = "application/json";
+    if (token) headers.authorization = `Bearer ${token}`;
+    return headers;
+  }
+
+  async function uploadAvatar(file: File) {
+    setAvatarState("uploading");
+    setAvatarError(null);
+    try {
+      const form = new FormData();
+      form.append("photo", file);
+      const res = await fetch(`/api/profiles/${encodeURIComponent(handle)}/avatar`, {
+        method: "POST",
+        headers: await authHeaders(),
+        body: form,
+      });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        setAvatarState("error");
+        setAvatarError(parseApiError(body, "Could not upload that photo. Try again."));
+        return;
+      }
+      const profile =
+        body && typeof body === "object"
+          ? (body as { profile?: ProfileRecord | null }).profile
+          : null;
+      if (profile) {
+        onSaved(profile);
+        setAvatarPreview(profile.avatarUrl ?? "");
+      }
+      setAvatarState("idle");
+    } catch {
+      setAvatarState("error");
+      setAvatarError("Network error. Try again.");
+    }
+  }
+
+  async function removeAvatar() {
+    setAvatarState("removing");
+    setAvatarError(null);
+    try {
+      const res = await fetch(`/api/profiles/${encodeURIComponent(handle)}/avatar`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        setAvatarState("error");
+        setAvatarError(parseApiError(body, "Could not remove that photo. Try again."));
+        return;
+      }
+      const profile =
+        body && typeof body === "object"
+          ? (body as { profile?: ProfileRecord | null }).profile
+          : null;
+      if (profile) {
+        onSaved(profile);
+        setAvatarPreview("");
+      } else {
+        setAvatarPreview("");
+      }
+      setAvatarState("idle");
+    } catch {
+      setAvatarState("error");
+      setAvatarError("Network error. Try again.");
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (state === "saving") return;
-
-    // Cheap client-side gate so an obviously-bad avatar never round-trips.
-    if (localAvatarHint) {
-      setState("error");
-      setError(localAvatarHint);
-      return;
-    }
+    if (formBusy) return;
 
     setState("saving");
     setError(null);
 
     try {
-      // Attach the Supabase access token when signed in, so the server can
-      // verify ownership (a linked handle is owner-only). When signed out this
-      // is null and the request is anonymous — still valid for an unlinked
-      // (demo) handle. See lib/authServer.ts + the route's ownership gate.
-      const token = await getAccessToken();
-      const headers: Record<string, string> = { "content-type": "application/json" };
-      if (token) headers.authorization = `Bearer ${token}`;
-
       const res = await fetch(`/api/profiles/${encodeURIComponent(handle)}`, {
         method: "PATCH",
-        headers,
-        // Send all four fields (an empty string clears a field server-side).
-        body: JSON.stringify({ displayName, bio, homeCity, avatarUrl }),
+        headers: await authHeaders(true),
+        body: JSON.stringify({ displayName, bio, homeCity }),
       });
       const body: unknown = await res.json().catch(() => null);
 
       if (!res.ok) {
-        const message =
-          body &&
-          typeof body === "object" &&
-          typeof (body as { error?: unknown }).error === "string"
-            ? (body as { error: string }).error
-            : "Couldn't save. Try again.";
         setState("error");
-        setError(message);
+        setError(parseApiError(body, "Couldn't save. Try again."));
         return;
       }
 
@@ -127,6 +167,68 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
 
   return (
     <form className="profileEditor" onSubmit={handleSubmit} aria-label="Edit your profile">
+      <div className="profileEditorField profileEditorAvatarField">
+        <span className="profileEditorAvatarLabel" id="pe-avatar-label">
+          Profile photo
+        </span>
+        <div className="profileEditorAvatarRow">
+          {avatarPreview ? (
+            <Image
+              className="profileEditorAvatarPreview"
+              src={avatarPreview}
+              alt=""
+              width={72}
+              height={72}
+              unoptimized
+            />
+          ) : (
+            <div className="profileEditorAvatarPreview profileEditorAvatarFallback" aria-hidden="true">
+              {initialOf(displayName, handle)}
+            </div>
+          )}
+          <div className="profileEditorAvatarActions">
+            <input
+              ref={fileInputRef}
+              id="pe-avatar-file"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              className="profileEditorAvatarFile"
+              disabled={formBusy}
+              aria-labelledby="pe-avatar-label"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void uploadAvatar(file);
+              }}
+            />
+            <button
+              type="button"
+              className="profileEditorAvatarUpload"
+              disabled={formBusy}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {avatarState === "uploading" ? "Uploading…" : "Choose photo"}
+            </button>
+            {avatarPreview ? (
+              <button
+                type="button"
+                className="profileEditorAvatarRemove"
+                disabled={formBusy}
+                onClick={() => void removeAvatar()}
+              >
+                {avatarState === "removing" ? "Removing…" : "Remove photo"}
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {avatarError ? (
+          <span className="profileEditorHint profileEditorStatusErr" role="status">
+            {avatarError}
+          </span>
+        ) : null}
+      </div>
+
       <div className="profileEditorField">
         <label htmlFor="pe-displayName">Display name</label>
         <input
@@ -135,6 +237,7 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
           value={displayName}
           maxLength={MAX_DISPLAY_NAME}
           autoComplete="off"
+          disabled={formBusy}
           onChange={(e) => setDisplayName(e.target.value)}
         />
         <span className="profileEditorCount" aria-hidden="true">
@@ -149,6 +252,7 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
           rows={3}
           value={bio}
           maxLength={MAX_BIO}
+          disabled={formBusy}
           onChange={(e) => setBio(e.target.value)}
         />
         <span className="profileEditorCount" aria-hidden="true">
@@ -164,6 +268,7 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
           value={homeCity}
           maxLength={MAX_HOME_CITY}
           autoComplete="off"
+          disabled={formBusy}
           onChange={(e) => setHomeCity(e.target.value)}
         />
         <span className="profileEditorCount" aria-hidden="true">
@@ -171,36 +276,15 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
         </span>
       </div>
 
-      <div className="profileEditorField">
-        <label htmlFor="pe-avatarUrl">Avatar image URL</label>
-        <input
-          id="pe-avatarUrl"
-          type="url"
-          inputMode="url"
-          placeholder="https://…"
-          value={avatarUrl}
-          maxLength={MAX_AVATAR_URL}
-          autoComplete="off"
-          aria-invalid={localAvatarHint ? true : undefined}
-          aria-describedby={localAvatarHint ? "pe-avatarHint" : undefined}
-          onChange={(e) => setAvatarUrl(e.target.value)}
-        />
-        {localAvatarHint ? (
-          <span className="profileEditorHint" id="pe-avatarHint">
-            {localAvatarHint}
-          </span>
-        ) : null}
-      </div>
-
       <div className="profileEditorActions">
-        <button type="submit" className="profileEditorSave" disabled={state === "saving"}>
+        <button type="submit" className="profileEditorSave" disabled={formBusy}>
           {state === "saving" ? "Saving…" : "Save profile"}
         </button>
         <button
           type="button"
           className="profileEditorCancel"
           onClick={onClose}
-          disabled={state === "saving"}
+          disabled={formBusy}
         >
           Cancel
         </button>
