@@ -931,6 +931,19 @@ export function __seedMemoryLegacyProfile(handle: string): ProfileRecord {
   return record;
 }
 
+/** Test-only: model a production-linked row, including reserved contributor handles. */
+export function __seedMemoryOwnedProfile(handle: string, userId: string): ProfileRecord {
+  const record = __seedMemoryLegacyProfile(handle);
+  const key = normalizeHandle(handle);
+  const owned: ProfileRecord = {
+    ...record,
+    userId,
+    updatedAt: new Date().toISOString(),
+  };
+  memoryProfiles.set(key, owned);
+  return owned;
+}
+
 /**
  * Test-only: model auth.users deletion.
  * Trigger stamps tombstoned_at; FK then clears user_id. Row and handle stay

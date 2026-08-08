@@ -20,6 +20,7 @@
 
 import { callerUserId } from "@/lib/authServer";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
+import { normalizeHandle } from "@/lib/profiles";
 import { profileStore } from "@/lib/profileStore";
 
 export type OwnershipDecision =
@@ -81,21 +82,12 @@ export async function gateHandleAction(
   request: Request,
   handle: string,
 ): Promise<HandleActionGate> {
-  const key = typeof handle === "string" ? handle.trim() : "";
+  const key = normalizeHandle(handle);
   if (!key) {
     return {
       allowed: false,
       status: 400,
       error: "Add a handle.",
-    };
-  }
-
-  const assessment = assessPubmaxxHandle(key);
-  if (!assessment.ok && assessment.reason === "reserved") {
-    return {
-      allowed: false,
-      status: 409,
-      error: assessment.error,
     };
   }
 
@@ -108,6 +100,22 @@ export async function gateHandleAction(
     // existing unowned row.
     const existing = await store.getByHandle(key);
     const rowUserId = existing?.userId ?? null;
+    const callerOwnsHandle = Boolean(
+      caller && rowUserId && caller === rowUserId,
+    );
+    // Reserved contributor handles stay blocked for new claims and hijacks, but
+    // a signed-in owner saving their own current handle must succeed idempotently.
+    // A linked handle taken by someone else is a 403, not a reserved 409.
+    if (!callerOwnsHandle && !rowUserId) {
+      const assessment = assessPubmaxxHandle(key);
+      if (!assessment.ok && assessment.reason === "reserved") {
+        return {
+          allowed: false,
+          status: 409,
+          error: assessment.error,
+        };
+      }
+    }
     const linkNewHandle = handleActionIntent(request.method) === "write";
     if (
       existing &&
