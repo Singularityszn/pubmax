@@ -86,6 +86,17 @@ describe("Clerk publishable key decoding", () => {
     }
   });
 
+  it("mounts ClerkProvider only when a real publishable key is configured", () => {
+    // Without this gate, @clerk/nextjs keyless mode can embed an sk_test_*
+    // secretKey into RSC/HTML on routes that never asked for Clerk.
+    const layout = readFileSync(join(process.cwd(), "app/layout.tsx"), "utf8");
+    expect(layout).toContain("isClerkConfigured()");
+    expect(layout).toMatch(
+      /\{isClerkConfigured\(\)\s*\?\s*\(\s*<ClerkProvider[\s\S]*?<\/ClerkProvider>\s*\)\s*:\s*\(/,
+    );
+    expect(layout).toContain('import {\n  isClerkConfigured,\n  isClerkMiddlewareConfigured,\n}');
+  });
+
   it("decodes with atob when Buffer is absent (browser path)", () => {
     // The client gate calls clerkFrontendApiOrigin during render. A Buffer-only
     // decode returns null in the browser and hides every Clerk control.

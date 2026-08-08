@@ -231,15 +231,16 @@ function AccountHandleEditor({
     };
   }, [auth]);
 
-  async function claim(event: FormEvent) {
+  async function rename(event: FormEvent) {
     event.preventDefault();
+    // First claim is AccountOnboarding only (handle + date of birth together).
+    // A handle-only claim here left accounts stuck on onboarding_required.
+    if (!currentHandle) return;
     setMessage("");
     try {
       const response = await accountBoundFetch(
         auth,
-        currentHandle
-          ? "/api/identity/handle/rename"
-          : "/api/identity/handle/claim",
+        "/api/identity/handle/rename",
         {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -259,18 +260,28 @@ function AccountHandleEditor({
         localStorage.setItem("pubmax_handle", body.handle);
       } catch {}
       emitIdentityHandleChanged({ ownerId: auth.userId, handle: body.handle });
-      if (!currentHandle) {
-        trackEvent("account_claimed", { source: "you" });
-      }
       router.push(`/u/${encodeURIComponent(body.handle)}`);
     } catch {
       if (active.current) setMessage("That handle could not be saved.");
     }
   }
 
+  if (!currentHandle) {
+    return (
+      <div>
+        <h3>Claim your @handle</h3>
+        <p>
+          Finish the setup dialog that asks for your public handle and date of
+          birth. Claiming a handle alone is not enough to contribute.
+        </p>
+        {message ? <small role="status">{message}</small> : null}
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={claim}>
-      <h3>{currentHandle ? "Your @handle" : "Claim your @handle"}</h3>
+    <form onSubmit={rename}>
+      <h3>Your @handle</h3>
       <input
         value={handle}
         onChange={(event) => setHandle(event.target.value)}
@@ -278,12 +289,8 @@ function AccountHandleEditor({
         placeholder="night_owl"
         required
       />
-      <button type="submit">
-        {currentHandle ? "Rename handle" : "Claim handle"}
-      </button>
-      {currentHandle ? (
-        <small>Renames are limited to once every 30 days. Old links keep working.</small>
-      ) : null}
+      <button type="submit">Rename handle</button>
+      <small>Renames are limited to once every 30 days. Old links keep working.</small>
       {message ? <small role="status">{message}</small> : null}
     </form>
   );

@@ -16,7 +16,9 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 
 import { POST as CREATE } from "@/app/api/plans/route";
 import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
+import { POST as CREATE_INVITE } from "@/app/api/plans/[id]/invites/route";
 import { POST as ACTION } from "@/app/api/plans/[id]/actions/route";
+import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
 import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
 import { mintPlanGroundingProof } from "@/lib/planGrounding.server";
 import type { PlanState } from "@/lib/plan";
@@ -43,7 +45,10 @@ async function create(key: string, body: Record<string, unknown> = payload) {
   return { response, body: await response.json() as { plan: PlanState; memberToken: string; code?: string; created?: boolean; grounded?: boolean; eventTokens?: Record<string, string> } };
 }
 
-beforeEach(() => __resetMemoryPlans());
+beforeEach(() => {
+  __resetMemoryPlans();
+  __resetPlanCollaboration();
+});
 afterEach(() => {
   delete process.env.PLAN_IDEMPOTENCY_SECRET;
   delete process.env.RATE_LIMIT_SALT;
@@ -139,12 +144,23 @@ describe("Plan mutation idempotency", () => {
   });
 
   it("does not add a second guest when an ordinary join response is retried", async () => {
-    const host = await create("create-for-join");
+    const startTime = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    const host = await create("create-for-join", { ...payload, startTime });
     const id = host.body.plan.plan.id;
+    const inviteResponse = await CREATE_INVITE(new Request(`${URL}/${id}/invites`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${host.body.memberToken}`,
+        "idempotency-key": "join-recovery-invite",
+      },
+      body: JSON.stringify({ expiresInMinutes: 30 }),
+    }), ctx(id));
+    expect(inviteResponse.status).toBe(201);
+    const invite = await inviteResponse.json() as { token: string };
     const request = (name: string) => JOIN(new Request(`${URL}/${id}/join`, {
       method: "POST",
       headers: { "idempotency-key": "join-recovery-1" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, inviteToken: invite.token }),
     }), ctx(id));
     const first = await request("Guest");
     const firstBody = await first.json() as { memberToken: string; plan: PlanState };
@@ -155,7 +171,7 @@ describe("Plan mutation idempotency", () => {
     expect(replayBody.plan.crew).toHaveLength(2);
     const conflict = await request("Another guest");
     expect(conflict.status).toBe(409);
-    expect(await conflict.json()).toMatchObject({ code: "PLAN_IDEMPOTENCY_CONFLICT" });
+    expect(await conflict.json()).toMatchObject({ code: "PLAN_COLLAB_CONFLICT" });
   });
 
   it("records one atomic live action for repeated delivery", async () => {

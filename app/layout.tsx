@@ -12,7 +12,10 @@ import { ClerkProvider } from "@clerk/nextjs";
 
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { clerkAppearance } from "@/lib/clerkAppearance";
-import { isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
+import {
+  isClerkConfigured,
+  isClerkMiddlewareConfigured,
+} from "@/lib/clerkIdentity";
 import CommandPaletteProvider from "@/components/command/CommandPaletteProvider";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 import PerformanceVitals from "@/components/PerformanceVitals";
@@ -293,62 +296,76 @@ export default async function RootLayout({
       <body>
         <SplashAperture />
         <SkipLink />
-        {/* ClerkProvider is additive in exactly the same sense as AuthProvider
-            below, and it sits OUTSIDE it rather than replacing it: both identity
-            systems run side by side. Clerk gates no route either, so anonymous
-            browsing stays fully public.
+        {/* ClerkProvider is additive beside AuthProvider and sits OUTSIDE it.
+            Both identity systems run side by side; Clerk gates no route.
 
-            Placement: inside <body>, never wrapping <html>. The nonce CSP in
-            proxy.ts forces dynamic rendering, and <head> already carries
-            nonce-stamped inline scripts that must not be reparented.
+            CRITICAL: only mount when a real publishable key is configured.
+            @clerk/nextjs otherwise enters "keyless" development mode and can
+            embed a temporary secretKey in the RSC/HTML payload (verified on
+            /login and /map with no Clerk env). That must never ship. Half-
+            configured deployments (publishable without secret) still hide
+            product Clerk controls via clerkIntegrationConfigured below, and
+            proxy.ts refuses clerkMiddleware without both keys.
 
-            No `dynamic` prop on purpose: it would make ClerkProvider call
-            auth(), which requires the middleware to have run. The matcher in
-            proxy.ts deliberately skips prefetch requests, so that would throw
-            on a route the reader only hovered.
-
-            appearance re-skins Clerk's chrome in PUBMAXX design tokens, so the
-            dialog follows the theme toggle instead of arriving as stock Clerk
-            chrome. See lib/clerkAppearance.ts. */}
-        <ClerkProvider appearance={clerkAppearance}>
-        {/* AuthProvider is additive: it establishes identity for signed-in users
-            but never gates a route — anonymous browsing stays fully public. The
-            session loads async client-side, so children render immediately. */}
-        <AuthProvider clerkIntegrationConfigured={clerkIntegrationConfigured}>
-          {/* Global ⌘K / Ctrl+K command palette (feature N1). A client provider
-              mounted at the root so the shortcut works from any page; it owns the
-              open/close state and renders the dialog only while open. Wraps
-              children so SiteNav's ⌘K affordance can read its context. */}
-          <CommandPaletteProvider>
-            {children}
-            {/* App-wide bottom tab bar — visible only on ≤640px (see mobileNav.css);
-                display:none on desktop so the existing navs are untouched.
-                Suspense boundary: it reads useSearchParams; under any future
-                prerendered route that read would otherwise bail the whole
-                page out to CSR. Harmless today, required tomorrow. */}
-            <Suspense fallback={null}>
-              <MobileTabBar />
-            </Suspense>
-            {/* Night Mode card, Pub Pal summon, first-run tour, A2HS prompt and
-                native push explainer all render nothing on first paint, so they
-                load lazily after hydration — see DeferredShellExtras. */}
-            <DeferredShellExtras />
-            {/* Silent offline SW registration (issue #32) — renders nothing,
-                production-only, registers after load. */}
-            <OfflineReady />
-            <PerformanceVitals />
-            {/* Metrics funnel (Wave M) — consent-gated, render-nothing
-                signals: daily return-rate pulse and the A2HS install funnel. */}
-            <DailyActivityPulse />
-            <A2HSTracking />
-            {/* Deep-link boot stamp: a boot on any non-root path consumes the
-                session's entry decision, so the installed PWA (which cold-starts
-                on the manifest start_url /tonight) can reach the landing page on
-                a wordmark tap instead of bouncing back to /tonight. */}
-            <EntryBootStamp />
-          </CommandPaletteProvider>
-        </AuthProvider>
-        </ClerkProvider>
+            Placement: inside <body>, never wrapping <html>. No `dynamic`
+            prop (would call auth() and break prefetch skips in proxy.ts).
+            appearance re-skins Clerk chrome in PUBMAXX tokens. */}
+        {isClerkConfigured() ? (
+          <ClerkProvider appearance={clerkAppearance}>
+            {/* AuthProvider is additive: it establishes identity for signed-in users
+                but never gates a route — anonymous browsing stays fully public. The
+                session loads async client-side, so children render immediately. */}
+            <AuthProvider clerkIntegrationConfigured={clerkIntegrationConfigured}>
+              {/* Global ⌘K / Ctrl+K command palette (feature N1). A client provider
+                  mounted at the root so the shortcut works from any page; it owns the
+                  open/close state and renders the dialog only while open. Wraps
+                  children so SiteNav's ⌘K affordance can read its context. */}
+              <CommandPaletteProvider>
+                {children}
+                {/* App-wide bottom tab bar — visible only on ≤640px (see mobileNav.css);
+                    display:none on desktop so the existing navs are untouched.
+                    Suspense boundary: it reads useSearchParams; under any future
+                    prerendered route that read would otherwise bail the whole
+                    page out to CSR. Harmless today, required tomorrow. */}
+                <Suspense fallback={null}>
+                  <MobileTabBar />
+                </Suspense>
+                {/* Night Mode card, Pub Pal summon, first-run tour, A2HS prompt and
+                    native push explainer all render nothing on first paint, so they
+                    load lazily after hydration — see DeferredShellExtras. */}
+                <DeferredShellExtras />
+                {/* Silent offline SW registration (issue #32) — renders nothing,
+                    production-only, registers after load. */}
+                <OfflineReady />
+                <PerformanceVitals />
+                {/* Metrics funnel (Wave M) — consent-gated, render-nothing
+                    signals: daily return-rate pulse and the A2HS install funnel. */}
+                <DailyActivityPulse />
+                <A2HSTracking />
+                {/* Deep-link boot stamp: a boot on any non-root path consumes the
+                    session's entry decision, so the installed PWA (which cold-starts
+                    on the manifest start_url /tonight) can reach the landing page on
+                    a wordmark tap instead of bouncing back to /tonight. */}
+                <EntryBootStamp />
+              </CommandPaletteProvider>
+            </AuthProvider>
+          </ClerkProvider>
+        ) : (
+          <AuthProvider clerkIntegrationConfigured={clerkIntegrationConfigured}>
+            <CommandPaletteProvider>
+              {children}
+              <Suspense fallback={null}>
+                <MobileTabBar />
+              </Suspense>
+              <DeferredShellExtras />
+              <OfflineReady />
+              <PerformanceVitals />
+              <DailyActivityPulse />
+              <A2HSTracking />
+              <EntryBootStamp />
+            </CommandPaletteProvider>
+          </AuthProvider>
+        )}
         {/* Vercel Web Analytics (R3) — consent-gated pageviews only. Product
             events use the separately allow-listed rail in lib/analytics.ts.
             Outside AuthProvider on purpose: it's app infra, not identity. */}

@@ -61,7 +61,7 @@ export function ContributionGateDialog({
             <h2 id="contribution-gate-title">Finish account setup</h2>
             <p>
               Choose a public handle and add your date of birth before
-              contributing. The claim form lives on your account page.
+              contributing. The setup dialog collects both together.
             </p>
             <Link
               className="contributionGatePrimary"

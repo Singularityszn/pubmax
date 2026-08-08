@@ -453,6 +453,16 @@
 .planInviteNext__whatsapp:hover {
   background: color-mix(in srgb, var(--plan-accent, var(--amber)) 32%, var(--panel-raised));
 }
+.planInviteNext__whatsapp--pending {
+  border-style: dashed;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 650;
+  cursor: default;
+}
+.planInviteNext__whatsapp--pending:hover {
+  background: transparent;
+}
 .planInviteNext .planHostInviteLink {
   margin-top: 0;
   padding-top: 0;

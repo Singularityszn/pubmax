@@ -3,12 +3,23 @@
 // Inevitable post-plan next step: Send on WhatsApp first, Copy invite second.
 // Reuses plan_invite_sent / plan_invite_link_copied from the invite loop.
 // ShareBar stays as overflow under "More ways to share".
+//
+// WhatsApp / ShareBar must carry #invite={classicToken} so guests can tap
+// "I'm in" on PlanCrew after invite-only join. Copy invite stays /invite/{token}
+// for the RSVP page (e2e/plan-invite.spec.ts, soft-launch runbook).
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import PlanHostInviteLink from "@/components/plan/PlanHostInviteLink";
 import { PlanInviteShareBar } from "@/components/plan/PlanVibe";
 import { trackEvent } from "@/lib/analytics";
+import { planCrewSharePath } from "@/lib/planCrewInviteUrl";
+import {
+  parsePlanCapabilitySnapshot,
+  planCapabilityEvent,
+  readPlanCapabilitySnapshot,
+  restorePlanCapability,
+} from "@/lib/planSessionCapability";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 
 type PlanInviteNextStepProps = {
@@ -35,6 +46,55 @@ export default function PlanInviteNextStep({
 }: PlanInviteNextStepProps) {
   const [slug, setSlug] = useState(initialVibeSlug);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteReady, setInviteReady] = useState(false);
+
+  const tokenEvent = planCapabilityEvent(planId);
+  const capabilitySnapshot = useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener(tokenEvent, onChange);
+      return () => window.removeEventListener(tokenEvent, onChange);
+    },
+    () => readPlanCapabilitySnapshot(planId),
+    () => "|0|",
+  );
+  const { token: memberToken } = parsePlanCapabilitySnapshot(capabilitySnapshot);
+
+  useEffect(() => {
+    if (memberToken) return;
+    void restorePlanCapability(planId).catch(() => undefined);
+  }, [memberToken, planId]);
+
+  useEffect(() => {
+    if (!memberToken) {
+      queueMicrotask(() => {
+        setInviteToken(null);
+        setInviteReady(false);
+      });
+      return;
+    }
+    let active = true;
+    fetch(`/api/plans/${planId}`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { inviteToken?: string | null } | null) => {
+        if (!active) return;
+        if (typeof body?.inviteToken === "string" && body.inviteToken) {
+          setInviteToken(body.inviteToken);
+        } else {
+          setInviteToken(null);
+        }
+        setInviteReady(true);
+      })
+      .catch(() => {
+        if (active) {
+          setInviteToken(null);
+          setInviteReady(true);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [memberToken, planId]);
 
   useEffect(() => {
     const onTop = (event: Event) => {
@@ -46,31 +106,38 @@ export default function PlanInviteNextStep({
     return () => window.removeEventListener(eventName, onTop);
   }, [planId]);
 
-  // Match PlanInviteShareBar URL shape so WhatsApp and the stamp strip agree.
-  const relativeUrl = slug
-    ? `/plan/${planId}?vibe=${encodeURIComponent(slug)}`
+  // Crew-join URL: classic invite in the hash. Bare /plan/{id} cannot join.
+  const relativeUrl = inviteToken
+    ? planCrewSharePath(planId, inviteToken, slug)
     : `/plan/${planId}`;
 
   const openWhatsApp = useCallback(() => {
+    if (!inviteToken) return;
     const absolute = toAbsoluteUrl(relativeUrl);
     trackEvent("plan_invite_sent", { channel: "whatsapp" });
     window.open(whatsappShareHref(text, absolute), "_blank", "noopener,noreferrer");
-  }, [relativeUrl, text]);
+  }, [inviteToken, relativeUrl, text]);
 
   return (
     <div className="planInviteNext" id="share">
-      <a
-        className="planInviteNext__whatsapp"
-        href={whatsappShareHref(text, relativeUrl)}
-        onClick={(event) => {
-          event.preventDefault();
-          openWhatsApp();
-        }}
-        target="_blank"
-        rel="noreferrer"
-      >
-        Send on WhatsApp
-      </a>
+      {inviteReady && inviteToken ? (
+        <a
+          className="planInviteNext__whatsapp"
+          href={whatsappShareHref(text, relativeUrl)}
+          onClick={(event) => {
+            event.preventDefault();
+            openWhatsApp();
+          }}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Send on WhatsApp
+        </a>
+      ) : (
+        <p className="planInviteNext__whatsapp planInviteNext__whatsapp--pending" role="status">
+          {memberToken ? "Preparing your WhatsApp invite…" : "Restoring your invite tools…"}
+        </p>
+      )}
       <PlanHostInviteLink planId={planId} />
       <button
         type="button"
@@ -86,6 +153,7 @@ export default function PlanInviteNextStep({
           title={title}
           text={text}
           initialVibeSlug={slug}
+          inviteToken={inviteToken}
         />
       ) : null}
     </div>
