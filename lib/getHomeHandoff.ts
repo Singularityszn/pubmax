@@ -81,19 +81,19 @@ export function uberRideHref(venue: GetHomeHandoffVenue): string | null {
 export function citymapperDirectionsHref(venue: GetHomeHandoffVenue): string {
   const resolved = requireVenue(venue);
   const params = new URLSearchParams({
-    endcoord: `${resolved.latitude},${resolved.longitude}`,
-    endname: resolved.name,
-    endaddress: resolved.addressLine,
+    startcoord: `${resolved.latitude},${resolved.longitude}`,
+    startname: resolved.name,
+    startaddress: resolved.addressLine,
   });
   return `https://citymapper.com/directions?${params.toString()}`;
 }
 
-/** Same shape as venueDirectionsUrl(venue, null) with exact public venue coordinates. */
+/** Venue is the ORIGIN the user leaves from; the rider picks home in Google Maps. */
 export function googleMapsTransitHref(venue: GetHomeHandoffVenue): string {
   const resolved = requireVenue(venue);
   const params = new URLSearchParams({
     api: "1",
-    destination: `${resolved.latitude},${resolved.longitude}`,
+    origin: `${resolved.latitude},${resolved.longitude}`,
     travelmode: "transit",
   });
   return `https://www.google.com/maps/dir/?${params.toString()}`;

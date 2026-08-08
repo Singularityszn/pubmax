@@ -99,7 +99,7 @@ describe("getHomeHandoff builders", () => {
     expect(uberRideHref(VENUE)).toBeNull();
   });
 
-  it("builds Citymapper with encoded end params and exact coordinates", () => {
+  it("builds Citymapper with encoded start params, exact coordinates and no end", () => {
     const namedVenue: GetHomeHandoffVenue = {
       ...VENUE,
       name: "Tom & Jerry's",
@@ -109,23 +109,26 @@ describe("getHomeHandoff builders", () => {
     const url = new URL(href);
 
     expect(url.origin + url.pathname).toBe("https://citymapper.com/directions");
-    expect(url.searchParams.get("endcoord")).toBe(
+    expect(url.searchParams.get("startcoord")).toBe(
       `${namedVenue.latitude},${namedVenue.longitude}`,
     );
-    expect(url.searchParams.get("endname")).toBe("Tom & Jerry's");
-    expect(url.searchParams.get("endaddress")).toBe("1/2 Test Street");
+    expect(url.searchParams.get("startname")).toBe("Tom & Jerry's");
+    expect(url.searchParams.get("startaddress")).toBe("1/2 Test Street");
+    expect(url.searchParams.has("endcoord")).toBe(false);
+    expect(url.searchParams.has("endname")).toBe(false);
+    expect(url.searchParams.has("endaddress")).toBe(false);
   });
 
-  it("builds Google Maps transit with exact venue coordinates and no origin", () => {
+  it("builds Google Maps transit with the venue as origin and no destination", () => {
     const href = googleMapsTransitHref(VENUE);
     const url = new URL(href);
 
     expect(url.searchParams.get("api")).toBe("1");
-    expect(url.searchParams.get("destination")).toBe(
+    expect(url.searchParams.get("origin")).toBe(
       `${VENUE.latitude},${VENUE.longitude}`,
     );
     expect(url.searchParams.get("travelmode")).toBe("transit");
-    expect(url.searchParams.has("origin")).toBe(false);
+    expect(url.searchParams.has("destination")).toBe(false);
   });
 
   it("orders ride first on train_risk nights and transit first otherwise", () => {
