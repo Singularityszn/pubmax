@@ -1,7 +1,7 @@
 .tonightAgent {
   margin: 1.25rem 0 0;
   padding: 1rem 0 0;
-  border-top: 1px solid color-mix(in srgb, var(--ink, #1a1410) 12%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
 .tonightAgentTitle {
@@ -36,11 +36,11 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0.65rem 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--ink, #1a1410) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
   border-radius: 0.4rem;
   font: inherit;
-  background: var(--paper, #fff);
-  color: var(--ink, #1a1410);
+  background: var(--paper);
+  color: var(--ink);
 }
 
 .tonightAgentSubmit {
@@ -50,8 +50,8 @@
   border-radius: 0.4rem;
   font: inherit;
   font-weight: 600;
-  background: var(--ink, #1a1410);
-  color: var(--paper, #fff);
+  background: var(--ink);
+  color: var(--paper);
   cursor: pointer;
 }
 
@@ -77,11 +77,11 @@
 }
 
 .tonightAgentScarcity {
-  color: color-mix(in srgb, var(--ink, #1a1410) 88%, transparent);
+  color: color-mix(in srgb, var(--ink) 88%, transparent);
 }
 
 .tonightAgentError {
-  color: color-mix(in srgb, #8b1e1e 80%, var(--ink, #1a1410));
+  color: color-mix(in srgb, var(--brick) 80%, var(--ink));
 }
 
 .tonightAgentActions {
@@ -95,21 +95,21 @@
   display: inline-flex;
   align-items: center;
   padding: 0.45rem 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--ink, #1a1410) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
   border-radius: 0.4rem;
   font: inherit;
   font-size: 0.9rem;
   font-weight: 600;
-  background: var(--paper, #fff);
-  color: var(--ink, #1a1410);
+  background: var(--paper);
+  color: var(--ink);
   text-decoration: none;
   cursor: pointer;
 }
 
 .tonightAgentAction--primary {
   border-color: transparent;
-  background: var(--ink, #1a1410);
-  color: var(--paper, #fff);
+  background: var(--ink);
+  color: var(--paper);
 }
 
 .tonightAgentStatus {
