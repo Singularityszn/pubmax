@@ -93,7 +93,7 @@ Ignore vanity: follower counts, Social DAU while beta is off, referral rewards w
 
 ### Wave 0 — Make the monopoly visible (acquisition + truth)
 
-Ship the locked landing decisions from [#787](https://github.com/Singularityszn/pubmax/pull/787): **Open the map** as primary CTA, desire-before-policy copy, hybrid ThamesHero that teaches band colours, first-map orientation consolidation (not a third modal). Invite hardening is already on main via [#800](https://github.com/Singularityszn/pubmax/pull/800). Restore CI path (#747) so quality gates are real before soft launch.
+SHIPPED 2026-08-07 (landing wave 0, [#787](https://github.com/Singularityszn/pubmax/pull/787) then #813): **Open the map** as primary CTA, desire-before-policy copy, hybrid ThamesHero that teaches band colours, first-map orientation consolidation (not a third modal). Invite hardening is already on main via [#800](https://github.com/Singularityszn/pubmax/pull/800). Restore CI path (#747) so quality gates are real before soft launch.
 
 **Done when:** a cold visitor can state what the product does in 5 seconds and open the map without geolocation theatre.
 
@@ -160,7 +160,7 @@ Public comps are not “Twitter for pubs.” Closer economic story: **category-d
 
 ## Proposed engineering queue (awaiting your call)
 
-1. Implement landing acquisition from [#787](https://github.com/Singularityszn/pubmax/pull/787) (invite hardening already merged via [#800](https://github.com/Singularityszn/pubmax/pull/800))
+1. DONE (2026-08-07): landing acquisition implemented ([#787](https://github.com/Singularityszn/pubmax/pull/787), landed as #813; invite hardening via [#800](https://github.com/Singularityszn/pubmax/pull/800))
 2. Wave 1: post-plan WhatsApp-first share step + invite revoke/cap
 3. Wave 2: contribution-gate time-to-first-price + one borough coverage campaign in-product
 4. Instrument a single weekly dashboard from existing PostHog events (k-factor, coverage, meaningful users)

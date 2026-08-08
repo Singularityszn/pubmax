@@ -13,7 +13,7 @@ curl -sSIL https://pubmaxxing.com/map          # HTTP/2 200
 curl -sSIL https://pubmaxxing.com/social       # HTTP/2 200 (preview; flag unset)
 ```
 
-Captain still owns merge of #816 / #747, `vercel promote`, and the human WhatsApp cohort. Agents keep product + this checklist current.
+Captain still owns merge of #747, `vercel promote`, and the human WhatsApp cohort. Agents keep product + this checklist current.
 
 ## Do not do in this wave
 
@@ -25,7 +25,7 @@ Captain still owns merge of #816 / #747, `vercel promote`, and the human WhatsAp
 
 ## Merge and promote
 
-1. Merge V1 invite-ready product work ([#816](https://github.com/Singularityszn/pubmax/pull/816)) when green.
+1. DONE (2026-08-07): V1 invite-ready product work merged ([#816](https://github.com/Singularityszn/pubmax/pull/816)).
 2. Merge CI runner fix ([#747](https://github.com/Singularityszn/pubmax/pull/747)) so quality gates are real.
 3. Confirm migrations through `0081_plan_public_invite` are live (runbook §1.3).
 4. Promote the production deployment (`vercel promote <url>`).
