@@ -124,27 +124,29 @@ describe("POST /api/saved-pubs/list-follows", () => {
     const res = await post({ follower: "@Sam", owner: "sam", listType: "Date Night" });
     expect(res.status).toBe(400);
     expectNoStore(res);
-    expect(await res.json()).toEqual({ error: "You can't follow your own list." });
+    expect(await res.json()).toEqual({ error: "You can't follow your own list.", code: "INVALID_REQUEST", retryable: false });
   });
 
   it("400s malformed or incomplete write bodies", async () => {
     const malformed = await POST(new Request(URL_BASE, { method: "POST", body: "{nope" }));
     expect(malformed.status).toBe(400);
-    expect(await malformed.json()).toEqual({ error: "Malformed request body." });
+    expect(await malformed.json()).toEqual({ error: "Malformed request body.", code: "MALFORMED_REQUEST", retryable: false });
 
     const missingFollower = await post({ owner: "sam", listType: "Date Night" });
     expect(missingFollower.status).toBe(400);
     expect(await missingFollower.json()).toEqual({
       error: "Choose a handle in your account first.",
+      code: "INVALID_REQUEST",
+      retryable: false,
     });
 
     const missingOwner = await post({ follower: "ken", listType: "Date Night" });
     expect(missingOwner.status).toBe(400);
-    expect(await missingOwner.json()).toEqual({ error: "Missing list author." });
+    expect(await missingOwner.json()).toEqual({ error: "Missing list author.", code: "INVALID_REQUEST", retryable: false });
 
     const missingList = await post({ follower: "ken", owner: "sam", listType: "   " });
     expect(missingList.status).toBe(400);
-    expect(await missingList.json()).toEqual({ error: "Add a list name." });
+    expect(await missingList.json()).toEqual({ error: "Add a list name.", code: "INVALID_REQUEST", retryable: false });
   });
 
   it("429s once one follower floods list-follow changes", async () => {
@@ -157,7 +159,7 @@ describe("POST /api/saved-pubs/list-follows", () => {
       );
     }
     expect(last!.status).toBe(429);
-    expect(await last!.json()).toEqual({ error: "Too many list follows, slow down." });
+    expect(await last!.json()).toEqual({ error: "Too many list follows, slow down.", code: "RATE_LIMITED", retryable: true });
   });
 
   it("403s when the follower handle is linked and the caller is anonymous", async () => {

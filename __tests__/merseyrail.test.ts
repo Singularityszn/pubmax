@@ -111,7 +111,7 @@ describe("GET /api/last-merseyrail", () => {
   it("400s when lat/lng are missing or invalid", async () => {
     const res = await GET(new Request("http://localhost/api/last-merseyrail"));
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Add valid lat and lng coordinates." });
+    expect(await res.json()).toEqual({ error: "Add valid lat and lng coordinates.", code: "INVALID_REQUEST", retryable: false });
   });
 
   it("returns 200 with a station for Liverpool centre coords", async () => {
