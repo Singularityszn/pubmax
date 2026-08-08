@@ -76,7 +76,11 @@ describe("PubmaxxAccountHub provider gating", () => {
       },
       busy: false,
       link: null,
+      notice: "",
+      shareSupported: false,
       onInvite: vi.fn(),
+      onCopy: vi.fn(),
+      onShare: vi.fn(),
     }));
 
     expect(html).toContain("Invite a mate");
@@ -94,17 +98,101 @@ describe("PubmaxxAccountHub provider gating", () => {
       status: null,
       busy: false,
       link: null,
+      notice: "",
+      shareSupported: false,
       onInvite: vi.fn(),
+      onCopy: vi.fn(),
+      onShare: vi.fn(),
     }));
     const withLink = renderToStaticMarkup(createElement(ReferralInviteCard, {
       status: null,
       busy: false,
       link: "https://pubmaxxing.com/r/opaque",
+      notice: "Your invite link is ready. Copy it or share it.",
+      shareSupported: true,
       onInvite: vi.fn(),
+      onCopy: vi.fn(),
+      onShare: vi.fn(),
     }));
 
     expect(withoutLink).not.toContain("https://pubmaxxing.com/r/opaque");
+    expect(withoutLink).not.toContain("Copy link");
     expect(withLink).toContain("https://pubmaxxing.com/r/opaque");
     expect(withLink).toContain('readOnly=""');
+    expect(withLink).toContain("Copy link");
+    expect(withLink).toContain("Share…");
+    expect(withLink).toContain("Your invite link is ready. Copy it or share it.");
+  });
+
+  it("hides the share button where the browser cannot share", () => {
+    const html = renderToStaticMarkup(createElement(ReferralInviteCard, {
+      status: null,
+      busy: false,
+      link: "https://pubmaxxing.com/r/opaque",
+      notice: "",
+      shareSupported: false,
+      onInvite: vi.fn(),
+      onCopy: vi.fn(),
+      onShare: vi.fn(),
+    }));
+    expect(html).toContain("Copy link");
+    expect(html).not.toContain("Share…");
+  });
+
+  it("reports an invite failure inside the card, never only at the page foot", () => {
+    const html = renderToStaticMarkup(createElement(ReferralInviteCard, {
+      status: null,
+      busy: false,
+      link: null,
+      notice: "Your invite link could not be made. Try again.",
+      shareSupported: false,
+      onInvite: vi.fn(),
+      onCopy: vi.fn(),
+      onShare: vi.fn(),
+    }));
+    expect(html).toContain('role="status"');
+    expect(html).toContain("Your invite link could not be made. Try again.");
+  });
+
+  it("never calls navigator.share after an await in the fetch flow", () => {
+    // iOS drops the tap's user activation across an await, so a share() call
+    // sequenced after the invite-link fetch silently fails. Sharing must live
+    // in its own tap handler (shareInviteLink), not inside inviteMate.
+    const source = readFileSync(
+      join(process.cwd(), "components/profile/PubmaxxAccountHub.tsx"),
+      "utf8",
+    );
+    const inviteMate = source.slice(
+      source.indexOf("async function inviteMate"),
+      source.indexOf("async function copyInviteLink"),
+    );
+    expect(inviteMate).toContain("authedFetch(\"/api/referrals/invite-link\"");
+    expect(inviteMate).not.toContain("navigator.share");
+  });
+
+  it("keeps every referral RPC able to reach pgcrypto's digest()", () => {
+    // Hosted Supabase installs pgcrypto in the `extensions` schema. Migration
+    // 0060 pinned the referral functions to `search_path = public`, which made
+    // every digest() call fail at runtime and turned "Invite a mate" into a
+    // 503. Migration 0086 widens the search path; this pins that repair for
+    // each digest-using function.
+    const migration = readFileSync(
+      join(
+        process.cwd(),
+        "supabase/migrations/20260808150000_0086_referral_functions_extensions_search_path.sql",
+      ),
+      "utf8",
+    );
+    for (const fn of [
+      "get_or_create_referral_invite_code",
+      "record_referral_edge",
+      "claim_referral_code",
+      "qualify_referral_from_contribution",
+      "read_private_referral_status",
+      "erase_referral_account",
+    ]) {
+      expect(migration).toContain(`alter function public.${fn}`);
+    }
+    expect(migration).toContain("search_path = public, extensions, pg_temp");
   });
 });

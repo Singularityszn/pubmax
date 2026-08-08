@@ -149,12 +149,20 @@ export function ReferralInviteCard({
   status,
   busy,
   link,
+  notice,
+  shareSupported,
   onInvite,
+  onCopy,
+  onShare,
 }: {
   status: ReferralPrivateStatus | null;
   busy: boolean;
   link: string | null;
+  notice: string;
+  shareSupported: boolean;
   onInvite: () => void;
+  onCopy: () => void;
+  onShare: () => void;
 }): React.JSX.Element {
   const qualified = status?.qualifiedCount ?? 0;
   const referralLabel = qualified === 1 ? "qualified referral" : "qualified referrals";
@@ -177,14 +185,26 @@ export function ReferralInviteCard({
         Rewards stay off while we add checks to stop people referring
         themselves.
       </small>
-      <button type="button" disabled={busy} onClick={onInvite}>
-        {busy ? "Getting your link…" : "Invite a mate"}
-      </button>
-      {link ? (
-        <label className="accountHubReferralLink">
-          Your invite link
-          <input type="url" readOnly value={link} />
-        </label>
+      {!link ? (
+        <button type="button" disabled={busy} onClick={onInvite}>
+          {busy ? "Getting your link…" : "Invite a mate"}
+        </button>
+      ) : (
+        <>
+          <label className="accountHubReferralLink">
+            Your invite link
+            <input type="url" readOnly value={link} onFocus={(event) => event.target.select()} />
+          </label>
+          <div className="accountHubActions">
+            <button type="button" onClick={onCopy}>Copy link</button>
+            {shareSupported ? (
+              <button type="button" onClick={onShare}>Share…</button>
+            ) : null}
+          </div>
+        </>
+      )}
+      {notice ? (
+        <small className="accountHubReferralNotice" role="status">{notice}</small>
       ) : null}
     </div>
   );
@@ -312,6 +332,12 @@ export default function PubmaxxAccountHub() {
   const [referralStatus, setReferralStatus] = useState<ReferralPrivateStatus | null>(null);
   const [referralLink, setReferralLink] = useState<string | null>(null);
   const [referralBusy, setReferralBusy] = useState(false);
+  const [referralNotice, setReferralNotice] = useState("");
+  const [shareSupported, setShareSupported] = useState(false);
+
+  useEffect(() => {
+    setShareSupported(typeof navigator.share === "function");
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -602,9 +628,14 @@ export default function PubmaxxAccountHub() {
     setInstagramUrl("");
   }
 
+  // Fetch the personal invite link and show it in the card. Sharing and
+  // copying are separate buttons: navigator.share needs the user's tap to
+  // still count as activation, so it must run synchronously in its own click
+  // handler, never after this fetch's await (iOS rejects that silently).
   async function inviteMate() {
     if (referralBusy) return;
     setReferralBusy(true);
+    setReferralNotice("");
     try {
       const response = await authedFetch("/api/referrals/invite-link", {
         method: "POST",
@@ -614,35 +645,40 @@ export default function PubmaxxAccountHub() {
         error?: string;
       };
       if (!response.ok || !body.url) {
-        setMessage(body.error ?? "Your invite link could not be made.");
+        setReferralNotice(body.error ?? "Your invite link could not be made. Try again.");
         return;
       }
       setReferralLink(body.url);
-      if (typeof navigator.share === "function") {
-        try {
-          await navigator.share({
-            title: "PUBMAXX",
-            text: "Listed pub prices name and link their publisher when recorded and say when none is recorded.",
-            url: body.url,
-          });
-          setMessage("Invite link ready to share.");
-          return;
-        } catch {
-          setMessage("Your invite link is below.");
-          return;
-        }
-      }
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(body.url);
-        setMessage("Invite link copied.");
-      } else {
-        setMessage("Your invite link is below.");
-      }
+      setReferralNotice("Your invite link is ready. Copy it or share it.");
     } catch {
-      setMessage("Your invite link could not be made.");
+      setReferralNotice("Your invite link could not be made. Try again.");
     } finally {
       setReferralBusy(false);
     }
+  }
+
+  async function copyInviteLink() {
+    if (!referralLink) return;
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      setReferralNotice("Invite link copied.");
+    } catch {
+      setReferralNotice("Copy failed. Select the link above and copy it.");
+    }
+  }
+
+  function shareInviteLink() {
+    if (!referralLink || typeof navigator.share !== "function") return;
+    // Called synchronously from the tap so the share sheet keeps its user
+    // activation. The promise is observed afterwards; a dismissed sheet is
+    // not an error.
+    navigator
+      .share({ title: "PUBMAXX", url: referralLink })
+      .then(() => setReferralNotice("Invite link shared."))
+      .catch((error: unknown) => {
+        if ((error as { name?: unknown })?.name === "AbortError") return;
+        setReferralNotice("Sharing did not open. Copy the link instead.");
+      });
   }
 
   if (loading) return <section className="accountHub" aria-busy="true"><p>Loading your account…</p></section>;
@@ -718,7 +754,11 @@ export default function PubmaxxAccountHub() {
           status={referralStatus}
           busy={referralBusy}
           link={referralLink}
+          notice={referralNotice}
+          shareSupported={shareSupported}
           onInvite={() => void inviteMate()}
+          onCopy={() => void copyInviteLink()}
+          onShare={shareInviteLink}
         />
         {analyticsControls}
       </div>
