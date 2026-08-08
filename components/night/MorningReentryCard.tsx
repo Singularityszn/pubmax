@@ -48,7 +48,7 @@ export default function MorningReentryCard() {
   if (!night || dismissed) return null;
 
   return (
-    <section className="morningCard" role="dialog" aria-modal="false" aria-label="Last night, sorted">
+    <section className="morningCard" role="dialog" aria-modal="false" aria-label="Last night's kept">
       <button
         type="button"
         className="morningCard__close"
@@ -63,8 +63,10 @@ export default function MorningReentryCard() {
           <Sunrise size={16} />
         </span>
         <div>
-          <p className="morningCard__eyebrow">Last night, sorted</p>
-          <p className="morningCard__lede">Your recap wrote itself overnight.</p>
+          <p className="morningCard__eyebrow">Last night&rsquo;s kept</p>
+          <p className="morningCard__lede">
+            Open it when you want to remember why.
+          </p>
         </div>
       </div>
 
@@ -72,7 +74,7 @@ export default function MorningReentryCard() {
 
       <Link className="morningCard__link" href={`/plan/${night.planId}/recap`} onClick={() => setDismissed(true)}>
         <BookOpen size={16} aria-hidden="true" />
-        See your recap
+        Open your recap
       </Link>
     </section>
   );

@@ -242,7 +242,9 @@ export default async function PlanInvitePage({ params }: PageProps) {
           ))}
         </ol>
 
-        {stops[0] ? <InviteMapLink firstVenueId={stops[0].venueId} /> : null}
+        {stops.length > 0 ? (
+          <InviteMapLink venueIds={stops.map((stop) => stop.venueId)} />
+        ) : null}
 
         <PlanInviteRsvp
           token={token}

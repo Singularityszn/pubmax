@@ -144,6 +144,11 @@ Expand city packs only when London’s price graph and invite loop are obviously
 - Do not expand to 10 cities to look big
 - Do not require accounts to see prices or open a plan invite
 - Do not measure success by Social DAU while the beta flag is off
+- Do not enable Social invite beta until moderators + age gate + spam floors are staffed
+- Do not add Stripe Checkout / Connect / membership paywalls before London density and venue trust prove out (ADR 0012)
+- Do not ship AI that fabricates prices, hours, heritage, or “who’s out” city radar; fail closed to grounded / scarcity answers
+- Do not claim “we beat Stripe” in marketing or investor copy before Connect-scale hospitality checkout exists
+- Prefer extending these PLG waves over inventing a parallel roadmap; Horizon 0 ops live in [`docs/growth/HORIZON0_OPS_CHECKLIST.md`](../growth/HORIZON0_OPS_CHECKLIST.md)
 
 ---
 
