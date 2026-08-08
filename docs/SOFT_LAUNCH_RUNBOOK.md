@@ -54,7 +54,7 @@ To check the live ledger, compare `supabase/migrations/` against the Supabase da
 supabase migration list
 ```
 
-**Live snapshot re-verified 2026-08-07 via Supabase migration history** (reverify before any later push; this will go stale): the database has every migration applied through `0081_plan_public_invite`, including the earlier out-of-order `0075_social_crews` block.
+**Live snapshot re-verified 2026-08-08 via MCP apply + pg_constraint checks** (reverify before any later push; this will go stale): the database has every migration applied through `0084_crew_snapshot_wetherspoons_flag` (0082 coffee, 0083 check-ins area optional, 0084 crew snapshot parity applied 2026-08-08), including the earlier out-of-order `0075_social_crews` block.
 
 | Order applied (timestamp) | File | Migration |
 |---|---|---|
