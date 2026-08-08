@@ -10,6 +10,7 @@
 // Fail-soft: any upstream failure lands as 200 + `{ error, journeys: [] }`.
 // Missing / out-of-range coords are a client mistake and return 400.
 
+import { publicApiError } from "@/lib/apiError";
 import {
   CityMcpError,
   fetchJourney,
@@ -86,10 +87,10 @@ async function respondWithJourney(
   options: { cache: boolean; exposePoints: boolean; viewerOrigin: boolean },
 ): Promise<Response> {
   if (await isCityMcpLimited(request)) {
-    return jsonResponse(
-      { error: "Too many requests, slow down.", from: null, to: null, journeys: [] },
-      { status: 429 },
-    );
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+      compatibilityFields: { from: null, to: null, journeys: [] },
+    });
   }
 
   const fromLat = parseCoord(input.fromLat);
@@ -103,27 +104,15 @@ async function respondWithJourney(
     toLat === null ||
     toLng === null
   ) {
-    return jsonResponse(
-      {
-        error: "Add valid start and end coordinates.",
-        from: null,
-        to: null,
-        journeys: [],
-      },
-      { status: 400 },
-    );
+    return publicApiError("Add valid start and end coordinates.", "INVALID_REQUEST", 400, {
+      compatibilityFields: { from: null, to: null, journeys: [] },
+    });
   }
 
   if (!isUkLatLng(fromLat, fromLng) || !isUkLatLng(toLat, toLng)) {
-    return jsonResponse(
-      {
-        error: "Coordinates must be within the UK (lat 49–61, lng −8…2).",
-        from: null,
-        to: null,
-        journeys: [],
-      },
-      { status: 400 },
-    );
+    return publicApiError("Coordinates must be within the UK (lat 49–61, lng −8…2).", "INVALID_REQUEST", 400, {
+      compatibilityFields: { from: null, to: null, journeys: [] },
+    });
   }
 
   const fromPoint = options.viewerOrigin
@@ -187,10 +176,9 @@ async function postHandler(request: Request): Promise<Response> {
     if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error();
     input = body as JourneyInput;
   } catch {
-    return jsonResponse(
-      { error: "Add a JSON travel request.", journeys: [] },
-      { status: 400 },
-    );
+    return publicApiError("Add a JSON travel request.", "INVALID_REQUEST", 400, {
+      compatibilityFields: { journeys: [] },
+    });
   }
 
   return respondWithJourney(

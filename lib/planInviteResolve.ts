@@ -2,7 +2,7 @@
 // Matches the page gate: a token for a Crew-bound (or missing) plan must 404,
 // never write orphan RSVPs/reactions after the invite surface has gone dark.
 
-import { jsonNoStore } from "@/lib/apiResponses";
+import { publicApiError } from "@/lib/apiError";
 import { planStateResult, resolvePlanIdByInviteToken } from "@/lib/planStore";
 
 export type ResolvedInvitePlan =
@@ -16,17 +16,17 @@ export type ResolvedInvitePlan =
 export async function resolveClassicInvitePlan(token: string): Promise<ResolvedInvitePlan> {
   const lookup = await resolvePlanIdByInviteToken(token);
   if (!lookup.ok) {
-    return { response: jsonNoStore({ error: "This invite is unavailable." }, { status: 503 }) };
+    return { response: publicApiError("This invite is unavailable.", "UNAVAILABLE", 503, { retryable: true }) };
   }
   if (!lookup.planId) {
-    return { response: jsonNoStore({ error: "This invite link isn't valid." }, { status: 404 }) };
+    return { response: publicApiError("This invite link isn't valid.", "NOT_FOUND", 404) };
   }
   const state = await planStateResult(lookup.planId);
   if (!state.ok) {
-    return { response: jsonNoStore({ error: "This invite is unavailable." }, { status: 503 }) };
+    return { response: publicApiError("This invite is unavailable.", "UNAVAILABLE", 503, { retryable: true }) };
   }
   if (!state.plan) {
-    return { response: jsonNoStore({ error: "This invite link isn't valid." }, { status: 404 }) };
+    return { response: publicApiError("This invite link isn't valid.", "NOT_FOUND", 404) };
   }
   return { planId: lookup.planId };
 }

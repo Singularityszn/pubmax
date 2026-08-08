@@ -142,7 +142,7 @@ describe("Social interactions route", () => {
       body: JSON.stringify({ action: "comment_policy", postId: "11111111-1111-4111-8111-111111111111", policy: "locked" }),
     }));
     expect(response.status).toBe(409);
-    expect(await response.json()).toEqual({ code: "EDIT_CONFLICT", error: "Post changed before comment policy was saved." });
+    expect(await response.json()).toEqual({ code: "EDIT_CONFLICT", error: "Post changed before comment policy was saved.", retryable: false });
   });
 
   it("keeps reporting and moderation safety floors open during a Social freeze", async () => {

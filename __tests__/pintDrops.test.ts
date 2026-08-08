@@ -324,6 +324,8 @@ describe("POST /api/pint-drops (create)", () => {
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({
       error: "Venue list is unavailable right now, try again shortly.",
+      code: "UNAVAILABLE",
+      retryable: true,
     });
   });
 
@@ -562,6 +564,8 @@ describe("GET + moderation", () => {
     expect(created.status).toBe(503);
     expect(await created.json()).toEqual({
       error: "Pint Drop production storage is not configured.",
+      code: "UNAVAILABLE",
+      retryable: true,
     });
 
     const listed = await get(VENUE);

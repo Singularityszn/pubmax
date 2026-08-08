@@ -1,4 +1,5 @@
 import { isLimited } from "@/lib/pintDrops";
+import { publicApiError } from "@/lib/apiError";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import {
@@ -24,10 +25,7 @@ function privateJson(body: unknown, init: ResponseInit = {}): Response {
 }
 
 function accessError(access: Exclude<Awaited<ReturnType<typeof requireVerifiedSocialActor>>, { ok: true }>): Response {
-  return privateJson(
-    { code: access.code, error: access.error, ...(access.retryable ? { retryable: true } : {}) },
-    { status: access.status },
-  );
+  return publicApiError(access.error, access.code, access.status, { retryable: access.retryable === true, headers: { "Cache-Control": "private, no-store" } });
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -88,10 +86,7 @@ async function writeActor(options: {
   const key = `social-interaction:${hashActor(access.actor.profileId)}`;
   if (!options.bypassRateLimit && await isLimited(key, key, WRITE_LIMIT, WRITE_WINDOW_MS)) {
     return {
-      response: privateJson(
-        { code: "RATE_LIMITED", error: "Too many Social changes. Slow down.", retryable: true },
-        { status: 429 },
-      ),
+      response: publicApiError("Too many Social changes. Slow down.", "RATE_LIMITED", 429, { retryable: true, headers: { "Cache-Control": "private, no-store" } }),
     };
   }
   return access;
@@ -106,12 +101,9 @@ function storeError(error: unknown): Response {
         : error.code === "COMMENTS_NOT_ALLOWED" || error.code === "FORBIDDEN" || error.code === "STAFF_REQUIRED"
           ? 403
           : 404;
-    return privateJson({ code: error.code, error: error.message }, { status });
+    return publicApiError(error.message, error.code, status, { headers: { "Cache-Control": "private, no-store" } });
   }
-  return privateJson(
-    { code: "SOCIAL_INTERACTION_UNAVAILABLE", error: "Social interactions are unavailable right now.", retryable: true },
-    { status: 503 },
-  );
+  return publicApiError("Social interactions are unavailable right now.", "SOCIAL_INTERACTION_UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -119,7 +111,7 @@ export async function GET(request: Request): Promise<Response> {
   if ("response" in access) return access.response;
   const url = new URL(request.url);
   const paging = page(url);
-  if (!paging) return privateJson({ code: "INVALID_PAGE", error: "That page is not valid." }, { status: 400 });
+  if (!paging) return publicApiError("That page is not valid.", "INVALID_PAGE", 400, { headers: { "Cache-Control": "private, no-store" } });
   const view = url.searchParams.get("view");
   const postId = id(url.searchParams.get("postId"));
   try {
@@ -127,15 +119,15 @@ export async function GET(request: Request): Promise<Response> {
       case "summary":
         return postId
           ? privateJson({ summary: await socialInteractionStore().summary(access.actor, postId) })
-          : privateJson({ code: "INVALID_REQUEST", error: "Choose a post." }, { status: 400 });
+          : publicApiError("Choose a post.", "INVALID_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
       case "comments":
         return postId
           ? privateJson(await socialInteractionStore().listComments(access.actor, postId, paging))
-          : privateJson({ code: "INVALID_REQUEST", error: "Choose a post." }, { status: 400 });
+          : publicApiError("Choose a post.", "INVALID_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
       case "cheers":
         return postId
           ? privateJson(await socialInteractionStore().listCheers(access.actor, postId, paging))
-          : privateJson({ code: "INVALID_REQUEST", error: "Choose a post." }, { status: 400 });
+          : publicApiError("Choose a post.", "INVALID_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
       case "saves":
         return privateJson(await socialInteractionStore().listSaved(access.actor, paging));
       case "derivatives":
@@ -145,13 +137,13 @@ export async function GET(request: Request): Promise<Response> {
       case "feature_history":
         return postId
           ? privateJson(await socialInteractionStore().featureHistory(access.actor, postId, paging))
-          : privateJson({ code: "INVALID_REQUEST", error: "Choose a feature request." }, { status: 400 });
+          : publicApiError("Choose a feature request.", "INVALID_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
       case "feature_queue":
         return privateJson(await socialInteractionStore().featureQueue(access.actor, paging));
       case "report_queue":
         return privateJson(await socialInteractionStore().reportQueue(access.actor, paging));
       default:
-        return privateJson({ code: "INVALID_REQUEST", error: "Choose an interaction view." }, { status: 400 });
+        return publicApiError("Choose an interaction view.", "INVALID_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
     }
   } catch (error) {
     return storeError(error);
@@ -163,7 +155,7 @@ export async function PUT(request: Request): Promise<Response> {
   if ("response" in access) return access.response;
   const input = await body(request);
   if (!input || typeof input.action !== "string") {
-    return privateJson({ code: "MALFORMED_REQUEST", error: "Request body is not valid." }, { status: 400 });
+    return publicApiError("Request body is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   }
   try {
     if (input.action === "desired" && exactKeys(input, ["action", "postId", "kind"])) {
@@ -184,7 +176,7 @@ export async function PUT(request: Request): Promise<Response> {
       await socialInteractionStore().setBlock(access.actor, target, true);
       return privateJson({ ok: true });
     }
-    return privateJson({ code: "INVALID_INTERACTION", error: "Interaction details are not valid." }, { status: 400 });
+    return publicApiError("Interaction details are not valid.", "INVALID_INTERACTION", 400, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return storeError(error);
   }
@@ -194,7 +186,7 @@ export async function DELETE(request: Request): Promise<Response> {
   const access = await writeActor();
   if ("response" in access) return access.response;
   const input = await body(request);
-  if (!input || typeof input.action !== "string") return privateJson({ code: "MALFORMED_REQUEST", error: "Request body is not valid." }, { status: 400 });
+  if (!input || typeof input.action !== "string") return publicApiError("Request body is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   try {
     if (input.action === "desired" && exactKeys(input, ["action", "postId", "kind"])) {
       const postId = id(input.postId);
@@ -208,7 +200,7 @@ export async function DELETE(request: Request): Promise<Response> {
       await socialInteractionStore().setBlock(access.actor, target, false);
       return privateJson({ ok: true });
     }
-    return privateJson({ code: "INVALID_INTERACTION", error: "Interaction details are not valid." }, { status: 400 });
+    return publicApiError("Interaction details are not valid.", "INVALID_INTERACTION", 400, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return storeError(error);
   }
@@ -216,7 +208,7 @@ export async function DELETE(request: Request): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   const input = await body(request);
-  if (!input || typeof input.action !== "string") return privateJson({ code: "MALFORMED_REQUEST", error: "Request body is not valid." }, { status: 400 });
+  if (!input || typeof input.action !== "string") return publicApiError("Request body is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   const access = await writeActor({
     bypassFreeze: bypassesSocialFreeze(input.action),
     bypassRateLimit: isUrgentReport(input),
@@ -286,7 +278,7 @@ export async function POST(request: Request): Promise<Response> {
       });
       return privateJson({ ok: true });
     }
-    return privateJson({ code: "INVALID_INTERACTION", error: "Interaction details are not valid." }, { status: 400 });
+    return publicApiError("Interaction details are not valid.", "INVALID_INTERACTION", 400, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return storeError(error);
   }

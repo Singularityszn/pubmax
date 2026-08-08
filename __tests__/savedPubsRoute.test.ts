@@ -131,6 +131,8 @@ describe("POST /api/saved-pubs (toggle)", () => {
       expect(res.status).toBe(400);
       expect(await res.json()).toEqual({
         error: "Choose a list that matches this venue.",
+        code: "INVALID_REQUEST",
+        retryable: false,
       });
     }
     expect((await (await list("handle=latefoodreject")).json()).saved).toHaveLength(0);
@@ -162,7 +164,7 @@ describe("POST /api/saved-pubs (toggle)", () => {
   it("400s a BLANK list name — a list still needs a name", async () => {
     const res = await post({ handle: "ale", venueId: REAL_VENUE_ID, listType: "   " });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Add a list name." });
+    expect(await res.json()).toEqual({ error: "Add a list name.", code: "INVALID_REQUEST", retryable: false });
 
     // Confirm nothing was stored under the handle.
     const check = await list("handle=ale");
@@ -172,19 +174,19 @@ describe("POST /api/saved-pubs (toggle)", () => {
   it("400s a missing handle", async () => {
     const res = await post({ venueId: REAL_VENUE_ID, listType: "Historic" });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Add a contributor handle." });
+    expect(await res.json()).toEqual({ error: "Add a contributor handle.", code: "INVALID_REQUEST", retryable: false });
   });
 
   it("400s a missing venue id", async () => {
     const res = await post({ handle: "ale", listType: "Historic" });
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Choose a venue." });
+    expect(await res.json()).toEqual({ error: "Choose a venue.", code: "INVALID_REQUEST", retryable: false });
   });
 
   it("400s a malformed JSON body", async () => {
     const res = await POST(new Request(URL_BASE, { method: "POST", body: "{nope" }));
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Malformed request body." });
+    expect(await res.json()).toEqual({ error: "Malformed request body.", code: "MALFORMED_REQUEST", retryable: false });
   });
 
   it("caps an over-length venue id and cleans a junk note before storing", async () => {
@@ -217,7 +219,7 @@ describe("POST /api/saved-pubs (toggle)", () => {
       );
     }
     expect(last!.status).toBe(429);
-    expect(await last!.json()).toEqual({ error: "Too many saves, slow down." });
+    expect(await last!.json()).toEqual({ error: "Too many saves, slow down.", code: "RATE_LIMITED", retryable: true });
   });
 
   it("never leaks actor_hash/status/moderation fields in the saved DTO", async () => {

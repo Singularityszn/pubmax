@@ -14,6 +14,7 @@
 // signed-out/offline viewer (lib/savedPubs.ts), so this route only ever augments
 // the demo, never gates it.
 
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { normalizeHandle } from "@/lib/profiles";
@@ -66,42 +67,39 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const handle = await resolveMessageHandle(request, readString(body.handle));
-  if (!handle) return jsonNoStore({ error: "Add a contributor handle." }, { status: 400 });
+  if (!handle) return publicApiError("Add a contributor handle.", "INVALID_REQUEST", 400);
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   // createList action (story 33): register a custom list name for this handle so
   // it appears in the pick-UI before it has any saves. Rate-limited like saves.
   if (readString(body.action) === "createList") {
     const name = cleanListType(body.name ?? body.listType);
-    if (!name) return jsonNoStore({ error: "Add a list name." }, { status: 400 });
+    if (!name) return publicApiError("Add a list name.", "INVALID_REQUEST", 400);
     if (await isLimited(`lists:${ownership.handle}`, `lists:${hashIp(clientIp(request))}`)) {
-      return jsonNoStore({ error: "Too many lists, slow down." }, { status: 429 });
+      return publicApiError("Too many lists, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
     const lists = await savedListsStore().createList(ownership.handle, name);
     return jsonNoStore({ lists }, { status: 200 });
   }
 
   const venueId = (readString(body.venueId) ?? "").slice(0, MAX_VENUE_ID);
-  if (!venueId) return jsonNoStore({ error: "Choose a venue." }, { status: 400 });
+  if (!venueId) return publicApiError("Choose a venue.", "INVALID_REQUEST", 400);
 
   const listType = cleanListType(body.listType);
   if (!listType) {
-    return jsonNoStore({ error: "Add a list name." }, { status: 400 });
+    return publicApiError("Add a list name.", "INVALID_REQUEST", 400);
   }
   const venue = await resolveVenue(venueId);
   if (!isListTypeEligibleForVenue(listType, venue?.kind)) {
-    return jsonNoStore(
-      { error: "Choose a list that matches this venue." },
-      { status: 400 },
-    );
+    return publicApiError("Choose a list that matches this venue.", "INVALID_REQUEST", 400);
   }
 
   // Note is untrusted free text: strip HTML/control chars and cap length.
@@ -112,7 +110,7 @@ export async function POST(request: Request): Promise<Response> {
   // so one device can't spam across handles. 429 when either budget is exhausted.
   const actorHash = hashIp(clientIp(request));
   if (await isLimited(`saved:${ownership.handle}`, `saved:${actorHash}`)) {
-    return jsonNoStore({ error: "Too many saves, slow down." }, { status: 429 });
+    return publicApiError("Too many saves, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   // toggleSaved is fail-soft: a store error returns the current list unchanged, so

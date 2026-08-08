@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
@@ -8,7 +9,7 @@ type Context = { params: Promise<{ mediaId: string }> };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function missing(): Response {
-  return Response.json({ code: "NOT_FOUND", error: "Photo not found." }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
+  return publicApiError("Photo not found.", "NOT_FOUND", 404, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function GET(_request: Request, context: Context): Promise<Response> {

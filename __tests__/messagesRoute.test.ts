@@ -139,7 +139,7 @@ describe("POST /api/messages — open + send validation", () => {
         body: "should fail soft",
       });
       expect(res.status).toBe(503);
-      expect(await res.json()).toEqual({ error: "Couldn't send that message." });
+      expect(await res.json()).toEqual({ error: "Couldn't send that message.", code: "UNAVAILABLE", retryable: true });
     } finally {
       openSpy.mockRestore();
       sendSpy.mockRestore();
@@ -189,7 +189,7 @@ describe("GET /api/messages/[id] — participant gating (the leak test)", () => 
     const res = await getThread(id, "handle=ken");
     spy.mockRestore();
     expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({ error: "Profile storage is unavailable." });
+    expect(await res.json()).toEqual({ error: "Profile storage is unavailable.", code: "UNAVAILABLE", retryable: true });
   });
 });
 

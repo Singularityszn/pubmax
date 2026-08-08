@@ -3,6 +3,7 @@
 // this route does not pretend auth-backed ownership exists yet.
 
 import { isLimited } from "@/lib/pintDrops";
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { normalizeHandle } from "@/lib/profiles";
@@ -60,40 +61,37 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   // JWT-linked handle wins over a self-asserted body.follower when signed in.
   const follower = await resolveMessageHandle(request, readString(body.follower));
   if (!follower) {
-    return jsonNoStore(
-      { error: "Choose a handle in your account first." },
-      { status: 400 },
-    );
+    return publicApiError("Choose a handle in your account first.", "INVALID_REQUEST", 400);
   }
 
   const owner = normalizeHandle(readString(body.owner) ?? "");
-  if (!owner) return jsonNoStore({ error: "Missing list author." }, { status: 400 });
+  if (!owner) return publicApiError("Missing list author.", "INVALID_REQUEST", 400);
 
   const listType = cleanListType(body.listType);
-  if (!listType) return jsonNoStore({ error: "Add a list name." }, { status: 400 });
+  if (!listType) return publicApiError("Add a list name.", "INVALID_REQUEST", 400);
 
   if (isSelfListFollow(follower, owner)) {
-    return jsonNoStore({ error: "You can't follow your own list." }, { status: 400 });
+    return publicApiError("You can't follow your own list.", "INVALID_REQUEST", 400);
   }
 
   const ownership = await gateHandleAction(request, follower);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   const actorHash = hashIp(clientIp(request));
   if (await isLimited(`list-follow:${follower}`, `list-follow:${follower}:${actorHash}`)) {
-    return jsonNoStore({ error: "Too many list follows, slow down." }, { status: 429 });
+    return publicApiError("Too many list follows, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   if (requiresSupabaseStore() && !isSupabaseConfigured()) {
-    return jsonNoStore({ error: "List follow storage is not configured." }, { status: 503 });
+    return publicApiError("List follow storage is not configured.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 
   const unfollow = readString(body.action) === "unfollow";
@@ -105,6 +103,6 @@ export async function POST(request: Request): Promise<Response> {
     const counts = await s.counts(owner, listType);
     return jsonNoStore({ following, counts }, { status: 200 });
   } catch {
-    return jsonNoStore({ error: "List follow storage is unavailable." }, { status: 503 });
+    return publicApiError("List follow storage is unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 }

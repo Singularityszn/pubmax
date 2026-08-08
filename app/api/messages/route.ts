@@ -14,6 +14,7 @@
 // Reads are fail-soft (the store returns an empty inbox on error) so an outage
 // never 500s the inbox. Sends are rate-limited per handle (~20/min).
 
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { requireLinkedActor } from "@/lib/messageAuth";
 import { messagesStore } from "@/lib/messagesStore";
@@ -38,7 +39,7 @@ export async function GET(request: Request): Promise<Response> {
     if (!asserted.trim()) {
       return jsonNoStore({ conversations: [] }, { status: 200 });
     }
-    return jsonNoStore({ error: actor.error }, { status: actor.status });
+    return publicApiErrorFromStatus(actor.error, actor.status);
   }
   const handle = actor.handle;
   if (!handle) return jsonNoStore({ conversations: [] }, { status: 200 });
@@ -50,7 +51,7 @@ export async function GET(request: Request): Promise<Response> {
     if (ownership.status === 503) {
       return jsonNoStore({ conversations: [] }, { status: 200 });
     }
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
   const conversations = await messagesStore().listConversations(handle);
   return jsonNoStore({ conversations }, { status: 200 });
@@ -66,25 +67,25 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const action = readString(body.action);
   const actor = await requireLinkedActor(request, readString(body.handle) ?? "");
   if (!actor.ok) {
-    return jsonNoStore({ error: actor.error }, { status: actor.status });
+    return publicApiErrorFromStatus(actor.error, actor.status);
   }
   const handle = actor.handle;
   const other = normalizeHandle(readString(body.other) ?? "");
-  if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
-  if (!other) return jsonNoStore({ error: "Add a recipient handle." }, { status: 400 });
+  if (!handle) return publicApiError("Add your handle.", "INVALID_REQUEST", 400);
+  if (!other) return publicApiError("Add a recipient handle.", "INVALID_REQUEST", 400);
   if (handle === other) {
-    return jsonNoStore({ error: "You can't message yourself." }, { status: 400 });
+    return publicApiError("You can't message yourself.", "INVALID_REQUEST", 400);
   }
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   const store = messagesStore();
@@ -92,7 +93,7 @@ export async function POST(request: Request): Promise<Response> {
   if (action === "open") {
     const conversationId = await store.openConversation(handle, other);
     if (!conversationId) {
-      return jsonNoStore({ error: "Couldn't open that conversation." }, { status: 503 });
+      return publicApiError("Couldn't open that conversation.", "UNAVAILABLE", 503, { retryable: true });
     }
     return jsonNoStore({ conversationId }, { status: 200 });
   }
@@ -100,21 +101,21 @@ export async function POST(request: Request): Promise<Response> {
   if (action === "send") {
     const key = `msg-send:${handle}:${hashIp(clientIp(request))}`;
     if (await isLimited(key, key, SEND_LIMIT, SEND_WINDOW_MS)) {
-      return jsonNoStore({ error: "Too many messages, slow down." }, { status: 429 });
+      return publicApiError("Too many messages, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
     const messageBody = readString(body.body);
-    if (!messageBody) return jsonNoStore({ error: "Write a message." }, { status: 400 });
+    if (!messageBody) return publicApiError("Write a message.", "INVALID_REQUEST", 400);
     const conversationId = await store.openConversation(handle, other);
     if (!conversationId) {
-      return jsonNoStore({ error: "Couldn't open that conversation." }, { status: 503 });
+      return publicApiError("Couldn't open that conversation.", "UNAVAILABLE", 503, { retryable: true });
     }
     const message = await store.send(conversationId, handle, messageBody);
     if (!message) {
       // Store miss / write failure after validation — degraded dependency, not 400.
-      return jsonNoStore({ error: "Couldn't send that message." }, { status: 503 });
+      return publicApiError("Couldn't send that message.", "UNAVAILABLE", 503, { retryable: true });
     }
     return jsonNoStore({ message, conversationId }, { status: 201 });
   }
 
-  return jsonNoStore({ error: "Unknown action." }, { status: 400 });
+  return publicApiError("Unknown action.", "INVALID_REQUEST", 400);
 }

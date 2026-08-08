@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isWhatsOnLimited } from "@/lib/citymcpRateLimit";
 import { coarsenViewerPoint } from "@/lib/geo";
@@ -56,7 +57,7 @@ export async function handleWhatsOnRequest(
   // proxy surface's budget. A 429 here is an allowed exception to the "never
   // 500" fail-soft contract described above — upstream failures still 200.
   if (await isWhatsOnLimited(request)) {
-    return jsonNoStore({ rows: [], error: "Too many requests, slow down." }, { status: 429 });
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true, compatibilityFields: { rows: [] } });
   }
 
   try {

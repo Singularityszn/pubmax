@@ -13,6 +13,7 @@ import {
   cleanVisibility,
   type CreateCrawlStoryInput,
 } from "@/lib/crawlStoryStore";
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { emitNotification } from "@/lib/notificationsStore";
@@ -86,36 +87,33 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   if (!body || typeof body !== "object") {
-    return jsonNoStore({ error: "Missing submission body." }, { status: 400 });
+    return publicApiError("Missing submission body.", "INVALID_REQUEST", 400);
   }
 
   const title = readString(body.title, MAX_TITLE);
   if (!title) {
-    return jsonNoStore({ error: "Add a crawl title." }, { status: 400 });
+    return publicApiError("Add a crawl title.", "INVALID_REQUEST", 400);
   }
 
   const stops = readStops(body.stops);
   if (stops.length === 0) {
-    return jsonNoStore({ error: "A crawl needs at least one stop." }, { status: 400 });
+    return publicApiError("A crawl needs at least one stop.", "INVALID_REQUEST", 400);
   }
   const venueLookups = await Promise.all(
     stops.map((stop) => lookupCanonicalVenue(stop.venueId)),
   );
   if (venueLookups.some((lookup) => lookup.status === "unavailable")) {
-    return jsonNoStore(
-      { error: "Venue list is unavailable right now, try again shortly." },
-      { status: 503 },
-    );
+    return publicApiError("Venue list is unavailable right now, try again shortly.", "UNAVAILABLE", 503, { retryable: true });
   }
   if (
     venueLookups.some(
       (lookup) => lookup.status !== "found" || !isPubVenueKind(lookup.venue.kind),
     )
   ) {
-    return jsonNoStore({ error: "Every crawl stop must be a pub from the map." }, { status: 400 });
+    return publicApiError("Every crawl stop must be a pub from the map.", "INVALID_REQUEST", 400);
   }
   const canonicalStops = stops.map((stop, index) => ({
     ...stop,
@@ -126,7 +124,7 @@ export async function POST(request: Request): Promise<Response> {
   // is configured, in-memory fallback otherwise — fail-open, mirroring pint-drops.
   const ipKey = hashIp(clientIp(request));
   if (await isLimited(`crawl:${ipKey}`, `crawl:${ipKey}`)) {
-    return jsonNoStore({ error: "Too many crawls saved, slow down." }, { status: 429 });
+    return publicApiError("Too many crawls saved, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   // Author attribution (story 35): optional — an anonymous save leaves it unset.
@@ -136,11 +134,11 @@ export async function POST(request: Request): Promise<Response> {
   if (assertedAuthor) {
     authorHandle = await resolveMessageHandle(request, assertedAuthor);
     if (!authorHandle) {
-      return jsonNoStore({ error: "Add a handle first." }, { status: 400 });
+      return publicApiError("Add a handle first.", "INVALID_REQUEST", 400);
     }
     const ownership = await gateHandleAction(request, authorHandle);
     if (!ownership.allowed) {
-      return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+      return publicApiErrorFromStatus(ownership.error, ownership.status);
     }
     authorHandle = ownership.handle;
   }
@@ -156,7 +154,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const result = await createCrawlStory(input);
   if (!result) {
-    return jsonNoStore({ error: "Could not save this crawl right now." }, { status: 503 });
+    return publicApiError("Could not save this crawl right now.", "UNAVAILABLE", 503, { retryable: true });
   }
 
   // crawl_save emit seam (story 34, best-effort): when a viewer saves a crawl that
@@ -199,11 +197,11 @@ export async function GET(request: Request): Promise<Response> {
 
   const slug = params.get("slug");
   if (!slug) {
-    return jsonNoStore({ error: "Add a slug." }, { status: 400 });
+    return publicApiError("Add a slug.", "INVALID_REQUEST", 400);
   }
   const story = await getCrawlStoryBySlug(slug);
   if (!story) {
-    return jsonNoStore({ error: "Crawl story not found." }, { status: 404 });
+    return publicApiError("Crawl story not found.", "NOT_FOUND", 404);
   }
   return jsonNoStore({ story }, { status: 200 });
 }

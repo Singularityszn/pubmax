@@ -8,24 +8,35 @@
 
 import { NextResponse } from "next/server";
 
+import { publicApiError } from "@/lib/apiError";
+
+import { isLimited } from "@/lib/pintDrops";
 import { lookupUkBasePub } from "@/lib/ukBaseIndex";
 import { isUkBaseId } from "@/lib/ukBasePubs";
+import { clientIp, hashIp } from "@/lib/supabase";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id: rawId } = await params;
+  const ipHash = hashIp(clientIp(request));
+  if (
+    (await isLimited(`uk-base-detail:${ipHash}`, `uk-base-detail:${ipHash}`, 60)) ||
+    (await isLimited("uk-base-detail:global", "uk-base-detail:global", 600))
+  ) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
   const id = decodeURIComponent(rawId);
   if (!isUkBaseId(id)) {
-    return NextResponse.json({ error: "Not a UK base pub id." }, { status: 400 });
+    return publicApiError("Not a UK base pub id.", "INVALID_REQUEST", 400);
   }
   const result = await lookupUkBasePub(id);
   if (result.status === "missing") {
-    return NextResponse.json({ error: "Pub not found." }, { status: 404 });
+    return publicApiError("Pub not found.", "NOT_FOUND", 404);
   }
   if (result.status === "unavailable") {
-    return NextResponse.json({ error: "UK base pubs unavailable." }, { status: 503 });
+    return publicApiError("UK base pubs unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
   return NextResponse.json(
     { pub: result.pub },

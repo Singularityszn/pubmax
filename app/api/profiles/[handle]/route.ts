@@ -29,6 +29,7 @@ import {
 } from "@/lib/supabase";
 import { cleanText, isHttpUrl } from "@/lib/textClean";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 
 assertServerEnv();
@@ -113,7 +114,7 @@ export async function GET(
 ): Promise<Response> {
   const handle = normalizeHandle((await params).handle);
   if (!handle) {
-    return jsonNoStore({ error: "Missing handle." }, { status: 400 });
+    return publicApiError("Missing handle.", "INVALID_REQUEST", 400);
   }
 
   const { profiles, follows } = stores();
@@ -179,40 +180,40 @@ export async function PATCH(
 ): Promise<Response> {
   const handle = normalizeHandle((await params).handle);
   if (!handle) {
-    return jsonNoStore({ error: "Missing handle." }, { status: 400 });
+    return publicApiError("Missing handle.", "INVALID_REQUEST", 400);
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   if (!body || typeof body !== "object") {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   // Rate-limit per handle + hashed IP so a profile can't be edit-spammed.
   const key = `profile-edit:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(handle, key)) {
-    return jsonNoStore({ error: "Too many edits, slow down." }, { status: 429 });
+    return publicApiError("Too many edits, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   const built = buildPatch(body);
   if (!built.ok) {
-    return jsonNoStore({ error: built.error }, { status: 400 });
+    return publicApiError(built.error, "INVALID_REQUEST", 400);
   }
 
   // In production we require the durable store — silently editing an in-memory
   // row that vanishes on the next cold start would be a lie about persistence.
   if (requiresSupabaseStore() && !isSupabaseConfigured()) {
-    return jsonNoStore({ error: "Profile storage is not configured." }, { status: 503 });
+    return publicApiError("Profile storage is not configured.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 
   // OWNERSHIP GATE: linked handle → JWT owner only; unlinked → demo path.
   const gate = await gateHandleAction(request, handle);
   if (!gate.allowed) {
-    return jsonNoStore({ error: gate.error }, { status: gate.status });
+    return publicApiErrorFromStatus(gate.error, gate.status);
   }
 
   try {
@@ -223,7 +224,7 @@ export async function PATCH(
     const profile = await store.update(handle, built.patch);
     return jsonNoStore({ profile: toPublicProfile(profile) }, { status: 200 });
   } catch {
-    return jsonNoStore({ error: "Profile storage is unavailable." }, { status: 503 });
+    return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 }
 
@@ -238,37 +239,31 @@ export async function DELETE(
 ): Promise<Response> {
   const handle = normalizeHandle((await params).handle);
   if (!handle) {
-    return jsonNoStore({ error: "Missing handle." }, { status: 400 });
+    return publicApiError("Missing handle.", "INVALID_REQUEST", 400);
   }
 
   const key = `profile-delete:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(handle, key)) {
-    return jsonNoStore({ error: "Too many edits, slow down." }, { status: 429 });
+    return publicApiError("Too many edits, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   if (requiresSupabaseStore() && !isSupabaseConfigured()) {
-    return jsonNoStore({ error: "Profile storage is not configured." }, { status: 503 });
+    return publicApiError("Profile storage is not configured.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 
   const gate = await gateHandleAction(request, handle);
   if (!gate.allowed) {
-    return jsonNoStore({ error: gate.error }, { status: gate.status });
+    return publicApiErrorFromStatus(gate.error, gate.status);
   }
 
   try {
     const store = profileStore();
     const deletion = await store.softDeleteForCaller(handle, gate.callerUserId);
     if (deletion.status === "not-found") {
-      return jsonNoStore({ error: "Profile not found." }, { status: 404 });
+      return publicApiError("Profile not found.", "NOT_FOUND", 404);
     }
     if (deletion.status === "forbidden") {
-      return jsonNoStore(
-        {
-          error:
-            "This handle belongs to a signed-in account. Sign in as its owner to continue.",
-        },
-        { status: 403 },
-      );
+      return publicApiError("This handle belongs to a signed-in account. Sign in as its owner to continue.", "FORBIDDEN", 403);
     }
 
     const { ownerUserId, profile } = deletion;
@@ -302,7 +297,7 @@ export async function DELETE(
 
     return jsonNoStore({ profile: toPublicProfile(profile) }, { status: 200 });
   } catch {
-    return jsonNoStore({ error: "Profile storage is unavailable." }, { status: 503 });
+    return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 }
 

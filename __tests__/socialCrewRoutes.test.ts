@@ -235,12 +235,12 @@ describe("Social Crew route authority and HTTP policy", () => {
     [
       { ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED", error: "Sign in to use Social." },
       401,
-      { code: "SOCIAL_SIGN_IN_REQUIRED", error: "Sign in to use Social." },
+      { code: "SOCIAL_SIGN_IN_REQUIRED", error: "Sign in to use Social.", retryable: false },
     ],
     [
       { ok: false, status: 403, code: "SOCIAL_ADULT_VERIFICATION_REQUIRED", error: "Adult verification is needed for Social." },
       403,
-      { code: "SOCIAL_ADULT_VERIFICATION_REQUIRED", error: "Adult verification is needed for Social." },
+      { code: "SOCIAL_ADULT_VERIFICATION_REQUIRED", error: "Adult verification is needed for Social.", retryable: false },
     ],
     [
       { ok: false, status: 503, code: "SOCIAL_ACCESS_UNAVAILABLE", error: "Social access checks are unavailable right now.", retryable: true },
@@ -277,14 +277,17 @@ describe("Social Crew route authority and HTTP policy", () => {
       [new SocialCrewStoreError("INVALID", 400, "Social Crew request is not valid."), 422, {
         code: "INVALID_SOCIAL_CREW_REQUEST",
         error: "Social Crew request is not valid.",
+        retryable: false,
       }],
       [new SocialCrewStoreError("NOT_FOUND", 404, "Social Crew not found."), 404, {
         code: "SOCIAL_CREW_NOT_FOUND",
         error: "Social Crew not found.",
+        retryable: false,
       }],
       [new SocialCrewStoreError("CONFLICT", 409, "Social Crew changed before this request."), 409, {
         code: "SOCIAL_CREW_CONFLICT",
         error: "Social Crew changed before this request.",
+        retryable: false,
       }],
       [new SocialCrewStoreError("UNAVAILABLE", 503, "Social Crew is unavailable right now."), 503, {
         code: "SOCIAL_CREW_UNAVAILABLE",

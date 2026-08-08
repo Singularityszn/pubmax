@@ -80,6 +80,7 @@ describe("Social post moderation worker", () => {
     expect(await response.json()).toEqual({
       ok: false,
       error: "Social post moderation queue is unavailable.",
+      code: "UNAVAILABLE",
       retryable: true,
     });
     expect(state.calls).toBe(0);

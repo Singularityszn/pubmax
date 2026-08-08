@@ -40,6 +40,7 @@
 // nearest-station lookup fails or finds nothing, it returns 200 with an `error`
 // string and an empty body the card can show gracefully (user story 24).
 
+import { publicApiError } from "@/lib/apiError";
 import {
   computeLastPintDecision,
   formatLastJourney,
@@ -427,7 +428,7 @@ export async function GET(request: Request): Promise<Response> {
   const lat = Number.parseFloat(params.get("lat") ?? "");
   const lng = Number.parseFloat(params.get("lng") ?? "");
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return json({ error: "Add valid lat and lng coordinates." }, { status: 400 });
+    return publicApiError("Add valid lat and lng coordinates.", "INVALID_REQUEST", 400);
   }
   if (!pointInCityBounds(lat, lng, CITIES.london)) {
     const decision = computeLastPintDecision({
@@ -450,7 +451,7 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
   if (await isLastRideLimited(request, stableOnly ? "last-train-stable" : "last-train")) {
-    return json({ error: "Too many requests, slow down." }, { status: 429 });
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
   // Destination is client-only (user story 23): the card keeps the label in
   // sessionStorage and never sends it here. Ignore any legacy ?destination=

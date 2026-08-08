@@ -1,18 +1,26 @@
+import { publicApiError } from "@/lib/apiError";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { getPubPalResult, listPalMemoriesResult } from "@/lib/pubPalStore";
 
 export async function GET(request: Request): Promise<Response> {
+  const limiterKey = `pub-pal-export:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 10)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const ownerId = await callerUserId(request);
-  if (!ownerId) return jsonNoStore({ error: "Sign in to export Pal memory.", code: "AUTH_REQUIRED", retryable: false }, { status: 401 });
+  if (!ownerId) return publicApiError("Sign in to export Pal memory.", "AUTH_REQUIRED", 401);
   const palResult = await getPubPalResult(ownerId);
-  if (!palResult.ok) return jsonNoStore({ error: "Pal memory export is temporarily unavailable.", code: "PAL_MEMORY_STORE_UNAVAILABLE", retryable: true }, { status: 503 });
+  if (!palResult.ok) return publicApiError("Pal memory export is temporarily unavailable.", "PAL_MEMORY_STORE_UNAVAILABLE", 503, { retryable: true });
   const pal = palResult.value;
-  if (!pal) return jsonNoStore({ error: "Pub Pal not found.", code: "PUB_PAL_NOT_FOUND", retryable: false }, { status: 404 });
+  if (!pal) return publicApiError("Pub Pal not found.", "PUB_PAL_NOT_FOUND", 404);
   const result = await listPalMemoriesResult(ownerId);
   if (!result.ok) return result.error === "error"
-    ? jsonNoStore({ error: "Pal memory export is temporarily unavailable.", code: "PAL_MEMORY_STORE_UNAVAILABLE", retryable: true }, { status: 503 })
-    : jsonNoStore({ error: "Pub Pal not found.", code: "PUB_PAL_NOT_FOUND", retryable: false }, { status: 404 });
+    ? publicApiError("Pal memory export is temporarily unavailable.", "PAL_MEMORY_STORE_UNAVAILABLE", 503, { retryable: true })
+    : publicApiError("Pub Pal not found.", "PUB_PAL_NOT_FOUND", 404);
   const memories = result.value;
   return jsonNoStore({
     version: 1,
