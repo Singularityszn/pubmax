@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,6 +9,15 @@ import {
   sanitizeEvent,
   WEEKLY_MEANINGFUL_CORE_ACTIONS,
 } from "@/lib/analyticsEvents";
+
+const METRICS_FUNNEL_DOC = readFileSync(
+  join(process.cwd(), "docs/METRICS_FUNNEL.md"),
+  "utf8",
+);
+const INVITE_SCOREBOARD_DOC = readFileSync(
+  join(process.cwd(), "docs/growth/V1_INVITE_SCOREBOARD.md"),
+  "utf8",
+);
 
 describe("isKnownEvent", () => {
   it("accepts registry names and rejects everything else", () => {
@@ -58,6 +70,62 @@ describe("sanitizeEvent", () => {
       route: "/near",
       attribution: "button#private-account-control",
     })?.props).toEqual({ metric: "INP", value: 143, rating: "good", route: "/near" });
+  });
+
+  describe("crew north star metric (crew_committed participants)", () => {
+    it("registers participants on crew_committed", () => {
+      expect(ANALYTICS_EVENTS.crew_committed).toEqual([
+        "source",
+        "participants",
+        "routeReady",
+      ]);
+    });
+
+    it("accepts integer participants from 1 through 100 inclusive", () => {
+      for (const participants of [1, 2, 50, 100]) {
+        expect(
+          sanitizeEvent("crew_committed", {
+            source: "shared-plan",
+            participants,
+            routeReady: true,
+          }),
+        ).toEqual({
+          name: "crew_committed",
+          props: { source: "shared-plan", participants, routeReady: true },
+        });
+      }
+    });
+
+    it("rejects participants outside 1–100 or non-integers", () => {
+      expect(
+        sanitizeEvent("crew_committed", {
+          source: "shared-plan",
+          participants: 0,
+          routeReady: true,
+        }),
+      ).toBeNull();
+      expect(
+        sanitizeEvent("crew_committed", {
+          source: "shared-plan",
+          participants: 101,
+          routeReady: true,
+        }),
+      ).toBeNull();
+      expect(
+        sanitizeEvent("crew_committed", {
+          source: "shared-plan",
+          participants: 2.5,
+          routeReady: true,
+        }),
+      ).toBeNull();
+    });
+
+    it("documents the north-star filter participants >= 2 in funnel and scoreboard docs", () => {
+      expect(METRICS_FUNNEL_DOC).toMatch(/participants\s*>=\s*2/);
+      expect(METRICS_FUNNEL_DOC).toMatch(/crew_committed/);
+      expect(INVITE_SCOREBOARD_DOC).toMatch(/participants\s*>=\s*2/);
+      expect(INVITE_SCOREBOARD_DOC).toMatch(/crew_committed/);
+    });
   });
 
   it("keeps the activation and retention funnel free of identity and free text", () => {
