@@ -1,4 +1,6 @@
 import { jsonNoStore } from "@/lib/apiResponses";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { isPlanId, PLANNED_NIGHT_STATUSES, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import { cleanNightContext } from "@/lib/nightPlanning";
@@ -139,6 +141,11 @@ export async function GET(request: Request, context: Context): Promise<Response>
 }
 
 export async function PATCH(request: Request, context: Context): Promise<Response> {
+  const limiterKey = `plan-update:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const { id } = await context.params;
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
   let body: Record<string, unknown>;

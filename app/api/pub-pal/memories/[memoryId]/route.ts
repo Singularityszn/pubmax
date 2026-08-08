@@ -1,4 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { deletePalMemoryResult, updatePalMemoryResult } from "@/lib/pubPalStore";
@@ -10,6 +12,11 @@ function unauthenticated(): Response {
 }
 
 export async function PATCH(request: Request, context: Context): Promise<Response> {
+  const limiterKey = `pub-pal-memories:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const ownerId = await callerUserId(request);
   if (!ownerId) return unauthenticated();
   let body: unknown;
@@ -24,6 +31,11 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
 }
 
 export async function DELETE(request: Request, context: Context): Promise<Response> {
+  const limiterKey = `pub-pal-memories:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const ownerId = await callerUserId(request);
   if (!ownerId) return unauthenticated();
   const { memoryId } = await context.params;

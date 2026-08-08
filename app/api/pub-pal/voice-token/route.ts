@@ -1,8 +1,9 @@
 import { callerUserId } from "@/lib/authServer";
+import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { log } from "@/lib/log";
-import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { clientIp, hashIp, isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 const usage = new Map<string, { count: number; month: string }>();
 const MONTHLY_TRIAL_SESSIONS = 10;
@@ -33,6 +34,11 @@ function logReleaseFailure(input: {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const limiterKey = `pub-pal-voice-token:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const userId = await callerUserId(request);
   if (!userId) return publicApiError("Sign in to talk with your Pub Pal.", "UNAUTHENTICATED", 401);
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();

@@ -1,4 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { createNightStory, listNightStoryInbox } from "@/lib/nightMemoryStore";
@@ -14,6 +16,11 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const limiterKey = `night-story-create:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   // Solo-operator emergency freeze (U15): creating a Night Story is a social write.
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;

@@ -1,4 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import type { MomentConsentStatus } from "@/lib/nightMemory";
@@ -8,6 +10,11 @@ import { cleanText } from "@/lib/textClean";
 type Context = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: Context): Promise<Response> {
+  const limiterKey = `night-story-consents:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const actorId = await callerUserId(request);
   if (!actorId) return publicApiError("Sign in to control Moment publication.", "UNAUTHENTICATED", 401);
   let body: Record<string, unknown>;

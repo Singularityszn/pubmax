@@ -1,4 +1,6 @@
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import {
@@ -25,6 +27,11 @@ export async function GET(request: Request, context: Context): Promise<Response>
 }
 
 export async function POST(request: Request, context: Context): Promise<Response> {
+  const limiterKey = `night-moment-create:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   // Solo-operator emergency freeze (U15): posting a Night Moment is a social write.
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;

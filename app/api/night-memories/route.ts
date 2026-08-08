@@ -1,4 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { createNightMemory, listNightMemories } from "@/lib/nightMemoryStore";
@@ -11,6 +13,11 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const limiterKey = `night-memory-create:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const ownerId = await callerUserId(request);
   if (!ownerId) return publicApiError("Sign in to create a Night Memory.", "UNAUTHENTICATED", 401);
   let body: unknown;

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 
 import { publicApiError } from "@/lib/apiError";
 import { callerAuthIdentity } from "@/lib/authServer";
@@ -15,6 +17,11 @@ function reply(body: unknown, status = 200): Response {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const limiterKey = `referral-claim:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const identity = await callerAuthIdentity(request);
   if (!identity) {
     return reply({ error: "Sign in to record an invite." }, 401);

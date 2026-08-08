@@ -1,4 +1,6 @@
 import { callerUserId } from "@/lib/authServer";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { createPubPalResult, deletePubPalResult, getPubPalResult, updatePubPalResult } from "@/lib/pubPalStore";
@@ -18,6 +20,11 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const limiterKey = `pub-pal-write:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const id = await owner(request);
   if (typeof id !== "string") return id;
   let body: unknown;
@@ -31,6 +38,11 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 export async function PATCH(request: Request): Promise<Response> {
+  const limiterKey = `pub-pal-write:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const id = await owner(request);
   if (typeof id !== "string") return id;
   let body: unknown;
@@ -44,6 +56,11 @@ export async function PATCH(request: Request): Promise<Response> {
 }
 
 export async function DELETE(request: Request): Promise<Response> {
+  const limiterKey = `pub-pal-write:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const id = await owner(request);
   if (typeof id !== "string") return id;
   const result = await deletePubPalResult(id);

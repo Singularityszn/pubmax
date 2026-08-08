@@ -5,6 +5,8 @@
 // guest write path stays on /api/invite/[token]/rsvp.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isPlanId } from "@/lib/plan";
@@ -16,6 +18,11 @@ import { readString } from "@/lib/textClean";
 type Context = { params: Promise<{ id: string }> };
 
 export async function DELETE(request: Request, context: Context): Promise<Response> {
+  const limiterKey = `plan-invite-rsvp:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
 

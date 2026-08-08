@@ -1,4 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { confirmNightStoryPublication } from "@/lib/nightMemoryStore";
@@ -7,6 +9,11 @@ import { socialFreezeResponse } from "@/lib/opsFreeze";
 type Context = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: Context): Promise<Response> {
+  const limiterKey = `night-story-publish-confirm:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   // Solo-operator emergency freeze (U15): confirming a Story publication is a social write.
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;

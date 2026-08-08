@@ -1,4 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
+import { clientIp, hashIp } from "@/lib/supabase";
+import { isLimited } from "@/lib/pintDrops";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { SocialPostConsentStoreError, socialPostConsentStore } from "@/lib/socialPostConsentStore";
 import { boundedJson } from "@/lib/boundedRequest.server";
@@ -32,6 +34,11 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const limiterKey = `social-tag-action:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const access = await requireVerifiedSocialActor();
   if (!access.ok) return publicApiError(access.error, access.code, access.status, { headers: { "Cache-Control": "private, no-store" } });
   let input: unknown;
