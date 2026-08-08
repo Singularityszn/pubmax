@@ -52,7 +52,7 @@ export type PintDropStatus = "visible" | "hidden" | "pending";
 // row and any write that omits it keeps today's behaviour.
 //
 //   • public     — feed, map, leaderboards, ledger, permalink (today's default).
-//   • friends    — author + the author's FOLLOWERS only (see qualifiesForFriends).
+//   • friends    — author + mutual follows only (see qualifiesForFriends).
 //   • legacy      — the family/heirloom lane: ledger + author ONLY; kept out of the
 //                  feed/map/leaderboard signals (see listLegacyForVenue).
 //   • anonymous  — shown publicly, handle WITHHELD in every DTO (ANON_HANDLE_LABEL);
@@ -122,19 +122,23 @@ export type ValidationResult =
   | { ok: false; error: string };
 
 /**
- * The requester's identity for a friends-gated read. Self-asserted (no auth yet
- * — same courtesy-curtain trust boundary as lib/notifications.ts). `handle` is
- * the viewer's own handle; `followingHandles` is the set of NORMALISED handles
- * the viewer follows (its followees). A follower of an author is a viewer whose
- * `followingHandles` CONTAINS the author — i.e. the friends lane shows a drop to
- * the author's followers (see qualifiesForFriends).
+ * The requester's identity for a friends-gated read. Prefer a JWT-resolved
+ * handle (`lib/pintDropViewer.ts`); self-asserted handles remain a
+ * courtesy-curtain for keyless/dev only. `handle` is the viewer's own handle;
+ * `mutualHandles` is the set of NORMALISED handles with a mutual follow edge.
+ * A friends-only drop is visible to the author and to mutuals — never to a
+ * one-way follower (Social Launch D3 / WP6).
  *
- * Both fields optional: an anonymous viewer (no handle / no follow set) sees only
- * public + anonymous drops.
+ * `followingHandles` remains for feed ranking / discovery lanes that are not
+ * friends-only visibility (e.g. the Friends feed filter in `lib/feed.ts`).
+ *
+ * All fields optional: an anonymous viewer sees only public + anonymous drops.
  */
 export type ViewerContext = {
   /** The viewer's own self-asserted handle (raw or normalised — normalised on use). */
   handle?: string | null;
-  /** Normalised handles the viewer follows (its followees). */
+  /** Normalised handles with a mutual follow edge (Social Launch D3). */
+  mutualHandles?: ReadonlySet<string>;
+  /** Normalised handles the viewer follows (its followees). Ranking only. */
   followingHandles?: ReadonlySet<string>;
 };

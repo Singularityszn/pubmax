@@ -55,10 +55,14 @@ export async function resolveViewerContextFromRequest(
   if (!handle) return undefined;
 
   try {
-    const following = await followStore().listFollowing(handle);
+    const [following, mutuals] = await Promise.all([
+      followStore().listFollowing(handle),
+      followStore().listMutuals(handle),
+    ]);
     return {
       handle,
       followingHandles: new Set(following.map(normalizeViewerHandle).filter(Boolean)),
+      mutualHandles: new Set(mutuals.map(normalizeViewerHandle).filter(Boolean)),
     };
   } catch {
     return { handle };
