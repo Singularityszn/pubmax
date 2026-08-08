@@ -16,7 +16,7 @@ import { socialPostStore, SocialPostStoreError } from "@/lib/socialPostStore";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
 import { parseSocialCreateSubmission } from "@/lib/socialPostSubmission";
 import { projectSocialVenueName, projectSocialVenueNames, resolveSocialVenueId, type SocialVenueResolution } from "@/lib/socialPostVenue.server";
-import { isSocialPostArea, type SocialPostFields } from "@/lib/socialPosts";
+import { enrichSocialPostAuthors, isSocialPostArea, type SocialPostFields } from "@/lib/socialPosts";
 import { hashActor } from "@/lib/supabase";
 import { boundedFormData, boundedJson } from "@/lib/boundedRequest.server";
 import { socialPhotoMediaId, socialPostRequestDigest, validSocialPostIdempotencyKey } from "@/lib/socialPostIdempotency.server";
@@ -108,9 +108,11 @@ export async function GET(request: Request): Promise<Response> {
       : new Map();
     return privateJson({
       ...page,
-      posts: await projectSocialVenueNames(page.posts.map((post) => post.photo
-        ? { ...post, photo: { ...post.photo, tags: tags.get(post.id) ?? [] } }
-        : post)),
+      posts: await enrichSocialPostAuthors(
+        await projectSocialVenueNames(page.posts.map((post) => post.photo
+          ? { ...post, photo: { ...post.photo, tags: tags.get(post.id) ?? [] } }
+          : post)),
+      ),
     });
   } catch (error) {
     return storeError(error);

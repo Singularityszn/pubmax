@@ -1,0 +1,51 @@
+"use client";
+
+import Image from "next/image";
+import { useState } from "react";
+
+import { avatarInitialFromHandle } from "@/lib/avatarResolve";
+
+type HandleAvatarProps = {
+  handle: string;
+  avatarUrl?: string | null;
+  displayName?: string;
+  className?: string;
+  imageClassName?: string;
+  size?: number;
+};
+
+/**
+ * Handle-backed avatar with initials fallback on missing, hidden, or broken images.
+ */
+export default function HandleAvatar({
+  handle,
+  avatarUrl,
+  displayName,
+  className,
+  imageClassName,
+  size = 40,
+}: HandleAvatarProps) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const initial = avatarInitialFromHandle(handle, displayName);
+  const showImage = Boolean(avatarUrl) && failedUrl !== avatarUrl;
+
+  if (showImage) {
+    return (
+      <Image
+        className={imageClassName ?? className}
+        src={avatarUrl!}
+        alt=""
+        width={size}
+        height={size}
+        unoptimized
+        onError={() => setFailedUrl(avatarUrl ?? null)}
+      />
+    );
+  }
+
+  return (
+    <span className={className} aria-hidden="true">
+      {initial}
+    </span>
+  );
+}

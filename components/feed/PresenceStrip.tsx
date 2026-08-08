@@ -12,6 +12,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import HandleAvatar from "@/components/profile/HandleAvatar";
 import { displayHandle } from "@/lib/handleDisplay";
 import { relativeTime } from "@/lib/relativeTime";
 
@@ -21,6 +22,7 @@ type PresenceDTO = {
   venueName: string;
   venueMapUrl: string;
   at: string;
+  avatarUrl?: string;
   // Set ONLY on seeded ambient demo rows (lib/ambientPresence) — real taps never
   // carry it. Rendered as the shared honest "Demo" chip, matching feed/drinks.
   provenance?: "demo";
@@ -72,6 +74,13 @@ export default function PresenceStrip({ spillingNow = 0 }: { spillingNow?: numbe
           const ago = relativeTime(p.at);
           return (
             <li key={`${p.handle}-${p.venueId}`} className="presenceItem">
+              <HandleAvatar
+                handle={p.handle}
+                avatarUrl={p.avatarUrl}
+                className="presenceAvatar"
+                imageClassName="presenceAvatar"
+                size={24}
+              />
               <span className="presenceHandle">{displayHandle(p.handle)}</span>
               <span className="presenceAt">at</span>
               <Link href={p.venueMapUrl} className="presenceVenue">

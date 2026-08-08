@@ -24,4 +24,6 @@ export type PresenceDTO = {
   venueMapUrl: string;
   at: string;
   provenance?: "demo";
+  /** Approved owned avatar serve path for linked handles only. */
+  avatarUrl?: string;
 };

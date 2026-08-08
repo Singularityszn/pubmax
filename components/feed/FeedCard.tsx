@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
 import { DrinkGlyph } from "@/components/drinks/DrinkGlyph";
+import HandleAvatar from "@/components/profile/HandleAvatar";
 import CommentThread from "@/components/pintdrop/CommentThread";
 import ShareBar from "@/components/share/ShareBar";
 import { categoryColor } from "@/lib/categoryColors";
@@ -179,7 +180,6 @@ export default function FeedCard({
   onRetryPost?: (clientRequestId: string) => void;
 }) {
   const hero = item.photoUrls[0];
-  const initial = item.handle.trim().charAt(0).toUpperCase() || "?";
   const ago = relativeTime(item.createdAt);
   const mine = new Set(summary.mine);
 
@@ -266,7 +266,7 @@ export default function FeedCard({
     return (
       <CheckInCard
         handle={shownHandle}
-        initial={initial}
+        avatarUrl={item.avatarUrl}
         areaName={item.areaName ?? null}
         note={item.caption}
         createdAt={item.createdAt}
@@ -332,9 +332,13 @@ export default function FeedCard({
               photo background in BOTH themes. */}
           <div className="feedSpillScrim">
             <div className="feedSpillWho">
-              <span className="feedSpillAvatar" aria-hidden="true">
-                {initial}
-              </span>
+              <HandleAvatar
+                handle={item.handle}
+                avatarUrl={item.avatarUrl}
+                className="feedSpillAvatar"
+                imageClassName="feedSpillAvatar"
+                size={40}
+              />
               <div className="feedSpillWhoText">
                 <span className="feedSpillHandle">{shownHandle}</span>
                 {/* Pub identity anchor (taste fix, feed card slim): its own
@@ -386,9 +390,13 @@ export default function FeedCard({
         // Do NOT force 9:16 on a card with no photo.
         <>
           <header className="feedCardHead">
-            <span className="feedAvatar" aria-hidden="true">
-              {initial}
-            </span>
+            <HandleAvatar
+              handle={item.handle}
+              avatarUrl={item.avatarUrl}
+              className="feedAvatar"
+              imageClassName="feedAvatar"
+              size={40}
+            />
             <div className="feedWho">
               <span className="feedHandle">{shownHandle}</span>
               {/* Pub identity is the card's anchor (taste fix: it used to only
@@ -556,7 +564,7 @@ export default function FeedCard({
 // a signal, not a collectible. Shares the mount-once entrance with the drop card.
 function CheckInCard({
   handle,
-  initial,
+  avatarUrl,
   areaName,
   note,
   createdAt,
@@ -564,7 +572,7 @@ function CheckInCard({
   entered,
 }: {
   handle: string;
-  initial: string;
+  avatarUrl?: string;
   areaName: string | null;
   note: string;
   createdAt: string;
@@ -577,9 +585,13 @@ function CheckInCard({
       aria-label={areaName ? `${handle} is out in ${areaName}` : `${handle} is out tonight`}
     >
       <div className="feedCheckInBody">
-        <span className="feedAvatar feedCheckInAvatar" aria-hidden="true">
-          {initial}
-        </span>
+        <HandleAvatar
+          handle={handle}
+          avatarUrl={avatarUrl}
+          className="feedAvatar feedCheckInAvatar"
+          imageClassName="feedAvatar feedCheckInAvatar"
+          size={40}
+        />
         <div className="feedCheckInText">
           <p className="feedCheckInLine">
             <span className="feedCheckInHandle">{handle}</span>

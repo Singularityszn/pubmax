@@ -54,6 +54,8 @@ export type CheckIn = {
   visibility: CheckInVisibility;
   createdAt: string;
   expiresAt: string;
+  /** Approved owned avatar serve path for linked handles only. */
+  avatarUrl?: string;
 };
 
 // The raw untrusted body a route hands us (post JSON). Everything optional /

@@ -7,8 +7,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { getNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { displayHandle } from "@/lib/handleDisplay";
+import HandleAvatar from "@/components/profile/HandleAvatar";
+import { getNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
 import "./outTonightBeacon.css";
@@ -23,6 +24,7 @@ type CheckInDto = {
   areaSlug?: string | null;
   note?: string | null;
   createdAt?: string;
+  avatarUrl?: string;
 };
 
 type BoardRow = {
@@ -31,6 +33,7 @@ type BoardRow = {
   note: string | null;
   createdAt: string;
   ago: string;
+  avatarUrl?: string;
 };
 
 type State =
@@ -39,11 +42,6 @@ type State =
   | { kind: "empty" }
   | { kind: "ready"; rows: BoardRow[] }
   | { kind: "error" };
-
-function avatarInitial(handle: string): string {
-  const bare = normalizeHandle(handle);
-  return (bare.charAt(0) || "?").toUpperCase();
-}
 
 function toBoardRows(checkIns: CheckInDto[]): BoardRow[] {
   return checkIns
@@ -59,6 +57,7 @@ function toBoardRows(checkIns: CheckInDto[]): BoardRow[] {
         note: typeof row.note === "string" && row.note.trim() ? row.note.trim() : null,
         createdAt,
         ago: relativeTime(createdAt),
+        ...(typeof row.avatarUrl === "string" ? { avatarUrl: row.avatarUrl } : {}),
       };
     })
     .filter((row): row is BoardRow => row !== null);
@@ -143,9 +142,13 @@ export default function OutTonightBoard({ viewerHandle }: Props) {
         {state.rows.map((row) => (
           <li key={row.handle} className="beaconBoardRow">
             <Link className="beaconBoardLink" href={`/u/${encodeURIComponent(row.handle)}`}>
-              <span className="beaconBoardAvatar" aria-hidden="true">
-                {avatarInitial(row.handle)}
-              </span>
+              <HandleAvatar
+                handle={row.handle}
+                avatarUrl={row.avatarUrl}
+                className="beaconBoardAvatar"
+                imageClassName="beaconBoardAvatar"
+                size={36}
+              />
               <span className="beaconBoardCopy">
                 <span className="beaconBoardLine">
                   <span className="beaconBoardHandle">{displayHandle(row.handle)}</span>

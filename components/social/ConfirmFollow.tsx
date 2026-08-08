@@ -12,12 +12,19 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import HandleAvatar from "@/components/profile/HandleAvatar";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 
 type FollowState = "idle" | "working" | "done" | "error";
 
-export default function ConfirmFollow({ targetHandle }: { targetHandle: string }) {
+export default function ConfirmFollow({
+  targetHandle,
+  targetAvatarUrl,
+}: {
+  targetHandle: string;
+  targetAvatarUrl?: string;
+}) {
   const target = normalizeHandle(targetHandle);
   const [myHandle, setMyHandle] = useState<string | null>(null);
   const [state, setState] = useState<FollowState>("idle");
@@ -131,6 +138,13 @@ export default function ConfirmFollow({ targetHandle }: { targetHandle: string }
 
   return (
     <section className="confirmFollow" aria-label={`Add ${displayHandle(target)}`}>
+      <HandleAvatar
+        handle={target}
+        avatarUrl={targetAvatarUrl}
+        className="confirmFollowAvatar"
+        imageClassName="confirmFollowAvatar"
+        size={56}
+      />
       <p className="confirmFollowEyebrow">Your lot</p>
       <h1 className="confirmFollowTitle">Add {displayHandle(target)}?</h1>
       <p className="confirmFollowBody">

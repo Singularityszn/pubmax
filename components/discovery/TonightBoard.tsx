@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import PriceBadge from "@/components/PriceBadge";
+import HandleAvatar from "@/components/profile/HandleAvatar";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { cityAwareMapPath } from "@/lib/curatedCrawls";
@@ -60,7 +61,16 @@ export default function TonightBoard({
               </Link>
               <span className="tonightMeta">
                 {entry.handle ? (
-                  <span className="tonightHandle">{displayHandle(entry.handle)}</span>
+                  <span className="tonightHandleRow">
+                    <HandleAvatar
+                      handle={entry.handle}
+                      avatarUrl={entry.avatarUrl}
+                      className="tonightAvatar"
+                      imageClassName="tonightAvatar"
+                      size={24}
+                    />
+                    <span className="tonightHandle">{displayHandle(entry.handle)}</span>
+                  </span>
                 ) : (
                   <span className="tonightHandle tonightHandleAnon">anon</span>
                 )}

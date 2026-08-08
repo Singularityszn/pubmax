@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 
 import ContributorRecord from "@/components/contributors/ContributorRecord";
 import SiteNav from "@/components/nav/SiteNav";
-import { readContributorLeaderboard } from "@/lib/contributorLeaderboardStore";
+import {
+  enrichContributorBoard,
+  readContributorLeaderboard,
+} from "@/lib/contributorLeaderboardStore";
 
 import "./contributors.css";
 
@@ -17,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ContributorsPage() {
-  const board = await readContributorLeaderboard();
+  const board = await enrichContributorBoard(await readContributorLeaderboard());
   return (
     <div className="contributorPage">
       <SiteNav active="profile" />

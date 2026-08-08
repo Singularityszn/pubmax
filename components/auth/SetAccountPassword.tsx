@@ -19,8 +19,10 @@ export default function SetAccountPassword(): React.JSX.Element | null {
 
   useEffect(() => {
     if (!user) {
-      setHasHandle(false);
-      setHandleLoaded(false);
+      void Promise.resolve().then(() => {
+        setHasHandle(false);
+        setHandleLoaded(false);
+      });
       return;
     }
     let cancelled = false;

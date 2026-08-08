@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { displayHandle } from "@/lib/handleDisplay";
+import HandleAvatar from "@/components/profile/HandleAvatar";
 import { subscribeToComments } from "@/lib/realtime";
 import { relativeTime } from "@/lib/relativeTime";
 import { readCommentDraft, subscribeCommentDraft, writeCommentDraft } from "@/lib/socialDrafts";
@@ -35,6 +36,7 @@ type Comment = {
   body: string;
   createdAt: string;
   parentId: string | null;
+  avatarUrl?: string;
 };
 
 // Wave I1: same key as feed / profile / composer so comments don't invent a
@@ -290,6 +292,13 @@ export default function CommentThread({
                     key={c.id}
                     className={isReply ? "commentItem commentItemReply" : "commentItem"}
                   >
+                    <HandleAvatar
+                      handle={c.handle}
+                      avatarUrl={c.avatarUrl}
+                      className="commentAvatar"
+                      imageClassName="commentAvatar"
+                      size={28}
+                    />
                     <span className="commentHandle">{displayHandle(c.handle)}</span>
                     {ago ? (
                       <time className="commentTime" dateTime={c.createdAt}>

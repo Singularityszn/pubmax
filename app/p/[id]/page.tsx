@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import CommentThread from "@/components/pintdrop/CommentThread";
+import HandleAvatar from "@/components/profile/HandleAvatar";
 import ShareBar from "@/components/share/ShareBar";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { displayHandle } from "@/lib/handleDisplay";
@@ -198,6 +199,13 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
 
         {/* Signature line: handle · era · date */}
         <div className="permalink__signature">
+          <HandleAvatar
+            handle={drop.handle}
+            avatarUrl={drop.avatarUrl}
+            className="permalink__avatar"
+            imageClassName="permalink__avatar"
+            size={32}
+          />
           <span className="permalink__handle">{displayHandle(drop.handle)}</span>
           {drop.era ? <span className="permalink__meta">· {drop.era}</span> : null}
           {date ? <span className="permalink__meta">· {date}</span> : null}

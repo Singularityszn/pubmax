@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { displayHandle } from "@/lib/handleDisplay";
 import { computeBadges, type Badge, type Profile, type ProfileDrop, type ProfileStats } from "@/lib/profiles";
@@ -37,12 +37,8 @@ export default function ProfileHeader({
   actions,
 }: ProfileHeaderProps) {
   const { handle, displayName, homeCity, bio, avatarUrl } = profile;
-  const [avatarBroken, setAvatarBroken] = useState(false);
-  const showAvatar = Boolean(avatarUrl) && !avatarBroken;
-
-  useEffect(() => {
-    setAvatarBroken(false);
-  }, [avatarUrl]);
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
+  const showAvatar = Boolean(avatarUrl) && failedAvatarUrl !== avatarUrl;
 
   const crawlsPosted =
     typeof crawls === "number" ? crawls : stats.crawlsPosted ?? 0;
@@ -62,7 +58,7 @@ export default function ProfileHeader({
             width={88}
             height={88}
             unoptimized
-            onError={() => setAvatarBroken(true)}
+            onError={() => setFailedAvatarUrl(avatarUrl ?? null)}
           />
         ) : (
           <div className="profileAvatar profileAvatarFallback" aria-hidden="true">

@@ -13,6 +13,7 @@
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { enrichItemsWithAvatarUrls } from "@/lib/avatarResolve";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { markPresence, recentPresenceWithAmbient } from "@/lib/presenceStore";
@@ -69,7 +70,9 @@ export async function GET(request: Request): Promise<Response> {
   // appends the deterministic demo layer ONLY when Supabase is absent, so the
   // reader never 500s — but keep a belt-and-braces guard so a surprise 200s empty.
   try {
-    const presence = await recentPresenceWithAmbient(venueId || undefined);
+    const presence = await enrichItemsWithAvatarUrls(
+      await recentPresenceWithAmbient(venueId || undefined),
+    );
     return jsonNoStore({ presence }, { status: 200 });
   } catch {
     return jsonNoStore({ presence: [] }, { status: 200 });

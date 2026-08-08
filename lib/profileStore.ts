@@ -167,6 +167,13 @@ function cleanPatch(patch: ProfilePatch): ProfilePatch {
 export type ProfileStore = {
   /** Read a profile by handle, or null when none exists yet. */
   getByHandle(handle: string): Promise<ProfileRecord | null>;
+  /** Read a profile by stable id, or null when none exists. */
+  getById(id: string): Promise<ProfileRecord | null>;
+  /**
+   * One query: approved owned avatars for linked handles only. Keys are
+   * normalised handles; values are public serve paths.
+   */
+  getApprovedAvatarUrlsByHandles(handles: readonly string[]): Promise<ReadonlyMap<string, string>>;
   /**
    * Resolve the handle linked to an auth user id, or null when no profile has
    * claimed that uid yet. Used by messaging (and similar) so an authenticated
@@ -380,6 +387,14 @@ function isUniqueViolation(error: { code?: string } | null): boolean {
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
+const AVATAR_BATCH_COLUMNS =
+  "id, handle, user_id, tombstoned_at, avatar_object_key, avatar_generation, avatar_moderation_state";
+
+function approvedAvatarUrlForProfile(profile: ProfileRecord): string | undefined {
+  if (!profile.userId?.trim() || isProfileTombstoned(profile)) return undefined;
+  return publicOwnedAvatarUrl(profile);
+}
+
 export const supabaseProfileStore: ProfileStore = {
   async getByHandle(handle) {
     const key = normalizeHandle(handle);
@@ -388,6 +403,33 @@ export const supabaseProfileStore: ProfileStore = {
     if (error) throw new Error(error.message);
     const row = (data ?? [])[0];
     return row ? fromRow(row as Record<string, unknown>) : null;
+  },
+
+  async getById(id) {
+    const key = typeof id === "string" ? id.trim() : "";
+    if (!key) return null;
+    const { data, error } = await admin().from(TABLE).select("*").eq("id", key).limit(1);
+    if (error) throw new Error(error.message);
+    const row = (data ?? [])[0];
+    return row ? fromRow(row as Record<string, unknown>) : null;
+  },
+
+  async getApprovedAvatarUrlsByHandles(handles) {
+    const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
+    if (keys.length === 0) return new Map();
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select(AVATAR_BATCH_COLUMNS)
+      .in("handle", keys)
+      .not("user_id", "is", null);
+    if (error) throw new Error(error.message);
+    const out = new Map<string, string>();
+    for (const row of data ?? []) {
+      const profile = fromRow(row as Record<string, unknown>);
+      const url = approvedAvatarUrlForProfile(profile);
+      if (url) out.set(profile.handle, url);
+    }
+    return out;
   },
 
   async getHandleByUserId(userId) {
@@ -691,6 +733,28 @@ function memoryId(handle: string): string {
 export const memoryProfileStore: ProfileStore = {
   async getByHandle(handle) {
     return memoryProfiles.get(normalizeHandle(handle)) ?? null;
+  },
+
+  async getById(id) {
+    const key = typeof id === "string" ? id.trim() : "";
+    if (!key) return null;
+    for (const profile of memoryProfiles.values()) {
+      if (profile.id === key) return profile;
+    }
+    return null;
+  },
+
+  async getApprovedAvatarUrlsByHandles(handles) {
+    const out = new Map<string, string>();
+    for (const raw of handles) {
+      const key = normalizeHandle(raw);
+      if (!key) continue;
+      const profile = memoryProfiles.get(key);
+      if (!profile) continue;
+      const url = approvedAvatarUrlForProfile(profile);
+      if (url) out.set(profile.handle, url);
+    }
+    return out;
   },
 
   async getHandleByUserId(userId) {

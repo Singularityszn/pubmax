@@ -41,6 +41,7 @@ export type ContributorLeaderboardEntry = {
   prices: number;
   reviews: number;
   recommendations: number;
+  avatarUrl?: string;
 };
 
 export type ContributorLeaderboardTally = Omit<
