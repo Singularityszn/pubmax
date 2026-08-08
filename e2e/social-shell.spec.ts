@@ -101,7 +101,7 @@ test("preview shows one safe boundary and never requests or leaks protected post
     page.getByRole("heading", { name: "Social", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Social is not open yet." }),
+    page.getByRole("heading", { name: "Social is invite-only for now. It opens more widely soon." }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Posts", exact: true }),
@@ -501,7 +501,7 @@ test("invalid Social URL state resolves to the safe canonical route", async ({
   await expect(page).toHaveURL(/\/social$/);
   expect(page.url()).not.toContain("cursor");
   await expect(
-    page.getByRole("heading", { name: "Social is not open yet." }),
+    page.getByRole("heading", { name: "Social is invite-only for now. It opens more widely soon." }),
   ).toBeVisible();
 });
 

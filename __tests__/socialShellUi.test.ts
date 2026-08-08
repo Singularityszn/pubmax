@@ -41,7 +41,7 @@ const protectedPost: SocialPostDTO = {
 
 describe("Social access boundary", () => {
   it.each([
-    ["preview", "Social is not open yet."],
+    ["preview", "Social is invite-only for now. It opens more widely soon."],
     ["sign_in_required", "Sign in to use Social."],
     ["age_verification_required", "Adult check needed for Social."],
     ["suspended", "Social access is suspended."],
