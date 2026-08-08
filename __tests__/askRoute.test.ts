@@ -1,0 +1,141 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/serverEnv", () => ({ assertProductionSecrets: () => {} }));
+
+vi.mock("@/lib/citymcp/client", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/citymcp/client")>(
+    "@/lib/citymcp/client",
+  );
+  return {
+    ...actual,
+    fetchCityStatus: vi.fn(async () => {
+      throw new actual.CityMcpError("down", "network");
+    }),
+    fetchJourney: vi.fn(async () => ({ journeys: [] })),
+    fetchThingsToDo: vi.fn(async () => ({
+      window: "tonight" as const,
+      opportunities: [],
+    })),
+  };
+});
+
+vi.mock("@/lib/citymcp/area", () => ({
+  fetchCityArea: vi.fn(async () => {
+    throw new Error("down");
+  }),
+}));
+
+import { POST } from "@/app/api/ask/route";
+import { runAsk } from "@/lib/ask/runAsk";
+import { PAL_WEB_GROUNDING } from "@/lib/palChat";
+
+beforeEach(() => {
+  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+});
+
+function post(body: unknown, ip: string): Promise<Response> {
+  return POST(
+    new Request("http://localhost/api/ask", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": ip },
+      body: typeof body === "string" ? body : JSON.stringify(body),
+    }),
+  );
+}
+
+describe("POST /api/ask", () => {
+  it("refuses an empty ask", async () => {
+    const response = await post({ query: "   " }, "198.51.100.20");
+    expect(response.status).toBe(400);
+  });
+
+  it("answers a mood ask with grounded venue cards keyless", async () => {
+    const response = await post(
+      { query: "Garden near Soho for 4, not pricey", cityId: "london" },
+      "198.51.100.21",
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const body = await response.json();
+    expect(body.status).toBe("ready");
+    expect(body.toolsUsed).toContain("search_venues");
+    expect(Array.isArray(body.cards)).toBe(true);
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.cards[0].venueId).toEqual(expect.any(String));
+    expect(body.answer).toEqual(expect.any(String));
+    expect(body.answer).not.toMatch(/—/);
+  });
+
+  it("returns propose-then-confirm draft_plan proposals without saving a plan", async () => {
+    const response = await post(
+      { query: "Plan a crawl in Soho for 4", cityId: "london" },
+      "198.51.100.22",
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toContain("propose_plan");
+    const draft = body.proposals.find(
+      (p: { kind: string }) => p.kind === "draft_plan",
+    );
+    expect(draft).toMatchObject({
+      kind: "draft_plan",
+      query: expect.any(String),
+      stopIds: expect.any(Array),
+    });
+    expect(draft.stopIds.length).toBe(3);
+    // Proposal only — route never mutates durable plan state.
+    expect(body.answer.toLowerCase()).toContain("confirm");
+  });
+
+  it("degrades honestly when CityMCP is down", async () => {
+    const response = await post(
+      { query: "Any tube delays right now?", cityId: "london" },
+      "198.51.100.23",
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toContain("city_status");
+    expect(body.status).toBe("degraded");
+    expect(body.answer).toMatch(/unavailable|could not|couldn't/i);
+  });
+
+  it("accepts in-thread turns for refinement without durable memory writes", async () => {
+    const first = await runAsk({
+      query: "Quiet near Bank for 4",
+      cityId: "london",
+      skipModel: true,
+    });
+    expect(first.cards.length).toBeGreaterThan(0);
+    const refined = await runAsk({
+      query: "cheaper",
+      cityId: "london",
+      skipModel: true,
+      turns: [
+        { role: "user", content: "Quiet near Bank for 4" },
+        { role: "assistant", content: first.answer },
+      ],
+    });
+    expect(refined.toolsUsed.length).toBeGreaterThan(0);
+    expect(refined.answer).toEqual(expect.any(String));
+  });
+});
+
+describe("Night OS Ask fences", () => {
+  it("keeps web grounding off", () => {
+    expect(PAL_WEB_GROUNDING).toBe(false);
+  });
+});
+
+describe("modelProseIsGrounded (anti-fabrication gate)", () => {
+  it("discards model prose carrying a price the tools never returned", async () => {
+    const { modelProseIsGrounded } = await import("@/lib/ask/runAsk");
+    const hints = ["The Landor pours at £5.90, logged this week."];
+    const cards = [{ title: "The Landor", subtitle: "Pub in Clapham" }] as never[];
+    expect(modelProseIsGrounded("A pint there is £5.90.", hints, cards)).toBe(true);
+    expect(modelProseIsGrounded("A pint there is £4.20, a steal.", hints, cards)).toBe(false);
+    expect(modelProseIsGrounded("Open until 23:00 tonight.", hints, cards)).toBe(false);
+    expect(modelProseIsGrounded("Worth the walk from the station.", hints, cards)).toBe(true);
+  });
+});

@@ -20,11 +20,14 @@ export const DESCRIBE_FIRST_CHIPS: readonly string[] = [
 export default function PlanDescribeFirst({
   onSubmit,
   onGuideMeInstead,
+  initialQuery = "",
 }: {
   onSubmit: (query: string) => void;
   onGuideMeInstead: () => void;
+  /** Prefill from a confirmed Night OS Ask draft_plan proposal. */
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery.slice(0, 500));
 
   function submit() {
     const trimmed = query.trim();

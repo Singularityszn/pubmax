@@ -1,0 +1,49 @@
+# ADR 0014: Night OS Ask agent
+
+## Status
+
+Accepted
+
+## Context
+
+Ask on the map, Pal chat, The Landlord (heritage), CityMCP London facts, and
+plan generation were separate brains. Users could not ask one question that
+spanned prices, What’s On, transit, heritage, and a crawl proposal. Market
+Ask Maps analogues (agentic multi-step with user confirm, transit in chat,
+session memory) raise the bar without licensing silent mutation.
+
+ADR 0006 already forbids Pal (and any companion) from silently mutating plans,
+memory, invites, or recommendations. A unified agent must stay a proposer.
+
+## Decision
+
+Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask`:
+
+1. **Tool allowlist only** — `search_venues`, `whats_on`, `venue_heritage`,
+   `venue_prices`, `city_status`, `journey`, `area_buzz`, `propose_plan`,
+   `propose_map_action`. No open web browse (`PAL_WEB_GROUNDING` stays off).
+2. **Grounded answers** — every card and figure carries provenance; tools never
+   invent pint prices. Uncorroborated community rows may appear on the pub’s
+   own sheet language only; map-authority claims require corroboration.
+3. **Propose-then-confirm** — `propose_plan` and `propose_map_action` return
+   proposals the client applies only after an explicit Confirm. No silent Plan
+   or durable Pal memory writes from Ask.
+4. **Keyless path** — without `OPENROUTER_API_KEY`, a deterministic router picks
+   1–2 tools and fills house-voice templates (same honesty as heritage
+   structured-only).
+5. **Bounded model loop** — with OpenRouter, tool-calling is allowlisted, low
+   temperature, capped rounds and tokens. Model prose cannot add venues or
+   prices absent from tool results.
+6. **In-thread memory only** — the client may resend recent turns for
+   refinement. Durable Pal memory stays confirm-gated (ADR 0006).
+
+`POST /api/concierge` remains for plan Sort-it and any legacy callers. Map Ask
+and Pal chat use `/api/ask`.
+
+## Consequences
+
+- New answer shape: `{ answer, cards, proposals, sources, status }`.
+- CityMCP failures degrade that card (`status: degraded`) rather than invent.
+- A later ChatGPT App / MCP export can reuse the same tool handlers; shipping
+  an external listing is out of this decision.
+- Tests pin allowlist, keyless routing, proposal-not-mutate, and voice fences.
