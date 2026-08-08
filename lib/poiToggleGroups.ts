@@ -1,5 +1,5 @@
 import type { PoiCategory } from "@/lib/pois";
-import { POI_CATEGORY_META } from "@/lib/pois";
+import { POI_CATEGORIES, POI_CATEGORY_META } from "@/lib/pois";
 
 // UI toggle groups for the map Layers control. Tube and Rail stay separate
 // (plan: Tube, Rail, Bus, River, Parks, Gardens, …); map symbols stay distinct.
@@ -22,6 +22,31 @@ export type PoiToggleGroup = {
   color: string;
   categories: readonly PoiCategory[];
 };
+
+export type PoiHidden = Record<PoiCategory, boolean>;
+
+/**
+ * A poiHidden change: a full next value, or an updater applied to the OWNER'S
+ * current state. Chip toggles must send the updater form - a toggle computed
+ * from the chip's rendered snapshot loses every toggle the owner has accepted
+ * but not yet re-rendered (tap Tube then Rail quickly: Rail's snapshot still
+ * hides Tube, so Tube switches straight back off).
+ */
+export type PoiHiddenChange = PoiHidden | ((current: PoiHidden) => PoiHidden);
+
+/** A stored poiHidden if it is exactly the closed category map, else null. */
+export function parsePoiHidden(value: unknown): PoiHidden | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const keys = Object.keys(raw);
+  if (keys.length !== POI_CATEGORIES.length) return null;
+  const parsed = {} as PoiHidden;
+  for (const category of POI_CATEGORIES) {
+    if (typeof raw[category] !== "boolean") return null;
+    parsed[category] = raw[category];
+  }
+  return parsed;
+}
 
 export const POI_TOGGLE_GROUPS: readonly PoiToggleGroup[] = [
   {
@@ -140,6 +165,18 @@ export function togglePoiGroup(
     next[category] = !turnOn;
   }
   return next;
+}
+
+/**
+ * The change a Layers chip tap dispatches: an updater over the OWNER'S current
+ * state, never over the chip's rendered snapshot. Two taps landing before the
+ * owner re-renders share one stale snapshot, so the snapshot form makes each
+ * new toggle revert the one before it (the "layers keep disappearing" defect).
+ */
+export function poiGroupToggleChange(
+  group: PoiToggleGroup,
+): (current: PoiHidden) => PoiHidden {
+  return (current) => togglePoiGroup(current, group);
 }
 
 /** Coloured tube-line network follows the Tube chip only (Rail is stations). */

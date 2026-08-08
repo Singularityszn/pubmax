@@ -11,7 +11,8 @@ import { DEFAULT_CITY_ID } from "@/lib/cities";
 import {
   POI_TOGGLE_GROUPS,
   isPoiGroupOn,
-  togglePoiGroup,
+  poiGroupToggleChange,
+  type PoiHiddenChange,
   type PoiToggleGroup,
 } from "@/lib/poiToggleGroups";
 import type { PoiCategory } from "@/lib/pois";
@@ -61,7 +62,7 @@ export function mapLayersCopy(cityId: CityId = DEFAULT_CITY_ID): {
 
 type MapLayersControlProps = {
   poiHidden: Record<PoiCategory, boolean>;
-  onPoiHiddenChange: (next: Record<PoiCategory, boolean>) => void;
+  onPoiHiddenChange: (next: PoiHiddenChange) => void;
   activeBandId?: string;
   onBandChange?: (bandId: string) => void;
   /** City Place-story corridors; defaults to London STORY_BANDS. */
@@ -134,8 +135,10 @@ export default function MapLayersControl({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional close capture
   }, [open, activeBandId]);
 
+  // Updater form, never a snapshot: quick successive taps otherwise race the
+  // owner's re-render and each new toggle reverts the one before it.
   function toggleGroup(group: PoiToggleGroup) {
-    onPoiHiddenChange(togglePoiGroup(poiHidden, group));
+    onPoiHiddenChange(poiGroupToggleChange(group));
   }
 
   const storiesActive = Boolean(activeBandId);

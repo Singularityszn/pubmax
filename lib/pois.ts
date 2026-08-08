@@ -36,7 +36,7 @@ export type Poi = {
   rank?: 1 | 2;
 };
 
-const POI_CATEGORIES: readonly PoiCategory[] = [
+export const POI_CATEGORIES: readonly PoiCategory[] = [
   "tube",
   "rail",
   "bus",
