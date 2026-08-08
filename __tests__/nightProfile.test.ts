@@ -36,7 +36,7 @@ describe("Night Profile contracts", () => {
     vi.useRealTimers();
   });
 
-  it("validates a complete profile without duplicating Pal identity fields", () => {
+  it("rejects an invalid planning edit instead of corrupting the device profile", () => {
     const profile = cleanNightProfileInput(DEFAULT_NIGHT_PROFILE_INPUT);
     expect(profile).toEqual(DEFAULT_NIGHT_PROFILE_INPUT);
     expect(profile).not.toHaveProperty("companionName");

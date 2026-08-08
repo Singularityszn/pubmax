@@ -169,9 +169,6 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
   },
 
   async rename(ownerId, handle) {
-    if (isReservedContributorHandle(handle)) {
-      return { ok: false, code: "taken", error: "That handle is not available." };
-    }
     let owned = currentByOwner.get(ownerId);
     if (!owned) {
       const profile = await profileStore().getByUserId(ownerId);
@@ -188,6 +185,9 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
     }
     if (owned.currentHandle === handle) {
       return { ok: true, profileId: owned.profileId, previousHandle: handle, handle };
+    }
+    if (isReservedContributorHandle(handle)) {
+      return { ok: false, code: "taken", error: "That handle is not available." };
     }
     const decision = evaluateHandleRename({ changedAt: owned.changedAt });
     if (!decision.allowed) {
@@ -328,6 +328,15 @@ export const supabaseIdentityHandleStore: IdentityHandleStore = {
   },
 
   async rename(ownerId, handle) {
+    const current = await profileStore().getByUserId(ownerId);
+    if (current?.handle === handle) {
+      return {
+        ok: true,
+        profileId: current.id,
+        previousHandle: current.handle,
+        handle: current.handle,
+      };
+    }
     if (isReservedContributorHandle(handle)) {
       return { ok: false, code: "taken", error: "That handle is not available." };
     }
