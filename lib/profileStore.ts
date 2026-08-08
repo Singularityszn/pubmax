@@ -13,6 +13,19 @@ import { requireSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 import { cleanText, isHttpUrl } from "@/lib/textClean";
 
+/** Owned-avatar moderation states persisted on profiles (migration 0089). */
+export type ProfileAvatarModerationState =
+  | "pending"
+  | "approved"
+  | "needs_review"
+  | "hidden";
+
+export type ProfileOwnedAvatar = {
+  objectKey: string;
+  generation: string;
+  moderationState: ProfileAvatarModerationState;
+};
+
 export type ProfileRecord = {
   id: string;
   handle: string;
@@ -28,11 +41,37 @@ export type ProfileRecord = {
   tombstonedAt?: string;
   displayName?: string;
   avatarUrl?: string;
+  /**
+   * Owned avatar object key under our bucket (`avatars/{id}/{generation}/image.jpg`).
+   * Internal: never crosses the public profile wire; use {@link publicOwnedAvatarUrl}.
+   */
+  avatarObjectKey?: string;
+  /** Opaque generation id for the current owned avatar. Internal. */
+  avatarGeneration?: string;
+  /** Moderation state for the owned avatar. Internal. */
+  avatarModerationState?: ProfileAvatarModerationState;
   homeCity?: string;
   bio?: string;
   createdAt: string;
   updatedAt: string;
 };
+
+/**
+ * Public served path for an approved owned avatar. Absent, pending, flagged,
+ * or hidden faces yield undefined so callers fall back to initials.
+ */
+export function publicOwnedAvatarUrl(
+  profile: Pick<
+    ProfileRecord,
+    "id" | "avatarObjectKey" | "avatarGeneration" | "avatarModerationState"
+  >,
+): string | undefined {
+  if (profile.avatarModerationState !== "approved") return undefined;
+  if (!profile.avatarObjectKey || !profile.avatarGeneration || !profile.id) {
+    return undefined;
+  }
+  return `/api/avatar/${profile.id}/${profile.avatarGeneration}`;
+}
 
 /** True only when the auth-deletion trigger stamped tombstoned_at. */
 export function isProfileTombstoned(
@@ -129,6 +168,15 @@ export type ProfileStore = {
    * idempotent. Absent, unowned, and differently owned handles are unavailable.
    */
   linkUser(handle: string, userId: string): Promise<ProfileRecord>;
+  /**
+   * Set or clear the owned (uploaded) avatar fields. Passing null clears the
+   * object key, generation, and moderation state together. Does not touch the
+   * legacy hotlinked `avatarUrl` column.
+   */
+  setOwnedAvatar(
+    handle: string,
+    avatar: ProfileOwnedAvatar | null,
+  ): Promise<ProfileRecord | null>;
 };
 
 const TABLE = "profiles";
@@ -139,6 +187,20 @@ function admin() {
 
 // profiles (snake_case) <-> ProfileRecord (camelCase). One place so a column
 // rename is a one-line change on each side.
+function avatarModerationFromRow(
+  value: unknown,
+): ProfileAvatarModerationState | undefined {
+  if (
+    value === "pending" ||
+    value === "approved" ||
+    value === "needs_review" ||
+    value === "hidden"
+  ) {
+    return value;
+  }
+  return undefined;
+}
+
 function fromRow(row: Record<string, unknown>): ProfileRecord {
   return {
     id: String(row.id),
@@ -147,6 +209,9 @@ function fromRow(row: Record<string, unknown>): ProfileRecord {
     tombstonedAt: row.tombstoned_at ? String(row.tombstoned_at) : undefined,
     displayName: row.display_name ? String(row.display_name) : undefined,
     avatarUrl: row.avatar_url ? String(row.avatar_url) : undefined,
+    avatarObjectKey: row.avatar_object_key ? String(row.avatar_object_key) : undefined,
+    avatarGeneration: row.avatar_generation ? String(row.avatar_generation) : undefined,
+    avatarModerationState: avatarModerationFromRow(row.avatar_moderation_state),
     homeCity: row.home_city ? String(row.home_city) : undefined,
     bio: row.bio ? String(row.bio) : undefined,
     createdAt: String(row.created_at),
@@ -283,6 +348,9 @@ export const supabaseProfileStore: ProfileStore = {
       homeCity: null,
       bio: null,
     }));
+    row.avatar_object_key = null;
+    row.avatar_generation = null;
+    row.avatar_moderation_state = null;
     row.updated_at = new Date().toISOString();
 
     let query = admin()
@@ -320,6 +388,26 @@ export const supabaseProfileStore: ProfileStore = {
     const existing = await this.getByHandle(key);
     if (existing?.userId === userId) return existing;
     throw new Error("That handle is not available.");
+  },
+
+  async setOwnedAvatar(handle, avatar) {
+    const key = normalizeHandle(handle);
+    if (!key) return null;
+    const row: Record<string, unknown> = {
+      avatar_object_key: avatar?.objectKey ?? null,
+      avatar_generation: avatar?.generation ?? null,
+      avatar_moderation_state: avatar?.moderationState ?? null,
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await admin()
+      .from(TABLE)
+      .update(row)
+      .eq("handle", key)
+      .select("*")
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const updated = (data ?? [])[0];
+    return updated ? fromRow(updated as Record<string, unknown>) : null;
   },
 };
 
@@ -429,6 +517,9 @@ export const memoryProfileStore: ProfileStore = {
       ...existing,
       displayName: undefined,
       avatarUrl: undefined,
+      avatarObjectKey: undefined,
+      avatarGeneration: undefined,
+      avatarModerationState: undefined,
       homeCity: undefined,
       bio: undefined,
       updatedAt: new Date().toISOString(),
@@ -451,6 +542,26 @@ export const memoryProfileStore: ProfileStore = {
     const existing = memoryProfiles.get(key);
     if (existing?.userId === userId) return existing;
     throw new Error("That handle is not available.");
+  },
+
+  async setOwnedAvatar(handle, avatar) {
+    const key = normalizeHandle(handle);
+    const existing = memoryProfiles.get(key);
+    if (!existing) return null;
+    const next: ProfileRecord = {
+      ...existing,
+      avatarObjectKey: avatar?.objectKey,
+      avatarGeneration: avatar?.generation,
+      avatarModerationState: avatar?.moderationState,
+      updatedAt: new Date().toISOString(),
+    };
+    if (!avatar) {
+      delete next.avatarObjectKey;
+      delete next.avatarGeneration;
+      delete next.avatarModerationState;
+    }
+    memoryProfiles.set(key, next);
+    return next;
   },
 };
 
@@ -483,6 +594,7 @@ export function __seedMemoryLegacyProfile(handle: string): ProfileRecord {
  * Test-only: model auth.users deletion.
  * Trigger stamps tombstoned_at; FK then clears user_id. Row and handle stay
  * (attribution + reservation). Legacy null-user_id rows are NOT tombstones.
+ * Avatar fields are nulled to mirror migration 0089's tombstone path.
  */
 export function __tombstoneMemoryProfile(handle: string): ProfileRecord | null {
   const key = normalizeHandle(handle);
@@ -494,6 +606,10 @@ export function __tombstoneMemoryProfile(handle: string): ProfileRecord | null {
     ...existing,
     userId: undefined,
     tombstonedAt: existing.tombstonedAt ?? now,
+    avatarUrl: undefined,
+    avatarObjectKey: undefined,
+    avatarGeneration: undefined,
+    avatarModerationState: undefined,
     updatedAt: now,
   };
   memoryProfiles.set(key, next);
