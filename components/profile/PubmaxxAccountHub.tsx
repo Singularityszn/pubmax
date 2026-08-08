@@ -99,6 +99,43 @@ export function SocialConnectionActions({
   );
 }
 
+
+const DAYPART_LABELS: Record<NightProfileInput["context"]["daypart"], string> = {
+  daytime: "Daytime",
+  after_work: "After work",
+  evening: "Evening",
+  late_night: "Late night",
+  get_home: "Get home",
+};
+
+export function DeviceNightProfileReadout({
+  profile,
+}: {
+  profile: NightProfileInput;
+}): React.JSX.Element {
+  const city =
+    listEnabledCities().find((entry) => entry.id === profile.cityId)?.displayName
+    ?? profile.cityId;
+  const patch = profile.context.nightArea
+    ? getNightAreasForCity(profile.cityId).find(
+        (area) => area.slug === profile.context.nightArea,
+      )?.name ?? profile.context.nightArea
+    : "No preference";
+  const budget = profile.context.budget.charAt(0).toUpperCase() + profile.context.budget.slice(1);
+
+  return (
+    <section className="accountHubDeviceNightProfile" aria-labelledby="device-night-profile-title">
+      <p className="profileSectionKicker">Night Profile</p>
+      <h3 id="device-night-profile-title">Saved on this device</h3>
+      <p className="accountHubNightProfile">
+        {city} · {patch} · {DAYPART_LABELS[profile.context.daypart]} · {budget} budget
+        {profile.context.zeroProof ? " · zero-proof preferred" : ""}
+      </p>
+      <p>Sign in to edit this on your account and sync it across devices.</p>
+    </section>
+  );
+}
+
 export function NightProfileControls({
   profile,
   disabled = false,
@@ -737,7 +774,19 @@ export default function PubmaxxAccountHub() {
   }
 
   if (loading) return <section className="accountHub" aria-busy="true"><p>Loading your account…</p></section>;
-  if (!user) return <section className="accountHub"><p className="profileSectionKicker">Your PUBMAXX</p><h2>Sign in to save your nights</h2><NightProfileControls profile={deviceNightProfile ?? DEFAULT_NIGHT_PROFILE_INPUT} saveLabel="Saved on this device" onChange={editDeviceNightProfile} /><div className="accountHubSignIn"><p>Sign in to claim a handle, connect profiles, and keep private Night Memories. Your device profile is only brought to an account after you review it.</p><SignInButton /></div><div className="accountHubGrid">{analyticsControls}</div>{message ? <p role="status" className="accountHubMessage">{message}</p> : null}</section>;
+  if (!user) return (
+    <section className="accountHub">
+      <p className="profileSectionKicker">Your PUBMAXX</p>
+      <h2>Sign in to save your nights</h2>
+      <div className="accountHubSignIn">
+        <p>Sign in to claim a handle, connect profiles, and keep private Night Memories. Your device profile is only brought to an account after you review it.</p>
+        <SignInButton />
+      </div>
+      {deviceNightProfile ? <DeviceNightProfileReadout profile={deviceNightProfile} /> : null}
+      <div className="accountHubGrid">{analyticsControls}</div>
+      {message ? <p role="status" className="accountHubMessage">{message}</p> : null}
+    </section>
+  );
 
   const mergeState = mergeDeferred || !nightProfileLoaded
     ? ({ kind: "none" } as const)

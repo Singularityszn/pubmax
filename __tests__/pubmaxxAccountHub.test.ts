@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_NIGHT_PROFILE_INPUT } from "@/lib/nightProfile";
 import {
+  DeviceNightProfileReadout,
   NightProfileControls,
   ReferralInviteCard,
   SocialConnectionActions,
@@ -35,6 +36,27 @@ describe("PubmaxxAccountHub provider gating", () => {
     expect(html).toContain("Briefings");
     expect(html).toContain("Precise location and voice transcripts are never saved here.");
     expect(html).toContain("Saved on this device");
+  });
+
+  it("renders a read-only device Night Profile summary without form fields when signed out", () => {
+    const source = readFileSync(
+      join(process.cwd(), "components/profile/PubmaxxAccountHub.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("DeviceNightProfileReadout");
+    expect(source).toContain(
+      "{deviceNightProfile ? <DeviceNightProfileReadout profile={deviceNightProfile} /> : null}",
+    );
+    expect(source).not.toContain(
+      "saveLabel=\"Saved on this device\" onChange={editDeviceNightProfile}",
+    );
+
+    const html = renderToStaticMarkup(createElement(DeviceNightProfileReadout, {
+      profile: DEFAULT_NIGHT_PROFILE_INPUT,
+    }));
+    expect(html).toContain("Saved on this device");
+    expect(html).not.toContain("<select");
+    expect(html).not.toContain("<input");
   });
 
   it("renders only OAuth providers declared available by the server", () => {

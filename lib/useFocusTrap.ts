@@ -22,6 +22,11 @@ export function shouldEngageFocusTrap(input: {
   return !input.displayChain.includes("none");
 }
 
+/** Body-level siblings that must stay interactive while a map sheet traps focus. */
+export function shouldInertOutsideSibling(node: HTMLElement): boolean {
+  return !node.classList.contains("mobileTabBar");
+}
+
 function displayChain(container: HTMLElement): string[] {
   const chain: string[] = [];
   let cursor: HTMLElement | null = container;
@@ -63,6 +68,7 @@ export function useFocusTrap(
       if (!parent) break;
       for (const sibling of Array.from(parent.children)) {
         if (sibling === cursor || !(sibling instanceof HTMLElement)) continue;
+        if (!shouldInertOutsideSibling(sibling)) continue;
         inerted.push({ node: sibling, prev: sibling.inert });
         sibling.inert = true;
       }

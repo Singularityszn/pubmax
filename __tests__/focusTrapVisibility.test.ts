@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { shouldEngageFocusTrap } from "@/lib/useFocusTrap";
+import { shouldEngageFocusTrap, shouldInertOutsideSibling } from "@/lib/useFocusTrap";
 
 // D2 — the desktop Pint Drop dead end. The phone sheet portal stays mounted at
 // desktop widths with `display: none`. Its "moment" sheet opens at the `full`
@@ -31,5 +31,18 @@ describe("shouldEngageFocusTrap", () => {
     expect(
       shouldEngageFocusTrap({ active: false, displayChain: ["flex", "block"] }),
     ).toBe(false);
+  });
+});
+
+describe("shouldInertOutsideSibling", () => {
+  function el(className: string): HTMLElement {
+    return {
+      classList: { contains: (token: string) => className.split(/\s+/).includes(token) },
+    } as HTMLElement;
+  }
+
+  it("keeps the primary tab bar outside sheet inert", () => {
+    expect(shouldInertOutsideSibling(el("mobileTabBar"))).toBe(false);
+    expect(shouldInertOutsideSibling(el("appShell mapStage"))).toBe(true);
   });
 });
