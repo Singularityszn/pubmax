@@ -21,6 +21,28 @@ export type PrivateIdentityGender =
 
 export const MAX_GENDER_SELF_DESCRIBED = 60;
 
+/**
+ * Display migration for accounts that answered the legacy sex question before
+ * gender existed: the editor shows one Gender field, so a legacy answer maps
+ * to the gender it plainly names. "intersex" names no gender and stays unset.
+ * The stored sex value is never rewritten by this mapping; a save persists
+ * the shown gender through the gender columns only.
+ */
+export function genderFromLegacySex(
+  sex: "" | PrivateIdentitySex,
+): "" | PrivateIdentityGender {
+  switch (sex) {
+    case "female":
+      return "woman";
+    case "male":
+      return "man";
+    case "prefer_not_to_say":
+      return "prefer_not_to_say";
+    default:
+      return "";
+  }
+}
+
 export function londonCalendarDate(now: number): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",
