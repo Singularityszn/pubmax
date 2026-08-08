@@ -27,10 +27,17 @@ data/osm/uk/**/.*.tmp
 scratch-*.mjs
 
 # Local agent / skill / MCP tooling — never part of the app, machine-specific
-.agents/
+.agents/*
+!.agents/skills/
+!.agents/skills/**
 .claude-flow/
 .cursor/*
 !.cursor/mcp.json
+# Cursor discovers project skills from .cursor/skills/ and .agents/skills/ only.
+# skills/ is the browsable mirror; .cursor/skills/ symlinks to it; .agents/skills/ holds
+# npx-skills project installs (Matt Pocock, Kenji, kunchenguid, last30days, …).
+!.cursor/skills/
+!.cursor/skills/**
 .claude/
 .mcp.json
 .playwright-mcp/
