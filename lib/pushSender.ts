@@ -24,6 +24,10 @@ import {
   selectPushProvider,
 } from "@/lib/pushProvider";
 import { pushTokenStore } from "@/lib/pushTokenStore";
+import {
+  STEP_OUT_NUDGE_THREAD_ID,
+  type StepOutNudgePayload,
+} from "@/lib/stepOutNudge";
 
 /** A signal freshly promoted into the live snapshot — the broadcast payload. */
 export type NightSignalHighlight = {
@@ -166,6 +170,25 @@ export async function broadcastDailyBrief(
     body: `${highlight.weatherLine} Tonight: ${highlight.topPickTitle} at ${highlight.topPickPlace}.`,
     threadId: "daily-brief",
     data: { kind: "daily_brief", url: "/today" },
+  });
+}
+
+/** Deliver one place-bound Step Out nudge to a single web subscription. */
+export async function sendStepOutNudge(
+  subscriptionToken: string,
+  payload: StepOutNudgePayload,
+): Promise<PushDispatchSummary> {
+  if (!subscriptionToken) return { ...EMPTY_SUMMARY };
+  return dispatch([subscriptionToken], {
+    title: payload.title,
+    body: payload.body,
+    threadId: STEP_OUT_NUDGE_THREAD_ID,
+    data: {
+      kind: "step_out_nudge",
+      nudgeKind: payload.kind,
+      url: payload.url,
+      ...(payload.sourceLabel ? { sourceLabel: payload.sourceLabel } : {}),
+    },
   });
 }
 

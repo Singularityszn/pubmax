@@ -118,6 +118,9 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/pub-pal/memories`
 - `POST app/api/pub-pal/voice-token`
 - `POST app/api/push-tokens`
+- `DELETE app/api/push-tokens`
+- `POST app/api/step-out-nudge`
+- `DELETE app/api/step-out-nudge`
 - `POST app/api/ratings`
 - `POST app/api/referrals/claim-attribution`
 - `POST app/api/referrals/invite-link`

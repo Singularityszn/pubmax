@@ -33,7 +33,7 @@ function browserHarness() {
 describe("registerWebPush", () => {
   it("does not ask permission when the public key is absent", async () => {
     const { requestPermission, fetch } = browserHarness();
-    expect(await registerWebPush()).toBe(false);
+    expect(await registerWebPush()).toBeNull();
     expect(requestPermission).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -42,7 +42,8 @@ describe("registerWebPush", () => {
     vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "A".repeat(87));
     const { requestPermission, subscribe, fetch } = browserHarness();
 
-    expect(await registerWebPush()).toBe(true);
+    const token = await registerWebPush();
+    expect(token).toMatch(/^webpush:/);
     expect(requestPermission).toHaveBeenCalledOnce();
     expect(subscribe).toHaveBeenCalledWith(expect.objectContaining({
       userVisibleOnly: true,

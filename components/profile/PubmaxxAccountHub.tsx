@@ -22,6 +22,7 @@ import { emitIdentityHandleChanged } from "@/lib/identityClient";
 import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
 import SetAccountPassword from "@/components/auth/SetAccountPassword";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
+import StepOutNudgePref from "@/components/profile/StepOutNudgePref";
 import FindYourLot from "@/components/social/FindYourLot";
 import ReferralFollowBack from "@/components/social/ReferralFollowBack";
 import type { ReferralPrivateStatus } from "@/lib/referralStore";
@@ -785,7 +786,10 @@ export default function PubmaxxAccountHub() {
         <SignInButton />
       </div>
       {deviceNightProfile ? <DeviceNightProfileReadout profile={deviceNightProfile} /> : null}
-      <div className="accountHubGrid">{analyticsControls}</div>
+      <div className="accountHubGrid">
+        <StepOutNudgePref />
+        {analyticsControls}
+      </div>
       {message ? <p role="status" className="accountHubMessage">{message}</p> : null}
     </section>
   );
@@ -891,6 +895,7 @@ export default function PubmaxxAccountHub() {
           onCopy={() => void copyInviteLink()}
           onShare={shareInviteLink}
         />
+        <StepOutNudgePref />
         {analyticsControls}
       </div>
       <NightMemoryStudio key={user.id} userId={user.id} />

@@ -290,6 +290,8 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/until\s+the\s+push\s+service\s+reports\s+it\s+dead\s+or\s+you\s+ask\s+us\s+to\s+remove\s+it/);
     expect(privacy).toMatch(/belongs\s+to\s+your\s+own\s+browser&rsquo;s\s+push\s+service/);
     expect(privacy).toMatch(/stored\s+subscription\s+row\s+stays/);
+    expect(privacy).toMatch(/Step Out weekly nudge is off by default/i);
+    expect(privacy).toMatch(/at most one\s+place-bound push a week/i);
     expect(privacy).not.toMatch(/a push subscription is held\s+by your own browser/);
   });
 
