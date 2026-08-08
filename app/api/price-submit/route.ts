@@ -38,6 +38,7 @@
 // Reads and reader reports remain keyless. New contributions require configured
 // authentication plus a completed account profile.
 
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { deriveCommunityPriceActor } from "@/lib/communityPriceActor";
 import {
@@ -133,7 +134,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   // Reader flag on an existing observation. Returns before every submission
@@ -142,7 +143,7 @@ export async function POST(request: Request): Promise<Response> {
   // when their own logging budget is spent.
   if (readString(body.action) === "report") {
     const id = readString(body.id);
-    if (!id) return jsonNoStore({ error: "Missing report id." }, { status: 400 });
+    if (!id) return publicApiError("Missing report id.", "INVALID_REQUEST", 400);
     // Flood protection only - per-actor uniqueness is durable (the
     // community_price_reports unique pair), so a repeat that outlives this
     // window is an idempotent no-op in the store rather than a second count.
@@ -160,14 +161,11 @@ export async function POST(request: Request): Promise<Response> {
         REPORT_PER_ACTOR_LIMIT,
       ))
     ) {
-      return jsonNoStore({ error: "Too many reports, slow down." }, { status: 429 });
+      return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
     const flagged = await reportCommunityPrice(id, readString(body.reason), actor);
     if (!flagged) {
-      return jsonNoStore(
-        { error: "We cannot find that report." },
-        { status: 404 },
-      );
+      return publicApiError("We cannot find that report.", "NOT_FOUND", 404);
     }
     return jsonNoStore({ ok: true }, { status: 200 });
   }
@@ -180,17 +178,14 @@ export async function POST(request: Request): Promise<Response> {
   if (readString(body.kind) === "venue-signal") {
     const parsed = validateCommunityVenueSignal(body);
     if (!parsed.ok) {
-      return jsonNoStore({ error: parsed.error }, { status: 400 });
+      return publicApiError(parsed.error, "INVALID_REQUEST", 400);
     }
     const resolved = await resolvePubVenueId(parsed.value.venueId);
     if (!resolved.ok) {
-      return jsonNoStore(
-        { error: resolved.error },
-        { status: resolved.status },
-      );
+      return publicApiErrorFromStatus(resolved.error, resolved.status);
     }
     if (await communityWriteIsLimited(contributor.actor, resolved.venueId)) {
-      return jsonNoStore({ error: "Too many logs, slow down." }, { status: 429 });
+      return publicApiError("Too many logs, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
     const { signal, failed } = await submitCommunityVenueSignal({
       ...parsed.value,
@@ -198,10 +193,7 @@ export async function POST(request: Request): Promise<Response> {
       actor: contributor.actor,
     });
     if (failed || !signal) {
-      return jsonNoStore(
-        { error: "Could not log that pub note right now." },
-        { status: 503 },
-      );
+      return publicApiError("Could not log that pub note right now.", "UNAVAILABLE", 503, { retryable: true });
     }
     const rows = await readCommunityVenueSignals(resolved.venueId);
     const record = rows.find(
@@ -233,15 +225,12 @@ export async function POST(request: Request): Promise<Response> {
   // shared validator - the client's own pre-check is never trusted.
   const result = validateCommunityPrice(body);
   if (!result.ok) {
-    return jsonNoStore({ error: result.error }, { status: 400 });
+    return publicApiError(result.error, "INVALID_REQUEST", 400);
   }
 
   const resolved = await resolvePubVenueId(result.value.venueId);
   if (!resolved.ok) {
-    return jsonNoStore(
-      { error: resolved.error },
-      { status: resolved.status },
-    );
+    return publicApiErrorFromStatus(resolved.error, resolved.status);
   }
   const submission = { ...result.value, venueId: resolved.venueId };
 
@@ -249,7 +238,7 @@ export async function POST(request: Request): Promise<Response> {
   // budget. The immutable profile id is stable across handle changes and
   // devices, and cannot be reset by clearing browser storage.
   if (await communityWriteIsLimited(contributor.actor, submission.venueId)) {
-    return jsonNoStore({ error: "Too many price logs, slow down." }, { status: 429 });
+    return publicApiError("Too many price logs, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   // submitCommunityPrice never throws; a hard durable-write failure comes back
@@ -260,7 +249,7 @@ export async function POST(request: Request): Promise<Response> {
     contributorHandle: contributor.handle,
   });
   if (failed || !price) {
-    return jsonNoStore({ error: "Could not log that price right now." }, { status: 503 });
+    return publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true });
   }
   // Read the venue back so the response carries this figure's authoritative
   // `corroborations` - the number that decides whether the submitter's tap
@@ -313,10 +302,7 @@ export async function GET(request: Request): Promise<Response> {
         venueIds.length > MAX_PROVISIONAL_BASE_VENUE_IDS ||
         venueIds.some((venueId) => !isUkBaseId(venueId))
       ) {
-        return jsonNoStore(
-          { error: "Pick pubs from the visible map." },
-          { status: 400 },
-        );
+        return publicApiError("Pick pubs from the visible map.", "INVALID_REQUEST", 400);
       }
       // Budget it like every mutating path here. This branch is
       // unauthenticated, answers `no-store` so nothing is shared between
@@ -339,17 +325,14 @@ export async function GET(request: Request): Promise<Response> {
         // limiter records a hit even when it refuses one, so a caller that
         // retries blind holds its own bucket shut; Retry-After is what lets a
         // panning map stand down for exactly as long as the budget needs.
-        return jsonNoStore(
-          { error: "Too many map reads, slow down." },
-          {
-            status: 429,
-            headers: {
-              "Retry-After": String(
-                Math.ceil(PROVISIONAL_BASE_READ_WINDOW_MS / 1_000),
-              ),
-            },
+        return publicApiError("Too many map reads, slow down.", "RATE_LIMITED", 429, {
+          retryable: true,
+          headers: {
+            "Retry-After": String(
+              Math.ceil(PROVISIONAL_BASE_READ_WINDOW_MS / 1_000),
+            ),
           },
-        );
+        });
       }
       const result = await readProvisionalCommunityPriceVenueIds(venueIds);
       return jsonNoStore(

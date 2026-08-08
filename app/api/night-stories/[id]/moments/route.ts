@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { addStoryMoment } from "@/lib/nightMemoryStore";
@@ -11,14 +12,14 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (frozen) return frozen;
 
   const actorId = await callerUserId(request);
-  if (!actorId) return jsonNoStore({ error: "Sign in to contribute a Night Moment." }, { status: 401 });
+  if (!actorId) return publicApiError("Sign in to contribute a Night Moment.", "UNAUTHENTICATED", 401);
   let body: unknown;
   try { body = await request.json(); } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   const { id } = await context.params;
   const moment = await addStoryMoment(actorId, id, body);
   return moment
     ? jsonNoStore({ moment }, { status: 201 })
-    : jsonNoStore({ error: "Accept the Story invitation before contributing." }, { status: 403 });
+    : publicApiError("Accept the Story invitation before contributing.", "FORBIDDEN", 403);
 }

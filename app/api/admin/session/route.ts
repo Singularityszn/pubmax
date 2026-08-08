@@ -8,6 +8,7 @@ import {
   isModerator,
   verifyAdminToken,
 } from "@/lib/adminAuth";
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -52,19 +53,19 @@ export async function POST(request: Request): Promise<Response> {
       SESSION_ATTEMPT_WINDOW_MS,
     )
   ) {
-    return jsonNoStore({ error: "Too many attempts, slow down." }, { status: 429 });
+    return publicApiError("Too many attempts, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Invalid JSON." }, { status: 400 });
+    return publicApiError("Invalid JSON.", "INVALID_REQUEST", 400);
   }
 
   const token = typeof body.token === "string" ? body.token : "";
   if (!token || !verifyAdminToken(token)) {
-    return jsonNoStore({ error: "Not authorised." }, { status: 403 });
+    return publicApiError("Not authorised.", "FORBIDDEN", 403);
   }
 
   const headers = setSessionCookie(token);

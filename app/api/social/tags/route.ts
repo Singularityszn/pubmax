@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { SocialPostConsentStoreError, socialPostConsentStore } from "@/lib/socialPostConsentStore";
 import { boundedJson } from "@/lib/boundedRequest.server";
@@ -18,32 +19,32 @@ function page(request: Request): { lane: "proposed" | "approved"; cursor: string
 
 export async function GET(request: Request): Promise<Response> {
   const access = await requireVerifiedSocialActor();
-  if (!access.ok) return json({ code: access.code, error: access.error }, access.status);
+  if (!access.ok) return publicApiError(access.error, access.code, access.status, { headers: { "Cache-Control": "private, no-store" } });
   const input = page(request);
-  if (!input) return json({ code: "MALFORMED_REQUEST", error: "Tag page is not valid." }, 400);
+  if (!input) return publicApiError("Tag page is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   try { return json(await socialPostConsentStore.tagInbox(access.actor, input)); }
   catch (error) {
     if (error instanceof SocialPostConsentStoreError && /page is not valid/i.test(error.message)) {
-      return json({ code: "MALFORMED_REQUEST", error: "Tag page is not valid." }, 400);
+      return publicApiError("Tag page is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
     }
-    return json({ code: "SOCIAL_TAGS_UNAVAILABLE", error: "Photo tags are unavailable right now." }, 503);
+    return publicApiError("Photo tags are unavailable right now.", "SOCIAL_TAGS_UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
   }
 }
 
 export async function POST(request: Request): Promise<Response> {
   const access = await requireVerifiedSocialActor();
-  if (!access.ok) return json({ code: access.code, error: access.error }, access.status);
+  if (!access.ok) return publicApiError(access.error, access.code, access.status, { headers: { "Cache-Control": "private, no-store" } });
   let input: unknown;
-  try { input = await boundedJson(request); } catch { return json({ code: "MALFORMED_REQUEST", error: "Tag request is not valid." }, 400); }
+  try { input = await boundedJson(request); } catch { return publicApiError("Tag request is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } }); }
   const value = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : null;
   const expectedKeys = value?.action === "approve" ? 3 : 2;
   if (!value || Object.keys(value).length !== expectedKeys || typeof value.proposalId !== "string" ||
     !UUID.test(value.proposalId) || typeof value.action !== "string" || !ACTIONS.has(value.action)) {
-    return json({ code: "MALFORMED_REQUEST", error: "Tag request is not valid." }, 400);
+    return publicApiError("Tag request is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   }
   const expectedAudienceRevision = value.expectedAudienceRevision;
   if (value.action === "approve" && (!Number.isInteger(expectedAudienceRevision) || Number(expectedAudienceRevision) < 0)) {
-    return json({ code: "MALFORMED_REQUEST", error: "Review this photo tag again." }, 400);
+    return publicApiError("Review this photo tag again.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   }
   try {
     await socialPostConsentStore.actOnTag(
@@ -55,8 +56,8 @@ export async function POST(request: Request): Promise<Response> {
     return json({ ok: true });
   } catch (error) {
     if (error instanceof Error && /audience changed/i.test(error.message)) {
-      return json({ code: "TAG_REVIEW_STALE", error: "Review this photo tag again." }, 409);
+      return publicApiError("Review this photo tag again.", "TAG_REVIEW_STALE", 409, { headers: { "Cache-Control": "private, no-store" } });
     }
-    return json({ code: "TAG_ACTION_DENIED", error: "Tag choice was not saved." }, 403);
+    return publicApiError("Tag choice was not saved.", "TAG_ACTION_DENIED", 403, { headers: { "Cache-Control": "private, no-store" } });
   }
 }

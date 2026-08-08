@@ -26,6 +26,7 @@ import {
   type RatingSummary,
 } from "@/lib/ratings";
 import { ratingsStore } from "@/lib/ratingsStore";
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
 import { resolveMessageHandle } from "@/lib/messageAuth";
@@ -51,38 +52,35 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const kind = body.kind;
   if (!isRatingKind(kind)) {
-    return jsonNoStore({ error: "kind must be \"drink\" or \"venue\"." }, { status: 400 });
+    return publicApiError("kind must be \"drink\" or \"venue\".", "INVALID_REQUEST", 400);
   }
 
   // For a venue, the venue id IS the ref — accept either field.
   const ref = cleanRef(body.ref) ?? (kind === "venue" ? cleanRef(body.venueId) : null);
-  if (!ref) return jsonNoStore({ error: "Add a ref to rate." }, { status: 400 });
+  if (!ref) return publicApiError("Add a ref to rate.", "INVALID_REQUEST", 400);
 
   const handle = await resolveMessageHandle(request, readString(body.handle));
-  if (!handle) return jsonNoStore({ error: "Add a handle." }, { status: 400 });
+  if (!handle) return publicApiError("Add a handle.", "INVALID_REQUEST", 400);
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   const rating = parseRating(body.rating);
   if (rating === null) {
-    return jsonNoStore(
-      { error: "Pick 1–5 stars, in half-star steps." },
-      { status: 400 },
-    );
+    return publicApiError("Pick 1–5 stars, in half-star steps.", "INVALID_REQUEST", 400);
   }
 
   // Rate-limit per handle + hashed IP, like the app's other write routes.
   const key = `rating:${ownership.handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
-    return jsonNoStore({ error: "Too many ratings, slow down." }, { status: 429 });
+    return publicApiError("Too many ratings, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   try {
@@ -101,10 +99,7 @@ export async function POST(request: Request): Promise<Response> {
       "[ratings] rate failed:",
       err instanceof Error ? err.message : err,
     );
-    return jsonNoStore(
-      { error: "Ratings storage is unavailable. Try again shortly." },
-      { status: 503 },
-    );
+    return publicApiError("Ratings storage is unavailable. Try again shortly.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 }
 
@@ -112,7 +107,7 @@ export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const kind = params.get("kind");
   if (!isRatingKind(kind)) {
-    return jsonNoStore({ error: "kind must be \"drink\" or \"venue\"." }, { status: 400 });
+    return publicApiError("kind must be \"drink\" or \"venue\".", "INVALID_REQUEST", 400);
   }
 
   // Top-rated list mode (the discover page's "Top rated pubs this month").

@@ -157,6 +157,8 @@ describe("GET /api/citymcp/buzz", () => {
     expect(responses[60].status).toBe(429);
     expect(await responses[60].json()).toEqual({
       error: "Too many requests, slow down.",
+      code: "RATE_LIMITED",
+      retryable: true,
       buzz: null,
     });
   });

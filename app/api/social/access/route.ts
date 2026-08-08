@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { verifyCallerAuth } from "@/lib/authServer";
 import {
@@ -21,7 +22,11 @@ function privateJson(body: unknown, init: ResponseInit = {}): Response {
 export async function GET(): Promise<Response> {
   const access = await resolveSocialAccess();
   if (!access.available) {
-    return privateJson(access, { status: 503 });
+    return publicApiError(access.error, access.code, 503, {
+      retryable: true,
+      compatibilityFields: { available: false, state: access.state },
+      headers: { "Cache-Control": "private, no-store" },
+    });
   }
   return privateJson({
     state: access.state,
@@ -34,13 +39,7 @@ export async function GET(): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   if (!isSocialInviteBetaEnabled(process.env.SOCIAL_INVITE_BETA_ENABLED)) {
-    return privateJson(
-      {
-        code: SOCIAL_BETA_DISABLED.code,
-        error: SOCIAL_BETA_DISABLED.error,
-      },
-      { status: SOCIAL_BETA_DISABLED.status },
-    );
+    return publicApiError(SOCIAL_BETA_DISABLED.error, SOCIAL_BETA_DISABLED.code, SOCIAL_BETA_DISABLED.status, { headers: { "Cache-Control": "private, no-store" } });
   }
   // This route resolves the legacy account authority itself so write-surface
   // certification can see the boundary. The beta policy above runs before

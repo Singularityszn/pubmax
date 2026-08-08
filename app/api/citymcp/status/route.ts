@@ -8,6 +8,7 @@
 //
 // Runtime: nodejs — the CityMCP client uses AbortController + fetch text().
 
+import { publicApiError } from "@/lib/apiError";
 import {
   CityMcpError,
   fetchCityStatus,
@@ -54,10 +55,10 @@ export const GET = withRouteTiming("citymcp/status", getHandler);
 
 async function getHandler(request: Request): Promise<Response> {
   if (await isCityMcpLimited(request)) {
-    return jsonResponse(
-      { asOf: null, weather: null, tubeLines: [], signals: [], error: "Too many requests, slow down." },
-      { status: 429 },
-    );
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+      compatibilityFields: { asOf: null, weather: null, tubeLines: [], signals: [] },
+    });
   }
 
   const params = new URL(request.url).searchParams;

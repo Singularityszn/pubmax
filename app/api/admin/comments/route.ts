@@ -8,6 +8,7 @@
 // carries only { id, pintDropId, handle, body, status, createdAt }.
 
 import { isModerator } from "@/lib/adminAuth";
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { commentsStore } from "@/lib/commentsStore";
 import { isLimited } from "@/lib/pintDrops";
@@ -18,7 +19,7 @@ import { readString } from "@/lib/textClean";
 assertServerEnv();
 
 function forbidden(): Response {
-  return jsonNoStore({ error: "Not authorised." }, { status: 403 });
+  return publicApiError("Not authorised.", "FORBIDDEN", 403);
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -26,7 +27,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const ipKey = hashIp(clientIp(request));
   if (await isLimited(`admin-comments:${ipKey}`, `admin-comments:${ipKey}`)) {
-    return jsonNoStore({ error: "Too many requests, slow down." }, { status: 429 });
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   const status = new URL(request.url).searchParams.get("status");
@@ -42,23 +43,23 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const id = readString(body.id);
-  if (!id) return jsonNoStore({ error: "Missing comment id." }, { status: 400 });
+  if (!id) return publicApiError("Missing comment id.", "INVALID_REQUEST", 400);
 
   const action = readString(body.action);
   if (action !== "restore" && action !== "keep_hidden") {
-    return jsonNoStore({ error: "Unknown action." }, { status: 400 });
+    return publicApiError("Unknown action.", "INVALID_REQUEST", 400);
   }
 
   const status = action === "restore" ? "visible" : "hidden";
   try {
     const ok = await commentsStore().moderate(id, status);
-    if (!ok) return jsonNoStore({ error: "Comment not found." }, { status: 404 });
+    if (!ok) return publicApiError("Comment not found.", "NOT_FOUND", 404);
     return jsonNoStore({ ok: true }, { status: 200 });
   } catch {
-    return jsonNoStore({ error: "Comment moderation is unavailable." }, { status: 503 });
+    return publicApiError("Comment moderation is unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
 }

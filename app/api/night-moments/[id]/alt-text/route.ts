@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { hasConfirmedAltText, NIGHT_MOMENT_ALT_TEXT_MAX } from "@/lib/nightMemory";
@@ -13,14 +14,14 @@ type Context = { params: Promise<{ id: string }> };
  */
 export async function PATCH(request: Request, context: Context): Promise<Response> {
   const actorId = await callerUserId(request);
-  if (!actorId) return jsonNoStore({ error: "Sign in to describe your photo." }, { status: 401 });
+  if (!actorId) return publicApiError("Sign in to describe your photo.", "UNAUTHENTICATED", 401);
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   if (typeof body.altText === "string" && body.altText.length > NIGHT_MOMENT_ALT_TEXT_MAX * 4) {
     // Cheap upper bound before normalisation; cleanText applies the real cap.
-    return jsonNoStore({ error: "That description is too long." }, { status: 400 });
+    return publicApiError("That description is too long.", "INVALID_REQUEST", 400);
   }
   const { id } = await context.params;
   const moment = await setMomentAltText(actorId, id, body.altText);
@@ -30,5 +31,5 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
         altText: moment.altText,
         altTextConfirmed: hasConfirmedAltText(moment),
       })
-    : jsonNoStore({ error: "Only the owner of a photo Moment can describe it." }, { status: 403 });
+    : publicApiError("Only the owner of a photo Moment can describe it.", "FORBIDDEN", 403);
 }

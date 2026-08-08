@@ -27,7 +27,7 @@ describe("GET /api/last-train", () => {
   it("400s when lat/lng are missing or invalid", async () => {
     const res = await GET(new Request("http://localhost/api/last-train"));
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Add valid lat and lng coordinates." });
+    expect(await res.json()).toEqual({ error: "Add valid lat and lng coordinates.", code: "INVALID_REQUEST", retryable: false });
   });
 
   it("returns live_data_unavailable gracefully when TfL StopPoint lookup fails", async () => {
@@ -208,7 +208,7 @@ describe("GET /api/last-train", () => {
 
     expect(responses.slice(0, 20).every((res) => res.status === 200)).toBe(true);
     expect(responses[20].status).toBe(429);
-    expect(await responses[20].json()).toEqual({ error: "Too many requests, slow down." });
+    expect(await responses[20].json()).toEqual({ error: "Too many requests, slow down.", code: "RATE_LIMITED", retryable: true });
   });
 
   it("does not spend the live-request budget on stable prefetches", async () => {

@@ -46,7 +46,7 @@ describe("GET /api/venue/[id]", () => {
     const body = await res.json();
 
     expect(res.status).toBe(404);
-    expect(body).toEqual({ error: "Venue not found." });
+    expect(body).toEqual({ error: "Venue not found.", code: "NOT_FOUND", retryable: false });
   });
 
   it("returns 503 when a known venue cannot be checked", async () => {
@@ -56,6 +56,6 @@ describe("GET /api/venue/[id]", () => {
     const res = await GET(new Request(`http://localhost/api/venue/${seed.id}`), ctx(seed.id));
 
     expect(res.status).toBe(503);
-    await expect(res.json()).resolves.toEqual({ error: "Venue details unavailable." });
+    await expect(res.json()).resolves.toEqual({ error: "Venue details unavailable.", code: "UNAVAILABLE", retryable: true });
   });
 });

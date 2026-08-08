@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { isHandleClaimLimited } from "@/lib/identityHandleClaimRateLimit";
@@ -10,10 +11,7 @@ assertServerEnv();
 export async function GET(request: Request): Promise<Response> {
   const userId = await callerUserId(request);
   if (!userId) {
-    return jsonNoStore(
-      { error: "Sign in to finish setting up your account." },
-      { status: 401 },
-    );
+    return publicApiError("Sign in to finish setting up your account.", "UNAUTHENTICATED", 401);
   }
   try {
     const [profile, privateIdentity] = await Promise.all([
@@ -40,32 +38,23 @@ export async function GET(request: Request): Promise<Response> {
       ...(privateIdentity?.sex ? { sex: privateIdentity.sex } : {}),
     });
   } catch {
-    return jsonNoStore(
-      { error: "Account details are unavailable right now." },
-      { status: 503 },
-    );
+    return publicApiError("Account details are unavailable right now.", "UNAVAILABLE", 503, { retryable: true });
   }
 }
 
 export async function POST(request: Request): Promise<Response> {
   const userId = await callerUserId(request);
   if (!userId) {
-    return jsonNoStore(
-      { error: "Sign in to finish setting up your account." },
-      { status: 401 },
-    );
+    return publicApiError("Sign in to finish setting up your account.", "UNAUTHENTICATED", 401);
   }
   if (await isHandleClaimLimited(request, userId)) {
-    return jsonNoStore(
-      { error: "Too many handle attempts. Try again shortly." },
-      { status: 429 },
-    );
+    return publicApiError("Too many handle attempts. Try again shortly.", "RATE_LIMITED", 429, { retryable: true });
   }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   const result = await privateIdentityStore().completeOnboarding({
     userId,
@@ -81,10 +70,9 @@ export async function POST(request: Request): Promise<Response> {
         : result.code === "taken" || result.code === "already_has_handle"
           ? 409
           : 400;
-    return jsonNoStore(
-      { code: result.code, error: result.error },
-      { status },
-    );
+    return publicApiError(result.error, result.code, status, {
+      retryable: status >= 500,
+    });
   }
   return jsonNoStore(
     {
@@ -104,16 +92,13 @@ export async function POST(request: Request): Promise<Response> {
 export async function PATCH(request: Request): Promise<Response> {
   const userId = await callerUserId(request);
   if (!userId) {
-    return jsonNoStore(
-      { error: "Sign in to update your account details." },
-      { status: 401 },
-    );
+    return publicApiError("Sign in to update your account details.", "UNAUTHENTICATED", 401);
   }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   try {
     const [profile, privateIdentity] = await Promise.all([
@@ -124,10 +109,7 @@ export async function PATCH(request: Request): Promise<Response> {
       }),
     ]);
     if (!profile || !privateIdentity) {
-      return jsonNoStore(
-        { error: "Finish account setup before editing private details." },
-        { status: 409 },
-      );
+      return publicApiError("Finish account setup before editing private details.", "CONFLICT", 409);
     }
     return jsonNoStore({
       complete: true,
@@ -138,9 +120,6 @@ export async function PATCH(request: Request): Promise<Response> {
       ...(privateIdentity.sex ? { sex: privateIdentity.sex } : {}),
     });
   } catch {
-    return jsonNoStore(
-      { error: "Account details could not be saved." },
-      { status: 503 },
-    );
+    return publicApiError("Account details could not be saved.", "UNAVAILABLE", 503, { retryable: true });
   }
 }

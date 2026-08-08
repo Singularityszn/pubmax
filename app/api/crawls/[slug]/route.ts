@@ -10,6 +10,7 @@
 // or an anonymous story (no author to match) also 403s — you can never edit a
 // story you don't own.
 
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import {
   deleteCrawlStory,
@@ -32,7 +33,7 @@ const MAX_SUMMARY = 280;
 // A blank/mismatched handle can never edit — 403 (not 401: there is no auth realm
 // to challenge, this is a self-asserted ownership gate).
 function forbidden(): Response {
-  return jsonNoStore({ error: "You can only edit a crawl you authored." }, { status: 403 });
+  return publicApiError("You can only edit a crawl you authored.", "FORBIDDEN", 403);
 }
 
 export async function PATCH(
@@ -44,7 +45,7 @@ export async function PATCH(
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   // JWT-linked handle wins over a self-asserted body.handle when signed in.
@@ -54,13 +55,13 @@ export async function PATCH(
   // Linked-handle ownership: a claimed handle cannot be forged via body.handle.
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   // Rate-limit edits per handle + hashed IP so the edit path can't be hammered.
   const key = `crawl-edit:${ownership.handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
-    return jsonNoStore({ error: "Too many edits, slow down." }, { status: 429 });
+    return publicApiError("Too many edits, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   // Author gate — use the normalized handle from gateHandleAction; for linked
@@ -74,7 +75,7 @@ export async function PATCH(
 
   const story = await updateCrawlStory(slug, ownership.handle, patch as never, ownership.callerUserId);
   if (!story) {
-    return jsonNoStore({ error: "Could not update this crawl." }, { status: 400 });
+    return publicApiError("Could not update this crawl.", "INVALID_REQUEST", 400);
   }
   return jsonNoStore({ story }, { status: 200 });
 }
@@ -99,18 +100,18 @@ export async function DELETE(
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   const key = `crawl-del:${ownership.handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
-    return jsonNoStore({ error: "Too many deletes, slow down." }, { status: 429 });
+    return publicApiError("Too many deletes, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   if (!(await isAuthor(slug, ownership.handle, ownership.callerUserId))) return forbidden();
 
   const ok = await deleteCrawlStory(slug, ownership.handle, ownership.callerUserId);
-  if (!ok) return jsonNoStore({ error: "Could not delete this crawl." }, { status: 400 });
+  if (!ok) return publicApiError("Could not delete this crawl.", "INVALID_REQUEST", 400);
   return jsonNoStore({ ok: true }, { status: 200 });
 }
 

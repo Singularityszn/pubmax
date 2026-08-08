@@ -8,6 +8,8 @@
 
 import { NextResponse } from "next/server";
 
+import { publicApiError } from "@/lib/apiError";
+
 import { lookupUkBasePub } from "@/lib/ukBaseIndex";
 import { isUkBaseId } from "@/lib/ukBasePubs";
 
@@ -18,14 +20,14 @@ export async function GET(
   const { id: rawId } = await params;
   const id = decodeURIComponent(rawId);
   if (!isUkBaseId(id)) {
-    return NextResponse.json({ error: "Not a UK base pub id." }, { status: 400 });
+    return publicApiError("Not a UK base pub id.", "INVALID_REQUEST", 400);
   }
   const result = await lookupUkBasePub(id);
   if (result.status === "missing") {
-    return NextResponse.json({ error: "Pub not found." }, { status: 404 });
+    return publicApiError("Pub not found.", "NOT_FOUND", 404);
   }
   if (result.status === "unavailable") {
-    return NextResponse.json({ error: "UK base pubs unavailable." }, { status: 503 });
+    return publicApiError("UK base pubs unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
   return NextResponse.json(
     { pub: result.pub },

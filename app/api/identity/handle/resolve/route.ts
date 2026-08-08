@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { identityHandleStore, validateHandleForStore } from "@/lib/identityHandleStore";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -6,11 +7,11 @@ assertServerEnv();
 
 export async function GET(request: Request): Promise<Response> {
   const assessed = validateHandleForStore(new URL(request.url).searchParams.get("handle"));
-  if (!assessed.ok) return jsonNoStore({ error: "Profile not found." }, { status: 404 });
+  if (!assessed.ok) return publicApiError("Profile not found.", "NOT_FOUND", 404);
   try {
     const resolved = await identityHandleStore().resolve(assessed.handle);
     if (!resolved) {
-      return jsonNoStore({ error: "Profile not found." }, { status: 404 });
+      return publicApiError("Profile not found.", "NOT_FOUND", 404);
     }
     // Tombstone: handle remains reserved; public surface answers gone, not live.
     if (resolved.status === "gone") {
@@ -22,6 +23,6 @@ export async function GET(request: Request): Promise<Response> {
     }
     return jsonNoStore(resolved);
   } catch {
-    return jsonNoStore({ error: "Profile storage is unavailable." }, { status: 503 });
+    return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 }

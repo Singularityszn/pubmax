@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { findPublishAltTextGap, proposeNightStoryPublication } from "@/lib/nightMemoryStore";
@@ -16,10 +17,10 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (frozen) return frozen;
 
   const actorId = await callerUserId(request);
-  if (!actorId) return jsonNoStore({ error: "Sign in to propose Story publication." }, { status: 401 });
+  if (!actorId) return publicApiError("Sign in to propose Story publication.", "UNAUTHENTICATED", 401);
   let body: unknown;
   try { body = await request.json(); } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   const { id } = await context.params;
   const proposal = await proposeNightStoryPublication(actorId, id, body);
@@ -29,6 +30,8 @@ export async function POST(request: Request, context: Context): Promise<Response
   const momentIds = body && typeof body === "object" ? (body as { momentIds?: unknown }).momentIds : undefined;
   const gap = await findPublishAltTextGap(actorId, id, momentIds);
   return gap
-    ? jsonNoStore({ error: altTextBlockMessage(gap.label), code: "MOMENT_ALT_TEXT_REQUIRED", momentId: gap.momentId }, { status: 409 })
-    : jsonNoStore({ error: "Every selected Moment needs current owner approval." }, { status: 409 });
+    ? publicApiError(altTextBlockMessage(gap.label), "MOMENT_ALT_TEXT_REQUIRED", 409, {
+      compatibilityFields: { momentId: gap.momentId },
+    })
+    : publicApiError("Every selected Moment needs current owner approval.", "CONFLICT", 409);
 }

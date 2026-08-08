@@ -15,6 +15,8 @@
 //
 import { NextResponse } from "next/server";
 
+import { publicApiError } from "@/lib/apiError";
+
 import { canGroupGetIn, estimateBusyness, resolveBookingOption } from "@/lib/busyness";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 
@@ -26,10 +28,10 @@ export async function GET(
   const lookup = await lookupVenueDetail(id);
 
   if (lookup.status === "missing") {
-    return NextResponse.json({ error: "Venue not found." }, { status: 404 });
+    return publicApiError("Venue not found.", "NOT_FOUND", 404);
   }
   if (lookup.status === "unavailable") {
-    return NextResponse.json({ error: "Venue details unavailable." }, { status: 503 });
+    return publicApiError("Venue details unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
   const { venue } = lookup;
 

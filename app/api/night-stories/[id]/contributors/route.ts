@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { acceptStoryContributionResult, declineStoryContributionResult, upsertStoryContributor } from "@/lib/nightMemoryStore";
@@ -7,10 +8,10 @@ type Context = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: Context): Promise<Response> {
   const actorId = await callerUserId(request);
-  if (!actorId) return jsonNoStore({ error: "Sign in to invite a contributor." }, { status: 401 });
+  if (!actorId) return publicApiError("Sign in to invite a contributor.", "UNAUTHENTICATED", 401);
   let body: unknown;
   try { body = await request.json(); } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   const { id } = await context.params;
   const contributor = await upsertStoryContributor(actorId, id, body);
@@ -19,17 +20,17 @@ export async function POST(request: Request, context: Context): Promise<Response
     : "";
   return contributor
     ? jsonNoStore({ contributor: { storyId: contributor.storyId, handle, role: contributor.role, status: contributor.status, joinedAt: contributor.joinedAt } }, { status: 201 })
-    : jsonNoStore({ error: "Only a host or editor can invite contributors." }, { status: 403 });
+    : publicApiError("Only a host or editor can invite contributors.", "FORBIDDEN", 403);
 }
 
 export async function PATCH(request: Request, context: Context): Promise<Response> {
   const actorId = await callerUserId(request);
-  if (!actorId) return jsonNoStore({ error: "Sign in to accept this invitation." }, { status: 401 });
+  if (!actorId) return publicApiError("Sign in to accept this invitation.", "UNAUTHENTICATED", 401);
   const { id } = await context.params;
   const result = await acceptStoryContributionResult(actorId, id);
   if (!result.ok) return result.error === "error"
-    ? jsonNoStore({ error: "The Story invitation store is temporarily unavailable.", code: "STORY_INVITATION_UNAVAILABLE", retryable: true }, { status: 503 })
-    : jsonNoStore({ error: "No active Story invitation was found.", code: "STORY_INVITATION_NOT_FOUND", retryable: false }, { status: 404 });
+    ? publicApiError("The Story invitation store is temporarily unavailable.", "STORY_INVITATION_UNAVAILABLE", 503, { retryable: true })
+    : publicApiError("No active Story invitation was found.", "STORY_INVITATION_NOT_FOUND", 404);
   const profile = await profileStore().getByUserId(actorId);
   const contributor = result.value;
   return jsonNoStore({ contributor: { storyId: contributor.storyId, handle: profile?.handle ?? null, role: contributor.role, status: contributor.status, joinedAt: contributor.joinedAt } });
@@ -37,11 +38,11 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
 
 export async function DELETE(request: Request, context: Context): Promise<Response> {
   const actorId = await callerUserId(request);
-  if (!actorId) return jsonNoStore({ error: "Sign in to decline this invitation." }, { status: 401 });
+  if (!actorId) return publicApiError("Sign in to decline this invitation.", "UNAUTHENTICATED", 401);
   const { id } = await context.params;
   const result = await declineStoryContributionResult(actorId, id);
   if (result.ok) return jsonNoStore({ declined: true });
   return result.error === "error"
-    ? jsonNoStore({ error: "The Story invitation store is temporarily unavailable.", code: "STORY_INVITATION_UNAVAILABLE", retryable: true }, { status: 503 })
-    : jsonNoStore({ error: "No active Story invitation was found.", code: "STORY_INVITATION_NOT_FOUND", retryable: false }, { status: 404 });
+    ? publicApiError("The Story invitation store is temporarily unavailable.", "STORY_INVITATION_UNAVAILABLE", 503, { retryable: true })
+    : publicApiError("No active Story invitation was found.", "STORY_INVITATION_NOT_FOUND", 404);
 }

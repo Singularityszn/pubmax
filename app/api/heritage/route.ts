@@ -2,7 +2,7 @@
 // GET  /api/heritage — read-only cited heritage facts for passive display.
 // Grounded in retrieved facts only; never exposes API keys; never 500s the demo.
 
-import { apiError } from "@/lib/apiError";
+import { apiError, publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { answerHeritage, NO_STORY_LINE, retrieveHeritage } from "@/lib/heritage";
 import { isLimited } from "@/lib/pintDrops";
@@ -36,20 +36,20 @@ export async function POST(request: Request): Promise<Response> {
     try {
       body = await request.json();
     } catch {
-      return jsonNoStore({ error: "Malformed JSON." }, { status: 400 });
+      return publicApiError("Malformed JSON.", "MALFORMED_REQUEST", 400);
     }
 
     const record = (body ?? {}) as Record<string, unknown>;
 
     const rawVenueName = typeof record.venueName === "string" ? record.venueName.trim() : "";
     if (!rawVenueName) {
-      return jsonNoStore({ error: "Add a venue name." }, { status: 400 });
+      return publicApiError("Add a venue name.", "INVALID_REQUEST", 400);
     }
     const venueName = rawVenueName.slice(0, MAX_VENUE_NAME_LEN);
 
     const rawQuestion = typeof record.question === "string" ? record.question.trim() : "";
     if (!rawQuestion) {
-      return jsonNoStore({ error: "Add a question." }, { status: 400 });
+      return publicApiError("Add a question.", "INVALID_REQUEST", 400);
     }
     const question = rawQuestion.slice(0, MAX_QUESTION_LEN);
 
@@ -63,7 +63,7 @@ export async function POST(request: Request): Promise<Response> {
         failClosed: true,
       })
     ) {
-      return jsonNoStore({ error: "Too many questions, slow down." }, { status: 429 });
+      return publicApiError("Too many questions, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
 
     // Any client-supplied `context` is deliberately ignored — venue context is

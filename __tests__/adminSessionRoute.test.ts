@@ -82,7 +82,7 @@ describe("POST /api/admin/session", () => {
       }),
     );
     expect(limited.status).toBe(429);
-    expect(await limited.json()).toEqual({ error: "Too many attempts, slow down." });
+    expect(await limited.json()).toEqual({ error: "Too many attempts, slow down.", code: "RATE_LIMITED", retryable: true });
   });
 });
 

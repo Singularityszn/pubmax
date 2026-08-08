@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
@@ -63,7 +64,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = await request.json();
   } catch {
-    return jsonNoStore({ error: "Malformed JSON." }, { status: 400 });
+    return publicApiError("Malformed JSON.", "MALFORMED_REQUEST", 400);
   }
 
   const record = body && typeof body === "object" && !Array.isArray(body)
@@ -72,19 +73,19 @@ export async function POST(request: Request): Promise<Response> {
   const query = typeof record.query === "string" ? record.query.trim().slice(0, MAX_QUERY_LENGTH) : "";
   const directIntent = record.intent === undefined ? null : providedIntent(record.intent);
   if (!query && !directIntent) {
-    return jsonNoStore({ error: record.intent === undefined ? "Ask a question or choose an option." : "Choose a valid option." }, { status: 400 });
+    return publicApiError(record.intent === undefined ? "Ask a question or choose an option." : "Choose a valid option.", "INVALID_REQUEST", 400);
   }
 
   const rawCity = typeof record.cityId === "string" ? record.cityId : undefined;
   const cityId = rawCity ? parseCityId(rawCity) : DEFAULT_CITY_ID;
-  if (!cityId) return jsonNoStore({ error: "Choose a listed city." }, { status: 400 });
+  if (!cityId) return publicApiError("Choose a listed city.", "INVALID_REQUEST", 400);
 
   const limiterKey = `concierge:${hashIp(clientIp(request))}`;
   // Fail CLOSED: concierge calls a paid LLM. If the durable limiter can't
   // answer (Supabase misconfig/outage), refuse rather than fall back to a
   // scriptable per-instance budget (B2).
   if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, { failClosed: true })) {
-    return jsonNoStore({ error: "Too many concierge requests, slow down." }, { status: 429 });
+    return publicApiError("Too many concierge requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   // Paid-spend guard (cursor bot, PR #149): without Supabase, isLimited() can

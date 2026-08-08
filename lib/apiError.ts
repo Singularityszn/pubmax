@@ -45,6 +45,56 @@ export function publicApiError(
   return Response.json(body, { status, headers });
 }
 
+/** Conventional generic code for a bare HTTP status. */
+export function statusErrorCode(status: number): string {
+  switch (status) {
+    case 400:
+      return "INVALID_REQUEST";
+    case 401:
+      return "UNAUTHENTICATED";
+    case 403:
+      return "FORBIDDEN";
+    case 404:
+      return "NOT_FOUND";
+    case 405:
+      return "METHOD_NOT_ALLOWED";
+    case 409:
+      return "CONFLICT";
+    case 410:
+      return "GONE";
+    case 413:
+      return "PAYLOAD_TOO_LARGE";
+    case 422:
+      return "UNPROCESSABLE";
+    case 429:
+      return "RATE_LIMITED";
+    case 500:
+      return "INTERNAL_ERROR";
+    case 502:
+      return "PROVIDER_UNAVAILABLE";
+    case 503:
+      return "UNAVAILABLE";
+    default:
+      return "ERROR";
+  }
+}
+
+/**
+ * Flat public error for call sites that carry only a message and a status
+ * (shared gates that decide the status upstream). The code falls back to the
+ * conventional generic for that status; 429 and 5xx read as retryable.
+ */
+export function publicApiErrorFromStatus(
+  error: string,
+  status: number,
+  options: PublicApiErrorOptions = {},
+): Response {
+  return publicApiError(error, statusErrorCode(status), status, {
+    retryable: status === 429 || status >= 500,
+    ...options,
+  });
+}
+
 export interface ApiErrorBody {
   error: {
     code: string;

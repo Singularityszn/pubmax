@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { assertCronRequest } from "@/lib/cronAuth";
 import { OpenAISocialPostModerationAdapter } from "@/lib/socialPostModeration";
@@ -22,7 +23,9 @@ export async function GET(request: Request): Promise<Response> {
       return jsonNoStore({ ok: true, purged });
     }
     if (action !== null) {
-      return jsonNoStore({ ok: false, error: "Unknown moderation action." }, { status: 400 });
+      return publicApiError("Unknown moderation action.", "INVALID_REQUEST", 400, {
+        compatibilityFields: { ok: false },
+      });
     }
     const result = await socialPostStore().processModerationQueue(
       new OpenAISocialPostModerationAdapter(),
@@ -30,9 +33,9 @@ export async function GET(request: Request): Promise<Response> {
     );
     return jsonNoStore({ ok: true, ...result });
   } catch {
-    return jsonNoStore(
-      { ok: false, error: "Social post moderation queue is unavailable.", retryable: true },
-      { status: 503 },
-    );
+    return publicApiError("Social post moderation queue is unavailable.", "UNAVAILABLE", 503, {
+      retryable: true,
+      compatibilityFields: { ok: false },
+    });
   }
 }

@@ -13,6 +13,7 @@
 // the house rule, so the client knows the tap didn't land. No Supabase and no
 // env are required.
 
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
 import { confirmPrice, readPriceConfirm } from "@/lib/priceConfirmStore";
@@ -43,14 +44,14 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const venueId = typeof body.venueId === "string" ? body.venueId.trim() : "";
   const priceGbp = readNumber(body.priceGbp);
-  if (!venueId) return jsonNoStore({ error: "Choose a venue." }, { status: 400 });
+  if (!venueId) return publicApiError("Choose a venue.", "INVALID_REQUEST", 400);
   if (priceGbp === null || priceGbp <= 0) {
-    return jsonNoStore({ error: "Add a valid price." }, { status: 400 });
+    return publicApiError("Add a valid price.", "INVALID_REQUEST", 400);
   }
 
   const actor = deriveActor(request);
@@ -59,14 +60,14 @@ export async function POST(request: Request): Promise<Response> {
   // actor + venue (falls back to venue alone if the actor couldn't be derived).
   const limitKey = `price-confirm:${actor ?? "anon"}:${venueId}`;
   if (await isLimited(limitKey, limitKey)) {
-    return jsonNoStore({ error: "Too many confirmations, slow down." }, { status: 429 });
+    return publicApiError("Too many confirmations, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   // confirmPrice never throws; a hard durable-write failure comes back flagged
   // so we answer 503 (degraded dependency) rather than a fake success.
   const { failed, ...result } = await confirmPrice({ venueId, priceGbp, actor });
   if (failed) {
-    return jsonNoStore({ error: "Could not record the confirmation right now." }, { status: 503 });
+    return publicApiError("Could not record the confirmation right now.", "UNAVAILABLE", 503, { retryable: true });
   }
   return jsonNoStore({ ok: true, ...result }, { status: 200 });
 }

@@ -19,6 +19,7 @@
 // failure as "no comments". Store choice is the usual seam: Supabase when
 // configured, process-memory otherwise.
 
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { cleanComment, commentsStore, InvalidParentError } from "@/lib/commentsStore";
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
@@ -64,11 +65,11 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const dropId = readString(body.dropId);
-  if (!dropId) return jsonNoStore({ error: "Missing pint drop id." }, { status: 400 });
+  if (!dropId) return publicApiError("Missing pint drop id.", "INVALID_REQUEST", 400);
 
   // F3 write gate: mirror GET — do not accept comments on hidden/friends/legacy
   // parents. 404 matches the unknown-drop posture (no existence oracle). A
@@ -77,10 +78,10 @@ export async function POST(request: Request): Promise<Response> {
   // writes during a Supabase blip / misconfig).
   const readable = await filterPubliclyReadableDropIds([dropId]);
   if (readable === null) {
-    return jsonNoStore({ error: "Comments are unavailable." }, { status: 503 });
+    return publicApiError("Comments are unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
   if (readable.length === 0) {
-    return jsonNoStore({ error: "Pint drop not found." }, { status: 404 });
+    return publicApiError("Pint drop not found.", "NOT_FOUND", 404);
   }
 
   // Server-authoritative validation — the client body is untrusted. Strips
@@ -88,11 +89,11 @@ export async function POST(request: Request): Promise<Response> {
   // JWT-linked handle wins over a self-asserted body handle when signed in.
   const actorHandle = await resolveMessageHandle(request, readString(body.handle));
   const cleaned = cleanComment(actorHandle, body.body);
-  if (!cleaned.ok) return jsonNoStore({ error: cleaned.error }, { status: 400 });
+  if (!cleaned.ok) return publicApiError(cleaned.error, "INVALID_REQUEST", 400);
 
   const ownership = await gateHandleAction(request, cleaned.handle);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   // Optional parentId → this is a one-level reply. Empty/absent means top-level
@@ -108,7 +109,7 @@ export async function POST(request: Request): Promise<Response> {
   // one drop can't be flooded; the durable key leads with the actor so one
   // device can't spam across drops. 429 when either budget is exhausted.
   if (await isLimited(`comment:${dropId}`, `comment:${actorHash}`)) {
-    return jsonNoStore({ error: "Too many comments, slow down." }, { status: 429 });
+    return publicApiError("Too many comments, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   try {
@@ -140,10 +141,10 @@ export async function POST(request: Request): Promise<Response> {
     // An invalid reply parent is a CLIENT error (400), distinct from a store
     // outage (503) — an honest failure shape so the client can tell them apart.
     if (err instanceof InvalidParentError) {
-      return jsonNoStore({ error: err.message }, { status: 400 });
+      return publicApiError(err.message, "INVALID_REQUEST", 400);
     }
     // A write failure is non-critical to the feed — the client treats it as
     // "comment didn't post" and keeps rendering the drop.
-    return jsonNoStore({ error: "Comments are unavailable." }, { status: 503 });
+    return publicApiError("Comments are unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
 }

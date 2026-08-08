@@ -9,6 +9,7 @@
 // Supabase when configured, process-memory otherwise (reactions are non-critical,
 // so there is no 503 — an unconfigured prod just gets per-instance counts).
 
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
@@ -79,14 +80,14 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const id = readString(body.id);
   const reaction = body.reaction;
-  if (!id) return jsonNoStore({ error: "Missing pint drop id." }, { status: 400 });
+  if (!id) return publicApiError("Missing pint drop id.", "INVALID_REQUEST", 400);
   if (!isReactionKey(reaction)) {
-    return jsonNoStore({ error: "Unknown reaction." }, { status: 400 });
+    return publicApiError("Unknown reaction.", "INVALID_REQUEST", 400);
   }
 
   // F3 write gate: mirror GET — reject toggles on hidden/friends/legacy parents.
@@ -96,10 +97,10 @@ export async function POST(request: Request): Promise<Response> {
   // (which would look like every drop was moderated to the client).
   const readable = await filterPubliclyReadableDropIds([id]);
   if (readable === null) {
-    return jsonNoStore({ error: "Reactions are unavailable." }, { status: 503 });
+    return publicApiError("Reactions are unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
   if (readable.length === 0) {
-    return jsonNoStore({ error: "Pint drop not found." }, { status: 404 });
+    return publicApiError("Pint drop not found.", "NOT_FOUND", 404);
   }
 
   const actorHash = hashActor(readString(body.actor));
@@ -110,7 +111,7 @@ export async function POST(request: Request): Promise<Response> {
   if (
     await isLimited(`reaction:${actorHash}`, `reaction:${actorHash}`, REACTION_LIMIT, REACTION_WINDOW_MS)
   ) {
-    return jsonNoStore({ error: "Too many reactions, slow down." }, { status: 429 });
+    return publicApiError("Too many reactions, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   try {
@@ -144,9 +145,9 @@ export async function POST(request: Request): Promise<Response> {
   } catch (err) {
     if (err instanceof UnknownDropError) {
       // A demo/sample drop isn't persisted — tell the client to keep it local.
-      return jsonNoStore({ error: "Pint drop not found." }, { status: 404 });
+      return publicApiError("Pint drop not found.", "NOT_FOUND", 404);
     }
     console.error("[reactions] POST failed:", err instanceof Error ? err.stack || err.message : err);
-    return jsonNoStore({ error: "Reactions are unavailable." }, { status: 503 });
+    return publicApiError("Reactions are unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
 }

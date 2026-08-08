@@ -12,6 +12,7 @@
 // cache), so this route never fetches per render. Like /api/last-train it never
 // throws and never 500s: any failure degrades to `{ disruption: null }`.
 
+import { publicApiError } from "@/lib/apiError";
 import {
   disruptionForPatch,
   fetchLineStatuses,
@@ -41,7 +42,7 @@ export async function GET(request: Request): Promise<Response> {
   const lat = Number.parseFloat(params.get("lat") ?? "");
   const lng = Number.parseFloat(params.get("lng") ?? "");
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return json({ error: "Add valid lat and lng coordinates.", disruption: null }, 400);
+    return publicApiError("Add valid lat and lng coordinates.", "INVALID_REQUEST", 400, { compatibilityFields: { disruption: null } });
   }
   const viewerPoint = coarsenViewerPoint({ lat, lng });
   if (!pointInCityBounds(viewerPoint.lat, viewerPoint.lng, CITIES.london)) {

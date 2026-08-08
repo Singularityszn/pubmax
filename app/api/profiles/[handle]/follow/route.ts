@@ -4,6 +4,7 @@
 // (follows has no anon INSERT policy); the response echoes the new follow state
 // and the target's fresh counts so the button + header update in one round trip.
 
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { emitNotification } from "@/lib/notificationsStore";
@@ -30,40 +31,37 @@ export async function POST(
   if (frozen) return frozen;
 
   const target = normalizeHandle((await params).handle);
-  if (!target) return jsonNoStore({ error: "Missing handle." }, { status: 400 });
+  if (!target) return publicApiError("Missing handle.", "INVALID_REQUEST", 400);
 
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   // JWT-linked handle wins over a self-asserted body.follower when signed in.
   const follower = await resolveMessageHandle(request, readString(body.follower));
   if (!follower) {
-    return jsonNoStore(
-      { error: "Choose a handle in your account first." },
-      { status: 400 },
-    );
+    return publicApiError("Choose a handle in your account first.", "INVALID_REQUEST", 400);
   }
   if (isSelfFollow(follower, target)) {
-    return jsonNoStore({ error: "You can't follow yourself." }, { status: 400 });
+    return publicApiError("You can't follow yourself.", "INVALID_REQUEST", 400);
   }
 
   const ownership = await gateHandleAction(request, follower);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   // Rate-limit per follower + hashed IP so the follow graph can't be spammed.
   const key = `follow:${follower}:${hashIp(clientIp(request))}`;
   if (await isLimited(follower, key)) {
-    return jsonNoStore({ error: "Too many follow changes, slow down." }, { status: 429 });
+    return publicApiError("Too many follow changes, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   if (requiresSupabaseStore() && !isSupabaseConfigured()) {
-    return jsonNoStore({ error: "Follows storage is not configured." }, { status: 503 });
+    return publicApiError("Follows storage is not configured.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 
   const unfollow = readString(body.action) === "unfollow";
@@ -86,6 +84,6 @@ export async function POST(
     const counts = await s.counts(target);
     return jsonNoStore({ following, counts }, { status: 200 });
   } catch {
-    return jsonNoStore({ error: "Follow storage is unavailable." }, { status: 503 });
+    return publicApiError("Follow storage is unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 }

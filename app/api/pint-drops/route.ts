@@ -10,6 +10,7 @@ import { isModerator } from "@/lib/adminAuth";
 // truth: backend failures return a 503 instead of acknowledging data that
 // would only live in process memory.
 
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { parseCityId } from "@/lib/cities";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
@@ -100,16 +101,16 @@ const STORAGE_UNCONFIGURED_ERROR =
 
 function productionStorageUnavailable(): Response | null {
   return requiresSupabaseStore() && !isSupabaseConfigured()
-    ? jsonNoStore({ error: STORAGE_UNCONFIGURED_ERROR }, { status: 503 })
+    ? publicApiError(STORAGE_UNCONFIGURED_ERROR, "UNAVAILABLE", 503, { retryable: true })
     : null;
 }
 
 function storageUnavailable(): Response {
-  return jsonNoStore({ error: "Pint Drop storage is unavailable." }, { status: 503 });
+  return publicApiError("Pint Drop storage is unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
 }
 
 function notFound(): Response {
-  return jsonNoStore({ error: "Pint Drop not found." }, { status: 404 });
+  return publicApiError("Pint Drop not found.", "NOT_FOUND", 404);
 }
 
 function ok(): Response {
@@ -117,7 +118,7 @@ function ok(): Response {
 }
 
 function forbidden(): Response {
-  return jsonNoStore({ error: "Not authorised." }, { status: 403 });
+  return publicApiError("Not authorised.", "FORBIDDEN", 403);
 }
 
 // Parse either a JSON body or a multipart form. For multipart we pull the text
@@ -167,7 +168,7 @@ async function validateCanonicalPintDrop(fields: Record<string, unknown>) {
   if (!result.ok) {
     return {
       ok: false,
-      response: jsonNoStore({ error: result.error }, { status: 400 }),
+      response: publicApiError(result.error, "INVALID_REQUEST", 400),
     } as const;
   }
 
@@ -175,16 +176,13 @@ async function validateCanonicalPintDrop(fields: Record<string, unknown>) {
   if (venueLookup.status === "unavailable") {
     return {
       ok: false,
-      response: jsonNoStore(
-        { error: "Venue list is unavailable right now, try again shortly." },
-        { status: 503 },
-      ),
+      response: publicApiError("Venue list is unavailable right now, try again shortly.", "UNAVAILABLE", 503, { retryable: true }),
     } as const;
   }
   if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
     return {
       ok: false,
-      response: jsonNoStore({ error: "Pick a pub from the map." }, { status: 400 }),
+      response: publicApiError("Pick a pub from the map.", "INVALID_REQUEST", 400),
     } as const;
   }
 
@@ -200,7 +198,7 @@ async function validateCanonicalPintDrop(fields: Record<string, unknown>) {
 export async function POST(request: Request): Promise<Response> {
   const parsed = await parseBody(request);
   if (!parsed) {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   const { fields, photos } = parsed;
 
@@ -238,7 +236,7 @@ export async function POST(request: Request): Promise<Response> {
         REPORT_PER_ACTOR_LIMIT,
       ))
     ) {
-      return jsonNoStore({ error: "Too many reports, slow down." }, { status: 429 });
+      return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
     const unavailable = productionStorageUnavailable();
     if (unavailable) return unavailable;
@@ -290,11 +288,11 @@ export async function POST(request: Request): Promise<Response> {
   // the anonymous demo path.
   const actorHandle = await resolveMessageHandle(request, canonicalDrop.handle);
   if (!actorHandle) {
-    return jsonNoStore({ error: "Add a handle." }, { status: 400 });
+    return publicApiError("Add a handle.", "INVALID_REQUEST", 400);
   }
   const ownership = await gateHandleAction(request, actorHandle);
   if (!ownership.allowed) {
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
   const dropPayload = { ...canonicalDrop, handle: ownership.handle };
 
@@ -302,7 +300,7 @@ export async function POST(request: Request): Promise<Response> {
   // keyed on handle alone, exactly as before.
   const submitKey = `drop:${ownership.handle.toLowerCase()}:${hashIp(clientIp(request))}`;
   if (await isLimited(ownership.handle, submitKey)) {
-    return jsonNoStore({ error: "Too many submissions, slow down." }, { status: 429 });
+    return publicApiError("Too many submissions, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   const unavailable = productionStorageUnavailable();
@@ -318,12 +316,7 @@ export async function POST(request: Request): Promise<Response> {
   if (dropPayload.priceGbp !== null) {
     try {
       if (await pintDropsStore().hasPricedDropToday(dropPayload.venueId, ownership.handle)) {
-        return jsonNoStore(
-          {
-            error: "You've already logged a price here today. You can log one price per pub each day.",
-          },
-          { status: 409 },
-        );
+        return publicApiError("You've already logged a price here today. You can log one price per pub each day.", "CONFLICT", 409);
       }
     } catch (err) {
       log("warn", "pint_drops.dedupe_check_failed", {
@@ -346,7 +339,7 @@ export async function POST(request: Request): Promise<Response> {
     // as an error: it's expected client input, and the store already logged
     // any processing failure (§7.2) at its own boundary.
     if (err instanceof Error && err.message.startsWith("Photo must")) {
-      return jsonNoStore({ error: err.message }, { status: 400 });
+      return publicApiError(err.message, "INVALID_REQUEST", 400);
     }
     // A genuine storage/insert failure — the user gets a 503. Log it (message
     // only) so the outage is observable instead of a silent 503.

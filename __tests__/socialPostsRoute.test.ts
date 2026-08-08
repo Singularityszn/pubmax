@@ -410,6 +410,7 @@ describe("/api/social/posts", () => {
     await expect(response.json()).resolves.toEqual({
       code: "INVALID_TAGS",
       error: "Photo tags are not valid.",
+      retryable: false,
     });
     expect(state.removedObjects).toHaveLength(1);
   });
@@ -607,6 +608,7 @@ describe("/api/social/posts/[postId]", () => {
     await expect(response.json()).resolves.toEqual({
       code: "INVALID_TAGS",
       error: "Photo tags are not valid.",
+      retryable: false,
     });
     expect(state.removedObjects).toHaveLength(1);
   });

@@ -7,6 +7,7 @@
 // ownership still collapses 403 → 404 so the endpoint never confirms a private
 // thread exists to an outsider.
 
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { requireLinkedActor } from "@/lib/messageAuth";
 import { messagesStore } from "@/lib/messagesStore";
@@ -29,22 +30,22 @@ export async function GET(request: Request, { params }: Ctx): Promise<Response> 
   const asserted = new URL(request.url).searchParams.get("handle") ?? "";
   const actor = await requireLinkedActor(request, asserted);
   if (!actor.ok) {
-    return jsonNoStore({ error: actor.error }, { status: actor.status });
+    return publicApiErrorFromStatus(actor.error, actor.status);
   }
   const handle = actor.handle;
-  if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
+  if (!handle) return publicApiError("Add your handle.", "INVALID_REQUEST", 400);
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
     if (ownership.status === 403) {
-      return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
+      return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   const messages = await messagesStore().listMessages(id, handle);
   if (messages === null) {
-    return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
+    return publicApiError("Conversation not found.", "NOT_FOUND", 404);
   }
   return jsonNoStore({ messages }, { status: 200 });
 }
@@ -55,33 +56,33 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return jsonNoStore({ error: "Malformed request body." }, { status: 400 });
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const action = readString(body.action);
   const actor = await requireLinkedActor(request, readString(body.handle) ?? "");
   if (!actor.ok) {
-    return jsonNoStore({ error: actor.error }, { status: actor.status });
+    return publicApiErrorFromStatus(actor.error, actor.status);
   }
   const handle = actor.handle;
-  if (!handle) return jsonNoStore({ error: "Add your handle." }, { status: 400 });
+  if (!handle) return publicApiError("Add your handle.", "INVALID_REQUEST", 400);
 
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
     if (ownership.status === 403) {
-      return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
+      return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
-    return jsonNoStore({ error: ownership.error }, { status: ownership.status });
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
   const store = messagesStore();
 
   if (action === "report") {
     const messageId = readString(body.messageId);
-    if (!messageId) return jsonNoStore({ error: "Missing message id." }, { status: 400 });
+    if (!messageId) return publicApiError("Missing message id.", "INVALID_REQUEST", 400);
     const thread = await store.listMessages(id, handle);
     if (thread === null) {
-      return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
+      return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
     const flagged = await store.report(id, messageId, handle);
     return jsonNoStore({ flagged }, { status: 200 });
@@ -95,16 +96,16 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
 
     const key = `msg-send:${handle}:${hashIp(clientIp(request))}`;
     if (await isLimited(key, key, SEND_LIMIT, SEND_WINDOW_MS)) {
-      return jsonNoStore({ error: "Too many messages, slow down." }, { status: 429 });
+      return publicApiError("Too many messages, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
     const messageBody = readString(body.body);
-    if (!messageBody) return jsonNoStore({ error: "Write a message." }, { status: 400 });
+    if (!messageBody) return publicApiError("Write a message.", "INVALID_REQUEST", 400);
     const message = await store.send(id, handle, messageBody);
     if (!message) {
-      return jsonNoStore({ error: "Conversation not found." }, { status: 404 });
+      return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
     return jsonNoStore({ message }, { status: 201 });
   }
 
-  return jsonNoStore({ error: "Unknown action." }, { status: 400 });
+  return publicApiError("Unknown action.", "INVALID_REQUEST", 400);
 }

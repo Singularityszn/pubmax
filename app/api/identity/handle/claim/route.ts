@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { isHandleClaimLimited } from "@/lib/identityHandleClaimRateLimit";
@@ -9,21 +10,25 @@ assertServerEnv();
 
 export async function POST(request: Request): Promise<Response> {
   const ownerId = await callerUserId(request);
-  if (!ownerId) return jsonNoStore({ error: "Sign in to claim a PUBMAXX handle." }, { status: 401 });
+  if (!ownerId) return publicApiError("Sign in to claim a PUBMAXX handle.", "UNAUTHENTICATED", 401);
   if (requiresSupabaseStore() && !isSupabaseConfigured()) {
-    return jsonNoStore({ error: "Profile storage is not configured." }, { status: 503 });
+    return publicApiError("Profile storage is not configured.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
   if (await isHandleClaimLimited(request, ownerId)) {
-    return jsonNoStore({ error: "Too many handle attempts. Try again shortly." }, { status: 429 });
+    return publicApiError("Too many handle attempts. Try again shortly.", "RATE_LIMITED", 429, { retryable: true });
   }
   let body: Record<string, unknown>;
   try { body = (await request.json()) as Record<string, unknown>; }
-  catch { return jsonNoStore({ error: "Malformed request body." }, { status: 400 }); }
+  catch { return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400); }
   const assessed = validateHandleForStore(body?.handle);
-  if (!assessed.ok) return jsonNoStore({ error: assessed.error, reason: assessed.reason }, { status: 400 });
+  if (!assessed.ok) {
+    return publicApiError(assessed.error, "INVALID_REQUEST", 400, {
+      compatibilityFields: { reason: assessed.reason },
+    });
+  }
   const result = await identityHandleStore().claim(ownerId, assessed.handle);
   if (!result.ok) {
-    return jsonNoStore({ error: result.error, code: result.code }, { status: result.code === "storage" ? 503 : 409 });
+    return publicApiError(result.error, result.code, result.code === "storage" ? 503 : 409);
   }
   return jsonNoStore(result, { status: 201 });
 }

@@ -1,3 +1,4 @@
+import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { identityHandleStore, validateHandleForStore } from "@/lib/identityHandleStore";
 import { isLimited } from "@/lib/pintDrops";
@@ -9,15 +10,17 @@ assertServerEnv();
 export async function GET(request: Request): Promise<Response> {
   const rateKey = `handle-availability:${hashIp(clientIp(request))}`;
   if (await isLimited(rateKey, rateKey, 40)) {
-    return jsonNoStore({ error: "Too many handle checks. Try again shortly." }, { status: 429 });
+    return publicApiError("Too many handle checks. Try again shortly.", "RATE_LIMITED", 429, { retryable: true });
   }
   const assessed = validateHandleForStore(new URL(request.url).searchParams.get("handle"));
   if (!assessed.ok) {
-    return jsonNoStore({ available: false, reason: assessed.reason, error: assessed.error }, { status: 400 });
+    return publicApiError(assessed.error, "INVALID_REQUEST", 400, {
+      compatibilityFields: { available: false, reason: assessed.reason },
+    });
   }
   try {
     return jsonNoStore(await identityHandleStore().availability(assessed.handle));
   } catch {
-    return jsonNoStore({ error: "Profile storage is unavailable." }, { status: 503 });
+    return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 }
