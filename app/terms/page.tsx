@@ -73,11 +73,12 @@ export default function TermsPage() {
         <h2 id="age" className="legalH2">Age and alcohol</h2>
         <p className="legalBody">
           The map and existing contribution tools don&rsquo;t use age to block an
-          account. Social remains in preview. Yoti integration is not active.
-          If enabled later, full Social access is for verified adults aged 18+
-          and will need a current adult-check decision. Pubs decide who they serve.
-          Nothing in the app is designed to encourage you to drink more. Know
-          your limits, and know the facts at{" "}
+          account. Social stays in preview until the friends launch switch is on.
+          When Social is open, full access needs a signed-in account, a claimed
+          handle and a date of birth you gave at onboarding for the 18+ gate (aged
+          18 or older). We do not run a separate hosted age check in this release.
+          Pubs decide who they serve. Nothing in the app is designed to encourage
+          you to drink more. Know your limits, and know the facts at{" "}
           <a
             href="https://www.drinkaware.co.uk"
             target="_blank"
@@ -113,14 +114,16 @@ export default function TermsPage() {
           its editable public details, while keeping your
           authentication account, public handle and handle-keyed contribution
           history. Only your handle is public.
-          Social also uses a Clerk product session. If you move an existing
-          Supabase-backed account into Social, you need both signed-in sessions
-          in the same request. PUBMAXX doesn&rsquo;t use your email or handle to join
-          them. Full Social content stays closed while the feature is in
-          preview. Yoti integration is not active. If enabled later, access will
-          also require a current 18+ decision for the private product account.
-          Your date of birth, documents and verification status aren&rsquo;t public
-          profile fields or badges.
+          Social also uses a private product account tied to your Supabase sign-in
+          and stable profile. Moving a legacy Clerk session into that account still
+          needs both signed-in sessions in the same request when that beta path is
+          enabled. PUBMAXX doesn&rsquo;t use your email or handle to join them.
+          Full Social content stays closed while the launch switch is off. When
+          Social is open, access also needs a claimed handle and a date of birth
+          you gave at onboarding for the 18+ gate (aged 18 or older). We do not run a
+          separate hosted age check in this release. Your date of birth,
+          documents and verification status aren&rsquo;t public profile fields or
+          badges.
           Keep your sign-in to yourself, use a handle that isn&rsquo;t someone
           else&rsquo;s identity, and don&rsquo;t hand the account to anyone
           else. You can stop using it whenever you like, and ask us to delete

@@ -7,7 +7,7 @@ import { hashActor } from "@/lib/supabase";
 
 export async function GET(request: Request): Promise<Response> {
   const headers = { "Cache-Control": "private, no-store" };
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   if (!access.ok) return publicApiError(access.error, access.code, access.status, { headers });
   const limitKey = `social-venue-search:${hashActor(access.actor.profileId)}`;
   if (await isLimited(limitKey, limitKey, 60, 60_000)) return publicApiError("Venue search is busy. Try again shortly.", "RATE_LIMITED", 429, { retryable: true, headers });

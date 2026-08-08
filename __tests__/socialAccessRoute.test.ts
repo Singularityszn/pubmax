@@ -68,7 +68,7 @@ afterEach(() => {
 
 describe("/api/social/access", () => {
   it("returns only public access state with private no-store caching", async () => {
-    const response = await GET();
+    const response = await GET(request());
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
@@ -84,7 +84,7 @@ describe("/api/social/access", () => {
       retryable: true,
     };
 
-    const response = await GET();
+    const response = await GET(request());
 
     expect(response.status).toBe(503);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");

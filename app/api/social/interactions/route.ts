@@ -52,8 +52,8 @@ function page(url: URL): { cursor: string | null; limit: number } | null {
     : null;
 }
 
-async function verified(): Promise<{ actor: Actor } | { response: Response }> {
-  const access = await requireVerifiedSocialActor();
+async function verified(request: Request): Promise<{ actor: Actor } | { response: Response }> {
+  const access = await requireVerifiedSocialActor(request);
   return access.ok ? { actor: access.actor } : { response: accessError(access) };
 }
 
@@ -73,7 +73,9 @@ function bypassesSocialFreeze(action: unknown): boolean {
   return action === "report" || action === "moderate" || action === "report_resolution";
 }
 
-async function writeActor(options: {
+async function writeActor(
+  request: Request,
+  options: {
   bypassFreeze?: boolean;
   bypassRateLimit?: boolean;
 } = {}): Promise<{ actor: Actor } | { response: Response }> {
@@ -81,7 +83,7 @@ async function writeActor(options: {
     const frozen = socialFreezeResponse();
     if (frozen) return { response: frozen };
   }
-  const access = await verified();
+  const access = await verified(request);
   if ("response" in access) return access;
   const key = `social-interaction:${hashActor(access.actor.profileId)}`;
   if (!options.bypassRateLimit && await isLimited(key, key, WRITE_LIMIT, WRITE_WINDOW_MS)) {
@@ -107,7 +109,7 @@ function storeError(error: unknown): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const access = await verified();
+  const access = await verified(request);
   if ("response" in access) return access.response;
   const url = new URL(request.url);
   const paging = page(url);
@@ -151,7 +153,7 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function PUT(request: Request): Promise<Response> {
-  const access = await writeActor();
+  const access = await writeActor(request);
   if ("response" in access) return access.response;
   const input = await body(request);
   if (!input || typeof input.action !== "string") {
@@ -183,7 +185,7 @@ export async function PUT(request: Request): Promise<Response> {
 }
 
 export async function DELETE(request: Request): Promise<Response> {
-  const access = await writeActor();
+  const access = await writeActor(request);
   if ("response" in access) return access.response;
   const input = await body(request);
   if (!input || typeof input.action !== "string") return publicApiError("Request body is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
@@ -209,7 +211,7 @@ export async function DELETE(request: Request): Promise<Response> {
 export async function POST(request: Request): Promise<Response> {
   const input = await body(request);
   if (!input || typeof input.action !== "string") return publicApiError("Request body is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
-  const access = await writeActor({
+  const access = await writeActor(request, {
     bypassFreeze: bypassesSocialFreeze(input.action),
     bypassRateLimit: isUrgentReport(input),
   });

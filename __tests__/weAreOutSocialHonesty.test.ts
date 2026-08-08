@@ -18,31 +18,30 @@ function clientCopy(): string {
 }
 
 describe("we-are-out Social honesty (crew tonight slice 4)", () => {
-  it("reads the Social invite beta flag only on the RSC and threads it", () => {
-    expect(pageTsx).toMatch(/isSocialInviteBetaEnabled/);
-    expect(pageTsx).toMatch(/from "@\/lib\/socialAccess"/);
-    expect(pageTsx).toMatch(/SOCIAL_INVITE_BETA_ENABLED/);
+  it("reads the friends-launch flag only on the RSC and threads it", () => {
+    expect(pageTsx).toMatch(/readTrustedHandoffFlag/);
+    expect(pageTsx).toMatch(/socialFriendsLaunch/);
     expect(pageTsx).toMatch(
-      /socialInviteBetaEnabled=\{socialInviteBetaEnabled\}/,
+      /socialFriendsLaunchEnabled=\{socialFriendsLaunchEnabled\}/,
     );
     expect(clientTsx).not.toMatch(/process\.env/);
-    expect(clientTsx).not.toMatch(/SOCIAL_INVITE_BETA_ENABLED/);
+    expect(clientTsx).not.toMatch(/PUBMAX_SOCIAL_FRIENDS_LAUNCH/);
   });
 
-  it("defaults the done-state CTA away from Open Social when beta is off", () => {
-    expect(clientTsx).toMatch(/socialInviteBetaEnabled\s*=\s*false/);
+  it("defaults the done-state CTA away from Open Social when launch is off", () => {
+    expect(clientTsx).toMatch(/socialFriendsLaunchEnabled\s*=\s*false/);
     const doneBlock = clientTsx.match(
       /weAreOutDone[\s\S]*?<\/section>/,
     )?.[0];
     expect(doneBlock, "done-state block present").toBeTruthy();
     expect(doneBlock).toMatch(
-      /socialInviteBetaEnabled\s*\?\s*\([\s\S]*Open Social[\s\S]*:\s*\([\s\S]*Open Memories/,
+      /socialFriendsLaunchEnabled\s*\?\s*\([\s\S]*Open Social[\s\S]*:\s*\([\s\S]*Open Memories/,
     );
     expect(doneBlock).toMatch(/href="\/u\/you#night-memories"/);
     expect(doneBlock).toMatch(/href="\/social"/);
   });
 
-  it("keeps only the beta-on branch saying Open Social in visible copy", () => {
+  it("keeps only the launch-on branch saying Open Social in visible copy", () => {
     const copy = clientCopy();
     const openSocialMatches = copy.match(/Open Social/g) ?? [];
     expect(openSocialMatches).toHaveLength(1);

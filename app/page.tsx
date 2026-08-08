@@ -4,13 +4,12 @@ import { redirect } from "next/navigation";
 import LandingPage from "@/components/landing/LandingPage";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { loadAboutStats } from "@/lib/aboutStats";
-import { isSocialInviteBetaEnabled } from "@/lib/socialAccess";
 import {
   isPosterLandingSrc,
   posterNearHref,
   readPosterLandingSrc,
 } from "@/lib/posterLanding";
-import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
+import { readTrustedHandoffFlag, readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 
 // Self-canonical for the homepage (Wave S1.4). Title/description inherit the
 // root layout defaults; this only pins the canonical URL.
@@ -44,12 +43,10 @@ export default async function Home({
   // flag is threaded as an immutable prop — the client never reads env itself
   // (same pattern as Map RSC → shell for L05).
   const { landingFindMyPint } = readTrustedHandoffFlags();
-  // Soft launch keeps Social invite beta unset/off. Thread the same gate the
-  // Social APIs use so Memory CTAs never promise "Open Social" while /social
-  // still answers "not open yet."
-  const socialInviteBetaEnabled = isSocialInviteBetaEnabled(
-    process.env.SOCIAL_INVITE_BETA_ENABLED,
-  );
+  // Soft launch keeps friends-launch unset/off. Thread the same gate the Social
+  // APIs use so Memory CTAs never promise "Open Social" while /social still
+  // answers "not open yet."
+  const socialFriendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
 
   return (
     <>
@@ -68,7 +65,7 @@ export default async function Home({
       <LandingPage
         stats={stats}
         landingFindMyPint={landingFindMyPint}
-        socialInviteBetaEnabled={socialInviteBetaEnabled}
+        socialFriendsLaunchEnabled={socialFriendsLaunchEnabled}
       />
     </>
   );

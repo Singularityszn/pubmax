@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { isSocialInviteBetaEnabled } from "@/lib/socialAccess";
+import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 import WeAreOutClient from "./WeAreOutClient";
 
@@ -14,8 +14,6 @@ export const metadata: Metadata = {
 };
 
 export default function WeAreOutPage() {
-  const socialInviteBetaEnabled = isSocialInviteBetaEnabled(
-    process.env.SOCIAL_INVITE_BETA_ENABLED,
-  );
-  return <WeAreOutClient socialInviteBetaEnabled={socialInviteBetaEnabled} />;
+  const socialFriendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
+  return <WeAreOutClient socialFriendsLaunchEnabled={socialFriendsLaunchEnabled} />;
 }

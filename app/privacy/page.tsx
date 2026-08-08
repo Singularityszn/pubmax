@@ -131,23 +131,18 @@ export default function PrivacyPage() {
           block an account or contribution.
         </p>
         <p className="legalBody">
-          Social uses a separate Clerk sign-in session. We keep a private product
-          account record joining its Clerk user ID to your stable profile and,
-          if you move an existing account, your Supabase account ID. Moving one
-          needs both signed-in sessions in the same request. We don&rsquo;t match
-          accounts by email, public handle or anything typed into a form.
+          Social uses a private product account tied to your Supabase sign-in
+          session and stable profile. A legacy Clerk session can still be bound to
+          that account when the invite beta path is enabled; that move needs both
+          signed-in sessions in the same request. We don&rsquo;t match accounts by
+          email, public handle or anything typed into a form.
         </p>
         <p className="legalBody">
-          Full Social access is intended for verified adults aged 18+. This
-          release does not currently start a Yoti check or receive a Yoti
-          result. It has service-only evidence fields ready to hold the provider
-          name, Yoti subject reference, over-18 decision, time checked, expiry
-          and audit status against a private product account if that integration
-          is enabled later. We don&rsquo;t store identity documents, selfies,
-          Yoti&rsquo;s raw response, an estimated age or a date of birth in those
-          fields.
-          None of that evidence would appear on your profile as an age or
-          verification badge.
+          Full Social access is for signed-in accounts aged 18 or older. We read
+          the date of birth you gave at onboarding and refuse Social when it is
+          missing, invalid or shows you are under 18. We do not run a separate
+          hosted age check in this release. None of that private data appears on
+          your profile as an age or verification badge.
         </p>
         <p className="legalBody">
           Your public profile may also contain a display name, home city and
@@ -601,12 +596,10 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>Yoti</dt>
             <dd>
-              Planned 18+ age-check provider for Social. PUBMAXX does not
-              currently send data to Yoti or receive a result from it. If the
-              integration is enabled later, this notice will describe what the
-              hosted check receives before processing starts. PUBMAXX&rsquo;s
-              service-only evidence shape is limited to the reference,
-              decision, check time, expiry and audit status described above.
+              Optional hosted 18+ age-check provider for a future stronger
+              assurance tier. PUBMAXX does not currently send data to Yoti or
+              receive a result from it. Social access today uses the date of
+              birth you gave at onboarding.
             </dd>
           </div>
           <div className="legalRow">
@@ -715,13 +708,10 @@ export default function PrivacyPage() {
             personal content attached to it within 30 days.
           </li>
           <li>
-            <strong>Social account and adult-check records:</strong>{" "}the
-            private Clerk and Supabase account link stays with the Social
-            account. No Yoti evidence is recorded while that integration is
-            inactive. If it is enabled later, a recorded reference, decision,
-            check time, expiry and audit status would stay with the Social
-            account until deletion, unless a narrower legal or moderation hold
-            applies.
+            <strong>Social account records:</strong>{" "}the private product account
+            link stays with the Social account until deletion. The date of birth
+            used for the 18+ gate stays in your private identity record until you
+            delete your profile.
           </li>
           <li>
             <strong>Social Crews:</strong>{" "}the Crew, membership history,
@@ -820,10 +810,11 @@ export default function PrivacyPage() {
         <h2 id="age" className="legalH2">Age and access</h2>
         <p className="legalBody">
           The map and existing contribution tools don&rsquo;t use age to block an
-          account. Social remains in preview, and PUBMAXX does not currently run
-          a Yoti check. If the integration is enabled later, full Social access
-          will need a current 18+ decision bound to your private product
-          account. Pubs remain responsible for deciding who they serve.
+          account. Social stays in preview until the friends launch switch is on.
+          When Social is open, full access needs a signed-in account, a claimed
+          handle and a date of birth you gave at onboarding that shows you are
+          18 or older. We do not run a separate hosted age check in this release.
+          Pubs remain responsible for deciding who they serve.
         </p>
       </section>
 

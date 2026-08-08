@@ -132,13 +132,13 @@ export default function LandingPage({
   stats,
   // Server-threaded trusted-handoff flag (default off = current hierarchy).
   landingFindMyPint = false,
-  // Server-threaded Social invite beta (default off = soft-launch preview).
+  // Server-threaded friends-launch flag (default off = soft-launch preview).
   // Memory CTAs must not promise "Open Social" while the product is closed.
-  socialInviteBetaEnabled = false,
+  socialFriendsLaunchEnabled = false,
 }: {
   stats?: AboutStats;
   landingFindMyPint?: boolean;
-  socialInviteBetaEnabled?: boolean;
+  socialFriendsLaunchEnabled?: boolean;
 }) {
   const router = useRouter();
   const preferredCity = useSyncExternalStore(
@@ -451,7 +451,7 @@ export default function LandingPage({
               <p>Your outing stays private until you say otherwise. When the crew&rsquo;s ready, turn the moments everyone likes into a story worth keeping.</p>
               <div className="lpMemoryActions">
                 <Link href="/plan" className="lpButton lpButtonPrimary">Start a plan</Link>
-                {socialInviteBetaEnabled ? (
+                {socialFriendsLaunchEnabled ? (
                   <Link href="/social" className="lpTextLink">
                     Open Social <ArrowRight size={16} aria-hidden="true" />
                   </Link>

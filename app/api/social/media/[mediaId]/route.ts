@@ -12,8 +12,8 @@ function missing(): Response {
   return publicApiError("Photo not found.", "NOT_FOUND", 404, { headers: { "Cache-Control": "private, no-store" } });
 }
 
-export async function GET(_request: Request, context: Context): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
+export async function GET(request: Request, context: Context): Promise<Response> {
+  const access = await requireVerifiedSocialActor(request);
   if (!access.ok) return missing();
   const limitKey = `social-media-sign:${hashActor(access.actor.profileId)}`;
   if (await isLimited(limitKey, limitKey, 120, 60_000)) return missing();

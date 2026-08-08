@@ -20,9 +20,11 @@ function dependencies(
   overrides: Partial<SocialAccessServerDependencies> = {},
 ): SocialAccessServerDependencies {
   return {
+    friendsLaunchEnabled: false,
     betaEnabled: true,
     now: () => new Date("2026-08-05T20:00:00.000Z"),
     verifyClerkSession: async () => ({ status: "verified", userId: "clerk-1" }),
+    verifySupabaseSession: async () => ({ status: "absent" }),
     readAccountAccess: async () => ({
       account: {
         id: "account-1",
@@ -42,6 +44,18 @@ function dependencies(
         expiresAt: "2026-09-05T19:00:00.000Z",
       },
     }),
+    readFriendsLaunchAccess: async () => ({
+      account: {
+        id: "account-2",
+        clerkUserId: "supabase:44444444-4444-4444-8444-444444444444",
+        ownershipState: "active",
+      },
+      profile: {
+        id: "profile-2",
+        handle: "bob",
+      },
+      dateOfBirth: "1990-01-01",
+    }),
     migrateAccounts: async () => ({
       ok: true,
       productAccountId: "account-1",
@@ -52,20 +66,53 @@ function dependencies(
 }
 
 describe("server Social access resolution", () => {
-  it("returns preview without consulting identity while beta is disabled", async () => {
+  it("returns preview without consulting identity while friends launch and beta are disabled", async () => {
     const verifyClerkSession = vi.fn(async () => {
+      throw new Error("must not run");
+    });
+    const verifySupabaseSession = vi.fn(async () => {
       throw new Error("must not run");
     });
 
     await expect(
-      resolveSocialAccess(dependencies({ betaEnabled: false, verifyClerkSession })),
+      resolveSocialAccess(
+        undefined,
+        dependencies({
+          friendsLaunchEnabled: false,
+          betaEnabled: false,
+          verifyClerkSession,
+          verifySupabaseSession,
+        }),
+      ),
     ).resolves.toEqual({ available: true, state: "preview" });
     expect(verifyClerkSession).not.toHaveBeenCalled();
+    expect(verifySupabaseSession).not.toHaveBeenCalled();
+  });
+
+  it("returns verified from friends-launch Supabase identity and onboarding DOB", async () => {
+    await expect(
+      resolveSocialAccess(
+        undefined,
+        dependencies({
+          friendsLaunchEnabled: true,
+          betaEnabled: false,
+          verifySupabaseSession: async () => ({
+            status: "verified",
+            userId: "44444444-4444-4444-8444-444444444444",
+          }),
+        }),
+      ),
+    ).resolves.toEqual({
+      available: true,
+      state: "verified",
+      actor: { accountId: "account-2", profileId: "profile-2", handle: "bob" },
+    });
   });
 
   it("fails closed when Clerk session checking is unavailable", async () => {
     await expect(
       resolveSocialAccess(
+        undefined,
         dependencies({
           verifyClerkSession: async () => ({ status: "unavailable" }),
         }),
@@ -86,6 +133,7 @@ describe("server Social access resolution", () => {
 
     await expect(
       resolveSocialAccess(
+        undefined,
         dependencies({
           verifyClerkSession: async () => ({ status: "absent" }),
           readAccountAccess,
@@ -97,7 +145,7 @@ describe("server Social access resolution", () => {
 
   it("returns verified from server-held account and Yoti evidence", async () => {
     await expect(
-      resolveSocialAccess(dependencies()),
+      resolveSocialAccess(undefined, dependencies()),
     ).resolves.toEqual({
       available: true,
       state: "verified",
@@ -106,16 +154,16 @@ describe("server Social access resolution", () => {
   });
 
   it("returns only a server-held internal actor to protected Social routes", async () => {
-    await expect(requireVerifiedSocialActor(dependencies())).resolves.toEqual({
+    await expect(requireVerifiedSocialActor(undefined, dependencies())).resolves.toEqual({
       ok: true,
       actor: { accountId: "account-1", profileId: "profile-1", handle: "alice" },
     });
   });
 
   it("maps every non-verified state to a protected-route refusal", async () => {
-    await expect(requireVerifiedSocialActor(dependencies({ betaEnabled: false })))
+    await expect(requireVerifiedSocialActor(undefined, dependencies({ betaEnabled: false, friendsLaunchEnabled: false })))
       .resolves.toMatchObject({ ok: false, status: 403, code: "SOCIAL_BETA_DISABLED" });
-    await expect(requireVerifiedSocialActor(dependencies({
+    await expect(requireVerifiedSocialActor(undefined, dependencies({
       verifyClerkSession: async () => ({ status: "absent" }),
     }))).resolves.toMatchObject({ ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED" });
   });
@@ -123,6 +171,7 @@ describe("server Social access resolution", () => {
   it("fails closed when private account storage is unavailable", async () => {
     await expect(
       resolveSocialAccess(
+        undefined,
         dependencies({
           readAccountAccess: async () => {
             throw new Error("offline");
@@ -213,5 +262,30 @@ describe("Clerk and Supabase account migration", () => {
       clerkUserId: "clerk-1",
       supabaseUserId: "44444444-4444-4444-8444-444444444444",
     });
+  });
+});
+
+describe("friends-launch auto-provision store seam", () => {
+  it("maps profile_not_claimed to a null access record without throwing", async () => {
+    const readFriendsLaunchAccess = vi.fn(async () => ({
+      account: null,
+      profile: null,
+      dateOfBirth: null,
+    }));
+
+    await expect(
+      resolveSocialAccess(
+        undefined,
+        dependencies({
+          friendsLaunchEnabled: true,
+          betaEnabled: false,
+          verifySupabaseSession: async () => ({
+            status: "verified",
+            userId: "44444444-4444-4444-8444-444444444444",
+          }),
+          readFriendsLaunchAccess,
+        }),
+      ),
+    ).resolves.toEqual({ available: true, state: "age_verification_required" });
   });
 });

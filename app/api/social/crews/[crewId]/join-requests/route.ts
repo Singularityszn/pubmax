@@ -41,11 +41,11 @@ async function changeJoinRequest(
 }
 
 export async function POST(request: Request, context: Context): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   return changeJoinRequest(request, context, "request", access);
 }
 
 export async function DELETE(request: Request, context: Context): Promise<Response> {
-  const access = await requireVerifiedSocialActor();
+  const access = await requireVerifiedSocialActor(request);
   return changeJoinRequest(request, context, "cancel", access);
 }

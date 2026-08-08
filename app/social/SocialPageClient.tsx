@@ -8,6 +8,7 @@ import { DiscoverBody } from "@/app/discover/DiscoverPageClient";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import FindYourLot from "@/components/social/FindYourLot";
+import { authedFetch } from "@/lib/authedFetch";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import { getNightArea, NIGHT_AREAS } from "@/lib/nightAreas";
@@ -367,7 +368,7 @@ export default function SocialPageClient({
 
     const controller = new AbortController();
     void Promise.resolve().then(() => setAccess("checking"));
-    fetch("/api/social/access", {
+    authedFetch("/api/social/access", {
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
