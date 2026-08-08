@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { isSocialInviteBetaEnabled } from "@/lib/socialAccess";
+
 import WeAreOutClient from "./WeAreOutClient";
 
 // Server shell for /we-are-out so the route carries real metadata (the client
@@ -12,5 +14,8 @@ export const metadata: Metadata = {
 };
 
 export default function WeAreOutPage() {
-  return <WeAreOutClient />;
+  const socialInviteBetaEnabled = isSocialInviteBetaEnabled(
+    process.env.SOCIAL_INVITE_BETA_ENABLED,
+  );
+  return <WeAreOutClient socialInviteBetaEnabled={socialInviteBetaEnabled} />;
 }

@@ -10,6 +10,7 @@ import FirstActionsRow from "@/components/profile/FirstActionsRow";
 import FollowButton from "@/components/profile/FollowButton";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
+import OutTonightBoard from "@/components/profile/OutTonightBoard";
 import OutTonightCrewLine from "@/components/profile/OutTonightCrewLine";
 import OutTonightToggle from "@/components/profile/OutTonightToggle";
 import PintPassport from "@/components/profile/PintPassport";
@@ -726,6 +727,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                       <FirstActionsRow />
                       <ContributionLanesCard handle={routeHandle} />
                       <OutTonightToggle handle={routeHandle} />
+                      <OutTonightBoard viewerHandle={routeHandle} />
                     </>
                   ) : null}
 
