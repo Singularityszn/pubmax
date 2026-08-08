@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { getNightArea, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
+import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
 import "./outTonightBeacon.css";
 
 type Props = {
@@ -135,6 +136,7 @@ export default function OutTonightToggle({ handle }: Props) {
         <p className="beaconPrivacy">
           Only your crew can see this. It switches off on its own in twelve hours.
         </p>
+        <OutTonightPlanCta variant="self" />
         {writeError ? (
           <p className="beaconError" role="alert">{writeError}</p>
         ) : null}

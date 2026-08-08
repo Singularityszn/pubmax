@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from "react";
 
+import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
 import { getNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 
@@ -60,8 +61,11 @@ export default function OutTonightCrewLine({ ownerHandle, viewerHandle }: Props)
 
   const areaName = state.areaSlug ? getNightArea(state.areaSlug).name : null;
   return (
-    <p className="beaconCrewLine">
-      {areaName ? `Out tonight in ${areaName}.` : "Out tonight."}
-    </p>
+    <div className="beaconCrewBlock">
+      <p className="beaconCrewLine">
+        {areaName ? `Out tonight in ${areaName}.` : "Out tonight."}
+      </p>
+      <OutTonightPlanCta variant="crew" />
+    </div>
   );
 }
