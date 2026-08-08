@@ -354,7 +354,8 @@ const SAFE_STRING_VALUES = new Set([
   "near", "map-search", "direct-plan", "mobile-route-preview",
   "location", "remembered-area", "picked-area", "0", "1-3", "4+",
   "live-location", "remembered-patch", "remembered-borough", "london-default", "other",
-  "tonight-lane", "whats-on-quiz", "whats-on-sport", "whats-on-deal", "whats-on-music",
+  "tonight-lane", "tonight-vibes", "landing-why",
+  "whats-on-quiz", "whats-on-sport", "whats-on-deal", "whats-on-music",
   // fixed actions, states, providers, and fallbacks
   "copy", "native", "whatsapp", "sms", "x", "instagram", "tiktok", "oauth", "manual",
   "draft", "ready", "active", "ending", "completed", "abandoned",
@@ -363,7 +364,9 @@ const SAFE_STRING_VALUES = new Set([
   "create", "edit", "delete", "approve", "reject", "preference", "correction", "outcome",
   // reviewed domain enums
   "daytime", "after_work", "evening", "late_night", "morning", "afternoon", "night",
-  "sport", "quiz", "deal", "music", "gig",
+  "coffee", "af", "chill",
+  "bender", "lit", "quiet", "cheeky", "match", "quiz", "date",
+  "sport", "deal", "music", "gig",
   "photo", "pint_drop", "pint-drop", "event", "venue", "quote", "person", "side_quest",
   "private", "unlisted", "public", "friends", "legacy", "anonymous",
   "direct", "site", "search",

@@ -441,6 +441,8 @@ export function trackMeaningfulCoreAction(action: WeeklyMeaningfulCoreAction, de
  */
 const LANE_SOURCES = new Set([
   "tonight-lane",
+  "tonight-vibes",
+  "landing-why",
   "whats-on-quiz",
   "whats-on-sport",
   "whats-on-deal",

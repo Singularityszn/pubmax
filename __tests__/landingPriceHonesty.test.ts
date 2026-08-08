@@ -94,6 +94,9 @@ describe("landing outing beat (Wave S4)", () => {
     expect(whyBlock).toContain("Open the map");
     expect(whyBlock).toContain('href="/plan"');
     expect(whyBlock).toContain("Plan an outing");
+    expect(whyBlock).toContain('planOccasionHref("coffee", { src: "landing-why" })');
+    expect(whyBlock).toContain('planOccasionHref("af", { src: "landing-why" })');
+    expect(whyBlock).toContain('planOccasionHref("chill", { src: "landing-why" })');
     expect(whyBlock).toContain('href="/about"');
     expect(whyBlock).toContain("Our story");
     // Hero stays map-first; #why must not promote a second primary button.
