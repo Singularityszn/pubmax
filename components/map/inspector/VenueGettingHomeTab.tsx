@@ -1,6 +1,12 @@
+"use client";
+
+import { useState } from "react";
+
 import LastTrainCard from "../LastTrainCard";
 import NearbyBusDepartures from "../NearbyBusDepartures";
+import { GetHomeHandoffRow } from "@/components/night/RouteEndingCard";
 import { SafeNightStrip } from "@/components/night/SafeNightStrip";
+import { venueToGetHomeHandoff } from "@/lib/getHomeHandoff";
 import type { Venue } from "@/lib/venues";
 import type { LastPintDecision } from "@/lib/tfl";
 import type { CityId } from "@/lib/cities";
@@ -19,6 +25,10 @@ export default function VenueGettingHomeTab({
   onSelectVenue?: (id: string) => void;
   onDecision: (decision: LastPintDecision | null) => void;
 }) {
+  const [lastPintDecision, setLastPintDecision] = useState<LastPintDecision | null>(
+    null,
+  );
+
   return (
     <div
       role="tabpanel"
@@ -37,7 +47,10 @@ export default function VenueGettingHomeTab({
             cityId={cityId}
             venueKind={venue.kind}
             onSelectVenue={onSelectVenue}
-            onDecision={onDecision}
+            onDecision={(decision) => {
+              setLastPintDecision(decision);
+              onDecision(decision);
+            }}
           />
           {cityId === "london" ? (
             <NearbyBusDepartures
@@ -46,6 +59,10 @@ export default function VenueGettingHomeTab({
               lng={venue.longitude}
             />
           ) : null}
+          <GetHomeHandoffRow
+            venue={venueToGetHomeHandoff(venue)}
+            decision={lastPintDecision?.decision ?? null}
+          />
           <SafeNightStrip
             venue={{
               id: venue.id,

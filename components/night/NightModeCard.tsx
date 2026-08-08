@@ -65,6 +65,7 @@ import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import { haversineKm } from "@/lib/haversine";
 import { legMinutes } from "@/lib/routeLegs";
 import RouteEndingCard, {
+  GetHomeHandoffRow,
   type RouteEndingId,
   type RouteEndingOptions,
 } from "@/components/night/RouteEndingCard";
@@ -95,6 +96,7 @@ import {
   restorePlanCapability,
 } from "@/lib/planSessionCapability";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
+import type { LastPintDecisionKind } from "@/lib/tfl";
 import type { VenueKind } from "@/lib/venues";
 import "./nightMode.css";
 
@@ -1075,6 +1077,13 @@ function NightModeSheet({
               saving={endingSaving}
               stationName={currentTrain?.station?.name ?? null}
               leaveByIso={lastTrainLeaveBy}
+              venueName={currentStop.venueName}
+              venueLatitude={currentCoord?.lat ?? null}
+              venueLongitude={currentCoord?.lng ?? null}
+              decision={
+                (currentTrain?.decision?.decision as LastPintDecisionKind | undefined) ??
+                null
+              }
               onConfirm={() =>
                 completeEnding(
                   "get_home",
@@ -1317,13 +1326,34 @@ function GetHomeEndingConfirmation({
   saving,
   stationName,
   leaveByIso,
+  venueName,
+  venueLatitude,
+  venueLongitude,
+  decision,
   onConfirm,
 }: {
   saving: boolean;
   stationName: string | null;
   leaveByIso: string | null;
+  venueName: string;
+  venueLatitude: number | null;
+  venueLongitude: number | null;
+  decision: LastPintDecisionKind | null;
   onConfirm: () => void;
 }) {
+  const handoffVenue =
+    venueLatitude !== null &&
+    venueLongitude !== null &&
+    Number.isFinite(venueLatitude) &&
+    Number.isFinite(venueLongitude)
+      ? {
+          name: venueName,
+          latitude: venueLatitude,
+          longitude: venueLongitude,
+          addressLine: "",
+        }
+      : null;
+
   return (
     <div className="nightCard__foodPicker" aria-label="Confirm Get home ending">
       <strong>Getting home</strong>
@@ -1332,6 +1362,9 @@ function GetHomeEndingConfirmation({
           ? `We've got a live last-train time for ${stationName ?? "the nearest station"}.`
           : `Check the last trains from ${stationName ?? "the nearest station"} before you head off.`}
       </p>
+      {handoffVenue ? (
+        <GetHomeHandoffRow venue={handoffVenue} decision={decision} />
+      ) : null}
       <button
         type="button"
         className="nightCard__endingLink"
