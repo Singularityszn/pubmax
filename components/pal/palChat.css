@@ -5,7 +5,7 @@
 .palChat {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  min-height: 100dvh;
   padding-top: env(safe-area-inset-top, 0px);
   background:
     radial-gradient(circle at 82% 8%, color-mix(in srgb, var(--brass) 9%, transparent), transparent 26rem),
@@ -87,8 +87,7 @@
 
 /* — Scroll region (transcript + example chips) — */
 .palChatScroll {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 1 auto;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
