@@ -2,8 +2,16 @@
 
 import type { ReactNode } from "react";
 
+import { trackEvent } from "@/lib/analytics";
+import {
+  buildGetHomeHandoffLinks,
+  getHomeHandoffHeading,
+  type GetHomeHandoffVenue,
+} from "@/lib/getHomeHandoff";
 import type { CrawlEnding } from "@/lib/plan";
+import type { LastPintDecisionKind } from "@/lib/tfl";
 
+import "./getHomeHandoff.css";
 import "./routeEndingCard.css";
 
 export type RouteEndingId = CrawlEnding;
@@ -56,6 +64,41 @@ export const DEFAULT_ROUTE_ENDINGS = [
     actionLabel: "Continue crawl",
   },
 ] as const satisfies RouteEndingOptions;
+
+export type GetHomeHandoffRowProps = {
+  venue: GetHomeHandoffVenue;
+  decision?: LastPintDecisionKind | null;
+};
+
+export function GetHomeHandoffRow({
+  venue,
+  decision = null,
+}: GetHomeHandoffRowProps): React.JSX.Element | null {
+  const links = buildGetHomeHandoffLinks(venue, decision);
+  if (links.length === 0) return null;
+
+  const heading = getHomeHandoffHeading(venue);
+
+  return (
+    <section className="getHomeHandoff" aria-label={heading}>
+      <p className="getHomeHandoff__heading">{heading}</p>
+      <div className="getHomeHandoff__actions">
+        {links.map((link) => (
+          <a
+            key={link.kind}
+            className="getHomeHandoff__link"
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackEvent("planned_night_action", { type: "get_home" })}
+          >
+            {link.label}
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function recommendedEndingId(
   options: RouteEndingOptions,
