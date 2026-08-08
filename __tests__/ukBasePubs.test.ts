@@ -392,6 +392,8 @@ describe("pan residency helpers", () => {
     expect(
       panDeltaBetween(a, { west: -0.2, south: 51.4, east: -0.1, north: 51.5 }),
     ).toBeNull();
+    // Same centre, tighter bounds → a zoom, not a pan.
+    expect(panDeltaBetween(a, zoomOnly)).toBeNull();
     const east = panDeltaBetween(a, {
       west: -0.1,
       south: 51.4,
