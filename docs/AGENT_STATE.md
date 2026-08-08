@@ -35,13 +35,13 @@ that caught real bugs this week:
    `modelProseIsGrounded` in `lib/ask/runAsk.ts` is the pattern: fail closed
    to grounded hints/cards.
 4. Every `app/api` route uses `publicApiError` (`lib/apiError.ts`) and a rate
-   limit via `isLimited`. Only the RLS suite runs on PRs today, so run the
-   contract and voice suites locally before pushing an API route.
+   limit via `isLimited`. PR CI also runs lint, typecheck, and sharded unit
+   tests on stock `ubuntu-latest` (`.github/workflows/ci.yml`).
 
 ## Open items
 
-- #747 Blacksmith runner migration: merges the moment the captain installs
-  the Blacksmith GitHub app — merging earlier strands CI on missing runners.
+- #747 Blacksmith runner migration: closed / rejected; stock runners restored
+  in `.github/workflows/ci.yml`. Do not reopen without a captain decision.
 - Known follow-ups: `buildMapSearchSuggestions` complexity (45/35);
   `lib/ukBasePubSearch.ts` duplicates `lib/mapSearchSuggest.ts` ranking;
   `sanitizeEvent`'s `target` special case lives in three places;

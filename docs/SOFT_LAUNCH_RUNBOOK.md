@@ -18,11 +18,9 @@ This runs the data gate and the Next build only. It does not run lint, typecheck
 
 **`docs/DEPLOYMENT.md` says the build command is `npm run ci` (the full gate). That is out of date.** PR [#748](https://github.com/Singularityszn/pubmax/pull/748) narrowed the Vercel build command on 2026-08-06 to cut build-hour cost. Tests, lint, and typecheck moved to GitHub Actions CI (`.github/workflows/ci.yml`).
 
-GitHub Actions CI is currently broken. Every run on `main` fails with `startup_failure` before a job is allocated (a runner/account problem, not a code problem). The fix, PR [#747](https://github.com/Singularityszn/pubmax/pull/747) (migrate to Blacksmith runners), is still open and unmerged.
+GitHub Actions CI runs on stock `ubuntu-latest` runners via `.github/workflows/ci.yml` (lint, `tsc --noEmit`, sharded `vitest run` on every pull request and on push to `main`). The Blacksmith migration [#747](https://github.com/Singularityszn/pubmax/pull/747) was rejected; do not repoint `runs-on`.
 
-**Result: nothing automated currently checks lint, typecheck, or tests before a deploy reaches production.** Run `npm run ci` locally before every push this weekend. This already matches `docs/DEPLOYMENT.md`'s "Agent workflow for Codex / Opus" checklist, and it is now load-bearing, not a nicety.
-
-One workflow does run and pass reliably: `.github/workflows/rls-session.yml` (effective RLS tests against a real Postgres 16 and PostgREST 14). Check it stays green on every push to `main`.
+Effective RLS stays in `.github/workflows/rls-session.yml` (Postgres 16 + PostgREST 14). Keep both workflows green on every pull request.
 
 ### 1.2 Promote after deploy
 
