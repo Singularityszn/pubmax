@@ -14,6 +14,7 @@ import { gateHandleAction } from "@/lib/profileOwnership";
 import {
   isProfileTombstoned,
   profileStore,
+  publicOwnedAvatarUrl,
   type ProfilePatch,
   type ProfileRecord,
 } from "@/lib/profileStore";
@@ -38,17 +39,34 @@ function stores() {
   return { profiles: profileStore(), follows: followStore() };
 }
 
-// Public projection of a profile row: strips internal ownership / tombstone
-// keys so they never cross the wire on the public /u/[handle] read. Only the
-// display-facing fields are exposed.
+// Public projection of a profile row: strips internal ownership / tombstone /
+// owned-avatar storage keys so they never cross the wire on the public
+// /u/[handle] read. avatarUrl is the approved served path only — never a
+// hotlinked remote URL and never an unscanned face.
 function toPublicProfile(
   profile: ProfileRecord | null,
-): Omit<ProfileRecord, "userId" | "tombstonedAt"> | null {
+): {
+  id: string;
+  handle: string;
+  displayName?: string;
+  avatarUrl?: string;
+  homeCity?: string;
+  bio?: string;
+  createdAt: string;
+  updatedAt: string;
+} | null {
   if (!profile) return null;
-  const { userId: _userId, tombstonedAt: _tombstonedAt, ...rest } = profile;
-  void _userId;
-  void _tombstonedAt;
-  return rest;
+  const avatarUrl = publicOwnedAvatarUrl(profile);
+  return {
+    id: profile.id,
+    handle: profile.handle,
+    ...(profile.displayName ? { displayName: profile.displayName } : {}),
+    ...(avatarUrl ? { avatarUrl } : {}),
+    ...(profile.homeCity ? { homeCity: profile.homeCity } : {}),
+    ...(profile.bio ? { bio: profile.bio } : {}),
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  };
 }
 
 // Trust boundary for profile edits — the request body is untrusted. cleanText
@@ -258,6 +276,9 @@ export async function DELETE(
 
   try {
     const store = profileStore();
+    // Capture owned-avatar keys before soft-delete nulls them so Storage cleanup
+    // can still find the face bytes.
+    const prior = await store.getByHandle(handle);
     const deletion = await store.softDeleteForCaller(handle, gate.callerUserId);
     if (deletion.status === "not-found") {
       return publicApiError("Profile not found.", "NOT_FOUND", 404);
@@ -267,6 +288,26 @@ export async function DELETE(
     }
 
     const { ownerUserId, profile } = deletion;
+
+    if (prior?.id && (prior.avatarObjectKey || prior.avatarGeneration)) {
+      try {
+        const { purgeProfileAvatarObjects, supabaseProfileAvatarStorage } = await import(
+          "@/lib/profileAvatarMedia.server"
+        );
+        const known = [
+          prior.avatarObjectKey,
+          prior.avatarGeneration
+            ? `avatars/${prior.id}/${prior.avatarGeneration}/staging.jpg`
+            : null,
+        ].filter((key): key is string => typeof key === "string" && key.length > 0);
+        await purgeProfileAvatarObjects(prior.id, supabaseProfileAvatarStorage, known);
+      } catch (err) {
+        console.error(
+          `[avatar] profile soft-delete for @${handle}: FAILED to purge avatar objects`,
+          err,
+        );
+      }
+    }
 
     if (ownerUserId) {
       await privateIdentityStore().erase(ownerUserId);
