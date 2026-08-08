@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
 import SignInButton from "@/components/auth/SignInButton";
@@ -58,6 +58,9 @@ import {
 import type { SocialProvider, SocialProviderAvailability } from "@/lib/socialConnections";
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import { getNightAreasForCity } from "@/lib/nightAreas";
+
+// Web Share support never changes within a page lifetime, so no updates arrive.
+const subscribeToNothing = () => () => {};
 
 type Connection = { provider: "x" | "instagram" | "tiktok"; username?: string; status: string };
 
@@ -340,11 +343,11 @@ export default function PubmaxxAccountHub() {
   const [referralLink, setReferralLink] = useState<string | null>(null);
   const [referralBusy, setReferralBusy] = useState(false);
   const [referralNotice, setReferralNotice] = useState("");
-  const [shareSupported, setShareSupported] = useState(false);
-
-  useEffect(() => {
-    setShareSupported(typeof navigator.share === "function");
-  }, []);
+  const shareSupported = useSyncExternalStore(
+    subscribeToNothing,
+    () => typeof navigator.share === "function",
+    () => false,
+  );
 
   useEffect(() => {
     let cancelled = false;

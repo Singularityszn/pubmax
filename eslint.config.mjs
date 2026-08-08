@@ -24,6 +24,8 @@ const eslintConfig = [
       "data/**",
       // Vendored agent/design skill packs — not app source; upstream uses require() etc.
       "skills/**",
+      // Skill-pack reference assets - not app code.
+      ".agents/**",
       // Generated verification artifacts — never hand-authored source.
       "test-results/**",
       "playwright-report/**",
