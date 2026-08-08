@@ -16,7 +16,7 @@ const CORE_ROUTES: CoreRoute[] = [
   { name: "Explore map", path: "/map", ready: ".mapCanvasWrap", allowMapTeardownErrors: true },
   { name: "Plan", path: "/plan", ready: "main.planPage h1" },
   { name: "Moment", path: "/moment", ready: 'form[aria-label="Private Moment composer"]' },
-  { name: "Stories", path: "/feed", ready: "h1.feedTitle" },
+  { name: "Social", path: "/social", ready: "h1.socialTitle" },
   { name: "You", path: "/u/you", ready: "#you-title" },
   { name: "Public profile", path: "/u/testdrinker", ready: "main.profileMain" },
 ];
