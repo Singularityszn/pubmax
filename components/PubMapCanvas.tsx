@@ -38,6 +38,7 @@ import {
   defaultPoiHidden,
   defaultPoiHiddenForViewport,
   defaultPoiHiddenMobile,
+  type PoiHiddenChange,
 } from "@/lib/poiToggleGroups";
 import MapLayersControl from "@/components/map/MapLayersControl";
 import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
@@ -306,7 +307,7 @@ type PubMapCanvasProps = {
   /** Precise location retained only in memory after explicit permission. */
   userLocation?: { lat: number; lng: number } | null;
   poiHidden?: Record<PoiCategory, boolean>;
-  onPoiHiddenChange?: (next: Record<PoiCategory, boolean>) => void;
+  onPoiHiddenChange?: (next: PoiHiddenChange) => void;
   hideLayersControl?: boolean;
   /**
    * Area button fly-to: bump `token` to fly the camera to `center` (a Night
@@ -599,7 +600,7 @@ export default function PubMapCanvas({
     defaultPoiHiddenForViewport,
   );
   const poiHidden = controlledPoiHidden ?? internalPoiHidden;
-  const setPoiHidden = useCallback((next: Record<PoiCategory, boolean>) => {
+  const setPoiHidden = useCallback((next: PoiHiddenChange) => {
     if (onPoiHiddenChange) onPoiHiddenChange(next);
     else setInternalPoiHidden(next);
   }, [onPoiHiddenChange]);
@@ -614,7 +615,14 @@ export default function PubMapCanvas({
       // Defer setState out of the effect body (react-hooks/set-state-in-effect).
       void Promise.resolve().then(() => setPoiHidden(next));
     };
-    sync();
+    // Record the mount band without dispatching: both state owners already
+    // seed viewport defaults (or a restored session) at init, and a mount
+    // dispatch here would wipe restored layer choices on every canvas mount.
+    if (poiViewportMobileRef.current === null) {
+      poiViewportMobileRef.current = mq.matches;
+    } else {
+      sync();
+    }
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, [setPoiHidden]);

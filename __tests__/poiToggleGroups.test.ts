@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,7 +9,11 @@ import {
   defaultPoiHiddenMobile,
   isPoiGroupOn,
   isTransitNetworkVisible,
+  parsePoiHidden,
+  poiGroupToggleChange,
   togglePoiGroup,
+  type PoiHidden,
+  type PoiHiddenChange,
 } from "@/lib/poiToggleGroups";
 
 describe("poiToggleGroups", () => {
@@ -49,5 +56,50 @@ describe("poiToggleGroups", () => {
     expect(railOff.rail).toBe(true);
     expect(railOff.tube).toBe(false);
     expect(isTransitNetworkVisible(railOff)).toBe(true);
+  });
+
+  it("keeps every earlier toggle when taps land before the owner re-renders", () => {
+    // The chip dispatch is an UPDATER over the owner's current state. Apply the
+    // owner's setState semantics with three taps sharing one stale render:
+    // every tapped layer must end up on, not only the last one.
+    let ownerState: PoiHidden = defaultPoiHiddenMobile();
+    const dispatch = (change: PoiHiddenChange) => {
+      ownerState = typeof change === "function" ? change(ownerState) : change;
+    };
+    const group = (id: string) => POI_TOGGLE_GROUPS.find((g) => g.id === id)!;
+    for (const id of ["tube", "rail", "park"]) {
+      dispatch(poiGroupToggleChange(group(id)));
+    }
+    expect(ownerState.tube).toBe(false);
+    expect(ownerState.rail).toBe(false);
+    expect(ownerState.park).toBe(false);
+    expect(ownerState.bus).toBe(true);
+    // A second Tube tap through the same route turns only Tube back off.
+    dispatch(poiGroupToggleChange(group("tube")));
+    expect(ownerState.tube).toBe(true);
+    expect(ownerState.rail).toBe(false);
+  });
+
+  it("the Layers control dispatches the updater form, never its own snapshot", () => {
+    // The race is only fixed while the CONTROL sends poiGroupToggleChange. A
+    // return to togglePoiGroup(poiHidden, …) reintroduces the lost updates.
+    const source = readFileSync(
+      join(process.cwd(), "components/map/MapLayersControl.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("onPoiHiddenChange(poiGroupToggleChange(group))");
+    expect(source).not.toMatch(/togglePoiGroup\(\s*poiHidden/);
+  });
+
+  it("restores only an exact stored layer map", () => {
+    const stored = { ...defaultPoiHidden(), bus: false };
+    expect(parsePoiHidden(stored)).toEqual(stored);
+    expect(parsePoiHidden(stored)).not.toBe(stored);
+    expect(parsePoiHidden(null)).toBeNull();
+    expect(parsePoiHidden(undefined)).toBeNull();
+    expect(parsePoiHidden([])).toBeNull();
+    expect(parsePoiHidden({ tube: true })).toBeNull();
+    expect(parsePoiHidden({ ...defaultPoiHidden(), tube: 1 })).toBeNull();
+    expect(parsePoiHidden({ ...defaultPoiHidden(), stray: true })).toBeNull();
   });
 });

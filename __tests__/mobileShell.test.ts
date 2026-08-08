@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { seedCrawlState } from "@/lib/crawlUrl";
+import { defaultPoiHiddenMobile } from "@/lib/poiToggleGroups";
 import {
   MOBILE_MAP_SESSION_KEY,
   readMobileMapSession,
@@ -35,12 +36,14 @@ describe("mobile map session adapter", () => {
 
   it("round-trips only the versioned safe map state", () => {
     const filters = seedCrawlState("").filters;
+    const poiHidden = { ...defaultPoiHiddenMobile(), tube: false, park: false };
     writeMobileMapSession({
       viewport: { center: [-0.12, 51.51], zoom: 13, pitch: 28, bearing: -8 },
       filters,
       cityId: "london",
       nightArea: "shoreditch",
       selectedVenueId: "pub-1",
+      poiHidden,
       openSheet: "venue",
     });
     const raw = window.localStorage.getItem(MOBILE_MAP_SESSION_KEY) ?? "";
@@ -50,9 +53,40 @@ describe("mobile map session adapter", () => {
       cityId: "london",
       nightArea: "shoreditch",
       selectedVenueId: "pub-1",
+      poiHidden,
       openSheet: "venue",
       filters,
     });
+  });
+
+  it("upgrades a session without layer choices and rejects a drifted shape", () => {
+    const filters = seedCrawlState("").filters;
+    const base = {
+      version: 1,
+      cityId: "london",
+      filters,
+      viewport: null,
+      nightArea: null,
+      selectedVenueId: null,
+      openSheet: null,
+    };
+    // Pre-poiHidden session: restored with null, never discarded.
+    window.localStorage.setItem(MOBILE_MAP_SESSION_KEY, JSON.stringify(base));
+    expect(readMobileMapSession()).toMatchObject({ cityId: "london", poiHidden: null });
+    // Drifted shapes fall back to null rather than restoring a partial map.
+    for (const bad of [
+      { tube: false },
+      { ...defaultPoiHiddenMobile(), tube: "yes" },
+      { ...defaultPoiHiddenMobile(), extra: true },
+      [],
+      "tube",
+    ]) {
+      window.localStorage.setItem(
+        MOBILE_MAP_SESSION_KEY,
+        JSON.stringify({ ...base, poiHidden: bad }),
+      );
+      expect(readMobileMapSession()?.poiHidden).toBeNull();
+    }
   });
 
   it("upgrades a dead-flat saved viewport to the city's designed camera attitude", () => {

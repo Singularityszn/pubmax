@@ -20,6 +20,7 @@ function session(overrides: Partial<MobileMapSessionV1> = {}): MobileMapSessionV
     cityId: "london",
     nightArea: null,
     selectedVenueId: null,
+    poiHidden: null,
     openSheet: null,
     ...overrides,
   };

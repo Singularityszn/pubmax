@@ -1,5 +1,6 @@
 import type { Filters } from "@/lib/venues";
 import { parseCityId, type CityId } from "@/lib/cities";
+import { parsePoiHidden, type PoiHidden } from "@/lib/poiToggleGroups";
 import { parseDrinkCategoryParam } from "@/lib/drinkBrands";
 import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import type { SheetSnap } from "@/lib/sheetSnap";
@@ -74,6 +75,12 @@ export type MobileMapSessionV1 = {
   cityId: CityId;
   nightArea: NightAreaSlug | null;
   selectedVenueId: string | null;
+  /**
+   * Layers-chip choices (POI category → hidden). Null when the session
+   * pre-dates this field or the stored shape drifted - the map then falls back
+   * to viewport defaults rather than discarding the whole saved session.
+   */
+  poiHidden: PoiHidden | null;
   openSheet: MapSheetKind | null;
 };
 
@@ -207,6 +214,7 @@ export function readMobileMapSession(): MobileMapSessionV1 | null {
       cityId,
       nightArea: isNightAreaSlug(raw.nightArea) ? raw.nightArea : null,
       selectedVenueId: typeof raw.selectedVenueId === "string" ? raw.selectedVenueId : null,
+      poiHidden: parsePoiHidden(raw.poiHidden),
       openSheet: typeof raw.openSheet === "string" && RESTORABLE_SHEETS.has(raw.openSheet as MapSheetKind)
         ? (raw.openSheet as MapSheetKind)
         : null,

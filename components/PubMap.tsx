@@ -727,7 +727,11 @@ export default function PubMap({
   // name claims (see areaClaimedByViewport). Null until the map first settles,
   // and a map that has not settled claims no place.
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
-  const [poiHidden, setPoiHidden] = useState(defaultPoiHiddenForViewport);
+  // Layer choices restore with the session: a returning visit keeps the Tube/
+  // Rail/Parks chips it left on rather than resetting to viewport defaults.
+  const [poiHidden, setPoiHidden] = useState(
+    () => restoredMobileSession?.poiHidden ?? defaultPoiHiddenForViewport(),
+  );
   const [venueKindVisibility, setVenueKindVisibility] = useState(
     defaultVenueKindVisibility,
   );
@@ -1934,7 +1938,10 @@ export default function PubMap({
     const seeded = parseMapExperienceLensParam(
       new URLSearchParams(currentSearch()).get(MAP_EXPERIENCE_LENS_URL_PARAM),
     );
-    if (seeded && seeded !== "all") changeExperienceLens(seeded);
+    // Defer setState out of the effect body (react-hooks/set-state-in-effect).
+    if (seeded && seeded !== "all") {
+      void Promise.resolve().then(() => changeExperienceLens(seeded));
+    }
   }, [changeExperienceLens]);
 
   // Alcohol-free-first crawl style needs the same corroborated NA index as the
@@ -2909,6 +2916,7 @@ export default function PubMap({
       cityId,
       nightArea: activeNightArea?.slug ?? null,
       selectedVenueId: selectedVenueId || null,
+      poiHidden,
       openSheet: detailOpen
         ? "venue"
         : planningOpen
@@ -2917,7 +2925,7 @@ export default function PubMap({
             ? mapOverlay
             : null,
     });
-  }, [activeNightArea?.slug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, selectedVenueId, ukPlaceArrival]);
+  }, [activeNightArea?.slug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, poiHidden, selectedVenueId, ukPlaceArrival]);
 
   // #215 a11y — the sheet's close button is the natural first stop for a
   // keyboard/AT user landing in a freshly-opened panel; on close (button,
