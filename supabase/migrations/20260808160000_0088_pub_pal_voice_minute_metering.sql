@@ -1,4 +1,4 @@
--- 0086: Pub Pal voice minute metering.
+-- 0088: Pub Pal voice minute metering.
 -- session_count stays a short-lived reservation while used_minutes is the monthly meter.
 -- SQL only - the captain applies migrations.
 
@@ -40,14 +40,17 @@ language sql
 security definer
 set search_path = public
 as $$
-  update public.pub_pal_voice_usage
-  set used_minutes = used_minutes + case
-    when coalesce(p_seconds, 0) > 0 then greatest(1, (p_seconds + 59) / 60)
-    else 0
-  end
-  where owner_id = p_owner_id
-    and usage_month = p_month
-  returning 1;
+  with recorded as (
+    update public.pub_pal_voice_usage
+    set used_minutes = used_minutes + case
+      when coalesce(p_seconds, 0) > 0 then greatest(1, (p_seconds + 59) / 60)
+      else 0
+    end
+    where owner_id = p_owner_id
+      and usage_month = p_month
+    returning 1
+  )
+  select exists (select 1 from recorded);
 $$;
 
 revoke all on function public.record_pub_pal_voice_minutes(uuid, date, integer)

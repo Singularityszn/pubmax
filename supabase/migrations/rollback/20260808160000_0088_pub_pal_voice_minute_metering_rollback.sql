@@ -1,4 +1,4 @@
--- Rollback 0086: restore session-count quota on consume and drop minute metering.
+-- Rollback 0088: restore session-count quota on consume and drop minute metering.
 
 begin;
 
