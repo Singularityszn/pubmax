@@ -4,9 +4,11 @@
 // These are not venues in the product sense. They have no price, no amenities,
 // no curation and no detail record - only "a pub is here, and nobody has said
 // what a pint costs yet". So they deliberately live OUTSIDE the venue index:
-// they never enter `venues`, which is what keeps them out of search, the price
-// filters and the crawl router. They exist as map features, a separate
-// in-viewport unverified list, and price-submission targets.
+// they never enter `venues`, which is what keeps them out of curated search,
+// the price filters and the crawl router. Map search may match RESIDENT
+// streamed pubs only (lib/ukBasePubSearch.ts) — never the country-wide pack.
+// They exist as map features, a separate in-viewport unverified list, and
+// price-submission targets.
 //
 // DELIVERY. scripts/build_uk_base_shards.mjs emits a manifest plus one file per
 // ~28 x ~17 km cell under /data/uk_base/. This module fetches:
@@ -21,6 +23,7 @@
 // cache-first `/data/*.json` rule usually answers it from disk).
 
 import {
+  bboxContainsPoint,
   bboxIntersects,
   type MapBounds,
   type ShardEntry,
@@ -162,11 +165,14 @@ export function parseUkBaseManifest(value: unknown): ShardManifest | null {
 }
 
 /**
- * How many cell bodies stay resident. Eight covers a 390x844 viewport and its
- * pan padding several times over at the zoom gate, so ordinary browsing never
- * evicts a cell it is about to need again.
+ * How many cell bodies stay resident. Twelve covers a wide desktop viewport
+ * (~3-4 cells at the zoom gate), ordinary pad neighbours, and a short long-pan
+ * trail so a reverse swipe does not blank, without holding the country-wide
+ * pack (605 cells). Cap stays ≤12 so residency cannot quietly become "download
+ * the UK"; the prune path still refuses to drop a cell the current draw set
+ * needs.
  */
-export const MAX_RESIDENT_SHARDS = 8;
+export const MAX_RESIDENT_SHARDS = 12;
 
 /**
  * Viewport padding, as a fraction of the viewport's own span, applied before
@@ -174,6 +180,27 @@ export const MAX_RESIDENT_SHARDS = 8;
  * so a slow pan reveals pins rather than a blank strip that fills in late.
  */
 export const BOUNDS_PAD_RATIO = 0.35;
+
+/**
+ * Extra pad applied only on the leading edges of a detected pan, as a fraction
+ * of the viewport span. Ordinary BOUNDS_PAD_RATIO covers a slow nudge; this
+ * covers a sustained swipe so the next cell is already in flight before the
+ * camera settles on it. Kept below one full viewport so a long pan still pays
+ * per settle rather than prefetching a corridor down the country.
+ */
+export const PAN_AHEAD_PAD_RATIO = 0.5;
+
+/**
+ * Max neighbour shards warmed beyond the drawn (padded) viewport on one settle.
+ * Prefetch only fills residency; it does not widen the GeoJSON source, so pin
+ * count and payload stay honest to what the camera covers.
+ */
+export const MAX_PAN_PREFETCH_SHARDS = 2;
+
+/** Centre drift below this (degrees) is treated as zoom-only, not a pan. */
+export const PAN_EPSILON_DEG = 1e-5;
+
+export type PanDelta = { dLng: number; dLat: number };
 
 export function padBounds(bounds: MapBounds, ratio = BOUNDS_PAD_RATIO): MapBounds {
   const lonPad = Math.abs(bounds.east - bounds.west) * ratio;
@@ -186,16 +213,102 @@ export function padBounds(bounds: MapBounds, ratio = BOUNDS_PAD_RATIO): MapBound
   };
 }
 
+export function boundsCenter(bounds: MapBounds): { lat: number; lng: number } {
+  return {
+    lat: (bounds.south + bounds.north) / 2,
+    lng: (bounds.west + bounds.east) / 2,
+  };
+}
+
+/**
+ * Camera centre delta between two settles. Null when there is no previous
+ * settle or the centre barely moved (a zoom-only settle must not stretch pad
+ * along a ghost pan).
+ */
+export function panDeltaBetween(
+  previous: MapBounds | null,
+  next: MapBounds,
+): PanDelta | null {
+  if (!previous) return null;
+  const from = boundsCenter(previous);
+  const to = boundsCenter(next);
+  const dLng = to.lng - from.lng;
+  const dLat = to.lat - from.lat;
+  if (Math.abs(dLng) < PAN_EPSILON_DEG && Math.abs(dLat) < PAN_EPSILON_DEG) {
+    return null;
+  }
+  return { dLng, dLat };
+}
+
+/**
+ * Ordinary viewport pad, then stretch the leading edges when the camera is
+ * mid-pan so the next cell intersects the prefetch window before it enters the
+ * draw pad.
+ */
+export function padBoundsForPan(
+  bounds: MapBounds,
+  pan: PanDelta | null,
+  padRatio = BOUNDS_PAD_RATIO,
+  panAheadRatio = PAN_AHEAD_PAD_RATIO,
+): MapBounds {
+  const padded = padBounds(bounds, padRatio);
+  if (!pan) return padded;
+  const lonSpan = Math.abs(bounds.east - bounds.west);
+  const latSpan = Math.abs(bounds.north - bounds.south);
+  const aheadLon = lonSpan * panAheadRatio;
+  const aheadLat = latSpan * panAheadRatio;
+  return {
+    west: padded.west - (pan.dLng < 0 ? aheadLon : 0),
+    east: padded.east + (pan.dLng > 0 ? aheadLon : 0),
+    south: padded.south - (pan.dLat < 0 ? aheadLat : 0),
+    north: padded.north + (pan.dLat > 0 ? aheadLat : 0),
+  };
+}
+
+/**
+ * Pick up to `budget` shards that sit in the pan-ahead pad but are not already
+ * in the draw set. Pure: no fetch. Used to warm residency without widening the
+ * drawn source to the trail behind the camera.
+ */
+export function selectPanPrefetchShards(
+  shards: readonly ShardEntry[],
+  drawnUrls: ReadonlySet<string>,
+  panPad: MapBounds,
+  budget = MAX_PAN_PREFETCH_SHARDS,
+): ShardEntry[] {
+  if (budget <= 0) return [];
+  const out: ShardEntry[] = [];
+  for (const shard of shards) {
+    if (drawnUrls.has(shard.url)) continue;
+    if (!bboxIntersects(shard.bbox, panPad)) continue;
+    out.push(shard);
+    if (out.length >= budget) break;
+  }
+  return out;
+}
+
 export type UkBaseLoader = {
   /**
    * Every base pub from the cells covering `bounds`, fetching the ones that are
    * not resident. Returns the WHOLE viewport's set (not just the new cells), so
    * a caller can hand the result straight to a map source. Never throws: a cell
    * that fails to load is simply absent and is retried on the next call.
+   * On a sustained pan, neighbour cells along the pan direction are warmed into
+   * residency (up to MAX_PAN_PREFETCH_SHARDS) but not returned here.
    */
   pubsForBounds(bounds: MapBounds): Promise<UkBasePub[]>;
   /** A resident pub by id, for the sheet a tap opens. Null when not resident. */
   find(id: string): UkBasePub | null;
+  /**
+   * Resolve a `venue-uk-*` id without waiting for the current viewport stream.
+   * Uses residency first; with a location hint, fetches the one cell that
+   * contains the point. Without a hint (or when the hint's cell does not carry
+   * the id), returns null so the caller can fail closed or ask the server.
+   */
+  restorePub(
+    id: string,
+    hint?: { lat: number; lng: number } | null,
+  ): Promise<UkBasePub | null>;
 };
 
 const MANIFEST_OFFLINE_KEY = "uk_base_manifest:v1";
@@ -215,6 +328,8 @@ export function createUkBaseLoader(): UkBaseLoader {
   const resident = new Map<string, UkBasePub[]>();
   // In-flight fetches, so a burst of moveends cannot stack duplicate requests.
   const inFlight = new Map<string, Promise<UkBasePub[]>>();
+  // Previous settle, for pan-direction prefetch. Null until the first call.
+  let lastBounds: MapBounds | null = null;
 
   async function fetchManifest(): Promise<ShardManifest | null> {
     try {
@@ -287,25 +402,74 @@ export function createUkBaseLoader(): UkBaseLoader {
     return request;
   }
 
+  function findResident(id: string): UkBasePub | null {
+    if (!isUkBaseId(id)) return null;
+    for (const pubs of resident.values()) {
+      const hit = pubs.find((pub) => pub.id === id);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
   return {
     async pubsForBounds(bounds: MapBounds): Promise<UkBasePub[]> {
       const loaded = await manifest();
       if (!loaded) return [];
-      const padded = padBounds(bounds);
-      const entries = loaded.shards.filter((shard) => bboxIntersects(shard.bbox, padded));
-      if (entries.length === 0) return [];
-      const results = await Promise.all(entries.map(loadShard));
-      prune(new Set(entries.map((entry) => entry.url)));
-      return results.flat();
+      const pan = panDeltaBetween(lastBounds, bounds);
+      lastBounds = bounds;
+      const drawPad = padBounds(bounds);
+      const drawEntries = loaded.shards.filter((shard) =>
+        bboxIntersects(shard.bbox, drawPad),
+      );
+      if (drawEntries.length === 0) return [];
+      const drawUrls = new Set(drawEntries.map((entry) => entry.url));
+      const prefetchEntries = selectPanPrefetchShards(
+        loaded.shards,
+        drawUrls,
+        padBoundsForPan(bounds, pan),
+      );
+      const results = await Promise.all([
+        ...drawEntries.map(loadShard),
+        ...prefetchEntries.map(loadShard),
+      ]);
+      prune(
+        new Set([
+          ...drawUrls,
+          ...prefetchEntries.map((entry) => entry.url),
+        ]),
+      );
+      return results.slice(0, drawEntries.length).flat();
     },
 
     find(id: string): UkBasePub | null {
+      return findResident(id);
+    },
+
+    async restorePub(
+      id: string,
+      hint: { lat: number; lng: number } | null = null,
+    ): Promise<UkBasePub | null> {
       if (!isUkBaseId(id)) return null;
-      for (const pubs of resident.values()) {
-        const hit = pubs.find((pub) => pub.id === id);
-        if (hit) return hit;
+      const residentHit = findResident(id);
+      if (residentHit) return residentHit;
+      if (
+        !hint ||
+        !Number.isFinite(hint.lat) ||
+        !Number.isFinite(hint.lng) ||
+        Math.abs(hint.lat) > 90 ||
+        Math.abs(hint.lng) > 180
+      ) {
+        return null;
       }
-      return null;
+      const loaded = await manifest();
+      if (!loaded) return null;
+      const entry = loaded.shards.find((shard) =>
+        bboxContainsPoint(shard.bbox, hint.lat, hint.lng),
+      );
+      if (!entry) return null;
+      const pubs = await loadShard(entry);
+      prune(new Set([entry.url]));
+      return pubs.find((pub) => pub.id === id) ?? null;
     },
   };
 }

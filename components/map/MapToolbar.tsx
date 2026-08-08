@@ -67,6 +67,8 @@ type MapToolbarProps = {
   zoneIndex: ZonePintIndex;
   /** Active city for the map switcher (defaults to London). */
   cityId?: CityId;
+  /** Camera is outside the priced city box — national browse entry softens the switcher. */
+  outsideCurated?: boolean;
   experienceLens: MapExperienceLens;
   experienceSummary: string;
   onExperienceLensChange: (lens: MapExperienceLens) => void;
@@ -96,6 +98,7 @@ export default function MapToolbar({
   searchableVenueCount,
   zoneIndex,
   cityId = DEFAULT_CITY_ID,
+  outsideCurated = false,
   experienceLens,
   experienceSummary,
   onExperienceLensChange,
@@ -304,7 +307,7 @@ export default function MapToolbar({
           </span>
         </button>
 
-        <CitySwitcher cityId={cityId} />
+        <CitySwitcher cityId={cityId} outsideCurated={outsideCurated} />
       </div>
 
       {lensOpen ? (

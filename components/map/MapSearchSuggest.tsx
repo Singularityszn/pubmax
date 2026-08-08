@@ -10,9 +10,15 @@ import {
   buildMapSearchSuggestions,
   type AreaSuggestion,
   type MapSearchAreaOption,
+  type PlaceSuggestion,
   type PubSuggestion,
+  type UkBasePubSuggestion,
+  UK_BASE_SEARCH_GROUP_LABEL,
+  UK_PLACE_SEARCH_GROUP_LABEL,
 } from "@/lib/mapSearchSuggest";
 import type { Locality } from "@/lib/localities";
+import type { UkBasePub } from "@/lib/ukBasePubs";
+import type { UkPlace } from "@/lib/ukPlaceSearch";
 import type { Venue } from "@/lib/venues";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 
@@ -30,7 +36,9 @@ import "./mapSearchSuggest.css";
 
 type FlatItem =
   | { type: "area"; item: AreaSuggestion }
-  | { type: "pub"; item: PubSuggestion };
+  | { type: "pub"; item: PubSuggestion }
+  | { type: "place"; item: PlaceSuggestion }
+  | { type: "ukBase"; item: UkBasePubSuggestion };
 
 const NO_RESULTS_MESSAGE = "Nothing matching that. Try a pub name or an area.";
 const NO_RESULTS_ANNOUNCE_DELAY_MS = 300;
@@ -44,11 +52,37 @@ export type MapSearchSuggestProps = {
   venues: Venue[];
   /** Greater London locality gazetteer; [] for other cities / before it loads. */
   localities: Locality[];
+  /**
+   * National place index (places.json). [] until the shell finishes loading it —
+   * the UK places group then simply does not show.
+   */
+  places?: readonly UkPlace[];
+  /**
+   * When false, skip modelled areas / localities / boroughs / curated pubs so a
+   * national or uncovered arrival answers with places + resident base pubs.
+   */
+  includeLocalResults?: boolean;
+  /**
+   * UK base pubs currently resident from the streamer. [] below the zoom gate
+   * or before the first shard lands — the base group then simply does not show.
+   */
+  ukBasePubs?: readonly UkBasePub[];
   userLocation: { lat: number; lng: number } | null;
   mapCenter: [number, number];
   placeholder: string;
   /** Fly + open a pub's venue card (the same select a pin tap drives). */
   onSelectVenue: (id: string) => void;
+  /**
+   * Open an unverified UK base pub sheet. Same seam MapVenueList uses; the
+   * whole record rides because base pubs exist in no venue index.
+   */
+  onSelectUkBasePub?: (pub: UkBasePub) => void;
+  /**
+   * Navigate to a UK place or curated city guide (same hrefs as /choose-city).
+   * The full suggestion rides so the shell can fly in-place when already on
+   * that city guide.
+   */
+  onSelectPlace?: (place: PlaceSuggestion) => void;
   /** Fly the map to an area/borough centre (reduced-motion safe in the canvas). */
   onFlyToArea: (option: MapSearchAreaOption) => void;
   /** Enter with nothing highlighted and no suggestions: keep the old behaviour. */
@@ -65,10 +99,15 @@ export default function MapSearchSuggest({
   onQueryChange,
   venues,
   localities,
+  places = [],
+  includeLocalResults = true,
+  ukBasePubs = [],
   userLocation,
   mapCenter,
   placeholder,
   onSelectVenue,
+  onSelectUkBasePub,
+  onSelectPlace,
   onFlyToArea,
   // onSubmitQuery intentionally not used: zero-result Enter keeps the miss
   // empty state open (hits use activate). Prop stays on the type for callers.
@@ -99,16 +138,31 @@ export default function MapSearchSuggest({
         query: deferredQuery,
         venues,
         localities,
+        places,
+        includeLocalResults,
+        ukBasePubs,
         userLocation,
         mapCenter,
       }),
-    [cityId, deferredQuery, venues, localities, userLocation, mapCenter],
+    [
+      cityId,
+      deferredQuery,
+      venues,
+      localities,
+      places,
+      includeLocalResults,
+      ukBasePubs,
+      userLocation,
+      mapCenter,
+    ],
   );
 
   const items = useMemo<FlatItem[]>(
     () => [
       ...suggestions.areas.map((item) => ({ type: "area" as const, item })),
       ...suggestions.pubs.map((item) => ({ type: "pub" as const, item })),
+      ...suggestions.places.map((item) => ({ type: "place" as const, item })),
+      ...suggestions.ukBasePubs.map((item) => ({ type: "ukBase" as const, item })),
     ],
     [suggestions],
   );
@@ -172,6 +226,15 @@ export default function MapSearchSuggest({
       if (entry.type === "pub") {
         onSelectVenue(entry.item.id);
         closeToolbarPanel();
+      } else if (entry.type === "ukBase") {
+        // Prefer the dedicated seam (sets selectedBasePub + selectVenue) so the
+        // unverified sheet opens; fall back to id-only select when unwired.
+        if (onSelectUkBasePub) onSelectUkBasePub(entry.item.pub);
+        else onSelectVenue(entry.item.id);
+        closeToolbarPanel();
+      } else if (entry.type === "place") {
+        onSelectPlace?.(entry.item);
+        closeToolbarPanel();
       } else {
         const { item } = entry;
         onFlyToArea({
@@ -186,7 +249,7 @@ export default function MapSearchSuggest({
         closeToolbarPanel();
       }
     },
-    [closeToolbarPanel, onFlyToArea, onSelectVenue],
+    [closeToolbarPanel, onFlyToArea, onSelectPlace, onSelectUkBasePub, onSelectVenue],
   );
 
   const handleKeyDown = useCallback(
@@ -239,6 +302,8 @@ export default function MapSearchSuggest({
   );
 
   const pubStartIndex = suggestions.areas.length;
+  const placeStartIndex = pubStartIndex + suggestions.pubs.length;
+  const ukBaseStartIndex = placeStartIndex + suggestions.places.length;
   const originNote =
     suggestions.origin === "user" ? "Distances from you" : "Distances from the map centre";
   const liveAnnouncement =
@@ -342,6 +407,90 @@ export default function MapSearchSuggest({
                             provenanceClassName="mapSearchSuggestPriceProvenance"
                           />
                         ) : null}
+                        {pub.distanceLabel ? (
+                          <span className="mapSearchSuggestDistance">{pub.distanceLabel}</span>
+                        ) : null}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {suggestions.places.length > 0 ? (
+              <div
+                role="group"
+                aria-label={UK_PLACE_SEARCH_GROUP_LABEL}
+                className="mapSearchSuggestGroup"
+              >
+                <p className="mapSearchSuggestGroupHead">
+                  <span>{UK_PLACE_SEARCH_GROUP_LABEL}</span>
+                </p>
+                {suggestions.places.map((place, offset) => {
+                  const index = placeStartIndex + offset;
+                  return (
+                    <div
+                      key={place.key}
+                      id={optionId(index)}
+                      role="option"
+                      aria-selected={safeActive === index}
+                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => activate({ type: "place", item: place })}
+                      onPointerEnter={() => chooseActiveIndex(index)}
+                    >
+                      <span className="mapSearchSuggestRowMain">
+                        <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
+                        <span className="mapSearchSuggestRowName">{place.name}</span>
+                        {place.contextLabel ? (
+                          <span className="mapSearchSuggestBorough">{place.contextLabel}</span>
+                        ) : null}
+                        {place.description ? (
+                          <span className="mapSearchSuggestBorough">{place.description}</span>
+                        ) : null}
+                      </span>
+                      <span className="mapSearchSuggestMeta">
+                        {place.distanceLabel ? (
+                          <span className="mapSearchSuggestDistance">{place.distanceLabel}</span>
+                        ) : null}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {suggestions.ukBasePubs.length > 0 ? (
+              <div
+                role="group"
+                aria-label={UK_BASE_SEARCH_GROUP_LABEL}
+                className="mapSearchSuggestGroup"
+              >
+                <p className="mapSearchSuggestGroupHead">
+                  <span>{UK_BASE_SEARCH_GROUP_LABEL}</span>
+                </p>
+                {suggestions.ukBasePubs.map((pub, offset) => {
+                  const index = ukBaseStartIndex + offset;
+                  return (
+                    <div
+                      key={pub.id}
+                      id={optionId(index)}
+                      role="option"
+                      data-venue-id={pub.id}
+                      aria-selected={safeActive === index}
+                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => activate({ type: "ukBase", item: pub })}
+                      onPointerEnter={() => chooseActiveIndex(index)}
+                    >
+                      <span className="mapSearchSuggestRowMain">
+                        <span className="mapSearchSuggestRowName">{pub.name}</span>
+                        <span className="mapSearchSuggestBorough">No listed price</span>
+                        {pub.address ? (
+                          <span className="mapSearchSuggestBorough">{pub.address}</span>
+                        ) : null}
+                      </span>
+                      <span className="mapSearchSuggestMeta">
                         {pub.distanceLabel ? (
                           <span className="mapSearchSuggestDistance">{pub.distanceLabel}</span>
                         ) : null}

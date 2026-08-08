@@ -165,6 +165,13 @@ type PubMapCanvasProps = {
   onUkBasePubClick?: (pub: UkBasePub) => void;
   onUkBasePubsChange?: (pubs: UkBasePub[]) => void;
   /**
+   * Every drawable base pub currently resident from useUkBaseStreaming (padded
+   * viewport shards in memory). Distinct from onUkBasePubsChange, which is the
+   * visible-on-canvas subset for the list and provisional marks. Map search
+   * matches names against this set — never the country-wide pack.
+   */
+  onUkBaseResidentPubsChange?: (pubs: UkBasePub[]) => void;
+  /**
    * Exact DOM-list membership, derived by projecting coordinates into the
    * rendered canvas. Geographic bounds overstate a pitched or rotated view.
    */
@@ -398,6 +405,7 @@ export default function PubMapCanvas({
   onVenueClick,
   onUkBasePubClick,
   onUkBasePubsChange,
+  onUkBaseResidentPubsChange,
   onVisibleVenueIdsChange,
   onRenderedStateChange,
   venueListOpen = false,
@@ -626,6 +634,8 @@ export default function PubMapCanvas({
       ? { id: ukBaseRestore.id, center: [ukBaseRestore.lng, ukBaseRestore.lat] }
       : null,
   );
+  /** Resident base pubs for search/list selection fly-to (not a tap-resolved ref). */
+  const ukBaseResidentPubsRef = useRef<UkBasePub[]>([]);
   const onRouteStopClickRef = useRef(onRouteStopClick);
   const onVenuePrefetchRef = useRef(onVenuePrefetch);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
@@ -2509,6 +2519,11 @@ export default function PubMapCanvas({
     onRestorePub: handleRestoredBasePub,
   });
 
+  useEffect(() => {
+    ukBaseResidentPubsRef.current = ukBase.pubs;
+    onUkBaseResidentPubsChange?.(ukBase.pubs);
+  }, [onUkBaseResidentPubsChange, ukBase.pubs]);
+
   // Project coordinates through MapLibre rather than using getBounds(): at a
   // pitch or bearing, getBounds() is the enclosing rectangle and includes
   // off-canvas corners. While the operable DOM list is open, re-publish on
@@ -2925,12 +2940,18 @@ export default function PubMapCanvas({
     if (!map || !mapReady || !selectedPresent) return;
     const venue = venuesRef.current.find((item) => item.id === selectedVenueId);
     // A UK base pub is not in `venues` by design (it is not a venue), so its
-    // coordinates come from the feature the tap just resolved.
+    // coordinates come from the feature the tap just resolved — or, when the
+    // pick arrived via search / list, from the resident streamed record.
     const center = venue
       ? ([venue.longitude, venue.latitude] as [number, number])
       : ukBaseSelectionRef.current?.id === selectedVenueId
         ? ukBaseSelectionRef.current.center
-        : null;
+        : (() => {
+            const base = ukBaseResidentPubsRef.current.find(
+              (pub) => pub.id === selectedVenueId,
+            );
+            return base ? ([base.lng, base.lat] as [number, number]) : null;
+          })();
     if (!center) return;
     // Mobile: offset the camera so the pin sits in the visible band above the
     // half-sheet (not under it); soften pitch so 3D buildings don't bury it.

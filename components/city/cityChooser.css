@@ -321,6 +321,32 @@
   color: var(--brass);
 }
 
+.cityChooserNational {
+  margin: 0 0 var(--cc-gap);
+  animation: ccIn var(--duration-slow, 0.28s) var(--ease-out, ease) 0.12s both;
+}
+
+.cityChooserNationalLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: color-mix(in srgb, var(--color-on-photo, #fdfaf2) 88%, transparent);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--brass) 55%, transparent);
+  text-underline-offset: 3px;
+}
+
+.cityChooser--section .cityChooserNationalLink {
+  color: var(--ink);
+}
+
+.cityChooserNationalLink:hover,
+.cityChooserNationalLink:focus-visible {
+  color: var(--brass-bright, var(--brass));
+}
+
 .cityChooserSearchPanel {
   min-width: 0;
   margin: 0 0 var(--cc-gap);

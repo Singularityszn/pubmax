@@ -31,6 +31,7 @@ warns if a refresh crosses the commit budget.
 npm run fetch:uk-pubs                       # full pull; resumes automatically
 npm run fetch:uk-pubs -- --skip-if-present # explicit alias for default resume
 npm run fetch:uk-pubs -- --refresh          # refetch every chunk from scratch
+npm run fetch:uk-pubs -- --allow-stale      # accept Overpass mirrors whose planet base is older than 48h
 npm run fetch:uk-pubs -- --chunk=lat50.80_lon-0.70  # one grid cell (--list for ids)
 npm run fetch:uk-pubs -- --from-raw         # re-normalize on-disk chunks, no network
 npm run fetch:uk-pubs -- --list             # print the grid and exit
@@ -43,6 +44,9 @@ refetched. An interrupted or rate-limited run is restarted by rerunning the same
 command. Raw responses and generated artifacts are written through atomic
 renames, so interruption cannot replace a good file with a partial one.
 `--refresh` is the opt-in that ignores otherwise reusable snapshots.
+`--allow-stale` is for when public Overpass mirrors answer with an older planet
+base (busy primary, lagging mirror): still OSM, still ODbL, just not within the
+usual 48-hour freshness window.
 
 Overpass etiquette matches `scripts/fetch_city_osm_pubs.mjs`: one request at a
 time, a delay between chunks, endpoint rotation, and exponential backoff on

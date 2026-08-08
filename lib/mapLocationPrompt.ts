@@ -1,4 +1,5 @@
 import { parseUkPlaceMapArrival } from "@/lib/ukPlaceSearch";
+import { isUkNationalBrowse } from "@/lib/ukNationalBrowse";
 
 export const CITY_SUGGEST_DISMISS_KEY = "pubmax:citySuggestDismiss:v1";
 
@@ -76,6 +77,7 @@ function isDesktopMap(): boolean {
     return false;
   }
   if (parseUkPlaceMapArrival(window.location.search)) return false;
+  if (isUkNationalBrowse(window.location.search)) return false;
   return window.matchMedia(DESKTOP_MAP_MEDIA_QUERY).matches;
 }
 

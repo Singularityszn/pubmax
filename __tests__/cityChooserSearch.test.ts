@@ -40,6 +40,8 @@ describe("city chooser search model", () => {
       description: CITIES.bath.tagline,
       href: "/map/bath",
       cityId: "bath",
+      lat: CITIES.bath.mapView.center[1],
+      lng: CITIES.bath.mapView.center[0],
     });
     expect(results.map((result) => result.name)).toEqual(["Bath", "Bathford"]);
   });
@@ -58,6 +60,8 @@ describe("city chooser search model", () => {
         "No prices logged here yet. Open the pub map and you could be first.",
       href: "/map?place=Sheffield&lat=53.3800941&lng=-1.4789213",
       context: "S",
+      lat: 53.3800941,
+      lng: -1.4789213,
     });
   });
 
@@ -75,6 +79,8 @@ describe("city chooser search model", () => {
         "Part of the London city guide, with prices and crawls.",
       href: "/map",
       cityId: "london",
+      lat: 51.5389171,
+      lng: -0.1418712,
     });
     expect(rest).toEqual([]);
 
