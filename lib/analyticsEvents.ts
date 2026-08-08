@@ -65,6 +65,7 @@ export const ANALYTICS_EVENTS = {
     "provenancePreserved",
   ],
   map_search_no_results: [],
+  map_search_ran: ["intent", "nationalHits", "nationalStatus"],
   tonight_result_opened: ["kind", "localityBasis"],
   crew_committed: ["source", "participants", "routeReady"],
   account_claimed: ["source"],
@@ -254,6 +255,11 @@ export type TrustedHandoffAnalyticsPropsByEvent = {
     provenancePreserved: boolean;
   };
   map_search_no_results: Record<never, never>;
+  map_search_ran: {
+    intent: "borough" | "city" | "area" | "uk_place" | "venue" | "unknown";
+    nationalHits: number;
+    nationalStatus: "ready" | "degraded" | "skipped";
+  };
   tonight_result_opened: {
     kind: "sport" | "quiz" | "deal" | "music" | "gig" | "event" | "other";
     localityBasis: TonightLocalityBasis;
@@ -353,7 +359,7 @@ const CONTRIBUTION_GATE_STEPS = [
 
 const SAFE_STRING_VALUES = new Set([
   // fixed product surfaces and provenance
-  "landing", "home", "map", "tonight", "plan", "you", "pal", "borough", "crawl", "recap",
+  "landing", "home", "map", "tonight", "plan", "you", "pal", "borough", "city", "crawl", "recap",
   "shared-plan", "plan-link", "crew-reinvite", "completed_plan", "plan-crew",
   "near", "map-search", "direct-plan", "mobile-route-preview",
   "location", "remembered-area", "picked-area", "0", "1-3", "4+",
@@ -363,6 +369,7 @@ const SAFE_STRING_VALUES = new Set([
   // fixed actions, states, providers, and fallbacks
   "copy", "native", "whatsapp", "sms", "x", "instagram", "tiktok", "oauth", "manual",
   "draft", "ready", "active", "ending", "completed", "abandoned",
+  "degraded", "skipped", "venue", "uk_place", "unknown",
   "arrived", "skipped", "swapped", "food_preview", "get_home_preview", "keep_going_preview",
   "food", "get_home", "keep_going", "hound", "raven", "fox",
   "create", "edit", "delete", "approve", "reject", "preference", "correction", "outcome",
