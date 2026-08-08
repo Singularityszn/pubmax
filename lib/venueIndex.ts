@@ -8,6 +8,7 @@ import {
   venueCityPrefix,
 } from "@/lib/cityVenueIds";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
+import { matchVenuePermalinkSlug } from "@/lib/venuePermalinkSlug";
 import type { Venue, VenueKind } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
@@ -236,6 +237,46 @@ export async function resolveVenue(id: string): Promise<VenueRef | null> {
   // resolves to the surviving canonical venue.
   const canonical = await resolveCanonicalVenueId(id);
   return canonical === id ? null : index.get(canonical) ?? null;
+}
+
+/**
+ * Resolve `/venue/:slug` and `/pub/:slug` permalinks. A durable venue id wins;
+ * otherwise the slug must match exactly one name (+ optional postcode district)
+ * key. Ambiguous or unknown slugs return null so the route can show the branded
+ * 404 rather than guess a pub.
+ */
+export async function resolveVenuePermalinkSlug(
+  slug: string,
+): Promise<string | null> {
+  if (!slug) return null;
+  const byId = await getVenueIndex();
+  if (byId.has(slug)) return slug;
+  const canonical = await resolveCanonicalVenueId(slug);
+  if (canonical !== slug && byId.has(canonical)) return canonical;
+
+  const cities = listEnabledCities();
+  const candidates: {
+    id: string;
+    name: string;
+    searchText?: string;
+  }[] = [];
+  const candidateById = new Map<string, (typeof candidates)[number]>();
+  for (const city of cities) {
+    const cityIndex = await getCityVenueIndex(city.slimVenuesPath);
+    if (!cityIndex) continue;
+    for (const { slimVenue } of cityIndex.values()) {
+      const row = {
+        id: slimVenue.id,
+        name: slimVenue.name,
+        ...(slimVenue.filterHints?.searchText
+          ? { searchText: slimVenue.filterHints.searchText }
+          : {}),
+      };
+      candidates.push(row);
+      candidateById.set(row.id, row);
+    }
+  }
+  return matchVenuePermalinkSlug(slug, candidates, candidateById);
 }
 
 // A display label that never surfaces a raw id: the pub name, or a friendly

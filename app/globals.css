@@ -4436,20 +4436,35 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
   }
 
   body:has(.mobilePlanActivation) .analyticsConsentPrompt {
-    bottom: calc(var(--mobile-map-dock-clearance) + 70px);
-    grid-template-columns: minmax(0, 1fr);
-    gap: 4px;
-    padding: 4px 10px;
+    /* Sit above Describe the outing; keep the plan CTA fully visible. */
+    bottom: calc(var(--mobile-map-dock-clearance) + 86px);
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 6px 8px 6px 10px;
+    max-height: none;
     background: var(--panel-raised);
     box-shadow: none;
     backdrop-filter: none;
   }
 
+  body:has(.mobilePlanActivation) .analyticsConsentPrompt p {
+    font-size: 0.68rem;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
   body:has(.mobilePlanActivation) .analyticsConsentPromptActions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
   }
 
   body:has(.mobilePlanActivation) .analyticsConsentPromptActions button {
+    min-height: 40px;
+    padding: 6px 8px;
+    font-size: 0.72rem;
     background: transparent;
   }
 }

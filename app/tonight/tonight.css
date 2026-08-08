@@ -7,7 +7,10 @@
 .tonightPage {
   max-width: 720px;
   margin: 0 auto;
-  padding: 16px var(--page-gutter) calc(96px + env(safe-area-inset-bottom, 0px));
+  /* Bottom clearance = tab bar height + safe-area + a little reading room.
+     --tabbar-h is owned by components/nav/mobileNav.css. */
+  padding: 16px var(--page-gutter)
+    calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 24px);
   color: var(--ink);
 }
 

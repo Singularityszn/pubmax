@@ -134,7 +134,7 @@ export default function LoginPage(): React.JSX.Element {
     <main className="loginPage">
       <div className="loginPageInner">
         <header className="loginPageHead">
-          <p className="loginPageEyebrow">PUBMAXX</p>
+          <p className="loginPageEyebrow">PUBMAXXING</p>
           <h1 className="loginPageTitle">
             {user ? "You are signed in" : "Sign in"}
           </h1>

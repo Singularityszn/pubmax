@@ -28,7 +28,7 @@ export type SocialBoundaryState =
   Exclude<SocialAccessState, "verified"> | "unavailable";
 
 const BOUNDARY_COPY: Record<SocialBoundaryState, string> = {
-  preview: "Social is not open yet.",
+  preview: "Social is invite-only for now. It opens more widely soon.",
   sign_in_required: "Sign in to use Social.",
   age_verification_required: "Adult check needed for Social.",
   suspended: "Social access is suspended.",

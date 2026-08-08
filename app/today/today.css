@@ -9,9 +9,11 @@
   margin: 0 auto;
   /* Top inset clears the iOS status bar in the installed/native shells, where
      viewport-fit=cover puts the page under the clock. env() is 0 in an ordinary
-     browser, so the web layout keeps its 12px. */
+     browser, so the web layout keeps its 12px. Bottom matches the tab bar +
+     home-indicator so the last card is never trapped under the bar (same seam
+     as /tonight and components/nav/mobileNav.css --tabbar-h). */
   padding: calc(12px + env(safe-area-inset-top, 0px)) var(--page-gutter)
-    32px;
+    calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 24px);
   color: var(--ink);
 }
 

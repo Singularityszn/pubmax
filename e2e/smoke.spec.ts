@@ -126,7 +126,7 @@ test("/feed redirects to Social and renders its reachable boundary state (issue 
   // smoke test proves the real, unmocked redirect lands on a working,
   // honest boundary instead of a blank or crashed page.
   await expect(
-    page.getByRole("heading", { name: "Social is not open yet." }),
+    page.getByRole("heading", { name: "Social is invite-only for now. It opens more widely soon." }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
