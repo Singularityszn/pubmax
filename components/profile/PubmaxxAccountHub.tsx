@@ -373,19 +373,35 @@ export default function PubmaxxAccountHub() {
   function updateAnalyticsConsent(granted: boolean) {
     setAnalyticsConsent(granted);
     setAnalyticsConsentState(granted ? "granted" : "denied");
-    setMessage(granted
-      ? "Usage analytics enabled. A persistent device ID and standard browser details are sent, but no handles, messages, voice, or precise location."
-      : "Usage analytics disabled and the persistent browser analytics ID was removed.");
   }
 
+  // Undecided: the full choice card. Decided: the card collapses to a
+  // one-line status with a small affordance to reverse it (defect 6).
   const analyticsControls = (
     <div id="analytics-settings">
       <h3>Optional usage analytics</h3>
-      <p>Help improve journeys with a persistent device ID, standard browser details and allow-listed product events. This is optional and can be withdrawn here.</p>
-      <div className="accountHubActions">
-        <button type="button" aria-pressed={analyticsConsent === "granted"} onClick={() => updateAnalyticsConsent(true)}>Allow</button>
-        <button type="button" aria-pressed={analyticsConsent === "denied"} onClick={() => updateAnalyticsConsent(false)}>No thanks</button>
-      </div>
+      {analyticsConsent === null ? (
+        <>
+          <p>Help improve journeys with a persistent device ID, standard browser details and allow-listed product events. This is optional and can be withdrawn here.</p>
+          <div className="accountHubActions">
+            <button type="button" onClick={() => updateAnalyticsConsent(true)}>Allow</button>
+            <button type="button" onClick={() => updateAnalyticsConsent(false)}>No thanks</button>
+          </div>
+        </>
+      ) : (
+        <p className="accountHubConsentStatus" role="status">
+          {analyticsConsent === "granted"
+            ? "Usage analytics on."
+            : "Usage analytics off."}{" "}
+          <button
+            type="button"
+            className="accountHubConsentChange"
+            onClick={() => updateAnalyticsConsent(analyticsConsent !== "granted")}
+          >
+            {analyticsConsent === "granted" ? "Withdraw" : "Allow"}
+          </button>
+        </p>
+      )}
     </div>
   );
 

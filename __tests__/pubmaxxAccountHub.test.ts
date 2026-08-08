@@ -214,4 +214,21 @@ describe("PubmaxxAccountHub provider gating", () => {
     // the account save, which need the real account row.
     expect(source).toContain("if (nightProfile?.ok) setNightProfileLoaded(true);");
   });
+
+  it("collapses the analytics choice card once a decision is made", () => {
+    // Defect 6: after Allow or No thanks the two-button card must go. The
+    // decided state is one status line with a small affordance to reverse it.
+    const source = readFileSync(
+      join(process.cwd(), "components/profile/PubmaxxAccountHub.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("analyticsConsent === null ? (");
+    expect(source).toContain('"Usage analytics on."');
+    expect(source).toContain('"Usage analytics off."');
+    expect(source).toContain('"Withdraw"');
+    expect(source).toContain('className="accountHubConsentStatus" role="status"');
+    // The old permanent confirmation sentences are gone with the card.
+    expect(source).not.toContain("Usage analytics enabled.");
+    expect(source).not.toContain("persistent browser analytics ID was removed");
+  });
 });
