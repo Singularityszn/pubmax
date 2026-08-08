@@ -54,7 +54,13 @@ import type {
 import type { CrewMemberDTO } from "@/lib/crew";
 import { lastRideFetchUrl } from "@/lib/lastRide";
 import type { NightAreaSlug } from "@/lib/nightAreas";
-import type { LateFoodApiResponse, LateFoodTerminal } from "@/lib/lateFood";
+import {
+  LATE_FOOD_OPERATOR_MENU_LINK_LABEL,
+  lateFoodHoursConfidenceLabel,
+  lateFoodNearMapUrl,
+  type LateFoodApiResponse,
+  type LateFoodTerminal,
+} from "@/lib/lateFood";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import { haversineKm } from "@/lib/haversine";
 import { legMinutes } from "@/lib/routeLegs";
@@ -1053,6 +1059,7 @@ function NightModeSheet({
           {chosenEnding === "food" && !activeEnding ? (
             <FoodEndingPicker
               terminals={lateFood}
+              lastStopVenueId={currentStop.venueId}
               saving={endingSaving}
               onChoose={(terminal) =>
                 completeEnding(
@@ -1225,18 +1232,30 @@ function NightModeSheet({
 
 function FoodEndingPicker({
   terminals,
+  lastStopVenueId,
   saving,
   onChoose,
 }: {
   terminals: LateFoodTerminal[];
+  lastStopVenueId: string;
   saving: boolean;
   onChoose: (terminal: LateFoodTerminal) => void;
 }) {
+  const mapHref = lateFoodNearMapUrl(lastStopVenueId);
   if (terminals.length === 0) {
     return (
-      <p className="nightCard__endingHint">
-        No late food worth pointing you to round here yet.
-      </p>
+      <div className="nightCard__foodPicker" aria-label="Choose a food ending">
+        <p className="nightCard__endingHint">
+          No late food worth pointing you to round here yet.
+        </p>
+        <Link className="nightCard__endingLink" href={mapHref}>
+          See late food near the last stop
+        </Link>
+        <p className="nightCard__endingFineprint">
+          Opens the map on food places near your last pub. Hours are not checked
+          on that view.
+        </p>
+      </div>
     );
   }
   return (
@@ -1258,7 +1277,7 @@ function FoodEndingPicker({
               }}
               onClick={() => onChoose(terminal)}
               disabled={saving}
-              aria-label={`Choose Food ending; ${terminal.name} is a nearby recommendation`}
+              aria-label={`Choose food ending with ${terminal.name}`}
             >
               <span>{terminal.name}</span>
               <small>
@@ -1268,19 +1287,28 @@ function FoodEndingPicker({
                 · {terminal.anchor.label} £{terminal.anchor.price.toFixed(2)}
               </small>
             </button>
+            <small>{terminal.hours.service}</small>
+            <small>{lateFoodHoursConfidenceLabel(terminal.confidence)}</small>
             <small>
               <a
                 href={terminal.anchor.sourceUrl}
                 target="_blank"
                 rel="noreferrer"
               >
-                Official menu
+                {LATE_FOOD_OPERATOR_MENU_LINK_LABEL}
               </a>
               {anchorObservedClause(terminal)}
             </small>
           </li>
         ))}
       </ul>
+      <Link className="nightCard__endingLink" href={mapHref}>
+        See late food near the last stop
+      </Link>
+      <p className="nightCard__endingFineprint">
+        Opens the map on food places near your last pub. Check tonight&apos;s
+        hours before you leave.
+      </p>
     </div>
   );
 }
@@ -1462,6 +1490,7 @@ function NightEndingResult({
   nightArea: NightAreaSlug | null;
 }) {
   if (ending === "food") {
+    const mapHref = lateFoodNearMapUrl(currentStop.venueId);
     return (
       <div className="nightCard__endingResult" data-ending="food">
         <strong>Food nearby</strong>
@@ -1477,13 +1506,15 @@ function NightEndingResult({
                     : `${terminal.walkingDetour.minutes} min direct-distance estimate`}{" "}
                   · {terminal.anchor.label} £{terminal.anchor.price.toFixed(2)}
                 </small>
+                <small>{terminal.hours.service}</small>
+                <small>{lateFoodHoursConfidenceLabel(terminal.confidence)}</small>
                 <small>
                   <a
                     href={terminal.anchor.sourceUrl}
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Official menu
+                    {LATE_FOOD_OPERATOR_MENU_LINK_LABEL}
                   </a>
                   {anchorObservedClause(terminal)}
                 </small>
@@ -1495,9 +1526,12 @@ function NightEndingResult({
             No late food flagged round here yet. Check the map before you walk.
           </p>
         )}
+        <Link className="nightCard__endingLink" href={mapHref}>
+          See late food near the last stop
+        </Link>
         <p className="nightCard__endingFineprint">
-          Kitchens can shut early. Check tonight&apos;s hours before you leave
-          the last pub.
+          Opens the map on food places near your last pub. Kitchens can shut
+          early. Check tonight&apos;s hours before you leave the last pub.
         </p>
       </div>
     );

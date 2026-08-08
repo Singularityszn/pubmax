@@ -9,6 +9,19 @@ import { compactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import type { Filters, Venue } from "@/lib/venues";
 
 export type MapExperienceLens = "all" | "no-alcohol" | "food";
+
+/** Shareable map query key for {@link parseMapExperienceLensParam}. */
+export const MAP_EXPERIENCE_LENS_URL_PARAM = "experience";
+
+export function parseMapExperienceLensParam(
+  value: string | null | undefined,
+): MapExperienceLens | null {
+  const candidate = value?.trim().toLowerCase();
+  if (candidate === "food" || candidate === "no-alcohol" || candidate === "all") {
+    return candidate;
+  }
+  return null;
+}
 export type NoAlcoholDrinkCategory = Extract<
   DrinkCategory,
   "soft-drink" | "alcohol-free"
