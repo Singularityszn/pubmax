@@ -303,6 +303,15 @@
   --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1); /* on-screen morph / reposition */
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* iOS-like sheet / drawer travel */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* subtle overshoot — momentum entrances only */
+  --ease-weighted: cubic-bezier(0.22, 1, 0.36, 1); /* damped physical settle (cinema house curve) — mirrors motionEase.weighted in lib/motionVocabulary.ts */
+  --duration-cinema-settle: 480ms; /* hero-cinema state-change settle — mirrors motionDuration.cinemaSettle in lib/motionVocabulary.ts; never for the scroll-scrubbed transform */
+  --duration-lift: 0.18s; /* hover lift / colour transitions (landing buttons, hero pins) */
+  --duration-entrance: 640ms; /* staggered element entrance (landing hero pins) */
+  /* Ambient atmosphere presence (landing orbit drift / scanline breathe):
+     slow decorative loops, always gated on prefers-reduced-motion. */
+  --duration-drift: 22s;
+  --duration-drift-slow: 28s;
+  --duration-breathe: 7s;
   --press-scale: 0.97; /* default pressed scale — subtle, "the UI heard you" */
   --press-scale-firm: 0.94; /* small icon buttons can press a touch firmer */
 
@@ -329,12 +338,14 @@
   --z-map-hover: 470;        /* venueHoverCard + map price/layers FABs */
   --z-map-panel: 500;        /* routePanel, mapDrawer */
   --z-map-suggest: 512;      /* citySuggestBanner — below cityStatusBanner, as on main */
+  --z-map-ask: 514;          /* mapConciergeAsk pill — above the Tonight lane (512), below cityStatusBanner */
   --z-map-banner: 515;       /* cityStatusBanner */
   --z-map-camera: 530;       /* mapCameraControls */
   --z-map-route-chip: 540;   /* mappedRouteChip — below activeRoundChip, as on main */
   --z-map-chip: 541;         /* activeRoundChip */
   --z-map-onboard-chip: 545; /* bandOnboardingChip, logIntentFallback */
   --z-map-toolbar: 560;      /* mapToolbar, citySwitcher */
+  --z-night-card: 640;       /* nightCard fixed sheet — above map chrome, below planning drawer (650) and tab bar (700) */
   --z-nav: 650;              /* planning-open drawer lift */
   --z-tabbar: 700;           /* mobile bottom tab bar (above map/nav, below modals) */
   --z-modal: 1200;           /* siteNav floating rails, full-screen overlays */

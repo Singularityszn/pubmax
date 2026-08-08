@@ -32,16 +32,17 @@
    (reduced-motion toggle / viewport crossing 701px) restoring the settled
    card. */
 
+/* Timing comes from the house motion ledger (app/globals.css):
+   --duration-cinema-settle + --ease-weighted, which mirror
+   motionDuration.cinemaSettle / motionEase.weighted in lib/motionVocabulary.ts. */
 :root {
   --cinema-progress: 1; /* safe default: settled, composed card (no-JS, mobile, reduced-motion) */
-  --duration-cinema-settle: 480ms; /* mirrors motionDuration.cinemaSettle in lib/motionVocabulary.ts */
-  --ease-cinema-weighted: cubic-bezier(0.22, 1, 0.36, 1); /* mirrors motionEase.weighted in lib/motionVocabulary.ts */
 }
 
 @media (min-width: 701px) and (prefers-reduced-motion: no-preference) {
   .lpHeroMap::before {
     opacity: var(--cinema-progress);
-    transition: opacity var(--duration-cinema-settle) var(--ease-cinema-weighted);
+    transition: opacity var(--duration-cinema-settle) var(--ease-weighted);
   }
 
   .thamesHeroPhoto {
@@ -50,8 +51,8 @@
     transform-origin: 50% 42%;
     will-change: transform, border-radius;
     transition:
-      border-radius var(--duration-cinema-settle) var(--ease-cinema-weighted),
-      transform var(--duration-cinema-settle) var(--ease-cinema-weighted);
+      border-radius var(--duration-cinema-settle) var(--ease-weighted),
+      transform var(--duration-cinema-settle) var(--ease-weighted);
   }
 
   /* Near-black to warm off-white: a uniform ink-deep wash over the whole
@@ -64,7 +65,7 @@
     inset: 0;
     background: var(--ink-deep);
     opacity: calc(0.55 * (1 - var(--cinema-progress)));
-    transition: opacity var(--duration-cinema-settle) var(--ease-cinema-weighted);
+    transition: opacity var(--duration-cinema-settle) var(--ease-weighted);
     pointer-events: none;
   }
 
