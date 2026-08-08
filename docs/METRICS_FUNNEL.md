@@ -12,6 +12,43 @@ without explicit analytics consent, and `POST /api/events` re-validates
 consent + the pseudonymous anon id server-side before forwarding anything to
 PostHog. Nothing in this wave weakens that gate.
 
+## 0. Crew Night north star (S1)
+
+**North star:** share of nights where a plan reaches **at least two committed
+humans** on the crew roster, not scroll DAU on `/social`.
+
+**Event:** `crew_committed` — fires client-side in `components/plan/PlanCrew.tsx`
+after a confirmed `POST /api/plans/[id]/join` success. The host never emits
+this event for their own plan (they are already a member at creation).
+
+**Property:** `participants` — integer headcount on the plan crew after the
+join succeeds (`nextCrew.length` in `PlanCrew.tsx`). The registry allows
+integers from 1 through 100 inclusive (`lib/analyticsEvents.ts`).
+
+**Formula:**
+
+```
+crew_nights_with_two_or_more = count(crew_committed WHERE participants >= 2, window=7d)
+crew_night_rate              = crew_nights_with_two_or_more / count(plan_saved, window=7d)
+```
+
+Group by pseudonymous `distinct_id` when you need a per-planner rate. A single
+plan may emit several `crew_committed` events as guests join; each carries the
+then-current `participants` count, so the north-star filter is `participants >= 2`
+on the event, not a dedupe by plan id (no plan id rides on this event).
+
+**Why not RSVP-only:** `invite_rsvp_submitted` on `/invite/[token]` measures a
+Going or Maybe tap on the public invite card. That is intent, not membership.
+Guests can RSVP without joining the durable crew, and joining requires the
+plan join path that emits `crew_committed`. RSVP counts stay useful for invite
+page conversion (§7); they do not substitute for committed humans on the roster.
+
+**Privacy:** `crew_committed` carries `source`, `participants`, and
+`routeReady` only — no `planId`, no guest display name, no invite token. Public
+invite events (`plan_invite_link_copied`, `invite_page_viewed`,
+`invite_rsvp_submitted`, and the rest of §7) follow the same rule: no `planId`
+on those link or guest-side events. See §7 for the id-hygiene rationale.
+
 ## 1. Nights planned / week
 
 **Events (both pre-existing, reused as-is):**

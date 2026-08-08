@@ -15,6 +15,19 @@ is [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md) §6 and
 | Seed boroughs | 1–2 (e.g. Soho + Camden) with corroborated people-logged prices before the blast |
 | Ads | None for week 1 |
 
+## North star (Crew Night S1)
+
+Plans with **at least two committed humans** on the crew roster. No new event:
+reuse `crew_committed` and filter `participants >= 2`. Full formula and
+rationale: [`docs/METRICS_FUNNEL.md`](../METRICS_FUNNEL.md) §0.
+
+```
+crew_nights_with_two_or_more = count(crew_committed WHERE participants >= 2)
+```
+
+Do not substitute `invite_rsvp_submitted` — RSVP is intent on the public invite
+page, not a confirmed join. Do not track Social DAU while Social stays in preview.
+
 ## Weekly PostHog reads
 
 Consent-gated events only ([`docs/METRICS_FUNNEL.md`](../METRICS_FUNNEL.md)).
@@ -22,6 +35,7 @@ Project: `https://eu.posthog.com/project/219466`.
 
 | Metric | How to read it |
 |---|---|
+| **Crew nights (north star)** | `crew_committed` where `participants >= 2`; rate over `plan_saved` |
 | Invite share after `plan_saved` | `plan_invite_sent` + `plan_invite_link_copied` |
 | Invite k-factor (public page) | `invite_rsvp_submitted` / `invite_page_viewed`; also `invite_map_opened` / `invite_page_viewed` |
 | Classic invite redeem (if used) | `invite_redeemed` / `invite_created` |
@@ -34,6 +48,7 @@ Project: `https://eu.posthog.com/project/219466`.
 
 ## Week-1 pass bar
 
+- At least one plan reaches `crew_committed` with `participants >= 2`
 - ≥10 distinct humans opened the map
 - ≥5 RSVPs or price logs
 - Invite share on most successful locked plans
