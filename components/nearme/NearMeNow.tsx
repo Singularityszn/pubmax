@@ -533,7 +533,7 @@ function NearMeIdleIntro({
 }) {
   return (
     <div className="nmnIntro">
-      <p className="nmnLede">{nearIntroLede()}</p>
+      <h1 className="nmnLede">{nearIntroLede()}</h1>
       <button type="button" className="nmnLocate" onClick={onLocate}>
         <LocateFixed size={18} aria-hidden="true" /> Find my pint
       </button>
