@@ -24,11 +24,11 @@ export default function BoroughCoverageStatus({
   return (
     <section className="boroughCoverage" aria-labelledby="boroughCoverageHeading">
       <h2 id="boroughCoverageHeading" className="boroughCoverageTitle">
-        Seed borough coverage
+        Borough coverage
       </h2>
       <p className="boroughCoverageDek">
-        Soft-launch density first. These lines count corroborated people-logged
-        pints only. Grey pins still mean we do not yet have the second voice.
+        These lines count corroborated people-logged pints only. Grey pins
+        still mean we do not yet have the second voice.
       </p>
       <ul className="boroughCoverageList">
         {rows.map((row) => (

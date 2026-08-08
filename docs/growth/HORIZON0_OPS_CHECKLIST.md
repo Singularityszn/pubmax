@@ -27,7 +27,7 @@ Captain still owns merge of #747, `vercel promote`, and the human WhatsApp cohor
 
 1. DONE (2026-08-07): V1 invite-ready product work merged ([#816](https://github.com/Singularityszn/pubmax/pull/816)).
 2. Merge CI runner fix ([#747](https://github.com/Singularityszn/pubmax/pull/747)) so quality gates are real.
-3. Confirm migrations through `0081_plan_public_invite` are live (runbook §1.3).
+3. Confirm migrations through `0084_crew_snapshot_wetherspoons_flag` are live (runbook §1.3; applied 2026-08-08).
 4. Promote the production deployment (`vercel promote <url>`).
 5. Smoke:
 
