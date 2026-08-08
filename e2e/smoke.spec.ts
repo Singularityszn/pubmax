@@ -116,15 +116,16 @@ test("/feed redirects to Social and renders its reachable boundary state (issue 
   // in favour of the unified Social shell. /feed now redirects to /social.
   // The interactive Post lanes nav (app/social/SocialPageClient.tsx) only
   // renders once client-side access resolves to "verified", which needs
-  // SOCIAL_INVITE_BETA_ENABLED=1 plus a configured Clerk session
-  // (NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY / CLERK_SECRET_KEY). playwright.config.ts
-  // has never passed any of the three to the e2e webServer (checked its full
-  // git history), so under a real, unmocked e2e run access can only ever
-  // settle at "preview" and the Post lanes nav can never appear - asserting
-  // it here was never reachable. e2e/social-shell.spec.ts covers the
-  // interactive lanes by mocking /api/social/access to "verified"; this
-  // smoke test proves the real, unmocked redirect lands on a working,
-  // honest boundary instead of a blank or crashed page.
+  // PUBMAX_SOCIAL_FRIENDS_LAUNCH=1 on the server plus a signed-in Supabase
+  // account with a claimed handle and adult date of birth (WP1). playwright.config.ts
+  // passes the launch flag only when the run exports it; the default chromium
+  // project keeps the flag off, so under a real, unmocked e2e run access can
+  // only ever settle at "preview" and the Post lanes nav can never appear.
+  // e2e/social-shell.spec.ts covers the interactive lanes by mocking
+  // /api/social/access to "verified"; e2e/social-open.spec.ts (PW_SOCIAL_OPEN=1)
+  // rehearses the flag-on onboarding loop. This smoke test proves the real,
+  // unmocked redirect lands on a working, honest preview boundary instead of
+  // a blank or crashed page while the launch flag stays dark.
   await expect(
     page.getByRole("heading", { name: "Social is invite-only for now. It opens more widely soon." }),
   ).toBeVisible();

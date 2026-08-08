@@ -36,7 +36,7 @@ describe("mobile chrome fit at 390px", () => {
     expect(buttons).toMatch(/background:\s*var\(--panel\)/);
     expect(globalCss).not.toMatch(/\.analyticsConsentPromptActions button:first-child/);
     expect(globalCss).toMatch(
-      /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{[^}]*bottom:\s*calc\(var\(--mobile-map-dock-clearance\) \+ 70px\)/,
+      /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{[^}]*bottom:\s*calc\(var\(--mobile-map-dock-clearance\) \+ 86px\)/,
     );
     expect(globalCss).toMatch(
       /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{[^}]*box-shadow:\s*none/,

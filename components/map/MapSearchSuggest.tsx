@@ -134,23 +134,20 @@ export default function MapSearchSuggest({
   }, [mode]);
 
   const deferredQuery = useDeferredValue(query);
+  const nationalQuery = deferredQuery.trim();
+  const nationalFetchActive = nationalQuery.length >= NATIONAL_FETCH_MIN_CHARS;
   const [nationalPubs, setNationalPubs] = useState<UkBasePubSuggestion[]>([]);
   const [nationalGroupLabel, setNationalGroupLabel] = useState(UK_BASE_SEARCH_GROUP_LABEL);
+  const activeNationalPubs = nationalFetchActive ? nationalPubs : [];
+  const activeNationalGroupLabel = nationalFetchActive
+    ? nationalGroupLabel
+    : UK_BASE_SEARCH_GROUP_LABEL;
   const nationalTrackedQuery = useRef("");
 
   useEffect(() => {
     const q = deferredQuery.trim();
     if (q.length < NATIONAL_FETCH_MIN_CHARS) {
-      // Defer setState out of the effect body (react-hooks/set-state-in-effect).
-      let cancelled = false;
-      void Promise.resolve().then(() => {
-        if (cancelled) return;
-        setNationalPubs([]);
-        setNationalGroupLabel(UK_BASE_SEARCH_GROUP_LABEL);
-      });
-      return () => {
-        cancelled = true;
-      };
+      return;
     }
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
@@ -271,9 +268,9 @@ export default function MapSearchSuggest({
 
   const mergedUkBasePubs = useMemo(() => {
     const seen = new Set(suggestions.ukBasePubs.map((pub) => pub.id));
-    const extras = nationalPubs.filter((pub) => !seen.has(pub.id));
+    const extras = activeNationalPubs.filter((pub) => !seen.has(pub.id));
     return [...suggestions.ukBasePubs, ...extras].slice(0, 12);
-  }, [nationalPubs, suggestions.ukBasePubs]);
+  }, [activeNationalPubs, suggestions.ukBasePubs]);
 
   const items = useMemo<FlatItem[]>(
     () => [
@@ -582,11 +579,11 @@ export default function MapSearchSuggest({
             {mergedUkBasePubs.length > 0 ? (
               <div
                 role="group"
-                aria-label={nationalGroupLabel}
+                aria-label={activeNationalGroupLabel}
                 className="mapSearchSuggestGroup"
               >
                 <p className="mapSearchSuggestGroupHead">
-                  <span>{nationalGroupLabel}</span>
+                  <span>{activeNationalGroupLabel}</span>
                 </p>
                 {mergedUkBasePubs.map((pub, offset) => {
                   const index = ukBaseStartIndex + offset;

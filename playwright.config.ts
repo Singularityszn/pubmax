@@ -30,6 +30,9 @@ const E2E_VAPID_PUBLIC_KEY = "BJVNwV9XflSMFMBkpBQ8zuzYIfru_xnE_LnqA3x8ENQl2ehKJY
 const E2E_POSTHOG_PROJECT_TOKEN = "phc_pubmaxx_e2e_public_test";
 const E2E_SUPABASE_URL = "https://pubmaxx-e2e.supabase.co";
 const E2E_SUPABASE_PUBLISHABLE_KEY = "pubmaxx-e2e-publishable-key";
+const E2E_ADMIN_TOKEN = process.env.PW_E2E_ADMIN_TOKEN ?? "pubmax-e2e-admin-token";
+const E2E_RATE_LIMIT_SALT =
+  process.env.RATE_LIMIT_SALT ?? "pubmax-e2e-rate-limit-salt-32-chars-min";
 const REAL_AUTH_CONFIGURED = Boolean(
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
@@ -252,6 +255,8 @@ export default defineConfig({
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
             E2E_SUPABASE_PUBLISHABLE_KEY,
           PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
+          ADMIN_TOKEN: E2E_ADMIN_TOKEN,
+          RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
           PUBMAX_E2E_KEYLESS: "1",
           // Auth regressions may opt into the real public Supabase project.
           // Keep these as pass-throughs: browser tests must not fake auth over
