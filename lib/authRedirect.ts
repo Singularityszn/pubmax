@@ -763,24 +763,55 @@ export function scrubAuthCallback(
   const parsedAttempt = readAuthCallbackAttempt(currentUrl);
   const cleanUrl = cleanAuthCallbackUrl(currentUrl);
   if (!parsedAttempt || !cleanUrl) return Promise.resolve(null);
-  // This happens before Web Locks can queue or any promise is awaited.
+  // This happens before Web Locks can queue or any promise is awaited. A
+  // replaceState that THROWS (Safari rate-limits history calls while a page
+  // loads) must not fail the sign-in closed: dropping the tokens would leave
+  // the credentials in the address bar AND sign nobody in. The claim proceeds
+  // and the scrub is retried once the claim settles.
+  let scrubbed = false;
   try {
     replaceUrl(cleanUrl);
+    scrubbed = true;
   } catch {
-    return Promise.resolve(rejectedAuthCallback(cleanUrl));
+    // Retried below, then again by the caller's post-exchange sweep.
   }
   return capturePreparedAuthCallback(currentUrl, parsedAttempt, cleanUrl, options).then(
     (captured) => {
-      if (captured.cleanUrl !== cleanUrl) {
+      if (!scrubbed || captured.cleanUrl !== cleanUrl) {
         try {
           replaceUrl(captured.cleanUrl);
-          options.onFragmentRestored?.(captured.cleanUrl);
+          if (captured.cleanUrl !== cleanUrl) {
+            options.onFragmentRestored?.(captured.cleanUrl);
+          }
         } catch {
-          // Credentials were already scrubbed; continue so the caller releases
-          // the claimed attempt after exchange instead of stranding it.
+          // Continue so the caller releases the claimed attempt after
+          // exchange; scrubLingeringAuthCallback gets one more attempt.
         }
       }
       return captured;
     },
   );
+}
+
+/**
+ * Post-exchange sweep: remove callback credentials still in the address bar.
+ * The synchronous scrub can be refused (Safari rate-limits history calls
+ * during load) or reverted by a later router URL write, so the callback owner
+ * runs this again after the exchange settles - on success AND on failure. A
+ * clean URL, or one holding an ordinary app fragment (an invite), is left
+ * alone. Returns true when a lingering callback had to be scrubbed.
+ */
+export function scrubLingeringAuthCallback(
+  currentUrl: string,
+  replaceUrl: (cleanUrl: string) => void,
+): boolean {
+  const parsedAttempt = readAuthCallbackAttempt(currentUrl);
+  const cleanUrl = cleanAuthCallbackUrl(currentUrl);
+  if (!parsedAttempt || !cleanUrl) return false;
+  try {
+    replaceUrl(cleanUrl);
+    return true;
+  } catch {
+    return false;
+  }
 }

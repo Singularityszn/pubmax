@@ -55,6 +55,7 @@ import {
   defaultEmailAuthNext,
   releaseAuthAttempt,
   scrubAuthCallback,
+  scrubLingeringAuthCallback,
   type CanonicalAuthAttemptStart,
   type CapturedAuthCallback,
 } from "@/lib/authRedirect";
@@ -119,6 +120,17 @@ function releaseBrowserAuthAttempt(attemptId: string): void {
 
 function cancelBrowserAuthAttempt(): void {
   cancelAuthAttempt(browserLocalStorage(), browserSessionStorage());
+}
+
+/**
+ * Defect fence: callback tokens must leave the address bar on every path -
+ * success, failure, or a first replaceState the browser refused or a router
+ * write reverted. Runs after the exchange settles and once more on a delay.
+ */
+function scrubLingeringBrowserAuthCallback(): void {
+  scrubLingeringAuthCallback(window.location.href, (cleanUrl) =>
+    window.history.replaceState(window.history.state, "", cleanUrl),
+  );
 }
 
 async function prepareAuthCallback(
@@ -325,6 +337,14 @@ export function AuthProvider({
     // (`configured && sessionLoading`). Still scrub a leftover callback URL so
     // a reader who landed with one is not stranded. setAuthCallbackError is
     // gated on still-mounted so unmount does not setState after teardown.
+    // Even with no exchange to run (unconfigured, missing client), the sweep
+    // still owes the address bar a clean URL: a scrub the browser refused or a
+    // router write reverted must not leave one-time credentials on show.
+    const lingeringSweepTimeout = window.setTimeout(
+      scrubLingeringBrowserAuthCallback,
+      2_000,
+    );
+
     if (!configured) {
       let active = true;
       void callbackCapture.then((captured) => {
@@ -333,11 +353,13 @@ export function AuthProvider({
           releaseBrowserAuthAttempt(callbackAttempt.attemptId);
         }
         captured?.releaseCoordination();
+        scrubLingeringBrowserAuthCallback();
         if (!active) return;
         if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
       });
       return () => {
         active = false;
+        window.clearTimeout(lingeringSweepTimeout);
       };
     }
 
@@ -371,6 +393,7 @@ export function AuthProvider({
             releaseBrowserAuthAttempt(callbackAttempt.attemptId);
           }
           captured?.releaseCoordination();
+          scrubLingeringBrowserAuthCallback();
           if (!active) return;
           if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
         });
@@ -443,6 +466,10 @@ export function AuthProvider({
           }
           captured?.releaseCoordination();
         }
+        // Success or failure, the exchange is over: nothing may still need the
+        // callback URL, so any credentials the synchronous scrub missed (a
+        // refused or reverted replaceState) leave the address bar here.
+        scrubLingeringBrowserAuthCallback();
         if (!active) return;
         if (exchangeFailed) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
 
@@ -530,6 +557,7 @@ export function AuthProvider({
     return () => {
       active = false;
       window.clearTimeout(loadingTimeout);
+      window.clearTimeout(lingeringSweepTimeout);
       subscription?.unsubscribe();
     };
   }, [configured, updateSession]);
