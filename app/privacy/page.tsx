@@ -689,6 +689,12 @@ export default function PrivacyPage() {
               it can send you the notification; the subscription itself belongs
               to your own browser&rsquo;s push service. We keep that stored row
               until the push service reports it dead or you ask us to remove it.
+              The separate Step Out weekly nudge is off by default. If you turn
+              it on, we store that preference against your account, bind it to
+              the same web push subscription, and may send at most one
+              place-bound push a week about a Wanted pub near your night patch,
+              an open Soft Plan, or a sourced deal. Turning it off withdraws the
+              preference and removes the bound subscription.
             </dd>
           </div>
         </dl>
@@ -761,7 +767,9 @@ export default function PrivacyPage() {
           <li>
             <strong>Push subscriptions:</strong>{" "}if you turned notifications
             on, the stored subscription row stays until your browser&rsquo;s
-            push service reports it dead or you ask us to remove it.
+            push service reports it dead or you ask us to remove it. A Step Out
+            opt-in preference and its last-sent stamp stay until you turn the
+            nudge off or delete your account.
           </li>
           <li>
             <strong>Referral records:</strong>{" "}the private invite code,

@@ -55,6 +55,7 @@
     "refresh:night-signals": "node scripts/refresh_night_signal_claims.mjs",
     "refresh:weather": "node scripts/refresh_weather_snapshots.mjs",
     "push:daily": "tsx scripts/push/sendDailyBrief.mjs",
+    "push:step-out": "tsx scripts/push/sendStepOutNudge.mjs",
     "refresh:events": "node scripts/whatson/eventsRefresh.mjs",
     "check:realtime": "node scripts/check-realtime.mjs",
     "verify": "npm run validate-data && npm run lint && npm run typecheck && npm run coverage && node scripts/resilient-audit.mjs",

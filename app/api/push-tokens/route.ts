@@ -1,7 +1,8 @@
 // Push-token registration for the Capacitor shell and installed web app
 // (lib/nativePush.ts / lib/webPush.ts).
 //
-//   POST { token, platform }  →  { ok: true }
+//   POST   { token, platform }  →  { ok: true }
+//   DELETE { token }            →  { ok: true }  (withdraw / unsubscribe)
 //
 // The shell registers pre-auth; the web seam is explicitly invoked after
 // browser permission. Neither payload carries identity, only delivery material.
@@ -70,6 +71,37 @@ export async function POST(request: Request): Promise<Response> {
     // Registration is best-effort on the client; a storage hiccup should read
     // as retry-later, not a broken app boot.
     return publicApiError("Could not save the token. Try again.", "STORE_UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+  return jsonNoStore({ ok: true }, { status: 200 });
+}
+
+/** Remove a stored subscription the browser has withdrawn. Idempotent. */
+export async function DELETE(request: Request): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
+
+  const token = typeof body.token === "string" ? body.token.trim() : "";
+  if (!token) {
+    return publicApiError("Device token is missing.", "INVALID_REQUEST", 400);
+  }
+
+  const limiterKey = `push-tokens:delete:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) {
+    return publicApiError("Too many registrations, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
+  }
+
+  try {
+    await pushTokenStore().delete(token);
+  } catch {
+    return publicApiError("Could not remove the token. Try again.", "STORE_UNAVAILABLE", 503, {
       retryable: true,
     });
   }

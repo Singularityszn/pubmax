@@ -12,6 +12,7 @@
     { "path": "/api/cron/moderate-social-posts", "schedule": "*/10 * * * *" },
     { "path": "/api/cron/purge-social-media", "schedule": "20 4 * * *" },
     { "path": "/api/cron/moderate-social-interactions", "schedule": "*/10 * * * *" },
-    { "path": "/api/cron/enrich-city-pubs", "schedule": "15 3 * * *" }
+    { "path": "/api/cron/enrich-city-pubs", "schedule": "15 3 * * *" },
+    { "path": "/api/cron/step-out-nudge", "schedule": "0 16 * * 4" }
   ]
 }

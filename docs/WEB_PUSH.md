@@ -23,6 +23,25 @@ Without the VAPID pair the provider returns `vapid_not_configured` for every web
 subscription and logs an actionable skip. Keyless app development remains
 unchanged.
 
+## Step Out weekly nudge
+
+Separate from the city-wide daily brief. Step Out is **opt-in, default OFF**,
+at most one place-bound push per week per subscription. Preference storage is
+migration `0094` (`step_out_nudge_prefs`); delivery still uses the existing
+web-push rails (`push_tokens` / VAPID). The You → Notifications control binds
+the preference to a web subscription after Home Screen install on iPhone.
+
+Operator / cron:
+
+```sh
+npm run push:step-out -- --dry-run
+npm run push:step-out
+```
+
+Production schedule: `GET /api/cron/step-out-nudge` (Thursday 16:00 UTC) behind
+`assertCronRequest`. Payload priority: Wanted near the night-area patch → open
+Soft Plan → sourced deal ending tonight. Skip when nothing is owed — no filler.
+
 ## Manual daily brief
 
 GitHub scheduled jobs remain blocked by the billing cap, so delivery is an
