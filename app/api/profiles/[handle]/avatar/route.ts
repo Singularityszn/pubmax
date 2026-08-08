@@ -18,7 +18,7 @@ import {
   supabaseProfileAvatarStorage,
 } from "@/lib/profileAvatarMedia.server";
 import {
-  OpenAIProfileAvatarModerationAdapter,
+  createProfileAvatarModerationAdapter,
   ProfileAvatarModerationError,
   type ProfileAvatarModerationAdapter,
 } from "@/lib/profileAvatarModeration";
@@ -48,7 +48,7 @@ type AvatarDeps = {
 
 const defaultDeps: AvatarDeps = {
   storage: supabaseProfileAvatarStorage,
-  moderation: () => new OpenAIProfileAvatarModerationAdapter(),
+  moderation: () => createProfileAvatarModerationAdapter(),
 };
 
 /** Test seam: production callers leave this unset. */
