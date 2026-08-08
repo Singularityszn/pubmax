@@ -6,6 +6,7 @@ import { LogIn } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
+import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
@@ -62,9 +63,16 @@ export default function LoginPage(): React.JSX.Element {
     signInWithEmail,
     cancelAuthAttempt,
     signOut,
+    welcomeBack,
+    resumeSignIn,
   } = useAuth();
   const [busy, setBusy] = useState<"google" | "apple" | "out" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [resumeStatus, setResumeStatus] = useState<
+    "idle" | "sending" | MagicLinkResult["status"]
+  >("idle");
+  const [resumeMessage, setResumeMessage] = useState("");
+  const [useDifferentAccount, setUseDifferentAccount] = useState(false);
 
   useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
@@ -98,6 +106,16 @@ export default function LoginPage(): React.JSX.Element {
       setBusy(null);
     }
   }, [signInWithApple]);
+
+  const onResume = useCallback(async () => {
+    if (resumeStatus === "sending" || resumeStatus === "sent") return;
+    trackEvent("sign_in_initiated", { provider: "email_resume" });
+    setResumeStatus("sending");
+    setResumeMessage("");
+    const result = await resumeSignIn();
+    setResumeStatus(result.status);
+    setResumeMessage(result.message);
+  }, [resumeSignIn, resumeStatus]);
 
   const onSignOut = useCallback(async () => {
     setBusy("out");
@@ -182,7 +200,53 @@ export default function LoginPage(): React.JSX.Element {
           </section>
         ) : null}
 
-        {!loading && !user && hasAuthSurface ? (
+        {!loading && !user && hasAuthSurface && welcomeBack && !useDifferentAccount ? (
+          <section className="loginPageWelcomeBack" aria-label="Continue signed in">
+            <h2 className="loginPageWelcomeBackTitle">Welcome back</h2>
+            <p className="loginPageWelcomeBackLead">
+              Your session on this device ended.
+              {welcomeBack.maskedEmail
+                ? ` Continue as ${welcomeBack.maskedEmail}.`
+                : " Continue with your saved sign-in."}
+            </p>
+            <button
+              type="button"
+              className="loginPagePrimary loginPageWelcomeBackContinue"
+              onClick={onResume}
+              disabled={resumeStatus === "sending" || resumeStatus === "sent"}
+            >
+              {resumeStatus === "sending"
+                ? "Sending…"
+                : resumeStatus === "sent"
+                  ? "Link sent"
+                  : welcomeBack.maskedEmail
+                    ? `Continue as ${welcomeBack.maskedEmail}`
+                    : "Email me a sign-in link"}
+            </button>
+            {resumeMessage ? (
+              <p
+                className={
+                  resumeStatus === "sent"
+                    ? "authMagicLinkSuccess"
+                    : "authError loginPageError"
+                }
+                role={resumeStatus === "sent" ? "status" : "alert"}
+                aria-live="polite"
+              >
+                {resumeMessage}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              className="loginPageQuietLink loginPageWelcomeBackSwitch"
+              onClick={() => setUseDifferentAccount(true)}
+            >
+              Use a different account
+            </button>
+          </section>
+        ) : null}
+
+        {!loading && !user && hasAuthSurface && (!welcomeBack || useDifferentAccount) ? (
           <section className="loginPageForm" aria-label="Sign-in options">
             <div className="authOptions">
               {configured || clerkSessionAvailable ? (
