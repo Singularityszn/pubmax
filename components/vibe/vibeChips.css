@@ -1,0 +1,56 @@
+/* Vibe chips — house stamp skin (docs/DESIGN_SYSTEM.md caps policy).
+   One recipe for every surface that renders the seven owner-locked chips
+   from lib/vibeChips.ts. Party caps, 44px floor, brass border. */
+
+.vibeChips {
+  /* Shell spacing is owned by each surface (Tonight margin, Pal examples pad). */
+}
+
+.vibeChipsLede {
+  margin: 0 0 8px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--ink-soft);
+}
+
+.vibeChipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Load-bearing inside .palChat: its `button { font: inherit }` (0,1,1) resets
+   stamp typography unless this rule outranks it. */
+.palChat button.vibeChip,
+.palChat a.vibeChip,
+.vibeChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-family: var(--font-party, var(--font-display));
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.vibeChip[data-active="true"] {
+  border-color: color-mix(in srgb, var(--brass) 85%, var(--line));
+  background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
+  color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .vibeChip:hover {
+    border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+  }
+}

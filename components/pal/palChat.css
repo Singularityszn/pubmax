@@ -325,46 +325,6 @@
   width: min(46rem, 100%);
   margin: 0 auto;
   padding: 0.25rem clamp(1rem, 4vw, 1.5rem) 1.5rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.palChatChip {
-  min-height: 2.6rem;
-  padding: 0 0.9rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill, 999px);
-  background: var(--panel-raised);
-  color: var(--ink);
-  font-size: 0.84rem;
-  cursor: pointer;
-  transition:
-    background var(--duration-base, 0.18s) var(--ease-out, ease-out),
-    border-color var(--duration-base, 0.18s) var(--ease-out, ease-out);
-}
-
-.palChatChip:hover {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
-}
-
-/* Vibe quick-asks (docs/VIBE_LAYER_SPEC_2026-07-19.md) — second of the ≤3
-   sanctioned party-font families. The `.palChat` prefix is load-bearing:
-   `.palChat button { font: inherit }` above is (0,1,1) and silently reset
-   these chips to the body face until this rule outranked it. */
-.palChat .palChatChip--vibe {
-  border-color: color-mix(in srgb, var(--brass) 32%, var(--line));
-  font-family: var(--font-party, var(--font-display));
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.palChatChip:active {
-  transform: scale(0.98);
-  --shared-press-scale: 1;
 }
 
 /* — Tonight at a glance (judge-w1 wave 2) —

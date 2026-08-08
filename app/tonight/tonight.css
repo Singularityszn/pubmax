@@ -240,58 +240,10 @@
   text-decoration: underline;
 }
 
-/* Vibe picker (docs/VIBE_LAYER_SPEC_2026-07-19.md). The party accent face
-   arrives via --font-party from a parallel lane; until it lands the chips
-   fall back to the display face and must read correctly on their own.
-   Accent-type constraint (binding): 2-4 word labels, chip-scale only —
-   this is one of the ≤3 sanctioned component families for the party font. */
+/* Vibe picker shell (docs/VIBE_LAYER_SPEC_2026-07-19.md). Chip skin lives in
+   components/vibe/vibeChips.css; this file keeps Tonight-only spacing. */
 .tonightVibes {
   margin: 0 0 18px;
-}
-
-.tonightVibesLede {
-  margin: 0 0 8px;
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--ink-soft);
-}
-
-.tonightVibesRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.tonightVibeChip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  padding: 8px 14px;
-  border: 1px solid color-mix(in srgb, var(--brass) 32%, var(--line));
-  border-radius: 999px;
-  background: var(--panel-raised);
-  color: var(--ink);
-  font-family: var(--font-party, var(--font-display));
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.tonightVibeChip[data-active="true"] {
-  border-color: color-mix(in srgb, var(--brass) 85%, var(--line));
-  background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
-  color: var(--ink);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .tonightVibeChip:hover {
-    border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
-  }
 }
 
 /* Filter chips — derived from the kinds actually present tonight. */
