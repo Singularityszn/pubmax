@@ -13,6 +13,11 @@ import {
   stopCountFromPubsParam,
 } from "@/lib/cityShare";
 import { resolveUkPlaceMapArrival } from "@/lib/ukPlaceIndex.server";
+import {
+  UK_NATIONAL_BROWSE_COPY,
+  UK_NATIONAL_MAP_HREF,
+  isUkNationalBrowse,
+} from "@/lib/ukNationalBrowse";
 import { ukPlaceMapUrl } from "@/lib/ukPlaceSearch";
 
 // /map stays London for back-compat bookmarks. Other cities live at /map/[city].
@@ -35,11 +40,44 @@ function placeArrivalFor(
   );
 }
 
+function nationalBrowseFor(
+  sp: Record<string, string | string[] | undefined> | undefined,
+  placeArrival: ReturnType<typeof placeArrivalFor>,
+) {
+  if (placeArrival) return false;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(sp ?? {})) {
+    const first = firstSearchParam(value);
+    if (first) params.set(key, first);
+  }
+  return isUkNationalBrowse(params);
+}
+
 export async function generateMetadata({
   searchParams,
 }: MapPageProps): Promise<Metadata> {
   const sp = searchParams ? await searchParams : undefined;
   const placeArrival = placeArrivalFor(sp);
+  if (nationalBrowseFor(sp, placeArrival)) {
+    const title = UK_NATIONAL_BROWSE_COPY.title;
+    const description = UK_NATIONAL_BROWSE_COPY.body;
+    return {
+      title,
+      description,
+      alternates: { canonical: "/map" },
+      openGraph: {
+        title,
+        description,
+        type: "website",
+        url: UK_NATIONAL_MAP_HREF,
+      },
+      twitter: {
+        card: "summary",
+        title,
+        description,
+      },
+    };
+  }
   if (placeArrival) {
     const title = `${placeArrival.name} pub map`;
     const description =
@@ -97,12 +135,14 @@ export async function generateMetadata({
 
 export default async function MapPage({ searchParams }: MapPageProps) {
   const sp = searchParams ? await searchParams : undefined;
+  const placeArrival = placeArrivalFor(sp);
   return (
     <>
       <PubMaxingShell
         cityId="london"
         flags={readTrustedHandoffFlags()}
-        placeArrival={placeArrivalFor(sp)}
+        placeArrival={placeArrival}
+        ukNationalBrowse={nationalBrowseFor(sp, placeArrival)}
       />
       {/* Records that a Pint Index arrival reached the map. Renders nothing and
           owns no map state; it only reads its own arrival marker off the URL. */}

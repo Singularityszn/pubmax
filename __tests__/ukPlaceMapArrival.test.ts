@@ -138,7 +138,10 @@ describe("UK place map arrival", () => {
     );
 
     expect(pubMap).toContain("limitedCoverage={Boolean(ukPlaceArrival)}");
-    expect(pubMap).toContain("ukPlaceArrival ? null : (");
+    // Limited-coverage arrivals keep map search so UK places can fill the gap
+    // when venues/localities are emptied.
+    expect(pubMap).toContain("includeLocalResults: !limitedCoverageSearch");
+    expect(pubMap).toContain("onSelectPlace: selectPlaceFromSearch");
     expect(pubMap).toMatch(
       /\{selectionNotice \? \([\s\S]*?\) : ukPlaceArrival \? \(/,
     );

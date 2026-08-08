@@ -86,7 +86,7 @@ describe("finding 2.3 — the category toggles have exactly one home per viewpor
     expect(floating?.length, "TonightArcChips mount sites").toBe(2);
     // The map copy is desktop only.
     expect(pubMap).toMatch(
-      /!ukPlaceArrival && !mobileViewport \? \(\s*<TonightArcChips/,
+      /!baseLedChrome && !mobileViewport \? \(\s*<TonightArcChips/,
     );
     // The other copy is the Filters sheet section, which is where a phone
     // reads them.
@@ -161,7 +161,7 @@ describe("finding 2.15 — the banners dock under the bar and step off the map",
     expect(pubMap).toMatch(
       /const ambientBannerLane = !mobileViewport && !mapCameraTouched/,
     );
-    expect(pubMap).toMatch(/\{ambientBannerLane && !ukPlaceArrival \?/);
+    expect(pubMap).toMatch(/\{ambientBannerLane && !baseLedChrome \?/);
     expect(pubMap).toMatch(/\{ambientBannerLane && isLondon \?/);
   });
 });
