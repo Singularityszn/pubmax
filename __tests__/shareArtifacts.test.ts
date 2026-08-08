@@ -9,6 +9,8 @@ import {
   buildPlanInviteShareText,
   buildSavedListShareText,
   buildVenueShareText,
+  formatPlanInviteSpendBand,
+  planInviteSpendBandFromListedPrices,
   whatsappShareHref,
 } from "@/lib/shareArtifacts";
 
@@ -29,6 +31,35 @@ describe("buildPlanInviteShareText", () => {
     const text = buildPlanInviteShareText({ title: "Friday in Soho", stopCount: 2, startClock: null });
     expect(text).toBe("Friday in Soho · 2 stops. Open the link and tap I'm in.");
     expect(text).not.toContain("starts");
+  });
+
+  it("carries an honest spend band when every stop price is listed", () => {
+    expect(
+      buildPlanInviteShareText({
+        title: "Friday in Soho",
+        stopCount: 3,
+        startClock: "19:00",
+        spendBand: { minGbp: 4.5, maxGbp: 6 },
+      }),
+    ).toBe(
+      "Friday in Soho · 3 stops · starts 19:00 · £4.50–£6.00 per person. Open the link and tap I'm in.",
+    );
+  });
+
+  it("collapses a single-price band to one figure", () => {
+    expect(formatPlanInviteSpendBand({ minGbp: 4.5, maxGbp: 4.5 })).toBe("£4.50 per person");
+  });
+
+  it("omits the spend band when any stop price is missing", () => {
+    expect(planInviteSpendBandFromListedPrices([4.5, null, 6])).toBeNull();
+    expect(
+      buildPlanInviteShareText({
+        title: "Friday in Soho",
+        stopCount: 3,
+        startClock: "19:00",
+        spendBand: planInviteSpendBandFromListedPrices([4.5, null, 6]),
+      }),
+    ).toBe("Friday in Soho · 3 stops · starts 19:00. Open the link and tap I'm in.");
   });
 });
 

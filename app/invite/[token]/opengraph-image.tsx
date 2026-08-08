@@ -2,6 +2,11 @@ import { ImageResponse } from "next/og";
 
 import { PLAN_STOP_MAX, type PlanStopDTO } from "@/lib/plan";
 import { planStateResult, resolvePlanIdByInviteToken } from "@/lib/planStore";
+import {
+  formatPlanInviteSpendBand,
+  planInviteSpendBandFromListedPrices,
+  type PlanInviteSpendBand,
+} from "@/lib/shareArtifacts";
 import { formatPrice } from "@/lib/venues";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import {
@@ -32,6 +37,7 @@ type CardData = {
   title: string;
   hostHandle: string;
   startLabel: string;
+  spendBand: PlanInviteSpendBand | null;
   stops: { name: string; price: string | null }[];
 };
 
@@ -53,7 +59,9 @@ function formatStartLabel(startTime: string): string {
   return `${day}, ${time}`;
 }
 
-async function loadStops(stops: PlanStopDTO[]): Promise<{ name: string; price: string | null }[]> {
+async function loadStops(
+  stops: PlanStopDTO[],
+): Promise<{ name: string; price: string | null; priceGbp: number | null }[]> {
   const ordered = [...stops].sort((a, b) => a.position - b.position).slice(0, PLAN_STOP_MAX);
   const details = await Promise.all(ordered.map((stop) => lookupVenueDetail(stop.venueId)));
   return ordered.map((stop, index) => {
@@ -62,6 +70,7 @@ async function loadStops(stops: PlanStopDTO[]): Promise<{ name: string; price: s
     return {
       name: stop.venueName,
       price: venue && typeof venue.cheapestPrice === "number" ? formatPrice(venue.cheapestPrice) : null,
+      priceGbp: venue && typeof venue.cheapestPrice === "number" ? venue.cheapestPrice : null,
     };
   });
 }
@@ -75,11 +84,13 @@ async function loadCard(token: string): Promise<CardData | null> {
     const stateResult = await planStateResult(lookup.planId);
     if (!stateResult.ok || !stateResult.plan) return null;
     const state = stateResult.plan;
+    const stops = await loadStops(state.stops);
     return {
       title: clampText(state.plan.title, 60, "A night out"),
       hostHandle: clampText(state.crew[0]?.name, 30, "Your host"),
       startLabel: formatStartLabel(state.plan.startTime),
-      stops: await loadStops(state.stops),
+      spendBand: planInviteSpendBandFromListedPrices(stops.map((stop) => stop.priceGbp)),
+      stops,
     };
   } catch {
     return null;
@@ -146,6 +157,7 @@ export default async function Image({ params }: { params: Promise<{ token: strin
           </div>
           <div style={{ display: "flex", color: OG.inkSoft, fontSize: 26, marginTop: 14 }}>
             Hosted by {card.hostHandle} · {card.startLabel}
+            {card.spendBand ? ` · ${formatPlanInviteSpendBand(card.spendBand)}` : ""}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", marginTop: 28, gap: 10 }}>

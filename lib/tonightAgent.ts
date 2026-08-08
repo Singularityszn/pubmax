@@ -5,6 +5,7 @@ import { formatPriceDay } from "@/lib/communityPrice";
 import type { PlanPriceEvidence } from "@/lib/planRouteEvidence";
 import {
   buildPlanInviteShareText,
+  planInviteSpendBandFromListedPrices,
   type PlanInviteShareInput,
 } from "@/lib/shareArtifacts";
 
@@ -128,6 +129,9 @@ export function interpretTonightAgentGenerateBody(
   }
 
   const title = (options?.title?.trim() || "Tonight").slice(0, 80);
+  const spendBand = planInviteSpendBandFromListedPrices(
+    stops.map((stop) => (stop.pricePence === null ? null : stop.pricePence / 100)),
+  );
   return {
     ok: true,
     title,
@@ -136,6 +140,7 @@ export function interpretTonightAgentGenerateBody(
       title,
       stopCount: stops.length,
       startClock: options?.startClock ?? null,
+      spendBand,
     }),
     nextStep: TONIGHT_AGENT_NEXT_STEP,
   };
