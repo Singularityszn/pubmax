@@ -78,7 +78,7 @@ const QUIET_PINT: QuietPintModule = {
 describe("Tonight quiet pint module", () => {
   it("composes buildQuietPint on the server the same way /today does", () => {
     const page = readFileSync(join(process.cwd(), "app/tonight/page.tsx"), "utf8");
-    expect(page).toContain('import { buildQuietPint } from "@/lib/quietPint"');
+    expect(page).toMatch(/import \{ buildQuietPint[^}]*\} from "@\/lib\/quietPint"/);
     expect(page).toContain("loadHistoricPubs()");
     expect(page).toContain("getPricedVenues()");
     expect(page).toContain("quietPint={quietPint}");
