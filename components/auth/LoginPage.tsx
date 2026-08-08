@@ -6,6 +6,7 @@ import { LogIn } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
+import HandlePasswordSignIn from "@/components/auth/HandlePasswordSignIn";
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
@@ -259,14 +260,17 @@ export default function LoginPage(): React.JSX.Element {
                 />
               ) : null}
               {configured ? (
-                <MagicLinkForm
-                  disabled={busy !== null}
-                  hasSocialProviders={
-                    socialProviders.google || socialProviders.apple
-                  }
-                  signInWithEmail={signInWithEmail}
-                  cancelAuthAttempt={cancelAuthAttempt}
-                />
+                <>
+                  <MagicLinkForm
+                    disabled={busy !== null}
+                    hasSocialProviders={
+                      socialProviders.google || socialProviders.apple
+                    }
+                    signInWithEmail={signInWithEmail}
+                    cancelAuthAttempt={cancelAuthAttempt}
+                  />
+                  <HandlePasswordSignIn disabled={busy !== null} />
+                </>
               ) : null}
             </div>
             {error ? (
