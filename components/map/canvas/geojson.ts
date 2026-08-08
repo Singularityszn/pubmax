@@ -66,10 +66,13 @@ export function formatPinPriceLabel(
  * a pint. Anchors stay labelled and dated on the venue sheet; the band (which
  * is type-relative for those kinds anyway) still paints.
  *
- * A PROVISIONAL report cannot reach either read: an uncorroborated submission
- * never becomes `latestContributorPrice` (the gate is
- * mergeCommunityPriceSignals), so the rule the `provisional` prop states — a
- * mark, never a figure — holds for the label too, with no second gate to keep
+ * A PROVISIONAL report cannot reach either read: an uncorroborated community
+ * submission never becomes `latestContributorPrice` (the gate is
+ * mergeCommunityPriceSignals), and an uncorroborated Pint Drop never becomes
+ * `latestContributorPrice` OR `venue.cheapestPrice` either (the gate is
+ * corroboratedPriceDrop in lib/venues.ts, applied by both mergeVenueDrops and
+ * usePintDrops.venueSignals). So the rule the `provisional` prop states — a
+ * mark, never a figure — holds for the label too, with no gate here to keep
  * in sync. Where such a pub ALSO carries a curated sourced price, that curated
  * figure still shows: it is the same price the bucket is already painting, and
  * hiding it because someone filed an unconfirmed report would be the map lying
