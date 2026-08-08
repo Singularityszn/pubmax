@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 114 mutating handlers across 92 route files.** Each exported
+> **Inventory: 115 mutating handlers across 95 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -54,6 +54,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/admin/session`
 - `POST app/api/admin/social-posts`
 - `POST app/api/area-demand`
+- `POST app/api/ask`
 - `POST app/api/check-ins`
 - `POST app/api/citymcp/journey`
 - `POST app/api/concierge`

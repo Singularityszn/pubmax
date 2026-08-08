@@ -494,8 +494,8 @@ async function toolJourney(
   args: AskToolArgs,
   ctx: AskToolContext,
 ): Promise<AskToolResult> {
-  let from = str(args.from);
-  let to = str(args.to);
+  const from = str(args.from);
+  const to = str(args.to);
   const venues = await loadConciergeVenues(ctx.cityId);
   const fromVenue = from ? matchVenueByName(venues, from) : null;
   const toVenue =
@@ -731,7 +731,7 @@ async function toolProposePlan(
       provenance: [{ label: "On record", kind: "plan" }],
       cards,
       proposals: [proposal, ...openProposals],
-      answerHint: `Proposed draft: ${stopNames.join(" → ")}. Confirm to open Plan with this ask — nothing is saved until you do.`,
+      answerHint: `Proposed draft: ${stopNames.join(" → ")}. Confirm to open Plan with this ask - nothing is saved until you do.`,
     };
   } catch {
     return {

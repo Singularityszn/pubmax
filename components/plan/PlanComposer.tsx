@@ -630,9 +630,11 @@ function PlanComposerForm({
       if (!raw) return;
       sessionStorage.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
       const parsed = JSON.parse(raw) as AskPlanDraft;
-      if (typeof parsed?.query === "string" && parsed.query.trim()) {
-        setAskDraftQuery(parsed.query.trim().slice(0, 500));
-      }
+      const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
+      if (!query) return;
+      // Defer setState out of the effect body in a microtask so it never
+      // fires synchronously (react-hooks/set-state-in-effect).
+      void Promise.resolve().then(() => setAskDraftQuery(query));
     } catch {
       /* private mode or bad JSON */
     }

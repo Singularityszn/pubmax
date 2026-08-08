@@ -166,7 +166,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     let routedQuery = query;
     const priorUser = [...turns].reverse().find((t) => t.role === "user");
     if (priorUser && query.split(/\s+/).length <= 4) {
-      routedQuery = `${priorUser.content} — ${query}`;
+      routedQuery = `${priorUser.content} - ${query}`;
     }
     const routed = routeAskDeterministically(routedQuery);
     for (const call of routed) {
