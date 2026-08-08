@@ -128,12 +128,9 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
     if (changes.venueId) {
       const venue = await resolveSocialVenueId(changes.venueId);
       if (!venue.ok) {
-        return privateJson(
-          venue.unavailable
-            ? { code: "VENUE_LOOKUP_UNAVAILABLE", error: "Venue search is unavailable right now.", retryable: true }
-            : { code: "INVALID_VENUE", error: "Choose a pub from Venue search." },
-          { status: venue.unavailable ? 503 : 400 },
-        );
+        return venue.unavailable
+          ? publicApiError("Venue search is unavailable right now.", "VENUE_LOOKUP_UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } })
+          : publicApiError("Choose a pub from Venue search.", "INVALID_VENUE", 400, { headers: { "Cache-Control": "private, no-store" } });
       }
       changes = { ...changes, venueId: venue.venueId };
     }

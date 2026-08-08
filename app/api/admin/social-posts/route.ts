@@ -1,4 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
+import { isLimited } from "@/lib/pintDrops";
+import { clientIp, hashIp } from "@/lib/supabase";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
 import { boundedJson } from "@/lib/boundedRequest.server";
@@ -12,6 +14,10 @@ export async function GET(): Promise<Response> {
   catch { return publicApiError("Moderator access required.", "FORBIDDEN", 403, { headers: { "Cache-Control": "private, no-store" } }); }
 }
 export async function POST(request: Request): Promise<Response> {
+  const limiterKey = `admin-social-posts:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
   const access = await requireVerifiedSocialActor();
   if (!access.ok) return publicApiError(access.error, access.code, access.status, { headers: { "Cache-Control": "private, no-store" } });
   let input: unknown;

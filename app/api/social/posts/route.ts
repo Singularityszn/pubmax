@@ -141,12 +141,9 @@ export async function POST(request: Request): Promise<Response> {
   if (fields.venueId) {
     const venue = await resolveSocialVenueId(fields.venueId);
     if (!venue.ok) {
-      return privateJson(
-        venue.unavailable
-          ? { code: "VENUE_LOOKUP_UNAVAILABLE", error: "Venue search is unavailable right now.", retryable: true }
-          : { code: "INVALID_VENUE", error: "Choose a pub from Venue search." },
-        { status: venue.unavailable ? 503 : 400 },
-      );
+      return venue.unavailable
+        ? publicApiError("Venue search is unavailable right now.", "VENUE_LOOKUP_UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } })
+        : publicApiError("Choose a pub from Venue search.", "INVALID_VENUE", 400, { headers: { "Cache-Control": "private, no-store" } });
     }
     fields = { ...fields, venueId: venue.venueId };
     resolvedVenue = venue;
@@ -206,10 +203,10 @@ export async function POST(request: Request): Promise<Response> {
     }
     if (error instanceof SocialPhotoError) {
       const unavailable = error.code === "STORAGE_UNAVAILABLE";
-      return privateJson(
-        { code: error.code, error: error.message, ...(unavailable ? { retryable: true } : {}) },
-        { status: unavailable ? 503 : 400 },
-      );
+      return publicApiError(error.message, error.code, unavailable ? 503 : 400, {
+        retryable: unavailable,
+        headers: { "Cache-Control": "private, no-store" },
+      });
     }
     return storeError(error);
   }

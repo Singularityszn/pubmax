@@ -55,14 +55,10 @@ export async function POST(request: Request): Promise<Response> {
   const supabase = await verifyCallerAuth(request);
   const migration = await migrateSocialProductAccount(supabase);
   if (!migration.ok) {
-    return privateJson(
-      {
-        code: migration.code,
-        error: migration.error,
-        ...(migration.retryable ? { retryable: true } : {}),
-      },
-      { status: migration.status },
-    );
+    return publicApiError(migration.error, migration.code, migration.status, {
+      retryable: migration.retryable === true,
+      headers: { "Cache-Control": "private, no-store" },
+    });
   }
   return privateJson({ migrated: migration.migrated });
 }
