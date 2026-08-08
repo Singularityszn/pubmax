@@ -3,6 +3,29 @@
   padding-bottom: var(--mobile-tab-clearance, 96px);
 }
 
+/* Stack the OUT TONIGHT pill above the title. The shared feed eyebrow is
+   inline-flex in a centred header; next to a 2.65rem title it could sit on the
+   W. Column + gap keeps the stamp and the heading apart. */
+.weAreOut .feedHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.weAreOut .feedEyebrow {
+  position: relative;
+  z-index: 0;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.weAreOut .feedTitle {
+  position: relative;
+  z-index: 0;
+  margin: 0;
+}
+
 .weAreOutForm,
 .weAreOutDone {
   display: flex;

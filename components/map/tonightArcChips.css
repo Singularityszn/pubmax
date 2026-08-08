@@ -63,7 +63,8 @@
 .tonightArcChip[aria-disabled="true"] {
   border-color: var(--line);
   background: var(--panel-raised);
-  color: var(--muted);
+  /* Match unselected sibling chip ink; muted + strike read as missing. */
+  color: var(--ink-soft);
   cursor: help;
   opacity: 1;
 }
@@ -150,7 +151,7 @@
 .tonightArcChipsSheet .tonightArcChip {
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--ink-soft);
   transition:
     background-color var(--duration-base) var(--ease-out),
     color var(--duration-base) var(--ease-out);
@@ -171,9 +172,9 @@
 .tonightArcChipsSheet .tonightArcChip[aria-disabled="true"] {
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--ink-soft);
   text-decoration: line-through;
-  text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--ink-soft) 45%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -764,6 +764,8 @@
   .mobileVenuePeekSummary { display: grid; grid-template-columns: 1fr 1fr auto; align-items: center; gap: 10px; margin-bottom: 14px; padding: 12px 0; border: 1px solid var(--sheet-material-border); border-inline: 0; border-radius: 0; background: transparent; }
   .mobileVenuePeekSummary > span { min-width: 0; display: grid; gap: 2px; }
   .mobileVenuePeekSummary strong { white-space: nowrap; font-family: var(--font-data); font-size: var(--text-md); }
+  /* "Near me" is one phrase. A narrow peek column must not break it mid-word. */
+  .mobileVenuePeekSummary .mobileVenuePeekNearMe { white-space: nowrap; }
   /* Never ellipsis the caption. This line is what the number above it MEANS
      ("current recorded price"), and at 390px the nowrap+ellipsis cut it to
      "current recorded pri…" - a price with its own label truncated reads as a

@@ -3182,13 +3182,13 @@ export default function PubMap({
             </button>
           ) : null}
           <span>
-            <strong>
+            <strong className="mobileVenuePeekNearMe">
               {userLocation
                 ? `${Math.max(1, Math.ceil(haversineKm(
                     [userLocation.lng, userLocation.lat],
                     [selectedVenue.longitude, selectedVenue.latitude],
                   ) * 12.5))} min`
-                : "Near me"}
+                : "Near\u00A0me"}
             </strong>
             <small>{userLocation ? "walk" : "for walk time"}</small>
           </span>
