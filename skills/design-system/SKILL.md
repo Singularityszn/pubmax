@@ -1,83 +1,432 @@
 ---
 name: design-system
-description: Use this skill to generate or audit design systems, check visual consistency, and review PRs that touch styling.
-metadata:
-  origin: ECC
+description: >
+  Build and maintain cohesive design systems and component libraries with tokens, theming,
+  and documented variants. Use when the user says "design system", "component library",
+  "design tokens", "theming", "consistent styling", "reusable components", or "variant
+  props". Produces token files, component specs, and usage guidelines. Pairs with
+  design-frontend, audit-uiux-design-system. Do NOT use for one-off component styling.
+license: MIT
 ---
 
-# Design System — Generate & Audit Visual Systems
+# Design System Skill
 
-## When to Use
+Build scalable, maintainable design systems with consistent tokens, variants, and documentation.
 
-- Starting a new project that needs a design system
-- Auditing an existing codebase for visual consistency
-- Before a redesign — understand what you have
-- When the UI looks "off" but you can't pinpoint why
-- Reviewing PRs that touch styling
+## CRITICAL: Check Existing First
 
-## How It Works
+**Before creating ANY design system components, verify:**
 
-### Mode 1: Generate Design System
-
-Analyzes your codebase and generates a cohesive design system:
-
-```
-1. Scan CSS/Tailwind/styled-components for existing patterns
-2. Extract: colors, typography, spacing, border-radius, shadows, breakpoints
-3. Research 3 competitor sites for inspiration (via browser MCP)
-4. Propose a design token set (JSON + CSS custom properties)
-5. Generate DESIGN.md with rationale for each decision
-6. Create an interactive HTML preview page (self-contained, no deps)
+1. **Check for existing design system:**
+```bash
+ls -la src/components/ui/
+cat package.json | grep -i "shadcn\|radix\|headless"
+cat components.json 2>/dev/null # shadcn config
 ```
 
-Output: `DESIGN.md` + `design-tokens.json` + `design-preview.html`
-
-### Mode 2: Visual Audit
-
-Scores your UI across 10 dimensions (0-10 each):
-
-```
-1. Color consistency — are you using your palette or random hex values?
-2. Typography hierarchy — clear h1 > h2 > h3 > body > caption?
-3. Spacing rhythm — consistent scale (4px/8px/16px) or arbitrary?
-4. Component consistency — do similar elements look similar?
-5. Responsive behavior — fluid or broken at breakpoints?
-6. Dark mode — complete or half-done?
-7. Animation — purposeful or gratuitous?
-8. Accessibility — contrast ratios, focus states, touch targets
-9. Information density — cluttered or clean?
-10. Polish — hover states, transitions, loading states, empty states
+2. **Check for existing tokens:**
+```bash
+cat tailwind.config.* | head -100
+cat src/styles/globals.css | head -50
+rg "var\(--" --type css | head -20
 ```
 
-Each dimension gets a score, specific examples, and a fix with exact file:line.
-
-### Mode 3: AI Slop Detection
-
-Identifies generic AI-generated design patterns:
-
-```
-- Gratuitous gradients on everything
-- Purple-to-blue defaults
-- "Glass morphism" cards with no purpose
-- Rounded corners on things that shouldn't be rounded
-- Excessive animations on scroll
-- Generic hero with centered text over stock gradient
-- Sans-serif font stack with no personality
+3. **Check for existing patterns:**
+```bash
+rg "cva\(|variants:" --type ts --type tsx | head -10
+rg "cn\(|clsx\(|twMerge" --type tsx | head -5
 ```
 
-## Examples
+**Why:** Don't recreate existing primitives. Extend and enhance what exists.
 
-**Generate for a SaaS app:**
-```
-/design-system generate --style minimal --palette earth-tones
+## Design Tokens
+
+### CSS Custom Properties
+```css
+/* globals.css */
+:root {
+ /* Colors - Semantic */
+ --background: 0 0% 100%;
+ --foreground: 222.2 84% 4.9%;
+ --card: 0 0% 100%;
+ --card-foreground: 222.2 84% 4.9%;
+ --popover: 0 0% 100%;
+ --popover-foreground: 222.2 84% 4.9%;
+ --primary: 221.2 83.2% 53.3%;
+ --primary-foreground: 210 40% 98%;
+ --secondary: 210 40% 96.1%;
+ --secondary-foreground: 222.2 47.4% 11.2%;
+ --muted: 210 40% 96.1%;
+ --muted-foreground: 215.4 16.3% 46.9%;
+ --accent: 210 40% 96.1%;
+ --accent-foreground: 222.2 47.4% 11.2%;
+ --destructive: 0 84.2% 60.2%;
+ --destructive-foreground: 210 40% 98%;
+ --border: 214.3 31.8% 91.4%;
+ --input: 214.3 31.8% 91.4%;
+ --ring: 221.2 83.2% 53.3%;
+
+ /* Spacing */
+ --spacing-xs: 0.25rem;
+ --spacing-sm: 0.5rem;
+ --spacing-md: 1rem;
+ --spacing-lg: 1.5rem;
+ --spacing-xl: 2rem;
+
+ /* Border Radius */
+ --radius: 0.5rem;
+ --radius-sm: calc(var(--radius) - 4px);
+ --radius-lg: calc(var(--radius) + 4px);
+
+ /* Shadows */
+ --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+ --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+ --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+ --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+ /* Animation */
+ --duration-fast: 150ms;
+ --duration-normal: 200ms;
+ --duration-slow: 300ms;
+ --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+ --ease-in: cubic-bezier(0.4, 0, 1, 1);
+ --ease-out: cubic-bezier(0, 0, 0.2, 1);
+ --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.dark {
+ --background: 222.2 84% 4.9%;
+ --foreground: 210 40% 98%;
+ /* ... dark mode overrides */
+}
 ```
 
-**Audit existing UI:**
-```
-/design-system audit --url http://localhost:3000 --pages / /pricing /docs
+### Tailwind Config Integration
+```ts
+// tailwind.config.ts
+import type { Config } from 'tailwindcss'
+
+const config: Config = {
+ content: ['./src/**/*.{ts,tsx}'],
+ darkMode: 'class',
+ theme: {
+ extend: {
+ colors: {
+ border: 'hsl(var(--border))',
+ input: 'hsl(var(--input))',
+ ring: 'hsl(var(--ring))',
+ background: 'hsl(var(--background))',
+ foreground: 'hsl(var(--foreground))',
+ primary: {
+ DEFAULT: 'hsl(var(--primary))',
+ foreground: 'hsl(var(--primary-foreground))',
+ },
+ secondary: {
+ DEFAULT: 'hsl(var(--secondary))',
+ foreground: 'hsl(var(--secondary-foreground))',
+ },
+ destructive: {
+ DEFAULT: 'hsl(var(--destructive))',
+ foreground: 'hsl(var(--destructive-foreground))',
+ },
+ muted: {
+ DEFAULT: 'hsl(var(--muted))',
+ foreground: 'hsl(var(--muted-foreground))',
+ },
+ accent: {
+ DEFAULT: 'hsl(var(--accent))',
+ foreground: 'hsl(var(--accent-foreground))',
+ },
+ },
+ borderRadius: {
+ lg: 'var(--radius-lg)',
+ md: 'var(--radius)',
+ sm: 'var(--radius-sm)',
+ },
+ boxShadow: {
+ sm: 'var(--shadow-sm)',
+ DEFAULT: 'var(--shadow)',
+ md: 'var(--shadow-md)',
+ lg: 'var(--shadow-lg)',
+ },
+ transitionDuration: {
+ fast: 'var(--duration-fast)',
+ normal: 'var(--duration-normal)',
+ slow: 'var(--duration-slow)',
+ },
+ },
+ },
+}
+
+export default config
 ```
 
-**Check for AI slop:**
+## Component Variants with CVA
+
+```tsx
+// lib/utils.ts
+import { type ClassValue, clsx } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+export function cn(...inputs: ClassValue[]) {
+ return twMerge(clsx(inputs))
+}
 ```
-/design-system slop-check
+
+```tsx
+// components/ui/button.tsx
+import { cva, type VariantProps } from 'class-variance-authority'
+import { forwardRef } from 'react'
+import { cn } from '@/lib/utils'
+
+const buttonVariants = cva(
+ // Base styles
+ 'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+ {
+ variants: {
+ variant: {
+ default: 'bg-primary text-primary-foreground shadow hover:bg-primary/90',
+ destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
+ outline: 'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
+ secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
+ ghost: 'hover:bg-accent hover:text-accent-foreground',
+ link: 'text-primary underline-offset-4 hover:underline',
+ },
+ size: {
+ default: 'h-9 px-4 py-2',
+ sm: 'h-8 rounded-md px-3 text-xs',
+ lg: 'h-10 rounded-md px-8',
+ icon: 'h-9 w-9',
+ },
+ },
+ defaultVariants: {
+ variant: 'default',
+ size: 'default',
+ },
+ }
+)
+
+export interface ButtonProps
+ extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+ VariantProps<typeof buttonVariants> {
+ asChild?: boolean
+}
+
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+ ({ className, variant, size, asChild = false, ...props }, ref) => {
+ const Comp = asChild ? Slot : 'button'
+ return (
+ <Comp
+ className={cn(buttonVariants({ variant, size, className }))}
+ ref={ref}
+ {...props}
+ />
+ )
+ }
+)
+Button.displayName = 'Button'
+
+export { Button, buttonVariants }
 ```
+
+## Compound Components Pattern
+
+```tsx
+// components/ui/card.tsx
+import { cn } from '@/lib/utils'
+import { forwardRef } from 'react'
+
+const Card = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+ ({ className, ...props }, ref) => (
+ <div
+ ref={ref}
+ className={cn(
+ 'rounded-xl border bg-card text-card-foreground shadow',
+ className
+ )}
+ {...props}
+ />
+ )
+)
+Card.displayName = 'Card'
+
+const CardHeader = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+ ({ className, ...props }, ref) => (
+ <div
+ ref={ref}
+ className={cn('flex flex-col space-y-1.5 p-6', className)}
+ {...props}
+ />
+ )
+)
+CardHeader.displayName = 'CardHeader'
+
+const CardTitle = forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(
+ ({ className, ...props }, ref) => (
+ <h3
+ ref={ref}
+ className={cn('font-semibold leading-none tracking-tight', className)}
+ {...props}
+ />
+ )
+)
+CardTitle.displayName = 'CardTitle'
+
+const CardDescription = forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
+ ({ className, ...props }, ref) => (
+ <p
+ ref={ref}
+ className={cn('text-sm text-muted-foreground', className)}
+ {...props}
+ />
+ )
+)
+CardDescription.displayName = 'CardDescription'
+
+const CardContent = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+ ({ className, ...props }, ref) => (
+ <div ref={ref} className={cn('p-6 pt-0', className)} {...props} />
+ )
+)
+CardContent.displayName = 'CardContent'
+
+const CardFooter = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+ ({ className, ...props }, ref) => (
+ <div
+ ref={ref}
+ className={cn('flex items-center p-6 pt-0', className)}
+ {...props}
+ />
+ )
+)
+CardFooter.displayName = 'CardFooter'
+
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
+```
+
+## Accessible Components with Radix
+
+```tsx
+// components/ui/dialog.tsx
+'use client'
+
+import * as DialogPrimitive from '@radix-ui/react-dialog'
+import { X } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+const Dialog = DialogPrimitive.Root
+const DialogTrigger = DialogPrimitive.Trigger
+const DialogPortal = DialogPrimitive.Portal
+const DialogClose = DialogPrimitive.Close
+
+const DialogOverlay = forwardRef<
+ React.ElementRef<typeof DialogPrimitive.Overlay>,
+ React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+ <DialogPrimitive.Overlay
+ ref={ref}
+ className={cn(
+ 'fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+ className
+ )}
+ {...props}
+ />
+))
+
+const DialogContent = forwardRef<
+ React.ElementRef<typeof DialogPrimitive.Content>,
+ React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
+>(({ className, children, ...props }, ref) => (
+ <DialogPortal>
+ <DialogOverlay />
+ <DialogPrimitive.Content
+ ref={ref}
+ className={cn(
+ 'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg',
+ className
+ )}
+ {...props}
+ >
+ {children}
+ <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+ <X className="h-4 w-4" />
+ <span className="sr-only">Close</span>
+ </DialogPrimitive.Close>
+ </DialogPrimitive.Content>
+ </DialogPortal>
+))
+
+export { Dialog, DialogTrigger, DialogContent, DialogClose }
+```
+
+## Component Documentation Pattern
+
+```tsx
+// components/ui/button.stories.tsx (or docs)
+/**
+ * Button Component
+ *
+ * A versatile button component with multiple variants and sizes.
+ *
+ * @example
+ * ```tsx
+ * <Button variant="default" size="md">Click me</Button>
+ * <Button variant="outline" size="sm">Small</Button>
+ * <Button variant="destructive" disabled>Disabled</Button>
+ * ```
+ *
+ * ## Variants
+ * - `default` - Primary action button
+ * - `secondary` - Secondary actions
+ * - `destructive` - Dangerous actions (delete, remove)
+ * - `outline` - Less prominent actions
+ * - `ghost` - Minimal visual weight
+ * - `link` - Styled as a link
+ *
+ * ## Sizes
+ * - `sm` - 32px height
+ * - `default` - 36px height
+ * - `lg` - 40px height
+ * - `icon` - 36x36px square for icon-only buttons
+ *
+ * ## Accessibility
+ * - Uses native `<button>` element
+ * - Supports `disabled` attribute
+ * - Focus ring visible on keyboard navigation
+ * - Works with `asChild` prop for custom elements
+ */
+```
+
+## File Structure
+
+```
+src/
+├── components/
+│ └── ui/
+│ ├── button.tsx
+│ ├── card.tsx
+│ ├── dialog.tsx
+│ ├── input.tsx
+│ ├── label.tsx
+│ ├── select.tsx
+│ ├── textarea.tsx
+│ ├── toast.tsx
+│ └── index.ts # Barrel export
+├── lib/
+│ └── utils.ts # cn() helper
+├── styles/
+│ └── globals.css # CSS tokens
+└── tailwind.config.ts # Theme config
+```
+
+## Validation
+
+After creating design system components:
+
+1. **Consistency** → All components use same tokens
+2. **Variants** → Cover all needed use cases
+3. **Accessibility** → Keyboard nav, ARIA, focus states
+4. **Dark mode** → All components work in dark mode
+5. **Responsive** → Mobile-friendly by default
+6. **Documentation** → JSDoc comments, usage examples
+7. **Type safety** → Full TypeScript support with VariantProps

@@ -39,3 +39,16 @@ Full list: [`INSTALLED_SKILLS.md`](../INSTALLED_SKILLS.md) and [`.cursor/skills/
 2. Confirm folders exist: `.agents/skills/ask-matt/SKILL.md` and `.cursor/skills/ask-matt`.
 3. Fully quit Cursor and reopen the project (skills are discovered at startup).
 4. Start a **new** Agent chat — old chats keep a stale skill list.
+
+## Packs installed 2026-08-08
+
+| Source | Try in chat |
+|--------|-------------|
+| Matt Pocock | `/ask-matt`, `/grill-me`, `/tdd` |
+| kunchenguid | `/afk`, `/bearings`, `/gnhf`, `/no-mistakes` |
+| Peter Yang | `/no-ai-slop`, `/human-review` |
+| google-labs-code/design.md | `/design-md`, `/typed-service-contracts` |
+| Jakub Krehel | `/make-interfaces-feel-better`, `/better-ui`, `/better-interface` |
+| ryokun6/ryos | `/create-ryos-app`, `/ui-design-styling` |
+
+Catalog note: `skills/REQUESTED_SOURCES_2026-08-08.md`

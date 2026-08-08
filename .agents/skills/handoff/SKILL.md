@@ -1,37 +1,16 @@
 ---
 name: handoff
-description: >-
-  Compact the current conversation into a handoff document a fresh agent can pick
-  up. User-invoked via /handoff; an optional argument describes what the next
-  session will focus on.
+description: Compact the current conversation into a handoff document for another agent to pick up.
+argument-hint: "What will the next session be used for?"
 disable-model-invocation: true
-license: MIT
 ---
 
-# Handoff
+Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save to the temporary directory of the user's OS - not the current workspace.
 
-> Adapted from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT).
+Include a "suggested skills" section in the document, which suggests skills that the agent should invoke.
 
-Write a handoff document summarizing the current conversation so a fresh agent
-can continue the work. Save it to the OS temporary directory — **not** the
-current workspace — and print the path.
+Do not duplicate content already captured in other artifacts (specs, plans, ADRs, issues, commits, diffs). Reference them by path or URL instead.
 
-## Contents
+Redact any sensitive information, such as API keys, passwords, or personally identifiable information.
 
-- **State**: what was attempted, what is done, what is verified vs merely edited.
-- **Next steps**: the concrete remaining work, in order, with file paths.
-- **Suggested skills**: which skills the next agent should invoke, and for what.
-- **Pointers, not copies**: do not duplicate content already captured in other
-  artifacts (specs, plans, ADRs, issues, commits, diffs). Reference them by path
-  or URL instead.
-- **Gotchas**: anything non-obvious the next agent would otherwise rediscover the
-  hard way (flaky tests, env quirks, decisions already ruled out).
-
-## Rules
-
-1. Redact sensitive information: API keys, passwords, tokens, PII.
-2. If the user passed an argument, treat it as the next session's focus and
-   tailor the document accordingly.
-3. Be honest about verification state — use the ladder from
-   `verification-before-completion`: implemented → scoped verified → repository
-   green → PR green → deployed verified. Never upgrade a claim in a handoff.
+If the user passed arguments, treat them as a description of what the next session will focus on and tailor the doc accordingly.
