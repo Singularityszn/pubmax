@@ -514,9 +514,9 @@ describe("DESIGN_SYSTEM.md caps policy — eyebrows are sentence case", () => {
     ]],
     ["app/tonight/tonight.css", [
       ".tonightEyebrow",
-      ".tonightVibesLede",
       ".tonightRowKind",
     ]],
+    ["components/vibe/vibeChips.css", [".vibeChipsLede"]],
     ["app/pal/pal.css", [".palEyebrow", ".palMemoryList__meta span"]],
     ["components/pal/palChat.css", [".palChatEyebrow", ".palGlanceLabel"]],
     ["components/emptyState.css", [".emptyStateEyebrow"]],

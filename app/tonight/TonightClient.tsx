@@ -49,6 +49,7 @@ import {
 } from "@/lib/tonight";
 import { acceptTonightVenue } from "@/lib/tonightAcceptance";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
+import { VibeChipButton, VibeChipLink, VibeChips } from "@/components/vibe/VibeChips";
 import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
 import { dealDigestNote } from "@/lib/dealsDigest";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
@@ -385,47 +386,40 @@ export default function TonightClient({
            page's own honest empty line); rank-backed chips hand their preset
            ask to the Pub Pal. Rendered even on an empty night: the ask path
            still answers honestly. */
-        <div
-          className="tonightVibes"
-          role="group"
-          aria-label="What's the vibe tonight"
+        <VibeChips
+          shellClassName="tonightVibes"
+          groupLabel="What's the vibe tonight"
+          lede={"What's the vibe?"}
         >
-          <p className="tonightVibesLede">{"What's the vibe?"}</p>
-          <div className="tonightVibesRow">
-            {VIBE_CHIPS.map((chip) =>
-              chip.tonight.type === "filter" ? (
-                <button
-                  key={chip.id}
-                  type="button"
-                  className="tonightVibeChip pressable"
-                  data-active={ready && activeKind === chip.tonight.kind}
-                  aria-pressed={ready && activeKind === chip.tonight.kind}
-                  onClick={() => {
-                    const kind =
-                      chip.tonight.type === "filter" ? chip.tonight.kind : null;
-                    setActiveKind((current) =>
-                      current === kind ? null : kind,
-                    );
-                    trackEvent("tonight_vibe_select", { vibe: chip.id });
-                  }}
-                >
-                  {chip.label}
-                </button>
-              ) : (
-                <Link
-                  key={chip.id}
-                  className="tonightVibeChip pressable"
-                  href={palChatHref(chip)}
-                  onClick={() =>
-                    trackEvent("tonight_vibe_select", { vibe: chip.id })
-                  }
-                >
-                  {chip.label}
-                </Link>
-              ),
-            )}
-          </div>
-        </div>
+          {VIBE_CHIPS.map((chip) =>
+            chip.tonight.type === "filter" ? (
+              <VibeChipButton
+                key={chip.id}
+                active={ready && activeKind === chip.tonight.kind}
+                onClick={() => {
+                  const kind =
+                    chip.tonight.type === "filter" ? chip.tonight.kind : null;
+                  setActiveKind((current) =>
+                    current === kind ? null : kind,
+                  );
+                  trackEvent("tonight_vibe_select", { vibe: chip.id });
+                }}
+              >
+                {chip.label}
+              </VibeChipButton>
+            ) : (
+              <VibeChipLink
+                key={chip.id}
+                href={palChatHref(chip)}
+                onClick={() =>
+                  trackEvent("tonight_vibe_select", { vibe: chip.id })
+                }
+              >
+                {chip.label}
+              </VibeChipLink>
+            ),
+          )}
+        </VibeChips>
       ) : null}
 
       {ready ? (

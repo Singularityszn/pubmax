@@ -190,6 +190,7 @@ describe("Feed empty-state CTA collapse", () => {
 // ── 4. Tonight filter chip active state ───────────────────────────────────
 
 const tonightCss = readFileSync(join(process.cwd(), "app/tonight/tonight.css"), "utf8");
+const vibeChipsCss = readFileSync(join(process.cwd(), "components/vibe/vibeChips.css"), "utf8");
 
 describe("Tonight filter chip active state", () => {
   // Extract the .tonightChip[data-active="true"] block to assert on its values.
@@ -227,8 +228,8 @@ describe("Tonight filter chip active state", () => {
     expect(block).toMatch(/opacity:\s*1/);
   });
 
-  it('.tonightVibeChip[data-active="true"] uses at least 80% brass in its border', () => {
-    const match = tonightCss.match(/\.tonightVibeChip\[data-active="true"\]\s*\{([^}]+)\}/);
+  it('.vibeChip[data-active="true"] uses at least 80% brass in its border', () => {
+    const match = vibeChipsCss.match(/\.vibeChip\[data-active="true"\]\s*\{([^}]+)\}/);
     expect(match).not.toBeNull();
     const block = match![1];
     const pctMatch = block.match(/border-color:\s*color-mix\(in srgb,\s*var\(--brass\)\s*(\d+)%/);

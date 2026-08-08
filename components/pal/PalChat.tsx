@@ -31,6 +31,7 @@ import {
 } from "@/lib/palGlance";
 import { formatPrice } from "@/lib/venues";
 import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
+import { VibeChipButton, VibeChips } from "@/components/vibe/VibeChips";
 import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 
@@ -458,21 +459,19 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
           /* Vibe quick-asks (docs/VIBE_LAYER_SPEC_2026-07-19.md): the chip
              label is the user's voice; the press fires the chip's parser-tuned
              preset through the same deterministic ask path as typed text. */
-          <div className="palChatExamples" aria-label="Pick a vibe">
+          <VibeChips shellClassName="palChatExamples" groupLabel="Pick a vibe">
             {VIBE_CHIPS.map((chip) => (
-              <button
+              <VibeChipButton
                 key={chip.id}
-                type="button"
-                className="palChatChip palChatChip--vibe pressable"
                 onClick={() => {
                   trackEvent("tonight_vibe_select", { vibe: chip.id });
                   void ask(chip.ask);
                 }}
               >
                 {chip.label}
-              </button>
+              </VibeChipButton>
             ))}
-          </div>
+          </VibeChips>
         ) : null}
 
         {/* Tonight at a glance (judge-w1 wave 2): real spine counts fill the
