@@ -19,6 +19,7 @@ Protection in a sibling method cannot certify another method.
 
 <!-- mutation-handler-inventory:start -->
 - `DELETE app/api/admin/session`
+- `DELETE app/api/auth/session`
 - `DELETE app/api/check-ins`
 - `DELETE app/api/crawls/[slug]`
 - `DELETE app/api/night-stories/[id]/contributors`
@@ -54,6 +55,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/admin/session`
 - `POST app/api/admin/social-posts`
 - `POST app/api/area-demand`
+- `POST app/api/auth/session`
 - `POST app/api/ask`
 - `POST app/api/check-ins`
 - `POST app/api/citymcp/journey`
@@ -999,6 +1001,24 @@ commit.
   posture as the Social interaction tables. A missing migration falls back to
   memory outside deployed production; production writes fail closed. Truncating
   these tables removes only RSVPs and reactions, never the Plan itself.
+
+### `app/api/auth/session` - durable sign-in resume cookie
+
+- **What it writes:** an HttpOnly, SameSite=Lax, 30-day first-party cookie
+  holding the caller's Supabase refresh token and verified account email
+  (`lib/authSessionResume.ts`). No database row is written; the cookie is the
+  only state.
+- **Boundaries:** every mutating action consults `isLimited` per hashed IP
+  (`persist`/`clear` 60/hour, `redeem` 60/hour, `resume` 6 per 15 minutes -
+  `resume` sends a magic-link email, so it mirrors the manual form's budget).
+  Mutating methods refuse plainly cross-site callers via `Sec-Fetch-Site` /
+  `Origin` on top of SameSite=Lax. `persist` requires a bearer token that
+  passes `verifyCallerAuth` whenever verification is available and refuses a
+  token that fails it; `redeem` exchanges the cookie's refresh token at
+  Supabase Auth server-side, so a forged cookie yields nothing. `resume` only
+  accepts a same-origin `/auth/callback` redirect target.
+- **Rollback / kill:** delete the route; cookies die at Max-Age. Sessions fall
+  back to localStorage-only persistence (the pre-cookie behaviour).
 
 ## Certification command
 

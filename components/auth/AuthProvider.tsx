@@ -71,6 +71,14 @@ import {
   resolveCanonicalIdentity,
   type IdentityHandleChangedDetail,
 } from "@/lib/identityClient";
+import {
+  clearPersistedSession,
+  fetchResumeHint,
+  persistSessionForResume,
+  redeemPersistedSession,
+  requestResumeLink,
+  type ResumeHint,
+} from "@/lib/authSessionResumeClient";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 
 const AUTH_CALLBACK_ERROR_MESSAGE =
@@ -155,6 +163,13 @@ export type AuthContextValue = {
   cancelAuthAttempt: () => void;
   /** Clear the local session. */
   signOut: () => Promise<void>;
+  /**
+   * Signed-out device that held a session whose durable resume cookie has
+   * expired: the masked account email for the welcome-back path, else null.
+   */
+  welcomeBack: ResumeHint | null;
+  /** One-tap re-auth: email a sign-in link to the saved address. */
+  resumeSignIn: () => Promise<MagicLinkResult>;
   /** Account-owned public handle, or null before onboarding or when signed out. */
   handle: string | null;
   rejectedContributionAuth: AccountAuthSnapshot | null;
@@ -185,6 +200,7 @@ export function AuthProvider({
   const [authSignedInNotice, setAuthSignedInNotice] = useState<string | null>(null);
   const [socialProviders, setSocialProviders] =
     useState<SocialAuthProviderAvailability>(NO_SOCIAL_AUTH_PROVIDERS);
+  const [welcomeBack, setWelcomeBack] = useState<ResumeHint | null>(null);
   const [rejectedContributionAuth, setRejectedContributionAuth] =
     useState<AccountAuthSnapshot | null>(null);
   const rejectedContributionAuthRef =
@@ -367,6 +383,19 @@ export function AuthProvider({
         if (!active) return;
         const signedIn = updateSession(nextSession ?? null, event);
         setSessionLoading(false);
+        if (nextSession) {
+          setWelcomeBack(null);
+          // Keep the durable resume cookie current: every sign-in, restore and
+          // background token rotation re-extends its 30-day window and stores
+          // the newest refresh token (lib/authSessionResume.ts).
+          if (
+            event === "SIGNED_IN" ||
+            event === "TOKEN_REFRESHED" ||
+            event === "INITIAL_SESSION"
+          ) {
+            void persistSessionForResume(nextSession);
+          }
+        }
         if (event === "SIGNED_IN" && nextSession?.user) {
           if (signedIn) trackEvent("user_signed_in");
         }
@@ -464,16 +493,36 @@ export function AuthProvider({
           return;
         }
 
+        let localSession: Session | null = null;
         try {
           const { data } = await supabase.auth.getSession();
-          if (!active) return;
-          window.clearTimeout(loadingTimeout);
-          updateSession(data.session ?? null);
-          setSessionLoading(false);
+          localSession = data.session ?? null;
         } catch {
-          if (!active) return;
-          window.clearTimeout(loadingTimeout);
-          setSessionLoading(false);
+          localSession = null;
+        }
+        if (!active) return;
+        window.clearTimeout(loadingTimeout);
+        updateSession(localSession);
+        setSessionLoading(false);
+        if (localSession) return;
+
+        // No local session. Browser storage is evictable (iOS Safari clears
+        // script-writable storage; in-app browsers keep their own), so before
+        // treating the visit as signed out for good, redeem the durable
+        // HttpOnly resume cookie. The GET hint costs one cheap same-origin
+        // request and is null for visitors who never signed in here.
+        const hint = await fetchResumeHint();
+        if (!active || !hint) return;
+        const redeemed = await redeemPersistedSession();
+        if (!active) return;
+        if (redeemed.status === "restored") {
+          // setSession fires SIGNED_IN through the subscription above, which
+          // updates state and re-persists the rotated refresh token.
+          void supabase.auth.setSession(redeemed.session).catch(() => {});
+          return;
+        }
+        if (redeemed.status === "expired") {
+          setWelcomeBack({ maskedEmail: redeemed.maskedEmail });
         }
       })();
     });
@@ -588,8 +637,31 @@ export function AuthProvider({
   const signOut = useCallback(async (): Promise<void> => {
     const supabase = await ensureSupabaseBrowser();
     if (!supabase) return;
+    // Explicit sign-out is the one place the durable resume cookie dies too —
+    // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
+    void clearPersistedSession();
+    setWelcomeBack(null);
     await supabase.auth.signOut();
     // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
+  }, []);
+
+  const resumeSignIn = useCallback(async (): Promise<MagicLinkResult> => {
+    if (typeof window === "undefined") {
+      return { status: "error", message: "Sign-in is unavailable on this page." };
+    }
+    const attempt = await prepareAuthCallback(
+      window.location.href,
+      defaultEmailAuthNext(window.location.href),
+    );
+    if ("navigationStarted" in attempt) {
+      return { status: "error", message: "Continue sign-in on pubmaxxing.com." };
+    }
+    if (!attempt.ok) return { status: "error", message: attempt.message };
+    const result = await requestResumeLink(attempt.callbackUrl);
+    if (result.status !== "sent") {
+      releaseBrowserAuthAttempt(attempt.id);
+    }
+    return result;
   }, []);
 
   const value = useMemo<AuthContextValue>(() => {
@@ -611,6 +683,8 @@ export function AuthProvider({
       signInWithEmail,
       cancelAuthAttempt: cancelBrowserAuthAttempt,
       signOut,
+      welcomeBack: user ? null : welcomeBack,
+      resumeSignIn,
       handle: identityHandleForOwner(
         canonicalIdentity,
         user?.id ?? null,
@@ -630,6 +704,8 @@ export function AuthProvider({
     signInWithApple,
     signInWithEmail,
     signOut,
+    welcomeBack,
+    resumeSignIn,
     canonicalIdentity,
     rejectedContributionAuth,
     invalidateContributionAuth,
@@ -679,6 +755,11 @@ export function useAuth(): AuthContextValue {
     signInWithEmail: async () => ({ status: "error", message: "Sign-in is not configured." }),
     cancelAuthAttempt: () => {},
     signOut: async () => {},
+    welcomeBack: null,
+    resumeSignIn: async () => ({
+      status: "error",
+      message: "Sign-in is not configured.",
+    }),
     handle: null,
     rejectedContributionAuth: null,
     contributionAuth: null,

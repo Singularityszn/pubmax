@@ -531,7 +531,11 @@ export default function PrivacyPage() {
         <ul className="legalList">
           <li>
             A sign-in session, if you signed in, so you stay signed in. It lives
-            in your browser and refreshes in the background.
+            in your browser and refreshes in the background. A first-party
+            sign-in cookie also keeps a session renewal token and your sign-in
+            email address on this device for up to 30 days, renewed while you
+            use the site, so clearing browser storage does not sign you out.
+            Signing out removes it.
           </li>
           <li>
             Your analytics choice, either allowed or denied, so we don&rsquo;t ask on

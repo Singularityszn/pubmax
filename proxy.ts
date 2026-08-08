@@ -150,6 +150,23 @@ export function securityProxy(request: NextRequest) {
   //   named in lib/clerkIdentity.ts; NONE of them is 'unsafe-inline', and
   //   nothing here relaxes the nonce contract above. With no Clerk key set,
   //   `clerk.script` is empty and this line is byte-for-byte its old self.
+  // Local development may point NEXT_PUBLIC_SUPABASE_URL at an auth stack on
+  // this machine (`supabase start`, or a stub GoTrue for keyless auth testing);
+  // the `*.supabase.co` allowance never covers that origin, so browser sign-in
+  // silently dies under the CSP. The extra origin joins connect-src only under
+  // `next dev` — production builds never widen.
+  const devSupabaseConnect = (() => {
+    if (!isDev) return "";
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!url) return "";
+    try {
+      const origin = new URL(url).origin;
+      return origin.endsWith(".supabase.co") ? "" : ` ${origin}`;
+    } catch {
+      return "";
+    }
+  })();
+
   const clerk = clerkCspSources();
   const clerkScript = clerk.script.map((origin) => ` ${origin}`).join("");
   const scriptSrc = `script-src 'self' 'nonce-${nonce}' https://va.vercel-scripts.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;
@@ -195,7 +212,7 @@ export function securityProxy(request: NextRequest) {
     // Clerk adds its Frontend API host (session, sign-in and sign-up calls) and
     // its abuse-protection hosts. Supabase's entries stay: both auth systems
     // run side by side, and removing either would break the other's sign-in.
-    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
+    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co${devSupabaseConnect}${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
     // Clerk also requires worker-src 'self' blob: — already true for MapLibre's
     // tile workers and the offline service worker, so it needs no change here.
     "worker-src 'self' blob:",
