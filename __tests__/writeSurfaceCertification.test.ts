@@ -162,7 +162,7 @@ describe("mutating API surface certification", () => {
   it("keeps the reviewed inventory explicit", () => {
     // Each mutation method is one coordination point. Exact path and method
     // pairs live in docs/WRITE_SURFACE_CERTIFICATION.md.
-    expect(mutationHandlers).toHaveLength(114);
+    expect(mutationHandlers).toHaveLength(115);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );
@@ -256,6 +256,7 @@ describe("mutating API surface certification", () => {
 
   it("fails closed around anonymous paid spend and Plan creation", () => {
     const failClosedRoutes = [
+      "app/api/ask/route.ts",
       "app/api/concierge/route.ts",
       "app/api/heritage/route.ts",
       "app/api/plans/route.ts",

@@ -620,23 +620,21 @@ function PlanComposerForm({
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(
     hasDurableIntakeDraft && !recoveredIntake.completed ? "wizard" : "describe",
   );
-  const [askDraftQuery, setAskDraftQuery] = useState("");
-  const askDraftConsumedRef = useRef(false);
-  useEffect(() => {
-    if (askDraftConsumedRef.current) return;
-    askDraftConsumedRef.current = true;
+  const [askDraftQuery] = useState(() => {
+    if (typeof window === "undefined") return "";
     try {
       const raw = sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY);
-      if (!raw) return;
+      if (!raw) return "";
       sessionStorage.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
       const parsed = JSON.parse(raw) as AskPlanDraft;
       if (typeof parsed?.query === "string" && parsed.query.trim()) {
-        setAskDraftQuery(parsed.query.trim().slice(0, 500));
+        return parsed.query.trim().slice(0, 500);
       }
     } catch {
       /* private mode or bad JSON */
     }
-  }, []);
+    return "";
+  });
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);

@@ -1,4 +1,4 @@
-// Night OS Ask — shared request/response contracts (ADR 0014).
+// Night OS Ask: shared request/response contracts (ADR 0014).
 // Browser-safe types only: no server imports.
 
 export type AskSource = {
