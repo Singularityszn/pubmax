@@ -15,26 +15,32 @@ const DEAL_QUALIFIER =
 // A deal that has closed never renders (deal grace is 0, lib/dealsHonesty.ts),
 // so these fixtures date themselves off tonight's own window. A fixed calendar
 // date would quietly stop exercising the caption the day it went past.
+// A closing time inside the window is a closing time the wall clock walks past:
+// end - 1h closed at 03:00 London while the service day ran to 04:00. The
+// fixtures that read the real clock therefore run to the window's own close.
 function tonightWindow(now: number = Date.now()) {
   const bounds = londonServiceDayBounds(now);
   const at = (hoursIn: number) =>
     new Date(Date.parse(bounds.start) + hoursIn * 60 * 60 * 1000).toISOString();
-  return { at, closesAt: new Date(Date.parse(bounds.end) - 60 * 60 * 1000).toISOString() };
+  return { at, closesAt: bounds.end };
 }
 
 describe("DealsTonightLane caption", () => {
   it("renders a legitimate deal condition without changing its text", () => {
-    const now = Date.now();
-    const serviceWindow = londonServiceDayBounds(now);
-    const startsAt = new Date(
-      Date.parse(serviceWindow.start) + 2 * 60 * 60 * 1000,
-    ).toISOString();
-    const endsAt = new Date(
-      Date.parse(serviceWindow.start) + 4 * 60 * 60 * 1000,
-    ).toISOString();
+    // The lane reads a clock on every render and deal grace is 0, so a fixture
+    // that opens at the window's start + 2h closed at the window's start + 4h
+    // and rendered nothing from 20:00 London onwards. Pin the lane's own clock
+    // inside the fixture's hours instead of borrowing the wall clock.
+    const serviceWindow = londonServiceDayBounds();
+    const at = (hoursIn: number) =>
+      Date.parse(serviceWindow.start) + hoursIn * 60 * 60 * 1000;
+    const startsAt = new Date(at(2)).toISOString();
+    const endsAt = new Date(at(4)).toISOString();
+    const now = at(3);
     const observedAt = new Date(now - 60 * 60 * 1000).toISOString();
 
     const props: DealsTonightLaneProps = {
+      now,
       rows: [
         {
           id: "caption-integrity-deal",
