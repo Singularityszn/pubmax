@@ -8,30 +8,36 @@
 // distinct atomic operation that never exposes an unowned intermediate row.
 
 import { normalizeHandle } from "@/lib/profiles";
+import {
+  PROFILE_IMAGE_SLOTS,
+  profileImageServePath,
+  type ProfileImageSlot,
+} from "@/lib/profileImageSlots";
 import { isReservedContributorHandle } from "@/lib/pubmaxxIdentity";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 import { cleanText, isHttpUrl } from "@/lib/textClean";
 
-/** Owned-avatar moderation states persisted on profiles (migration 0089). */
+/** Owned-image moderation states persisted on profiles (migrations 0089/0096). */
 export type ProfileAvatarModerationState =
   | "pending"
   | "approved"
   | "needs_review"
   | "hidden";
 
-export type ProfileOwnedAvatar = {
+export type ProfileOwnedImage = {
   objectKey: string;
   generation: string;
   moderationState: ProfileAvatarModerationState;
 };
 
 /**
- * A reported or hidden owned avatar as the moderator queue sees it. Carries the
+ * A reported or hidden owned image as the moderator queue sees it. Carries the
  * report metadata a reviewer needs and NOTHING that identifies a reporter - the
  * actor hashes stay inside the store.
  */
-export type ModeratorProfileAvatar = {
+export type ModeratorProfileImage = {
+  slot: ProfileImageSlot;
   handle: string;
   profileId: string;
   generation: string;
@@ -41,7 +47,7 @@ export type ModeratorProfileAvatar = {
   reportReason?: string;
   moderatedAt?: string;
   moderatorNote?: string;
-  /** Public serve path while the face is still approved; absent once hidden. */
+  /** Public serve path while the image is still approved; absent once hidden. */
   previewUrl?: string;
 };
 
@@ -62,7 +68,7 @@ export type ProfileRecord = {
   avatarUrl?: string;
   /**
    * Owned avatar object key under our bucket (`avatars/{id}/{generation}/image.jpg`).
-   * Internal: never crosses the public profile wire; use {@link publicOwnedAvatarUrl}.
+   * Internal: never crosses the public profile wire; use {@link publicOwnedImageUrl}.
    */
   avatarObjectKey?: string;
   /** Opaque generation id for the current owned avatar. Internal. */
@@ -81,27 +87,162 @@ export type ProfileRecord = {
   avatarModeratedAt?: string;
   /** Optional moderator note on the latest avatar decision. */
   avatarModeratorNote?: string;
+  /**
+   * Owned cover object key (`covers/{id}/{generation}/cover.jpg`) and its
+   * moderation lane. Same pipeline and same rules as the face; internal only.
+   */
+  coverObjectKey?: string;
+  coverGeneration?: string;
+  coverModerationState?: ProfileAvatarModerationState;
+  coverReportActors?: string[];
+  coverReportCount?: number;
+  coverReportedAt?: string;
+  coverReportReason?: string;
+  coverModeratedAt?: string;
+  coverModeratorNote?: string;
   homeCity?: string;
   bio?: string;
+  /** Public by choice: the drink this account orders. */
+  favouriteDrink?: string;
+  /** Public by choice: what this account is into on a night out. */
+  interests?: string;
+  /** Public by choice: where this account works. Display-only, never a page. */
+  workplace?: string;
   createdAt: string;
   updatedAt: string;
 };
 
-/**
- * Public served path for an approved owned avatar. Absent, pending, flagged,
- * or hidden faces yield undefined so callers fall back to initials.
- */
-export function publicOwnedAvatarUrl(
-  profile: Pick<
-    ProfileRecord,
-    "id" | "avatarObjectKey" | "avatarGeneration" | "avatarModerationState"
-  >,
-): string | undefined {
-  if (profile.avatarModerationState !== "approved") return undefined;
-  if (!profile.avatarObjectKey || !profile.avatarGeneration || !profile.id) {
-    return undefined;
+/** The record fields backing one owned-image slot. */
+type ProfileImageFieldNames = {
+  objectKey: "avatarObjectKey" | "coverObjectKey";
+  generation: "avatarGeneration" | "coverGeneration";
+  moderationState: "avatarModerationState" | "coverModerationState";
+  reportActors: "avatarReportActors" | "coverReportActors";
+  reportCount: "avatarReportCount" | "coverReportCount";
+  reportedAt: "avatarReportedAt" | "coverReportedAt";
+  reportReason: "avatarReportReason" | "coverReportReason";
+  moderatedAt: "avatarModeratedAt" | "coverModeratedAt";
+  moderatorNote: "avatarModeratorNote" | "coverModeratorNote";
+};
+
+const IMAGE_FIELDS: Readonly<Record<ProfileImageSlot, ProfileImageFieldNames>> = {
+  avatar: {
+    objectKey: "avatarObjectKey",
+    generation: "avatarGeneration",
+    moderationState: "avatarModerationState",
+    reportActors: "avatarReportActors",
+    reportCount: "avatarReportCount",
+    reportedAt: "avatarReportedAt",
+    reportReason: "avatarReportReason",
+    moderatedAt: "avatarModeratedAt",
+    moderatorNote: "avatarModeratorNote",
+  },
+  cover: {
+    objectKey: "coverObjectKey",
+    generation: "coverGeneration",
+    moderationState: "coverModerationState",
+    reportActors: "coverReportActors",
+    reportCount: "coverReportCount",
+    reportedAt: "coverReportedAt",
+    reportReason: "coverReportReason",
+    moderatedAt: "coverModeratedAt",
+    moderatorNote: "coverModeratorNote",
+  },
+};
+
+/** The database columns backing one owned-image slot. */
+const IMAGE_COLUMNS: Readonly<Record<ProfileImageSlot, Record<keyof ProfileImageFieldNames, string>>> = {
+  avatar: {
+    objectKey: "avatar_object_key",
+    generation: "avatar_generation",
+    moderationState: "avatar_moderation_state",
+    reportActors: "avatar_report_actors",
+    reportCount: "avatar_report_count",
+    reportedAt: "avatar_reported_at",
+    reportReason: "avatar_report_reason",
+    moderatedAt: "avatar_moderated_at",
+    moderatorNote: "avatar_moderator_note",
+  },
+  cover: {
+    objectKey: "cover_object_key",
+    generation: "cover_generation",
+    moderationState: "cover_moderation_state",
+    reportActors: "cover_report_actors",
+    reportCount: "cover_report_count",
+    reportedAt: "cover_reported_at",
+    reportReason: "cover_report_reason",
+    moderatedAt: "cover_moderated_at",
+    moderatorNote: "cover_moderator_note",
+  },
+};
+
+/** One slot's state read off a record, so the lane logic is written once. */
+export type ProfileImageState = {
+  objectKey?: string;
+  generation?: string;
+  moderationState?: ProfileAvatarModerationState;
+  reportActors?: string[];
+  reportCount?: number;
+  reportedAt?: string;
+  reportReason?: string;
+  moderatedAt?: string;
+  moderatorNote?: string;
+};
+
+export function profileImageState(
+  profile: ProfileRecord,
+  slot: ProfileImageSlot,
+): ProfileImageState {
+  const fields = IMAGE_FIELDS[slot];
+  return {
+    objectKey: profile[fields.objectKey],
+    generation: profile[fields.generation],
+    moderationState: profile[fields.moderationState],
+    reportActors: profile[fields.reportActors],
+    reportCount: profile[fields.reportCount],
+    reportedAt: profile[fields.reportedAt],
+    reportReason: profile[fields.reportReason],
+    moderatedAt: profile[fields.moderatedAt],
+    moderatorNote: profile[fields.moderatorNote],
+  };
+}
+
+/** Overlay one slot's state onto a record. Undefined values clear the field. */
+function withProfileImageState(
+  profile: ProfileRecord,
+  slot: ProfileImageSlot,
+  state: ProfileImageState,
+): ProfileRecord {
+  const fields = IMAGE_FIELDS[slot];
+  const next: ProfileRecord = { ...profile };
+  next[fields.objectKey] = state.objectKey;
+  next[fields.generation] = state.generation;
+  next[fields.moderationState] = state.moderationState;
+  next[fields.reportActors] = state.reportActors;
+  next[fields.reportCount] = state.reportCount;
+  next[fields.reportedAt] = state.reportedAt;
+  next[fields.reportReason] = state.reportReason;
+  next[fields.moderatedAt] = state.moderatedAt;
+  next[fields.moderatorNote] = state.moderatorNote;
+  for (const key of Object.values(fields)) {
+    if (next[key] === undefined) delete next[key];
   }
-  return `/api/avatar/${profile.id}/${profile.avatarGeneration}`;
+  return next;
+}
+
+/**
+ * Public served path for an approved owned image in one slot. Absent, pending,
+ * flagged, or hidden images yield undefined so callers fall back to initials
+ * (avatar) or the brass treatment (cover).
+ */
+export function publicOwnedImageUrl(
+  profile: ProfileRecord,
+  slot: ProfileImageSlot,
+): string | undefined {
+  const state = profileImageState(profile, slot);
+  if (state.moderationState !== "approved") return undefined;
+  if (!state.objectKey || !state.generation || !profile.id) return undefined;
+  return profileImageServePath(slot, profile.id, state.generation);
 }
 
 /** True only when the auth-deletion trigger stamped tombstoned_at. */
@@ -118,6 +259,9 @@ export type ProfilePatch = {
   avatarUrl?: string | null;
   homeCity?: string | null;
   bio?: string | null;
+  favouriteDrink?: string | null;
+  interests?: string | null;
+  workplace?: string | null;
 };
 
 export type ProfileSoftDeleteResult =
@@ -132,6 +276,9 @@ const MAX_DISPLAY_NAME = 60;
 const MAX_BIO = 280;
 const MAX_HOME_CITY = 60;
 const MAX_AVATAR_URL = 400;
+export const MAX_FAVOURITE_DRINK = 40;
+export const MAX_INTERESTS = 140;
+export const MAX_WORKPLACE = 60;
 
 // Cleaning is the shared cleanText (lib/textClean): strip inline HTML angle
 // brackets + control chars, collapse whitespace, cap. An empty result becomes
@@ -161,6 +308,11 @@ function cleanPatch(patch: ProfilePatch): ProfilePatch {
   if ("bio" in patch) out.bio = cleanField(patch.bio, MAX_BIO);
   if ("homeCity" in patch) out.homeCity = cleanField(patch.homeCity, MAX_HOME_CITY);
   if ("avatarUrl" in patch) out.avatarUrl = cleanAvatar(patch.avatarUrl);
+  if ("favouriteDrink" in patch) {
+    out.favouriteDrink = cleanField(patch.favouriteDrink, MAX_FAVOURITE_DRINK);
+  }
+  if ("interests" in patch) out.interests = cleanField(patch.interests, MAX_INTERESTS);
+  if ("workplace" in patch) out.workplace = cleanField(patch.workplace, MAX_WORKPLACE);
   return out;
 }
 
@@ -207,38 +359,47 @@ export type ProfileStore = {
    */
   linkUser(handle: string, userId: string): Promise<ProfileRecord>;
   /**
-   * Set or clear the owned (uploaded) avatar fields. Passing null clears the
-   * object key, generation, and moderation state together. A new or cleared
-   * face also clears report/hide stamps so provenance cannot attach to the
-   * wrong generation. Does not touch the legacy hotlinked `avatarUrl` column.
+   * Set or clear the owned (uploaded) image fields for one slot. Passing null
+   * clears the object key, generation, and moderation state together. A new or
+   * cleared image also clears report/hide stamps so provenance cannot attach to
+   * the wrong generation. Does not touch the legacy hotlinked `avatarUrl`.
    */
-  setOwnedAvatar(
+  setOwnedImage(
     handle: string,
-    avatar: ProfileOwnedAvatar | null,
+    slot: ProfileImageSlot,
+    image: ProfileOwnedImage | null,
   ): Promise<ProfileRecord | null>;
   /**
-   * Queue a reader flag on the current owned avatar. Never changes public
+   * Queue a reader flag on the current owned image. Never changes public
    * visibility. Same-actor duplicates are idempotent.
    */
-  reportOwnedAvatar(
+  reportOwnedImage(
     handle: string,
+    slot: ProfileImageSlot,
     reason: string | undefined,
     actorHash: string,
   ): Promise<boolean>;
   /**
    * Moderator hide or restore. Hide stamps `hidden` and stops public serving;
-   * restore returns the face to `approved`. Neither deletes storage or report
+   * restore returns the image to `approved`. Neither deletes storage or report
    * provenance.
    */
-  moderateOwnedAvatar(
+  moderateOwnedImage(
     handle: string,
+    slot: ProfileImageSlot,
     action: "hide" | "restore",
     note?: string,
   ): Promise<boolean>;
-  /** Reported, still-public owned avatars awaiting a moderator decision. */
-  listReportedAvatars(limit?: number): Promise<ModeratorProfileAvatar[]>;
-  /** Already-hidden owned avatars (hide stays reversible from this lane). */
-  listHiddenAvatars(limit?: number): Promise<ModeratorProfileAvatar[]>;
+  /** Reported, still-public owned images awaiting a moderator decision. */
+  listReportedImages(
+    slot: ProfileImageSlot,
+    limit?: number,
+  ): Promise<ModeratorProfileImage[]>;
+  /** Already-hidden owned images (hide stays reversible from this lane). */
+  listHiddenImages(
+    slot: ProfileImageSlot,
+    limit?: number,
+  ): Promise<ModeratorProfileImage[]>;
   /**
    * Prefix search over claimed, non-tombstoned handles only (WP7 find-your-lot).
    * Never returns unowned or tombstoned rows. Bounded; ordered by handle.
@@ -279,41 +440,56 @@ function avatarReportActorsFromRow(value: unknown): string[] | undefined {
   return actors.length ? actors : undefined;
 }
 
-function fromRow(row: Record<string, unknown>): ProfileRecord {
-  const reportActors = avatarReportActorsFromRow(row.avatar_report_actors);
-  const reportCountRaw = row.avatar_report_count;
+function imageStateFromRow(
+  row: Record<string, unknown>,
+  slot: ProfileImageSlot,
+): ProfileImageState {
+  const columns = IMAGE_COLUMNS[slot];
+  const reportActors = avatarReportActorsFromRow(row[columns.reportActors]);
+  const reportCountRaw = row[columns.reportCount];
   const reportCount =
     typeof reportCountRaw === "number" && Number.isFinite(reportCountRaw)
       ? reportCountRaw
       : reportActors?.length;
+  const text = (column: string): string | undefined =>
+    row[column] ? String(row[column]) : undefined;
   return {
+    objectKey: text(columns.objectKey),
+    generation: text(columns.generation),
+    moderationState: avatarModerationFromRow(row[columns.moderationState]),
+    ...(reportActors ? { reportActors } : {}),
+    ...(reportCount && reportCount > 0 ? { reportCount } : {}),
+    reportedAt: text(columns.reportedAt),
+    reportReason: text(columns.reportReason),
+    moderatedAt: text(columns.moderatedAt),
+    moderatorNote: text(columns.moderatorNote),
+  };
+}
+
+function fromRow(row: Record<string, unknown>): ProfileRecord {
+  const base: ProfileRecord = {
     id: String(row.id),
     handle: String(row.handle),
     userId: row.user_id ? String(row.user_id) : undefined,
     tombstonedAt: row.tombstoned_at ? String(row.tombstoned_at) : undefined,
     displayName: row.display_name ? String(row.display_name) : undefined,
     avatarUrl: row.avatar_url ? String(row.avatar_url) : undefined,
-    avatarObjectKey: row.avatar_object_key ? String(row.avatar_object_key) : undefined,
-    avatarGeneration: row.avatar_generation ? String(row.avatar_generation) : undefined,
-    avatarModerationState: avatarModerationFromRow(row.avatar_moderation_state),
-    ...(reportActors ? { avatarReportActors: reportActors } : {}),
-    ...(reportCount && reportCount > 0 ? { avatarReportCount: reportCount } : {}),
-    avatarReportedAt: row.avatar_reported_at ? String(row.avatar_reported_at) : undefined,
-    avatarReportReason: row.avatar_report_reason
-      ? String(row.avatar_report_reason)
-      : undefined,
-    avatarModeratedAt: row.avatar_moderated_at ? String(row.avatar_moderated_at) : undefined,
-    avatarModeratorNote: row.avatar_moderator_note
-      ? String(row.avatar_moderator_note)
-      : undefined,
     homeCity: row.home_city ? String(row.home_city) : undefined,
     bio: row.bio ? String(row.bio) : undefined,
+    favouriteDrink: row.favourite_drink ? String(row.favourite_drink) : undefined,
+    interests: row.interests ? String(row.interests) : undefined,
+    workplace: row.workplace ? String(row.workplace) : undefined,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
+  return withProfileImageState(
+    withProfileImageState(base, "avatar", imageStateFromRow(row, "avatar")),
+    "cover",
+    imageStateFromRow(row, "cover"),
+  );
 }
 
-const AVATAR_REVIEW_LIMIT = 100;
+const IMAGE_REVIEW_LIMIT = 100;
 const MAX_AVATAR_REPORT_REASON = 280;
 
 function cleanAvatarReportReason(reason: string | undefined): string | undefined {
@@ -322,51 +498,54 @@ function cleanAvatarReportReason(reason: string | undefined): string | undefined
   return cleaned === "" ? undefined : cleaned;
 }
 
-function clearAvatarReportRow(): Record<string, unknown> {
+function clearImageReportRow(slot: ProfileImageSlot): Record<string, unknown> {
+  const columns = IMAGE_COLUMNS[slot];
   return {
-    avatar_report_count: 0,
-    avatar_reported_at: null,
-    avatar_report_reason: null,
-    avatar_report_actors: [],
-    avatar_moderated_at: null,
-    avatar_moderator_note: null,
+    [columns.reportCount]: 0,
+    [columns.reportedAt]: null,
+    [columns.reportReason]: null,
+    [columns.reportActors]: [],
+    [columns.moderatedAt]: null,
+    [columns.moderatorNote]: null,
   };
 }
 
-function toModeratorAvatar(profile: ProfileRecord): ModeratorProfileAvatar | null {
-  if (!profile.avatarGeneration || !profile.avatarModerationState || !profile.avatarObjectKey) {
-    return null;
-  }
-  const previewUrl = publicOwnedAvatarUrl(profile);
+function toModeratorImage(
+  profile: ProfileRecord,
+  slot: ProfileImageSlot,
+): ModeratorProfileImage | null {
+  const state = profileImageState(profile, slot);
+  if (!state.generation || !state.moderationState || !state.objectKey) return null;
+  const previewUrl = publicOwnedImageUrl(profile, slot);
   return {
+    slot,
     handle: profile.handle,
     profileId: profile.id,
-    generation: profile.avatarGeneration,
-    moderationState: profile.avatarModerationState,
-    reportCount: profile.avatarReportCount ?? profile.avatarReportActors?.length ?? 0,
-    ...(profile.avatarReportedAt ? { reportedAt: profile.avatarReportedAt } : {}),
-    ...(profile.avatarReportReason ? { reportReason: profile.avatarReportReason } : {}),
-    ...(profile.avatarModeratedAt ? { moderatedAt: profile.avatarModeratedAt } : {}),
-    ...(profile.avatarModeratorNote ? { moderatorNote: profile.avatarModeratorNote } : {}),
+    generation: state.generation,
+    moderationState: state.moderationState,
+    reportCount: state.reportCount ?? state.reportActors?.length ?? 0,
+    ...(state.reportedAt ? { reportedAt: state.reportedAt } : {}),
+    ...(state.reportReason ? { reportReason: state.reportReason } : {}),
+    ...(state.moderatedAt ? { moderatedAt: state.moderatedAt } : {}),
+    ...(state.moderatorNote ? { moderatorNote: state.moderatorNote } : {}),
     ...(previewUrl ? { previewUrl } : {}),
   };
 }
 
-function isReportedAvatarQueueRow(profile: ProfileRecord): boolean {
-  const reports = profile.avatarReportCount ?? profile.avatarReportActors?.length ?? 0;
+function isReportedImageQueueRow(profile: ProfileRecord, slot: ProfileImageSlot): boolean {
+  const state = profileImageState(profile, slot);
+  const reports = state.reportCount ?? state.reportActors?.length ?? 0;
   return (
     reports > 0 &&
-    !profile.avatarModeratedAt &&
-    profile.avatarModerationState === "approved" &&
-    Boolean(profile.avatarObjectKey && profile.avatarGeneration)
+    !state.moderatedAt &&
+    state.moderationState === "approved" &&
+    Boolean(state.objectKey && state.generation)
   );
 }
 
-function isHiddenAvatarQueueRow(profile: ProfileRecord): boolean {
-  return (
-    profile.avatarModerationState === "hidden" &&
-    Boolean(profile.avatarObjectKey && profile.avatarGeneration)
-  );
+function isHiddenImageQueueRow(profile: ProfileRecord, slot: ProfileImageSlot): boolean {
+  const state = profileImageState(profile, slot);
+  return state.moderationState === "hidden" && Boolean(state.objectKey && state.generation);
 }
 
 // Only the columns present in `patch` are written — an absent key is left
@@ -377,6 +556,9 @@ function patchToRow(patch: ProfilePatch): Record<string, unknown> {
   if ("avatarUrl" in patch) row.avatar_url = patch.avatarUrl;
   if ("homeCity" in patch) row.home_city = patch.homeCity;
   if ("bio" in patch) row.bio = patch.bio;
+  if ("favouriteDrink" in patch) row.favourite_drink = patch.favouriteDrink;
+  if ("interests" in patch) row.interests = patch.interests;
+  if ("workplace" in patch) row.workplace = patch.workplace;
   return row;
 }
 
@@ -392,7 +574,7 @@ const AVATAR_BATCH_COLUMNS =
 
 function approvedAvatarUrlForProfile(profile: ProfileRecord): string | undefined {
   if (!profile.userId?.trim() || isProfileTombstoned(profile)) return undefined;
-  return publicOwnedAvatarUrl(profile);
+  return publicOwnedImageUrl(profile, "avatar");
 }
 
 export const supabaseProfileStore: ProfileStore = {
@@ -532,11 +714,17 @@ export const supabaseProfileStore: ProfileStore = {
       avatarUrl: null,
       homeCity: null,
       bio: null,
+      favouriteDrink: null,
+      interests: null,
+      workplace: null,
     }));
-    row.avatar_object_key = null;
-    row.avatar_generation = null;
-    row.avatar_moderation_state = null;
-    Object.assign(row, clearAvatarReportRow());
+    for (const slot of PROFILE_IMAGE_SLOTS) {
+      const columns = IMAGE_COLUMNS[slot];
+      row[columns.objectKey] = null;
+      row[columns.generation] = null;
+      row[columns.moderationState] = null;
+      Object.assign(row, clearImageReportRow(slot));
+    }
     row.updated_at = new Date().toISOString();
 
     let query = admin()
@@ -576,15 +764,16 @@ export const supabaseProfileStore: ProfileStore = {
     throw new Error("That handle is not available.");
   },
 
-  async setOwnedAvatar(handle, avatar) {
+  async setOwnedImage(handle, slot, image) {
     const key = normalizeHandle(handle);
     if (!key) return null;
+    const columns = IMAGE_COLUMNS[slot];
     const row: Record<string, unknown> = {
-      avatar_object_key: avatar?.objectKey ?? null,
-      avatar_generation: avatar?.generation ?? null,
-      avatar_moderation_state: avatar?.moderationState ?? null,
-      // A new generation is a different face; old flags must not travel with it.
-      ...clearAvatarReportRow(),
+      [columns.objectKey]: image?.objectKey ?? null,
+      [columns.generation]: image?.generation ?? null,
+      [columns.moderationState]: image?.moderationState ?? null,
+      // A new generation is a different image; old flags must not travel with it.
+      ...clearImageReportRow(slot),
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await admin()
@@ -598,68 +787,60 @@ export const supabaseProfileStore: ProfileStore = {
     return updated ? fromRow(updated as Record<string, unknown>) : null;
   },
 
-  async reportOwnedAvatar(handle, reason, actorHash) {
+  async reportOwnedImage(handle, slot, reason, actorHash) {
     const key = normalizeHandle(handle);
     const actor = typeof actorHash === "string" ? actorHash.trim() : "";
     if (!key || !actor) return false;
     const existing = await this.getByHandle(key);
-    if (
-      !existing?.avatarObjectKey ||
-      !existing.avatarGeneration ||
-      existing.avatarModerationState !== "approved"
-    ) {
+    if (!existing) return false;
+    const state = profileImageState(existing, slot);
+    if (!state.objectKey || !state.generation || state.moderationState !== "approved") {
       return false;
     }
-    const actors = existing.avatarReportActors ?? [];
+    const actors = state.reportActors ?? [];
     if (actors.includes(actor)) return true;
     const nextActors = [...actors, actor];
     const cleanedReason = cleanAvatarReportReason(reason);
+    const columns = IMAGE_COLUMNS[slot];
     const row: Record<string, unknown> = {
-      avatar_report_actors: nextActors,
-      avatar_report_count: nextActors.length,
-      avatar_reported_at: new Date().toISOString(),
+      [columns.reportActors]: nextActors,
+      [columns.reportCount]: nextActors.length,
+      [columns.reportedAt]: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       // A fresh flag after "keep visible" re-opens the reported lane.
-      avatar_moderated_at: null,
+      [columns.moderatedAt]: null,
     };
-    if (cleanedReason) row.avatar_report_reason = cleanedReason;
+    if (cleanedReason) row[columns.reportReason] = cleanedReason;
     const { data, error } = await admin()
       .from(TABLE)
       .update(row)
       .eq("handle", key)
-      .eq("avatar_moderation_state", "approved")
+      .eq(columns.moderationState, "approved")
       .select("id")
       .limit(1);
     if (error) throw new Error(error.message);
     return Boolean((data ?? [])[0]);
   },
 
-  async moderateOwnedAvatar(handle, action, note) {
+  async moderateOwnedImage(handle, slot, action, note) {
     const key = normalizeHandle(handle);
     if (!key) return false;
     const existing = await this.getByHandle(key);
-    if (!existing?.avatarObjectKey || !existing.avatarGeneration || !existing.avatarModerationState) {
-      return false;
-    }
-    if (action === "hide" && existing.avatarModerationState === "hidden") {
-      // Idempotent hide still refreshes the decision stamp / note.
-    } else if (action === "restore" && existing.avatarModerationState === "hidden") {
-      // restore from hidden -> approved
-    } else if (action === "restore" && existing.avatarModerationState === "approved") {
-      // keep visible: stamp decision, leave the face public
-    } else if (action === "hide" && existing.avatarModerationState === "approved") {
-      // hide from reported lane
-    } else {
+    if (!existing) return false;
+    const state = profileImageState(existing, slot);
+    if (!state.objectKey || !state.generation || !state.moderationState) return false;
+    if (state.moderationState !== "approved" && state.moderationState !== "hidden") {
       return false;
     }
 
     const cleanedNote = cleanAvatarReportReason(note);
+    const columns = IMAGE_COLUMNS[slot];
     const row: Record<string, unknown> = {
-      avatar_moderation_state: action === "hide" ? "hidden" : "approved",
-      avatar_moderated_at: new Date().toISOString(),
+      [columns.moderationState]: action === "hide" ? "hidden" : "approved",
+      [columns.moderatedAt]: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    if (cleanedNote) row.avatar_moderator_note = cleanedNote;
+    if (cleanedNote) row[columns.moderatorNote] = cleanedNote;
     const { data, error } = await admin()
       .from(TABLE)
       .update(row)
@@ -670,36 +851,38 @@ export const supabaseProfileStore: ProfileStore = {
     return Boolean((data ?? [])[0]);
   },
 
-  async listReportedAvatars(limit = AVATAR_REVIEW_LIMIT) {
-    const bounded = Math.min(Math.max(limit, 1), AVATAR_REVIEW_LIMIT);
+  async listReportedImages(slot, limit = IMAGE_REVIEW_LIMIT) {
+    const bounded = Math.min(Math.max(limit, 1), IMAGE_REVIEW_LIMIT);
+    const columns = IMAGE_COLUMNS[slot];
     const { data, error } = await admin()
       .from(TABLE)
       .select("*")
-      .eq("avatar_moderation_state", "approved")
-      .gt("avatar_report_count", 0)
-      .is("avatar_moderated_at", null)
-      .not("avatar_object_key", "is", null)
-      .order("avatar_reported_at", { ascending: false, nullsFirst: false })
+      .eq(columns.moderationState, "approved")
+      .gt(columns.reportCount, 0)
+      .is(columns.moderatedAt, null)
+      .not(columns.objectKey, "is", null)
+      .order(columns.reportedAt, { ascending: false, nullsFirst: false })
       .limit(bounded);
     if (error) throw new Error(error.message);
     return (data ?? [])
-      .map((row) => toModeratorAvatar(fromRow(row as Record<string, unknown>)))
-      .filter((row): row is ModeratorProfileAvatar => row !== null);
+      .map((row) => toModeratorImage(fromRow(row as Record<string, unknown>), slot))
+      .filter((row): row is ModeratorProfileImage => row !== null);
   },
 
-  async listHiddenAvatars(limit = AVATAR_REVIEW_LIMIT) {
-    const bounded = Math.min(Math.max(limit, 1), AVATAR_REVIEW_LIMIT);
+  async listHiddenImages(slot, limit = IMAGE_REVIEW_LIMIT) {
+    const bounded = Math.min(Math.max(limit, 1), IMAGE_REVIEW_LIMIT);
+    const columns = IMAGE_COLUMNS[slot];
     const { data, error } = await admin()
       .from(TABLE)
       .select("*")
-      .eq("avatar_moderation_state", "hidden")
-      .not("avatar_object_key", "is", null)
-      .order("avatar_moderated_at", { ascending: false, nullsFirst: false })
+      .eq(columns.moderationState, "hidden")
+      .not(columns.objectKey, "is", null)
+      .order(columns.moderatedAt, { ascending: false, nullsFirst: false })
       .limit(bounded);
     if (error) throw new Error(error.message);
     return (data ?? [])
-      .map((row) => toModeratorAvatar(fromRow(row as Record<string, unknown>)))
-      .filter((row): row is ModeratorProfileAvatar => row !== null);
+      .map((row) => toModeratorImage(fromRow(row as Record<string, unknown>), slot))
+      .filter((row): row is ModeratorProfileImage => row !== null);
   },
 
   async searchClaimedByHandlePrefix(prefix, limit = 8) {
@@ -828,6 +1011,11 @@ export const memoryProfileStore: ProfileStore = {
       ...("avatarUrl" in patch ? { avatarUrl: patch.avatarUrl ?? undefined } : {}),
       ...("homeCity" in patch ? { homeCity: patch.homeCity ?? undefined } : {}),
       ...("bio" in patch ? { bio: patch.bio ?? undefined } : {}),
+      ...("favouriteDrink" in patch
+        ? { favouriteDrink: patch.favouriteDrink ?? undefined }
+        : {}),
+      ...("interests" in patch ? { interests: patch.interests ?? undefined } : {}),
+      ...("workplace" in patch ? { workplace: patch.workplace ?? undefined } : {}),
       updatedAt: new Date().toISOString(),
     };
     memoryProfiles.set(key, next);
@@ -844,23 +1032,21 @@ export const memoryProfileStore: ProfileStore = {
       return { status: "forbidden" };
     }
 
-    const profile: ProfileRecord = {
+    const cleared: ProfileRecord = {
       ...existing,
       displayName: undefined,
       avatarUrl: undefined,
-      avatarObjectKey: undefined,
-      avatarGeneration: undefined,
-      avatarModerationState: undefined,
-      avatarReportActors: undefined,
-      avatarReportCount: undefined,
-      avatarReportedAt: undefined,
-      avatarReportReason: undefined,
-      avatarModeratedAt: undefined,
-      avatarModeratorNote: undefined,
       homeCity: undefined,
       bio: undefined,
+      favouriteDrink: undefined,
+      interests: undefined,
+      workplace: undefined,
       updatedAt: new Date().toISOString(),
     };
+    const profile = PROFILE_IMAGE_SLOTS.reduce<ProfileRecord>(
+      (record, slot) => withProfileImageState(record, slot, {}),
+      cleared,
+    );
     memoryProfiles.set(key, profile);
     return {
       status: "deleted",
@@ -881,117 +1067,107 @@ export const memoryProfileStore: ProfileStore = {
     throw new Error("That handle is not available.");
   },
 
-  async setOwnedAvatar(handle, avatar) {
+  async setOwnedImage(handle, slot, image) {
     const key = normalizeHandle(handle);
     const existing = memoryProfiles.get(key);
     if (!existing) return null;
-    const next: ProfileRecord = {
-      ...existing,
-      avatarObjectKey: avatar?.objectKey,
-      avatarGeneration: avatar?.generation,
-      avatarModerationState: avatar?.moderationState,
-      // A new generation is a different face; old flags must not travel with it.
-      avatarReportActors: undefined,
-      avatarReportCount: undefined,
-      avatarReportedAt: undefined,
-      avatarReportReason: undefined,
-      avatarModeratedAt: undefined,
-      avatarModeratorNote: undefined,
-      updatedAt: new Date().toISOString(),
-    };
-    if (!avatar) {
-      delete next.avatarObjectKey;
-      delete next.avatarGeneration;
-      delete next.avatarModerationState;
-    }
+    // A new generation is a different image; old flags must not travel with it.
+    const next = withProfileImageState(
+      { ...existing, updatedAt: new Date().toISOString() },
+      slot,
+      image
+        ? {
+            objectKey: image.objectKey,
+            generation: image.generation,
+            moderationState: image.moderationState,
+          }
+        : {},
+    );
     memoryProfiles.set(key, next);
     return next;
   },
 
-  async reportOwnedAvatar(handle, reason, actorHash) {
+  async reportOwnedImage(handle, slot, reason, actorHash) {
     const key = normalizeHandle(handle);
     const actor = typeof actorHash === "string" ? actorHash.trim() : "";
     if (!key || !actor) return false;
     const existing = memoryProfiles.get(key);
-    if (
-      !existing?.avatarObjectKey ||
-      !existing.avatarGeneration ||
-      existing.avatarModerationState !== "approved"
-    ) {
+    if (!existing) return false;
+    const state = profileImageState(existing, slot);
+    if (!state.objectKey || !state.generation || state.moderationState !== "approved") {
       return false;
     }
-    const actors = existing.avatarReportActors ?? [];
+    const actors = state.reportActors ?? [];
     if (actors.includes(actor)) return true;
     const nextActors = [...actors, actor];
     const cleanedReason = cleanAvatarReportReason(reason);
-    const next: ProfileRecord = {
-      ...existing,
-      avatarReportActors: nextActors,
-      avatarReportCount: nextActors.length,
-      avatarReportedAt: new Date().toISOString(),
-      avatarModeratedAt: undefined,
-      updatedAt: new Date().toISOString(),
-    };
-    if (cleanedReason) next.avatarReportReason = cleanedReason;
+    const next = withProfileImageState(
+      { ...existing, updatedAt: new Date().toISOString() },
+      slot,
+      {
+        ...state,
+        reportActors: nextActors,
+        reportCount: nextActors.length,
+        reportedAt: new Date().toISOString(),
+        moderatedAt: undefined,
+        ...(cleanedReason ? { reportReason: cleanedReason } : {}),
+      },
+    );
     memoryProfiles.set(key, next);
     return true;
   },
 
-  async moderateOwnedAvatar(handle, action, note) {
+  async moderateOwnedImage(handle, slot, action, note) {
     const key = normalizeHandle(handle);
     if (!key) return false;
     const existing = memoryProfiles.get(key);
-    if (!existing?.avatarObjectKey || !existing.avatarGeneration || !existing.avatarModerationState) {
-      return false;
-    }
-    if (
-      action === "hide" &&
-      existing.avatarModerationState !== "approved" &&
-      existing.avatarModerationState !== "hidden"
-    ) {
-      return false;
-    }
-    if (
-      action === "restore" &&
-      existing.avatarModerationState !== "approved" &&
-      existing.avatarModerationState !== "hidden"
-    ) {
+    if (!existing) return false;
+    const state = profileImageState(existing, slot);
+    if (!state.objectKey || !state.generation || !state.moderationState) return false;
+    if (state.moderationState !== "approved" && state.moderationState !== "hidden") {
       return false;
     }
     const cleanedNote = cleanAvatarReportReason(note);
-    const next: ProfileRecord = {
-      ...existing,
-      avatarModerationState: action === "hide" ? "hidden" : "approved",
-      avatarModeratedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    if (cleanedNote) next.avatarModeratorNote = cleanedNote;
+    const next = withProfileImageState(
+      { ...existing, updatedAt: new Date().toISOString() },
+      slot,
+      {
+        ...state,
+        moderationState: action === "hide" ? "hidden" : "approved",
+        moderatedAt: new Date().toISOString(),
+        ...(cleanedNote ? { moderatorNote: cleanedNote } : {}),
+      },
+    );
     memoryProfiles.set(key, next);
     return true;
   },
 
-  async listReportedAvatars(limit = AVATAR_REVIEW_LIMIT) {
-    const bounded = Math.min(Math.max(limit, 1), AVATAR_REVIEW_LIMIT);
+  async listReportedImages(slot, limit = IMAGE_REVIEW_LIMIT) {
+    const bounded = Math.min(Math.max(limit, 1), IMAGE_REVIEW_LIMIT);
     return [...memoryProfiles.values()]
-      .filter(isReportedAvatarQueueRow)
-      .sort((a, b) =>
-        (b.avatarReportedAt ?? b.updatedAt).localeCompare(a.avatarReportedAt ?? a.updatedAt),
-      )
+      .filter((profile) => isReportedImageQueueRow(profile, slot))
+      .sort((a, b) => {
+        const left = profileImageState(a, slot).reportedAt ?? a.updatedAt;
+        const right = profileImageState(b, slot).reportedAt ?? b.updatedAt;
+        return right.localeCompare(left);
+      })
       .slice(0, bounded)
-      .map((profile) => toModeratorAvatar(profile))
-      .filter((row): row is ModeratorProfileAvatar => row !== null);
+      .map((profile) => toModeratorImage(profile, slot))
+      .filter((row): row is ModeratorProfileImage => row !== null);
   },
 
-  async listHiddenAvatars(limit = AVATAR_REVIEW_LIMIT) {
-    const bounded = Math.min(Math.max(limit, 1), AVATAR_REVIEW_LIMIT);
+  async listHiddenImages(slot, limit = IMAGE_REVIEW_LIMIT) {
+    const bounded = Math.min(Math.max(limit, 1), IMAGE_REVIEW_LIMIT);
     return [...memoryProfiles.values()]
-      .filter(isHiddenAvatarQueueRow)
-      .sort((a, b) =>
-        (b.avatarModeratedAt ?? b.updatedAt).localeCompare(a.avatarModeratedAt ?? a.updatedAt),
-      )
+      .filter((profile) => isHiddenImageQueueRow(profile, slot))
+      .sort((a, b) => {
+        const left = profileImageState(a, slot).moderatedAt ?? a.updatedAt;
+        const right = profileImageState(b, slot).moderatedAt ?? b.updatedAt;
+        return right.localeCompare(left);
+      })
       .slice(0, bounded)
-      .map((profile) => toModeratorAvatar(profile))
-      .filter((row): row is ModeratorProfileAvatar => row !== null);
+      .map((profile) => toModeratorImage(profile, slot))
+      .filter((row): row is ModeratorProfileImage => row !== null);
   },
 
   async searchClaimedByHandlePrefix(prefix, limit = 8) {
@@ -1060,51 +1236,50 @@ export function __tombstoneMemoryProfile(handle: string): ProfileRecord | null {
   const existing = memoryProfiles.get(key);
   if (!existing) return null;
   const now = new Date().toISOString();
-  const next: ProfileRecord = {
+  const cleared: ProfileRecord = {
     ...existing,
     userId: undefined,
     tombstonedAt: existing.tombstonedAt ?? now,
     avatarUrl: undefined,
-    avatarObjectKey: undefined,
-    avatarGeneration: undefined,
-    avatarModerationState: undefined,
-    avatarReportActors: undefined,
-    avatarReportCount: undefined,
-    avatarReportedAt: undefined,
-    avatarReportReason: undefined,
-    avatarModeratedAt: undefined,
-    avatarModeratorNote: undefined,
     updatedAt: now,
   };
+  const next = PROFILE_IMAGE_SLOTS.reduce<ProfileRecord>(
+    (record, slot) => withProfileImageState(record, slot, {}),
+    cleared,
+  );
   memoryProfiles.set(key, next);
   return next;
 }
 
-/** Convenience wrappers used by the avatar report/admin routes and tests. */
-export function reportProfileAvatar(
+/** Convenience wrappers used by the image report/admin routes and tests. */
+export function reportProfileImage(
   handle: string,
+  slot: ProfileImageSlot,
   reason: string | undefined,
   actorHash: string,
 ): Promise<boolean> {
-  return profileStore().reportOwnedAvatar(handle, reason, actorHash);
+  return profileStore().reportOwnedImage(handle, slot, reason, actorHash);
 }
 
-export function moderateProfileAvatar(
+export function moderateProfileImage(
   handle: string,
+  slot: ProfileImageSlot,
   action: "hide" | "restore",
   note?: string,
 ): Promise<boolean> {
-  return profileStore().moderateOwnedAvatar(handle, action, note);
+  return profileStore().moderateOwnedImage(handle, slot, action, note);
 }
 
-export function listReportedProfileAvatars(
+export function listReportedProfileImages(
+  slot: ProfileImageSlot,
   limit?: number,
-): Promise<ModeratorProfileAvatar[]> {
-  return profileStore().listReportedAvatars(limit);
+): Promise<ModeratorProfileImage[]> {
+  return profileStore().listReportedImages(slot, limit);
 }
 
-export function listHiddenProfileAvatars(
+export function listHiddenProfileImages(
+  slot: ProfileImageSlot,
   limit?: number,
-): Promise<ModeratorProfileAvatar[]> {
-  return profileStore().listHiddenAvatars(limit);
+): Promise<ModeratorProfileImage[]> {
+  return profileStore().listHiddenImages(slot, limit);
 }

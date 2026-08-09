@@ -8,20 +8,26 @@ import {
   stripImageMetadata,
 } from "@/lib/imageSafety";
 import {
+  isProfileImageServingKey,
+  profileImageServingKey,
+  profileImageSlotSpec,
+  profileImageStagingKey,
+  type ProfileImageSlot,
+} from "@/lib/profileImageSlots";
+import {
   isSupabaseConfigured,
   requireSupabaseAdmin,
   STORAGE_BUCKET,
 } from "@/lib/supabase";
 
-export const PROFILE_AVATAR_MAX_BYTES = 10 * 1024 * 1024;
-export const PROFILE_AVATAR_MAX_DIMENSION = 12_000;
-export const PROFILE_AVATAR_MAX_PIXELS = 20_000_000;
-export const PROFILE_AVATAR_OUTPUT_DIMENSION = 512;
-export const PROFILE_AVATAR_SIGNED_TTL_SECONDS = 180;
+export const PROFILE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+export const PROFILE_IMAGE_MAX_DIMENSION = 12_000;
+export const PROFILE_IMAGE_MAX_PIXELS = 20_000_000;
+export const PROFILE_IMAGE_SIGNED_TTL_SECONDS = 180;
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-export type PreparedProfileAvatar = {
+export type PreparedProfileImage = {
   bytes: Buffer;
   contentType: "image/jpeg";
   width: number;
@@ -30,21 +36,22 @@ export type PreparedProfileAvatar = {
   sha256: string;
 };
 
-export type UploadedProfileAvatar = PreparedProfileAvatar & {
+export type UploadedProfileImage = PreparedProfileImage & {
+  slot: ProfileImageSlot;
   profileId: string;
   generation: string;
   stagingKey: string;
   objectKey: string;
 };
 
-export type ProfileAvatarStorage = {
+export type ProfileImageStorage = {
   upload(path: string, bytes: Buffer, contentType: string): Promise<void>;
   remove(paths: string[]): Promise<void>;
   sign(path: string, ttlSeconds: number): Promise<string | null>;
-  listAvatarKeys?(profileId: string): Promise<string[]>;
+  listImageKeys?(slot: ProfileImageSlot, profileId: string): Promise<string[]>;
 };
 
-export class ProfileAvatarError extends Error {
+export class ProfileImageError extends Error {
   constructor(
     public readonly code:
       | "INVALID_TYPE"
@@ -62,51 +69,49 @@ function safeDimension(value: number | undefined): number | null {
   return Number.isInteger(value) && Number(value) > 0 ? Number(value) : null;
 }
 
-export function profileAvatarStagingKey(profileId: string, generation: string): string {
-  return `avatars/${profileId}/${generation}/staging.jpg`;
-}
-
-export function profileAvatarServingKey(profileId: string, generation: string): string {
-  return `avatars/${profileId}/${generation}/image.jpg`;
-}
-
-export function isProfileAvatarServingKey(
-  profileId: string,
-  generation: string,
-  objectKey: string,
-): boolean {
-  return objectKey === profileAvatarServingKey(profileId, generation);
-}
-
 /**
  * Chain C (pint-drop uploadPhoto order): magic bytes → stripImageMetadata →
- * sharp rotate → resize 512 inside → jpeg → re-probe. GPS removal is an
- * asserted strip step, not an encoder side effect.
+ * sharp rotate → resize inside the slot's box → jpeg → re-probe. GPS removal is
+ * an asserted strip step, not an encoder side effect. A cover keeps its own
+ * aspect (height stays null) so a wide backdrop is never squared off.
  */
-export async function prepareProfileAvatar(file: File): Promise<PreparedProfileAvatar> {
+export async function prepareProfileImage(
+  file: File,
+  slot: ProfileImageSlot,
+): Promise<PreparedProfileImage> {
+  const spec = profileImageSlotSpec(slot);
   if (!ALLOWED_TYPES.has(file.type)) {
-    throw new ProfileAvatarError("INVALID_TYPE", "Photo must be a JPEG, PNG, or WebP image.");
+    throw new ProfileImageError(
+      "INVALID_TYPE",
+      `${spec.noun} must be a JPEG, PNG, or WebP image.`,
+    );
   }
-  if (!Number.isFinite(file.size) || file.size < 1 || file.size > PROFILE_AVATAR_MAX_BYTES) {
-    throw new ProfileAvatarError("TOO_LARGE", "Photo must be 10 MB or smaller.");
+  if (!Number.isFinite(file.size) || file.size < 1 || file.size > PROFILE_IMAGE_MAX_BYTES) {
+    throw new ProfileImageError("TOO_LARGE", `${spec.noun} must be 10 MB or smaller.`);
   }
   const input = Buffer.from(await file.arrayBuffer());
   if (input.byteLength !== file.size || !magicBytesOk(input, file.type)) {
-    throw new ProfileAvatarError("INVALID_TYPE", "Photo must be a JPEG, PNG, or WebP image.");
+    throw new ProfileImageError(
+      "INVALID_TYPE",
+      `${spec.noun} must be a JPEG, PNG, or WebP image.`,
+    );
   }
 
   const kind = detectImageKind(input);
   if (!kind) {
-    throw new ProfileAvatarError("INVALID_TYPE", "Photo must be a JPEG, PNG, or WebP image.");
+    throw new ProfileImageError(
+      "INVALID_TYPE",
+      `${spec.noun} must be a JPEG, PNG, or WebP image.`,
+    );
   }
 
   let stripped: Uint8Array;
   try {
     stripped = stripImageMetadata(input, kind);
   } catch {
-    throw new ProfileAvatarError(
+    throw new ProfileImageError(
       "PROCESSING_FAILED",
-      "Photo must be a valid, uncorrupted image.",
+      `${spec.noun} must be a valid, uncorrupted image.`,
     );
   }
 
@@ -120,24 +125,24 @@ export async function prepareProfileAvatar(file: File): Promise<PreparedProfileA
     if (
       width === null ||
       height === null ||
-      width > PROFILE_AVATAR_MAX_DIMENSION ||
-      height > PROFILE_AVATAR_MAX_DIMENSION ||
-      width * height > PROFILE_AVATAR_MAX_PIXELS
+      width > PROFILE_IMAGE_MAX_DIMENSION ||
+      height > PROFILE_IMAGE_MAX_DIMENSION ||
+      width * height > PROFILE_IMAGE_MAX_PIXELS
     ) {
-      throw new ProfileAvatarError(
+      throw new ProfileImageError(
         "INVALID_DIMENSIONS",
-        "Photo dimensions are too large.",
+        `${spec.noun} dimensions are too large.`,
       );
     }
 
     const bytes = await sharp(Buffer.from(stripped), {
       failOn: "warning",
-      limitInputPixels: PROFILE_AVATAR_MAX_PIXELS,
+      limitInputPixels: PROFILE_IMAGE_MAX_PIXELS,
     })
       .rotate()
       .resize({
-        width: PROFILE_AVATAR_OUTPUT_DIMENSION,
-        height: PROFILE_AVATAR_OUTPUT_DIMENSION,
+        width: spec.outputWidth,
+        ...(spec.outputHeight === null ? {} : { height: spec.outputHeight }),
         fit: "inside",
         withoutEnlargement: true,
       })
@@ -145,14 +150,20 @@ export async function prepareProfileAvatar(file: File): Promise<PreparedProfileA
       .toBuffer();
 
     if (!magicBytesOk(bytes, "image/jpeg")) {
-      throw new ProfileAvatarError("PROCESSING_FAILED", "Photo could not be processed.");
+      throw new ProfileImageError(
+        "PROCESSING_FAILED",
+        `${spec.noun} could not be processed.`,
+      );
     }
 
     const output = await sharp(bytes).metadata();
     const outputWidth = safeDimension(output.width);
     const outputHeight = safeDimension(output.height);
     if (outputWidth === null || outputHeight === null) {
-      throw new ProfileAvatarError("PROCESSING_FAILED", "Photo could not be processed.");
+      throw new ProfileImageError(
+        "PROCESSING_FAILED",
+        `${spec.noun} could not be processed.`,
+      );
     }
 
     return {
@@ -164,28 +175,28 @@ export async function prepareProfileAvatar(file: File): Promise<PreparedProfileA
       sha256: createHash("sha256").update(bytes).digest("hex"),
     };
   } catch (error) {
-    if (error instanceof ProfileAvatarError) throw error;
-    throw new ProfileAvatarError(
+    if (error instanceof ProfileImageError) throw error;
+    throw new ProfileImageError(
       "PROCESSING_FAILED",
-      "Photo could not be processed. Choose another image.",
+      `${spec.noun} could not be processed. Choose another image.`,
     );
   }
 }
 
-export const supabaseProfileAvatarStorage: ProfileAvatarStorage = {
+export const supabaseProfileImageStorage: ProfileImageStorage = {
   async upload(path, bytes, contentType) {
     if (!isSupabaseConfigured()) {
-      throw new ProfileAvatarError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
+      throw new ProfileImageError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
     }
     const { error } = await requireSupabaseAdmin()
       .storage.from(STORAGE_BUCKET)
       .upload(path, bytes, { contentType, upsert: true });
-    if (error) throw new ProfileAvatarError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
+    if (error) throw new ProfileImageError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
   },
   async remove(paths) {
     if (paths.length === 0 || !isSupabaseConfigured()) return;
     const { error } = await requireSupabaseAdmin().storage.from(STORAGE_BUCKET).remove(paths);
-    if (error) throw new ProfileAvatarError("STORAGE_UNAVAILABLE", "Photo cleanup is unavailable.");
+    if (error) throw new ProfileImageError("STORAGE_UNAVAILABLE", "Photo cleanup is unavailable.");
   },
   async sign(path, ttlSeconds) {
     if (!isSupabaseConfigured()) return null;
@@ -194,54 +205,59 @@ export const supabaseProfileAvatarStorage: ProfileAvatarStorage = {
       .createSignedUrl(path, ttlSeconds);
     return error ? null : data.signedUrl;
   },
-  async listAvatarKeys(profileId) {
+  async listImageKeys(slot, profileId) {
     if (!isSupabaseConfigured()) return [];
-    const prefix = `avatars/${profileId}`;
+    const spec = profileImageSlotSpec(slot);
+    const prefix = `${spec.prefix}/${profileId}`;
     const admin = requireSupabaseAdmin();
     const { data: generations, error } = await admin.storage.from(STORAGE_BUCKET).list(prefix);
     if (error || !generations) {
-      throw new ProfileAvatarError("STORAGE_UNAVAILABLE", "Photo cleanup is unavailable.");
+      throw new ProfileImageError("STORAGE_UNAVAILABLE", "Photo cleanup is unavailable.");
     }
     const keys: string[] = [];
     for (const entry of generations) {
       if (!entry?.name) continue;
       // Folder listing returns generation ids; also tolerate flat file names.
-      if (entry.name === "image.jpg" || entry.name === "staging.jpg") {
+      if (entry.name === spec.servingFile || entry.name === "staging.jpg") {
         keys.push(`${prefix}/${entry.name}`);
         continue;
       }
-      keys.push(profileAvatarServingKey(profileId, entry.name));
-      keys.push(profileAvatarStagingKey(profileId, entry.name));
+      keys.push(profileImageServingKey(slot, profileId, entry.name));
+      keys.push(profileImageStagingKey(slot, profileId, entry.name));
     }
     return keys;
   },
 };
 
-export async function stagePreparedProfileAvatar(
+export async function stagePreparedProfileImage(
+  slot: ProfileImageSlot,
   profileId: string,
-  prepared: PreparedProfileAvatar,
-  storage: ProfileAvatarStorage = supabaseProfileAvatarStorage,
+  prepared: PreparedProfileImage,
+  storage: ProfileImageStorage = supabaseProfileImageStorage,
   requestedGeneration?: string,
-): Promise<UploadedProfileAvatar> {
+): Promise<UploadedProfileImage> {
   const generation = requestedGeneration ?? randomUUID();
-  const stagingKey = profileAvatarStagingKey(profileId, generation);
-  const objectKey = profileAvatarServingKey(profileId, generation);
+  const stagingKey = profileImageStagingKey(slot, profileId, generation);
+  const objectKey = profileImageServingKey(slot, profileId, generation);
+  const spec = profileImageSlotSpec(slot);
   if (
-    stagingKey !== `avatars/${profileId}/${generation}/staging.jpg` ||
-    objectKey !== `avatars/${profileId}/${generation}/image.jpg`
+    stagingKey !== `${spec.prefix}/${profileId}/${generation}/staging.jpg` ||
+    objectKey !== `${spec.prefix}/${profileId}/${generation}/${spec.servingFile}`
   ) {
-    throw new ProfileAvatarError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
+    throw new ProfileImageError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
   }
   await storage.upload(stagingKey, prepared.bytes, prepared.contentType);
-  return { ...prepared, profileId, generation, stagingKey, objectKey };
+  return { ...prepared, slot, profileId, generation, stagingKey, objectKey };
 }
 
-export async function promoteStagedProfileAvatar(
-  staged: UploadedProfileAvatar,
-  storage: ProfileAvatarStorage = supabaseProfileAvatarStorage,
-): Promise<UploadedProfileAvatar> {
-  if (!isProfileAvatarServingKey(staged.profileId, staged.generation, staged.objectKey)) {
-    throw new ProfileAvatarError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
+export async function promoteStagedProfileImage(
+  staged: UploadedProfileImage,
+  storage: ProfileImageStorage = supabaseProfileImageStorage,
+): Promise<UploadedProfileImage> {
+  if (
+    !isProfileImageServingKey(staged.slot, staged.profileId, staged.generation, staged.objectKey)
+  ) {
+    throw new ProfileImageError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
   }
   await storage.upload(staged.objectKey, staged.bytes, staged.contentType);
   try {
@@ -252,30 +268,29 @@ export async function promoteStagedProfileAvatar(
   return staged;
 }
 
-export async function discardStagedProfileAvatar(
-  staged: Pick<UploadedProfileAvatar, "stagingKey">,
-  storage: ProfileAvatarStorage = supabaseProfileAvatarStorage,
+export async function discardStagedProfileImage(
+  staged: Pick<UploadedProfileImage, "stagingKey">,
+  storage: ProfileImageStorage = supabaseProfileImageStorage,
 ): Promise<void> {
   await storage.remove([staged.stagingKey]);
 }
 
-export async function signProfileAvatarObject(
+export async function signProfileImageObject(
   objectKey: string,
-  storage: ProfileAvatarStorage = supabaseProfileAvatarStorage,
+  storage: ProfileImageStorage = supabaseProfileImageStorage,
 ): Promise<string | null> {
-  return storage.sign(objectKey, PROFILE_AVATAR_SIGNED_TTL_SECONDS);
+  return storage.sign(objectKey, PROFILE_IMAGE_SIGNED_TTL_SECONDS);
 }
 
-export type DownloadedProfileAvatar = {
+export type DownloadedProfileImage = {
   bytes: Buffer;
   contentType: "image/jpeg";
 };
 
 /** Read approved serving bytes from the private bucket. Absent objects return null. */
-export async function downloadProfileAvatarObject(
+export async function downloadProfileImageObject(
   objectKey: string,
-  storage: ProfileAvatarStorage = supabaseProfileAvatarStorage,
-): Promise<DownloadedProfileAvatar | null> {
+): Promise<DownloadedProfileImage | null> {
   if (!isSupabaseConfigured()) return null;
   const { data, error } = await requireSupabaseAdmin()
     .storage.from(STORAGE_BUCKET)
@@ -286,15 +301,14 @@ export async function downloadProfileAvatarObject(
   return { bytes, contentType: "image/jpeg" };
 }
 
-/** Delete every avatar object under a profile (all generations). */
-export async function purgeProfileAvatarObjects(
+/** Delete every object in one slot under a profile (all generations). */
+export async function purgeProfileImageObjects(
+  slot: ProfileImageSlot,
   profileId: string,
-  storage: ProfileAvatarStorage = supabaseProfileAvatarStorage,
+  storage: ProfileImageStorage = supabaseProfileImageStorage,
   knownKeys: string[] = [],
 ): Promise<string[]> {
-  const listed = storage.listAvatarKeys
-    ? await storage.listAvatarKeys(profileId)
-    : [];
+  const listed = storage.listImageKeys ? await storage.listImageKeys(slot, profileId) : [];
   const keys = Array.from(new Set([...knownKeys, ...listed].filter(Boolean)));
   if (keys.length === 0) return [];
   await storage.remove(keys);

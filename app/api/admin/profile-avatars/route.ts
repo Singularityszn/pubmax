@@ -1,21 +1,24 @@
-// Owned-avatar moderation queue for the admin console (Social Launch WP4).
-//   GET  ?status=reported|hidden -> { avatars: ModeratorProfileAvatar[] }
-//   POST { action, handle, note? } -> { ok: true }   action ∈ hide | restore
+// Owned-image moderation queue for the admin console (Social Launch WP4).
+//   GET  ?status=reported|hidden&slot=avatar|cover -> { avatars: ModeratorProfileImage[] }
+//   POST { action, handle, slot?, note? } -> { ok: true }   action ∈ hide | restore
 //
-// Readers flag via POST /api/profiles/[handle]/avatar/report. This route is
-// where a human acts. Hide stamps the face hidden (public serve becomes 404 /
-// initials) and never deletes storage or report provenance; restore puts an
-// approved face back. Reporter actor hashes never leave the store.
+// Readers flag via POST /api/profiles/[handle]/{avatar,cover}/report. This route
+// is where a human acts. Hide stamps the image hidden (public serve becomes 404,
+// so a face falls back to initials and a cover to the brass treatment) and never
+// deletes storage or report provenance; restore puts an approved image back.
+// Reporter actor hashes never leave the store. `slot` defaults to the face, so a
+// console that predates covers keeps working unchanged.
 
 import { isModerator } from "@/lib/adminAuth";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { isProfileImageSlot, type ProfileImageSlot } from "@/lib/profileImageSlots";
 import {
-  listHiddenProfileAvatars,
-  listReportedProfileAvatars,
-  moderateProfileAvatar,
+  listHiddenProfileImages,
+  listReportedProfileImages,
+  moderateProfileImage,
 } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -27,6 +30,10 @@ function forbidden(): Response {
   return publicApiError("Not authorised.", "FORBIDDEN", 403);
 }
 
+function requestedSlot(value: unknown): ProfileImageSlot {
+  return isProfileImageSlot(value) ? value : "avatar";
+}
+
 export async function GET(request: Request): Promise<Response> {
   if (!isModerator(request)) return forbidden();
 
@@ -35,15 +42,17 @@ export async function GET(request: Request): Promise<Response> {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
-  const status = new URL(request.url).searchParams.get("status");
+  const query = new URL(request.url).searchParams;
+  const status = query.get("status");
+  const slot = requestedSlot(query.get("slot"));
   try {
     const avatars =
       status === "hidden"
-        ? await listHiddenProfileAvatars()
-        : await listReportedProfileAvatars();
+        ? await listHiddenProfileImages(slot)
+        : await listReportedProfileImages(slot);
     return jsonNoStore({ avatars }, { status: 200 });
   } catch {
-    return publicApiError("Avatar moderation is unavailable right now.", "UNAVAILABLE", 503, {
+    return publicApiError("Image moderation is unavailable right now.", "UNAVAILABLE", 503, {
       retryable: true,
     });
   }
@@ -67,11 +76,12 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const ok = await moderateProfileAvatar(handle, action, readString(body.note));
-    if (!ok) return publicApiError("Profile avatar not found.", "NOT_FOUND", 404);
+    const slot = requestedSlot(body.slot);
+    const ok = await moderateProfileImage(handle, slot, action, readString(body.note));
+    if (!ok) return publicApiError("Profile image not found.", "NOT_FOUND", 404);
     return jsonNoStore({ ok: true }, { status: 200 });
   } catch {
-    return publicApiError("Avatar moderation is unavailable right now.", "UNAVAILABLE", 503, {
+    return publicApiError("Image moderation is unavailable right now.", "UNAVAILABLE", 503, {
       retryable: true,
     });
   }

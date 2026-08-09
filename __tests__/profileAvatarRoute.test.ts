@@ -42,11 +42,12 @@ import {
 } from "@/app/api/profiles/[handle]/avatar/route";
 import { GET as getProfile } from "@/app/api/profiles/[handle]/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import { type ProfileImageSlot } from "@/lib/profileImageSlots";
 import {
-  prepareProfileAvatar,
-  purgeProfileAvatarObjects,
-  type ProfileAvatarStorage,
-} from "@/lib/profileAvatarMedia.server";
+  prepareProfileImage,
+  purgeProfileImageObjects,
+  type ProfileImageStorage,
+} from "@/lib/profileImageMedia.server";
 import {
   __resetMemoryProfiles,
   __tombstoneMemoryProfile,
@@ -84,7 +85,7 @@ async function jpegWithFakeGps(): Promise<File> {
   return new File([withGps], "geo.jpg", { type: "image/jpeg" });
 }
 
-function memoryStorage(): ProfileAvatarStorage & {
+function memoryStorage(): ProfileImageStorage & {
   uploads: Array<{ path: string; bytes: Buffer }>;
   removed: string[][];
 } {
@@ -106,7 +107,7 @@ function memoryStorage(): ProfileAvatarStorage & {
       if (!objects.has(path)) return null;
       return `https://storage.test/${path}?sig=1`;
     },
-    async listAvatarKeys(profileId) {
+    async listImageKeys(_slot: ProfileImageSlot, profileId: string) {
       return [...objects.keys()].filter((key) => key.startsWith(`avatars/${profileId}/`));
     },
   };
@@ -254,7 +255,7 @@ describe("profile avatar upload route", () => {
     for (const upload of storage.uploads) {
       expect(upload.bytes.toString("latin1")).not.toContain("FAKE-GPS-LAT-51.5074-LON-0.1278");
     }
-    const prepared = await prepareProfileAvatar(await jpegWithFakeGps());
+    const prepared = await prepareProfileImage(await jpegWithFakeGps(), "avatar");
     expect(prepared.bytes.toString("latin1")).not.toContain("FAKE-GPS-LAT-51.5074-LON-0.1278");
     const meta = await sharp(prepared.bytes).metadata();
     expect(meta.exif).toBeUndefined();
@@ -328,13 +329,13 @@ describe("profile avatar upload route", () => {
     const generation = "11111111-1111-4111-8111-111111111111";
     const objectKey = `avatars/${profile!.id}/${generation}/image.jpg`;
     await storage.upload(objectKey, Buffer.from("jpeg-bytes"), "image/jpeg");
-    await memoryProfileStore.setOwnedAvatar("alice", {
+    await memoryProfileStore.setOwnedImage("alice", "avatar", {
       objectKey,
       generation,
       moderationState: "approved",
     });
 
-    const removed = await purgeProfileAvatarObjects(profile!.id, storage, [objectKey]);
+    const removed = await purgeProfileImageObjects("avatar", profile!.id, storage, [objectKey]);
     expect(removed).toContain(objectKey);
 
     const tombstoned = __tombstoneMemoryProfile("alice");

@@ -42,7 +42,7 @@ vi.mock("@/lib/profileStore", async (importOriginal) => {
     profileStore: () => ({
       searchClaimedByHandlePrefix: async () => searchState.rows,
     }),
-    publicOwnedAvatarUrl: () => undefined,
+    publicOwnedImageUrl: () => undefined,
     isProfileTombstoned: (profile: { tombstonedAt?: string } | null | undefined) =>
       typeof profile?.tombstonedAt === "string" && profile.tombstonedAt.length > 0,
   };

@@ -29,6 +29,20 @@ function formatGbp(value: number | null): string {
   return value == null ? "–" : `£${value.toFixed(2)}`;
 }
 
+/**
+ * The three things a person says about themselves, in the order a stranger
+ * reads them: what they drink, what they are into, where they work. Each is
+ * optional and prints only when its owner filled it in - an absent line says
+ * nothing rather than inviting the reader to guess.
+ */
+function cardFacts(profile: Profile): Array<{ id: string; label: string; value: string }> {
+  return [
+    { id: "drink", label: "Drinks", value: profile.favouriteDrink ?? "" },
+    { id: "into", label: "Into", value: profile.interests ?? "" },
+    { id: "work", label: "Works at", value: profile.workplace ?? "" },
+  ].filter((fact) => fact.value.trim().length > 0);
+}
+
 export default function ProfileHeader({
   profile,
   stats,
@@ -40,9 +54,12 @@ export default function ProfileHeader({
   drops,
   actions,
 }: ProfileHeaderProps) {
-  const { handle, displayName, homeCity, bio, avatarUrl } = profile;
+  const { handle, displayName, homeCity, bio, avatarUrl, coverUrl } = profile;
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
+  const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null);
   const showAvatar = Boolean(avatarUrl) && failedAvatarUrl !== avatarUrl;
+  const showCover = Boolean(coverUrl) && failedCoverUrl !== coverUrl;
+  const facts = cardFacts(profile);
 
   const crawlsPosted =
     typeof crawls === "number" ? crawls : stats.crawlsPosted ?? 0;
@@ -52,7 +69,25 @@ export default function ProfileHeader({
   const earnedBadges: Badge[] = computeBadges(drops, stats).filter((b) => b.earned);
 
   return (
-    <header className="profileHeader">
+    <header className={`profileHeader${showCover ? " profileHeaderWithCover" : ""}`}>
+      {/* The backdrop. An unfilled slot keeps the brass treatment, so an
+          initials-era profile still reads as a card rather than a gap. */}
+      <div className="profileCover" aria-hidden="true">
+        {showCover ? (
+          <Image
+            className="profileCoverImage"
+            src={coverUrl!}
+            alt=""
+            width={1600}
+            height={533}
+            unoptimized
+            priority
+            onError={() => setFailedCoverUrl(coverUrl ?? null)}
+          />
+        ) : null}
+        <span className="profileCoverFalloff" />
+      </div>
+
       <div className="profileIdentity">
         {showAvatar ? (
           <Image
@@ -85,6 +120,17 @@ export default function ProfileHeader({
       </div>
 
       {bio ? <p className="profileBio">{bio}</p> : null}
+
+      {facts.length ? (
+        <dl className="profileCardFacts">
+          {facts.map((fact) => (
+            <div key={fact.id} className={`profileCardFact profileCardFact--${fact.id}`}>
+              <dt>{fact.label}</dt>
+              <dd>{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
 
       <ProfileSocialLinks links={socialLinks ?? []} />
 

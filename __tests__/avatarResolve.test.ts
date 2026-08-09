@@ -16,17 +16,17 @@ import {
   __resetMemoryProfiles,
   __tombstoneMemoryProfile,
   memoryProfileStore,
-  publicOwnedAvatarUrl,
+  publicOwnedImageUrl,
 } from "@/lib/profileStore";
-import { profileAvatarServingKey } from "@/lib/profileAvatarMedia.server";
+import { profileImageServingKey } from "@/lib/profileImageSlots";
 
 const GENERATION = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 async function seedApproved(handle: string, userId: string) {
   await memoryProfileStore.createOwned(handle, userId);
   const profile = await memoryProfileStore.getByHandle(handle);
-  return memoryProfileStore.setOwnedAvatar(handle, {
-    objectKey: profileAvatarServingKey(profile!.id, GENERATION),
+  return memoryProfileStore.setOwnedImage(handle, "avatar", {
+    objectKey: profileImageServingKey("avatar", profile!.id, GENERATION),
     generation: GENERATION,
     moderationState: "approved",
   });
@@ -63,8 +63,8 @@ describe("avatarResolve", () => {
 
     const urls = await resolveAvatarUrlsForHandles(["alice", "bob", "unlinked", "alice"]);
     expect(getSpy).toHaveBeenCalledTimes(1);
-    expect(urls.get("alice")).toBe(publicOwnedAvatarUrl((await memoryProfileStore.getByHandle("alice"))!));
-    expect(urls.get("bob")).toBe(publicOwnedAvatarUrl((await memoryProfileStore.getByHandle("bob"))!));
+    expect(urls.get("alice")).toBe(publicOwnedImageUrl((await memoryProfileStore.getByHandle("alice"))!, "avatar"));
+    expect(urls.get("bob")).toBe(publicOwnedImageUrl((await memoryProfileStore.getByHandle("bob"))!, "avatar"));
     expect(urls.has("unlinked")).toBe(false);
 
     const enriched = await enrichItemsWithAvatarUrls([
