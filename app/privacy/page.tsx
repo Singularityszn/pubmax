@@ -427,10 +427,11 @@ export default function PrivacyPage() {
           </li>
           <li>
             For crash reporting, the browser analytics SDK sends the crash type
-            with the same standard device context. Error messages and stack
-            traces are redacted before they leave your browser. Session
-            recording, autocapture, heatmaps, click tracking and surveys are
-            all disabled.
+            with the same standard device context and the same coarse app path
+            as a page visit, so we can tell two different faults apart. Error
+            messages and stack traces are redacted before they leave your
+            browser. Session recording, autocapture, heatmaps, click tracking
+            and surveys are all disabled.
           </li>
           <li>
             Analytics requests go through pubmaxxing.com rather than straight to

@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Request } from "@playwright/test";
-import { gunzipSync } from "node:zlib";
+
+import { parsePosthogIngest } from "./helpers/posthogIngest";
 
 const CONSENT_KEY = "pubmaxx:analytics-consent:v1";
 const VIEWPORT = { width: 390, height: 844 };
@@ -12,27 +13,17 @@ type ObservedIngest = {
   pathname: string | null;
 };
 
-function parseIngest(request: Request): ObservedIngest {
-  try {
-    const body = request.postDataBuffer();
-    if (!body) return { request, event: null, pathname: null };
-    const decoded = body[0] === 0x1f && body[1] === 0x8b
-      ? gunzipSync(body).toString("utf8")
-      : body.toString("utf8");
-    const parsed = JSON.parse(decoded) as {
-      event?: unknown;
-      properties?: { $pathname?: unknown };
-    };
-    return {
-      request,
-      event: typeof parsed.event === "string" ? parsed.event : null,
-      pathname: typeof parsed.properties?.$pathname === "string"
-        ? parsed.properties.$pathname
-        : null,
-    };
-  } catch {
-    return { request, event: null, pathname: null };
-  }
+// One capture request carries a batch, so it observes one entry per event.
+function parseIngest(request: Request): ObservedIngest[] {
+  const events = parsePosthogIngest(request);
+  if (events.length === 0) return [{ request, event: null, pathname: null }];
+  return events.map(({ event, properties }) => ({
+    request,
+    event,
+    pathname: typeof properties.$pathname === "string"
+      ? properties.$pathname
+      : null,
+  }));
 }
 
 async function prepareFirstVisit(page: Page): Promise<ObservedIngest[]> {
@@ -46,9 +37,8 @@ async function prepareFirstVisit(page: Page): Promise<ObservedIngest[]> {
   });
   page.on("request", (request) => {
     if (new URL(request.url()).pathname.startsWith("/ingest/")) {
-      observed.push(request.method() === "POST"
-        ? parseIngest(request)
-        : { request, event: null, pathname: null });
+      if (request.method() === "POST") observed.push(...parseIngest(request));
+      else observed.push({ request, event: null, pathname: null });
     }
   });
   await page.route("**/ingest/**", async (route) => {
