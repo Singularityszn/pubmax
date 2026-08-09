@@ -1,11 +1,13 @@
 import {
   socialCrewActor,
   socialCrewBody,
+  socialCrewErrorResponse,
   socialCrewExactKeys,
   socialCrewHostCapability,
   socialCrewIdempotencyKey,
   socialCrewInvalidResponse,
   socialCrewMutation,
+  socialCrewPrivateJson,
 } from "@/lib/socialCrewHttp";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { createSocialCrewStore } from "@/lib/socialCrewStore";
@@ -14,6 +16,44 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const store = createSocialCrewStore();
+
+const LIST_LIMIT_MAX = 50;
+
+/**
+ * The crews this account is an active member of. `store.list` (the signed
+ * member-page cursor over `read_social_crew_member_page`) has existed since the
+ * crew wave shipped with no route in front of it, so a reader had no way to
+ * find a crew they were already in. This exposes that read verbatim: same
+ * actor, same projection, same cursor, no new authority.
+ */
+export async function GET(request: Request): Promise<Response> {
+  const access = await requireVerifiedSocialActor(request);
+  const authority = await socialCrewActor(access);
+  if (!authority.ok) return authority.response;
+
+  const params = new URL(request.url).searchParams;
+  const rawCursor = params.get("cursor");
+  const rawLimit = params.get("limit");
+  let limit: number | undefined;
+  if (rawLimit !== null) {
+    const parsed = Number(rawLimit);
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > LIST_LIMIT_MAX) {
+      return socialCrewInvalidResponse();
+    }
+    limit = parsed;
+  }
+
+  try {
+    return socialCrewPrivateJson(
+      await store.list(authority.actor, {
+        ...(rawCursor !== null ? { cursor: rawCursor } : {}),
+        ...(limit !== undefined ? { limit } : {}),
+      }),
+    );
+  } catch (error) {
+    return socialCrewErrorResponse(error);
+  }
+}
 
 export async function POST(request: Request): Promise<Response> {
   const access = await requireVerifiedSocialActor(request);

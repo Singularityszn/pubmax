@@ -503,6 +503,66 @@ export async function getStoryAuthor(slug: string): Promise<string | null> {
  *  same weak-but-honest identity the rest of authorship uses. Never throws — a
  *  storage miss / bad handle resolves to 0 so the passport degrades to a clean
  *  zero rather than a 500. Draft stories don't count (they aren't public posts). */
+/** One published crawl by a handle, in the shape a profile row needs. */
+export type AuthoredCrawlSummary = {
+  slug: string;
+  title: string;
+  stops: number;
+  createdAt: string;
+};
+
+/**
+ * The published crawls a handle wrote. The sibling of countStoriesByAuthor and
+ * bounded by the same rule: drafts never leave the author's own hands. Exists
+ * so a profile can OPEN the crawls it counts rather than only print a number.
+ * Fail-soft, like its sibling: a backend hiccup is an empty list.
+ */
+export async function listStoriesByAuthor(
+  handle: string,
+  limit = 10,
+): Promise<AuthoredCrawlSummary[]> {
+  const author = normalizeHandle(handle ?? "");
+  if (!author) return [];
+  const bounded = Math.min(Math.max(limit, 1), 25);
+  if (isSupabaseConfigured()) {
+    try {
+      const { data, error } = await admin()
+        .from(STORIES_TABLE)
+        .select("slug,title,stops,created_at")
+        .eq("author_handle", author)
+        .neq("visibility", "draft")
+        .order("created_at", { ascending: false })
+        .limit(bounded);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((row) => {
+        const record = row as Record<string, unknown>;
+        return {
+          slug: String(record.slug ?? ""),
+          title: String(record.title ?? ""),
+          stops: Array.isArray(record.stops) ? record.stops.length : 0,
+          createdAt: String(record.created_at ?? ""),
+        };
+      }).filter((row) => row.slug && row.title);
+    } catch (err) {
+      console.error(
+        "[crawl-stories] could not list stories by author:",
+        err instanceof Error ? err.message : err,
+      );
+      return [];
+    }
+  }
+  return [...memoryStories.values()]
+    .filter((story) => story.authorHandle === author && story.visibility !== "draft")
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    .slice(0, bounded)
+    .map((story) => ({
+      slug: story.slug,
+      title: story.title,
+      stops: Array.isArray(story.stops) ? story.stops.length : 0,
+      createdAt: String(story.createdAt ?? ""),
+    }));
+}
+
 export async function countStoriesByAuthor(handle: string): Promise<number> {
   const author = normalizeHandle(handle ?? "");
   if (!author) return 0;

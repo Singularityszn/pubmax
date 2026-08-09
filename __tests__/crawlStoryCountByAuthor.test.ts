@@ -144,19 +144,30 @@ describe("GET /api/crawls?author=", () => {
     await makeStory("ken", "Loop Two");
     const res = await GET(new Request(`${URL_BASE}?author=${encodeURIComponent("  Ken ")}`));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ handle: "ken", count: 2 });
+    // `crawls` rides beside the count so the profile can OPEN what it counts.
+    const body = (await res.json()) as {
+      handle: string;
+      count: number;
+      crawls: { slug: string; title: string }[];
+    };
+    expect(body.handle).toBe("ken");
+    expect(body.count).toBe(2);
+    expect(body.crawls.map((crawl) => crawl.title).sort()).toEqual([
+      "Loop One",
+      "Loop Two",
+    ]);
   });
 
   it("returns count 0 for a handle with no stories", async () => {
     const res = await GET(new Request(`${URL_BASE}?author=nobody`));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ handle: "nobody", count: 0 });
+    expect(await res.json()).toEqual({ handle: "nobody", count: 0, crawls: [] });
   });
 
   it("returns handle '' and count 0 for a blank author param", async () => {
     const res = await GET(new Request(`${URL_BASE}?author=`));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ handle: "", count: 0 });
+    expect(await res.json()).toEqual({ handle: "", count: 0, crawls: [] });
   });
 });
 

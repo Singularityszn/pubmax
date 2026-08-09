@@ -494,10 +494,19 @@
 
 .profilePage .profileStat {
   flex: 1 1 120px;
-  padding: 12px 16px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--panel);
+}
+
+/* The whole tile is the target, so the 44px floor is the tile, not the label. */
+.profilePage .profileStatLink {
+  display: block;
+  min-height: 44px;
+  padding: 12px 16px;
+  border-radius: inherit;
+  color: inherit;
+  text-decoration: none;
 }
 
 .profilePage .profileStat dt {
@@ -816,10 +825,64 @@
   opacity: 0.72;
 }
 
+/* Button first, then whatever it could not say. Wrapping matters: the hint is
+   a sentence, and inline beside a button it ran off the identity pane. */
+.profilePage .profileFollow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.profilePage .profileFollow > * {
+  min-width: 0;
+}
+
 .profilePage .followError {
   color: var(--danger, #b42318);
   font-size: 0.84rem;
   font-weight: 600;
+}
+
+/* The edge the button cannot say. Quiet, because the button is the action. */
+.profilePage .followHint {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.profilePage .followBtn.isMates {
+  border-color: var(--color-positive, var(--pint));
+  color: var(--color-positive, var(--pint));
+}
+
+/* Published crawls: the destination behind the Crawls tile. */
+.profilePage .profileCrawlList {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.profilePage .profileCrawlRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+
+.profilePage .profileCrawlStops {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .profilePage .listDetailItems {
@@ -1191,7 +1254,8 @@
   .profilePage .youProfileIdentity .profileHeader { padding: 18px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
   .profilePage .profileStat { flex: 1 1 44%; }
   .profilePage .youProfileIdentity .profileStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .profilePage .youProfileIdentity .profileStat { padding: 9px 6px; border: 0; background: transparent; text-align: center; }
+  .profilePage .youProfileIdentity .profileStat { border: 0; background: transparent; text-align: center; }
+  .profilePage .youProfileIdentity .profileStatLink { padding: 9px 6px; }
   .profilePage .youProfileIdentity .profileStat dt { font-size: 0.75rem; }
   .profilePage .youProfileIdentity .profileStat dd { font-size: 1.12rem; }
 }

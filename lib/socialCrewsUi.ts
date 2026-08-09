@@ -1,0 +1,338 @@
+// What the Crews surface is allowed to say and send. Presentation-free.
+//
+// A CREW IS A NIGHT. `social_crews` is bound one-to-one to a plan
+// (supabase/migrations/…_0075_social_crews.sql: `plan_id uuid not null unique`),
+// its title IS the plan's title, and `create_social_crew_atomic` refuses any
+// plan that is not hosted by the actor. There is no crew row without a night,
+// so a "crew name" is the night's name and nothing else. Naming a crew is
+// therefore naming a plan, which is why `startCrewPlanBody` shapes a plan
+// create and `CREW_NAME_MAX` caps the plan title rather than a second field.
+//
+// A crew is also FRIENDS-ONLY at the database: an invite is refused unless the
+// target is already a mutual of the owner, so this surface may only ever offer
+// your lot. Copy that promised "invite anyone" would describe a call the server
+// answers with a 404.
+//
+// Two seams the API genuinely does not have, so no copy here may imply them:
+// there is no read of invitations addressed to you, and no read of the join
+// requests waiting on a crew you host. An invitation is reachable only through
+// the link its host sends (crewId + invitationId), the same way a plan invite
+// already travels in lib/planCrewInviteUrl.ts.
+
+import type {
+  SocialCrewListItemDTO,
+  SocialCrewListPageDTO,
+  SocialCrewMemberDTO,
+  SocialCrewPageDTO,
+  SocialCrewPhase,
+  SocialCrewReadDTO,
+  SocialCrewRole,
+  SocialCrewVisibility,
+} from "@/lib/socialCrew";
+import { isSocialCrewRole, isSocialCrewVisibility } from "@/lib/socialCrew";
+
+/**
+ * The cap on the name a drinker types when starting a crew. Narrower than the
+ * plan store's own PLAN_TITLE_MAX (80) on purpose: a crew name is read in a row
+ * beside a date and a role, and 30 is what fits a 320px phone without wrapping
+ * the row into three lines.
+ */
+export const CREW_NAME_MAX = 30;
+
+/** Ids are UUIDs everywhere in the crew API (isSocialCrewId in socialCrewHttp). */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isCrewId(value: unknown): value is string {
+  return typeof value === "string" && UUID_RE.test(value);
+}
+
+/** Collapse whitespace and cap; empty means the drinker gave no name. */
+export function cleanCrewName(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/\s+/g, " ").trim().slice(0, CREW_NAME_MAX);
+}
+
+export function isUsableCrewName(value: unknown): boolean {
+  return cleanCrewName(value).length > 0;
+}
+
+/**
+ * Every crew write demands an Idempotency-Key of 16 to 128 characters
+ * (socialCrewIdempotencyKey). Mint one per attempt so a retry after a timeout
+ * replays rather than duplicating; `crypto.randomUUID` is 36 characters.
+ */
+export function crewIdempotencyKey(
+  prefix: string,
+  random: () => string = () => crypto.randomUUID(),
+): string {
+  const clean = prefix.replace(/[^a-z0-9-]/gi, "").slice(0, 24) || "crew";
+  return `${clean}-${random()}`.slice(0, 128);
+}
+
+export const CREW_PHASE_LABEL: Record<SocialCrewPhase, string> = {
+  planning: "Planning",
+  live: "Out now",
+  ended: "Done",
+};
+
+export const CREW_ROLE_LABEL: Record<SocialCrewRole, string> = {
+  owner: "You host",
+  cohost: "You co-host",
+  member: "You are in",
+};
+
+export const CREW_VISIBILITY_LABEL: Record<SocialCrewVisibility, string> = {
+  private: "Invite only",
+  friends: "Your lot can ask to join",
+};
+
+/** Only a host or co-host may invite, set a role, or remove somebody. */
+export function canManageCrew(role: SocialCrewRole): boolean {
+  return role === "owner" || role === "cohost";
+}
+
+/**
+ * The owner cannot leave; the database answers `owner_cannot_leave`, which the
+ * store turns into a 409. Say so before the tap rather than after it.
+ */
+export function canLeaveCrew(role: SocialCrewRole): boolean {
+  return role !== "owner";
+}
+
+export const CREW_OWNER_LEAVE_NOTE =
+  "A host cannot leave their own night. Hand the crew to somebody else first.";
+
+/** What a crew is, in one line, on the surface that offers to start one. */
+export const CREW_WHAT_IT_IS =
+  "A crew is one night out, shared with your lot. Name the night, pick where it starts, and bring people in.";
+
+/** Why a stranger cannot be invited. The database refuses it, so the copy owns it. */
+export const CREW_MUTUALS_ONLY_NOTE =
+  "You can only bring in mates who follow you back.";
+
+/** The one honest sentence about how somebody joins. */
+export const CREW_INVITE_LINK_NOTE =
+  "Send this link to your mate. It only works for them.";
+
+export const CREW_EMPTY_COPY =
+  "No crews yet. Start one and your lot can join the night.";
+
+export const CREW_LIST_UNAVAILABLE_COPY =
+  "Could not load your crews. That is us, not you.";
+
+/**
+ * The link a host sends. It carries the invitation id because there is no read
+ * that tells an invitee they were invited; `accept_social_crew_invitation_atomic`
+ * still refuses anybody who is not the named target, so the link is a pointer,
+ * never authority.
+ */
+export function crewInvitePath(crewId: string, invitationId: string): string {
+  return `/social/crews/${encodeURIComponent(crewId)}?invitation=${encodeURIComponent(invitationId)}`;
+}
+
+export function crewInviteUrl(
+  crewId: string,
+  invitationId: string,
+  origin?: string,
+): string {
+  const path = crewInvitePath(crewId, invitationId);
+  return origin ? `${origin.replace(/\/$/, "")}${path}` : path;
+}
+
+export function crewPath(crewId: string): string {
+  return `/social/crews/${encodeURIComponent(crewId)}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isPhase(value: unknown): value is SocialCrewPhase {
+  return value === "planning" || value === "live" || value === "ended";
+}
+
+function parseListItem(value: unknown): SocialCrewListItemDTO | null {
+  if (!isRecord(value) || !isRecord(value.viewer)) return null;
+  if (
+    value.kind !== "member" ||
+    !isCrewId(value.crewId) ||
+    typeof value.title !== "string" ||
+    !isPhase(value.phase) ||
+    (value.nightArea !== null && typeof value.nightArea !== "string") ||
+    typeof value.startsAt !== "string" ||
+    !isCrewId(value.viewer.memberId) ||
+    !isSocialCrewRole(value.viewer.role)
+  ) {
+    return null;
+  }
+  return {
+    kind: "member",
+    crewId: value.crewId,
+    title: value.title,
+    phase: value.phase,
+    nightArea: value.nightArea as string | null,
+    startsAt: value.startsAt,
+    viewer: { memberId: value.viewer.memberId, role: value.viewer.role },
+  };
+}
+
+/** A malformed row poisons the page; refuse the whole reply instead. */
+export function parseCrewListPage(value: unknown): SocialCrewListPageDTO | null {
+  if (!isRecord(value) || !Array.isArray(value.items)) return null;
+  const items: SocialCrewListItemDTO[] = [];
+  for (const candidate of value.items) {
+    const item = parseListItem(candidate);
+    if (!item) return null;
+    items.push(item);
+  }
+  const nextCursor = value.nextCursor;
+  if (nextCursor !== null && typeof nextCursor !== "string") return null;
+  return { items, nextCursor: nextCursor as string | null };
+}
+
+function parseMember(value: unknown): SocialCrewMemberDTO | null {
+  if (
+    !isRecord(value) ||
+    !isCrewId(value.memberId) ||
+    typeof value.handle !== "string" ||
+    !isSocialCrewRole(value.role) ||
+    typeof value.joinedAt !== "string"
+  ) {
+    return null;
+  }
+  return {
+    memberId: value.memberId,
+    handle: value.handle,
+    role: value.role,
+    joinedAt: value.joinedAt,
+  };
+}
+
+export function parseCrewRead(value: unknown): SocialCrewReadDTO | null {
+  if (!isRecord(value)) return null;
+  if (value.kind === "preview") {
+    if (
+      typeof value.title !== "string" ||
+      !isPhase(value.phase) ||
+      (value.nightArea !== null && typeof value.nightArea !== "string") ||
+      typeof value.startsAt !== "string" ||
+      (value.joinRequestState !== "none" &&
+        value.joinRequestState !== "pending" &&
+        value.joinRequestState !== "declined")
+    ) {
+      return null;
+    }
+    return {
+      kind: "preview",
+      title: value.title,
+      phase: value.phase,
+      nightArea: value.nightArea as string | null,
+      startsAt: value.startsAt,
+      joinRequestState: value.joinRequestState,
+    };
+  }
+  if (value.kind !== "member") return null;
+  if (
+    !isCrewId(value.crewId) ||
+    typeof value.title !== "string" ||
+    !isSocialCrewVisibility(value.visibility) ||
+    !isPhase(value.phase) ||
+    (value.nightArea !== null && typeof value.nightArea !== "string") ||
+    typeof value.startsAt !== "string" ||
+    !Number.isSafeInteger(value.authorityRevision) ||
+    !isRecord(value.viewer) ||
+    !isCrewId(value.viewer.memberId) ||
+    !isSocialCrewRole(value.viewer.role) ||
+    !isRecord(value.owner) ||
+    !isCrewId(value.owner.memberId) ||
+    typeof value.owner.handle !== "string" ||
+    !Array.isArray(value.members)
+  ) {
+    return null;
+  }
+  const members: SocialCrewMemberDTO[] = [];
+  for (const candidate of value.members) {
+    const member = parseMember(candidate);
+    if (!member) return null;
+    members.push(member);
+  }
+  return {
+    ...(value as unknown as SocialCrewPageDTO),
+    kind: "member",
+    members,
+  };
+}
+
+export type CrewMutationOutcome = {
+  code: string;
+  replayed: boolean;
+  crewId?: string;
+  invitationId?: string;
+  memberId?: string;
+  requestId?: string;
+};
+
+export function parseCrewMutation(value: unknown): CrewMutationOutcome | null {
+  if (!isRecord(value) || typeof value.code !== "string") return null;
+  return {
+    code: value.code,
+    replayed: value.replayed === true,
+    ...(isCrewId(value.crewId) ? { crewId: value.crewId } : {}),
+    ...(isCrewId(value.invitationId) ? { invitationId: value.invitationId } : {}),
+    ...(isCrewId(value.memberId) ? { memberId: value.memberId } : {}),
+    ...(isCrewId(value.requestId) ? { requestId: value.requestId } : {}),
+  };
+}
+
+export type StartCrewInput = {
+  name: string;
+  startTime: string;
+  hostName: string;
+  venue: { id: string; name: string };
+};
+
+/**
+ * The plan a crew is made of. `/api/plans` needs a start time, the host's own
+ * name and at least one listed venue (cleanCreatePlan in lib/plan.ts), so the
+ * crew composer collects exactly those three and nothing more.
+ */
+export function startCrewPlanBody(input: StartCrewInput): Record<string, unknown> | null {
+  const title = cleanCrewName(input.name);
+  const hostName = typeof input.hostName === "string" ? input.hostName.trim().slice(0, 40) : "";
+  const startMs = Date.parse(input.startTime);
+  if (!title || !hostName || !Number.isFinite(startMs)) return null;
+  if (!input.venue?.id || !input.venue?.name) return null;
+  return {
+    title,
+    startTime: new Date(startMs).toISOString(),
+    creatorName: hostName,
+    stops: [{ venueId: input.venue.id, venueName: input.venue.name }],
+  };
+}
+
+/**
+ * A crew starts invite-only. `friends` opens it to ask-to-join, and the host
+ * has no read of who asked, so opening it would promise an inbox that is not
+ * there. The composer keeps the honest default and the detail surface offers
+ * the switch with copy that only claims what the reader can act on.
+ */
+export const CREW_DEFAULT_VISIBILITY: SocialCrewVisibility = "private";
+
+export function crewStartsCaption(
+  startsAt: string,
+  now: number = Date.now(),
+): string | null {
+  const start = Date.parse(startsAt);
+  if (!Number.isFinite(start)) return null;
+  const formatted = new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Europe/London",
+  }).format(new Date(start));
+  return start < now ? `Started ${formatted}` : `Starts ${formatted}`;
+}

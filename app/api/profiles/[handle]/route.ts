@@ -166,8 +166,17 @@ export async function GET(
     ]);
     // Only compute follow status for a *different* viewer — a handle never
     // "follows itself", and asking short-circuits to false.
-    const viewerFollowing =
-      viewer && viewer !== handle ? await follows.isFollowing(viewer, handle) : false;
+    // BOTH edges travel, because one of them cannot tell "Mates" from
+    // "Follows you" (lib/followRelation.ts owns that resolution). The reverse
+    // edge is already public through /following and /lot, so this adds a round
+    // trip's worth of convenience, never a new disclosure.
+    const [viewerFollowing, followsViewer] =
+      viewer && viewer !== handle
+        ? await Promise.all([
+            follows.isFollowing(viewer, handle),
+            follows.isFollowing(handle, viewer),
+          ])
+        : [false, false];
 
     // Auth-deletion stamp only. Legacy user_id-null rows stay fully live.
     if (isProfileTombstoned(profile)) {
@@ -178,6 +187,7 @@ export async function GET(
           socialLinks: [],
           counts,
           viewerFollowing: false,
+          followsViewer: false,
         },
         { status: 200 },
       );
@@ -189,6 +199,7 @@ export async function GET(
         socialLinks: await publicLinksFor(profile),
         counts,
         viewerFollowing,
+        followsViewer,
       },
       { status: 200 },
     );
@@ -201,6 +212,7 @@ export async function GET(
         socialLinks: [],
         counts: { followers: 0, following: 0 },
         viewerFollowing: false,
+        followsViewer: false,
       },
       { status: 200 },
     );

@@ -22,6 +22,7 @@ import type { PublicSocialLink } from "@/lib/socialConnections";
 import ProfileTimeline from "@/components/profile/ProfileTimeline";
 import PubmaxxAccountHub from "@/components/profile/PubmaxxAccountHub";
 import SavedPubList from "@/components/profile/SavedPubList";
+import CrewsPanel from "@/components/social/CrewsPanel";
 import WantedList from "@/components/wanted/WantedList";
 import YourContributionsCard from "@/components/profile/YourContributionsCard";
 import SiteNav from "@/components/nav/SiteNav";
@@ -213,6 +214,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const [stored, setStored] = useState<PublicProfile | null>(null);
   const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
   const [following, setFollowing] = useState(false);
+  // The mirror edge. Without it the header cannot tell "Mates" from
+  // "Following", which is the only fact that says a lot formed.
+  const [followsViewer, setFollowsViewer] = useState(false);
   // Owner-only "edit my profile" panel; opened from the header's Edit button.
   const [editing, setEditing] = useState(false);
   // Post-save confirmation shown back in view mode; clears itself shortly.
@@ -222,6 +226,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // Feeds the Pint Passport's "story posts" stat. Starts at 0 so the first paint
   // matches the zeroed passport, then fills in after the fetch.
   const [storyCount, setStoryCount] = useState(0);
+  // The crawls themselves, so the Crawls tile opens something rather than
+  // announcing a number with nowhere to go.
+  const [authoredCrawls, setAuthoredCrawls] = useState<
+    Array<{ slug: string; title: string; stops: number }>
+  >([]);
   const [nightMemoriesInvite, setNightMemoriesInvite] = useState(false);
 
   useEffect(() => {
@@ -351,10 +360,16 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         // Fail-soft: a non-ok / offline response leaves the count at its default
         // 0. Reset to 0 first (in the async body, not the sync effect) so a
         // handle with no stories clears a previous handle's count.
-        const next = res.ok
-          ? ((await res.json()) as { count?: number }).count ?? 0
-          : 0;
-        if (!controller.signal.aborted && Number.isFinite(next)) setStoryCount(next);
+        const body = res.ok
+          ? ((await res.json()) as {
+              count?: number;
+              crawls?: Array<{ slug: string; title: string; stops: number }>;
+            })
+          : null;
+        const next = body?.count ?? 0;
+        if (controller.signal.aborted) return;
+        if (Number.isFinite(next)) setStoryCount(next);
+        setAuthoredCrawls(Array.isArray(body?.crawls) ? body.crawls : []);
       } catch {
         // aborted / offline — keep the previous value (a transient blip)
       }
@@ -418,6 +433,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           socialLinks?: PublicSocialLink[];
           counts?: FollowCounts;
           viewerFollowing?: boolean;
+          followsViewer?: boolean;
         };
         if (body.status === "gone") {
           setStored(null);
@@ -430,6 +446,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         setSocialLinks(body.socialLinks ?? []);
         if (body.counts) setCounts(body.counts);
         setFollowing(Boolean(body.viewerFollowing));
+        setFollowsViewer(Boolean(body.followsViewer));
       } catch {
         // aborted / offline — keep the synthesized fallback
       }
@@ -602,9 +619,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   ) : isYouRoute ? null : (
     <>
       <FollowButton
+        key={`${routeHandle}:${following}:${followsViewer}`}
         targetHandle={routeHandle}
         followerHandle={viewerHandle}
         initialFollowing={following}
+        followsViewer={followsViewer}
         onCountsChange={setCounts}
       />
       {/* E4: additive 1:1 messaging control. Only renders when the viewer has a
@@ -919,10 +938,45 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                     </section>
                   ) : null}
 
+                  {/* The destination behind the Crawls tile. It prints only
+                      when this handle has published one, so an empty section
+                      never sits under a zero. */}
+                  {!youSignedOut && authoredCrawls.length > 0 ? (
+                    <section
+                      id="crawl-stories"
+                      className="profileDropsSection"
+                      aria-labelledby="crawlStoriesHeading"
+                    >
+                      <h2 id="crawlStoriesHeading" className="profileSectionHeading">
+                        Crawls
+                      </h2>
+                      <ul className="profileCrawlList">
+                        {authoredCrawls.map((crawl) => (
+                          <li key={crawl.slug} className="profileCrawlRow">
+                            <Link href={`/crawls/${encodeURIComponent(crawl.slug)}`}>
+                              {crawl.title}
+                            </Link>
+                            <span className="profileCrawlStops">
+                              {crawl.stops} {crawl.stops === 1 ? "stop" : "stops"}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ) : null}
+
                   {/* /u/you redirects to the real handle the moment one is
                       known, so gating this on the sentinel alone left the
                       owner's own Wanted tab pointing at nothing. */}
                   {isYouRoute || isOwnProfile ? <WantedList /> : null}
+
+                  {/* Your crews, on your own page only. It resolves the Social
+                      gate itself and renders nothing when Social is in
+                      preview, so this card never promises what the flag has
+                      not opened. */}
+                  {isOwnProfile ? (
+                    <CrewsPanel viewerHandle={viewerHandle} resolveAccess />
+                  ) : null}
 
                   {!youSignedOut ? (
                     <div id="saved-pubs">
