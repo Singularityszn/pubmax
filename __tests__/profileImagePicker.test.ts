@@ -19,13 +19,12 @@ import {
   clampCropTransform,
   CROP_OUTPUT_QUALITY,
   CROP_OUTPUT_TYPE,
-  cropConfirmLabel,
+  CROP_CONFIRM_LABEL,
   cropFailedMessage,
   cropFrameLabel,
   cropOutputBox,
   cropScaleAtPosition,
   cropSourceRect,
-  cropStepTitle,
   cropZoomPosition,
   croppedFileName,
   isLikelyHeic,
@@ -257,14 +256,15 @@ describe("the copy tells a person what to do next", () => {
   });
 
   it("keeps every line free of a dash construction and a shout", () => {
-    const lines = PROFILE_IMAGE_SLOTS.flatMap((slot) => [
-      cropStepTitle(slot),
-      cropFrameLabel(slot),
-      cropConfirmLabel(slot),
-      cropFailedMessage(slot),
-      unreadableImageMessage(slot, true),
-      unreadableImageMessage(slot, false),
-    ]);
+    const lines = [
+      CROP_CONFIRM_LABEL,
+      ...PROFILE_IMAGE_SLOTS.flatMap((slot) => [
+        cropFrameLabel(slot),
+        cropFailedMessage(slot),
+        unreadableImageMessage(slot, true),
+        unreadableImageMessage(slot, false),
+      ]),
+    ];
     for (const line of lines) {
       expect(line).not.toContain("—");
       expect(line).not.toContain(" – ");
@@ -274,14 +274,18 @@ describe("the copy tells a person what to do next", () => {
     }
   });
 
-  it("names the slot a person is actually looking at", () => {
-    expect(cropStepTitle("avatar")).toBe("Position your photo");
-    expect(cropStepTitle("cover")).toBe("Position your cover photo");
-    expect(cropConfirmLabel("avatar")).toBe("Use photo");
-    expect(cropConfirmLabel("cover")).toBe("Use cover photo");
-    // The frame's accessible name carries the instruction a mouse user gets
-    // from the cursor, so a keyboard user is told the arrow keys work.
+  it("says one short thing on the button, whichever slot it is", () => {
+    // A per-slot label ("Use cover photo") was wide enough to push Cancel onto
+    // a line of its own at 390px, and the frame above already shows the shape.
+    expect(CROP_CONFIRM_LABEL).toBe("Use photo");
+  });
+
+  it("puts the instruction in the frame's name rather than in a subtitle", () => {
+    // The slot's own visible label already says "Profile photo" / "Cover
+    // photo", so a visible "Position your photo" under it is a subtitle
+    // repeating its label. A keyboard user still gets told the arrows work.
     expect(cropFrameLabel("avatar")).toContain("arrow keys");
+    expect(cropFrameLabel("avatar")).toContain("photo");
     expect(cropFrameLabel("cover")).toContain("cover photo");
   });
 });

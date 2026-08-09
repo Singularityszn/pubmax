@@ -155,6 +155,15 @@ async function measureUploaded(record: UploadRecord) {
   return { format: metadata.format, width: metadata.width, height: metadata.height };
 }
 
+/** The crop step on its own, and the phone screen it sits on. */
+async function shoot(page: Page, name: string): Promise<void> {
+  const step = page.locator(".profileCropStep");
+  await expect(step).toBeVisible();
+  await step.scrollIntoViewIfNeeded();
+  await step.screenshot({ path: join(SHOT_DIR, `${name}.png`) });
+  await page.screenshot({ path: join(SHOT_DIR, `${name}-screen.png`) });
+}
+
 async function openOwnProfileEditor(page: Page): Promise<void> {
   const response = await page.goto(`/u/${HANDLE}`);
   expect(response?.status()).toBe(200);
@@ -206,12 +215,11 @@ test.describe("profile photo picker and crop", () => {
     await openOwnProfileEditor(page);
     await pick(page, "avatar", "IMG_2201.png");
 
-    await expect(page.getByRole("heading", { name: "Position your photo" })).toBeVisible();
+    await expect(page.locator(".profileCropStep-avatar .profileCropFrame")).toBeVisible();
     await expect(page.getByRole("button", { name: "Use photo" })).toBeEnabled();
     expect(record.bodies).toHaveLength(0);
 
-    await page.locator(".profileCropStep").scrollIntoViewIfNeeded();
-    await page.screenshot({ path: join(SHOT_DIR, "crop-avatar-390.png"), fullPage: true });
+    await shoot(page, "crop-avatar-390");
 
     // Cancel puts the slot back the way it was, with nothing sent.
     await page.locator(".profileCropCancel").click();
@@ -228,11 +236,7 @@ test.describe("profile photo picker and crop", () => {
     const zoom = page.locator("#pe-avatar-zoom");
     await expect(zoom).toBeEnabled();
     await zoom.fill("40");
-    await page.locator(".profileCropStep").scrollIntoViewIfNeeded();
-    await page.screenshot({
-      path: join(SHOT_DIR, "crop-avatar-zoomed-390.png"),
-      fullPage: true,
-    });
+    await shoot(page, "crop-avatar-zoomed-390");
 
     await page.getByRole("button", { name: "Use photo" }).click();
     await expect(page.locator(".profileCropStep")).toHaveCount(0);
@@ -249,11 +253,8 @@ test.describe("profile photo picker and crop", () => {
     await openOwnProfileEditor(page);
     await pick(page, "cover", "IMG_2203.png");
 
-    await expect(
-      page.getByRole("heading", { name: "Position your cover photo" }),
-    ).toBeVisible();
-    await page.locator(".profileCropStep").scrollIntoViewIfNeeded();
-    await page.screenshot({ path: join(SHOT_DIR, "crop-cover-390.png"), fullPage: true });
+    await expect(page.locator(".profileCropStep-cover .profileCropFrame")).toBeVisible();
+    await shoot(page, "crop-cover-390");
 
     // Drag the photo across the wide frame, then take what is under it.
     const frame = page.locator(".profileCropStep-cover .profileCropFrame");
@@ -263,7 +264,7 @@ test.describe("profile photo picker and crop", () => {
     await page.mouse.move(box.x + box.width * 0.25, box.y + box.height / 2, { steps: 8 });
     await page.mouse.up();
 
-    await page.getByRole("button", { name: "Use cover photo" }).click();
+    await page.getByRole("button", { name: "Use photo" }).click();
     await expect(page.locator(".profileCropStep")).toHaveCount(0);
 
     expect(await measureUploaded(record)).toEqual({
@@ -289,13 +290,13 @@ test.describe("profile photo picker and crop", () => {
     const status = page.locator(".profileCropStep [role='status']");
     await expect(status).toBeVisible();
     await expect(status).toContainText(/Open it in Photos, share it as a JPEG/i);
-    await expect(page.getByRole("button", { name: "Use photo" })).toBeDisabled();
+    // Nothing to position, so no frame, no zoom and no confirm: the sentence
+    // and the way back are the whole surface.
+    await expect(page.locator(".profileCropFrame")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Use photo" })).toHaveCount(0);
+    await expect(page.locator(".profileCropCancel")).toBeVisible();
     expect(record.bodies).toHaveLength(0);
 
-    await page.locator(".profileCropStep").scrollIntoViewIfNeeded();
-    await page.screenshot({
-      path: join(SHOT_DIR, "crop-heic-refused-390.png"),
-      fullPage: true,
-    });
+    await shoot(page, "crop-heic-refused-390");
   });
 });

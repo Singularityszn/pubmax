@@ -200,9 +200,16 @@ describe("the crop step a person sees", () => {
     expect(markup).toContain('type="range"');
   });
 
+  it("adds no visible title over the slot's own label", () => {
+    // "Cover photo" followed by "Position your cover photo" is a subtitle
+    // repeating its label, and it read as two headings stacked at 390px.
+    expect(cropper("cover")).not.toContain("Position your");
+    expect(cropper("cover")).not.toContain("profileCropTitle");
+  });
+
   it("offers a way out as well as a way on", () => {
     const markup = cropper("cover");
-    expect(markup).toContain("Use cover photo");
+    expect(markup).toContain("Use photo");
     expect(markup).toContain("profileCropCancel");
     expect(markup).toContain(">Cancel</button>");
   });

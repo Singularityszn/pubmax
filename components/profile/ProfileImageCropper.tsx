@@ -7,13 +7,12 @@ import {
   clampCropTransform,
   CROP_OUTPUT_QUALITY,
   CROP_OUTPUT_TYPE,
-  cropConfirmLabel,
+  CROP_CONFIRM_LABEL,
   cropFailedMessage,
   cropFrameLabel,
   cropOutputBox,
   cropScaleAtPosition,
   cropSourceRect,
-  cropStepTitle,
   cropZoomPosition,
   croppedFileName,
   isLikelyHeic,
@@ -344,11 +343,29 @@ export default function ProfileImageCropper({
     }
   }
 
-  const confirmLabel = rendering || busy ? "Uploading…" : cropConfirmLabel(slot);
+  const confirmLabel = rendering || busy ? "Uploading…" : CROP_CONFIRM_LABEL;
+  // A file this browser could not open has nothing to position. Showing an
+  // empty frame with a dead button reads as a broken control; the sentence and
+  // the way back are the whole surface.
+  const unreadable = error !== null && !ready;
+
+  if (unreadable) {
+    return (
+      <div className={`profileCropStep profileCropStep-${slot} profileCropStepFailed`}>
+        <span className="profileEditorHint profileEditorStatusErr" role="status">
+          {error}
+        </span>
+        <div className="profileCropActions">
+          <button type="button" className="profileCropCancel" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`profileCropStep profileCropStep-${slot}`}>
-      <h4 className="profileCropTitle">{cropStepTitle(slot)}</h4>
       <div
         ref={frameElementRef}
         className="profileCropFrame"

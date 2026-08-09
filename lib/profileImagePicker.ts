@@ -229,18 +229,24 @@ export function cropOutputBox(slot: ProfileImageSlot): CropBox {
 // move. A browser that cannot decode HEIC is the one case worth naming outright,
 // because the way out is in the Photos app rather than in this form.
 
-export function cropStepTitle(slot: ProfileImageSlot): string {
-  return slot === "avatar" ? "Position your photo" : "Position your cover photo";
-}
-
+/**
+ * The frame's accessible name. There is no VISIBLE title above it: the slot's
+ * own label already says "Profile photo" or "Cover photo", and a second line
+ * saying "Position your photo" under it is a subtitle repeating its label. What
+ * a sighted person needs is the frame, the zoom and the two buttons; what a
+ * screen-reader user needs is this sentence, which also names the keyboard.
+ */
 export function cropFrameLabel(slot: ProfileImageSlot): string {
   const noun = profileImageSlotSpec(slot).nounLower;
   return `Reposition your ${noun}. Drag it, or nudge it with the arrow keys.`;
 }
 
-export function cropConfirmLabel(slot: ProfileImageSlot): string {
-  return slot === "avatar" ? "Use photo" : "Use cover photo";
-}
+/**
+ * One label for both slots. The frame directly above it is already the slot's
+ * own shape, so naming the slot again only made the button wide enough to push
+ * Cancel onto its own line at 390px.
+ */
+export const CROP_CONFIRM_LABEL = "Use photo";
 
 export function unreadableImageMessage(
   slot: ProfileImageSlot,
