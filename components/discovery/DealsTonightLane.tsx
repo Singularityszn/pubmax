@@ -10,10 +10,19 @@ import { PoundSterling } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 import { isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
 import { WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
+import {
+  dealEndsCaption,
+  dealListingAgeCaption,
+  liveDeals,
+  orderDeals,
+  type DealProximityAnchor,
+} from "@/lib/dealsHonesty";
 import { preferredCityMapHref } from "@/lib/cityPreference";
 import { WhatsOnUrgencyBadge } from "@/components/map/WhatsOnUrgencyBadge";
 
 import "./dealsTonightLane.css";
+
+const CARD_LIMIT = 8;
 
 export type DealsTonightLaneProps = {
   /** When provided, render from these already-loaded rows (deal families are
@@ -23,20 +32,44 @@ export type DealsTonightLaneProps = {
   rows?: WhatsOnRow[];
   /** Retained for host compatibility. Card-derived copy does not use it. */
   asOf?: string | null;
+  /** Coarse point the cards are ordered from, from lib/dealsHonesty's
+   *  dealProximityAnchor. The host resolves it; this lane never reads a
+   *  location and never sends one. Absent orders by closing time alone. */
+  anchor?: DealProximityAnchor | null;
+  /** Injectable clock, so the ending and listing-age captions are testable. */
+  now?: number;
 };
 
-function selectDealsTonightRows(value: unknown): WhatsOnRow[] {
-  return Array.isArray(value)
-    ? value.filter((row) => isValidWhatsOnRow(row)).filter((row) => row.kind === "deal").slice(0, 8)
-    : [];
+/** Every valid deal row that is still running: the candidate set, uncapped. */
+function liveDealRowsFrom(value: unknown, now: number = Date.now()): WhatsOnRow[] {
+  if (!Array.isArray(value)) return [];
+  const valid = value.filter((row): row is WhatsOnRow => isValidWhatsOnRow(row, now));
+  return liveDeals(valid, now);
+}
+
+/**
+ * Order, then cap. The other way round picks the eight cards before the viewer's
+ * patch has had a say, which would leave a lane full of far-off deals that
+ * happen to close early.
+ */
+function dealCards(
+  rows: readonly WhatsOnRow[],
+  anchor: DealProximityAnchor | null,
+  now: number = Date.now(),
+): WhatsOnRow[] {
+  return orderDeals(liveDeals(rows, now), anchor).slice(0, CARD_LIMIT);
 }
 
 export function dealsTonightRowsFromResponse(body: unknown): WhatsOnRow[] {
   if (typeof body !== "object" || body === null) return [];
-  return selectDealsTonightRows((body as { rows?: unknown }).rows);
+  return liveDealRowsFrom((body as { rows?: unknown }).rows);
 }
 
-export default function DealsTonightLane({ rows: providedRows }: DealsTonightLaneProps) {
+export default function DealsTonightLane({
+  rows: providedRows,
+  anchor = null,
+  now,
+}: DealsTonightLaneProps) {
   const provided = providedRows !== undefined;
   const [fetchedRows, setFetchedRows] = useState<WhatsOnRow[]>([]);
 
@@ -54,9 +87,15 @@ export default function DealsTonightLane({ rows: providedRows }: DealsTonightLan
     return () => controller.abort();
   }, [provided]);
 
-  const rows = provided
-    ? selectDealsTonightRows(providedRows)
-    : fetchedRows;
+  // Selection re-reads the clock on every render, so a deal that closes while
+  // the page is open leaves the lane rather than sitting there as a promise
+  // nobody can keep. The helpers own the clock; the component stays pure.
+  const rows = dealCards(
+    provided ? liveDealRowsFrom(providedRows, now) : fetchedRows,
+    anchor,
+    now,
+  );
+  const badgeNow = now === undefined ? undefined : new Date(now);
 
   if (rows.length === 0) return null;
 
@@ -81,6 +120,8 @@ export default function DealsTonightLane({ rows: providedRows }: DealsTonightLan
           const mapHref = row.venueId
             ? `/map?sel=${encodeURIComponent(row.venueId)}`
             : preferredCityMapHref();
+          const ends = dealEndsCaption(row, now);
+          const listingAge = dealListingAgeCaption(row, now);
           return (
             <li key={row.id}>
               <Link
@@ -90,14 +131,18 @@ export default function DealsTonightLane({ rows: providedRows }: DealsTonightLan
               >
                 <div className="dealsTonightCardHead">
                   <strong>{row.title}</strong>
-                  <WhatsOnUrgencyBadge row={row} />
+                  <WhatsOnUrgencyBadge row={row} now={badgeNow} />
                 </div>
                 <span className="dealsTonightPlace">{row.placeName}</span>
+                {ends ? <span className="dealsTonightEnds">{ends}</span> : null}
                 {row.detail ? <span className="dealsTonightDetail">{row.detail}</span> : null}
                 <span className="dealsTonightSource">
                   {row.source.label}
                   {row.source.url ? " · sourced" : ""}
                 </span>
+                {listingAge ? (
+                  <span className="dealsTonightListingAge">{listingAge}</span>
+                ) : null}
               </Link>
             </li>
           );

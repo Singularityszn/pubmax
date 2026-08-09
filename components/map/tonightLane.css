@@ -462,9 +462,26 @@
   color: color-mix(in srgb, var(--river) 45%, var(--ink));
 }
 
+/* The deal's own closing time, beside the start it already prints. */
+.tonightLaneCardEnds {
+  font-weight: 800;
+  color: var(--brass);
+}
+
 .tonightLaneCardSource {
   margin: 0;
   font-size: 0.62rem;
+  color: var(--muted);
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+/* Wraps rather than truncating: half a listing age is worse than none. */
+.tonightLaneCardListingAge {
+  margin: 2px 0 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.3;
   color: var(--muted);
   overflow-wrap: break-word;
   white-space: normal;
