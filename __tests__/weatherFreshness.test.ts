@@ -178,6 +178,52 @@ describe("loadFreshWeatherSnapshot (read-through)", () => {
     expect(result?.generatedAt).toBe(stale.generatedAt);
   });
 
+  it("stops waiting for a slow provider and serves the cached reading", async () => {
+    const stale = snap("2026-07-18T22:25:46.579Z", 11);
+    let release: (() => void) | undefined;
+    const arrived = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fetchObservations = vi.fn(async () => {
+      await arrived;
+      return liveResult(26);
+    });
+    const store = storeSpy();
+
+    const result = await loadFreshWeatherSnapshot({
+      now: NOW,
+      loadFreshest: async () => stale,
+      fetchObservations,
+      store,
+      topUpDeadlineMs: 5,
+    });
+
+    // The render got the cached reading, with its own honest staleness stamp.
+    expect(result?.generatedAt).toBe(stale.generatedAt);
+    // The top-up was NOT cancelled: it lands, and it caches for the next reader.
+    release?.();
+    await vi.waitFor(() => expect(store.writes).toBe(1));
+  });
+
+  it("waits for as long as the provider takes when the deadline is switched off", async () => {
+    const stale = snap("2026-07-18T22:25:46.579Z", 11);
+    const fetchObservations = vi.fn(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return liveResult(26);
+    });
+
+    const result = await loadFreshWeatherSnapshot({
+      now: NOW,
+      loadFreshest: async () => stale,
+      fetchObservations,
+      store: storeSpy(),
+      topUpDeadlineMs: 0,
+    });
+
+    expect(result?.generatedAt).toBe(NOW.toISOString());
+    expect(result?.observations[0].feelsLikeC).toBe(26);
+  });
+
   it("returns null when everything is stale and there is no cache to fall back to", async () => {
     const fetchObservations = vi.fn(async (): Promise<FetchObservationsResult> => {
       throw new Error("Open-Meteo down");

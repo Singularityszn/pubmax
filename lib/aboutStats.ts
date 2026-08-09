@@ -87,12 +87,40 @@ export function computeAboutStats(
   };
 }
 
-// Async loader: reads the real bundled datasets (defensive — each source
-// already returns []/empty on failure, so a missing file degrades to zeroed
-// stats rather than crashing the page). getPricedVenues memoizes the grouped
-// list, but we re-read the raw rows here for the price-observation count; both
-// hit the same cheap bundled JSON.
-export async function loadAboutStats(): Promise<AboutStats> {
+// Every input below is a file bundled with the deployment, so the answer cannot
+// change between two requests to the same instance. The landing page is on the
+// per-request render path (the CSP nonce keeps every route dynamic), and the
+// raw price read alone is a 6.7 MB JSON.parse, so an unmemoized loader charged
+// that parse to EVERY homepage view. Hold the promise, not the value, so
+// concurrent first requests share one read instead of racing several.
+let cachedStats: Promise<AboutStats> | null = null;
+
+// The loader: reads the real bundled datasets (defensive — each source already
+// returns []/empty on failure, so a missing file degrades to zeroed stats
+// rather than crashing the page), once.
+export function loadAboutStats(): Promise<AboutStats> {
+  // A rejection must not be remembered: every read below is already fail-soft,
+  // so a throw here means something unexpected, and the next request deserves a
+  // fresh attempt rather than a permanently poisoned figure.
+  cachedStats ??= readAboutStats().catch((error) => {
+    cachedStats = null;
+    throw error;
+  });
+  return cachedStats;
+}
+
+/** Test-only: drop the memoized figures between hermetic cases. */
+export function resetAboutStatsForTests(): void {
+  if (
+    process.env.NODE_ENV === "test" ||
+    Boolean(process.env.VITEST) ||
+    Boolean(process.env.VITEST_WORKER_ID)
+  ) {
+    cachedStats = null;
+  }
+}
+
+async function readAboutStats(): Promise<AboutStats> {
   const [historic, pricedVenues] = await Promise.all([
     loadHistoricPubs(),
     getPricedVenues(),

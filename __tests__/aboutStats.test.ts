@@ -1,6 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 
-import { computeAboutStats } from "@/lib/aboutStats";
+import {
+  computeAboutStats,
+  loadAboutStats,
+  resetAboutStatsForTests,
+} from "@/lib/aboutStats";
 import type { VenuePrice } from "@/lib/venues";
 
 // computeAboutStats only reads pub_name/address/latitude/longitude (for the
@@ -88,5 +92,28 @@ describe("computeAboutStats", () => {
     });
     expect(s.pubsTracked).toBe(0);
     expect(s.pintPricesObserved).toBe(0);
+  });
+});
+
+// The landing page renders per request (the CSP nonce keeps every route
+// dynamic) and the raw price read alone is a 6.7 MB JSON.parse, so the loader
+// must read its bundled inputs once per instance rather than once per view.
+describe("loadAboutStats", () => {
+  afterEach(() => {
+    resetAboutStatsForTests();
+  });
+
+  it("reads the bundled datasets once and hands every later caller the same figures", async () => {
+    const first = loadAboutStats();
+    const second = loadAboutStats();
+    expect(second).toBe(first);
+    expect(await second).toBe(await first);
+  });
+
+  it("reads again after a reset, so a test can start from cold", async () => {
+    const before = loadAboutStats();
+    await before;
+    resetAboutStatsForTests();
+    expect(loadAboutStats()).not.toBe(before);
   });
 });

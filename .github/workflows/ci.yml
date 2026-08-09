@@ -93,3 +93,49 @@ jobs:
           --exclude '__tests__/socialCrewLegacyRoutesRls.test.ts'
           --exclude '__tests__/socialCrewMigration.test.ts'
           --exclude '__tests__/**/*Migration.test.ts'
+
+  # Speed is the product's claim, so a pull request that slows a budgeted route
+  # fails here rather than being noticed on a phone weeks later. The ceilings
+  # live in perf/route-budgets.json and docs/PERFORMANCE_BUDGETS.md owns the rule
+  # for changing one. Only the four routes the product is judged on are measured,
+  # two runs each after a thrown-away warm-up, so the job stays inside its slice
+  # of the 15-minute wall budget.
+  performance-budget:
+    name: Performance budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      # Chromium only: the budget is measured in one engine on purpose, so a run
+      # is comparable to the one before it.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # Playwright's webServer builds and starts the production build itself
+      # (playwright.config.ts owns the env the keyless routes need). Measuring a
+      # dev server would be a number about the bundler, not about what a drinker
+      # downloads.
+      - name: Measure budgeted routes
+        env:
+          PUBMAX_PERF_BUDGET: "1"
+          PUBMAX_E2E_KEYLESS: "1"
+        run: npx playwright test e2e/performance-budget.spec.ts --project=chromium --workers=1
