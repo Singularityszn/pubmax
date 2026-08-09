@@ -204,6 +204,12 @@ export const ANALYTICS_EVENTS = {
   // names, raw paste text, or source URLs.
   wanted_created: ["venueKind", "hasSourceUrl"],
   wanted_fulfilled: ["venueKind"],
+  // A claim landed inside the first hundred and was granted a founding number.
+  // It carries NO props on purpose: the number itself is unique to one account,
+  // so sending it would put an account identifier in the analytics payload this
+  // registry exists to keep out, and even a coarse band narrows the same way.
+  // The count of these events is the whole signal.
+  founding_grant: [],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;

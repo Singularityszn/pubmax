@@ -13,6 +13,7 @@ import {
   checkAccountHandleAvailability,
   loadAccountOnboardingStatus,
 } from "@/lib/accountOnboardingClient";
+import { parseFoundingMemberNumber } from "@/lib/foundingMembers";
 import {
   emitIdentityHandleChanged,
   syncDeviceHandle,
@@ -398,6 +399,7 @@ function AccountOnboardingForUser({
           handle?: unknown;
           code?: unknown;
           error?: unknown;
+          foundingMemberNumber?: unknown;
         };
         if (!active.current) return;
         if (!response.ok) {
@@ -442,6 +444,12 @@ function AccountOnboardingForUser({
         }
         emitIdentityHandleChanged({ ownerId: auth.userId, handle: claimed });
         trackEvent("account_claimed", { source: "auth" });
+        // This claim landed inside the first hundred. The event carries no
+        // props: the number is unique to one account, so sending it would put
+        // an account identifier in a payload that carries none.
+        if (parseFoundingMemberNumber(body.foundingMemberNumber) !== null) {
+          trackEvent("founding_grant");
+        }
         setStatus("complete");
       } catch {
         if (active.current) {

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
+import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
 import ProfileSocialLinks from "@/components/profile/ProfileSocialLinks";
 import { displayHandle } from "@/lib/handleDisplay";
 import { computeBadges, type Badge, type Profile, type ProfileDrop, type ProfileStats } from "@/lib/profiles";
@@ -89,7 +90,8 @@ export default function ProfileHeader({
   drops,
   actions,
 }: ProfileHeaderProps) {
-  const { handle, displayName, homeCity, bio, avatarUrl, coverUrl } = profile;
+  const { handle, displayName, homeCity, bio, avatarUrl, coverUrl, foundingMemberNumber } =
+    profile;
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
   const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null);
   const showAvatar = Boolean(avatarUrl) && failedAvatarUrl !== avatarUrl;
@@ -152,6 +154,10 @@ export default function ProfileHeader({
               {homeCity}
             </p>
           ) : null}
+          {/* Beside the name, because that is what it is about: when this
+              person arrived. It is not a badge in the earned-badge row below,
+              which is a ladder of things somebody DID. */}
+          <FoundingMemberMark number={foundingMemberNumber} />
         </div>
 
         {actions ? <div className="profileActions">{actions}</div> : null}

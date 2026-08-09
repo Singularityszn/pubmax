@@ -130,6 +130,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/crawls", priority: 0.6, changeFrequency: "weekly", lastModified: now },
     { path: "/choose-city", priority: 0.5, changeFrequency: "monthly", lastModified: now },
     { path: "/about", priority: 0.5, changeFrequency: "monthly", lastModified: now },
+    { path: "/founders", priority: 0.4, changeFrequency: "weekly", lastModified: now },
     // Static, token-free content pages a reader (or a crawler checking the site
     // is legitimate) must be able to find: they are linked from the footer and
     // carry no UGC, so they belong in the sitemap like /about.

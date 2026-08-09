@@ -74,6 +74,12 @@ function toPublicProfile(profile: ProfileRecord | null): PublicProfile | null {
     ...(profile.favouriteDrink ? { favouriteDrink: profile.favouriteDrink } : {}),
     ...(profile.interests ? { interests: profile.interests } : {}),
     ...(profile.workplace ? { workplace: profile.workplace } : {}),
+    // The founding number is public by design: it is a visible mark on a public
+    // card and a line on a public wall, so hiding it here would only mean the
+    // card had to ask twice for something already published.
+    ...(profile.foundingMemberNumber !== undefined
+      ? { foundingMemberNumber: profile.foundingMemberNumber }
+      : {}),
     createdAt: profile.createdAt,
     updatedAt: profile.updatedAt,
   };

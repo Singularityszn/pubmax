@@ -62,6 +62,51 @@
   text-overflow: ellipsis;
 }
 
+/* Carrying the founders' door, the strip stops being a one-line pill: it grows
+   a second row and a softer radius, the greeting is allowed to wrap, and the
+   dismiss control moves to the corner. Only the door and the dismiss take
+   pointer events, so a tap that misses either still lands on the page. */
+.arrivalWelcome[data-founding] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: start;
+  gap: 0.5rem;
+  width: min(24rem, calc(100vw - 1.5rem));
+  padding: 0.75rem 0.75rem 0.85rem 0.95rem;
+  border-radius: 20px;
+  /* Opaque, not near-opaque. The one-line pill can afford a trace of the page
+     underneath; this variant is twice as tall and carries a link, and page
+     copy reading through a control is how a link stops looking like one. */
+  background: var(--panel-raised);
+}
+
+/* Every child is placed by hand. Left to auto-placement the door spans both
+   columns on row two and pushes the dismiss control down to a row of its own,
+   which reads as a stray button under the link rather than a corner close. */
+.arrivalWelcome[data-founding] .arrivalWelcomeLine {
+  grid-column: 1;
+  grid-row: 1;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.arrivalWelcome[data-founding] .arrivalWelcomeDismiss {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.arrivalWelcomeDoor {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  pointer-events: auto;
+}
+
+.arrivalWelcomeDoor > * {
+  width: 100%;
+}
+
 .arrivalWelcomeDismiss {
   flex: 0 0 auto;
   display: inline-grid;

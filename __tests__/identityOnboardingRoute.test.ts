@@ -78,6 +78,9 @@ describe("/api/identity/onboarding", () => {
     expect(await response.json()).toEqual({
       complete: true,
       handle: "night_owl",
+      // The first claim in a fresh store lands inside the first hundred, so the
+      // claim underneath grants a founding number and it rides out here.
+      foundingMemberNumber: 1,
       dateOfBirth: "2015-02-03",
     });
   });
@@ -279,6 +282,7 @@ describe("/api/identity/onboarding", () => {
     expect(await response.json()).toEqual({
       complete: true,
       handle: "young_person",
+      foundingMemberNumber: 1,
       dateOfBirth: "2015-02-03",
     });
   });

@@ -1,3 +1,4 @@
+import { parseFoundingMemberNumber } from "@/lib/foundingMembers";
 import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 import {
   assessPubmaxxHandle,
@@ -14,7 +15,18 @@ export type HandleAvailability = {
 };
 
 export type HandleClaimResult =
-  | { ok: true; profileId: string; handle: string; claimed: true }
+  | {
+      ok: true;
+      profileId: string;
+      handle: string;
+      claimed: true;
+      /**
+       * The founding number this claim was granted, when the cohort still had
+       * room. Absent means the first hundred are already spoken for, which is
+       * the ordinary case and never an error.
+       */
+      foundingMemberNumber?: number;
+    }
   | { ok: false; code: "taken" | "already_has_handle" | "storage"; error: string };
 
 export type HandleRenameResult =
@@ -66,11 +78,13 @@ function handleFromRpc(data: unknown): Record<string, unknown> {
 
 function rpcClaim(row: Record<string, unknown>): HandleClaimResult {
   if (row.ok === true) {
+    const founding = parseFoundingMemberNumber(row.founding_member_number);
     return {
       ok: true,
       profileId: String(row.profile_id),
       handle: String(row.handle),
       claimed: true,
+      ...(founding === null ? {} : { foundingMemberNumber: founding }),
     };
   }
   const code = row.code === "already_has_handle" ? "already_has_handle" : row.code === "taken" ? "taken" : "storage";
@@ -96,7 +110,16 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
     const owned = currentByOwner.get(ownerId);
     if (owned) {
       if (owned.currentHandle === handle) {
-        return { ok: true, profileId: owned.profileId, handle, claimed: true };
+        const held = await profileStore().getByHandle(handle);
+        return {
+          ok: true,
+          profileId: owned.profileId,
+          handle,
+          claimed: true,
+          ...(held?.foundingMemberNumber === undefined
+            ? {}
+            : { foundingMemberNumber: held.foundingMemberNumber }),
+        };
       }
       return {
         ok: false,
@@ -127,6 +150,9 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
             profileId: existingOwner.id,
             handle,
             claimed: true,
+            ...(existingOwner.foundingMemberNumber === undefined
+              ? {}
+              : { foundingMemberNumber: existingOwner.foundingMemberNumber }),
           };
         }
         return {
@@ -149,7 +175,15 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
       };
       memoryAliases.set(handle, alias);
       currentByOwner.set(ownerId, alias);
-      return { ok: true, profileId: profile.id, handle, claimed: true };
+      return {
+        ok: true,
+        profileId: profile.id,
+        handle,
+        claimed: true,
+        ...(profile.foundingMemberNumber === undefined
+          ? {}
+          : { foundingMemberNumber: profile.foundingMemberNumber }),
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (/already has a handle/i.test(message)) {

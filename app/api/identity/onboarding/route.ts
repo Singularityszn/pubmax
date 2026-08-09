@@ -95,6 +95,11 @@ export async function POST(request: Request): Promise<Response> {
     {
       complete: true,
       handle: result.handle,
+      // Public status, returned here so the claim surface can mark the moment
+      // once rather than re-reading its own account to find out.
+      ...(result.foundingMemberNumber === undefined
+        ? {}
+        : { foundingMemberNumber: result.foundingMemberNumber }),
       ...privateDetails(result.privateIdentity),
     },
     { status: 201 },

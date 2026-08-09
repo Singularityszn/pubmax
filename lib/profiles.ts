@@ -40,6 +40,12 @@ export type Profile = {
   interests?: string;
   /** Public by choice: where this person works. Display text, never a page. */
   workplace?: string;
+  /**
+   * Position among the first hundred claimed handles, when this account holds
+   * one. A mark on the card and nothing more: see `lib/foundingMembers.ts` for
+   * why no capability may ever read it.
+   */
+  foundingMemberNumber?: number;
 };
 
 /**
@@ -63,6 +69,8 @@ export type PublicProfile = {
   favouriteDrink?: string;
   interests?: string;
   workplace?: string;
+  /** Public by design: the founding number, when this account holds one. */
+  foundingMemberNumber?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -363,6 +371,9 @@ export function withStoredProfile(
     favouriteDrink: stored?.favouriteDrink,
     interests: stored?.interests,
     workplace: stored?.workplace,
+    // Granted by the store, never synthesized: a handle with no stored row has
+    // claimed nothing, so it is not a founding member of anything.
+    foundingMemberNumber: stored?.foundingMemberNumber,
   };
 }
 
