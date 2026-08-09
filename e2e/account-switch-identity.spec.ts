@@ -227,6 +227,19 @@ test.describe("account switch on one device", () => {
       .toBe(`/u/${ACCOUNTS.B.handle}`);
     await page.screenshot({ path: `${SHOTS}/3-switched-to-b.png` });
 
+    // Every surface that NAMES the viewer, not only the ones that route them.
+    // The Today greeting read the device handle straight from storage and kept
+    // saying "Good afternoon, karan" over the second account's whole visit.
+    await page.goto("/today");
+    await expect(page.getByTestId("today-greeting")).toBeVisible();
+    // A word boundary, because "karansznx" contains "karan": the point is that
+    // the greeting names B, not that the letters never appear.
+    await expect
+      .poll(async () => page.getByTestId("today-greeting").innerText(), {
+        timeout: 10_000,
+      })
+      .not.toMatch(new RegExp(`\\b${ACCOUNTS.A.handle}\\b`));
+
     // B's durable resume cookie replaced A's.
     await expect
       .poll(async () => decodeResumeCookie(await resumeCookie(page))?.rt, {

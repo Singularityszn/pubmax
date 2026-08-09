@@ -25,7 +25,7 @@ import {
   Waves,
 } from "lucide-react";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
 import {
@@ -34,7 +34,7 @@ import {
   type DayGreeting,
   type DaySlot,
 } from "@/lib/dayGreeting";
-import { readDeviceHandle } from "@/lib/identityClaimClient";
+import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import { NIGHT_PATCHES, readRememberedArea } from "@/lib/nightPatches";
 import { PLAN_INTAKE_STORAGE_KEY, parsePlanIntakeDraft } from "@/lib/planIntake";
@@ -285,12 +285,6 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
   );
 }
 
-function subscribeDeviceHandle(onChange: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
-  window.addEventListener("storage", onChange);
-  return () => window.removeEventListener("storage", onChange);
-}
-
 export default function TodayClient({
   dateLabel,
   nowIso,
@@ -304,11 +298,11 @@ export default function TodayClient({
 }: Props) {
   const [brief, setBrief] = useState({ weather, picks: picks.slice(0, 3), filteredPickCount: 0 });
 
-  // The viewer's claimed handle, if this device has one. Same store pattern the
-  // tab bar uses: SSR and hydration both see "", then the real handle lands
-  // after mount. Nothing about the layout depends on it, so its arrival only
-  // ever appends a name to the salutation.
-  const deviceHandle = useSyncExternalStore(subscribeDeviceHandle, readDeviceHandle, () => "");
+  // Who the salutation may name. SSR and hydration both see nobody, then the
+  // live session answers. Nothing about the layout depends on it, so its
+  // arrival only ever appends a name — and a name it is not yet sure of is the
+  // one thing it must never append (components/auth/useViewerHandle.ts).
+  const deviceHandle = useViewerHandle() ?? "";
 
   // Rebuild the greeting whenever the resolved weather or the handle changes,
   // always against the SERVER instant, so the time-of-day band stays exactly
