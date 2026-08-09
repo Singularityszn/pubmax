@@ -59,6 +59,10 @@ describe("perf/route-budgets.json", () => {
     expect(method.aggregate).toBe("median");
     expect(method.thirdPartyBlocked).toBe(true);
   });
+
+  it("says in the config where counting stops, because that is what makes two runs comparable", () => {
+    expect(PERFORMANCE_BUDGETS.method.countedUpTo.trim().length).toBeGreaterThan(0);
+  });
 });
 
 describe("findBudgetBreaches", () => {

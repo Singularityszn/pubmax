@@ -14,7 +14,7 @@ CI refuses a change that goes past it.
 | Metric | What it is | Why this one |
 | --- | --- | --- |
 | `serverRenderMs` | `responseStart - requestStart` on the document's own navigation entry | Over loopback there is no network in that figure, so it is the part of a production TTFB the code owns. |
-| `jsDecodedKB` | Decoded bytes of every same-origin script the route pulled in before it settled | Decoded, not transferred, because parse time is what a phone feels. |
+| `jsDecodedKB` | Decoded bytes of every same-origin script the route asked for before it was interactive | Decoded, not transferred, because parse time is what a phone feels. |
 | `requests` | Same-origin requests to the same point, the document included | A route can hold its bytes and still lose the night to a waterfall. |
 
 ## How a run is taken
@@ -22,8 +22,20 @@ CI refuses a change that goes past it.
 Against the production build, at 390x844, with a 4x CPU throttle and every
 cross-origin request refused, so a run measures what we ship and never a tile
 server's morning. Each route gets a warm-up load that is thrown away, then the
-median of the measured runs. The sample is anchored to the settled network
-rather than to a wall clock, so the throttle cannot change what has arrived yet.
+median of the measured runs.
+
+Counting stops at an APP-DEFINED moment, not a wall clock: the route's own
+readiness gate, no earlier than the window load event. A resource counts if it
+started before that moment; the run then waits for the network to go quiet so
+every counted entry carries its final size.
+
+That distinction is the difference between a gate and a coin toss. `networkidle`
+catches or misses the post-paint background warmup
+(`lib/backgroundWarmup.ts`, which loads the OTHER tab destinations on purpose)
+depending on how fast the box is: the first CI run of this spec measured
+`/today` at 2726 KB and the retry at 1186 KB, on one build. Under the current
+anchor three consecutive local runs agree byte for byte, and CI agrees with
+them to within about 4 KB.
 
 Run it locally the same way CI does:
 

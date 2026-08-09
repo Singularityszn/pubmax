@@ -23,9 +23,21 @@ import {
 //     navigation entry. Over loopback that is server think time with no network
 //     in it, which is the part of a production TTFB the code owns.
 //   jsDecodedKB — decoded (so: parse cost, not transfer cost) bytes of every
-//     same-origin script the route pulled in before it settled.
+//     same-origin script the route asked for before it was interactive.
 //   requests — how many same-origin requests it took to get there. A route can
 //     hold its bytes and still lose the night to a waterfall.
+//
+// WHERE "BEFORE INTERACTIVE" IS CUT, and why it is not networkidle: the app
+// deliberately warms the OTHER tab destinations once the foreground surface
+// says it has painted (lib/backgroundWarmup.ts). Those chunks are off the
+// critical path by design, but they are exactly what a time-based settle
+// catches or misses depending on how fast the box is: the first CI run of this
+// spec measured /today at 2726 KB and the retry at 1186 KB, on one build. So
+// the cut is an APP-DEFINED moment rather than a wall clock — the route's own
+// readiness gate, no earlier than the window load event — and a resource counts
+// if it STARTED before that moment. The run then waits for the network to go
+// quiet so every counted entry carries its final size, and anything the warmup
+// began afterwards is excluded by construction rather than by luck.
 //
 // Cross-origin requests are refused for the whole run, so the numbers describe
 // what we ship and never a tile server's morning. Each route gets a warm-up
@@ -61,8 +73,13 @@ async function throttleCpu(page: Page): Promise<void> {
   await session.send("Emulation.setCPUThrottlingRate", { rate });
 }
 
-async function loadRoute(page: Page, route: RouteBudget): Promise<void> {
-  await page.goto(route.path);
+/** No new resource entry for this long counts as the network having gone quiet. */
+const NETWORK_QUIET_MS = 1_500;
+const NETWORK_QUIET_CEILING_MS = 20_000;
+
+/** Loads the route and returns the interactive moment on the page's own clock. */
+async function loadRoute(page: Page, route: RouteBudget): Promise<number> {
+  await page.goto(route.path, { waitUntil: "load" });
   await expect(page.locator(route.readySelector).first()).toBeVisible({
     timeout: ROUTE_READY_TIMEOUT_MS,
   });
@@ -71,14 +88,35 @@ async function loadRoute(page: Page, route: RouteBudget): Promise<void> {
       timeout: ROUTE_READY_TIMEOUT_MS,
     });
   }
-  // Best effort: the sample is anchored to the settled network rather than to a
-  // wall-clock moment, so the CPU throttle cannot change what has arrived yet.
-  await page.waitForLoadState("networkidle").catch(() => {});
+  return page.evaluate(() => performance.now());
+}
+
+/** Waits until nothing new has been requested for a while, so sizes are final. */
+async function waitForQuietNetwork(page: Page): Promise<void> {
+  await page.evaluate(
+    async ([quietMs, ceilingMs]) => {
+      let seen = performance.getEntriesByType("resource").length;
+      let quietSince = performance.now();
+      const deadline = performance.now() + ceilingMs;
+      while (performance.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        const now = performance.getEntriesByType("resource").length;
+        if (now !== seen) {
+          seen = now;
+          quietSince = performance.now();
+        } else if (performance.now() - quietSince >= quietMs) {
+          return;
+        }
+      }
+    },
+    [NETWORK_QUIET_MS, NETWORK_QUIET_CEILING_MS] as const,
+  );
 }
 
 async function sampleRoute(page: Page, route: RouteBudget): Promise<Sample> {
-  await loadRoute(page, route);
-  return page.evaluate(() => {
+  const interactiveAt = await loadRoute(page, route);
+  await waitForQuietNetwork(page);
+  return page.evaluate((boundary) => {
     const origin = location.origin;
     const [navigation] = performance.getEntriesByType(
       "navigation",
@@ -89,6 +127,8 @@ async function sampleRoute(page: Page, route: RouteBudget): Promise<Sample> {
       "resource",
     ) as PerformanceResourceTiming[]) {
       if (!entry.name.startsWith(origin)) continue;
+      // Asked for before the route was interactive, whenever it finished.
+      if (entry.startTime > boundary) continue;
       requests += 1;
       const isJs = entry.initiatorType === "script" || /\.js(\?|$)/.test(entry.name);
       if (isJs) jsBytes += entry.decodedBodySize || 0;
@@ -102,7 +142,7 @@ async function sampleRoute(page: Page, route: RouteBudget): Promise<Sample> {
         ? Math.round(navigation.responseStart - navigation.requestStart)
         : Number.NaN,
     };
-  });
+  }, interactiveAt);
 }
 
 test("every budgeted route stays inside its performance budget", async ({ page, baseURL }) => {
@@ -117,6 +157,9 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // The default buffer holds 250 entries and a busy route is close to it;
+    // a dropped entry would read as a route that asked for less than it did.
+    performance.setResourceTimingBufferSize(1000);
   });
   await blockThirdParties(page, origin);
   await throttleCpu(page);

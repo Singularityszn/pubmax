@@ -51,6 +51,12 @@ export type BudgetMethod = {
   viewport: { width: number; height: number };
   /** Cross-origin requests are refused, so a run measures only what we ship. */
   thirdPartyBlocked: boolean;
+  /**
+   * Where the byte and request counts are cut, in words. Deliberately part of
+   * the tracked config: two runs are only comparable if they stopped counting
+   * at the same moment, and a time-based settle does not.
+   */
+  countedUpTo: string;
 };
 
 export type PerformanceBudgets = {
