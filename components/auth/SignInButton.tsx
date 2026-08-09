@@ -20,11 +20,13 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { LogIn } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import AccountMenu from "@/components/auth/AccountMenu";
 import ClerkAccountControls from "@/components/auth/ClerkAccountControls";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
+import { handleOnly } from "@/lib/handleDisplay";
 import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
   authMenuFocusBoundary,
@@ -40,6 +42,33 @@ function initials(name: string): string {
   const first = parts[0][0] ?? "";
   const last = parts.length > 1 ? parts[parts.length - 1][0] ?? "" : "";
   return (first + last).toUpperCase() || "?";
+}
+
+/**
+ * What the nav may call this person, from the three sources that know: the
+ * public profile they authored, the identity provider that signed them in, and
+ * the handle they claimed. The email is the last resort for the trigger's
+ * accessible name and never the card's name.
+ */
+function accountIdentity(
+  metadata: Record<string, unknown>,
+  email: string | undefined,
+  handle: string | null,
+  card: { displayName?: string; avatarUrl?: string } | null,
+): { navName: string; cardName: string; avatar: string } {
+  const providerName =
+    (typeof metadata.full_name === "string" && metadata.full_name)
+    || (typeof metadata.name === "string" && metadata.name)
+    || "";
+  const providerAvatar =
+    (typeof metadata.avatar_url === "string" && metadata.avatar_url)
+    || (typeof metadata.picture === "string" && metadata.picture)
+    || "";
+  return {
+    navName: providerName || email || "Signed in",
+    cardName: card?.displayName || providerName || (handle ? handleOnly(handle) : "Your account"),
+    avatar: card?.avatarUrl || providerAvatar,
+  };
 }
 
 export default function SignInButton({
@@ -60,6 +89,7 @@ export default function SignInButton({
     user,
     loading,
     configured,
+    handle: accountHandle,
     clerkIntegrationConfigured,
     socialProviders,
     signInWithGoogle,
@@ -72,6 +102,7 @@ export default function SignInButton({
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [phoneLogin, setPhoneLogin] = useState(false);
+  const [card, setCard] = useState<{ displayName?: string; avatarUrl?: string } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -169,6 +200,31 @@ export default function SignInButton({
     wasOpenRef.current = menuOpen;
   }, [menuOpen]);
 
+  // The owned avatar and public display name come from the same public profile
+  // read the profile page uses, and only once the menu is actually opened.
+  // The nav renders on every page, and none of them owe a request for a card
+  // nobody looked at.
+  useEffect(() => {
+    if (!menuOpen || card || !accountHandle) return;
+    const controller = new AbortController();
+    void (async () => {
+      const response = await fetch(
+        `/api/profiles/${encodeURIComponent(handleOnly(accountHandle))}`,
+        { signal: controller.signal },
+      ).catch(() => null);
+      if (!response?.ok) return;
+      const body = (await response.json().catch(() => null)) as {
+        profile?: { displayName?: string; avatarUrl?: string } | null;
+      } | null;
+      if (controller.signal.aborted) return;
+      setCard({
+        ...(body?.profile?.displayName ? { displayName: body.profile.displayName } : {}),
+        ...(body?.profile?.avatarUrl ? { avatarUrl: body.profile.avatarUrl } : {}),
+      });
+    })();
+    return () => controller.abort();
+  }, [accountHandle, card, menuOpen]);
+
   const onSignInGoogle = useCallback(async () => {
     trackEvent("sign_in_initiated", { provider: "google" });
     setBusy("google");
@@ -213,16 +269,12 @@ export default function SignInButton({
   if (loading && !clerkSessionAvailable) return null;
 
   if (user) {
-    const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
-    const name =
-      (typeof meta.full_name === "string" && meta.full_name) ||
-      (typeof meta.name === "string" && meta.name) ||
-      user.email ||
-      "Signed in";
-    const avatar =
-      (typeof meta.avatar_url === "string" && meta.avatar_url) ||
-      (typeof meta.picture === "string" && meta.picture) ||
-      "";
+    const { navName: name, cardName, avatar } = accountIdentity(
+      (user.user_metadata ?? {}) as Record<string, unknown>,
+      user.email,
+      accountHandle,
+      card,
+    );
     const avatarControl = avatar ? (
       // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar; no next/image loader configured for it
       <img className="authAvatar" src={avatar} alt="" width={28} height={28} />
@@ -233,6 +285,10 @@ export default function SignInButton({
     );
 
     if (compact) {
+      // The card names the person, not their login. A claimed handle is the
+      // identity PUBMAXX knows them by, so it leads; the email is account
+      // plumbing and sits quietly at the foot. Without a claimed handle the
+      // links point at /u/you, which is the claim surface itself.
       return (
         <div className="authUser authUserNav" ref={rootRef}>
           <div className="authCompact">
@@ -252,20 +308,18 @@ export default function SignInButton({
               </span>
             </button>
             {menuOpen ? (
-              <div className="authMenu" id={menuId} aria-label="Account options" ref={menuRef}>
-                <div className="authAccountSummary">
-                  <span className="authName">{name}</span>
-                </div>
-                <button
-                  type="button"
-                  className="authSignOut"
-                  onClick={onSignOut}
-                  disabled={busy !== null}
-                >
-                  Sign out
-                </button>
-                {clerkSessionAvailable ? <ClerkAccountControls /> : null}
-              </div>
+              <AccountMenu
+                id={menuId}
+                menuRef={menuRef}
+                name={cardName}
+                handle={accountHandle}
+                {...(user.email ? { email: user.email } : {})}
+                {...(avatar ? { avatarUrl: avatar } : {})}
+                signOutDisabled={busy !== null}
+                onSignOut={onSignOut}
+                onNavigate={() => setMenuOpen(false)}
+                extraControls={clerkSessionAvailable ? <ClerkAccountControls /> : null}
+              />
             ) : null}
           </div>
         </div>

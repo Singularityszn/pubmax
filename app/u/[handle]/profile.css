@@ -906,10 +906,17 @@
   gap: 8px;
 }
 
-.profilePage .profileEditorAvatarFile {
+/* The real file input is hidden behind its own button, so it must take no room.
+   `.profilePage .profileEditor input` above is one element selector more
+   specific, so a class-only rule here lost its width and height to it and left
+   an invisible 264px control overflowing the phone page by 23px. Match that
+   selector's shape rather than restating the width. */
+.profilePage .profileEditor input.profileEditorAvatarFile {
   position: absolute;
   width: 1px;
+  min-height: 0;
   height: 1px;
+  padding: 0;
   opacity: 0;
   pointer-events: none;
 }
@@ -1535,3 +1542,236 @@
 .profilePage .profileFloor { margin-top: 32px; padding: 22px 4px 8px; border-top: 1px solid var(--line); text-align: center; }
 .profilePage .profileFloor p { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.55; }
 .profilePage .profileFloor a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+/* ── Linked socials ───────────────────────────────────────────────────────
+   The owner's own public handles, on their card and in their editor. One
+   monogram system across every platform, so a service nobody drew an icon for
+   still reads as a link rather than a gap. */
+.profilePage .profileSocials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profilePage .profileSocialLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.profilePage .profileSocialLink:hover {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+}
+
+.profilePage .profileSocialLink:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.profilePage .profileSocialMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 16%, transparent);
+  color: var(--brass);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.profilePage .profileSocialName {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.profilePage .profileSocialHandle {
+  max-width: 18ch;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profilePage .socialLinks {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.profilePage .socialLinksTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.profilePage .socialLinksLede {
+  margin: -4px 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.profilePage .socialLinksOauth {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profilePage .socialLinksList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profilePage .socialLinksRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 8px 6px 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-raised);
+}
+
+.profilePage .socialLinksMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 16%, transparent);
+  color: var(--brass);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.profilePage .socialLinksRowText {
+  display: grid;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.profilePage .socialLinksRowLabel {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.profilePage .socialLinksRowHandle {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profilePage .socialLinksRemove {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profilePage .socialLinksRemove:hover:not(:disabled) {
+  border-color: var(--brick);
+  color: var(--brick);
+}
+
+.profilePage .socialLinksForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.profilePage .socialLinksField {
+  display: grid;
+  gap: 4px;
+  flex: 0 1 9rem;
+  min-width: 0;
+}
+
+.profilePage .socialLinksFieldWide {
+  flex: 1 1 14rem;
+}
+
+.profilePage .socialLinksFieldLabel {
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.profilePage .socialLinksField select,
+.profilePage .socialLinksField input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.profilePage .socialLinksAdd {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--brass);
+  border-radius: 10px;
+  background: var(--brass);
+  color: var(--color-on-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profilePage .socialLinksAdd:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.profilePage .socialLinksNote {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}

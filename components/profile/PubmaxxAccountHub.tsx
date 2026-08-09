@@ -59,49 +59,11 @@ import {
   PLAN_HTTP_ONLY_SESSION,
   restorePlanCapability,
 } from "@/lib/planSessionCapability";
-import type { SocialProvider, SocialProviderAvailability } from "@/lib/socialConnections";
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 
 // Web Share support never changes within a page lifetime, so no updates arrive.
 const subscribeToNothing = () => () => {};
-
-type Connection = { provider: "x" | "instagram" | "tiktok"; username?: string; status: string };
-
-const NO_SOCIAL_PROVIDERS: SocialProviderAvailability = {
-  x: { oauth: false, manual: false },
-  instagram: { oauth: false, manual: false },
-  tiktok: { oauth: false, manual: false },
-};
-
-const PROVIDER_LABELS: Record<SocialProvider, string> = {
-  x: "X",
-  instagram: "Instagram",
-  tiktok: "TikTok",
-};
-
-export function SocialConnectionActions({
-  providers,
-  onConnect,
-}: {
-  providers: SocialProviderAvailability;
-  onConnect: (provider: SocialProvider) => void;
-}): React.JSX.Element | null {
-  const available = (["x", "tiktok", "instagram"] as const).filter(
-    (provider) => providers[provider].oauth,
-  );
-  if (available.length === 0) return null;
-  return (
-    <div className="accountHubActions">
-      {available.map((provider) => (
-        <button type="button" key={provider} onClick={() => onConnect(provider)}>
-          Connect {PROVIDER_LABELS[provider]}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 
 const DAYPART_LABELS: Record<NightProfileInput["context"]["daypart"], string> = {
   daytime: "Daytime",
@@ -366,9 +328,6 @@ export default function PubmaxxAccountHub() {
     () => captureAccountAuth(user?.id ?? null, session),
     [session, user?.id],
   );
-  const [instagramUrl, setInstagramUrl] = useState("");
-  const [connections, setConnections] = useState<Connection[]>([]);
-  const [providers, setProviders] = useState<SocialProviderAvailability>(NO_SOCIAL_PROVIDERS);
   const [accountNightProfile, setAccountNightProfile] = useState<NightProfile | null>(null);
   const [nightProfileLoaded, setNightProfileLoaded] = useState(false);
   const [nightProfileError, setNightProfileError] = useState(false);
@@ -467,13 +426,11 @@ export default function PubmaxxAccountHub() {
       }
     });
     void Promise.allSettled([
-      authedFetch("/api/social-connections", { signal: controller.signal }),
       authedFetch("/api/me/night-profile", { signal: controller.signal }),
       authedFetch("/api/referrals/status", { signal: controller.signal }),
       authedFetch("/api/me/pending-plan-recaps", { signal: controller.signal }),
-    ]).then(async ([socialResult, nightProfileResult, referralsResult, pendingRecapResult]) => {
+    ]).then(async ([nightProfileResult, referralsResult, pendingRecapResult]) => {
       if (controller.signal.aborted) return;
-      const social = socialResult.status === "fulfilled" ? socialResult.value : null;
       const nightProfile = nightProfileResult.status === "fulfilled"
         ? nightProfileResult.value
         : null;
@@ -483,14 +440,6 @@ export default function PubmaxxAccountHub() {
       const pendingRecaps = pendingRecapResult.status === "fulfilled"
         ? pendingRecapResult.value
         : null;
-      if (social?.ok) {
-        const body = await social.json().catch(() => null) as {
-          connections?: Connection[];
-          providers?: SocialProviderAvailability;
-        } | null;
-        setConnections(body?.connections ?? []);
-        setProviders(body?.providers ?? NO_SOCIAL_PROVIDERS);
-      }
       if (nightProfile?.ok) {
         const body = await nightProfile.json().catch(() => null) as
           | { profile?: NightProfile | null }
@@ -553,15 +502,6 @@ export default function PubmaxxAccountHub() {
       trackEvent("social_account_connected", { provider, connectionType: "oauth" });
     }
   }, []);
-
-  async function connectOAuth(provider: SocialProvider) {
-    const response = await authedFetch(`/api/social-connections/${provider}`, {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "oauth" }),
-    });
-    const body = await response.json().catch(() => ({})) as { authorizeUrl?: string; error?: string };
-    if (response.ok && body.authorizeUrl) window.location.assign(body.authorizeUrl);
-    else setMessage(body.error ?? "That connection is unavailable.");
-  }
 
   async function confirmProfileMerge(
     state: Exclude<NightProfileMergeState, { kind: "none" }>,
@@ -704,19 +644,6 @@ export default function PubmaxxAccountHub() {
     writeDeviceNightProfile(input);
     setDeviceNightProfile(input);
     setMessage("Night Profile saved to your account.");
-  }
-
-  async function connectInstagram(event: FormEvent) {
-    event.preventDefault();
-    const response = await authedFetch("/api/social-connections/instagram", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ mode: "manual", accountKind: "personal", profileUrl: instagramUrl }),
-    });
-    const body = await response.json().catch(() => ({})) as { connection?: Connection; error?: string };
-    if (!response.ok || !body.connection) return setMessage(body.error ?? "Could not add that profile.");
-    setConnections((current) => [...current.filter((item) => item.provider !== "instagram"), body.connection!]);
-    trackEvent("social_account_connected", { provider: "instagram", connectionType: "manual" });
-    setInstagramUrl("");
   }
 
   // Fetch the personal invite link and show it in the card. Sharing and
@@ -884,7 +811,6 @@ export default function PubmaxxAccountHub() {
         )}
         <PrivateIdentityEditor />
         <SetAccountPassword />
-        <div><h3>Connected accounts</h3><SocialConnectionActions providers={providers} onConnect={(provider) => void connectOAuth(provider)} />{providers.instagram.manual ? <form onSubmit={connectInstagram}><input type="url" value={instagramUrl} onChange={(event) => setInstagramUrl(event.target.value)} placeholder="Personal Instagram URL" required /><button type="submit">Add personal link</button></form> : null}<small>{connections.length} connected</small></div>
         <ReferralInviteCard
           status={referralStatus}
           busy={referralBusy}

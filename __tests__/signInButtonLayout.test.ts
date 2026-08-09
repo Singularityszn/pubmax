@@ -225,6 +225,19 @@ beforeEach(() => {
     dispatchEvent: () => true,
     setTimeout,
     clearTimeout,
+    // next/link's viewport prefetch reaches for the idle callback the moment a
+    // link mounts, and the account card in the popover is made of links.
+    requestIdleCallback: (callback: IdleRequestCallback) =>
+      setTimeout(() => callback({ didTimeout: false, timeRemaining: () => 0 }), 0),
+    cancelIdleCallback: clearTimeout,
+    IntersectionObserver: class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+      takeRecords(): [] {
+        return [];
+      }
+    },
     location: { href: "http://localhost/map" },
     HTMLElement: TestElement,
     HTMLIFrameElement: class {},
@@ -235,6 +248,8 @@ beforeEach(() => {
   previousDocument = globalThis.document;
   Object.assign(globalThis, {
     window,
+    // next/link's prefetch reads `self`, not `window`.
+    self: window,
     document,
     IS_REACT_ACT_ENVIRONMENT: typeof reactAct === "function",
   });
@@ -249,6 +264,7 @@ afterEach(async () => {
   }
   Object.assign(globalThis, {
     window: previousWindow,
+    self: previousWindow,
     document: previousDocument,
     IS_REACT_ACT_ENVIRONMENT: false,
   });

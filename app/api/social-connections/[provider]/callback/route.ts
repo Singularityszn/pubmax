@@ -1,5 +1,5 @@
 import { socialConnectionStore } from "@/lib/socialConnectionStore";
-import { isSocialProvider } from "@/lib/socialConnections";
+import { isSocialOAuthProvider } from "@/lib/socialConnections";
 import { completeSocialOAuth } from "@/lib/socialOAuth";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { siteOrigin } from "@/lib/siteUrl";
@@ -12,7 +12,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
   const redirectOrigin = siteOrigin(request.url);
   if (!redirectOrigin) return new Response(null, { status: 500 });
   const destination = new URL("/u/you", redirectOrigin);
-  if (!isSocialProvider(provider)) {
+  // Only an OAuth-capable provider can land here. Every other provider is
+  // linked by typing a handle, which never leaves the site.
+  if (!isSocialOAuthProvider(provider)) {
     destination.searchParams.set("socialConnection", "unsupported");
     destination.searchParams.set("status", "failed");
     return Response.redirect(destination, 303);

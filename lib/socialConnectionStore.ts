@@ -1,5 +1,6 @@
 import {
   type SocialAccountKind,
+  type SocialOAuthProvider,
   type SocialProvider,
   type StoredSocialConnection,
 } from "@/lib/socialConnections";
@@ -7,7 +8,7 @@ import { requireSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 
 export type OAuthConnectionInput = {
-  provider: SocialProvider;
+  provider: SocialOAuthProvider;
   accountKind: SocialAccountKind;
   providerAccountId: string;
   username?: string;
@@ -19,7 +20,7 @@ export type OAuthConnectionInput = {
 };
 
 export type ManualConnectionInput = {
-  provider: "instagram";
+  provider: SocialProvider;
   username: string;
   profileUrl: string;
 };
@@ -112,6 +113,8 @@ export const supabaseSocialConnectionStore: SocialConnectionStore = {
         owner_id: ownerId,
         provider: input.provider,
         mode: "manual",
+        // A typed-in link is always the person's own personal account. There is
+        // no handshake to tell us otherwise, so we never claim otherwise.
         account_kind: "personal",
         provider_account_id: null,
         username: input.username,

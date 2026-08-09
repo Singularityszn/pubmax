@@ -41,10 +41,14 @@ describe("social OAuth state", () => {
     process.env.INSTAGRAM_CLIENT_ID = "instagram-id";
     process.env.INSTAGRAM_CLIENT_SECRET = "instagram-secret";
 
-    expect(socialProviderAvailability()).toEqual({
-      x: { oauth: false, manual: false },
+    // Manual is never gated on an app registration: typing your own handle
+    // needs nobody's client id. Only the OAuth arm waits on configuration.
+    expect(socialProviderAvailability()).toMatchObject({
+      x: { oauth: false, manual: true },
       instagram: { oauth: false, manual: true },
-      tiktok: { oauth: false, manual: false },
+      tiktok: { oauth: false, manual: true },
+      letterboxd: { oauth: false, manual: true },
+      website: { oauth: false, manual: true },
     });
 
     process.env.SOCIAL_CONNECTION_ENCRYPTION_KEY = "e".repeat(32);
@@ -52,6 +56,9 @@ describe("social OAuth state", () => {
       x: { oauth: true },
       instagram: { oauth: true, manual: true },
       tiktok: { oauth: false },
+      // A provider with no OAuth app can never advertise OAuth, however the
+      // environment is configured.
+      letterboxd: { oauth: false, manual: true },
     });
   });
 });

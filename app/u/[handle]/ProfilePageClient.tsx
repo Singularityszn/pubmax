@@ -17,6 +17,8 @@ import PintPassport from "@/components/profile/PintPassport";
 import ProfileEditor from "@/components/profile/ProfileEditor";
 import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
+import SocialLinksEditor from "@/components/profile/SocialLinksEditor";
+import type { PublicSocialLink } from "@/lib/socialConnections";
 import ProfileTimeline from "@/components/profile/ProfileTimeline";
 import PubmaxxAccountHub from "@/components/profile/PubmaxxAccountHub";
 import SavedPubList from "@/components/profile/SavedPubList";
@@ -203,6 +205,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // hydration agree. Signed-in ownership comes from the account identity.
   const [myHandle, setMyHandle] = useState("");
   const viewerHandle = user ? normalizeHandle(accountHandle ?? "") : myHandle;
+  // The owner's own linked socials, public on their card by their own choice.
+  const [socialLinks, setSocialLinks] = useState<PublicSocialLink[]>([]);
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
   // Null profile → fall back to the synthesized-from-drops identity.
   const [stored, setStored] = useState<ProfileRecord | null>(null);
@@ -410,16 +414,19 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         const body = (await res.json()) as {
           profile?: ProfileRecord | null;
           status?: string;
+          socialLinks?: PublicSocialLink[];
           counts?: FollowCounts;
           viewerFollowing?: boolean;
         };
         if (body.status === "gone") {
           setStored(null);
+          setSocialLinks([]);
           setState("gone");
           if (body.counts) setCounts(body.counts);
           return;
         }
         setStored(body.profile ?? null);
+        setSocialLinks(body.socialLinks ?? []);
         if (body.counts) setCounts(body.counts);
         setFollowing(Boolean(body.viewerFollowing));
       } catch {
@@ -533,6 +540,24 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         ?.scrollIntoView({ block: "start" });
     });
   }
+
+  // "Edit profile" is reachable from the site nav, which can only carry a URL,
+  // so ?edit=1 opens the editing surface on arrival. The parameter is spent
+  // once: it is stripped straight away, so Back never re-opens the editor.
+  useEffect(() => {
+    if (!isOwnProfile) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("edit") !== "1") return;
+    url.searchParams.delete("edit");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    const frame = window.requestAnimationFrame(() => {
+      setEditing(true);
+      window.requestAnimationFrame(() => {
+        document.getElementById("profile-editing")?.scrollIntoView({ block: "start" });
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isOwnProfile]);
 
   // Apply a saved profile row back onto the overlaid identity so the header
   // updates the instant the editor reports success, without a refetch. The
@@ -662,6 +687,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             <ProfileHeader
               profile={profile}
               stats={stats}
+              socialLinks={socialLinks}
               crawls={storyCount}
               memories={stats.memoriesPosted}
               drops={drops}
@@ -725,6 +751,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                     <ProfileHeader
                       profile={profile}
                       stats={stats}
+                      socialLinks={socialLinks}
                       crawls={storyCount}
                       memories={stats.memoriesPosted}
                       drops={drops}
@@ -847,6 +874,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                         onSaved={handleSaved}
                         onClose={() => setEditing(false)}
                       />
+                      {/* Linked socials are public content the owner typed in,
+                          so they edit beside the public fields, never beside
+                          the private ones below. Signed-out demo owners have no
+                          account to hang a link on. */}
+                      {user ? <SocialLinksEditor /> : null}
                       {/* Private personal fields (email, date of birth, gender)
                           live beside the public editor so the owner finds them
                           where they expect to edit themselves. Signed-out demo
@@ -886,7 +918,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                     </section>
                   ) : null}
 
-                  {isYouRoute ? <WantedList /> : null}
+                  {/* /u/you redirects to the real handle the moment one is
+                      known, so gating this on the sentinel alone left the
+                      owner's own Wanted tab pointing at nothing. */}
+                  {isYouRoute || isOwnProfile ? <WantedList /> : null}
 
                   {!youSignedOut ? (
                     <div id="saved-pubs">

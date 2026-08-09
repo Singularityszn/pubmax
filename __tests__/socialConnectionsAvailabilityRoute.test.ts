@@ -34,9 +34,10 @@ describe("social provider capability HTTP contract", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       providers: {
-        x: { oauth: true, manual: false },
+        x: { oauth: true, manual: true },
         instagram: { manual: true },
-        tiktok: { oauth: false, manual: false },
+        tiktok: { oauth: false, manual: true },
+        website: { oauth: false, manual: true },
       },
     });
   });

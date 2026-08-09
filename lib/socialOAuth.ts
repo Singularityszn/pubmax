@@ -1,7 +1,8 @@
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
 
 import {
-  type SocialProvider,
+  SOCIAL_PROVIDERS,
+  type SocialOAuthProvider,
   type SocialProviderAvailability,
 } from "@/lib/socialConnections";
 import { type OAuthConnectionInput } from "@/lib/socialConnectionStore";
@@ -9,19 +10,19 @@ import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 type OAuthState = {
   ownerId: string;
-  provider: SocialProvider;
+  provider: SocialOAuthProvider;
   redirectUri: string;
   codeVerifier: string;
   expiresAt: number;
 };
 
-const CLIENT_KEYS: Record<SocialProvider, string> = {
+const CLIENT_KEYS: Record<SocialOAuthProvider, string> = {
   x: "X_CLIENT_ID",
   instagram: "INSTAGRAM_CLIENT_ID",
   tiktok: "TIKTOK_CLIENT_KEY",
 };
 
-const SECRET_KEYS: Record<SocialProvider, string> = {
+const SECRET_KEYS: Record<SocialOAuthProvider, string> = {
   x: "X_CLIENT_SECRET",
   instagram: "INSTAGRAM_CLIENT_SECRET",
   tiktok: "TIKTOK_CLIENT_SECRET",
@@ -29,27 +30,32 @@ const SECRET_KEYS: Record<SocialProvider, string> = {
 
 /**
  * Server-derived capabilities. A client id alone is not enough to complete an
- * OAuth connection, so the UI only advertises providers with the full secret
- * and encryption configuration required by the callback path.
+ * OAuth connection, so the UI only advertises OAuth for providers with the full
+ * secret and encryption configuration required by the callback path. Manual is
+ * true everywhere: typing your own handle needs nobody's app registration.
  */
 export function socialProviderAvailability(): SocialProviderAvailability {
   const encrypted = (process.env.SOCIAL_CONNECTION_ENCRYPTION_KEY?.length ?? 0) >= 32;
-  const oauthReady = (provider: SocialProvider) =>
+  const oauthReady = (provider: SocialOAuthProvider) =>
     Boolean(process.env[CLIENT_KEYS[provider]] && process.env[SECRET_KEYS[provider]] && encrypted);
-  return {
-    x: { oauth: oauthReady("x"), manual: false },
-    instagram: { oauth: oauthReady("instagram"), manual: true },
-    tiktok: { oauth: oauthReady("tiktok"), manual: false },
-  };
+  return Object.fromEntries(
+    SOCIAL_PROVIDERS.map((provider) => [
+      provider,
+      {
+        oauth: provider in CLIENT_KEYS && oauthReady(provider as SocialOAuthProvider),
+        manual: true,
+      },
+    ]),
+  ) as SocialProviderAvailability;
 }
 
-const AUTHORIZE_URLS: Record<SocialProvider, string> = {
+const AUTHORIZE_URLS: Record<SocialOAuthProvider, string> = {
   x: "https://twitter.com/i/oauth2/authorize",
   instagram: "https://www.instagram.com/oauth/authorize",
   tiktok: "https://www.tiktok.com/v2/auth/authorize/",
 };
 
-const SCOPES: Record<SocialProvider, string[]> = {
+const SCOPES: Record<SocialOAuthProvider, string[]> = {
   x: ["users.read", "tweet.read", "offline.access"],
   instagram: ["instagram_business_basic"],
   tiktok: ["user.info.basic"],
@@ -91,7 +97,7 @@ async function storeSocialOAuthState(token: string, payload: OAuthState): Promis
   if (error) throw new Error("OAuth state storage is unavailable.");
 }
 
-export async function readSocialOAuthState(token: string, expectedProvider: SocialProvider): Promise<OAuthState> {
+export async function readSocialOAuthState(token: string, expectedProvider: SocialOAuthProvider): Promise<OAuthState> {
   const hash = stateHash(token);
   if (!isSupabaseConfigured()) {
     const payload = memoryOAuthStates.get(hash);
@@ -120,7 +126,7 @@ export async function readSocialOAuthState(token: string, expectedProvider: Soci
 
 export async function createSocialOAuthStart(input: {
   ownerId: string;
-  provider: SocialProvider;
+  provider: SocialOAuthProvider;
   origin: string;
 }): Promise<{ authorizeUrl: string }> {
   if (!socialProviderAvailability()[input.provider].oauth) {
@@ -161,15 +167,15 @@ export function encryptSocialCredential(value: string): string {
   return ["v1", iv.toString("base64url"), cipher.getAuthTag().toString("base64url"), ciphertext.toString("base64url")].join(".");
 }
 
-export const socialOAuthScopes = (provider: SocialProvider): string[] => [...SCOPES[provider]];
+export const socialOAuthScopes = (provider: SocialOAuthProvider): string[] => [...SCOPES[provider]];
 
-const TOKEN_URLS: Record<SocialProvider, string> = {
+const TOKEN_URLS: Record<SocialOAuthProvider, string> = {
   x: "https://api.x.com/2/oauth2/token",
   instagram: "https://api.instagram.com/oauth/access_token",
   tiktok: "https://open.tiktokapis.com/v2/oauth/token/",
 };
 
-function clientSecret(provider: SocialProvider): string {
+function clientSecret(provider: SocialOAuthProvider): string {
   const secret = process.env[SECRET_KEYS[provider]];
   if (!secret) throw new Error(`${provider} OAuth is not configured.`);
   return secret;
@@ -183,7 +189,7 @@ async function jsonResponse(response: Response, label: string): Promise<Record<s
 
 /** Exchange and profile lookup stay server-only; callers receive encrypted credentials. */
 export async function completeSocialOAuth(input: {
-  provider: SocialProvider;
+  provider: SocialOAuthProvider;
   code: string;
   state: string;
 }): Promise<{ ownerId: string; connection: OAuthConnectionInput }> {

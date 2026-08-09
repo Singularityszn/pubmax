@@ -3,9 +3,10 @@ import { publicApiError } from "@/lib/apiError";
 import { callerUserId } from "@/lib/authServer";
 import { socialConnectionStore } from "@/lib/socialConnectionStore";
 import {
+  isSocialOAuthProvider,
   isSocialProvider,
   publicSocialConnection,
-  validateManualSocialProfile,
+  validateSocialLink,
 } from "@/lib/socialConnections";
 import { createSocialOAuthStart, socialProviderAvailability } from "@/lib/socialOAuth";
 import { isLimited } from "@/lib/pintDrops";
@@ -27,18 +28,23 @@ export async function POST(request: Request, context: Context): Promise<Response
   catch { return publicApiError("Malformed request body.", "INVALID_JSON", 400); }
 
   if (body.mode === "manual") {
-    const validated = validateManualSocialProfile({
-      provider,
-      accountKind: body.accountKind === "professional" ? "professional" : "personal",
-      profileUrl: body.profileUrl,
-    });
     if (!socialProviderAvailability()[provider].manual) {
       return publicApiError("Manual connection is unavailable for this provider.", "SOCIAL_PROVIDER_MODE_UNAVAILABLE", 400);
     }
+    const manualKey = `social-link:${ownerId}:${hashIp(clientIp(request))}`;
+    if (await isLimited(manualKey, manualKey, 30, 10 * 60_000)) {
+      return publicApiError("Too many changes. Try again shortly.", "SOCIAL_CONNECTION_RATE_LIMITED", 429, { retryable: true });
+    }
+    // `value` takes a username or a pasted profile link; validateSocialLink
+    // lands both on one canonical URL.
+    const validated = validateSocialLink({
+      provider,
+      value: typeof body.value === "string" ? body.value : body.profileUrl,
+    });
     if (!validated.ok) return publicApiError(validated.error, "INVALID_SOCIAL_PROFILE", 400);
     try {
       const row = await socialConnectionStore().saveManual(ownerId, {
-        provider: "instagram",
+        provider,
         username: validated.username,
         profileUrl: validated.profileUrl,
       });
@@ -49,7 +55,7 @@ export async function POST(request: Request, context: Context): Promise<Response
   }
 
   try {
-    if (!socialProviderAvailability()[provider].oauth) {
+    if (!isSocialOAuthProvider(provider) || !socialProviderAvailability()[provider].oauth) {
       return publicApiError("That social connection is not configured.", "SOCIAL_PROVIDER_UNAVAILABLE", 503, { retryable: false });
     }
     const rateKey = `social-oauth:${ownerId}:${hashIp(clientIp(request))}`;
@@ -69,6 +75,10 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
   if (!ownerId) return publicApiError("Sign in to disconnect an account.", "AUTH_REQUIRED", 401);
   const provider = (await context.params).provider;
   if (!isSocialProvider(provider)) return publicApiError("That social service is not available.", "SOCIAL_PROVIDER_NOT_FOUND", 404);
+  const rateKey = `social-unlink:${ownerId}:${hashIp(clientIp(request))}`;
+  if (await isLimited(rateKey, rateKey, 30, 10 * 60_000)) {
+    return publicApiError("Too many changes. Try again shortly.", "SOCIAL_CONNECTION_RATE_LIMITED", 429, { retryable: true });
+  }
   try {
     await socialConnectionStore().disconnect(ownerId, provider);
     return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
