@@ -19,7 +19,7 @@ import {
 } from "@/lib/tflDisruption";
 import { CITIES, pointInCityBounds } from "@/lib/cities";
 import { coarsenViewerPoint } from "@/lib/geo";
-import { nearestNightPatch } from "@/lib/nightPatches";
+import { nearestNightPatch } from "@/lib/nearestNightPatch";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Check, LocateFixed, MapPin, RotateCcw } from "lucide-react";
 
-import { nearestNightPatch, writeRememberedArea } from "@/lib/nightPatches";
+import { nearestNightPatch } from "@/lib/nearestNightPatch";
+import { writeRememberedArea } from "@/lib/nightPatches";
 import {
   PLAN_ACCESSIBILITY_NEEDS,
   PLAN_BUDGET_OPTIONS,

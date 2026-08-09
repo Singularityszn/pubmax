@@ -6,7 +6,8 @@ import {
   nearestNightAreaForViewport,
   isNightAreaRouteReady,
 } from "@/lib/nightAreas";
-import { nearestNightPatch, resolveNightPatch } from "@/lib/nightPatches";
+import { nearestNightPatch } from "@/lib/nearestNightPatch";
+import { resolveNightPatch } from "@/lib/nightPatches";
 import {
   planningAnchorConflict,
   type PlanningAnchorConflict,

@@ -16,8 +16,8 @@ import { CREW_NAME_MAX } from "@/lib/crew";
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
+import { nearestNightPatch } from "@/lib/nearestNightPatch";
 import {
-  nearestNightPatch,
   readRememberedArea,
   resolveNightPatch,
   type NightPatch,

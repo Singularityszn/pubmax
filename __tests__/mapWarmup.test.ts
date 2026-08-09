@@ -242,6 +242,33 @@ describe("warmNavRoute / warmPrimaryTabRoutes", () => {
     expect(prefetch).toHaveBeenCalledWith("/u/you");
     expect(prefetch.mock.calls.every(([href]) => !String(href).startsWith("/moment"))).toBe(true);
   });
+
+  // Warming the page you are already on is never a head start: it repeats an
+  // RSC round trip the page is already making and, for /map, re-fetches the
+  // transit + POI payloads PubMapCanvas deliberately defers past first paint.
+  it("never warms the route already on screen", async () => {
+    const { warmPrimaryTabRoutes } = await import("@/lib/mapWarmup");
+    const seen = new Set<string>();
+    const prefetch = vi.fn();
+    warmPrimaryTabRoutes(
+      { prefetch },
+      ["/today", "/map", "/tonight", "/social", "/u/you"],
+      seen,
+      "/map",
+    );
+    expect(prefetch).not.toHaveBeenCalledWith("/map");
+    expect(prefetch).toHaveBeenCalledWith("/today");
+    expect(prefetch).toHaveBeenCalledWith("/tonight");
+  });
+
+  it("matches the current route by path, ignoring its query string", async () => {
+    const { warmPrimaryTabRoutes } = await import("@/lib/mapWarmup");
+    const seen = new Set<string>();
+    const prefetch = vi.fn();
+    warmPrimaryTabRoutes({ prefetch }, ["/map", "/today"], seen, "/map?sel=venue-1");
+    expect(prefetch).not.toHaveBeenCalledWith("/map");
+    expect(prefetch).toHaveBeenCalledWith("/today");
+  });
 });
 
 describe("warmMapRoute", () => {
