@@ -98,6 +98,33 @@ function safeExceptionType(value: unknown): string {
     : "Error";
 }
 
+/**
+ * The coarse surface a crash happened on, in the closed pageview vocabulary.
+ * Falls back to the current URL's path when the SDK did not attach $pathname.
+ */
+function exceptionSurface(properties: CaptureResult["properties"]): string | null {
+  const fromPathname = analyticsPageviewSurfaceFromPath(properties.$pathname);
+  if (fromPathname) return fromPathname;
+  const currentUrl = analyticsUrlWithoutQuery(properties.$current_url);
+  if (!currentUrl) return null;
+  try {
+    return analyticsPageviewSurfaceFromPath(new URL(currentUrl).pathname);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Error tracking fingerprints a crash on its type and message, so a constant
+ * message collapses every crash of one JS type into a single issue that can
+ * never be told apart. The message stays redacted, and carries the coarse
+ * surface instead: two crashes on different surfaces stay separate issues,
+ * and no user text, URL or stack frame leaves the browser to do it.
+ */
+function redactedExceptionValue(surface: string | null): string {
+  return surface ? `Redacted (${surface})` : "Redacted";
+}
+
 function standardBrowserProperties(
   properties: CaptureResult["properties"],
   pathname?: string,
@@ -211,19 +238,21 @@ export function sanitizePosthogEvent(event: CaptureResult | null): CaptureResult
   const rawExceptions = event.properties.$exception_list;
   if (!Array.isArray(rawExceptions) || rawExceptions.length === 0) return null;
 
+  const surface = exceptionSurface(event.properties);
   const exceptionList = rawExceptions.slice(0, 8).map((exception) => ({
     type: safeExceptionType(
       exception && typeof exception === "object"
         ? (exception as Record<string, unknown>).type
         : undefined,
     ),
-    value: "Redacted",
+    value: redactedExceptionValue(surface),
   }));
   const properties = standardBrowserProperties(event.properties);
   delete properties.$current_url;
   delete properties.$pathname;
   delete properties.$referrer;
   delete properties.$initial_referrer;
+  if (surface) properties.$pathname = surface;
 
   return {
     uuid: event.uuid,

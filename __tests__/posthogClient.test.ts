@@ -148,6 +148,7 @@ describe("PostHog browser privacy boundary", () => {
         $screen_width: 1920,
         $screen_height: 1080,
         $current_url: "https://pubmaxxing.com/map?token=secret",
+        $pathname: "/map",
         $exception_message: "Failed for person@example.com",
         $exception_list: [
           {
@@ -186,12 +187,96 @@ describe("PostHog browser privacy boundary", () => {
         $device_type: "Desktop",
         $screen_width: 1920,
         $screen_height: 1080,
+        $pathname: "/map",
         $exception_list: [
-          { type: "TypeError", value: "Redacted" },
-          { type: "Error", value: "Redacted" },
+          { type: "TypeError", value: "Redacted (/map)" },
+          { type: "Error", value: "Redacted (/map)" },
         ],
       },
     });
+  });
+
+  it("separates crashes by coarse surface so one JS type is not one issue", () => {
+    const anonymousId = `anon_${UUID}`;
+    const crashOn = (pathname: string, currentUrl: string): CaptureResult => ({
+      uuid: UUID,
+      event: "$exception",
+      properties: {
+        distinct_id: anonymousId,
+        $device_id: anonymousId,
+        $pathname: pathname,
+        $current_url: currentUrl,
+        $exception_list: [{ type: "TypeError", value: "person@example.com" }],
+      },
+    });
+
+    const onMap = sanitizePosthogEvent(crashOn("/map", "https://pubmaxxing.com/map"));
+    const onPlan = sanitizePosthogEvent(crashOn("/plan", "https://pubmaxxing.com/plan"));
+
+    expect(onMap?.properties.$exception_list).toEqual([
+      { type: "TypeError", value: "Redacted (/map)" },
+    ]);
+    expect(onPlan?.properties.$exception_list).toEqual([
+      { type: "TypeError", value: "Redacted (/plan)" },
+    ]);
+    // Error tracking fingerprints on type + message. Equal messages would make
+    // these one permanently unreadable issue.
+    expect(onMap?.properties.$exception_list).not.toEqual(
+      onPlan?.properties.$exception_list,
+    );
+  });
+
+  it("templates dynamic segments and stays redacted on an unknown surface", () => {
+    const anonymousId = `anon_${UUID}`;
+    const sanitize = (pathname: string, currentUrl: string) =>
+      sanitizePosthogEvent({
+        uuid: UUID,
+        event: "$exception",
+        properties: {
+          distinct_id: anonymousId,
+          $device_id: anonymousId,
+          $pathname: pathname,
+          $current_url: currentUrl,
+          $exception_list: [{ type: "Error", value: "secret" }],
+        },
+      });
+
+    const dynamic = sanitize(
+      "/u/person@example.com",
+      "https://pubmaxxing.com/u/person@example.com",
+    );
+    expect(dynamic?.properties.$exception_list).toEqual([
+      { type: "Error", value: "Redacted (/u/[handle])" },
+    ]);
+    expect(dynamic?.properties.$pathname).toBe("/u/[handle]");
+
+    const unknown = sanitize(
+      "/internal/person@example.com",
+      "https://pubmaxxing.com/internal/person@example.com",
+    );
+    expect(unknown?.properties.$exception_list).toEqual([
+      { type: "Error", value: "Redacted" },
+    ]);
+    expect(unknown?.properties.$pathname).toBeUndefined();
+  });
+
+  it("recovers the surface from the current URL when $pathname is absent", () => {
+    const anonymousId = `anon_${UUID}`;
+    const sanitized = sanitizePosthogEvent({
+      uuid: UUID,
+      event: "$exception",
+      properties: {
+        distinct_id: anonymousId,
+        $device_id: anonymousId,
+        $current_url: "https://pubmaxxing.com/pint-index?token=secret",
+        $exception_list: [{ type: "RangeError", value: "secret" }],
+      },
+    });
+
+    expect(sanitized?.properties.$exception_list).toEqual([
+      { type: "RangeError", value: "Redacted (/pint-index)" },
+    ]);
+    expect(sanitized?.properties.$current_url).toBeUndefined();
   });
 
   it("drops exceptions without an SDK-generated anonymous distinct id", () => {
