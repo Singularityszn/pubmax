@@ -22,6 +22,8 @@ import { followStore } from "@/lib/followStore";
 import { markContributorsDepartedByProfileId } from "@/lib/nightMemoryStore";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { referralStore } from "@/lib/referralStore";
+import { socialConnectionStore } from "@/lib/socialConnectionStore";
+import { publicSocialLinks, type PublicSocialLink } from "@/lib/socialConnections";
 import {
   clientIp,
   hashIp,
@@ -67,6 +69,21 @@ function toPublicProfile(
     createdAt: profile.createdAt,
     updatedAt: profile.updatedAt,
   };
+}
+
+// The owner's own linked socials. Public on purpose: a person typed each one in
+// on their own account and can remove it in one tap. This is the ONLY public
+// addition to the payload: email, date of birth, gender and full name stay
+// behind the owner-authenticated onboarding read
+// (__tests__/profilesRoutePrivacy.test.ts pins that). Fail-soft, because a
+// connections hiccup may not take a whole profile page down with it.
+async function publicLinksFor(profile: ProfileRecord | null): Promise<PublicSocialLink[]> {
+  if (!profile?.userId || isProfileTombstoned(profile)) return [];
+  try {
+    return publicSocialLinks(await socialConnectionStore().list(profile.userId));
+  } catch {
+    return [];
+  }
 }
 
 // Trust boundary for profile edits — the request body is untrusted. cleanText
@@ -138,6 +155,7 @@ export async function GET(
         {
           profile: null,
           status: "gone",
+          socialLinks: [],
           counts,
           viewerFollowing: false,
         },
@@ -146,14 +164,24 @@ export async function GET(
     }
 
     return jsonNoStore(
-      { profile: toPublicProfile(profile), counts, viewerFollowing },
+      {
+        profile: toPublicProfile(profile),
+        socialLinks: await publicLinksFor(profile),
+        counts,
+        viewerFollowing,
+      },
       { status: 200 },
     );
   } catch {
     // A backend hiccup degrades to the synthesized-profile path on the client —
     // return an empty-but-valid shape rather than an error the page must handle.
     return jsonNoStore(
-      { profile: null, counts: { followers: 0, following: 0 }, viewerFollowing: false },
+      {
+        profile: null,
+        socialLinks: [],
+        counts: { followers: 0, following: 0 },
+        viewerFollowing: false,
+      },
       { status: 200 },
     );
   }

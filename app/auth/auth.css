@@ -489,6 +489,107 @@
   padding-inline: 0.2rem;
 }
 
+/* Signed-in account card. The face, the name and the handle are the identity;
+   the links are the three places a person actually goes; the email is account
+   plumbing and reads as such. */
+.authAccountMenu {
+  gap: 0.35rem;
+  padding: 0.6rem;
+}
+
+.authAccountCard {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0.35rem 0.2rem 0.55rem;
+}
+
+.authAccountAvatar {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.authAccountAvatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--brass) 14%, transparent);
+  color: var(--brass);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.authAccountCardText {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.authAccountName {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.authAccountHandle {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--brass);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.authAccountLinks {
+  display: grid;
+  gap: 0.15rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+}
+
+.authAccountLinks a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 0.55rem;
+  border-radius: var(--control-radius, 14px);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.authAccountLinks a:hover {
+  background: color-mix(in srgb, var(--brass) 10%, transparent);
+}
+
+.authAccountLinks a:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: -2px;
+}
+
+.authAccountEmail {
+  margin: 0;
+  padding: 0.5rem 0.55rem 0.25rem;
+  border-top: 1px solid var(--line);
+  /* Quiet, not faint. This is still the address a person signs in with, so it
+     keeps a readable contrast rather than an opacity that dims it below one. */
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .authMenu > .authSignOut {
   width: 100%;
   min-height: 44px;

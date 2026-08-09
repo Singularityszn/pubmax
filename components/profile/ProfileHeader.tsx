@@ -3,12 +3,15 @@
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
 
+import ProfileSocialLinks from "@/components/profile/ProfileSocialLinks";
 import { displayHandle } from "@/lib/handleDisplay";
 import { computeBadges, type Badge, type Profile, type ProfileDrop, type ProfileStats } from "@/lib/profiles";
+import type { PublicSocialLink } from "@/lib/socialConnections";
 
 type ProfileHeaderProps = {
   profile: Profile;
   stats: ProfileStats;
+  socialLinks?: readonly PublicSocialLink[];
   crawls?: number;
   memories?: number;
   followers?: number;
@@ -29,6 +32,7 @@ function formatGbp(value: number | null): string {
 export default function ProfileHeader({
   profile,
   stats,
+  socialLinks,
   crawls,
   memories,
   followers,
@@ -81,6 +85,8 @@ export default function ProfileHeader({
       </div>
 
       {bio ? <p className="profileBio">{bio}</p> : null}
+
+      <ProfileSocialLinks links={socialLinks ?? []} />
 
       {earnedBadges.length ? (
         <ul className="profileBadges" aria-label="Badges earned">

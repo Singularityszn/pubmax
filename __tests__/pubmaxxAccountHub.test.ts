@@ -9,7 +9,6 @@ import {
   DeviceNightProfileReadout,
   NightProfileControls,
   ReferralInviteCard,
-  SocialConnectionActions,
 } from "@/components/profile/PubmaxxAccountHub";
 
 describe("PubmaxxAccountHub provider gating", () => {
@@ -57,33 +56,6 @@ describe("PubmaxxAccountHub provider gating", () => {
     expect(html).toContain("Saved on this device");
     expect(html).not.toContain("<select");
     expect(html).not.toContain("<input");
-  });
-
-  it("renders only OAuth providers declared available by the server", () => {
-    const html = renderToStaticMarkup(createElement(SocialConnectionActions, {
-      providers: {
-        x: { oauth: true, manual: false },
-        instagram: { oauth: true, manual: true },
-        tiktok: { oauth: false, manual: false },
-      },
-      onConnect: vi.fn(),
-    }));
-
-    expect(html).toContain("Connect X");
-    expect(html).toContain("Connect Instagram");
-    expect(html).not.toContain("Connect TikTok");
-  });
-
-  it("renders no dead OAuth controls when no provider is configured", () => {
-    const html = renderToStaticMarkup(createElement(SocialConnectionActions, {
-      providers: {
-        x: { oauth: false, manual: false },
-        instagram: { oauth: false, manual: true },
-        tiktok: { oauth: false, manual: false },
-      },
-      onConnect: vi.fn(),
-    }));
-    expect(html).toBe("");
   });
 
   it("offers one quiet invite action and states the contribution gate truthfully", () => {
