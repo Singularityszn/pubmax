@@ -15,5 +15,10 @@ export async function GET(request: Request): Promise<Response> {
       resolution?.profileId === profile.id
         ? resolution.currentHandle
         : profile.handle,
+    // "Who am I here" answers the founding number too, off the row this route
+    // already loaded. One reader (components/founding/useFoundingMembership.ts)
+    // asks this question for every surface that shows the mark, so the account
+    // hub and the arrival greeting can never disagree about it.
+    foundingMemberNumber: profile.foundingMemberNumber ?? null,
   });
 }

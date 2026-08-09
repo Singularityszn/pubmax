@@ -1676,6 +1676,11 @@
 .accountHubConsentStatus { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
 .accountHubGrid .accountHubConsentChange { background: transparent; border: 1px solid var(--line); color: var(--ink); padding: .4rem .8rem; font-weight: 700; }
 .accountHubMessage { margin-top: .75rem; }
+/* The founding card. The mark is the heading, so the heading carries no weight
+   of its own and the card stays as quiet as the status is. */
+.accountHubFounding { justify-items: start; }
+.accountHubFounding h3 { margin: 0; font-size: inherit; font-weight: inherit; }
+.accountHubGrid .accountHubFounding .foundersDiscordLink { justify-self: start; }
 .accountHubMerge { display: grid; gap: .65rem; margin: 0 0 .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
 .accountHubMerge h3, .accountHubMerge p, .accountHubNightProfile { margin: 0; }
 .accountHubMerge button { min-height: 44px; padding: .65rem .8rem; border: 0; border-radius: 12px; background: var(--ink); color: var(--paper); font-weight: 700; }

@@ -1,3 +1,4 @@
+import { parseFoundingMemberNumber } from "@/lib/foundingMembers";
 import { identityHandleStore } from "@/lib/identityHandleStore";
 import {
   cleanDateOfBirth,
@@ -46,6 +47,8 @@ type CompleteOnboardingResult =
       profileId: string;
       handle: string;
       privateIdentity: PrivateIdentityRecord;
+      /** Granted by the claim underneath, when the first hundred had room. */
+      foundingMemberNumber?: number;
     }
   | {
       ok: false;
@@ -233,6 +236,9 @@ export const memoryPrivateIdentityStore: PrivateIdentityStore = {
       profileId: claimed.profileId,
       handle: claimed.handle,
       privateIdentity,
+      ...(claimed.foundingMemberNumber === undefined
+        ? {}
+        : { foundingMemberNumber: claimed.foundingMemberNumber }),
     };
   },
 
@@ -327,11 +333,15 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
     if (result.ok !== true) return claimError(result.code, result.error);
     const privateIdentity = await this.read(userId);
     if (!privateIdentity) return claimError("storage", null);
+    // The onboarding RPC returns the claim's own jsonb verbatim, so the founding
+    // number granted inside the claim's transaction rides out here.
+    const founding = parseFoundingMemberNumber(result.founding_member_number);
     return {
       ok: true,
       profileId: String(result.profile_id),
       handle: String(result.handle),
       privateIdentity,
+      ...(founding === null ? {} : { foundingMemberNumber: founding }),
     };
   },
 

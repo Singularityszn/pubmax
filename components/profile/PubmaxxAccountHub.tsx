@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import SignInButton from "@/components/auth/SignInButton";
 import { useAuth } from "@/components/auth/AuthProvider";
+import FoundingMemberCard from "@/components/founding/FoundingMemberCard";
 import {
   analyticsConsentDecision,
   setAnalyticsConsent,
@@ -807,6 +808,7 @@ export default function PubmaxxAccountHub() {
             <SignInButton />
           </div>
         )}
+        <FoundingMemberCard />
         <PrivateIdentityEditor />
         <SetAccountPassword />
         <ReferralInviteCard

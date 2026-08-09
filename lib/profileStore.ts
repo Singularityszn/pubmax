@@ -7,6 +7,10 @@
 // row is frozen against later account ownership. Authenticated creation uses a
 // distinct atomic operation that never exposes an unowned intermediate row.
 
+import {
+  FOUNDING_MEMBER_CAP,
+  parseFoundingMemberNumber,
+} from "@/lib/foundingMembers";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   PROFILE_IMAGE_SLOTS,
@@ -108,6 +112,12 @@ export type ProfileRecord = {
   interests?: string;
   /** Public by choice: where this account works. Display-only, never a page. */
   workplace?: string;
+  /**
+   * Position among the first hundred claimed handles (migration 0097), or
+   * undefined. Public by design and read ONLY to print a mark: no capability in
+   * this product branches on it. See `lib/foundingMembers.ts`.
+   */
+  foundingMemberNumber?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -418,6 +428,13 @@ export type ProfileStore = {
     limit?: number;
     afterHandle?: string;
   }): Promise<ProfileRecord[]>;
+  /**
+   * The founders wall, in number order. Claimed and live only, exactly like the
+   * directory above, so a departed founder leaves the list and its number is
+   * simply a gap. The cohort is capped at {@link FOUNDING_MEMBER_CAP}, so this
+   * read is bounded by the data itself and needs no cursor.
+   */
+  listFoundingMembers(): Promise<ProfileRecord[]>;
 };
 
 const TABLE = "profiles";
@@ -489,6 +506,9 @@ function fromRow(row: Record<string, unknown>): ProfileRecord {
     favouriteDrink: row.favourite_drink ? String(row.favourite_drink) : undefined,
     interests: row.interests ? String(row.interests) : undefined,
     workplace: row.workplace ? String(row.workplace) : undefined,
+    ...(parseFoundingMemberNumber(row.founding_member_number) !== null
+      ? { foundingMemberNumber: parseFoundingMemberNumber(row.founding_member_number)! }
+      : {}),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
@@ -927,6 +947,19 @@ export const supabaseProfileStore: ProfileStore = {
     if (error) throw new Error(error.message);
     return (data ?? []).map((row) => fromRow(row as Record<string, unknown>));
   },
+
+  async listFoundingMembers() {
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("*")
+      .not("founding_member_number", "is", null)
+      .not("user_id", "is", null)
+      .is("tombstoned_at", null)
+      .order("founding_member_number", { ascending: true })
+      .limit(FOUNDING_MEMBER_CAP);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => fromRow(row as Record<string, unknown>));
+  },
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -937,6 +970,27 @@ const memoryProfiles = new Map<string, ProfileRecord>();
 // can reference it stably within a process. Never leaves dev.
 function memoryId(handle: string): string {
   return `mem-profile-${handle}`;
+}
+
+/**
+ * The memory half of migration 0097's grant. Same rules, same cap: the next
+ * number while the cohort has room, nothing once it is full, and a tombstone
+ * keeps the number it was given rather than handing it to the next arrival.
+ *
+ * No lock is needed here and none is faked: this store lives in one process and
+ * JavaScript runs this whole function before any other claim resumes. The race
+ * the Postgres helper exists to stop cannot happen in a single event loop.
+ */
+function grantMemoryFoundingNumber(): number | undefined {
+  let taken = 0;
+  let highest = 0;
+  for (const profile of memoryProfiles.values()) {
+    if (profile.foundingMemberNumber === undefined) continue;
+    taken += 1;
+    if (profile.foundingMemberNumber > highest) highest = profile.foundingMemberNumber;
+  }
+  if (taken >= FOUNDING_MEMBER_CAP || highest >= FOUNDING_MEMBER_CAP) return undefined;
+  return highest + 1;
 }
 
 export const memoryProfileStore: ProfileStore = {
@@ -1015,10 +1069,12 @@ export const memoryProfileStore: ProfileStore = {
       }
     }
     const now = new Date().toISOString();
+    const founding = grantMemoryFoundingNumber();
     const record: ProfileRecord = {
       id: memoryId(key),
       handle: key,
       userId,
+      ...(founding === undefined ? {} : { foundingMemberNumber: founding }),
       createdAt: now,
       updatedAt: now,
     };
@@ -1224,6 +1280,18 @@ export const memoryProfileStore: ProfileStore = {
       .sort((a, b) => a.handle.localeCompare(b.handle))
       .slice(0, bounded);
   },
+
+  async listFoundingMembers() {
+    return [...memoryProfiles.values()]
+      .filter(
+        (profile) =>
+          profile.foundingMemberNumber !== undefined &&
+          Boolean(profile.userId) &&
+          !isProfileTombstoned(profile),
+      )
+      .sort((a, b) => (a.foundingMemberNumber ?? 0) - (b.foundingMemberNumber ?? 0))
+      .slice(0, FOUNDING_MEMBER_CAP);
+  },
 };
 
 /** The single backend selection point (mirrors commentsStore / roundsStore). */
@@ -1251,13 +1319,20 @@ export function __seedMemoryLegacyProfile(handle: string): ProfileRecord {
   return record;
 }
 
-/** Test-only: model a production-linked row, including reserved contributor handles. */
+/**
+ * Test-only: model a production-linked row, including reserved contributor
+ * handles. A claimed handle in production carries a founding number while the
+ * cohort has room, so a seeded one does too - a seed that skipped the grant
+ * would let a test pass on a profile shape production never produces.
+ */
 export function __seedMemoryOwnedProfile(handle: string, userId: string): ProfileRecord {
   const record = __seedMemoryLegacyProfile(handle);
   const key = normalizeHandle(handle);
+  const founding = grantMemoryFoundingNumber();
   const owned: ProfileRecord = {
     ...record,
     userId,
+    ...(founding === undefined ? {} : { foundingMemberNumber: founding }),
     updatedAt: new Date().toISOString(),
   };
   memoryProfiles.set(key, owned);

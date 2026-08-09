@@ -31,6 +31,9 @@ const E2E_POSTHOG_PROJECT_TOKEN = "phc_pubmaxx_e2e_public_test";
 const E2E_SUPABASE_URL = "https://pubmaxx-e2e.supabase.co";
 const E2E_SUPABASE_PUBLISHABLE_KEY = "pubmaxx-e2e-publishable-key";
 const E2E_ADMIN_TOKEN = process.env.PW_E2E_ADMIN_TOKEN ?? "pubmax-e2e-admin-token";
+// The founders' door is read from the environment at build time, so a keyless
+// E2E build renders no door at all unless the build is given one.
+const E2E_DISCORD_INVITE_URL = "https://discord.gg/r46K8Qv5W";
 const E2E_RATE_LIMIT_SALT =
   process.env.RATE_LIMIT_SALT ?? "pubmax-e2e-rate-limit-salt-32-chars-min";
 const REAL_AUTH_CONFIGURED = Boolean(
@@ -254,6 +257,7 @@ export default defineConfig({
           NEXT_PUBLIC_SUPABASE_URL: E2E_SUPABASE_URL,
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
             E2E_SUPABASE_PUBLISHABLE_KEY,
+          NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
           PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
           ADMIN_TOKEN: E2E_ADMIN_TOKEN,
           RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
@@ -328,6 +332,7 @@ export default defineConfig({
                 E2E_POSTHOG_PROJECT_TOKEN,
               NEXT_PUBLIC_SUPABASE_URL: "",
               NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
+              NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
               PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
               PUBMAX_E2E_KEYLESS: "1",
             },

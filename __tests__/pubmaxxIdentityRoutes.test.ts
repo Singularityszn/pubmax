@@ -64,7 +64,12 @@ describe("PUBMAXX handle APIs", () => {
     expect(await response.json()).toMatchObject({ handle: "night_owl", claimed: true });
 
     response = await current(request("/api/identity/handle/current"));
-    expect(await response.json()).toEqual({ handle: "night_owl" });
+    // "Who am I here" answers the founding number too: the first claim in a
+    // fresh store lands inside the first hundred.
+    expect(await response.json()).toEqual({
+      handle: "night_owl",
+      foundingMemberNumber: 1,
+    });
 
     authState.userId = null;
     response = await availability(request("/api/identity/handle/availability?handle=NIGHT_OWL"));
@@ -113,7 +118,7 @@ describe("PUBMAXX handle APIs", () => {
     });
     expect(
       await (await current(request("/api/identity/handle/current"))).json(),
-    ).toEqual({ handle: "dawn_owl" });
+    ).toEqual({ handle: "dawn_owl", foundingMemberNumber: 1 });
   });
 
   // ── Reviewer-proven failure shapes under the old user_id-null predicate ──
@@ -275,7 +280,7 @@ describe("PUBMAXX handle APIs", () => {
       });
       expect(
         await (await current(request("/api/identity/handle/current"))).json(),
-      ).toEqual({ handle: "night_owl" });
+      ).toEqual({ handle: "night_owl", foundingMemberNumber: 1 });
     },
   );
 });
