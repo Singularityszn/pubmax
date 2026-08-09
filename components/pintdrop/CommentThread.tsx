@@ -7,6 +7,7 @@ import HandleAvatar from "@/components/profile/HandleAvatar";
 import { subscribeToComments } from "@/lib/realtime";
 import { relativeTime } from "@/lib/relativeTime";
 import { readCommentDraft, subscribeCommentDraft, writeCommentDraft } from "@/lib/socialDrafts";
+import { authedFetch } from "@/lib/authedFetch";
 
 // The comment thread under a Pint Drop — where a drop's story continues after
 // the night (cc_plan2 §4), now with one-level THREADED replies (issue #37) and
@@ -186,7 +187,7 @@ export default function CommentThread({
       writeStoredHandle(trimmedHandle);
 
       try {
-        const res = await fetch("/api/pint-drops/comments", {
+        const res = await authedFetch("/api/pint-drops/comments", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({

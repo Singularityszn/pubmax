@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { authedFetch } from "@/lib/authedFetch";
 
 // Owner-only edit/delete controls for a durable Crawl Story (story 35). The story
 // page is a server component and never knows who is viewing; this client island
@@ -44,7 +45,7 @@ export default function CrawlStoryOwnerControls({
     setBusy(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/crawls/${encodeURIComponent(slug)}`, {
+      const res = await authedFetch(`/api/crawls/${encodeURIComponent(slug)}`, {
         method: "DELETE",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle: viewer }),

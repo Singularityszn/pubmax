@@ -89,12 +89,16 @@ describe("POST persist", () => {
     expect(setCookie).toContain("Path=/");
   });
 
-  it("keeps the stored email when a later persist cannot learn one", async () => {
-    verifyCallerAuth.mockResolvedValue({ status: "unavailable" });
+  it("keeps the stored email for the SAME account when a persist cannot learn one", async () => {
+    verifyCallerAuth.mockResolvedValue({
+      status: "verified",
+      identity: { id: "user-1", email: null, createdAt: null },
+    });
     const cookie = `${AUTH_RESUME_COOKIE}=${encodeURIComponent(
       encodeAuthResumeCookie({
         refreshToken: "rt_old_token1",
         email: "karan@example.com",
+        userId: "user-1",
       }),
     )}`;
     const { POST } = await import("@/app/api/auth/session/route");
@@ -110,9 +114,91 @@ describe("POST persist", () => {
         encodeAuthResumeCookie({
           refreshToken: "rt_new_token1",
           email: "karan@example.com",
+          userId: "user-1",
         }),
       ),
     );
+  });
+
+  it("re-persisting the very same token keeps its email even unverified", async () => {
+    verifyCallerAuth.mockResolvedValue({ status: "unavailable" });
+    const cookie = `${AUTH_RESUME_COOKIE}=${encodeURIComponent(
+      encodeAuthResumeCookie({
+        refreshToken: "rt_old_token1",
+        email: "karan@example.com",
+      }),
+    )}`;
+    const { POST } = await import("@/app/api/auth/session/route");
+    const res = await POST(
+      postRequest(
+        { action: "persist", refreshToken: "rt_old_token1" },
+        { authorization: "Bearer jwt", cookie },
+      ),
+    );
+    expect(res.headers.get("set-cookie") ?? "").toContain(
+      encodeURIComponent(
+        encodeAuthResumeCookie({
+          refreshToken: "rt_old_token1",
+          email: "karan@example.com",
+        }),
+      ),
+    );
+  });
+
+  it("never hands a SECOND account the first one's welcome-back address", async () => {
+    // The founder's browser: account A's cookie is still on the device when
+    // account B signs in. B's cookie must name B, and must not offer a one-tap
+    // return to an inbox B does not own.
+    verifyCallerAuth.mockResolvedValue({
+      status: "verified",
+      identity: { id: "user-b", email: null, createdAt: null },
+    });
+    const cookie = `${AUTH_RESUME_COOKIE}=${encodeURIComponent(
+      encodeAuthResumeCookie({
+        refreshToken: "rt_account_a1",
+        email: "karan@example.com",
+        userId: "user-a",
+      }),
+    )}`;
+    const { POST } = await import("@/app/api/auth/session/route");
+    const res = await POST(
+      postRequest(
+        { action: "persist", refreshToken: "rt_account_b1" },
+        { authorization: "Bearer jwt", cookie },
+      ),
+    );
+    expect(res.status).toBe(200);
+    const setCookie = res.headers.get("set-cookie") ?? "";
+    expect(setCookie).toContain(
+      encodeURIComponent(
+        encodeAuthResumeCookie({
+          refreshToken: "rt_account_b1",
+          email: null,
+          userId: "user-b",
+        }),
+      ),
+    );
+    expect(setCookie).not.toContain("karan%40example.com");
+  });
+
+  it("refuses an unstamped cookie's email to a token it cannot tie to it", async () => {
+    // A cookie written before account ids were stored proves nothing about who
+    // it belongs to, so a persist carrying a different token starts clean.
+    verifyCallerAuth.mockResolvedValue({ status: "unavailable" });
+    const cookie = `${AUTH_RESUME_COOKIE}=${encodeURIComponent(
+      encodeAuthResumeCookie({
+        refreshToken: "rt_legacy_tok1",
+        email: "karan@example.com",
+      }),
+    )}`;
+    const { POST } = await import("@/app/api/auth/session/route");
+    const res = await POST(
+      postRequest(
+        { action: "persist", refreshToken: "rt_someone_else" },
+        { authorization: "Bearer jwt", cookie },
+      ),
+    );
+    expect(res.headers.get("set-cookie") ?? "").not.toContain("karan%40example.com");
   });
 
   it("refuses a caller whose bearer token fails verification", async () => {
@@ -172,7 +258,7 @@ describe("POST redeem — the browser-restart regression", () => {
         refresh_token: "rt_rotated_token",
         expires_in: 3600,
         token_type: "bearer",
-        user: { email: "karan@example.com" },
+        user: { id: "user-1", email: "karan@example.com" },
       }),
     );
     const res = await POST(
@@ -201,6 +287,7 @@ describe("POST redeem — the browser-restart regression", () => {
         encodeAuthResumeCookie({
           refreshToken: "rt_rotated_token",
           email: "karan@example.com",
+          userId: "user-1",
         }),
       ),
     );

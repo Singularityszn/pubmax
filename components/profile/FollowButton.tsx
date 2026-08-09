@@ -9,14 +9,19 @@ import {
   followRelationHint,
   resolveFollowRelation,
 } from "@/lib/followRelation";
+import { authedFetch } from "@/lib/authedFetch";
 import type { FollowCounts } from "@/lib/followStore";
 
-// Follow / unfollow control for a public profile. The follower is the viewer's
-// self-asserted handle (localStorage `pubmax_handle`), passed in by the page so
-// this button stays dumb about where identity comes from. Optimistic: it flips
-// state immediately, POSTs, and reconciles from the server's authoritative
-// counts (or rolls back on failure). Rendered only when there IS a viewer handle
-// and it differs from the profile owner — the page owns that gate.
+// Follow / unfollow control for a public profile. The follower handle is passed
+// in by the page so this button stays dumb about where identity comes from, and
+// the request carries the signed-in account's bearer token so the SERVER, not
+// the body, decides who is acting. Without it a signed-in drinker's follow
+// arrived anonymous, so their own linked handle read as a hijack attempt and
+// the route answered "This handle belongs to a signed-in account." Optimistic:
+// it flips state immediately, POSTs, and reconciles from the server's
+// authoritative counts (or rolls back on failure). Rendered only when there IS
+// a viewer handle and it differs from the profile owner — the page owns that
+// gate.
 //
 // It carries BOTH follow edges because one of them cannot say where a
 // friendship stands: "Following" and "Mates" look identical to a reader who
@@ -58,7 +63,7 @@ export default function FollowButton({
     setFollowing(next); // optimistic
 
     try {
-      const res = await fetch(`/api/profiles/${encodeURIComponent(targetHandle)}/follow`, {
+      const res = await authedFetch(`/api/profiles/${encodeURIComponent(targetHandle)}/follow`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

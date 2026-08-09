@@ -27,6 +27,7 @@ import {
   authResumeCookieFromHeader,
   decodeAuthResumeCookie,
   encodeAuthResumeCookie,
+  inheritedResumeEmail,
   isPlausibleRefreshToken,
   maskEmail,
   type AuthResumeCookiePayload,
@@ -168,15 +169,21 @@ async function persist(
     return publicApiError("Sign in to do this.", "UNAUTHENTICATED", 401);
   }
   // A refresh-driven persist may not learn the email (verification outage,
-  // keyless dev). Never let it erase a hint the cookie already carries.
+  // keyless dev). Never let it erase a hint the cookie already carries - and
+  // never let it INHERIT one it cannot prove belongs to the account being
+  // stored, which is how a second account on the same browser ended up with the
+  // first one's welcome-back address.
   const existing = cookiePayload(request);
+  const userId =
+    verification.status === "verified" ? verification.identity.id : null;
   const email =
     verification.status === "verified" && verification.identity.email
       ? verification.identity.email
-      : existing?.email ?? null;
+      : inheritedResumeEmail(existing, { userId, refreshToken });
   const headers = setCookieHeaders({
     refreshToken: refreshToken,
     email,
+    userId,
   });
   return jsonNoStore({ ok: true }, { headers });
 }
@@ -236,9 +243,15 @@ async function redeem(request: Request): Promise<Response> {
       typeof session.user === "object" && session.user !== null
         ? (session.user as Record<string, unknown>).email
         : null;
+    const sessionUserId =
+      typeof session.user === "object" && session.user !== null
+        ? (session.user as Record<string, unknown>).id
+        : null;
     const headers = setCookieHeaders({
       refreshToken: nextRefreshToken,
       email: typeof sessionEmail === "string" ? sessionEmail : payload.email,
+      userId:
+        typeof sessionUserId === "string" ? sessionUserId : payload.userId ?? null,
     });
     return jsonNoStore(
       {
@@ -260,7 +273,13 @@ async function redeem(request: Request): Promise<Response> {
     // the email so the sign-in page can offer one-tap resume instead of a
     // cold form.
     const headers = setCookieHeaders(
-      payload.email ? { refreshToken: null, email: payload.email } : null,
+      payload.email
+        ? {
+            refreshToken: null,
+            email: payload.email,
+            userId: payload.userId ?? null,
+          }
+        : null,
     );
     return jsonNoStore(
       { status: "expired", maskedEmail: maskEmail(payload.email) },

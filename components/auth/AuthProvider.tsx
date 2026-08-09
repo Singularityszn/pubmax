@@ -51,6 +51,11 @@ import {
 } from "@/lib/authProviderAvailability";
 import { createAuthSessionTransitionTracker } from "@/lib/authSessionTransition";
 import {
+  bindDeviceAccountOwner,
+  emitDeviceIdentityChanged,
+  releaseDeviceAccountOwner,
+} from "@/lib/deviceAccountIdentity";
+import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
   beginCanonicalAuthAttempt,
   cancelAuthAttempt,
@@ -135,6 +140,31 @@ function scrubLingeringBrowserAuthCallback(): void {
   );
 }
 
+/**
+ * Persist the durable resume cookie, and when the server refuses the bearer
+ * token, try once more with whatever the client holds NOW.
+ *
+ * A restored session can hand back an access token that is already past its
+ * expiry - supabase-js refreshes it moments later - and /api/auth/session
+ * verifies that token before it will store anything. The first attempt then
+ * 401s, nothing is written, and the device is left with no durable session at
+ * all. One retry against the refreshed session closes that window; a second
+ * failure is left to the next TOKEN_REFRESHED.
+ */
+async function persistSessionWithRetry(
+  auth: { getSession: () => Promise<{ data: { session: Session | null } }> },
+  session: Session,
+): Promise<void> {
+  const outcome = await persistSessionForResume(session);
+  if (outcome !== "unauthenticated") return;
+  const refreshed = await auth
+    .getSession()
+    .then(({ data }) => data.session ?? null)
+    .catch(() => null);
+  if (!refreshed || refreshed.access_token === session.access_token) return;
+  await persistSessionForResume(refreshed);
+}
+
 async function prepareAuthCallback(
   currentUrl: string,
   requestedNext?: string,
@@ -186,6 +216,13 @@ export type AuthContextValue = {
   resumeSignIn: () => Promise<MagicLinkResult>;
   /** Account-owned public handle, or null before onboarding or when signed out. */
   handle: string | null;
+  /**
+   * True once the live session's canonical identity has actually been read.
+   * While false, `handle` being null means UNKNOWN, not "no handle": a surface
+   * that names or routes the viewer must stay neutral rather than reach for a
+   * device cache, which is where the previous account's handle lives.
+   */
+  identityResolved: boolean;
   rejectedContributionAuth: AccountAuthSnapshot | null;
   contributionAuth: AccountAuthSnapshot | null;
   invalidateContributionAuth: (auth: AccountAuthSnapshot) => void;
@@ -193,6 +230,21 @@ export type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+/**
+ * The app's answer to "who is this?". A canonical read that has not landed, or
+ * one that failed, is UNKNOWN - never the previous account's cached handle and
+ * never a confident "no handle".
+ */
+type CanonicalIdentityState =
+  | Readonly<{ status: "unknown" }>
+  | Readonly<{ status: "resolved"; identity: IdentityHandleChangedDetail | null }>;
+
+const UNKNOWN_IDENTITY: CanonicalIdentityState = { status: "unknown" };
+const NOBODY_IDENTITY: CanonicalIdentityState = {
+  status: "resolved",
+  identity: null,
+};
 
 export function AuthProvider({
   children,
@@ -202,13 +254,17 @@ export function AuthProvider({
   clerkIntegrationConfigured: boolean;
 }): React.JSX.Element {
   const [session, setSession] = useState<Session | null>(null);
+  // Who the app may say this is. "unknown" is not "nobody": a signed-in account
+  // whose canonical handle has not come back yet must render neutral rather
+  // than fall back to whatever the device had cached, because that cache is
+  // exactly what belonged to the account before this one.
+  const [canonicalIdentityState, setCanonicalIdentityState] =
+    useState<CanonicalIdentityState>(UNKNOWN_IDENTITY);
   // Session restore only applies when Supabase public env is present. When it
   // is not, there is nothing to wait for — derive `loading` false during render
   // instead of setState-in-effect (which cascaded a second render on every
   // mount and made the Sign in control flicker).
   const [sessionLoading, setSessionLoading] = useState(true);
-  const [canonicalIdentity, setCanonicalIdentity] =
-    useState<IdentityHandleChangedDetail | null>(null);
   const [authCallbackError, setAuthCallbackError] = useState<string | null>(null);
   /** Attempt-less / cross-browser success confirmation (login-CSRF mitigation). */
   const [authSignedInNotice, setAuthSignedInNotice] = useState<string | null>(null);
@@ -224,14 +280,26 @@ export function AuthProvider({
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
-      const signedIn = sessionTransitions.current.update(
-        event,
-        nextSession?.user.id ?? null,
-      );
-      const nextAuth = captureAccountAuth(
-        nextSession?.user.id ?? null,
-        nextSession,
-      );
+      const previousUserId = sessionTransitions.current.currentUserId();
+      const nextUserId = nextSession?.user.id ?? null;
+      const signedIn = sessionTransitions.current.update(event, nextUserId);
+      // THE BOUNDARY. Before any child re-renders on the new session, bind this
+      // device's cached identity to the account that now owns it. A different
+      // account - or a device carrying artifacts nobody stamped - loses the
+      // whole set in one pass, so the previous person's handle can never be
+      // read as this one's. Runs first because everything downstream (the
+      // canonical read, the You tab, every composer) reads that storage.
+      if (nextUserId) {
+        if (bindDeviceAccountOwner(nextUserId, browserLocalStorage(), browserSessionStorage())) {
+          emitDeviceIdentityChanged();
+        }
+      }
+      if (previousUserId !== nextUserId) {
+        // A new account is owed a fresh answer, and no answer is honest until
+        // its own canonical read lands.
+        setCanonicalIdentityState(nextUserId ? UNKNOWN_IDENTITY : NOBODY_IDENTITY);
+      }
+      const nextAuth = captureAccountAuth(nextUserId, nextSession);
       if (
         nextAuth &&
         rejectedContributionAuthRef.current &&
@@ -289,16 +357,16 @@ export function AuthProvider({
         user?.id ?? null,
       );
       if (handle !== null && user) {
-        setCanonicalIdentity({
-          ownerId: user.id,
-          handle: normalizeHandle(handle),
+        setCanonicalIdentityState({
+          status: "resolved",
+          identity: { ownerId: user.id, handle: normalizeHandle(handle) },
         });
       }
     };
     window.addEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
     async function loadCanonicalHandle() {
       if (!user) {
-        if (active) setCanonicalIdentity(null);
+        if (active) setCanonicalIdentityState(NOBODY_IDENTITY);
         return;
       }
       const resolution = await resolveCanonicalIdentity(
@@ -306,8 +374,13 @@ export function AuthProvider({
         session,
         browserLocalStorage(),
       ).catch(() => null);
+      // A read that failed is not evidence the account has no handle, so the
+      // answer stays unknown rather than becoming a confident "nobody".
       if (!active || !resolution?.ok) return;
-      setCanonicalIdentity(resolution.identity);
+      setCanonicalIdentityState({
+        status: "resolved",
+        identity: resolution.identity,
+      });
     }
     void loadCanonicalHandle();
     return () => {
@@ -418,7 +491,7 @@ export function AuthProvider({
             event === "TOKEN_REFRESHED" ||
             event === "INITIAL_SESSION"
           ) {
-            void persistSessionForResume(nextSession);
+            void persistSessionWithRetry(supabase.auth, nextSession);
           }
         }
         if (event === "SIGNED_IN" && nextSession?.user) {
@@ -682,6 +755,11 @@ export function AuthProvider({
     // Explicit sign-out is the one place the durable resume cookie dies too —
     // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
     void clearPersistedSession();
+    // The same set the account boundary clears, and the owner stamp with it.
+    // Leaving the handle behind is what let the next account inherit it: the
+    // session went and its name stayed.
+    releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
+    emitDeviceIdentityChanged();
     setWelcomeBack(null);
     await supabase.auth.signOut();
     // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
@@ -713,6 +791,10 @@ export function AuthProvider({
       session,
       rejectedContributionAuth,
     );
+    const canonicalIdentity =
+      canonicalIdentityState.status === "resolved"
+        ? canonicalIdentityState.identity
+        : null;
     return {
       session,
       user,
@@ -731,6 +813,8 @@ export function AuthProvider({
         canonicalIdentity,
         user?.id ?? null,
       ),
+      identityResolved:
+        canonicalIdentityState.status === "resolved" && !loading,
       rejectedContributionAuth,
       contributionAuth,
       invalidateContributionAuth,
@@ -748,7 +832,7 @@ export function AuthProvider({
     signOut,
     welcomeBack,
     resumeSignIn,
-    canonicalIdentity,
+    canonicalIdentityState,
     rejectedContributionAuth,
     invalidateContributionAuth,
     getCurrentUserId,
@@ -806,6 +890,7 @@ export function useAuth(): AuthContextValue {
       message: "Sign-in is not configured.",
     }),
     handle: null,
+    identityResolved: false,
     rejectedContributionAuth: null,
     contributionAuth: null,
     invalidateContributionAuth: () => {},

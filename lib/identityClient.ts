@@ -6,6 +6,10 @@ import {
   type AccountBoundRequest,
 } from "@/lib/accountBoundFetch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
+import {
+  deviceAccountOwner,
+  emitDeviceIdentityChanged,
+} from "@/lib/deviceAccountIdentity";
 import { normalizeHandle } from "@/lib/profiles";
 import { clearClaimedRoundAnonymousHandle } from "@/lib/roundRequest";
 
@@ -55,6 +59,12 @@ export const DEVICE_HANDLE_KEY = "pubmax_handle";
  * Write the server-owned handle onto this device. Fresh browsers after sign-in
  * have no local handle yet; without this write the claim form and local
  * composers act as if the account were handle-less.
+ *
+ * The write announces itself: readers that mounted before the canonical answer
+ * landed (the You tab, the composers) subscribe to the cross-tab `storage`
+ * event, which a same-tab write never fires. Without the notice the tab bar
+ * kept the handle it read at mount, which is how a stale answer survived a
+ * whole session and only a full page load ever corrected it.
  */
 export function syncDeviceHandle(
   storage: Pick<Storage, "setItem"> | null | undefined,
@@ -66,6 +76,20 @@ export function syncDeviceHandle(
     storage.setItem(DEVICE_HANDLE_KEY, normalised);
   } catch {
     // Account ownership is durable even when browser storage is blocked.
+    return;
+  }
+  emitDeviceIdentityChanged();
+}
+
+/** Read the device-local handle, or "" when absent or unreadable. */
+export function readStoredDeviceHandle(
+  storage: Pick<Storage, "getItem"> | null | undefined,
+): string {
+  if (!storage) return "";
+  try {
+    return normalizeHandle(storage.getItem(DEVICE_HANDLE_KEY) ?? "");
+  } catch {
+    return "";
   }
 }
 
@@ -104,9 +128,15 @@ export async function resolveCanonicalIdentity(
  * form, so a freshly established session with no claimed handle routes there.
  * Returns the destination path, or null to stay put. Never bounces the user on
  * doubt: a restored return fragment (an invite) owns the destination, a device
- * handle means /u/you would just redirect back out, and a failed or unreadable
- * server answer is not evidence the account has no handle. When the server
- * already owns a handle, sync it onto this device before staying put.
+ * handle THIS ACCOUNT owns means /u/you would just redirect back out, and a
+ * failed or unreadable server answer is not evidence the account has no handle.
+ * When the server already owns a handle, sync it onto this device before
+ * staying put.
+ *
+ * The device-handle shortcut is gated on the owner stamp because an unstamped
+ * or foreign handle is the previous account's: taking it as proof suppressed
+ * the canonical read AND the claim step, so a second account browsed the whole
+ * app under the first one's name and was never offered a handle of its own.
  */
 export async function handleClaimRouteAfterSignIn(
   session: Pick<Session, "access_token" | "user"> | null,
@@ -124,7 +154,11 @@ export async function handleClaimRouteAfterSignIn(
     return null;
   }
   try {
-    if (storage && normalizeHandle(storage.getItem(DEVICE_HANDLE_KEY) ?? "")) {
+    if (
+      storage &&
+      deviceAccountOwner(storage) === userId &&
+      readStoredDeviceHandle(storage)
+    ) {
       return null;
     }
   } catch {

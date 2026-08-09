@@ -23,6 +23,7 @@ describe("auth session resume cookie helpers", () => {
     expect(decodeAuthResumeCookie(encoded)).toEqual({
       refreshToken: "rt_abc123456",
       email: "person@example.com",
+      userId: null,
     });
   });
 
@@ -34,6 +35,7 @@ describe("auth session resume cookie helpers", () => {
     expect(decodeAuthResumeCookie(encoded)).toEqual({
       refreshToken: null,
       email: "person@example.com",
+      userId: null,
     });
   });
 

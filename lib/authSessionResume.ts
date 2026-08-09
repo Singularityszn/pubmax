@@ -30,6 +30,13 @@ export type AuthResumeCookiePayload = {
   refreshToken: string | null;
   /** Account email for the welcome-back hint and one-tap resume. */
   email: string | null;
+  /**
+   * Which account the email belongs to. A second account signing in on the
+   * same browser rewrites this cookie, and without the id a persist that could
+   * not read its own email would inherit the PREVIOUS account's - so the
+   * welcome-back line offered to resume as somebody else.
+   */
+  userId?: string | null;
 };
 
 const COOKIE_VERSION = 1;
@@ -72,6 +79,7 @@ export function encodeAuthResumeCookie(payload: AuthResumeCookiePayload): string
       v: COOKIE_VERSION,
       rt: payload.refreshToken ?? undefined,
       em: payload.email ?? undefined,
+      uid: payload.userId ?? undefined,
     }),
   );
 }
@@ -88,8 +96,10 @@ export function decodeAuthResumeCookie(
     if (parsed.v !== COOKIE_VERSION) return null;
     const refreshToken = isPlausibleRefreshToken(parsed.rt) ? parsed.rt : null;
     const email = isPlausibleEmail(parsed.em) ? parsed.em : null;
+    const userId =
+      typeof parsed.uid === "string" && parsed.uid ? parsed.uid : null;
     if (!refreshToken && !email) return null;
-    return { refreshToken, email };
+    return { refreshToken, email, userId };
   } catch {
     return null;
   }
@@ -120,6 +130,25 @@ export function maskEmail(email: string | null | undefined): string | null {
   const at = email.indexOf("@");
   if (at < 1) return null;
   return `${email[0]}…@${email.slice(at + 1)}`;
+}
+
+/**
+ * What a persist may carry over from the cookie already on the device.
+ *
+ * An email is a claim about WHO this device remembers, so it may only survive a
+ * rewrite that is provably about the same account: a matching account id, or -
+ * when the server could not verify the caller at all - the very same refresh
+ * token being re-persisted. Anything else drops the email rather than risk
+ * offering a second account a one-tap return to the first one's inbox. A cookie
+ * written before account ids were stored carries none, so it never matches.
+ */
+export function inheritedResumeEmail(
+  existing: AuthResumeCookiePayload | null,
+  next: { userId: string | null; refreshToken: string },
+): string | null {
+  if (!existing?.email) return null;
+  if (next.userId) return existing.userId === next.userId ? existing.email : null;
+  return existing.refreshToken === next.refreshToken ? existing.email : null;
 }
 
 /** Outcome of a resume-cookie redeem, as returned to the browser. */

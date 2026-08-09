@@ -49,6 +49,8 @@ function connections(): Connection[] {
 async function installSignedInOwner(page: Page): Promise<void> {
   await page.addInitScript(({ authStorageKey, userId }) => {
     window.localStorage.setItem("pubmax_handle", "socialproof");
+    // A completed sign-in stamps whose device this is (lib/deviceAccountIdentity.ts).
+    window.localStorage.setItem("pubmax_account_owner", userId);
     window.localStorage.setItem(
       authStorageKey,
       JSON.stringify({

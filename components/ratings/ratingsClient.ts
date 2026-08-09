@@ -10,6 +10,7 @@
 //     comments, follows).
 
 import type { RatingKind, RatingSummary, RatingValue } from "@/lib/ratings";
+import { authedFetch } from "@/lib/authedFetch";
 
 const HANDLE_KEY = "pubmax_handle";
 
@@ -82,7 +83,7 @@ export async function postRating(input: {
   handle: string;
   rating: RatingValue;
 }): Promise<RatingSummary> {
-  const res = await fetch("/api/ratings", {
+  const res = await authedFetch("/api/ratings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),

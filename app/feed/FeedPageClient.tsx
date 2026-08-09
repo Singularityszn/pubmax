@@ -48,6 +48,7 @@ import { countSpillingNow, subscribeToNewDrops } from "@/lib/realtime";
 import { type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import "./feed.css";
+import { authedFetch } from "@/lib/authedFetch";
 
 const PAGE_SIZE = 12;
 
@@ -669,7 +670,7 @@ export default function FeedPageClient({
 
     try {
       const body = await buildOptimisticSpillRetryFormData(entry.retry);
-      const response = await fetch("/api/pint-drops", { method: "POST", body });
+      const response = await authedFetch("/api/pint-drops", { method: "POST", body });
       const data = (await response.json().catch(() => ({}))) as {
         drop?: PintDropDTO;
         error?: string;

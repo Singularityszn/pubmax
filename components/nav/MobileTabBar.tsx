@@ -8,6 +8,8 @@ import {
   preferredCityMapHref,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import { readDeviceHandle } from "@/lib/identityClaimClient";
 import { whenBackgroundWarmupAllowed } from "@/lib/backgroundWarmup";
 import { warmNavRoute, warmPrimaryTabRoutes } from "@/lib/mapWarmup";
@@ -94,11 +96,10 @@ function isActive(pathname: string, tab: Tab): boolean {
   return navPathMatches(pathname, tab.match ?? [tab.href]);
 }
 
-function subscribeDeviceHandle(onChange: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
-  window.addEventListener("storage", onChange);
-  return () => window.removeEventListener("storage", onChange);
-}
+// A same-tab write to the device handle fires no `storage` event, so this
+// subscribes to the app's own notice as well. Without it the tab bar kept the
+// handle it read at mount and only a full page load ever corrected the link.
+const subscribeDeviceHandle = subscribeDeviceIdentity;
 
 export default function MobileTabBar() {
   const pathname = usePathname() ?? "";
@@ -111,15 +112,26 @@ export default function MobileTabBar() {
     preferredCityMapHref,
     () => "/map",
   );
-  // You tab: when the device already has a claimed handle, point straight at
-  // /u/<handle> instead of the /u/you sentinel (which client-redirects after
-  // mount and doubles the navigation cost — the cold-tap 846ms prod median).
+  // You tab: when identity is known, point straight at /u/<handle> instead of
+  // the /u/you sentinel (which client-redirects after mount and doubles the
+  // navigation cost — the cold-tap 846ms prod median).
+  //
+  // The SIGNED-IN account is the only authority here. A device handle is the
+  // signed-out drinker's own, and reaching for it while a session exists is
+  // what sent a second account to the first one's profile. Unknown identity
+  // takes the sentinel: one extra hop beats naming the wrong person.
   const deviceHandle = useSyncExternalStore(
     subscribeDeviceHandle,
     readDeviceHandle,
     () => "",
   );
-  const youHref = deviceHandle ? `/u/${encodeURIComponent(deviceHandle)}` : "/u/you";
+  const { user, identityResolved, handle: accountHandle } = useAuth();
+  const youHandle = !identityResolved
+    ? null
+    : user
+      ? accountHandle
+      : deviceHandle;
+  const youHref = youHandle ? `/u/${encodeURIComponent(youHandle)}` : "/u/you";
   const returnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`;
   const tabs = useMemo(
     () => buildTabs(mapHref, returnTo, youHref),

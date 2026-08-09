@@ -8,6 +8,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 import { buildSavedListShareText } from "@/lib/shareArtifacts";
 import type { ListType, SavedPubDTO } from "@/lib/savedPubs";
+import { authedFetch } from "@/lib/authedFetch";
 
 type SavedListCounts = {
   followers: number;
@@ -133,7 +134,7 @@ export default function SavedListDetail({
     });
 
     try {
-      const res = await fetch("/api/saved-pubs/list-follows", {
+      const res = await authedFetch("/api/saved-pubs/list-follows", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
