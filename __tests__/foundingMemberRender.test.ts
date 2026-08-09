@@ -36,7 +36,7 @@ import { FOUNDERS_DISCORD_CTA } from "@/lib/foundingMembers";
 import type { Profile, ProfileStats } from "@/lib/profiles";
 
 const ROOT = process.cwd();
-const INVITE = "https://discord.gg/r46K8Qv5W";
+const INVITE = "https://discord.gg/pubmaxx-test-invite";
 
 /** React escapes quotes in text nodes, so the markup carries entities. */
 function escaped(text: string): string {
@@ -188,8 +188,27 @@ describe("the invite lives in the environment, not in the tree", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("is documented in .env.example with the captain's value", () => {
+  it("is documented in .env.example as a name and a format, never a value", () => {
     const env = readFileSync(join(ROOT, ".env.example"), "utf8");
-    expect(env).toContain(`NEXT_PUBLIC_DISCORD_INVITE_URL=${INVITE}`);
+    // The variable is documented, its format is stated, and the value is empty:
+    // the real invite is a live door into a private room, so it belongs in the
+    // deployment environment.
+    expect(env).toMatch(/^NEXT_PUBLIC_DISCORD_INVITE_URL=$/m);
+    expect(env).toContain("https://discord.gg/<invite-code>");
+  });
+
+  // A committed example or test fixture is a shipped artifact too: an invite
+  // pasted into either is as reachable as one pasted into a component.
+  it("is never a real invite in a committed example or harness config", () => {
+    for (const file of [".env.example", "playwright.config.ts"]) {
+      const source = readFileSync(join(ROOT, file), "utf8");
+      const codes = [...source.matchAll(/https?:\/\/(?:www\.)?discord\.(?:gg|com)\/([^\s"'`<>]+)/gi)]
+        .map((match) => match[1]);
+      for (const code of codes) {
+        // Only an obvious placeholder may appear: a bracketed token, or a code
+        // that names itself as a test or example value.
+        expect(code).toMatch(/^<.+>$|test|example|placeholder|e2e/i);
+      }
+    }
   });
 });

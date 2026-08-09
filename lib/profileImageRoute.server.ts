@@ -12,7 +12,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { boundedFormData, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
-import { normalizeHandle, type PublicProfile } from "@/lib/profiles";
+import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import {
   discardStagedProfileImage,
@@ -40,7 +40,7 @@ import {
   isProfileTombstoned,
   profileImageState,
   profileStore,
-  publicOwnedImageUrl,
+  publicProfileFromRecord,
   reportProfileImage,
   type ProfileRecord,
 } from "@/lib/profileStore";
@@ -65,32 +65,6 @@ export const defaultProfileImageRouteDeps: ProfileImageRouteDeps = {
   storage: supabaseProfileImageStorage,
   moderation: () => createProfileAvatarModerationAdapter(),
 };
-
-/**
- * The public projection both slots return after a successful write. It carries
- * the WHOLE public profile, not just the image that changed: the composer
- * replaces its held row with this reply, so a partial payload would quietly
- * blank the card fields the moment somebody changed their photo.
- */
-export function toPublicProfileImageResult(profile: ProfileRecord | null): PublicProfile | null {
-  if (!profile) return null;
-  const avatarUrl = publicOwnedImageUrl(profile, "avatar");
-  const coverUrl = publicOwnedImageUrl(profile, "cover");
-  return {
-    id: profile.id,
-    handle: profile.handle,
-    ...(profile.displayName ? { displayName: profile.displayName } : {}),
-    ...(avatarUrl ? { avatarUrl } : {}),
-    ...(coverUrl ? { coverUrl } : {}),
-    ...(profile.homeCity ? { homeCity: profile.homeCity } : {}),
-    ...(profile.bio ? { bio: profile.bio } : {}),
-    ...(profile.favouriteDrink ? { favouriteDrink: profile.favouriteDrink } : {}),
-    ...(profile.interests ? { interests: profile.interests } : {}),
-    ...(profile.workplace ? { workplace: profile.workplace } : {}),
-    createdAt: profile.createdAt,
-    updatedAt: profile.updatedAt,
-  };
-}
 
 function photoError(error: unknown, slot: ProfileImageSlot): Response {
   const spec = profileImageSlotSpec(slot);
@@ -307,7 +281,10 @@ export async function handleProfileImageUpload(
       }
     }
 
-    return jsonNoStore({ profile: toPublicProfileImageResult(updated) }, { status: 200 });
+    // The WHOLE public profile, not just the image that changed: the composer
+    // replaces its held row with this reply, so it comes through the one shared
+    // projection (`lib/profiles.toPublicProfile`) rather than a local copy.
+    return jsonNoStore({ profile: publicProfileFromRecord(updated) }, { status: 200 });
   } catch (error) {
     if (staged) {
       try {
@@ -372,7 +349,7 @@ export async function handleProfileImageDelete(
         retryable: true,
       });
     }
-    return jsonNoStore({ profile: toPublicProfileImageResult(updated) }, { status: 200 });
+    return jsonNoStore({ profile: publicProfileFromRecord(updated) }, { status: 200 });
   } catch (error) {
     if (error instanceof ProfileImageError) return photoError(error, slot);
     return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, {

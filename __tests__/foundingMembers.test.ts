@@ -112,8 +112,8 @@ describe("how the mark reads", () => {
 
 describe("the founders' door", () => {
   it("takes the invite from the environment and nowhere else", () => {
-    process.env.NEXT_PUBLIC_DISCORD_INVITE_URL = "https://discord.gg/r46K8Qv5W";
-    expect(foundersDiscordInviteUrl()).toBe("https://discord.gg/r46K8Qv5W");
+    process.env.NEXT_PUBLIC_DISCORD_INVITE_URL = "https://discord.gg/pubmaxx-test-invite";
+    expect(foundersDiscordInviteUrl()).toBe("https://discord.gg/pubmaxx-test-invite");
     delete process.env.NEXT_PUBLIC_DISCORD_INVITE_URL;
     expect(foundersDiscordInviteUrl()).toBeNull();
   });
@@ -123,11 +123,11 @@ describe("the founders' door", () => {
       "",
       "   ",
       "not a url",
-      "http://discord.gg/r46K8Qv5W",
+      "http://discord.gg/pubmaxx-test-invite",
       "https://discord.gg",
       "https://discord.gg/",
       "https://disc0rd.gg/r46K8Qv5W",
-      "https://evil.example/discord.gg/r46K8Qv5W",
+      "https://evil.example/discord.gg/pubmaxx-test-invite",
       "javascript:alert(1)",
     ]) {
       expect(foundersDiscordInviteUrl(bad)).toBeNull();

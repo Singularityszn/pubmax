@@ -165,6 +165,37 @@ describe("profile avatar upload route", () => {
     expect(storage.removed.flat().some((k) => k.endsWith("/staging.jpg"))).toBe(true);
   });
 
+  // The composer replaces its held row with this reply, so a field the reply
+  // drops is a field that disappears off the card until a reload. A founding
+  // member's brass mark is the one that noticed: the write used to answer from
+  // its own copy of the projection, which never carried the number.
+  it("answers with the WHOLE public profile, founding number included", async () => {
+    __setProfileAvatarRouteDepsForTest({
+      storage: memoryStorage(),
+      moderation: () => ({ moderate: async () => ({ decision: "approved" }) }),
+    });
+    authState.userId = "user-alice";
+    const params = { params: Promise.resolve({ handle: "alice" }) };
+
+    const seeded = await profileStore().getByHandle("alice");
+    expect(seeded?.foundingMemberNumber).toBeGreaterThan(0);
+
+    const posted = await POST(await multipart(await imageFile()), params);
+    expect(posted.status).toBe(200);
+    expect((await posted.json()).profile.foundingMemberNumber).toBe(
+      seeded!.foundingMemberNumber,
+    );
+
+    const removed = await DELETE(
+      new Request("http://localhost/api/profiles/alice/avatar", { method: "DELETE" }),
+      params,
+    );
+    expect(removed.status).toBe(200);
+    expect((await removed.json()).profile.foundingMemberNumber).toBe(
+      seeded!.foundingMemberNumber,
+    );
+  });
+
   it("refuses a flagged photo, deletes staging, and leaves the profile unchanged", async () => {
     const storage = memoryStorage();
     __setProfileAvatarRouteDepsForTest({

@@ -75,6 +75,72 @@ export type PublicProfile = {
   updatedAt: string;
 };
 
+/**
+ * The stored fields a public projection reads. Structural on purpose: the
+ * store's `ProfileRecord` satisfies it, so this module stays pure and
+ * backend-free while owning the field list.
+ */
+export type PublicProfileSource = {
+  id: string;
+  handle: string;
+  displayName?: string;
+  homeCity?: string;
+  bio?: string;
+  favouriteDrink?: string;
+  interests?: string;
+  workplace?: string;
+  foundingMemberNumber?: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/**
+ * The ONE public projection of a profile row. Every surface that returns a
+ * profile over the wire - the public read AND every image write, which returns
+ * the whole profile because the composer replaces its held row with the reply -
+ * comes through here, so a field can never be public on one and missing on the
+ * other. A second copy of this list is what dropped `foundingMemberNumber` off
+ * an avatar or cover write and took a founding member's brass mark away until
+ * they reloaded.
+ *
+ * Image URLs are passed in already resolved: only an approved served path may
+ * cross this wire, never a hotlinked remote URL and never an unscanned image.
+ * `lib/profileStore.publicProfileFromRecord` is the single caller that wires
+ * them.
+ *
+ * The card fields (favourite drink, what you're into, where you work) are
+ * PUBLIC BY CHOICE, exactly like the bio and the face. The private set - email,
+ * date of birth, gender, full legal name - is not here and stays behind the
+ * owner-authenticated onboarding read
+ * (`__tests__/profilesRoutePrivacy.test.ts`).
+ */
+export function toPublicProfile(
+  profile: PublicProfileSource | null | undefined,
+  images: { avatarUrl?: string; coverUrl?: string } = {},
+): PublicProfile | null {
+  if (!profile) return null;
+  return {
+    id: profile.id,
+    handle: profile.handle,
+    ...(profile.displayName ? { displayName: profile.displayName } : {}),
+    ...(images.avatarUrl ? { avatarUrl: images.avatarUrl } : {}),
+    ...(images.coverUrl ? { coverUrl: images.coverUrl } : {}),
+    ...(profile.homeCity ? { homeCity: profile.homeCity } : {}),
+    ...(profile.bio ? { bio: profile.bio } : {}),
+    ...(profile.favouriteDrink ? { favouriteDrink: profile.favouriteDrink } : {}),
+    ...(profile.interests ? { interests: profile.interests } : {}),
+    ...(profile.workplace ? { workplace: profile.workplace } : {}),
+    // The founding number is public by design: it is a visible mark on a public
+    // card and a line on a public wall, so hiding it here would only mean the
+    // card had to ask twice for something already published.
+    ...(profile.foundingMemberNumber !== undefined
+      ? { foundingMemberNumber: profile.foundingMemberNumber }
+      : {}),
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  };
+}
+
 export type ProfileStats = {
   pintsLogged: number;
   // Cheapest priced pint in GBP, or null when the handle has no priced drops
