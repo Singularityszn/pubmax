@@ -698,7 +698,16 @@ export default function PubMap({
   const [wetherspoonsDirectoryPubs, setWetherspoonsDirectoryPubs] = useState<
     WetherspoonsPub[] | null
   >(null);
+  // Held until the canvas hands over. The directory is 2.1 MB of national
+  // opening times: it answers the Open now filter and nothing on the first
+  // frame, but fetched at mount it queues ahead of the slim venue shard that
+  // makes the pins exist and then parses on the main thread mid map-init.
+  // `null` already means "not loaded yet" everywhere downstream, so waiting
+  // reads as it always did rather than as a pub with no hours. A reader who
+  // arrives with Open now already on is asking for those hours, so that case
+  // does not wait.
   useEffect(() => {
+    if (!mapCanvasReady && !filters.openNow) return;
     let cancelled = false;
     loadWetherspoonsDirectory()
       .then((directory) => {
@@ -710,7 +719,7 @@ export default function PubMap({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [mapCanvasReady, filters.openNow]);
   const [experienceLens, setExperienceLens] =
     useState<MapExperienceLensValue>("all");
   const [experiencePolicyNow] = useState(() => Date.now());

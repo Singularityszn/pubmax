@@ -9,6 +9,7 @@ import {
   subscribePreferredCity,
 } from "@/lib/cityPreference";
 import { readDeviceHandle } from "@/lib/identityClaimClient";
+import { whenBackgroundWarmupAllowed } from "@/lib/backgroundWarmup";
 import { warmNavRoute, warmPrimaryTabRoutes } from "@/lib/mapWarmup";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import {
@@ -135,16 +136,26 @@ export default function MobileTabBar() {
     [router],
   );
 
-  // Mount-time warmup of every durable tab destination (Today / Map / Tonight /
-  // Social / You). Extends the landing map-warmup pattern so a cold thumb-tap
-  // does not wait on first-fetch of the target route bundle. No setState.
+  // Background warmup of every OTHER durable tab destination (Today / Map /
+  // Tonight / Social / You). Extends the landing map-warmup pattern so a cold
+  // thumb-tap does not wait on first-fetch of the target route bundle. No
+  // setState.
+  //
+  // Held until the foreground surface has painted, and never issued for the
+  // route already on screen. The bar mounts on every page, so a mount-time
+  // warm spends the current page's main thread and bandwidth on the next tap;
+  // on the map that cost lands squarely inside MapLibre's init. See
+  // lib/backgroundWarmup.ts for why plain idle is not enough.
   useEffect(() => {
-    warmPrimaryTabRoutes(
-      router,
-      tabs.map((tab) => tab.href),
-      warmedTabs,
-    );
-  }, [router, tabs]);
+    return whenBackgroundWarmupAllowed(() => {
+      warmPrimaryTabRoutes(
+        router,
+        tabs.map((tab) => tab.href),
+        warmedTabs,
+        pathname,
+      );
+    });
+  }, [router, tabs, pathname]);
 
   const markDropTap = useCallback((primary?: boolean) => {
     if (primary) markPubmaxTiming("pubmax:drop-tap");
@@ -189,7 +200,14 @@ export default function MobileTabBar() {
             <li key={tab.label} className="mobileTabItem">
               <Link
                 href={tab.href}
-                prefetch
+                // The bar sits in the viewport on every page, so Next's
+                // automatic prefetch fires for all six destinations while the
+                // current page is still painting. This component already owns a
+                // better-timed warm for exactly those routes: gated behind the
+                // foreground paint below, and on pointer/hover/focus intent
+                // above. Leaving the automatic one on top only duplicates it at
+                // the worst moment.
+                prefetch={false}
                 className={
                   "mobileTab pressable" +
                   (tab.primary ? " mobileTabPrimary" : "") +

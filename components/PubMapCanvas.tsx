@@ -108,6 +108,7 @@ import {
   type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
 import { applySelectionMute } from "@/lib/mapBasemapTaste";
+import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
 } from "@/components/map/canvas/interactions";
@@ -1365,7 +1366,7 @@ export default function PubMapCanvas({
         // gate. The ceiling degrades honestly if either required phone signal
         // never arrives.
         onMapReadyRef.current?.(true);
-        window.dispatchEvent(new CustomEvent("pubmax:pin-reveal", {
+        window.dispatchEvent(new CustomEvent(MAP_PIN_REVEAL_EVENT, {
           detail: { reason, generation },
         }));
         startPinEntrance();
@@ -2912,7 +2913,7 @@ export default function PubMapCanvas({
     container.addEventListener("touchstart", interact, listenerOptions);
     container.addEventListener("keydown", interact, listenerOptions);
     window.addEventListener("pubmax:camera-intent", interact);
-    window.addEventListener("pubmax:pin-reveal", enable);
+    window.addEventListener(MAP_PIN_REVEAL_EVENT, enable);
     document.addEventListener("visibilitychange", syncSuspended);
 
     const observer = new IntersectionObserver((entries) => {
@@ -2928,7 +2929,7 @@ export default function PubMapCanvas({
       container.removeEventListener("touchstart", interact, listenerOptions);
       container.removeEventListener("keydown", interact, listenerOptions);
       window.removeEventListener("pubmax:camera-intent", interact);
-      window.removeEventListener("pubmax:pin-reveal", enable);
+      window.removeEventListener(MAP_PIN_REVEAL_EVENT, enable);
       document.removeEventListener("visibilitychange", syncSuspended);
       observer.disconnect();
       orbit.dispose();

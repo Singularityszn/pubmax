@@ -7,11 +7,11 @@ import {
   CENTRAL_PATCH,
   NIGHT_PATCHES,
   clearRememberedArea,
-  nearestNightPatch,
   readRememberedArea,
   resolveNightPatch,
   writeRememberedArea,
 } from "@/lib/nightPatches";
+import { nearestNightPatch } from "@/lib/nearestNightPatch";
 
 // The patch list is a product contract (owner-locked in the near-me taste fix):
 // areas people say, nightlife-gravity order, not admin geography and not
