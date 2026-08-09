@@ -18,6 +18,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { coarsenViewerPoint } from "@/lib/geo";
+import {
+  readSurfaceSnapshot,
+  writeSurfaceSnapshot,
+} from "@/lib/surfaceDataCache";
 import { isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
 import {
   summariseWhatsOnByVenue,
@@ -59,6 +63,29 @@ export type WhatsOnTonight = {
 /** Abort a hung /api/whats-on request after this long — then report "error". */
 export const FETCH_TIMEOUT_MS = 8_000;
 
+/**
+ * How long a tonight answer may seed a return to the surface that read it.
+ *
+ * The rows carry their own source-observed time and every reader prints it, so
+ * a snapshot cannot misdate itself; the ceiling is about the LIST, not the
+ * label — a listing that has since closed should not paint one more time an
+ * hour later. Ten minutes is well inside tonight's window and well outside a
+ * tab switch.
+ */
+export const TONIGHT_SNAPSHOT_MAX_AGE_MS = 10 * 60_000;
+
+/** The request this hook makes. Shared so the snapshot is keyed by the answer's own URL. */
+export function whatsOnTonightRequestUrl(
+  near: { lat: number; lng: number } | null | undefined,
+): string {
+  const validNear =
+    near && Number.isFinite(near.lat) && Number.isFinite(near.lng)
+      ? coarsenViewerPoint(near)
+      : null;
+  const suffix = validNear ? `&near=${validNear.lat},${validNear.lng}` : "";
+  return `/api/whats-on?window=tonight&limit=60${suffix}`;
+}
+
 export type LoadTonightResult = {
   rows: WhatsOnRow[];
   asOf: string | null;
@@ -93,12 +120,7 @@ export async function loadWhatsOnTonight(
   opts.signal?.addEventListener("abort", onOuterAbort, { once: true });
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const validNear =
-      opts.near && Number.isFinite(opts.near.lat) && Number.isFinite(opts.near.lng)
-        ? coarsenViewerPoint(opts.near)
-        : null;
-    const near = validNear ? `&near=${validNear.lat},${validNear.lng}` : "";
-    const res = await fetchImpl(`/api/whats-on?window=tonight&limit=60${near}`, {
+    const res = await fetchImpl(whatsOnTonightRequestUrl(opts.near), {
       signal: controller.signal,
       headers: { accept: "application/json" },
     });
@@ -165,16 +187,45 @@ export function useWhatsOnTonight(
       return;
     }
     const controller = new AbortController();
+    const near = nearLat != null && nearLng != null ? { lat: nearLat, lng: nearLng } : null;
     const load: LoadTonightOpts = { signal: controller.signal };
-    if (nearLat != null && nearLng != null) load.near = { lat: nearLat, lng: nearLng };
+    if (near) load.near = near;
+    const key = whatsOnTonightRequestUrl(near);
+
+    const apply = (result: LoadTonightResult) => {
+      if (controller.signal.aborted) return;
+      setRows(result.rows);
+      setAsOf(result.asOf);
+      setSourceFreshnessKind(result.sourceFreshnessKind);
+      setStatus(result.status);
+    };
+
+    // The last answer this browser was given for exactly this request, so a
+    // return to Tonight (or to the map lane, which asks the same question)
+    // paints the listings it had instead of an empty spine. Deferred by a
+    // microtask like the network path, so no setState fires in the effect body.
+    let seeded = false;
+    void Promise.resolve().then(() => {
+      if (controller.signal.aborted) return;
+      const held = readSurfaceSnapshot<LoadTonightResult>(key, TONIGHT_SNAPSHOT_MAX_AGE_MS);
+      if (!held) return;
+      seeded = true;
+      apply(held);
+    });
+
     void loadWhatsOnTonight(load).then((result) => {
       if (controller.signal.aborted) return;
       void Promise.resolve().then(() => {
-        if (controller.signal.aborted) return;
-        setRows(result.rows);
-        setAsOf(result.asOf);
-        setSourceFreshnessKind(result.sourceFreshnessKind);
-        setStatus(result.status);
+        // An outage must never masquerade as a quiet night — but it must not
+        // blank real listings the reader is already looking at either. A failed
+        // revalidate over a seeded surface leaves the seeded rows standing,
+        // dated by their own source time; with nothing seeded it reports the
+        // outage exactly as before.
+        if (result.status === "error" && seeded) return;
+        // Only a real answer is remembered. An error carries no rows, and
+        // holding it would hand the next arrival an outage that has passed.
+        if (result.status !== "error") writeSurfaceSnapshot(key, result);
+        apply(result);
       });
     });
     return () => controller.abort();

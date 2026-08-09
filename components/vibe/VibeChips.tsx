@@ -1,5 +1,6 @@
-import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
+
+import IntentLink from "@/components/nav/IntentLink";
 
 import "./vibeChips.css";
 
@@ -51,9 +52,13 @@ export function VibeChipButton({
   );
 }
 
-type VibeChipLinkProps = ComponentProps<typeof Link>;
+type VibeChipLinkProps = ComponentProps<typeof IntentLink>;
 
+/**
+ * A chip destination is a dynamic route (`/plan?occasion=…`, `/pal/chat?ask=…`),
+ * so it is warmed on intent rather than prefetched on sight — see IntentLink.
+ */
 export function VibeChipLink({ className, ...props }: VibeChipLinkProps) {
   const classes = ["vibeChip", "pressable", className].filter(Boolean).join(" ");
-  return <Link className={classes} {...props} />;
+  return <IntentLink className={classes} {...props} />;
 }
