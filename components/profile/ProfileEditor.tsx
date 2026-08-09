@@ -3,9 +3,11 @@
 import Image from "next/image";
 import { useRef, useState } from "react";
 
+import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import { getAccessToken } from "@/lib/authClient";
 import { categoryLabel, MAP_LENS_DRINK_CATEGORIES } from "@/lib/drinks";
-import { profileImageSlotSpec, type ProfileImageSlot } from "@/lib/profileImageSlots";
+import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
+import { profileImageOutputBox, type ProfileImageSlot } from "@/lib/profileImageSlots";
 import type { PublicProfile } from "@/lib/profiles";
 
 // Inline "edit my profile" form for the owner of a handle. The page mounts this
@@ -19,6 +21,15 @@ import type { PublicProfile } from "@/lib/profiles";
 // The fields are GROUPED the way a person thinks about themselves: how the card
 // looks, who they are, and what they are like on a night out. A single flat
 // column of eight inputs reads as a settings page, which this is not.
+//
+// Choosing a photo is TWO BEATS: pick, then position. The picker is a plain
+// file input carrying lib/profileImagePicker's accept and NO capture attribute
+// (see that file for why an iPhone was offered no photo library at all), and
+// what it hands back goes to ProfileImageCropper rather than straight up the
+// wire. The cropper returns a JPEG cut to the slot's own shape, which is what
+// makes an iPhone's HEIC uploadable, and uploadImage below is unchanged: the
+// upload routes still receive one JPEG under `photo` and still run the same
+// scan on it.
 
 const MAX_DISPLAY_NAME = 60;
 const MAX_BIO = 280;
@@ -52,6 +63,11 @@ type ProfileEditorProps = {
   onSaved: (profile: PublicProfile) => void;
   onClose: () => void;
 };
+
+/** Identity of a chosen file, so a second pick arrives as a fresh crop step. */
+function fileKey(file: File): string {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
 
 function initialOf(name: string, handle: string): string {
   const source = name.trim() || handle.trim();
@@ -94,6 +110,12 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
   });
   const [state, setState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
+  // The chosen-but-not-yet-positioned photo for each slot. While one is held,
+  // that slot shows the crop step instead of its preview and buttons.
+  const [pending, setPending] = useState<Record<ProfileImageSlot, File | null>>({
+    avatar: null,
+    cover: null,
+  });
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -118,6 +140,16 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
   function markImage(slot: ProfileImageSlot, next: ImageState, message: string | null) {
     setImageState((prev) => ({ ...prev, [slot]: next }));
     setImageError((prev) => ({ ...prev, [slot]: message }));
+  }
+
+  function choose(slot: ProfileImageSlot, file: File | null) {
+    setPending((prev) => ({ ...prev, [slot]: file }));
+    if (file) markImage(slot, "idle", null);
+  }
+
+  function uploadCropped(slot: ProfileImageSlot, file: File) {
+    choose(slot, null);
+    void uploadImage(slot, file);
   }
 
   async function uploadImage(slot: ProfileImageSlot, file: File) {
@@ -226,54 +258,64 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
           <span className="profileEditorAvatarLabel" id="pe-cover-label">
             Cover photo
           </span>
-          <div className="profileEditorCoverStage">
-            {coverPreview ? (
-              <Image
-                className="profileEditorCoverPreview"
-                src={coverPreview}
-                alt=""
-                width={profileImageSlotSpec("cover").outputWidth}
-                height={Math.round(
-                  profileImageSlotSpec("cover").outputWidth /
-                    profileImageSlotSpec("cover").aspectRatio,
-                )}
-                unoptimized
-              />
-            ) : (
-              <div className="profileEditorCoverPreview profileEditorCoverFallback" aria-hidden="true" />
-            )}
-          </div>
-          <div className="profileEditorAvatarActions profileEditorCoverActions">
-            <input
-              ref={coverInputRef}
-              id="pe-cover-file"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="profileEditorAvatarFile"
-              aria-labelledby="pe-cover-label"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = "";
-                if (file) void uploadImage("cover", file);
-              }}
+          {pending.cover ? null : (
+            <div className="profileEditorCoverStage">
+              {coverPreview ? (
+                <Image
+                  className="profileEditorCoverPreview"
+                  src={coverPreview}
+                  alt=""
+                  width={profileImageOutputBox("cover").width}
+                  height={profileImageOutputBox("cover").height}
+                  unoptimized
+                />
+              ) : (
+                <div className="profileEditorCoverPreview profileEditorCoverFallback" aria-hidden="true" />
+              )}
+            </div>
+          )}
+          <input
+            ref={coverInputRef}
+            id="pe-cover-file"
+            type="file"
+            accept={PROFILE_IMAGE_PICKER_ACCEPT}
+            className="profileEditorAvatarFile"
+            aria-labelledby="pe-cover-label"
+            onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+              event.target.value = "";
+              choose("cover", file);
+            }}
+          />
+          {pending.cover ? (
+            <ProfileImageCropper
+              key={fileKey(pending.cover)}
+              slot="cover"
+              file={pending.cover}
+              busy={imageState.cover === "uploading"}
+              onCancel={() => choose("cover", null)}
+              onCropped={(file) => uploadCropped("cover", file)}
             />
-            <button
-              type="button"
-              className="profileEditorAvatarUpload"
-              onClick={() => coverInputRef.current?.click()}
-            >
-              {imageState.cover === "uploading" ? "Uploading…" : "Choose cover"}
-            </button>
-            {coverPreview ? (
+          ) : (
+            <div className="profileEditorAvatarActions profileEditorCoverActions">
               <button
                 type="button"
-                className="profileEditorAvatarRemove"
-                onClick={() => void removeImage("cover")}
+                className="profileEditorAvatarUpload"
+                onClick={() => coverInputRef.current?.click()}
               >
-                {imageState.cover === "removing" ? "Removing…" : "Remove cover"}
+                {imageState.cover === "uploading" ? "Uploading…" : "Choose cover"}
               </button>
-            ) : null}
-          </div>
+              {coverPreview ? (
+                <button
+                  type="button"
+                  className="profileEditorAvatarRemove"
+                  onClick={() => void removeImage("cover")}
+                >
+                  {imageState.cover === "removing" ? "Removing…" : "Remove cover"}
+                </button>
+              ) : null}
+            </div>
+          )}
           {imageStatus("cover") ? (
             <span className="profileEditorHint profileEditorStatusErr" role="status">
               {imageStatus("cover")}
@@ -285,54 +327,64 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
           <span className="profileEditorAvatarLabel" id="pe-avatar-label">
             Profile photo
           </span>
-          <div className="profileEditorAvatarRow">
-            {avatarPreview ? (
-              <Image
-                className="profileEditorAvatarPreview"
-                src={avatarPreview}
-                alt=""
-                width={72}
-                height={72}
-                unoptimized
-              />
-            ) : (
-              <div className="profileEditorAvatarPreview profileEditorAvatarFallback" aria-hidden="true">
-                {initialOf(displayName, handle)}
-              </div>
-            )}
-            <div className="profileEditorAvatarActions">
-              <input
-                ref={avatarInputRef}
-                id="pe-avatar-file"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                capture="environment"
-                className="profileEditorAvatarFile"
-                aria-labelledby="pe-avatar-label"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = "";
-                  if (file) void uploadImage("avatar", file);
-                }}
-              />
-              <button
-                type="button"
-                className="profileEditorAvatarUpload"
-                onClick={() => avatarInputRef.current?.click()}
-              >
-                {imageState.avatar === "uploading" ? "Uploading…" : "Choose photo"}
-              </button>
+          <input
+            ref={avatarInputRef}
+            id="pe-avatar-file"
+            type="file"
+            accept={PROFILE_IMAGE_PICKER_ACCEPT}
+            className="profileEditorAvatarFile"
+            aria-labelledby="pe-avatar-label"
+            onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+              event.target.value = "";
+              choose("avatar", file);
+            }}
+          />
+          {pending.avatar ? (
+            <ProfileImageCropper
+              key={fileKey(pending.avatar)}
+              slot="avatar"
+              file={pending.avatar}
+              busy={imageState.avatar === "uploading"}
+              onCancel={() => choose("avatar", null)}
+              onCropped={(file) => uploadCropped("avatar", file)}
+            />
+          ) : (
+            <div className="profileEditorAvatarRow">
               {avatarPreview ? (
+                <Image
+                  className="profileEditorAvatarPreview"
+                  src={avatarPreview}
+                  alt=""
+                  width={72}
+                  height={72}
+                  unoptimized
+                />
+              ) : (
+                <div className="profileEditorAvatarPreview profileEditorAvatarFallback" aria-hidden="true">
+                  {initialOf(displayName, handle)}
+                </div>
+              )}
+              <div className="profileEditorAvatarActions">
                 <button
                   type="button"
-                  className="profileEditorAvatarRemove"
-                  onClick={() => void removeImage("avatar")}
+                  className="profileEditorAvatarUpload"
+                  onClick={() => avatarInputRef.current?.click()}
                 >
-                  {imageState.avatar === "removing" ? "Removing…" : "Remove photo"}
+                  {imageState.avatar === "uploading" ? "Uploading…" : "Choose photo"}
                 </button>
-              ) : null}
+                {avatarPreview ? (
+                  <button
+                    type="button"
+                    className="profileEditorAvatarRemove"
+                    onClick={() => void removeImage("avatar")}
+                  >
+                    {imageState.avatar === "removing" ? "Removing…" : "Remove photo"}
+                  </button>
+                ) : null}
+              </div>
             </div>
-          </div>
+          )}
           {imageStatus("avatar") ? (
             <span className="profileEditorHint profileEditorStatusErr" role="status">
               {imageStatus("avatar")}

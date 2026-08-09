@@ -68,6 +68,23 @@ export function profileImageSlotSpec(slot: ProfileImageSlot): ProfileImageSlotSp
   return PROFILE_IMAGE_SLOT_SPECS[slot];
 }
 
+/**
+ * The pixel box a finished image for this slot fills. A face slot states both
+ * edges; a backdrop states its width and takes its height from the slot's own
+ * aspect ratio. The crop step renders straight into this box and the composer's
+ * preview reserves it, so neither one restates a number the table already owns.
+ */
+export function profileImageOutputBox(slot: ProfileImageSlot): {
+  readonly width: number;
+  readonly height: number;
+} {
+  const spec = PROFILE_IMAGE_SLOT_SPECS[slot];
+  return {
+    width: spec.outputWidth,
+    height: spec.outputHeight ?? Math.round(spec.outputWidth / spec.aspectRatio),
+  };
+}
+
 export function profileImageStagingKey(
   slot: ProfileImageSlot,
   profileId: string,

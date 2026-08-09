@@ -91,6 +91,16 @@ async function installOwnedProfileBoundary(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Choosing a photo now opens the crop step; the upload starts when a person
+ * confirms it. e2e/profile-photo-crop.spec.ts owns that step's own contract.
+ */
+async function confirmCrop(page: Page): Promise<void> {
+  const confirm = page.getByRole("button", { name: "Use photo" });
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+}
+
 async function openOwnProfileEditor(page: Page): Promise<void> {
   const response = await page.goto(`/u/${LOOP_HANDLE}`);
   expect(response?.status()).toBe(200);
@@ -146,6 +156,7 @@ test("owner upload surfaces honest refusal when the keyless server cannot verify
     mimeType: "image/jpeg",
     buffer: tinyJpeg(),
   });
+  await confirmCrop(page);
 
   const status = page.locator(".profileEditorStatusErr");
   await expect(status).toBeVisible();
@@ -243,7 +254,13 @@ test("upload → render → report → hide dress rehearsal", async ({ page }) =
     mimeType: "image/jpeg",
     buffer: tinyJpeg(),
   });
-  await expect(page.locator(".profileEditorAvatarPreview")).toBeVisible();
+  await confirmCrop(page);
+  // The upload's reply hands the saved row back, which returns the page to view
+  // mode. That is where the new face shows, so assert it there rather than on an
+  // editor control that has already left. (The old assertion named a class the
+  // initials fallback also wears, so it passed before the upload ran at all.)
+  await expect(page.locator(".profileSavedNotice")).toBeVisible();
+  await expect(page.locator(".profileAvatar")).toBeVisible();
   expect(uploadCalls).toBeGreaterThan(0);
 
   await page.goto(`/u/${LOOP_HANDLE}`);
