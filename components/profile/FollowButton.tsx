@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 
+import {
+  followActionDescription,
+  followActionLabel,
+  followPendingLabel,
+  followRelationHint,
+  resolveFollowRelation,
+} from "@/lib/followRelation";
 import type { FollowCounts } from "@/lib/followStore";
 
 // Follow / unfollow control for a public profile. The follower is the viewer's
@@ -10,10 +17,19 @@ import type { FollowCounts } from "@/lib/followStore";
 // state immediately, POSTs, and reconciles from the server's authoritative
 // counts (or rolls back on failure). Rendered only when there IS a viewer handle
 // and it differs from the profile owner — the page owns that gate.
+//
+// It carries BOTH follow edges because one of them cannot say where a
+// friendship stands: "Following" and "Mates" look identical to a reader who
+// only knows their own edge, and "Follows you" is invisible entirely. The
+// resolution lives in lib/followRelation.ts, so the button holds state, never
+// policy. Only the viewer's own edge is optimistic - a tap cannot make somebody
+// else follow back, so `followsViewer` is never guessed.
 type FollowButtonProps = {
   targetHandle: string;
   followerHandle: string;
   initialFollowing: boolean;
+  /** Does the profile follow the viewer back? Drives "Mates" and "Follow back". */
+  followsViewer?: boolean;
   onCountsChange?: (counts: FollowCounts) => void;
 };
 
@@ -21,11 +37,18 @@ export default function FollowButton({
   targetHandle,
   followerHandle,
   initialFollowing,
+  followsViewer = false,
   onCountsChange,
 }: FollowButtonProps) {
   const [following, setFollowing] = useState(initialFollowing);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const relation = resolveFollowRelation({
+    viewerFollowing: following,
+    followsViewer,
+  });
+  const hint = followRelationHint(relation);
 
   async function toggle() {
     if (busy) return;
@@ -71,13 +94,15 @@ export default function FollowButton({
     <div className="profileFollow">
       <button
         type="button"
-        className={`followBtn${following ? " isFollowing" : ""}`}
+        className={`followBtn${following ? " isFollowing" : ""}${relation === "mates" ? " isMates" : ""}`}
         aria-pressed={following}
+        aria-label={followActionDescription(relation, targetHandle)}
         disabled={busy}
         onClick={toggle}
       >
-        {following ? "Following" : "Follow"}
+        {busy ? followPendingLabel(relation) : followActionLabel(relation)}
       </button>
+      {hint ? <span className="followHint">{hint}</span> : null}
       {error ? (
         <span className="followError" role="status">
           {error}

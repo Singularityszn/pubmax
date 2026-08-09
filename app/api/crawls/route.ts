@@ -7,6 +7,7 @@
 
 import {
   countStoriesByAuthor,
+  listStoriesByAuthor,
   createCrawlStory,
   getCrawlStoryBySlug,
   getStoryAuthor,
@@ -191,8 +192,15 @@ export async function GET(request: Request): Promise<Response> {
   const author = params.get("author");
   if (author !== null) {
     const handle = normalizeHandle(readString(author, MAX_HANDLE));
-    const count = handle ? await countStoriesByAuthor(handle) : 0;
-    return jsonNoStore({ handle, count }, { status: 200 });
+    // `crawls` rides beside the count so a profile can list what it counts. The
+    // count stays exactly where it was, so every existing reader is untouched.
+    const [count, crawls] = handle
+      ? await Promise.all([
+          countStoriesByAuthor(handle),
+          listStoriesByAuthor(handle),
+        ])
+      : [0, []];
+    return jsonNoStore({ handle, count, crawls }, { status: 200 });
   }
 
   const slug = params.get("slug");

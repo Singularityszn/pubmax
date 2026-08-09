@@ -408,6 +408,16 @@ export type ProfileStore = {
     prefix: string,
     limit?: number,
   ): Promise<ProfileRecord[]>;
+  /**
+   * Browse claimed, non-tombstoned handles with no prefix (the people
+   * directory). Same closed row set as the prefix search - claimed and live
+   * only - so a directory can never surface an unowned or deleted account.
+   * Ordered by handle and paged by it, so the cursor needs no second column.
+   */
+  listClaimedProfiles(input?: {
+    limit?: number;
+    afterHandle?: string;
+  }): Promise<ProfileRecord[]>;
 };
 
 const TABLE = "profiles";
@@ -901,6 +911,22 @@ export const supabaseProfileStore: ProfileStore = {
     if (error) throw new Error(error.message);
     return (data ?? []).map((row) => fromRow(row as Record<string, unknown>));
   },
+
+  async listClaimedProfiles(input = {}) {
+    const bounded = Math.min(Math.max(input.limit ?? 24, 1), 48);
+    const after = normalizeHandle(input.afterHandle ?? "");
+    let query = admin()
+      .from(TABLE)
+      .select("*")
+      .not("user_id", "is", null)
+      .is("tombstoned_at", null)
+      .order("handle", { ascending: true })
+      .limit(bounded);
+    if (after) query = query.gt("handle", after);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => fromRow(row as Record<string, unknown>));
+  },
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -1180,6 +1206,20 @@ export const memoryProfileStore: ProfileStore = {
           Boolean(profile.userId) &&
           !isProfileTombstoned(profile) &&
           profile.handle.startsWith(key),
+      )
+      .sort((a, b) => a.handle.localeCompare(b.handle))
+      .slice(0, bounded);
+  },
+
+  async listClaimedProfiles(input = {}) {
+    const bounded = Math.min(Math.max(input.limit ?? 24, 1), 48);
+    const after = normalizeHandle(input.afterHandle ?? "");
+    return [...memoryProfiles.values()]
+      .filter(
+        (profile) =>
+          Boolean(profile.userId) &&
+          !isProfileTombstoned(profile) &&
+          (!after || profile.handle > after),
       )
       .sort((a, b) => a.handle.localeCompare(b.handle))
       .slice(0, bounded);

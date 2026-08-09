@@ -7,7 +7,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DiscoverBody } from "@/app/discover/DiscoverPageClient";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
+import CrewsPanel from "@/components/social/CrewsPanel";
 import FindYourLot from "@/components/social/FindYourLot";
+import PeopleDirectory from "@/components/social/PeopleDirectory";
 import { authedFetch } from "@/lib/authedFetch";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
@@ -546,6 +548,12 @@ export default function SocialPageClient({
               </Link>
             </nav>
             {showPostsControls ? <PostsControls state={initialState} /> : null}
+            {/* Crews sit behind the same verified gate as the composer: a crew
+                is a night with other accounts in it, so nothing about it may
+                render while Social is in preview. */}
+            {showPostsControls ? (
+              <CrewsPanel viewerHandle={viewerHandle} compact />
+            ) : null}
             {/* Friend-graph formation stays available while posts stay gated. */}
             {isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
           </aside>
@@ -574,6 +582,9 @@ export default function SocialPageClient({
               />
               <section className="socialFeedEmpty" aria-label="Find your lot">
                 <FindYourLot myHandle={viewerHandle} />
+                {/* Browse rides with search wherever search rides: both form
+                    the friend graph, and neither reads a gated surface. */}
+                <PeopleDirectory myHandle={viewerHandle} />
               </section>
             </>
           ) : !feedHref ? (
@@ -625,6 +636,7 @@ export default function SocialPageClient({
                     from mutuals land here.
                   </p>
                   <FindYourLot myHandle={viewerHandle} />
+                  <PeopleDirectory myHandle={viewerHandle} />
                 </div>
               ) : (
                 <div className="socialPostList">

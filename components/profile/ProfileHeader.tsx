@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import ProfileSocialLinks from "@/components/profile/ProfileSocialLinks";
@@ -23,6 +24,40 @@ type ProfileHeaderProps = {
 function initialOf(name: string, handle: string): string {
   const source = name.trim() || handle.trim();
   return (source.charAt(0) || "?").toUpperCase();
+}
+
+/**
+ * One statistic and the surface it counts. The visible text stays the bare
+ * label and figure, so the grid still scans as a grid; the accessible name
+ * carries where the tap goes, because "14" read aloud on its own is not a
+ * destination.
+ */
+function ProfileStatTile({
+  label,
+  value,
+  href,
+  hint,
+}: {
+  label: string;
+  value: number | string;
+  href: string;
+  hint: string;
+}) {
+  return (
+    <div className="profileStat">
+      {/* data-pressable is how an anchor joins the ONE shared press-scale owner
+          in globals.css; a local transform here would compound with it. */}
+      <Link
+        className="profileStatLink"
+        data-pressable
+        href={href}
+        aria-label={`${label}: ${value}. ${hint}.`}
+      >
+        <dt>{label}</dt>
+        <dd>{value}</dd>
+      </Link>
+    </div>
+  );
 }
 
 function formatGbp(value: number | null): string {
@@ -60,6 +95,9 @@ export default function ProfileHeader({
   const showAvatar = Boolean(avatarUrl) && failedAvatarUrl !== avatarUrl;
   const showCover = Boolean(coverUrl) && failedCoverUrl !== coverUrl;
   const facts = cardFacts(profile);
+  // Tiles link within this profile, so /u/you keeps its own sentinel route
+  // rather than bouncing a signed-in reader to a handle they have not claimed.
+  const profileBase = `/u/${encodeURIComponent(handle)}`;
 
   const crawlsPosted =
     typeof crawls === "number" ? crawls : stats.crawlsPosted ?? 0;
@@ -150,35 +188,52 @@ export default function ProfileHeader({
         </ul>
       ) : null}
 
+      {/* Every tile is a way in. A statistic that counts something the page can
+          show, and does not link to it, is a dead end wearing a number: the
+          reader has been told they have 14 followers and given no way to see
+          one. The destinations are real surfaces, so a tile never navigates to
+          a promise. */}
       <dl className="profileStats" aria-label="Profile statistics">
-        <div className="profileStat">
-          <dt>Pints logged</dt>
-          <dd>{stats.pintsLogged}</dd>
-        </div>
-        <div className="profileStat">
-          <dt>Cheapest pint</dt>
-          <dd>{formatGbp(stats.cheapestPintGbp)}</dd>
-        </div>
+        <ProfileStatTile
+          label="Pints logged"
+          value={stats.pintsLogged}
+          href={`${profileBase}#timeline`}
+          hint="Open the pint timeline"
+        />
+        <ProfileStatTile
+          label="Cheapest pint"
+          value={formatGbp(stats.cheapestPintGbp)}
+          href={`${profileBase}#timeline`}
+          hint="Open the pint timeline"
+        />
         {typeof followers === "number" ? (
-          <div className="profileStat">
-            <dt>Followers</dt>
-            <dd>{followers}</dd>
-          </div>
+          <ProfileStatTile
+            label="Followers"
+            value={followers}
+            href={`${profileBase}/people/followers`}
+            hint="See who follows this handle"
+          />
         ) : null}
         {typeof following === "number" ? (
-          <div className="profileStat">
-            <dt>Following</dt>
-            <dd>{following}</dd>
-          </div>
+          <ProfileStatTile
+            label="Following"
+            value={following}
+            href={`${profileBase}/people/following`}
+            hint="See who this handle follows"
+          />
         ) : null}
-        <div className="profileStat">
-          <dt>Crawls</dt>
-          <dd>{crawlsPosted}</dd>
-        </div>
-        <div className="profileStat">
-          <dt>Memories</dt>
-          <dd>{memoriesPosted}</dd>
-        </div>
+        <ProfileStatTile
+          label="Crawls"
+          value={crawlsPosted}
+          href={`${profileBase}#crawl-stories`}
+          hint="Open the published crawls"
+        />
+        <ProfileStatTile
+          label="Memories"
+          value={memoriesPosted}
+          href={`${profileBase}#night-memories`}
+          hint="Open night memories"
+        />
       </dl>
     </header>
   );
