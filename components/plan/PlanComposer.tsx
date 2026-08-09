@@ -7,11 +7,13 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
+import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
 import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { ASK_PLAN_DRAFT_STORAGE_KEY, type AskPlanDraft } from "@/lib/ask/types";
 import { parsePlanDescribeFromSearch } from "@/lib/planOccasion";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX } from "@/lib/crew";
+import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
 import {
@@ -657,6 +659,9 @@ function PlanComposerForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [routeStatus, setRouteStatus] = useState(routeDraftFields.routeStatus);
+  // Culture Crawl opener for the CURRENT generated route only. It is never
+  // saved with the plan: it is a thing to see beside the route, not a Stop.
+  const [cultureOpener, setCultureOpener] = useState<CultureOpenerDTO | null>(null);
   const usualLot = useSyncExternalStore(subscribeLastCrew, readLastCrew, () => null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -911,6 +916,7 @@ function PlanComposerForm({
         return;
       }
       setStops(suggested);
+      setCultureOpener(cleanCultureOpener(body.cultureOpener));
       const grounded = isGroundedGeneratedRoute(body, suggested);
       if (body.inferredContext) {
         const inferredContext = body.inferredContext as NightContext;
@@ -1241,6 +1247,7 @@ function PlanComposerForm({
         <p id="plan-route-status" className="planComposer__routeStatus" role="status" aria-live="polite">
           {routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
         </p>
+        <PlanCultureOpener opener={cultureOpener} />
         {stops.map((stop, index) => (
           <div className="planComposer__stop" key={stop.key}>
             <span className="planComposer__number" aria-hidden="true">{index + 1}</span>

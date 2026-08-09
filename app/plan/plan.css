@@ -556,6 +556,22 @@
 }
 .planDescribeFirst__chip:hover,
 .planDescribeFirst__chip:focus-visible { border-color: var(--plan-accent); color: var(--plan-accent-strong); outline: none; }
+/* Culture Crawl lane. It reads as its own offer above the plain examples, so
+   the group carries a lead line and a warmer chip edge without becoming a
+   second primary action. */
+.planDescribeFirst__culture { margin: 22px auto 0; max-width: 640px; }
+.planDescribeFirst__cultureLead {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.planDescribeFirst__cultureChips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.planDescribeFirst__chip--culture {
+  border-color: color-mix(in srgb, var(--plan-accent) 40%, var(--line));
+  background: color-mix(in srgb, var(--plan-accent) 7%, var(--panel));
+}
 .planDescribeFirst__guide {
   margin: 20px auto 0;
   display: block;
@@ -858,6 +874,21 @@
 .planComposer__previewLabel { margin-left: 8px; color: var(--muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: none; }
 .planComposer__routeStatus { min-height: 1.35em; margin: 0 0 18px 56px; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
 .planComposer__stopReason { display: block; color: var(--muted); font-size: 0.72rem; line-height: 1.35; }
+/* Culture Crawl opener. It sits above stop 1 and is deliberately unnumbered:
+   a number would read as a fourth Stop, and this is a thing to see, not a pub
+   we priced. It carries no swap and no remove for the same reason. */
+.planComposer__opener {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px dashed color-mix(in srgb, var(--plan-accent) 40%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--plan-accent) 5%, var(--panel));
+}
+.planComposer__openerEyebrow { display: block; color: var(--plan-accent-strong); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.planComposer__openerPlace { margin: 6px 0 0; display: grid; gap: 2px; }
+.planComposer__openerPlace strong { font-size: 0.95rem; font-weight: 800; }
+.planComposer__openerPlace span { color: var(--muted); font-size: 0.76rem; line-height: 1.4; }
+.planComposer__openerNote { margin: 6px 0 0; color: var(--muted); font-size: 0.72rem; line-height: 1.4; }
 .planComposer__number { align-self: center; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--plan-accent) 15%, var(--panel)); color: var(--plan-accent-strong); font-weight: 850; }
 .planComposer__remove { color: var(--ink-soft); }
 .planComposer__add { margin-top: 6px; }

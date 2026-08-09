@@ -1,3 +1,9 @@
+import {
+  CULTURE_CRAWL_CHIP_QUERIES,
+  cultureCrawlChipQuery,
+  isCultureCrawlChipId,
+  type CultureCrawlChipId,
+} from "@/lib/cultureCrawl";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
 import { cleanText } from "@/lib/textClean";
 
@@ -38,12 +44,17 @@ export function resolveSoftPlanOccasionQuery(id: SoftPlanOccasionId): string {
 }
 
 function isShippedDescribeChip(value: string): boolean {
-  return (DESCRIBE_FIRST_CHIPS as readonly string[]).includes(value);
+  return (
+    (DESCRIBE_FIRST_CHIPS as readonly string[]).includes(value)
+    || CULTURE_CRAWL_CHIP_QUERIES.includes(value)
+  );
 }
 
 /**
  * Read a pre-approved describe string from a plan URL search string.
  * `occasion` wins over `describe`; only closed ids or shipped chip text pass.
+ * Culture Crawl ids share the `occasion` param with the soft occasions, so the
+ * two id sets must never collide (pinned in __tests__/cultureCrawlChips.test.ts).
  */
 export function parsePlanDescribeFromSearch(search: string): string | null {
   let params: URLSearchParams;
@@ -57,6 +68,9 @@ export function parsePlanDescribeFromSearch(search: string): string | null {
   if (isSoftPlanOccasionId(occasion)) {
     return resolveSoftPlanOccasionQuery(occasion);
   }
+  if (isCultureCrawlChipId(occasion)) {
+    return cultureCrawlChipQuery(occasion);
+  }
 
   const describe = params.get(PLAN_DESCRIBE_PARAM);
   if (!describe) return null;
@@ -65,13 +79,13 @@ export function parsePlanDescribeFromSearch(search: string): string | null {
   return trimmed;
 }
 
-/** Deep link into /plan with a soft occasion or shipped chip query. */
+/** Deep link into /plan with a soft occasion, a Culture Crawl id or chip text. */
 export function planOccasionHref(
-  target: SoftPlanOccasionId | (typeof DESCRIBE_FIRST_CHIPS)[number],
+  target: SoftPlanOccasionId | CultureCrawlChipId | (typeof DESCRIBE_FIRST_CHIPS)[number],
   options?: { src?: string },
 ): string {
   const params = new URLSearchParams();
-  if (isSoftPlanOccasionId(target)) {
+  if (isSoftPlanOccasionId(target) || isCultureCrawlChipId(target)) {
     params.set(PLAN_OCCASION_PARAM, target);
   } else {
     params.set(PLAN_DESCRIBE_PARAM, target);

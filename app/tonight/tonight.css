@@ -466,6 +466,12 @@
   color: var(--ink-soft);
 }
 
+/* Culture Crawl lane sits under the soft occasions in the same module, so it
+   reuses the row chrome and only needs its own separating lead. */
+.tonightSoftPlansCultureEyebrow {
+  margin: 18px 0 12px;
+}
+
 .tonightSoftPlansList {
   list-style: none;
   margin: 0;

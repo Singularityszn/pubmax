@@ -1,6 +1,11 @@
 import Link from "next/link";
-import { ArrowUpRight, Coffee, Leaf, Moon } from "lucide-react";
+import { ArrowUpRight, Camera, Coffee, Landmark, Leaf, Moon, Store, Waves } from "lucide-react";
 
+import {
+  CULTURE_CRAWL_CHIPS,
+  CULTURE_CRAWL_MISSION,
+  type CultureCrawlChipId,
+} from "@/lib/cultureCrawl";
 import {
   planOccasionHref,
   TONIGHT_SOFT_PLAN_CHIPS,
@@ -11,6 +16,13 @@ const CHIP_ICONS: Record<Exclude<SoftPlanOccasionId, "quiet">, typeof Coffee> = 
   coffee: Coffee,
   af: Leaf,
   chill: Moon,
+};
+
+const CULTURE_ICONS: Record<CultureCrawlChipId, typeof Coffee> = {
+  "gallery-pint": Landmark,
+  "market-kebab": Store,
+  "river-historic": Waves,
+  "sights-quiet": Camera,
 };
 
 type Props = {
@@ -59,6 +71,28 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
             </Link>
           </li>
         ) : null}
+      </ul>
+      <p className="tonightSoftPlansEyebrow tonightSoftPlansCultureEyebrow">
+        {CULTURE_CRAWL_MISSION}
+      </p>
+      <ul className="tonightSoftPlansList">
+        {CULTURE_CRAWL_CHIPS.map((chip) => {
+          const Icon = CULTURE_ICONS[chip.id];
+          return (
+            <li key={chip.id} className="tonightSoftPlansRow">
+              <Link
+                href={planOccasionHref(chip.id, { src: "tonight-culture" })}
+                className="tonightSoftPlansLink pressable"
+              >
+                <span className="tonightSoftPlansIcon" aria-hidden="true">
+                  <Icon size={17} />
+                </span>
+                <span className="tonightSoftPlansLabel">{chip.label}</span>
+                <ArrowUpRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

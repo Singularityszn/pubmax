@@ -1,8 +1,9 @@
 "use client";
 
-import { KeyboardEvent, useState } from "react";
+import { KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import WantedPlanChips from "@/components/wanted/WantedPlanChips";
+import { CULTURE_CRAWL_CHIPS, CULTURE_CRAWL_MISSION } from "@/lib/cultureCrawl";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
 
 export { DESCRIBE_FIRST_CHIPS };
@@ -18,6 +19,17 @@ export default function PlanDescribeFirst({
   initialQuery?: string;
 }) {
   const [query, setQuery] = useState(initialQuery.slice(0, 500));
+  // The prefill arrives AFTER mount: the composer reads the URL in an effect,
+  // so an `?occasion=` deep link would otherwise land on an empty field and
+  // read as a broken destination. Adopt a later prefill only while the field is
+  // untouched, never over something the visitor typed.
+  const [touched, setTouched] = useState(false);
+  const appliedPrefill = useRef(initialQuery);
+  useEffect(() => {
+    if (touched || initialQuery === appliedPrefill.current) return;
+    appliedPrefill.current = initialQuery;
+    setQuery(initialQuery.slice(0, 500));
+  }, [initialQuery, touched]);
 
   function submit() {
     const trimmed = query.trim();
@@ -42,7 +54,10 @@ export default function PlanDescribeFirst({
         <input
           id="plan-describe-first-query"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            setTouched(true);
+            setQuery(event.target.value);
+          }}
           onKeyDown={handleKeyDown}
           placeholder="coffee and a catch-up in Clapham for 2"
           maxLength={500}
@@ -50,6 +65,21 @@ export default function PlanDescribeFirst({
         <button type="button" onClick={submit} disabled={!query.trim()}>Make a plan</button>
       </div>
       <WantedPlanChips onPick={onSubmit} />
+      <div className="planDescribeFirst__culture" role="group" aria-label="Culture Crawl">
+        <p className="planDescribeFirst__cultureLead">{CULTURE_CRAWL_MISSION}</p>
+        <div className="planDescribeFirst__cultureChips">
+          {CULTURE_CRAWL_CHIPS.map((chip) => (
+            <button
+              key={chip.id}
+              type="button"
+              className="planDescribeFirst__chip planDescribeFirst__chip--culture"
+              onClick={() => onSubmit(chip.query)}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="planDescribeFirst__chips" role="group" aria-label="Try an example">
         {DESCRIBE_FIRST_CHIPS.map((chip) => (
           <button

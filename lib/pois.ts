@@ -104,6 +104,20 @@ function isValidPoi(value: unknown): value is Poi {
   );
 }
 
+/**
+ * One normaliser for every POI reader. Drops malformed rows and pins `rank` to
+ * 1 | 2 | undefined so the canvas's zoom-depth expression never sees a stray
+ * value. Shared so a server-side reader of the same file cannot drift from the
+ * browser fetch below.
+ */
+export function normalizePois(data: unknown): Poi[] {
+  if (!Array.isArray(data)) return [];
+  return data.filter(isValidPoi).map((poi) => {
+    const rank = (poi as { rank?: unknown }).rank;
+    return rank === 1 || rank === 2 ? { ...poi, rank } : { ...poi, rank: undefined };
+  });
+}
+
 export const LONDON_POIS_PATH = "/data/london_pois.json";
 
 /**
@@ -117,14 +131,7 @@ export async function loadPoisFromPath(
   if (!path) return [];
   const response = await fetch(path);
   if (!response.ok) return [];
-  const data: unknown = await response.json();
-  if (!Array.isArray(data)) return [];
-  // Keep only well-formed rows, then normalise rank to 1 | 2 | undefined so the
-  // canvas's zoom-depth expression never sees a stray value.
-  return data.filter(isValidPoi).map((poi) => {
-    const rank = (poi as { rank?: unknown }).rank;
-    return rank === 1 || rank === 2 ? { ...poi, rank } : { ...poi, rank: undefined };
-  });
+  return normalizePois(await response.json());
 }
 
 /**

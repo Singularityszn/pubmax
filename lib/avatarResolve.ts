@@ -7,11 +7,10 @@ import {
 
 export type AvatarUrlMap = ReadonlyMap<string, string>;
 
-/** Initials for a handle-backed surface. Never leaks withheld handles. */
-export function avatarInitialFromHandle(handle: string, displayName?: string): string {
-  const source = (displayName?.trim() || normalizeHandle(handle)).trim();
-  return (source.charAt(0) || "?").toUpperCase();
-}
+// avatarInitialFromHandle now lives in lib/profiles.ts so a client avatar can
+// import it without dragging the profile store (and node:crypto) into the
+// browser bundle. Re-exported here for the server callers already using it.
+export { avatarInitialFromHandle } from "@/lib/profiles";
 
 /** Only a claimed, live profile may wear an uploaded avatar in public surfaces. */
 export function profileMayWearAvatar(
