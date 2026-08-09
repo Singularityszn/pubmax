@@ -72,6 +72,45 @@
   gap: 0.75rem;
 }
 
+/* The two doors. A segmented control rather than two stacked cards: the choice
+   is one decision, and it should read as one control with two states. */
+.loginPageDoors {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+}
+
+.loginPageDoor {
+  min-height: 40px;
+  padding: 0.4rem 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    background-color 0.18s cubic-bezier(0.23, 1, 0.32, 1),
+    color 0.18s ease;
+}
+
+.loginPageDoor[data-selected] {
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ink-deep) 14%, transparent);
+}
+
+.loginPageDoor:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 .loginPageForm .authOptions {
   margin-inline: 0;
   max-width: none;
@@ -300,7 +339,8 @@
 @media (prefers-reduced-motion: reduce) {
   .loginPagePrimary,
   .loginPageSecondary,
-  .loginPageSignOut {
+  .loginPageSignOut,
+  .loginPageDoor {
     transition: none;
   }
 }

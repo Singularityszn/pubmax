@@ -7,7 +7,6 @@ import { describe, expect, it } from "vitest";
 import {
   AccountOnboardingForm,
   AccountOnboardingLoadError,
-  AccountOwnedIdentity,
   canSubmitCheckedHandle,
 } from "@/components/identity/AccountOnboarding";
 import {
@@ -26,35 +25,39 @@ function render(
       handle: "night_owl",
       dateOfBirth,
       fullName: "",
-      sex: "",
       availability,
       busy: false,
       error: null,
       onHandleChange: noop,
       onDateOfBirthChange: noop,
       onFullNameChange: noop,
-      onSexChange: noop,
       onSubmit: noop,
-      onSkipOptional: noop,
     }),
   );
 }
 
 describe("account onboarding surface", () => {
-  it("puts required handle and date of birth before optional private details", () => {
+  it("opens on a welcome, then asks handle, name and date of birth as one step", () => {
     const html = render("idle");
-    expect(html.indexOf("Public handle")).toBeLessThan(
-      html.indexOf("Date of birth"),
-    );
-    expect(html.indexOf("Date of birth")).toBeLessThan(
-      html.indexOf("Full name"),
-    );
-    expect(html.indexOf("Full name")).toBeLessThan(html.indexOf("Sex"));
+    expect(html).toContain("Welcome to PUBMAXX");
+    expect(html).toContain("Let&#x27;s get you in");
+    expect(html.indexOf("Your handle")).toBeLessThan(html.indexOf("Name"));
+    expect(html.indexOf("Name")).toBeLessThan(html.indexOf("Date of birth"));
     expect(html).toContain('type="date"');
-    expect(html).toContain("Optional");
-    expect(html).toContain("Skip optional details");
     expect(html).toContain("Only your handle is public");
     expect(html).toContain("product analytics and social features");
+  });
+
+  it("offers one action, never a second button that skips what was not demanded", () => {
+    const html = render("available", "2000-02-03");
+    expect(html).not.toContain("Skip optional details");
+    expect(html.match(/<button/gu)).toHaveLength(1);
+  });
+
+  it("keeps private details that profile editing owns off the first arrival", () => {
+    const html = render("idle");
+    expect(html).not.toContain("<select");
+    expect(html).not.toContain("Optional private details");
   });
 
   it("keeps submit disabled until the exact handle was checked as available", () => {
@@ -153,27 +156,25 @@ describe("account onboarding surface", () => {
     });
   });
 
-  it("shows the owned identity surface instead of the claim form", () => {
-    const owned = renderToStaticMarkup(
-      createElement(AccountOwnedIdentity, {
-        handle: "night_owl",
-        renameValue: "night_owl",
-        busy: false,
-        error: null,
-        message: null,
-        onRenameChange: noop,
-        onRename: noop,
-        onContinue: noop,
-      }),
+  it("has no arrival-path surface that greets an owned handle with a rename", () => {
+    // DEFECT ZERO. An account that already owns a handle used to be met by a
+    // blocking "You are @handle / Rename handle / Continue" dialog whenever the
+    // onboarding read came back incomplete, which every handle claimed through
+    // POST /api/identity/handle/claim always does: that route stores no date of
+    // birth. Mounted at the app root, the dialog covered every tab, and only
+    // React state ever dismissed it, so it returned on the next mount.
+    const source = readFileSync(
+      join(process.cwd(), "components/identity/AccountOnboarding.tsx"),
+      "utf8",
     );
-    expect(owned).toContain("You are @night_owl");
-    expect(owned).toContain("Rename handle");
-    expect(owned).toContain("Continue");
-    expect(owned).not.toContain("Choose how people know you");
-    expect(owned).not.toContain("Claim handle");
+    expect(source).not.toContain("AccountOwnedIdentity");
+    expect(source).not.toContain("You are @");
+    expect(source).not.toContain("Rename handle");
+    expect(source).not.toContain("identity/handle/rename");
+    // A server-owned handle resolves the surface to nothing at all.
+    expect(source).toContain('setStatus("complete")');
 
     const claim = render("idle");
-    expect(claim).toContain("Choose how people know you");
     expect(claim).toContain("Claim handle");
   });
 
@@ -184,7 +185,7 @@ describe("account onboarding surface", () => {
     );
     expect(css).toMatch(/@media \(max-width: 520px\)/);
     expect(css).toMatch(
-      /\.accountOnboardingOptional,\s*\.accountOnboardingActions\s*\{\s*grid-template-columns: minmax\(0, 1fr\)/,
+      /\.accountOnboardingPair,\s*\.accountOnboardingActions\s*\{\s*grid-template-columns: minmax\(0, 1fr\)/,
     );
     expect(css).toMatch(
       /\.accountOnboardingActions button\s*\{[^}]*min-height: 46px/,

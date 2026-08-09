@@ -80,9 +80,29 @@ describe("login page", () => {
       join(process.cwd(), "components/auth/SignInButton.tsx"),
       "utf8",
     );
-    expect(button).toContain('href="/login"');
+    // The nav hands /login the page it was on, so a completed sign-in returns
+    // there instead of parking the person on the account surface.
+    expect(button).toContain("function loginHref");
+    expect(button).toContain('return "/login"');
+    expect(button).toContain("ARRIVAL_FROM_PARAM");
+    expect(button).toContain("href={signInHref}");
     expect(button).toContain("PHONE_LOGIN_MEDIA");
     expect(button).toContain("Open full sign-in page");
+  });
+
+  it("names the two doors and lands each one differently", () => {
+    const page = readFileSync(
+      join(process.cwd(), "components/auth/LoginPage.tsx"),
+      "utf8",
+    );
+    // Copy, email intent and landing all differ; only the machinery is shared.
+    expect(page).toContain("Welcome back");
+    expect(page).toContain("Email me a sign-in link");
+    expect(page).toContain("Email me a sign-up link");
+    expect(page).toContain("arrivalDestination");
+    expect(page).toContain("rememberChosenIntent");
+    // Handle-and-password stays beside the link on the sign-in door.
+    expect(page).toContain("HandlePasswordSignIn");
   });
 
   it("styles the page as a full dvh composition with 44px+ taps", () => {

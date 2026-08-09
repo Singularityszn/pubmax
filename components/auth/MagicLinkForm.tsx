@@ -15,11 +15,17 @@ export default function MagicLinkForm({
   hasSocialProviders,
   signInWithEmail,
   cancelAuthAttempt,
+  label,
+  submitLabel,
 }: {
   disabled: boolean;
   hasSocialProviders: boolean;
   signInWithEmail: (email: string) => Promise<MagicLinkResult>;
   cancelAuthAttempt: () => void;
+  /** Overrides the field label so a sign-up door does not read as a sign-in. */
+  label?: string;
+  /** Overrides the idle button label for the same reason. */
+  submitLabel?: string;
 }): React.JSX.Element {
   const inputId = useId();
   const messageId = useId();
@@ -52,7 +58,7 @@ export default function MagicLinkForm({
   return (
     <form className="authMagicLink" onSubmit={submit} noValidate>
       <label className="authMagicLinkLabel" htmlFor={inputId}>
-        {hasSocialProviders ? "Or continue with email" : "Continue with email"}
+        {label ?? (hasSocialProviders ? "Or continue with email" : "Continue with email")}
       </label>
       <div className="authMagicLinkRow">
         <input
@@ -80,7 +86,11 @@ export default function MagicLinkForm({
           disabled={!valid || disabled || status === "sending" || status === "sent"}
         >
           <Mail size={18} aria-hidden="true" />
-          {status === "sending" ? "Sending…" : status === "sent" ? "Link sent" : "Email me a link"}
+          {status === "sending"
+            ? "Sending…"
+            : status === "sent"
+              ? "Link sent"
+              : submitLabel ?? "Email me a link"}
         </button>
         {status === "sent" ? (
           <button

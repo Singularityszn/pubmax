@@ -135,26 +135,23 @@
   color: var(--brick);
 }
 
-.accountOnboardingOptional {
+/* The claim is ONE step, so its fields sit in one bordered block rather than a
+   required section plus an optional section split by a rule. The old two-part
+   shape is what made a first arrival read as a form pile. */
+.accountOnboardingStep {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.accountOnboardingPair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.7rem;
-  padding-top: 0.8rem;
-  border-top: 1px solid var(--line);
-}
-
-.accountOnboardingOptional > p {
-  grid-column: 1 / -1;
-  color: var(--ink-soft);
-  font-size: 0.75rem;
-  font-weight: 750;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .accountOnboardingActions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.65rem;
 }
 
@@ -180,12 +177,6 @@
   color: var(--color-on-accent);
 }
 
-.accountOnboardingSkip {
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--ink);
-}
-
 .accountOnboardingRetry {
   min-height: 46px;
   border: 1px solid var(--brass);
@@ -205,14 +196,21 @@
   .accountOnboarding {
     width: 100%;
     max-height: calc(100dvh - env(safe-area-inset-top, 0px));
-    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    /* The phone tab bar floats ABOVE this sheet (--z-tabbar 1350 vs the
+       backdrop's 1301), so the sheet reserves the bar's height under its own
+       actions. Without it the Claim handle button sat behind the bar and the
+       one step a new account must take was unreachable. Reserved rather than
+       re-layered: the identity gates deliberately sit above map sheets, and
+       __tests__/accountOnboarding.test.ts pins that order. */
+    padding: 1rem 1rem
+      calc(1rem + var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
     border-radius: 1.25rem 1.25rem 0 0;
   }
 
-  .accountOnboardingOptional,
+  .accountOnboardingPair,
   .accountOnboardingActions {
     grid-template-columns: minmax(0, 1fr);
   }

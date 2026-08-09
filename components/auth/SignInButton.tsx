@@ -16,6 +16,7 @@
 // ──────────────────────────────────────────────────────────────────────────
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { LogIn } from "lucide-react";
 
@@ -27,6 +28,7 @@ import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
 import { handleOnly } from "@/lib/handleDisplay";
+import { ARRIVAL_FROM_PARAM } from "@/lib/arrivalWelcome";
 import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
   authMenuFocusBoundary,
@@ -34,6 +36,17 @@ import {
 
 /** Phone band: full-page /login instead of the nav popover. */
 const PHONE_LOGIN_MEDIA = "(max-width: 640px)";
+
+/**
+ * Hand the page they are standing on to /login, so signing in returns them to
+ * it instead of parking them on the account surface. Read at click time, not at
+ * render, so the link is right on whichever page the nav happens to be on.
+ */
+function loginHref(pathname: string | null): string {
+  if (!pathname || !pathname.startsWith("/")) return "/login";
+  const params = new URLSearchParams({ [ARRIVAL_FROM_PARAM]: pathname });
+  return `/login?${params.toString()}`;
+}
 
 /** Best-effort initials for the avatar fallback when the IdP gives us no photo. */
 function initials(name: string): string {
@@ -98,6 +111,8 @@ export default function SignInButton({
     cancelAuthAttempt,
     signOut,
   } = useAuth();
+  const pathname = usePathname();
+  const signInHref = loginHref(pathname);
   const [busy, setBusy] = useState<"google" | "apple" | "out" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -395,7 +410,7 @@ export default function SignInButton({
       <div className="authUser authUserNav">
         <div className="authCompact">
           <Link
-            href="/login"
+            href={signInHref}
             className="authCompactTrigger"
             aria-label="Sign in"
           >
@@ -447,7 +462,7 @@ export default function SignInButton({
                   />
                 ) : null}
                 <Link
-                  href="/login"
+                  href={signInHref}
                   className="authMagicLinkCancel"
                   onClick={() => setMenuOpen(false)}
                 >

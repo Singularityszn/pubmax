@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { LogIn } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -11,9 +11,48 @@ import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
+import {
+  ARRIVAL_INTENT_PARAM,
+  arrivalDestination,
+  rememberChosenIntent,
+  type ArrivalIntent,
+} from "@/lib/arrivalWelcome";
+import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 
 import "@/app/auth/auth.css";
 import "./loginPage.css";
+
+/**
+ * The two doors. They share the link machinery and differ in the three things a
+ * person actually notices: what the page says, what the email is for, and where
+ * they end up. A returning drinker goes back to the page they came from; a new
+ * one goes to the surface that finishes their account.
+ */
+const DOORS: Record<
+  ArrivalIntent,
+  {
+    tab: string;
+    title: string;
+    lead: string;
+    emailLabel: string;
+    emailCta: string;
+  }
+> = {
+  signin: {
+    tab: "Sign in",
+    title: "Welcome back",
+    lead: "Your prices, plans and nights are on your account. Pick up where you left off.",
+    emailLabel: "Sign in with your email",
+    emailCta: "Email me a sign-in link",
+  },
+  signup: {
+    tab: "New here",
+    title: "Let's get you in",
+    lead: "Log a pint price, plan a crawl, keep your nights. Takes a handle and a minute.",
+    emailLabel: "Create your account with email",
+    emailCta: "Email me a sign-up link",
+  },
+};
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -47,12 +86,174 @@ function avatarUrl(user: {
   );
 }
 
+/** The already-signed-in state: who you are here, and three ways onward. */
+function SignedInCard({
+  user,
+  busy,
+  onSignOut,
+}: {
+  user: {
+    email?: string | null;
+    user_metadata?: Record<string, unknown> | null;
+  };
+  busy: boolean;
+  onSignOut: () => void;
+}): React.JSX.Element {
+  const avatar = avatarUrl(user);
+  return (
+    <section className="loginPageSignedIn" aria-label="Signed-in account">
+      <div className="loginPageIdentity">
+        {avatar ? (
+          // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar
+          <img
+            className="authAvatar loginPageAvatar"
+            src={avatar}
+            alt=""
+            width={48}
+            height={48}
+          />
+        ) : (
+          <span className="authAvatarFallback loginPageAvatar" aria-hidden="true">
+            {initials(displayName(user))}
+          </span>
+        )}
+        <div className="loginPageIdentityText">
+          <p className="loginPageWho">{displayName(user)}</p>
+          {user.email ? <p className="loginPageEmail">{user.email}</p> : null}
+        </div>
+      </div>
+      <div className="loginPageActions">
+        <Link href="/map" className="loginPagePrimary">
+          Continue to the map
+        </Link>
+        <Link href="/u/you" className="loginPageSecondary">
+          Your profile
+        </Link>
+        <button
+          type="button"
+          className="authSignOut loginPageSignOut"
+          onClick={onSignOut}
+          disabled={busy}
+        >
+          Sign out
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The device held a session whose durable resume cookie has expired. One tap
+ * re-sends the link to the saved address, so the return is not a cold form.
+ */
+function WelcomeBackCard({
+  maskedEmail,
+  status,
+  message,
+  onResume,
+  onUseDifferentAccount,
+}: {
+  maskedEmail: string | null;
+  status: "idle" | "sending" | MagicLinkResult["status"];
+  message: string;
+  onResume: () => void;
+  onUseDifferentAccount: () => void;
+}): React.JSX.Element {
+  const settled = status === "sending" || status === "sent";
+  const continueLabel = maskedEmail
+    ? `Continue as ${maskedEmail}`
+    : "Email me a sign-in link";
+  return (
+    <section className="loginPageWelcomeBack" aria-label="Continue signed in">
+      <h2 className="loginPageWelcomeBackTitle">Welcome back</h2>
+      <p className="loginPageWelcomeBackLead">
+        Your session on this device ended.
+        {maskedEmail
+          ? ` Continue as ${maskedEmail}.`
+          : " Continue with your saved sign-in."}
+      </p>
+      <button
+        type="button"
+        className="loginPagePrimary loginPageWelcomeBackContinue"
+        onClick={onResume}
+        disabled={settled}
+      >
+        {status === "sending"
+          ? "Sending…"
+          : status === "sent"
+            ? "Link sent"
+            : continueLabel}
+      </button>
+      {message ? (
+        <p
+          className={
+            status === "sent" ? "authMagicLinkSuccess" : "authError loginPageError"
+          }
+          role={status === "sent" ? "status" : "alert"}
+          aria-live="polite"
+        >
+          {message}
+        </p>
+      ) : null}
+      <button
+        type="button"
+        className="loginPageQuietLink loginPageWelcomeBackSwitch"
+        onClick={onUseDifferentAccount}
+      >
+        Use a different account
+      </button>
+    </section>
+  );
+}
+
+/** The two doors as one control. Extracted so the page body stays readable. */
+function DoorSwitch({
+  intent,
+  onChoose,
+}: {
+  intent: ArrivalIntent;
+  onChoose: (next: ArrivalIntent) => void;
+}): React.JSX.Element {
+  return (
+    <div
+      className="loginPageDoors"
+      role="tablist"
+      aria-label="Sign in or create an account"
+    >
+      {(["signin", "signup"] as const).map((option) => (
+        <button
+          key={option}
+          type="button"
+          role="tab"
+          className="loginPageDoor"
+          aria-selected={intent === option}
+          data-selected={intent === option ? "" : undefined}
+          onClick={() => onChoose(option)}
+        >
+          {DOORS[option].tab}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Full-page sign-in surface. Owns the email-link flow as a first-class page
  * (not only the nav popover). Phone nav Sign in routes here; desktop may still
  * use the compact popover as a fast path.
+ *
+ * Two named doors share that machinery. They differ in what the page says, what
+ * the email is for, and where a completed sign-in lands, because a returning
+ * drinker asking to sign in should never have to wonder whether the page is
+ * about to make them a second account.
  */
-export default function LoginPage(): React.JSX.Element {
+export default function LoginPage({
+  initialIntent = "signin",
+  from = null,
+}: {
+  initialIntent?: ArrivalIntent;
+  from?: string | null;
+} = {}): React.JSX.Element {
   const {
     user,
     loading,
@@ -74,6 +275,9 @@ export default function LoginPage(): React.JSX.Element {
   >("idle");
   const [resumeMessage, setResumeMessage] = useState("");
   const [useDifferentAccount, setUseDifferentAccount] = useState(false);
+  // Seeded from the URL on the server (app/login/page.tsx), so the right door
+  // is open on first paint and switching is a local, instant thing.
+  const [intent, setIntent] = useState<ArrivalIntent>(initialIntent);
 
   useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
@@ -85,6 +289,36 @@ export default function LoginPage(): React.JSX.Element {
     window.addEventListener("pageshow", onPageShow);
     return () => window.removeEventListener("pageshow", onPageShow);
   }, [cancelAuthAttempt]);
+
+  const door = DOORS[intent];
+  const destination = useMemo(
+    () => arrivalDestination(intent, from, HANDLE_CLAIM_NEXT),
+    [from, intent],
+  );
+
+  const chooseDoor = useCallback((next: ArrivalIntent) => {
+    setIntent(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set(ARRIVAL_INTENT_PARAM, next);
+    window.history.replaceState(window.history.state, "", url.toString());
+  }, []);
+
+  /**
+   * One link machinery, two intents. The door is remembered here rather than
+   * encoded in the link, so the greeting on the other side can match the door
+   * without putting a marketing parameter in anyone's address bar.
+   */
+  const sendLink = useCallback(
+    async (email: string): Promise<MagicLinkResult> => {
+      try {
+        rememberChosenIntent(window.localStorage, intent, Date.now());
+      } catch {
+        // A forgotten door still signs the person in.
+      }
+      return signInWithEmail(email, destination);
+    },
+    [destination, intent, signInWithEmail],
+  );
 
   const onSignInGoogle = useCallback(async () => {
     trackEvent("sign_in_initiated", { provider: "google" });
@@ -136,12 +370,12 @@ export default function LoginPage(): React.JSX.Element {
         <header className="loginPageHead">
           <p className="loginPageEyebrow">PUBMAXXING</p>
           <h1 className="loginPageTitle">
-            {user ? "You are signed in" : "Sign in"}
+            {user ? "You are signed in" : door.title}
           </h1>
           <p className="loginPageLead">
             {user
               ? "Your account is ready. Jump back into the map, or sign out of this device."
-              : "Save prices, claim a handle, and keep your nights on this account."}
+              : door.lead}
           </p>
         </header>
 
@@ -159,96 +393,26 @@ export default function LoginPage(): React.JSX.Element {
         ) : null}
 
         {!loading && user ? (
-          <section className="loginPageSignedIn" aria-label="Signed-in account">
-            <div className="loginPageIdentity">
-              {avatarUrl(user) ? (
-                // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar
-                <img
-                  className="authAvatar loginPageAvatar"
-                  src={avatarUrl(user)}
-                  alt=""
-                  width={48}
-                  height={48}
-                />
-              ) : (
-                <span className="authAvatarFallback loginPageAvatar" aria-hidden="true">
-                  {initials(displayName(user))}
-                </span>
-              )}
-              <div className="loginPageIdentityText">
-                <p className="loginPageWho">{displayName(user)}</p>
-                {user.email ? (
-                  <p className="loginPageEmail">{user.email}</p>
-                ) : null}
-              </div>
-            </div>
-            <div className="loginPageActions">
-              <Link href="/map" className="loginPagePrimary">
-                Continue to the map
-              </Link>
-              <Link href="/u/you" className="loginPageSecondary">
-                Your profile
-              </Link>
-              <button
-                type="button"
-                className="authSignOut loginPageSignOut"
-                onClick={onSignOut}
-                disabled={busy !== null}
-              >
-                Sign out
-              </button>
-            </div>
-          </section>
+          <SignedInCard
+            user={user}
+            busy={busy !== null}
+            onSignOut={onSignOut}
+          />
         ) : null}
 
         {!loading && !user && hasAuthSurface && welcomeBack && !useDifferentAccount ? (
-          <section className="loginPageWelcomeBack" aria-label="Continue signed in">
-            <h2 className="loginPageWelcomeBackTitle">Welcome back</h2>
-            <p className="loginPageWelcomeBackLead">
-              Your session on this device ended.
-              {welcomeBack.maskedEmail
-                ? ` Continue as ${welcomeBack.maskedEmail}.`
-                : " Continue with your saved sign-in."}
-            </p>
-            <button
-              type="button"
-              className="loginPagePrimary loginPageWelcomeBackContinue"
-              onClick={onResume}
-              disabled={resumeStatus === "sending" || resumeStatus === "sent"}
-            >
-              {resumeStatus === "sending"
-                ? "Sending…"
-                : resumeStatus === "sent"
-                  ? "Link sent"
-                  : welcomeBack.maskedEmail
-                    ? `Continue as ${welcomeBack.maskedEmail}`
-                    : "Email me a sign-in link"}
-            </button>
-            {resumeMessage ? (
-              <p
-                className={
-                  resumeStatus === "sent"
-                    ? "authMagicLinkSuccess"
-                    : "authError loginPageError"
-                }
-                role={resumeStatus === "sent" ? "status" : "alert"}
-                aria-live="polite"
-              >
-                {resumeMessage}
-              </p>
-            ) : null}
-            <button
-              type="button"
-              className="loginPageQuietLink loginPageWelcomeBackSwitch"
-              onClick={() => setUseDifferentAccount(true)}
-            >
-              Use a different account
-            </button>
-          </section>
+          <WelcomeBackCard
+            maskedEmail={welcomeBack.maskedEmail}
+            status={resumeStatus}
+            message={resumeMessage}
+            onResume={onResume}
+            onUseDifferentAccount={() => setUseDifferentAccount(true)}
+          />
         ) : null}
 
         {!loading && !user && hasAuthSurface && (!welcomeBack || useDifferentAccount) ? (
           <section className="loginPageForm" aria-label="Sign-in options">
+            <DoorSwitch intent={intent} onChoose={chooseDoor} />
             <div className="authOptions">
               {configured || clerkSessionAvailable ? (
                 <SocialSignInButtons
@@ -262,14 +426,19 @@ export default function LoginPage(): React.JSX.Element {
               {configured ? (
                 <>
                   <MagicLinkForm
+                    key={intent}
                     disabled={busy !== null}
                     hasSocialProviders={
                       socialProviders.google || socialProviders.apple
                     }
-                    signInWithEmail={signInWithEmail}
+                    signInWithEmail={sendLink}
                     cancelAuthAttempt={cancelAuthAttempt}
+                    label={door.emailLabel}
+                    submitLabel={door.emailCta}
                   />
-                  <HandlePasswordSignIn disabled={busy !== null} />
+                  {intent === "signin" ? (
+                    <HandlePasswordSignIn disabled={busy !== null} />
+                  ) : null}
                 </>
               ) : null}
             </div>

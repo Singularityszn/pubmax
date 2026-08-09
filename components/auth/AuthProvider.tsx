@@ -26,8 +26,10 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 
 import "@/app/auth/auth.css";
+import ArrivalWelcome from "@/components/auth/ArrivalWelcome";
 import AccountOnboarding from "@/components/identity/AccountOnboarding";
 import IdentityNudge from "@/components/identity/IdentityNudge";
+import { markArrival, takeChosenIntent } from "@/lib/arrivalWelcome";
 import {
   accountComposerAuth,
   captureAccountAuth,
@@ -420,7 +422,19 @@ export function AuthProvider({
           }
         }
         if (event === "SIGNED_IN" && nextSession?.user) {
-          if (signedIn) trackEvent("user_signed_in");
+          if (signedIn) {
+            trackEvent("user_signed_in");
+            // A GENUINE sign-in transition, which is the only thing that earns
+            // a greeting. An ordinary page load with a live session never
+            // reaches here, so returning to the map does not re-announce you.
+            // The email-link callback lands here too: establishAuthCallbackSession
+            // calls setSession, which fires SIGNED_IN through this subscription.
+            markArrival(
+              browserSessionStorage(),
+              takeChosenIntent(browserLocalStorage(), Date.now()),
+              Date.now(),
+            );
+          }
         }
         if (event === "SIGNED_OUT") {
           trackEvent("user_signed_out");
@@ -758,6 +772,9 @@ export function AuthProvider({
           </button>
         </div>
       ) : null}
+      {/* The warm second after a sign-in lands. Not a dialog and not a gate:
+          it names the person and retires itself. */}
+      <ArrivalWelcome />
       {/* Signed-out account nudge after a high-intent action. Self-gates on
           auth + a pending trigger, so it renders nothing until armed. */}
       <AccountOnboarding />
