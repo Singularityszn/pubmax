@@ -15,6 +15,11 @@ const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 const SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === "1";
 const FIREFOX_DESKTOP_MAP_CHROME_FIT =
   process.env.PW_FIREFOX_DESKTOP_MAP_CHROME_FIT === "1";
+// The photo picker defect was an iPhone one, so the crop step is worth running
+// on the Safari engine as well. Opt-in like the Firefox project above, because
+// a fresh clone installs Chromium alone and an absent browser would fail every
+// default `npm run test:e2e`.
+const WEBKIT_PROFILE_PHOTO_CROP = process.env.PW_WEBKIT_PROFILE_PHOTO_CROP === "1";
 const NEXT_DIST_DIR = resolvePlaywrightNextDistDir();
 const KEYLESS_NEXT_DIST_DIR =
   process.env.PW_KEYLESS_NEXT_DIST_DIR ?? `${NEXT_DIST_DIR}-keyless`;
@@ -105,6 +110,13 @@ export default defineConfig({
           ],
           timeout: 60_000,
           use: { ...devices["Desktop Firefox"] },
+        }]
+      : []),
+    ...(WEBKIT_PROFILE_PHOTO_CROP
+      ? [{
+          name: "webkit-profile-photo-crop",
+          testMatch: ["**/profile-photo-crop.spec.ts"],
+          use: { ...devices["iPhone 14"] },
         }]
       : []),
     {
