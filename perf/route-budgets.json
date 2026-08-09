@@ -1,0 +1,47 @@
+{
+  "note": "Per-route performance ceilings. Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision.",
+  "method": {
+    "warmupRuns": 1,
+    "measuredRuns": 2,
+    "aggregate": "median",
+    "cpuThrottleRate": 4,
+    "viewport": { "width": 390, "height": 844 },
+    "thirdPartyBlocked": true,
+    "countedUpTo": "route interactive: its readiness gate, no earlier than the window load event. A resource counts if it STARTED before that moment, so the post-paint background warmup is excluded by construction rather than by how fast the box is."
+  },
+  "routes": [
+    {
+      "path": "/",
+      "readySelector": "main",
+      "why": "The landing every shared link and every search result opens.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1250,
+      "requests": 50
+    },
+    {
+      "path": "/map",
+      "readySelector": ".mobileMapTopbar",
+      "settledSelectorHidden": ".mapLoading",
+      "why": "The product. Its data loads client side, so the document is a shell and must stay one. The JS ceiling here is ABOVE the 3400 KB that e2e/map-perf-budget.spec.ts states the map should hold: the map's eager JS has drifted past that on main and getting it back is the client-payload lane's job, not a number to quietly raise. Take this to 3400 when that lands.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 3700,
+      "requests": 122
+    },
+    {
+      "path": "/today",
+      "readySelector": "main",
+      "why": "The morning brief, composed on the server from bundled data. Its server figure is the loosest here because it is the one route that really composes something.",
+      "serverRenderMs": 450,
+      "jsDecodedKB": 1300,
+      "requests": 52
+    },
+    {
+      "path": "/tonight",
+      "readySelector": "main",
+      "why": "The fastest route we have. It is the shape every other route is held against.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1280,
+      "requests": 56
+    }
+  ]
+}

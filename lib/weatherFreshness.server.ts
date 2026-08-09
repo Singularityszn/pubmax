@@ -43,6 +43,18 @@ import { weatherSnapshotStore, type WeatherSnapshotStore } from "@/lib/weatherSn
 // top-up rather than serving readings that are already hours old.
 export const WEATHER_READTHROUGH_MAX_AGE_MS = 90 * 60_000;
 
+// How long a PAGE RENDER may wait for that live top-up before it serves the
+// cached reading instead. The top-up is a fan-out across every night area to a
+// third party we do not control, on the render path of a route that is dynamic
+// per request, so an unbounded wait made a slow Open-Meteo into a slow /today
+// for everyone. Waiting is still worth a moment: the fetch usually beats this
+// and the reader gets a current sky. Past it, the reader gets the cached
+// snapshot with its honest "last checked" line, the top-up keeps running on the
+// single-flight latch, and the next request serves what it brought back.
+// Nothing is fabricated either way. docs/PERFORMANCE_BUDGETS.md owns the budget
+// this protects.
+export const WEATHER_TOP_UP_RENDER_DEADLINE_MS = 700;
+
 /**
  * Pure freshness predicate: is this snapshot recent enough to serve without a
  * live top-up? A missing snapshot, an unparseable stamp, or a future-dated stamp
@@ -77,7 +89,35 @@ export type FreshWeatherDeps = {
   fetchObservations?: () => Promise<FetchObservationsResult>;
   /** Test seam: the cache backend (defaults to the selected store). */
   store?: WeatherSnapshotStore;
+  /**
+   * How long to wait for the live top-up before serving the cached reading.
+   * Defaults to WEATHER_TOP_UP_RENDER_DEADLINE_MS; pass 0 to wait for as long
+   * as the provider takes (what a cron run wants, never a page render).
+   */
+  topUpDeadlineMs?: number;
 };
+
+/**
+ * Resolve to the top-up's answer, or to null once the deadline passes. The
+ * top-up itself is never cancelled: it stays on the single-flight latch and
+ * caches whatever it brings back for the next reader.
+ */
+async function withinDeadline(
+  topUp: Promise<WeatherSnapshot | null>,
+  deadlineMs: number,
+): Promise<WeatherSnapshot | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const lapsed = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), deadlineMs);
+    // Do not hold a Node process open for a deadline nobody is waiting on.
+    timer.unref?.();
+  });
+  try {
+    return await Promise.race([topUp, lapsed]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 // Single-flight: while one live top-up is in progress, concurrent stale reads on
 // the same instance share it rather than each firing 20 provider calls. Cleared
@@ -122,7 +162,8 @@ async function fetchAndCache(
  * Resolve the weather snapshot a server surface should serve, guaranteeing it is
  * never needlessly stale: freshest cached snapshot when recent, else a live
  * Open-Meteo top-up, else fail-soft to the freshest cached/committed snapshot.
- * Never throws for data reasons and never fabricates a reading.
+ * Never throws for data reasons and never fabricates a reading, and never waits
+ * on the provider past WEATHER_TOP_UP_RENDER_DEADLINE_MS.
  */
 export async function loadFreshWeatherSnapshot(
   deps: FreshWeatherDeps = {},
@@ -139,11 +180,19 @@ export async function loadFreshWeatherSnapshot(
 
   // Stale or missing: attempt one shared live top-up.
   if (!inFlightTopUp) {
-    inFlightTopUp = fetchAndCache(doFetch, store, now).finally(() => {
-      inFlightTopUp = null;
-    });
+    inFlightTopUp = fetchAndCache(doFetch, store, now)
+      // fetchAndCache is fail-soft by contract; this keeps an unexpected throw
+      // from surfacing as an unhandled rejection once a render stops waiting.
+      .catch(() => null)
+      .finally(() => {
+        inFlightTopUp = null;
+      });
   }
-  const live = await inFlightTopUp;
+  const deadlineMs = deps.topUpDeadlineMs ?? WEATHER_TOP_UP_RENDER_DEADLINE_MS;
+  const live =
+    deadlineMs > 0
+      ? await withinDeadline(inFlightTopUp, deadlineMs)
+      : await inFlightTopUp;
 
   // Live succeeded: serve fresh. Live failed: serve the freshest cached/committed
   // snapshot so the card still paints (with its honest staleness banner).

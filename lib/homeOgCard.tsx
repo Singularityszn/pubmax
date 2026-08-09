@@ -12,22 +12,17 @@ import {
   loadOgFonts,
 } from "@/lib/ogBrand";
 
-// Homepage / root OG hero card (Wave S2.5, Next `opengraph-image` convention).
-// A root-level opengraph-image.tsx wins over the site-wide static
-// openGraph.images("/og.png") set in app/layout.tsx for the "/" route, so a
-// shared pubmaxxing.com link now shows this dynamic hero while /og.png stays as
-// the global fallback for every other route without its own card.
+// The homepage OG hero card (Wave S2.5). The route half is
+// app/api/home-card/route.tsx, which explains why this card is served from a
+// route rather than from a root `opengraph-image.tsx`: every heavy import below
+// would otherwise ride inside the deployed function of every page on the site.
 //
 // The two live numbers — tracked pubs + cities — are read from the same bundled
 // dataset / city config the app uses, so the card can't overstate coverage.
 //
-// runtime = "nodejs": the pub count is read from the filesystem and the Space
-// Grotesk fonts are read from public/fonts, both edge-incompatible.
-
-export const runtime = "nodejs";
-export const alt = "PUBMAXX. Listed pint prices across London and beyond";
-export const size = OG_SIZE;
-export const contentType = "image/png";
+// The route declares runtime = "nodejs": the pub count is read from the
+// filesystem and the Space Grotesk fonts are read from public/fonts, both
+// edge-incompatible.
 
 // Count tracked pubs from the bundled dataset. Never throws — on any failure the
 // card simply omits the count rather than 500-ing the share preview.
@@ -49,7 +44,7 @@ async function countPubs(): Promise<number | null> {
   }
 }
 
-export default async function Image() {
+export async function renderHomeOgCard() {
   const pubCount = await countPubs();
   // Cities beyond the London flagship.
   const otherCities = Math.max(0, listEnabledCities().length - 1);
@@ -207,6 +202,6 @@ export default async function Image() {
         </div>
       </CardShell>
     ),
-    { ...size, fonts: loadOgFonts(), headers: OG_CACHE_HEADERS },
+    { ...OG_SIZE, fonts: loadOgFonts(), headers: OG_CACHE_HEADERS },
   );
 }

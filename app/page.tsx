@@ -11,10 +11,44 @@ import {
 } from "@/lib/posterLanding";
 import { readTrustedHandoffFlag, readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 
+const HOME_TITLE = "PUBMAXX: listed pint prices on an interactive map";
+const HOME_DESCRIPTION =
+  "Listed pint prices on an interactive map. Plan a crawl with your mates.";
+
 // Self-canonical for the homepage (Wave S1.4). Title/description inherit the
-// root layout defaults; this only pins the canonical URL.
+// root layout defaults; this pins the canonical URL and the homepage's own
+// share card.
+//
+// The card is drawn by /api/home-card, not by a root opengraph-image.tsx file
+// convention: at the root segment that convention puts the whole card kit
+// (next/og, its wasm, sharp, the brand fonts and the price dataset it counts)
+// inside the deployed function of EVERY page, which is about 11 MB of
+// cold-start weight per route. app/api/home-card/route.tsx carries the
+// measurement. Next replaces a parent's openGraph object wholesale rather than
+// merging it, so the homepage restates the fields it keeps.
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
+  openGraph: {
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+    url: "https://pubmaxxing.com",
+    siteName: "PUBMAXX",
+    type: "website",
+    images: [
+      {
+        url: "/api/home-card",
+        width: 1200,
+        height: 630,
+        alt: "PUBMAXX. Listed pint prices across London and beyond",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+    images: ["/api/home-card"],
+  },
 };
 
 type SearchParams = Record<string, string | string[] | undefined>;
