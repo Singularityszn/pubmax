@@ -63,7 +63,8 @@
     "ci:isolated": "node scripts/run-with-restored-next-env.mjs npm run ci",
     "setup": "git config core.hooksPath .githooks && echo 'git hooks enabled (pre-push runs npm run verify)'",
     "merge:london-chains": "node scripts/merge_london_chain_scrapes.mjs",
-    "deadcode": "knip"
+    "deadcode": "knip",
+    "harvest:run": "tsx scripts/harvest/run.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

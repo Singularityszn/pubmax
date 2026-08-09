@@ -1,0 +1,94 @@
+# London harvest
+
+A Firecrawl-backed refresh that keeps London pub data fresh from **first-party
+pages only**. Two halves that share one set of parsers:
+
+| Half | Command | Writes |
+|---|---|---|
+| Durable pass | `npm run harvest:run` | the What's-On files, the pub-facts artifact, the run report |
+| Scheduled pass | `GET /api/cron/harvest-refresh` (weekly, `vercel.json`) | nothing; it reports to the function log |
+
+A Vercel function's file system is read only, so the scheduled pass cannot commit
+a file. What it buys is **noticing**: it runs the same fetchers over the same
+pages every week and reports what each one stated. `/api/cron/enrich-city-pubs`
+already splits this way; the harvest follows it.
+
+## The rules
+
+- **First party only.** An operator's own page, or the venue's own site. Every
+  aggregator in the source table is currently refused, each on its own recorded
+  rule.
+- **A page that does not state a thing yields no row.** A deal with a weekday
+  and no window is a recorded drop, not an invented 11:30 to 23:00. Greene King
+  emitting zero rows is the pipeline working.
+- **Provenance on every row**: `source: { label, url }` plus `observedAt`.
+- **A skip is a finding.** Empty, skipped and failed are three outcomes with
+  three names, so a quiet source is never mistaken for a quiet city.
+- **Fail closed.** No `FIRECRAWL_API_KEY`, no requests and no files written.
+- **A lane that harvested nothing never overwrites its file.** A good file beats
+  a fresh empty one.
+
+## Where each rule lives
+
+| Question | File |
+|---|---|
+| May we read this source, and on whose say-so? | `lib/harvest/sourcePolicy.ts` |
+| Key, retries, and the per-run request budget | `lib/harvest/firecrawl.ts` |
+| What makes a chain offer a deal day | `lib/harvest/chainDeals.ts` |
+| What makes a venue listing an event | `lib/harvest/venueEvents.ts` |
+| Which stated facts a venue page yields | `lib/harvest/pubFacts.ts` |
+| The shape of a run report | `lib/harvest/runReport.ts` |
+| The bounded batch the cron runs | `lib/harvestRefresh.server.ts` |
+| The durable pass | `scripts/harvest/run.mjs` |
+
+## The budget
+
+`HARVEST_CRON_REQUEST_BUDGET` (12) and `HARVEST_CLI_REQUEST_BUDGET` (120) in
+`lib/harvest/firecrawl.ts` cap how many requests one run may send. The budget
+counts **every request, retries included**, so a retry storm spends the run's
+budget rather than the account. Past the cap a scrape resolves
+`budget-exhausted` without sending, which the report records as a skip: the run
+covered less, it did not break.
+
+## Running it
+
+```bash
+npm run harvest:run                    # deals only, the cheap high-yield lane
+npm run harvest:run -- --all           # deals, events and pub facts
+npm run harvest:run -- --all --dry-run # print what would be written
+npm run harvest:run -- --events --venue-limit 40 --budget 120
+```
+
+`--fresh` bypasses Firecrawl's index copy. The run report always lands at
+`data/harvest/last_run.json`; `--dry-run` prints instead of writing.
+
+`FIRECRAWL_API_KEY` comes from `.env.local` (Vercel production already has it).
+
+## What a source that reads whole documents is for
+
+Two lanes deliberately scrape with `onlyMainContent: false`:
+
+- a venue **home page**, because its what's-on link lives in the nav;
+- an **operator page**, because opening hours live in the footer.
+
+The listings page itself is read main-content only, where the listings are.
+
+## Adding a source
+
+Add it to `HARVEST_SOURCES` with its access decision, the rule behind that
+decision, and the day the rule was checked. Nothing else takes a URL from a
+caller, so a source absent from that table is not harvested at all.
+
+Check `robots.txt` before adding one, and treat an unreadable `robots.txt` as a
+refusal: several Mitchells & Butlers brands answer theirs with a challenge page,
+so no permission can be read, and a page we cannot ask about is a page we do not
+take. Watch for `User-agent: CloudflareBrowserRenderingCrawler`, which is the
+headless-renderer class this harvest belongs to - a site may admit ordinary
+crawlers and still refuse it.
+
+## Pins
+
+`__tests__/harvestFirecrawlClient.test.ts` (fail closed, budget, retries),
+`__tests__/harvestRows.test.ts` (what earns a row, provenance),
+`__tests__/harvestSourcePolicy.test.ts` (the source table and the report),
+`__tests__/cronHarvestRefreshRoute.test.ts` (auth, keyless run, budget ceiling).

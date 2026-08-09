@@ -204,13 +204,28 @@ export function filterGreaterLondonWetherspoons(pubs) {
 // source's own "may vary per pub" caveat is carried in `detail`). A venue
 // missing a slug/name is dropped; a deal whose weekly slot cannot be resolved
 // is dropped (never guessed).
-export function buildWetherspoonsDealRows({ deals, venues, observedAt, venueIndex = null }) {
+//
+// CHAIN-AGNOSTIC BY PARAMETER, Wetherspoon by default. The Firecrawl harvest
+// (scripts/harvest/run.mjs) feeds this same builder deal days it read off a
+// chain's own offers page, so `idPrefix` and `source` let another chain's rows
+// carry that chain's identity, and a deal may state its own `cadenceLabel`
+// ("Monday to Friday") where a hand-seeded one only ever ran on one day.
+// Every default reproduces the existing Wetherspoon output exactly.
+export function buildWetherspoonsDealRows({
+  deals,
+  venues,
+  observedAt,
+  venueIndex = null,
+  idPrefix = "jdw",
+  source = WETHERSPOONS_FOOD_DRINK_SOURCE,
+}) {
   const rows = [];
   for (const deal of deals ?? []) {
     const startsAt = nextWeeklyOccurrence(deal.dayName, deal.startTime, observedAt);
     if (!startsAt) continue;
     const dateStr = startsAt.slice(0, 10);
     const endsAt = londonWallClockToIso(dateStr, deal.endTime);
+    const cadence = deal.cadenceLabel ?? `every ${deal.dayName}`;
 
     for (const venue of venues ?? []) {
       const slug = venue?.slug;
@@ -219,13 +234,13 @@ export function buildWetherspoonsDealRows({ deals, venues, observedAt, venueInde
       if (typeof name !== "string" || name.length === 0) continue;
 
       const row = {
-        id: `deal-jdw-${deal.id}-${slug}`,
+        id: `deal-${idPrefix}-${deal.id}-${slug}`,
         placeName: name,
         kind: "deal",
         startsAt,
-        title: `${deal.title} — every ${deal.dayName}`,
+        title: `${deal.title} — ${cadence}`,
         detail: `${deal.terms} Price, dishes and participation may vary per pub — see venue for details.`,
-        source: { ...WETHERSPOONS_FOOD_DRINK_SOURCE },
+        source: { ...source },
         observedAt,
         confidence: "listed",
       };

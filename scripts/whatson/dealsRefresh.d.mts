@@ -14,6 +14,11 @@ export type WetherspoonsDealDef = {
   endTime: string;
   title: string;
   terms: string;
+  /**
+   * How the source itself puts the cadence ("Monday to Friday"). Absent falls
+   * back to "every <dayName>", which is what a hand-seeded single-day deal is.
+   */
+  cadenceLabel?: string;
 };
 
 export declare const WETHERSPOONS_DEALS: WetherspoonsDealDef[];
@@ -57,4 +62,8 @@ export declare function buildWetherspoonsDealRows(input: {
   venues: WetherspoonsPubRecord[];
   observedAt: string;
   venueIndex?: import("./resolveVenueId.d.mts").VenueResolverIndex | null;
+  /** Row-id segment naming the chain. Defaults to "jdw". */
+  idPrefix?: string;
+  /** Provenance carried by every row. Defaults to the Wetherspoon page. */
+  source?: ChainSource;
 }): WhatsOnDealRow[];
