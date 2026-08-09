@@ -27,6 +27,21 @@ describe("PlanDescribeFirst occasion chips", () => {
     expect(DESCRIBE_FIRST_CHIPS.join("\n")).not.toMatch(/Zone 2/i);
   });
 
+  it("adopts a prefill that arrives after mount, but never over typed text", () => {
+    // The composer reads `?occasion=` in an effect, so the prefill lands one
+    // tick AFTER this component captured initialQuery into its own state. Held
+    // as initial state alone, every soft-occasion and Culture Crawl deep link
+    // lands on an empty field and reads as a broken destination.
+    const source = readFileSync(
+      join(process.cwd(), "components/plan/PlanDescribeFirst.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("useEffect");
+    expect(source).toContain("appliedPrefill");
+    expect(source).toContain("if (touched || initialQuery === appliedPrefill.current) return;");
+    expect(source).toContain("setTouched(true);");
+  });
+
   it("stays VOICE-clean on the describe-first surface", () => {
     const source = readFileSync(
       join(process.cwd(), "components/plan/PlanDescribeFirst.tsx"),

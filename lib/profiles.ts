@@ -74,6 +74,18 @@ export function normalizeHandle(raw: string | null | undefined): string {
     .slice(0, HANDLE_MAX);
 }
 
+/**
+ * Initials for a handle-backed surface. Never leaks withheld handles.
+ *
+ * It lives in this leaf module, not beside the avatar URL resolver, because
+ * client avatars call it: `lib/avatarResolve.ts` reaches the profile store and
+ * therefore `node:crypto`, which a browser bundle cannot build.
+ */
+export function avatarInitialFromHandle(handle: string, displayName?: string): string {
+  const source = (displayName?.trim() || normalizeHandle(handle)).trim();
+  return (source.charAt(0) || "?").toUpperCase();
+}
+
 // Turn a normalized handle into a friendly display name for the demo. We split
 // on underscores and title-case the words: "cheap_pint_ken" → "Cheap Pint Ken".
 // A handle that normalizes to empty falls back to a stable placeholder.

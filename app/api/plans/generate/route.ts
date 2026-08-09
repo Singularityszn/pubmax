@@ -6,6 +6,7 @@ import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
 import { NO_ALCOHOL_DRINK_CATEGORIES, type CommunityPrice } from "@/lib/communityPrice";
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { planCultureOpenerFields } from "@/lib/cultureCrawl.server";
 import { trustedNoAlcoholLensPrices } from "@/lib/mapExperienceLens";
 import { getNightArea, isNightAreaRouteReady, publicNightAreaCoverage, type NightArea } from "@/lib/nightAreas";
 import type { NightContext } from "@/lib/nightPlanning";
@@ -394,6 +395,15 @@ export async function POST(request: Request): Promise<Response> {
 		now: requestNow,
 	});
 	const nightArea = { id: area.slug, ...coverage };
+	// Culture Crawl opener: a free-standing thing to see before the first pint,
+	// drawn from the ambient POI layer alone. It is never a Stop, never priced,
+	// and never enters the grounding proof below, because the proof commits to
+	// venue records and a POI is not one.
+	const cultureOpenerFields = planCultureOpenerFields({
+		query,
+		cityId,
+		stops: chosenWalkingStops,
+	});
 	const stops = chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims }, index) => {
 		const grounded = groundedStops?.[index] ?? null;
 		const alternativeCandidates = groundedAlternatives?.[index]
@@ -521,6 +531,7 @@ export async function POST(request: Request): Promise<Response> {
 		routeTotals,
 		routeTiming: planRouteTimingDisclosure(groundedTiming),
 		endingRecommendations,
+		...cultureOpenerFields,
 		weatherEvidence: planningWeather,
 		nightArea,
 		...(constraintReport ? { constraintReport } : {}),
