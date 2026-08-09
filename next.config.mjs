@@ -74,7 +74,9 @@ const swVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? Date.now().toString(36);
 // MapLibre, worker/child blob:, etc.). All the OTHER security headers below
 // (HSTS, nosniff, XFO, Permissions-Policy, COOP, Referrer) stay here on
 // `/:path*`; only the CSP moved. Trade-off: the per-request nonce forces
-// dynamic rendering for every route (no static generation / ISR / PPR).
+// dynamic rendering (no static generation / ISR / PPR) on every route except
+// the two public documents named in proxy.ts's CDN_CACHED_DOCUMENT_PATHS, which
+// take `script-src 'unsafe-inline'` in exchange for a CDN copy.
 
 // Baseline security headers on every response.
 const securityHeaders = [

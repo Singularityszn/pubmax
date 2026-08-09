@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { sanitizeEvent } from "@/lib/analyticsEvents";
+import { securityProxy } from "@/proxy";
 import {
   clearPosterLandingSession,
   isPosterLandingArrival,
@@ -18,6 +20,7 @@ import {
 } from "@/lib/posterLanding";
 
 const homePage = readFileSync(join(process.cwd(), "app/page.tsx"), "utf8");
+const proxySource = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
 const nearClient = readFileSync(
   join(process.cwd(), "components/nearme/NearPageClient.tsx"),
   "utf8",
@@ -89,11 +92,41 @@ describe("poster landing orientation", () => {
     );
   });
 
-  it("home RSC redirects poster arrivals through posterNearHref", () => {
-    expect(homePage).toMatch(/from "@\/lib\/posterLanding"/);
-    expect(homePage).toMatch(/isPosterLandingSrc/);
-    expect(homePage).toMatch(/posterNearHref/);
-    expect(homePage).toMatch(/redirect\(posterNearHref\(params\)\)/);
+  it("the proxy redirects poster arrivals through posterNearHref", () => {
+    // The decision moved out of the home RSC when `/` became a prerendered
+    // document: reading `?src=` there is per-request work, and a prerendered
+    // page is handed an empty query. The proxy sees the real one.
+    expect(proxySource).toMatch(/from "@\/lib\/posterLanding"/);
+    expect(proxySource).toMatch(/isPosterLandingSrc/);
+    expect(proxySource).toMatch(/posterNearHref/);
+    expect(homePage).not.toMatch(/posterNearHref/);
+  });
+
+  it("sends a real poster arrival to /near and leaves an ordinary visit alone", () => {
+    const scanned = securityProxy(
+      new NextRequest(
+        "https://pubmaxxing.com/?src=poster&utm_source=camden&junk=1",
+        { headers: { host: "pubmaxxing.com" } },
+      ),
+    );
+    expect(scanned.status).toBe(307);
+    expect(scanned.headers.get("location")).toBe(
+      "https://pubmaxxing.com/near?src=poster&utm_source=camden",
+    );
+
+    for (const url of [
+      "https://pubmaxxing.com/",
+      "https://pubmaxxing.com/?src=notposter",
+      // The redirect belongs to the landing alone; no other route inherits it.
+      "https://pubmaxxing.com/map?src=poster",
+    ]) {
+      expect(
+        securityProxy(
+          new NextRequest(url, { headers: { host: "pubmaxxing.com" } }),
+        ).status,
+        url,
+      ).toBe(200);
+    }
   });
 
   it("near page mounts the poster orientation note from src", () => {

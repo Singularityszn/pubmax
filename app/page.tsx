@@ -1,14 +1,8 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 
 import LandingPage from "@/components/landing/LandingPage";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { loadAboutStats } from "@/lib/aboutStats";
-import {
-  isPosterLandingSrc,
-  posterNearHref,
-  readPosterLandingSrc,
-} from "@/lib/posterLanding";
 import { readTrustedHandoffFlag, readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 
 const HOME_TITLE = "PUBMAXX: listed pint prices on an interactive map";
@@ -51,21 +45,31 @@ export const metadata: Metadata = {
   },
 };
 
-type SearchParams = Record<string, string | string[] | undefined>;
+// THIS DOCUMENT IS PRERENDERED (captain decision 2026-08-09, recorded in
+// proxy.ts): it drops the per-request CSP nonce so the Vercel CDN can hold it.
+// Two rules follow, and both are enforced by tests:
+//
+//   1. Nothing per-request may be read here. `force-static` makes that a build
+//      error rather than a silent per-request render, and it is also what stops
+//      the root layout's nonce read (`headers()`) from pulling this route back
+//      into dynamic rendering.
+//   2. Nothing personal may reach this document. One prerendered copy is handed
+//      to every stranger, so the viewer's handle, session and saved state are
+//      fetched by the client after load, never rendered here.
+//
+// The physical QR path (PLG Wave 2) used to be answered here: printed codes use
+// /?src=poster (+ optional utm_*) and the arrival goes to /near with the
+// campaign query kept. Reading that query is per-request work, so proxy.ts now
+// redirects it before this route is reached. lib/posterLanding.ts still owns
+// where it lands.
+export const dynamic = "force-static";
+// Every input here (the shipped price dataset loadAboutStats counts, the flag
+// env) changes only on deploy, so an hour is a quiet ceiling rather than a
+// refresh the page needs: it bounds how long a stale copy can outlive a change
+// nobody redeployed for.
+export const revalidate = 3600;
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>;
-}) {
-  // Physical QR path (PLG Wave 2): printed codes use /?src=poster (+ optional
-  // utm_*). Send that arrival straight to /near with the campaign query kept,
-  // so a scan opens nearby prices rather than the marketing landing.
-  const params = await searchParams;
-  if (isPosterLandingSrc(readPosterLandingSrc(params))) {
-    redirect(posterNearHref(params));
-  }
-
+export default async function Home() {
   // Real coverage numbers, derived at build/request time from the same bundled
   // pint-price dataset + enabled-city config the rest of the app reads (via the
   // provenance-honest lib/aboutStats). No invented counts — loadAboutStats

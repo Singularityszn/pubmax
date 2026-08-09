@@ -33,7 +33,14 @@ import { config, securityProxy } from "@/proxy";
 const PUBLISHABLE_KEY = "pk_test_cmFyZS10cm91dC0yOS5jbGVyay5hY2NvdW50cy5kZXYk";
 const FRONTEND_API = "https://rare-trout-29.clerk.accounts.dev";
 
-function policyFor(path = "/map"): string {
+/**
+ * The default path is a NONCE route on purpose. `/` and `/map` are the two
+ * prerendered documents that drop the nonce (captain decision 2026-08-09), so
+ * asserting the strict policy through either of them would assert nothing.
+ * `/login` is the identity door: if the nonce ever leaks away from it, sign-in
+ * is running under `script-src 'unsafe-inline'`.
+ */
+function policyFor(path = "/login"): string {
   const response = securityProxy(
     new NextRequest(`https://pubmaxxing.com${path}`, {
       headers: { host: "pubmaxxing.com" },
@@ -195,7 +202,7 @@ describe("the CSP the proxy actually ships", () => {
 
   it("forwards the nonce to the render on x-nonce", () => {
     const response = securityProxy(
-      new NextRequest("https://pubmaxxing.com/map", {
+      new NextRequest("https://pubmaxxing.com/login", {
         headers: { host: "pubmaxxing.com" },
       }),
     );
@@ -238,6 +245,107 @@ describe("the CSP the proxy actually ships", () => {
     // frame-src stays absent, so framing keeps falling through to child-src.
     expect(directive(policy, "frame-src")).toBeUndefined();
     expect(directive(policy, "child-src")).toBe("child-src blob:");
+  });
+});
+
+// The CDN exception, both halves. It is worth stating what it is: two public,
+// anonymous documents may be prerendered and held by the CDN, which a
+// per-request nonce makes impossible, so they take `script-src 'unsafe-inline'`
+// instead. The list is closed and it is exactly `/` and `/map`. What must never
+// happen is the exception spreading to a route where a session is resolved, a
+// handle is printed, or a moderator acts.
+describe("the two prerendered documents drop the nonce, and only they do", () => {
+  const CDN_CACHED = ["/", "/map"];
+  // One from each family the decision explicitly keeps strict.
+  const NONCED = [
+    "/login",
+    "/signin",
+    "/onboarding",
+    "/social",
+    "/u/you",
+    "/messages",
+    "/admin",
+    "/admin/community-prices",
+    "/plan",
+    "/today",
+    "/tonight",
+    "/near",
+    "/map/london",
+    "/map/arrival",
+  ];
+
+  it.each(CDN_CACHED)(
+    "%s takes 'unsafe-inline' and carries no nonce anywhere",
+    (path) => {
+      const scriptSrc = directive(policyFor(path), "script-src") ?? "";
+      expect(scriptSrc).toContain("'unsafe-inline'");
+      expect(scriptSrc).not.toMatch(/'nonce-/);
+      // A nonce forwarded to the render would be stamped onto the prerendered
+      // HTML and then served to everyone, which is worse than none at all.
+      const response = securityProxy(
+        new NextRequest(`https://pubmaxxing.com${path}`, {
+          headers: { host: "pubmaxxing.com" },
+        }),
+      );
+      expect(response.headers.get("x-middleware-request-x-nonce")).toBeNull();
+    },
+  );
+
+  it.each(NONCED)("%s keeps a fresh nonce and refuses 'unsafe-inline'", (path) => {
+    const scriptSrc = directive(policyFor(path), "script-src") ?? "";
+    expect(scriptSrc).toMatch(/'nonce-[A-Za-z0-9+/=]+'/);
+    expect(scriptSrc).not.toContain("'unsafe-inline'");
+  });
+
+  it("buys nothing beyond the inline slot", () => {
+    // Same directives, same origins, same order — only the nonce slot differs.
+    // Anything else changing here is a widening nobody asked for.
+    const strict = policyFor("/login");
+    const cached = policyFor("/");
+    expect(cached.replace("'unsafe-inline'", "NONCE_SLOT")).toBe(
+      strict.replace(/'nonce-[A-Za-z0-9+/=]+'/, "NONCE_SLOT"),
+    );
+  });
+
+  it("hands a /map share link back to the nonce, because it gets no CDN copy", () => {
+    // A document-varying query is rewritten to the per-request twin
+    // (lib/mapDocumentTwin.ts). It is rendered per request, so it has nothing
+    // to buy with the nonce and keeps it.
+    for (const query of [
+      "?place=Oxford&lat=51.752&lng=-1.2577",
+      "?uk=1",
+      "?band=subcrawl",
+      "?crawl=soho-classics",
+      "?pubs=venue-a,venue-b",
+    ]) {
+      const scriptSrc = directive(policyFor(`/map${query}`), "script-src") ?? "";
+      expect(scriptSrc, query).toMatch(/'nonce-[A-Za-z0-9+/=]+'/);
+      expect(scriptSrc, query).not.toContain("'unsafe-inline'");
+    }
+    // A query that only moves the camera or the selection still takes the
+    // prerendered document.
+    for (const query of ["?sel=venue-xjf3n0", "?q=camden", "?utm_source=poster"]) {
+      const scriptSrc = directive(policyFor(`/map${query}`), "script-src") ?? "";
+      expect(scriptSrc, query).toContain("'unsafe-inline'");
+    }
+  });
+
+  it("keeps the rest of the policy locked down on a prerendered document", () => {
+    const policy = policyFor("/");
+    expect(directive(policy, "object-src")).toBe("object-src 'none'");
+    expect(directive(policy, "base-uri")).toBe("base-uri 'self'");
+    expect(directive(policy, "frame-ancestors")).toBe("frame-ancestors 'none'");
+    expect(directive(policy, "default-src")).toBe("default-src 'self'");
+  });
+
+  it("names the exception in the proxy source, with the decision and its date", () => {
+    // The list is only a deliberate diff if a reader can see WHY it exists.
+    const proxySource = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
+    expect(proxySource).toContain("const CDN_CACHED_DOCUMENT_PATHS");
+    expect(proxySource).toContain("2026-08-09");
+    expect(proxySource).toMatch(
+      /const CDN_CACHED_DOCUMENT_PATHS[^=]*=\s*new Set\(\["\/", "\/map"\]\)/,
+    );
   });
 });
 

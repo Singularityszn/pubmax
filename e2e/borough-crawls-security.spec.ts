@@ -90,11 +90,39 @@ test.describe("security headers", () => {
     expect(csp).toMatch(/default-src 'self'/);
     expect(csp).toMatch(/frame-ancestors 'none'/);
     expect(csp).toMatch(/object-src 'none'/);
-    // script-src is now nonce-based (proxy.ts): a per-request nonce replaces
-    // 'unsafe-inline' so Next's inline RSC/hydration bootstrap is allowed by
-    // 'nonce-<value>' while inline injection is otherwise blocked.
+    // `/` is one of the two prerendered documents (captain decision
+    // 2026-08-09, recorded in proxy.ts). A CDN copy cannot carry a per-request
+    // nonce, so the inline slot is 'unsafe-inline' here — and a nonce would be
+    // worse than none, because the same one would go to everybody.
+    expect(csp).toMatch(/script-src[^;]*'unsafe-inline'/);
+    expect(csp).not.toMatch(/script-src[^;]*'nonce-/);
+  });
+
+  test("a route that resolves identity still gets the per-request nonce", async ({
+    page,
+  }) => {
+    // The other half of the same decision: the exception is two public
+    // documents, and it may never spread to a route where a session is
+    // resolved or a handle is printed.
+    const response = await page.goto("/login");
+    expect(response?.status()).toBe(200);
+
+    const csp = response?.headers()["content-security-policy"];
     expect(csp).toMatch(/script-src[^;]*'nonce-[^']+'/);
     expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+  });
+
+  test("the prerendered documents name nobody", async ({ page }) => {
+    // One prerendered copy is handed to every stranger, so the document itself
+    // must carry no person. Everything about the viewer is fetched after load.
+    for (const path of ["/", "/map"]) {
+      const response = await page.goto(path);
+      expect(response?.status(), path).toBe(200);
+      const html = (await response?.text()) ?? "";
+      expect(html, path).not.toMatch(/pubmax_handle/);
+      expect(html, path).not.toMatch(/"handle":\s*"[^"]+"/);
+      expect(html, path).not.toMatch(/access_token|refresh_token/);
+    }
   });
 
   test("/ sets X-Frame-Options DENY (aligned with CSP frame-ancestors 'none')", async ({ page }) => {

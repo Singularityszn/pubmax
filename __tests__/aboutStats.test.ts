@@ -95,9 +95,10 @@ describe("computeAboutStats", () => {
   });
 });
 
-// The landing page renders per request (the CSP nonce keeps every route
-// dynamic) and the raw price read alone is a 6.7 MB JSON.parse, so the loader
-// must read its bundled inputs once per instance rather than once per view.
+// The landing page is prerendered now, so this read happens at build and again
+// on each hourly regeneration rather than per view. The memo still earns its
+// place: the raw price read alone is a 6.7 MB JSON.parse, every other caller
+// shares it, and nothing here may quietly go back to reading per render.
 describe("loadAboutStats", () => {
   afterEach(() => {
     resetAboutStatsForTests();
