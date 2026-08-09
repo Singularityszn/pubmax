@@ -3,8 +3,40 @@ import { NextResponse } from "next/server";
 import type { NextRequest, ProxyConfig } from "next/server";
 
 import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
+import { isPosterLandingSrc, posterNearHref } from "@/lib/posterLanding";
+import {
+  MAP_DOCUMENT_PATH,
+  MAP_DOCUMENT_TWIN_PATH,
+  mapRequestNeedsDocumentTwin,
+} from "@/lib/mapDocumentTwin";
 
 const CANONICAL_HOST = "pubmaxxing.com";
+
+// THE ONE CSP EXCEPTION, AND ITS WHOLE LIST.
+//
+// Captain decision, 2026-08-09, answering the open question PR #974 left: the
+// per-request nonce rules out static generation, ISR and PPR, so every page
+// view was a function invocation with no CDN copy to serve instead. These two
+// documents - and ONLY these two - drop the nonce and take
+// `script-src 'unsafe-inline'` in exchange for being prerendered and served
+// from the Vercel CDN. Both are public, both are anonymous: neither document
+// carries a name, a handle, a session or any other personal figure, and the
+// client fetches every personalised thing after load (a cached document that
+// carried one would be handed to the next stranger).
+//
+// Every other route - identity, social, profile, admin and every API - keeps
+// the strict per-request nonce exactly as before.
+//
+// This list is a tracked constant so that adding a route to it is a deliberate
+// diff a reviewer sees, never a side effect of a refactor.
+// `__tests__/clerkProxyCsp.test.ts` pins both halves: these two paths carry
+// 'unsafe-inline' and no nonce, and the identity/social/admin routes carry a
+// fresh nonce and no 'unsafe-inline'.
+const CDN_CACHED_DOCUMENT_PATHS: ReadonlySet<string> = new Set(["/", "/map"]);
+
+function servesCdnCachedDocument(pathname: string): boolean {
+  return CDN_CACHED_DOCUMENT_PATHS.has(pathname);
+}
 
 // Preview and development deploys must never be indexed. VERCEL_ENV is the
 // authority (preview hostnames change every deployment). Production keeps no
@@ -84,9 +116,12 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
 // header and carry it explicitly. External scripts (public/theme-init.js and
 // the /_next/static/chunks/* bundles) stay covered by `script-src 'self'`.
 //
-// TRADE-OFF (acknowledged): a per-request nonce forces DYNAMIC rendering for
-// every route — static generation / ISR / PPR are incompatible with nonce CSP
-// because a prebuilt shell can't know the request's nonce.
+// TRADE-OFF (acknowledged): a per-request nonce forces DYNAMIC rendering —
+// static generation / ISR / PPR are incompatible with nonce CSP because a
+// prebuilt shell can't know the request's nonce. That cost was paid on every
+// route until 2026-08-09; it is now paid on every route EXCEPT the two named in
+// CDN_CACHED_DOCUMENT_PATHS above, which is where the reasoning for the
+// exception lives.
 //
 // This file is `proxy.ts` (not `middleware.ts`): Next.js 16 renamed the
 // middleware convention to `proxy` (runs on the Node runtime). Every OTHER
@@ -121,9 +156,46 @@ export function securityProxy(request: NextRequest) {
       NextResponse.redirect(canonicalUrl, 308),
     );
   }
-  if (shouldSkipContentSecurityPolicy(request)) {
-    return applyNonProductionRobotsTag(NextResponse.next());
+  // Physical QR path (PLG Wave 2): printed codes use /?src=poster (+ optional
+  // utm_*), and the scan opens nearby prices rather than the marketing landing.
+  // It is decided here rather than in app/page.tsx because reading the query
+  // string in that server component is exactly the per-request work that stops
+  // the homepage being prerendered. 307, matching the redirect() it replaces:
+  // a poster campaign is not a permanent address change.
+  if (pathname === "/" && isPosterLandingSrc(request.nextUrl.searchParams.get("src"))) {
+    return applyNonProductionRobotsTag(
+      NextResponse.redirect(
+        new URL(posterNearHref(request.nextUrl.searchParams), request.url),
+        307,
+      ),
+    );
   }
+  // A /map request whose DOCUMENT differs from the prerendered shell (a town
+  // arrival, national browse, a curated share card) is rewritten to the twin
+  // that renders it per request. The address bar keeps /map, and the twin is
+  // the same page: only which requests pay for a render changes.
+  const documentTwinUrl =
+    pathname === MAP_DOCUMENT_PATH &&
+    mapRequestNeedsDocumentTwin(request.nextUrl.searchParams)
+      ? (() => {
+          const target = new URL(request.url);
+          target.pathname = MAP_DOCUMENT_TWIN_PATH;
+          return target;
+        })()
+      : null;
+  if (shouldSkipContentSecurityPolicy(request)) {
+    return applyNonProductionRobotsTag(
+      documentTwinUrl ? NextResponse.rewrite(documentTwinUrl) : NextResponse.next(),
+    );
+  }
+
+  // The nonce exception, and the ONLY place it is decided. A prerendered
+  // document cannot carry a per-request nonce - every visitor would be handed
+  // the same one, which is the one thing a nonce may not be - so the two
+  // allow-listed paths take `script-src 'unsafe-inline'` instead. A /map
+  // request rewritten to the twin above gets no CDN copy, so it has nothing to
+  // buy with the nonce and keeps it.
+  const cdnCachedDocument = servesCdnCachedDocument(pathname) && !documentTwinUrl;
 
   // Crypto-random, base64-encoded nonce (a fresh UUID per request).
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
@@ -169,7 +241,17 @@ export function securityProxy(request: NextRequest) {
 
   const clerk = clerkCspSources();
   const clerkScript = clerk.script.map((origin) => ` ${origin}`).join("");
-  const scriptSrc = `script-src 'self' 'nonce-${nonce}' https://va.vercel-scripts.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;
+  // On a prerendered document the nonce slot becomes 'unsafe-inline'. What that
+  // costs is exactly this: Next's own inline RSC bootstrap and our two inline
+  // blocks in app/layout.tsx (speculation rules, site JSON-LD) are admitted by
+  // being inline rather than by carrying a secret. Every other source
+  // expression is unchanged, so no new origin, no 'unsafe-eval' in production,
+  // and no widening reaches any other route. Both surfaces render no personal
+  // data and take no user input into markup.
+  const inlineScriptSource = cdnCachedDocument
+    ? "'unsafe-inline'"
+    : `'nonce-${nonce}'`;
+  const scriptSrc = `script-src 'self' ${inlineScriptSource} https://va.vercel-scripts.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;
 
   // frame-src did not exist before Clerk: framing fell through to `child-src
   // blob:`, so blob: frames were the only ones allowed. Turnstile and Clerk's
@@ -227,13 +309,22 @@ export function securityProxy(request: NextRequest) {
   // Forward the nonce to the render: `x-nonce` for our own components
   // (app/layout.tsx et al. read it via next/headers), and the CSP itself on the
   // REQUEST header so Next.js can extract the nonce and stamp its inline scripts.
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-nonce", nonce);
-  requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
+  //
+  // A prerendered document is handed NEITHER header. There is no nonce to
+  // forward, and a request header rewritten here would make the request
+  // request-specific, which is the thing a CDN copy must not be.
+  const forwardedRequest = cdnCachedDocument
+    ? undefined
+    : (() => {
+        const requestHeaders = new Headers(request.headers);
+        requestHeaders.set("x-nonce", nonce);
+        requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
+        return { request: { headers: requestHeaders } };
+      })();
 
-  const response = NextResponse.next({
-    request: { headers: requestHeaders },
-  });
+  const response = documentTwinUrl
+    ? NextResponse.rewrite(documentTwinUrl, forwardedRequest)
+    : NextResponse.next(forwardedRequest);
   // And on the RESPONSE header so the browser actually enforces it.
   response.headers.set("Content-Security-Policy", contentSecurityPolicy);
   return applyNonProductionRobotsTag(response);

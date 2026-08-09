@@ -64,11 +64,24 @@ unmeasured route reads as a pass and never fails again.
 These are the seams a regression usually comes through. Each carries the reason
 in its own file:
 
-- **Every route is dynamic.** The per-request CSP nonce (`proxy.ts`) rules out
-  static generation, ISR and PPR, so every page view is a function invocation
-  with no CDN copy to serve instead. That is the single largest cost in the
-  production figures and the one thing here that is a policy decision rather
-  than an implementation detail.
+- **Two documents are prerendered; every other route is dynamic.** The
+  per-request CSP nonce (`proxy.ts`) rules out static generation, ISR and PPR,
+  so a nonce'd page view is a function invocation with no CDN copy to serve
+  instead. That was the single largest cost in the production figures, and it
+  is a policy decision rather than an implementation detail: on 2026-08-09 the
+  captain took the exception named in `CDN_CACHED_DOCUMENT_PATHS`, so `/` and
+  `/map` drop the nonce, prerender, and are held by the CDN. Both are public
+  and anonymous, and their documents are asserted to name nobody. Every other
+  route - identity, social, profile, admin, every API - keeps the nonce and
+  keeps paying the invocation.
+- **A prerendered document reads nothing per request.** `force-static` on those
+  two pages turns a per-request read into a build error rather than a silent
+  fall back to dynamic rendering, and it is also what stops the root layout's
+  nonce read (`headers()`) from pulling them back. A `/map` request whose
+  document really does differ - a town arrival, national browse, a curated
+  share card - is rewritten to `app/map/arrival` and rendered per request with
+  the nonce intact; `lib/mapDocumentTwin.ts` owns that split, and widening its
+  key list takes those requests off the CDN.
 - **Bundled data is read once per instance, never once per request.**
   `lib/aboutStats.ts` and `lib/venuePriceIndex.ts` memoize; the price dataset is
   6.7 MB of JSON and parsing it per request is the difference between a fast

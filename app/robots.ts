@@ -28,6 +28,9 @@ import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 //   /profile,
 //   /activity,
 //   /auth
+//   /map/arrival the per-request half of /map (lib/mapDocumentTwin.ts). Every
+//                document it renders is canonically /map, so it is a render
+//                target rather than an address; its pages say noindex too.
 //
 // Preview / development deployments (anything other than VERCEL_ENV=production)
 // are NOT the product. They get a total disallow plus X-Robots-Tag from
@@ -61,6 +64,7 @@ const DISALLOW = [
   "/profile",
   "/activity",
   "/auth",
+  "/map/arrival",
 ];
 
 function isProductionDeployment(

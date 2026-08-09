@@ -7,7 +7,14 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { generateMetadata as generateCityMetadata } from "@/app/map/[city]/page";
-import { generateMetadata as generateLondonMetadata } from "@/app/map/page";
+// `/map` itself is prerendered and carries ONE document (its plain London card,
+// asserted below straight off the static export). Every London document that
+// varies with the query is rendered by the per-request twin, which proxy.ts
+// rewrites a share link to. So the twin is what these cases drive: they are the
+// same documents at the same address, and lib/mapDocumentTwin.ts owns the
+// split.
+import { generateMetadata as generateLondonMetadata } from "@/app/map/arrival/page";
+import { metadata as londonShellMetadata } from "@/app/map/page";
 
 describe("city map generateMetadata", () => {
   it("publishes city + Freshers band social preview for Oxford", async () => {
@@ -60,16 +67,29 @@ describe("city map generateMetadata", () => {
     expect(metadata.openGraph).not.toHaveProperty("images");
   });
 
-  it("wires London /map metadata lightly", async () => {
-    const metadata = await generateLondonMetadata({
-      searchParams: Promise.resolve({}),
-    });
-
-    expect(metadata.title).toBe("London pub map");
-    expect(metadata.openGraph).toMatchObject({
+  it("wires London /map metadata lightly", () => {
+    // The prerendered shell's own document — a plain object, because a
+    // prerendered page may not compute one per request.
+    expect(londonShellMetadata.title).toBe("London pub map");
+    expect(londonShellMetadata.openGraph).toMatchObject({
       url: "/map",
       images: [{ url: "/api/city-map-card?city=london" }],
     });
+  });
+
+  it("gives the twin the same London document when the query names nothing", async () => {
+    // A share link whose band or crawl does not resolve still lands on /map's
+    // own card. The shell and the twin read one builder, so they cannot drift.
+    const metadata = await generateLondonMetadata({
+      searchParams: Promise.resolve({ band: "not-a-band" }),
+    });
+
+    expect(metadata.title).toBe(londonShellMetadata.title);
+    expect(metadata.description).toBe(londonShellMetadata.description);
+    // The share URL still echoes the band it could not resolve, which is what
+    // /map did before the split; the COPY is London's, and that is the promise.
+    expect(metadata.openGraph).toMatchObject({ url: "/map?band=not-a-band" });
+    expect(metadata.alternates).toEqual({ canonical: "/map" });
   });
 
   it("names an uncovered UK place without borrowing London metadata", async () => {
