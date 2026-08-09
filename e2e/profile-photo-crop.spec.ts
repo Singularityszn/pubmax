@@ -100,19 +100,25 @@ async function installOwnedProfileBoundary(page: Page): Promise<void> {
   });
 }
 
-type UploadRecord = { bodies: Buffer[] };
+type UploadRecord = { calls: number; bodies: Buffer[] };
 
 /**
- * Answer the slot's upload route in the browser and keep the bytes it received,
- * so the test measures the JPEG the crop actually produced.
+ * Answer the slot's upload route in the browser and keep whatever it received.
+ *
+ * The wire body is the stronger proof, but WebKit does not hand Playwright the
+ * post data of a multipart request, so `bodies` is empty there while `calls`
+ * still counts. What both engines can measure is the File the composer handed
+ * `fetch`, which is the crop's own output, so that is what the size assertions
+ * read and the wire body is checked as well wherever it exists.
  */
 async function captureUpload(page: Page, slot: "avatar" | "cover"): Promise<UploadRecord> {
-  const record: UploadRecord = { bodies: [] };
+  const record: UploadRecord = { calls: 0, bodies: [] };
   await page.route(`**/api/profiles/${HANDLE}/${slot}`, async (route) => {
     if (route.request().method() !== "POST") {
       await route.continue();
       return;
     }
+    record.calls += 1;
     const body = route.request().postDataBuffer();
     if (body) record.bodies.push(body);
     await route.fulfill({
@@ -142,16 +148,52 @@ async function captureUpload(page: Page, slot: "avatar" | "cover"): Promise<Uplo
   return record;
 }
 
-/** Pull the one JPEG out of a multipart body and measure it. */
-async function measureUploaded(record: UploadRecord) {
-  expect(record.bodies).toHaveLength(1);
+type CropOutput = { name: string; type: string; width: number; height: number };
+
+/** Watch the photo the composer hands `fetch`, and measure it in the page. */
+async function watchCropOutput(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const original = window.fetch.bind(window);
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const body = init?.body;
+      if (body instanceof FormData) {
+        const photo = body.get("photo");
+        if (photo instanceof File) {
+          const bitmap = await createImageBitmap(photo);
+          (window as unknown as { __cropOutput?: unknown }).__cropOutput = {
+            name: photo.name,
+            type: photo.type,
+            width: bitmap.width,
+            height: bitmap.height,
+          };
+          bitmap.close();
+        }
+      }
+      return original(input, init);
+    };
+  });
+}
+
+async function measureCropOutput(page: Page): Promise<CropOutput | null> {
+  return page.evaluate(
+    () => (window as unknown as { __cropOutput?: CropOutput | null }).__cropOutput ?? null,
+  );
+}
+
+/**
+ * The same measurement taken off the wire, wherever the engine exposes it.
+ * Chromium hands Playwright the raw multipart bytes; WebKit hands back a
+ * decoded string the JPEG cannot be recovered from, so this returns null there
+ * and the in-page measurement above stays the assertion both engines make.
+ */
+async function measureUploadedBody(record: UploadRecord) {
+  expect(record.calls).toBe(1);
   const body = record.bodies[0];
+  if (!body) return null;
   const start = body.indexOf(Buffer.from([0xff, 0xd8, 0xff]));
   const end = body.lastIndexOf(Buffer.from([0xff, 0xd9]));
-  expect(start).toBeGreaterThanOrEqual(0);
-  expect(end).toBeGreaterThan(start);
-  const jpeg = body.subarray(start, end + 2);
-  const metadata = await sharp(jpeg).metadata();
+  if (start < 0 || end <= start) return null;
+  const metadata = await sharp(body.subarray(start, end + 2)).metadata();
   return { format: metadata.format, width: metadata.width, height: metadata.height };
 }
 
@@ -191,6 +233,7 @@ test.describe("profile photo picker and crop", () => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
       window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     });
+    await watchCropOutput(page);
     await installOwnedProfileBoundary(page);
   });
 
@@ -217,7 +260,7 @@ test.describe("profile photo picker and crop", () => {
 
     await expect(page.locator(".profileCropStep-avatar .profileCropFrame")).toBeVisible();
     await expect(page.getByRole("button", { name: "Use photo" })).toBeEnabled();
-    expect(record.bodies).toHaveLength(0);
+    expect(record.calls).toBe(0);
 
     await shoot(page, "crop-avatar-390");
 
@@ -225,7 +268,8 @@ test.describe("profile photo picker and crop", () => {
     await page.locator(".profileCropCancel").click();
     await expect(page.locator(".profileCropStep")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Choose photo" })).toBeVisible();
-    expect(record.bodies).toHaveLength(0);
+    expect(record.calls).toBe(0);
+    expect(await measureCropOutput(page)).toBeNull();
   });
 
   test("the avatar crop uploads a square JPEG at the slot's own size", async ({ page }) => {
@@ -239,13 +283,21 @@ test.describe("profile photo picker and crop", () => {
     await shoot(page, "crop-avatar-zoomed-390");
 
     await page.getByRole("button", { name: "Use photo" }).click();
-    await expect(page.locator(".profileCropStep")).toHaveCount(0);
+    // The reply returns the page to view mode, so this is the signal the POST
+    // finished rather than a guess at how long it takes. Waiting on the crop
+    // step alone raced it: that goes the moment the crop is handed over.
+    await expect(page.locator(".profileSavedNotice")).toBeVisible();
 
-    expect(await measureUploaded(record)).toEqual({
-      format: "jpeg",
+    expect(await measureCropOutput(page)).toEqual({
+      name: "avatar.jpg",
+      type: "image/jpeg",
       width: 512,
       height: 512,
     });
+    const onTheWire = await measureUploadedBody(record);
+    if (onTheWire) {
+      expect(onTheWire).toEqual({ format: "jpeg", width: 512, height: 512 });
+    }
   });
 
   test("the cover crop uploads a wide JPEG at the slot's own size", async ({ page }) => {
@@ -265,13 +317,18 @@ test.describe("profile photo picker and crop", () => {
     await page.mouse.up();
 
     await page.getByRole("button", { name: "Use photo" }).click();
-    await expect(page.locator(".profileCropStep")).toHaveCount(0);
+    await expect(page.locator(".profileSavedNotice")).toBeVisible();
 
-    expect(await measureUploaded(record)).toEqual({
-      format: "jpeg",
+    expect(await measureCropOutput(page)).toEqual({
+      name: "cover.jpg",
+      type: "image/jpeg",
       width: 1600,
       height: 533,
     });
+    const onTheWire = await measureUploadedBody(record);
+    if (onTheWire) {
+      expect(onTheWire).toEqual({ format: "jpeg", width: 1600, height: 533 });
+    }
   });
 
   test("a photo this browser cannot open says where to go instead", async ({ page }) => {
@@ -295,7 +352,7 @@ test.describe("profile photo picker and crop", () => {
     await expect(page.locator(".profileCropFrame")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Use photo" })).toHaveCount(0);
     await expect(page.locator(".profileCropCancel")).toBeVisible();
-    expect(record.bodies).toHaveLength(0);
+    expect(record.calls).toBe(0);
 
     await shoot(page, "crop-heic-refused-390");
   });

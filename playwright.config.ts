@@ -116,7 +116,14 @@ export default defineConfig({
       ? [{
           name: "webkit-profile-photo-crop",
           testMatch: ["**/profile-photo-crop.spec.ts"],
-          use: { ...devices["iPhone 14"] },
+          use: {
+            ...devices["iPhone 14"],
+            // The spec answers the upload route itself. Playwright reaches
+            // through a registered service worker in Chromium but not in
+            // WebKit, where the POST went past the route to the real keyless
+            // server and came back a 403. Keep the worker out of this project.
+            serviceWorkers: "block" as const,
+          },
         }]
       : []),
     {
