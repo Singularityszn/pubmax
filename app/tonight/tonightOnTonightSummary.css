@@ -46,6 +46,31 @@
     line-height: 1.45;
   }
 
+  /* The quiet way down to the deals that are about to close. One row, only when
+     the rows really say so, and it carries a count rather than a claim. */
+  .tonightOnTonightSummaryEnding {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    margin: 0 0 10px;
+    color: var(--brass);
+    font-size: 0.82rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+  }
+
+  .tonightOnTonightSummaryEnding:hover {
+    text-decoration: underline;
+  }
+
+  .tonightOnTonightSummaryEnding:focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
   .tonightOnTonightSummaryTitles {
     list-style: none;
     margin: 0 0 10px;

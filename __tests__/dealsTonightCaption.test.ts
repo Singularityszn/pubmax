@@ -12,6 +12,16 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 const DEAL_QUALIFIER =
   "Two pints for £12 before 7pm on Thursdays. Booking excludes match nights, bank holidays, and the terrace.";
 
+// A deal that has closed never renders (deal grace is 0, lib/dealsHonesty.ts),
+// so these fixtures date themselves off tonight's own window. A fixed calendar
+// date would quietly stop exercising the caption the day it went past.
+function tonightWindow(now: number = Date.now()) {
+  const bounds = londonServiceDayBounds(now);
+  const at = (hoursIn: number) =>
+    new Date(Date.parse(bounds.start) + hoursIn * 60 * 60 * 1000).toISOString();
+  return { at, closesAt: new Date(Date.parse(bounds.end) - 60 * 60 * 1000).toISOString() };
+}
+
 describe("DealsTonightLane caption", () => {
   it("renders a legitimate deal condition without changing its text", () => {
     const now = Date.now();
@@ -53,6 +63,7 @@ describe("DealsTonightLane caption", () => {
 
   it("derives the Tonight host-provided claim from the deal cards shown", () => {
     const observedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { at, closesAt } = tonightWindow();
     const props: { rows: WhatsOnRow[] } = {
       rows: [
         {
@@ -60,10 +71,10 @@ describe("DealsTonightLane caption", () => {
           venueId: "venue-xjf3n0",
           placeName: "Arnos Arms, Arnos Grove",
           kind: "deal",
-          startsAt: "2026-08-06T17:00:00.000Z",
-          endsAt: "2026-08-06T18:30:00.000Z",
+          startsAt: at(0),
+          endsAt: closesAt,
           title: "Early round offer",
-          detail: "Listed time: Thursday 6 August 2026; 18:00-19:30.",
+          detail: "Listed time: tonight, 18:00-19:30.",
           source: { label: "Venue listing", url: "https://example.com/deal" },
           observedAt,
           confidence: "listed",
@@ -84,11 +95,13 @@ describe("DealsTonightLane caption", () => {
 
   it("counts only the deal cards that the Tonight lane renders", () => {
     const observedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { at, closesAt } = tonightWindow();
     const dealRows: WhatsOnRow[] = Array.from({ length: 9 }, (_, index) => ({
       id: `deal-${index}`,
       placeName: `Venue ${index}`,
       kind: "deal",
-      startsAt: "2026-08-06T17:00:00.000Z",
+      startsAt: at(0),
+      endsAt: closesAt,
       title: `Deal ${index}`,
       source: { label: "Venue listing", url: "https://example.com/deal" },
       observedAt,
@@ -111,16 +124,18 @@ describe("DealsTonightLane caption", () => {
   });
 
   it("derives the Discover claim from validated response cards without asOf", () => {
+    const { at, closesAt } = tonightWindow();
     const rows = dealsTonightRowsFromResponse({
       rows: [{
         id: "discover-dated-deal",
         venueId: "venue-xjf3n0",
         placeName: "Arnos Arms, Arnos Grove",
         kind: "deal",
-        startsAt: "2026-08-06T17:00:00.000Z",
+        startsAt: at(0),
+        endsAt: closesAt,
         title: "Early round offer",
         source: { label: "Venue listing", url: "https://example.com/deal" },
-        observedAt: "2026-08-06T00:00:00.000Z",
+        observedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
         confidence: "listed",
       }],
     });

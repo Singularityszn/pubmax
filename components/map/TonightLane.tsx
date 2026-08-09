@@ -23,6 +23,12 @@ import { trackEvent } from "@/lib/analytics";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import { WhatsOnUrgencyBadge } from "@/components/map/WhatsOnUrgencyBadge";
 import {
+  dealEndsCaption,
+  dealListingAgeCaption,
+  dealProximityAnchor,
+  orderDealsInPlace,
+} from "@/lib/dealsHonesty";
+import {
   checkedLabel,
   filterLaneRows,
   laneCardsFromRows,
@@ -98,14 +104,26 @@ export default function TonightLane({
   const nearLat = near?.lat ?? null;
   const nearLng = near?.lng ?? null;
   const cards = useMemo(
-    () =>
-      laneCardsFromRows(filterLaneRows(rows, activeKind), {
+    () => {
+      const laneRows = filterLaneRows(rows, activeKind);
+      // Deals order among themselves: nearest patch first, then closing soonest.
+      // In place, so the unfiltered lane keeps every other kind exactly where the
+      // spine put it, and the Deal chip gets the full deal order for free.
+      const ordered = orderDealsInPlace(
+        laneRows,
+        (row) => row,
+        dealProximityAnchor(
+          nearLat != null && nearLng != null ? { lat: nearLat, lng: nearLng } : null,
+        ),
+      );
+      return laneCardsFromRows(ordered, {
         limit: 5,
         near:
           nearLat != null && nearLng != null
             ? { lat: nearLat, lng: nearLng }
             : null,
-      }),
+      });
+    },
     [rows, activeKind, nearLat, nearLng],
   );
   const rowsById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows]);
@@ -458,6 +476,11 @@ function TonightLaneCardBody({
   KindIcon: typeof Tv;
   sourceRow?: WhatsOnRow;
 }) {
+  // Deal rows carry an exact window and a listing date, so they say when they
+  // close and how old the listing is. Both read straight off the row.
+  const dealRow = sourceRow?.kind === "deal" ? sourceRow : undefined;
+  const endsCaption = dealRow ? dealEndsCaption(dealRow) : null;
+  const listingAge = dealRow ? dealListingAgeCaption(dealRow) : null;
   return (
     <>
       <div className="tonightLaneCardMeta">
@@ -479,9 +502,15 @@ function TonightLaneCardBody({
       </p>
       <p className="tonightLaneCardWhen">
         <span>{when}</span>
+        {endsCaption ? (
+          <span className="tonightLaneCardEnds">{endsCaption}</span>
+        ) : null}
         {sourceRow ? <WhatsOnUrgencyBadge row={sourceRow} /> : null}
       </p>
       <p className="tonightLaneCardSource">via {card.sourceLabel}</p>
+      {listingAge ? (
+        <p className="tonightLaneCardListingAge">{listingAge}</p>
+      ) : null}
     </>
   );
 }

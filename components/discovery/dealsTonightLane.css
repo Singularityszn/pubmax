@@ -87,9 +87,28 @@
   color: var(--ink-soft);
 }
 
+/* The closing time the row itself carries. Weighted like the place line: it is
+   a fact the reader acts on, not a decoration. */
+.dealsTonightEnds {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--brass);
+}
+
 .dealsTonightDetail {
   font-size: 0.78rem;
   line-height: 1.4;
+  color: var(--ink-soft);
+  overflow-wrap: break-word;
+}
+
+/* Wraps, never truncates: an age cut mid-word is a freshness claim the reader
+   cannot finish reading, which is the one thing this caption exists to give. */
+.dealsTonightListingAge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.35;
   color: var(--ink-soft);
   overflow-wrap: break-word;
 }

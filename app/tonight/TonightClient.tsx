@@ -54,6 +54,12 @@ import { VibeChipButton, VibeChipLink, VibeChips } from "@/components/vibe/VibeC
 import { planOccasionHref, TONIGHT_SOFT_PLAN_CHIPS } from "@/lib/planOccasion";
 import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
 import { dealDigestNote } from "@/lib/dealsDigest";
+import {
+  dealEndsCaption,
+  dealListingAgeCaption,
+  dealProximityAnchor,
+  orderDealsInPlace,
+} from "@/lib/dealsHonesty";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 import type { QuietPintModule } from "@/lib/quietPint";
 import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
@@ -241,10 +247,22 @@ export default function TonightClient({
   // the SAME v2 mode reconstructs the server's cards in the server's order (the
   // client stops being its own grouping authority). Flag off keeps the shipped
   // chain-duplicate collapse, byte-identical to today.
-  const groupedAll = useMemo(
-    () => groupTonightListings(rows, tonightNear?.near ?? null, { v2: flags.tonightGrouping }),
-    [rows, tonightNear, flags.tonightGrouping],
+  // The coarse point every deal surface on this page measures from: the centre
+  // of the viewer's nearest area, never their own fix. Same coarse read the
+  // area news rail below already takes.
+  const dealAnchor = useMemo(
+    () => dealProximityAnchor(tonightNear?.near ?? null),
+    [tonightNear],
   );
+  const groupedAll = useMemo(() => {
+    const groups = groupTonightListings(rows, tonightNear?.near ?? null, {
+      v2: flags.tonightGrouping,
+    });
+    // Deals order among themselves: nearest patch first, then closing soonest.
+    // In place, so no quiz, match or gig moves to make room, and so the order
+    // holds on the mixed list rather than only behind the Deal filter.
+    return orderDealsInPlace(groups, (group) => group.row, dealAnchor);
+  }, [rows, tonightNear, flags.tonightGrouping, dealAnchor]);
   const grouped = useMemo(
     () => (activeKind ? groupedAll.filter((g) => g.row.kind === activeKind) : groupedAll),
     [groupedAll, activeKind],
@@ -282,7 +300,7 @@ export default function TonightClient({
   const secondaryHeroes = groupedAll.map((group) => group.row);
   const secondaryLanes = (
     <>
-      <DealsTonightLane rows={secondaryHeroes} />
+      <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} />
       <MusicTonightLane rows={secondaryHeroes} asOf={asOf} />
     </>
   );
@@ -491,6 +509,11 @@ export default function TonightClient({
                   ? walkLabel(walkMinutes(origin, { lat: row.lat, lng: row.lng }))
                   : null;
               const KindIcon = row.kind === "sport" ? Tv : CalendarClock;
+              // A deal carries an exact window and a listing date, so it says
+              // when it closes and how old the listing is. Both read off the row.
+              const dealEnds = row.kind === "deal" ? dealEndsCaption(row) : null;
+              const dealListingAge =
+                row.kind === "deal" ? dealListingAgeCaption(row) : null;
               const RowInner = (
                 <>
                   <div className="tonightRowMeta">
@@ -511,6 +534,9 @@ export default function TonightClient({
                   </p>
                   <div className="tonightRowFacts">
                     {when ? <span className="tonightRowWhen">{when}</span> : null}
+                    {dealEnds ? (
+                      <span className="tonightRowEnds">{dealEnds}</span>
+                    ) : null}
                     {walk ? (
                       <span className="tonightRowWalk">
                         <Footprints size={12} aria-hidden="true" />
@@ -519,6 +545,9 @@ export default function TonightClient({
                     ) : null}
                     <span className="tonightRowSource">via {row.source.label}</span>
                   </div>
+                  {dealListingAge ? (
+                    <p className="tonightRowListingAge">{dealListingAge}</p>
+                  ) : null}
                   {link ? (
                     <span className="tonightRowCta">
                       {link.external ? (

@@ -6,13 +6,18 @@ import DealsTonightLane, {
   type DealsTonightLaneProps,
 } from "@/components/discovery/DealsTonightLane";
 import { FEED_FILTERS } from "@/lib/feed";
-import type { WhatsOnRow } from "@/lib/whatsOn";
+import { londonServiceDayBounds, type WhatsOnRow } from "@/lib/whatsOn";
+
+// A closed deal never renders, so this fixture runs on tonight's own window
+// rather than a calendar date that goes past and stops testing the copy.
+const TONIGHT = londonServiceDayBounds();
 
 const expensiveExperience: WhatsOnRow = {
   id: "deal-avora",
   placeName: "Avora",
   kind: "deal",
-  startsAt: "2026-07-29T19:00:00.000Z",
+  startsAt: TONIGHT.start,
+  endsAt: new Date(Date.parse(TONIGHT.end) - 60 * 60 * 1000).toISOString(),
   title: "Immersive cocktail experience",
   detail: "From £52.50",
   priceGbp: 52.5,
@@ -20,7 +25,7 @@ const expensiveExperience: WhatsOnRow = {
     label: "Avora",
     url: "https://example.com/avora",
   },
-  observedAt: "2026-07-28T12:00:00.000Z",
+  observedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
   confidence: "listed",
 };
 

@@ -390,8 +390,24 @@
   gap: 4px;
 }
 
+/* A deal's own closing time, beside the start the row already prints. */
+.tonightRowEnds {
+  font-weight: 700;
+  color: var(--brass);
+}
+
 .tonightRowSource {
   opacity: 0.85;
+}
+
+/* Wraps rather than truncating: half a listing age is worse than none. */
+.tonightRowListingAge {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink-soft);
+  overflow-wrap: break-word;
 }
 
 .tonightFoot {
