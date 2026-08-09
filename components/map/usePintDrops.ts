@@ -580,7 +580,7 @@ export function usePintDrops(
       // Called from an event handler, so `window` exists; getAnonId() returns
       // "" when storage is unavailable and the server degrades to its shared
       // anon sentinel.
-      await fetch("/api/pint-drops", {
+      await authedFetch("/api/pint-drops", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "report", id, actor: getAnonId() }),

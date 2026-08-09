@@ -46,13 +46,23 @@ export async function fetchResumeHint(
   }
 }
 
-/** Store the session's refresh token in the durable HttpOnly cookie. */
+export type PersistResumeOutcome = "stored" | "unauthenticated" | "unavailable";
+
+/**
+ * Store the session's refresh token in the durable HttpOnly cookie.
+ *
+ * The outcome is returned rather than swallowed: a persist refused as
+ * unauthenticated leaves the device with NO durable session, and a caller
+ * holding a token the server would not verify can ask for a fresh one and try
+ * again. Silence here read as success and is why a device could look signed in
+ * all session and come back cold.
+ */
 export async function persistSessionForResume(
   session: { access_token: string; refresh_token: string },
   fetchImpl: FetchLike = fetch,
-): Promise<void> {
+): Promise<PersistResumeOutcome> {
   try {
-    await fetchImpl(ENDPOINT, {
+    const response = await fetchImpl(ENDPOINT, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -67,8 +77,11 @@ export async function persistSessionForResume(
       keepalive: true,
       signal: timeoutSignal(),
     });
+    if (response.ok) return "stored";
+    return response.status === 401 ? "unauthenticated" : "unavailable";
   } catch {
     // Best-effort: the next refresh persists again.
+    return "unavailable";
   }
 }
 

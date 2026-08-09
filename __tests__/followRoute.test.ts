@@ -94,3 +94,45 @@ describe("follow auth ownership — linked handle wins over body.follower", () =
     expect(await store.isFollowing("mallory", "sam")).toBe(false);
   });
 });
+
+describe("follow actor — the founder's cross-account report", () => {
+  it("lets the second account follow the first one's profile", async () => {
+    // The founder's own handles are reserved (lib/pubmaxxIdentity.ts), so this
+    // uses stand-ins for the same two accounts.
+    // @alfie belongs to account A. @bea signs in as account B on the same
+    // browser and taps Follow on /u/alfie. With a bearer token the route reads
+    // the actor off the JWT, so B follows A. Anonymous, the same request read
+    // as an unowned actor CLAIMING a linked handle - the 403 the founder saw.
+    await memoryProfileStore.createOwned("alfie", "user-a");
+    await memoryProfileStore.createOwned("bea", "user-b");
+
+    asUser("user-b");
+    const signedIn = await follow("alfie", { follower: "bea" });
+    expect(signedIn.status).toBe(200);
+    expect(await followStore().isFollowing("bea", "alfie")).toBe(true);
+  });
+
+  it("still refuses an anonymous request claiming a linked handle", async () => {
+    // The demo path may assert an UNLINKED handle; a claimed one needs its owner.
+    await memoryProfileStore.createOwned("alfie", "user-a");
+    await memoryProfileStore.createOwned("bea", "user-b");
+
+    const res = await follow("alfie", { follower: "bea" });
+    expect(res.status).toBe(403);
+    expect(await followStore().isFollowing("bea", "alfie")).toBe(false);
+  });
+
+  it("never lets a stale cached handle act for the signed-in account", async () => {
+    // The exact leak: the browser still held @alfie when account B signed in.
+    // Even if that handle reaches the body, the JWT decides who acted.
+    await memoryProfileStore.createOwned("alfie", "user-a");
+    await memoryProfileStore.createOwned("bea", "user-b");
+
+    asUser("user-b");
+    const res = await follow("sam", { follower: "alfie" });
+    expect(res.status).toBe(200);
+    const store = followStore();
+    expect(await store.isFollowing("bea", "sam")).toBe(true);
+    expect(await store.isFollowing("alfie", "sam")).toBe(false);
+  });
+});

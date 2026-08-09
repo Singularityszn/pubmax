@@ -4,6 +4,7 @@ import { BookMarked, Check, Copy, Link2 } from "lucide-react";
 import { useState } from "react";
 
 import { encodeCrawlStory, VIBE_TAGS, type VibeTag } from "@/lib/crawlStory";
+import { authedFetch } from "@/lib/authedFetch";
 
 // A self-contained "Save as story" control. Decoupled from the Venue type on
 // purpose: it accepts the minimal stop shape so it can be dropped anywhere a
@@ -86,7 +87,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
         typeof window !== "undefined"
           ? (window.localStorage.getItem("pubmax_handle") ?? "").trim()
           : "";
-      const res = await fetch("/api/crawls", {
+      const res = await authedFetch("/api/crawls", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

@@ -8,13 +8,22 @@ import {
 } from "@/lib/nightProfile";
 import type { CityId } from "@/lib/cities";
 import type { NightContext } from "@/lib/nightPlanning";
+import {
+  NIGHT_PROFILE_DEVICE_KEY,
+  type NightProfileDeviceSource,
+} from "@/lib/nightProfileDeviceProvenance";
 
-export const NIGHT_PROFILE_DEVICE_KEY = "pubmaxx.night-profile.v1:device";
+export {
+  NIGHT_PROFILE_DEVICE_KEY,
+  type NightProfileDeviceSource,
+} from "@/lib/nightProfileDeviceProvenance";
 export const NIGHT_PROFILE_DEVICE_CHANGED_EVENT = "pubmax:night-profile-device-changed";
 
 type StoredNightProfileDraft = {
   version: typeof NIGHT_PROFILE_VERSION;
   profile: NightProfileInput;
+  /** Whether this copy was typed here or mirrored off an account. */
+  source: NightProfileDeviceSource;
 };
 
 function browserStorage(): Storage | null {
@@ -42,6 +51,7 @@ export function readDeviceNightProfile(storage = browserStorage()): NightProfile
 export function writeDeviceNightProfile(
   profile: NightProfileInput,
   storage = browserStorage(),
+  source: NightProfileDeviceSource = "device",
 ): boolean {
   if (!storage) return false;
   const clean = cleanNightProfileInput(profile);
@@ -49,7 +59,11 @@ export function writeDeviceNightProfile(
   try {
     storage.setItem(
       NIGHT_PROFILE_DEVICE_KEY,
-      JSON.stringify({ version: NIGHT_PROFILE_VERSION, profile: clean } satisfies StoredNightProfileDraft),
+      JSON.stringify({
+        version: NIGHT_PROFILE_VERSION,
+        profile: clean,
+        source,
+      } satisfies StoredNightProfileDraft),
     );
     if (typeof window !== "undefined" && storage === window.localStorage) {
       window.dispatchEvent(new Event(NIGHT_PROFILE_DEVICE_CHANGED_EVENT));
@@ -67,7 +81,9 @@ export function mirrorAccountNightProfileToDevice(
 ): NightProfileInput | null {
   if (!account) return null;
   const input = nightProfileInput(account);
-  if (!writeDeviceNightProfile(input, storage)) return null;
+  // Stamped "account": this copy is the account's answer, so an account change
+  // takes it with it (lib/deviceAccountIdentity.ts).
+  if (!writeDeviceNightProfile(input, storage, "account")) return null;
   return input;
 }
 

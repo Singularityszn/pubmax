@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
+import { authedFetch } from "@/lib/authedFetch";
 
 type FollowState = "idle" | "working" | "done" | "error";
 
@@ -56,7 +57,7 @@ export default function ConfirmFollow({
     setState("working");
     setError("");
     try {
-      const res = await fetch(`/api/profiles/${encodeURIComponent(target)}/follow`, {
+      const res = await authedFetch(`/api/profiles/${encodeURIComponent(target)}/follow`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ follower: myHandle }),

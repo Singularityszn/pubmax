@@ -30,6 +30,8 @@ import SiteNavMore, {
   type SiteNavMoreItem,
 } from "@/components/nav/SiteNavMore";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
+import { syncDeviceHandle } from "@/lib/identityClient";
 import { BADGE_EVENTS } from "@/lib/badgeEvents";
 import {
   BADGE_EVENT_OPT_INS_STORAGE_KEY,
@@ -171,6 +173,27 @@ function localSavedDTOs(): Partial<Record<ListType, SavedPubDTO[]>> {
 // real profile; without either, /u/you renders the first-run passport (story 30).
 const YOU_SENTINEL = "you";
 
+/**
+ * Who this page may treat as the viewer.
+ *
+ * Until the live session has answered, the viewer is UNKNOWN and this is "".
+ * Reaching for the device handle any earlier is what made a second account read
+ * as the first: `user` is null while the session restores, so the previous
+ * account's cached handle won the first render and drove the /u/you redirect,
+ * profile ownership, and the follow actor. A settled signed-OUT viewer keeps
+ * the device handle, which is genuinely their own.
+ */
+function resolvedViewerHandle(input: {
+  identityResolved: boolean;
+  signedIn: boolean;
+  accountHandle: string | null;
+  deviceHandle: string;
+}): string {
+  if (!input.identityResolved) return "";
+  if (!input.signedIn) return input.deviceHandle;
+  return normalizeHandle(input.accountHandle ?? "");
+}
+
 function isNightMemoriesHash(hash: string): boolean {
   return hash.replace(/^#/, "").toLowerCase() === "night-memories";
 }
@@ -180,7 +203,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const routeHandle = normalizeHandle(use(params)?.handle);
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
-  const { user, handle: accountHandle, signOut } = useAuth();
+  const { user, handle: accountHandle, identityResolved, signOut } = useAuth();
   const storedBadgeEventOptInRaw = useSyncExternalStore(
     subscribeBadgeEventOptIns,
     currentBadgeEventOptInRaw,
@@ -206,7 +229,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // Signed-out fallback handle, read after mount so the server render and
   // hydration agree. Signed-in ownership comes from the account identity.
   const [myHandle, setMyHandle] = useState("");
-  const viewerHandle = user ? normalizeHandle(accountHandle ?? "") : myHandle;
+  const viewerHandle = resolvedViewerHandle({
+    identityResolved,
+    signedIn: Boolean(user),
+    accountHandle,
+    deviceHandle: myHandle,
+  });
   // The owner's own linked socials, public on their card by their own choice.
   const [socialLinks, setSocialLinks] = useState<PublicSocialLink[]>([]);
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
@@ -338,8 +366,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       }
     }
     void loadHandle();
+    // An account boundary clears the device handle under this page, so re-read
+    // rather than hold the value that was there when the page mounted.
+    const unsubscribe = subscribeDeviceIdentity(() => {
+      void loadHandle();
+    });
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
 
@@ -462,7 +496,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   );
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = viewerHandle !== "" && viewerHandle === routeHandle;
-  const isAnonymous = !user && viewerHandle === "";
+  const isAnonymous = identityResolved && !user && viewerHandle === "";
   // Signed-out /u/you: the viewer has no handle yet. This is an INVITATION, not a
   // profile — so it shows only the honest "make the night yours" intro + the
   // claim/account surface, never the pseudo-profile scaffolding (a "@you"
@@ -529,7 +563,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // claim. Signed-in ownership comes from the account handle instead.
   function claimHandle() {
     try {
-      window.localStorage.setItem("pubmax_handle", routeHandle);
+      syncDeviceHandle(window.localStorage, routeHandle);
     } catch {
       // storage disabled — the in-memory claim below still owns this session
     }
@@ -588,7 +622,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   //  • other viewer → Follow
   // On the /u/you sentinel route we never offer "Claim this handle" ("you" isn't
   // a real handle to adopt) — the passport's first-run CTA drives the next step.
-  const headerActions = isOwnProfile ? (
+  // An unresolved viewer gets no identity-bearing action at all: a Follow
+  // button carrying the wrong actor is worse than one that arrives a beat late.
+  const headerActions = !identityResolved ? null : isOwnProfile ? (
     <>
       {/* The crew-invite loop's entry point: your own add link. Opening it shows
           the share surface (ConfirmFollow's self branch), so a friend can add

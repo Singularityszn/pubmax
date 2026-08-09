@@ -17,6 +17,7 @@ import { getNightArea, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightA
 import { normalizeHandle } from "@/lib/profiles";
 import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
 import "./outTonightBeacon.css";
+import { authedFetch } from "@/lib/authedFetch";
 
 type Props = {
   /** The signed-in owner's handle (already known - this only renders on your own profile). */
@@ -68,7 +69,7 @@ export default function OutTonightToggle({ handle }: Props) {
     setBusy(true);
     setWriteError("");
     try {
-      const res = await fetch("/api/check-ins", {
+      const res = await authedFetch("/api/check-ins", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle, areaSlug: areaChoice || undefined }),
@@ -91,7 +92,7 @@ export default function OutTonightToggle({ handle }: Props) {
     setBusy(true);
     setWriteError("");
     try {
-      const res = await fetch("/api/check-ins", {
+      const res = await authedFetch("/api/check-ins", {
         method: "DELETE",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle }),

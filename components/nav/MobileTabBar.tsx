@@ -8,7 +8,7 @@ import {
   preferredCityMapHref,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
-import { readDeviceHandle } from "@/lib/identityClaimClient";
+import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { whenBackgroundWarmupAllowed } from "@/lib/backgroundWarmup";
 import { warmNavRoute, warmPrimaryTabRoutes } from "@/lib/mapWarmup";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
@@ -94,12 +94,6 @@ function isActive(pathname: string, tab: Tab): boolean {
   return navPathMatches(pathname, tab.match ?? [tab.href]);
 }
 
-function subscribeDeviceHandle(onChange: () => void): () => void {
-  if (typeof window === "undefined") return () => {};
-  window.addEventListener("storage", onChange);
-  return () => window.removeEventListener("storage", onChange);
-}
-
 export default function MobileTabBar() {
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
@@ -111,15 +105,12 @@ export default function MobileTabBar() {
     preferredCityMapHref,
     () => "/map",
   );
-  // You tab: when the device already has a claimed handle, point straight at
-  // /u/<handle> instead of the /u/you sentinel (which client-redirects after
-  // mount and doubles the navigation cost — the cold-tap 846ms prod median).
-  const deviceHandle = useSyncExternalStore(
-    subscribeDeviceHandle,
-    readDeviceHandle,
-    () => "",
-  );
-  const youHref = deviceHandle ? `/u/${encodeURIComponent(deviceHandle)}` : "/u/you";
+  // You tab: when identity is known, point straight at /u/<handle> instead of
+  // the /u/you sentinel (which client-redirects after mount and doubles the
+  // navigation cost — the cold-tap 846ms prod median). Unknown identity takes
+  // the sentinel: one extra hop beats naming the wrong person.
+  const youHandle = useViewerHandle();
+  const youHref = youHandle ? `/u/${encodeURIComponent(youHandle)}` : "/u/you";
   const returnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`;
   const tabs = useMemo(
     () => buildTabs(mapHref, returnTo, youHref),

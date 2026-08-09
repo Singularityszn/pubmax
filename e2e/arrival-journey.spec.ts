@@ -36,7 +36,13 @@ async function installSession(
   await page.addInitScript(
     ({ authStorageKey, userId, deviceHandle, arrival }) => {
       window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-      if (deviceHandle) window.localStorage.setItem("pubmax_handle", deviceHandle);
+      if (deviceHandle) {
+        window.localStorage.setItem("pubmax_handle", deviceHandle);
+        // A completed sign-in stamps whose device this is; without it the
+        // account boundary treats the cached handle as the previous person's
+        // and clears it (lib/deviceAccountIdentity.ts).
+        window.localStorage.setItem("pubmax_account_owner", userId);
+      }
       if (arrival) {
         window.sessionStorage.setItem(
           "pubmax:arrival-welcome:v1",

@@ -18,7 +18,7 @@ import {
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
 import { authedFetch } from "@/lib/authedFetch";
-import { emitIdentityHandleChanged } from "@/lib/identityClient";
+import { emitIdentityHandleChanged, syncDeviceHandle } from "@/lib/identityClient";
 import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
 import SetAccountPassword from "@/components/auth/SetAccountPassword";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
@@ -282,9 +282,7 @@ function AccountHandleEditor({
         setMessage(body.error ?? "That handle is unavailable.");
         return;
       }
-      try {
-        localStorage.setItem("pubmax_handle", body.handle);
-      } catch {}
+      syncDeviceHandle(localStorage, body.handle);
       emitIdentityHandleChanged({ ownerId: auth.userId, handle: body.handle });
       router.push(`/u/${encodeURIComponent(body.handle)}`);
     } catch {
@@ -510,7 +508,7 @@ export default function PubmaxxAccountHub() {
     const confirmed = confirmedNightProfileMerge(state, choice);
     if (!confirmed.writesAccount) {
       if (state.kind === "conflict") {
-        writeDeviceNightProfile(nightProfileInput(state.account));
+        writeDeviceNightProfile(nightProfileInput(state.account), undefined, "account");
         setDeviceNightProfile(nightProfileInput(state.account));
         setNightProfileDraft(nightProfileInput(state.account));
       } else {
@@ -541,7 +539,7 @@ export default function PubmaxxAccountHub() {
     }
     setAccountNightProfile(body.profile);
     setNightProfileDraft(nightProfileInput(body.profile));
-    writeDeviceNightProfile(nightProfileInput(body.profile));
+    writeDeviceNightProfile(nightProfileInput(body.profile), undefined, "account");
     setDeviceNightProfile(nightProfileInput(body.profile));
     setMessage("Your device preferences are now on your account.");
   }
@@ -641,7 +639,7 @@ export default function PubmaxxAccountHub() {
     const input = nightProfileInput(body.profile);
     setAccountNightProfile(body.profile);
     setNightProfileDraft(input);
-    writeDeviceNightProfile(input);
+    writeDeviceNightProfile(input, undefined, "account");
     setDeviceNightProfile(input);
     setMessage("Night Profile saved to your account.");
   }

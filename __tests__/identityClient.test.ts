@@ -155,17 +155,56 @@ describe("post-callback handle claim routing", () => {
     expect(storage.getItem("pubmax_handle")).toBe("alice");
   });
 
-  it("stays put on a device handle without asking the server", async () => {
+  it("stays put on a device handle THIS account owns, without asking the server", async () => {
     const request = requestAnswering(null);
     await expect(
       handleClaimRouteAfterSignIn(
         SESSION,
         "/map",
-        storageWith(new Map([["pubmax_handle", "alice"]])),
+        storageWith(
+          new Map([
+            ["pubmax_handle", "alice"],
+            ["pubmax_account_owner", "user-a"],
+          ]),
+        ),
         request,
       ),
     ).resolves.toBeNull();
     expect(request).not.toHaveBeenCalled();
+  });
+
+  it("asks the server when the device handle belongs to another account", async () => {
+    // The founder's browser: @karan is still cached from the account that just
+    // signed out. Taking it as proof skipped BOTH the canonical read and the
+    // claim step, so the new account browsed under the old one's name.
+    const request = requestAnswering(null);
+    await expect(
+      handleClaimRouteAfterSignIn(
+        SESSION,
+        "/map",
+        storageWith(
+          new Map([
+            ["pubmax_handle", "karan"],
+            ["pubmax_account_owner", "user-previous"],
+          ]),
+        ),
+        request,
+      ),
+    ).resolves.toBe("/u/you");
+    expect(request).toHaveBeenCalled();
+  });
+
+  it("asks the server when nobody stamped the device handle", async () => {
+    const request = requestAnswering(null);
+    await expect(
+      handleClaimRouteAfterSignIn(
+        SESSION,
+        "/map",
+        storageWith(new Map([["pubmax_handle", "karan"]])),
+        request,
+      ),
+    ).resolves.toBe("/u/you");
+    expect(request).toHaveBeenCalled();
   });
 
   it("never bounces a restored return fragment or the claim surface itself", async () => {
