@@ -11,7 +11,7 @@ import {
   FOUNDING_MEMBER_CAP,
   parseFoundingMemberNumber,
 } from "@/lib/foundingMembers";
-import { normalizeHandle } from "@/lib/profiles";
+import { normalizeHandle, toPublicProfile, type PublicProfile } from "@/lib/profiles";
 import {
   PROFILE_IMAGE_SLOTS,
   profileImageServePath,
@@ -253,6 +253,23 @@ export function publicOwnedImageUrl(
   if (state.moderationState !== "approved") return undefined;
   if (!state.objectKey || !state.generation || !profile.id) return undefined;
   return profileImageServePath(slot, profile.id, state.generation);
+}
+
+/**
+ * The stored row as it crosses the public wire. This is the ONLY wiring of a
+ * `ProfileRecord` into `toPublicProfile`: the public read and every image write
+ * share it, so the two can never disagree about what a public profile carries.
+ * Internal keys (ownership, tombstone, storage object keys, moderation state)
+ * stop here.
+ */
+export function publicProfileFromRecord(
+  profile: ProfileRecord | null | undefined,
+): PublicProfile | null {
+  if (!profile) return null;
+  return toPublicProfile(profile, {
+    avatarUrl: publicOwnedImageUrl(profile, "avatar"),
+    coverUrl: publicOwnedImageUrl(profile, "cover"),
+  });
 }
 
 /** True only when the auth-deletion trigger stamped tombstoned_at. */

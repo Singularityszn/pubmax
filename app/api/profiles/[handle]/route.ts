@@ -9,7 +9,7 @@
 // missing profile is a first-class "null" result, so the page always renders.
 
 import { isLimited } from "@/lib/pintDrops";
-import { normalizeHandle, type PublicProfile } from "@/lib/profiles";
+import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import {
   PROFILE_IMAGE_SLOTS,
@@ -22,7 +22,7 @@ import {
   MAX_WORKPLACE,
   profileImageState,
   profileStore,
-  publicOwnedImageUrl,
+  publicProfileFromRecord,
   type ProfilePatch,
   type ProfileRecord,
 } from "@/lib/profileStore";
@@ -47,42 +47,6 @@ assertServerEnv();
 
 function stores() {
   return { profiles: profileStore(), follows: followStore() };
-}
-
-// Public projection of a profile row: strips internal ownership / tombstone /
-// owned-image storage keys so they never cross the wire on the public
-// /u/[handle] read. avatarUrl and coverUrl are approved served paths only —
-// never a hotlinked remote URL and never an unscanned image.
-//
-// The card fields below (favourite drink, what you're into, where you work) are
-// PUBLIC BY CHOICE, exactly like the bio and the face: their owner typed each
-// one in on their own account and can clear it in one tap. The private set —
-// email, date of birth, gender, full legal name — stays behind the
-// owner-authenticated onboarding read (__tests__/profilesRoutePrivacy.test.ts).
-function toPublicProfile(profile: ProfileRecord | null): PublicProfile | null {
-  if (!profile) return null;
-  const avatarUrl = publicOwnedImageUrl(profile, "avatar");
-  const coverUrl = publicOwnedImageUrl(profile, "cover");
-  return {
-    id: profile.id,
-    handle: profile.handle,
-    ...(profile.displayName ? { displayName: profile.displayName } : {}),
-    ...(avatarUrl ? { avatarUrl } : {}),
-    ...(coverUrl ? { coverUrl } : {}),
-    ...(profile.homeCity ? { homeCity: profile.homeCity } : {}),
-    ...(profile.bio ? { bio: profile.bio } : {}),
-    ...(profile.favouriteDrink ? { favouriteDrink: profile.favouriteDrink } : {}),
-    ...(profile.interests ? { interests: profile.interests } : {}),
-    ...(profile.workplace ? { workplace: profile.workplace } : {}),
-    // The founding number is public by design: it is a visible mark on a public
-    // card and a line on a public wall, so hiding it here would only mean the
-    // card had to ask twice for something already published.
-    ...(profile.foundingMemberNumber !== undefined
-      ? { foundingMemberNumber: profile.foundingMemberNumber }
-      : {}),
-    createdAt: profile.createdAt,
-    updatedAt: profile.updatedAt,
-  };
 }
 
 // The owner's own linked socials. Public on purpose: a person typed each one in
@@ -201,7 +165,7 @@ export async function GET(
 
     return jsonNoStore(
       {
-        profile: toPublicProfile(profile),
+        profile: publicProfileFromRecord(profile),
         socialLinks: await publicLinksFor(profile),
         counts,
         viewerFollowing,
@@ -290,7 +254,7 @@ export async function PATCH(
     // An authenticated new-handle write was already created by the gate.
     await store.ensure(handle);
     const profile = await store.update(handle, built.patch);
-    return jsonNoStore({ profile: toPublicProfile(profile) }, { status: 200 });
+    return jsonNoStore({ profile: publicProfileFromRecord(profile) }, { status: 200 });
   } catch {
     return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
@@ -390,7 +354,7 @@ export async function DELETE(
       }
     }
 
-    return jsonNoStore({ profile: toPublicProfile(profile) }, { status: 200 });
+    return jsonNoStore({ profile: publicProfileFromRecord(profile) }, { status: 200 });
   } catch {
     return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }

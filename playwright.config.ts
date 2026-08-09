@@ -37,8 +37,10 @@ const E2E_SUPABASE_URL = "https://pubmaxx-e2e.supabase.co";
 const E2E_SUPABASE_PUBLISHABLE_KEY = "pubmaxx-e2e-publishable-key";
 const E2E_ADMIN_TOKEN = process.env.PW_E2E_ADMIN_TOKEN ?? "pubmax-e2e-admin-token";
 // The founders' door is read from the environment at build time, so a keyless
-// E2E build renders no door at all unless the build is given one.
-const E2E_DISCORD_INVITE_URL = "https://discord.gg/r46K8Qv5W";
+// E2E build renders no door at all unless the build is given one. This code is
+// deliberately fake: the specs assert the door RENDERS and where it points, and
+// a real invite committed here would be a live door into a private room.
+const E2E_DISCORD_INVITE_URL = "https://discord.gg/pubmaxx-e2e-invite";
 const E2E_RATE_LIMIT_SALT =
   process.env.RATE_LIMIT_SALT ?? "pubmax-e2e-rate-limit-salt-32-chars-min";
 const REAL_AUTH_CONFIGURED = Boolean(
