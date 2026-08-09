@@ -1,5 +1,5 @@
-// The owner's face. Journey, ownership gate, budget, and copy live in
-// lib/profileImageRoute.server.ts, shared verbatim with the cover slot.
+// The owner's backdrop. Same journey as the face — staging, scan, promote,
+// tombstone-safe cleanup — through the one shared handler pair.
 
 import {
   defaultProfileImageRouteDeps,
@@ -16,7 +16,7 @@ export const maxDuration = 15;
 /** Test seam: production callers leave this unset. */
 let testDeps: Partial<ProfileImageRouteDeps> | null = null;
 
-export function __setProfileAvatarRouteDepsForTest(
+export function __setProfileCoverRouteDepsForTest(
   deps: Partial<ProfileImageRouteDeps> | null,
 ): void {
   testDeps = deps;
@@ -30,12 +30,12 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
-  return handleProfileImageUpload(request, (await params).handle, "avatar", deps());
+  return handleProfileImageUpload(request, (await params).handle, "cover", deps());
 }
 
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
-  return handleProfileImageDelete(request, (await params).handle, "avatar", deps());
+  return handleProfileImageDelete(request, (await params).handle, "cover", deps());
 }

@@ -32,6 +32,39 @@ export type Profile = {
   homeCity?: string;
   bio?: string;
   avatarUrl?: string;
+  /** Approved cover photo serve path; absent profiles wear the brass treatment. */
+  coverUrl?: string;
+  /** Public by choice: the drink this person orders. */
+  favouriteDrink?: string;
+  /** Public by choice: what this person is into on a night out. */
+  interests?: string;
+  /** Public by choice: where this person works. Display text, never a page. */
+  workplace?: string;
+};
+
+/**
+ * The profile row as it crosses the public wire. This is what
+ * `/api/profiles/[handle]` returns and what the profile page holds: the stored,
+ * owner-authored identity minus every internal key (ownership, tombstone,
+ * storage object keys, moderation state). The private set - email, date of
+ * birth, gender, full legal name - is not here and never was; it lives behind
+ * the owner-authenticated onboarding read.
+ */
+export type PublicProfile = {
+  id: string;
+  handle: string;
+  displayName?: string;
+  /** Approved avatar serve path only; never a hotlinked remote URL. */
+  avatarUrl?: string;
+  /** Approved cover serve path only. */
+  coverUrl?: string;
+  homeCity?: string;
+  bio?: string;
+  favouriteDrink?: string;
+  interests?: string;
+  workplace?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ProfileStats = {
@@ -310,6 +343,29 @@ export function nextBadgeProgress(
 // profile, so the display name comes from the handle and the bio is a light
 // summary derived from the stats. Callers pass the handle they already
 // normalized; we normalize again defensively so this is safe standalone.
+/**
+ * Overlay the durable, owner-authored row on top of the identity synthesized
+ * from a handle's drops. Name, bio and city fall back to the synthesized
+ * placeholder; the images and the card fields do not, because there is no
+ * honest placeholder for what somebody drinks.
+ */
+export function withStoredProfile(
+  base: Profile,
+  stored: PublicProfile | null | undefined,
+): Profile {
+  return {
+    ...base,
+    displayName: stored?.displayName ?? base.displayName,
+    bio: stored?.bio ?? base.bio,
+    homeCity: stored?.homeCity ?? base.homeCity,
+    avatarUrl: stored?.avatarUrl ?? base.avatarUrl,
+    coverUrl: stored?.coverUrl,
+    favouriteDrink: stored?.favouriteDrink,
+    interests: stored?.interests,
+    workplace: stored?.workplace,
+  };
+}
+
 export function deriveProfileFromDrops(
   rawHandle: string,
   drops: readonly ProfileDrop[] | null | undefined,

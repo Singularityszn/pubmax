@@ -42,10 +42,11 @@ import {
   deriveProfileFromDrops,
   normalizeHandle,
   profileStats,
+  withStoredProfile,
   type Profile,
   type ProfileDrop,
+  type PublicProfile,
 } from "@/lib/profiles";
-import type { ProfileRecord } from "@/lib/profileStore";
 import {
   fetchFollowedListsForHandle,
   fetchSavedForHandle,
@@ -209,7 +210,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const [socialLinks, setSocialLinks] = useState<PublicSocialLink[]>([]);
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
   // Null profile → fall back to the synthesized-from-drops identity.
-  const [stored, setStored] = useState<ProfileRecord | null>(null);
+  const [stored, setStored] = useState<PublicProfile | null>(null);
   const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
   const [following, setFollowing] = useState(false);
   // Owner-only "edit my profile" panel; opened from the header's Edit button.
@@ -412,7 +413,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         });
         if (!res.ok) return;
         const body = (await res.json()) as {
-          profile?: ProfileRecord | null;
+          profile?: PublicProfile | null;
           status?: string;
           socialLinks?: PublicSocialLink[];
           counts?: FollowCounts;
@@ -437,15 +438,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     return () => controller.abort();
   }, [routeHandle, viewerHandle]);
 
-  const synthesized = deriveProfileFromDrops(routeHandle, drops as ProfileDrop[]);
   // Overlay any durable, user-owned fields on top of the synthesized identity.
-  const profile: Profile = {
-    ...synthesized,
-    displayName: stored?.displayName ?? synthesized.displayName,
-    bio: stored?.bio ?? synthesized.bio,
-    homeCity: stored?.homeCity ?? synthesized.homeCity,
-    avatarUrl: stored?.avatarUrl ?? synthesized.avatarUrl,
-  };
+  const profile: Profile = withStoredProfile(
+    deriveProfileFromDrops(routeHandle, drops as ProfileDrop[]),
+    stored,
+  );
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = viewerHandle !== "" && viewerHandle === routeHandle;
   const isAnonymous = !user && viewerHandle === "";
@@ -562,7 +559,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // Apply a saved profile row back onto the overlaid identity so the header
   // updates the instant the editor reports success, without a refetch. The
   // surface returns to view mode and says so.
-  function handleSaved(saved: ProfileRecord) {
+  function handleSaved(saved: PublicProfile) {
     setStored(saved);
     setEditing(false);
     setSavedNotice(true);
@@ -622,7 +619,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     {
       id: "edit-profile",
       label: "Edit profile",
-      description: "Change your public name, bio, city, or photo",
+      description: "Change your name, photos, bio, or what you're into",
       onSelect: openEditor,
     },
     {
@@ -870,6 +867,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                           bio: stored?.bio,
                           homeCity: stored?.homeCity,
                           avatarUrl: stored?.avatarUrl,
+                          coverUrl: stored?.coverUrl,
+                          favouriteDrink: stored?.favouriteDrink,
+                          interests: stored?.interests,
+                          workplace: stored?.workplace,
                         }}
                         onSaved={handleSaved}
                         onClose={() => setEditing(false)}

@@ -27,12 +27,12 @@ import {
   GET,
   __setAvatarServeRouteDepsForTest,
 } from "@/app/api/avatar/[profileId]/[generation]/route";
-import { profileAvatarServingKey } from "@/lib/profileAvatarMedia.server";
+import { profileImageServingKey } from "@/lib/profileImageSlots";
 import type { ProfileRecord } from "@/lib/profileStore";
 
 const PROFILE_ID = "11111111-1111-4111-8111-111111111111";
 const GENERATION = "22222222-2222-4222-8222-222222222222";
-const OBJECT_KEY = profileAvatarServingKey(PROFILE_ID, GENERATION);
+const OBJECT_KEY = profileImageServingKey("avatar", PROFILE_ID, GENERATION);
 
 function approvedProfile(overrides: Partial<ProfileRecord> = {}): ProfileRecord {
   return {

@@ -9,12 +9,20 @@
 // missing profile is a first-class "null" result, so the page always renders.
 
 import { isLimited } from "@/lib/pintDrops";
-import { normalizeHandle } from "@/lib/profiles";
+import { normalizeHandle, type PublicProfile } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import {
+  PROFILE_IMAGE_SLOTS,
+  profileImageStagingKey,
+} from "@/lib/profileImageSlots";
+import {
   isProfileTombstoned,
+  MAX_FAVOURITE_DRINK,
+  MAX_INTERESTS,
+  MAX_WORKPLACE,
+  profileImageState,
   profileStore,
-  publicOwnedAvatarUrl,
+  publicOwnedImageUrl,
   type ProfilePatch,
   type ProfileRecord,
 } from "@/lib/profileStore";
@@ -42,30 +50,30 @@ function stores() {
 }
 
 // Public projection of a profile row: strips internal ownership / tombstone /
-// owned-avatar storage keys so they never cross the wire on the public
-// /u/[handle] read. avatarUrl is the approved served path only — never a
-// hotlinked remote URL and never an unscanned face.
-function toPublicProfile(
-  profile: ProfileRecord | null,
-): {
-  id: string;
-  handle: string;
-  displayName?: string;
-  avatarUrl?: string;
-  homeCity?: string;
-  bio?: string;
-  createdAt: string;
-  updatedAt: string;
-} | null {
+// owned-image storage keys so they never cross the wire on the public
+// /u/[handle] read. avatarUrl and coverUrl are approved served paths only —
+// never a hotlinked remote URL and never an unscanned image.
+//
+// The card fields below (favourite drink, what you're into, where you work) are
+// PUBLIC BY CHOICE, exactly like the bio and the face: their owner typed each
+// one in on their own account and can clear it in one tap. The private set —
+// email, date of birth, gender, full legal name — stays behind the
+// owner-authenticated onboarding read (__tests__/profilesRoutePrivacy.test.ts).
+function toPublicProfile(profile: ProfileRecord | null): PublicProfile | null {
   if (!profile) return null;
-  const avatarUrl = publicOwnedAvatarUrl(profile);
+  const avatarUrl = publicOwnedImageUrl(profile, "avatar");
+  const coverUrl = publicOwnedImageUrl(profile, "cover");
   return {
     id: profile.id,
     handle: profile.handle,
     ...(profile.displayName ? { displayName: profile.displayName } : {}),
     ...(avatarUrl ? { avatarUrl } : {}),
+    ...(coverUrl ? { coverUrl } : {}),
     ...(profile.homeCity ? { homeCity: profile.homeCity } : {}),
     ...(profile.bio ? { bio: profile.bio } : {}),
+    ...(profile.favouriteDrink ? { favouriteDrink: profile.favouriteDrink } : {}),
+    ...(profile.interests ? { interests: profile.interests } : {}),
+    ...(profile.workplace ? { workplace: profile.workplace } : {}),
     createdAt: profile.createdAt,
     updatedAt: profile.updatedAt,
   };
@@ -116,6 +124,18 @@ function buildPatch(
   if ("homeCity" in body) {
     const city = cleanText(body.homeCity, MAX_HOME_CITY);
     patch.homeCity = city || null;
+  }
+  if ("favouriteDrink" in body) {
+    const drink = cleanText(body.favouriteDrink, MAX_FAVOURITE_DRINK);
+    patch.favouriteDrink = drink || null;
+  }
+  if ("interests" in body) {
+    const interests = cleanText(body.interests, MAX_INTERESTS);
+    patch.interests = interests || null;
+  }
+  if ("workplace" in body) {
+    const workplace = cleanText(body.workplace, MAX_WORKPLACE);
+    patch.workplace = workplace || null;
   }
   if ("avatarUrl" in body) {
     return {
@@ -301,23 +321,27 @@ export async function DELETE(
 
     const { ownerUserId, profile } = deletion;
 
-    if (prior?.id && (prior.avatarObjectKey || prior.avatarGeneration)) {
-      try {
-        const { purgeProfileAvatarObjects, supabaseProfileAvatarStorage } = await import(
-          "@/lib/profileAvatarMedia.server"
-        );
-        const known = [
-          prior.avatarObjectKey,
-          prior.avatarGeneration
-            ? `avatars/${prior.id}/${prior.avatarGeneration}/staging.jpg`
-            : null,
-        ].filter((key): key is string => typeof key === "string" && key.length > 0);
-        await purgeProfileAvatarObjects(prior.id, supabaseProfileAvatarStorage, known);
-      } catch (err) {
-        console.error(
-          `[avatar] profile soft-delete for @${handle}: FAILED to purge avatar objects`,
-          err,
-        );
+    if (prior?.id) {
+      for (const slot of PROFILE_IMAGE_SLOTS) {
+        const state = profileImageState(prior, slot);
+        if (!state.objectKey && !state.generation) continue;
+        try {
+          const { purgeProfileImageObjects, supabaseProfileImageStorage } = await import(
+            "@/lib/profileImageMedia.server"
+          );
+          const known = [
+            state.objectKey,
+            state.generation
+              ? profileImageStagingKey(slot, prior.id, state.generation)
+              : null,
+          ].filter((key): key is string => typeof key === "string" && key.length > 0);
+          await purgeProfileImageObjects(slot, prior.id, supabaseProfileImageStorage, known);
+        } catch (err) {
+          console.error(
+            `[${slot}] profile soft-delete for @${handle}: FAILED to purge ${slot} objects`,
+            err,
+          );
+        }
       }
     }
 

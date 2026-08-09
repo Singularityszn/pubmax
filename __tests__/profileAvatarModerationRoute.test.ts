@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 
 // The complaint side of the owned-avatar path: a reader can FLAG a face, a
 // moderator can HIDE it, and a hidden face leaves every public read at once
-// (publicOwnedAvatarUrl becomes undefined so initials win). Hide never deletes
+// (publicOwnedImageUrl becomes undefined so initials win). Hide never deletes
 // storage or report provenance, and restore puts the approved face back.
 //
 // Two seams are mocked so this is deterministic under a PRODUCTION build too
@@ -34,12 +34,12 @@ import { GET as adminGET, POST as adminPOST } from "@/app/api/admin/profile-avat
 import { POST as reportPOST } from "@/app/api/profiles/[handle]/avatar/report/route";
 import {
   __resetMemoryProfiles,
-  listHiddenProfileAvatars,
-  listReportedProfileAvatars,
-  moderateProfileAvatar,
+  listHiddenProfileImages,
+  listReportedProfileImages,
+  moderateProfileImage,
   profileStore,
-  publicOwnedAvatarUrl,
-  reportProfileAvatar,
+  publicOwnedImageUrl,
+  reportProfileImage,
 } from "@/lib/profileStore";
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
@@ -64,13 +64,13 @@ async function seedApprovedAvatar(handle: string, generation = "11111111-1111-41
   const profile = await store.getByHandle(handle);
   expect(profile?.id).toBeTruthy();
   const objectKey = `avatars/${profile!.id}/${generation}/image.jpg`;
-  const updated = await store.setOwnedAvatar(handle, {
+  const updated = await store.setOwnedImage(handle, "avatar", {
     objectKey,
     generation,
     moderationState: "approved",
   });
   expect(updated?.avatarModerationState).toBe("approved");
-  expect(publicOwnedAvatarUrl(updated!)).toBe(`/api/avatar/${profile!.id}/${generation}`);
+  expect(publicOwnedImageUrl(updated!, "avatar")).toBe(`/api/avatar/${profile!.id}/${generation}`);
   return updated!;
 }
 
@@ -100,35 +100,35 @@ describe("profile avatar moderation (memory backend)", () => {
 
   it("hides an avatar from the public serve URL, and restores it", async () => {
     const profile = await seedApprovedAvatar("alice");
-    expect(publicOwnedAvatarUrl(profile)).toBeTruthy();
+    expect(publicOwnedImageUrl(profile, "avatar")).toBeTruthy();
 
-    expect(await moderateProfileAvatar("alice", "hide", "not their face")).toBe(true);
+    expect(await moderateProfileImage("alice", "avatar", "hide", "not their face")).toBe(true);
     const hidden = await profileStore().getByHandle("alice");
     expect(hidden?.avatarModerationState).toBe("hidden");
-    expect(publicOwnedAvatarUrl(hidden!)).toBeUndefined();
+    expect(publicOwnedImageUrl(hidden!, "avatar")).toBeUndefined();
     // Hide, never delete: object key and generation survive for provenance.
     expect(hidden?.avatarObjectKey).toBe(profile.avatarObjectKey);
     expect(hidden?.avatarGeneration).toBe(profile.avatarGeneration);
 
-    expect(await moderateProfileAvatar("alice", "restore")).toBe(true);
+    expect(await moderateProfileImage("alice", "avatar", "restore")).toBe(true);
     const restored = await profileStore().getByHandle("alice");
     expect(restored?.avatarModerationState).toBe("approved");
-    expect(publicOwnedAvatarUrl(restored!)).toBe(
+    expect(publicOwnedImageUrl(restored!, "avatar")).toBe(
       `/api/avatar/${profile.id}/${profile.avatarGeneration}`,
     );
   });
 
   it("records a report without hiding anything", async () => {
     const profile = await seedApprovedAvatar("bob");
-    expect(await reportProfileAvatar("bob", "spam QR", "actor-1")).toBe(true);
+    expect(await reportProfileImage("bob", "avatar", "spam QR", "actor-1")).toBe(true);
 
     const after = await profileStore().getByHandle("bob");
     expect(after?.avatarModerationState).toBe("approved");
-    expect(publicOwnedAvatarUrl(after!)).toBe(
+    expect(publicOwnedImageUrl(after!, "avatar")).toBe(
       `/api/avatar/${profile.id}/${profile.avatarGeneration}`,
     );
 
-    const queue = await listReportedProfileAvatars();
+    const queue = await listReportedProfileImages("avatar");
     expect(queue).toHaveLength(1);
     expect(queue[0]).toMatchObject({
       handle: "bob",
@@ -141,46 +141,46 @@ describe("profile avatar moderation (memory backend)", () => {
 
   it("counts one report per actor, so a single reader cannot inflate the queue", async () => {
     await seedApprovedAvatar("cara");
-    await reportProfileAvatar("cara", "wrong", "actor-1");
-    await reportProfileAvatar("cara", "still wrong", "actor-1");
-    expect((await listReportedProfileAvatars())[0]?.reportCount).toBe(1);
+    await reportProfileImage("cara", "avatar", "wrong", "actor-1");
+    await reportProfileImage("cara", "avatar", "still wrong", "actor-1");
+    expect((await listReportedProfileImages("avatar"))[0]?.reportCount).toBe(1);
 
-    await reportProfileAvatar("cara", "agreed", "actor-2");
-    expect((await listReportedProfileAvatars())[0]?.reportCount).toBe(2);
+    await reportProfileImage("cara", "avatar", "agreed", "actor-2");
+    expect((await listReportedProfileImages("avatar"))[0]?.reportCount).toBe(2);
   });
 
   it("never exposes reporter actors in the moderator DTO", async () => {
     await seedApprovedAvatar("dave");
-    await reportProfileAvatar("dave", "wrong", "secret-reporter-token");
-    expect(JSON.stringify(await listReportedProfileAvatars())).not.toContain(
+    await reportProfileImage("dave", "avatar", "wrong", "secret-reporter-token");
+    expect(JSON.stringify(await listReportedProfileImages("avatar"))).not.toContain(
       "secret-reporter-token",
     );
-    expect(JSON.stringify(await listHiddenProfileAvatars())).not.toContain(
+    expect(JSON.stringify(await listHiddenProfileImages("avatar"))).not.toContain(
       "secret-reporter-token",
     );
   });
 
   it("returns unreported, visible avatars to nobody's queue", async () => {
     await seedApprovedAvatar("elsie");
-    expect(await listReportedProfileAvatars()).toEqual([]);
-    expect(await listHiddenProfileAvatars()).toEqual([]);
+    expect(await listReportedProfileImages("avatar")).toEqual([]);
+    expect(await listHiddenProfileImages("avatar")).toEqual([]);
   });
 
   it("moves a hidden avatar into the hidden lane and keeps restore reversible", async () => {
     await seedApprovedAvatar("frank");
-    await reportProfileAvatar("frank", "abuse", "actor-1");
-    expect(await listReportedProfileAvatars()).toHaveLength(1);
+    await reportProfileImage("frank", "avatar", "abuse", "actor-1");
+    expect(await listReportedProfileImages("avatar")).toHaveLength(1);
 
-    expect(await moderateProfileAvatar("frank", "hide")).toBe(true);
-    expect(await listReportedProfileAvatars()).toEqual([]);
-    expect(await listHiddenProfileAvatars()).toHaveLength(1);
-    expect((await listHiddenProfileAvatars())[0]?.handle).toBe("frank");
+    expect(await moderateProfileImage("frank", "avatar", "hide")).toBe(true);
+    expect(await listReportedProfileImages("avatar")).toEqual([]);
+    expect(await listHiddenProfileImages("avatar")).toHaveLength(1);
+    expect((await listHiddenProfileImages("avatar"))[0]?.handle).toBe("frank");
 
-    expect(await moderateProfileAvatar("frank", "restore")).toBe(true);
-    expect(await listHiddenProfileAvatars()).toEqual([]);
+    expect(await moderateProfileImage("frank", "avatar", "restore")).toBe(true);
+    expect(await listHiddenProfileImages("avatar")).toEqual([]);
     // Restore stamps moderatedAt, so the old reports leave the reported lane
     // until a new distinct reporter re-opens them.
-    expect(await listReportedProfileAvatars()).toEqual([]);
+    expect(await listReportedProfileImages("avatar")).toEqual([]);
   });
 
   describe("POST /api/profiles/[handle]/avatar/report", () => {
@@ -200,10 +200,10 @@ describe("profile avatar moderation (memory backend)", () => {
 
       const after = await profileStore().getByHandle("gina");
       expect(after?.avatarModerationState).toBe("approved");
-      expect(publicOwnedAvatarUrl(after!)).toBe(
+      expect(publicOwnedImageUrl(after!, "avatar")).toBe(
         `/api/avatar/${profile.id}/${profile.avatarGeneration}`,
       );
-      expect(await listReportedProfileAvatars()).toHaveLength(1);
+      expect(await listReportedProfileImages("avatar")).toHaveLength(1);
     });
 
     it("404s when there is no approved owned avatar to report", async () => {
@@ -227,7 +227,7 @@ describe("profile avatar moderation (memory backend)", () => {
       const res = await adminPost({ action: "hide", handle: "helen", note: "impersonation" });
       expect(res.status).toBe(200);
       expect(res.headers.get("Cache-Control")).toBe("no-store");
-      expect(publicOwnedAvatarUrl((await profileStore().getByHandle("helen"))!)).toBeUndefined();
+      expect(publicOwnedImageUrl((await profileStore().getByHandle("helen"))!, "avatar")).toBeUndefined();
 
       expect((await adminPost({ action: "hide", handle: "nope" })).status).toBe(404);
     });
@@ -236,7 +236,7 @@ describe("profile avatar moderation (memory backend)", () => {
       await seedApprovedAvatar("ivan");
       await adminPost({ action: "hide", handle: "ivan" });
       expect((await adminPost({ action: "restore", handle: "ivan" })).status).toBe(200);
-      expect(publicOwnedAvatarUrl((await profileStore().getByHandle("ivan"))!)).toBeTruthy();
+      expect(publicOwnedImageUrl((await profileStore().getByHandle("ivan"))!, "avatar")).toBeTruthy();
     });
 
     it("rejects an unknown action and a missing handle", async () => {
@@ -255,7 +255,7 @@ describe("profile avatar moderation (memory backend)", () => {
       ).toBe(403);
       expect((await adminGET(new Request(`${ADMIN_URL}?status=reported`))).status).toBe(403);
 
-      expect(publicOwnedAvatarUrl((await profileStore().getByHandle("kate"))!)).toBeTruthy();
+      expect(publicOwnedImageUrl((await profileStore().getByHandle("kate"))!, "avatar")).toBeTruthy();
 
       const allowed = await adminPost(
         { action: "hide", handle: "kate" },
@@ -266,7 +266,7 @@ describe("profile avatar moderation (memory backend)", () => {
 
     it("lists reported and hidden lanes for a moderator", async () => {
       await seedApprovedAvatar("leo");
-      await reportProfileAvatar("leo", "wrong", "actor-1");
+      await reportProfileImage("leo", "avatar", "wrong", "actor-1");
 
       const reported = await adminGET(new Request(`${ADMIN_URL}?status=reported`));
       expect(reported.status).toBe(200);

@@ -13,7 +13,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import ConfirmFollow from "@/components/social/ConfirmFollow";
 import { profileMayWearAvatar } from "@/lib/avatarResolve";
 import { normalizeHandle } from "@/lib/profiles";
-import { profileStore, publicOwnedAvatarUrl } from "@/lib/profileStore";
+import { profileStore, publicOwnedImageUrl } from "@/lib/profileStore";
 
 import AddPageShell from "./AddPageShell";
 import "./add.css";
@@ -32,7 +32,7 @@ export default async function AddHandlePage({
   const handle = normalizeHandle((await params).handle);
   const profile = handle ? await profileStore().getByHandle(handle) : null;
   const targetAvatarUrl =
-    profile && profileMayWearAvatar(profile) ? publicOwnedAvatarUrl(profile) ?? undefined : undefined;
+    profile && profileMayWearAvatar(profile) ? publicOwnedImageUrl(profile, "avatar") ?? undefined : undefined;
   return (
     <main id="main" className="addShell">
       <SiteNav active="feed" />

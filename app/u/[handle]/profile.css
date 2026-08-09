@@ -257,6 +257,7 @@
 
 /* ── Header ──────────────────────────────────────────────────────────── */
 .profilePage .profileHeader {
+  position: relative;
   display: grid;
   gap: 20px;
   padding: clamp(22px, 4vw, 32px);
@@ -264,9 +265,52 @@
   border-radius: var(--radius);
   background: var(--panel-raised);
   box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+/* ── Cover photo ─────────────────────────────────────────────────────────
+   The backdrop sits behind the top of the card and fades into the panel, so
+   the name and handle keep their contrast over any photograph. An unfilled
+   slot keeps the brass wash the initials-era profile already wore, which is
+   why the falloff is painted whether or not an image loaded. */
+.profilePage .profileCover {
+  position: absolute;
+  inset: 0 0 auto;
+  height: clamp(132px, 26vw, 208px);
+  overflow: hidden;
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--brass) 30%, var(--panel-raised)),
+    color-mix(in srgb, var(--brass) 8%, var(--panel-raised))
+  );
+  pointer-events: none;
+}
+
+.profilePage .profileCoverImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profilePage .profileCoverFalloff {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--panel-raised) 10%, transparent) 0%,
+    color-mix(in srgb, var(--panel-raised) 42%, transparent) 52%,
+    var(--panel-raised) 100%
+  );
+}
+
+/* With a real photograph up there the identity row needs room to clear it. */
+.profilePage .profileHeaderWithCover .profileIdentity {
+  padding-top: clamp(58px, 13vw, 104px);
 }
 
 .profilePage .profileIdentity {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 18px;
@@ -279,6 +323,13 @@
   object-fit: cover;
   border: 1px solid var(--line);
   flex: 0 0 auto;
+}
+
+/* Over a photograph the face needs its own edge, or it dissolves into the
+   backdrop the way a pin without a casing dissolves into a dark basemap. */
+.profilePage .profileHeaderWithCover .profileAvatar {
+  border: 3px solid var(--panel-raised);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--ink) 22%, transparent);
 }
 
 .profilePage .profileAvatarFallback {
@@ -321,6 +372,47 @@
   color: var(--ink-soft);
   font-size: 1.02rem;
   line-height: 1.55;
+}
+
+/* ── Card facts ──────────────────────────────────────────────────────────
+   What they drink, what they are into, where they work. Each row prints only
+   when its owner filled it in, so the block shrinks to nothing on a bare
+   profile rather than showing three empty labels. */
+.profilePage .profileCardFacts {
+  display: grid;
+  gap: 10px 24px;
+  margin: 0;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.profilePage .profileCardFact {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-left: 12px;
+  border-left: 2px solid color-mix(in srgb, var(--brass) 46%, var(--line));
+}
+
+.profilePage .profileCardFact dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.profilePage .profileCardFact dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.98rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* What they are into is a sentence, not a chip, so it takes the whole row
+   rather than being squeezed into a third of it. */
+.profilePage .profileCardFact--into {
+  grid-column: 1 / -1;
 }
 
 /* ── Badge chips ─────────────────────────────────────────────────────────
@@ -813,6 +905,34 @@
   box-shadow: var(--shadow);
 }
 
+/* ── Editor groups ───────────────────────────────────────────────────────
+   Three questions, in the order a person answers them: how the card looks,
+   who they are, what they are like on a night out. Grouping is what keeps
+   eight inputs from reading as a settings page. */
+.profilePage .profileEditorGroup {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  min-width: 0;
+}
+
+.profilePage .profileEditorGroup > legend {
+  padding: 0 8px;
+  margin-left: -4px;
+  font-family: var(--font-display, var(--serif), system-ui, sans-serif);
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.profilePage .profileEditorGroup:disabled {
+  opacity: 0.72;
+}
+
 .profilePage .profileEditorField {
   display: grid;
   gap: 6px;
@@ -904,6 +1024,43 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
+}
+
+/* ── Cover slot ──────────────────────────────────────────────────────────
+   The preview is the shape the header will actually paint, so the owner can
+   see what a wide crop does to their photo before they leave the editor. */
+.profilePage .profileEditorCoverField {
+  gap: 10px;
+}
+
+.profilePage .profileEditorCoverStage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.profilePage .profileEditorCoverPreview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profilePage .profileEditorCoverFallback {
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--brass) 30%, var(--panel-raised)),
+    color-mix(in srgb, var(--brass) 8%, var(--panel-raised))
+  );
+}
+
+.profilePage .profileEditorCoverActions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 /* The real file input is hidden behind its own button, so it must take no room.
@@ -1007,6 +1164,19 @@
 
   .profilePage .profileDisplayName { font-size: 1.45rem; }
 
+  /* On a phone the identity column stacks, so the cover only has to clear the
+     avatar rather than a whole row. The owner's own header drops its padding
+     to go chrome-less (below), which would otherwise leave the face and the
+     name flush against the screen edge once a cover is behind them. */
+  .profilePage .profileHeaderWithCover .profileIdentity { padding-top: 96px; }
+  .profilePage .youProfileIdentity .profileHeaderWithCover .profileIdentity,
+  .profilePage .youProfileIdentity .profileHeaderWithCover > :not(.profileCover) {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .profilePage .profileCardFacts { grid-template-columns: minmax(0, 1fr); }
+  .profilePage .profileEditorGroup { padding: 14px; }
+
   .profilePage .youIdentityIntro { grid-template-columns: auto 1fr; }
   .profilePage .youIdentityAvatar { width: 72px; }
   .profilePage .youIdentityActions { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
@@ -1042,7 +1212,12 @@
   .profilePage .profileDropCard:hover {
     transform: translateY(-2px);
   }
+
 }
+
+/* The editing controls are plain <button>s on purpose: app/globals.css already
+   owns pointer-down press feedback for every button behind the reduced-motion
+   gate, so a second scale here would fight the one the rest of the app uses. */
 
 /* ── Pint Passport (user stories 29–30) ─────────────────────────────────────
    A collectible field-guide "passport page": brass-hairline card, clean metric

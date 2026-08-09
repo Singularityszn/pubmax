@@ -9,7 +9,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import {
   isProfileTombstoned,
   profileStore,
-  publicOwnedAvatarUrl,
+  publicOwnedImageUrl,
   type ProfileRecord,
 } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -26,7 +26,7 @@ function toPublicMatch(profile: ProfileRecord): {
   displayName?: string;
   avatarUrl?: string;
 } {
-  const avatarUrl = publicOwnedAvatarUrl(profile);
+  const avatarUrl = publicOwnedImageUrl(profile, "avatar");
   return {
     id: profile.id,
     handle: profile.handle,

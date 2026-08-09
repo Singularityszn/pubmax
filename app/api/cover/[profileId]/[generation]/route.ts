@@ -1,18 +1,15 @@
 import {
   defaultProfileImageServeDeps,
   handleProfileImageServe,
-  PROFILE_IMAGE_SERVE_CACHE_CONTROL,
   type ProfileImageServeDeps,
 } from "@/lib/profileImageServe.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 
 assertServerEnv();
 
-export const AVATAR_SERVE_CACHE_CONTROL = PROFILE_IMAGE_SERVE_CACHE_CONTROL;
-
 let testDeps: Partial<ProfileImageServeDeps> | null = null;
 
-export function __setAvatarServeRouteDepsForTest(
+export function __setCoverServeRouteDepsForTest(
   deps: Partial<ProfileImageServeDeps> | null,
 ): void {
   testDeps = deps;
@@ -25,5 +22,5 @@ function deps(): ProfileImageServeDeps {
 type RouteContext = { params: Promise<{ profileId: string; generation: string }> };
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
-  return handleProfileImageServe(request, "avatar", await context.params, deps());
+  return handleProfileImageServe(request, "cover", await context.params, deps());
 }
