@@ -135,6 +135,33 @@ const nextConfig = {
     root: projectRoot,
   },
   experimental: {
+    // How long the CLIENT router may reuse a route it already holds.
+    //
+    // Every route in this app is dynamic (the per-request CSP nonce rules out
+    // static generation — see the header note above), and Next's default
+    // `dynamic: 0` means the Router Cache reuses a dynamic route for no time at
+    // all. So tapping Tonight, then Map, then Tonight again paid a full RSC
+    // round trip and a fresh server render for a page the browser already had,
+    // and the tab bar's own post-paint warmup (lib/backgroundWarmup.ts) was
+    // thrown away before the thumb could spend it.
+    //
+    // A window is only safe because of an invariant this app already holds:
+    // NO page server-renders per-account content, and NOTHING calls
+    // router.refresh(). Every mutable and every viewer-scoped surface owns its
+    // own /api read on the client, so a held RSC payload can neither name the
+    // wrong person nor hide a write. __tests__/clientRouterCache.test.ts is the
+    // tree-wide fence on both halves; break either and the window has to go.
+    //
+    // The number is chosen against what these documents actually carry: a day
+    // greeting, a quiet-pint window, a service-day boundary, bundled sourced
+    // data. The sharpest thing on any of them is an HOUR boundary, and
+    // everything that really moves (listings, prices, profiles, follow edges)
+    // arrives through the client reads above. Three minutes is therefore long
+    // enough to cover a real excursion — leave Tonight, open the map, read a
+    // pub, come back — and short enough that an hour-boundary document is never
+    // wrong by much. A shorter window looks fine in a trace and expires exactly
+    // when a drinker actually returns. `static` stays at Next's default.
+    staleTimes: { dynamic: 180, static: 300 },
     // IDEAS B4 — View Transitions between map ↔ feed ↔ venue. In Next 16 this
     // flag makes App Router route navigations activate the browser's
     // View Transitions API automatically (each Link navigation is wrapped in

@@ -41,6 +41,7 @@ import {
 import type { FollowCounts } from "@/lib/followStore";
 import { buildPassport } from "@/lib/passport";
 import { buildProfileBadgeEventOptions } from "@/lib/profileBadgeEventGate";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import {
   deriveProfileFromDrops,
   normalizeHandle,
@@ -288,30 +289,29 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   useEffect(() => {
     const controller = new AbortController();
 
+    // Stale-while-revalidate: a return to this profile paints the drops it last
+    // held in the mount frame, then quietly takes the fresh ones. The passport
+    // is derived from these rows, so without it every hop back to You flashed a
+    // zeroed passport for the length of a round trip.
     async function load() {
-      try {
-        const res = await fetch(
-          `/api/pint-drops?author=${encodeURIComponent(routeHandle)}`,
-          { signal: controller.signal },
-        );
-        if (!res.ok) {
-          setState("error");
-          return;
-        }
-        const body: unknown = await res.json();
-        const all: PublicDrop[] =
-          body && typeof body === "object" && Array.isArray((body as { drops?: unknown }).drops)
-            ? ((body as { drops: PublicDrop[] }).drops ?? [])
-            : [];
-        const mine = all.filter((d) => normalizeHandle(d.handle) === routeHandle);
-        setDrops(mine);
-        // Tombstone wins over a later drops load: never paint a live profile.
-        setState((prev) => (prev === "gone" ? prev : "ready"));
-      } catch {
-        // An aborted fetch (unmount / handle change) is not an error state.
-        if (controller.signal.aborted) return;
-        setState((prev) => (prev === "gone" ? prev : "error"));
-      }
+      const outcome = await loadSurfaceJson<unknown>(
+        `/api/pint-drops?author=${encodeURIComponent(routeHandle)}`,
+        { signal: controller.signal },
+        (body) => {
+          const all: PublicDrop[] =
+            body && typeof body === "object" && Array.isArray((body as { drops?: unknown }).drops)
+              ? ((body as { drops: PublicDrop[] }).drops ?? [])
+              : [];
+          const mine = all.filter((d) => normalizeHandle(d.handle) === routeHandle);
+          setDrops(mine);
+          // Tombstone wins over a later drops load: never paint a live profile.
+          setState((prev) => (prev === "gone" ? prev : "ready"));
+        },
+      );
+      // An aborted fetch (unmount / handle change) is not an error state, and a
+      // failed revalidate over drops already on screen is not one either.
+      if (outcome !== "failed" || controller.signal.aborted) return;
+      setState((prev) => (prev === "gone" ? prev : "error"));
     }
 
     void load();
@@ -387,26 +387,26 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     if (!routeHandle || routeHandle === YOU_SENTINEL) return;
     const controller = new AbortController();
     async function loadStoryCount() {
-      try {
-        const res = await fetch(`/api/crawls?author=${encodeURIComponent(routeHandle)}`, {
-          signal: controller.signal,
-        });
-        // Fail-soft: a non-ok / offline response leaves the count at its default
-        // 0. Reset to 0 first (in the async body, not the sync effect) so a
-        // handle with no stories clears a previous handle's count.
-        const body = res.ok
-          ? ((await res.json()) as {
-              count?: number;
-              crawls?: Array<{ slug: string; title: string; stops: number }>;
-            })
-          : null;
-        const next = body?.count ?? 0;
-        if (controller.signal.aborted) return;
-        if (Number.isFinite(next)) setStoryCount(next);
-        setAuthoredCrawls(Array.isArray(body?.crawls) ? body.crawls : []);
-      } catch {
-        // aborted / offline — keep the previous value (a transient blip)
-      }
+      // A held answer seeds the passport before the network replies.
+      const outcome = await loadSurfaceJson<{
+        count?: number;
+        crawls?: Array<{ slug: string; title: string; stops: number }>;
+      }>(
+        `/api/crawls?author=${encodeURIComponent(routeHandle)}`,
+        { signal: controller.signal },
+        (body) => {
+          const next = body?.count ?? 0;
+          if (Number.isFinite(next)) setStoryCount(next);
+          setAuthoredCrawls(Array.isArray(body?.crawls) ? body.crawls : []);
+        },
+      );
+      // Fail-soft, but never with the LAST handle's number: a load that answered
+      // nothing at all clears the count rather than leaving one profile wearing
+      // another's stories. A failed revalidate over a seeded answer is not that
+      // case — the seed is this handle's own.
+      if (outcome !== "failed" || controller.signal.aborted) return;
+      setStoryCount(0);
+      setAuthoredCrawls([]);
     }
     void loadStoryCount();
     return () => controller.abort();
@@ -453,37 +453,37 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     if (!routeHandle) return;
     const controller = new AbortController();
     async function loadProfile() {
-      try {
-        const qs = viewerHandle
-          ? `?viewer=${encodeURIComponent(viewerHandle)}`
-          : "";
-        const res = await fetch(`/api/profiles/${encodeURIComponent(routeHandle)}${qs}`, {
-          signal: controller.signal,
-        });
-        if (!res.ok) return;
-        const body = (await res.json()) as {
-          profile?: PublicProfile | null;
-          status?: string;
-          socialLinks?: PublicSocialLink[];
-          counts?: FollowCounts;
-          viewerFollowing?: boolean;
-          followsViewer?: boolean;
-        };
-        if (body.status === "gone") {
-          setStored(null);
-          setSocialLinks([]);
-          setState("gone");
+      const qs = viewerHandle
+        ? `?viewer=${encodeURIComponent(viewerHandle)}`
+        : "";
+      // The viewer rides in the key, so one account never reads another's
+      // follow edge; the whole store is dropped at an account boundary anyway
+      // (lib/surfaceDataCache.ts). Failures keep the synthesized fallback.
+      await loadSurfaceJson<{
+        profile?: PublicProfile | null;
+        status?: string;
+        socialLinks?: PublicSocialLink[];
+        counts?: FollowCounts;
+        viewerFollowing?: boolean;
+        followsViewer?: boolean;
+      }>(
+        `/api/profiles/${encodeURIComponent(routeHandle)}${qs}`,
+        { signal: controller.signal },
+        (body) => {
+          if (body.status === "gone") {
+            setStored(null);
+            setSocialLinks([]);
+            setState("gone");
+            if (body.counts) setCounts(body.counts);
+            return;
+          }
+          setStored(body.profile ?? null);
+          setSocialLinks(body.socialLinks ?? []);
           if (body.counts) setCounts(body.counts);
-          return;
-        }
-        setStored(body.profile ?? null);
-        setSocialLinks(body.socialLinks ?? []);
-        if (body.counts) setCounts(body.counts);
-        setFollowing(Boolean(body.viewerFollowing));
-        setFollowsViewer(Boolean(body.followsViewer));
-      } catch {
-        // aborted / offline — keep the synthesized fallback
-      }
+          setFollowing(Boolean(body.viewerFollowing));
+          setFollowsViewer(Boolean(body.followsViewer));
+        },
+      );
     }
     void loadProfile();
     return () => controller.abort();

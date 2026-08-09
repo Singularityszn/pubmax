@@ -59,6 +59,67 @@ Adding a route is cheap: one entry with a `readySelector` the route really
 renders and one sentence of `why`. Removing one needs a reason, because an
 unmeasured route reads as a pass and never fails again.
 
+## The second navigation
+
+The budgeted numbers above are about ARRIVING. They say nothing about the
+navigation a drinker does far more often: tapping between tabs inside a session
+that is already open. That one has its own shape, and it had its own defect.
+
+Method, and it is deliberately not the budget spec's: one phone profile
+(390x844, 4x CPU throttle, 10 Mbps at 40 ms RTT, cross-origin refused), a lap
+around the bottom nav, and the clock started on the tap itself with `pointerdown`
+fired immediately before the click, so intent-warm gets no head start a fast
+thumb would not give it. A switch has ARRIVED when the destination route's own
+root element is in the DOM and the browser has painted twice. For `/map` that
+root is the map screen, not the pins: the WebGL init that follows is the map's
+own cold-start lane. COLD is the first landing on a route in the session; WARM is
+every later one. Both arms of a comparison run alternating in one process so
+machine drift lands on both, and the first two laps are dropped as the server's
+own warm-up - the same rule `warmupRuns` states above.
+
+Measured on 2026-08-09, before and after the client-cache work:
+
+| Tab switch | p50 before | p50 after | p95 before | p95 after |
+| --- | --- | --- | --- | --- |
+| Today, warm | 314 ms | 46 ms | 328 ms | 60 ms |
+| Tonight, warm | 317 ms | 35 ms | 319 ms | 39 ms |
+| You, warm | 314 ms | 30 ms | 316 ms | 44 ms |
+| Map, warm | 31 ms | 32 ms | 49 ms | 66 ms |
+| Tonight, cold | 327 ms | 329 ms | 334 ms | 334 ms |
+| Social, cold | 328 ms | 329 ms | 330 ms | 331 ms |
+| You, cold | 330 ms | 326 ms | 332 ms | 348 ms |
+| Map, cold | 401 ms | 395 ms | 409 ms | 414 ms |
+
+Read it as one finding: a warm switch was a flat ~314 ms because it was a full
+RSC round trip and a fresh server render for a document the browser was still
+holding, and it is now the remount alone. A COLD switch is unchanged, which is
+the right answer - there was nothing held to reuse. The map was already instant
+in both arms because its document is one of the two the CDN holds.
+
+The seams:
+
+- **`experimental.staleTimes` in `next.config.mjs`** is the window. It is safe
+  only because no page server-renders per-account content and nothing calls
+  `router.refresh()`; `__tests__/clientRouterCache.test.ts` fences both.
+- **`lib/surfaceDataCache.ts`** is the data half: one browser-only
+  stale-while-revalidate store, so a return paints its last answer and refreshes
+  behind it. It refuses auth and identity keys outright and empties at an
+  account boundary. On the same lap set, Tonight's LISTINGS - not just its shell
+  - reached the screen on a return in 197 ms p50 / 344 ms p95, from 417 / 660.
+- **`components/nav/IntentLink.tsx`** warms a dynamic destination on intent
+  instead of prefetching it on sight. A Tonight arrival used to fire about twenty
+  `/plan?occasion=…` and `/pal/chat?ask=…` server renders in front of the
+  listings it was still fetching.
+
+Keeping tabs MOUNTED instead - parallel-route slots rather than navigations -
+was considered and rejected on the same numbers. The remount is what is left of
+a warm switch, and it now measures 30-46 ms; against that, every other page
+would carry the map's tree, its effects and a live WebGL context all session.
+The JS heap over one lap reads 8.8 MB on arrival at `/today` and 15.8 MB after
+visiting every tab, of which the map step alone is +3.3 MB. Route JS is retained
+once loaded either way, so persistence would buy back tens of milliseconds and
+charge the heaviest route to every surface.
+
 ## What holds the numbers up
 
 These are the seams a regression usually comes through. Each carries the reason

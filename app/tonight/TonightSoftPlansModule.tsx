@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowUpRight, Camera, Coffee, Landmark, Leaf, Moon, Store, Waves } from "lucide-react";
 
+import IntentLink from "@/components/nav/IntentLink";
+
 import {
   CULTURE_CRAWL_CHIPS,
   CULTURE_CRAWL_MISSION,
@@ -47,7 +49,7 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
           const Icon = CHIP_ICONS[chip.id];
           return (
             <li key={chip.id} className="tonightSoftPlansRow">
-              <Link
+              <IntentLink
                 href={planOccasionHref(chip.id, { src: "tonight-soft" })}
                 className="tonightSoftPlansLink pressable"
               >
@@ -56,7 +58,7 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
                 </span>
                 <span className="tonightSoftPlansLabel">{chip.label}</span>
                 <ArrowUpRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
-              </Link>
+              </IntentLink>
             </li>
           );
         })}
@@ -80,7 +82,7 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
           const Icon = CULTURE_ICONS[chip.id];
           return (
             <li key={chip.id} className="tonightSoftPlansRow">
-              <Link
+              <IntentLink
                 href={planOccasionHref(chip.id, { src: "tonight-culture" })}
                 className="tonightSoftPlansLink pressable"
               >
@@ -89,7 +91,7 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
                 </span>
                 <span className="tonightSoftPlansLabel">{chip.label}</span>
                 <ArrowUpRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
-              </Link>
+              </IntentLink>
             </li>
           );
         })}
