@@ -71,8 +71,22 @@ describe("boroughCoverageStatusCopy", () => {
 });
 
 describe("seed borough campaign", () => {
-  it("keeps four soft-launch patches with map queries", () => {
-    expect(SEED_BOROUGH_CAMPAIGN).toHaveLength(4);
-    expect(boroughCoverageMapHref("Camden")).toBe("/map?q=Camden");
+  it("keeps five soft-launch patches", () => {
+    expect(SEED_BOROUGH_CAMPAIGN).toHaveLength(5);
+  });
+
+  it("keeps one row per borough slug", () => {
+    const slugs = SEED_BOROUGH_CAMPAIGN.map(({ slug }) => slug);
+
+    expect(new Set(slugs).size).toBe(slugs.length);
+  });
+
+  it("includes the Islington patch and its map destination", () => {
+    expect(SEED_BOROUGH_CAMPAIGN).toContainEqual({
+      slug: "islington",
+      name: "Islington",
+      mapQuery: "Islington",
+    });
+    expect(boroughCoverageMapHref("Islington")).toBe("/map?q=Islington");
   });
 });

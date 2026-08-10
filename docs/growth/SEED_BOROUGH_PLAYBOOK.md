@@ -1,8 +1,9 @@
 # Seed borough operator playbook
 
-Goal: when a soft-launch guest opens the map on a seed patch, pins already show
-honest people-logged prices (provisional mark at least; corroboration where
-two independents logged). Grey first viewports kill trust.
+Goal: before a cohort blast, make each seed patch's first map viewport show
+honest people-logged prices. A provisional mark is the minimum. Claim
+corroboration only after two independent people log the same pub and category.
+Grey first viewports kill trust.
 
 ## Seed set (Horizon 0–1)
 
@@ -12,6 +13,7 @@ two independents logged). Grey first viewports kill trust.
 | Camden | Plan chips and Pint Index arrival | Keep campaign copy status-shaped, not gamified |
 | Clapham (Lambeth) | Describe-first chip already works keyless | Good second-wave densify |
 | Shoreditch (Hackney) | Cheap-pint asks | Do not market as “complete” early |
+| Islington | Current curated layer has 77 priced pubs across 88 venues | Exact Plan generation supports `Islington`; this does not claim community corroboration |
 
 Monthly status target for in-product copy: **20 corroborated beer pints per
 borough** (`SEED_BOROUGH_MONTHLY_TARGET` in `lib/boroughCoverageStatus.ts`).

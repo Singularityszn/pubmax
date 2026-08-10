@@ -8,6 +8,7 @@ export const SEED_BOROUGH_CAMPAIGN = [
   { slug: "camden", name: "Camden", mapQuery: "Camden" },
   { slug: "lambeth", name: "Clapham / Lambeth", mapQuery: "Clapham" },
   { slug: "hackney", name: "Shoreditch / Hackney", mapQuery: "Shoreditch" },
+  { slug: "islington", name: "Islington", mapQuery: "Islington" },
 ] as const;
 
 /** Corroborated beer pints this month before the line reads as met. */
