@@ -13,6 +13,14 @@
 // DEDUPE. A matched pub stays in its shard with the owning curated venue id.
 // The client suppresses it only while that exact curated venue is drawable.
 //
+// Ownership is answered twice, in this order. First the `curatedRef` the UK
+// seed pack carries, which is the only key that can reconcile datasets with no
+// OSM ids at all (curated London) or two OSM objects for one pub. Then, for a
+// city pack PROMOTED out of this same base layer, the pub's own OSM id — an
+// exact identity, and the one that lets a new area ship without refetching the
+// country to re-annotate it. Nothing is removed from the base layer either
+// way, so a `venue-uk-…` id stays resolvable.
+//
 // PRICES. None. OSM is not a price source (data/osm/uk/README.md). A base pub
 // has no price by construction; it is the canvas the community prices in.
 //
@@ -104,6 +112,8 @@ function ownerKey(source, id) {
 
 async function loadCuratedVenueOwners() {
   const owners = new Map();
+  /** OSM id → curated venue id, for city packs cut out of this base layer. */
+  const ownersByOsmId = new Map();
   const londonSlim = JSON.parse(await readFile(LONDON_SLIM_PATH, "utf8"));
   const londonVenues = Array.isArray(londonSlim) ? londonSlim : [];
   const londonIds = new Set(londonVenues.map((venue) => venue.id));
@@ -168,11 +178,12 @@ async function loadCuratedVenueOwners() {
       const venueId = cityVenueIdForPub(city, pub);
       if (cityVenueIds.has(venueId)) {
         owners.set(ownerKey(`city:${cityId}`, pub.osmId), venueId);
+        ownersByOsmId.set(String(pub.osmId), venueId);
       }
     }
   }
 
-  return owners;
+  return { owners, ownersByOsmId };
 }
 
 function formatBytes(bytes) {
@@ -192,7 +203,8 @@ async function main() {
     throw new Error(`${PACK_PATH} has no pubs — refresh it with npm run fetch:uk-pubs`);
   }
 
-  const curatedVenueOwners = await loadCuratedVenueOwners();
+  const { owners: curatedVenueOwners, ownersByOsmId } =
+    await loadCuratedVenueOwners();
   const renderable = pubs.filter(isRenderablePub);
   const skipped = pubs.length - renderable.length;
   let matchedOwners = 0;
@@ -210,9 +222,11 @@ async function main() {
     const source = pub.curatedRef?.source;
     const id = pub.curatedRef?.id;
     const curatedVenueId =
-      typeof source === "string" && typeof id === "string"
-        ? curatedVenueOwners.get(ownerKey(source, id)) ?? ""
-        : "";
+      (typeof source === "string" && typeof id === "string"
+        ? curatedVenueOwners.get(ownerKey(source, id))
+        : undefined) ??
+      ownersByOsmId.get(String(pub.osmId)) ??
+      "";
     if (curatedVenueId) matchedOwners += 1;
     cell.rows.push(toRow(pub, curatedVenueId));
   }

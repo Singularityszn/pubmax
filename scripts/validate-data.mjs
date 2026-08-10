@@ -36,6 +36,8 @@ import {
   nightOutPlaceRowValidationErrors,
   nightOutPlaceSnapshotValidationErrors,
 } from "../lib/nightOutPlaceContract.mjs";
+import { CITY_VENUE_PACKS } from "../lib/cityVenuePacks.mjs";
+import { CITY_BOUNDS } from "../lib/cityBounds.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
@@ -115,6 +117,7 @@ const ARTIFACT_CLASSIFICATION = [
   { id: "tfl_lines", required: true, reason: "core map layer, no runtime fallback" },
   { id: "pint_prices_app_dataset", required: true, reason: "source of the priced venue dataset" },
   { id: "venues_slim", required: true, reason: "the map's first-paint venue index" },
+  { id: "city_venue_packs", required: true, reason: "each enabled non-London city map loads its pack whole; a missing or malformed pack is that city's whole map" },
   { id: "venues_slim_shards", required: true, reason: "lazy detail shards for the venue index" },
   { id: "uk_base_shards", required: true, reason: "base pub layer streamed per viewport" },
   { id: "venue_details", required: true, reason: "venue sheet detail data" },
@@ -1376,6 +1379,106 @@ function validateSlimVenues() {
   );
   if (!ok) errs.report();
   return { ok, count: slim.length };
+}
+
+// public/data/cities/*/venues_slim.json — the per-city curated packs. Each one
+// is fetched WHOLE when that city's map opens, so it carries its own payload
+// ceiling; and each is unpriced by construction, because a curated city pack is
+// built from OSM, which is not a price source. A price appearing in one would
+// be a pin claiming a figure nobody logged, which is why cheapestPrice is
+// checked here and not only in the builder that writes it.
+const CITY_PACK_BUDGET_BYTES = 300 * 1024;
+
+function validateCityPackRow(cityId, row, ids, bounds) {
+  const errors = [];
+  const { latMin, lonMin, latMax, lonMax } = bounds;
+  const label = typeof row?.name === "string" && row.name ? row.name : "(unnamed)";
+  if (typeof row?.id !== "string" || row.id.length === 0) {
+    errors.push(`${cityId}: row "${label}" has no id`);
+  } else if (ids.has(row.id)) {
+    errors.push(`${cityId}: duplicate venue id "${row.id}"`);
+  } else {
+    ids.add(row.id);
+  }
+  if (typeof row?.name !== "string" || row.name.trim().length === 0) {
+    errors.push(`${cityId}: venue "${row?.id}" has no name`);
+  }
+  if (typeof row?.borough !== "string" || row.borough.trim().length === 0) {
+    errors.push(`${cityId}: venue "${label}" has no area label`);
+  }
+  if (row?.cheapestPrice !== null) {
+    errors.push(
+      `${cityId}: venue "${label}" carries a price (${row?.cheapestPrice}); a city pack is unpriced by construction`,
+    );
+  }
+  const lat = row?.lat;
+  const lng = row?.lng;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    errors.push(`${cityId}: venue "${label}" has no finite coordinates`);
+  } else if (lat < latMin || lat > latMax || lng < lonMin || lng > lonMax) {
+    errors.push(
+      `${cityId}: venue "${label}" at ${lat},${lng} is outside the city bounds`,
+    );
+  }
+  const searchText = row?.filterHints?.searchText;
+  if (typeof searchText !== "string" || searchText.trim().length === 0) {
+    errors.push(`${cityId}: venue "${label}" has no filterHints.searchText`);
+  }
+  return errors;
+}
+
+function validateCityVenuePacks() {
+  const name = "public/data/cities/*/venues_slim.json";
+  const errs = makeCollector();
+  const ids = new Set();
+  let venues = 0;
+  let packs = 0;
+  for (const [cityId, pack] of Object.entries(CITY_VENUE_PACKS)) {
+    // London is the flagship index and has its own validator above.
+    if (!pack.enabled || cityId === "london") continue;
+    const bounds = CITY_BOUNDS[cityId];
+    if (!bounds) {
+      errs.add(`${cityId}: enabled pack has no box in lib/cityBounds.mjs`);
+      continue;
+    }
+    const file = join(ROOT_DIR, "public", pack.slimVenuesPath);
+    if (!existsSync(file)) {
+      errs.add(`${cityId}: enabled pack ${pack.slimVenuesPath} is missing`);
+      continue;
+    }
+    let raw;
+    let rows;
+    try {
+      raw = readFileSync(file, "utf8");
+      rows = JSON.parse(raw);
+    } catch (e) {
+      errs.add(`${cityId}: could not read/parse ${pack.slimVenuesPath} (${e.message})`);
+      continue;
+    }
+    if (!Array.isArray(rows) || rows.length === 0) {
+      errs.add(`${cityId}: ${pack.slimVenuesPath} is not a non-empty array`);
+      continue;
+    }
+    const bytes = Buffer.byteLength(raw);
+    if (bytes >= CITY_PACK_BUDGET_BYTES) {
+      errs.add(
+        `${cityId}: ${(bytes / 1024).toFixed(1)} KB exceeds the ${(CITY_PACK_BUDGET_BYTES / 1024).toFixed(0)} KB whole-pack budget`,
+      );
+    }
+    for (const row of rows) {
+      for (const error of validateCityPackRow(cityId, row, ids, bounds)) {
+        errs.add(error);
+      }
+    }
+    packs += 1;
+    venues += rows.length;
+  }
+  const ok = errs.count === 0;
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${packs} city pack(s), ${venues} venues, ${errs.count} error(s)`,
+  );
+  if (!ok) errs.report();
+  return { ok, count: venues };
 }
 
 // venues_slim shards — the map's first-paint payload is split into an eager
@@ -3212,6 +3315,7 @@ const DATASET_RUNS = [
   { id: "tfl_lines", run: validateTflLines },
   { id: "pint_prices_app_dataset", run: validatePintPrices },
   { id: "venues_slim", run: validateSlimVenues },
+  { id: "city_venue_packs", run: validateCityVenuePacks },
   { id: "venues_slim_shards", run: validateSlimShards },
   { id: "uk_base_shards", run: validateUkBaseShards },
   { id: "venue_details", run: validateVenueDetails },

@@ -36,6 +36,7 @@ const CITY_SHORT_LABELS: Record<CityId, string> = {
   bristol: "BRS",
   cambridge: "CAM",
   bath: "BTH",
+  llandudno: "LLD",
 };
 
 /**

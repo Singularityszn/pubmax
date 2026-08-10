@@ -9,6 +9,7 @@ export const CITY_VENUE_ID_PREFIX: Partial<Record<CityId, string>> = {
   bristol: "bri",
   cambridge: "cam",
   bath: "bat",
+  llandudno: "lla",
 } as const;
 
 const CITY_BY_PREFIX: ReadonlyMap<string, CityId> = new Map(
@@ -55,6 +56,8 @@ export function unresolvedVenueLabel(venueId?: string | null): string {
       return "A Cambridge pub";
     case "bath":
       return "A Bath pub";
+    case "llandudno":
+      return "A Llandudno pub";
     default:
       return "A London pub";
   }

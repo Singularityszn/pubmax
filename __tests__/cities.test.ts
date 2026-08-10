@@ -67,6 +67,7 @@ describe("listEnabledCities", () => {
       "durham",
       "glasgow",
       "liverpool",
+      "llandudno",
       "london",
       "manchester",
       "oxford",

@@ -83,6 +83,13 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "lib", "ukPlaceName.mjs"),
     join(scratchLib, "ukPlaceName.mjs"),
   );
+  // Which city packs ship, and the one box each is cut to and rendered inside.
+  // Both are read rather than restated, so the scratch run needs them.
+  cpSync(
+    join(ROOT, "lib", "cityVenuePacks.mjs"),
+    join(scratchLib, "cityVenuePacks.mjs"),
+  );
+  cpSync(join(ROOT, "lib", "cityBounds.mjs"), join(scratchLib, "cityBounds.mjs"));
   for (const f of [
     "london_pois.json",
     "london_localities.json",

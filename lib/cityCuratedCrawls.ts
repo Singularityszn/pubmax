@@ -39,6 +39,7 @@ export function curatedCrawlsForCity(
     case "bristol":
       return bristolCuratedCrawls;
     case "bath":
+    case "llandudno":
       return [];
     case "london":
       return curatedCrawls;

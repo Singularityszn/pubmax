@@ -56,6 +56,8 @@ export function citySearchPlaceholder(cityId: CityId, displayName: string): stri
       return "Search Bailey, Claypath, pub name…";
     case "bath":
       return "Search Widcombe, Walcot, pub name…";
+    case "llandudno":
+      return "Search Conwy, Colwyn Bay, pub name…";
     default:
       return `Search ${displayName} neighbourhood, pub name…`;
   }

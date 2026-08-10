@@ -5,8 +5,10 @@
 //
 // Which pack a city ships (and so whether it browses at all) comes from
 // lib/cityVenuePacks.mjs, because the deployment config has to read the same
-// list and cannot import TypeScript.
+// list and cannot import TypeScript. A city's BOX comes from lib/cityBounds.mjs
+// for the same reason: the pack builder and the data validator read it too.
 
+import { CITY_BOUNDS, type CityBounds } from "@/lib/cityBounds.mjs";
 import { CITY_VENUE_PACKS } from "@/lib/cityVenuePacks.mjs";
 
 export type CityId =
@@ -18,14 +20,10 @@ export type CityId =
   | "glasgow"
   | "bristol"
   | "cambridge"
-  | "bath";
+  | "bath"
+  | "llandudno";
 
-export type CityBounds = {
-  latMin: number;
-  latMax: number;
-  lonMin: number;
-  lonMax: number;
-};
+export type { CityBounds };
 
 export type CityMapView = {
   center: [number, number];
@@ -38,7 +36,7 @@ export type CityConfig = {
   id: CityId;
   displayName: string;
   tagline: string;
-  country: "england" | "scotland";
+  country: "england" | "scotland" | "wales";
   bounds: CityBounds;
   mapView: CityMapView;
   /** Browser-shipped slim venues path (London keeps existing path for back-compat) */
@@ -60,6 +58,7 @@ const CITY_IDS: readonly CityId[] = [
   "bristol",
   "cambridge",
   "bath",
+  "llandudno",
 ] as const;
 
 const CITY_ID_SET = new Set<string>(CITY_IDS);
@@ -69,15 +68,21 @@ const DEFAULT_PITCH = 42;
 const DEFAULT_BEARING = -12;
 
 function city(
-  partial: Omit<CityConfig, "mapView" | "slimVenuesPath" | "enabled"> & {
+  partial: Omit<
+    CityConfig,
+    "mapView" | "slimVenuesPath" | "enabled" | "bounds"
+  > & {
     mapView: Pick<CityMapView, "center" | "zoom"> &
       Partial<Pick<CityMapView, "pitch" | "bearing">>;
   },
 ): CityConfig {
   const { mapView, ...rest } = partial;
   const pack = CITY_VENUE_PACKS[partial.id];
+  const bounds = CITY_BOUNDS[partial.id];
+  if (!bounds) throw new Error(`No bounds for city "${partial.id}"`);
   return {
     ...rest,
+    bounds,
     slimVenuesPath: pack?.slimVenuesPath ?? "",
     enabled: Boolean(pack?.enabled),
     mapView: {
@@ -95,7 +100,6 @@ export const CITIES: Record<CityId, CityConfig> = {
     displayName: "London",
     tagline: "Price-aware crawls across the capital",
     country: "england",
-    bounds: { latMin: 51.28, latMax: 51.72, lonMin: -0.55, lonMax: 0.35 },
     // Start at useful street-level context. The London button still exposes the
     // full-city overview, while granted location refines this to the local pub cloud.
     mapView: { center: [-0.12, 51.52], zoom: 11.5, pitch: 38, bearing: -8 },
@@ -108,7 +112,6 @@ export const CITIES: Record<CityId, CityConfig> = {
     displayName: "Manchester",
     tagline: "Northern Quarter rounds and city-centre crawls",
     country: "england",
-    bounds: { latMin: 53.38, latMax: 53.55, lonMin: -2.35, lonMax: -2.1 },
     mapView: { center: [-2.24, 53.48], zoom: 11.2 },
     poisPath: "/data/cities/manchester/pois.json",
     transitLinesPath: null,
@@ -119,7 +122,6 @@ export const CITIES: Record<CityId, CityConfig> = {
     displayName: "Liverpool",
     tagline: "Waterfront crawls and Merseyrail nights",
     country: "england",
-    bounds: { latMin: 53.35, latMax: 53.48, lonMin: -3.05, lonMax: -2.85 },
     mapView: { center: [-2.98, 53.41], zoom: 11.4 },
     poisPath: "/data/cities/liverpool/pois.json",
     transitLinesPath: null,
@@ -130,7 +132,6 @@ export const CITIES: Record<CityId, CityConfig> = {
     displayName: "Oxford",
     tagline: "College-town pints and riverside walks",
     country: "england",
-    bounds: { latMin: 51.72, latMax: 51.8, lonMin: -1.3, lonMax: -1.2 },
     mapView: { center: [-1.26, 51.75], zoom: 12.2 },
     poisPath: "/data/cities/oxford/pois.json",
     transitLinesPath: null,
@@ -141,7 +142,6 @@ export const CITIES: Record<CityId, CityConfig> = {
     displayName: "Durham",
     tagline: "Cathedral-city snugs on a compact map",
     country: "england",
-    bounds: { latMin: 54.76, latMax: 54.8, lonMin: -1.6, lonMax: -1.54 },
     mapView: { center: [-1.575, 54.78], zoom: 13 },
     poisPath: "/data/cities/durham/pois.json",
     transitLinesPath: null,
@@ -152,7 +152,6 @@ export const CITIES: Record<CityId, CityConfig> = {
     displayName: "Glasgow",
     tagline: "West End crawls and Subway nights",
     country: "scotland",
-    bounds: { latMin: 55.82, latMax: 55.9, lonMin: -4.35, lonMax: -4.15 },
     mapView: { center: [-4.25, 55.86], zoom: 11.5 },
     poisPath: "/data/cities/glasgow/pois.json",
     transitLinesPath: null,
@@ -163,7 +162,6 @@ export const CITIES: Record<CityId, CityConfig> = {
     displayName: "Bristol",
     tagline: "Harbour-side rounds and hillside pubs",
     country: "england",
-    bounds: { latMin: 51.42, latMax: 51.5, lonMin: -2.65, lonMax: -2.52 },
     mapView: { center: [-2.59, 51.45], zoom: 11.8 },
     poisPath: "/data/cities/bristol/pois.json",
     transitLinesPath: null,
@@ -174,7 +172,6 @@ export const CITIES: Record<CityId, CityConfig> = {
     displayName: "Cambridge",
     tagline: "Back-lane pubs and riverside college crawls",
     country: "england",
-    bounds: { latMin: 52.18, latMax: 52.24, lonMin: 0.08, lonMax: 0.16 },
     mapView: { center: [0.12, 52.205], zoom: 12.4 },
     poisPath: "/data/cities/cambridge/pois.json",
     transitLinesPath: null,
@@ -185,8 +182,21 @@ export const CITIES: Record<CityId, CityConfig> = {
     displayName: "Bath",
     tagline: "Georgian streets and spa-city snugs",
     country: "england",
-    bounds: { latMin: 51.36, latMax: 51.4, lonMin: -2.4, lonMax: -2.32 },
     mapView: { center: [-2.36, 51.38], zoom: 12.8 },
+    poisPath: null,
+    transitLinesPath: null,
+    lastRideLabel: "Last Train",
+  }),
+  // One stretch of the North Wales coast rather than one town: Llandudno and
+  // the Great Orme, Deganwy and Llandudno Junction, Conwy, Rhos-on-Sea and
+  // Colwyn Bay. The opening camera holds the whole strip, and each pin carries
+  // the town OSM states for it, so a Conwy pub is never labelled Llandudno.
+  llandudno: city({
+    id: "llandudno",
+    displayName: "Llandudno",
+    tagline: "Seafront pubs from the Great Orme to Colwyn Bay",
+    country: "wales",
+    mapView: { center: [-3.78, 53.3], zoom: 11.6 },
     poisPath: null,
     transitLinesPath: null,
     lastRideLabel: "Last Train",

@@ -35,6 +35,7 @@ export function landmarksForCity(
     case "bristol":
       return bristolLandmarks;
     case "bath":
+    case "llandudno":
       return [];
     case "london":
       return landmarks;

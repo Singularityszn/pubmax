@@ -90,6 +90,26 @@ function editorialCoreCity(
   };
 }
 
+/**
+ * A city whose pack is the MAP and nothing else: pubs to browse and search,
+ * with no reviewed crawls, heritage or transport help yet. Kept beside
+ * editorialCoreCity so the two answers cannot drift into one vague middle.
+ */
+function mapOnlyCity(
+  cityId: Extract<CityId, "bath" | "llandudno">,
+): CityCapabilityProfile {
+  return {
+    cityId,
+    releaseTier: "core",
+    map: MAP_AVAILABLE,
+    prices: PRICES_NOT_YET_COLLECTED,
+    events: EVENTS_LONDON_ONLY,
+    routes: EDITORIAL_NOT_YET_AVAILABLE,
+    transport: TRANSPORT_NOT_YET_AVAILABLE,
+    heritage: EDITORIAL_NOT_YET_AVAILABLE,
+  };
+}
+
 export const CITY_CAPABILITY_PROFILES = {
   london: {
     cityId: "london",
@@ -120,16 +140,8 @@ export const CITY_CAPABILITY_PROFILES = {
   glasgow: editorialCoreCity("glasgow", TRANSPORT_LIMITED),
   bristol: editorialCoreCity("bristol"),
   cambridge: editorialCoreCity("cambridge"),
-  bath: {
-    cityId: "bath",
-    releaseTier: "core",
-    map: MAP_AVAILABLE,
-    prices: PRICES_NOT_YET_COLLECTED,
-    events: EVENTS_LONDON_ONLY,
-    routes: EDITORIAL_NOT_YET_AVAILABLE,
-    transport: TRANSPORT_NOT_YET_AVAILABLE,
-    heritage: EDITORIAL_NOT_YET_AVAILABLE,
-  },
+  bath: mapOnlyCity("bath"),
+  llandudno: mapOnlyCity("llandudno"),
 } as const satisfies Record<CityId, CityCapabilityProfile>;
 
 export function getCityCapabilityProfile(
