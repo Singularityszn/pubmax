@@ -32,6 +32,24 @@ describe("tonightInviteDraft", () => {
   });
 });
 
+describe("buildTonightAgentGenerateBody", () => {
+  it("sends a trimmed query with every unanswered intake step marked skipped", async () => {
+    const tonightAgentModule = await import("@/lib/tonightAgent");
+    const buildBody = Reflect.get(tonightAgentModule, "buildTonightAgentGenerateBody") as
+      | ((query: string) => unknown)
+      | undefined;
+
+    expect(buildBody?.("  Step-free in Camden  ")).toMatchObject({
+      query: "Step-free in Camden",
+      intake: {
+        version: 1,
+        accessibilityNeeds: [],
+        skipped: expect.arrayContaining(["accessibility"]),
+      },
+    });
+  });
+});
+
 describe("interpretTonightAgentGenerateBody", () => {
   it("fails closed on scarcity 422 without inventing stops", () => {
     const result = interpretTonightAgentGenerateBody(false, {

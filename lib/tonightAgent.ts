@@ -2,6 +2,12 @@
 // Never invents prices or routes. A 422 scarcity answer is the product working.
 
 import { formatPriceDay } from "@/lib/communityPrice";
+import {
+  createPlanIntakeDraft,
+  planIntakeHandoff,
+  skipRemainingPlanIntake,
+  type PlanIntakeHandoff,
+} from "@/lib/planIntake";
 import type { PlanPriceEvidence } from "@/lib/planRouteEvidence";
 import {
   buildPlanInviteShareText,
@@ -54,6 +60,19 @@ export const TONIGHT_AGENT_NEXT_STEP =
   "Lock the plan, then send this on WhatsApp. The invite link appears after lock.";
 
 const FALLBACK_ERROR_MESSAGE = "PUBMAXX couldn't sort this one.";
+
+export type TonightAgentGenerateBody = {
+  query: string;
+  intake: PlanIntakeHandoff;
+};
+
+/** Use the completed Plan intake seam so free-text needs reach grounding. */
+export function buildTonightAgentGenerateBody(query: string): TonightAgentGenerateBody {
+  return {
+    query: query.trim(),
+    intake: planIntakeHandoff(skipRemainingPlanIntake(createPlanIntakeDraft())),
+  };
+}
 
 /** Invite draft text from honest plan facts only. */
 export function tonightInviteDraft(input: PlanInviteShareInput): string {

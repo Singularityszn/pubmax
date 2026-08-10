@@ -8,6 +8,7 @@ import { FormEvent, useState } from "react";
 import { transferGeneratedRouteToDraft } from "@/lib/mapRouteTransfer";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 import {
+  buildTonightAgentGenerateBody,
   interpretTonightAgentGenerateBody,
   tonightStopPriceCaption,
   type TonightAgentResult,
@@ -34,7 +35,7 @@ export default function TonightAgentPanel() {
       const response = await fetch("/api/plans/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ query: trimmed }),
+        body: JSON.stringify(buildTonightAgentGenerateBody(query)),
       });
       const body = await response.json().catch(() => null);
       setRawBody(body);
