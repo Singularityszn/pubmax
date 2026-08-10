@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-09T20:12:53.595Z",
+  "generatedAt": "2026-08-10T08:43:37.191Z",
   "region": "greater-london",
   "notes": "Website and opening hours read off each venue's OWN page, and only where the page states them. A day the page never mentions is absent rather than assumed; an explicitly closed day is an empty window list. `statedDays` says how much of the week the page actually spoke about. Records accumulate across runs and are replaced only by a fresher reading of the same venue.",
   "venues": [
@@ -14,7 +14,7 @@
         "label": "The Yorkshire Grey - official site",
         "url": "https://www.yorkshiregrey.com/"
       },
-      "observedAt": "2026-08-09T20:12:53.595Z"
+      "observedAt": "2026-08-10T08:43:37.191Z"
     },
     {
       "venueId": "venue-136xtuu",
@@ -35,7 +35,19 @@
         "label": "The Colonel Fawcett - official site",
         "url": "https://thecolonelfawcett.co.uk/"
       },
-      "observedAt": "2026-08-09T20:12:53.595Z"
+      "observedAt": "2026-08-10T08:43:37.191Z"
+    },
+    {
+      "venueId": "venue-18p3brm",
+      "placeName": "The Sutton Arms",
+      "website": "https://www.sutton-arms.co.uk/",
+      "openingHours": {},
+      "statedDays": [],
+      "source": {
+        "label": "The Sutton Arms - official site",
+        "url": "https://www.sutton-arms.co.uk/"
+      },
+      "observedAt": "2026-08-10T08:43:37.191Z"
     },
     {
       "venueId": "venue-1ar7s8w",
@@ -47,7 +59,7 @@
         "label": "The Boot - official site",
         "url": "https://theboot.website/"
       },
-      "observedAt": "2026-08-09T20:12:53.595Z"
+      "observedAt": "2026-08-10T08:43:37.191Z"
     },
     {
       "venueId": "venue-1f5ygjb",
@@ -138,7 +150,7 @@
         "label": "The Bohemia - official site",
         "url": "https://www.thebohemia.co.uk/"
       },
-      "observedAt": "2026-08-09T20:12:53.595Z"
+      "observedAt": "2026-08-10T08:43:37.191Z"
     },
     {
       "venueId": "venue-1pf9vt5",
@@ -150,7 +162,7 @@
         "label": "The Furze Wren - JD Wetherspoon - official site",
         "url": "https://www.jdwetherspoon.com/pubs/the-furze-wren-bexleyheath/"
       },
-      "observedAt": "2026-08-09T20:12:53.595Z"
+      "observedAt": "2026-08-10T08:43:37.191Z"
     },
     {
       "venueId": "venue-1pfnt71",
@@ -178,7 +190,7 @@
         "label": "Blues Kitchen - official site",
         "url": "https://theblueskitchen.com/camden/"
       },
-      "observedAt": "2026-08-09T20:12:53.595Z"
+      "observedAt": "2026-08-10T08:43:37.191Z"
     },
     {
       "venueId": "venue-1r447i7",
@@ -190,7 +202,7 @@
         "label": "The Tipperary - official site",
         "url": "http://www.thetipperarypub.com/"
       },
-      "observedAt": "2026-08-09T20:12:53.595Z"
+      "observedAt": "2026-08-10T08:43:37.191Z"
     },
     {
       "venueId": "venue-1xu6lap",
@@ -202,7 +214,67 @@
         "label": "The Enterprise - official site",
         "url": "https://www.the-enterprise.co.uk/"
       },
-      "observedAt": "2026-08-09T20:12:53.595Z"
+      "observedAt": "2026-08-10T08:43:37.191Z"
+    },
+    {
+      "venueId": "venue-2k9hok",
+      "placeName": "Canonbury Tavern",
+      "website": "https://www.thecanonbury.co.uk/",
+      "openingHours": {
+        "0": [
+          {
+            "opens": "12:00",
+            "closes": "23:00"
+          },
+          {
+            "opens": "12:00",
+            "closes": "21:00"
+          }
+        ],
+        "1": [
+          {
+            "opens": "11:00",
+            "closes": "23:00"
+          }
+        ],
+        "2": [
+          {
+            "opens": "11:00",
+            "closes": "23:00"
+          }
+        ],
+        "3": [
+          {
+            "opens": "11:00",
+            "closes": "23:00"
+          }
+        ],
+        "4": [
+          {
+            "opens": "11:00",
+            "closes": "00:00"
+          }
+        ],
+        "5": [
+          {
+            "opens": "11:00",
+            "closes": "00:00"
+          }
+        ]
+      },
+      "statedDays": [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday"
+      ],
+      "source": {
+        "label": "Canonbury Tavern - official site",
+        "url": "https://www.thecanonbury.co.uk/"
+      },
+      "observedAt": "2026-08-10T08:43:37.191Z"
     },
     {
       "venueId": "venue-3h52h",
@@ -214,7 +286,7 @@
         "label": "The Elephant Inn - official site",
         "url": "https://www.elephantinnfinchley.co.uk/"
       },
-      "observedAt": "2026-08-09T20:12:53.595Z"
+      "observedAt": "2026-08-10T08:43:37.191Z"
     },
     {
       "venueId": "venue-59ibpp",
@@ -238,7 +310,7 @@
         "label": "The Albion - official site",
         "url": "https://www.thealbionlondon.com/"
       },
-      "observedAt": "2026-08-09T20:12:53.595Z"
+      "observedAt": "2026-08-10T08:43:37.191Z"
     },
     {
       "venueId": "venue-d6icqd",
@@ -250,7 +322,7 @@
         "label": "Sheephaven Bay - official site",
         "url": "https://sheephavenbaycamden.co.uk/"
       },
-      "observedAt": "2026-08-09T20:12:53.595Z"
+      "observedAt": "2026-08-10T08:43:37.191Z"
     },
     {
       "venueId": "venue-kn357t",
@@ -262,7 +334,7 @@
         "label": "The Rose - official site",
         "url": "https://therosebexley.co.uk/"
       },
-      "observedAt": "2026-08-09T20:12:53.595Z"
+      "observedAt": "2026-08-10T08:43:37.191Z"
     }
   ]
 }
