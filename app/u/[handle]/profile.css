@@ -1865,6 +1865,20 @@
 .accountHubReferral { min-width: 0; }
 .accountHubReferral h3, .accountHubReferral p { margin: 0; }
 .accountHubReferralProgress { color: var(--ink-muted); }
+/* The referral mark. Same family as the founding mark, and quieter still: it is
+   recognition, so it reads as a record rather than a prize, and nothing in the
+   product is behind it. */
+.accountHubReferralMark {
+  align-self: start;
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--brass) 34%, var(--line));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--brass) 9%, transparent);
+  color: var(--brass);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.35;
+}
 .accountHubReferralLink { display: grid; min-width: 0; gap: .35rem; color: var(--ink-muted); font-size: .8rem; font-weight: 700; }
 .accountHubReferralLink input { min-width: 0; }
 .accountHubActions { display: flex; flex-wrap: wrap; gap: .4rem; }

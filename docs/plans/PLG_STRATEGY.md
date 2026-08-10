@@ -54,7 +54,7 @@ flowchart LR
 | Pint Index + OG cards | Press / content virality | Must convert to map with intent (`components/pintindex/PintIndexArrival.tsx`) |
 | Community prices (2-person corroboration) | Data network effect | Cold-start: uncorroborated prices do not paint pins |
 | ShareBar / WhatsApp builders | Distribution | Sharing is available; not forced at the moment of value |
-| Social / crews / presence / referrals | Identity network | Beta off; rewards gated; densifies *after* loops A/B work |
+| Social / crews / presence / referrals | Identity network | Beta off; referral marks confer nothing; densifies *after* loops A/B work |
 | PostHog funnels ([docs/METRICS_FUNNEL.md](docs/METRICS_FUNNEL.md)) | Measurement | Instrument invite k-factor and price flywheel as weekly operating metrics |
 
 **Unknown factors you must treat as risks, not vibes**
@@ -85,7 +85,7 @@ flowchart LR
 4. Pint Index → map reach rate
 5. Return: `activity_pulse` second-session rate (press target >2% is a floor, not a goal)
 
-Ignore vanity: follower counts, Social DAU while beta is off, referral rewards while grant gate is closed.
+Ignore vanity: follower counts, Social DAU while beta is off, referral milestone counts (a mark buys nothing, so it measures nothing).
 
 ---
 
@@ -126,7 +126,7 @@ Only after Waves 1–2 show k-factor and coverage moving:
 - **We’re out / presence** scoped to Mutuals / crew on a plan — never city-wide stranger radar
 - Reuse plan invite → optional “add to lot” (`/add/[handle]`) after the night, not before value
 - Keep Social invite-beta off until moderators + age gate + spam floors are staffed
-- Referral rewards stay closed until multi-account abuse is solved ([docs/REFERRALS.md](docs/REFERRALS.md))
+- A referral milestone stays a mark of honour: recognition only, never a feature ([docs/REFERRALS.md](../REFERRALS.md))
 
 **Done when:** crews who planned once plan again within 14 days with ≥2 returning handles.
 
@@ -136,11 +136,20 @@ Expand city packs only when London’s price graph and invite loop are obviously
 
 ---
 
+## Standing commitments (these do not expire with a wave)
+
+- **A referral is a mark of honour, never a feature.** A milestone confers recognition and nothing in the product branches on it. The capability-grant model that used to sit behind a closed gate is deleted, in TypeScript and in SQL ([`docs/REFERRALS.md`](../REFERRALS.md), `lib/referrals.ts`).
+- **The annual Year in Pints wrap is free forever.** It is a person's own year read back to them, so it never sits behind a price, a tier, a referral count or an account upgrade. It is not a growth lever to be metered later.
+- **First revenue comes from venues, never drinkers.** A drinker pays for nothing. No drinker-facing paywall, membership or metered read is built before the venue rail earns ([ADR 0011](../adr/0011-venue-operator-rail.md), [ADR 0012](../adr/0012-entitlement-ledger-contract.md)).
+
+---
+
 ## Explicit anti-goals (protect the monopoly)
 
 - Do not build a general Twitter clone (public feed, viral posts, creator graph) as the growth engine
 - Do not pay for rank or sell pin colour (brand moat = honesty)
-- Do not unlock referral bounties early
+- Do not rebuild referral bounties, tiers or milestone feature grants in any form
+- Do not charge a drinker for anything, and do not gate Year in Pints
 - Do not expand to 10 cities to look big
 - Do not require accounts to see prices or open a plan invite
 - Do not measure success by Social DAU while the beta flag is off

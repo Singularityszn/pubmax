@@ -251,10 +251,14 @@ export default function TermsPage() {
           referrals between two accounts don&rsquo;t count.
         </p>
         <p className="legalBody">
-          Referral rewards aren&rsquo;t active. We can record private edges and
-          milestones, but those records don&rsquo;t grant access to paid features
-          because sign-in can&rsquo;t prove that one person has only one account.
-          They are milestones only, with no reward attached.
+          A referral milestone is a mark of honour. Reaching one puts a line on
+          your own account page and does nothing else. It buys no feature, no
+          tier and no discount, and nothing on PUBMAXX is held back from anyone
+          who has invited nobody.
+        </p>
+        <p className="legalBody">
+          We record the private edge and the milestone. We do not record, and
+          cannot grant, any paid feature from either.
         </p>
       </section>
 

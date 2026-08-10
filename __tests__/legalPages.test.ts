@@ -457,11 +457,15 @@ describe("legal content pages", () => {
     expect(privacy).not.toMatch(/Unclaimed journeys/i);
   });
 
-  it("states referral qualification and the closed reward gate in the terms", () => {
+  it("states referral qualification and the mark-of-honour law in the terms", () => {
     expect(terms).toMatch(/self-referrals/i);
     expect(terms).toMatch(/circular\s+referrals/i);
     expect(terms).toMatch(/signs up and makes a first accepted contribution/i);
-    expect(terms).toMatch(/referral rewards aren&rsquo;t active/i);
-    expect(terms).toMatch(/don&rsquo;t grant access/i);
+    // The terms describe what the code does. A milestone confers recognition,
+    // so the page may not go back to promising, or withholding, a feature.
+    expect(terms).toMatch(/mark of honour/i);
+    expect(terms).toMatch(/buys no feature, no\s+tier and no discount/i);
+    expect(terms).toMatch(/cannot grant, any paid feature/i);
+    expect(terms).not.toMatch(/rewards? aren&rsquo;t active/i);
   });
 });

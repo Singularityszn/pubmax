@@ -1,14 +1,13 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import {
-  REFERRAL_GRANT_GATE,
   REFERRAL_MILESTONES,
   REFERRAL_SIGNUP_PROOF_TTL_MS,
-  referralFeatureForMilestone,
-  referralFeaturesGrantedBy,
-  type ReferralFeature,
+  nextReferralMilestone,
+  parseReferralMilestone,
+  referralMarkForCount,
   type ReferralMilestone,
-  type ReferralRewardEvent,
+  type ReferralMilestoneEvent,
 } from "@/lib/referrals";
 import {
   createFailSoftGuard,
@@ -25,19 +24,19 @@ export type ReferralContributionKind =
   | "visit_report"
   | "recommendation";
 
-export type ReferralEarnedReward = ReferralRewardEvent & {
-  event: "milestone_earned";
-  grantStatus: "blocked_identity";
+export type ReferralEarnedMilestone = ReferralMilestoneEvent & {
   earnedAt: string;
   qualifiedCount: number;
+  /** The line the owner's profile prints for this milestone. */
+  mark: string;
 };
 
 export type ReferralPrivateStatus = {
   attributedCount: number;
   qualifiedCount: number;
-  earned: ReferralEarnedReward[];
-  grantedFeatures: ReferralFeature[];
-  grantsEnabled: false;
+  earned: ReferralEarnedMilestone[];
+  /** The highest mark earned so far, or null for somebody with none yet. */
+  mark: string | null;
   nextMilestone: ReferralMilestone | null;
 };
 
@@ -130,7 +129,7 @@ const edgeByInvitee = new Map<string, MemoryEdge>();
 const edgeById = new Map<string, MemoryEdge>();
 const qualificationsByEdge = new Map<string, MemoryQualification>();
 const erasedReferralIdentities = new Set<string>();
-type MemoryLedgerRow = ReferralEarnedReward & {
+type MemoryLedgerRow = ReferralEarnedMilestone & {
   triggeringEdgeId: string;
 };
 
@@ -153,9 +152,32 @@ function emptyStatus(): ReferralPrivateStatus {
     attributedCount: 0,
     qualifiedCount: 0,
     earned: [],
-    grantedFeatures: [],
-    grantsEnabled: false,
+    mark: null,
     nextMilestone: 1,
+  };
+}
+
+/**
+ * The ONE projection of a stored milestone row into what a caller may see. It
+ * is what keeps the durable row's own vocabulary off the wire: until migration
+ * 0101 is applied, `read_private_referral_status` still returns the retired
+ * `feature` and `grantStatus` keys, and a row handed through unprojected would
+ * put a feature name back in front of a reader. A row that names no milestone
+ * we recognise is dropped rather than guessed at.
+ */
+function earnedFromRow(raw: unknown): ReferralEarnedMilestone | null {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Record<string, unknown>;
+  const milestone = parseReferralMilestone(row.milestone);
+  if (milestone === null) return null;
+  const qualifiedCount = Number(row.qualifiedCount ?? 0);
+  return {
+    event: "milestone_earned",
+    milestone,
+    permanent: true,
+    earnedAt: typeof row.earnedAt === "string" ? row.earnedAt : "",
+    qualifiedCount: Number.isFinite(qualifiedCount) ? qualifiedCount : 0,
+    mark: referralMarkForCount(milestone) ?? "",
   };
 }
 
@@ -172,12 +194,11 @@ function earnedRowsFor(
     if (qualifiedCount < milestone || recorded.has(milestone)) continue;
     additions.push({
       event: "milestone_earned",
-      feature: referralFeatureForMilestone(milestone),
       milestone,
       permanent: true,
-      grantStatus: "blocked_identity",
       earnedAt: new Date(now).toISOString(),
       qualifiedCount,
+      mark: referralMarkForCount(milestone) ?? "",
       triggeringEdgeId,
     });
   }
@@ -331,26 +352,15 @@ export const memoryReferralStore: ReferralStore = {
     const qualifiedCount = edges.filter((edge) =>
       qualificationsByEdge.has(edge.id)
     ).length;
-    const earned: ReferralEarnedReward[] = (
-      ledgerByInviter.get(inviter) ?? []
-    ).map((entry) => ({
-      event: entry.event,
-      feature: entry.feature,
-      milestone: entry.milestone,
-      permanent: entry.permanent,
-      grantStatus: entry.grantStatus,
-      earnedAt: entry.earnedAt,
-      qualifiedCount: entry.qualifiedCount,
-    }));
-    const nextMilestone =
-      REFERRAL_MILESTONES.find((milestone) => milestone > qualifiedCount) ?? null;
+    const earned = (ledgerByInviter.get(inviter) ?? [])
+      .map(earnedFromRow)
+      .filter((row): row is ReferralEarnedMilestone => row !== null);
     return {
       attributedCount: edges.length,
       qualifiedCount,
       earned,
-      grantedFeatures: referralFeaturesGrantedBy(earned),
-      grantsEnabled: REFERRAL_GRANT_GATE.enabled,
-      nextMilestone,
+      mark: referralMarkForCount(qualifiedCount),
+      nextMilestone: nextReferralMilestone(qualifiedCount),
     };
   },
 
@@ -399,9 +409,14 @@ const { guard, resetWarnings } = createFailSoftGuard({
     "referral_invite_codes",
     "referral_edges",
     "referral_qualification_events",
+    // Both names on purpose: 0101 renames the ledger, and this list only
+    // matches the table name inside a missing-schema error. Naming one name
+    // would send a real schema miss down the wrong branch either side of the
+    // migration landing.
+    "referral_milestone_ledger",
     "pro_feature_unlock_ledger",
   ],
-  migrationHint: "apply migration 0060",
+  migrationHint: "apply migrations 0060 and 0101",
 });
 
 function missingReferralStorageFallback<T>(
@@ -409,7 +424,7 @@ function missingReferralStorageFallback<T>(
 ): Promise<T> {
   return onMissingDurableWrite({
     storeTag: "referrals",
-    migrationHint: "apply migration 0060",
+    migrationHint: "apply migrations 0060 and 0101",
     fallback,
   });
 }
@@ -585,21 +600,16 @@ export const supabaseReferralStore: ReferralStore = {
         if (error) throw new Error(error.message);
         const row = objectRow(data);
         const earnedRaw = Array.isArray(row.earned) ? row.earned : [];
-        const earned = earnedRaw.filter(
-          (item): item is ReferralEarnedReward =>
-            Boolean(item && typeof item === "object"),
-        );
+        const earned = earnedRaw
+          .map(earnedFromRow)
+          .filter((item): item is ReferralEarnedMilestone => item !== null);
         const qualifiedCount = Number(row.qualified_count ?? 0);
         return {
           attributedCount: Number(row.attributed_count ?? 0),
           qualifiedCount,
           earned,
-          grantedFeatures: referralFeaturesGrantedBy(earned),
-          grantsEnabled: false,
-          nextMilestone:
-            REFERRAL_MILESTONES.find(
-              (milestone) => milestone > qualifiedCount,
-            ) ?? null,
+          mark: referralMarkForCount(qualifiedCount),
+          nextMilestone: nextReferralMilestone(qualifiedCount),
         };
       },
     });

@@ -1,15 +1,20 @@
 # Referral integrity
 
-Referral system records facts now and grants nothing. This split matters because
-an append-only, permanent benefit needs stronger proof than current account and
-contribution paths can provide.
+A referral milestone is a MARK OF HONOUR. It confers recognition and never a
+capability. This is the founding-member law ([`lib/foundingMembers.ts`](../lib/foundingMembers.ts))
+applied to a second status: somebody who has invited five mates sees the same
+map, the same prices and the same planner as somebody who has invited nobody.
+
+Nothing in the product may branch on a referral count. A change that reads one
+to decide whether a feature runs is the wrong shape.
+`__tests__/referralMarkLaw.test.ts` is the fence.
 
 ## Boundaries
 
 `lib/referralStore.ts` owns private invite codes, immutable account edges,
-qualification events, and reward history. `lib/referrals.ts` owns milestone
-policy and closed grant gate. Public profiles and contribution leaderboards
-must not import either module.
+qualification events, and milestone history. `lib/referrals.ts` owns milestone
+policy and the mark copy. Public profiles and contribution leaderboards must
+not import either module.
 
 Following an invite redirects with its opaque code in a URL fragment. No
 referral cookie or server-side attribution state is created while the person
@@ -29,20 +34,29 @@ accepted contribution carrying that invited account's verified auth ID. Current
 contribution rows do not carry that proof, so no production route calls the
 qualification seam.
 
-## Grant gate
+## What a milestone is, and what it replaced
 
-Milestone evaluation may append an earned record, but entitlement reads accept
-only a later `feature_granted` event. No such event can be written while
-`REFERRAL_GRANT_GATE` is closed.
+Reaching 1, 3 or 5 qualified referrals appends one milestone row and earns one
+line of copy: "Brought a mate in", "Brought 3 mates in", "Brought 5 mates in".
+The line is printed on the owner's own account surface and read nowhere else.
 
-Opening the gate requires both:
+Until 2026-08-10 the model was the opposite. Each milestone named a pro feature
+(`collaborative_night_credit`, `continuing_memories`,
+`post_trial_collaboration`), the ledger could record a `feature_granted` event,
+and one closed gate held it shut until person-level anti-abuse landed. A closed
+gate is a mute button, not a decision: the model still existed and one flag
+stood between it and shipping. Captain decision 2026-08-10 deleted it, in
+TypeScript and in SQL (migration `0101` + rollback; captain applies).
 
-- accepted contribution writes derive a verified account ID on the server
-- a reviewed person-level check can reject one person operating several OAuth
-  accounts without pretending an account ID proves a human
+The abuse argument goes with the grants. Somebody who games the count wins a
+sentence about themselves and nothing else, which is why recognition may ship
+where a grant could not. Two things follow:
 
-Direct self-edges and two-account circles are rejected already. That is
-necessary, but it is not the person-level proof needed for permanent benefits.
+- The mark stays on the owner's OWN private surface. Making it public would
+  need the person-level check first, because a public mark is a claim about
+  somebody made in front of everybody else.
+- Direct self-edges and two-account circles are still rejected. Cheap integrity
+  stays; it just no longer guards anything worth stealing.
 
 ## Identity handoff
 
@@ -57,8 +71,9 @@ identity would change each boundary:
   evidence of new signup
 - accepted contribution writes must attach that same canonical identity on the
   server before they may call the qualification seam
-- person-level anti-self-referral checks must run before qualification and
-  before any grant event, because two Auth IDs do not prove two people
+- person-level anti-self-referral checks must run before qualification, and
+  before a mark is ever shown in public, because two Auth IDs do not prove two
+  people
 - account deletion must erase referral data through every Auth-account mapping
   attached to the canonical contributor
 

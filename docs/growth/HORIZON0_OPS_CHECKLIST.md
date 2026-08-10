@@ -18,7 +18,8 @@ Captain still owns merge of #747, `vercel promote`, and the human WhatsApp cohor
 ## Do not do in this wave
 
 - Enable `SOCIAL_INVITE_BETA_ENABLED`
-- Unlock referral grants
+- Rebuild referral feature grants in any form (a milestone is a mark of honour: [`docs/REFERRALS.md`](../REFERRALS.md))
+- Charge a drinker for anything, or gate the annual Year in Pints wrap
 - Add Stripe Checkout
 - Market non-London city packs for optics
 - Claim “we beat Stripe” in any copy

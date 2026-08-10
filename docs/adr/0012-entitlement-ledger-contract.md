@@ -22,10 +22,16 @@ When a ledger is built later, it must:
 
 1. Own grant / revoke / expire as first-party rows (processor-agnostic truth).
 2. Accept processor receipts as evidence inputs only.
-3. Never grant entitlement from referral milestones until anti-abuse is solved
-   (`docs/REFERRALS.md`).
-4. Never gate map price reads or plan invite RSVP behind payment.
-5. Keep rounds as spend diary, never debt (`lib/rounds.ts`), until a licensed
+3. Never grant entitlement from referral milestones. A milestone is a mark of
+   honour and confers recognition only (`docs/REFERRALS.md`). This is not a
+   sequencing note waiting on anti-abuse: the capability-grant model is
+   deleted.
+4. Never gate map price reads, plan invite RSVP, or the annual Year in Pints
+   wrap behind payment. The wrap is free forever.
+5. Earn from VENUES first. A drinker pays for nothing, and no drinker-facing
+   paywall, membership or metered read is built before the venue rail earns
+   (ADR 0011).
+6. Keep rounds as spend diary, never debt (`lib/rounds.ts`), until a licensed
    PSP settlement path exists as an explicit later ADR.
 
 **Near-term substitute:** capability flags already in tree (Social beta,
