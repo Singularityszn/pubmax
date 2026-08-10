@@ -16,7 +16,7 @@ import {
   type CommunityPriceAttribution,
   type CommunityPriceMapReach,
 } from "@/lib/communityPrice";
-import { submitCategoriesForLane } from "@/lib/drinkLanes";
+import { drinkLaneNoun, submitCategoriesForLane } from "@/lib/drinkLanes";
 import { formatPriceGbp, QUICK_ADD_PRICES_GBP } from "@/lib/spill";
 import { mergePriceChips } from "@/lib/spillPreview";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -253,6 +253,9 @@ export default function VenuePriceSubmit({
           <span className="vpsubCurrency" aria-hidden="true">
             £
           </span>
+          {/* The field's accessible name takes the SENTENCE noun, not the chip
+              label: the chips are menu-section names, so lowercasing one read
+              out as "price of a cocktails". The lane table owns the singular. */}
           <input
             ref={priceInputRef}
             className="vpsubInput"
@@ -263,7 +266,7 @@ export default function VenuePriceSubmit({
             placeholder="4.20"
             value={price}
             maxLength={6}
-            aria-label={`Price of a ${submitCategoryLabel(category).toLowerCase()} at ${venueName}, in pounds`}
+            aria-label={`Price of a ${drinkLaneNoun(category)} at ${venueName}, in pounds`}
             aria-invalid={visibleError !== null}
             aria-describedby={visibleError ? "vpsubError" : undefined}
             onChange={(event) => {

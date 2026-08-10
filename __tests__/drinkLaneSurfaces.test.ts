@@ -237,6 +237,17 @@ describe("VenuePriceSubmit", () => {
     );
   });
 
+  it("names the drink in the singular where a sentence needs it", () => {
+    // The chips are menu-section names, so lowercasing one read out to a
+    // screen reader as "price of a cocktails".
+    expect(renderComposer("cocktail")).toContain(
+      'aria-label="Price of a cocktail at The Crown, in pounds"',
+    );
+    expect(renderComposer("soft-drink")).toContain(
+      'aria-label="Price of a soft drink at The Crown, in pounds"',
+    );
+  });
+
   it("still opens on beer where no lane is passed", () => {
     const html = renderToStaticMarkup(
       createElement(VenuePriceSubmit, {
