@@ -1,12 +1,12 @@
 {
   "version": 1,
   "mode": "cli",
-  "startedAt": "2026-08-09T20:12:53.595Z",
-  "finishedAt": "2026-08-09T20:20:32.965Z",
+  "startedAt": "2026-08-10T08:43:37.191Z",
+  "finishedAt": "2026-08-10T08:51:59.463Z",
   "budget": {
     "limit": 220,
-    "spent": 120,
-    "remaining": 100
+    "spent": 116,
+    "remaining": 104
   },
   "sources": [
     {
@@ -128,7 +128,7 @@
         },
         {
           "reason": "no-date",
-          "count": 12
+          "count": 11
         },
         {
           "reason": "no-whats-on-page-published",
@@ -140,10 +140,10 @@
         },
         {
           "reason": "venue-site-unreadable",
-          "count": 2
+          "count": 1
         }
       ],
-      "evidence": "Read 22 venue site(s); 13 published a what's-on page, and none of those listings stated a kind, a date and a time together."
+      "evidence": "Read 23 venue site(s); 14 published a what's-on page, and none of those listings stated a kind, a date and a time together."
     },
     {
       "sourceId": "operator-pages",
@@ -152,20 +152,20 @@
       "kind": "pub-facts",
       "firstParty": true,
       "status": "harvested",
-      "statedItems": 13,
-      "rowsEmitted": 13,
+      "statedItems": 14,
+      "rowsEmitted": 14,
       "drops": [
         {
           "reason": "no-operator-page",
-          "count": 15
+          "count": 16
         },
         {
           "reason": "search-failed:http-error",
-          "count": 7
+          "count": 6
         },
         {
           "reason": "robots-unreadable",
-          "count": 5
+          "count": 4
         }
       ]
     }
@@ -175,7 +175,7 @@
     "empty": 3,
     "skipped": 4,
     "failed": 0,
-    "statedItems": 19,
-    "rowsEmitted": 493
+    "statedItems": 20,
+    "rowsEmitted": 494
   }
 }
