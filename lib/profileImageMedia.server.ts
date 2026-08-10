@@ -12,12 +12,13 @@ import {
   requireSupabaseAdmin,
   STORAGE_BUCKET,
 } from "@/lib/supabase";
-import { magicBytesOk } from "@/lib/imageSafety";
 import {
+  downloadUploadedImageObject,
   prepareUploadedImage,
   UPLOADED_IMAGE_MAX_BYTES,
   UPLOADED_IMAGE_MAX_DIMENSION,
   UPLOADED_IMAGE_MAX_PIXELS,
+  type DownloadedUploadedImage,
   type PreparedImage,
 } from "@/lib/uploadedImage.server";
 
@@ -175,23 +176,17 @@ export async function signProfileImageObject(
   return storage.sign(objectKey, PROFILE_IMAGE_SIGNED_TTL_SECONDS);
 }
 
-export type DownloadedProfileImage = {
-  bytes: Buffer;
-  contentType: "image/jpeg";
-};
+export type DownloadedProfileImage = DownloadedUploadedImage;
 
-/** Read approved serving bytes from the private bucket. Absent objects return null. */
+/**
+ * Read approved serving bytes from the private bucket. Absent objects return
+ * null and say why once in the log; the read half is shared with the pub photo
+ * wall for the reason the write half is (`lib/uploadedImage.server.ts`).
+ */
 export async function downloadProfileImageObject(
   objectKey: string,
 ): Promise<DownloadedProfileImage | null> {
-  if (!isSupabaseConfigured()) return null;
-  const { data, error } = await requireSupabaseAdmin()
-    .storage.from(STORAGE_BUCKET)
-    .download(objectKey);
-  if (error || !data) return null;
-  const bytes = Buffer.from(await data.arrayBuffer());
-  if (!magicBytesOk(bytes, "image/jpeg")) return null;
-  return { bytes, contentType: "image/jpeg" };
+  return downloadUploadedImageObject(objectKey);
 }
 
 /** Delete every object in one slot under a profile (all generations). */

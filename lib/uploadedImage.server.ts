@@ -23,6 +23,8 @@ import {
   magicBytesOk,
   stripImageMetadata,
 } from "@/lib/imageSafety";
+import { log } from "@/lib/log";
+import { isSupabaseConfigured, requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 
 export const UPLOADED_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 export const UPLOADED_IMAGE_MAX_DIMENSION = 12_000;
@@ -38,6 +40,64 @@ export const UPLOADED_IMAGE_ALLOWED_TYPES: ReadonlySet<string> = new Set([
   "image/png",
   "image/webp",
 ]);
+
+/** Serving bytes read back out of the private bucket. */
+export type DownloadedUploadedImage = {
+  bytes: Buffer;
+  contentType: "image/jpeg";
+};
+
+/** Why bytes we stored could not be read back. Log-only; nothing branches on it. */
+type UploadedImageReadFailure = "storage_error" | "magic_bytes_mismatch";
+
+// A null here becomes a reader-facing 404, which is the right answer and a
+// terrible finding: a photo its owner uploaded minutes ago and a key that was
+// never written read identically. One quiet warn line, naming the object and
+// what actually refused, is the difference between a bug report and a
+// diagnosis. `warn` rather than `error` for the reason the advisory scan skip
+// is: the reader got a defined answer, our storage is what is not well.
+function unreadable(
+  objectKey: string,
+  reason: UploadedImageReadFailure,
+  detail: string,
+): null {
+  log("warn", "uploaded_image.object_unreadable", { objectKey, reason, detail });
+  return null;
+}
+
+/**
+ * Read one stored JPEG back. Shared by every owned-image serve route - the
+ * avatar, the cover and a pub wall photo - because the write half is shared and
+ * a second copy of "what counts as unreadable" is how the surfaces drift.
+ *
+ * Absent or unreadable objects return null, and say why once in the log.
+ */
+export async function downloadUploadedImageObject(
+  objectKey: string,
+): Promise<DownloadedUploadedImage | null> {
+  if (!isSupabaseConfigured()) return null;
+  const { data, error } = await requireSupabaseAdmin()
+    .storage.from(STORAGE_BUCKET)
+    .download(objectKey);
+  if (error || !data) {
+    return unreadable(objectKey, "storage_error", error?.message ?? "no object returned");
+  }
+  const bytes = Buffer.from(await data.arrayBuffer());
+  if (!magicBytesOk(bytes, "image/jpeg")) {
+    // What we stored is sharp's own JPEG, checked before it left this module,
+    // so a mismatch is the object having changed under us rather than a picky
+    // reader. Say what actually came back.
+    const leading = [...bytes.subarray(0, 4)]
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join(" ");
+    return unreadable(
+      objectKey,
+      "magic_bytes_mismatch",
+      `${bytes.byteLength} bytes, leading ${leading || "none"}`,
+    );
+  }
+  return { bytes, contentType: "image/jpeg" };
+}
 
 export type UploadedImageErrorCode =
   | "INVALID_TYPE"

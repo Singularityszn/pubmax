@@ -12,11 +12,12 @@
 // profile slots, so the EXIF strip cannot drift between the two surfaces.
 
 import {
+  downloadUploadedImageObject,
   prepareUploadedImage,
   UPLOADED_IMAGE_MAX_BYTES,
+  type DownloadedUploadedImage,
   type PreparedImage,
 } from "@/lib/uploadedImage.server";
-import { magicBytesOk } from "@/lib/imageSafety";
 import {
   isSupabaseConfigured,
   requireSupabaseAdmin,
@@ -150,21 +151,16 @@ export async function signVenuePhotoObject(
   return storage.sign(objectKey, VENUE_PHOTO_SIGNED_TTL_SECONDS);
 }
 
-export type DownloadedVenuePhoto = {
-  bytes: Buffer;
-  contentType: "image/jpeg";
-};
+export type DownloadedVenuePhoto = DownloadedUploadedImage;
 
-/** Read approved serving bytes out of the private bucket. Absent objects: null. */
+/**
+ * Read approved serving bytes out of the private bucket. Absent objects: null,
+ * with one line saying why. Shared with the owned profile slots, because the
+ * write half is shared and a second copy of "what counts as unreadable" is how
+ * the two surfaces drift.
+ */
 export async function downloadVenuePhotoObject(
   objectKey: string,
 ): Promise<DownloadedVenuePhoto | null> {
-  if (!isSupabaseConfigured()) return null;
-  const { data, error } = await requireSupabaseAdmin()
-    .storage.from(STORAGE_BUCKET)
-    .download(objectKey);
-  if (error || !data) return null;
-  const bytes = Buffer.from(await data.arrayBuffer());
-  if (!magicBytesOk(bytes, "image/jpeg")) return null;
-  return { bytes, contentType: "image/jpeg" };
+  return downloadUploadedImageObject(objectKey);
 }
