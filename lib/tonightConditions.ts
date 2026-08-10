@@ -72,7 +72,7 @@ export function londonMonth(date: Date, timeZone = "Europe/London"): number {
 }
 
 function weatherLabel(weather: ConditionsWeather): string {
-  const temp = `${Math.round(weather.tempC)}C`;
+  const temp = `${Math.round(weather.tempC)}°C`;
   const condition = weather.condition.trim();
   return condition ? `${temp}, ${condition.toLocaleLowerCase("en-GB")}` : temp;
 }

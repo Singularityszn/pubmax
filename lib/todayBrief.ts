@@ -120,7 +120,10 @@ export function buildWeatherBrief(
   const relative = relativeObservedLabel(observedMs, nowMs);
   return {
     dateLabel: formatConditionDate(now),
-    tempLabel: `${Math.round(observation.feelsLikeC)}C`,
+    // Degree sign, the same one the map's own status banner prints. Without it
+    // the two surfaces contradicted each other on the same weather: "27°C" on
+    // the map, "21C" on Today.
+    tempLabel: `${Math.round(observation.feelsLikeC)}°C`,
     conditionLabel: observation.condition.trim().toLocaleLowerCase("en-GB"),
     verdictLine: verdict.line,
     ruleId: verdict.ruleId,

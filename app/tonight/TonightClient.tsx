@@ -411,8 +411,8 @@ export default function TonightClient({
            still answers honestly. */
         <VibeChips
           shellClassName="tonightVibes"
-          groupLabel="What's the vibe tonight"
-          lede={"What's the vibe?"}
+          groupLabel="What’s the vibe tonight"
+          lede={"What’s the vibe?"}
         >
           {VIBE_CHIPS.map((chip) =>
             chip.tonight.type === "filter" ? (

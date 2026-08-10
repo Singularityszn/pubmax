@@ -1438,7 +1438,15 @@
   /* In a stacked column, margin-left:auto would shove the actions to the far
      edge on their own line — reset it so they sit naturally under the name. */
   .profilePage .profileActions { margin-left: 0; width: 100%; justify-content: flex-start; }
-  .profilePage .youProfileIdentity .profileActions { flex-basis: 100%; }
+  /* `flex-basis: 100%` was written for the ROW header, where it means "take a
+     whole line". The rule above turns .profileIdentity into a COLUMN, and in a
+     column the basis is the MAIN axis - the HEIGHT - so the action row stretched
+     to the identity's full 318px. `align-content` then spread its two wrapped
+     lines across that height and dropped the third action 120px down, on top of
+     the bio and the card fields: an owner who opened the editor found "Meet
+     your Pub Pal" sitting over their own DRINKS row. Content-sized, packed to
+     the top; the width is already 100% from the rule above. */
+  .profilePage .youProfileIdentity .profileActions { flex-basis: auto; align-content: flex-start; }
   .profilePage .youProfileIdentity .profileActions > * { flex: 1 1 140px; }
 
   /* Two-up stat tiles read better than one long column on a phone. */

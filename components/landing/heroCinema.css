@@ -37,6 +37,12 @@
    motionDuration.cinemaSettle / motionEase.weighted in lib/motionVocabulary.ts. */
 :root {
   --cinema-progress: 1; /* safe default: settled, composed card (no-JS, mobile, reduced-motion) */
+  /* How far the open frame grows the card, and where it grows FROM. The card's
+     transform reads both, and so does the caption's clearance below, so the two
+     cannot drift: an origin above centre throws most of the growth downward,
+     which is the half the caption has to survive. */
+  --cinema-open-overscale: 0.06;
+  --cinema-origin-y: 0.42;
 }
 
 @media (min-width: 701px) and (prefers-reduced-motion: no-preference) {
@@ -47,12 +53,36 @@
 
   .thamesHeroPhoto {
     border-radius: calc(32px * var(--cinema-progress));
-    transform: scale(calc(1.06 - 0.06 * var(--cinema-progress)));
-    transform-origin: 50% 42%;
+    transform: scale(
+      calc(1 + var(--cinema-open-overscale) * (1 - var(--cinema-progress)))
+    );
+    transform-origin: 50% calc(var(--cinema-origin-y) * 100%);
     will-change: transform, border-radius;
     transition:
       border-radius var(--duration-cinema-settle) var(--ease-weighted),
       transform var(--duration-cinema-settle) var(--ease-weighted);
+  }
+
+  /* The card's column footprint never changes, but its PAINT does: at the open
+     frame it is drawn 6% larger from an origin above centre, so it reaches
+     below its own layout box - and the caption sat 12px under that box, which
+     is how the first line came to be drawn across the photograph's bottom edge
+     (unreadable in light theme, where dark caption ink lands on a dark photo).
+     The clearance is the card's own overflow rather than a number somebody
+     eyeballed: the card is 4:3 here, so its height is 0.75 of this column, the
+     open frame paints --cinema-open-overscale of that height, and (1 - origin)
+     of the growth falls below. A percentage margin resolves against the
+     column's width, so the clearance tracks every viewport. It is reserved at
+     every progress value, because a margin that moved with the scrub would
+     make the caption jump while the card settles. */
+  /* Two classes on purpose: the base rule is `.lpHeroMap figcaption` (0,1,1)
+     with a `margin` SHORTHAND, so a bare `.lpHeroMapCaption` (0,1,0) loses the
+     top margin back to 12px. */
+  .lpHeroMap .lpHeroMapCaption {
+    margin-top: calc(
+      12px + var(--cinema-open-overscale) * 0.75 *
+        (1 - var(--cinema-origin-y)) * 100%
+    );
   }
 
   /* Near-black to warm off-white: a uniform ink-deep wash over the whole

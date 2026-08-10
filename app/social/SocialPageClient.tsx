@@ -564,6 +564,12 @@ export default function SocialPageClient({
                 own follow results, so the two would disagree about what a tap
                 just did. */}
             {isPosts ? <StarterPacks compact /> : null}
+            {/* And ONE live copy of the search-and-invite surface, for the same
+                reason: the body used to mount a second one beside it, so an
+                unverified viewer met the same heading, the same field and the
+                same invite button twice at 1440 and stacked at 390 - and both
+                copies carried `id="find-lot-title"`, which left every
+                `aria-labelledby` on the page pointing at the first. */}
             {isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
           </aside>
 
@@ -589,10 +595,10 @@ export default function SocialPageClient({
                     : undefined
                 }
               />
-              <section className="socialFeedEmpty" aria-label="Find your lot">
-                <FindYourLot myHandle={viewerHandle} />
+              <section className="socialFeedEmpty" aria-label="People on PUBMAXX">
                 {/* Browse rides with search wherever search rides: both form
-                    the friend graph, and neither reads a gated surface. */}
+                    the friend graph, and neither reads a gated surface. Search
+                    itself lives in the rail above, once. */}
                 <PeopleDirectory myHandle={viewerHandle} />
               </section>
             </>
@@ -644,7 +650,7 @@ export default function SocialPageClient({
                     Find your lot - search a handle or send an invite - and nights
                     from mutuals land here.
                   </p>
-                  <FindYourLot myHandle={viewerHandle} />
+                  {/* The search-and-invite surface is the rail's, once. */}
                   <PeopleDirectory myHandle={viewerHandle} />
                 </div>
               ) : (

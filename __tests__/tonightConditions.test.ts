@@ -148,7 +148,7 @@ describe("summariseTonightConditions", () => {
     });
     expect(summary).toEqual({
       dateLabel: "Saturday 18 Jul",
-      weatherLabel: "22C, clear",
+      weatherLabel: "22°C, clear",
       drinkLine: "Beer garden weather. Lager or cider.",
       drinkSuggestion: "a cold lager or cider",
       venueClaim: "4 gardens near you with a pint under 6 quid",
@@ -171,7 +171,7 @@ describe("summariseTonightConditions", () => {
       now,
       tally: null,
     });
-    expect(summary?.weatherLabel).toBe("22C");
+    expect(summary?.weatherLabel).toBe("22°C");
   });
 
   it("returns null when the rules table claims nothing for tonight", () => {
