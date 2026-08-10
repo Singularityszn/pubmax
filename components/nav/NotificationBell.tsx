@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
+import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 
 const HANDLE_KEY = "pubmax_handle";
@@ -46,7 +47,10 @@ export default function NotificationBell(): React.JSX.Element {
       const res = await authedFetch(`/api/notifications?handle=${encodeURIComponent(h)}`, {
         signal: controller.signal,
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        discardBody(res);
+        return;
+      }
       const body = (await res.json()) as { unread?: number };
       setUnread(typeof body.unread === "number" ? body.unread : 0);
     } catch {

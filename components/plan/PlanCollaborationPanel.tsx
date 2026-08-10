@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import type { PlanStopDTO } from "@/lib/plan";
 import type { PlanConstraint, PlanConstraintKind, PlanInvite, PlanRouteProposal, PlanVote } from "@/lib/planCollaborationStore";
+import { discardBody } from "@/lib/responseBody";
 import { publishPlanCollaborationChange, subscribePlanCollaborationChange, type PlanCollaborationChangeKind } from "@/lib/planContinuity";
 import { trackEvent } from "@/lib/analytics";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
@@ -75,7 +76,10 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
         signal: controller.signal,
         headers: { authorization: `Bearer ${memberToken}` },
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        discardBody(response);
+        return;
+      }
       const body = await response.json() as Partial<CollaborationState>;
       if (controller.signal.aborted || refreshRequestRef.current?.generation !== generation) return;
       setState({

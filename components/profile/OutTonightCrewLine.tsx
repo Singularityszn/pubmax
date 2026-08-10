@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 
 import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
+import { discardBody } from "@/lib/responseBody";
 import { getNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 
@@ -40,7 +41,10 @@ export default function OutTonightCrewLine({ ownerHandle, viewerHandle }: Props)
       try {
         const url = `/api/check-ins?viewer=${encodeURIComponent(viewerHandle)}`;
         const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) throw new Error(`check-ins ${res.status}`);
+        if (!res.ok) {
+          discardBody(res);
+          throw new Error(`check-ins ${res.status}`);
+        }
         const body = (await res.json()) as { checkIns?: CheckInDto[] };
         const owner = normalizeHandle(ownerHandle);
         const mine = (body.checkIns ?? []).find((c) => normalizeHandle(c.handle ?? "") === owner);

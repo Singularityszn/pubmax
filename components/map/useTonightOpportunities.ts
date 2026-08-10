@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
+import { discardBody } from "@/lib/responseBody";
 
 type ApiResponse = {
   opportunities?: ThingsToDoOpportunity[];
@@ -35,7 +36,10 @@ export function useTonightOpportunities(enabled: boolean): {
           signal: controller.signal,
           headers: { accept: "application/json" },
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          discardBody(res);
+          throw new Error(`HTTP ${res.status}`);
+        }
         const body = (await res.json()) as ApiResponse;
         if (controller.signal.aborted) return;
         const ops = Array.isArray(body.opportunities) ? body.opportunities : [];

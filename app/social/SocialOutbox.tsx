@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { SocialPostDTO } from "@/lib/socialPosts";
+import { discardBody } from "@/lib/responseBody";
 
 import SocialComposer from "./SocialComposer";
 
@@ -75,7 +76,10 @@ export default function SocialOutbox({
         `/api/social/outbox${params.size ? `?${params}` : ""}`,
         { cache: "no-store", signal },
       );
-      if (!response.ok) throw new Error("Outbox read failed");
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error("Outbox read failed");
+      }
       const value = (await response.json()) as {
         posts?: OutboxItem[];
         nextCursor?: string | null;

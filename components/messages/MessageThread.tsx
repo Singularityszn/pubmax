@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import { authedFetch } from "@/lib/authedFetch";
+import { discardBody } from "@/lib/responseBody";
 import { linkifyMentions, MAX_MESSAGE_BODY, type MessageDTO } from "@/lib/messages";
 import { subscribeToMessages } from "@/lib/messagesRealtime";
 import { normalizeHandle } from "@/lib/profiles";
@@ -105,14 +106,17 @@ export default function MessageThread({
           { signal },
         );
         if (res.status === 401) {
+          discardBody(res);
           setState("signedout");
           return;
         }
         if (res.status === 404) {
+          discardBody(res);
           setState("notfound");
           return;
         }
         if (!res.ok) {
+          discardBody(res);
           if (loadedForRef.current !== conversationId) setState("unreachable");
           return;
         }
@@ -177,14 +181,17 @@ export default function MessageThread({
         body: JSON.stringify({ action: "send", handle: h, body: bodyText }),
       });
       if (res.status === 401) {
+        discardBody(res);
         setState("signedout");
         return;
       }
       if (res.status === 429) {
+        discardBody(res);
         setError("Too many messages, slow down.");
         return;
       }
       if (!res.ok) {
+        discardBody(res);
         setError("Couldn't send that message.");
         return;
       }

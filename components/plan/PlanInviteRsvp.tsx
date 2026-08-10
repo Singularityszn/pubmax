@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
+import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
 import { getAnonId } from "@/lib/anonId";
 import { GUEST_DISPLAY_NAME_MAX, isRsvpStatus, type PlanInviteRsvpSummary, type RsvpStatus } from "@/lib/planInvite";
@@ -90,7 +91,10 @@ export default function PlanInviteRsvp({
           `/api/invite/${encodeURIComponent(token)}/reactions?submitterId=${encodeURIComponent(getAnonId())}`,
           { cache: "no-store" },
         );
-        if (!res.ok || cancelled) return;
+        if (!res.ok || cancelled) {
+          discardBody(res);
+          return;
+        }
         const data = (await res.json()) as { summary?: ReactionSummary };
         if (data.summary && !cancelled) setReactions(data.summary);
       } catch {
@@ -114,6 +118,7 @@ export default function PlanInviteRsvp({
           body: JSON.stringify({ rsvpId, memberToken }),
         });
         if (!res.ok) {
+          discardBody(res);
           setRemoveError("Couldn't remove that RSVP.");
           return;
         }
@@ -155,6 +160,7 @@ export default function PlanInviteRsvp({
           }),
         });
         if (!res.ok) {
+          discardBody(res);
           setRsvpError(
             res.status === 429
               ? "That's a lot of RSVPs. Give it a moment."
@@ -201,6 +207,7 @@ export default function PlanInviteRsvp({
           body: JSON.stringify({ reaction, submitterId: getAnonId() }),
         });
         if (!res.ok) {
+          discardBody(res);
           setReactionError(res.status === 429 ? "Slow down a moment." : "Couldn't save that reaction.");
           return;
         }

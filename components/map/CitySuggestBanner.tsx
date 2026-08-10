@@ -8,6 +8,7 @@ import {
   getCity,
   type CityId,
 } from "@/lib/cities";
+import { discardBody } from "@/lib/responseBody";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
 import { resolveLocateMapDestination } from "@/lib/locateMapDestination";
@@ -68,7 +69,10 @@ export default function CitySuggestBanner({
     if (placesCache.current) return placesCache.current;
     try {
       const response = await fetch(UK_PLACE_INDEX_PATH);
-      if (!response.ok) return [];
+      if (!response.ok) {
+        discardBody(response);
+        return [];
+      }
       const places = parseUkPlaceIndex(await response.json());
       placesCache.current = places;
       return places;

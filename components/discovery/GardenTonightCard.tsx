@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight, MapPin, Sun } from "lucide-react";
 
 import { cityAwareMapPath } from "@/lib/curatedCrawls";
+import { discardBody } from "@/lib/responseBody";
 import {
   gardenWeatherHeadline,
   isGardenWeather,
@@ -91,6 +92,7 @@ export default function GardenTonightCard() {
           headers: { accept: "application/json" },
         });
         if (!statusRes.ok) {
+          discardBody(statusRes);
           hide();
           return;
         }
@@ -112,6 +114,7 @@ export default function GardenTonightCard() {
           { signal: controller.signal, headers: { accept: "application/json" } },
         );
         if (!placesRes.ok) {
+          discardBody(placesRes);
           hide();
           return;
         }

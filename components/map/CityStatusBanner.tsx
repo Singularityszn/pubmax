@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CloudRain, Info, Sun, TrainFront, X } from "lucide-react";
 
+import { discardBody } from "@/lib/responseBody";
 import { firstHttp } from "@/lib/httpUrl";
 
 import "./cityStatusBanner.css";
@@ -275,7 +276,10 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
           signal: controller.signal,
           headers: { accept: "application/json" },
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
         const body = (await res.json()) as StatusResponse;
         void Promise.resolve().then(() => {
           if (!aborted.current) {

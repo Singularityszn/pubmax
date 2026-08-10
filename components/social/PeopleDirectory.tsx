@@ -23,6 +23,7 @@ import {
   resolveFollowRelation,
   type FollowRelation,
 } from "@/lib/followRelation";
+import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 
@@ -145,7 +146,10 @@ export default function PeopleDirectory({
         `/api/profiles/directory?limit=${limit}&after=${encodeURIComponent(cursor)}`,
         { cache: "no-store" },
       );
-      if (!response.ok) throw new Error("Directory unavailable");
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error("Directory unavailable");
+      }
       const body = (await response.json()) as {
         people?: Person[];
         nextCursor?: string | null;

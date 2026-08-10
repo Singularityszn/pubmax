@@ -26,6 +26,7 @@ import {
   type WeatherRecommendationCondition,
   type WeatherRecommendationErrorField,
 } from "@/lib/weatherRecommendations";
+import { discardBody } from "@/lib/responseBody";
 
 import "./venueWeatherRecommendations.css";
 
@@ -273,7 +274,10 @@ export default function VenueWeatherRecommendations({
           `/api/weather-recommendations?venueId=${encodeURIComponent(venueId)}`,
           { signal },
         );
-        if (!response.ok) throw new Error("recommendation read failed");
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error("recommendation read failed");
+        }
         const parsed = readWeatherRecommendationVenueLoad(
           await response.json(),
         );

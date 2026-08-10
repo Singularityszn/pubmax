@@ -8,6 +8,7 @@ import {
   validatePintIndexSnapshot,
   type LeagueRow,
 } from "@/lib/pintIndex";
+import { discardBody } from "@/lib/responseBody";
 
 /** Public URL for the live Pint Index snapshot (mirrors public/data/...). */
 export const PINT_INDEX_SNAPSHOT_PUBLIC_PATH = "/data/pint_index_snapshot.json";
@@ -16,7 +17,10 @@ async function fetchJson(path: string): Promise<unknown | null> {
   if (typeof window === "undefined") return null;
   try {
     const res = await fetch(path, { headers: { accept: "application/json" } });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      discardBody(res);
+      return null;
+    }
     return (await res.json()) as unknown;
   } catch {
     return null;

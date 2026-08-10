@@ -33,6 +33,7 @@ import {
   syncPosthogConsent,
 } from "@/lib/posthogClient";
 import { analyticsReferrerFromUrl } from "@/lib/analyticsPath";
+import { discardBody } from "@/lib/responseBody";
 
 const ENDPOINT = "/api/events";
 const VERIFIED_OUTBOX_KEY = "pubmaxx:analytics-verified-outbox:v1";
@@ -199,6 +200,9 @@ export async function flushVerifiedAnalyticsOutbox(): Promise<void> {
           keepalive: true,
           signal: controller.signal,
         });
+        // The delivery answer is a header. Nothing here reads the body, so let
+        // it go rather than leaving the request open on every flush.
+        discardBody(response);
         if (!active()) return;
         const status = response.headers.get("x-analytics-delivery");
         if (response.ok && (status === "delivered" || status === "discard")) {

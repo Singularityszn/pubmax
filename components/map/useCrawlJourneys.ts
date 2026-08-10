@@ -6,6 +6,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { discardBody } from "@/lib/responseBody";
 import { formatJourneySummary } from "@/lib/formatJourney";
 import type { Venue } from "@/lib/venues";
 
@@ -47,7 +48,10 @@ async function fetchLeg(
     signal,
     headers: { accept: "application/json" },
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    discardBody(res);
+    return null;
+  }
   const body = (await res.json()) as JourneyApiResponse;
   const best = body.journeys?.[0];
   if (!best?.legs?.length) return null;

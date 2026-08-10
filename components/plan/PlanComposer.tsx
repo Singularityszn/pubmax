@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
+import { discardBody } from "@/lib/responseBody";
 import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { ASK_PLAN_DRAFT_STORAGE_KEY, type AskPlanDraft } from "@/lib/ask/types";
 import { parsePlanDescribeFromSearch } from "@/lib/planOccasion";
@@ -1035,7 +1036,10 @@ function PlanComposerForm({
           },
           body: JSON.stringify({ status: "ready", ...(nightContext ? { context: nightContext } : {}) }),
         });
-        if (!metadataResponse.ok) throw new Error("The route was created, but its details could not be saved. Try again.");
+        if (!metadataResponse.ok) {
+          discardBody(metadataResponse);
+          throw new Error("The route was created, but its details could not be saved. Try again.");
+        }
       }
       trackEvent("plan_saved", { stops: completeStops.length, grounded });
       trackMeaningfulCoreAction("plan_saved");

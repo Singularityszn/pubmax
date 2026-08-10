@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import ShareBar from "@/components/share/ShareBar";
+import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 import { buildSavedListShareText } from "@/lib/shareArtifacts";
@@ -104,7 +105,10 @@ export default function SavedListDetail({
           )}&listType=${encodeURIComponent(listType)}`,
           { signal: controller.signal },
         );
-        if (!res.ok) return;
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
         const body = (await res.json()) as { following?: unknown; counts?: unknown };
         if (!controller.signal.aborted) {
           if (typeof body.following === "boolean") setFollowing(body.following);

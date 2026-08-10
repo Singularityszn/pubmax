@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { authedFetch } from "@/lib/authedFetch";
 import type { WantedDTO } from "@/lib/wanted";
+import { discardBody } from "@/lib/responseBody";
 
 import "./wanted.css";
 
@@ -20,7 +21,10 @@ export default function WantedPlanChips({
     void (async () => {
       try {
         const res = await authedFetch("/api/wanted?open=1");
-        if (!res.ok) return;
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
         const body = (await res.json()) as { wanteds?: WantedDTO[] };
         if (cancelled) return;
         setOpen(

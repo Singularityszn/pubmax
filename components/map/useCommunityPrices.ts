@@ -25,6 +25,7 @@ import type {
 } from "@/lib/mapExperienceLens";
 import type { PriceSubmitFailureReason } from "@/lib/analyticsEvents";
 import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
+import { discardBody } from "@/lib/responseBody";
 import { postCommunityContribution } from "@/lib/communityContributionClient";
 import { normalizeHandle } from "@/lib/profiles";
 import {
@@ -615,6 +616,7 @@ export function useCommunityPrices(): CommunityPricesState {
         try {
           const res = await fetch(`/api/price-submit?venueId=${encodeURIComponent(venueId)}`);
           if (!res.ok) {
+            discardBody(res);
             loaded.current.delete(venueId);
             markVenueRead(venueId, "degraded");
             return;
@@ -694,7 +696,10 @@ export function useCommunityPrices(): CommunityPricesState {
     void (async () => {
       try {
         const response = await fetch("/api/price-submit?lens=no-alcohol");
-        if (!response.ok) throw new Error("category index unavailable");
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error("category index unavailable");
+        }
         const result = readCategoryPriceIndexLoad(await response.json());
         if (result.status === "invalid") {
           noAlcoholIndexLoaded.current = false;
@@ -742,7 +747,10 @@ export function useCommunityPrices(): CommunityPricesState {
           const response = await fetch(
             `/api/price-submit?drinkCategory=${encodeURIComponent(category)}`,
           );
-          if (!response.ok) throw new Error("category index unavailable");
+          if (!response.ok) {
+            discardBody(response);
+            throw new Error("category index unavailable");
+          }
           const result = readCategoryPriceIndexLoad(await response.json());
           if (result.status === "invalid") {
             drinkCategoryIndexesLoaded.current.delete(category);
@@ -848,7 +856,10 @@ export function useCommunityPrices(): CommunityPricesState {
             // The budget is spent, and the rest of this viewport's chunks would
             // only deepen the hole. Stop, and let the backoff hold the retry.
             if (backoffMs !== null) break;
-            if (!response.ok) throw new Error("provisional base read unavailable");
+            if (!response.ok) {
+              discardBody(response);
+              throw new Error("provisional base read unavailable");
+            }
             load = readProvisionalVenueIdsLoad(
               await response.json(),
               new Set(chunk),

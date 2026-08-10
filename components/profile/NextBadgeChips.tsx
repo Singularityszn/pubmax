@@ -15,6 +15,7 @@ import {
   type BadgeProgress,
   type ProfileDrop,
 } from "@/lib/profiles";
+import { discardBody } from "@/lib/responseBody";
 
 import "./nextBadgeChips.css";
 
@@ -59,7 +60,10 @@ export default function NextBadgeChips({
           `/api/pint-drops?author=${encodeURIComponent(resolved)}`,
           { signal: controller.signal },
         );
-        if (!res.ok) return;
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
         const body: unknown = await res.json();
         const all: ProfileDrop[] =
           body && typeof body === "object" && Array.isArray((body as { drops?: unknown }).drops)

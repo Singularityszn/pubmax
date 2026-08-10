@@ -27,6 +27,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 
+import { discardBody } from "@/lib/responseBody";
 import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
 
@@ -80,7 +81,10 @@ async function searchByName(
     signal,
     headers: { accept: "application/json" },
   });
-  if (!res.ok) return [];
+  if (!res.ok) {
+    discardBody(res);
+    return [];
+  }
   const body = (await res.json()) as {
     places?: Array<{ id?: string; location?: { lat?: number; lng?: number } }>;
     error?: string;
@@ -110,7 +114,10 @@ async function fetchPlace(
     `/api/citymcp/place?id=${encodeURIComponent(id)}&deep=1`,
     { signal, headers: { accept: "application/json" } },
   );
-  if (!res.ok) return null;
+  if (!res.ok) {
+    discardBody(res);
+    return null;
+  }
   const body = (await res.json()) as {
     place?: CityPlaceEnrichment | null;
     error?: string;

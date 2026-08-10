@@ -3,6 +3,7 @@
 import { BookMarked, Check, Copy, Link2 } from "lucide-react";
 import { useState } from "react";
 
+import { discardBody } from "@/lib/responseBody";
 import { encodeCrawlStory, VIBE_TAGS, type VibeTag } from "@/lib/crawlStory";
 import { authedFetch } from "@/lib/authedFetch";
 
@@ -103,6 +104,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
         }),
       });
       if (!res.ok) {
+        discardBody(res);
         setSaveError(
           res.status === 429
             ? "You're saving crawls too fast. Try again in a minute."

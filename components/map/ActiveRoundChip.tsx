@@ -9,6 +9,7 @@ import {
   readActiveRoundCode,
   subscribeActiveRound,
 } from "@/lib/activeRound";
+import { discardBody } from "@/lib/responseBody";
 
 import "./activeRoundChip.css";
 
@@ -69,11 +70,15 @@ export default function ActiveRoundChip({
         const res = await fetch(`/api/rounds/${code}`, { cache: "no-store" });
         if (cancelled) return;
         if (res.status === 404) {
+          discardBody(res);
           clearActiveRoundCode(code);
           setCode("");
           return;
         }
-        if (!res.ok) return;
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
         const body = (await res.json()) as RoundPollBody;
         if (body.round?.closedAt) {
           clearActiveRoundCode(code);

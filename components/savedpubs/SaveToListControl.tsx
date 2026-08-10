@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { discardBody } from "@/lib/responseBody";
 import { toggleSaveDurable } from "@/lib/savedPubs";
 import {
   eligibleBuiltInListTypes,
@@ -50,7 +51,10 @@ export default function SaveToListControl({
     if (!h) return;
     try {
       const res = await fetch(`/api/saved-pubs?handle=${encodeURIComponent(h)}&lists=1`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        discardBody(res);
+        return;
+      }
       const body = (await res.json()) as { lists?: string[] };
       setCustomLists(Array.isArray(body.lists) ? body.lists : []);
     } catch {

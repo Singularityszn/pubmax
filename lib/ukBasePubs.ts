@@ -32,6 +32,7 @@ import {
   type ShardManifest,
   parseShardManifest,
 } from "@/lib/slimShards";
+import { discardBody } from "@/lib/responseBody";
 import { offlineCache } from "@/lib/offlineCache";
 
 export const UK_BASE_MANIFEST_PATH = "/data/uk_base/manifest.json";
@@ -336,7 +337,10 @@ export function createUkBaseLoader(): UkBaseLoader {
   async function fetchManifest(): Promise<ShardManifest | null> {
     try {
       const response = await fetch(UK_BASE_MANIFEST_PATH);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error(`HTTP ${response.status}`);
+      }
       const payload: unknown = await response.json();
       const parsed = parseUkBaseManifest(payload);
       if (parsed) void offlineCache.set(MANIFEST_OFFLINE_KEY, payload);

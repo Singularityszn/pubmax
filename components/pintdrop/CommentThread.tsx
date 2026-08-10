@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import { subscribeToComments } from "@/lib/realtime";
@@ -198,6 +199,7 @@ export default function CommentThread({
           }),
         });
         if (!res.ok) {
+          discardBody(res);
           setError(
             res.status === 429
               ? "You're commenting too fast. Give it a sec."

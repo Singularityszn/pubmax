@@ -1,6 +1,7 @@
 import type { PintDropDTO } from "@/lib/feed";
 import type { Visibility } from "@/lib/spill";
 import type { LastPintDecisionKind } from "@/lib/tfl";
+import { discardBody } from "@/lib/responseBody";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 export const OPTIMISTIC_SPILL_STORAGE_KEY = "pubmax:optimistic-spill-posts:v1";
@@ -194,6 +195,7 @@ export function markOptimisticSpillRetrying(
 async function resolveBlobPreview(url: string): Promise<Blob> {
   const response = await fetch(url);
   if (!response.ok) {
+    discardBody(response);
     throw new Error("Photo preview is no longer available. Open the composer and attach it again.");
   }
   return response.blob();

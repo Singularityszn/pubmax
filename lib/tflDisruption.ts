@@ -15,6 +15,7 @@
 // server-side revalidate so we never fetch per render.
 
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
+import { discardBody } from "@/lib/responseBody";
 
 // ---------------------------------------------------------------------------
 // Severity model.
@@ -437,7 +438,10 @@ export async function fetchLineStatuses(): Promise<RawLineStatus[] | null> {
       // what makes the layer server-side-with-revalidate rather than per-render.
       next: { revalidate: DISRUPTION_REVALIDATE_SECONDS },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      discardBody(res);
+      return null;
+    }
     return (await res.json()) as RawLineStatus[];
   } catch {
     return null;

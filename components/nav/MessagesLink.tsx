@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
+import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 
 const HANDLE_KEY = "pubmax_handle";
@@ -51,7 +52,10 @@ export default function MessagesLink(): React.JSX.Element {
       const res = await authedFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
         signal: controller.signal,
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        discardBody(res);
+        return;
+      }
       const body = (await res.json()) as { conversations?: ConversationDTO[] };
       const total = (body.conversations ?? []).reduce((sum, c) => sum + (c.unread || 0), 0);
       setUnread(total);

@@ -10,6 +10,7 @@ import {
   deviceAccountOwner,
   emitDeviceIdentityChanged,
 } from "@/lib/deviceAccountIdentity";
+import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { clearClaimedRoundAnonymousHandle } from "@/lib/roundRequest";
 
@@ -107,7 +108,10 @@ export async function resolveCanonicalIdentity(
     {},
     request,
   );
-  if (!response.ok) return { ok: false };
+  if (!response.ok) {
+    discardBody(response);
+    return { ok: false };
+  }
   const body = await response.json().catch(() => null) as {
     handle?: unknown;
   } | null;

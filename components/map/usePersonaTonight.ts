@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 
 import type { DrinkCategory } from "@/lib/drinks";
+import { discardBody } from "@/lib/responseBody";
 import { drinkCategoryForSuggestion } from "@/lib/personaDrinks";
 
 type ConditionsResponse = {
@@ -57,7 +58,10 @@ export function useTonightLaneCue(enabled: boolean): TonightLaneCue {
           signal: controller.signal,
           headers: { accept: "application/json" },
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          discardBody(res);
+          throw new Error(`HTTP ${res.status}`);
+        }
         const body = (await res.json()) as ConditionsResponse;
         if (controller.signal.aborted) return;
         const next: TonightLaneCue = {

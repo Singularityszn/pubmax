@@ -21,6 +21,7 @@ import {
   parseFoodPriceUpdates,
   type FoodPriceUpdate,
 } from "@/lib/foodPriceUpdates";
+import { discardBody } from "@/lib/responseBody";
 
 function generatedAtOf(raw: unknown): number {
   const stamp = Date.parse(
@@ -33,7 +34,10 @@ async function fetchJson(path: string): Promise<unknown | null> {
   if (typeof window === "undefined") return null;
   try {
     const res = await fetch(path, { headers: { accept: "application/json" } });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      discardBody(res);
+      return null;
+    }
     return (await res.json()) as unknown;
   } catch {
     return null;

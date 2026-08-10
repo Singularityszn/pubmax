@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ExternalLink, Newspaper } from "lucide-react";
 
+import { discardBody } from "@/lib/responseBody";
 import { haversineKm } from "@/lib/haversine";
 
 import "./venueBuzz.css";
@@ -52,7 +53,10 @@ async function searchByName(
     signal,
     headers: { accept: "application/json" },
   });
-  if (!res.ok) return [];
+  if (!res.ok) {
+    discardBody(res);
+    return [];
+  }
   const body = (await res.json()) as {
     places?: Array<{ id?: string; location?: { lat?: number; lng?: number } }>;
   };
@@ -81,7 +85,10 @@ async function fetchBuzz(
     signal,
     headers: { accept: "application/json" },
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    discardBody(res);
+    return null;
+  }
   const body = (await res.json()) as { buzz?: CityBuzz | null };
   return body.buzz ?? null;
 }

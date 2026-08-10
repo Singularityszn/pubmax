@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
+import { discardBody } from "@/lib/responseBody";
 import { priceConfidence } from "@/lib/priceConfidence";
 import {
   conflictPrices,
@@ -131,7 +132,10 @@ function usePriceConfirmTally(
         const res = await fetch(
           `/api/price-confirm?venueId=${encodeURIComponent(venueId)}&priceGbp=${confirmTargetGbp}`,
         );
-        if (!res.ok) return;
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
         const data = (await res.json()) as Partial<ConfirmTally>;
         if (cancelled) return;
         const tally: ConfirmTally = {

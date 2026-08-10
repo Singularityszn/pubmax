@@ -1,4 +1,5 @@
 "use client";
+import { discardBody } from "@/lib/responseBody";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -45,7 +46,10 @@ export default function ContributionLanesCard({ handle }: Props) {
           `/api/profiles/${encodeURIComponent(handle)}/lane-stats`,
           { signal: controller.signal },
         );
-        if (!res.ok) throw new Error(`lane-stats ${res.status}`);
+        if (!res.ok) {
+          discardBody(res);
+          throw new Error(`lane-stats ${res.status}`);
+        }
         const body = (await res.json()) as { stats?: LaneStats };
         if (!body.stats) throw new Error("no stats");
         setState({ kind: "ready", stats: body.stats });

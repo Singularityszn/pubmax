@@ -3,6 +3,7 @@ import {
   type ReactionKey,
   type ReactionSummary,
 } from "@/lib/reactions";
+import { discardBody } from "@/lib/responseBody";
 
 export type ReactionSummaryMap = Record<string, ReactionSummary>;
 
@@ -101,7 +102,10 @@ export async function loadReactionSummaries(
       const query = `ids=${encodeURIComponent(batch.join(","))}&actor=${encodeURIComponent(actorId)}`;
       try {
         const response = await fetch(`/api/pint-drops/reactions?${query}`, { signal });
-        if (!response.ok) throw new Error(String(response.status));
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error(String(response.status));
+        }
         const data = (await response.json()) as { summaries?: ReactionSummaryMap };
         if (signal?.aborted) return { batch, aborted: true } as const;
         return { batch, summaries: data.summaries ?? {} } as const;

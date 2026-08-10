@@ -16,6 +16,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { discardBody } from "@/lib/responseBody";
 import { normaliseVenueName } from "@/lib/curation";
 import { getListedBuilding } from "@/lib/heritageListings";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
@@ -226,7 +227,10 @@ async function answerWithModel(
       }),
       signal: controller.signal,
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      discardBody(res);
+      return null;
+    }
     const data = await res.json();
     const text = data?.choices?.[0]?.message?.content;
     if (typeof text !== "string" || !text.trim()) return null;

@@ -7,6 +7,7 @@ import {
   streakLabel,
   type ContributionSummary,
 } from "@/lib/pintContributions";
+import { discardBody } from "@/lib/responseBody";
 import { nightsKeptLabel, readNightsKept } from "@/lib/nightsKept";
 
 import "./yourContributionsCard.css";
@@ -67,7 +68,10 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
           `/api/pint-drops/stats?handle=${encodeURIComponent(handle)}`,
           { signal: controller.signal },
         );
-        if (!res.ok) throw new Error(`stats ${res.status}`);
+        if (!res.ok) {
+          discardBody(res);
+          throw new Error(`stats ${res.status}`);
+        }
         const body = (await res.json()) as { stats?: ContributionSummary };
         if (!body.stats) throw new Error("no stats");
         setState({ kind: "ready", stats: body.stats });

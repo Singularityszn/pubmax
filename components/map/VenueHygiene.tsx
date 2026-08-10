@@ -12,6 +12,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 
+import { discardBody } from "@/lib/responseBody";
+
 import "./venueHygiene.css";
 
 type HygieneRating = {
@@ -39,7 +41,10 @@ async function fetchRating(
     signal,
     headers: { accept: "application/json" },
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    discardBody(res);
+    return null;
+  }
   const body = (await res.json()) as { rating?: HygieneRating | null };
   return body.rating ?? null;
 }

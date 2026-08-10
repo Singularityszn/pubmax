@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from "react";
 
+import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
 import { getNightArea, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
@@ -48,7 +49,10 @@ export default function OutTonightToggle({ handle }: Props) {
         const res = await fetch(`/api/check-ins?viewer=${encodeURIComponent(handle)}`, {
           signal: controller.signal,
         });
-        if (!res.ok) throw new Error(`check-ins ${res.status}`);
+        if (!res.ok) {
+          discardBody(res);
+          throw new Error(`check-ins ${res.status}`);
+        }
         const body = (await res.json()) as { checkIns?: CheckInDto[] };
         const mine = normalizeHandle(handle);
         const active = (body.checkIns ?? []).find((c) => normalizeHandle(c.handle ?? "") === mine);

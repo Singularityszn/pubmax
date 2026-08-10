@@ -10,6 +10,7 @@ import { CalendarClock, Music, Tag, Tv, type LucideIcon } from "lucide-react";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import PlanRouteMiniMap from "@/components/plan/PlanRouteMiniMap";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
+import { discardBody } from "@/lib/responseBody";
 import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 import { stopEventChips, type StopEventChip } from "@/lib/planWhatsOn";
@@ -80,7 +81,10 @@ export default function PlanRoute({
           signal: controller.signal,
           headers: { accept: "application/json" },
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
         const body = (await res.json()) as { rows?: unknown };
         const rows = Array.isArray(body.rows)
           ? body.rows.filter((row): row is WhatsOnRow => isValidWhatsOnRow(row))

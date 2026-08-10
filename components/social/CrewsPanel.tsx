@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { authedFetch } from "@/lib/authedFetch";
 import type { SocialCrewListItemDTO } from "@/lib/socialCrew";
+import { discardBody } from "@/lib/responseBody";
 import {
   CREW_EMPTY_COPY,
   CREW_LIST_UNAVAILABLE_COPY,
@@ -95,6 +96,7 @@ export default function CrewsPanel({
           signal: controller.signal,
         });
         if (!response.ok) {
+          discardBody(response);
           setGate("closed");
           return;
         }
@@ -153,6 +155,7 @@ export default function CrewsPanel({
             { cache: "no-store", credentials: "same-origin", signal: controller.signal },
           );
           if (!response.ok) {
+            discardBody(response);
             setVenues([]);
             return;
           }

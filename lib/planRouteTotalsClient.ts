@@ -8,6 +8,7 @@ import {
   withRoutedDistances,
   type RouteLegsSummary,
 } from "@/lib/routeLegs";
+import { discardBody } from "@/lib/responseBody";
 import { stopsParam, type LngLat } from "@/lib/routeMiniMap";
 import type { Venue } from "@/lib/venues";
 import type { WalkLegDistance } from "@/lib/walkRoute";
@@ -67,7 +68,10 @@ export async function fetchRoutedRouteSummary(
       `/api/walk-route?stops=${encodeURIComponent(stopsParam(coords))}`,
       { signal, headers: { accept: "application/json" } },
     );
-    if (!response.ok) return straight;
+    if (!response.ok) {
+      discardBody(response);
+      return straight;
+    }
     const body = (await response.json()) as { legs?: WalkLegDistance[] };
     return upgradeRouteSummary(straight, body.legs ?? []);
   } catch {
