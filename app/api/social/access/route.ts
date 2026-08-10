@@ -22,7 +22,12 @@ function privateJson(body: unknown, init: ResponseInit = {}): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const access = await resolveSocialAccess(request);
+  // A top-level GET may be initiated by another origin. It can inspect public
+  // access state, but it must never redeem the HttpOnly refresh cookie or
+  // rotate credentials as a side effect of navigation.
+  const access = await resolveSocialAccess(request, undefined, {
+    allowResumeCookie: false,
+  });
   if (!access.available) {
     return publicApiError(access.error, access.code, 503, {
       retryable: true,

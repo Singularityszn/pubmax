@@ -77,12 +77,20 @@ export type SocialAccessServerDependencies = {
   betaEnabled: boolean;
   now: () => Date;
   verifyClerkSession: () => Promise<ClerkSessionVerification>;
-  verifySupabaseSession: (request?: Request) => Promise<SupabaseSessionVerification>;
+  verifySupabaseSession: (
+    request?: Request,
+    options?: SupabaseSessionVerificationOptions,
+  ) => Promise<SupabaseSessionVerification>;
   readAccountAccess: (clerkUserId: string) => Promise<AccountAccessRecord>;
   readFriendsLaunchAccess: (supabaseUserId: string) => Promise<FriendsLaunchAccessRecord>;
   migrateAccounts: (
     input: AccountMigrationInput,
   ) => Promise<AccountMigrationStoreResult>;
+};
+
+export type SupabaseSessionVerificationOptions = {
+  /** GET access checks must opt out so a cross-site navigation cannot redeem a cookie. */
+  allowResumeCookie?: boolean;
 };
 
 export type SocialAccessResolution =
@@ -141,8 +149,9 @@ async function verifyClerkSession(): Promise<ClerkSessionVerification> {
   }
 }
 
-async function verifySupabaseSessionFromRequest(
+export async function verifySupabaseSessionFromRequest(
   request?: Request,
+  options: SupabaseSessionVerificationOptions = {},
 ): Promise<SupabaseSessionVerification> {
   if (request) {
     const bearer = await verifyCallerAuth(request);
@@ -152,6 +161,7 @@ async function verifySupabaseSessionFromRequest(
     if (bearer.status === "unavailable") return { status: "unavailable" };
   }
   if (!request) return { status: "absent" };
+  if (options.allowResumeCookie === false) return { status: "absent" };
 
   const payload = decodeAuthResumeCookie(
     authResumeCookieFromHeader(request.headers.get("cookie")),
@@ -447,10 +457,11 @@ function unavailableAccess(): SocialAccessResolution {
 export async function resolveSocialAccess(
   request?: Request,
   dependencies?: SocialAccessServerDependencies,
+  options?: SupabaseSessionVerificationOptions,
 ): Promise<SocialAccessResolution> {
   const deps = dependencies ?? readDefaultDependencies();
   if (deps.friendsLaunchEnabled) {
-    const supabase = await deps.verifySupabaseSession(request);
+    const supabase = await deps.verifySupabaseSession(request, options);
     if (supabase.status === "unavailable") return unavailableAccess();
     if (supabase.status === "absent") {
       return { available: true, state: "sign_in_required" };

@@ -20,6 +20,10 @@
 // travels in a URL. Only the short-lived session tokens cross to the browser,
 // exactly as they already do on every existing sign-in and refresh.
 
+import { isPlausibleRefreshToken } from "@/lib/refreshTokenPolicy";
+
+export { isPlausibleRefreshToken } from "@/lib/refreshTokenPolicy";
+
 export const AUTH_RESUME_COOKIE = "pubmax_session_resume";
 
 /** Durable window: 30 days, re-extended on every sign-in, refresh and redeem. */
@@ -40,7 +44,6 @@ export type AuthResumeCookiePayload = {
 };
 
 const COOKIE_VERSION = 1;
-const MAX_TOKEN_LENGTH = 2048;
 const MAX_EMAIL_LENGTH = 320;
 
 function base64UrlEncode(value: string): string {
@@ -53,15 +56,6 @@ function base64UrlDecode(value: string): string | null {
   } catch {
     return null;
   }
-}
-
-export function isPlausibleRefreshToken(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.length >= 8 &&
-    value.length <= MAX_TOKEN_LENGTH &&
-    /^[\x21-\x7e]+$/.test(value)
-  );
 }
 
 function isPlausibleEmail(value: unknown): value is string {

@@ -57,7 +57,7 @@ describe("Social access boundary", () => {
       expect(html).not.toContain(protectedPost.author.handle);
       expect(html).not.toContain(protectedPost.id);
       expect(html).not.toContain("/api/social/posts");
-      expect(html).not.toContain("href=");
+      if (state !== "sign_in_required") expect(html).not.toContain("href=");
     },
   );
 
@@ -92,6 +92,15 @@ describe("Social access boundary", () => {
     expect(html).toContain("Adult check needed for Social.");
     expect(html).not.toContain("I&#x27;m 18 or over");
     expect(html).not.toContain("<button");
+  });
+
+  it("gives a signed-out reader a return-aware sign-in action", () => {
+    const html = renderToStaticMarkup(
+      createElement(SocialAccessBoundary, { state: "sign_in_required" }),
+    );
+
+    expect(html).toMatch(/href="\/login\?from=.*social/);
+    expect(html).toContain("Sign in");
   });
 
   it("offers one explicit retry when access checks are unavailable", () => {

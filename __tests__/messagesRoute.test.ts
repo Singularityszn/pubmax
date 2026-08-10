@@ -9,6 +9,26 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
+const rateState = vi.hoisted(() => ({
+  openLimited: false,
+  openReservations: 0,
+  openLimitCalls: [] as Array<{ key: string; options: unknown }>,
+}));
+vi.mock("@/lib/pintDrops", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
+  return {
+    ...actual,
+    isLimited: vi.fn(async (localKey: string, _durableKey: string, ...rest: unknown[]) => {
+      if (!localKey.startsWith("msg-open:")) return false;
+      rateState.openLimitCalls.push({ key: localKey, options: rest.at(-1) });
+      if (rateState.openLimited) return true;
+      if (rateState.openReservations >= 2) return true;
+      rateState.openReservations += 1;
+      return false;
+    }),
+  };
+});
+
 const authState = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@/lib/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authServer")>();
@@ -59,12 +79,17 @@ function postThread(id: string, body: unknown): Promise<Response> {
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   authState.userId = null;
   __resetMemoryMessages();
   __resetMemoryProfiles();
+  rateState.openLimited = false;
+  rateState.openReservations = 0;
+  rateState.openLimitCalls = [];
+  await memoryProfileStore.createOwned("sam", "user-sam");
+  await memoryProfileStore.createOwned("max", "user-max");
 });
 
 describe("GET /api/messages — inbox", () => {
@@ -106,6 +131,51 @@ describe("POST /api/messages — open + send validation", () => {
     const b = await (await postInbox({ action: "open", handle: "@Sam", other: "KEN" })).json();
     expect(a.conversationId).toBeTruthy();
     expect(a.conversationId).toBe(b.conversationId);
+  });
+
+  it("rejects an unclaimed recipient before creating a durable conversation", async () => {
+    asUser("user-ken");
+    const store = (await import("@/lib/messagesStore")).messagesStore();
+    const openSpy = vi.spyOn(store, "openConversation");
+
+    const res = await postInbox({ action: "open", handle: "ken", other: "Ghost" });
+
+    expect(res.status).toBe(404);
+    expect(openSpy).not.toHaveBeenCalled();
+    openSpy.mockRestore();
+  });
+
+  it("fails closed before opening when the durable open budget refuses", async () => {
+    rateState.openLimited = true;
+    asUser("user-ken");
+    const store = (await import("@/lib/messagesStore")).messagesStore();
+    const openSpy = vi.spyOn(store, "openConversation");
+
+    const res = await postInbox({ action: "open", handle: "ken", other: "sam" });
+
+    expect(res.status).toBe(429);
+    expect(openSpy).not.toHaveBeenCalled();
+    expect(rateState.openLimitCalls).toEqual([
+      expect.objectContaining({
+        key: expect.stringMatching(/^msg-open:ken:/),
+        options: { failClosed: true },
+      }),
+    ]);
+    openSpy.mockRestore();
+  });
+
+  it("limits concurrent opens before durable writes", async () => {
+    await memoryProfileStore.createOwned("ken", "user-ken");
+    asUser("user-ken");
+    const responses = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        postInbox({ action: "open", handle: "ken", other: "sam" }),
+      ),
+    );
+
+    expect(responses.filter((response) => response.status === 200)).toHaveLength(2);
+    expect(responses.filter((response) => response.status === 429)).toHaveLength(3);
+    expect(rateState.openLimitCalls).toHaveLength(5);
   });
 
   it("send opens-if-needed, stores the message (201), and rejects a blank body", async () => {

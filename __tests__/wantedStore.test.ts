@@ -20,6 +20,8 @@ describe("wanted store privacy + fulfil", () => {
       sourcePlatform: "none",
       note: "",
       rawPaste: "Pub A",
+      drinkInterest: null,
+      visibility: "private",
     });
     await memoryWantedStore.create({
       ownerActor: OWNER_B,
@@ -30,6 +32,8 @@ describe("wanted store privacy + fulfil", () => {
       sourcePlatform: "none",
       note: "",
       rawPaste: "Pub B",
+      drinkInterest: null,
+      visibility: "private",
     });
 
     const a = await memoryWantedStore.listForOwner(OWNER_A);
@@ -51,6 +55,8 @@ describe("wanted store privacy + fulfil", () => {
       sourcePlatform: "none",
       note: "",
       rawPaste: "Hit Pub",
+      drinkInterest: null,
+      visibility: "private",
     });
     await memoryWantedStore.create({
       ownerActor: OWNER_A,
@@ -61,6 +67,8 @@ describe("wanted store privacy + fulfil", () => {
       sourcePlatform: "none",
       note: "",
       rawPaste: "Other Pub",
+      drinkInterest: null,
+      visibility: "private",
     });
 
     const fulfilled = await memoryWantedStore.fulfilForVenue(OWNER_A, "venue-hit");
@@ -83,6 +91,8 @@ describe("wanted store privacy + fulfil", () => {
       sourcePlatform: "none",
       note: "",
       rawPaste: "Shared",
+      drinkInterest: null,
+      visibility: "private",
     });
     const fulfilled = await memoryWantedStore.fulfilForVenue(OWNER_A, "venue-shared");
     expect(fulfilled).toHaveLength(0);

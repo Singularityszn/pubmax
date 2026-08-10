@@ -119,13 +119,23 @@ describe("legal content pages", () => {
 
   it("describes self-asserted 18+ honestly and keeps Yoti optional", () => {
     expect(privacy).toMatch(/date of birth you gave at onboarding/i);
+    expect(privacy).toMatch(/one-tap self-assertion|one tap self-assertion|one tap recording|adult self-assertion/i);
+    expect(privacy).toMatch(/stored date of birth[^.]*decides|date of birth[^.]*always decides/i);
+    expect(privacy).toMatch(/cannot be overridden by\s+that self-assertion tap/i);
     expect(privacy).toMatch(/do not run a separate hosted age check/i);
     expect(terms).toMatch(/do not run a separate hosted age check/i);
+    expect(terms).toMatch(/one-tap self-assertion|one tap self-assertion|one tap recording|adult self-assertion/i);
+    expect(terms).toMatch(/stored date of birth[^.]*decides|date of birth[^.]*always decides/i);
+    expect(terms).toMatch(/self-assertion|tap cannot override/i);
     expect(privacy).toMatch(/does not currently send data to Yoti/i);
     expect(privacy).not.toMatch(/Yoti runs the\s+adult check/i);
     expect(privacy).not.toMatch(/Hosted 18\+ age checking/i);
     expect(privacy).not.toMatch(/returns the authoritative result/i);
     expect(terms).not.toMatch(/until Yoti returns a current\s+18\+ decision/i);
+    expect(privacy).toMatch(/uses the stored date of\s+birth when\s+one exists/i);
+    expect(terms).toMatch(/uses the stored date of\s+birth when\s+one exists/i);
+    expect(privacy).not.toMatch(/Social adult access does not use them/i);
+    expect(terms).not.toMatch(/Social adult access does not use them/i);
   });
 
   it("discloses OpenAI moderation of held Social post content", () => {
@@ -148,13 +158,38 @@ describe("legal content pages", () => {
       expect(page).toMatch(/report/i);
       expect(page).toMatch(/hide/i);
     }
-    expect(privacy).toMatch(/profile pictures go to OpenAI/i);
+    expect(privacy).toMatch(/profile pictures[^]*go to\s+OpenAI/i);
     expect(privacy).toMatch(/does not hide the picture on\s+its own/i);
     expect(privacy).toMatch(/Hiding stops public delivery/i);
     expect(privacy).toMatch(/never deletes the stored file/i);
     expect(privacy).toMatch(/Removing\s+the picture yourself[^]*removes the stored\s+file/i);
-    expect(terms).toMatch(/Profile pictures use the same OpenAI omni\s+moderation/i);
+    expect(terms).toMatch(/Profile pictures, message photos and venue wall\s+photos use the same OpenAI omni\s+moderation/i);
     expect(terms).toMatch(/hiding never deletes\s+the stored file/i);
+  });
+
+  it("discloses every public profile field and every signed image moderation surface", () => {
+    for (const page of [privacy, terms]) {
+      expect(page).toMatch(/favourite drink/i);
+      expect(page).toMatch(/interests/i);
+      expect(page).toMatch(/workplace/i);
+      expect(page).toMatch(/message photos?/i);
+      expect(page).toMatch(/venue\s+(?:wall\s+)?photos?/i);
+      expect(page).toMatch(/OpenAI/);
+    }
+  });
+
+  it("discloses the bounded local device account switcher", () => {
+    for (const page of [privacy, terms]) {
+      expect(page).toMatch(/up to five account records/i);
+      expect(page).toMatch(/account IDs?/i);
+      expect(page).toMatch(/refresh tokens?/i);
+      expect(page).toMatch(/email addresses?|sign-in emails?/i);
+      expect(page).toMatch(/handles?/i);
+      expect(page).toMatch(/last-active|last active|activity timestamp/i);
+      expect(page).toMatch(/localStorage|browser storage/i);
+      expect(page).toMatch(/account switching/i);
+      expect(page).toMatch(/sign(?:ing)? out|remove all accounts|clear browser storage/i);
+    }
   });
 
   it("discloses Social interactions, private saves, governance, and held derivatives", () => {
@@ -377,11 +412,19 @@ describe("legal content pages", () => {
 
   it("states exactly what private profile data is retained", () => {
     expect(privacy).toMatch(/Google or Apple sign-in/);
-    expect(privacy).toMatch(/date of birth is needed to finish signup/i);
+    expect(privacy).toMatch(
+      /standard handle signup asks for a date of\s+birth as a private detail/i,
+    );
+    expect(privacy).toMatch(
+      /existing or early-claimed accounts may have\s+no stored date of birth/i,
+    );
     expect(privacy).toMatch(/Full name, gender and sex are optional/);
     expect(privacy).toMatch(/only identity shown with contributions/);
     expect(privacy).toMatch(
-      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing\s+account tools[\s\S]*Social adult access does not use them/i,
+      /date of\s+birth[\s\S]*full name[\s\S]*sex[\s\S]*existing\s+account tools/i,
+    );
+    expect(privacy).toMatch(
+      /Social adult access uses the stored date of\s+birth when\s+one exists/i,
     );
     expect(privacy).toMatch(
       /date of birth[\s\S]*until you delete your profile/i,
@@ -396,16 +439,22 @@ describe("legal content pages", () => {
       /keeps your authentication account,\s+public\s+handle and\s+handle-keyed contribution history/,
     );
     expect(terms).toMatch(
-      /date of birth is needed to finish signup/i,
+      /standard handle signup asks for a date of\s+birth as a private detail/i,
     );
     expect(terms).toMatch(
-      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing\s+account tools[\s\S]*Social adult access does not use them/i,
+      /existing or early-claimed accounts may have\s+no stored date of birth/i,
+    );
+    expect(terms).toMatch(
+      /date of\s+birth[\s\S]*full name[\s\S]*sex[\s\S]*existing\s+account tools/i,
+    );
+    expect(terms).toMatch(
+      /Social adult access uses the stored date of\s+birth when\s+one exists/i,
     );
     expect(terms).toMatch(/date of birth[\s\S]*until you delete your profile/i);
     expect(terms).toMatch(
       /Deleting your profile[\s\S]*removes these\s+private identity fields/,
     );
-    expect(terms).toMatch(/Only your handle is public/);
+    expect(terms).toMatch(/Your public profile can include[^]*favourite drink[^]*interests[^]*workplace/);
     for (const page of [privacy, terms]) {
       expect(page).not.toMatch(
         /discard the date of birth|adult confirmation|date you become eligible/i,
@@ -440,7 +489,7 @@ describe("legal content pages", () => {
     expect(terms).toMatch(
       /map and existing contribution tools don&rsquo;t use age to block an\s+account/i,
     );
-    expect(terms).toMatch(/date of birth you gave at onboarding for the 18\+ gate/i);
+    expect(terms).toMatch(/date of birth you gave at onboarding that shows you\s+are 18 or older for the 18\+ gate/i);
     expect(terms).toMatch(/Pubs\s+decide who they serve/i);
     expect(terms).toMatch(/drinkaware\.co\.uk/);
   });

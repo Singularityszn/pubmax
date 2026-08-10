@@ -406,7 +406,9 @@ export function toModeratorDTO(
   drop: PersistableDrop,
   photoUrls?: { pint: string | null; venue: string | null },
 ): ModeratorDrop {
-  const { pintPhotoKey, venuePhotoKey, ...rest } = drop;
+  const rest = { ...drop };
+  delete rest.pintPhotoKey;
+  delete rest.venuePhotoKey;
   return {
     ...rest,
     pintPhotoUrl: photoUrls?.pint ?? null,

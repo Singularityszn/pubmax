@@ -75,8 +75,11 @@ export default function TermsPage() {
           The map and existing contribution tools don&rsquo;t use age to block an
           account. Social stays in preview until the friends launch switch is on.
           When Social is open, full access needs a signed-in account, a claimed
-          handle and a date of birth you gave at onboarding for the 18+ gate (aged
-          18 or older). We do not run a separate hosted age check in this release.
+          handle and either a date of birth you gave at onboarding that shows you
+          are 18 or older for the 18+ gate, or one recorded adult self-assertion
+          when no date of birth is stored. A stored date of birth always decides,
+          including an invalid or under-18 answer, and the tap cannot override it.
+          We do not run a separate hosted age check in this release.
           Pubs decide who they serve. Nothing in the app is designed to encourage
           you to drink more. Know your limits, and know the facts at{" "}
           <a
@@ -103,27 +106,41 @@ export default function TermsPage() {
           the closed product events described in our privacy notice. PostHog
           deletes analytics events 12 months after collection and pseudonymous
           person and device records 12 months after their last activity. Handle
-          is needed to finish signup. Date of birth is needed to finish signup
-          too. Full name, gender and sex are optional. We collect and store date
-          of birth, full name, gender and sex as private details for existing
-          account tools.
-          Social adult access does not use them.
+          is needed to finish signup. Standard handle signup asks for a date of
+          birth as a private detail. Existing or early-claimed accounts may have
+          no stored date of birth. Social adult access uses the stored date of
+          birth when one exists; otherwise, one recorded adult self-assertion can
+          answer that gate. Full name, gender and sex are optional. We collect
+          and store date of birth, full name, gender and sex as private details
+          for existing account tools. Full name, gender and sex do not decide
+          that gate.
           Date of birth stays until you delete your profile.
           Full name, gender and sex stay until you edit or clear them, or
           delete your profile. Deleting your profile removes these private identity fields and clears
           its editable public details, while keeping your
           authentication account, public handle and handle-keyed contribution
-          history. Only your handle is public.
+          history. Your public profile can include a display name, home city,
+          short bio, favourite drink, interests and workplace. Only those
+          profile choices and your handle are public; private identity fields
+          are not.
           Social also uses a private product account tied to your Supabase sign-in
           and stable profile. Moving a legacy Clerk session into that account still
           needs both signed-in sessions in the same request when that beta path is
           enabled. PUBMAXX doesn&rsquo;t use your email or handle to join them.
           Full Social content stays closed while the launch switch is off. When
-          Social is open, access also needs a claimed handle and a date of birth
-          you gave at onboarding for the 18+ gate (aged 18 or older). We do not run a
-          separate hosted age check in this release. Your date of birth,
+          Social is open, access also needs a claimed handle and either a date of
+          birth you gave at onboarding that shows you are 18 or older or one
+          recorded adult self-assertion when no date of birth is stored. A stored
+          date of birth always decides, including an invalid or under-18 answer,
+          and the tap cannot override it. We do not run a separate hosted age
+          check in this release. Your date of birth,
           documents and verification status aren&rsquo;t public profile fields or
           badges.
+          The browser account switcher keeps up to five account records in
+          localStorage: account IDs, refresh tokens, sign-in emails, handles and
+          last-active timestamps. It exists for account switching and removes
+          records when you sign out or remove them, when the cap evicts one, or
+          when you clear browser storage.
           Keep your sign-in to yourself, use a handle that isn&rsquo;t someone
           else&rsquo;s identity, and don&rsquo;t hand the account to anyone
           else. You can stop using it whenever you like, and ask us to delete
@@ -168,13 +185,14 @@ export default function TermsPage() {
           returns a decision. If that check is unavailable or gives no usable
           decision, the post remains held. Social photos are resized, stripped
           of embedded metadata, kept private, and sent with the post text to
-          OpenAI for moderation. Profile pictures use the same OpenAI omni
+          OpenAI for moderation. Profile pictures, message photos and venue wall
+          photos use the same OpenAI omni
           moderation on owned storage bytes before they are publicly
-          addressable; if that check fails, the upload is refused and your
-          previous picture stays. Readers may report a profile picture; only a
+          addressable. A clear moderation refusal blocks an upload, while an
+          unavailable advisory check does not. Readers may report a profile picture; only a
           named staff member may hide or restore it, and hiding never deletes
           the stored file. Photo tags need the tagged person&rsquo;s approval
-          and can be withdrawn. Signed photo delivery links are short lived.
+          and can be withdrawn. Links used to send photos to moderation are short lived.
         </p>
         <p className="legalBody">
           Comments and quote posts also stay held until an OpenAI moderation

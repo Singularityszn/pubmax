@@ -154,7 +154,7 @@ export default function ThamesHero() {
               <Link
                 href={href}
                 className="thamesHeroPinLink"
-                aria-label={`${categoryLabel(pub.category)} at ${pub.place}. Open on the map`}
+                aria-label={`${categoryLabel(pub.category)} ${pub.place} ${pub.price}. Open on the map`}
                 {...mapWarmProps}
               >
                 <span className="thamesHeroPinGlyph" data-cat={pub.category} data-band={pub.band}>

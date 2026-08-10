@@ -4,9 +4,7 @@ import { OpenAISocialPostModerationAdapter } from "@/lib/socialPostModeration";
 
 describe("OpenAI Social post moderation adapter", () => {
   it("uses the direct Moderations API and exact required model", async () => {
-    let sentInit: RequestInit | undefined;
-    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      sentInit = init;
+    const fetcher = vi.fn(async () => {
       return new Response(JSON.stringify({ results: [{ flagged: false }] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },

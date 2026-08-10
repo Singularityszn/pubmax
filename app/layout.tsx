@@ -135,9 +135,8 @@ export const metadata: Metadata = {
     capable: true,
     // The iOS half of the manifest's `short_name`: this is the label under the
     // Home Screen icon, so it must read the same as the installed name Android
-    // takes from public/manifest.webmanifest. The document TITLES below are a
-    // separate question and stay as they are.
-    title: "PUBMAXXING",
+    // takes from public/manifest.webmanifest.
+    title: "PUBMAX",
     statusBarStyle: "black-translucent",
   },
   openGraph: {

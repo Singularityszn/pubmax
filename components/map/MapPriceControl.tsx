@@ -27,7 +27,7 @@ const PRICE_OPTIONS: { label: string; maxPrice: number }[] = [
 type MapPriceControlProps = {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
-  placement?: "map" | "header";
+  placement?: "map" | "header" | "mobile";
   legend: MapPriceLegendModel;
   lensLabel?: string;
   priceFiltersEnabled: boolean;
@@ -51,6 +51,7 @@ export default function MapPriceControl({
   // W3 one-shot: never open during SSR (hydration-safe). After mount, amplify
   // once when the tour is already seen and the session gate is free.
   const [open, setOpen] = useState(false);
+  const [autoOpened, setAutoOpened] = useState(false);
   const oneshotTracked = useRef(false);
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -59,14 +60,36 @@ export default function MapPriceControl({
   const filtered = priceFiltersEnabled && filters.maxPrice <= 5.5;
 
   useEffect(() => {
-    if (placement !== "map") return;
+    if (placement !== "map" && placement !== "mobile") return;
     if (oneshotTracked.current) return;
     if (!shouldAutoOpenMapLegendOneshot()) return;
     oneshotTracked.current = true;
     markMapLegendOneshotConsumed();
     // Async setState — never the sync effect body (react-hooks/set-state-in-effect).
-    void Promise.resolve().then(() => setOpen(true));
+    void Promise.resolve().then(() => {
+      setAutoOpened(true);
+      setOpen(true);
+    });
   }, [placement]);
+
+  useEffect(() => {
+    if (!autoOpened || !open) return;
+    const timer = window.setTimeout(() => {
+      setOpen(false);
+      setAutoOpened(false);
+    }, 6_000);
+    return () => window.clearTimeout(timer);
+  }, [autoOpened, open]);
+
+  function togglePanel() {
+    setAutoOpened(false);
+    setOpen((value) => !value);
+  }
+
+  function closePanel() {
+    setAutoOpened(false);
+    setOpen(false);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -74,7 +97,7 @@ export default function MapPriceControl({
       if (event.key === "Escape") {
         // Claim the key so the map-level Escape (close drawer) doesn't also fire.
         event.preventDefault();
-        setOpen(false);
+        closePanel();
         trackEvent("map_legend_dismissed");
       }
     }
@@ -82,7 +105,7 @@ export default function MapPriceControl({
       const root = rootRef.current;
       if (!root) return;
       if (event.target instanceof Node && !root.contains(event.target)) {
-        setOpen(false);
+        closePanel();
       }
     }
     window.addEventListener("keydown", onKey);
@@ -100,7 +123,9 @@ export default function MapPriceControl({
       className={
         placement === "header"
           ? "mapPriceControl mapPriceControl--header"
-          : "mapPriceControl mapPriceControl--map"
+          : placement === "mobile"
+            ? "mapPriceControl mapPriceControl--mobile"
+            : "mapPriceControl mapPriceControl--map"
       }
       ref={rootRef}
     >
@@ -111,7 +136,7 @@ export default function MapPriceControl({
         aria-controls={panelId}
         aria-label={open ? "Close map key" : `Open map key: ${legend.ariaLabel}`}
         title="Map key"
-        onClick={() => setOpen((value) => !value)}
+        onClick={togglePanel}
       >
         <span className="mapPriceLegendTitle">Key</span>
         {legend.rows.length === 0 ? (
@@ -134,6 +159,21 @@ export default function MapPriceControl({
         )}
       </button>
 
+      {placement === "mobile" ? (
+        <button
+          type="button"
+          className={open ? "mapPriceFab isActive" : "mapPriceFab"}
+          aria-expanded={open}
+          aria-controls={panelId}
+          aria-label={open ? "Close map key" : "Open map key"}
+          title="Map key"
+          onClick={togglePanel}
+        >
+          <Coins size={16} aria-hidden="true" />
+          <span>Key</span>
+        </button>
+      ) : null}
+
       {placement === "map" ? (
         <button
           type="button"
@@ -148,7 +188,7 @@ export default function MapPriceControl({
                 : "Filter pubs by pint price"
           }
           title={lensLabel ? `${lensLabel} map key` : "Filter by pint price"}
-          onClick={() => setOpen((value) => !value)}
+          onClick={togglePanel}
         >
           <Coins size={16} aria-hidden="true" />
           <span>{lensLabel ?? activeLabel(filters.maxPrice)}</span>
@@ -169,7 +209,7 @@ export default function MapPriceControl({
               className="mapPriceClose"
               aria-label="Close map key"
               onClick={() => {
-                setOpen(false);
+                closePanel();
                 trackEvent("map_legend_dismissed");
               }}
             >
@@ -194,7 +234,7 @@ export default function MapPriceControl({
                       aria-pressed={on}
                       onClick={() => {
                         onFiltersChange({ ...filters, maxPrice: option.maxPrice });
-                        setOpen(false);
+                        closePanel();
                       }}
                     >
                       {option.label === "Any" ? (

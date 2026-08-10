@@ -28,6 +28,7 @@ const read = (file: string): string =>
 const DIRECTORY = read("components/social/PeopleDirectory.tsx");
 const PACKS = read("components/social/StarterPacks.tsx");
 const PACKS_POLICY = read("lib/starterPacks.ts");
+const SOCIAL_CSS = read("app/social/social.css");
 
 /**
  * Code only. A comment may name the rule to explain it; the same split the
@@ -118,6 +119,12 @@ describe("a card gives way rather than crushing itself", () => {
   const CSS = read("components/social/peopleDirectory.css");
   const cardRule = CSS.match(/\.peopleDir__card \{[^}]*\}/)?.[0] ?? "";
 
+  it("uses its own width for columns so a desktop rail stays one card wide", () => {
+    expect(CSS).toContain("container-type: inline-size");
+    expect(CSS).toContain("@container (min-width: 560px)");
+    expect(CSS).not.toMatch(/@media \(min-width: 640px\)[\s\S]*peopleDir__grid/);
+  });
+
   it("wraps the control onto its own line instead of squeezing the identity", () => {
     // The two-up breakpoint is the WINDOW's, and this section can sit in a rail
     // about 275px wide on a 1440 screen. As a two-column grid that left the
@@ -129,6 +136,15 @@ describe("a card gives way rather than crushing itself", () => {
 
   it("keeps the 44px tap floor on the control", () => {
     expect(CSS).toMatch(/\.peopleDir__button \{[^}]*min-height: 44px/);
+  });
+
+  it("stretches the directory inside the centred empty-state grid", () => {
+    expect(SOCIAL_CSS).toMatch(
+      /\.socialFeedEmpty > \.peopleDir\s*\{[\s\S]*?justify-self:\s*stretch[\s\S]*?width:\s*100%/,
+    );
+    expect(SOCIAL_CSS).toMatch(
+      /\.socialFeedEmpty\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+    );
   });
 });
 

@@ -1,5 +1,5 @@
 // POST /api/wanted/resolve — paste a name or URL → venue candidates.
-// Auth-gated. Never fetches Instagram/TikTok. Rate-limited.
+// Auth-gated. Provider metadata uses fixed allowlisted endpoints only. Rate-limited.
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";

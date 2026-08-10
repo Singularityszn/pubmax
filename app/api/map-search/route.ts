@@ -2,6 +2,7 @@
 // Keyless. The country-wide index stays on the server (phones never download it).
 
 import { publicApiError } from "@/lib/apiError";
+import { after } from "next/server";
 import {
   classifyMapSearchIntent,
   intentLooksLikeVenueSearch,
@@ -18,6 +19,20 @@ const RATE_LIMIT = 60;
 const RATE_WINDOW_MS = 60_000;
 
 const CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=120";
+
+type MapSearchTelemetry = Parameters<typeof recordMapSearchEvent>[0];
+
+async function scheduleMapSearchTelemetry(input: MapSearchTelemetry): Promise<void> {
+  try {
+    // Next keeps this work alive after the response has been sent. The recorder
+    // owns failure isolation and never makes telemetry a user-facing error.
+    after(() => recordMapSearchEvent(input));
+  } catch {
+    // Unit tests and non-Next callers have no request context. Awaiting there
+    // keeps the direct path durable without changing production latency.
+    await recordMapSearchEvent(input);
+  }
+}
 
 export async function GET(request: Request): Promise<Response> {
   try {
@@ -41,7 +56,7 @@ export async function GET(request: Request): Promise<Response> {
       ? searchUkNationalPubs(q, 8)
       : { status: "ready" as const, hits: [] };
 
-    void recordMapSearchEvent({
+    await scheduleMapSearchTelemetry({
       intentPrimary: intent.primary,
       queryLength: intent.query.length,
       nationalHitCount: national.hits.length,

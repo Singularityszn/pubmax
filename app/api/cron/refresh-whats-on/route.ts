@@ -37,6 +37,12 @@ function presentKeys(names: readonly string[]): string[] {
   return names.filter((name) => Boolean(process.env[name]));
 }
 
+function validSourceObservedAt(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && parsed <= Date.now();
+}
+
 export async function GET(request: Request): Promise<Response> {
   const denied = assertCronRequest(request);
   if (denied) return denied;
@@ -56,17 +62,35 @@ export async function GET(request: Request): Promise<Response> {
 
   // Revalidate the servable window (fail-soft to baseline inside loadWhatsOn).
   let rows = 0;
-  let asOf = new Date().toISOString();
+  let asOf: string | null = null;
   try {
     const result = await loadWhatsOn({ window: "tonight" });
     rows = result.rows.length;
     // Stamp the honest source-observed time when the feed reports one, so
     // /api/freshness shows real freshness rather than the frozen generatedAt.
-    // Only when source freshness is genuinely unknown do we fall back to the
-    // served instant — we never invent a source timestamp from request time.
-    asOf = result.asOf ?? result.servedAt;
+    // Unknown source freshness stays unknown. The request time is not evidence
+    // that any source data changed, so it must never become a feed stamp.
+    if (validSourceObservedAt(result.asOf)) {
+      asOf = result.asOf;
+    } else {
+      console.warn("[cron:refresh-whats-on] source freshness unavailable; no freshness stamp written.");
+    }
   } catch (err) {
     console.error("[cron:refresh-whats-on] tonight-window revalidation failed:", err instanceof Error ? err.message : String(err));
+  }
+
+  if (!asOf) {
+    return jsonNoStore({
+      ok: true,
+      feed: WHATS_ON_FEED_KEY,
+      mode: "slim",
+      observedAt: null,
+      rowsServed: rows,
+      freshnessAdvanced: false,
+      stampDegraded: false,
+      ingestKeysPresent: ingestKeys,
+      eventProviderKeysPresent: eventKeys,
+    });
   }
 
   const stamp = await feedFreshnessStore().stamp({
@@ -83,6 +107,7 @@ export async function GET(request: Request): Promise<Response> {
     mode: "slim",
     observedAt: asOf,
     rowsServed: rows,
+    freshnessAdvanced: true,
     stampDegraded: stamp.failed ?? false,
     ingestKeysPresent: ingestKeys,
     eventProviderKeysPresent: eventKeys,

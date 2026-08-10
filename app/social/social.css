@@ -129,6 +129,18 @@
   text-align: center;
 }
 
+.socialFeedEmpty {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* A directory is a full-width panel child, not a centred text fragment. */
+.socialFeedEmpty > .peopleDir {
+  box-sizing: border-box;
+  justify-self: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
 .socialBoundary h2,
 .socialFeedError h2,
 .socialFeedEmpty h2 {
@@ -265,11 +277,11 @@
 
 .socialComposerBackdrop {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--z-modal);
   inset: 0;
   display: grid;
   place-items: end center;
-  background: color-mix(in srgb, #000 54%, transparent);
+  background: color-mix(in srgb, var(--ink-deep) 54%, transparent);
   overscroll-behavior: contain;
 }
 
@@ -294,7 +306,7 @@
 
 .socialComposer header {
   position: sticky;
-  z-index: 2;
+  z-index: var(--z-float);
   top: 0;
   display: grid;
   grid-template-columns: 72px 1fr 72px;
@@ -979,7 +991,7 @@
 .findLot__error {
   margin: var(--space-2) 0 0;
   font-size: var(--text-sm);
-  color: var(--danger, #a33);
+  color: var(--color-negative);
 }
 
 .referralFollowBack {
@@ -1025,7 +1037,7 @@
   padding: 0.55rem 0.95rem;
   border-radius: var(--radius-md, 10px);
   background: var(--ink);
-  color: var(--paper, #fff);
+  color: var(--color-on-inverse);
   text-decoration: none;
   font-weight: 650;
 }

@@ -2,12 +2,14 @@
 //
 // A Wanted is an account-owned pin: a resolved venue (curated or UK base), or a
 // pending paste that could not be matched yet. The source URL is provenance
-// only — never fetched server-side from Instagram/TikTok. Solo Wanted only in
-// this wave (no collaborative swipe, no streaks, no snaps/TTL).
+// first; resolution may use fixed, licensed provider metadata endpoints only.
+// Sharing into a verified Crew is supported; collaborative swipe, streaks,
+// snaps and TTL are not part of this slice.
 
 import { presentableDescription } from "@/lib/slopFilter";
 import { cleanText } from "@/lib/textClean";
 import { UK_BASE_ID_PREFIX } from "@/lib/ukBasePubs";
+import { isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 
 export const MAX_WANTED_NOTE = 140;
 export const MAX_WANTED_RAW_PASTE = 500;
@@ -26,6 +28,8 @@ export type WantedSourcePlatform =
   | "other"
   | "none";
 
+export type WantedVisibility = "private" | "mutuals" | `crew:${string}`;
+
 /** Validated fields the store persists (id + timestamps stamped by the store). */
 export type WantedFields = {
   /** Stable profile actor (`profile:{uuid}`). Never a free-text handle alone. */
@@ -35,12 +39,16 @@ export type WantedFields = {
   venueId: string;
   /** Display name when resolved; "" when pending. */
   venueName: string;
-  /** Optional provenance URL. Stored, never fetched from Meta/TikTok. */
+  /** Optional provenance URL. Stored for attribution and safe re-resolution. */
   sourceUrl: string;
   sourcePlatform: WantedSourcePlatform;
   note: string;
   /** Raw paste when unresolvable (or the original input for audit). */
   rawPaste: string;
+  /** Optional drink category the owner wants to try there. */
+  drinkInterest: DrinkCategory | null;
+  /** Private by default; mutuals or one verified Crew can be chosen. */
+  visibility: WantedVisibility;
 };
 
 export type Wanted = WantedFields & {
@@ -55,6 +63,36 @@ export type WantedDTO = Wanted;
 export type WantedValidation =
   | { ok: true; value: WantedFields }
   | { ok: false; error: string };
+
+const CREW_VISIBILITY_RE = /^crew:([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
+
+export function cleanWantedVisibility(value: unknown): WantedVisibility | null {
+  if (value === undefined || value === null || value === "") return "private";
+  if (value === "private" || value === "mutuals") return value;
+  if (typeof value === "string" && CREW_VISIBILITY_RE.test(value)) {
+    return `crew:${value.slice(5).toLowerCase()}`;
+  }
+  return null;
+}
+
+export type WantedVisibilityContext = {
+  mutualOwnerActors?: ReadonlySet<string>;
+  crewIds?: ReadonlySet<string>;
+};
+
+/** Server-owned relationship facts decide shared Wanted visibility. */
+export function wantedVisibilityAllows(
+  wanted: Pick<WantedFields, "ownerActor" | "visibility">,
+  viewerActor: string,
+  context: WantedVisibilityContext = {},
+): boolean {
+  if (wanted.ownerActor === viewerActor) return true;
+  if (wanted.visibility === "mutuals") {
+    return context.mutualOwnerActors?.has(wanted.ownerActor) === true;
+  }
+  const crewMatch = wanted.visibility.match(CREW_VISIBILITY_RE);
+  return crewMatch ? context.crewIds?.has(crewMatch[1].toLowerCase()) === true : false;
+}
 
 /** A confirmable match from paste resolve (browser-safe type). */
 export type WantedResolveCandidate = {
@@ -174,6 +212,8 @@ export function validateWantedCreate(input: {
   sourceUrl?: unknown;
   note?: unknown;
   rawPaste?: unknown;
+  drinkInterest?: unknown;
+  visibility?: unknown;
 }): WantedValidation {
   const ownerActor =
     typeof input.ownerActor === "string" && input.ownerActor.startsWith("profile:")
@@ -187,6 +227,16 @@ export function validateWantedCreate(input: {
   const venueName = cleanText(input.venueName, MAX_WANTED_VENUE_NAME);
   const rawPaste = cleanText(input.rawPaste, MAX_WANTED_RAW_PASTE);
   const note = cleanWantedNote(input.note);
+  const visibility = cleanWantedVisibility(input.visibility);
+  if (!visibility) return { ok: false, error: "Choose private, mutuals, or a Crew." };
+  let drinkInterest: DrinkCategory | null = null;
+  if (input.drinkInterest !== undefined && input.drinkInterest !== null && input.drinkInterest !== "") {
+    const candidate = typeof input.drinkInterest === "string"
+      ? input.drinkInterest.trim().toLowerCase()
+      : "";
+    if (!isDrinkCategory(candidate)) return { ok: false, error: "Choose a listed drink." };
+    drinkInterest = candidate;
+  }
 
   let sourceUrl = "";
   if (typeof input.sourceUrl === "string" && input.sourceUrl.trim()) {
@@ -235,6 +285,8 @@ export function validateWantedCreate(input: {
         sourcePlatform: detectSourcePlatform(sourceUrl),
         note,
         rawPaste: rawPaste || sourceUrl,
+        drinkInterest,
+        visibility,
       },
     };
   }
@@ -254,6 +306,8 @@ export function validateWantedCreate(input: {
       sourcePlatform: detectSourcePlatform(sourceUrl),
       note,
       rawPaste,
+      drinkInterest,
+      visibility,
     },
   };
 }

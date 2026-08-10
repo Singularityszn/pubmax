@@ -4,16 +4,20 @@ import { useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
+import { CATEGORY_META, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
+import type { SocialCrewListItemDTO } from "@/lib/socialCrew";
 import type {
   WantedDTO,
   WantedResolveCandidate,
   WantedResolveResult,
+  WantedVisibility,
 } from "@/lib/wanted";
 
 import "./wanted.css";
 
 type Props = {
   onSaved?: (wanted: WantedDTO) => void;
+  crews?: readonly Pick<SocialCrewListItemDTO, "crewId" | "title">[];
   /** Prefill when saving from a venue sheet. */
   prefill?: {
     venueId: string;
@@ -22,9 +26,11 @@ type Props = {
   };
 };
 
-export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.Element {
+export default function WantedCapture({ onSaved, prefill, crews = [] }: Props): React.JSX.Element {
   const [paste, setPaste] = useState(prefill?.venueName ?? "");
   const [note, setNote] = useState("");
+  const [drinkInterest, setDrinkInterest] = useState<DrinkCategory | "">("");
+  const [visibility, setVisibility] = useState<WantedVisibility>("private");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [resolve, setResolve] = useState<WantedResolveResult | null>(null);
@@ -43,6 +49,8 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
           sourceUrl: sourceUrl || undefined,
           note: note || undefined,
           rawPaste: rawPaste || paste,
+          drinkInterest: drinkInterest || undefined,
+          visibility,
         }),
       });
       const body = (await res.json()) as { wanted?: WantedDTO; error?: string; status?: string };
@@ -63,6 +71,8 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
       setStatus(`Saved ${body.wanted.venueName} for a night.`);
       setPaste("");
       setNote("");
+      setDrinkInterest("");
+      setVisibility("private");
       setResolve(null);
       onSaved?.(body.wanted);
     } catch {
@@ -84,6 +94,8 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
           rawPaste,
           sourceUrl: sourceUrl || undefined,
           note: note || undefined,
+          drinkInterest: drinkInterest || undefined,
+          visibility,
         }),
       });
       const body = (await res.json()) as { wanted?: WantedDTO; error?: string; status?: string };
@@ -102,6 +114,8 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
       setStatus("Saved as still matching. Add a pub name when you know it.");
       setPaste("");
       setNote("");
+      setDrinkInterest("");
+      setVisibility("private");
       setResolve(null);
       onSaved?.(body.wanted);
     } catch {
@@ -172,7 +186,7 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
         setResolve(resolved);
         setStatus(
           resolved.sourceUrl && !resolved.query
-            ? "We keep the link as provenance and never fetch Instagram or TikTok. Add a pub name, or save it as still matching."
+            ? "We could not read a supported public title. The link stays as provenance. Add a pub name, or save it as still matching."
             : "No match yet. Save as still matching, or try another name.",
         );
         return;
@@ -222,6 +236,39 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
         maxLength={140}
         disabled={busy}
       />
+      <label className="wantedCapture__label" htmlFor="wanted-drink">
+        Drink interest
+      </label>
+      <select
+        id="wanted-drink"
+        className="wantedCapture__note"
+        value={drinkInterest}
+        onChange={(event) => setDrinkInterest(event.target.value as DrinkCategory | "")}
+        disabled={busy}
+      >
+        <option value="">No preference</option>
+        {DRINK_CATEGORIES.map((category) => (
+          <option key={category} value={category}>{CATEGORY_META[category].label}</option>
+        ))}
+      </select>
+      <label className="wantedCapture__label" htmlFor="wanted-visibility">
+        Who can see it
+      </label>
+      <select
+        id="wanted-visibility"
+        className="wantedCapture__note"
+        value={visibility}
+        onChange={(event) => setVisibility(event.target.value as WantedVisibility)}
+        disabled={busy}
+      >
+        <option value="private">Only you</option>
+        <option value="mutuals">Your mutuals</option>
+        {crews.map((crew) => (
+          <option key={crew.crewId} value={`crew:${crew.crewId}`}>
+            Crew: {crew.title}
+          </option>
+        ))}
+      </select>
       {status ? (
         <p className="wantedCapture__status" role="status">
           {status}

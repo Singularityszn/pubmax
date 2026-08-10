@@ -87,6 +87,15 @@ describe("the remembered-account lane", () => {
     expect(raw).not.toContain("accessToken");
   });
 
+  it("shares refresh-token plausibility policy with the resume cookie", () => {
+    const source = readFileSync(
+      join(process.cwd(), "lib/deviceAccountSessions.ts"),
+      "utf8",
+    );
+    expect(source).toContain("refreshTokenPolicy");
+    expect(source).not.toMatch(/function plausibleRefreshToken/);
+  });
+
   it("updates a row without erasing what another writer put there", () => {
     // The session write knows the token, the canonical identity read knows the
     // handle, and they land at different moments. Either erasing the other is

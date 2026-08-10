@@ -113,13 +113,16 @@ export default function PrivacyPage() {
           Google or Apple sign-in. That means we hold your email address. You
           must choose one public handle, which is linked to your authenticated
           account and is the only identity shown with contributions. Handle
-          is needed to finish signup. Date of birth is needed to finish signup
-          too. Full name, gender and sex are optional. We collect and store date
-          of birth, full name, gender and sex as private details for existing
-          account tools.
-          Social adult access does not use them. They are never shown on prices,
-          reports, signals, Recommendations, leaderboards or the public
-          contributor record.
+          is needed to finish signup. Standard handle signup asks for a date of
+          birth as a private detail. Existing or early-claimed accounts may have
+          no stored date of birth. Social adult access uses the stored date of
+          birth when one exists; otherwise, one recorded adult self-assertion can
+          answer that gate. Full name, gender and sex are optional. We collect
+          and store date of birth, full name, gender and sex as private details
+          for existing account tools. Full name, gender and sex do not decide
+          that gate. These
+          private fields are never shown on prices, reports, signals,
+          Recommendations, leaderboards or the public contributor record.
         </p>
         <p className="legalBody">
           We keep date of birth until you delete your profile. Full name, gender
@@ -139,20 +142,24 @@ export default function PrivacyPage() {
         </p>
         <p className="legalBody">
           Full Social access is for signed-in accounts aged 18 or older. We read
-          the date of birth you gave at onboarding and refuse Social when it is
-          missing, invalid or shows you are under 18. We do not run a separate
-          hosted age check in this release. None of that private data appears on
-          your profile as an age or verification badge.
+          the date of birth you gave at onboarding when there is one. If there is
+          no stored date of birth, one adult self-assertion tap can answer the
+          gate. A stored date of birth always decides when it is present, so a
+          date that is invalid or shows you are under 18 cannot be overridden by
+          that self-assertion tap. We do not run a separate hosted age check in
+          this release. None of that private data appears on your profile as an
+          age or verification badge.
         </p>
         <p className="legalBody">
-          Your public profile may also contain a display name, home city and
-          short bio. A profile picture is an optional upload you choose: we
+          Your public profile may also contain a display name, home city, short
+          bio, favourite drink, interests and workplace. A profile picture is
+          an optional upload you choose: we
           store the normalised JPEG under our own private storage (not a
           hotlinked URL), strip embedded metadata before it is saved, and send
           a short-lived signed copy to OpenAI for omni moderation before the
-          picture is publicly addressable. If that check is unavailable or
-          returns no usable decision, we refuse the upload and keep your
-          previous picture (or none). Readers may report a profile picture; a
+          picture is publicly addressable. A clear refusal from that check
+          refuses the upload; if the check cannot run, the upload may proceed
+          and stays in the moderator lane. Readers may report a profile picture; a
           report joins a private review queue and does not hide the picture on
           its own. A named staff member must hide or restore it, and that
           decision keeps a private audit record. Hiding stops public delivery
@@ -223,6 +230,13 @@ export default function PrivacyPage() {
           data on this device until you post or clear the draft.
         </p>
         <p className="legalBody">
+          Message photos and venue wall photos are also normalised, kept in
+          private storage and sent through the same short-lived signed-image
+          moderation path to OpenAI. A message or venue photo is not made public
+          merely because the moderation check could not run; the route still
+          applies its own account, ownership and visibility rules.
+        </p>
+        <p className="legalBody">
           Failed or interrupted Social photo uploads can stay temporarily in
           private server storage so an exact retry cannot damage another upload. They become
           eligible for deletion after 24 hours. A daily scheduled cleanup
@@ -249,7 +263,7 @@ export default function PrivacyPage() {
           audit keeps the media ID, post, actor, detachment action and retention
           deadline. A removed photo stops being delivered. Detached photo files
           enter a 30-day deletion queue. A scheduled server cleanup removes
-          the private file and its media row after that date. Signed photo links expire after three minutes.
+          the private file and its media row after that date. Links used to send photos to moderation expire after three minutes.
         </p>
         <p className="legalBody">
           A Recommendation is your short opinion that one pub suits one kind of
@@ -563,6 +577,16 @@ export default function PrivacyPage() {
             on your device unless you sign in and choose to bring it to your
             account.
           </li>
+          <li>
+            The account switcher keeps up to five account records in localStorage:
+            each account ID, refresh token, sign-in email, public handle and
+            last-active timestamp. This is device-only session-management data
+            used for account switching without another email link. Records
+            stay until you sign out that account, remove all accounts, clear
+            browser storage, or the five-account cap evicts the least recent
+            record. The active account is also mirrored by the separate
+            first-party resume cookie described above.
+          </li>
         </ul>
         <p className="legalBody">
           Because nothing non-essential is set before you agree to it, the first
@@ -600,7 +624,8 @@ export default function PrivacyPage() {
               Optional hosted 18+ age-check provider for a future stronger
               assurance tier. PUBMAXX does not currently send data to Yoti or
               receive a result from it. Social access today uses the date of
-              birth you gave at onboarding.
+              birth you gave at onboarding or one recorded adult self-assertion
+              when no date of birth is stored.
             </dd>
           </div>
           <div className="legalRow">
@@ -609,10 +634,12 @@ export default function PrivacyPage() {
               Social post text goes to OpenAI for omni moderation after the
               post enters our moderation queue. It stays held until OpenAI
               returns a decision. We don&rsquo;t send the Social account ID,
-              handle, area or venue with that text. Normalised Social photos and
-              profile pictures go to OpenAI through short-lived signed links for
-              the same moderation decision. A profile picture is scanned before
-              it is publicly addressable; a Social post stays held until a
+              handle, area or venue with that text. Normalised Social photos,
+              profile pictures, message photos and venue wall photos go to
+              OpenAI through short-lived signed links for their moderation
+              decisions. A profile picture, message photo or venue photo can
+              proceed when the advisory scanner cannot run, while a clear
+              refusal is still honoured. A Social post stays held until a
               usable decision returns.
             </dd>
           </div>
@@ -721,6 +748,14 @@ export default function PrivacyPage() {
             delete your profile.
           </li>
           <li>
+            <strong>Device account switcher records:</strong>{" "}the localStorage
+            lane holds up to five account IDs, refresh tokens, sign-in emails,
+            handles and last-active timestamps until that account is signed out,
+            removed, evicted at the cap, or browser storage is cleared. It exists
+            only to switch accounts on that device and is not a server account
+            directory.
+          </li>
+          <li>
             <strong>Social Crews:</strong>{" "}the Crew, membership history,
             invitations and Join Requests stay with the Crew-bound Plan until
             that Plan is deleted. Private write receipts stay for safe retries
@@ -821,8 +856,11 @@ export default function PrivacyPage() {
           The map and existing contribution tools don&rsquo;t use age to block an
           account. Social stays in preview until the friends launch switch is on.
           When Social is open, full access needs a signed-in account, a claimed
-          handle and a date of birth you gave at onboarding that shows you are
-          18 or older. We do not run a separate hosted age check in this release.
+          handle and either a date of birth you gave at onboarding that shows you
+          are 18 or older or one recorded adult self-assertion when no date of
+          birth is stored. A stored date of birth always decides, including when
+          it shows an under-18 or invalid answer. We do not run a separate hosted
+          age check in this release.
           Pubs remain responsible for deciding who they serve.
         </p>
       </section>

@@ -240,7 +240,11 @@ export default function CityChooser({
               placeholder="Try Sheffield or your town"
               autoComplete="off"
               spellCheck="false"
-              aria-controls={`${listId}-search-results`}
+              aria-controls={
+                normalizedQuery.length >= 2
+                  ? `${listId}-search-results`
+                  : undefined
+              }
               aria-describedby={`${listId}-search-help`}
             />
           </div>
@@ -376,7 +380,7 @@ export default function CityChooser({
                     href={href}
                     className="cityChooserLink"
                     onClick={() => selectCity(city.id)}
-                    aria-label={`${city.displayName}: ${city.tagline}. Open map.`}
+                    aria-label={`${city.displayName} ${city.tagline}. Open map.`}
                   >
                     <span className="cityChooserName">{city.displayName}</span>
                     <p className="cityChooserTagline">{city.tagline}</p>

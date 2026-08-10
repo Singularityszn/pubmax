@@ -1,9 +1,9 @@
 import { publicApiError } from "@/lib/apiError";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
-import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
 import { isLimited } from "@/lib/pintDrops";
 import { hashActor } from "@/lib/supabase";
+import { downloadUploadedImageObject } from "@/lib/uploadedImage.server";
 
 type Context = { params: Promise<{ mediaId: string }> };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -22,8 +22,19 @@ export async function GET(request: Request, context: Context): Promise<Response>
   try {
     const objectKey = await socialPostConsentStore.mediaObjectKey(access.actor, mediaId);
     if (!objectKey) return missing();
-    const signedUrl = await signSocialPhotoObject(objectKey);
-    if (!signedUrl) return missing();
-    return new Response(null, { status: 302, headers: { Location: signedUrl, "Cache-Control": "private, no-store" } });
+    // Read through our private bucket only after the current relationship and
+    // consent check. Returning a signed storage URL would let a copied URL
+    // outlive a block, unfriend, consent withdrawal, or moderation change.
+    const image = await downloadUploadedImageObject(objectKey);
+    if (!image) return missing();
+    return new Response(new Blob([new Uint8Array(image.bytes)], { type: image.contentType }), {
+      status: 200,
+      headers: {
+        "Cache-Control": "private, no-store",
+        "Content-Type": image.contentType,
+        "Content-Length": String(image.bytes.byteLength),
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
   } catch { return missing(); }
 }

@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrandEdge";
 
 export const runtime = "edge";
 

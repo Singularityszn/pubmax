@@ -50,8 +50,17 @@ describe("mobile map price chrome", () => {
     );
   });
 
-  it("adds no phone top-chrome control for the key", () => {
-    expect(mobileShell).not.toContain("MapPriceControl");
+  it("adds a phone map-stage key path with one-shot collapse", () => {
+    expect(pubMap).toContain('<MapPriceControl\n            placement="mobile"');
+    expect(pubMap).toContain("mobileViewport ? (");
+    expect(priceCss).toMatch(/\.mapPriceControl--mobile/);
+    expect(priceCss).toMatch(/\.mapPriceControl--mobile \.mapPriceLegend\s*{\s*display:\s*none/);
+    expect(priceCss).toMatch(/max-width: 640px[\s\S]*?\.mapPriceControl--mobile/);
+    expect(priceCss).toMatch(/max-width: 640px[\s\S]*?\.mapPriceControl--map\s*{\s*display: none/);
+    expect(mobileShell).toContain('aria-label="More map controls"');
+  });
+
+  it("keeps the key in the existing More sheet as a second access path", () => {
     expect(mobileShell.match(/aria-label="More map controls"/g)).toHaveLength(1);
     expect(priceCss).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.mapPriceControl--map\s*{\s*display:\s*none/);
   });

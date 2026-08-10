@@ -207,6 +207,11 @@
   @media (max-width: 360px) {
     .mobileMapTopbar { grid-template-columns: minmax(0, 1fr) 44px 44px 44px; }
     .mobileMapBrand { display: none; }
+    /* Two full-width rows keep both labels readable on 320px devices. A
+       shrinking one-row pair turned "Tonight nearby" into a clipped fragment. */
+    .mobileMapChipRow { flex-wrap: wrap; }
+    .mobileMapDrinkChip,
+    .mobileMapTonightChip { flex: 1 1 100%; }
   }
   .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }
   /* Area button — the live Night Area under the map centre. Evolves the old

@@ -2,13 +2,13 @@
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 100000;
+  z-index: var(--z-overlay-top);
   margin: 8px;
   padding: 10px 16px;
   border-radius: var(--radius-sm, 8px);
-  border: 2px solid var(--ink-deep, #0b0b0d);
-  background: var(--panel-overlay, #ffffff);
-  color: var(--ink-deep, #0b0b0d);
+  border: 2px solid var(--ink-deep);
+  background: var(--panel-overlay);
+  color: var(--ink-deep);
   font-weight: 600;
   text-decoration: none;
   transform: translateY(-140%);
@@ -17,7 +17,7 @@
 
 .skipLink:focus {
   transform: translateY(0);
-  outline: 2px solid var(--brass, #ff5a5f);
+  outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
 

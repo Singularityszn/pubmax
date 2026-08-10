@@ -1,5 +1,6 @@
 /* Loaded with PeopleDirectory so mounts outside /social still style. */
 .peopleDir {
+  container-type: inline-size;
   margin-top: var(--space-4);
   padding: var(--space-4) 0 0;
   border-top: 1px solid var(--line);
@@ -26,18 +27,16 @@
   grid-template-columns: 1fr;
 }
 
-@media (min-width: 640px) {
+@container (min-width: 560px) {
   .peopleDir__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-/* The card WRAPS rather than crushing either half. The breakpoint above is the
-   window's, but this section can sit in a rail about 275px wide on a 1440
-   screen, so two-up left each card near 115px: as a two-column grid the nowrap
-   control took what it needed and the identity beside it was squeezed until
-   "@cara" broke across two lines under an avatar the button was sitting on.
-   Wrapping gives the control its own line instead, at any width. */
+/* The card WRAPS rather than crushing either half. A narrow desktop rail keeps
+   one column because the grid breakpoint belongs to this section's container,
+   not to the viewport. Wrapping gives the control its own line instead, at any
+   width. */
 .peopleDir__card {
   display: flex;
   flex-wrap: wrap;

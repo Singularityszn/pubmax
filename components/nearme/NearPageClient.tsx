@@ -24,16 +24,17 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
   );
   const cityId = preferredCity ?? DEFAULT_CITY_ID;
   const searchParams = useSearchParams();
+  const posterSrc = searchParams.get("src");
   const patchParam = searchParams.get("patch");
   const initialPatchId = resolveNightPatch(patchParam)?.id ?? null;
 
   // Mount-only: a fresh /near load without src=poster must not inherit a stale
   // poster session from an earlier scan in the same tab.
   useEffect(() => {
-    if (!isPosterLandingSrc(searchParams.get("src"))) {
+    if (!isPosterLandingSrc(posterSrc)) {
       clearPosterLandingSession();
     }
-  }, []);
+  }, [posterSrc]);
 
   return (
     <div className="nmnPage">
@@ -44,7 +45,7 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
       <main id="main" className="nmnPageBody">
         {/* Physical QR arrival (PLG Wave 2): one honest orientation line when
             the drinker scanned a bar poster into /near?src=poster. */}
-        <PosterLandingNote src={searchParams.get("src")} />
+        <PosterLandingNote src={posterSrc} />
         {/* Idle-first on /near so patch chips are reachable without granting
             location. Shareable ?patch= deep links answer immediately. */}
         <NearMeNow

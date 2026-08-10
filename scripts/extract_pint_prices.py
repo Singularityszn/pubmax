@@ -9,10 +9,10 @@ import re
 import time
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
+from html import unescape
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote, unquote, urljoin, urlparse
-from xml.etree import ElementTree
 
 import requests
 from bs4 import BeautifulSoup
@@ -101,9 +101,16 @@ def decode_pub_url(url: str) -> tuple[str, str]:
 
 
 def parse_sitemap() -> tuple[list[str], list[str], list[str]]:
-    root = ElementTree.fromstring(fetch(SITEMAP_URL))
-    namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
-    urls = [node.text or "" for node in root.findall(".//sm:loc", namespace)]
+    # This is a fixed first-party sitemap. Read only its bounded `<loc>` text
+    # instead of handing fetched XML to a parser that can resolve entities.
+    urls = [
+        unescape(match).strip()
+        for match in re.findall(
+            r"<(?:[A-Za-z_][\w.-]*:)?loc\b[^>]*>(.*?)</(?:[A-Za-z_][\w.-]*:)?loc\s*>",
+            fetch(SITEMAP_URL),
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+    ]
     borough_urls = sorted({u for u in urls if "/borough-results/" in u})
     pub_urls = sorted({u for u in urls if "/pub/" in u})
     return urls, borough_urls, pub_urls

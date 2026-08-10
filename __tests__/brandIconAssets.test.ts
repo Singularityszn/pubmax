@@ -274,15 +274,15 @@ describe("what the head and the manifest point at exists", () => {
   // installed. Captain decision 2026-08-10.
   it("opens the installed app at the landing, under the site's own name", () => {
     expect(manifest.start_url).toBe("/");
-    expect(manifest.name).toBe("PUBMAXXING");
-    expect(manifest.short_name).toBe("PUBMAXXING");
+    expect(manifest.name).toBe("PUBMAX");
+    expect(manifest.short_name).toBe("PUBMAX");
   });
 
   // iOS takes the Home Screen label from apple-mobile-web-app-title, not from
   // the manifest, so the two platforms drift apart unless both are stated.
   it("gives iOS the same installed name the manifest gives Android", () => {
     const apple = layout.slice(layout.indexOf("appleWebApp: {"));
-    expect(apple.slice(0, apple.indexOf("},"))).toContain('title: "PUBMAXXING"');
+    expect(apple.slice(0, apple.indexOf("},"))).toContain('title: "PUBMAX"');
   });
 
   it("lists only generated files in the manifest", () => {

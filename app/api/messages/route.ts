@@ -21,6 +21,7 @@ import { messagesStore } from "@/lib/messagesStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -30,6 +31,33 @@ assertServerEnv();
 
 const SEND_LIMIT = 20;
 const SEND_WINDOW_MS = 60_000;
+const OPEN_LIMIT = 20;
+const OPEN_WINDOW_MS = 60_000;
+
+async function activeRecipient(handle: string): Promise<
+  { ok: true } | { ok: false; response: Response }
+> {
+  try {
+    const profile = await profileStore().getByHandle(handle);
+    if (!profile || !profile.userId?.trim() || isProfileTombstoned(profile)) {
+      return {
+        ok: false,
+        response: publicApiError("Recipient not found.", "NOT_FOUND", 404),
+      };
+    }
+    return { ok: true };
+  } catch {
+    return {
+      ok: false,
+      response: publicApiError(
+        "Profile storage is unavailable.",
+        "UNAVAILABLE",
+        503,
+        { retryable: true },
+      ),
+    };
+  }
+}
 
 export async function GET(request: Request): Promise<Response> {
   const asserted = new URL(request.url).searchParams.get("handle") ?? "";
@@ -91,6 +119,12 @@ export async function POST(request: Request): Promise<Response> {
   const store = messagesStore();
 
   if (action === "open") {
+    const key = `msg-open:${handle}:${hashIp(clientIp(request))}`;
+    if (await isLimited(key, key, OPEN_LIMIT, OPEN_WINDOW_MS, { failClosed: true })) {
+      return publicApiError("Too many conversation opens, slow down.", "RATE_LIMITED", 429, { retryable: true });
+    }
+    const recipient = await activeRecipient(other);
+    if (!recipient.ok) return recipient.response;
     const conversationId = await store.openConversation(handle, other);
     if (!conversationId) {
       return publicApiError("Couldn't open that conversation.", "UNAVAILABLE", 503, { retryable: true });
@@ -105,6 +139,8 @@ export async function POST(request: Request): Promise<Response> {
     }
     const messageBody = readString(body.body);
     if (!messageBody) return publicApiError("Write a message.", "INVALID_REQUEST", 400);
+    const recipient = await activeRecipient(other);
+    if (!recipient.ok) return recipient.response;
     const conversationId = await store.openConversation(handle, other);
     if (!conversationId) {
       return publicApiError("Couldn't open that conversation.", "UNAVAILABLE", 503, { retryable: true });

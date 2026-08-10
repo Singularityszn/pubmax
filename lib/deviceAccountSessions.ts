@@ -30,6 +30,8 @@
 // GoTrue refuses is deleted on the spot and the row stays, so the switcher can
 // offer a sign-in rather than pretend an account was never here.
 
+import { isPlausibleRefreshToken } from "@/lib/refreshTokenPolicy";
+
 /** One key, one lane. Versioned so a shape change is a new lane, not a repair. */
 export const DEVICE_ACCOUNT_SESSIONS_KEY = "pubmax_device_sessions_v1";
 
@@ -68,23 +70,7 @@ export type DeviceAccountUpsert = {
 
 type WritableStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
-const MAX_TOKEN_LENGTH = 2048;
 const MAX_TEXT_LENGTH = 320;
-
-/**
- * The same plausibility bar the resume cookie applies (`isPlausibleRefreshToken`
- * in lib/authSessionResume.ts). Restated rather than imported because that
- * module encodes its cookie with `Buffer`, which the browser bundle has no
- * business carrying; the rule is one line and both copies are pinned.
- */
-function plausibleRefreshToken(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.length >= 8 &&
-    value.length <= MAX_TOKEN_LENGTH &&
-    /^[\x21-\x7e]+$/.test(value)
-  );
-}
 
 function text(value: unknown): string | null {
   return typeof value === "string" && value && value.length <= MAX_TEXT_LENGTH
@@ -100,7 +86,7 @@ function parseRow(raw: unknown): DeviceAccountRecord | null {
   if (!userId) return null;
   return {
     userId,
-    refreshToken: plausibleRefreshToken(row.refreshToken) ? row.refreshToken : null,
+    refreshToken: isPlausibleRefreshToken(row.refreshToken) ? row.refreshToken : null,
     email: text(row.email),
     handle: text(row.handle),
     lastActiveAt:
@@ -205,7 +191,7 @@ export function rememberDeviceAccount(
     refreshToken:
       entry.refreshToken === undefined
         ? (previous?.refreshToken ?? null)
-        : plausibleRefreshToken(entry.refreshToken)
+        : isPlausibleRefreshToken(entry.refreshToken)
           ? entry.refreshToken
           : null,
     email: entry.email === undefined ? (previous?.email ?? null) : text(entry.email),

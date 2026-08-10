@@ -158,6 +158,25 @@
   color: var(--muted, var(--ink-soft, #5c5346));
 }
 
+.wantedRow__actions {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: stretch;
+}
+
+.wantedRow__share {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 0.55rem 2rem 0.55rem 0.75rem;
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.14));
+  border-radius: 8px;
+  background: var(--paper, #fff);
+  color: var(--ink);
+  font: inherit;
+}
+
 .wantedSaveWrap {
   margin-top: 0.65rem;
 }

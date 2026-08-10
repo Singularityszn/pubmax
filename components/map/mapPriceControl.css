@@ -1,5 +1,5 @@
 /* Corner price chrome: always-visible desktop colour key + optional filter FAB.
-   Phone access lives in the existing More sheet. No heritage/writer rows. */
+   Phones get a small map-stage key and keep the existing More sheet path. */
 
 .mapPriceControl {
   /* Shared with .mapHeroCard so the story teaser clears this stack on desktop. */
@@ -13,6 +13,10 @@
   bottom: 18px;
   z-index: var(--z-map-hover);
   pointer-events: none;
+}
+
+.mapPriceControl--mobile {
+  display: none;
 }
 
 .mapPriceFab,
@@ -245,6 +249,32 @@ html[data-theme="dark"] .mapPriceDot.grey {
 @media (max-width: 640px) {
   .mapPriceControl--map {
     display: none;
+  }
+
+  .mapPriceControl--mobile {
+    display: flex;
+    position: fixed;
+    left: var(--map-chrome-inset, 10px);
+    bottom: calc(var(--mobile-tab-clearance, 72px) + 14px);
+    z-index: var(--z-map-hover);
+    pointer-events: none;
+  }
+
+  .mapPriceControl--mobile .mapPriceLegend {
+    display: none;
+  }
+
+  .mapPriceControl--mobile .mapPriceFab {
+    pointer-events: auto;
+  }
+
+  .mapPriceControl--mobile .mapPricePanel {
+    position: fixed;
+    left: var(--map-chrome-inset, 10px);
+    right: var(--map-chrome-inset, 10px);
+    bottom: calc(var(--mobile-tab-clearance, 72px) + 68px);
+    width: auto;
+    max-height: min(58vh, 520px);
   }
 
   .mapPriceControl--header {

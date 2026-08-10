@@ -537,7 +537,7 @@
 }
 .planDescribeFirst h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3rem); line-height: 0.98; letter-spacing: -0.035em; }
 .planDescribeFirst__form { margin: 20px auto 0; max-width: 560px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.planDescribeFirst__form input { min-height: 48px; border: 1px solid var(--line); border-radius: 11px; padding: 0 16px; font: inherit; background: var(--panel-raised); color: var(--ink); }
+.planDescribeFirst__form input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 48px; border: 1px solid var(--line); border-radius: 11px; padding: 0 16px; font: inherit; background: var(--panel-raised); color: var(--ink); }
 .planDescribeFirst__form button { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; background: var(--accent-action); color: var(--color-on-accent); font: inherit; font-weight: 800; cursor: pointer; }
 .planDescribeFirst__form button:hover:not(:disabled) { background: var(--accent-action-strong); }
 .planDescribeFirst__form button:disabled { opacity: 0.5; cursor: not-allowed; }

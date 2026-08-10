@@ -19,6 +19,7 @@ const state = vi.hoisted(() => ({
   } as unknown,
   migrationAuthority: null as unknown,
   authVerifierCalls: 0,
+  accessArgs: [] as unknown[],
 }));
 
 vi.mock("@/lib/authServer", () => ({
@@ -29,7 +30,10 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 vi.mock("@/lib/socialAccessServer", () => ({
-  resolveSocialAccess: async () => state.access,
+  resolveSocialAccess: async (...args: unknown[]) => {
+    state.accessArgs = args;
+    return state.access;
+  },
   migrateSocialProductAccount: async (authority: unknown) => {
     state.migrationAuthority = authority;
     return state.migration;
@@ -60,6 +64,7 @@ beforeEach(() => {
   };
   state.migrationAuthority = null;
   state.authVerifierCalls = 0;
+  state.accessArgs = [];
 });
 
 afterEach(() => {
@@ -73,6 +78,19 @@ describe("/api/social/access", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(await response.json()).toEqual({ state: "sign_in_required" });
+    expect(state.accessArgs[2]).toEqual({ allowResumeCookie: false });
+  });
+
+  it("does not allow a cross-site top-level GET to redeem a resume cookie", async () => {
+    const response = await GET(new Request("http://localhost/api/social/access", {
+      headers: {
+        Origin: "https://attacker.example",
+        Cookie: "pubmax_session_resume=opaque-refresh-cookie",
+      },
+    }));
+
+    expect(response.status).toBe(200);
+    expect(state.accessArgs[2]).toEqual({ allowResumeCookie: false });
   });
 
   it("fails closed with preview plus honest unavailable semantics", async () => {

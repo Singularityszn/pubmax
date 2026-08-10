@@ -205,6 +205,11 @@ export function SocialAccessBoundary({
           {assertError}
         </p>
       ) : null}
+      {state === "sign_in_required" ? (
+        <Link className="socialButton" href="/login?from=%2Fsocial">
+          Sign in
+        </Link>
+      ) : null}
       {state === "unavailable" && onRetry ? (
         <button className="socialButton" type="button" onClick={onRetry}>
           Retry

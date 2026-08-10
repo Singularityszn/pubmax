@@ -56,7 +56,62 @@ describe("resolveWantedPaste", () => {
     );
   });
 
-  it("does not invent candidates for a bare Instagram URL", async () => {
+  it("resolves a bare YouTube URL through its public oEmbed title", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          title: "The Dove",
+          author_name: "Pub guide",
+          html: "<script>alert('must not cross the boundary')</script>",
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+
+    const result = await resolveWantedPaste("https://www.youtube.com/watch?v=abc123");
+
+    expect(result.status).toBe("ready");
+    expect(result.query).toBe("The Dove");
+    expect(result.candidates.map((candidate) => candidate.venueId)).toContain("venue-dove");
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("https://www.youtube.com/oembed?"),
+      expect.objectContaining({ redirect: "manual" }),
+    );
+  });
+
+  it("does not fetch an unapproved source host", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const result = await resolveWantedPaste("https://evil.example/reel/abc");
+
+    expect(result.status).toBe("ready");
+    expect(result.candidates).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not send non-HTTPS or non-default-port provider URLs upstream", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const result = await resolveWantedPaste("http://www.youtube.com:8080/watch?v=abc123");
+
+    expect(result.status).toBe("degraded");
+    expect(result.candidates).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns degraded when provider metadata cannot be read", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("upstream unavailable", {
+        status: 503,
+        headers: { "content-type": "text/plain" },
+      }),
+    );
+
+    const result = await resolveWantedPaste("https://www.youtube.com/watch?v=abc123");
+
+    expect(result.status).toBe("degraded");
+    expect(result.candidates).toEqual([]);
+  });
+
+  it("keeps arbitrary social URLs as provenance without server-side fetch", async () => {
     const result = await resolveWantedPaste("https://www.instagram.com/reel/abc/");
     expect(result.candidates).toEqual([]);
     expect(result.sourceUrl).toContain("instagram.com");

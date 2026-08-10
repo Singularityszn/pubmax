@@ -110,9 +110,11 @@ describe("mobile chrome fit at 390px", () => {
     );
     const chipMins: number[] = [];
     for (const selector of [".mobileMapTonightChip", ".mobileMapDrinkChip"]) {
-      const rule = mobileMapCss.match(
-        new RegExp(`\\${selector}\\s*{([^}]*)}`),
-      )?.[1] ?? "";
+      const rule = [...mobileMapCss.matchAll(
+        new RegExp(`\\${selector}\\s*{([^}]*)}`, "g"),
+      )]
+        .map((match) => match[1])
+        .find((body) => body.includes("min-height")) ?? "";
       expect(rule, `${selector} rule present`).not.toBe("");
       // Every chip on that row still clears the 44px tap floor.
       expect(rule, `${selector} tap floor`).toMatch(/min-height:\s*44px/);
@@ -140,6 +142,16 @@ describe("mobile chrome fit at 390px", () => {
     // And the shell still publishes the balanced stack the chip sits inside.
     expect(mobileMapCss).toMatch(/--mobile-map-stack-left:\s*\d+px/);
     expect(mobileMapCss).toMatch(/--mobile-map-stack-right:\s*\d+px/);
+  });
+
+  it("gives both map chips a full readable row at 320px", () => {
+    const narrow = mobileMapCss.slice(
+      mobileMapCss.indexOf("@media (max-width: 360px)"),
+    );
+    expect(narrow).toMatch(/\.mobileMapChipRow\s*{[^}]*flex-wrap:\s*wrap/);
+    expect(narrow).toMatch(
+      /\.mobileMap(?:Drink|Tonight)Chip\s*{[^}]*flex:\s*1 1 100%/,
+    );
   });
 
   it("never truncates the venue price caption", () => {

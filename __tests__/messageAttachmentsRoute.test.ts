@@ -80,7 +80,7 @@ import {
 import { messagePhotoServingKey, messagePhotoStagingKey } from "@/lib/messageAttachments";
 import type { MessagePhotoStorage } from "@/lib/messagePhotoMedia.server";
 import { __resetMemoryMessages } from "@/lib/messagesStore";
-import { __resetMemoryProfiles } from "@/lib/profileStore";
+import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
 const BASE = "http://localhost/api/messages";
@@ -211,7 +211,7 @@ function getPhoto(id: string, messageId: string, handle: string): Promise<Respon
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   authState.userId = null;
@@ -221,6 +221,9 @@ beforeEach(() => {
   venueState.cheapestPrice = 5.4;
   __resetMemoryMessages();
   __resetMemoryProfiles();
+  // Message open now requires an active claimed recipient. Keep this fixture
+  // aligned with that production contract rather than reopening a ghost row.
+  await memoryProfileStore.createOwned("sam", "user-sam");
   __resetPintDrops();
   __setMessagePhotoRouteDepsForTest(null);
   __setMessagePhotoServeRouteDepsForTest(null);

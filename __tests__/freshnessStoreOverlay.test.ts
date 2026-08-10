@@ -21,7 +21,7 @@ const db = vi.hoisted(() => ({
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => db.configured,
   requireSupabaseAdmin: () => ({
-    from(_table: string) {
+    from() {
       return {
         select() {
           return this;

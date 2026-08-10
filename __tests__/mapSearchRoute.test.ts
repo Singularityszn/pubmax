@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { __setUkNationalPubSearchIndexForTests } from "@/lib/ukNationalPubSearch.server";
 
@@ -9,6 +11,12 @@ afterEach(() => {
 });
 
 describe("GET /api/map-search", () => {
+  it("uses a request-lifetime completion hook for telemetry", () => {
+    const source = readFileSync(join(process.cwd(), "app/api/map-search/route.ts"), "utf8");
+    expect(source).toMatch(/\bafter\(/);
+    expect(source).not.toMatch(/void\s+recordMapSearchEvent/);
+  });
+
   it("returns intent and national pub hits", async () => {
     __setUkNationalPubSearchIndexForTests({
       pubs: [

@@ -237,7 +237,8 @@ export function buildHistoricIndex({ heritageCache, dataset }) {
     const count = usedSlugs.get(base) ?? 0;
     usedSlugs.set(base, count + 1);
     const slug = count === 0 ? base : `${base}-${count + 1}`;
-    const { _eraSort, ...rest } = rec;
+    const rest = { ...rec };
+    delete rest._eraSort;
     // Emit keys in the documented schema order.
     return {
       venueId: rest.venueId,

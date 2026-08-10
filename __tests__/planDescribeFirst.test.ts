@@ -10,6 +10,14 @@ import { DESCRIBE_FIRST_CHIPS } from "@/components/plan/PlanDescribeFirst";
 // inferNightContext in __tests__/nightPlanning.test.ts, not here.
 
 describe("PlanDescribeFirst occasion chips", () => {
+  it("bounds the first-screen input to its mobile grid track", () => {
+    const css = readFileSync(join(process.cwd(), "app/plan/plan.css"), "utf8");
+    const input = css.match(/\.planDescribeFirst__form input\s*{([^}]*)}/)?.[1] ?? "";
+    expect(input).toMatch(/box-sizing:\s*border-box/);
+    expect(input).toMatch(/min-width:\s*0/);
+    expect(input).toMatch(/width:\s*100%/);
+  });
+
   it("keeps at least two classic night chips that already generate", () => {
     expect(DESCRIBE_FIRST_CHIPS).toContain("Quiet in Clapham for 4, not pricey");
     expect(DESCRIBE_FIRST_CHIPS).toContain("cheap pints tonight in Shoreditch");

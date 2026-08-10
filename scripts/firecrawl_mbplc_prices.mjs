@@ -19,7 +19,6 @@ import { fileURLToPath } from "node:url";
 import {
   buildVenueIndexes,
   mergeDrinkUpdates,
-  normalisePubName,
   resolveVenueKeyFromHints,
   resolveVenueKeyFromPubName,
   slugFromMbplcDrinksUrl,

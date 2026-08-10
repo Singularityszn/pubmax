@@ -9,15 +9,18 @@ import {
   createFailSoftGuard,
   onMissingDurableWrite,
 } from "@/lib/storeBackend";
-import type { Wanted, WantedDTO, WantedFields, WantedStatus } from "@/lib/wanted";
+import { isDrinkCategory } from "@/lib/drinks";
+import { cleanWantedVisibility, type Wanted, type WantedDTO, type WantedFields, type WantedStatus, type WantedVisibility } from "@/lib/wanted";
 
 const TABLE = "wanteds";
-const MIGRATION_HINT = "apply migration 0093";
+const MIGRATION_HINT = "apply migration 0104";
 
 export type WantedStore = {
   create(fields: WantedFields, now?: number): Promise<WantedDTO>;
   listForOwner(ownerActor: string): Promise<{ status: "ready" | "degraded"; wanteds: WantedDTO[] }>;
   listOpenForOwner(ownerActor: string): Promise<{ status: "ready" | "degraded"; wanteds: WantedDTO[] }>;
+  listForMutualOwners(ownerActors: readonly string[]): Promise<{ status: "ready" | "degraded"; wanteds: WantedDTO[] }>;
+  listForCrew(crewId: string): Promise<{ status: "ready" | "degraded"; wanteds: WantedDTO[] }>;
   /** Mark open Wanteds for this owner+venue fulfilled. Returns fulfilled rows. */
   fulfilForVenue(
     ownerActor: string,
@@ -26,6 +29,7 @@ export type WantedStore = {
   ): Promise<WantedDTO[]>;
   delete(ownerActor: string, id: string): Promise<boolean>;
   getById(ownerActor: string, id: string): Promise<WantedDTO | null>;
+  updateVisibility(ownerActor: string, id: string, visibility: WantedVisibility): Promise<WantedDTO | null>;
 };
 
 function toDTO(row: Wanted): WantedDTO {
@@ -42,6 +46,15 @@ function memoryList(ownerActor: string, openOnly: boolean): WantedDTO[] {
       if (openOnly && row.status !== "open") return false;
       return true;
     })
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map(toDTO);
+}
+
+function memorySharedList(
+  predicate: (row: Wanted) => boolean,
+): WantedDTO[] {
+  return Array.from(byId.values())
+    .filter(predicate)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .map(toDTO);
 }
@@ -65,6 +78,21 @@ export const memoryWantedStore: WantedStore = {
 
   async listOpenForOwner(ownerActor) {
     return { status: "ready", wanteds: memoryList(ownerActor, true) };
+  },
+
+  async listForMutualOwners(ownerActors) {
+    const allowed = new Set(ownerActors);
+    return {
+      status: "ready",
+      wanteds: memorySharedList((row) => row.visibility === "mutuals" && allowed.has(row.ownerActor)),
+    };
+  },
+
+  async listForCrew(crewId) {
+    return {
+      status: "ready",
+      wanteds: memorySharedList((row) => row.visibility === `crew:${crewId}`),
+    };
   },
 
   async fulfilForVenue(ownerActor, venueId, now = Date.now()) {
@@ -94,6 +122,13 @@ export const memoryWantedStore: WantedStore = {
     if (!hit || hit.ownerActor !== ownerActor) return null;
     return toDTO(hit);
   },
+
+  async updateVisibility(ownerActor, id, visibility) {
+    const hit = byId.get(id);
+    if (!hit || hit.ownerActor !== ownerActor) return null;
+    hit.visibility = visibility;
+    return toDTO(hit);
+  },
 };
 
 // ── Supabase ─────────────────────────────────────────────────────────────────
@@ -114,6 +149,8 @@ function toRow(wanted: Wanted) {
     source_platform: wanted.sourcePlatform,
     note: wanted.note,
     raw_paste: wanted.rawPaste,
+    drink_interest: wanted.drinkInterest,
+    visibility: wanted.visibility,
     status: wanted.status,
     created_at: wanted.createdAt,
     fulfilled_at: wanted.fulfilledAt,
@@ -137,6 +174,8 @@ function fromRow(row: Record<string, unknown>): Wanted | null {
     row.source_platform === "none"
       ? row.source_platform
       : "none";
+  const drinkInterest = isDrinkCategory(row.drink_interest) ? row.drink_interest : null;
+  const visibility = cleanWantedVisibility(row.visibility) ?? "private";
   return {
     id,
     ownerActor,
@@ -147,6 +186,8 @@ function fromRow(row: Record<string, unknown>): Wanted | null {
     sourcePlatform: platform,
     note: typeof row.note === "string" ? row.note : "",
     rawPaste: typeof row.raw_paste === "string" ? row.raw_paste : "",
+    drinkInterest,
+    visibility,
     status,
     createdAt: typeof row.created_at === "string" ? row.created_at : new Date(0).toISOString(),
     fulfilledAt: typeof row.fulfilled_at === "string" ? row.fulfilled_at : null,
@@ -206,6 +247,52 @@ export const supabaseWantedStore: WantedStore = {
       status: all.status,
       wanteds: all.wanteds.filter((row) => row.status === "open"),
     };
+  },
+
+  async listForMutualOwners(ownerActors) {
+    if (ownerActors.length === 0) return { status: "ready", wanteds: [] };
+    return guard({
+      context: "list-mutuals",
+      onSchemaMiss: async () => memoryWantedStore.listForMutualOwners(ownerActors),
+      onError: async () => ({ status: "degraded" as const, wanteds: [] }),
+      message: "list mutual Wanteds failed",
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .select("*")
+          .in("owner_actor", [...ownerActors])
+          .eq("visibility", "mutuals")
+          .order("created_at", { ascending: false });
+        if (error) throw new Error(error.message);
+        const wanteds = (data ?? [])
+          .map((row) => fromRow(row as Record<string, unknown>))
+          .filter((row): row is Wanted => row !== null)
+          .map(toDTO);
+        return { status: "ready" as const, wanteds };
+      },
+    });
+  },
+
+  async listForCrew(crewId) {
+    return guard({
+      context: "list-crew",
+      onSchemaMiss: async () => memoryWantedStore.listForCrew(crewId),
+      onError: async () => ({ status: "degraded" as const, wanteds: [] }),
+      message: "list Crew Wanteds failed",
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .select("*")
+          .eq("visibility", `crew:${crewId}`)
+          .order("created_at", { ascending: false });
+        if (error) throw new Error(error.message);
+        const wanteds = (data ?? [])
+          .map((row) => fromRow(row as Record<string, unknown>))
+          .filter((row): row is Wanted => row !== null)
+          .map(toDTO);
+        return { status: "ready" as const, wanteds };
+      },
+    });
   },
 
   async fulfilForVenue(ownerActor, venueId, now = Date.now()) {
@@ -270,6 +357,31 @@ export const supabaseWantedStore: WantedStore = {
           .select("*")
           .eq("id", id)
           .eq("owner_actor", ownerActor)
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        if (!data) return null;
+        const row = fromRow(data as Record<string, unknown>);
+        return row ? toDTO(row) : null;
+      },
+    });
+  },
+
+  async updateVisibility(ownerActor, id, visibility) {
+    return guard({
+      context: "visibility",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "wanteds",
+          migrationHint: MIGRATION_HINT,
+          fallback: () => memoryWantedStore.updateVisibility(ownerActor, id, visibility),
+        }),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .update({ visibility })
+          .eq("id", id)
+          .eq("owner_actor", ownerActor)
+          .select("*")
           .maybeSingle();
         if (error) throw new Error(error.message);
         if (!data) return null;

@@ -618,7 +618,8 @@ function NightModeSheet({
     };
   }, []);
 
-  const stops = plan?.stops ?? [];
+  const planStops = plan?.stops;
+  const stops = useMemo(() => planStops ?? [], [planStops]);
   const cursor = clampStopIndex(stopIndex, stops.length);
   const currentStop = stops[cursor] ?? null;
   const nextStop = stops[cursor + 1] ?? null;

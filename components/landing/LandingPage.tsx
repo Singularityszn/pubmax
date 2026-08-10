@@ -289,7 +289,7 @@ export default function LandingPage({
   return (
     <div className={landingFindMyPint ? "lp lp--findMyPint" : "lp lp--mapFirst"}>
       <header className="lpNav">
-        <Link href="/" className="lpWordmark" aria-label="PUBMAXXING home">
+        <Link href="/" className="lpWordmark">
           <PubmaxxWordmark />
         </Link>
 
@@ -542,7 +542,7 @@ export default function LandingPage({
       <footer className="lpFooter">
         <div className="lpFooterInner">
           <div className="lpFooterBrand">
-            <Link href="/" className="lpWordmark" aria-label="PUBMAXXING home">
+            <Link href="/" className="lpWordmark">
               <PubmaxxWordmark />
             </Link>
             <p className="lpFooterPitch">

@@ -619,15 +619,6 @@ export default function PubmaxxAccountHub() {
     );
   }
 
-  function editDeviceNightProfile(profile: NightProfileInput) {
-    if (!writeDeviceNightProfile(profile)) {
-      setMessage("This browser could not save your Night Profile.");
-      return;
-    }
-    setDeviceNightProfile(profile);
-    setMessage("Night Profile saved on this device.");
-  }
-
   async function saveAccountNightProfile() {
     if (!nightProfileDraft || !nightProfileLoaded) return;
     const response = await authedFetch("/api/me/night-profile", {

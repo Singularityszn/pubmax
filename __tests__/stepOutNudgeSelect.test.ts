@@ -16,6 +16,8 @@ function wanted(partial: Partial<WantedDTO> & Pick<WantedDTO, "venueId" | "venue
     sourcePlatform: "none",
     note: "",
     rawPaste: "",
+    drinkInterest: null,
+    visibility: "private",
     status: "open",
     createdAt: "2026-08-01T00:00:00.000Z",
     fulfilledAt: null,

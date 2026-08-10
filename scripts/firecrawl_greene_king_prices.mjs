@@ -67,7 +67,6 @@ const DRINK_CATEGORIES = new Set([
 
 const SECTION_HEADING = /^###\s+(.+)$/;
 const ITEM_HEADING = /^####\s+(.+)$/;
-const PRICE_LINE = /£\s*(\d+(?:\.\d{2})?)/;
 
 function mapSectionToCategory(section) {
   const s = section.toLowerCase();

@@ -83,7 +83,7 @@
     "lucide-react": "^1.28.0",
     "maplibre-gl": "6.1.0",
     "next": "^16.2.12",
-    "posthog-js": "^1.409.5",
+    "posthog-js": "^1.415.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "sharp": "^0.35.3",
@@ -114,6 +114,8 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
+    "dompurify": "3.4.13",
+    "uuid": "11.1.1",
     "postcss": "^8.5.23",
     "sharp": "$sharp",
     "eslint-plugin-react": {

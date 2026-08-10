@@ -139,10 +139,14 @@ export default function MapSearchSuggest({
   const nationalFetchActive = nationalQuery.length >= NATIONAL_FETCH_MIN_CHARS;
   const [nationalPubs, setNationalPubs] = useState<UkBasePubSuggestion[]>([]);
   const [nationalGroupLabel, setNationalGroupLabel] = useState(UK_BASE_SEARCH_GROUP_LABEL);
-  const activeNationalPubs = nationalFetchActive ? nationalPubs : [];
-  const activeNationalGroupLabel = nationalFetchActive
-    ? nationalGroupLabel
-    : UK_BASE_SEARCH_GROUP_LABEL;
+  const activeNationalPubs = useMemo(
+    () => (nationalFetchActive ? nationalPubs : []),
+    [nationalFetchActive, nationalPubs],
+  );
+  const activeNationalGroupLabel = useMemo(
+    () => (nationalFetchActive ? nationalGroupLabel : UK_BASE_SEARCH_GROUP_LABEL),
+    [nationalFetchActive, nationalGroupLabel],
+  );
   const nationalTrackedQuery = useRef("");
 
   useEffect(() => {

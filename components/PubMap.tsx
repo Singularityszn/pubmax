@@ -3617,8 +3617,9 @@ export default function PubMap({
             onDismiss={dismissBandChip}
           />
         ) : null}
-        {/* Desktop keeps price controls at bottom left. Phones use the existing
-            More sheet, leaving top chrome unchanged. */}
+        {/* Desktop keeps price controls at bottom left. Phones get a map-stage
+            key that auto-opens once after consent, then collapse; More keeps a
+            second deliberate path for later use. */}
         {!mobileViewport ? (
           <MapPriceControl
             placement="map"
@@ -3630,7 +3631,18 @@ export default function PubMap({
               experienceLens === "all" && activeLensLabel === null
             }
           />
-        ) : null}
+        ) : (
+          <MapPriceControl
+            placement="mobile"
+            filters={filters}
+            onFiltersChange={setFilters}
+            legend={activePriceLegend}
+            lensLabel={activeLensLabel ?? undefined}
+            priceFiltersEnabled={
+              experienceLens === "all" && activeLensLabel === null
+            }
+          />
+        )}
 
         {activePersona ? (
           <PersonaLensCard
