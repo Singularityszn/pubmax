@@ -140,8 +140,16 @@ export async function PATCH(request: Request): Promise<Response> {
         ...(dateOfBirth ? { dateOfBirth } : {}),
       }),
     ]);
-    if (!profile || !privateIdentity) {
-      return publicApiError("Finish account setup before editing private details.", "CONFLICT", 409);
+    // An owner may save private details whatever their onboarding status says:
+    // the save CREATES the identity row. What is left is two real refusals, and
+    // they are two findings rather than one. A signed-in account with no
+    // profile has nothing to attach details to, and a first save has to carry
+    // the date of birth the row is built around.
+    if (!profile) {
+      return publicApiError("Claim your handle before saving private details.", "CONFLICT", 409);
+    }
+    if (!privateIdentity) {
+      return publicApiError("Add your date of birth to save private details.", "INVALID", 400);
     }
     return jsonNoStore({
       complete: true,

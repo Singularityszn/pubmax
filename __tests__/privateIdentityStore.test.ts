@@ -8,7 +8,7 @@ import {
   __resetMemoryPrivateIdentities,
   memoryPrivateIdentityStore,
 } from "@/lib/privateIdentityStore";
-import { __resetMemoryProfiles } from "@/lib/profileStore";
+import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 
 beforeEach(() => {
   __resetMemoryIdentityHandles();
@@ -54,6 +54,41 @@ describe("private identity store", () => {
         memoryIdentityHandleStore.resolve("invalid_date_person"),
       ).resolves.toBeNull();
     }
+  });
+
+  it("creates the identity row for a claim-path account that has none", async () => {
+    // A handle claimed through the early path stores no date of birth, so this
+    // account has a profile and no private identity row at all. The save makes
+    // one; it does not refuse for the row's own absence.
+    await memoryProfileStore.createOwned("early_claimer", "user-claim-path");
+    await expect(
+      memoryPrivateIdentityStore.read("user-claim-path"),
+    ).resolves.toBeNull();
+
+    await expect(
+      memoryPrivateIdentityStore.updateDetails("user-claim-path", {
+        dateOfBirth: "1990-01-01",
+        fullName: "Karan Founder",
+      }),
+    ).resolves.toMatchObject({
+      dateOfBirth: "1990-01-01",
+      fullName: "Karan Founder",
+    });
+    await expect(
+      memoryPrivateIdentityStore.read("user-claim-path"),
+    ).resolves.toMatchObject({ dateOfBirth: "1990-01-01" });
+  });
+
+  it("refuses a first save that carries no date of birth", async () => {
+    await memoryProfileStore.createOwned("early_claimer", "user-claim-path");
+    await expect(
+      memoryPrivateIdentityStore.updateDetails("user-claim-path", {
+        fullName: "Karan Founder",
+      }),
+    ).resolves.toBeNull();
+    await expect(
+      memoryPrivateIdentityStore.read("user-claim-path"),
+    ).resolves.toBeNull();
   });
 
   it("updates required and optional private fields without changing ownership", async () => {

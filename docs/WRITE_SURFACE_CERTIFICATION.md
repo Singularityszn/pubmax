@@ -70,6 +70,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/email-subscribers`
 - `POST app/api/events`
 - `POST app/api/heritage`
+- `POST app/api/identity/adult-assertion`
 - `POST app/api/identity/handle/claim`
 - `POST app/api/identity/handle/rename`
 - `POST app/api/identity/onboarding`
@@ -969,6 +970,31 @@ commit.
   private account table and are not returned by public profile routes. Date of
   birth stays until profile deletion; full name and sex stay until edited,
   cleared or profile deletion. No contribution eligibility is derived.
+- **The PATCH creates the row it edits.** An account that claimed its handle
+  through the early path stores no date of birth, so it has no
+  `private_account_identities` row at all, and the save was refused for that
+  row's own absence. An owner may now save private details whatever the
+  onboarding status says. Two real refusals remain, and they are two findings:
+  no profile at all is 409, and a first save carrying no date of birth is 400,
+  because the column is NOT NULL.
+
+### `app/api/identity/adult-assertion` - the recorded 18-or-over tap
+
+- **Route / method:** `POST` on `app/api/identity/adult-assertion/route.ts`
+  records that this account tapped "I'm 18 or over" (captain decision
+  2026-08-10, migration 0103). Idempotent: a second tap keeps the first instant.
+- **Authority:** the account comes from the caller's own verified bearer token
+  through `callerUserId`, and from nothing in the body, because an assertion
+  made about somebody else is not an assertion. Missing authority is 401.
+- **Rate limit (boundary):** `isLimited` (`lib/pintDrops.ts`) on a per-account
+  key.
+- **What it is not:** not a capability. The single reader is `accountIsAdult`
+  (`lib/socialLaunch.ts`), which answers the age question for Social and for
+  pub photo walls. A stored date of birth still decides when there is one, in
+  both directions, so a recorded assertion can never overturn an under-18 date
+  the account itself gave. The reply carries no access state: the caller
+  re-asks `/api/social/access`, which stays the one authority on what a viewer
+  may see.
 
 ### `app/api/invite/[token]/rsvp`, `app/api/invite/[token]/reactions`, `app/api/plans/[id]/invite-rsvp`, and `app/api/plans/[id]/invite-rotate` - Plan public invite RSVP, reactions, and link rotation (route 89)
 
@@ -1075,8 +1101,9 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
 - **Identity and attribution:** creation requires `resolveContributionIdentity`,
   which derives the public handle and a profile-based actor
   (`profile:${profile.id}`) from the authenticated account's immutable profile
-  id, plus an 18-or-over check read from that same account's private identity
-  (`isAdultDateOfBirth`). Body handles and body ages are ignored. The stored row
+  id, plus an 18-or-over check through the one shared gate (`accountIsAdult`):
+  the account's own stored date of birth, or its recorded one-tap assertion
+  (migration 0103). Body handles and body ages are ignored. The stored row
   carries the stable actor, so a public handle rename never strands a photo; the
   public wall projects the handle, avatar and founding number through the ONE
   shared projection (`publicProfileFromRecord`), never a second field list.

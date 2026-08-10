@@ -12,6 +12,7 @@ import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
 import StarterPacks from "@/components/social/StarterPacks";
 import { authedFetch } from "@/lib/authedFetch";
+import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import { discardBody } from "@/lib/responseBody";
@@ -19,6 +20,10 @@ import { getNightArea, NIGHT_AREAS } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
 import type { SocialAccessState } from "@/lib/socialAccess";
+import {
+  ADULT_SELF_ASSERTION_ACTION,
+  ADULT_SELF_ASSERTION_LINE,
+} from "@/lib/socialLaunch";
 import {
   socialFeedRequestHref,
   socialShellHref,
@@ -82,6 +87,10 @@ function parseAccessState(value: unknown): SocialAccessState | null {
   return ACCESS_STATES.has(value.state as SocialAccessState)
     ? (value.state as SocialAccessState)
     : null;
+}
+
+function parseAdultPrompt(value: unknown): boolean {
+  return isRecord(value) && value.adultPrompt === true;
 }
 
 function parseDraftScope(value: unknown): string | null {
@@ -159,16 +168,43 @@ function chronological(posts: SocialPostDTO[]): SocialPostDTO[] {
 export function SocialAccessBoundary({
   state,
   onRetry,
+  adultPrompt = false,
+  onAssertAdult,
+  assertBusy = false,
+  assertError = null,
 }: {
   state: SocialBoundaryState;
   onRetry?: () => void;
+  /** The one tap is this account's way through (see `needsAdultSelfAssertion`). */
+  adultPrompt?: boolean;
+  onAssertAdult?: () => void;
+  assertBusy?: boolean;
+  assertError?: string | null;
 }) {
+  // One line and one button in the same empty-state idiom as every other
+  // boundary here. Never a dialog: arrival is not an admin form.
+  const asking = state === "age_verification_required" && adultPrompt;
   return (
     <section
       className="socialBoundary"
       role={state === "unavailable" ? "alert" : "status"}
     >
-      <h2>{BOUNDARY_COPY[state]}</h2>
+      <h2>{asking ? ADULT_SELF_ASSERTION_LINE : BOUNDARY_COPY[state]}</h2>
+      {asking && onAssertAdult ? (
+        <button
+          className="socialButton"
+          type="button"
+          onClick={onAssertAdult}
+          disabled={assertBusy}
+        >
+          {ADULT_SELF_ASSERTION_ACTION}
+        </button>
+      ) : null}
+      {asking && assertError ? (
+        <p className="socialBoundaryNote" role="alert">
+          {assertError}
+        </p>
+      ) : null}
       {state === "unavailable" && onRetry ? (
         <button className="socialButton" type="button" onClick={onRetry}>
           Retry
@@ -348,6 +384,9 @@ export default function SocialPageClient({
   heritageCrawls,
 }: SocialPageClientProps) {
   const [access, setAccess] = useState<AccessLoadState>("checking");
+  const [adultPrompt, setAdultPrompt] = useState(false);
+  const [assertBusy, setAssertBusy] = useState(false);
+  const [assertError, setAssertError] = useState<string | null>(null);
   const [draftScope, setDraftScope] = useState<string | null>(null);
   const [viewerHandle, setViewerHandle] = useState<string | null>(null);
   const [submittedPost, setSubmittedPost] = useState<SocialPostDTO | null>(null);
@@ -384,12 +423,14 @@ export default function SocialPageClient({
         if (!state) throw new Error("Social access malformed");
         return {
           state,
+          adultPrompt: parseAdultPrompt(body),
           draftScope: parseDraftScope(body),
           viewerHandle: parseViewerHandle(body),
         };
       })
       .then((result) => {
         setAccess(result.state);
+        setAdultPrompt(result.adultPrompt);
         setDraftScope(result.draftScope);
         setViewerHandle(result.viewerHandle);
       })
@@ -400,6 +441,39 @@ export default function SocialPageClient({
       });
     return () => controller.abort();
   }, [accessAttempt, initialState.tab]);
+
+  // Claiming a handle on this very page changes the answer the access route
+  // gives, and the claim announces itself (`emitIdentityHandleChanged`). Without
+  // this the boundary held until a full reload, so somebody who had just chosen
+  // their handle was still told Social was not for them.
+  useEffect(() => {
+    if (initialState.tab === "discover") return;
+    return subscribeDeviceIdentity(() =>
+      setAccessAttempt((value) => value + 1),
+    );
+  }, [initialState.tab]);
+
+  // The one tap. It records the assertion and then re-asks the access route,
+  // which stays the only authority on what this viewer may see.
+  const assertAdult = useCallback(() => {
+    setAssertBusy(true);
+    setAssertError(null);
+    authedFetch("/api/identity/adult-assertion", {
+      method: "POST",
+      cache: "no-store",
+      credentials: "same-origin",
+    })
+      .then((response) => {
+        discardBody(response);
+        if (!response.ok) throw new Error("Adult assertion refused");
+        setAdultPrompt(false);
+        setAccessAttempt((value) => value + 1);
+      })
+      .catch(() => {
+        setAssertError("We could not save that just now. Try again.");
+      })
+      .finally(() => setAssertBusy(false));
+  }, []);
 
   useEffect(() => {
     moreController.current?.abort();
@@ -594,6 +668,10 @@ export default function SocialPageClient({
                     ? () => setAccessAttempt((value) => value + 1)
                     : undefined
                 }
+                adultPrompt={adultPrompt}
+                onAssertAdult={assertAdult}
+                assertBusy={assertBusy}
+                assertError={assertError}
               />
               <section className="socialFeedEmpty" aria-label="People on PUBMAXX">
                 {/* Browse rides with search wherever search rides: both form

@@ -1,4 +1,4 @@
-import { isAdultDateOfBirth } from "@/lib/socialLaunch";
+import { accountIsAdult } from "@/lib/socialLaunch";
 
 export type SocialAccessState =
   | "preview"
@@ -46,6 +46,8 @@ export type FriendsLaunchSocialAccessInput = {
   supabaseUserId: string | null;
   claimedHandle: string | null;
   dateOfBirth: string | null;
+  /** When the account tapped "I'm 18 or over" (migration 0103), or null. */
+  adultSelfAssertedAt?: string | null;
   ownershipState: "active" | "suspended" | null;
   now: string | Date;
 };
@@ -58,11 +60,20 @@ export function decideFriendsLaunchSocialAccess(
   if (input.ownershipState === "suspended") return "suspended";
   const handle = input.claimedHandle?.trim() ?? "";
   if (!handle) return "age_verification_required";
-  const dob = input.dateOfBirth?.trim() ?? "";
-  if (!dob) return "age_verification_required";
   const now =
     input.now instanceof Date ? input.now.getTime() : Date.parse(input.now);
-  if (!Number.isFinite(now) || !isAdultDateOfBirth(dob, now)) {
+  if (!Number.isFinite(now)) return "age_verification_required";
+  // ONE gate for the age question: a stored adult date of birth or a recorded
+  // one-tap self-assertion. `lib/socialLaunch.ts` owns which of them decides.
+  if (
+    !accountIsAdult(
+      {
+        dateOfBirth: input.dateOfBirth,
+        adultSelfAssertedAt: input.adultSelfAssertedAt ?? null,
+      },
+      now,
+    )
+  ) {
     return "age_verification_required";
   }
   return "verified";
