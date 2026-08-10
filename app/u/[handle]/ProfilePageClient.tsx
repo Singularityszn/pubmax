@@ -607,9 +607,20 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     return () => window.cancelAnimationFrame(frame);
   }, [isOwnProfile]);
 
-  // Apply a saved profile row back onto the overlaid identity so the header
-  // updates the instant the editor reports success, without a refetch. The
-  // surface returns to view mode and says so.
+  // A stored row changed under an OPEN editor: a photo went up, a cover moved,
+  // one came down. The header repaints from the reply without a refetch and the
+  // editor stays exactly where it is.
+  //
+  // THE DEFECT THIS SPLIT FIXES: this and `handleSaved` were one callback, so
+  // every image write also ran `setEditing(false)`. Choosing a profile photo on
+  // a phone threw the owner out to the read-only profile, and somebody there to
+  // change five things had to re-open the editor after the first.
+  function handleProfileChanged(next: PublicProfile) {
+    setStored(next);
+  }
+
+  // The FORM was saved, which is the end of an editing session: apply the row,
+  // return to view mode, and say so.
   function handleSaved(saved: PublicProfile) {
     setStored(saved);
     setEditing(false);
@@ -922,12 +933,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                           bio: stored?.bio,
                           homeCity: stored?.homeCity,
                           avatarUrl: stored?.avatarUrl,
-                          coverUrl: stored?.coverUrl,
                           favouriteDrink: stored?.favouriteDrink,
                           interests: stored?.interests,
                           workplace: stored?.workplace,
                         }}
                         onSaved={handleSaved}
+                        onProfileChanged={handleProfileChanged}
                         onClose={() => setEditing(false)}
                       />
                       {/* Linked socials are public content the owner typed in,

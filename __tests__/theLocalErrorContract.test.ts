@@ -146,8 +146,11 @@ describe("app/api public error envelope (tree-wide)", () => {
 // write actor before the route body runs. `handleProfileImage*` are the same
 // shape: lib/profileImageRoute.server.ts owns the per-actor budget for the
 // avatar and cover slots, which take one identical journey.
+// `handleProfileCoverPhoto*` is that same delegation for the cover ROTATION:
+// lib/profileCoverPhotoRoute.server.ts spends a per-actor budget on every add,
+// remove and reorder, and a per-actor budget on every reader flag.
 const LIMITER_TOKENS =
-  /\bisLimited\b|[a-zA-Z]+RateLimited\b|\bis[A-Z][a-zA-Z]*Limited\b|\bsocialCrewActor\b|\bhandleProfileImage(?:Upload|Delete|Report)\b/;
+  /\bisLimited\b|[a-zA-Z]+RateLimited\b|\bis[A-Z][a-zA-Z]*Limited\b|\bsocialCrewActor\b|\bhandleProfileImage(?:Upload|Delete|Report)\b|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report)\b/;
 
 describe("app/api rate limiting (tree-wide)", () => {
   it("gates every cron route with assertCronRequest instead of a limiter", () => {

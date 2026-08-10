@@ -34,6 +34,13 @@ export type Profile = {
   avatarUrl?: string;
   /** Approved cover photo serve path; absent profiles wear the brass treatment. */
   coverUrl?: string;
+  /**
+   * The whole rotation, in the owner's order, when a surface carried it. Cover
+   * #1 is {@link coverUrl}, so a reader that got only the single cover is not
+   * missing a backdrop - it is missing the rest of one. `lib/profileCovers`
+   * `profileCoverUrls` is the ONE resolution of the two.
+   */
+  coverUrls?: string[];
   /** Public by choice: the drink this person orders. */
   favouriteDrink?: string;
   /** Public by choice: what this person is into on a night out. */
@@ -62,8 +69,13 @@ export type PublicProfile = {
   displayName?: string;
   /** Approved avatar serve path only; never a hotlinked remote URL. */
   avatarUrl?: string;
-  /** Approved cover serve path only. */
+  /** Approved cover serve path only. Cover #1 of the rotation below. */
   coverUrl?: string;
+  /**
+   * The ordered rotation of approved cover serve paths, when the surface that
+   * answered carried it. Absent means "not asked", never "no covers".
+   */
+  coverUrls?: string[];
   homeCity?: string;
   bio?: string;
   favouriteDrink?: string;
@@ -116,7 +128,11 @@ export type PublicProfileSource = {
  */
 export function toPublicProfile(
   profile: PublicProfileSource | null | undefined,
-  images: { avatarUrl?: string; coverUrl?: string } = {},
+  images: {
+    avatarUrl?: string;
+    coverUrl?: string;
+    coverUrls?: readonly string[];
+  } = {},
 ): PublicProfile | null {
   if (!profile) return null;
   return {
@@ -125,6 +141,9 @@ export function toPublicProfile(
     ...(profile.displayName ? { displayName: profile.displayName } : {}),
     ...(images.avatarUrl ? { avatarUrl: images.avatarUrl } : {}),
     ...(images.coverUrl ? { coverUrl: images.coverUrl } : {}),
+    // Omitted when the caller did not read the rotation, because an empty list
+    // would say "this profile chose no backdrop" about a question nobody asked.
+    ...(images.coverUrls ? { coverUrls: [...images.coverUrls] } : {}),
     ...(profile.homeCity ? { homeCity: profile.homeCity } : {}),
     ...(profile.bio ? { bio: profile.bio } : {}),
     ...(profile.favouriteDrink ? { favouriteDrink: profile.favouriteDrink } : {}),
@@ -434,6 +453,7 @@ export function withStoredProfile(
     homeCity: stored?.homeCity ?? base.homeCity,
     avatarUrl: stored?.avatarUrl ?? base.avatarUrl,
     coverUrl: stored?.coverUrl,
+    coverUrls: stored?.coverUrls,
     favouriteDrink: stored?.favouriteDrink,
     interests: stored?.interests,
     workplace: stored?.workplace,

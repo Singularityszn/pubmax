@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRef, useState } from "react";
 
+import ProfileCoverPhotosEditor from "@/components/profile/ProfileCoverPhotosEditor";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import { getAccessToken } from "@/lib/authClient";
 import { categoryLabel, MAP_LENS_DRINK_CATEGORIES } from "@/lib/drinks";
@@ -10,7 +11,7 @@ import {
   PROFILE_IMAGE_PICKER_ACCEPT,
   profileImageCropTarget,
 } from "@/lib/profileImagePicker";
-import { profileImageOutputBox, type ProfileImageSlot } from "@/lib/profileImageSlots";
+import type { ProfileImageSlot } from "@/lib/profileImageSlots";
 import type { PublicProfile } from "@/lib/profiles";
 
 // Inline "edit my profile" form for the owner of a handle. The page mounts this
@@ -33,6 +34,18 @@ import type { PublicProfile } from "@/lib/profiles";
 // makes an iPhone's HEIC uploadable, and uploadImage below is unchanged: the
 // upload routes still receive one JPEG under `photo` and still run the same
 // scan on it.
+//
+// A PHOTO WRITE IS NOT THE END OF AN EDITING SESSION. Uploading and removing
+// report the fresh row through `onProfileChanged`, which repaints the card and
+// leaves this form exactly where it was; only the Save button reports through
+// `onSaved`, which is what closes the editor. They were one callback, so
+// choosing an avatar threw a person out of the editor they had opened to
+// change five things.
+//
+// The backdrop is a ROTATION of up to five photos and lives in its own editor
+// (`ProfileCoverPhotosEditor`), which owns the whole list. There is no second
+// single-cover control here: two live copies of one choice drift the moment
+// either writes.
 
 const MAX_DISPLAY_NAME = 60;
 const MAX_BIO = 280;
@@ -58,12 +71,17 @@ type ProfileEditorProps = {
     bio?: string;
     homeCity?: string;
     avatarUrl?: string;
-    coverUrl?: string;
     favouriteDrink?: string;
     interests?: string;
     workplace?: string;
   };
+  /** The form was saved: the editing session is over. */
   onSaved: (profile: PublicProfile) => void;
+  /**
+   * The stored row changed under an open editor (a photo went up, a cover
+   * moved). The card repaints; the editor stays exactly where it is.
+   */
+  onProfileChanged: (profile: PublicProfile) => void;
   onClose: () => void;
 };
 
@@ -94,7 +112,13 @@ function profileFrom(body: unknown): PublicProfile | null {
     : null;
 }
 
-export default function ProfileEditor({ handle, initial, onSaved, onClose }: ProfileEditorProps) {
+export default function ProfileEditor({
+  handle,
+  initial,
+  onSaved,
+  onProfileChanged,
+  onClose,
+}: ProfileEditorProps) {
   const [displayName, setDisplayName] = useState(initial.displayName ?? "");
   const [bio, setBio] = useState(initial.bio ?? "");
   const [homeCity, setHomeCity] = useState(initial.homeCity ?? "");
@@ -102,7 +126,6 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
   const [interests, setInterests] = useState(initial.interests ?? "");
   const [workplace, setWorkplace] = useState(initial.workplace ?? "");
   const [avatarPreview, setAvatarPreview] = useState(initial.avatarUrl ?? "");
-  const [coverPreview, setCoverPreview] = useState(initial.coverUrl ?? "");
   const [imageError, setImageError] = useState<Record<ProfileImageSlot, string | null>>({
     avatar: null,
     cover: null,
@@ -120,17 +143,11 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
     cover: null,
   });
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const imageBusy = (Object.values(imageState) as ImageState[]).some(
     (value) => value === "uploading" || value === "removing",
   );
   const formBusy = state === "saving" || imageBusy;
-
-  function setPreview(slot: ProfileImageSlot, profile: PublicProfile | null, url: string) {
-    if (slot === "avatar") setAvatarPreview(profile ? url : "");
-    else setCoverPreview(profile ? url : "");
-  }
 
   async function authHeaders(json = false): Promise<Record<string, string>> {
     const token = await getAccessToken();
@@ -176,9 +193,10 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
       }
       const profile = profileFrom(body);
       if (profile) {
-        onSaved(profile);
-        const next = slot === "avatar" ? profile.avatarUrl : profile.coverUrl;
-        setPreview(slot, profile, next ?? "");
+        // The card repaints and the editor stays open: a photo is one of the
+        // things being edited, not the end of the edit.
+        onProfileChanged(profile);
+        if (slot === "avatar") setAvatarPreview(profile.avatarUrl ?? "");
       }
       markImage(slot, "idle", null);
     } catch {
@@ -203,8 +221,8 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
         return;
       }
       const profile = profileFrom(body);
-      if (profile) onSaved(profile);
-      setPreview(slot, null, "");
+      if (profile) onProfileChanged(profile);
+      if (slot === "avatar") setAvatarPreview("");
       markImage(slot, "idle", null);
     } catch {
       markImage(slot, "error", "Network error. Try again.");
@@ -257,74 +275,7 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
       <fieldset className="profileEditorGroup profileEditorGroupLook" disabled={formBusy}>
         <legend>Your look</legend>
 
-        <div className="profileEditorField profileEditorCoverField">
-          <span className="profileEditorAvatarLabel" id="pe-cover-label">
-            Cover photo
-          </span>
-          {pending.cover ? null : (
-            <div className="profileEditorCoverStage">
-              {coverPreview ? (
-                <Image
-                  className="profileEditorCoverPreview"
-                  src={coverPreview}
-                  alt=""
-                  width={profileImageOutputBox("cover").width}
-                  height={profileImageOutputBox("cover").height}
-                  unoptimized
-                />
-              ) : (
-                <div className="profileEditorCoverPreview profileEditorCoverFallback" aria-hidden="true" />
-              )}
-            </div>
-          )}
-          <input
-            ref={coverInputRef}
-            id="pe-cover-file"
-            type="file"
-            accept={PROFILE_IMAGE_PICKER_ACCEPT}
-            className="profileEditorAvatarFile"
-            aria-labelledby="pe-cover-label"
-            onChange={(event) => {
-              const file = event.target.files?.[0] ?? null;
-              event.target.value = "";
-              choose("cover", file);
-            }}
-          />
-          {pending.cover ? (
-            <ProfileImageCropper
-              key={fileKey(pending.cover)}
-              target={profileImageCropTarget("cover")}
-              file={pending.cover}
-              busy={imageState.cover === "uploading"}
-              onCancel={() => choose("cover", null)}
-              onCropped={(file) => uploadCropped("cover", file)}
-            />
-          ) : (
-            <div className="profileEditorAvatarActions profileEditorCoverActions">
-              <button
-                type="button"
-                className="profileEditorAvatarUpload"
-                onClick={() => coverInputRef.current?.click()}
-              >
-                {imageState.cover === "uploading" ? "Uploading…" : "Choose cover"}
-              </button>
-              {coverPreview ? (
-                <button
-                  type="button"
-                  className="profileEditorAvatarRemove"
-                  onClick={() => void removeImage("cover")}
-                >
-                  {imageState.cover === "removing" ? "Removing…" : "Remove cover"}
-                </button>
-              ) : null}
-            </div>
-          )}
-          {imageStatus("cover") ? (
-            <span className="profileEditorHint profileEditorStatusErr" role="status">
-              {imageStatus("cover")}
-            </span>
-          ) : null}
-        </div>
+        <ProfileCoverPhotosEditor handle={handle} onProfileChanged={onProfileChanged} />
 
         <div className="profileEditorField profileEditorAvatarField">
           <span className="profileEditorAvatarLabel" id="pe-avatar-label">

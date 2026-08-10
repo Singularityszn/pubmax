@@ -32,6 +32,14 @@ export const PROFILE_IMAGE_SERVE_CACHE_CONTROL = "public, max-age=300, s-maxage=
 export type ProfileImageServeDeps = {
   getProfileById: (id: string) => Promise<ProfileRecord | null>;
   downloadObject: (objectKey: string) => Promise<Awaited<ReturnType<typeof downloadProfileImageObject>>>;
+  /**
+   * Generations this slot may serve BESIDES the one on the profile row. Only
+   * the cover supplies it: a profile holds up to five covers
+   * (`lib/profileCoverPhotoStore.ts`) and every one of them is served by this
+   * route. The lookup owns its own approval and key checks, so a null here is
+   * as final as a refusal from the row.
+   */
+  extraServingKey?: (profileId: string, generation: string) => Promise<string | null>;
 };
 
 export const defaultProfileImageServeDeps: ProfileImageServeDeps = {
@@ -126,14 +134,31 @@ export async function handleProfileImageServe(
   if (!profile) return notFound(slot, "profile_missing", { profileId: id, generation: gen });
 
   const resolved = servingKey(profile, slot, gen);
-  if ("refusal" in resolved) {
-    return notFound(slot, resolved.refusal, { profileId: id, generation: gen });
+  let objectKey = "objectKey" in resolved ? resolved.objectKey : null;
+  // The row holds ONE generation, and a cover rotation holds up to five. So a
+  // generation the row does not name is asked of the list before it is refused
+  // - but only for a claimed profile, because `profile_unclaimed` is a fact
+  // about the account rather than about which photo was asked for.
+  if (
+    !objectKey &&
+    deps.extraServingKey &&
+    "refusal" in resolved &&
+    resolved.refusal !== "profile_unclaimed"
+  ) {
+    objectKey = await deps.extraServingKey(id, gen);
+  }
+  if (!objectKey) {
+    return notFound(
+      slot,
+      "refusal" in resolved ? resolved.refusal : "image_absent",
+      { profileId: id, generation: gen },
+    );
   }
 
   // `downloadObject` logs the storage error or the byte mismatch itself: it is
   // the only half that knows which, and this half is the only one that knows a
   // reader was refused because of it.
-  const downloaded = await deps.downloadObject(resolved.objectKey);
+  const downloaded = await deps.downloadObject(objectKey);
   if (!downloaded) {
     return notFound(slot, "object_unreadable", { profileId: id, generation: gen });
   }

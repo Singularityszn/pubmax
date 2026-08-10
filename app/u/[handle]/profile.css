@@ -53,49 +53,29 @@
 @media (min-width: 1024px) {
   .profilePage .profileLayout {
     display: grid;
-    grid-template-columns: 340px minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-    align-items: start;
-    column-gap: clamp(28px, 3vw, 44px);
-    row-gap: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: clamp(28px, 4vw, 44px);
   }
 
   .profilePage .profileOwnerUtilities {
-    grid-column: 2;
-    grid-row: 1;
+    grid-column: 1;
   }
 
+  /* The hero is the page's full width, which is what a banner band means. It
+     was a 340px sticky column, and a 3:1 cover, a name, a bio and six stat
+     tiles do not fit in 340px: everything wrapped, so the passport sat beside a
+     squeezed identity card instead of below a hero. */
   .profilePage .profileIdentityPane {
     display: block;
-    position: sticky;
     grid-column: 1;
-    grid-row: 1 / span 2;
-    top: 96px; /* clears the floating SiteNav pill, same offset as feed/tonight */
-    align-self: start;
+    min-width: 0;
   }
 
   .profilePage .profileContentPane {
     display: grid;
-    grid-column: 2;
-    grid-row: 2;
+    grid-column: 1;
     gap: clamp(28px, 4vw, 44px);
     min-width: 0;
-  }
-
-  /* Reflow the header for the narrow sticky pane — same shape as the phone
-     column: avatar + names stack, actions drop to a full-width row, stats wrap. */
-  .profilePage .profileIdentityPane .profileIdentity {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
-  }
-  .profilePage .profileIdentityPane .profileActions {
-    margin-left: 0;
-    width: 100%;
-    justify-content: flex-start;
-  }
-  .profilePage .profileIdentityPane .youProfileIdentity .profileActions > * {
-    flex: 1 1 140px;
   }
 }
 
@@ -257,10 +237,15 @@
 
 /* ── Header ──────────────────────────────────────────────────────────── */
 .profilePage .profileHeader {
+  /* The face overlaps the band, so the avatar's size and how far it hangs
+     below the cover are ONE pair of numbers the whole hero reads. */
+  --profile-avatar-size: clamp(88px, 11vw, 156px);
+  --profile-avatar-overlap: calc(var(--profile-avatar-size) * 0.42);
+  --profile-hero-pad: clamp(18px, 3vw, 32px);
   position: relative;
   display: grid;
-  gap: 20px;
-  padding: clamp(22px, 4vw, 32px);
+  gap: 0;
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel-raised);
@@ -269,14 +254,14 @@
 }
 
 /* ── Cover photo ─────────────────────────────────────────────────────────
-   The backdrop sits behind the top of the card and fades into the panel, so
-   the name and handle keep their contrast over any photograph. An unfilled
-   slot keeps the brass wash the initials-era profile already wore, which is
-   why the falloff is painted whether or not an image loaded. */
+   A full-width banner BAND, in normal flow. An unfilled slot keeps the brass
+   wash the initials-era profile already wore, which is why the falloff is
+   painted whether or not an image loaded, and it takes a SHORTER band: there
+   is no photograph up there to crop, so four hundred pixels of gradient would
+   only be four hundred pixels of nothing above the fold. */
 .profilePage .profileCover {
-  position: absolute;
-  inset: 0 0 auto;
-  height: clamp(132px, 26vw, 208px);
+  position: relative;
+  height: clamp(116px, 15vw, 190px);
   overflow: hidden;
   background: linear-gradient(
     140deg,
@@ -286,11 +271,35 @@
   pointer-events: none;
 }
 
+/* Holding a photograph, the band's rendered aspect ratio IS the cropper's
+   (`profileImageSlotSpec.cover.aspectRatio`, 3:1). That equality is the point:
+   a band with a fixed height over a fluid width shows a different rectangle at
+   every viewport, which is how a photograph somebody framed carefully came to
+   be cut through the middle of a word. Because the ratio holds at every width,
+   a phone sees the same rectangle a desktop does, only smaller. */
+.profilePage .profileHeaderWithCover .profileCover {
+  height: auto;
+  aspect-ratio: 3 / 1;
+}
+
+/* Every cover in the rotation is stacked in the same box; one is opaque. */
+.profilePage .profileCoverFrames {
+  position: absolute;
+  inset: 0;
+}
+
 .profilePage .profileCoverImage {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  opacity: 0;
+}
+
+.profilePage .profileCoverImageActive {
+  opacity: 1;
 }
 
 .profilePage .profileCoverFalloff {
@@ -298,38 +307,41 @@
   inset: 0;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--panel-raised) 10%, transparent) 0%,
-    color-mix(in srgb, var(--panel-raised) 42%, transparent) 52%,
-    var(--panel-raised) 100%
+    color-mix(in srgb, var(--panel-raised) 4%, transparent) 0%,
+    color-mix(in srgb, var(--panel-raised) 18%, transparent) 62%,
+    color-mix(in srgb, var(--panel-raised) 72%, transparent) 100%
   );
 }
 
-/* With a real photograph up there the identity row needs room to clear it. */
-.profilePage .profileHeaderWithCover .profileIdentity {
-  padding-top: clamp(58px, 13vw, 104px);
+.profilePage .profileHeroBody {
+  display: grid;
+  gap: 18px;
+  padding: 0 var(--profile-hero-pad) var(--profile-hero-pad);
 }
 
+/* The face hangs over the band's bottom edge, which is what ties the two halves
+   of the hero together. The band is painted whether or not a photograph loaded,
+   so the overlap is unconditional and a brass-only profile gets the same
+   composition rather than a second layout nobody designed. */
 .profilePage .profileIdentity {
   position: relative;
   display: flex;
-  align-items: center;
-  gap: 18px;
-}
-
-.profilePage .profileAvatar {
-  width: 88px;
-  height: 88px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid var(--line);
-  flex: 0 0 auto;
+  align-items: flex-end;
+  gap: clamp(14px, 2vw, 26px);
+  margin-top: calc(-1 * var(--profile-avatar-overlap));
 }
 
 /* Over a photograph the face needs its own edge, or it dissolves into the
-   backdrop the way a pin without a casing dissolves into a dark basemap. */
-.profilePage .profileHeaderWithCover .profileAvatar {
-  border: 3px solid var(--panel-raised);
+   backdrop the way a pin without a casing dissolves into a dark basemap. The
+   ring is unconditional now, because the band behind it is always painted. */
+.profilePage .profileAvatar {
+  width: var(--profile-avatar-size);
+  height: var(--profile-avatar-size);
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid var(--panel-raised);
   box-shadow: 0 6px 20px color-mix(in srgb, var(--ink) 22%, transparent);
+  flex: 0 0 auto;
 }
 
 .profilePage .profileAvatarFallback {
@@ -342,36 +354,43 @@
   font-weight: 600;
 }
 
+/* The names sit BESIDE the face, on its bottom edge, so the two read as one
+   introduction rather than as a photo with a caption under it. */
 .profilePage .profileNames {
   min-width: 0;
+  padding-bottom: 4px;
 }
 
 .profilePage .profileDisplayName {
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
-  font-size: clamp(1.7rem, 4vw, 2.4rem);
-  line-height: 1.08;
+  font-size: clamp(1.7rem, 3.4vw, 2.9rem);
+  line-height: 1.05;
   letter-spacing: -0.02em;
   margin: 0;
 }
 
 .profilePage .profileHandle {
-  margin: 4px 0 0;
+  margin: 5px 0 0;
   color: var(--brass);
-  font-size: 0.98rem;
+  font-size: clamp(0.98rem, 1.2vw, 1.12rem);
   font-weight: 600;
 }
 
 .profilePage .profileHomeCity {
   margin: 6px 0 0;
   color: var(--ink-soft);
-  font-size: 0.9rem;
+  font-size: 0.92rem;
 }
 
+/* The opening line, directly under the identity and in reading type rather
+   than in caption type: it is the first thing this person says about
+   themselves, and it was set smaller than the card facts below it. */
 .profilePage .profileBio {
   margin: 0;
-  color: var(--ink-soft);
-  font-size: 1.02rem;
+  color: var(--ink);
+  font-size: clamp(1.05rem, 1.35vw, 1.24rem);
   line-height: 1.55;
+  max-width: 68ch;
 }
 
 /* ── Card facts ──────────────────────────────────────────────────────────
@@ -485,17 +504,22 @@
 }
 
 /* Stats row */
+/* The stat row is a BAND below the hero, spanning the whole card. Six figures
+   wrapped inside a narrow identity column is what made them read as a receipt;
+   given the full width they read as six doors, which is what they are. */
 .profilePage .profileStats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: 1px;
   margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+  background: var(--line);
 }
 
 .profilePage .profileStat {
-  flex: 1 1 120px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border: 0;
+  border-radius: 0;
   background: var(--panel);
 }
 
@@ -1112,12 +1136,46 @@
   display: block;
 }
 
-.profilePage .profileEditorCoverFallback {
-  background: linear-gradient(
-    140deg,
-    color-mix(in srgb, var(--brass) 30%, var(--panel-raised)),
-    color-mix(in srgb, var(--brass) 8%, var(--panel-raised))
-  );
+/* The rotation, in the owner's order. A numbered list, because the number IS
+   the thing being edited: "Cover 2" is where in the cycle it appears. */
+.profilePage .profileEditorCoverList {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profilePage .profileEditorCoverItem {
+  display: grid;
+  gap: 8px;
+}
+
+.profilePage .profileEditorCoverItemActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.profilePage .profileEditorCoverPosition {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: auto;
+}
+
+.profilePage .profileEditorCoverNote,
+.profilePage .profileEditorCoverEmpty {
+  color: var(--ink-soft);
+}
+
+.profilePage .profileEditorAvatarUpload:disabled,
+.profilePage .profileEditorAvatarRemove:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .profilePage .profileEditorCoverActions {
@@ -1354,20 +1412,19 @@
     padding-bottom: calc(var(--mobile-tab-clearance, 104px) + 16px + env(safe-area-inset-bottom, 0px));
   }
 
-  .profilePage .profileIdentity { flex-direction: column; gap: 14px; align-items: flex-start; }
-  .profilePage .youProfileIdentity .profileIdentity { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  /* On a phone the name goes UNDER the face rather than beside it: at 390px a
+     name beside a 92px circle has about ten characters before it wraps. The
+     overlap with the band stays, so the composition is the same one, stacked. */
+  .profilePage .profileIdentity { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .profilePage .profileNames { padding-bottom: 0; }
 
-  .profilePage .profileAvatar { width: 76px; height: 76px; }
+  .profilePage .profileHeader { --profile-avatar-size: 92px; }
 
-  .profilePage .profileDisplayName { font-size: 1.45rem; }
+  .profilePage .profileDisplayName { font-size: 1.5rem; }
 
-  /* On a phone the identity column stacks, so the cover only has to clear the
-     avatar rather than a whole row. The owner's own header drops its padding
-     to go chrome-less (below), which would otherwise leave the face and the
-     name flush against the screen edge once a cover is behind them. */
-  .profilePage .profileHeaderWithCover .profileIdentity { padding-top: 96px; }
-  .profilePage .youProfileIdentity .profileHeaderWithCover .profileIdentity,
-  .profilePage .youProfileIdentity .profileHeaderWithCover > :not(.profileCover) {
+  /* The owner's own header goes chrome-less on a phone (below), which would
+     otherwise leave the face and the name flush against the screen edge. */
+  .profilePage .youProfileIdentity .profileHeroBody {
     padding-left: 14px;
     padding-right: 14px;
   }
@@ -1384,24 +1441,21 @@
   .profilePage .youProfileIdentity .profileActions { flex-basis: 100%; }
   .profilePage .youProfileIdentity .profileActions > * { flex: 1 1 140px; }
 
-  /* Two-up stat cards read better than one long column on a phone. */
-  .profilePage .youProfileIdentity .profileHeader { padding: 18px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-  .profilePage .profileStat { flex: 1 1 44%; }
-  .profilePage .youProfileIdentity .profileStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .profilePage .youProfileIdentity .profileStat { border: 0; background: transparent; text-align: center; }
+  /* Two-up stat tiles read better than one long column on a phone. */
+  .profilePage .youProfileIdentity .profileHeader { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .profilePage .profileStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profilePage .youProfileIdentity .profileStats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; background: transparent; }
+  .profilePage .youProfileIdentity .profileStat { background: transparent; text-align: center; }
   .profilePage .youProfileIdentity .profileStatLink { padding: 9px 6px; }
   .profilePage .youProfileIdentity .profileStat dt { font-size: 0.75rem; }
   .profilePage .youProfileIdentity .profileStat dd { font-size: 1.12rem; }
 }
 
 @media (max-width: 380px) {
-  .profilePage .profileAvatar {
-    width: 72px;
-    height: 72px;
-  }
+  .profilePage .profileHeader { --profile-avatar-size: 78px; }
 
-  .profilePage .profileStat {
-    flex-basis: 100%;
+  .profilePage .profileStats {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1411,6 +1465,13 @@
     transform: translateY(-2px);
   }
 
+  /* One cover becoming the next. The component ALSO refuses to run its timer
+     under reduced motion (`coverCarouselRotates`), so this gate is the second
+     of two rather than the only one: a reader who asked for less motion gets
+     one static photo, not a slower fade between five. */
+  .profilePage .profileCoverImage {
+    transition: opacity 900ms ease-in-out;
+  }
 }
 
 /* The editing controls are plain <button>s on purpose: app/globals.css already

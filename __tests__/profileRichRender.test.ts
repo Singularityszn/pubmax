@@ -38,6 +38,7 @@ function editor(initial: Record<string, string> = {}): string {
       handle: "alice",
       initial,
       onSaved: () => {},
+      onProfileChanged: () => {},
       onClose: () => {},
     }),
   );
@@ -151,9 +152,19 @@ describe("profile composer", () => {
   });
 
   it("offers removal only for a slot that already holds an image", () => {
-    expect(editor()).not.toContain("Remove cover");
-    expect(editor({ coverUrl: "/api/cover/p/g" })).toContain("Remove cover");
+    expect(editor()).not.toContain("Remove photo");
     expect(editor({ avatarUrl: "/api/avatar/p/g" })).toContain("Remove photo");
+  });
+
+  // The backdrop is a rotation of up to five, so the composer owns a LIST
+  // rather than one slot. There is exactly one cover control on the page: two
+  // live copies of the same choice drift the moment either one writes.
+  it("gives the covers one list control and no second single-cover slot", () => {
+    const markup = editor({ coverUrl: "/api/cover/p/g" });
+    expect(markup).toContain("Cover photos");
+    expect(markup).toContain("Add cover");
+    expect(markup).not.toContain("Choose cover");
+    expect(markup).not.toContain("Remove cover");
   });
 });
 
@@ -166,9 +177,36 @@ describe("shipped profile CSS", () => {
     expect(css).toMatch(/profileCoverFalloff \{[^}]*linear-gradient/);
   });
 
-  it("gives the face its own edge over a photograph", () => {
+  it("gives the face its own edge over the band, and hangs it over the edge", () => {
+    // The band is painted on every profile now, photograph or brass wash, so
+    // the ring is unconditional rather than a with-cover special case.
     expect(css).toMatch(
-      /profileHeaderWithCover \.profileAvatar \{[^}]*border: 3px solid var\(--panel-raised\)/,
+      /\.profilePage \.profileAvatar \{[^}]*border: 4px solid var\(--panel-raised\)/,
+    );
+    expect(css).toMatch(
+      /\.profilePage \.profileIdentity \{[^}]*margin-top: calc\(-1 \* var\(--profile-avatar-overlap\)\)/,
+    );
+  });
+
+  // What an owner framed in the cropper is what a reader sees. A band with a
+  // fixed height over a fluid width shows a different rectangle at every
+  // viewport, which is how a carefully framed photograph got cut mid-word.
+  it("renders a cover at the cropper's own aspect ratio", () => {
+    expect(css).toMatch(
+      /\.profilePage \.profileHeaderWithCover \.profileCover \{[^}]*aspect-ratio: 3 \/ 1/,
+    );
+    // The brass wash has no photograph to crop, so it takes a shorter band
+    // rather than four hundred pixels of gradient above the fold.
+    expect(css).toMatch(/\.profilePage \.profileCover \{[^}]*height: clamp\(116px/);
+  });
+
+  // The rotation crossfades only for a reader who did not ask for less motion;
+  // the component refuses to run its timer under the same condition.
+  it("gates the crossfade on prefers-reduced-motion", () => {
+    const gated = css.slice(css.indexOf("@media (prefers-reduced-motion: no-preference)"));
+    expect(gated).toMatch(/\.profileCoverImage \{[^}]*transition: opacity/);
+    expect(css.slice(0, css.indexOf("@media (prefers-reduced-motion"))).not.toMatch(
+      /\.profileCoverImage \{[^}]*transition/,
     );
   });
 

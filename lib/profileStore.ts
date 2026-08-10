@@ -261,14 +261,22 @@ export function publicOwnedImageUrl(
  * share it, so the two can never disagree about what a public profile carries.
  * Internal keys (ownership, tombstone, storage object keys, moderation state)
  * stop here.
+ *
+ * The cover ROTATION lives in its own table (`lib/profileCoverPhotoStore.ts`),
+ * so a caller that read it passes the resolved serve paths in rather than this
+ * function reaching for a second store on every profile read. A caller that did
+ * not read it says nothing, and the single back-compat `coverUrl` stands alone -
+ * absence, never an empty rotation.
  */
 export function publicProfileFromRecord(
   profile: ProfileRecord | null | undefined,
+  images: { coverUrls?: readonly string[] } = {},
 ): PublicProfile | null {
   if (!profile) return null;
   return toPublicProfile(profile, {
     avatarUrl: publicOwnedImageUrl(profile, "avatar"),
     coverUrl: publicOwnedImageUrl(profile, "cover"),
+    ...(images.coverUrls ? { coverUrls: images.coverUrls } : {}),
   });
 }
 

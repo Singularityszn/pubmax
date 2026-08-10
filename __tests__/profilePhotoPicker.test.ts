@@ -132,23 +132,30 @@ describe("a hidden input is still one iOS will open", () => {
   });
 
   it("opens the picker from a real tap on a visible button", () => {
-    const source = read("components/profile/ProfileEditor.tsx");
-    expect(source).toContain("avatarInputRef.current?.click()");
-    expect(source).toContain("coverInputRef.current?.click()");
+    expect(read("components/profile/ProfileEditor.tsx")).toContain(
+      "avatarInputRef.current?.click()",
+    );
+    // The backdrop is a rotation now, and its picker lives with the list.
+    expect(read("components/profile/ProfileCoverPhotosEditor.tsx")).toContain(
+      "inputRef.current?.click()",
+    );
   });
 });
 
 describe("the crop step feeds the upload, and the upload is unchanged", () => {
   const source = read("components/profile/ProfileEditor.tsx");
+  const covers = read("components/profile/ProfileCoverPhotosEditor.tsx");
 
   it("positions the photo before anything is sent", () => {
     // Choosing a file only holds it; the cropper's own confirm starts the POST.
     expect(source).toContain('choose("avatar", file)');
-    expect(source).toContain('choose("cover", file)');
     expect(source).toMatch(/onCropped=\{\(file\) => uploadCropped\("avatar", file\)\}/);
-    expect(source).toMatch(/onCropped=\{\(file\) => uploadCropped\("cover", file\)\}/);
     // The old shape sent whatever the picker returned, straight from onChange.
     expect(source).not.toMatch(/event\.target[\s\S]{0,120}uploadImage/);
+    // Same two beats for every cover in the rotation: hold it, then upload the
+    // cropper's own output.
+    expect(covers).toContain("setPending(file)");
+    expect(covers).toMatch(/onCropped=\{\(file\) => \{[\s\S]{0,160}void upload\(file\)/);
   });
 
   it("still posts one photo field to the slot's own route", () => {
@@ -157,6 +164,8 @@ describe("the crop step feeds the upload, and the upload is unchanged", () => {
       "fetch(`/api/profiles/${encodeURIComponent(handle)}/${slot}`, {",
     );
     expect(source).toContain('method: "POST"');
+    expect(covers).toContain('form.append("photo", file)');
+    expect(covers).toContain("`/api/profiles/${encodeURIComponent(handle)}/covers`");
   });
 
   it("leaves the server allow-list at the three types it stores", () => {
@@ -176,6 +185,7 @@ describe("the crop step feeds the upload, and the upload is unchanged", () => {
     // counts as a verdict), but it still runs on every upload: widening the
     // picker may never take the scan off the path.
     expect(read("lib/profileImageRoute.server.ts")).toContain("scanUploadedImage");
+    expect(read("lib/profileCoverPhotoRoute.server.ts")).toContain("scanUploadedImage");
     expect(read("lib/uploadedImageScan.server.ts")).toContain("moderate");
   });
 });

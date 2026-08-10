@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
+import ProfileCoverCarousel from "@/components/profile/ProfileCoverCarousel";
 import ProfileSocialLinks from "@/components/profile/ProfileSocialLinks";
 import { displayHandle } from "@/lib/handleDisplay";
+import { profileCoverUrls } from "@/lib/profileCovers";
 import { computeBadges, type Badge, type Profile, type ProfileDrop, type ProfileStats } from "@/lib/profiles";
 import type { PublicSocialLink } from "@/lib/socialConnections";
 
@@ -90,12 +92,13 @@ export default function ProfileHeader({
   drops,
   actions,
 }: ProfileHeaderProps) {
-  const { handle, displayName, homeCity, bio, avatarUrl, coverUrl, foundingMemberNumber } =
-    profile;
+  const { handle, displayName, homeCity, bio, avatarUrl, foundingMemberNumber } = profile;
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
-  const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null);
   const showAvatar = Boolean(avatarUrl) && failedAvatarUrl !== avatarUrl;
-  const showCover = Boolean(coverUrl) && failedCoverUrl !== coverUrl;
+  // The backdrop is a rotation of up to five, and `profileCoverUrls` is the ONE
+  // place the list and the single back-compat cover are reconciled.
+  const covers = profileCoverUrls(profile);
+  const showCover = covers.length > 0;
   const facts = cardFacts(profile);
   // Tiles link within this profile, so /u/you keeps its own sentinel route
   // rather than bouncing a signed-in reader to a handle they have not claimed.
@@ -110,95 +113,96 @@ export default function ProfileHeader({
 
   return (
     <header className={`profileHeader${showCover ? " profileHeaderWithCover" : ""}`}>
-      {/* The backdrop. An unfilled slot keeps the brass treatment, so an
-          initials-era profile still reads as a card rather than a gap. */}
+      {/* The banner band. It is a BAND in normal flow rather than an absolute
+          strip behind the card, because its rendered aspect has to be the
+          cropper's aspect: what an owner framed is what a reader sees, and a
+          fixed height over a fluid width is exactly how a name gets cut in
+          half. An unfilled slot keeps the brass treatment, so an initials-era
+          profile still reads as a card rather than a gap. */}
       <div className="profileCover" aria-hidden="true">
-        {showCover ? (
-          <Image
-            className="profileCoverImage"
-            src={coverUrl!}
-            alt=""
-            width={1600}
-            height={533}
-            unoptimized
-            priority
-            onError={() => setFailedCoverUrl(coverUrl ?? null)}
-          />
-        ) : null}
+        <ProfileCoverCarousel covers={covers} />
         <span className="profileCoverFalloff" />
       </div>
 
-      <div className="profileIdentity">
-        {showAvatar ? (
-          <Image
-            className="profileAvatar"
-            src={avatarUrl!}
-            alt=""
-            width={88}
-            height={88}
-            unoptimized
-            onError={() => setFailedAvatarUrl(avatarUrl ?? null)}
-          />
-        ) : (
-          <div className="profileAvatar profileAvatarFallback" aria-hidden="true">
-            {initialOf(displayName, handle)}
-          </div>
-        )}
+      {/* The hero: the face over the band's edge, the name beside it, and the
+          bio as the opening line directly under both. */}
+      <div className="profileHeroBody">
+        <div className="profileIdentity">
+          {showAvatar ? (
+            <Image
+              className="profileAvatar"
+              src={avatarUrl!}
+              alt=""
+              width={176}
+              height={176}
+              unoptimized
+              onError={() => setFailedAvatarUrl(avatarUrl ?? null)}
+            />
+          ) : (
+            <div className="profileAvatar profileAvatarFallback" aria-hidden="true">
+              {initialOf(displayName, handle)}
+            </div>
+          )}
 
-        <div className="profileNames">
-          <h1 className="profileDisplayName">{displayName}</h1>
-          <p className="profileHandle">{displayHandle(handle)}</p>
-          {homeCity ? (
-            <p className="profileHomeCity">
-              <span aria-hidden="true">📍 </span>
-              {homeCity}
-            </p>
-          ) : null}
-          {/* Beside the name, because that is what it is about: when this
-              person arrived. It is not a badge in the earned-badge row below,
-              which is a ladder of things somebody DID. */}
-          <FoundingMemberMark number={foundingMemberNumber} />
+          <div className="profileNames">
+            <h1 className="profileDisplayName">{displayName}</h1>
+            <p className="profileHandle">{displayHandle(handle)}</p>
+            {homeCity ? (
+              <p className="profileHomeCity">
+                <span aria-hidden="true">📍 </span>
+                {homeCity}
+              </p>
+            ) : null}
+            {/* Beside the name, because that is what it is about: when this
+                person arrived. It is not a badge in the earned-badge row below,
+                which is a ladder of things somebody DID. */}
+            <FoundingMemberMark number={foundingMemberNumber} />
+          </div>
+
+          {actions ? <div className="profileActions">{actions}</div> : null}
         </div>
 
-        {actions ? <div className="profileActions">{actions}</div> : null}
+        {bio ? <p className="profileBio">{bio}</p> : null}
+
+        {facts.length ? (
+          <dl className="profileCardFacts">
+            {facts.map((fact) => (
+              <div key={fact.id} className={`profileCardFact profileCardFact--${fact.id}`}>
+                <dt>{fact.label}</dt>
+                <dd>{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+
+        <ProfileSocialLinks links={socialLinks ?? []} />
+
+        {earnedBadges.length ? (
+          <ul className="profileBadges" aria-label="Badges earned">
+            {earnedBadges.map((badge) => (
+              <li
+                key={badge.id}
+                className="profileBadge"
+                title={`${badge.label}: ${badge.description}`}
+              >
+                <span aria-hidden="true" className="profileBadgeDot" />
+                <span className="profileBadgeLabel">{badge.label}</span>
+                <span className="profileBadgeDesc">{badge.description}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
-
-      {bio ? <p className="profileBio">{bio}</p> : null}
-
-      {facts.length ? (
-        <dl className="profileCardFacts">
-          {facts.map((fact) => (
-            <div key={fact.id} className={`profileCardFact profileCardFact--${fact.id}`}>
-              <dt>{fact.label}</dt>
-              <dd>{fact.value}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-
-      <ProfileSocialLinks links={socialLinks ?? []} />
-
-      {earnedBadges.length ? (
-        <ul className="profileBadges" aria-label="Badges earned">
-          {earnedBadges.map((badge) => (
-            <li
-              key={badge.id}
-              className="profileBadge"
-              title={`${badge.label}: ${badge.description}`}
-            >
-              <span aria-hidden="true" className="profileBadgeDot" />
-              <span className="profileBadgeLabel">{badge.label}</span>
-              <span className="profileBadgeDesc">{badge.description}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
 
       {/* Every tile is a way in. A statistic that counts something the page can
           show, and does not link to it, is a dead end wearing a number: the
           reader has been told they have 14 followers and given no way to see
           one. The destinations are real surfaces, so a tile never navigates to
-          a promise. */}
+          a promise.
+
+          The row sits BELOW the hero and spans the whole card, because six
+          figures squeezed into a narrow column is how they came to read as a
+          receipt rather than as six doors. */}
       <dl className="profileStats" aria-label="Profile statistics">
         <ProfileStatTile
           label="Pints logged"

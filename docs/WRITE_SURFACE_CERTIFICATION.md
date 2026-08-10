@@ -29,6 +29,7 @@ Protection in a sibling method cannot certify another method.
 - `DELETE app/api/profiles/[handle]`
 - `DELETE app/api/profiles/[handle]/avatar`
 - `DELETE app/api/profiles/[handle]/cover`
+- `DELETE app/api/profiles/[handle]/covers/[coverId]`
 - `DELETE app/api/pub-pal`
 - `DELETE app/api/pub-pal/memories/[memoryId]`
 - `DELETE app/api/social-connections/[provider]`
@@ -38,6 +39,7 @@ Protection in a sibling method cannot certify another method.
 - `DELETE app/api/social/interactions`
 - `PATCH app/api/admin/import-notes`
 - `PATCH app/api/crawls/[slug]`
+- `PATCH app/api/profiles/[handle]/covers/[coverId]`
 - `PATCH app/api/identity/onboarding`
 - `PATCH app/api/night-moments/[id]/alt-text`
 - `PATCH app/api/night-stories/[id]`
@@ -114,7 +116,9 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/profiles/[handle]/avatar`
 - `POST app/api/profiles/[handle]/avatar/report`
 - `POST app/api/profiles/[handle]/cover`
+- `POST app/api/profiles/[handle]/covers`
 - `POST app/api/profiles/[handle]/cover/report`
+- `POST app/api/profiles/[handle]/covers/[coverId]/report`
 - `POST app/api/pub-pal`
 - `POST app/api/pub-pal/llm`
 - `POST app/api/pub-pal/mastery`

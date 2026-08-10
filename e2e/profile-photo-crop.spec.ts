@@ -113,8 +113,33 @@ type UploadRecord = { calls: number; bodies: Buffer[] };
  */
 async function captureUpload(page: Page, slot: "avatar" | "cover"): Promise<UploadRecord> {
   const record: UploadRecord = { calls: 0, bodies: [] };
-  await page.route(`**/api/profiles/${HANDLE}/${slot}`, async (route) => {
-    if (route.request().method() !== "POST") {
+  const url = `/api/cover/${PROFILE_ID}/${GENERATION}`;
+  // The backdrop is a rotation now, so a cover POSTs to `/covers` and the reply
+  // carries the whole list beside the whole profile.
+  const path = slot === "avatar" ? `${HANDLE}/avatar` : `${HANDLE}/covers`;
+  const profile = {
+    id: PROFILE_ID,
+    handle: HANDLE,
+    displayName: "Crop proof",
+    ...(slot === "avatar"
+      ? { avatarUrl: `/api/avatar/${PROFILE_ID}/${GENERATION}` }
+      : { coverUrl: url, coverUrls: [url] }),
+    createdAt: "2026-08-01T12:00:00.000Z",
+    updatedAt: "2026-08-01T12:00:00.000Z",
+  };
+
+  await page.route(`**/api/profiles/${path}`, async (route) => {
+    const method = route.request().method();
+    if (method === "GET") {
+      // The covers editor reads its own list on mount.
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ status: "ready", covers: [] }),
+      });
+      return;
+    }
+    if (method !== "POST") {
       await route.continue();
       return;
     }
@@ -122,21 +147,17 @@ async function captureUpload(page: Page, slot: "avatar" | "cover"): Promise<Uplo
     const body = route.request().postDataBuffer();
     if (body) record.bodies.push(body);
     await route.fulfill({
-      status: 200,
+      status: slot === "avatar" ? 200 : 201,
       contentType: "application/json",
       body: JSON.stringify({
-        profile: {
-          id: PROFILE_ID,
-          handle: HANDLE,
-          displayName: "Crop proof",
-          [slot === "avatar" ? "avatarUrl" : "coverUrl"]:
-            `/api/${slot}/${PROFILE_ID}/${GENERATION}`,
-          createdAt: "2026-08-01T12:00:00.000Z",
-          updatedAt: "2026-08-01T12:00:00.000Z",
-        },
+        profile,
+        ...(slot === "cover"
+          ? { covers: [{ id: "cover-1", position: 1, url }], status: "ready" }
+          : {}),
       }),
     });
   });
+
   const png = await widePng();
   await page.route(`**/api/${slot}/${PROFILE_ID}/${GENERATION}`, async (route) => {
     await route.fulfill({
@@ -283,10 +304,15 @@ test.describe("profile photo picker and crop", () => {
     await shoot(page, "crop-avatar-zoomed-390");
 
     await page.getByRole("button", { name: "Use photo" }).click();
-    // The reply returns the page to view mode, so this is the signal the POST
-    // finished rather than a guess at how long it takes. Waiting on the crop
-    // step alone raced it: that goes the moment the crop is handed over.
-    await expect(page.locator(".profileSavedNotice")).toBeVisible();
+    // The reply repaints the card and the editor STAYS OPEN, so the signal the
+    // POST finished is the preview taking the returned URL. Waiting on the crop
+    // step, or on the picker coming back, races it: both change the moment the
+    // crop is handed over, before the request has been answered.
+    await expect(page.locator("img.profileEditorAvatarPreview")).toHaveAttribute(
+      "src",
+      `/api/avatar/${PROFILE_ID}/${GENERATION}`,
+    );
+    await expect(page.getByRole("heading", { name: "Editing your profile" })).toBeVisible();
 
     expect(await measureCropOutput(page)).toEqual({
       name: "avatar.jpg",
@@ -317,7 +343,11 @@ test.describe("profile photo picker and crop", () => {
     await page.mouse.up();
 
     await page.getByRole("button", { name: "Use photo" }).click();
-    await expect(page.locator(".profileSavedNotice")).toBeVisible();
+    // The fresh cover appears as a numbered thumbnail in the rotation, with the
+    // editor still open around it. The thumbnail is the completion signal: the
+    // picker and the crop step both change before the request is answered.
+    await expect(page.getByRole("img", { name: "Cover 1" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Editing your profile" })).toBeVisible();
 
     expect(await measureCropOutput(page)).toEqual({
       name: "cover.jpg",
@@ -329,6 +359,36 @@ test.describe("profile photo picker and crop", () => {
     if (onTheWire) {
       expect(onTheWire).toEqual({ format: "jpeg", width: 1600, height: 533 });
     }
+  });
+
+  // THE DEFECT: choosing a photo from the editor threw the owner out to the
+  // read-only profile, because an image write reported through the same
+  // callback the Save button used. Somebody there to change five things had to
+  // re-open the editor after the first one.
+  test("an upload keeps the editor open with the fresh image in place", async ({ page }) => {
+    const record = await captureUpload(page, "avatar");
+    await openOwnProfileEditor(page);
+    await pick(page, "avatar", "IMG_2205.png");
+    await page.getByRole("button", { name: "Use photo" }).click();
+
+    await expect(page.getByRole("heading", { name: "Editing your profile" })).toBeVisible();
+    // The editor's own preview and the card's face both carry the new photo.
+    await expect(page.locator("img.profileEditorAvatarPreview")).toHaveAttribute(
+      "src",
+      `/api/avatar/${PROFILE_ID}/${GENERATION}`,
+    );
+    await expect(page.locator("header.profileHeader img.profileAvatar")).toBeVisible();
+    // The read-only confirmation belongs to the end of a session, and this is
+    // not the end of one.
+    await expect(page.locator(".profileSavedNotice")).toHaveCount(0);
+    expect(record.calls).toBe(1);
+
+    // A second photo goes up from the same open editor, which is what "five
+    // things" means.
+    await pick(page, "avatar", "IMG_2206.png");
+    await page.getByRole("button", { name: "Use photo" }).click();
+    await expect(page.getByRole("heading", { name: "Editing your profile" })).toBeVisible();
+    expect(record.calls).toBe(2);
   });
 
   test("a photo this browser cannot open says where to go instead", async ({ page }) => {

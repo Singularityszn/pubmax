@@ -26,6 +26,7 @@ import {
   type ProfilePatch,
   type ProfileRecord,
 } from "@/lib/profileStore";
+import { publicCoverUrls } from "@/lib/profileCoverPhotoStore";
 import { followStore } from "@/lib/followStore";
 import { markContributorsDepartedByProfileId } from "@/lib/nightMemoryStore";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
@@ -163,9 +164,14 @@ export async function GET(
       );
     }
 
+    // The card's backdrop is a ROTATION of up to five photos, so the public
+    // read carries the ordered list beside the single back-compat cover. A list
+    // that could not be read travels as absent rather than as empty, and the
+    // header falls back to cover #1.
+    const coverUrls = profile ? await publicCoverUrls(profile.id) : undefined;
     return jsonNoStore(
       {
-        profile: publicProfileFromRecord(profile),
+        profile: publicProfileFromRecord(profile, coverUrls ? { coverUrls } : {}),
         socialLinks: await publicLinksFor(profile),
         counts,
         viewerFollowing,

@@ -257,12 +257,13 @@ test("upload → render → report → hide dress rehearsal", async ({ page }) =
     buffer: tinyJpeg(),
   });
   await confirmCrop(page);
-  // The upload's reply hands the saved row back, which returns the page to view
-  // mode. That is where the new face shows, so assert it there rather than on an
-  // editor control that has already left. (The old assertion named a class the
-  // initials fallback also wears, so it passed before the upload ran at all.)
-  await expect(page.locator(".profileSavedNotice")).toBeVisible();
-  await expect(page.locator(".profileAvatar")).toBeVisible();
+  // The upload's reply repaints the card IN PLACE. The editor stays open, which
+  // is the whole point: somebody who came to change five things is not thrown
+  // out to the read-only profile after the first. (The old assertion named the
+  // saved notice, which only shows in view mode, so it pinned the defect.)
+  await expect(page.getByRole("heading", { name: "Editing your profile" })).toBeVisible();
+  await expect(page.locator("img.profileEditorAvatarPreview")).toHaveAttribute("src", avatarUrl);
+  await expect(page.locator("header.profileHeader img.profileAvatar")).toBeVisible();
   expect(uploadCalls).toBeGreaterThan(0);
 
   await page.goto(`/u/${LOOP_HANDLE}`);

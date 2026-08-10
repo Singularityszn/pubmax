@@ -1,0 +1,308 @@
+"use client";
+
+import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
+import { getAccessToken } from "@/lib/authClient";
+import {
+  PROFILE_COVER_ADD_LABEL,
+  PROFILE_COVER_MOVE_DOWN_LABEL,
+  PROFILE_COVER_MOVE_UP_LABEL,
+  PROFILE_COVER_PHOTO_CAP,
+  PROFILE_COVER_REMOVE_LABEL,
+  PROFILE_COVER_SECTION_LABEL,
+  profileCoverCapLine,
+  profileCoverEmptyLine,
+  profileCoverRotationNote,
+  profileCoverThumbnailLabel,
+  type ProfileCoverPhotoDTO,
+  type ProfileCoverReadStatus,
+} from "@/lib/profileCovers";
+import {
+  PROFILE_IMAGE_PICKER_ACCEPT,
+  profileImageCropTarget,
+} from "@/lib/profileImagePicker";
+import { profileImageOutputBox } from "@/lib/profileImageSlots";
+import type { PublicProfile } from "@/lib/profiles";
+import { discardBody } from "@/lib/responseBody";
+
+// The owner's cover ROTATION, inside the profile editor.
+//
+// It is ONE control for one choice: the single "Choose cover" button used to
+// own the backdrop and this list now does, because two live copies of the same
+// choice drift the moment either one writes.
+//
+// Every photo takes the SAME two beats the single cover took - pick, then
+// position - and the same pipeline behind them, because it posts one JPEG under
+// `photo` to a route that stages, scans and promotes exactly as before. What is
+// new is the list: add up to five, move one up or down, remove one.
+//
+// Ordering is buttons rather than a drag: a drag needs a library, a keyboard
+// story and a touch story, and Move up / Move down already has all three.
+//
+// Nothing here closes the editor. An upload reports the fresh profile UP so the
+// header repaints, and the person carries on editing the other four things they
+// came to change.
+
+const CROP_TARGET = profileImageCropTarget("cover");
+const BOX = profileImageOutputBox("cover");
+
+type Busy = "idle" | "adding" | "editing";
+
+type ProfileCoverPhotosEditorProps = {
+  handle: string;
+  /** Reported up on every successful write, so the card repaints in place. */
+  onProfileChanged: (profile: PublicProfile) => void;
+};
+
+/** Identity of a chosen file, so a second pick arrives as a fresh crop step. */
+function fileKey(file: File): string {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
+function parseApiError(body: unknown, fallback: string): string {
+  if (
+    body &&
+    typeof body === "object" &&
+    typeof (body as { error?: unknown }).error === "string"
+  ) {
+    return (body as { error: string }).error;
+  }
+  return fallback;
+}
+
+export default function ProfileCoverPhotosEditor({
+  handle,
+  onProfileChanged,
+}: ProfileCoverPhotosEditorProps) {
+  const [covers, setCovers] = useState<ProfileCoverPhotoDTO[]>([]);
+  const [status, setStatus] = useState<ProfileCoverReadStatus>("ready");
+  const [busy, setBusy] = useState<Busy>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<File | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    // The server derives the actor from this token; a bare fetch here made a
+    // signed-in owner's own handle read as a hijack (`gatedActorAuth`).
+    const token = await getAccessToken();
+    return token ? { authorization: `Bearer ${token}` } : {};
+  }, []);
+
+  const base = `/api/profiles/${encodeURIComponent(handle)}/covers`;
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      const headers = await authHeaders();
+      const response = await fetch(base, { headers }).catch(() => null);
+      if (!response) return;
+      if (!response.ok) {
+        // Between learning the status and leaving, the body is let go: an
+        // undrained response is a request that never finishes.
+        discardBody(response);
+        if (active) setStatus("degraded");
+        return;
+      }
+      const body = (await response.json().catch(() => null)) as {
+        status?: ProfileCoverReadStatus;
+        covers?: ProfileCoverPhotoDTO[];
+      } | null;
+      if (!active || !body) return;
+      setStatus(body.status === "degraded" ? "degraded" : "ready");
+      setCovers(body.covers ?? []);
+    }
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [authHeaders, base]);
+
+  /** Every write answers the whole profile AND the whole rotation. */
+  function applyReply(body: unknown): void {
+    if (!body || typeof body !== "object") return;
+    const reply = body as { profile?: PublicProfile | null; covers?: ProfileCoverPhotoDTO[] };
+    if (Array.isArray(reply.covers)) setCovers(reply.covers);
+    setStatus("ready");
+    if (reply.profile) onProfileChanged(reply.profile);
+  }
+
+  async function send(
+    url: string,
+    init: RequestInit,
+    fallbackError: string,
+    state: Busy,
+  ): Promise<void> {
+    setBusy(state);
+    setError(null);
+    try {
+      const response = await fetch(url, init);
+      const body: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(parseApiError(body, fallbackError));
+        return;
+      }
+      applyReply(body);
+    } catch {
+      setError("Network error. Try again.");
+    } finally {
+      setBusy("idle");
+    }
+  }
+
+  async function upload(file: File): Promise<void> {
+    const form = new FormData();
+    form.append("photo", file);
+    await send(
+      base,
+      { method: "POST", headers: await authHeaders(), body: form },
+      "Could not add that cover. Try again.",
+      "adding",
+    );
+  }
+
+  async function remove(coverId: string): Promise<void> {
+    await send(
+      `${base}/${encodeURIComponent(coverId)}`,
+      { method: "DELETE", headers: await authHeaders() },
+      "Could not remove that cover. Try again.",
+      "editing",
+    );
+  }
+
+  async function move(coverId: string, direction: "up" | "down"): Promise<void> {
+    await send(
+      `${base}/${encodeURIComponent(coverId)}`,
+      {
+        method: "PATCH",
+        headers: { ...(await authHeaders()), "content-type": "application/json" },
+        body: JSON.stringify({ move: direction }),
+      },
+      "Could not reorder your covers. Try again.",
+      "editing",
+    );
+  }
+
+  const full = covers.length >= PROFILE_COVER_PHOTO_CAP;
+  const working = busy !== "idle";
+  const rotationNote = profileCoverRotationNote(covers.length);
+
+  return (
+    <div className="profileEditorField profileEditorCoverField">
+      <span className="profileEditorAvatarLabel" id="pe-covers-label">
+        {PROFILE_COVER_SECTION_LABEL}
+      </span>
+
+      {covers.length === 0 && !pending ? (
+        <p className="profileEditorHint profileEditorCoverEmpty">
+          {profileCoverEmptyLine(status)}
+        </p>
+      ) : null}
+
+      {covers.length > 0 ? (
+        <ol className="profileEditorCoverList">
+          {covers.map((cover, index) => (
+            <li key={cover.id} className="profileEditorCoverItem">
+              <div className="profileEditorCoverStage">
+                <Image
+                  className="profileEditorCoverPreview"
+                  src={cover.url}
+                  alt={profileCoverThumbnailLabel(index + 1)}
+                  width={BOX.width}
+                  height={BOX.height}
+                  unoptimized
+                />
+              </div>
+              <div className="profileEditorCoverItemActions">
+                <span className="profileEditorCoverPosition">
+                  {profileCoverThumbnailLabel(index + 1)}
+                </span>
+                <button
+                  type="button"
+                  className="profileEditorAvatarUpload"
+                  disabled={working || index === 0}
+                  onClick={() => void move(cover.id, "up")}
+                >
+                  {PROFILE_COVER_MOVE_UP_LABEL}
+                </button>
+                <button
+                  type="button"
+                  className="profileEditorAvatarUpload"
+                  disabled={working || index === covers.length - 1}
+                  onClick={() => void move(cover.id, "down")}
+                >
+                  {PROFILE_COVER_MOVE_DOWN_LABEL}
+                </button>
+                <button
+                  type="button"
+                  className="profileEditorAvatarRemove"
+                  disabled={working}
+                  onClick={() => void remove(cover.id)}
+                >
+                  {PROFILE_COVER_REMOVE_LABEL}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+
+      {rotationNote ? (
+        <p className="profileEditorHint profileEditorCoverNote">{rotationNote}</p>
+      ) : null}
+
+      <input
+        ref={inputRef}
+        id="pe-cover-file"
+        type="file"
+        accept={PROFILE_IMAGE_PICKER_ACCEPT}
+        className="profileEditorAvatarFile"
+        aria-labelledby="pe-covers-label"
+        onChange={(event) => {
+          const file = event.target.files?.[0] ?? null;
+          event.target.value = "";
+          setPending(file);
+          if (file) setError(null);
+        }}
+      />
+
+      {pending ? (
+        <ProfileImageCropper
+          key={fileKey(pending)}
+          target={CROP_TARGET}
+          file={pending}
+          busy={busy === "adding"}
+          onCancel={() => setPending(null)}
+          onCropped={(file) => {
+            setPending(null);
+            void upload(file);
+          }}
+        />
+      ) : (
+        <div className="profileEditorAvatarActions profileEditorCoverActions">
+          <button
+            type="button"
+            className="profileEditorAvatarUpload"
+            disabled={working || full}
+            onClick={() => inputRef.current?.click()}
+          >
+            {busy === "adding" ? "Uploading…" : PROFILE_COVER_ADD_LABEL}
+          </button>
+        </div>
+      )}
+
+      {full ? (
+        <span className="profileEditorHint" role="status">
+          {profileCoverCapLine()}
+        </span>
+      ) : null}
+
+      {error ? (
+        <span className="profileEditorHint profileEditorStatusErr" role="status">
+          {error}
+        </span>
+      ) : null}
+    </div>
+  );
+}
