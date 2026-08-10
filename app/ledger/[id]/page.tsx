@@ -24,6 +24,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import OperatorRailPanel from "@/components/operators/OperatorRailPanel";
 import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
+import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
 
 import "./ledger.css";
@@ -331,6 +332,9 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
 
         {/* Individual, dated Visit Reports. No score or aggregate verdict. */}
         <VisitReportPanel venueId={canonicalId} venueName={venue.name} />
+
+        {/* The pub's community photo wall - the same one the map sheet shows. */}
+        <VenuePhotoWall venueId={canonicalId} venueName={venue.name} />
       </header>
 
       <p className="ledgerLaneNote">

@@ -224,6 +224,31 @@ export function cropOutputBox(slot: ProfileImageSlot): CropBox {
   return profileImageOutputBox(slot);
 }
 
+/**
+ * Everything the crop step needs to know about what it is cropping FOR. The
+ * geometry above is the same arithmetic wherever a photo is framed, so the one
+ * cropper takes this rather than a profile slot: a pub photo wall is another
+ * row in the table, not a second cropper. `id` is a stable slug used for
+ * element ids and class hooks, so two croppers on one page never collide.
+ */
+export type CropTarget = {
+  readonly id: string;
+  readonly aspectRatio: number;
+  readonly outputBox: CropBox;
+  readonly nounLower: string;
+  readonly fileName: string;
+};
+
+export function profileImageCropTarget(slot: ProfileImageSlot): CropTarget {
+  return {
+    id: slot,
+    aspectRatio: profileImageSlotSpec(slot).aspectRatio,
+    outputBox: cropOutputBox(slot),
+    nounLower: profileImageSlotSpec(slot).nounLower,
+    fileName: croppedFileName(slot),
+  };
+}
+
 // ── Copy ────────────────────────────────────────────────────────────────────
 // Friction copy, so each line says what happened and hands the reader the next
 // move. A browser that cannot decode HEIC is the one case worth naming outright,
@@ -237,8 +262,12 @@ export function cropOutputBox(slot: ProfileImageSlot): CropBox {
  * screen-reader user needs is this sentence, which also names the keyboard.
  */
 export function cropFrameLabel(slot: ProfileImageSlot): string {
-  const noun = profileImageSlotSpec(slot).nounLower;
-  return `Reposition your ${noun}. Drag it, or nudge it with the arrow keys.`;
+  return cropFrameLabelFor(profileImageSlotSpec(slot).nounLower);
+}
+
+/** The same sentence, for a crop target that is not a profile slot. */
+export function cropFrameLabelFor(nounLower: string): string {
+  return `Reposition your ${nounLower}. Drag it, or nudge it with the arrow keys.`;
 }
 
 /**
@@ -252,13 +281,23 @@ export function unreadableImageMessage(
   slot: ProfileImageSlot,
   likelyHeic: boolean,
 ): string {
-  const spec = profileImageSlotSpec(slot);
+  return unreadableImageMessageFor(profileImageSlotSpec(slot).nounLower, likelyHeic);
+}
+
+export function unreadableImageMessageFor(
+  nounLower: string,
+  likelyHeic: boolean,
+): string {
   if (likelyHeic) {
-    return `This browser cannot open that ${spec.nounLower}. Open it in Photos, share it as a JPEG, then choose it again.`;
+    return `This browser cannot open that ${nounLower}. Open it in Photos, share it as a JPEG, then choose it again.`;
   }
-  return `Could not open that ${spec.nounLower}. Choose another one.`;
+  return `Could not open that ${nounLower}. Choose another one.`;
 }
 
 export function cropFailedMessage(slot: ProfileImageSlot): string {
-  return `Could not prepare that ${profileImageSlotSpec(slot).nounLower}. Try again.`;
+  return cropFailedMessageFor(profileImageSlotSpec(slot).nounLower);
+}
+
+export function cropFailedMessageFor(nounLower: string): string {
+  return `Could not prepare that ${nounLower}. Try again.`;
 }

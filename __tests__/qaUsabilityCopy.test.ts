@@ -12,6 +12,13 @@ import { londonServiceDayBounds, type WhatsOnRow } from "@/lib/whatsOn";
 // rather than a calendar date that goes past and stops testing the copy.
 const TONIGHT = londonServiceDayBounds();
 
+// ...and the lane is rendered at a FIXED moment inside that window, through the
+// clock it already publishes for exactly this. Reading the wall clock instead
+// made the copy assertion below depend on the hour the suite happened to run
+// in: after the deal's own closing time it rendered nothing, and a test that
+// says "presents deals as deals" went red with no copy having changed.
+const RENDERED_AT = Date.parse(TONIGHT.start) + 60 * 60 * 1000;
+
 const expensiveExperience: WhatsOnRow = {
   id: "deal-avora",
   placeName: "Avora",
@@ -25,7 +32,7 @@ const expensiveExperience: WhatsOnRow = {
     label: "Avora",
     url: "https://example.com/avora",
   },
-  observedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+  observedAt: new Date(RENDERED_AT - 60 * 60 * 1000).toISOString(),
   confidence: "listed",
 };
 
@@ -35,6 +42,7 @@ describe("production QA destination copy", () => {
       createElement(DealsTonightLane as ComponentType<DealsTonightLaneProps>, {
         rows: [expensiveExperience],
         asOf: "2026-07-28T12:00:00.000Z",
+        now: RENDERED_AT,
       }),
     );
 

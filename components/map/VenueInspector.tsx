@@ -31,6 +31,7 @@ import { usePresence } from "./inspector/usePresence";
 import { useVenueShare } from "./inspector/useVenueShare";
 import VenueInspectorHeader from "./inspector/VenueInspectorHeader";
 import VenueOverviewTab from "./inspector/VenueOverviewTab";
+import VenuePhotosTab from "./inspector/VenuePhotosTab";
 import VenuePintsTab from "./inspector/VenuePintsTab";
 import VenueMenuTab from "./inspector/VenueMenuTab";
 import VenueStoryTab from "./inspector/VenueStoryTab";
@@ -339,6 +340,9 @@ export default function VenueInspector({
         }
         zoneIndex={zoneIndex}
       />
+
+      {/* Photos — the pub's community wall. */}
+      <VenuePhotosTab venue={venue} tab={tab} />
 
       {/* Pints — the primary tab: demo note, drops list, composer / log bar. */}
       {pubVenue ? (

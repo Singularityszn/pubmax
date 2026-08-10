@@ -8,10 +8,21 @@ import type { VenueKind } from "@/lib/venues";
 // the mobile product contract while retaining stable internal keys/URLs.
 // "getting-home" is a placeholder slot the orchestrator fills with
 // a transport card built by another agent — we only render its mount point here.
-export type TabKey = "overview" | "pints" | "menu" | "story" | "ask" | "getting-home";
+export type TabKey =
+  | "overview"
+  | "photos"
+  | "pints"
+  | "menu"
+  | "story"
+  | "ask"
+  | "getting-home";
 
 export const BASE_TABS: { key: TabKey; label: string; shortLabel: string }[] = [
   { key: "overview", label: "Overview", shortLabel: "Overview" },
+  // The wall sits second because it is the most-looked-at thing about a pub
+  // after what it costs, and because a photo is the one section a reader can
+  // judge in a glance rather than by reading.
+  { key: "photos", label: "Photos", shortLabel: "Photos" },
   { key: "menu", label: "Drinks", shortLabel: "Drinks" },
   { key: "pints", label: "Stories", shortLabel: "Stories" },
   { key: "story", label: "Lore", shortLabel: "Lore" },

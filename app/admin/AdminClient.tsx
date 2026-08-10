@@ -1,6 +1,10 @@
 "use client";
 
 import Image from "next/image";
+
+import VenuePhotoModeration, {
+  type ModeratorVenuePhoto,
+} from "./VenuePhotoModeration";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
@@ -150,6 +154,8 @@ export default function AdminClient() {
   const [comments, setComments] = useState<ModeratorComment[]>([]);
   const [visitReports, setVisitReports] = useState<ModeratorVisitReport[]>([]);
   const [hiddenVisitReports, setHiddenVisitReports] = useState<ModeratorVisitReport[]>([]);
+  const [reportedPhotos, setReportedPhotos] = useState<ModeratorVenuePhoto[]>([]);
+  const [hiddenPhotos, setHiddenPhotos] = useState<ModeratorVenuePhoto[]>([]);
   const [reportedAvatars, setReportedAvatars] = useState<ModeratorProfileAvatar[]>([]);
   const [hiddenAvatars, setHiddenAvatars] = useState<ModeratorProfileAvatar[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -305,6 +311,27 @@ export default function AdminClient() {
         setVisitReports([]);
         setHiddenVisitReports([]);
       }
+      // Both pub photo wall lanes, same pass and same shape: a flag reaches a
+      // human here or it reaches nobody, and a hide has to stay reversible.
+      try {
+        const [pRes, phRes] = await Promise.all([
+          fetch("/api/venue-photos?status=reported", SESSION_FETCH),
+          fetch("/api/venue-photos?status=hidden", SESSION_FETCH),
+        ]);
+        setReportedPhotos(
+          pRes.ok
+            ? ((await pRes.json()) as { photos: ModeratorVenuePhoto[] }).photos ?? []
+            : [],
+        );
+        setHiddenPhotos(
+          phRes.ok
+            ? ((await phRes.json()) as { photos: ModeratorVenuePhoto[] }).photos ?? []
+            : [],
+        );
+      } catch {
+        setReportedPhotos([]);
+        setHiddenPhotos([]);
+      }
       // Load both owned-avatar lanes in the same pass: reported queue and
       // already-hidden rows (a hide has to stay reversible from here).
       try {
@@ -396,6 +423,49 @@ export default function AdminClient() {
             : lane === "hidden"
               ? "Visit report restored."
               : "Visit report kept visible.",
+        );
+      } catch {
+        setMessage("Could not reach the server.");
+      } finally {
+        setPendingId(null);
+      }
+    },
+    [],
+  );
+
+  // Same two-lane shape for wall photos. Hiding takes the photo off the wall,
+  // the pages and the author's cap count together, and never deletes the row,
+  // its bytes or its report trail - so restore is a real way back.
+  const decideVenuePhoto = useCallback(
+    async (photo: ModeratorVenuePhoto, action: "restore" | "hide", lane: "reported" | "hidden") => {
+      setPendingId(photo.id);
+      setMessage(null);
+      try {
+        const res = await fetch("/api/venue-photos", {
+          ...SESSION_FETCH,
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action, id: photo.id }),
+        });
+        if (res.status === 403) {
+          setMessage("Not authorised. Check the admin token.");
+          return;
+        }
+        if (!res.ok) {
+          setMessage("Action failed. Try again.");
+          return;
+        }
+        setReportedPhotos((current) => current.filter((p) => p.id !== photo.id));
+        setHiddenPhotos((current) => {
+          const without = current.filter((p) => p.id !== photo.id);
+          return action === "hide" ? [photo, ...without] : without;
+        });
+        setMessage(
+          action === "hide"
+            ? "Photo hidden."
+            : lane === "hidden"
+              ? "Photo restored to the wall."
+              : "Photo kept on the wall.",
         );
       } catch {
         setMessage("Could not reach the server.");
@@ -1005,6 +1075,15 @@ export default function AdminClient() {
               ))}
             </div>
           )}
+
+          {/* ── Pub photo wall queues ─────────────────────────────────────── */}
+          <VenuePhotoModeration
+            reported={reportedPhotos}
+            hidden={hiddenPhotos}
+            venueNames={venueNames}
+            pendingId={pendingId}
+            onDecide={decideVenuePhoto}
+          />
 
           {/* ── Profile picture report queue (Social Launch WP4) ─────────────── */}
           <h2 className="admin-section">Reported profile pictures</h2>

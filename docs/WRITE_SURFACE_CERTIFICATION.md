@@ -141,6 +141,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/posts`
 - `POST app/api/social/tags`
 - `POST app/api/venue-operators/claim`
+- `POST app/api/venue-photos`
 - `POST app/api/visit-reports`
 - `POST app/api/wanted`
 - `POST app/api/wanted/resolve`
@@ -1050,6 +1051,65 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   variable definitions. Values are sensitive and are never printed or committed.
 - Route and limiter tests prove the fail-closed option returns the documented 429
   path before a Plan or paid-provider request proceeds.
+
+### `app/api/venue-photos` - pub photo walls (route 73)
+
+- **Route / method:** `POST app/api/venue-photos/route.ts`
+  (`fm/feature-pub-photo-walls`) adds one community photo to a venue's wall from
+  a multipart body carrying the photo and its details. The same POST accepts a
+  public `report` action and moderator-only `hide` and `restore` actions for one
+  row. Its `GET ?venueId=...` wall page and the moderator `?status=` lanes are
+  read-only and are not counted. The public serve route
+  `GET app/api/venue-photo/[venueId]/[photoId]/route.ts` is read-only too.
+- **Validation:** `validateVenuePhotoSubmission` (`lib/venuePhotos.ts`) requires
+  a venue id narrow enough to be a storage key segment, takes an optional tag
+  from the one closed drink taxonomy (`lib/drinks.ts`, repeated by the database
+  CHECK in migration 0098) and an optional caption cleaned and capped at 140
+  characters. An off-taxonomy tag is rejected rather than quietly dropped,
+  because a silently untagged photo reads to its author as one that took.
+- **Identity and attribution:** creation requires `resolveContributionIdentity`,
+  which derives the public handle and a profile-based actor
+  (`profile:${profile.id}`) from the authenticated account's immutable profile
+  id, plus an 18-or-over check read from that same account's private identity
+  (`isAdultDateOfBirth`). Body handles and body ages are ignored. The stored row
+  carries the stable actor, so a public handle rename never strands a photo; the
+  public wall projects the handle, avatar and founding number through the ONE
+  shared projection (`publicProfileFromRecord`), never a second field list.
+- **Rate limit (boundary):** every upload costs one paid safety scan, so the
+  per-account durable `isLimited` budget is `failClosed` - a limiter that cannot
+  be reached refuses rather than handing the provider bill to whoever asks. The
+  budget and the per-account-per-venue cap are both counted BEFORE any bytes are
+  prepared, staged or scanned. Reporting carries its own per-target and
+  per-actor budgets, with the reporter actor derived from the request origin.
+- **Cap (boundary):** 100 photos per account per venue, counted in
+  `venuePhotoStore().countForAuthorAtVenue` against that account's own live rows
+  for that venue. A moderator hide gives the slot back, because a removal is not
+  a spent slot. The composer hides its button at the cap as a courtesy; the
+  route is the fence.
+- **Media path:** the shared upload journey (`lib/uploadedImage.server.ts`,
+  the same one the owned profile images take) - declared type, size, magic
+  bytes, asserted metadata strip, sharp rotate, resize into the wall's portrait
+  box, JPEG, re-probe. Bytes are staged privately, signed for a short window,
+  and reach the venue's serving key ONLY on an approval from the image scan
+  adapter (`lib/profileAvatarModeration.ts`), which fails closed with no key
+  configured. A refused or unscannable photo leaves nothing public.
+- **Moderation (boundary):** `report` records a per-actor-deduped flag for the
+  human queue and never hides; `hide` and `restore` require `isModerator`.
+  Hiding is reversible, keeps the row, its bytes and its report provenance, and
+  removes the photo from the wall, the pages and the author's cap count
+  together. A flag after a keep re-opens a still-visible row.
+- **Crosspost honesty:** "Also share to your feed" is a request, never a
+  guarantee. The feed write goes through the existing Social post machinery
+  behind `requireVerifiedSocialActor`, so the wall never buys a lane around
+  Social's own gate or moderation queue. The reply carries a three-state
+  `crosspost` answer (`off`, `posted`, `unavailable`); a feed failure is
+  reported and never fails the wall, because the photo is already approved and
+  stored by then.
+- **Read honesty:** a wall page carries the store's own `status`, so an empty
+  wall and a failed lookup are two different sentences. A tile whose author has
+  been tombstoned is dropped from the page and its serve route answers 404; the
+  tombstone trigger in migration 0098 deletes both the rows and their Storage
+  objects when an account leaves.
 
 The structural scan, live atomic-limiter check, and deployment configuration must
 all remain green. A future route added without a reviewed boundary fails the closed

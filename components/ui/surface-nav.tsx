@@ -28,6 +28,15 @@ import "./surfaceNav.css";
  * beside a pub's name. The destination lives in the accessible name, which is
  * where a reader who cannot see the glyph needs it.
  */
+/**
+ * The two icon sizes this affordance draws. Published rather than inlined
+ * because a browser spec used to restate the number, so a size change here went
+ * red over there with nothing having actually broken. A caller that wants to
+ * assert the icon reads THIS.
+ */
+export const SURFACE_NAV_BACK_ICON_SIZE = 20;
+export const SURFACE_NAV_HOME_ICON_SIZE = 19;
+
 export default function SurfaceNav({
   backLabel,
   onBack,
@@ -56,7 +65,7 @@ export default function SurfaceNav({
           onClick={onBack}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <ChevronLeft size={20} aria-hidden="true" />
+          <ChevronLeft size={SURFACE_NAV_BACK_ICON_SIZE} aria-hidden="true" />
         </button>
       ) : null}
       <button
@@ -67,7 +76,7 @@ export default function SurfaceNav({
         onClick={onHome}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <X size={19} aria-hidden="true" />
+        <X size={SURFACE_NAV_HOME_ICON_SIZE} aria-hidden="true" />
       </button>
     </>
   );

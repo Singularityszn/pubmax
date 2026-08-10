@@ -59,6 +59,7 @@ describe("shared inspector venue copy", () => {
         tabRefs: {
           current: {
             overview: null,
+            photos: null,
             pints: null,
             menu: null,
             story: null,

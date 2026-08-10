@@ -21,10 +21,15 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
+import { profileImageCropTarget } from "@/lib/profileImagePicker";
 import { profileImageSlotSpec, PROFILE_IMAGE_SLOTS } from "@/lib/profileImageSlots";
 
-/** Every surface a person edits their own profile photos from. */
-const PHOTO_SURFACE_DIRS = ["components/profile", "app/u"] as const;
+/**
+ * Every surface a person chooses a photo from. The rule is about pickers, not
+ * about profiles, so a pub photo wall's composer is swept by the same fence:
+ * `capture` would hide the iOS library there in exactly the same way.
+ */
+const PHOTO_SURFACE_DIRS = ["components/profile", "components/venue", "app/u"] as const;
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
@@ -88,10 +93,11 @@ function fileInputs(): FileInput[] {
 describe("a profile photo input asks for a photo, never for a camera", () => {
   const inputs = fileInputs();
 
-  it("finds both slots' inputs, so the sweep is not passing on an empty list", () => {
+  it("finds every picker, so the sweep is not passing on an empty list", () => {
     const ids = inputs.map((input) => input.attributes.get("id"));
     expect(ids).toContain("pe-avatar-file");
     expect(ids).toContain("pe-cover-file");
+    expect(ids).toContain("venue-photo-file");
   });
 
   it("carries no capture attribute on any of them", () => {
@@ -155,11 +161,14 @@ describe("the crop step feeds the upload, and the upload is unchanged", () => {
 
   it("leaves the server allow-list at the three types it stores", () => {
     // The crop re-encodes to JPEG, so widening the picker never widens this.
-    const server = read("lib/profileImageMedia.server.ts");
-    expect(server).toContain(
-      'const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);',
-    );
+    // One list now, shared by every upload journey in the tree.
+    const server = read("lib/uploadedImage.server.ts");
+    expect(server).toContain('"image/jpeg",');
+    expect(server).toContain('"image/png",');
+    expect(server).toContain('"image/webp",');
     expect(server).not.toContain("heic");
+    expect(read("lib/profileImageMedia.server.ts")).not.toContain("heic");
+    expect(read("lib/venuePhotoMedia.server.ts")).not.toContain("heic");
   });
 
   it("leaves the safety scan on the upload path exactly where it was", () => {
@@ -172,7 +181,7 @@ describe("the crop step a person sees", () => {
   function cropper(slot: (typeof PROFILE_IMAGE_SLOTS)[number]): string {
     return renderToStaticMarkup(
       createElement(ProfileImageCropper, {
-        slot,
+        target: profileImageCropTarget(slot),
         file: new File([new Uint8Array([0xff, 0xd8, 0xff])], "IMG_0001.HEIC", {
           type: "image/heic",
         }),
