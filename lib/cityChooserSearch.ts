@@ -3,6 +3,7 @@ import {
   type CityConfig,
   type CityId,
 } from "@/lib/cities";
+import { getCityCapabilityProfile } from "@/lib/cityCapabilities";
 import { cityMapShareUrl } from "@/lib/cityShare";
 import {
   normaliseUkPlaceQuery,
@@ -34,6 +35,21 @@ export type CityChooserSearchResult =
 
 const UNCOVERED_DESCRIPTION =
   "No prices logged here yet. Open the pub map and you could be first.";
+
+/**
+ * What a place inside a curated city gets by being part of it. The line names
+ * only what that city actually ships: a pack that is the map and nothing else
+ * says so, because promising prices and crawls to somebody who taps through to
+ * neither is a broken destination rather than a warm welcome.
+ */
+export function cityGuideMembershipLine(city: CityConfig): string {
+  const profile = getCityCapabilityProfile(city.id);
+  const has: string[] = [];
+  if (profile.prices.availability === "available") has.push("prices");
+  if (profile.routes.availability === "available") has.push("crawls");
+  const guide = `Part of the ${city.displayName} city guide`;
+  return has.length > 0 ? `${guide}, with ${has.join(" and ")}.` : `${guide}.`;
+}
 
 export function buildCityChooserSearchResults(
   query: string,
@@ -91,7 +107,7 @@ export function buildCityChooserSearchResults(
     matched.push({
       kind: "curated",
       name: place.name,
-      description: `Part of the ${city.displayName} city guide, with prices and crawls.`,
+      description: cityGuideMembershipLine(city),
       href: cityMapShareUrl(city.id),
       cityId: city.id,
       lat: place.lat,

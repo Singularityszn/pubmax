@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { CITIES, listEnabledCities } from "@/lib/cities";
 import {
   buildCityChooserSearchResults,
+  cityGuideMembershipLine,
 } from "@/lib/cityChooserSearch";
 import {
   normaliseUkPlaceQuery,
@@ -90,6 +91,24 @@ describe("city chooser search model", () => {
       PLACES,
     );
     expect(didsbury).toMatchObject({ kind: "curated", cityId: "manchester" });
+  });
+
+  it("promises a curated city only what that city actually ships", () => {
+    // London has both. Manchester has reviewed crawls and no collected prices.
+    // A map-only pack promises neither, because a tap through to nothing is a
+    // broken destination rather than a welcome.
+    expect(cityGuideMembershipLine(CITIES.london)).toBe(
+      "Part of the London city guide, with prices and crawls.",
+    );
+    expect(cityGuideMembershipLine(CITIES.manchester)).toBe(
+      "Part of the Manchester city guide, with crawls.",
+    );
+    expect(cityGuideMembershipLine(CITIES.llandudno)).toBe(
+      "Part of the Llandudno city guide.",
+    );
+    expect(cityGuideMembershipLine(CITIES.bath)).toBe(
+      "Part of the Bath city guide.",
+    );
   });
 
   it("does not turn idle or one-letter input into a coverage claim", () => {
