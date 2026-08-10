@@ -1,7 +1,6 @@
 # Growth Activation Wave
 
-Status: implemented, awaiting remote CI and production visual review. Last
-updated 10 August 2026.
+Status: released to production on 10 August 2026.
 
 ## Fable Review Handoff
 
@@ -13,19 +12,31 @@ evidence. Integration branch is `codex/growth-outing-decision-20260810`.
 - [x] Slice 03: add Islington as the fifth seed-borough campaign row.
 - [x] Integrate isolated commits.
 - [x] Run slice-level targeted tests, focused lint, and diff checks.
-- [ ] Run full typecheck, coverage, and build in GitHub CI.
-- [ ] Inspect the deployed morning card at 390px in light and dark mode.
+- [x] Run integrated TypeScript, focused lint, and production build gates.
+- [x] Inspect the deployed morning card at 390px in light and dark mode.
 
 ## Verification Evidence
 
-- Planner slice: 91 targeted tests passed across Tonight Agent, hard route
-  constraints, and Plan generation route tests. Focused ESLint and diff check
-  passed.
+- Integrated branch: 176 targeted tests passed across Tonight Agent, hard
+  route constraints, Plan generation, morning re-entry, usual-lot storage,
+  analytics, and borough coverage.
+- `npx tsc --noEmit`, focused ESLint, and `git diff --check` passed.
 - Morning slice: 10 targeted tests passed across usual-lot storage and the
   mounted morning card. Focused ESLint and diff check passed.
 - Borough slice: 8 targeted tests passed. Focused ESLint and diff check passed.
-- Local full checks stopped when free disk fell below the agreed 500 MiB safety
-  floor. No product or Fable files were deleted to make room.
+- Vercel preview `dpl_GTn2hH6XgruL13F18pcqVhWALsFT` and production
+  `dpl_6YkkY5faYYj5Afr3npLb9EEdizou` reached `READY`. Production serves merged
+  main commit `98b27ab09299e1e1b61663b8ae760d1878711dcd`.
+- Browser QA passed at 390px in light and dark and at 1440px. No horizontal
+  overflow appeared. Private crew names stayed out of rendered copy.
+- The live free-text check returned grounded scarcity for `Step-free in
+  Camden`; the soft Clapham ask returned three grounded stops and its invite.
+- GitHub Actions run `31428847405` did not allocate a runner during the release
+  window, so it was not counted as green. Vercel production build, local
+  TypeScript, lint, diff checks, and targeted tests were the release gates.
+- No product or Fable files were deleted to make room. Only two clean Codex
+  worker worktrees were removed after their commits were integrated; their
+  branches and commits remain recoverable.
 
 ## Goal
 
