@@ -6,6 +6,7 @@ import {
   lastCrewWindowDays,
   nextNightCommittedProps,
   parseLastCrew,
+  readLastCrew,
   rememberLastCrew,
 } from "@/lib/lastCrew";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
@@ -40,6 +41,40 @@ describe("rememberLastCrew", () => {
     const crew = rememberLastCrew(["Karan", "Amy"], "plan-9");
     expect(crew?.names).toEqual(["Karan", "Amy"]);
     expect(crew?.sourcePlanId).toBe("plan-9");
+  });
+});
+
+describe("readLastCrew", () => {
+  it("reuses an unchanged external-store snapshot and replaces it after a storage change", () => {
+    let raw = JSON.stringify({
+      names: ["Karan", "Amy"],
+      savedAt: "2026-08-01T12:00:00.000Z",
+    });
+    const previousWindow = (globalThis as { window?: unknown }).window;
+    (globalThis as { window?: unknown }).window = {
+      localStorage: {
+        getItem: () => raw,
+      },
+    };
+
+    try {
+      const first = readLastCrew();
+      expect(readLastCrew()).toBe(first);
+
+      raw = JSON.stringify({
+        names: ["Karan", "Amy", "Jo"],
+        savedAt: "2026-08-02T12:00:00.000Z",
+      });
+      const changed = readLastCrew();
+      expect(changed).not.toBe(first);
+      expect(changed?.names).toEqual(["Karan", "Amy", "Jo"]);
+    } finally {
+      if (previousWindow === undefined) {
+        delete (globalThis as { window?: unknown }).window;
+      } else {
+        (globalThis as { window?: unknown }).window = previousWindow;
+      }
+    }
   });
 });
 

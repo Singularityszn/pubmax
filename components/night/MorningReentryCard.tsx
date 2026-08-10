@@ -21,9 +21,15 @@
 // card ships WITHOUT rating.
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { BookOpen, Sunrise, X } from "lucide-react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { BookOpen, Sunrise, UsersRound, X } from "lucide-react";
 
+import { trackEvent } from "@/lib/analytics";
+import {
+  nextNightCommittedProps,
+  readLastCrew,
+  subscribeLastCrew,
+} from "@/lib/lastCrew";
 import {
   markMorningCardShown,
   readShowableMorningNight,
@@ -40,6 +46,7 @@ export default function MorningReentryCard() {
   const [night] = useState<CompletedNight | null>(() => readShowableMorningNight(Date.now()));
   const [dismissed, setDismissed] = useState(false);
   const [keptLabel, setKeptLabel] = useState("");
+  const crew = useSyncExternalStore(subscribeLastCrew, readLastCrew, () => null);
 
   // As soon as the card is eligible, mark it shown so it is one-time across every
   // future open. Local state keeps it on screen for this view regardless.
@@ -82,10 +89,28 @@ export default function MorningReentryCard() {
       {night.title ? <p className="morningCard__title">{night.title}</p> : null}
       {keptLabel ? <p className="morningCard__habit">{keptLabel}</p> : null}
 
-      <Link className="morningCard__link" href={`/plan/${night.planId}/recap`} onClick={() => setDismissed(true)}>
-        <BookOpen size={16} aria-hidden="true" />
-        Open your recap
-      </Link>
+      <div className="morningCard__actions">
+        <Link className="morningCard__link" href={`/plan/${night.planId}/recap`} onClick={() => setDismissed(true)}>
+          <BookOpen size={16} aria-hidden="true" />
+          Open your recap
+        </Link>
+        {crew && crew.names.length >= 2 ? (
+          <Link
+            className="morningCard__link morningCard__link--secondary"
+            href="/plan"
+            onClick={() => {
+              trackEvent(
+                "next_night_committed",
+                nextNightCommittedProps("completed_plan", crew),
+              );
+              setDismissed(true);
+            }}
+          >
+            <UsersRound size={16} aria-hidden="true" />
+            Plan another night with them
+          </Link>
+        ) : null}
+      </div>
     </section>
   );
 }
