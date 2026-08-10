@@ -20,6 +20,14 @@ export type ArrivalIntent = "signin" | "signup";
 
 export const ARRIVAL_INTENT_PARAM = "mode";
 export const ARRIVAL_FROM_PARAM = "from";
+/**
+ * The third login-page parameter, beside the door and the page to return to. It
+ * says the arriving person already has a session and wants a SECOND account on
+ * this device, so /login must offer its form rather than the "you are signed in"
+ * card. Without it, the switcher's Add account would land on a page that only
+ * tells the reader they are already in.
+ */
+export const LOGIN_ADD_ACCOUNT_PARAM = "add";
 const MARKER_KEY = "pubmax:arrival-welcome:v1";
 const CHOSEN_INTENT_KEY = "pubmax:arrival-intent:v1";
 
@@ -59,6 +67,11 @@ function isIntent(raw: unknown): raw is ArrivalIntent {
 /** Read `?mode=` into an intent. Anything else is an ordinary sign-in. */
 export function parseArrivalIntent(raw: string | null | undefined): ArrivalIntent {
   return isIntent(raw) ? raw : "signin";
+}
+
+/** Read `?add=` as the add-an-account request. Only an explicit "1" counts. */
+export function parseAddAccount(raw: string | null | undefined): boolean {
+  return raw === "1";
 }
 
 /**

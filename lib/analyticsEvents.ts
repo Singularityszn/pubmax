@@ -75,6 +75,10 @@ export const ANALYTICS_EVENTS = {
   sign_in_initiated: ["provider"],
   user_signed_in: [],
   user_signed_out: [],
+  // A device hopped between two accounts it already holds. No props at all: an
+  // account id or a handle here would name a person, and which accounts share a
+  // device is the most identifying pair this app could record.
+  account_switched: [],
   check_in_created: [],
   email_subscribed: [],
   night_moment_saved: ["kind", "visibility"],

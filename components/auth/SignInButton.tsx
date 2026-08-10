@@ -20,15 +20,23 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { LogIn } from "lucide-react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
 import AccountMenu from "@/components/auth/AccountMenu";
 import ClerkAccountControls from "@/components/auth/ClerkAccountControls";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
+import {
+  loadPublicProfileCard,
+  type PublicProfileCard,
+} from "@/components/auth/publicProfileCard";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
+import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
 import { handleOnly } from "@/lib/handleDisplay";
-import { ARRIVAL_FROM_PARAM } from "@/lib/arrivalWelcome";
+import {
+  ARRIVAL_FROM_PARAM,
+  LOGIN_ADD_ACCOUNT_PARAM,
+} from "@/lib/arrivalWelcome";
 import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
   authMenuFocusBoundary,
@@ -45,6 +53,19 @@ const PHONE_LOGIN_MEDIA = "(max-width: 640px)";
 function loginHref(pathname: string | null): string {
   if (!pathname || !pathname.startsWith("/")) return "/login";
   const params = new URLSearchParams({ [ARRIVAL_FROM_PARAM]: pathname });
+  return `/login?${params.toString()}`;
+}
+
+/**
+ * The same page, told that the arriving person already has a session and wants a
+ * second account. Without the flag /login answers the signed-in card, so the
+ * switcher's Add account would land somewhere with no form on it.
+ */
+function addAccountLoginHref(pathname: string | null): string {
+  const params = new URLSearchParams({ [LOGIN_ADD_ACCOUNT_PARAM]: "1" });
+  if (pathname && pathname.startsWith("/")) {
+    params.set(ARRIVAL_FROM_PARAM, pathname);
+  }
   return `/login?${params.toString()}`;
 }
 
@@ -110,14 +131,23 @@ export default function SignInButton({
     signInWithEmail,
     cancelAuthAttempt,
     signOut,
+    switchAccount,
   } = useAuth();
+  // ONE live read of the remembered-account lane on the page. The card derives
+  // its list and its sign-out scope from this, so neither can drift.
+  const deviceAccounts = useDeviceAccounts();
   const pathname = usePathname();
   const signInHref = loginHref(pathname);
+  const addAccountHref = addAccountLoginHref(pathname);
   const [busy, setBusy] = useState<"google" | "apple" | "out" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [phoneLogin, setPhoneLogin] = useState(false);
-  const [card, setCard] = useState<{ displayName?: string; avatarUrl?: string } | null>(null);
+  // The card plus the handle it is about, so a switch cannot leave the previous
+  // account's face above the new account's @handle.
+  const [card, setCard] = useState<(PublicProfileCard & { handle: string }) | null>(
+    null,
+  );
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -219,23 +249,18 @@ export default function SignInButton({
   // read the profile page uses, and only once the menu is actually opened.
   // The nav renders on every page, and none of them owe a request for a card
   // nobody looked at.
+  //
+  // The held card carries the HANDLE it is about, because a switch replaces the
+  // account under an open menu: a card keyed on "have we asked yet" kept the
+  // previous account's face and display name above the new account's @handle.
   useEffect(() => {
-    if (!menuOpen || card || !accountHandle) return;
+    if (!menuOpen || card?.handle === accountHandle || !accountHandle) return;
+    const handle = accountHandle;
     const controller = new AbortController();
     void (async () => {
-      const response = await fetch(
-        `/api/profiles/${encodeURIComponent(handleOnly(accountHandle))}`,
-        { signal: controller.signal },
-      ).catch(() => null);
-      if (!response?.ok) return;
-      const body = (await response.json().catch(() => null)) as {
-        profile?: { displayName?: string; avatarUrl?: string } | null;
-      } | null;
-      if (controller.signal.aborted) return;
-      setCard({
-        ...(body?.profile?.displayName ? { displayName: body.profile.displayName } : {}),
-        ...(body?.profile?.avatarUrl ? { avatarUrl: body.profile.avatarUrl } : {}),
-      });
+      const loaded = await loadPublicProfileCard(handle, controller.signal);
+      if (controller.signal.aborted || !loaded) return;
+      setCard({ handle, ...loaded });
     })();
     return () => controller.abort();
   }, [accountHandle, card, menuOpen]);
@@ -264,11 +289,14 @@ export default function SignInButton({
     }
   }, [signInWithApple]);
 
-  const onSignOut = useCallback(async () => {
-    setBusy("out");
-    await signOut();
-    setBusy(null);
-  }, [signOut]);
+  const onSignOut = useCallback(
+    async (scope: SignOutScope = "account") => {
+      setBusy("out");
+      await signOut(scope);
+      setBusy(null);
+    },
+    [signOut],
+  );
 
   // Clerk does not mint the Supabase session that owns PUBMAXX identity. Its
   // secondary controls stay behind an established product session until that
@@ -288,7 +316,7 @@ export default function SignInButton({
       (user.user_metadata ?? {}) as Record<string, unknown>,
       user.email,
       accountHandle,
-      card,
+      card?.handle === accountHandle ? card : null,
     );
     const avatarControl = avatar ? (
       // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar; no next/image loader configured for it
@@ -331,8 +359,12 @@ export default function SignInButton({
                 {...(user.email ? { email: user.email } : {})}
                 {...(avatar ? { avatarUrl: avatar } : {})}
                 signOutDisabled={busy !== null}
-                onSignOut={onSignOut}
+                onSignOut={(scope) => void onSignOut(scope)}
                 onNavigate={() => setMenuOpen(false)}
+                activeUserId={user.id}
+                deviceAccounts={deviceAccounts}
+                onSwitchAccount={switchAccount}
+                addAccountHref={addAccountHref}
                 extraControls={clerkSessionAvailable ? <ClerkAccountControls /> : null}
               />
             ) : null}
@@ -348,7 +380,7 @@ export default function SignInButton({
         <button
           type="button"
           className="authSignOut"
-          onClick={onSignOut}
+          onClick={() => void onSignOut("account")}
           disabled={busy !== null}
         >
           Sign out

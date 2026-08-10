@@ -56,6 +56,19 @@ import {
   releaseDeviceAccountOwner,
 } from "@/lib/deviceAccountIdentity";
 import {
+  emitDeviceAccountSessionsChanged,
+  forgetAllDeviceAccounts,
+  forgetDeviceAccount,
+  nextSignedInDeviceAccount,
+  readDeviceAccounts,
+  rememberDeviceAccount,
+} from "@/lib/deviceAccountSessions";
+import {
+  activateDeviceAccount,
+  browserDeviceAccountSwitchDeps,
+  type DeviceAccountSwitchOutcome,
+} from "@/lib/deviceAccountSwitch";
+import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
   beginCanonicalAuthAttempt,
   cancelAuthAttempt,
@@ -111,6 +124,25 @@ function browserSessionStorage(): Storage | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Copy an account's OWN canonical handle onto its OWN row in the remembered
+ * account lane, so the switcher lists people rather than email addresses.
+ *
+ * This is not a second identity authority. The row is keyed by the account id
+ * the handle was read for, nothing reads "who is signed in" from the lane, and a
+ * row is only ever activated by minting that row's own session. The one place
+ * identity binds is still `updateSession`.
+ */
+function rememberAccountHandle(userId: string, handle: string | null): void {
+  if (!handle) return;
+  rememberDeviceAccount(
+    browserLocalStorage(),
+    { userId, handle },
+    Date.now(),
+  );
+  emitDeviceAccountSessionsChanged();
 }
 
 function browserLockManager(): LockManager | null {
@@ -184,6 +216,9 @@ async function prepareAuthCallback(
   return withReferralSignupProof(attempt, currentUrl, fetch);
 }
 
+/** How far a sign-out reaches: this account, or every account on this device. */
+export type SignOutScope = "account" | "device";
+
 export type AuthContextValue = {
   /** Current session, or null when signed out / not yet loaded. */
   session: Session | null;
@@ -205,8 +240,18 @@ export type AuthContextValue = {
   signInWithEmail: (email: string, next?: string) => Promise<MagicLinkResult>;
   /** User cancelled an abandoned provider or magic-link attempt. */
   cancelAuthAttempt: () => void;
-  /** Clear the local session. */
-  signOut: () => Promise<void>;
+  /**
+   * Clear the local session. "account" (the default) signs out the active
+   * account alone and hands the device to the next account still signed in on
+   * it; "device" signs out every remembered account and empties the lane.
+   */
+  signOut: (scope?: SignOutScope) => Promise<void>;
+  /**
+   * Make another account remembered on this device the active one. The swap
+   * itself is `setSession` plus the ordinary auth event, so identity binds in
+   * exactly one place (lib/deviceAccountSwitch.ts).
+   */
+  switchAccount: (userId: string) => Promise<DeviceAccountSwitchOutcome>;
   /**
    * Signed-out device that held a session whose durable resume cookie has
    * expired: the masked account email for the welcome-back path, else null.
@@ -361,6 +406,7 @@ export function AuthProvider({
           status: "resolved",
           identity: { ownerId: user.id, handle: normalizeHandle(handle) },
         });
+        rememberAccountHandle(user.id, normalizeHandle(handle));
       }
     };
     window.addEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
@@ -381,6 +427,10 @@ export function AuthProvider({
         status: "resolved",
         identity: resolution.identity,
       });
+      rememberAccountHandle(
+        user.id,
+        identityHandleForOwner(resolution.identity, user.id),
+      );
     }
     void loadCanonicalHandle();
     return () => {
@@ -483,9 +533,29 @@ export function AuthProvider({
         setSessionLoading(false);
         if (nextSession) {
           setWelcomeBack(null);
+          // The device's remembered-account lane mirrors the SAME refresh token
+          // the durable cookie mirrors, for every account rather than only the
+          // active one, so the switcher has something to switch back to. Same
+          // trigger, same evictable storage, no access token
+          // (lib/deviceAccountSessions.ts). Every event carrying a session
+          // qualifies, because a rotation the lane missed is a dead door.
+          rememberDeviceAccount(
+            browserLocalStorage(),
+            {
+              userId: nextSession.user.id,
+              refreshToken: nextSession.refresh_token,
+              email: nextSession.user.email ?? null,
+            },
+            Date.now(),
+          );
+          emitDeviceAccountSessionsChanged();
           // Keep the durable resume cookie current: every sign-in, restore and
           // background token rotation re-extends its 30-day window and stores
-          // the newest refresh token (lib/authSessionResume.ts).
+          // the newest refresh token (lib/authSessionResume.ts). A switch lands
+          // here too, which is the whole of how the cookie follows the ACTIVE
+          // account: `setSession` fires SIGNED_IN, this re-persists, and
+          // `inheritedResumeEmail` refuses to carry the previous account's
+          // address across because the account id differs.
           if (
             event === "SIGNED_IN" ||
             event === "TOKEN_REFRESHED" ||
@@ -749,21 +819,63 @@ export function AuthProvider({
     [],
   );
 
-  const signOut = useCallback(async (): Promise<void> => {
-    const supabase = await ensureSupabaseBrowser();
-    if (!supabase) return;
-    // Explicit sign-out is the one place the durable resume cookie dies too —
-    // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
-    void clearPersistedSession();
-    // The same set the account boundary clears, and the owner stamp with it.
-    // Leaving the handle behind is what let the next account inherit it: the
-    // session went and its name stayed.
-    releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
-    emitDeviceIdentityChanged();
-    setWelcomeBack(null);
-    await supabase.auth.signOut();
-    // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
-  }, []);
+  const signOut = useCallback(
+    async (scope: SignOutScope = "account"): Promise<void> => {
+      const supabase = await ensureSupabaseBrowser();
+      if (!supabase) return;
+      const departing = sessionTransitions.current.currentUserId();
+      // Explicit sign-out is the one place the durable resume cookie dies too —
+      // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
+      // AWAITED, because an account sign-out may hand the device straight to the
+      // next remembered account: a DELETE still in flight would land after that
+      // account's persist and leave the device with no durable session at all.
+      await clearPersistedSession();
+      // The same set the account boundary clears, and the owner stamp with it.
+      // Leaving the handle behind is what let the next account inherit it: the
+      // session went and its name stayed.
+      releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
+      emitDeviceIdentityChanged();
+      // The account that is leaving takes its stored refresh token with it, and
+      // "all accounts" takes the whole lane. Neither is a capability: they are
+      // the same act at two scopes, and the second only exists because a device
+      // can hold more than one account.
+      if (scope === "device") forgetAllDeviceAccounts(browserLocalStorage());
+      else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
+      emitDeviceAccountSessionsChanged();
+      setWelcomeBack(null);
+      await supabase.auth.signOut();
+      // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
+      if (scope === "device") return;
+      // The person asked to leave ONE account on a device that still holds
+      // another signed-in one. Leaving it signed out would strand a session
+      // nothing on this page can reach, so the next remembered account takes
+      // over through the one switch path. Its own arrival line names it, so
+      // nobody is quietly renamed. A refusal simply leaves the device signed out.
+      const next = nextSignedInDeviceAccount(
+        readDeviceAccounts(browserLocalStorage()),
+        departing,
+      );
+      if (!next) return;
+      await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
+    },
+    [],
+  );
+
+  const switchAccount = useCallback(
+    async (userId: string): Promise<DeviceAccountSwitchOutcome> => {
+      if (userId === sessionTransitions.current.currentUserId()) {
+        return { status: "switched", userId };
+      }
+      const outcome = await activateDeviceAccount(
+        userId,
+        browserDeviceAccountSwitchDeps(),
+      );
+      emitDeviceAccountSessionsChanged();
+      if (outcome.status === "switched") trackEvent("account_switched");
+      return outcome;
+    },
+    [],
+  );
 
   const resumeSignIn = useCallback(async (): Promise<MagicLinkResult> => {
     if (typeof window === "undefined") {
@@ -807,6 +919,7 @@ export function AuthProvider({
       signInWithEmail,
       cancelAuthAttempt: cancelBrowserAuthAttempt,
       signOut,
+      switchAccount,
       welcomeBack: user ? null : welcomeBack,
       resumeSignIn,
       handle: identityHandleForOwner(
@@ -830,6 +943,7 @@ export function AuthProvider({
     signInWithApple,
     signInWithEmail,
     signOut,
+    switchAccount,
     welcomeBack,
     resumeSignIn,
     canonicalIdentityState,
@@ -884,6 +998,7 @@ export function useAuth(): AuthContextValue {
     signInWithEmail: async () => ({ status: "error", message: "Sign-in is not configured." }),
     cancelAuthAttempt: () => {},
     signOut: async () => {},
+    switchAccount: async () => ({ status: "unavailable" }),
     welcomeBack: null,
     resumeSignIn: async () => ({
       status: "error",

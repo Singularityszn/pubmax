@@ -4,6 +4,8 @@ import LoginPage from "@/components/auth/LoginPage";
 import {
   ARRIVAL_FROM_PARAM,
   ARRIVAL_INTENT_PARAM,
+  LOGIN_ADD_ACCOUNT_PARAM,
+  parseAddAccount,
   parseArrivalIntent,
 } from "@/lib/arrivalWelcome";
 
@@ -23,9 +25,10 @@ function first(value: string | string[] | undefined): string | null {
 }
 
 /**
- * The chosen door and the page to return to are read on the server, so
- * /login?mode=signup is a real destination that renders as the sign-up door on
- * first paint, and a nav hand-off (?from=/map) needs no client round trip.
+ * The chosen door, the page to return to and whether this is a SECOND account
+ * are read on the server, so /login?mode=signup is a real destination that
+ * renders as the sign-up door on first paint, and a nav hand-off (?from=/map)
+ * needs no client round trip.
  */
 export default async function LoginRoute({
   searchParams,
@@ -37,6 +40,7 @@ export default async function LoginRoute({
     <LoginPage
       initialIntent={parseArrivalIntent(first(params[ARRIVAL_INTENT_PARAM]))}
       from={first(params[ARRIVAL_FROM_PARAM])}
+      addAccount={parseAddAccount(first(params[LOGIN_ADD_ACCOUNT_PARAM]))}
     />
   );
 }
