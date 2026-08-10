@@ -8,20 +8,18 @@ import {
   CROP_OUTPUT_QUALITY,
   CROP_OUTPUT_TYPE,
   CROP_CONFIRM_LABEL,
-  cropFailedMessage,
-  cropFrameLabel,
-  cropOutputBox,
+  cropFailedMessageFor,
+  cropFrameLabelFor,
   cropScaleAtPosition,
   cropSourceRect,
   cropZoomPosition,
-  croppedFileName,
   isLikelyHeic,
   scaleAboutPoint,
-  unreadableImageMessage,
+  unreadableImageMessageFor,
   type CropBox,
+  type CropTarget,
   type CropTransform,
 } from "@/lib/profileImagePicker";
-import { profileImageSlotSpec, type ProfileImageSlot } from "@/lib/profileImageSlots";
 
 // The step between choosing a photo and uploading it. It exists because the
 // slots have fixed shapes: a face is a square and a backdrop is a wide band, so
@@ -44,7 +42,13 @@ import { profileImageSlotSpec, type ProfileImageSlot } from "@/lib/profileImageS
 // bytes the server will refuse.
 
 type ProfileImageCropperProps = {
-  slot: ProfileImageSlot;
+  /**
+   * What this crop is FOR: its shape, its output box, its noun and the name of
+   * the file it writes. A profile slot builds one with
+   * `profileImageCropTarget`; a pub photo wall brings its own. The cropper
+   * itself knows about neither.
+   */
+  target: CropTarget;
   file: File;
   busy?: boolean;
   onCancel: () => void;
@@ -59,13 +63,12 @@ const ZOOM_STEPS = 100;
 type Pointer = { x: number; y: number };
 
 export default function ProfileImageCropper({
-  slot,
+  target,
   file,
   busy = false,
   onCancel,
   onCropped,
 }: ProfileImageCropperProps) {
-  const spec = profileImageSlotSpec(slot);
   const frameElementRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const transformRef = useRef<CropTransform>({ scale: 1, offsetX: 0, offsetY: 0 });
@@ -162,7 +165,7 @@ export default function ProfileImageCropper({
       height: image.naturalHeight,
     };
     if (natural.width < 1 || natural.height < 1) {
-      setError(unreadableImageMessage(slot, isLikelyHeic(file)));
+      setError(unreadableImageMessageFor(target.nounLower, isLikelyHeic(file)));
       return;
     }
     naturalRef.current = natural;
@@ -180,7 +183,7 @@ export default function ProfileImageCropper({
   }
 
   function handleImageError() {
-    setError(unreadableImageMessage(slot, isLikelyHeic(file)));
+    setError(unreadableImageMessageFor(target.nounLower, isLikelyHeic(file)));
   }
 
   function localPoint(event: { clientX: number; clientY: number }): Pointer {
@@ -302,7 +305,7 @@ export default function ProfileImageCropper({
     if (!image || !ready || rendering || busy) return;
     setRendering(true);
     try {
-      const box = cropOutputBox(slot);
+      const box = target.outputBox;
       const rect = cropSourceRect(
         transformRef.current,
         frameBoxRef.current,
@@ -331,13 +334,13 @@ export default function ProfileImageCropper({
       });
       if (!blob) throw new Error("no blob");
       onCropped(
-        new File([blob], croppedFileName(slot), {
+        new File([blob], target.fileName, {
           type: CROP_OUTPUT_TYPE,
           lastModified: file.lastModified,
         }),
       );
     } catch {
-      setError(cropFailedMessage(slot));
+      setError(cropFailedMessageFor(target.nounLower));
     } finally {
       setRendering(false);
     }
@@ -351,7 +354,7 @@ export default function ProfileImageCropper({
 
   if (unreadable) {
     return (
-      <div className={`profileCropStep profileCropStep-${slot} profileCropStepFailed`}>
+      <div className={`profileCropStep profileCropStep-${target.id} profileCropStepFailed`}>
         <span className="profileEditorHint profileEditorStatusErr" role="status">
           {error}
         </span>
@@ -365,14 +368,14 @@ export default function ProfileImageCropper({
   }
 
   return (
-    <div className={`profileCropStep profileCropStep-${slot}`}>
+    <div className={`profileCropStep profileCropStep-${target.id}`}>
       <div
         ref={frameElementRef}
         className="profileCropFrame"
-        style={{ aspectRatio: `${spec.aspectRatio}` }}
+        style={{ aspectRatio: `${target.aspectRatio}` }}
         role="group"
         tabIndex={0}
-        aria-label={cropFrameLabel(slot)}
+        aria-label={cropFrameLabelFor(target.nounLower)}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={releasePointer}
@@ -395,9 +398,9 @@ export default function ProfileImageCropper({
         <div className="profileCropMask" aria-hidden="true" />
       </div>
       <div className="profileCropZoom">
-        <label htmlFor={`pe-${slot}-zoom`}>Zoom</label>
+        <label htmlFor={`pe-${target.id}-zoom`}>Zoom</label>
         <input
-          id={`pe-${slot}-zoom`}
+          id={`pe-${target.id}-zoom`}
           type="range"
           min={0}
           max={ZOOM_STEPS}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import EmptyState from "@/components/EmptyState";
 import SiteNav from "@/components/nav/SiteNav";
 import ShareBar from "@/components/share/ShareBar";
+import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
 import { buildBarTab, normalizePintDrop, type BarTabTile, type PintDropDTO } from "@/lib/feed";
 import { buildBarTabShareText } from "@/lib/shareArtifacts";
@@ -162,6 +163,9 @@ export default async function BarTabPage({ params }: PageProps) {
         </div>
 
         <VisitReportPanel venueId={canonicalId} venueName={venue.name} />
+
+        {/* The pub's community photo wall - the same one the map sheet shows. */}
+        <VenuePhotoWall venueId={canonicalId} venueName={venue.name} />
       </header>
 
       {barTab.tileCount === 0 ? (

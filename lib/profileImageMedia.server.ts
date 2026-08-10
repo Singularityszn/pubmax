@@ -1,12 +1,5 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
-import sharp from "sharp";
-
-import {
-  detectImageKind,
-  magicBytesOk,
-  stripImageMetadata,
-} from "@/lib/imageSafety";
 import {
   isProfileImageServingKey,
   profileImageServingKey,
@@ -19,22 +12,21 @@ import {
   requireSupabaseAdmin,
   STORAGE_BUCKET,
 } from "@/lib/supabase";
+import { magicBytesOk } from "@/lib/imageSafety";
+import {
+  prepareUploadedImage,
+  UPLOADED_IMAGE_MAX_BYTES,
+  UPLOADED_IMAGE_MAX_DIMENSION,
+  UPLOADED_IMAGE_MAX_PIXELS,
+  type PreparedImage,
+} from "@/lib/uploadedImage.server";
 
-export const PROFILE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
-export const PROFILE_IMAGE_MAX_DIMENSION = 12_000;
-export const PROFILE_IMAGE_MAX_PIXELS = 20_000_000;
+export const PROFILE_IMAGE_MAX_BYTES = UPLOADED_IMAGE_MAX_BYTES;
+export const PROFILE_IMAGE_MAX_DIMENSION = UPLOADED_IMAGE_MAX_DIMENSION;
+export const PROFILE_IMAGE_MAX_PIXELS = UPLOADED_IMAGE_MAX_PIXELS;
 export const PROFILE_IMAGE_SIGNED_TTL_SECONDS = 180;
 
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-
-export type PreparedProfileImage = {
-  bytes: Buffer;
-  contentType: "image/jpeg";
-  width: number;
-  height: number;
-  byteSize: number;
-  sha256: string;
-};
+export type PreparedProfileImage = PreparedImage;
 
 export type UploadedProfileImage = PreparedProfileImage & {
   slot: ProfileImageSlot;
@@ -65,122 +57,23 @@ export class ProfileImageError extends Error {
   }
 }
 
-function safeDimension(value: number | undefined): number | null {
-  return Number.isInteger(value) && Number(value) > 0 ? Number(value) : null;
-}
-
 /**
- * Chain C (pint-drop uploadPhoto order): magic bytes → stripImageMetadata →
- * sharp rotate → resize inside the slot's box → jpeg → re-probe. GPS removal is
- * an asserted strip step, not an encoder side effect. A cover keeps its own
- * aspect (height stays null) so a wide backdrop is never squared off.
+ * The shared journey (`lib/uploadedImage.server.ts`), pointed at this slot's own
+ * box and noun. A cover keeps its own aspect (height stays null) so a wide
+ * backdrop is never squared off.
  */
 export async function prepareProfileImage(
   file: File,
   slot: ProfileImageSlot,
 ): Promise<PreparedProfileImage> {
   const spec = profileImageSlotSpec(slot);
-  if (!ALLOWED_TYPES.has(file.type)) {
-    throw new ProfileImageError(
-      "INVALID_TYPE",
-      `${spec.noun} must be a JPEG, PNG, or WebP image.`,
-    );
-  }
-  if (!Number.isFinite(file.size) || file.size < 1 || file.size > PROFILE_IMAGE_MAX_BYTES) {
-    throw new ProfileImageError("TOO_LARGE", `${spec.noun} must be 10 MB or smaller.`);
-  }
-  const input = Buffer.from(await file.arrayBuffer());
-  if (input.byteLength !== file.size || !magicBytesOk(input, file.type)) {
-    throw new ProfileImageError(
-      "INVALID_TYPE",
-      `${spec.noun} must be a JPEG, PNG, or WebP image.`,
-    );
-  }
-
-  const kind = detectImageKind(input);
-  if (!kind) {
-    throw new ProfileImageError(
-      "INVALID_TYPE",
-      `${spec.noun} must be a JPEG, PNG, or WebP image.`,
-    );
-  }
-
-  let stripped: Uint8Array;
-  try {
-    stripped = stripImageMetadata(input, kind);
-  } catch {
-    throw new ProfileImageError(
-      "PROCESSING_FAILED",
-      `${spec.noun} must be a valid, uncorrupted image.`,
-    );
-  }
-
-  try {
-    const metadata = await sharp(Buffer.from(stripped), {
-      failOn: "warning",
-      limitInputPixels: false,
-    }).metadata();
-    const width = safeDimension(metadata.width);
-    const height = safeDimension(metadata.height);
-    if (
-      width === null ||
-      height === null ||
-      width > PROFILE_IMAGE_MAX_DIMENSION ||
-      height > PROFILE_IMAGE_MAX_DIMENSION ||
-      width * height > PROFILE_IMAGE_MAX_PIXELS
-    ) {
-      throw new ProfileImageError(
-        "INVALID_DIMENSIONS",
-        `${spec.noun} dimensions are too large.`,
-      );
-    }
-
-    const bytes = await sharp(Buffer.from(stripped), {
-      failOn: "warning",
-      limitInputPixels: PROFILE_IMAGE_MAX_PIXELS,
-    })
-      .rotate()
-      .resize({
-        width: spec.outputWidth,
-        ...(spec.outputHeight === null ? {} : { height: spec.outputHeight }),
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .jpeg({ quality: 84, mozjpeg: true })
-      .toBuffer();
-
-    if (!magicBytesOk(bytes, "image/jpeg")) {
-      throw new ProfileImageError(
-        "PROCESSING_FAILED",
-        `${spec.noun} could not be processed.`,
-      );
-    }
-
-    const output = await sharp(bytes).metadata();
-    const outputWidth = safeDimension(output.width);
-    const outputHeight = safeDimension(output.height);
-    if (outputWidth === null || outputHeight === null) {
-      throw new ProfileImageError(
-        "PROCESSING_FAILED",
-        `${spec.noun} could not be processed.`,
-      );
-    }
-
-    return {
-      bytes,
-      contentType: "image/jpeg",
-      width: outputWidth,
-      height: outputHeight,
-      byteSize: bytes.byteLength,
-      sha256: createHash("sha256").update(bytes).digest("hex"),
-    };
-  } catch (error) {
-    if (error instanceof ProfileImageError) throw error;
-    throw new ProfileImageError(
-      "PROCESSING_FAILED",
-      `${spec.noun} could not be processed. Choose another image.`,
-    );
-  }
+  return prepareUploadedImage(file, {
+    outputWidth: spec.outputWidth,
+    outputHeight: spec.outputHeight,
+    noun: spec.noun,
+    maxBytes: PROFILE_IMAGE_MAX_BYTES,
+    fail: (code, message) => new ProfileImageError(code, message),
+  });
 }
 
 export const supabaseProfileImageStorage: ProfileImageStorage = {

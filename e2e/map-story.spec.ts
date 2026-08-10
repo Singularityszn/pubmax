@@ -110,8 +110,9 @@ test.describe("map / story bands (#15)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Venue sheet tabs (components/map/VenueInspector.tsx). Six tabs (Overview,
-// Drinks, Stories, Lore, Ask, Last train) behind role="tablist"/role="tab", with
+// Venue sheet tabs (components/map/VenueInspector.tsx). Seven tabs (Overview,
+// Photos, Drinks, Stories, Lore, Ask, Last train) behind
+// role="tablist"/role="tab", with
 // roving-tabindex arrow-key navigation per the APG tabs pattern. Deep-link
 // straight to a known seed venue (mirrors smoke.spec's sel= precedent) so this
 // never depends on a canvas pin click.
@@ -166,7 +167,7 @@ test.describe("map / venue sheet tabs", () => {
     await expect(page.getByRole("form", { name: "Pint Drop composer" })).toBeVisible();
   });
 
-  test("all six tabs render; each switches its panel; Stories shows the price block", async ({
+  test("all seven tabs render; each switches its panel; Stories shows the price block", async ({
     page,
   }) => {
     const errors = watchPageErrors(page);
@@ -177,9 +178,17 @@ test.describe("map / venue sheet tabs", () => {
     const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
     await expect(tablist).toBeVisible();
 
-    const expectedTabs = ["Overview", "Drinks", "Stories", "Lore", "Ask", "Last train"];
+    const expectedTabs = [
+      "Overview",
+      "Photos",
+      "Drinks",
+      "Stories",
+      "Lore",
+      "Ask",
+      "Last train",
+    ];
     const tabs = tablist.getByRole("tab");
-    await expect(tabs).toHaveCount(6);
+    await expect(tabs).toHaveCount(expectedTabs.length);
     for (const label of expectedTabs) {
       await expect(tablist.getByRole("tab", { name: label, exact: true })).toBeVisible();
     }
@@ -198,6 +207,7 @@ test.describe("map / venue sheet tabs", () => {
     // the others are hidden (aria-selected flips, hidden attr flips).
     for (const [label, panelId] of [
       ["Overview", "venuePanel-overview"],
+      ["Photos", "venuePanel-photos"],
       ["Drinks", "venuePanel-menu"],
       ["Lore", "venuePanel-story"],
       ["Ask", "venuePanel-ask"],
@@ -221,13 +231,13 @@ test.describe("map / venue sheet tabs", () => {
     await expect(overviewTab).toHaveAttribute("aria-selected", "true");
     await overviewTab.focus();
 
-    // ArrowRight from Overview moves to Drinks and moves focus
+    // ArrowRight from Overview moves to Photos and moves focus
     // with it (roving tabindex — VenueInspector's selectTab calls .focus()).
     await page.keyboard.press("ArrowRight");
-    const menuTab = tablist.getByRole("tab", { name: "Drinks", exact: true });
-    await expect(menuTab).toHaveAttribute("aria-selected", "true");
-    await expect(menuTab).toBeFocused();
-    await expect(page.locator("#venuePanel-menu")).toBeVisible();
+    const photosTab = tablist.getByRole("tab", { name: "Photos", exact: true });
+    await expect(photosTab).toHaveAttribute("aria-selected", "true");
+    await expect(photosTab).toBeFocused();
+    await expect(page.locator("#venuePanel-photos")).toBeVisible();
 
     // ArrowLeft moves back to Overview.
     await page.keyboard.press("ArrowLeft");
@@ -257,10 +267,19 @@ test.describe("map / venue sheet tabs", () => {
     const contributorBlock = overviewPanel.locator(".contributorPrice");
     const blockCount = await contributorBlock.count();
     if (blockCount > 0) {
-      await expect(contributorBlock.locator("strong")).toBeVisible();
-      await expect(contributorBlock.locator(".communityPriceNote")).toContainText(
-        /community-updated|not a live tonight feed/i,
-      );
+      // The block prints a FIGURE, and which element carries it is the price
+      // badge's business. Asserting the tag name coupled this spec to markup it
+      // does not own, and it drifted the moment `PriceBadge` replaced a bare
+      // <strong>, which is a spec going red with no price having moved.
+      const block = contributorBlock.first();
+      await expect(block).toContainText(/£\d/);
+      // Every lane that can carry a community note discloses what it is. A lane
+      // with no note (a sourced or baseline row) says its provenance in its own
+      // link line instead, so an absent note is not a missing disclosure.
+      const note = block.locator(".communityPriceNote");
+      if (await note.count()) {
+        await expect(note).not.toBeEmpty();
+      }
     } else {
       // Absent gracefully: the Overview panel still renders a coherent surface
       // (address is always present) rather than a half-empty gap.

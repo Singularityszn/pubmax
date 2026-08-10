@@ -6,7 +6,10 @@ import { useRef, useState } from "react";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import { getAccessToken } from "@/lib/authClient";
 import { categoryLabel, MAP_LENS_DRINK_CATEGORIES } from "@/lib/drinks";
-import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
+import {
+  PROFILE_IMAGE_PICKER_ACCEPT,
+  profileImageCropTarget,
+} from "@/lib/profileImagePicker";
 import { profileImageOutputBox, type ProfileImageSlot } from "@/lib/profileImageSlots";
 import type { PublicProfile } from "@/lib/profiles";
 
@@ -290,7 +293,7 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
           {pending.cover ? (
             <ProfileImageCropper
               key={fileKey(pending.cover)}
-              slot="cover"
+              target={profileImageCropTarget("cover")}
               file={pending.cover}
               busy={imageState.cover === "uploading"}
               onCancel={() => choose("cover", null)}
@@ -343,7 +346,7 @@ export default function ProfileEditor({ handle, initial, onSaved, onClose }: Pro
           {pending.avatar ? (
             <ProfileImageCropper
               key={fileKey(pending.avatar)}
-              slot="avatar"
+              target={profileImageCropTarget("avatar")}
               file={pending.avatar}
               busy={imageState.avatar === "uploading"}
               onCancel={() => choose("avatar", null)}

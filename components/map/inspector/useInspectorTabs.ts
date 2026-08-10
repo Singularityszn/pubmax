@@ -27,6 +27,7 @@ export function useInspectorTabs(
   // (roving tabindex / APG tabs pattern).
   const tabRefs = useRef<Record<TabKey, HTMLButtonElement | null>>({
     overview: null,
+    photos: null,
     pints: null,
     menu: null,
     story: null,

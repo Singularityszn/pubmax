@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { SURFACE_NAV_HOME_ICON_SIZE } from "@/components/ui/surface-nav";
+
 function stableVenueIdFromKey(key: string): string {
   let hash = 0x811c9dc5;
   for (let i = 0; i < key.length; i += 1) {
@@ -26,6 +28,7 @@ const VIEWPORT = { width: 390, height: 844 };
 
 const TABS: ReadonlyArray<{ label: string; panelId: string }> = [
   { label: "Overview", panelId: "venuePanel-overview" },
+  { label: "Photos", panelId: "venuePanel-photos" },
   { label: "Drinks", panelId: "venuePanel-menu" },
   { label: "Stories", panelId: "venuePanel-pints" },
   { label: "Lore", panelId: "venuePanel-story" },
@@ -141,7 +144,13 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
 
   const closeButton = portal.getByRole("button", { name: "Close pub detail" });
   await expectTapTarget(closeButton, "venue sheet close button");
-  await expect(closeButton.locator("svg")).toHaveAttribute("width", "18");
+  // Read the shipped size rather than restate it: this line used to carry a
+  // literal 18, and it went red when the shared affordance moved to 19 with
+  // nothing about the control having actually broken.
+  await expect(closeButton.locator("svg")).toHaveAttribute(
+    "width",
+    String(SURFACE_NAV_HOME_ICON_SIZE),
+  );
 
   const tablist = portal.getByRole("tablist", { name: "Venue detail sections" });
   await expect(tablist).toBeVisible();
