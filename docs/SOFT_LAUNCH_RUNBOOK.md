@@ -112,7 +112,7 @@ Run after `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1` is live in the demo environment. Flag
 7. **Flag a photo** via the reader report path; confirm it queues in Admin → profile avatars (reported lane).
 8. **Hide** the reported avatar from the admin console; confirm the public profile falls back to initials.
 9. Attempt a **known-bad test image** upload; confirm instant honest refusal (no silent publish).
-10. Temporarily unset `OPENAI_API_KEY` in a staging slot and retry upload; confirm "We could not check this photo. Try again." with the profile unchanged.
+10. Temporarily unset `OPENAI_API_KEY` in a staging slot and retry upload; confirm the photo still uploads and one `uploaded_image.scan_skipped` line names the surface and the reason. The scan is advisory; the report/hide lane is the net.
 
 **Automated rehearsal (Playwright):**
 

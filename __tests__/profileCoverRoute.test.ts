@@ -225,7 +225,9 @@ describe("profile cover upload route", () => {
     expect(storage.removed.flat().some((k) => k.endsWith("/staging.jpg"))).toBe(true);
   });
 
-  it("answers a scan outage with an honest 503 and stores nothing", async () => {
+  // A scanner we cannot reach says nothing about the photo, so it never costs
+  // an owner their own backdrop. The moderator report/hide lane is the net.
+  it("stores the cover anyway when the scan is unavailable", async () => {
     const storage = memoryStorage();
     __setProfileCoverRouteDepsForTest({
       storage,
@@ -238,9 +240,30 @@ describe("profile cover upload route", () => {
     authState.userId = "user-alice";
 
     const response = await POST(multipart(await wideImage()), params);
-    expect(response.status).toBe(503);
-    expect(await response.json()).toMatchObject({ code: "MODERATION_UNAVAILABLE" });
-    expect(storage.uploads.some((u) => u.path.endsWith("/cover.jpg"))).toBe(false);
+    expect(response.status).toBe(200);
+    expect(storage.uploads.some((u) => u.path.endsWith("/cover.jpg"))).toBe(true);
+    const profile = await profileStore().getByHandle("alice");
+    expect(profile?.coverModerationState).toBe("approved");
+    expect(profile?.coverObjectKey).toBe(
+      `covers/${profile!.id}/${profile!.coverGeneration}/cover.jpg`,
+    );
+  });
+
+  it("stores the cover anyway when no scan provider is configured", async () => {
+    const storage = memoryStorage();
+    const { ProfileAvatarModerationError } = await import("@/lib/profileAvatarModeration");
+    __setProfileCoverRouteDepsForTest({
+      storage,
+      moderation: () => {
+        throw new ProfileAvatarModerationError("Profile avatar moderation is not configured.", false);
+      },
+    });
+    authState.userId = "user-alice";
+
+    const response = await POST(multipart(await wideImage()), params);
+    expect(response.status).toBe(200);
+    expect(storage.uploads.some((u) => u.path.endsWith("/cover.jpg"))).toBe(true);
+    expect((await profileStore().getByHandle("alice"))?.coverModerationState).toBe("approved");
   });
 
   it("strips EXIF GPS before any cover bytes reach storage", async () => {

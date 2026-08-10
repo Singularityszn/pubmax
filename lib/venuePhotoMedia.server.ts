@@ -1,11 +1,12 @@
 // The bytes half of a pub photo wall: the same journey an owned profile image
 // takes, pointed at a venue-scoped key instead of a profile-scoped one.
 //
-// staging -> signed URL -> safety scan -> promote on approval only. Nothing
-// reaches the serving key until the scan says yes, so an unscanned photo is
-// never one request away from being public. The scan adapter is the SAME one
-// the owned avatar uses (`lib/profileAvatarModeration.ts`), which fails closed
-// with no key configured: a wall that cannot be checked takes no photos.
+// staging -> signed URL -> safety scan -> promote unless the scan REFUSED.
+// Refused bytes never reach the serving key, so nothing a scanner turned down
+// is one request away from being public. The scan adapter is the SAME one the
+// owned avatar uses (`lib/profileAvatarModeration.ts`), run through the one
+// advisory policy in `lib/uploadedImageScan.server.ts`: with no key configured
+// the wall still takes photos, and the report/hide lane is the safety net.
 //
 // The preparation itself is `lib/uploadedImage.server.ts`, shared with the
 // profile slots, so the EXIF strip cannot drift between the two surfaces.

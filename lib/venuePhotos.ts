@@ -74,9 +74,9 @@ export const VENUE_PHOTO_CROP_TARGET: CropTarget = {
 
 /**
  * Moderation states, the same closed set the owned-profile images carry. A row
- * only ever reaches storage as `approved` (the scan gate promotes nothing else);
- * `hidden` is a moderator decision and is reversible, because hiding never
- * deletes the row or its provenance.
+ * only ever reaches storage as `approved` (a scan that REFUSED promotes
+ * nothing); `hidden` is a moderator decision and is reversible, because hiding
+ * never deletes the row or its provenance.
  */
 export const VENUE_PHOTO_MODERATION_STATES = [
   "approved",

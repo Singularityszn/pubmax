@@ -2,7 +2,8 @@
 //
 // The five things this pins are the five that would each be a quiet lie:
 //   - the cap really stops the hundred-and-first photo for that account;
-//   - a refused scan leaves nothing on the serving key, and nothing on the wall;
+//   - a refused scan leaves nothing on the serving key, and nothing on the wall,
+//     while a scan that could not RUN never closes the wall;
 //   - the crosspost box never claims a feed post that does not exist;
 //   - the wall's public read says nothing private about its authors, and does
 //     carry the brass mark, off the one shared projection;
@@ -305,17 +306,42 @@ describe("a photo the safety scan refuses", () => {
     ).toBe(0);
   });
 
-  it("says it could not check rather than pretending it did", async () => {
+  // Only a real negative verdict refuses. A scanner nobody configured, or one
+  // that is down, is a fact about us: the wall still takes the photo and the
+  // moderator report/hide lane is the safety net.
+  it("still takes the photo when no scan provider is configured", async () => {
+    const storage = memoryStorage();
     __setVenuePhotoRouteDepsForTest({
-      storage: memoryStorage(),
+      storage,
       moderation: () => {
         throw new Error("no key configured");
       },
       crosspost: async () => ({ state: "off" }),
     });
     const response = await POST(upload(await jpeg()));
-    expect(response.status).toBe(503);
-    expect((await response.json()).code).toBe("MODERATION_UNAVAILABLE");
+    expect(response.status).toBe(201);
+    expect(storage.keys()).toEqual([venuePhotoServingKey(VENUE, (await response.json()).photo.id)]);
+    const page = await (await GET(wall())).json();
+    expect(page.photos).toHaveLength(1);
+  });
+
+  it("still takes the photo when the scan provider is down", async () => {
+    const storage = memoryStorage();
+    __setVenuePhotoRouteDepsForTest({
+      storage,
+      moderation: () => ({
+        moderate: async () => {
+          throw new Error("offline");
+        },
+      }),
+      crosspost: async () => ({ state: "off" }),
+    });
+    const response = await POST(upload(await jpeg()));
+    expect(response.status).toBe(201);
+    expect(storage.keys()).toHaveLength(1);
+    expect(
+      await venuePhotoStore().countForAuthorAtVenue(identityState.profileId, VENUE),
+    ).toBe(1);
   });
 });
 

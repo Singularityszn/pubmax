@@ -220,7 +220,11 @@ describe("profile avatar upload route", () => {
     expect(storage.removed.flat().some((k) => k.endsWith("/staging.jpg"))).toBe(true);
   });
 
-  it("refuses on moderation outage with an honest 503 and stores nothing", async () => {
+  // The scan is ADVISORY. A provider outage is a fact about us, not about the
+  // photo, and it used to answer 503 on every upload the site took while the
+  // provider was down. Only a real negative verdict refuses now; the moderator
+  // report/hide lane is the safety net.
+  it("stores the photo anyway on a moderation outage", async () => {
     const storage = memoryStorage();
     __setProfileAvatarRouteDepsForTest({
       storage,
@@ -235,16 +239,16 @@ describe("profile avatar upload route", () => {
     const response = await POST(await multipart(await imageFile()), {
       params: Promise.resolve({ handle: "alice" }),
     });
-    expect(response.status).toBe(503);
-    const body = await response.json();
-    expect(body.error).toBe("We could not check this photo. Try again.");
-    expect(body.code).toBe("MODERATION_UNAVAILABLE");
+    expect(response.status).toBe(200);
     const profile = await profileStore().getByHandle("alice");
-    expect(profile?.avatarObjectKey).toBeUndefined();
-    expect(storage.uploads.some((u) => u.path.endsWith("/image.jpg"))).toBe(false);
+    expect(profile?.avatarModerationState).toBe("approved");
+    expect(profile?.avatarObjectKey).toBe(
+      `avatars/${profile!.id}/${profile!.avatarGeneration}/image.jpg`,
+    );
+    expect(storage.uploads.some((u) => u.path.endsWith("/image.jpg"))).toBe(true);
   });
 
-  it("refuses when the moderation adapter cannot be constructed (no API key)", async () => {
+  it("stores the photo anyway when the moderation adapter cannot be constructed (no API key)", async () => {
     const storage = memoryStorage();
     const { ProfileAvatarModerationError } = await import("@/lib/profileAvatarModeration");
     __setProfileAvatarRouteDepsForTest({
@@ -258,14 +262,55 @@ describe("profile avatar upload route", () => {
     const response = await POST(await multipart(await imageFile()), {
       params: Promise.resolve({ handle: "alice" }),
     });
-    expect(response.status).toBe(503);
-    expect(await response.json()).toMatchObject({
-      error: "We could not check this photo. Try again.",
-      code: "MODERATION_UNAVAILABLE",
-    });
+    expect(response.status).toBe(200);
     const profile = await profileStore().getByHandle("alice");
-    expect(profile?.avatarObjectKey).toBeUndefined();
-    expect(profile?.avatarModerationState).toBeUndefined();
+    expect(profile?.avatarModerationState).toBe("approved");
+    expect(storage.uploads.some((u) => u.path.endsWith("/image.jpg"))).toBe(true);
+  });
+
+  // The REAL factory, with no provider key in the environment: the keyless
+  // shape the site runs in locally, and the shape prod fell into when its
+  // provider started answering errors.
+  it("stores the photo through the real adapter factory with no provider configured", async () => {
+    const { createProfileAvatarModerationAdapter } = await import(
+      "@/lib/profileAvatarModeration"
+    );
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv("OPENROUTER_API_KEY", "");
+    const storage = memoryStorage();
+    __setProfileAvatarRouteDepsForTest({
+      storage,
+      moderation: createProfileAvatarModerationAdapter,
+    });
+    authState.userId = "user-alice";
+
+    const response = await POST(await multipart(await imageFile()), {
+      params: Promise.resolve({ handle: "alice" }),
+    });
+    expect(response.status).toBe(200);
+    expect((await profileStore().getByHandle("alice"))?.avatarModerationState).toBe("approved");
+    expect(storage.uploads.some((u) => u.path.endsWith("/image.jpg"))).toBe(true);
+    vi.unstubAllEnvs();
+  });
+
+  // Signing is how the scanner is handed the bytes, so a bucket that will not
+  // sign is one more scan that cannot run - not a reason to refuse the owner.
+  it("stores the photo anyway when the staged bytes cannot be signed", async () => {
+    const storage = memoryStorage();
+    __setProfileAvatarRouteDepsForTest({
+      storage: { ...storage, sign: async () => null },
+      moderation: () => {
+        throw new Error("never reached");
+      },
+    });
+    authState.userId = "user-alice";
+
+    const response = await POST(await multipart(await imageFile()), {
+      params: Promise.resolve({ handle: "alice" }),
+    });
+    expect(response.status).toBe(200);
+    expect((await profileStore().getByHandle("alice"))?.avatarModerationState).toBe("approved");
+    expect(storage.uploads.some((u) => u.path.endsWith("/image.jpg"))).toBe(true);
   });
 
   it("strips EXIF GPS before any bytes reach storage", async () => {
