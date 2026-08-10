@@ -14,9 +14,19 @@
 //
 // Paged by handle, which is the sort key, so the cursor is the last handle of
 // the page and needs no signing: it reveals nothing the page itself did not.
+//
+// `?viewer=<handle>` makes the page DISCOVERY rather than a census: the accounts
+// that viewer already follows come out (lib/peopleDirectory.ts owns why, and
+// mates leave with them). It discloses nothing new, because the follow list it
+// reads is the same one /api/profiles/[handle]/following already hands anybody
+// who asks. The paging window is unchanged - the same rows are examined and the
+// same cursor comes back - so a page may simply come back shorter than the
+// limit, and `alreadyFollowing` says how much of it discovery took.
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { followStore } from "@/lib/followStore";
+import { discoverableRows, followSet } from "@/lib/peopleDirectory";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import {
@@ -83,6 +93,19 @@ export async function GET(request: Request): Promise<Response> {
     limit = parsed;
   }
   const afterHandle = normalizeHandle(params.get("after") ?? "");
+  const viewer = normalizeHandle(params.get("viewer") ?? "");
+
+  // Fail-soft, and null rather than empty: a follow read that could not answer
+  // must leave the page unfiltered, because an empty set from a broken read
+  // reads exactly like a drinker who follows nobody.
+  let following: Set<string> | null = null;
+  if (viewer) {
+    try {
+      following = followSet(await followStore().listFollowing(viewer));
+    } catch {
+      following = null;
+    }
+  }
 
   try {
     // Ask for one more than the page so "is there another page" is a fact
@@ -94,12 +117,20 @@ export async function GET(request: Request): Promise<Response> {
     const live = rows.filter(
       (row) => Boolean(row.userId) && !isProfileTombstoned(row),
     );
-    const page = live.slice(0, limit);
-    const nextCursor = live.length > page.length && page.length > 0
-      ? page[page.length - 1]!.handle
+    // The window this page examined. Discovery narrows what is SHOWN out of it,
+    // never which rows it looked at, so the cursor keeps its old meaning and no
+    // account can be paged over.
+    const examined = live.slice(0, limit);
+    const nextCursor = live.length > examined.length && examined.length > 0
+      ? examined[examined.length - 1]!.handle
       : null;
+    const page = discoverableRows(examined, following);
     return jsonNoStore(
-      { people: page.map(toDirectoryEntry), nextCursor },
+      {
+        people: page.map(toDirectoryEntry),
+        nextCursor,
+        alreadyFollowing: examined.length - page.length,
+      },
       { status: 200 },
     );
   } catch {

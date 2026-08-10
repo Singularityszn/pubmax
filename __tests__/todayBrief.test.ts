@@ -81,7 +81,7 @@ describe("buildWeatherBrief", () => {
     const brief = buildWeatherBrief(snapshot({ feelsLikeC: 19.4, ageHours: 2 }), NOW) as WeatherBrief;
     expect(brief).not.toBeNull();
     expect(brief.stale).toBe(false);
-    expect(brief.tempLabel).toBe("19C");
+    expect(brief.tempLabel).toBe("19°C");
     expect(brief.conditionLabel).toBe("cloudy");
     expect(brief.checkedLabel).toBe("Checked 2 hours ago");
     // 19.4C, 0% rain, July -> the warm-dry / summer-garden verdict fires.
@@ -103,7 +103,7 @@ describe("buildWeatherBrief", () => {
       NOW,
     ) as WeatherBrief;
 
-    expect(brief.tempLabel).toBe("24C");
+    expect(brief.tempLabel).toBe("24°C");
     expect(brief.ruleId).toBe("hard-rain");
   });
 
@@ -145,7 +145,7 @@ describe("buildWeatherBrief", () => {
     const snap = snapshot({ area: "clapham", feelsLikeC: 19 });
     const brief = buildWeatherBrief(snap, NOW) as WeatherBrief;
     expect(brief).not.toBeNull();
-    expect(brief.tempLabel).toBe("19C");
+    expect(brief.tempLabel).toBe("19°C");
   });
 
   it("can require an exact area for personalized weather", () => {
