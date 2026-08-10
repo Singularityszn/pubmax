@@ -172,7 +172,9 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
   // unreachable behind the icon assertion above for long enough that neither
   // showed up.
   const inlinePriceForm = portal.locator(".venuePriceSubmit");
-  const addPriceCommand = page.getByRole("button", { name: /add price/i });
+  // The command's ACCESSIBLE name is "Add a price at <pub>", not its visible
+  // "Add price": the label names the pub so a screen reader hears which one.
+  const addPriceCommand = page.getByRole("button", { name: /add a price at/i });
   await expect
     .poll(async () => (await inlinePriceForm.count()) + (await addPriceCommand.count()))
     .toBeGreaterThan(0);
