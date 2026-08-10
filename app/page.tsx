@@ -5,9 +5,15 @@ import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { loadAboutStats } from "@/lib/aboutStats";
 import { readTrustedHandoffFlag, readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 
-const HOME_TITLE = "PUBMAXX: listed pint prices on an interactive map";
+// The words a forwarded link shows beside the card. They say the same thing the
+// page itself says, because a referral link (/r/<code>) lands on /#referral=…
+// and so previews THIS head: the description is the landing lede verbatim
+// (components/landing/LandingPage), and the map is no longer pint-only, so the
+// line invites a reader to pick a drink rather than promising an
+// "interactive map".
+const HOME_TITLE = "PUBMAXXING: what a pint costs, pub by pub";
 const HOME_DESCRIPTION =
-  "Listed pint prices on an interactive map. Plan a crawl with your mates.";
+  "Open the map, pick a drink, and see which nearby pubs pour it cheapest. We name the source when there is one, and say when there is not.";
 
 // Self-canonical for the homepage (Wave S1.4). Title/description inherit the
 // root layout defaults; this pins the canonical URL and the homepage's own
@@ -33,7 +39,9 @@ export const metadata: Metadata = {
         url: "/api/home-card",
         width: 1200,
         height: 630,
-        alt: "PUBMAXX. Listed pint prices across London and beyond",
+        // No count here: this string is static metadata, so a figure typed in
+        // would rot while the card's own figures are derived per render.
+        alt: "PUBMAXXING. Listed pint prices on one map, across London and more UK cities",
       },
     ],
   },

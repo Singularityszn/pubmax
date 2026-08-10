@@ -137,63 +137,88 @@ export function priceStamp(value: number | null | undefined): string | null {
 
 // ── Shared marks ─────────────────────────────────────────────────────────────
 
-// The PUBMAXX X mark (the owner-approved master, docs/BRAND_MARK.md) as an
-// inline-literal SVG: the same 64-grid geometry the app component
-// (components/brand/PubmaxxMark.tsx MARK_GEOMETRY) and the static favicon / PWA
-// / native assets stamp, re-declared here because satori can't read `var(--…)`
-// or import the client component. It is a double-struck X — one thick descending
-// stroke (\) and two thin parallel ascending strokes (/) either side of it — the
-// X Corp / blackboard-bold construction, plus a lit coral-bright ember at the
-// crossing (kept here because these cards render the mark large, ≥46px). Filled
-// polygons (not strokes) keep the flat-cut terminals crisp; satori renders
-// <polygon> from the SVG subset directly. `ink` is the stroke colour so the mark
-// can sit on the coral chip (ink-deep strokes) or on a dark panel (coral
-// strokes). The export name/API is unchanged so the ~17 OG routes that draw it
-// stay untouched.
+// The one 64-grid geometry every mark on a card is cut from: the master
+// double-struck X (docs/BRAND_MARK.md), re-declared here rather than imported
+// from components/brand/PubmaxxMark.tsx because that module pulls a stylesheet
+// and a client component into a Node OG route. `__tests__/homeOgCard.test.ts`
+// holds these strings against MARK_GEOMETRY so the copy can never drift from
+// the master the favicon and the app stamp.
+export const MARK_POLYGONS = {
+  thinA: "42,10 47,10 13,54 8,54",
+  thinB: "51,10 56,10 22,54 17,54",
+  thick: "9,10 21,10 55,54 43,54",
+} as const;
+
+// The PUBMAXX X mark as an inline-literal SVG: one thick descending stroke (\)
+// and two thin parallel ascending strokes (/) either side of it, plus a lit
+// coral-bright ember at the crossing (kept here because these cards render the
+// mark large, ≥46px). Filled polygons (not strokes) keep the flat-cut terminals
+// crisp; satori renders <polygon> from the SVG subset directly. `ink` is the
+// stroke colour so the mark can sit on any card surface.
 export function CrossingMark({ ink, size = 46 }: { ink: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
-      <polygon points="42,10 47,10 13,54 8,54" fill={ink} />
-      <polygon points="51,10 56,10 22,54 17,54" fill={ink} />
-      <polygon points="9,10 21,10 55,54 43,54" fill={ink} />
+      <polygon points={MARK_POLYGONS.thinA} fill={ink} />
+      <polygon points={MARK_POLYGONS.thinB} fill={ink} />
+      <polygon points={MARK_POLYGONS.thick} fill={ink} />
       <circle cx="32" cy="32" r="3.2" fill={OG.coralBright} />
     </svg>
   );
 }
 
-// The PUBMAXX wordmark lockup: a coral rounded-square holding the X mark,
-// then the wordmark set in Space Grotesk. `scale` shrinks the whole lockup for
-// tighter footers.
-export function Wordmark({ scale = 1 }: { scale?: number }) {
-  const chip = Math.round(64 * scale);
+// A wordmark `×`: the same master construction with NO ember, because these two
+// are letterforms rather than the lit brand moment
+// (components/brand/PubmaxxWordmark.tsx says the same).
+function WordmarkGlyph({ ink, size }: { ink: string; size: number }) {
   return (
-    <div style={{ display: "flex", alignItems: "center" }}>
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
+      <polygon points={MARK_POLYGONS.thinA} fill={ink} />
+      <polygon points={MARK_POLYGONS.thinB} fill={ink} />
+      <polygon points={MARK_POLYGONS.thick} fill={ink} />
+    </svg>
+  );
+}
+
+// The PUBMAXX wordmark, drawn the way the site header draws it
+// (components/brand/PubmaxxWordmark.tsx): PUBMA, the doubled `××` hero with the
+// second glyph tinted coral, then ING. The proportions are that component's own
+// CSS re-expressed in px, because satori reads neither `em` reliably nor the
+// stylesheet: glyph 0.78 of the type size, tracking -0.045, 0.025 between the
+// three parts, 0.005 between the two glyphs, the pair inset 0.015 / 0.03.
+//
+// There is no coral chip and no boxed mark here. The old lockup put an
+// ink-deep X on a coral rounded square, which is the sanctioned plaque tile
+// inverted, and it read on a share preview as another app's icon. `scale`
+// shrinks the wordmark for tighter footers.
+export function Wordmark({ scale = 1 }: { scale?: number }) {
+  const size = Math.round(40 * scale);
+  const glyph = Math.round(size * 0.78);
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: size * 0.025,
+        fontSize: size,
+        fontWeight: 700,
+        letterSpacing: size * -0.045,
+        color: OG.ink,
+      }}
+    >
+      <div style={{ display: "flex" }}>PUBMA</div>
       <div
         style={{
-          width: chip,
-          height: chip,
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          borderRadius: Math.round(16 * scale),
-          background: OG.coral,
-          marginRight: Math.round(22 * scale),
-          boxShadow: "0 10px 30px rgba(255,90,95,0.35)",
+          gap: size * 0.005,
+          marginLeft: size * 0.015,
+          marginRight: size * 0.03,
         }}
       >
-        <CrossingMark ink={OG.inkDeep} size={Math.round(40 * scale)} />
+        <WordmarkGlyph ink={OG.ink} size={glyph} />
+        <WordmarkGlyph ink={OG.coral} size={glyph} />
       </div>
-      <div
-        style={{
-          display: "flex",
-          fontSize: Math.round(40 * scale),
-          fontWeight: 700,
-          letterSpacing: 2,
-          color: OG.ink,
-        }}
-      >
-        PUBMAXX
-      </div>
+      <div style={{ display: "flex" }}>ING</div>
     </div>
   );
 }
