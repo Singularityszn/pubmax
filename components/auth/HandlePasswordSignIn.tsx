@@ -5,12 +5,26 @@ import { FormEvent, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
 import { persistSessionForResume } from "@/lib/authSessionResumeClient";
-import { MIN_HANDLE_PASSWORD_LENGTH } from "@/lib/handlePasswordConstants";
+import {
+  HANDLE_PASSWORD_GENERIC_ERROR,
+  MIN_PASSWORD_LENGTH,
+} from "@/lib/passwordPolicy";
 import { trackEvent } from "@/lib/analytics";
 
 type HandlePasswordSignInProps = {
   disabled?: boolean;
 };
+
+/**
+ * The one line a failed attempt gets besides the error.
+ *
+ * It is shown on EVERY failure and never conditionally, because a line that
+ * appeared only for an account with no password would answer "does this handle
+ * exist" for anybody willing to read it. Said to everybody it leaks nothing,
+ * and it is still the true way out for the person it is written for.
+ */
+const NO_PASSWORD_GUIDANCE =
+  "No password yet? Sign in with your email link and create one from your profile.";
 
 export default function HandlePasswordSignIn({
   disabled = false,
@@ -43,7 +57,7 @@ export default function HandlePasswordSignIn({
         const message =
           typeof body.error === "string"
             ? body.error
-            : "Handle or password is wrong.";
+            : HANDLE_PASSWORD_GENERIC_ERROR;
         setError(message);
         return;
       }
@@ -134,7 +148,7 @@ export default function HandlePasswordSignIn({
           type="password"
           name="password"
           autoComplete="current-password"
-          minLength={MIN_HANDLE_PASSWORD_LENGTH}
+          minLength={MIN_PASSWORD_LENGTH}
           required
           disabled={busy || disabled}
           value={password}
@@ -159,9 +173,12 @@ export default function HandlePasswordSignIn({
         </button>
       </div>
       {error ? (
-        <p className="authError loginPageError" role="alert">
-          {error}
-        </p>
+        <>
+          <p className="authError loginPageError" role="alert">
+            {error}
+          </p>
+          <p className="loginPageHandlePasswordGuidance">{NO_PASSWORD_GUIDANCE}</p>
+        </>
       ) : null}
     </form>
   );

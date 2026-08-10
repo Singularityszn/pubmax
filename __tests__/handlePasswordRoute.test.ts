@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { HANDLE_PASSWORD_GENERIC_ERROR } from "@/lib/handlePasswordConstants";
+import { HANDLE_PASSWORD_GENERIC_ERROR } from "@/lib/passwordPolicy";
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
@@ -70,6 +70,54 @@ describe("POST /api/auth/handle-password", () => {
     const wrong = await POST(post({ handle: "karan", password: "secretpass" }));
     expect(wrong.status).toBe(401);
     expect((await wrong.json()).error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
+  });
+
+  it("answers the same 401 shape whatever went wrong", async () => {
+    const { POST } = await import("@/app/api/auth/handle-password/route");
+
+    // Unknown handle, wrong password, and a password too short to be tried:
+    // one status, one code, one sentence. Nothing here says which.
+    resolveEmail.mockResolvedValueOnce(null);
+    const unknown = await POST(post({ handle: "ghost", password: "Pubmaxx1!" }));
+
+    resolveEmail.mockResolvedValueOnce("owner@example.com");
+    passwordGrant.mockResolvedValueOnce(null);
+    const wrong = await POST(post({ handle: "karan", password: "Pubmaxx1!" }));
+
+    const short = await POST(post({ handle: "karan", password: "Ab1!" }));
+
+    const bodies = await Promise.all(
+      [unknown, wrong, short].map(async (res) => ({
+        status: res.status,
+        body: await res.json(),
+      })),
+    );
+    expect(bodies[0]).toEqual(bodies[1]);
+    expect(bodies[1]).toEqual(bodies[2]);
+    expect(bodies[0].status).toBe(401);
+    expect(bodies[0].body.error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
+  });
+
+  it("hands the typed handle on for normalizing, whatever its case", async () => {
+    const { POST } = await import("@/app/api/auth/handle-password/route");
+    resolveEmail.mockResolvedValue("owner@example.com");
+    passwordGrant.mockResolvedValue({
+      access_token: "access-1",
+      refresh_token: "refresh-1",
+    });
+
+    for (const typed of ["karan", "Karan", "KARAN", "@Karan"]) {
+      const res = await POST(post({ handle: typed, password: "Pubmaxx1!" }));
+      expect(res.status).toBe(200);
+    }
+    // `resolveAuthEmailForHandle` normalizes; the route must not lower-case or
+    // strip on the way in, or a rule would live in two places.
+    expect(resolveEmail.mock.calls.map((call) => call[0])).toEqual([
+      "karan",
+      "Karan",
+      "KARAN",
+      "@Karan",
+    ]);
   });
 
   it("returns a session and resume cookie on success", async () => {

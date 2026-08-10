@@ -1,26 +1,47 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useId, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import PasswordPolicyHint from "@/components/auth/PasswordPolicyHint";
 import { authedFetch } from "@/lib/authedFetch";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
-import { MIN_HANDLE_PASSWORD_LENGTH } from "@/lib/handlePasswordConstants";
+import { MIN_PASSWORD_LENGTH, checkPassword } from "@/lib/passwordPolicy";
+import { discardBody } from "@/lib/responseBody";
 
+/**
+ * Create or change the password on the signed-in account.
+ *
+ * SIGNED-IN ONLY, and that is the whole security argument: the update is
+ * `supabase.auth.updateUser({ password })`, which GoTrue binds to the caller's
+ * OWN session. There is deliberately no route of ours in this path. A form that
+ * could set a password for a named handle without a session is account
+ * takeover, however it is worded.
+ *
+ * The password is Supabase auth's. It is never sent to our server, never
+ * stored in our tables and never logged.
+ *
+ * `hasPassword` is TRI-STATE (`/api/identity/handle/current`): null means the
+ * read could not answer, and then the section names neither state rather than
+ * telling an owner with a password that they have none.
+ */
 export default function SetAccountPassword(): React.JSX.Element | null {
   const { configured, user } = useAuth();
   const [hasHandle, setHasHandle] = useState(false);
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
   const [handleLoaded, setHandleLoaded] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const hintId = useId();
 
   useEffect(() => {
     if (!user) {
       void Promise.resolve().then(() => {
         setHasHandle(false);
+        setHasPassword(null);
         setHandleLoaded(false);
       });
       return;
@@ -29,14 +50,30 @@ export default function SetAccountPassword(): React.JSX.Element | null {
     void (async () => {
       try {
         const res = await authedFetch("/api/identity/handle/current");
-        const body = (await res.json().catch(() => ({}))) as { handle?: string | null };
+        if (!res.ok) {
+          discardBody(res);
+          if (!cancelled) {
+            setHasHandle(false);
+            setHasPassword(null);
+            setHandleLoaded(true);
+          }
+          return;
+        }
+        const body = (await res.json().catch(() => ({}))) as {
+          handle?: string | null;
+          hasPassword?: boolean | null;
+        };
         if (!cancelled) {
           setHasHandle(typeof body.handle === "string" && body.handle.length > 0);
+          setHasPassword(
+            typeof body.hasPassword === "boolean" ? body.hasPassword : null,
+          );
           setHandleLoaded(true);
         }
       } catch {
         if (!cancelled) {
           setHasHandle(false);
+          setHasPassword(null);
           setHandleLoaded(true);
         }
       }
@@ -58,8 +95,9 @@ export default function SetAccountPassword(): React.JSX.Element | null {
       setError("Claim a handle before setting a password.");
       return;
     }
-    if (password.length < MIN_HANDLE_PASSWORD_LENGTH) {
-      setError(`Use at least ${MIN_HANDLE_PASSWORD_LENGTH} characters.`);
+    const check = checkPassword(password);
+    if (!check.ok) {
+      setError(check.message);
       return;
     }
     if (password !== confirm) {
@@ -81,6 +119,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
       }
       setPassword("");
       setConfirm("");
+      setHasPassword(true);
       setMessage("Password saved. You can sign in with your handle next time.");
     } catch {
       setError("Could not set your password. Try again.");
@@ -89,30 +128,48 @@ export default function SetAccountPassword(): React.JSX.Element | null {
     }
   }
 
+  // Only a read that ANSWERED may name a state. A create-flavoured heading over
+  // an account that already has one would read as "yours has gone".
+  const heading =
+    hasPassword === true
+      ? "Change password"
+      : hasPassword === false
+        ? "Create password"
+        : "Password";
+  const intro =
+    hasPassword === true
+      ? "Pick a new password for signing in with your handle."
+      : hasPassword === false
+        ? "You sign in with an email link. Add a password and you can use your handle instead."
+        : "Sign in with your handle and password as well as an email link.";
+
   return (
-    <form className="accountHubPassword" onSubmit={onSubmit}>
-      <h3>Set a password</h3>
-      <p>
-        After you choose a handle, you can sign in with handle and password as well as email link.
-      </p>
+    <form
+      className={`accountHubPassword${hasPassword === false ? " accountHubPasswordOwed" : ""}`}
+      onSubmit={onSubmit}
+    >
+      <h3>{heading}</h3>
+      <p>{intro}</p>
       <label>
-        New password
+        {hasPassword === true ? "New password" : "Password"}
         <input
           type="password"
           autoComplete="new-password"
-          minLength={MIN_HANDLE_PASSWORD_LENGTH}
+          aria-describedby={hintId}
+          minLength={MIN_PASSWORD_LENGTH}
           value={password}
           disabled={busy}
           onChange={(event) => setPassword(event.target.value)}
           required
         />
       </label>
+      <PasswordPolicyHint value={password} id={hintId} />
       <label>
         Confirm password
         <input
           type="password"
           autoComplete="new-password"
-          minLength={MIN_HANDLE_PASSWORD_LENGTH}
+          minLength={MIN_PASSWORD_LENGTH}
           value={confirm}
           disabled={busy}
           onChange={(event) => setConfirm(event.target.value)}

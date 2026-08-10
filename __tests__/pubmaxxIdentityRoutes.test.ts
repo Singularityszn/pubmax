@@ -66,9 +66,11 @@ describe("PUBMAXX handle APIs", () => {
     response = await current(request("/api/identity/handle/current"));
     // "Who am I here" answers the founding number too: the first claim in a
     // fresh store lands inside the first hundred.
+    // `hasPassword` is tri-state and answers null with no Supabase behind it.
     expect(await response.json()).toEqual({
       handle: "night_owl",
       foundingMemberNumber: 1,
+      hasPassword: null,
     });
 
     authState.userId = null;
@@ -118,7 +120,7 @@ describe("PUBMAXX handle APIs", () => {
     });
     expect(
       await (await current(request("/api/identity/handle/current"))).json(),
-    ).toEqual({ handle: "dawn_owl", foundingMemberNumber: 1 });
+    ).toEqual({ handle: "dawn_owl", foundingMemberNumber: 1, hasPassword: null });
   });
 
   // ── Reviewer-proven failure shapes under the old user_id-null predicate ──
@@ -280,7 +282,11 @@ describe("PUBMAXX handle APIs", () => {
       });
       expect(
         await (await current(request("/api/identity/handle/current"))).json(),
-      ).toEqual({ handle: "night_owl", foundingMemberNumber: 1 });
+      ).toEqual({
+        handle: "night_owl",
+        foundingMemberNumber: 1,
+        hasPassword: null,
+      });
     },
   );
 });

@@ -1815,6 +1815,14 @@
 .accountHubFounding { justify-items: start; }
 .accountHubFounding h3 { margin: 0; font-size: inherit; font-weight: inherit; }
 .accountHubGrid .accountHubFounding .foundersDiscordLink { justify-self: start; }
+/* Create / change password. The card is ordinary until the read says the
+   account HAS no password: then it takes the full row and an edge, so the one
+   thing an email-link account is owed is the thing it lands on. Never a dialog
+   (the arrival laws), and never prominent on a read that could not answer. */
+.accountHubPassword h3, .accountHubPassword p { margin: 0; }
+.accountHubPassword label { display: grid; gap: .35rem; color: var(--ink-muted); font-size: .8rem; font-weight: 700; }
+.accountHubGrid .accountHubPasswordOwed { grid-column: 1 / -1; border: 1px solid var(--brass); }
+.accountHubPasswordError { color: var(--brick); }
 .accountHubMerge { display: grid; gap: .65rem; margin: 0 0 .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
 .accountHubMerge h3, .accountHubMerge p, .accountHubNightProfile { margin: 0; }
 .accountHubMerge button { min-height: 44px; padding: .65rem .8rem; border: 0; border-radius: 12px; background: var(--ink); color: var(--paper); font-weight: 700; }
