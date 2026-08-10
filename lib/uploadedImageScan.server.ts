@@ -1,5 +1,6 @@
-// ONE scan policy for every owned-image surface: the avatar, the cover, and a
-// pub wall photo all ask this module the same question about the same bytes.
+// ONE scan policy for every owned-image surface: the avatar, the cover, a pub
+// wall photo and a photo sent in a message all ask this module the same
+// question about the same bytes.
 //
 // The scan is ADVISORY. A verdict this reaches is honoured - a refusal still
 // refuses, and refused bytes never reach a serving key. But a scan that cannot
@@ -13,14 +14,18 @@
 // moderator lane is the safety net that stays.
 //
 // It lives beside `lib/uploadedImage.server.ts` for the reason that module
-// exists: three surfaces, one journey, and the thing that must not drift here
+// exists: four surfaces, one journey, and the thing that must not drift here
 // is which failures count as a verdict.
 
 import { log } from "@/lib/log";
 import type { ProfileAvatarModerationAdapter } from "@/lib/profileAvatarModeration";
 
 /** Which owned-image surface asked. Log-only; nothing branches on it. */
-export type UploadedImageScanSurface = "profile-avatar" | "profile-cover" | "venue-photo";
+export type UploadedImageScanSurface =
+  | "profile-avatar"
+  | "profile-cover"
+  | "venue-photo"
+  | "message-photo";
 
 /** Why a scan produced no verdict. Every one of these lets the upload through. */
 export type UploadedImageScanSkipReason =

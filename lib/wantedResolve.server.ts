@@ -2,9 +2,8 @@
 // search. Never fetches Instagram/TikTok. Ambiguous matches stay as candidates
 // for the drinker to confirm — never auto-confirm a priced pin.
 
+import { searchCuratedVenues } from "@/lib/curatedVenueSearch.server";
 import { searchUkNationalPubs } from "@/lib/ukNationalPubSearch.server";
-import { normaliseUkPlaceQuery } from "@/lib/ukPlaceSearch";
-import { getVenueIndex } from "@/lib/venueIndex";
 import {
   splitWantedPaste,
   type WantedResolveCandidate,
@@ -13,46 +12,20 @@ import {
 
 export type { WantedResolveCandidate, WantedResolveResult };
 
-function matchTier(hay: string, query: string): number | null {
-  if (!hay) return null;
-  if (hay === query) return 0;
-  if (hay.startsWith(query) || hay.split(" ").some((word) => word.startsWith(query))) {
-    return 1;
-  }
-  if (query.length >= 2 && hay.includes(query)) return 2;
-  return null;
-}
-
+// The matcher itself is `lib/curatedVenueSearch.server.ts`, shared with the pub
+// a drinker attaches to a message: two surfaces asking "which pub did you mean"
+// must answer the same, and a copied matcher is how they stop.
 async function searchCuratedPubs(
   rawQuery: string,
   limit: number,
 ): Promise<WantedResolveCandidate[]> {
-  const query = normaliseUkPlaceQuery(rawQuery);
-  if (query.length < 2 || limit <= 0) return [];
-  const index = await getVenueIndex();
-  const scored: { tier: number; id: string; name: string; borough: string }[] = [];
-  for (const [id, venue] of index) {
-    const name = typeof venue.name === "string" ? venue.name : "";
-    const hay = normaliseUkPlaceQuery(name);
-    const tier = matchTier(hay, query);
-    if (tier === null) continue;
-    scored.push({
-      tier,
-      id,
-      name,
-      borough: typeof venue.borough === "string" ? venue.borough : "",
-    });
-  }
-  scored.sort((left, right) => {
-    if (left.tier !== right.tier) return left.tier - right.tier;
-    return left.name.localeCompare(right.name, "en-GB");
-  });
-  return scored.slice(0, limit).map((row) => ({
-    venueId: row.id,
-    venueName: row.name,
+  const hits = await searchCuratedVenues(rawQuery, limit);
+  return hits.map((hit) => ({
+    venueId: hit.id,
+    venueName: hit.name,
     venueKind: "curated" as const,
     address: "",
-    contextLabel: row.borough,
+    contextLabel: hit.area,
   }));
 }
 
