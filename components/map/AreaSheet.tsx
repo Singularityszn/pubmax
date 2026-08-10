@@ -13,6 +13,7 @@ import {
   type AreaDistanceFrom,
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
+import { drinkLaneLogInvite } from "@/lib/drinkLanes";
 import type { NightArea } from "@/lib/nightAreas";
 import {
   drinkLensCoverageNote,
@@ -54,8 +55,17 @@ type AreaSheetProps = {
   venues: Venue[];
   /** Trusted prices for selected non-pint drink, or null for pint default. */
   lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
-  /** Human category label used beside every lens figure and unknown row. */
+  /** Human category label used beside every lens figure and unknown row. It is
+   *  the menu-section name ("Cocktails", "Soft drinks"), so it heads the list.
+   */
   drinkLabel?: string;
+  /**
+   * The same drink INSIDE a sentence, and singular, because every sentence
+   * below puts "price" or "prices" after it: the label alone produced "No
+   * cocktails prices in this area yet". One word per job, both supplied by the
+   * caller from the one lane table.
+   */
+  drinkNoun?: string;
   /** How complete the selected drink's cross-venue read was. A failed or
    *  truncated index may never be rendered as "none here yet". */
   lensStatus?: CategoryPriceIndexStatus;
@@ -101,6 +111,31 @@ type AreaSheetProps = {
 // then closes itself.
 const AREA_HOP_CLOSE_MS = 900;
 
+/**
+ * Why this list is empty, in the reader's terms. Five different findings, and
+ * they are five different sentences: the base map is not loaded in, no area is
+ * under the camera yet, the drink's index did not finish, or the area really
+ * has no price for this drink. Only the last is a fact about the place.
+ */
+function areaSheetEmptyNote(input: {
+  baseLed: boolean;
+  hasFocus: boolean;
+  isPlace: boolean;
+  coverageNote: string | null;
+  drinkPlural: string;
+  drinkNoun: string;
+}): string {
+  if (input.baseLed) {
+    return "Zoom in to load pubs. Prices only where people have logged them.";
+  }
+  if (!input.hasFocus) {
+    return `Pan the map over an area to see its cheapest ${input.drinkPlural}.`;
+  }
+  if (input.coverageNote) return "Try somewhere else below.";
+  const where = input.isPlace ? "nearby" : "in this area";
+  return `No ${input.drinkNoun} prices ${where} yet. Try somewhere else below.`;
+}
+
 export default function AreaSheet({
   cityId,
   area,
@@ -108,6 +143,7 @@ export default function AreaSheet({
   venues,
   lensPrices = null,
   drinkLabel = "Pints",
+  drinkNoun = "pint",
   lensStatus = "ready",
   distanceFrom,
   onSelectVenue,
@@ -155,11 +191,18 @@ export default function AreaSheet({
     [pubs],
   );
   const focusName = placeFocus?.name ?? area?.name ?? null;
-  const drinkNoun = lensPrices === null ? "pints" : drinkLabel.toLowerCase();
+  // What the LIST is called, and what a sentence about a price calls the same
+  // drink. "Cheapest cocktails here" heads a list; "No cocktail prices" states
+  // a fact. Neither word can do the other's job.
+  const drinkPlural = lensPrices === null ? "pints" : drinkLabel.toLowerCase();
   // The rows below list unpriced pubs too, so an index that failed or was cut
   // short would otherwise read as a settled "none here". Say which it was.
   const coverageNote =
     lensPrices === null ? null : drinkLensCoverageNote(drinkNoun, lensStatus);
+  // An empty lane is where this map grows, so it says how. Only after a read
+  // that answered: inviting a contribution off our own failed lookup would
+  // claim an emptiness we never established.
+  const logInvite = drinkLaneLogInvite(drinkNoun, lensStatus);
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimer.current !== null) {
@@ -197,7 +240,7 @@ export default function AreaSheet({
         aria-label={
           baseLed
             ? "Pubs in this area"
-            : `Cheapest ${drinkNoun} in this area`
+            : `Cheapest ${drinkPlural} in this area`
         }
       >
         <h3 className="areaSheetHeading">
@@ -249,17 +292,22 @@ export default function AreaSheet({
           </ul>
         ) : (
           <p className="areaSheetEmpty">
-            {baseLed
-              ? "Zoom in to load pubs. Prices only where people have logged them."
-              : !placeFocus && !area
-                ? `Pan the map over an area to see its cheapest ${drinkNoun}.`
-                : coverageNote
-                  ? "Try somewhere else below."
-                  : placeFocus
-                    ? `No ${drinkNoun} prices nearby yet. Try somewhere else below.`
-                    : `No ${drinkNoun} prices in this area yet. Try somewhere else below.`}
+            {areaSheetEmptyNote({
+              baseLed,
+              hasFocus: Boolean(placeFocus || area),
+              isPlace: Boolean(placeFocus),
+              coverageNote,
+              drinkPlural,
+              drinkNoun,
+            })}
           </p>
         )}
+        {/* An area with no price for the chosen drink is not a dead end, and
+            the way out of it is a drinker at a bar. One line, under the empty
+            state it belongs to, and never beside a list that already answered. */}
+        {!baseLed && pubs.length === 0 && (placeFocus || area) && logInvite ? (
+          <p className="areaSheetEmpty areaSheetInvite">{logInvite}</p>
+        ) : null}
       </section>
 
       <section className="areaSheetSection" aria-label="Go somewhere else">

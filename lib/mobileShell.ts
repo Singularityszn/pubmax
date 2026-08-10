@@ -10,6 +10,7 @@ export type MapOverlay =
   | "none"
   | "search"
   | "filters"
+  | "drink"
   | "tfl"
   | "tonight"
   | "layers"
@@ -35,6 +36,10 @@ export type MapSheetDetent = SheetSnap;
  */
 export const MAP_SHEET_TITLES: Partial<Record<MapSheetKind, string>> = {
   filters: "Prices and places",
+  // The drink the map is under. Its own sheet, not a section of Filters: a
+  // cocktail map is a different map, and a reader may not have to open a
+  // refinement drawer to find out which prices the pins are showing.
+  drink: "Drink",
   tfl: "TfL live",
   tonight: "Tonight",
   layers: "Map controls",

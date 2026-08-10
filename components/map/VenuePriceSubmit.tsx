@@ -11,12 +11,12 @@ import {
   COMMUNITY_PRICE_MAX_GBP,
   DEFAULT_SUBMIT_CATEGORY,
   submitCategoryLabel,
-  SUBMITTABLE_DRINK_CATEGORIES,
   validateCommunityPrice,
   type CommunityPrice,
   type CommunityPriceAttribution,
   type CommunityPriceMapReach,
 } from "@/lib/communityPrice";
+import { submitCategoriesForLane } from "@/lib/drinkLanes";
 import { formatPriceGbp, QUICK_ADD_PRICES_GBP } from "@/lib/spill";
 import { mergePriceChips } from "@/lib/spillPreview";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -67,6 +67,12 @@ type VenuePriceSubmitProps = {
   mapReach?: CommunityPriceMapReach;
   /** Increment to bring this existing form under the drinker's thumb. */
   focusRequest?: number;
+  /**
+   * The drink the map is under, so the composer opens on what the reader came
+   * to log. It also joins the chip row when the shortcut list omits it (gin,
+   * rum, vodka), because a lane you cannot see is a lane you cannot log.
+   */
+  laneCategory?: DrinkCategory;
 };
 
 /**
@@ -88,10 +94,18 @@ export default function VenuePriceSubmit({
   latestPintDropAt = null,
   mapReach = "paint",
   focusRequest = 0,
+  laneCategory = DEFAULT_SUBMIT_CATEGORY,
 }: VenuePriceSubmitProps) {
   const titleId = `vpsubTitle-${venueId}`;
   const priceInputRef = useRef<HTMLInputElement>(null);
-  const [category, setCategory] = useState<DrinkCategory>(DEFAULT_SUBMIT_CATEGORY);
+  // The lane is the opening choice, not a lock: the reader can still tap any
+  // other drink. Keyed per venue by the parent, so switching pubs re-opens on
+  // the lane rather than on whatever the last pub was left showing.
+  const [category, setCategory] = useState<DrinkCategory>(laneCategory);
+  const categories = useMemo(
+    () => submitCategoriesForLane(laneCategory),
+    [laneCategory],
+  );
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
   // Which drink this viewer just logged, so the receipt celebrates THEIR tap.
@@ -105,6 +119,17 @@ export default function VenuePriceSubmit({
     useContributionGate();
 
   const { byVenueId, submit, submitting } = communityPrices;
+
+  // Changing the map's drink while this sheet is open is an explicit act, so
+  // the composer follows it. A tap on a chip in between is not overwritten:
+  // only a CHANGE of lane moves the choice.
+  const laneSeenRef = useRef<DrinkCategory>(laneCategory);
+  useEffect(() => {
+    if (laneSeenRef.current === laneCategory) return;
+    laneSeenRef.current = laneCategory;
+    setCategory(laneCategory);
+    setError(null);
+  }, [laneCategory]);
 
   useEffect(() => {
     if (focusRequest <= 0) return;
@@ -204,7 +229,7 @@ export default function VenuePriceSubmit({
         role="radiogroup"
         aria-label={`What are you drinking at ${venueName}?`}
       >
-        {SUBMITTABLE_DRINK_CATEGORIES.map((option) => (
+        {categories.map((option) => (
           <button
             key={option}
             type="button"

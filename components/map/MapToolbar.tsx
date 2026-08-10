@@ -1,6 +1,6 @@
 "use client";
 
-import { Layers, Route, Wine } from "lucide-react";
+import { GlassWater, Layers, Route, Wine } from "lucide-react";
 import {
   useEffect,
   useLayoutEffect,
@@ -11,6 +11,7 @@ import {
 
 import CitySwitcher from "@/components/map/CitySwitcher";
 import ConditionsChip from "@/components/desktop/ConditionsChip";
+import DrinkLanePicker from "@/components/map/DrinkLanePicker";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import MapExperienceLensControl, {
   MAP_EXPERIENCE_LENS_OPTIONS,
@@ -20,14 +21,105 @@ import PersonaLensPicker from "@/components/map/PersonaLensPicker";
 import ZonePicker from "@/components/map/ZonePicker";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { activeDrinkLane, drinkLaneLabel } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { PersonaDrink } from "@/lib/personaDrinks";
 import type { Filters } from "@/lib/venues";
-import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import type {
+  CategoryPriceIndexStatus,
+  MapExperienceLens,
+} from "@/lib/mapExperienceLens";
 import { useSpringValue } from "@/lib/useSpringValue";
 import type { ZonePintIndex } from "@/lib/zones";
 
 import "./mapToolbar.css";
+
+/**
+ * The map's drink, named on a control of its own.
+ *
+ * A closed panel may not hide which prices the pins are showing, so the button
+ * carries the lane the same way the "Show me" control carries the view.
+ */
+function DrinkLaneButton({
+  laneLabel,
+  laneSelected,
+  open,
+  onToggle,
+}: {
+  laneLabel: string;
+  laneSelected: boolean;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={
+        open || laneSelected
+          ? "mapToolbarDrinkLaneBtn isActive"
+          : "mapToolbarDrinkLaneBtn"
+      }
+      aria-pressed={open}
+      aria-expanded={open}
+      onClick={onToggle}
+    >
+      <GlassWater size={15} aria-hidden="true" />
+      <span>{`Drink: ${laneLabel}`}</span>
+    </button>
+  );
+}
+
+/**
+ * The pint-brand refinement, where this viewport keeps it. Brand belongs to the
+ * pint lane alone, so the slot renders nothing under any other drink rather
+ * than offering a beer list beside a cocktail map.
+ */
+function PintBrandSlot({
+  show,
+  favoritePint,
+  onFavoritePintChange,
+  drinkBrand,
+  onDrinkBrandChange,
+  className,
+}: {
+  show: boolean;
+  favoritePint: string | null;
+  onFavoritePintChange: (beerId: string | null) => void;
+  drinkBrand: string;
+  onDrinkBrandChange: (drinkBrand: string) => void;
+  className: string;
+}) {
+  if (!show) return null;
+  return (
+    <div className={className}>
+      <FavoritePintPicker
+        value={favoritePint}
+        onChange={onFavoritePintChange}
+        drinkBrand={drinkBrand}
+        onDrinkBrandChange={onDrinkBrandChange}
+      />
+    </div>
+  );
+}
+
+/**
+ * A search that ran, over an index that had venues, and matched none of them.
+ * All four have to hold: a still-loading index, an empty index and an empty
+ * query are three other findings, and none of them is "no venues match".
+ */
+function searchFoundNothing(input: {
+  searchSettled: boolean;
+  searchableVenueCount: number;
+  trimmedQuery: string;
+  filteredVenueCount: number;
+}): boolean {
+  return (
+    input.searchSettled &&
+    input.searchableVenueCount > 0 &&
+    input.trimmedQuery !== "" &&
+    input.filteredVenueCount === 0
+  );
+}
 
 // Compact map chrome: search + Plan on the first row; drink lens / chips stay
 // behind an optional expand so phones keep map mid-field free.
@@ -44,7 +136,11 @@ type MapToolbarProps = {
   drinkFiltersActive: boolean;
   drinkCategory: string;
   drinkBrand: string;
-  onDrinkLensChange: (next: { drinkCategory: string; drinkBrand: string }) => void;
+  onDrinkBrandChange: (drinkBrand: string) => void;
+  /** Put the map under one drink. The parent owns the single filter write. */
+  onDrinkLaneChange: (lane: DrinkCategory) => void;
+  /** Completeness of the active lane's cross-venue read, for its own note. */
+  drinkLaneStatus: CategoryPriceIndexStatus;
   /** Active "Drink like..." persona id, or null when the lens is off. */
   personaId: string | null;
   /** Select a persona (or null to clear); the parent rides the drink filter. */
@@ -83,7 +179,9 @@ export default function MapToolbar({
   drinkFiltersActive,
   drinkCategory,
   drinkBrand,
-  onDrinkLensChange,
+  onDrinkBrandChange,
+  onDrinkLaneChange,
+  drinkLaneStatus,
   personaId,
   onPersonaSelect,
   personaTonightCategory,
@@ -108,6 +206,9 @@ export default function MapToolbar({
   // to arrive open, so the toolbar block was a third layer over the map before
   // the reader asked for anything.
   const [lensOpen, setLensOpen] = useState(false);
+  // Same contract for the drink lane: closed at rest, and its control names the
+  // lane so a map showing cocktail prices never looks like the pint map.
+  const [laneOpen, setLaneOpen] = useState(false);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const {
     value: laneOffset,
@@ -188,23 +289,24 @@ export default function MapToolbar({
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, []);
-  const favoritePicker = (
-    <FavoritePintPicker
-      value={favoritePint}
-      onChange={onFavoritePintChange}
-      drinkCategory={drinkCategory}
-      drinkBrand={drinkBrand}
-      onDrinkLensChange={onDrinkLensChange}
-    />
-  );
+  const activeLane = activeDrinkLane(drinkCategory);
+  const laneLabel = drinkLaneLabel(activeLane);
+  // Every drink control is stood down while an experience view owns the map,
+  // and brand is a pint-only refinement on top of that.
+  const laneAvailable = experienceLens === "all";
+  const showPintBrand = laneAvailable && activeLane === "beer";
   const trimmedQuery = query.trim();
-  const showNoSearchMatches =
-    searchSettled &&
-    searchableVenueCount > 0 &&
-    Boolean(trimmedQuery) &&
-    filteredVenueCount === 0;
+  const showNoSearchMatches = searchFoundNothing({
+    searchSettled,
+    searchableVenueCount,
+    trimmedQuery,
+    filteredVenueCount,
+  });
   const changeExperienceLens = (next: MapExperienceLens) => {
-    if (next !== "all") setDrinksOpen(false);
+    if (next !== "all") {
+      setDrinksOpen(false);
+      setLaneOpen(false);
+    }
     onExperienceLensChange(next);
   };
   // A closed panel may not hide which view the map is under, so the control
@@ -235,9 +337,23 @@ export default function MapToolbar({
           <div className="mapToolbarSearch">{searchContent}</div>
         ) : null}
 
-        {isMobile === false && experienceLens === "all" ? (
-          <div className="mapToolbarDesktopExtras">{favoritePicker}</div>
+        {laneAvailable ? (
+          <DrinkLaneButton
+            laneLabel={laneLabel}
+            laneSelected={activeLane !== "beer"}
+            open={laneOpen}
+            onToggle={() => setLaneOpen((open) => !open)}
+          />
         ) : null}
+
+        <PintBrandSlot
+          show={isMobile === false && showPintBrand}
+          favoritePint={favoritePint}
+          onFavoritePintChange={onFavoritePintChange}
+          drinkBrand={drinkBrand}
+          onDrinkBrandChange={onDrinkBrandChange}
+          className="mapToolbarDesktopExtras"
+        />
 
         {/* Weather verdict, always visible on desktop (owner requirement). The
             map cannot host the right rail (the venue drawer owns that edge), so
@@ -260,7 +376,7 @@ export default function MapToolbar({
           <span>{activeLensLabel ? `Show me: ${activeLensLabel}` : "Show me"}</span>
         </button>
 
-        {experienceLens === "all" ? (
+        {laneAvailable ? (
           <button
             type="button"
             className={
@@ -278,7 +394,7 @@ export default function MapToolbar({
           </button>
         ) : null}
 
-        {cityId === DEFAULT_CITY_ID && experienceLens === "all" ? (
+        {cityId === DEFAULT_CITY_ID && laneAvailable ? (
           <ZonePicker
             zone={filters.zone}
             onZoneChange={(zone) => onFiltersChange({ ...filters, zone })}
@@ -319,6 +435,14 @@ export default function MapToolbar({
         />
       ) : null}
 
+      {laneOpen && laneAvailable ? (
+        <DrinkLanePicker
+          lane={activeLane}
+          status={drinkLaneStatus}
+          onChange={onDrinkLaneChange}
+        />
+      ) : null}
+
       {showNoSearchMatches ? (
         <div
           className="mapToolbarSearchStatus"
@@ -345,9 +469,16 @@ export default function MapToolbar({
         </div>
       ) : null}
 
-      {experienceLens === "all" ? (
+      {laneAvailable ? (
         <div className={drinksOpen ? "mapToolbarDrinks isOpen" : "mapToolbarDrinks"}>
-          {isMobile === true ? <div className="mapToolbarDrinksLens">{favoritePicker}</div> : null}
+          <PintBrandSlot
+            show={isMobile === true && showPintBrand}
+            favoritePint={favoritePint}
+            onFavoritePintChange={onFavoritePintChange}
+            drinkBrand={drinkBrand}
+            onDrinkBrandChange={onDrinkBrandChange}
+            className="mapToolbarDrinksLens"
+          />
           <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
           <div className="mapToolbarDrinksLens">
             <PersonaLensPicker
