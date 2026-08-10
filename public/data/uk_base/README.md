@@ -24,10 +24,14 @@ thousands of times is paid for in the one place it is felt. The decoder and the
 `venue-uk-…` id salting live in [`lib/ukBasePubs.ts`](../../../lib/ukBasePubs.ts);
 `__tests__/ukBasePubs.test.ts` pins the shape.
 
-No base-to-curated promotion flow exists today. A future promotion must alias
-the pub's stable `venue-uk-*` id before removing its base row, or existing
-community prices become unreachable. That identity work belongs in the future
-promotion flow, not in this generator speculatively.
+An area is promoted into the curated layer by cutting its pubs out of this
+snapshot into a city pack (`data/cities/README.md`). The shard builder then
+records the owning curated venue on each promoted row by exact OSM id, so the
+base pin is suppressed while the curated pin is drawable. Nothing is removed:
+a `venue-uk-*` id stays resolvable and its community prices stay reachable.
+REMOVING a base row is the step that still needs its identity work first, and
+that alias belongs in the flow that removes it, not in this generator
+speculatively.
 
 Community-price visibility binds to that same salted id. The settled viewport
 asks for marked ids only, then `lib/ukBasePubs.ts` adds the mark to in-memory

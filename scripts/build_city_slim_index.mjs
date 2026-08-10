@@ -73,9 +73,20 @@ function truthyOutdoor(pub) {
   return pub.outdoorSeating === true;
 }
 
+/**
+ * The area a pin prints. A pack covering one town labels every pin with that
+ * town; a pack covering a stretch of coast would then put "Llandudno" on a
+ * Conwy pub, so the pub's OWN stated locality wins wherever OSM records one.
+ * The pack's name is the fallback, never a guess from the postcode.
+ */
+export function areaLabelForPub(pub, displayName) {
+  const locality = String(pub?.locality ?? "").trim();
+  return locality || displayName;
+}
+
 function buildFilterHints(pub, displayName) {
   const searchParts = new Set(
-    [pub.name, pub.address, displayName, pub.cuisine, pub.brewery]
+    [pub.name, pub.address, displayName, pub.locality, pub.cuisine, pub.brewery]
       .map((part) => String(part ?? "").trim().toLowerCase())
       .filter(Boolean),
   );
@@ -130,7 +141,7 @@ export function buildCitySlim(city, pack) {
       lat,
       lng,
       cheapestPrice: null,
-      borough: city.displayName,
+      borough: areaLabelForPub(pub, city.displayName),
       filterHints: buildFilterHints(pub, city.displayName),
     });
   }

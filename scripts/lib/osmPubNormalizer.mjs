@@ -6,6 +6,24 @@
  */
 
 /**
+ * The locality OSM states for a pub, in the order the UK place index already
+ * reads them (scripts/lib/ukPlaceIndex.mjs). This is the pub's OWN word for
+ * where it is, so a pack covering more than one town can label each pin with
+ * its town instead of the pack's name. Null when OSM states none — never
+ * guessed from the postcode or from which pack found the pub.
+ *
+ * @param {Record<string, string> | undefined} tags
+ */
+function readLocality(tags) {
+  if (!tags) return null;
+  for (const key of ["addr:city", "addr:town", "addr:village", "addr:place", "addr:suburb"]) {
+    const value = typeof tags[key] === "string" ? tags[key].trim() : "";
+    if (value) return value;
+  }
+  return null;
+}
+
+/**
  * @param {Record<string, string> | undefined} tags
  * @param {string | null} fallbackCity
  */
@@ -56,6 +74,7 @@ export function normalizeOsmPubElement(element, { fallbackCity = null } = {}) {
     lat,
     lng,
     address: buildAddress(tags, fallbackCity),
+    locality: readLocality(tags),
     postcode: tags["addr:postcode"] || null,
     website: tags.website || tags["contact:website"] || null,
     phone: tags.phone || tags["contact:phone"] || null,

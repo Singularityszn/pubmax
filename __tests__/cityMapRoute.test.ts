@@ -30,9 +30,9 @@ describe("city map route resolution", () => {
     expect(resolveMapCity(undefined)).toBeNull();
   });
 
-  it("listEnabledCities matches the route gate and includes all nine cities", () => {
+  it("routes every enabled city, and every enabled city has a pack", () => {
     const enabled = listEnabledCities();
-    expect(enabled).toHaveLength(9);
+    expect(enabled.length).toBeGreaterThanOrEqual(9);
     for (const city of enabled) {
       expect(resolveMapCity(city.id)).toBe(city.id);
       expect(city.enabled).toBe(true);

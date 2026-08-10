@@ -41,6 +41,7 @@ export function storyBandsForCity(
     case "bristol":
       return bristolStoryBands;
     case "bath":
+    case "llandudno":
       return [];
     case "london":
       return STORY_BANDS;

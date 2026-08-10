@@ -9,84 +9,111 @@
 //
 // OSM data is © OpenStreetMap contributors, ODbL 1.0.
 // One city at a time with a polite delay between requests.
+//
+// A city marked `promoteFromUkBase` spends no request at all: its pubs are cut
+// out of the committed UK base snapshot (data/osm/uk) instead of queried again.
+// That is the two-layer law read the other way round — the base layer already
+// carries every UK pub, so promoting an area into the curated index must take
+// the SAME rows, not a second observation of them that could disagree.
 
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { overpassBbox } from "../lib/cityBounds.mjs";
 import { boroughNameForPoint } from "../lib/londonBoroughPoint.mjs";
 import {
   normalizeOsmPubElement,
   sortOsmPubs,
 } from "./lib/osmPubNormalizer.mjs";
+import { buildGrid, chunkFileName } from "./lib/ukOsmSeed.mjs";
+import {
+  haversineMeters,
+  namesLikelySamePub,
+  normalizeVenueIdentityName,
+} from "./lib/venueCanonicalization.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
-/** @typedef {{ id: string, displayName: string, shortPrefix: string, bbox: [number, number, number, number], enabled: boolean }} CityDef */
+/** @typedef {{ id: string, displayName: string, shortPrefix: string, bbox: [number, number, number, number], enabled: boolean, promoteFromUkBase?: boolean }} CityDef */
 
-/** Inline city map — bbox is [south, west, north, east] (Overpass order).
- * Bounds match lib/cities.ts (latMin, lonMin, latMax, lonMax).
+/** Inline city map. The BOX is not here: every city's box is lib/cityBounds.mjs,
+ * which lib/cities.ts and scripts/validate-data.mjs read too, so a pack can
+ * never be cut to one box and rendered inside another.
  * `enabled` here means "include in OSM seed-pack fetch/build" (all non-London
  * UK cities). Runtime map switcher enablement lives in lib/cities.ts. */
-export const CITIES = /** @type {Record<string, CityDef>} */ ({
+const CITY_DEFINITIONS = {
   manchester: {
     id: "manchester",
     displayName: "Manchester",
     shortPrefix: "mcr",
-    bbox: [53.38, -2.35, 53.55, -2.1],
     enabled: true,
   },
   liverpool: {
     id: "liverpool",
     displayName: "Liverpool",
     shortPrefix: "liv",
-    bbox: [53.35, -3.05, 53.48, -2.85],
     enabled: true,
   },
   oxford: {
     id: "oxford",
     displayName: "Oxford",
     shortPrefix: "oxf",
-    bbox: [51.72, -1.3, 51.8, -1.2],
     enabled: true,
   },
   durham: {
     id: "durham",
     displayName: "Durham",
     shortPrefix: "dur",
-    bbox: [54.76, -1.6, 54.8, -1.54],
     enabled: true,
   },
   glasgow: {
     id: "glasgow",
     displayName: "Glasgow",
     shortPrefix: "glw",
-    bbox: [55.82, -4.35, 55.9, -4.15],
     enabled: true,
   },
   bristol: {
     id: "bristol",
     displayName: "Bristol",
     shortPrefix: "bri",
-    bbox: [51.42, -2.65, 51.5, -2.52],
     enabled: true,
   },
   cambridge: {
     id: "cambridge",
     displayName: "Cambridge",
     shortPrefix: "cam",
-    bbox: [52.18, 0.08, 52.24, 0.16],
     enabled: true,
   },
   bath: {
     id: "bath",
     displayName: "Bath",
     shortPrefix: "bat",
-    bbox: [51.36, -2.4, 51.4, -2.32],
     enabled: true,
   },
-});
+  // The North Wales coast strip: Llandudno and the Great Orme, Deganwy and
+  // Llandudno Junction, Conwy inside the walls, Rhos-on-Sea and Colwyn Bay.
+  // The box stops before Penmaenmawr in the west, Abergele in the east and the
+  // Conwy valley in the south, so the pack is one continuous seafront rather
+  // than a county. Promoted out of the committed UK base snapshot.
+  llandudno: {
+    id: "llandudno",
+    displayName: "Llandudno",
+    shortPrefix: "lla",
+    enabled: true,
+    promoteFromUkBase: true,
+  },
+};
+
+export const CITIES = /** @type {Record<string, CityDef>} */ (
+  Object.fromEntries(
+    Object.entries(CITY_DEFINITIONS).map(([id, def]) => [
+      id,
+      { ...def, bbox: overpassBbox(id) },
+    ]),
+  )
+);
 
 /**
  * London-borough OSM ingestion (Cycle-4 `data/outer-london-osm`).
@@ -258,6 +285,135 @@ async function fileExists(filePath) {
   }
 }
 
+// --- promotion out of the UK base layer --------------------------------------
+
+const UK_PACK_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
+const UK_RAW_DIR = path.join(ROOT, "data", "osm", "uk", "raw");
+// Two OSM objects for one building this close, under one name, are one pub —
+// a node dropped on top of an existing way, not a second bar next door. Kept
+// deliberately tighter than the 150 m curated-match radius, which exists to
+// reconcile two DIFFERENT datasets rather than two rows of the same one.
+const DUPLICATE_OBJECT_METERS = 30;
+
+function inCityBbox(lat, lng, bbox) {
+  const [south, west, north, east] = bbox;
+  return lat >= south && lat <= north && lng >= west && lng <= east;
+}
+
+function bboxesOverlap(a, b) {
+  return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
+}
+
+/** How much this row actually STATES. Ties are broken toward the fuller row. */
+function statedFactCount(pub) {
+  return [
+    pub.address,
+    pub.locality,
+    pub.postcode,
+    pub.website,
+    pub.phone,
+    pub.openingHours,
+    pub.brewery,
+    pub.operator,
+    pub.cuisine,
+    pub.wikidata,
+    pub.wikipedia,
+  ].filter(Boolean).length;
+}
+
+/**
+ * Collapse the same physical pub mapped twice in OSM (a node inside its own
+ * way). Returns the kept rows plus every drop, because a silent collapse would
+ * read as a pub that was never there.
+ *
+ * @param {Array<Record<string, any>>} pubs
+ */
+export function collapseDuplicateOsmObjects(pubs) {
+  const kept = [];
+  const dropped = [];
+  for (const pub of pubs) {
+    const normalized = normalizeVenueIdentityName(pub.name);
+    const twinIndex = kept.findIndex(
+      (candidate) =>
+        haversineMeters(pub.lat, pub.lng, candidate.lat, candidate.lng) <=
+          DUPLICATE_OBJECT_METERS &&
+        namesLikelySamePub(normalized, normalizeVenueIdentityName(candidate.name)),
+    );
+    if (twinIndex === -1) {
+      kept.push(pub);
+      continue;
+    }
+    const twin = kept[twinIndex];
+    const [keep, drop] =
+      statedFactCount(pub) > statedFactCount(twin) ? [pub, twin] : [twin, pub];
+    kept[twinIndex] = keep;
+    dropped.push({ osmId: drop.osmId, name: drop.name, keptAs: keep.osmId });
+  }
+  return { kept, dropped };
+}
+
+/**
+ * Cut one city out of the committed UK base snapshot. The raw Overpass chunks
+ * are the source, because they still carry the locality tags the normalized
+ * pack folds into an address string; every promoted pub is then required to
+ * exist in that pack, so the curated pin and the base row it suppresses are
+ * provably the same OSM object rather than two observations of one pub.
+ *
+ * @param {CityDef} city
+ */
+async function promoteCityFromUkBase(city) {
+  const pack = JSON.parse(await readFile(UK_PACK_PATH, "utf8"));
+  const basePubs = Array.isArray(pack?.pubs) ? pack.pubs : [];
+  if (basePubs.length === 0) {
+    throw new Error(
+      `${path.relative(ROOT, UK_PACK_PATH)} has no pubs — run npm run fetch:uk-pubs first`,
+    );
+  }
+  const baseOsmIds = new Set(basePubs.map((pub) => String(pub.osmId)));
+
+  const chunks = buildGrid().filter((chunk) => bboxesOverlap(chunk.bbox, city.bbox));
+  const elements = [];
+  for (const chunk of chunks) {
+    const rawPath = path.join(UK_RAW_DIR, chunkFileName(chunk));
+    if (!(await fileExists(rawPath))) {
+      throw new Error(`missing UK snapshot chunk ${path.relative(ROOT, rawPath)}`);
+    }
+    const raw = JSON.parse(await readFile(rawPath, "utf8"));
+    if (Array.isArray(raw?.elements)) elements.push(...raw.elements);
+  }
+
+  const byOsmId = new Map();
+  let droppedOutsideBase = 0;
+  for (const element of elements) {
+    const pub = normalizeOsmPubElement(element);
+    if (!pub) continue;
+    if (!inCityBbox(pub.lat, pub.lng, city.bbox)) continue;
+    if (!baseOsmIds.has(pub.osmId)) {
+      droppedOutsideBase += 1;
+      continue;
+    }
+    if (!byOsmId.has(pub.osmId)) byOsmId.set(pub.osmId, pub);
+  }
+
+  const { kept, dropped } = collapseDuplicateOsmObjects([...byOsmId.values()]);
+  sortOsmPubs(kept);
+  return {
+    city: city.id,
+    source: "OpenStreetMap Overpass",
+    license: "ODbL",
+    attribution: "© OpenStreetMap contributors",
+    // The day the pubs were OBSERVED, carried over from the snapshot they are
+    // cut from. A promotion looks at nothing new, so it may not claim a date.
+    fetchedAt: pack.fetchedAt ?? null,
+    promotedFrom: "data/osm/uk/uk_osm_pubs.json",
+    bbox: city.bbox,
+    count: kept.length,
+    droppedDuplicateObjects: dropped,
+    droppedOutsideBaseLayer: droppedOutsideBase,
+    pubs: kept,
+  };
+}
+
 // --- London-borough ingestion ------------------------------------------------
 
 /** Bounding box [south, west, north, east] of a GeoJSON borough feature. */
@@ -389,13 +545,34 @@ async function fetchLondonBoroughs(boundaries, { targets, fromRaw }) {
 }
 
 /**
- * @returns {Promise<"fetched" | "from-raw" | "skipped">}
+ * @returns {Promise<"fetched" | "from-raw" | "skipped" | "promoted">}
  */
 async function fetchCity(city, { fromRaw = false, skipIfPresent = false } = {}) {
   const outDir = path.join(ROOT, "data", "cities", city.id);
   await mkdir(outDir, { recursive: true });
   const rawPath = path.join(outDir, "osm_pubs_raw.json");
   const normPath = path.join(outDir, "osm_pubs.json");
+
+  if (city.promoteFromUkBase) {
+    console.log(`promoting ${city.id} out of the UK base snapshot …`);
+    const pack = await promoteCityFromUkBase(city);
+    await writeFile(normPath, `${JSON.stringify(pack, null, 2)}\n`);
+    console.log(
+      `  wrote ${path.relative(ROOT, normPath)} (${pack.count} pubs` +
+        (pack.droppedDuplicateObjects.length > 0
+          ? `, ${pack.droppedDuplicateObjects.length} duplicate OSM object(s) collapsed`
+          : "") +
+        (pack.droppedOutsideBaseLayer > 0
+          ? `, ${pack.droppedOutsideBaseLayer} not in the base layer`
+          : "") +
+        ")",
+    );
+    for (const drop of pack.droppedDuplicateObjects) {
+      console.log(`    collapsed ${drop.osmId} "${drop.name}" into ${drop.keptAs}`);
+    }
+    return "promoted";
+  }
+
   const rawExists = await fileExists(rawPath);
 
   if (skipIfPresent && rawExists) {
