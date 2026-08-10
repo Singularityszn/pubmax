@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  coveringObservedAt,
   isValidWhatsOnRow,
   isWhatsOnKind,
+  parseKindObservedAt,
   parseWhatsOnRows,
   dedupeKey,
   dedupeRows,
@@ -616,5 +618,44 @@ describe("normaliseSourceLabel", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].source.label).not.toMatch(/[\u2013\u2014]/);
     expect(rows[0].source.label).toBe("Skehan's - Live Music");
+  });
+});
+
+
+// A date printed beside a listing is a claim that somebody looked at THAT
+// listing. Two rules, deliberately opposite, and both live here so they cannot
+// drift apart: a page-level stamp reports the freshest evidence it has, and one
+// line covering several kinds reports the oldest of the kinds it covers.
+describe("per-kind confirmation times", () => {
+  it("keeps only kinds we know and times we can parse", () => {
+    expect(
+      parseKindObservedAt({
+        deal: "2026-08-10T08:43:37.191Z",
+        music: "2026-07-18T21:25:03.316Z",
+        quiz: "not-a-time",
+        nonsense: "2026-08-10T08:43:37.191Z",
+        sport: 17,
+      }),
+    ).toEqual({
+      deal: "2026-08-10T08:43:37.191Z",
+      music: "2026-07-18T21:25:03.316Z",
+    });
+    expect(parseKindObservedAt(null)).toEqual({});
+    expect(parseKindObservedAt("nope")).toEqual({});
+  });
+
+  it("dates a covering line by its OLDEST kind, and refuses one it cannot date", () => {
+    const observed = {
+      deal: "2026-08-10T08:43:37.191Z",
+      quiz: "2026-07-18T21:20:05.134Z",
+    };
+    // A row of chips reading "quiz and deal tonight" under one check is only as
+    // good as the quiz behind it.
+    expect(coveringObservedAt(observed, ["deal", "quiz"])).toBe("2026-07-18T21:20:05.134Z");
+    expect(coveringObservedAt(observed, ["deal"])).toBe("2026-08-10T08:43:37.191Z");
+    // Dropping the undatable kind would date the rest of the row as if it spoke
+    // for all of them, so the whole line goes undated instead.
+    expect(coveringObservedAt(observed, ["deal", "music"])).toBeNull();
+    expect(coveringObservedAt(observed, [])).toBeNull();
   });
 });

@@ -15,6 +15,17 @@ describe("MusicTonightLane (W4)", () => {
     expect(source).toMatch(/THIN_COVERAGE_MAX/);
     expect(source).not.toMatch(/\u2014/);
   });
+
+  // This lane is about ONE source. The page-level stamp reports the freshest
+  // thing the whole answer can show, and the deals feed is rebuilt far more
+  // often than the music one, so a lane that took the page's date would claim
+  // gigs were confirmed on a day nobody looked at a gig listing.
+  it("dates itself from the music source, never from the page", () => {
+    expect(source).toMatch(/kindObservedAt/);
+    const host = readFileSync(join(process.cwd(), "app/tonight/TonightClient.tsx"), "utf8");
+    expect(host).toMatch(/<MusicTonightLane[^>]*asOf=\{kindObservedAt\.music\}/);
+    expect(host).not.toMatch(/<MusicTonightLane[^>]*asOf=\{asOf\}/);
+  });
 });
 
 describe("TonightMapPointer (W1 Discover absorb)", () => {

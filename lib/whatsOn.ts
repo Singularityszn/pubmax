@@ -50,6 +50,58 @@ export function isWhatsOnKind(value: unknown): value is WhatsOnKind {
   return (WHATS_ON_KINDS as readonly string[]).includes(value as string);
 }
 
+/**
+ * Freshest confirmation per listing kind.
+ *
+ * The page-level source time is the freshest thing a whole answer can show. A
+ * surface about ONE source may not borrow it: the live-music lane is dated by
+ * the music feed, and if only July evidence exists for music then July is what
+ * that lane says, however recently the deals feed was rebuilt. A kind with no
+ * datable evidence is ABSENT rather than null-filled, so a reader is told "no
+ * date on this yet" instead of somebody else's day.
+ */
+export type WhatsOnKindObservedAt = Partial<Record<WhatsOnKind, string>>;
+
+export const EMPTY_KIND_OBSERVED_AT: WhatsOnKindObservedAt = Object.freeze({});
+
+/** Read the per-kind map off an API body. An unknown kind or an unparseable
+ *  time contributes nothing: an unusable value must not become a date printed
+ *  beside a listing. */
+export function parseKindObservedAt(value: unknown): WhatsOnKindObservedAt {
+  if (typeof value !== "object" || value === null) return EMPTY_KIND_OBSERVED_AT;
+  const out: WhatsOnKindObservedAt = {};
+  for (const [kind, at] of Object.entries(value)) {
+    if (!isWhatsOnKind(kind)) continue;
+    if (typeof at !== "string" || !Number.isFinite(Date.parse(at))) continue;
+    out[kind] = at;
+  }
+  return out;
+}
+
+/**
+ * The date ONE line may claim when it covers several kinds at once (a venue's
+ * chip row is "quiz and sport tonight" under a single check).
+ *
+ * A covering claim is only as good as its weakest member, so this is the
+ * OLDEST of the kinds it covers - the opposite of the page-level stamp, and
+ * for the opposite reason. A kind we cannot date makes the whole line
+ * undatable, because a line that quietly dropped it would date the rest of the
+ * row as if it spoke for all of them.
+ */
+export function coveringObservedAt(
+  observedAt: WhatsOnKindObservedAt,
+  kinds: readonly WhatsOnKind[],
+): string | null {
+  if (kinds.length === 0) return null;
+  let oldest: string | null = null;
+  for (const kind of kinds) {
+    const at = observedAt[kind];
+    if (!at) return null;
+    if (oldest === null || Date.parse(at) < Date.parse(oldest)) oldest = at;
+  }
+  return oldest;
+}
+
 export function isWhatsOnConfidence(value: unknown): value is WhatsOnConfidence {
   return (WHATS_ON_CONFIDENCES as readonly string[]).includes(value as string);
 }

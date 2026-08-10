@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, it, expect } from "vitest";
 
 import { handleWhatsOnRequest } from "@/lib/whatsOnHandler";
-import { loadBaselineWhatsOn, loadWhatsOn, mergeWhatsOn } from "@/lib/whatsOnStore";
+import {
+  baselineSourceObservedAt,
+  loadBaselineWhatsOn,
+  loadWhatsOn,
+  mergeWhatsOn,
+} from "@/lib/whatsOnStore";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 // The route now rate-limits per IP (S2) before anything else. Vercel's vitest
@@ -242,7 +247,10 @@ describe("loadWhatsOn orchestration", () => {
     );
     expect(result.rows.map((r) => r.id)).toEqual(["b1"]);
     expect(result.servedAt).toBe(new Date(NOW).toISOString());
-    expect(result.sourceObservedAt).toBe("2026-07-11T17:00:00.000Z");
+    // The artifact says it was built at 17:00 and the row it serves says it was
+    // observed at 18:00. Both are dates somebody wrote down; the stamp reports
+    // the fresher one. Captain decision 2026-08-10.
+    expect(result.sourceObservedAt).toBe("2026-07-11T18:00:00.000Z");
     expect(result.sourceFreshnessKind).toBe("dataset-generated");
     expect(result.asOf).toBe(result.sourceObservedAt);
   });
@@ -359,6 +367,164 @@ describe("loadWhatsOn orchestration", () => {
   });
 });
 
+
+// A "Checked" stamp is a claim that somebody looked, so it may only ever be
+// built from a date somebody wrote into an artifact. It used to report the
+// OLDEST contributing dataset, so one feed nobody had rebuilt since July dated
+// the whole page while the deals feed beside it was rebuilt that morning.
+// Captain decision 2026-08-10: report the freshest confirmation available at
+// request time - with the clause that a stamp about ONE source still comes from
+// that source, so a July lane still says July.
+describe("the freshest confirmation available at request time", () => {
+  it("reports the freshest bundled artifact, not the oldest", () => {
+    const bundled = baselineSourceObservedAt(Date.parse("2027-01-01T00:00:00.000Z"));
+    expect(bundled).not.toBeNull();
+    const rows = loadBaselineWhatsOn();
+    const freshestRow = rows
+      .map((row) => Date.parse(row.observedAt))
+      .filter((ms) => Number.isFinite(ms))
+      .reduce((best, ms) => Math.max(best, ms), Number.NEGATIVE_INFINITY);
+    // Nothing invented: the answer is one of the artifacts' own dates, and no
+    // row the store serves was confirmed after it.
+    expect(Date.parse(bundled as string)).toBeLessThanOrEqual(freshestRow);
+    const oldest = rows
+      .map((row) => Date.parse(row.observedAt))
+      .filter((ms) => Number.isFinite(ms))
+      .reduce((best, ms) => Math.min(best, ms), Number.POSITIVE_INFINITY);
+    expect(Date.parse(bundled as string)).toBeGreaterThan(oldest);
+  });
+
+  it("takes the max of the artifact date and the rows the answer carries", async () => {
+    const result = await loadWhatsOn(
+      {},
+      {
+        now: NOW,
+        loadBaseline: () => [
+          makeRow({ id: "old", observedAt: "2026-07-11T09:00:00.000Z" }),
+          makeRow({ id: "new", placeName: "Newer Arms", observedAt: "2026-07-11T19:00:00.000Z" }),
+        ],
+        baselineSourceObservedAt: "2026-07-11T12:00:00.000Z",
+        fetchLive: async () => [],
+      },
+    );
+    expect(result.sourceObservedAt).toBe("2026-07-11T19:00:00.000Z");
+    expect(result.sourceFreshnessKind).toBe("dataset-generated");
+  });
+
+  it("never reaches past the evidence: an all-July answer stays in July", async () => {
+    const result = await loadWhatsOn(
+      {},
+      {
+        now: Date.parse("2026-08-10T13:00:00.000Z"),
+        loadBaseline: () => [
+          makeRow({
+            id: "july",
+            startsAt: "2026-08-10T22:00:00+01:00",
+            observedAt: "2026-07-18T21:20:05.134Z",
+          }),
+        ],
+        baselineSourceObservedAt: "2026-07-18T21:20:05.134Z",
+        fetchLive: async () => [],
+      },
+    );
+    // The request instant is August. The stamp is not.
+    expect(result.sourceObservedAt).toBe("2026-07-18T21:20:05.134Z");
+    expect(result.servedAt).toBe("2026-08-10T13:00:00.000Z");
+  });
+
+  it("refuses a live row's observedAt as evidence", async () => {
+    // mapThingsToDoToRows falls back to the request instant when the provider
+    // omits its own timestamp, so a live row can date itself "now" with nobody
+    // having checked anything. Only the provider's own sourceObservedAt speaks
+    // for the live layer.
+    const result = await loadWhatsOn(
+      {},
+      {
+        now: NOW,
+        loadBaseline: () => [],
+        fetchLive: async () => ({
+          rows: [makeRow({ id: "live", observedAt: new Date(NOW).toISOString() })],
+          sourceObservedAt: null,
+        }),
+      },
+    );
+    expect(result.rows.map((row) => row.id)).toEqual(["live"]);
+    expect(result.sourceObservedAt).toBeNull();
+    expect(result.sourceFreshnessKind).toBe("unknown");
+    expect(result.kindObservedAt).toEqual({});
+  });
+
+  it("prefers the provider only while the provider is the fresher one", async () => {
+    const deps = {
+      now: NOW,
+      loadBaseline: () => [makeRow({ id: "b1", observedAt: "2026-07-11T19:30:00.000Z" })],
+      baselineSourceObservedAt: "2026-07-11T10:00:00.000Z",
+    };
+    const providerFresher = await loadWhatsOn(
+      {},
+      {
+        ...deps,
+        fetchLive: async () => ({ rows: [], sourceObservedAt: "2026-07-11T19:45:00.000Z" }),
+      },
+    );
+    expect(providerFresher.sourceObservedAt).toBe("2026-07-11T19:45:00.000Z");
+    expect(providerFresher.sourceFreshnessKind).toBe("provider-observed");
+
+    const bundledFresher = await loadWhatsOn(
+      {},
+      {
+        ...deps,
+        fetchLive: async () => ({ rows: [], sourceObservedAt: "2026-07-11T11:00:00.000Z" }),
+      },
+    );
+    expect(bundledFresher.sourceObservedAt).toBe("2026-07-11T19:30:00.000Z");
+    expect(bundledFresher.sourceFreshnessKind).toBe("dataset-generated");
+  });
+
+  it("dates a live-carried kind by the provider's stated time, never by the row", async () => {
+    const result = await loadWhatsOn(
+      {},
+      {
+        now: NOW,
+        loadBaseline: () => [],
+        fetchLive: async () => ({
+          // The row dates itself "now" because the provider omitted a timestamp
+          // upstream; only the provider's OWN stated observation may speak.
+          rows: [makeRow({ id: "live", kind: "music", observedAt: new Date(NOW).toISOString() })],
+          sourceObservedAt: "2026-07-11T18:15:00.000Z",
+        }),
+      },
+    );
+    expect(result.kindObservedAt).toEqual({ music: "2026-07-11T18:15:00.000Z" });
+    expect(result.sourceFreshnessKind).toBe("provider-observed");
+  });
+
+  it("dates each kind from its own source, so a July lane still says July", async () => {
+    const result = await loadWhatsOn(
+      {},
+      {
+        now: NOW,
+        loadBaseline: () => [
+          makeRow({ id: "music", kind: "music", placeName: "Gig Arms", observedAt: "2026-07-01T12:00:00.000Z" }),
+          makeRow({ id: "deal", kind: "deal", placeName: "Deal Arms", observedAt: "2026-07-11T19:00:00.000Z" }),
+          makeRow({ id: "deal-older", kind: "deal", placeName: "Older Arms", observedAt: "2026-07-02T19:00:00.000Z" }),
+        ],
+        fetchLive: async () => [],
+      },
+    );
+    // The page as a whole can show the deals rebuild...
+    expect(result.sourceObservedAt).toBe("2026-07-11T19:00:00.000Z");
+    // ...and the music lane still reports the day music was last confirmed.
+    expect(result.kindObservedAt).toEqual({
+      music: "2026-07-01T12:00:00.000Z",
+      deal: "2026-07-11T19:00:00.000Z",
+    });
+    // A kind with no rows in this answer is ABSENT, never null-filled with
+    // somebody else's date.
+    expect(result.kindObservedAt.quiz).toBeUndefined();
+  });
+});
+
 describe("GET /api/whats-on (handleWhatsOnRequest)", () => {
   it("returns honest freshness fields and no-store caching", async () => {
     const res = await handleWhatsOnRequest(req(), {
@@ -372,10 +538,13 @@ describe("GET /api/whats-on (handleWhatsOnRequest)", () => {
     expect(body.rows).toHaveLength(1);
     expect(body).toMatchObject({
       servedAt: "2026-07-11T20:00:00.000Z",
-      sourceObservedAt: "2026-07-11T17:00:00.000Z",
+      // Freshest of the artifact's own build date (17:00) and the row it serves
+      // (18:00). servedAt stays a separate field and never feeds this one.
+      sourceObservedAt: "2026-07-11T18:00:00.000Z",
       sourceFreshnessKind: "dataset-generated",
+      kindObservedAt: { quiz: "2026-07-11T18:00:00.000Z" },
       localityBasis: "london-default",
-      asOf: "2026-07-11T17:00:00.000Z",
+      asOf: "2026-07-11T18:00:00.000Z",
     });
     expect(res.headers.get("Cache-Control")).toBe("no-store");
   });

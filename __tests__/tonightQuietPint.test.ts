@@ -11,6 +11,9 @@ vi.mock("@/components/map/useWhatsOnTonight", () => ({
     asOf: null,
     sourceObservedAt: null,
     sourceFreshnessKind: "unknown",
+    // The hook always answers with a per-kind map, so the stub must too: the
+    // page reads it to date the music lane from the music source.
+    kindObservedAt: {},
     status: "empty",
     retry: () => {},
   }),

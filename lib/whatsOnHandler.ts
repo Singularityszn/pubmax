@@ -2,7 +2,7 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isWhatsOnLimited } from "@/lib/citymcpRateLimit";
 import { coarsenViewerPoint } from "@/lib/geo";
-import { isWhatsOnKind, type WhatsOnKind } from "@/lib/whatsOn";
+import { isWhatsOnKind, type WhatsOnKind, type WhatsOnKindObservedAt } from "@/lib/whatsOn";
 import {
   loadWhatsOn,
   type LoadWhatsOnDeps,
@@ -19,6 +19,9 @@ export type WhatsOnResponse = {
   servedAt: string;
   sourceObservedAt: string | null;
   sourceFreshnessKind: WhatsOnSourceFreshnessKind;
+  /** Freshest confirmation per kind, so a single-source lane dates itself from
+   *  its OWN source rather than borrowing the freshest thing on the page. */
+  kindObservedAt: WhatsOnKindObservedAt;
   localityBasis: WhatsOnLocalityBasis;
   /** Compatibility alias for pre-L15 clients; always equals sourceObservedAt. */
   asOf: string | null;
@@ -80,6 +83,7 @@ export async function handleWhatsOnRequest(
       servedAt: result.servedAt,
       sourceObservedAt: result.sourceObservedAt,
       sourceFreshnessKind: result.sourceFreshnessKind,
+      kindObservedAt: result.kindObservedAt,
       localityBasis: result.localityBasis,
       asOf: result.sourceObservedAt,
     };

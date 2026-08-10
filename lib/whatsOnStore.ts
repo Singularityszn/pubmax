@@ -13,6 +13,7 @@ import {
   mapThingsToDoToRows,
   parseWhatsOnRows,
   type WhatsOnKind,
+  type WhatsOnKindObservedAt,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
 import { fetchThingsToDo, type ThingsToDoResult } from "@/lib/citymcp/client";
@@ -54,18 +55,36 @@ function rowsOf(raw: unknown): unknown[] {
   return Array.isArray(rows) ? rows : [];
 }
 
-// Mixed bundled inventory is only as fresh as its oldest contributing dataset.
-// Empty sidecars do not pull the aggregate backwards because they serve no rows.
+// The freshest confirmation the bundled inventory can show for itself.
+//
+// This used to answer the OLDEST contributing dataset, which meant one dataset
+// nobody had rebuilt since July dated the whole page - the Tonight header read
+// "Checked 18 Jul" off the July quiz file while the deals file beside it had
+// been rebuilt that morning. Captain decision 2026-08-10: the stamp reports the
+// freshest confirmation actually available at request time.
+//
+// The clause that keeps it honest is that a stamp about ONE source still comes
+// from that source (see `WhatsOnKindObservedAt` below), so a July lane still
+// says July. Nothing here invents a time: every candidate is a date somebody
+// wrote into an artifact, and an empty sidecar contributes nothing because it
+// serves no rows.
 export function baselineSourceObservedAt(now: number = Date.now()): string | null {
   const generated = BASELINE_DATASETS.flatMap((raw) => {
     if (rowsOf(raw).length === 0) return [];
     const value = canonicalPastIso((raw as { generatedAt?: unknown }).generatedAt, now);
     return value ? [value] : [];
   });
-  if (generated.length === 0) return null;
-  return generated.reduce((oldest, value) =>
-    Date.parse(value) < Date.parse(oldest) ? value : oldest,
-  );
+  return freshestIso(generated);
+}
+
+/** Freshest of a list of canonical ISO strings, or null when there are none. */
+function freshestIso(values: Array<string | null>): string | null {
+  let best: string | null = null;
+  for (const value of values) {
+    if (value === null) continue;
+    if (best === null || Date.parse(value) > Date.parse(best)) best = value;
+  }
+  return best;
 }
 
 // Validated + de-duped baseline rows from every bundled whats_on rows file.
@@ -175,6 +194,7 @@ export type LoadWhatsOnResult = {
   servedAt: string;
   sourceObservedAt: string | null;
   sourceFreshnessKind: WhatsOnSourceFreshnessKind;
+  kindObservedAt: WhatsOnKindObservedAt;
   localityBasis: WhatsOnLocalityBasis;
   /** Compatibility alias for pre-L15 clients. It is source time, never request time. */
   asOf: string | null;
@@ -237,12 +257,13 @@ export async function loadWhatsOn(
       : canonicalPastIso(deps.baselineSourceObservedAt, now);
 
   let live: FetchLiveResult = { rows: [], sourceObservedAt: null };
-  let liveFailed = false;
   try {
     // Do not pass params.limit. Grouping needs the provider's full inventory.
     live = normaliseLiveResult(await (deps.fetchLive ?? defaultFetchLive)({ now }), now);
   } catch {
-    liveFailed = true;
+    // Fail soft to baseline. A live layer that threw contributes no rows and no
+    // freshness evidence, which is the same position as one that answered with
+    // neither - so the outcome needs no separate flag.
   }
 
   let rows = filterNotPast(mergeWhatsOn(baseline, live.rows), now);
@@ -256,13 +277,43 @@ export async function loadWhatsOn(
     rows = rows.slice(0, params.limit);
   }
 
+  // Which of the rows we are about to serve may DATE themselves.
+  //
+  // A bundled row's observedAt was written into an artifact by a refresh that
+  // really ran, so it is evidence. A LIVE row's is not: mapThingsToDoToRows
+  // falls back to the request instant when the provider omits its own
+  // timestamp, so a live row can date itself "now" with nobody having checked
+  // anything. The live layer speaks only through its own sourceObservedAt.
+  const liveRows = new Set(live.rows);
+  const kindObservedAt: WhatsOnKindObservedAt = {};
+  const bundledRowTimes: Array<string | null> = [];
+  for (const row of rows) {
+    const fromLive = liveRows.has(row);
+    // A bundled row dates itself. A live row is dated by the provider's own
+    // stated observation or not at all, so a kind carried entirely by the live
+    // layer is still datable when the provider said when it looked.
+    const observed = fromLive ? live.sourceObservedAt : canonicalPastIso(row.observedAt, now);
+    if (!observed) continue;
+    if (!fromLive) bundledRowTimes.push(observed);
+    const held = kindObservedAt[row.kind];
+    if (!held || Date.parse(observed) > Date.parse(held)) kindObservedAt[row.kind] = observed;
+  }
+
+  // The freshest confirmation available at request time, across the artifacts'
+  // own build dates, the rows this answer actually carries, and the live
+  // provider's stated observation. Never the request instant: `servedAt` is a
+  // separate field and stays out of this.
+  const bundledObservedAt = freshestIso([datasetObservedAt, ...bundledRowTimes]);
   let sourceObservedAt: string | null = null;
   let sourceFreshnessKind: WhatsOnSourceFreshnessKind = "unknown";
-  if (live.sourceObservedAt) {
+  if (
+    live.sourceObservedAt &&
+    (!bundledObservedAt || Date.parse(live.sourceObservedAt) >= Date.parse(bundledObservedAt))
+  ) {
     sourceObservedAt = live.sourceObservedAt;
     sourceFreshnessKind = "provider-observed";
-  } else if ((liveFailed || live.rows.length === 0) && datasetObservedAt) {
-    sourceObservedAt = datasetObservedAt;
+  } else if (bundledObservedAt) {
+    sourceObservedAt = bundledObservedAt;
     sourceFreshnessKind = "dataset-generated";
   }
 
@@ -275,6 +326,7 @@ export async function loadWhatsOn(
     servedAt,
     sourceObservedAt,
     sourceFreshnessKind,
+    kindObservedAt,
     localityBasis,
     asOf: sourceObservedAt,
   };

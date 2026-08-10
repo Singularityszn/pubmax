@@ -75,6 +75,36 @@ describe("loadWhatsOnTonight (W1 primary-spine loader)", () => {
     expect(result.sourceObservedAt).toBe("2026-07-12T10:00:00.000Z");
   });
 
+  it("carries a per-kind source date through, so one lane cannot borrow another's", async () => {
+    const result = await loadWhatsOnTonight({
+      fetchImpl: async () =>
+        jsonResponse({
+          rows: [validRow],
+          sourceObservedAt: "2026-08-10T08:43:37.191Z",
+          sourceFreshnessKind: "dataset-generated",
+          kindObservedAt: {
+            deal: "2026-08-10T08:43:37.191Z",
+            music: "2026-07-18T21:25:03.316Z",
+            // Unusable values must not become a date printed beside a listing.
+            quiz: "not-a-time",
+            nonsense: "2026-08-10T08:43:37.191Z",
+          },
+          asOf: "2026-08-10T08:43:37.191Z",
+        }),
+    });
+    expect(result.kindObservedAt).toEqual({
+      deal: "2026-08-10T08:43:37.191Z",
+      music: "2026-07-18T21:25:03.316Z",
+    });
+  });
+
+  it("carries no per-kind dates when the server sends none", async () => {
+    const result = await loadWhatsOnTonight({
+      fetchImpl: async () => jsonResponse({ rows: [validRow], asOf: "2026-07-12T10:00:00.000Z" }),
+    });
+    expect(result.kindObservedAt).toEqual({});
+  });
+
   it("reports unknown freshness with no source time on an outage", async () => {
     const result = await loadWhatsOnTonight({ fetchImpl: async () => jsonResponse({}, false) });
     expect(result.status).toBe("error");

@@ -22,7 +22,13 @@ import {
   readSurfaceSnapshot,
   writeSurfaceSnapshot,
 } from "@/lib/surfaceDataCache";
-import { isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
+import {
+  EMPTY_KIND_OBSERVED_AT,
+  isValidWhatsOnRow,
+  parseKindObservedAt,
+  type WhatsOnKindObservedAt,
+  type WhatsOnRow,
+} from "@/lib/whatsOn";
 import {
   summariseWhatsOnByVenue,
   type VenueWhatsOnSummary,
@@ -39,6 +45,7 @@ type ApiResponse = {
   asOf?: string | null;
   sourceObservedAt?: string | null;
   sourceFreshnessKind?: unknown;
+  kindObservedAt?: unknown;
   error?: string;
 };
 
@@ -56,6 +63,7 @@ export type WhatsOnTonight = {
   asOf: string | null;
   sourceObservedAt: string | null;
   sourceFreshnessKind: TonightFreshnessKind;
+  kindObservedAt: WhatsOnKindObservedAt;
   status: WhatsOnTonightStatus;
   retry: () => void;
 };
@@ -91,6 +99,7 @@ export type LoadTonightResult = {
   asOf: string | null;
   sourceObservedAt: string | null;
   sourceFreshnessKind: TonightFreshnessKind;
+  kindObservedAt: WhatsOnKindObservedAt;
   status: "ready" | "empty" | "error";
 };
 
@@ -125,14 +134,14 @@ export async function loadWhatsOnTonight(
       headers: { accept: "application/json" },
     });
     if (!res.ok) {
-      return { rows: [], asOf: null, sourceObservedAt: null, sourceFreshnessKind: "unknown", status: "error" };
+      return { rows: [], asOf: null, sourceObservedAt: null, sourceFreshnessKind: "unknown", kindObservedAt: EMPTY_KIND_OBSERVED_AT, status: "error" };
     }
     const body = (await res.json()) as ApiResponse;
     if (typeof body.error === "string" && body.error.trim().length > 0) {
       // Preserve any echoed asOf (the error state shows an outage, not a freshness
       // line, so this never surfaces as a check) but the source kind stays unknown.
       const echoed = body.sourceObservedAt ?? body.asOf ?? null;
-      return { rows: [], asOf: echoed, sourceObservedAt: echoed, sourceFreshnessKind: "unknown", status: "error" };
+      return { rows: [], asOf: echoed, sourceObservedAt: echoed, sourceFreshnessKind: "unknown", kindObservedAt: EMPTY_KIND_OBSERVED_AT, status: "error" };
     }
     const rows = Array.isArray(body.rows)
       ? body.rows.filter((r): r is WhatsOnRow => isValidWhatsOnRow(r))
@@ -144,11 +153,12 @@ export async function loadWhatsOnTonight(
       asOf: sourceObservedAt,
       sourceObservedAt,
       sourceFreshnessKind: parseFreshnessKind(body.sourceFreshnessKind),
+      kindObservedAt: parseKindObservedAt(body.kindObservedAt),
       status: rows.length === 0 ? "empty" : "ready",
     };
   } catch {
     // Network failure or timeout abort — an outage, not a quiet night.
-    return { rows: [], asOf: null, sourceObservedAt: null, sourceFreshnessKind: "unknown", status: "error" };
+    return { rows: [], asOf: null, sourceObservedAt: null, sourceFreshnessKind: "unknown", kindObservedAt: EMPTY_KIND_OBSERVED_AT, status: "error" };
   } finally {
     clearTimeout(timer);
     opts.signal?.removeEventListener("abort", onOuterAbort);
@@ -164,6 +174,7 @@ export function useWhatsOnTonight(
   const [rows, setRows] = useState<WhatsOnRow[]>([]);
   const [asOf, setAsOf] = useState<string | null>(null);
   const [sourceFreshnessKind, setSourceFreshnessKind] = useState<TonightFreshnessKind>("unknown");
+  const [kindObservedAt, setKindObservedAt] = useState<WhatsOnKindObservedAt>(EMPTY_KIND_OBSERVED_AT);
   const [status, setStatus] = useState<WhatsOnTonightStatus>("idle");
   const [retryAttempt, setRetryAttempt] = useState(0);
   const retry = useCallback(() => {
@@ -182,6 +193,7 @@ export function useWhatsOnTonight(
         setRows([]);
         setAsOf(null);
         setSourceFreshnessKind("unknown");
+        setKindObservedAt(EMPTY_KIND_OBSERVED_AT);
         setStatus("empty");
       });
       return;
@@ -197,6 +209,7 @@ export function useWhatsOnTonight(
       setRows(result.rows);
       setAsOf(result.asOf);
       setSourceFreshnessKind(result.sourceFreshnessKind);
+      setKindObservedAt(result.kindObservedAt ?? EMPTY_KIND_OBSERVED_AT);
       setStatus(result.status);
     };
 
@@ -236,5 +249,5 @@ export function useWhatsOnTonight(
     [rows],
   );
 
-  return { rows, summary, asOf, sourceObservedAt: asOf, sourceFreshnessKind, status, retry };
+  return { rows, summary, asOf, sourceObservedAt: asOf, sourceFreshnessKind, kindObservedAt, status, retry };
 }

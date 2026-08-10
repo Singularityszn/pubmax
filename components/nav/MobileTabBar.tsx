@@ -22,6 +22,11 @@ import {
   type TourSpotlightTarget,
 } from "@/components/nav/navigationModel";
 import { requestMobileSheetDismiss } from "@/lib/mobileShell";
+import {
+  readSoftKeyboardOpen,
+  serverSoftKeyboardOpen,
+  subscribeSoftKeyboard,
+} from "@/lib/softKeyboard";
 import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
@@ -111,6 +116,16 @@ export default function MobileTabBar() {
   // the sentinel: one extra hop beats naming the wrong person.
   const youHandle = useViewerHandle();
   const youHref = youHandle ? `/u/${encodeURIComponent(youHandle)}` : "/u/you";
+  // The bar is fixed to the LAYOUT viewport, which no phone browser shrinks for
+  // the keyboard, so it floats over whatever is being typed into. lib/softKeyboard.ts
+  // owns the rule (a focused text field AND a shrunken visual viewport); here it
+  // only ever adds a class, and the CSS slides the bar out by transform alone so
+  // the reserved body clearance never moves under the caret.
+  const keyboardOpen = useSyncExternalStore(
+    subscribeSoftKeyboard,
+    readSoftKeyboardOpen,
+    serverSoftKeyboardOpen,
+  );
   const returnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`;
   const tabs = useMemo(
     () => buildTabs(mapHref, returnTo, youHref),
@@ -161,7 +176,16 @@ export default function MobileTabBar() {
   );
 
   return (
-    <nav className="mobileTabBar" role="navigation" aria-label="Primary">
+    <nav
+      className={"mobileTabBar" + (keyboardOpen ? " isKeyboardHidden" : "")}
+      role="navigation"
+      aria-label="Primary"
+      // Hidden from the reader means hidden from a screen reader too: a bar
+      // that has slid off the bottom of the screen must not still be a tab stop
+      // above the keyboard.
+      aria-hidden={keyboardOpen || undefined}
+      inert={keyboardOpen || undefined}
+    >
       {/* --tab-count feeds the count-driven layout model in mobileNav.css:
           column width and highlight geometry all derive from it (and from
           --tab-inset), so the CSS never assumes a tab total. */}
