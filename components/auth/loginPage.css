@@ -265,14 +265,30 @@
   justify-items: start;
 }
 
+/* One class, two element kinds: a Link (Browse without signing in) and three
+   buttons (the handle-and-password toggle, its way back, the welcome-back
+   switch). A class that dresses only the TEXT leaves the browser's own button
+   chrome on the button branch, and that is what the password door shipped as:
+   a grey fill, a 2px outset border, square corners and a 22px box beside a
+   44px accent button. So the reset belongs to the class, never to the caller.
+   The tap floor is here for the same reason. */
 .loginPageQuietLink {
+  appearance: none;
+  -webkit-appearance: none;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--ink-soft);
+  font-family: inherit;
   font-size: 0.86rem;
   font-weight: 650;
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .loginPageQuietLink:hover {

@@ -622,8 +622,11 @@
     border: 1px solid var(--sheet-material-border);
     background: var(--sheet-material);
     box-shadow: var(--sheet-material-shadow);
-    backdrop-filter: blur(20px) saturate(1.08);
+    /* Prefix first, standard last: the minifier keeps only the LAST of the
+       pair, so the other order shipped this sheet with a dead `-webkit-` alias
+       and no blur at all (see the same note on `.mapDrawer` in globals.css). */
     -webkit-backdrop-filter: blur(20px) saturate(1.08);
+    backdrop-filter: blur(20px) saturate(1.08);
     overflow: hidden;
     contain: layout paint;
     /* Override the legacy .mapDrawer bottom-sheet transform (globals.css @768:
@@ -852,8 +855,10 @@
   }
   .mobileSharedSheet.mapDrawer {
     background: var(--sheet-material-solid);
-    backdrop-filter: none;
+    /* Prefix first, standard last: the opt-out only reaches the browser if the
+       standard property is the survivor. */
     -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 
@@ -861,8 +866,10 @@
   .mobileMapTopbar, .mobileMapLocateFab, .mobileMapNearMeAlert, .mobileSharedSheet.mapDrawer { border-width: 2px; }
   .mobileSharedSheet.mapDrawer {
     background: var(--sheet-material-solid);
-    backdrop-filter: none;
+    /* Prefix first, standard last: the opt-out only reaches the browser if the
+       standard property is the survivor. */
     -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 

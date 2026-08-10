@@ -160,6 +160,38 @@ export function toPublicProfile(
   };
 }
 
+/**
+ * How far the public read of one handle has got. TRI-STATE for the same reason
+ * `identityResolved` is: "we asked and nobody owns this" and "we could not ask"
+ * are different answers, and only one of them may be acted on.
+ */
+export type PublicProfileReadState = "asking" | "answered" | "failed";
+
+/**
+ * Whether a signed-out visitor may adopt this handle as their own device
+ * identity (the legacy self-asserted claim, `pubmax_handle`).
+ *
+ * The rule is the narrow one: ONLY a handle the public read has ANSWERED about
+ * and reported as belonging to nobody. A handle with a durable profile row has
+ * an owner - a face, a bio, sometimes a founding number - and offering a
+ * stranger the word "claim" under that person's name is the loudest way an
+ * interface can say the wrong thing. A tombstoned handle is not free either:
+ * recycling it would mean the same mark named two people. And a read that
+ * FAILED may never be reported as an empty handle, because the offer is only
+ * ever made on evidence.
+ */
+export function handleIsAdoptable(input: {
+  read: PublicProfileReadState;
+  /** The durable profile row the public read returned, or null for none. */
+  ownerProfile: PublicProfile | null;
+  /** The handle's account was tombstoned; its number stays spent. */
+  tombstoned: boolean;
+}): boolean {
+  if (input.read !== "answered") return false;
+  if (input.tombstoned) return false;
+  return input.ownerProfile === null;
+}
+
 export type ProfileStats = {
   pintsLogged: number;
   // Cheapest priced pint in GBP, or null when the handle has no priced drops

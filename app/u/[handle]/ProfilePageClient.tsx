@@ -44,12 +44,14 @@ import { buildProfileBadgeEventOptions } from "@/lib/profileBadgeEventGate";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import {
   deriveProfileFromDrops,
+  handleIsAdoptable,
   normalizeHandle,
   profileStats,
   withStoredProfile,
   type Profile,
   type ProfileDrop,
   type PublicProfile,
+  type PublicProfileReadState,
 } from "@/lib/profiles";
 import {
   fetchFollowedListsForHandle,
@@ -241,6 +243,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
   // Null profile → fall back to the synthesized-from-drops identity.
   const [stored, setStored] = useState<PublicProfile | null>(null);
+  // Whether that read has ANSWERED yet. Separate from `stored`, because
+  // "nobody owns this handle" and "we could not find out" are two answers and
+  // only the first one may offer a stranger the claim (`handleIsAdoptable`).
+  const [publicRead, setPublicRead] = useState<PublicProfileReadState>("asking");
   const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
   const [following, setFollowing] = useState(false);
   // The mirror edge. Without it the header cannot tell "Mates" from
@@ -459,7 +465,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       // The viewer rides in the key, so one account never reads another's
       // follow edge; the whole store is dropped at an account boundary anyway
       // (lib/surfaceDataCache.ts). Failures keep the synthesized fallback.
-      await loadSurfaceJson<{
+      const outcome = await loadSurfaceJson<{
         profile?: PublicProfile | null;
         status?: string;
         socialLinks?: PublicSocialLink[];
@@ -484,6 +490,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           setFollowsViewer(Boolean(body.followsViewer));
         },
       );
+      // What the PUBLIC read managed to say about this handle, kept apart from
+      // what it said. `handleIsAdoptable` may only ever act on an answer.
+      if (!controller.signal.aborted) {
+        setPublicRead(outcome === "failed" ? "failed" : "answered");
+      }
     }
     void loadProfile();
     return () => controller.abort();
@@ -497,6 +508,15 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = viewerHandle !== "" && viewerHandle === routeHandle;
   const isAnonymous = identityResolved && !user && viewerHandle === "";
+  // A stranger may only adopt a handle NOBODY owns. The offer used to ride on
+  // `isAnonymous` alone, so a signed-out visitor met "Claim this handle" under
+  // a founding member's face, bio and number - and taking it wrote their handle
+  // onto this device and opened the edit surface.
+  const canAdoptHandle = handleIsAdoptable({
+    read: publicRead,
+    ownerProfile: stored,
+    tombstoned: state === "gone",
+  });
   // Signed-out /u/you: the viewer has no handle yet. This is an INVITATION, not a
   // profile — so it shows only the honest "make the night yours" intro + the
   // claim/account surface, never the pseudo-profile scaffolding (a "@you"
@@ -629,10 +649,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
   // Header action slot. Three mutually-exclusive states:
   //  • own profile  → Edit (toggles the inline editor)
-  //  • anonymous    → Claim this handle (adopt it, then edit)
+  //  • anonymous, on a handle NOBODY owns → Claim this handle (adopt, then edit)
   //  • other viewer → Follow
+  // The claim's second condition is the whole point: it is an offer about an
+  // EMPTY handle, so it may only be made once the public read has answered and
+  // reported no owner (`handleIsAdoptable`). An anonymous viewer on somebody
+  // else's profile falls through to Follow, which is what they came for.
   // On the /u/you sentinel route we never offer "Claim this handle" ("you" isn't
-  // a real handle to adopt) — the passport's first-run CTA drives the next step.
+  // a real handle to adopt) - the passport's first-run CTA drives the next step.
   // An unresolved viewer gets no identity-bearing action at all: a Follow
   // button carrying the wrong actor is worse than one that arrives a beat late.
   const headerActions = !identityResolved ? null : isOwnProfile ? (
@@ -659,7 +683,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       </button>
       <Link className="profilePalLink" href="/pal">Meet your Pub Pal</Link>
     </>
-  ) : isAnonymous && !isYouRoute ? (
+  ) : isAnonymous && !isYouRoute && canAdoptHandle ? (
     <button type="button" className="profileClaimBtn" onClick={claimHandle}>
       Claim this handle
     </button>

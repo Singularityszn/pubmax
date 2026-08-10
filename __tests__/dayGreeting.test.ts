@@ -13,7 +13,7 @@ const DATE_LABEL = "Saturday 25 Jul";
 function brief(overrides: Partial<WeatherBrief> = {}): WeatherBrief {
   return {
     dateLabel: DATE_LABEL,
-    tempLabel: "24C",
+    tempLabel: "24°C",
     conditionLabel: "clear",
     verdictLine: "Beer garden weather. Lager or cider.",
     ruleId: "summer-garden",
@@ -53,7 +53,7 @@ describe("buildDayGreeting", () => {
     expect(greeting.slot).toBe("evening");
     expect(greeting.salutation).toBe("Good evening");
     expect(greeting.headline).toBe("Golden evening for a beer garden.");
-    expect(greeting.support).toBe("Saturday 25 Jul, 24C and clear in London.");
+    expect(greeting.support).toBe("Saturday 25 Jul, 24°C and clear in London.");
     expect(greeting.weatherAware).toBe(true);
   });
 
@@ -80,13 +80,13 @@ describe("buildDayGreeting", () => {
   it("describes the rule behind the displayed reading, not only its shared lens", () => {
     const now = new Date("2026-07-25T23:30:00.000Z");
     const warmRain = brief({
-      tempLabel: "24C",
+      tempLabel: "24°C",
       conditionLabel: "cloudy",
       venueLens: "fireplace",
       ruleId: "hard-rain",
     });
     const cold = brief({
-      tempLabel: "7C",
+      tempLabel: "7°C",
       conditionLabel: "cloudy",
       venueLens: "fireplace",
       ruleId: "cold",
@@ -103,10 +103,10 @@ describe("buildDayGreeting", () => {
       dateLabel: DATE_LABEL,
     });
 
-    expect(warmGreeting.support).toContain("24C");
+    expect(warmGreeting.support).toContain("24°C");
     expect(warmGreeting.headline).toContain("Rain");
     expect(warmGreeting.headline).not.toContain("Cold");
-    expect(coldGreeting.support).toContain("7C");
+    expect(coldGreeting.support).toContain("7°C");
     expect(coldGreeting.headline).toContain("Cold");
   });
 
@@ -142,7 +142,7 @@ describe("buildDayGreeting", () => {
       weather: brief({ stale: true }),
       dateLabel: DATE_LABEL,
     });
-    expect(greeting.support).toBe("Saturday 25 Jul. Last read of the sky: 24C and clear.");
+    expect(greeting.support).toBe("Saturday 25 Jul. Last read of the sky: 24°C and clear.");
     expect(greeting.support).not.toContain("in London");
   });
 

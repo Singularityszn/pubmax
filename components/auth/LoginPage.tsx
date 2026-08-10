@@ -27,6 +27,11 @@ import "./loginPage.css";
  * person actually notices: what the page says, what the email is for, and where
  * they end up. A returning drinker goes back to the page they came from; a new
  * one goes to the surface that finishes their account.
+ *
+ * The legal lead-in is the fourth thing, and it lives here for the same reason
+ * the other three do: it was a single hardcoded sentence, so the door that
+ * CREATES an account told the reader they were agreeing to the terms "by
+ * signing in", which is not the thing they were about to do.
  */
 const DOORS: Record<
   ArrivalIntent,
@@ -36,6 +41,7 @@ const DOORS: Record<
     lead: string;
     emailLabel: string;
     emailCta: string;
+    legalLead: string;
   }
 > = {
   signin: {
@@ -44,6 +50,7 @@ const DOORS: Record<
     lead: "Your prices, plans and nights are on your account. Pick up where you left off.",
     emailLabel: "Sign in with your email",
     emailCta: "Email me a sign-in link",
+    legalLead: "By signing in you agree to the",
   },
   signup: {
     tab: "New here",
@@ -51,6 +58,7 @@ const DOORS: Record<
     lead: "Log a pint price, plan a crawl, keep your nights. Takes a handle and a minute.",
     emailLabel: "Create your account with email",
     emailCta: "Email me a sign-up link",
+    legalLead: "By creating an account you agree to the",
   },
 };
 
@@ -456,7 +464,7 @@ export default function LoginPage({
             Browse without signing in
           </Link>
           <p className="loginPageLegal">
-            By signing in you agree to the{" "}
+            {door.legalLead}{" "}
             <Link href="/terms">terms</Link> and{" "}
             <Link href="/privacy">privacy notice</Link>.
           </p>

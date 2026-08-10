@@ -505,6 +505,12 @@
 .lpFooterSmallPrint a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-soft); font: 650 12px/1 var(--font-data); letter-spacing: .04em; text-decoration: none; }
 .lpFooterSmallPrint a:hover { color: var(--ink); }
 .lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-data); }
+/* The drinkaware link had no rule at all, so it took the browser's own link
+   colour: rgb(158,158,255), the one periwinkle thing on the site, in the legal
+   line of the front door. The profile's floor already styles its copy of this
+   link (`.profileFloor a`); the footer now says the same thing. */
+.lpFooterLegal a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.lpFooterLegal a:hover { color: var(--ink); }
 
 @media (hover: hover) and (pointer: fine) { .thamesHeroHintTouch { display: none; }.thamesHeroHintPointer { display: inline; } }
 

@@ -1411,8 +1411,16 @@ input[type="range"] {
   max-width: 92vw;
   background: var(--sheet-material);
   box-shadow: var(--sheet-material-shadow);
-  backdrop-filter: blur(20px) saturate(1.08);
+  /* PREFIX FIRST, STANDARD LAST, and it is not a style preference. The CSS
+     minifier treats the two as one logical property and keeps whichever is
+     declared LAST, so the old standard-then-prefix order shipped a rule with
+     only `-webkit-backdrop-filter` in it. Chrome no longer honours that alias,
+     so this sheet went out over the map at 82% opacity with NO blur: road
+     lines, pins and the map's own place labels read straight through a panel
+     of prices. Tailwind's own backdrop utilities in the same bundle survive
+     because they are written in this order. */
   -webkit-backdrop-filter: blur(20px) saturate(1.08);
+  backdrop-filter: blur(20px) saturate(1.08);
   overflow-y: auto;
   scrollbar-width: thin;
   /* iOS-like drawer travel — a sheet sliding in from the edge reads best on the
@@ -1502,6 +1510,47 @@ input[type="range"] {
   justify-self: center;
 }
 
+/* MapLibre's own zoom control, dressed as one of ours.
+   It ships a white box with a 4px radius and a hairline shadow, which on this
+   map was the only pure-white, square-cornered thing on screen: every other
+   floater is a dark pill on the app's own panel surface. The phone shell
+   already re-homed and re-shaped this group (components/mobile/mobileMapShell
+   .css) and hides the zoom pair there; this is the desktop half of the same
+   job, so the control reads as map chrome rather than as the library's.
+   Scoped through .appShell .mapStage for a reason: MapLibre's own sheet loads
+   after ours, so a bare `.maplibregl-ctrl-group` loses `background` and
+   `border-radius` back to the white box while keeping the properties MapLibre
+   does not set - a half-themed control, which is worse than none. */
+.appShell .mapStage .maplibregl-ctrl-group {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  box-shadow: var(--map-overlay-shadow-tight);
+}
+
+.appShell .mapStage .maplibregl-ctrl-group button {
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.appShell .mapStage .maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--line);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .appShell .mapStage .maplibregl-ctrl-group button:hover {
+    background: var(--panel);
+    color: var(--ink);
+  }
+}
+
+/* The glyphs are background images drawn dark for a white control, so on the
+   dark surface they are inverted rather than re-drawn. Light is the default
+   theme here (`html:not([data-theme="dark"])`), so only dark opts in. */
+html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.6);
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .mapDrawer {
     background: var(--sheet-material-solid);
@@ -1511,8 +1560,11 @@ input[type="range"] {
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   .mapDrawer {
     background: var(--sheet-material-solid);
-    backdrop-filter: none;
+    /* Same order rule as the base above: the LAST of the pair is the one that
+       survives the build, and this opt-out only means anything if the standard
+       property is the one that reaches the browser. */
     -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 

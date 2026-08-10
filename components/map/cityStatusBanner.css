@@ -56,14 +56,30 @@
   border-color: color-mix(in srgb, var(--amber) 50%, var(--line));
 }
 
+/* The headline is an <a> when it points at a source, a <span> when it points
+   nowhere, and a <button> when the banner has a feed to open. Only the button
+   branch inherits the browser's own chrome, so a class that set colour and
+   nothing else painted a live disruption warning on a grey UA slab. The reset
+   lives with the class, the way .loginPageQuietLink's does. */
 .cityStatusBannerLink {
+  appearance: none;
+  -webkit-appearance: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--ink);
+  text-align: left;
   text-decoration: none;
-  font-family: inherit;
+  /* `font` and not `font-family`: a <button> inherits neither size nor weight,
+     so the old family-only rule left the button branch at the UA's 13.33px
+     while the <a> beside it took the banner's own size. */
+  font: inherit;
+  cursor: pointer;
 }
 
 a.cityStatusBannerLink:hover {

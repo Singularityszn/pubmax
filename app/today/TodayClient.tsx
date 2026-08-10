@@ -10,10 +10,16 @@
 // empty state) takes its band from lib/dayGreeting.ts rather than hardcoding
 // one, so the page never greets a viewer with somebody else's hour. No em
 // dashes in any copy.
+//
+// Two arrows, and they mean two different things. `ExternalLink` rides a link
+// that leaves the site; `ArrowRight` rides one that stays on it. Every internal
+// link here used to carry the diagonal `ArrowUpRight`, which is the glyph a
+// reader has learnt means "this opens somewhere else" - so "See everything on
+// tonight", a link to /tonight, promised a new tab it never opened.
 
 import Link from "next/link";
 import {
-  ArrowUpRight,
+  ArrowRight,
   Beer,
   CalendarClock,
   CloudSun,
@@ -194,7 +200,7 @@ function PicksCard({
                     ) : (
                       <Link className="todayPickLink pressable" href={pick.href}>
                         {inner}
-                        <ArrowUpRight size={14} aria-hidden="true" className="todayPickArrow" />
+                        <ArrowRight size={14} aria-hidden="true" className="todayPickArrow" />
                       </Link>
                     )
                   ) : (
@@ -207,7 +213,7 @@ function PicksCard({
           <p className="todayCardFootRow">
             <Link href="/tonight" className="todayCardFootLink">
               See everything on tonight
-              <ArrowUpRight size={14} aria-hidden="true" />
+              <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </p>
         </>
@@ -221,7 +227,7 @@ function PicksCard({
           <p className="todayCardFootRow">
             <Link href="/map" className="todayCardFootLink">
               Meanwhile, the map knows the cheap pints
-              <ArrowUpRight size={14} aria-hidden="true" />
+              <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </p>
         </>
@@ -388,11 +394,11 @@ export default function TodayClient({
       <p className="todayFoot">
         <Link href="/tonight" className="todayCardFootLink">
           Jump to tonight
-          <ArrowUpRight size={14} aria-hidden="true" />
+          <ArrowRight size={14} aria-hidden="true" />
         </Link>
         <Link href="/plan" className="todayCardFootLink">
           Plan an outing
-          <ArrowUpRight size={14} aria-hidden="true" />
+          <ArrowRight size={14} aria-hidden="true" />
         </Link>
         <Link href="/map" className="todayCardFootLink">
           <Beer size={14} aria-hidden="true" />
