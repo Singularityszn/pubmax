@@ -20,8 +20,6 @@
 //    together. Hiding never deletes: the row, its bytes and its report trail
 //    stay, so the decision is reversible from the surface that made it.
 
-import { randomUUID } from "node:crypto";
-
 import {
   createFailSoftGuard,
   onMissingDurableWrite,
@@ -170,7 +168,6 @@ const byId = new Map<string, VenuePhoto>();
 export const memoryVenuePhotoStore: VenuePhotoStore = {
   async create(fields, now = Date.now()) {
     const photo: VenuePhoto = {
-      id: fields.objectKey.split("/").pop()?.replace(/\.jpg$/, "") ?? randomUUID(),
       ...fields,
       moderationState: "approved",
       createdAt: new Date(now).toISOString(),
@@ -312,7 +309,6 @@ function fromRow(row: Record<string, unknown>): VenuePhoto {
 export const supabaseVenuePhotoStore: VenuePhotoStore = {
   async create(fields, now = Date.now()) {
     const photo: VenuePhoto = {
-      id: fields.objectKey.split("/").pop()?.replace(/\.jpg$/, "") ?? randomUUID(),
       ...fields,
       moderationState: "approved",
       createdAt: new Date(now).toISOString(),

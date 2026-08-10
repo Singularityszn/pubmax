@@ -140,6 +140,13 @@ export type VenuePhotoDTO = {
 };
 
 export type VenuePhotoFields = {
+  /**
+   * The photo's own id, minted by the writer BEFORE the bytes are staged,
+   * because the storage key is built from it. Passing it explicitly is what
+   * keeps the row and its object in agreement: deriving one from the other
+   * would let a memory-store write drift into a row whose serve route 404s.
+   */
+  id: string;
   venueId: string;
   authorActor: string;
   authorProfileId: string;

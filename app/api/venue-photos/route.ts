@@ -326,6 +326,7 @@ export async function POST(request: Request): Promise<Response> {
     staged = null;
 
     const created = await store.create({
+      id: photoId,
       venueId: submission.venueId,
       authorActor: contributor.actor,
       authorProfileId: profileId,

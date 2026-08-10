@@ -163,7 +163,16 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
     overviewMore.getByText("Details and practical info", { exact: true }),
   ).toBeVisible();
   await expect(overviewMore.locator(".venueOverviewMoreBody")).toBeHidden();
-  await expect(portal.locator(".venuePriceSubmit")).toBeVisible();
+  // The price ENTRY POINT is reachable, in whichever form this session earns.
+  // The inline form only mounts for an account that may submit, so asserting it
+  // outright made this line depend on whether the run had auth configured - and
+  // it sat unreachable behind the icon assertion above for long enough that
+  // nobody noticed. A signed-out visitor's way in is the command bar.
+  const inlinePriceForm = portal.locator(".venuePriceSubmit");
+  const addPriceCommand = portal.getByRole("button", { name: /add price/i });
+  await expect
+    .poll(async () => (await inlinePriceForm.count()) + (await addPriceCommand.count()))
+    .toBeGreaterThan(0);
 
   for (const { label, panelId } of TABS) {
     const tab = tablist.getByRole("tab", { name: label, exact: true });

@@ -249,6 +249,7 @@ describe("posting a photo to a wall", () => {
     for (let i = 0; i < VENUE_PHOTO_CAP_PER_ACCOUNT; i += 1) {
       const photoId = crypto.randomUUID();
       await store.create({
+        id: photoId,
         venueId: VENUE,
         authorActor: `profile:${identityState.profileId}`,
         authorProfileId: identityState.profileId,

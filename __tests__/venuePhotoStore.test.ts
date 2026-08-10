@@ -37,6 +37,7 @@ function fields(
   const { photoId = crypto.randomUUID(), ...rest } = overrides;
   const venueId = rest.venueId ?? VENUE;
   return {
+    id: photoId,
     venueId,
     authorActor: `profile:${profileId}`,
     authorProfileId: profileId,
