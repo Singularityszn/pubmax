@@ -8,6 +8,7 @@ import {
   requireSupabaseAdmin,
   STORAGE_BUCKET,
 } from "@/lib/supabase";
+import { uploadUploadedImageObject } from "@/lib/uploadedImage.server";
 
 export const SOCIAL_PHOTO_MAX_BYTES = 10 * 1024 * 1024;
 export const SOCIAL_PHOTO_MAX_DIMENSION = 12_000;
@@ -127,9 +128,9 @@ export const supabaseSocialPhotoStorage: SocialPhotoStorage = {
     if (!isSupabaseConfigured()) {
       throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
     }
-    const { error } = await requireSupabaseAdmin()
-      .storage.from(STORAGE_BUCKET)
-      .upload(path, bytes, { contentType, upsert: true });
+    // Through the shared writer: a feed photo is the same bytes taking the same
+    // storage-js branch, so it had the same corrupted write.
+    const error = await uploadUploadedImageObject(path, bytes, contentType);
     if (error) throw new SocialPhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
   },
   async remove(paths) {

@@ -21,6 +21,10 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 const bucket = vi.hoisted(() => ({
   objects: new Map<string, Buffer>(),
   downloadError: null as { message: string } | null,
+  /** Every body the adapter handed storage-js, in call order. */
+  bodies: [] as unknown[],
+  /** Mangle even a correctly wrapped write, to drive the write-side proof. */
+  corruptWrites: false,
 }));
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
@@ -31,8 +35,19 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   const from = (bucketId: string) => {
     const at = (path: string) => `${bucketId}/${path}`;
     return {
-      async upload(path: string, body: Uint8Array) {
-        bucket.objects.set(at(path), Buffer.from(body));
+      // The runtime that broke prod, modelled rather than described.
+      // `uploadOrUpdate` builds a multipart body for a Blob and ONLY for a
+      // Blob; anything else is handed to `fetch` raw, and there the bytes were
+      // string-decoded. So a non-Blob body mangles here exactly as it did on
+      // Vercel - which is what makes every assertion below a real fence.
+      async upload(path: string, body: unknown) {
+        bucket.bodies.push(body);
+        let bytes =
+          body instanceof Blob
+            ? Buffer.from(await body.arrayBuffer())
+            : Buffer.from(Buffer.from(body as Uint8Array).toString("utf8"), "utf8");
+        if (bucket.corruptWrites) bytes = Buffer.from(bytes.toString("utf8"), "utf8");
+        bucket.objects.set(at(path), bytes);
         return { data: { path }, error: null };
       },
       async remove(paths: string[]) {
@@ -121,6 +136,20 @@ function approvedProfile(objectKey: string): ProfileRecord {
   };
 }
 
+/**
+ * Everything the logger emitted. `log` splits levels across two console
+ * methods on purpose (errors survive stdout filtering), so a test that watched
+ * one of them would miss the line it is asserting on.
+ */
+function captureLog(): () => string {
+  const spies = [
+    vi.spyOn(console, "log").mockImplementation(() => {}),
+    vi.spyOn(console, "error").mockImplementation(() => {}),
+  ];
+  return () =>
+    spies.flatMap((spy) => spy.mock.calls.map(([line]) => String(line))).join("\n");
+}
+
 /** The serve route with its REAL download, pointed at the same fake bucket. */
 function serve(profile: ProfileRecord): Promise<Response> {
   __setAvatarServeRouteDepsForTest({ getProfileById: async () => profile });
@@ -132,7 +161,9 @@ function serve(profile: ProfileRecord): Promise<Response> {
 beforeEach(() => {
   limitState.limited = false;
   bucket.objects.clear();
+  bucket.bodies.length = 0;
   bucket.downloadError = null;
+  bucket.corruptWrites = false;
   __setAvatarServeRouteDepsForTest(null);
 });
 
@@ -166,6 +197,89 @@ describe("owned image: upload then serve, over one bucket", () => {
     const downloaded = await downloadProfileImageObject(objectKey);
     expect(downloaded?.contentType).toBe("image/jpeg");
     expect(downloaded?.bytes.subarray(0, 3)).toEqual(Buffer.from([0xff, 0xd8, 0xff]));
+  });
+});
+
+// The prod defect: `GET /api/avatar/...` 404'd with `magic_bytes_mismatch,
+// "61942 bytes, leading ef bf bd ef"`. `ef bf bd` is the UTF-8 replacement
+// character, so the STORED object was the JPEG decoded as text and re-encoded.
+// The upload route checked real magic bytes on sharp's output immediately
+// before handing it over, which put the mangling between our `.upload()` call
+// and the bucket: storage-js passes a raw Buffer body straight to `fetch`, and
+// only a Blob takes its multipart branch.
+describe("bytes reach the bucket as bytes", () => {
+  it("hands storage-js a Blob, not a Buffer", async () => {
+    await uploadAvatar();
+
+    expect(bucket.bodies.length).toBeGreaterThan(0);
+    for (const body of bucket.bodies) {
+      expect(body).toBeInstanceOf(Blob);
+      expect(Buffer.isBuffer(body)).toBe(false);
+    }
+  });
+
+  it("keeps the content type on the option, which the Blob branch sends", async () => {
+    await uploadAvatar();
+    for (const body of bucket.bodies) {
+      expect((body as Blob).type).toBe("image/jpeg");
+    }
+  });
+
+  // The exact prod bytes, reproduced: a runtime that string-decodes the body.
+  it("round-trips a JPEG through the runtime that mangled a raw Buffer", async () => {
+    const { objectKey, bytes } = await uploadAvatar();
+
+    const stored = bucket.objects.get(`${STORAGE_BUCKET}/${objectKey}`);
+    expect(stored?.equals(bytes)).toBe(true);
+    expect(stored?.subarray(0, 3)).toEqual(Buffer.from([0xff, 0xd8, 0xff]));
+  });
+});
+
+// A mangled write answers 200, so nothing upstream noticed for days. Promotion
+// now reads its own serving key back, and refuses an upload it could not serve
+// while there is still a person on the other end of the request.
+describe("promotion proves its own write", () => {
+  it("refuses the upload when the stored object is not the JPEG we made", async () => {
+    bucket.corruptWrites = true;
+    const emitted = captureLog();
+
+    await expect(uploadAvatar()).rejects.toMatchObject({ code: "PROCESSING_FAILED" });
+
+    expect(emitted()).toContain("uploaded_image.write_corrupt");
+    expect(emitted()).toContain("ef bf bd");
+  });
+
+  it("leaves no unservable object behind at the serving key", async () => {
+    bucket.corruptWrites = true;
+    captureLog();
+
+    await expect(uploadAvatar()).rejects.toThrow();
+
+    const objectKey = profileImageServingKey("avatar", PROFILE_ID, GENERATION);
+    expect(bucket.objects.has(`${STORAGE_BUCKET}/${objectKey}`)).toBe(false);
+  });
+
+  // The bytes are fine; the reader is what is not well. Failing the upload here
+  // would cost an owner their face over a momentary outage, the same reading
+  // `uploadedImageScan.server.ts` gives a scanner it cannot reach.
+  it("lets an upload through when the read-back itself could not run", async () => {
+    bucket.downloadError = { message: "upstream connect error" };
+    const emitted = captureLog();
+
+    const { objectKey } = await uploadAvatar();
+
+    expect(bucket.objects.has(`${STORAGE_BUCKET}/${objectKey}`)).toBe(true);
+    expect(emitted()).toContain("uploaded_image.write_unproven");
+    expect(emitted()).not.toContain("uploaded_image.write_corrupt");
+  });
+
+  it("stays silent on a write it proved", async () => {
+    const emitted = captureLog();
+
+    await uploadAvatar();
+
+    expect(emitted()).not.toContain("uploaded_image.write_corrupt");
+    expect(emitted()).not.toContain("uploaded_image.write_unproven");
   });
 });
 

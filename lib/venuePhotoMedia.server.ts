@@ -14,9 +14,13 @@
 import {
   downloadUploadedImageObject,
   prepareUploadedImage,
+  proveUploadedImageWrite,
+  readUploadedImageObject,
   UPLOADED_IMAGE_MAX_BYTES,
+  uploadUploadedImageObject,
   type DownloadedUploadedImage,
   type PreparedImage,
+  type UploadedImageReadResult,
 } from "@/lib/uploadedImage.server";
 import {
   isSupabaseConfigured,
@@ -49,6 +53,8 @@ export type VenuePhotoStorage = {
   upload(path: string, bytes: Buffer, contentType: string): Promise<void>;
   remove(paths: string[]): Promise<void>;
   sign(path: string, ttlSeconds: number): Promise<string | null>;
+  /** Read one written object back, so promotion can prove its own write. */
+  readBack(path: string): Promise<UploadedImageReadResult>;
 };
 
 export class VenuePhotoError extends Error {
@@ -81,11 +87,11 @@ export const supabaseVenuePhotoStorage: VenuePhotoStorage = {
     if (!isSupabaseConfigured()) {
       throw new VenuePhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
     }
-    const { error } = await requireSupabaseAdmin()
-      .storage.from(STORAGE_BUCKET)
-      .upload(path, bytes, { contentType, upsert: true });
+    // Through the shared writer, which is where the Blob wrap lives.
+    const error = await uploadUploadedImageObject(path, bytes, contentType);
     if (error) throw new VenuePhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
   },
+  readBack: readUploadedImageObject,
   async remove(paths) {
     if (paths.length === 0 || !isSupabaseConfigured()) return;
     const { error } = await requireSupabaseAdmin().storage.from(STORAGE_BUCKET).remove(paths);
@@ -129,6 +135,26 @@ export async function promoteStagedVenuePhoto(
     throw new VenuePhotoError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
   }
   await storage.upload(staged.objectKey, staged.bytes, staged.contentType);
+
+  // Read the serving key back before the wall claims the photo. A mangled write
+  // answers 200 like any other, so without this the finding is a 404 on a wall
+  // photo whose author watched it succeed days earlier.
+  const proof = await proveUploadedImageWrite(staged.objectKey, staged, (key) =>
+    storage.readBack(key),
+  );
+  if (proof === "corrupt") {
+    try {
+      await storage.remove([staged.objectKey]);
+    } catch {
+      // Best-effort: the bytes are unservable either way, and no row points at
+      // them yet.
+    }
+    throw new VenuePhotoError(
+      "PROCESSING_FAILED",
+      "That photo did not save correctly. Try uploading it again.",
+    );
+  }
+
   try {
     await storage.remove([staged.stagingKey]);
   } catch {

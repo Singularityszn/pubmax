@@ -15,11 +15,15 @@ import {
 import {
   downloadUploadedImageObject,
   prepareUploadedImage,
+  proveUploadedImageWrite,
+  readUploadedImageObject,
   UPLOADED_IMAGE_MAX_BYTES,
   UPLOADED_IMAGE_MAX_DIMENSION,
   UPLOADED_IMAGE_MAX_PIXELS,
+  uploadUploadedImageObject,
   type DownloadedUploadedImage,
   type PreparedImage,
+  type UploadedImageReadResult,
 } from "@/lib/uploadedImage.server";
 
 export const PROFILE_IMAGE_MAX_BYTES = UPLOADED_IMAGE_MAX_BYTES;
@@ -41,6 +45,12 @@ export type ProfileImageStorage = {
   upload(path: string, bytes: Buffer, contentType: string): Promise<void>;
   remove(paths: string[]): Promise<void>;
   sign(path: string, ttlSeconds: number): Promise<string | null>;
+  /**
+   * Read one written object back, so promotion can prove its own write. Not
+   * optional: a storage nobody can read back is one whose corruption surfaces
+   * days later as a serve 404 (`proveUploadedImageWrite`).
+   */
+  readBack(path: string): Promise<UploadedImageReadResult>;
   listImageKeys?(slot: ProfileImageSlot, profileId: string): Promise<string[]>;
 };
 
@@ -82,11 +92,11 @@ export const supabaseProfileImageStorage: ProfileImageStorage = {
     if (!isSupabaseConfigured()) {
       throw new ProfileImageError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
     }
-    const { error } = await requireSupabaseAdmin()
-      .storage.from(STORAGE_BUCKET)
-      .upload(path, bytes, { contentType, upsert: true });
+    // Through the shared writer, which is where the Blob wrap lives.
+    const error = await uploadUploadedImageObject(path, bytes, contentType);
     if (error) throw new ProfileImageError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
   },
+  readBack: readUploadedImageObject,
   async remove(paths) {
     if (paths.length === 0 || !isSupabaseConfigured()) return;
     const { error } = await requireSupabaseAdmin().storage.from(STORAGE_BUCKET).remove(paths);
@@ -154,6 +164,27 @@ export async function promoteStagedProfileImage(
     throw new ProfileImageError("STORAGE_UNAVAILABLE", "Photo storage is unavailable.");
   }
   await storage.upload(staged.objectKey, staged.bytes, staged.contentType);
+
+  // The serving key is what a reader will ask for, so read it back before
+  // anyone is told the photo is theirs. A write that mangled the bytes answers
+  // 200 like any other, and the owner would only learn about it from a 404 on
+  // their own face days later.
+  const proof = await proveUploadedImageWrite(staged.objectKey, staged, (key) =>
+    storage.readBack(key),
+  );
+  if (proof === "corrupt") {
+    try {
+      await storage.remove([staged.objectKey]);
+    } catch {
+      // Best-effort: the bytes are unservable either way, and the next upload
+      // to this slot writes its own generation.
+    }
+    throw new ProfileImageError(
+      "PROCESSING_FAILED",
+      "That photo did not save correctly. Try uploading it again.",
+    );
+  }
+
   try {
     await storage.remove([staged.stagingKey]);
   } catch {
