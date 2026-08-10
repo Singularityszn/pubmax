@@ -6,8 +6,8 @@
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { followOnce } from "@/lib/followWrite.server";
 import { resolveMessageHandle } from "@/lib/messageAuth";
-import { emitNotification } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { normalizeHandle } from "@/lib/profiles";
@@ -67,20 +67,12 @@ export async function POST(
   const unfollow = readString(body.action) === "unfollow";
   try {
     const s = followStore();
+    // `followOnce` is the shared write (lib/followWrite.server.ts): a starter
+    // pack follows a dozen accounts through the same call, so idempotence and
+    // the new-follow notification cannot differ between one tap and twelve.
     const following = unfollow
       ? !(await s.unfollow(follower, target))
-      : await s.follow(follower, target);
-    // Emit seam (additive, best-effort): a NEW follow notifies the target. Never
-    // awaited into the response path failure — emitNotification never throws and a
-    // failed notification must never fail the follow write.
-    if (!unfollow && following) {
-      void emitNotification({
-        recipientHandle: target,
-        actorHandle: follower,
-        kind: "follow",
-        subjectRef: follower,
-      });
-    }
+      : (await followOnce(follower, target)) !== "self";
     const counts = await s.counts(target);
     return jsonNoStore({ following, counts }, { status: 200 });
   } catch {

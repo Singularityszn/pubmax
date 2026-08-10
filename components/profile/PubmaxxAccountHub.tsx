@@ -26,6 +26,7 @@ import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
 import StepOutNudgePref from "@/components/profile/StepOutNudgePref";
 import FindYourLot from "@/components/social/FindYourLot";
 import ReferralFollowBack from "@/components/social/ReferralFollowBack";
+import StarterPacks from "@/components/social/StarterPacks";
 import type { ReferralPrivateStatus } from "@/lib/referralStore";
 import {
   cleanNightProfileInput,
@@ -732,6 +733,11 @@ export default function PubmaxxAccountHub() {
     <section className="accountHub" aria-labelledby="account-hub-title">
       <p className="profileSectionKicker">Your PUBMAXX</p><h2 id="account-hub-title">Identity, connections and memories.</h2>
       <ReferralFollowBack />
+      {/* The account hub is where a freshly onboarded drinker lands, and the
+          packs gate themselves on following fewer than three accounts, so this
+          is the "after onboarding" beat without putting a form in front of
+          arrival. */}
+      <StarterPacks />
       <FindYourLot />
       {mergeState.kind !== "none" ? (
         <div className="accountHubMerge" role="group" aria-labelledby="night-profile-merge-title">

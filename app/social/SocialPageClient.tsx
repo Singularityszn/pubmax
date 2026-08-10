@@ -10,6 +10,7 @@ import HandleAvatar from "@/components/profile/HandleAvatar";
 import CrewsPanel from "@/components/social/CrewsPanel";
 import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
+import StarterPacks from "@/components/social/StarterPacks";
 import { authedFetch } from "@/lib/authedFetch";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
@@ -559,6 +560,10 @@ export default function SocialPageClient({
               <CrewsPanel viewerHandle={viewerHandle} compact />
             ) : null}
             {/* Friend-graph formation stays available while posts stay gated. */}
+            {/* ONE live copy of the packs on this page. A second would keep its
+                own follow results, so the two would disagree about what a tap
+                just did. */}
+            {isPosts ? <StarterPacks compact /> : null}
             {isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
           </aside>
 
