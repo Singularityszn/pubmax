@@ -10,6 +10,8 @@ Implementation commit: `102a2f431` (`fix: complete weekend audit repair sweep`)
 
 Baseline: `origin/main` at `b9e68388a`
 
+Current `origin/main` after the review push: `d0c6f5937` (`docs: close growth release handoff (#1008)`). Main now includes the separately merged growth commits `#1007` and `#1008`. This branch keeps the audit-start baseline and was not rebased during this documentation task. Fable should review the repair delta from `b9e68388a` and then check its interaction with current main before merge.
+
 This document records the weekend audit repair sweep, related feature work found in other threads, and all verification completed for this branch. It is a review handoff, not release approval. The user has authorised this branch push. No production deployment, production migration, production data mutation, or pull request creation is part of this task.
 
 ## Fable decision requested
