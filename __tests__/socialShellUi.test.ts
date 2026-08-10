@@ -61,6 +61,39 @@ describe("Social access boundary", () => {
     },
   );
 
+  it("asks the age question as one line and one button", () => {
+    const html = renderToStaticMarkup(
+      createElement(SocialAccessBoundary, {
+        state: "age_verification_required",
+        adultPrompt: true,
+        onAssertAdult: () => undefined,
+      }),
+    );
+
+    expect(html).toContain("Social is for over-18s.");
+    expect(html).toContain("I&#x27;m 18 or over");
+    // One line, one button, in the empty-state idiom. Never a dialog.
+    expect(html.match(/<button/g)).toHaveLength(1);
+    expect(html).not.toContain("role=\"dialog\"");
+    expect(html).not.toContain("Adult check needed for Social.");
+    expect(html).not.toContain(protectedPost.body);
+  });
+
+  it("keeps the plain refusal when the one tap would change nothing", () => {
+    // A stored under-18 date of birth, or an assertion already recorded beside
+    // some other reason: the server says so by leaving adultPrompt off.
+    const html = renderToStaticMarkup(
+      createElement(SocialAccessBoundary, {
+        state: "age_verification_required",
+        onAssertAdult: () => undefined,
+      }),
+    );
+
+    expect(html).toContain("Adult check needed for Social.");
+    expect(html).not.toContain("I&#x27;m 18 or over");
+    expect(html).not.toContain("<button");
+  });
+
   it("offers one explicit retry when access checks are unavailable", () => {
     const html = renderToStaticMarkup(
       createElement(SocialAccessBoundary, {

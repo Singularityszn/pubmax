@@ -138,6 +138,14 @@
   text-wrap: balance;
 }
 
+/* The refusal that rides under the age button, in the boundary's own grid. */
+.socialBoundaryNote {
+  margin: 0;
+  max-width: 34ch;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
 .socialFeed {
   min-height: 360px;
 }

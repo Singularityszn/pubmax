@@ -170,11 +170,20 @@ export const memoryPrivateIdentityStore: PrivateIdentityStore = {
   async updateDetails(userId, details) {
     const key = cleanUserId(userId);
     const profile = key ? await profileStore().getByUserId(key) : null;
-    const previous = key ? memoryPrivateIdentities.get(key) : null;
-    if (!profile || !previous) return null;
+    const previous = (key ? memoryPrivateIdentities.get(key) : null) ?? null;
+    if (!profile) return null;
+    // A save CREATES the row. An account claimed through the early handle path
+    // has no identity row, and refusing the save left the date of birth it was
+    // typing with nowhere to go. The row still needs one, so a first save with
+    // no date of birth is the only refusal left here.
+    const dateOfBirth = details.dateOfBirth || previous?.dateOfBirth || "";
+    if (!dateOfBirth) return null;
+    const now = new Date().toISOString();
     const record: PrivateIdentityRecord = {
-      ...previous,
-      updatedAt: new Date().toISOString(),
+      ...(previous ?? {}),
+      dateOfBirth,
+      createdAt: previous?.createdAt ?? now,
+      updatedAt: now,
     };
     if ("fullName" in details) {
       const fullName = cleanFullName(details.fullName);
@@ -197,7 +206,6 @@ export const memoryPrivateIdentityStore: PrivateIdentityStore = {
       if (selfDescribed) record.genderSelfDescribed = selfDescribed;
       else delete record.genderSelfDescribed;
     }
-    if (details.dateOfBirth) record.dateOfBirth = details.dateOfBirth;
     memoryPrivateIdentities.set(key, record);
     return record;
   },
@@ -274,10 +282,15 @@ export const supabasePrivateIdentityStore: PrivateIdentityStore = {
     const profile = await profileStore().getByUserId(key);
     if (!profile) return null;
     const current = await this.read(key);
-    if (!current) return null;
+    // A save CREATES the row. Verified in production: @karan claimed a handle
+    // through the early path, which stores no date of birth, so there was no
+    // row here and the save that would have made one was refused by its own
+    // absence. `date_of_birth` is NOT NULL, so a first save must carry one.
+    const dateOfBirth = details.dateOfBirth || current?.dateOfBirth || "";
+    if (!dateOfBirth) return null;
     const row: Record<string, unknown> = {
       user_id: key,
-      date_of_birth: details.dateOfBirth || current.dateOfBirth,
+      date_of_birth: dateOfBirth,
       updated_at: new Date().toISOString(),
     };
     if ("fullName" in details) {

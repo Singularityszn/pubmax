@@ -15,7 +15,8 @@ const MUTUAL_USER_ID = "00000000-0000-4000-8000-000000000002";
 const STRANGER_USER_ID = "00000000-0000-4000-8000-000000000003";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
 const FRIENDS_POST_ID = "11111111-1111-4111-8111-111111111111";
-const DRAFT_SCOPE = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijk";
+// 43 url-safe characters, the exact shape parseDraftScope accepts.
+const DRAFT_SCOPE = "abcdefghijklmnopqrstuvwxyz0123456789abcdefg";
 
 const friendsOnlyPost = {
   id: FRIENDS_POST_ID,
@@ -41,6 +42,8 @@ const friendsOnlyPost = {
 type SocialAccessMock = {
   state: "sign_in_required" | "age_verification_required" | "verified";
   handle: string | null;
+  /** The account has neither a stored date of birth nor a recorded assertion. */
+  adultPrompt?: boolean;
 };
 
 async function seedSession(page: Page, userId: string, email: string): Promise<void> {
@@ -141,8 +144,20 @@ async function installSocialOpenBoundary(
               viewerHandle: handle,
               draftScope: DRAFT_SCOPE,
             }
-          : { state: access.state },
+          : {
+              state: access.state,
+              ...(access.adultPrompt ? { adultPrompt: true } : {}),
+            },
       ),
+    });
+  });
+  await page.route("**/api/identity/adult-assertion", async (route) => {
+    access.adultPrompt = false;
+    access.state = "verified";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ assertedAt: "2026-08-10T18:00:00.000Z" }),
     });
   });
   await page.route("**/api/social/interactions?**", async (route) => {
@@ -192,10 +207,10 @@ test.describe("social open dress rehearsal", () => {
       page.getByRole("heading", { name: "Adult check needed for Social." }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Choose how people know you" }),
+      page.getByRole("heading", { name: "Let's get you in" }),
     ).toBeVisible();
 
-    await page.getByLabel("Public handle").fill("night_owl");
+    await page.getByLabel("Your handle").fill("night_owl");
     await page.getByLabel("Date of birth").fill("1995-03-21");
     await expect(page.getByText("Handle available.")).toBeVisible();
     await page.getByRole("button", { name: "Claim handle" }).click();
@@ -203,6 +218,46 @@ test.describe("social open dress rehearsal", () => {
     await expect(page.getByRole("link", { name: "Posts", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "New post" })).toBeVisible();
   });
+
+  // One line and one button, at both sizes. The prompt lives in the ordinary
+  // empty-state idiom, so a phone and a desktop meet the same surface.
+  for (const size of [
+    { name: "phone", width: 390, height: 844 },
+    { name: "desktop", width: 1440, height: 900 },
+  ]) {
+    test(`an account with a handle and no date of birth taps its way in (${size.name})`, async ({
+      page,
+    }) => {
+      // Captain decision 2026-08-10: everybody who joins is taken to be an adult
+      // on one recorded tap. The handle is already claimed, so the only thing
+      // standing between this account and Social is the age question.
+      const access: SocialAccessMock = {
+        state: "age_verification_required",
+        handle: "night_owl",
+        adultPrompt: true,
+      };
+
+      await page.setViewportSize({ width: size.width, height: size.height });
+      await seedSession(page, E2E_AUTH_USER_ID, "social-open@example.test");
+      await installSocialOpenBoundary(page, E2E_AUTH_USER_ID, access, true);
+
+      await page.goto("/social");
+      const prompt = page.getByRole("heading", {
+        name: "Social is for over-18s.",
+      });
+      await expect(prompt).toBeVisible();
+
+      const tap = page.getByRole("button", { name: "I'm 18 or over" });
+      // A tap target a thumb can hit, at either size.
+      const box = await tap.boundingBox();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+      await tap.click();
+
+      await expect(page.getByRole("button", { name: "New post" })).toBeVisible();
+      await expect(prompt).toHaveCount(0);
+    });
+  }
 
   test("friends-only post is visible to a mutual and hidden from a third account", async ({
     browser,

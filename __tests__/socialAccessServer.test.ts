@@ -286,6 +286,81 @@ describe("friends-launch auto-provision store seam", () => {
           readFriendsLaunchAccess,
         }),
       ),
-    ).resolves.toEqual({ available: true, state: "age_verification_required" });
+    ).resolves.toEqual({
+      available: true,
+      state: "age_verification_required",
+      // No claimed handle, so the one tap is not what stands in the way. A
+      // button that recorded a true assertion and still refused would read as
+      // broken; the claim surface is what this account is owed.
+      adultPrompt: false,
+    });
+  });
+
+  it("offers the one tap to a claimed handle with no age answer at all", async () => {
+    const readFriendsLaunchAccess = vi.fn(async () => ({
+      account: {
+        id: "account-1",
+        clerkUserId: "clerk-1",
+        ownershipState: "active" as const,
+      },
+      profile: { id: "profile-1", handle: "night_owl" },
+      dateOfBirth: null,
+      adultSelfAssertedAt: null,
+    }));
+
+    await expect(
+      resolveSocialAccess(
+        undefined,
+        dependencies({
+          friendsLaunchEnabled: true,
+          betaEnabled: false,
+          verifySupabaseSession: async () => ({
+            status: "verified",
+            userId: "44444444-4444-4444-8444-444444444444",
+          }),
+          readFriendsLaunchAccess,
+        }),
+      ),
+    ).resolves.toEqual({
+      available: true,
+      state: "age_verification_required",
+      adultPrompt: true,
+    });
+  });
+
+  it("verifies a claimed handle on a recorded assertion alone", async () => {
+    const readFriendsLaunchAccess = vi.fn(async () => ({
+      account: {
+        id: "account-1",
+        clerkUserId: "clerk-1",
+        ownershipState: "active" as const,
+      },
+      profile: { id: "profile-1", handle: "night_owl" },
+      dateOfBirth: null,
+      adultSelfAssertedAt: "2026-08-10T18:00:00.000Z",
+    }));
+
+    await expect(
+      resolveSocialAccess(
+        undefined,
+        dependencies({
+          friendsLaunchEnabled: true,
+          betaEnabled: false,
+          verifySupabaseSession: async () => ({
+            status: "verified",
+            userId: "44444444-4444-4444-8444-444444444444",
+          }),
+          readFriendsLaunchAccess,
+        }),
+      ),
+    ).resolves.toEqual({
+      available: true,
+      state: "verified",
+      actor: {
+        accountId: "account-1",
+        profileId: "profile-1",
+        handle: "night_owl",
+      },
+    });
   });
 });

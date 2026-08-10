@@ -27,6 +27,7 @@
 
 import { assertServerEnv } from "@/lib/serverEnv";
 import { isModerator } from "@/lib/adminAuth";
+import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { boundedFormData } from "@/lib/boundedRequest.server";
@@ -35,7 +36,7 @@ import { log } from "@/lib/log";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
-import { isAdultDateOfBirth } from "@/lib/socialLaunch";
+import { accountIsAdult } from "@/lib/socialLaunch";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { crosspostVenuePhotoToFeed } from "@/lib/venuePhotoCrosspost.server";
@@ -212,13 +213,20 @@ export async function POST(request: Request): Promise<Response> {
     return jsonNoStore(contributor.body, { status: contributor.httpStatus });
   }
 
-  // The bar's door. The handle came from the session above; the age comes from
-  // the private identity the same account already gave at onboarding, and it is
-  // re-checked here rather than trusted from any earlier surface.
+  // The bar's door, and it asks the SAME question Social asks, through the same
+  // gate: a stored adult date of birth, or the recorded one-tap assertion. The
+  // handle came from the session above; the age is re-checked here rather than
+  // trusted from any earlier surface.
   let adult = false;
   try {
-    const identity = await privateIdentityStore().read(contributor.accountId);
-    adult = Boolean(identity?.dateOfBirth) && isAdultDateOfBirth(identity!.dateOfBirth!);
+    const [identity, assertedAt] = await Promise.all([
+      privateIdentityStore().read(contributor.accountId),
+      adultSelfAssertionStore().read(contributor.accountId),
+    ]);
+    adult = accountIsAdult({
+      dateOfBirth: identity?.dateOfBirth ?? null,
+      adultSelfAssertedAt: assertedAt,
+    });
   } catch {
     return publicApiError(
       "We could not check your account just now. Try again.",
@@ -229,7 +237,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   if (!adult) {
     return publicApiError(
-      "Photo walls are for over-18s. Add your date of birth to your account to join in.",
+      "Photo walls are for over-18s. Confirm your age on Social, or add your date of birth to your account.",
       "ADULT_REQUIRED",
       403,
     );

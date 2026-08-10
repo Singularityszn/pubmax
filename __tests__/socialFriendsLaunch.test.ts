@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   decideFriendsLaunchSocialAccess,
 } from "@/lib/socialAccess";
-import { isAdultDateOfBirth, isSocialFriendsLaunchEnabled } from "@/lib/socialLaunch";
+import {
+  accountIsAdult,
+  isAdultDateOfBirth,
+  isRecordedAdultAssertion,
+  isSocialFriendsLaunchEnabled,
+  needsAdultSelfAssertion,
+} from "@/lib/socialLaunch";
 
 const NOW = "2026-08-05T20:00:00.000Z";
 
@@ -82,6 +88,34 @@ describe("friends-launch Social access policy", () => {
     ).toBe("verified");
   });
 
+  it("grants verified access on a recorded assertion with no date of birth", () => {
+    expect(
+      decideFriendsLaunchSocialAccess({
+        friendsLaunchEnabled: true,
+        supabaseUserId: "user-1",
+        claimedHandle: "alice",
+        dateOfBirth: null,
+        adultSelfAssertedAt: "2026-08-10T18:00:00.000Z",
+        ownershipState: "active",
+        now: NOW,
+      }),
+    ).toBe("verified");
+  });
+
+  it("lets a stored under-18 date of birth outrank an assertion", () => {
+    expect(
+      decideFriendsLaunchSocialAccess({
+        friendsLaunchEnabled: true,
+        supabaseUserId: "user-1",
+        claimedHandle: "alice",
+        dateOfBirth: "2015-02-03",
+        adultSelfAssertedAt: "2026-08-10T18:00:00.000Z",
+        ownershipState: "active",
+        now: NOW,
+      }),
+    ).toBe("age_verification_required");
+  });
+
   it("keeps suspended accounts closed", () => {
     expect(
       decideFriendsLaunchSocialAccess({
@@ -109,5 +143,58 @@ describe("adult date of birth", () => {
   it("treats 18-year-olds as adults on their birthday", () => {
     expect(isAdultDateOfBirth("2008-08-05", Date.parse(NOW))).toBe(true);
     expect(isAdultDateOfBirth("2008-08-06", Date.parse(NOW))).toBe(false);
+  });
+});
+
+describe("the one adult gate", () => {
+  const now = Date.parse(NOW);
+
+  it("passes a recorded self-assertion with no date of birth", () => {
+    expect(
+      accountIsAdult(
+        { dateOfBirth: null, adultSelfAssertedAt: "2026-08-10T18:00:00.000Z" },
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it("passes a stored adult date of birth with no assertion", () => {
+    expect(
+      accountIsAdult({ dateOfBirth: "1990-01-01", adultSelfAssertedAt: null }, now),
+    ).toBe(true);
+  });
+
+  it("asks for the one tap when neither answer exists", () => {
+    expect(accountIsAdult({}, now)).toBe(false);
+    expect(accountIsAdult({ dateOfBirth: "  ", adultSelfAssertedAt: "" }, now)).toBe(
+      false,
+    );
+    expect(needsAdultSelfAssertion({})).toBe(true);
+    expect(
+      needsAdultSelfAssertion({ dateOfBirth: null, adultSelfAssertedAt: null }),
+    ).toBe(true);
+  });
+
+  it("never offers the tap once either answer exists", () => {
+    // A recorded assertion is answered, so nobody is asked twice.
+    expect(
+      needsAdultSelfAssertion({ adultSelfAssertedAt: "2026-08-10T18:00:00.000Z" }),
+    ).toBe(false);
+    // A stored under-18 date of birth is answered too. Offering a tap that
+    // would not be honoured is worse than the plain refusal.
+    expect(needsAdultSelfAssertion({ dateOfBirth: "2015-02-03" })).toBe(false);
+    expect(
+      accountIsAdult(
+        { dateOfBirth: "2015-02-03", adultSelfAssertedAt: "2026-08-10T18:00:00.000Z" },
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it("counts only a real instant as a recorded assertion", () => {
+    expect(isRecordedAdultAssertion("2026-08-10T18:00:00.000Z")).toBe(true);
+    for (const value of [null, undefined, "", "   ", "yes", "true"]) {
+      expect(isRecordedAdultAssertion(value)).toBe(false);
+    }
   });
 });

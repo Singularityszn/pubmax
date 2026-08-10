@@ -36,6 +36,12 @@ export async function GET(request: Request): Promise<Response> {
       viewerHandle: access.actor.handle,
       draftScope: socialDraftScope(access.actor.profileId),
     } : {}),
+    // Whether the one tap is this account's way through. Absent means no, so
+    // the boundary shows the plain refusal rather than a button that would
+    // change nothing.
+    ...(access.state !== "verified" && access.adultPrompt
+      ? { adultPrompt: true }
+      : {}),
   });
 }
 

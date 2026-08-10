@@ -1,11 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
 
+import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import type { CallerAuthVerification } from "@/lib/authServer";
 import { verifyCallerAuth } from "@/lib/authServer";
 import {
   authResumeCookieFromHeader,
   decodeAuthResumeCookie,
-  isPlausibleRefreshToken,
 } from "@/lib/authSessionResume";
 import { isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 import {
@@ -19,6 +19,7 @@ import {
 } from "@/lib/socialAccess";
 import {
   isSocialFriendsLaunchEnabled,
+  needsAdultSelfAssertion,
   SOCIAL_FRIENDS_LAUNCH_ENV,
 } from "@/lib/socialLaunch";
 import type { SocialPostActor } from "@/lib/socialPostStore";
@@ -44,6 +45,8 @@ type FriendsLaunchAccessRecord = {
   account: SocialProductAccount | null;
   profile: { id: string; handle: string } | null;
   dateOfBirth: string | null;
+  /** Recorded one-tap assertion (migration 0103), or null. */
+  adultSelfAssertedAt?: string | null;
 };
 
 type AccountMigrationInput = {
@@ -83,7 +86,17 @@ export type SocialAccessServerDependencies = {
 };
 
 export type SocialAccessResolution =
-  | { available: true; state: Exclude<SocialAccessState, "verified"> }
+  | {
+      available: true;
+      state: Exclude<SocialAccessState, "verified">;
+      /**
+       * True only when the one tap is the way through: the account has neither
+       * a stored date of birth nor a recorded assertion. A stored date of birth
+       * that says under 18 leaves this false, so the surface never offers a
+       * button that would not be honoured.
+       */
+      adultPrompt?: boolean;
+    }
   | { available: true; state: "verified"; actor: SocialPostActor }
   | {
       available: false;
@@ -361,7 +374,13 @@ async function readFriendsLaunchAccess(
   const dateOfBirth =
     typeof rawDob === "string" && rawDob.trim() ? rawDob.trim() : null;
 
-  return { account, profile, dateOfBirth };
+  // The second half of the age answer. An account claimed through the early
+  // handle path has no identity row at all, so this is the lane it comes in by.
+  const adultSelfAssertedAt = await adultSelfAssertionStore().read(
+    supabaseUserId,
+  );
+
+  return { account, profile, dateOfBirth, adultSelfAssertedAt };
 }
 
 async function migrateAccounts(
@@ -437,13 +456,14 @@ export async function resolveSocialAccess(
       return { available: true, state: "sign_in_required" };
     }
     try {
-      const { account, profile, dateOfBirth } =
+      const { account, profile, dateOfBirth, adultSelfAssertedAt } =
         await deps.readFriendsLaunchAccess(supabase.userId);
       const state = decideFriendsLaunchSocialAccess({
         friendsLaunchEnabled: true,
         supabaseUserId: supabase.userId,
         claimedHandle: profile?.handle ?? null,
         dateOfBirth,
+        adultSelfAssertedAt: adultSelfAssertedAt ?? null,
         ownershipState: account?.ownershipState ?? null,
         now: deps.now(),
       });
@@ -467,7 +487,24 @@ export async function resolveSocialAccess(
           },
         };
       }
-      return { available: true, state };
+      return {
+        available: true,
+        state,
+        // The tap is offered only when the age question is the ACTUAL thing in
+        // the way. An account with no claimed handle shares this state, and a
+        // button that recorded a true assertion and still refused entry would
+        // read as broken; that account is met by the claim surface instead.
+        ...(state === "age_verification_required"
+          ? {
+              adultPrompt:
+                Boolean(profile?.handle?.trim()) &&
+                needsAdultSelfAssertion({
+                  dateOfBirth,
+                  adultSelfAssertedAt: adultSelfAssertedAt ?? null,
+                }),
+            }
+          : {}),
+      };
     } catch {
       return unavailableAccess();
     }
