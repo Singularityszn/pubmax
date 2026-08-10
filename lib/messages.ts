@@ -12,6 +12,7 @@
 // Keep content low-sensitivity by design. See supabase/migrations/0019_messages.sql.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import type { MessageAttachment } from "@/lib/messageAttachments";
 import { normalizeHandle } from "@/lib/profiles";
 import { cleanText } from "@/lib/textClean";
 
@@ -60,9 +61,26 @@ export function cleanBody(input: unknown): string | null {
   return cleaned ? cleaned : null;
 }
 
+/**
+ * The same cleaning for a body that rides WITH an attachment, where empty is a
+ * real answer rather than a reject: a photo sent without a caption is a message,
+ * and refusing it would make the words the point of a picture. Returns "" when
+ * nothing survives, never null — the caller has already decided there is
+ * something else in the message.
+ */
+export function cleanAttachedBody(input: unknown): string {
+  return cleanText(input, MAX_MESSAGE_BODY);
+}
+
 // The public message DTO the thread renders. `mine` is resolved per-viewer at the
 // store/route boundary (not stored) so bubbles align left/right. `flagged` is the
 // abuse-report marker — surfaced so a reporter sees their own report landed.
+//
+// `attachment` is at most one photo or one pub (lib/messageAttachments.ts). It is
+// absent on a FLAGGED message by design: a report is the only lane that takes a
+// message photo down, and in a conversation of two people the person who
+// objected is the whole audience. The row and its provenance stay; the picture
+// stops travelling.
 export type MessageDTO = {
   id: string;
   conversationId: string;
@@ -71,6 +89,7 @@ export type MessageDTO = {
   createdAt: string;
   read: boolean;
   flagged: boolean;
+  attachment?: MessageAttachment;
 };
 
 // The inbox row: one per conversation, with the OTHER participant + a preview of

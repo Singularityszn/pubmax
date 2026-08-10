@@ -26,10 +26,16 @@ import { profileImageSlotSpec, PROFILE_IMAGE_SLOTS } from "@/lib/profileImageSlo
 
 /**
  * Every surface a person chooses a photo from. The rule is about pickers, not
- * about profiles, so a pub photo wall's composer is swept by the same fence:
- * `capture` would hide the iOS library there in exactly the same way.
+ * about profiles, so a pub photo wall's composer and a message composer are
+ * swept by the same fence: `capture` would hide the iOS library there in
+ * exactly the same way.
  */
-const PHOTO_SURFACE_DIRS = ["components/profile", "components/venue", "app/u"] as const;
+const PHOTO_SURFACE_DIRS = [
+  "components/profile",
+  "components/venue",
+  "components/messages",
+  "app/u",
+] as const;
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
@@ -98,6 +104,7 @@ describe("a profile photo input asks for a photo, never for a camera", () => {
     expect(ids).toContain("pe-avatar-file");
     expect(ids).toContain("pe-cover-file");
     expect(ids).toContain("venue-photo-file");
+    expect(ids).toContain("message-photo-file");
   });
 
   it("carries no capture attribute on any of them", () => {
@@ -178,6 +185,7 @@ describe("the crop step feeds the upload, and the upload is unchanged", () => {
     expect(server).not.toContain("heic");
     expect(read("lib/profileImageMedia.server.ts")).not.toContain("heic");
     expect(read("lib/venuePhotoMedia.server.ts")).not.toContain("heic");
+    expect(read("lib/messagePhotoMedia.server.ts")).not.toContain("heic");
   });
 
   it("leaves the safety scan on the upload path exactly where it was", () => {

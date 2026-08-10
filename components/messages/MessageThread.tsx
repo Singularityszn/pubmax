@@ -5,10 +5,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
+import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
+import MessagePhoto from "@/components/messages/MessagePhoto";
+import MessageVenueCard from "@/components/messages/MessageVenueCard";
+import MessageVenuePicker, {
+  type PickedVenue,
+} from "@/components/messages/MessageVenuePicker";
 import { authedFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
+import {
+  MESSAGE_ATTACH_PHOTO_LABEL,
+  MESSAGE_ATTACH_PHOTO_SHORT,
+  MESSAGE_ATTACH_VENUE_LABEL,
+  MESSAGE_ATTACH_VENUE_SHORT,
+  MESSAGE_PHOTO_CROP_TARGET,
+  MESSAGE_PHOTO_FAILED_LINE,
+} from "@/lib/messageAttachments";
 import { linkifyMentions, MAX_MESSAGE_BODY, type MessageDTO } from "@/lib/messages";
 import { subscribeToMessages } from "@/lib/messagesRealtime";
+import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
 import { normalizeHandle } from "@/lib/profiles";
 
 import "@/app/messages/messages.css";
@@ -23,6 +38,17 @@ import "@/app/messages/messages.css";
 // COURTESY-CURTAIN, NOT PRIVACY: the viewer's own self-asserted `pubmax_handle`
 // decides which bubbles are "mine". A GET that isn't a participant returns 404 —
 // the page below shows a friendly not-found rather than a leak.
+//
+// A BUBBLE'S WIDTH IS THE ROW'S BUSINESS. Each row wraps its bubble in a
+// `.messageLine`, which is the box the 75% limit lives on; putting that limit on
+// the bubble made every bubble 78% of its OWN natural width, and "Yo!!" arrived
+// on production as one character per line. See app/messages/messages.css.
+//
+// A MESSAGE MAY CARRY ONE ATTACHMENT: a photo, or a pub. The photo takes the
+// whole owned-image journey server-side and its bytes come back through the same
+// courtesy gate the thread does (components/messages/MessagePhoto.tsx). The pub
+// stores an id alone (no coordinate of any kind rides in a message) and its
+// card is resolved live on the read path.
 
 const HANDLE_KEY = "pubmax_handle";
 const POLL_MS = 10_000;
@@ -30,6 +56,26 @@ const POLL_MS = 10_000;
 function readHandle(): string {
   if (typeof window === "undefined") return "";
   return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
+}
+
+/**
+ * Whether Enter alone should SEND. A physical keyboard has a modifier to reach
+ * for; a phone keyboard's return key is how a person starts a new line, so
+ * hijacking it there would make a two-line message impossible to type. Read
+ * once per mount and re-read when the pointer changes (a tablet with a keyboard
+ * attached is both).
+ */
+function useEnterSends(): boolean {
+  const [enterSends, setEnterSends] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia("(pointer: fine)");
+    const apply = () => setEnterSends(query.matches);
+    apply();
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
+  }, []);
+  return enterSends;
 }
 
 // Render a message body with @-mentions linkified to /u/<handle>. Pure segments
@@ -53,6 +99,15 @@ function MessageBody({ body }: { body: string }): React.JSX.Element {
 
 type ThreadState = "loading" | "ready" | "notfound" | "signedout" | "unreachable";
 
+/** What is riding on the NEXT message. At most one, by design. */
+type PendingAttachment =
+  | { kind: "photo"; file: File; previewUrl: string }
+  | { kind: "venue"; venue: PickedVenue };
+
+function fileKey(file: File): string {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
 export default function MessageThread({
   conversationId,
 }: {
@@ -66,8 +121,14 @@ export default function MessageThread({
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [pending, setPending] = useState<PendingAttachment | null>(null);
+  const [cropping, setCropping] = useState<File | null>(null);
+  const [pickingVenue, setPickingVenue] = useState(false);
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const loadedForRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const enterSends = useEnterSends();
 
   useEffect(() => {
     let active = true;
@@ -165,21 +226,67 @@ export default function MessageThread({
     listEndRef.current?.scrollIntoView({ block: "end" });
   }, [messages]);
 
+  // The field grows with what is typed and stops at the CSS max-height, where
+  // it starts scrolling. Measured off scrollHeight each change, because a row
+  // count cannot know how a line wrapped.
+  useEffect(() => {
+    const field = inputRef.current;
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${field.scrollHeight}px`;
+  }, [draft]);
+
+  // A preview object URL belongs to the pending photo, so it is released when
+  // that photo is replaced, sent or taken off.
+  useEffect(() => {
+    if (pending?.kind !== "photo") return;
+    const url = pending.previewUrl;
+    return () => URL.revokeObjectURL(url);
+  }, [pending]);
+
   const over = draft.length > MAX_MESSAGE_BODY;
-  const canSend = draft.trim().length > 0 && !over && !sending;
+  // A photo is a message. Something to send is text, an attachment, or both.
+  const hasSomething = draft.trim().length > 0 || pending !== null;
+  const canSend = hasSomething && !over && !sending;
+
+  const clearPending = useCallback(() => {
+    setPending(null);
+    setCropping(null);
+    setPickingVenue(false);
+  }, []);
 
   const send = useCallback(async () => {
     const h = normalizeHandle(authHandle ?? "") || readHandle();
     const bodyText = draft.trim();
-    if (!user || !h || !bodyText || over) return;
+    if (!user || !h || over) return;
+    if (!bodyText && !pending) return;
     setSending(true);
     setError("");
     try {
-      const res = await authedFetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "send", handle: h, body: bodyText }),
-      });
+      const address = `/api/messages/${encodeURIComponent(conversationId)}`;
+      const post = {
+        action: "send",
+        handle: h,
+        body: bodyText,
+        ...(pending?.kind === "venue" ? { venueId: pending.venue.id } : {}),
+      };
+
+      let res: Response;
+      if (pending?.kind === "photo") {
+        // The photo lane is multipart: one JSON part and one file, exactly the
+        // shape the pub wall already sends.
+        const form = new FormData();
+        form.append("post", JSON.stringify(post));
+        form.append("photo", pending.file);
+        res = await authedFetch(address, { method: "POST", body: form });
+      } else {
+        res = await authedFetch(address, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(post),
+        });
+      }
+
       if (res.status === 401) {
         discardBody(res);
         setState("signedout");
@@ -191,29 +298,38 @@ export default function MessageThread({
         return;
       }
       if (!res.ok) {
-        discardBody(res);
-        setError("Couldn't send that message.");
+        // The server's own sentence when it has one: a refused photo and a
+        // conversation that is gone are different things to be told.
+        const body: unknown = await res.json().catch(() => null);
+        const said =
+          body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string"
+            ? (body as { error: string }).error
+            : null;
+        setError(said ?? (pending ? MESSAGE_PHOTO_FAILED_LINE : "Couldn't send that message."));
         return;
       }
+      discardBody(res);
       setDraft("");
+      clearPending();
       await refresh();
     } catch {
-      setError("Couldn't send that message.");
+      setError(pending ? MESSAGE_PHOTO_FAILED_LINE : "Couldn't send that message.");
     } finally {
       setSending(false);
     }
-  }, [conversationId, draft, over, refresh, user, authHandle]);
+  }, [conversationId, draft, over, pending, refresh, user, authHandle, clearPending]);
 
   const report = useCallback(
     async (messageId: string) => {
       const h = normalizeHandle(authHandle ?? "") || readHandle();
       if (!user || !h) return;
       try {
-        await authedFetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
+        const res = await authedFetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ action: "report", handle: h, messageId }),
         });
+        discardBody(res);
         await refresh();
       } catch {
         // best-effort — a failed report is non-fatal
@@ -275,7 +391,8 @@ export default function MessageThread({
             const mine = m.senderHandle === handle;
             return (
               <li key={m.id} className={mine ? "messageRow messageRowMine" : "messageRow"}>
-                <div>
+                {/* The box the 75% width limit lives on. */}
+                <div className="messageLine">
                   <div
                     className={
                       mine
@@ -283,7 +400,19 @@ export default function MessageThread({
                         : "messageBubble messageBubbleTheirs"
                     }
                   >
-                    <MessageBody body={m.body} />
+                    {m.attachment?.kind === "photo" ? (
+                      <MessagePhoto
+                        url={m.attachment.url}
+                        width={m.attachment.width}
+                        height={m.attachment.height}
+                        senderHandle={m.senderHandle}
+                        handle={handle}
+                      />
+                    ) : null}
+                    {m.attachment?.kind === "venue" ? (
+                      <MessageVenueCard card={m.attachment.card} />
+                    ) : null}
+                    {m.body ? <MessageBody body={m.body} /> : null}
                   </div>
                   <div className="messageMeta">
                     {m.flagged ? (
@@ -310,32 +439,132 @@ export default function MessageThread({
 
       {error ? <p className="threadError">{error}</p> : null}
 
+      {/* BEAT ONE IS A PICKER, NEVER A CAMERA. No `capture` here: on iOS that
+          attribute leaves Photo Library out of the sheet entirely. The accept
+          list is the one shared constant, which names HEIC and HEIF because an
+          iPhone matches a library photo's own type before converting anything.
+          BEAT TWO is the cropper, whose JPEG is what makes that HEIC
+          uploadable. */}
+      <input
+        ref={fileInputRef}
+        id="message-photo-file"
+        type="file"
+        accept={PROFILE_IMAGE_PICKER_ACCEPT}
+        className="composerFileInput"
+        aria-label={MESSAGE_ATTACH_PHOTO_LABEL}
+        onChange={(event) => {
+          const file = event.target.files?.[0] ?? null;
+          event.target.value = "";
+          setError("");
+          setCropping(file);
+        }}
+      />
+
+      {cropping ? (
+        <ProfileImageCropper
+          key={fileKey(cropping)}
+          target={MESSAGE_PHOTO_CROP_TARGET}
+          file={cropping}
+          busy={sending}
+          onCancel={() => setCropping(null)}
+          onCropped={(file) => {
+            setCropping(null);
+            setPending({ kind: "photo", file, previewUrl: URL.createObjectURL(file) });
+          }}
+        />
+      ) : null}
+
+      {pickingVenue ? (
+        <MessageVenuePicker
+          onCancel={() => setPickingVenue(false)}
+          onPick={(venue) => {
+            setPickingVenue(false);
+            setPending({ kind: "venue", venue });
+          }}
+        />
+      ) : null}
+
+      {pending ? (
+        <div className="composerPending">
+          {pending.kind === "photo" ? (
+            // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo about to send
+            <img className="composerPendingThumb" src={pending.previewUrl} alt="" />
+          ) : null}
+          <span className="composerPendingLabel">
+            {pending.kind === "photo" ? "Photo ready to send" : pending.venue.name}
+          </span>
+          <button type="button" className="composerPendingRemove" onClick={clearPending}>
+            Remove
+          </button>
+        </div>
+      ) : null}
+
       <div className="composer">
         <textarea
+          ref={inputRef}
           className="composerInput"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Write a message…"
           maxLength={MAX_MESSAGE_BODY + 100}
+          rows={1}
           aria-label="Message"
+          /* A message is somebody talking. The keyboard helps them the way it
+             helps them everywhere else: sentence case, autocorrect on, spelling
+             checked. Turning these off is what makes a web composer feel unlike
+             the messaging app beside it. */
+          autoCapitalize="sentences"
+          autoCorrect="on"
+          spellCheck
+          enterKeyHint={enterSends ? "send" : "enter"}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              if (canSend) void send();
-            }
+            if (e.key !== "Enter" || e.shiftKey) return;
+            // On a phone the return key writes a new line; only a keyboard with
+            // a modifier to spare sends on it.
+            if (!enterSends) return;
+            e.preventDefault();
+            if (canSend) void send();
           }}
         />
-        <span className={over ? "composerCount composerCountOver" : "composerCount"}>
-          {draft.length}/{MAX_MESSAGE_BODY}
-        </span>
-        <button
-          type="button"
-          className="composerSend"
-          disabled={!canSend}
-          onClick={() => void send()}
-        >
-          Send
-        </button>
+        <div className="composerControls">
+          <button
+            type="button"
+            className="composerAttach"
+            aria-label={MESSAGE_ATTACH_PHOTO_LABEL}
+            aria-pressed={pending?.kind === "photo"}
+            disabled={sending}
+            onClick={() => {
+              setPickingVenue(false);
+              fileInputRef.current?.click();
+            }}
+          >
+            {MESSAGE_ATTACH_PHOTO_SHORT}
+          </button>
+          <button
+            type="button"
+            className="composerAttach"
+            aria-label={MESSAGE_ATTACH_VENUE_LABEL}
+            aria-pressed={pending?.kind === "venue"}
+            disabled={sending}
+            onClick={() => {
+              setCropping(null);
+              setPickingVenue((open) => !open);
+            }}
+          >
+            {MESSAGE_ATTACH_VENUE_SHORT}
+          </button>
+          <span className={over ? "composerCount composerCountOver" : "composerCount"}>
+            {draft.length}/{MAX_MESSAGE_BODY}
+          </span>
+          <button
+            type="button"
+            className="composerSend"
+            disabled={!canSend}
+            onClick={() => void send()}
+          >
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -17,6 +17,17 @@
 // outage renders as an empty inbox / empty thread, never a 500.
 
 import {
+  isMessagePhotoServingKey,
+  MESSAGE_ATTACHMENT_KINDS,
+  messageAttachmentPreview,
+  messagePhotoServePath,
+  messagePhotoServingKey,
+  type MessageAttachment,
+  type MessageAttachmentKind,
+  type MessageAttachmentWrite,
+} from "@/lib/messageAttachments";
+import {
+  cleanAttachedBody,
   cleanBody,
   isParticipant,
   normalizePair,
@@ -38,9 +49,20 @@ export type MessagesStore = {
    *  conversation id, or null when the pair is invalid (blank / self-pair). */
   openConversation(a: string, b: string): Promise<string | null>;
   /** Append a message. `sender` must be a participant of the conversation and
-   *  `body` must survive cleaning. Returns the new MessageDTO, or null on any
-   *  reject (unknown conversation, non-participant sender, empty body). */
-  send(conversationId: string, sender: string, body: string): Promise<MessageDTO | null>;
+   *  the message must carry SOMETHING: a body that survives cleaning, an
+   *  attachment, or both. Returns the new MessageDTO, or null on any reject
+   *  (unknown conversation, non-participant sender, nothing to send).
+   *
+   *  A PHOTO attachment brings its own id, minted by the writer BEFORE the bytes
+   *  were staged, because the storage key is built from it. Passing it
+   *  explicitly is what keeps the row and its object in agreement: deriving one
+   *  from the other would let a write drift into a row whose serve route 404s. */
+  send(
+    conversationId: string,
+    sender: string,
+    body: string,
+    attachment?: MessageAttachmentWrite,
+  ): Promise<MessageDTO | null>;
   /** A handle's inbox: newest-first conversations with last-message preview +
    *  per-viewer unread count. Never throws (empty on error). */
   listConversations(handle: string): Promise<ConversationDTO[]>;
@@ -56,11 +78,91 @@ export type MessagesStore = {
     messageId: string,
     reporterHandle: string,
   ): Promise<boolean>;
+  /** The serving key of ONE message photo, only for a participant, and only
+   *  while the message is unflagged. Null for everything else — an unknown id,
+   *  an outsider, a text message and a reported photo answer alike, so the
+   *  refusal says nothing about which of them it was. Reading a photo is NOT
+   *  reading the thread, so this never marks anything read. */
+  photoObjectKey(
+    conversationId: string,
+    messageId: string,
+    handle: string,
+  ): Promise<string | null>;
 };
 
 const CONVERSATIONS = "conversations";
 const MESSAGES = "messages";
 const memoryFallbackWarnings = new Set<string>();
+
+// ONE column list behind every message read, so a lane that forgot the
+// attachment columns cannot quietly serve a photo message as a bare line of
+// text — the same reason the public profile has one projection.
+const MESSAGE_COLUMNS =
+  "id, conversation_id, sender_handle, body, created_at, read_at, flagged_at, " +
+  "attachment_kind, attachment_object_key, attachment_width, attachment_height, attachment_venue_id";
+
+/**
+ * The inbox preview for one last message. Words when there are words; otherwise
+ * the noun for what it carried, because a blank row reads as a message that did
+ * not arrive.
+ */
+function previewBody(body: string, kind: unknown): string {
+  if (body) return body;
+  return MESSAGE_ATTACHMENT_KINDS.includes(kind as MessageAttachmentKind)
+    ? messageAttachmentPreview(kind as MessageAttachmentKind)
+    : "";
+}
+
+/** The insert half of the same list. A message with no attachment writes nulls. */
+function attachmentColumns(
+  attachment: MessageAttachmentWrite | undefined,
+): Record<string, unknown> {
+  if (!attachment) return {};
+  if (attachment.kind === "venue") {
+    return { attachment_kind: "venue", attachment_venue_id: attachment.venueId };
+  }
+  return {
+    id: attachment.messageId,
+    attachment_kind: "photo",
+    attachment_object_key: attachment.objectKey,
+    attachment_width: attachment.width,
+    attachment_height: attachment.height,
+  };
+}
+
+/**
+ * The stored columns, read back as the thread's attachment.
+ *
+ * A FLAGGED message carries none: a report is the lane that takes a message
+ * photo down, and the row plus its provenance stay for a moderator while the
+ * picture stops travelling. The serving key is rebuilt from the row's own ids
+ * rather than trusted off it, so a hand-edited object_key cannot make the serve
+ * route read somebody else's object.
+ */
+function rowToAttachment(row: Record<string, unknown>): MessageAttachment | undefined {
+  if (row.flagged_at != null) return undefined;
+  const kind = row.attachment_kind;
+  if (kind === "venue") {
+    const venueId = typeof row.attachment_venue_id === "string" ? row.attachment_venue_id : "";
+    return venueId ? { kind: "venue", venueId, card: null } : undefined;
+  }
+  if (kind !== "photo") return undefined;
+  const conversationId = String(row.conversation_id ?? "");
+  const messageId = String(row.id ?? "");
+  const objectKey = typeof row.attachment_object_key === "string" ? row.attachment_object_key : "";
+  if (!isMessagePhotoServingKey(conversationId, messageId, objectKey)) return undefined;
+  const width = Number(row.attachment_width);
+  const height = Number(row.attachment_height);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return undefined;
+  }
+  return {
+    kind: "photo",
+    url: messagePhotoServePath(conversationId, messageId),
+    width,
+    height,
+  };
+}
 
 function admin() {
   return requireSupabaseAdmin();
@@ -123,12 +225,12 @@ export const supabaseMessagesStore: MessagesStore = {
     }
   },
 
-  async send(conversationId, sender, body) {
+  async send(conversationId, sender, body, attachment) {
     const senderHandle = normalizeHandle(sender);
-    const clean = cleanBody(body);
-    if (!conversationId || !senderHandle || !clean) return null;
+    const clean = attachment ? cleanAttachedBody(body) : cleanBody(body);
+    if (!conversationId || !senderHandle || clean === null) return null;
     if (conversationId.startsWith("c")) {
-      return memoryMessagesStore.send(conversationId, senderHandle, clean);
+      return memoryMessagesStore.send(conversationId, senderHandle, clean, attachment);
     }
     try {
       const pair = await loadPair(conversationId);
@@ -139,8 +241,9 @@ export const supabaseMessagesStore: MessagesStore = {
           conversation_id: conversationId,
           sender_handle: senderHandle,
           body: clean,
+          ...attachmentColumns(attachment),
         })
-        .select("id, conversation_id, sender_handle, body, created_at, read_at, flagged_at")
+        .select(MESSAGE_COLUMNS)
         .single();
       if (error) throw new Error(error.message);
       // Bump the denormalised inbox-sort timestamp. Best-effort — the message is
@@ -149,11 +252,11 @@ export const supabaseMessagesStore: MessagesStore = {
         .from(CONVERSATIONS)
         .update({ last_message_at: new Date().toISOString() })
         .eq("id", conversationId);
-      return rowToMessageDTO(data as Record<string, unknown>);
+      return rowToMessageDTO(data as unknown as Record<string, unknown>);
     } catch (err) {
       if (isMissingMessagesSchema(err)) {
         warnMemoryFallback("send", err);
-        return memoryMessagesStore.send(conversationId, senderHandle, clean);
+        return memoryMessagesStore.send(conversationId, senderHandle, clean, attachment);
       }
       console.error("[messages] send failed:", err instanceof Error ? err.message : err);
       return null;
@@ -183,7 +286,7 @@ export const supabaseMessagesStore: MessagesStore = {
             : String(row.handle_a);
         const { data: msgs } = await admin()
           .from(MESSAGES)
-          .select("sender_handle, body, created_at, read_at")
+          .select("sender_handle, body, created_at, read_at, attachment_kind")
           .eq("conversation_id", id)
           .order("created_at", { ascending: false })
           .limit(MAX_MESSAGES);
@@ -192,7 +295,9 @@ export const supabaseMessagesStore: MessagesStore = {
         out.push({
           id,
           otherHandle: normalizeHandle(other),
-          ...(last ? { lastBody: String(last.body ?? "") } : {}),
+          ...(last
+            ? { lastBody: previewBody(String(last.body ?? ""), last.attachment_kind) }
+            : {}),
           lastAt: String(row.last_message_at ?? new Date(0).toISOString()),
           lastFromMe: last ? normalizeHandle(String(last.sender_handle)) === me : false,
           unread: unreadForViewer(
@@ -231,12 +336,12 @@ export const supabaseMessagesStore: MessagesStore = {
       if (!pair || !isParticipant(pair, me)) return null;
       const { data, error } = await admin()
         .from(MESSAGES)
-        .select("id, conversation_id, sender_handle, body, created_at, read_at, flagged_at")
+        .select(MESSAGE_COLUMNS)
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: false })
         .limit(MAX_MESSAGES);
       if (error) throw new Error(error.message);
-      const rows = ((data ?? []) as Array<Record<string, unknown>>).reverse();
+      const rows = ((data ?? []) as unknown as Array<Record<string, unknown>>).reverse();
       // Mark the viewer's RECEIVED (not own) unread messages read. Best-effort.
       await admin()
         .from(MESSAGES)
@@ -285,7 +390,50 @@ export const supabaseMessagesStore: MessagesStore = {
       return false;
     }
   },
+
+  async photoObjectKey(conversationId, messageId, handle) {
+    const me = normalizeHandle(handle);
+    if (!conversationId || !messageId || !me) return null;
+    if (conversationId.startsWith("c")) {
+      return memoryMessagesStore.photoObjectKey(conversationId, messageId, me);
+    }
+    try {
+      const pair = await loadPair(conversationId);
+      // COURTESY CHECK, the same one the thread read makes. A non-participant
+      // never learns whether the id exists.
+      if (!pair || !isParticipant(pair, me)) return null;
+      const { data, error } = await admin()
+        .from(MESSAGES)
+        .select(MESSAGE_COLUMNS)
+        .eq("conversation_id", conversationId)
+        .eq("id", messageId)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) return null;
+      return photoKeyFromRow(data as unknown as Record<string, unknown>);
+    } catch (err) {
+      if (isMissingMessagesSchema(err)) {
+        warnMemoryFallback("photoObjectKey", err);
+        return memoryMessagesStore.photoObjectKey(conversationId, messageId, me);
+      }
+      console.error(
+        "[messages] photoObjectKey failed:",
+        err instanceof Error ? err.message : err,
+      );
+      return null;
+    }
+  },
 };
+
+// The serving key a row is allowed to hand out, through the SAME attachment
+// projection the thread reads — so a reported photo, a text message and a
+// mismatched key are one answer here exactly as they are there.
+function photoKeyFromRow(row: Record<string, unknown>): string | null {
+  const attachment = rowToAttachment(row);
+  if (!attachment || attachment.kind !== "photo") return null;
+  return messagePhotoServingKey(String(row.conversation_id ?? ""), String(row.id ?? ""));
+}
 
 // Resolve a conversation's handle pair (for the participant check). Returns null
 // on any miss. Kept private to the Supabase path.
@@ -303,6 +451,7 @@ async function loadPair(conversationId: string): Promise<HandlePair | null> {
 }
 
 function rowToMessageDTO(row: Record<string, unknown>): MessageDTO {
+  const attachment = rowToAttachment(row);
   return {
     id: String(row.id),
     conversationId: String(row.conversation_id ?? ""),
@@ -311,6 +460,7 @@ function rowToMessageDTO(row: Record<string, unknown>): MessageDTO {
     createdAt: String(row.created_at ?? new Date(0).toISOString()),
     read: row.read_at != null,
     flagged: row.flagged_at != null,
+    ...(attachment ? { attachment } : {}),
   };
 }
 
@@ -332,6 +482,11 @@ type MemoryMessage = {
   readAt: string | null;
   flaggedAt: string | null;
   flaggedBy: string | null;
+  attachmentKind: string | null;
+  attachmentObjectKey: string | null;
+  attachmentWidth: number | null;
+  attachmentHeight: number | null;
+  attachmentVenueId: string | null;
 };
 
 const memConversations = new Map<string, MemoryConversation>();
@@ -353,7 +508,7 @@ function memConversationDTO(conv: MemoryConversation, me: string): ConversationD
   return {
     id: conv.id,
     otherHandle: other,
-    ...(last ? { lastBody: last.body } : {}),
+    ...(last ? { lastBody: previewBody(last.body, last.attachmentKind) } : {}),
     lastAt: conv.lastMessageAt,
     lastFromMe: last ? last.senderHandle === me : false,
     unread: unreadForViewer(
@@ -363,16 +518,23 @@ function memConversationDTO(conv: MemoryConversation, me: string): ConversationD
   };
 }
 
+// Through the SAME projection the durable rows take, so the two backends cannot
+// answer differently about what a message is carrying.
 function memMessageDTO(m: MemoryMessage): MessageDTO {
-  return {
+  return rowToMessageDTO({
     id: m.id,
-    conversationId: m.conversationId,
-    senderHandle: m.senderHandle,
+    conversation_id: m.conversationId,
+    sender_handle: m.senderHandle,
     body: m.body,
-    createdAt: m.createdAt,
-    read: m.readAt != null,
-    flagged: m.flaggedAt != null,
-  };
+    created_at: m.createdAt,
+    read_at: m.readAt,
+    flagged_at: m.flaggedAt,
+    attachment_kind: m.attachmentKind,
+    attachment_object_key: m.attachmentObjectKey,
+    attachment_width: m.attachmentWidth,
+    attachment_height: m.attachmentHeight,
+    attachment_venue_id: m.attachmentVenueId,
+  });
 }
 
 export const memoryMessagesStore: MessagesStore = {
@@ -395,15 +557,18 @@ export const memoryMessagesStore: MessagesStore = {
     return id;
   },
 
-  async send(conversationId, sender, body) {
+  async send(conversationId, sender, body, attachment) {
     const senderHandle = normalizeHandle(sender);
-    const clean = cleanBody(body);
-    if (!conversationId || !senderHandle || !clean) return null;
+    const clean = attachment ? cleanAttachedBody(body) : cleanBody(body);
+    if (!conversationId || !senderHandle || clean === null) return null;
     const conv = memConversations.get(conversationId);
     if (!conv) return null;
     const pair: HandlePair = { handleA: conv.handleA, handleB: conv.handleB };
     if (!isParticipant(pair, senderHandle)) return null;
-    const id = `m${++memMsgSeq}`;
+    // A photo's id was minted before its bytes were staged, so the row takes it
+    // rather than the sequence: the storage key is built from it.
+    const id = attachment?.kind === "photo" ? attachment.messageId : `m${++memMsgSeq}`;
+    if (attachment?.kind === "photo") memMsgSeq += 1;
     // Distinct, monotonic timestamps so oldest-first ordering is stable even when
     // two messages land in the same millisecond.
     const createdAt = new Date(Date.now() + memMsgSeq).toISOString();
@@ -416,6 +581,11 @@ export const memoryMessagesStore: MessagesStore = {
       readAt: null,
       flaggedAt: null,
       flaggedBy: null,
+      attachmentKind: attachment?.kind ?? null,
+      attachmentObjectKey: attachment?.kind === "photo" ? attachment.objectKey : null,
+      attachmentWidth: attachment?.kind === "photo" ? attachment.width : null,
+      attachmentHeight: attachment?.kind === "photo" ? attachment.height : null,
+      attachmentVenueId: attachment?.kind === "venue" ? attachment.venueId : null,
     };
     const list = memMessages.get(conversationId) ?? [];
     list.push(row);
@@ -465,6 +635,27 @@ export const memoryMessagesStore: MessagesStore = {
     hit.flaggedAt = new Date().toISOString();
     hit.flaggedBy = reporter;
     return true;
+  },
+
+  async photoObjectKey(conversationId, messageId, handle) {
+    const me = normalizeHandle(handle);
+    if (!conversationId || !messageId || !me) return null;
+    const conv = memConversations.get(conversationId);
+    if (!conv) return null;
+    const pair: HandlePair = { handleA: conv.handleA, handleB: conv.handleB };
+    if (!isParticipant(pair, me)) return null;
+    const hit = (memMessages.get(conversationId) ?? []).find((m) => m.id === messageId);
+    if (!hit) return null;
+    return photoKeyFromRow({
+      id: hit.id,
+      conversation_id: hit.conversationId,
+      flagged_at: hit.flaggedAt,
+      attachment_kind: hit.attachmentKind,
+      attachment_object_key: hit.attachmentObjectKey,
+      attachment_width: hit.attachmentWidth,
+      attachment_height: hit.attachmentHeight,
+      attachment_venue_id: hit.attachmentVenueId,
+    });
   },
 };
 
