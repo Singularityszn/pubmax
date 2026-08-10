@@ -21,6 +21,11 @@ export type MusicTonightLaneProps = {
    *  filtered out here) and skip the self-fetch, so a host that already loaded the
    *  spine (Tonight) never fires a duplicate request. Omitted on Discover. */
   rows?: WhatsOnRow[];
+  /** Freshest confirmation for MUSIC specifically. This lane is about one
+   *  source, so it may not borrow the page's freshest date: if only July
+   *  evidence exists for live music, July is what this line says however
+   *  recently another feed was rebuilt. Absent means we cannot date it, and
+   *  checkedLabel says exactly that. */
   asOf?: string | null;
 };
 
@@ -41,9 +46,18 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
       .then((body) => {
         if (!body || !Array.isArray(body.rows)) return;
         const rows = body.rows.filter(isValidWhatsOnRow).slice(0, 8);
+        // Self-fetch mode asks for kind=music alone, so the response-level
+        // freshness IS this source's freshness; kindObservedAt.music is the
+        // same answer and is preferred when the server sends it.
+        const musicObservedAt = (body.kindObservedAt as Record<string, unknown> | undefined)?.music;
         setState({
           rows,
-          asOf: typeof body.asOf === "string" ? body.asOf : null,
+          asOf:
+            typeof musicObservedAt === "string"
+              ? musicObservedAt
+              : typeof body.asOf === "string"
+                ? body.asOf
+                : null,
         });
       })
       .catch(() => undefined);

@@ -189,7 +189,7 @@ export default function TonightClient({
   // the same answer the map's Near me gives, so tabs stop disagreeing.
   const router = useRouter();
   const tonightNear = resolveTonightNear(origin, remembered);
-  const { rows, asOf, sourceObservedAt, sourceFreshnessKind, status, retry } = useWhatsOnTonight(
+  const { rows, asOf, sourceObservedAt, sourceFreshnessKind, kindObservedAt, status, retry } = useWhatsOnTonight(
     true,
     tonightNear?.near ?? null,
   );
@@ -301,7 +301,10 @@ export default function TonightClient({
   const secondaryLanes = (
     <>
       <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} />
-      <MusicTonightLane rows={secondaryHeroes} asOf={asOf} />
+      {/* The music lane is dated by the MUSIC feed, never by the freshest thing
+          on the page: the deals feed is rebuilt far more often, and borrowing
+          its date would claim gigs were confirmed on a day nobody looked. */}
+      <MusicTonightLane rows={secondaryHeroes} asOf={kindObservedAt.music} />
     </>
   );
   const mobileLanes = mobileSecondaryLanes(flags.tonightGrouping, secondaryLanes);

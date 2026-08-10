@@ -30,11 +30,19 @@ import {
 
 import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
-import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
+import {
+  coveringObservedAt,
+  isValidWhatsOnRow,
+  parseKindObservedAt,
+  type WhatsOnKind,
+  type WhatsOnRow,
+} from "@/lib/whatsOn";
 import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 import type { VenueRef } from "@/lib/tonight";
 
-type ApiResponse = { asOf?: string | null; rows?: unknown };
+// `asOf` is deliberately NOT read here. It is the freshest thing the whole
+// answer can show, and this line covers only the kinds at this one venue.
+type ApiResponse = { kindObservedAt?: unknown; rows?: unknown };
 
 const KIND_ICON: Record<WhatsOnKind, LucideIcon> = {
   quiz: CalendarClock,
@@ -88,7 +96,12 @@ export default function VenueTonightChips(props: VenueRef): React.JSX.Element | 
         void Promise.resolve().then(() => {
           if (controller.signal.aborted) return;
           setKinds(derived);
-          setAsOf(body.asOf ?? null);
+          // This ONE line covers every kind on tonight at this venue, so it may
+          // only claim the OLDEST of their dates - the opposite of the page
+          // stamp, and for the opposite reason: a covering claim is as good as
+          // its weakest member. A kind we cannot date makes the line undatable
+          // rather than letting the rest of the row speak for it.
+          setAsOf(coveringObservedAt(parseKindObservedAt(body.kindObservedAt), derived));
           // One signal per kind shown at this venue.
           for (const kind of derived) trackEvent("event_chip_view", { kind });
         });

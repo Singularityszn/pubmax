@@ -259,8 +259,31 @@ describe("the shipped tiles obey the icon policy", () => {
 describe("what the head and the manifest point at exists", () => {
   const manifest = JSON.parse(
     readFileSync(join(PUBLIC, "manifest.webmanifest"), "utf8"),
-  ) as { icons: Array<{ src: string; purpose: string; sizes: string }> };
+  ) as {
+    name: string;
+    short_name: string;
+    start_url: string;
+    icons: Array<{ src: string; purpose: string; sizes: string }>;
+  };
   const layout = readFileSync(join(REPO_ROOT, "app", "layout.tsx"), "utf8");
+
+  // The installed app is the site: it opens at the front door and carries the
+  // site's own name. A start_url pointing at an inner tab means the icon on a
+  // Home Screen is a shortcut to one surface rather than the app, and a
+  // truncated name reads as a different product from the one that was
+  // installed. Captain decision 2026-08-10.
+  it("opens the installed app at the landing, under the site's own name", () => {
+    expect(manifest.start_url).toBe("/");
+    expect(manifest.name).toBe("PUBMAXXING");
+    expect(manifest.short_name).toBe("PUBMAXXING");
+  });
+
+  // iOS takes the Home Screen label from apple-mobile-web-app-title, not from
+  // the manifest, so the two platforms drift apart unless both are stated.
+  it("gives iOS the same installed name the manifest gives Android", () => {
+    const apple = layout.slice(layout.indexOf("appleWebApp: {"));
+    expect(apple.slice(0, apple.indexOf("},"))).toContain('title: "PUBMAXXING"');
+  });
 
   it("lists only generated files in the manifest", () => {
     for (const icon of manifest.icons) {

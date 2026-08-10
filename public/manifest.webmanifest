@@ -1,8 +1,8 @@
 {
-  "name": "PUBMAXX",
-  "short_name": "PUBMAXX",
+  "name": "PUBMAXXING",
+  "short_name": "PUBMAXXING",
   "description": "Price-aware nightlife map, planner, and stories worth remembering.",
-  "start_url": "/tonight",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

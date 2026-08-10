@@ -131,6 +131,21 @@
     transform: translateY(110%);
   }
 
+  /* The on-screen keyboard. The bar is fixed to the LAYOUT viewport, which no
+     phone browser shrinks for the keyboard, so it otherwise floats on top of
+     the field being typed into - the captain's screenshot was the six tabs
+     sitting over the password form. MobileTabBar writes this class from
+     lib/softKeyboard.ts, which needs a focused text field AND a shrunken visual
+     viewport before it says yes.
+     Deliberately the same three declarations as the open-sheet rule above:
+     transform only, so the body's reserved bottom clearance never moves and the
+     page cannot reflow under the caret while somebody is typing. */
+  .mobileTabBar.isKeyboardHidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(110%);
+  }
+
   .mobileTabList {
     position: relative;
     display: flex;
