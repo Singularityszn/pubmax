@@ -19,6 +19,8 @@
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 
+import { categoryLabel } from "@/lib/drinks";
+
 import { useAuth } from "@/components/auth/AuthProvider";
 import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
 import { authedFetch } from "@/lib/authedFetch";
@@ -158,7 +160,7 @@ export default function VenuePhotoWall({
                 unoptimized
               />
               {photo.drinkCategory ? (
-                <span className="venuePhotoTag">{photo.drinkCategory}</span>
+                <span className="venuePhotoTag">{categoryLabel(photo.drinkCategory)}</span>
               ) : null}
               <figcaption className="venuePhotoByline">
                 {photo.author.avatarUrl ? (

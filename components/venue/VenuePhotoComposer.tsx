@@ -22,7 +22,7 @@ import { useRef, useState } from "react";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import { authedFetch } from "@/lib/authedFetch";
 import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
-import type { DrinkCategory } from "@/lib/drinks";
+import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
 import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
 import {
   VENUE_PHOTO_CAPTION_MAX,
@@ -145,7 +145,7 @@ export default function VenuePhotoComposer({
                 setDrinkCategory((current) => (current === category ? null : category))
               }
             >
-              {category}
+              {categoryLabel(category)}
             </button>
           ))}
         </div>

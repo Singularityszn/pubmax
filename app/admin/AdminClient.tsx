@@ -1,6 +1,10 @@
 "use client";
 
 import Image from "next/image";
+
+import VenuePhotoModeration, {
+  type ModeratorVenuePhoto,
+} from "./VenuePhotoModeration";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
@@ -37,23 +41,6 @@ type ModeratorComment = {
   body: string;
   status: string;
   createdAt: string;
-};
-
-// Moderator wall-photo row as returned by GET /api/venue-photos?status=reported
-// and ?status=hidden. The stored row, so the reviewer sees the report trail and
-// a hidden row still carries what it takes to put it back.
-type ModeratorVenuePhoto = {
-  id: string;
-  venueId: string;
-  authorProfileId: string;
-  caption: string;
-  drinkCategory: string | null;
-  createdAt: string;
-  reportReason?: string;
-  reportCount?: number;
-  reportedAt?: string;
-  moderatedAt?: string;
-  moderatorNote?: string;
 };
 
 // Moderator visit-report row as returned by GET /api/visit-reports?status=reported
@@ -1089,119 +1076,14 @@ export default function AdminClient() {
             </div>
           )}
 
-          {/* ── Pub photo wall queue ──────────────────────────────────────── */}
-          <h2 className="admin-section">Reported wall photos</h2>
-          <p className="admin-sub">
-            Check reported photos from pub walls. Keep the good ones up, hide the
-            rest. A report never takes a photo off a wall on its own.
-          </p>
-          {reportedPhotos.length === 0 ? (
-            <div className="admin-empty">
-              <strong>No reported wall photos</strong>
-              <span>Photos appear here after a reader reports one.</span>
-            </div>
-          ) : (
-            <div className="admin-list">
-              {reportedPhotos.map((p) => (
-                <article className="admin-card" key={p.id}>
-                  <div className="admin-card-head">
-                    <span className="admin-venue-name">
-                      {venueNames.get(p.venueId) ?? p.venueId}
-                    </span>
-                    {p.reportedAt ? (
-                      <span className="admin-report">
-                        Reported: {new Date(p.reportedAt).toLocaleString()}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="admin-photos">
-                    <Image
-                      className="admin-photo"
-                      src={`/api/venue-photo/${encodeURIComponent(p.venueId)}/${encodeURIComponent(p.id)}`}
-                      alt={`Reported photo at ${venueNames.get(p.venueId) ?? p.venueId}`}
-                      width={96}
-                      height={120}
-                      unoptimized
-                    />
-                  </div>
-                  <div className="admin-meta">
-                    {p.caption ? <span>{p.caption}</span> : null}
-                    {p.drinkCategory ? (
-                      <span className="admin-report">Drink: {p.drinkCategory}</span>
-                    ) : null}
-                    {p.reportReason ? (
-                      <span className="admin-report">Reason: {p.reportReason}</span>
-                    ) : null}
-                    <span className="admin-report">Reports: {p.reportCount || 1}</span>
-                  </div>
-                  <div className="admin-actions">
-                    <button
-                      className="admin-btn admin-restore"
-                      onClick={() => decideVenuePhoto(p, "restore", "reported")}
-                      disabled={pendingId === p.id}
-                    >
-                      {pendingId === p.id ? "Working…" : "Keep visible"}
-                    </button>
-                    <button
-                      className="admin-btn admin-keep"
-                      onClick={() => decideVenuePhoto(p, "hide", "reported")}
-                      disabled={pendingId === p.id}
-                    >
-                      {pendingId === p.id ? "Working…" : "Hide"}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-
-          <h2 className="admin-section">Hidden wall photos</h2>
-          <p className="admin-sub">
-            Photos a moderator has hidden. Hiding never deletes one, so any of
-            these can go back on its wall.
-          </p>
-          {hiddenPhotos.length === 0 ? (
-            <div className="admin-empty">
-              <strong>No hidden wall photos</strong>
-              <span>Photos you hide from the queue above appear here.</span>
-            </div>
-          ) : (
-            <div className="admin-list">
-              {hiddenPhotos.map((p) => (
-                <article className="admin-card" key={p.id}>
-                  <div className="admin-card-head">
-                    <span className="admin-venue-name">
-                      {venueNames.get(p.venueId) ?? p.venueId}
-                    </span>
-                    {p.moderatedAt ? (
-                      <span className="admin-report">
-                        Hidden: {new Date(p.moderatedAt).toLocaleString()}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="admin-meta">
-                    {p.caption ? <span>{p.caption}</span> : null}
-                    {p.reportReason ? (
-                      <span className="admin-report">Reason: {p.reportReason}</span>
-                    ) : null}
-                    <span className="admin-report">Reports: {p.reportCount || 0}</span>
-                    {p.moderatorNote ? (
-                      <span className="admin-report">Note: {p.moderatorNote}</span>
-                    ) : null}
-                  </div>
-                  <div className="admin-actions">
-                    <button
-                      className="admin-btn admin-restore"
-                      onClick={() => decideVenuePhoto(p, "restore", "hidden")}
-                      disabled={pendingId === p.id}
-                    >
-                      {pendingId === p.id ? "Working…" : "Restore"}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
+          {/* ── Pub photo wall queues ─────────────────────────────────────── */}
+          <VenuePhotoModeration
+            reported={reportedPhotos}
+            hidden={hiddenPhotos}
+            venueNames={venueNames}
+            pendingId={pendingId}
+            onDecide={decideVenuePhoto}
+          />
 
           {/* ── Profile picture report queue (Social Launch WP4) ─────────────── */}
           <h2 className="admin-section">Reported profile pictures</h2>

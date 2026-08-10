@@ -27,7 +27,7 @@
 //    discovers by opening a feed that has nothing in it, so an unverified
 //    author is told the wall took the photo and the feed did not.
 
-import { DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
+import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import type { CropTarget } from "@/lib/profileImagePicker";
 
 /**
@@ -369,6 +369,11 @@ export function venuePhotoAltText(photo: {
   caption: string;
 }): string {
   if (photo.caption) return `@${photo.author.handle}: ${photo.caption}`;
-  if (photo.drinkCategory) return `A ${photo.drinkCategory} photo by @${photo.author.handle}`;
+  // The label, not the slug, and in a clause of its own: the taxonomy's names
+  // are Title Case and some are plural ("Cocktails", "Soft drinks"), so
+  // "A Cocktails photo" is what naming the drink mid-sentence would produce.
+  if (photo.drinkCategory) {
+    return `${categoryLabel(photo.drinkCategory)}, photographed by @${photo.author.handle}`;
+  }
   return `A photo by @${photo.author.handle}`;
 }
