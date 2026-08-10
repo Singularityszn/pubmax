@@ -110,7 +110,7 @@
     "knip": "^6.31.0",
     "tailwindcss": "^4.3.2",
     "tsx": "^4.20.6",
-    "typescript": "^5.7.2",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.9"
   },
   "overrides": {
