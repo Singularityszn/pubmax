@@ -180,11 +180,22 @@ These controls solve different problems:
   Vercel's generated production aliases to the apex stops them serving an
   independent copy. `proxy.ts` evaluates the incoming host on every request, so
   canonicalisation does not depend on which environment built the artifact.
-  Every production `*.vercel.app` host redirects by default. Preview
-  deployments remain reviewable when `VERCEL_ENV=preview` and the incoming
-  host exactly matches Vercel's request-time `x-vercel-deployment-url` header
-  or the artifact's `VERCEL_BRANCH_URL`. Canonical, localhost, loopback, and
-  LAN hosts do not need an exception.
+  Every production `*.vercel.app` host redirects a PAGE DOCUMENT by default.
+  Preview deployments remain reviewable when `VERCEL_ENV=preview` and the
+  incoming host exactly matches Vercel's request-time `x-vercel-deployment-url`
+  header or the artifact's `VERCEL_BRANCH_URL`. Canonical, localhost, loopback,
+  and LAN hosts do not need an exception.
+- The `/api` tree is exempt from that host redirect on every host. A caller
+  wants an answer, not a new address, and Vercel's cron dispatcher issues its
+  scheduled GET against the deployment's own generated host without following a
+  redirect. Between #664 and the exemption, every job in `vercel.json` answered
+  308 and no handler ran, including `freshness-audit`, the watchdog that would
+  have reported it. The credential is what protects those routes:
+  `assertCronRequest` (`lib/cronAuth.ts`) requires
+  `Authorization: Bearer ${CRON_SECRET}` and denies in production when the
+  secret is unset, so the host was never the gate.
+  `__tests__/vercelProductionHostRedirect.test.ts` pins both halves, and reads
+  the scheduled paths from `vercel.json` so a new cron cannot fall outside it.
 
 Vercel documents `VERCEL_URL` as incompatible with Standard Deployment
 Protection, which this project requires. The unique deployment-host comparison

@@ -75,8 +75,37 @@ function isArtifactPreviewHost(request: NextRequest): boolean {
   ].some((artifactHost) => normalizeHostname(artifactHost) === hostname);
 }
 
+function servesApiCaller(pathname: string): boolean {
+  return pathname === "/api" || pathname.startsWith("/api/");
+}
+
+// AN API REQUEST IS A CALLER, NOT A READER, SO IT IS NEVER SENT ELSEWHERE.
+//
+// A 308 tells the client to ask again at another address, and a client that is
+// not a browser may simply not do that. Vercel's cron dispatcher is one of
+// those: it issues its scheduled GET against the deployment's own *.vercel.app
+// host, so the host canonicalisation below answered every job on pubmaxxing.com
+// with a 308 and NO handler ran - refresh-prices weekly, the social moderation
+// pair every ten minutes, and freshness-audit, which is the watchdog that would
+// otherwise have said so. Nothing alerted because the alarm was among the dead.
+//
+// Serving those routes on the generated host is safe because their gate is the
+// CALLER'S CREDENTIAL rather than the hostname: every app/api/cron/* handler
+// calls assertCronRequest (lib/cronAuth.ts), which requires
+// `Authorization: Bearer ${CRON_SECRET}` and denies in production when the
+// secret is unset. The whole /api tree is exempt rather than /api/cron alone,
+// because the same silence would swallow any webhook or callback aimed at a
+// deployment URL, and because what the canonicalisation protects is the SEO
+// split-brain that a crawlable DOCUMENT mirror creates. A JSON answer is not
+// that mirror; page documents still canonicalise exactly as before.
+//
+// The trailing-slash rule further down is deliberately NOT exempted: with
+// `skipTrailingSlashRedirect` in next.config.mjs, `/api/thing/` matches no
+// route, so that 308 is what makes the address work rather than what breaks it,
+// and it keeps the caller on the host it addressed.
 function shouldRedirectVercelHost(request: NextRequest): boolean {
   if (!requestHostname(request).endsWith(".vercel.app")) return false;
+  if (servesApiCaller(request.nextUrl.pathname)) return false;
   return !(
     process.env.VERCEL_ENV === "preview" &&
     isArtifactPreviewHost(request)
@@ -86,8 +115,7 @@ function shouldRedirectVercelHost(request: NextRequest): boolean {
 function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
   const { pathname } = request.nextUrl;
   const excludedPath =
-    pathname === "/api" ||
-    pathname.startsWith("/api/") ||
+    servesApiCaller(pathname) ||
     pathname === "/_next/static" ||
     pathname.startsWith("/_next/static/") ||
     pathname === "/_next/image" ||
