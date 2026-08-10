@@ -5,42 +5,38 @@ import { describe, expect, it, vi } from "vitest";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import { MAP_LENS_DRINK_CATEGORIES } from "@/lib/mapExperienceLens";
 
-function renderPicker(drinkCategory: string) {
+function renderPicker(drinkBrand = "") {
   return renderToStaticMarkup(
     createElement(FavoritePintPicker, {
       value: null,
       onChange: vi.fn(),
-      drinkCategory,
-      drinkBrand: "",
-      onDrinkLensChange: vi.fn(),
+      drinkBrand,
+      onDrinkBrandChange: vi.fn(),
     }),
   );
 }
 
 describe("FavoritePintPicker", () => {
   it("keeps pint brand choice on the pint path", () => {
-    expect(renderPicker("")).toContain('aria-label="Favourite pint or beer brand"');
+    expect(renderPicker()).toContain('aria-label="Favourite pint or beer brand"');
   });
 
-  it("does not imply category prices are specific to a whisky brand", () => {
-    const html = renderPicker("whisky");
-    expect(html).not.toContain('aria-label="Whisky brand"');
-    expect(html).toContain("Whisky prices cover any whisky");
-  });
-
-  it("does not offer Other as a map lens", () => {
-    // Other stays submittable (a liqueur, a cider), but a pin reading
-    // "£6 Other" over a pint glass would label a figure with no drink name.
-    const html = renderPicker("");
-    expect(html).not.toContain('value="other"');
+  it("holds no second copy of the drink lane", () => {
+    // The lane is a first-class control (DrinkLanePicker) mounted at both
+    // sizes. A category select in here too would be two live pickers writing
+    // one filter, which drift the moment either one of them is used.
+    const html = renderPicker();
     for (const category of MAP_LENS_DRINK_CATEGORIES) {
-      expect(html).toContain(`value="${category}"`);
+      expect(html).not.toContain(`value="${category}"`);
     }
+    expect(html).not.toContain('aria-label="Drink"');
   });
 
-  it("falls back to the pint lens for a category the map cannot lens", () => {
-    const html = renderPicker("other");
-    expect(html).toContain('aria-label="Favourite pint or beer brand"');
-    expect(html).not.toContain("Other prices cover any other");
+  it("does not name a brand for a drink whose prices have none", () => {
+    // Community category rows never record a brand, so a "Whisky brand" choice
+    // would overstate what its pin proves. Brand is beer-only, full stop.
+    const html = renderPicker();
+    expect(html).not.toMatch(/aria-label="(?!Favourite pint or beer brand)[^"]*brand"/i);
+    expect(html).toContain("Cheapest pint (any)");
   });
 });

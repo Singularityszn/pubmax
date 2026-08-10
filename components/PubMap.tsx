@@ -279,7 +279,6 @@ import {
   applyDrinkLane,
   DEFAULT_DRINK_LANE,
   drinkLaneLabel,
-  drinkLaneNoun,
 } from "@/lib/drinkLanes";
 import {
   bandChipDismissedKey,
@@ -4023,16 +4022,7 @@ export default function PubMap({
               placeFocus={searchAreaTarget?.kind === "place" ? searchAreaTarget : null}
               venues={pubVenues}
               lensPrices={drinkLensPrices}
-              drinkLabel={
-                mapDrinkLensCategory
-                  ? CATEGORY_META[mapDrinkLensCategory].label
-                  : "Pints"
-              }
-              drinkNoun={
-                mapDrinkLensCategory
-                  ? drinkLaneNoun(mapDrinkLensCategory)
-                  : "pint"
-              }
+              drinkCategory={mapDrinkLensCategory}
               lensStatus={drinkIndexStatus}
               distanceFrom={areaSheetDistanceFrom}
               onSelectVenue={selectVenue}

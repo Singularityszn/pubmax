@@ -43,10 +43,15 @@ describe("finding 2.3 — the phone map chrome is one bar", () => {
     expect(chrome, "no control rail").not.toContain("mobileMapRail");
     expect(shellCss, "and no rail styling survives").not.toContain(".mobileMapRail");
     // The only other children at rest are optional: the search field (mounts
-    // on the reader's own tap) and the Tonight cold-start chip (mounts only
-    // when What's On has listings). Neither is a second control rail.
+    // on the reader's own tap) and ONE docked chip row. The drink lane and the
+    // Tonight cold-start chip share that row rather than docking one each, so
+    // a second chip can never grow into a second control rail.
     expect(chrome).toMatch(/overlay === "search" \? \([\s\S]*?mobileMapSearchRow/);
-    expect(chrome).toMatch(/tonightChip \? \([\s\S]*?mobileMapTonightRow/);
+    expect(chrome).toMatch(/overlay === "search" \? null : \([\s\S]*?<MapChipRow/);
+    expect((shell.match(/className="mobileMapChipRow"/g) ?? []).length).toBe(1);
+    expect(shell).toMatch(
+      /mobileMapChipRow"[\s\S]*?mobileMapDrinkChip[\s\S]*?tonightChip \? \([\s\S]*?mobileMapTonightChip/,
+    );
     expect(chrome, "no control rail").not.toContain("mobileMapRail");
   });
 
@@ -73,8 +78,9 @@ describe("finding 2.3 — the phone map chrome is one bar", () => {
     // A permanent Tonight slot used Sparkles inside the bar rail. The cold-start
     // chip docks under the bar with MoonStar and never reclaims a sixth slot.
     expect(chrome, "no Sparkles Tonight chip in the bar").not.toContain("Sparkles");
-    expect(chrome).toContain("MoonStar");
-    expect(chrome).toMatch(/set\("tonight"\)/);
+    expect(chrome, "the chip row is docked, not in the bar").toContain("<MapChipRow");
+    expect(shell).toMatch(/mobileMapTonightChip[\s\S]*?MoonStar/);
+    expect(shell).toMatch(/mobileMapTonightChip[\s\S]{0,400}onOpen\("tonight"\)/);
   });
 });
 

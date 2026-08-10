@@ -36,7 +36,7 @@ function renderSheet(
       area: soho,
       venues: [venue("a")],
       lensPrices,
-      drinkLabel: "Whisky",
+      drinkCategory: "whisky" as const,
       lensStatus,
       distanceFrom: {
         point: [soho.centre.lng, soho.centre.lat] as [number, number],

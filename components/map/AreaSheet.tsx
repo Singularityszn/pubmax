@@ -13,7 +13,8 @@ import {
   type AreaDistanceFrom,
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
-import { drinkLaneLogInvite } from "@/lib/drinkLanes";
+import { drinkLaneLogInvite, drinkLaneNoun } from "@/lib/drinkLanes";
+import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import type { NightArea } from "@/lib/nightAreas";
 import {
   drinkLensCoverageNote,
@@ -55,17 +56,15 @@ type AreaSheetProps = {
   venues: Venue[];
   /** Trusted prices for selected non-pint drink, or null for pint default. */
   lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
-  /** Human category label used beside every lens figure and unknown row. It is
-   *  the menu-section name ("Cocktails", "Soft drinks"), so it heads the list.
-   */
-  drinkLabel?: string;
   /**
-   * The same drink INSIDE a sentence, and singular, because every sentence
-   * below puts "price" or "prices" after it: the label alone produced "No
-   * cocktails prices in this area yet". One word per job, both supplied by the
-   * caller from the one lane table.
+   * The drink lane the map is under, or null for the pint default. ONE prop,
+   * because this sheet needs the drink twice and in two shapes: the menu-section
+   * label beside a figure ("Cocktails") and the singular sentence noun before
+   * the word price ("No cocktail prices in this area yet"). Two caller-supplied
+   * words could disagree, and a heading naming one drink over a list of another
+   * is worse than either word alone.
    */
-  drinkNoun?: string;
+  drinkCategory?: DrinkCategory | null;
   /** How complete the selected drink's cross-venue read was. A failed or
    *  truncated index may never be rendered as "none here yet". */
   lensStatus?: CategoryPriceIndexStatus;
@@ -117,6 +116,20 @@ const AREA_HOP_CLOSE_MS = 900;
  * under the camera yet, the drink's index did not finish, or the area really
  * has no price for this drink. Only the last is a fact about the place.
  */
+/**
+ * The lane's two words. The label heads the list and tags a figure ("Cocktails"),
+ * the noun goes inside a sentence about a price ("No cocktail prices here yet").
+ * Both come off the one lane table, so a heading can never name a different
+ * drink from the sentence under it.
+ */
+function areaSheetDrinkWords(category: DrinkCategory | null): {
+  label: string;
+  noun: string;
+} {
+  if (!category) return { label: "Pints", noun: "pint" };
+  return { label: CATEGORY_META[category].label, noun: drinkLaneNoun(category) };
+}
+
 function areaSheetEmptyNote(input: {
   baseLed: boolean;
   hasFocus: boolean;
@@ -142,8 +155,7 @@ export default function AreaSheet({
   placeFocus = null,
   venues,
   lensPrices = null,
-  drinkLabel = "Pints",
-  drinkNoun = "pint",
+  drinkCategory = null,
   lensStatus = "ready",
   distanceFrom,
   onSelectVenue,
@@ -156,6 +168,12 @@ export default function AreaSheet({
 }: AreaSheetProps) {
   const closeTimer = useRef<number | null>(null);
   const elsewhere = useMemo(() => areaElsewhereOptions(cityId), [cityId]);
+  const drinkWords = useMemo(
+    () => areaSheetDrinkWords(drinkCategory),
+    [drinkCategory],
+  );
+  const drinkLabel = drinkWords.label;
+  const drinkNoun = drinkWords.noun;
   // A searched locality/borough (placeFocus) derives its pubs from a walkable
   // ring around its centroid; otherwise the modelled area under the map centre
   // owns the list. The name shown in the header follows the same precedence.
@@ -249,8 +267,8 @@ export default function AreaSheet({
               ? `Pubs around ${focusName}`
               : "Pubs on the base map"
             : focusName
-              ? `Cheapest ${drinkNoun} in ${focusName}`
-              : `Cheapest ${drinkNoun} here`}
+              ? `Cheapest ${drinkPlural} in ${focusName}`
+              : `Cheapest ${drinkPlural} here`}
         </h3>
         {coverageNote && !baseLed ? (
           <p className="areaSheetEmpty areaSheetCoverage" role="status">
