@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 128 mutating handlers across 104 route files.** Each exported
+> **Inventory: 137 mutating handlers across 111 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -144,6 +144,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/interactions`
 - `POST app/api/social/posts`
 - `POST app/api/social/tags`
+- `POST app/api/starter-packs/[slug]/follow`
 - `POST app/api/venue-operators/claim`
 - `POST app/api/venue-photos`
 - `POST app/api/visit-reports`
@@ -1114,6 +1115,32 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   been tombstoned is dropped from the page and its serve route answers 404; the
   tombstone trigger in migration 0098 deletes both the rows and their Storage
   objects when an account leaves.
+
+### `app/api/starter-packs/[slug]/follow` - follow a whole starter pack (route 90)
+
+- **Route / method:** `POST app/api/starter-packs/[slug]/follow/route.ts`.
+- **Actor (boundary):** the same seam as the single follow. `resolveMessageHandle`
+  prefers the JWT-linked handle over anything in the body, and `gateHandleAction`
+  refuses a caller acting as a handle an account owns. An unlinked demo handle
+  still writes, exactly as it does on a profile Follow button.
+- **Rate limit (boundary):** ONE per-actor plus hashed-IP `isLimited` spend for
+  the whole pack, not one per member, because the drinker made one decision. The
+  budget is deliberately small (6 per minute): a pack follow is a considered act.
+- **Idempotence:** a follow edge is idempotent, so a second tap answers 200 with
+  every member reported `already`. No edge is written twice and no notification
+  is emitted twice - `followOnce` (`lib/followWrite.server.ts`) is the one edge
+  write both this route and the single follow go through.
+- **Honesty:** the reply carries a per-member outcome (`followed`, `already`,
+  `self`, `failed`) and a summary that names the number that did not go through.
+  One member's storage failure never fails the eleven beside it and is never
+  rounded up into a success. Membership itself is `lib/starterPacks.ts`: claimed,
+  live accounts placed by their own public location or holding a founding
+  number, never a seeded or invented member.
+- **Scope:** a pack below the member floor answers the same 404 as an unknown
+  slug, so the refusal discloses nothing about who is in it. The read half
+  (`GET app/api/starter-packs`) is personalised and `no-store`, and returns the
+  viewer's follow count tri-state so a failed count is never read as "follows
+  nobody".
 
 The structural scan, live atomic-limiter check, and deployment configuration must
 all remain green. A future route added without a reviewed boundary fails the closed
