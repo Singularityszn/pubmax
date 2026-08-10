@@ -101,6 +101,16 @@ function memoryStorage(): ProfileImageStorage & {
       objects.set(path, Buffer.from(bytes));
       uploads.push({ path, bytes: Buffer.from(bytes) });
     },
+    // Promotion proves its own write through this, so the fake has to answer
+    // like a bucket: absent, unreadable, or the bytes it was handed.
+    async readBack(path) {
+      const bytes = objects.get(path);
+      if (!bytes) return { ok: false, failure: "storage_error", detail: "Object not found" };
+      if (!bytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) {
+        return { ok: false, failure: "magic_bytes_mismatch", detail: `${bytes.byteLength} bytes` };
+      }
+      return { ok: true, image: { bytes, contentType: "image/jpeg" } };
+    },
     async remove(paths) {
       removed.push([...paths]);
       for (const path of paths) objects.delete(path);
