@@ -122,12 +122,20 @@ describe("nav account control", () => {
   it("asks for the owned avatar only once someone opens the menu", async () => {
     // SiteNav renders on every page. None of them owe a profile request for a
     // card nobody looked at.
+    //
+    // The held card is keyed on its HANDLE rather than on "have we asked yet",
+    // because an account switch replaces the account under an open menu: keyed
+    // on the flag alone, the previous account's face and display name stayed
+    // above the new account's @handle.
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const source = readFileSync(
       join(process.cwd(), "components/auth/SignInButton.tsx"),
       "utf8",
     );
-    expect(source).toContain("if (!menuOpen || card || !accountHandle) return;");
+    expect(source).toContain(
+      "if (!menuOpen || card?.handle === accountHandle || !accountHandle) return;",
+    );
+    expect(source).toContain("card?.handle === accountHandle ? card : null");
   });
 });

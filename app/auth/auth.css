@@ -495,6 +495,13 @@
 .authAccountMenu {
   gap: 0.35rem;
   padding: 0.6rem;
+  /* A device may hold five accounts, so this card has a variable height: the
+     identity, three links, up to four switch rows, Add account and two ways out.
+     Bound it to the space below the bar and let it scroll, rather than run off
+     the foot of a short laptop viewport. */
+  max-height: calc(100dvh - var(--topbar-h, 52px) - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .authAccountCard {
@@ -576,6 +583,166 @@
 .authAccountLinks a:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: -2px;
+}
+
+/* Switch account. A standard control for anybody running more than one, so it
+   sits in the card's own rhythm rather than reading as an extra feature: the
+   same 44px rows, the same divider, the same brass hover the links use. */
+.authSwitcher {
+  display: grid;
+  gap: 0.15rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+}
+
+.authSwitcherToggle {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 0.55rem;
+  border: 0;
+  border-radius: var(--control-radius, 14px);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.authSwitcherToggle:hover {
+  background: color-mix(in srgb, var(--brass) 10%, transparent);
+}
+
+.authSwitcherChevron {
+  margin-left: auto;
+  color: var(--muted);
+  transition: transform 0.16s ease-out;
+}
+
+.authSwitcherToggle[aria-expanded="true"] .authSwitcherChevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .authSwitcherChevron {
+    transition: none;
+  }
+}
+
+.authSwitcherToggle:focus-visible,
+.authSwitcherRow:focus-visible,
+.authSwitcherAdd:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: -2px;
+}
+
+.authSwitcherList {
+  display: grid;
+  gap: 0.1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.authSwitcherRow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.25rem 0.55rem;
+  border: 0;
+  border-radius: var(--control-radius, 14px);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.authSwitcherRow:hover {
+  background: color-mix(in srgb, var(--brass) 10%, transparent);
+}
+
+.authSwitcherRow:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.authSwitcherAvatar {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 0.8rem;
+}
+
+.authSwitcherRowText {
+  display: grid;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.authSwitcherName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.authSwitcherHandle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--brass);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A state, not a hint: this row cannot be swapped into silently. Quiet, and it
+   keeps a readable contrast rather than an opacity that dims it out of reach. */
+.authSwitcherState {
+  margin-left: auto;
+  padding-left: 0.4rem;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.authSwitcherAdd {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 0.55rem;
+  border-radius: var(--control-radius, 14px);
+  color: var(--brass);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.authSwitcherAdd:hover {
+  background: color-mix(in srgb, var(--brass) 10%, transparent);
+}
+
+.authSwitcherError {
+  margin: 0;
+  padding-inline: 0.55rem;
+  font-size: 0.78rem;
+}
+
+/* The second way out. Same shape as the first so neither reads as the safe one,
+   and it is only rendered when the device really holds more than one account. */
+.authMenu > .authSignOutDevice {
+  color: var(--muted);
 }
 
 .authAccountEmail {

@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LogIn } from "lucide-react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
+import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
+import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import HandlePasswordSignIn from "@/components/auth/HandlePasswordSignIn";
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
@@ -12,11 +14,15 @@ import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
 import {
+  ARRIVAL_FROM_PARAM,
   ARRIVAL_INTENT_PARAM,
   arrivalDestination,
+  LOGIN_ADD_ACCOUNT_PARAM,
   rememberChosenIntent,
   type ArrivalIntent,
 } from "@/lib/arrivalWelcome";
+import type { DeviceAccountRecord } from "@/lib/deviceAccountSessions";
+import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 
 import "@/app/auth/auth.css";
@@ -94,18 +100,34 @@ function avatarUrl(user: {
   );
 }
 
-/** The already-signed-in state: who you are here, and three ways onward. */
+/**
+ * The already-signed-in state: who you are here, and three ways onward.
+ *
+ * This is the account home on a PHONE, because the nav account card is hidden
+ * below 640px, so it carries the same device controls that card does: switch to
+ * another account signed in here, add one, and leave at either scope.
+ */
 function SignedInCard({
   user,
+  handle,
   busy,
   onSignOut,
+  activeUserId,
+  deviceAccounts,
+  onSwitchAccount,
+  addAccountHref,
 }: {
   user: {
     email?: string | null;
     user_metadata?: Record<string, unknown> | null;
   };
+  handle: string | null;
   busy: boolean;
-  onSignOut: () => void;
+  onSignOut: (scope: SignOutScope) => void;
+  activeUserId: string | null;
+  deviceAccounts: readonly DeviceAccountRecord[];
+  onSwitchAccount: (userId: string) => Promise<DeviceAccountSwitchOutcome>;
+  addAccountHref: string;
 }): React.JSX.Element {
   const avatar = avatarUrl(user);
   return (
@@ -137,14 +159,16 @@ function SignedInCard({
         <Link href="/u/you" className="loginPageSecondary">
           Your profile
         </Link>
-        <button
-          type="button"
-          className="authSignOut loginPageSignOut"
-          onClick={onSignOut}
-          disabled={busy}
-        >
-          Sign out
-        </button>
+        <AccountDeviceControls
+          handle={handle}
+          activeUserId={activeUserId}
+          deviceAccounts={deviceAccounts}
+          onSwitchAccount={onSwitchAccount}
+          addAccountHref={addAccountHref}
+          onSignOut={onSignOut}
+          signOutDisabled={busy}
+          signOutClassName="authSignOut loginPageSignOut"
+        />
       </div>
     </section>
   );
@@ -214,6 +238,35 @@ function WelcomeBackCard({
   );
 }
 
+/** What the page says, which is the first thing a door differs in. */
+function PageHead({
+  adding,
+  signedIn,
+  door,
+}: {
+  adding: boolean;
+  signedIn: boolean;
+  door: { title: string; lead: string };
+}): React.JSX.Element {
+  const title = adding
+    ? "Add another account"
+    : signedIn
+      ? "You are signed in"
+      : door.title;
+  const lead = adding
+    ? "Sign in to the other account. This device keeps both, and you can switch between them whenever you like."
+    : signedIn
+      ? "Your account is ready. Jump back into the map, or sign out."
+      : door.lead;
+  return (
+    <header className="loginPageHead">
+      <p className="loginPageEyebrow">PUBMAXXING</p>
+      <h1 className="loginPageTitle">{title}</h1>
+      <p className="loginPageLead">{lead}</p>
+    </header>
+  );
+}
+
 /** The two doors as one control. Extracted so the page body stays readable. */
 function DoorSwitch({
   intent,
@@ -258,9 +311,17 @@ function DoorSwitch({
 export default function LoginPage({
   initialIntent = "signin",
   from = null,
+  addAccount = false,
 }: {
   initialIntent?: ArrivalIntent;
   from?: string | null;
+  /**
+   * A person who already has a session and wants a SECOND account on this
+   * device (the account switcher's Add account). The live session is left alone;
+   * this page simply offers its form instead of the "you are signed in" card,
+   * and the new sign-in becomes the active account through the one auth event.
+   */
+  addAccount?: boolean;
 } = {}): React.JSX.Element {
   const {
     user,
@@ -273,9 +334,13 @@ export default function LoginPage({
     signInWithEmail,
     cancelAuthAttempt,
     signOut,
+    switchAccount,
     welcomeBack,
     resumeSignIn,
+    handle: accountHandle,
   } = useAuth();
+  // ONE live read of the remembered-account lane on this page.
+  const deviceAccounts = useDeviceAccounts();
   const [busy, setBusy] = useState<"google" | "apple" | "out" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resumeStatus, setResumeStatus] = useState<
@@ -360,32 +425,42 @@ export default function LoginPage({
     setResumeMessage(result.message);
   }, [resumeSignIn, resumeStatus]);
 
-  const onSignOut = useCallback(async () => {
-    setBusy("out");
-    await signOut();
-    setBusy(null);
-  }, [signOut]);
+  const onSignOut = useCallback(
+    async (scope: SignOutScope) => {
+      setBusy("out");
+      await signOut(scope);
+      setBusy(null);
+    },
+    [signOut],
+  );
+
+  /**
+   * The way back to this page for a SECOND account. `from` is where the person
+   * was before, and this page is never a destination, so a bare /login visit
+   * comes back to the signed-in card it started from.
+   */
+  const addAccountHref = useMemo(() => {
+    const params = new URLSearchParams({ [LOGIN_ADD_ACCOUNT_PARAM]: "1" });
+    if (from && from.startsWith("/")) params.set(ARRIVAL_FROM_PARAM, from);
+    return `/login?${params.toString()}`;
+  }, [from]);
 
   const clerkSessionAvailable = isClerkProductSessionAvailable(
     user,
     clerkIntegrationConfigured,
   );
   const hasAuthSurface = configured || clerkSessionAvailable;
+  // Adding an account is the ONE case where a live session does not get the
+  // signed-in card: the person came here to bring a second account onto this
+  // device, and telling them they are already in would be answering a question
+  // they did not ask.
+  const adding = addAccount && Boolean(user);
+  const showSignedIn = Boolean(user) && !adding;
 
   return (
     <main className="loginPage">
       <div className="loginPageInner">
-        <header className="loginPageHead">
-          <p className="loginPageEyebrow">PUBMAXXING</p>
-          <h1 className="loginPageTitle">
-            {user ? "You are signed in" : door.title}
-          </h1>
-          <p className="loginPageLead">
-            {user
-              ? "Your account is ready. Jump back into the map, or sign out of this device."
-              : door.lead}
-          </p>
-        </header>
+        <PageHead adding={adding} signedIn={Boolean(user)} door={door} />
 
         {!hasAuthSurface && !loading ? (
           <p className="loginPageNotice" role="status">
@@ -400,15 +475,20 @@ export default function LoginPage({
           </p>
         ) : null}
 
-        {!loading && user ? (
+        {!loading && showSignedIn && user ? (
           <SignedInCard
             user={user}
+            handle={accountHandle ?? null}
             busy={busy !== null}
-            onSignOut={onSignOut}
+            onSignOut={(scope) => void onSignOut(scope)}
+            activeUserId={user.id ?? null}
+            deviceAccounts={deviceAccounts}
+            onSwitchAccount={switchAccount}
+            addAccountHref={addAccountHref}
           />
         ) : null}
 
-        {!loading && !user && hasAuthSurface && welcomeBack && !useDifferentAccount ? (
+        {!loading && !showSignedIn && hasAuthSurface && welcomeBack && !useDifferentAccount ? (
           <WelcomeBackCard
             maskedEmail={welcomeBack.maskedEmail}
             status={resumeStatus}
@@ -418,7 +498,7 @@ export default function LoginPage({
           />
         ) : null}
 
-        {!loading && !user && hasAuthSurface && (!welcomeBack || useDifferentAccount) ? (
+        {!loading && !showSignedIn && hasAuthSurface && (!welcomeBack || useDifferentAccount) ? (
           <section className="loginPageForm" aria-label="Sign-in options">
             <DoorSwitch intent={intent} onChoose={chooseDoor} />
             <div className="authOptions">

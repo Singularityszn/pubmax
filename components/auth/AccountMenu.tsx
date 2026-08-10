@@ -3,7 +3,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
+import type { SignOutScope } from "@/components/auth/AuthProvider";
 import HandleAvatar from "@/components/profile/HandleAvatar";
+import type { DeviceAccountRecord } from "@/lib/deviceAccountSessions";
+import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
 import { displayHandle, handleOnly } from "@/lib/handleDisplay";
 
 /**
@@ -14,6 +18,11 @@ import { displayHandle, handleOnly } from "@/lib/handleDisplay";
  * plumbing, so it sits last and quiet rather than standing in for a name. A
  * person with no claimed handle yet gets the same card pointed at /u/you, which
  * is where they claim one.
+ *
+ * When the device holds a second account it also holds the way between them, and
+ * the way out gains a scope. Both live in `AccountDeviceControls`, which the
+ * signed-in card on /login shares, because that page is the account home on a
+ * phone (this card is hidden below 640px).
  */
 export default function AccountMenu({
   id,
@@ -25,6 +34,10 @@ export default function AccountMenu({
   signOutDisabled,
   onSignOut,
   onNavigate,
+  activeUserId = null,
+  deviceAccounts = [],
+  onSwitchAccount,
+  addAccountHref = "/login",
   extraControls,
 }: {
   id: string;
@@ -34,8 +47,14 @@ export default function AccountMenu({
   email?: string;
   avatarUrl?: string;
   signOutDisabled?: boolean;
-  onSignOut: () => void;
+  onSignOut: (scope: SignOutScope) => void;
   onNavigate?: () => void;
+  /** The account this card is about, so the switcher can leave it out. */
+  activeUserId?: string | null;
+  /** Every account signed in on this device. Read once by the nav host. */
+  deviceAccounts?: readonly DeviceAccountRecord[];
+  onSwitchAccount?: (userId: string) => Promise<DeviceAccountSwitchOutcome>;
+  addAccountHref?: string;
   extraControls?: ReactNode;
 }): React.JSX.Element {
   const profilePath = handle ? `/u/${handleOnly(handle)}` : "/u/you";
@@ -72,14 +91,16 @@ export default function AccountMenu({
 
       {email ? <p className="authAccountEmail">{email}</p> : null}
 
-      <button
-        type="button"
-        className="authSignOut"
-        onClick={onSignOut}
-        disabled={signOutDisabled}
-      >
-        Sign out
-      </button>
+      <AccountDeviceControls
+        handle={handle}
+        activeUserId={activeUserId}
+        deviceAccounts={deviceAccounts}
+        {...(onSwitchAccount ? { onSwitchAccount } : {})}
+        addAccountHref={addAccountHref}
+        onSignOut={onSignOut}
+        signOutDisabled={Boolean(signOutDisabled)}
+        {...(onNavigate ? { onNavigate } : {})}
+      />
       {extraControls}
     </div>
   );
