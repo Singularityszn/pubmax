@@ -256,8 +256,18 @@ type LondonParts = {
   second: number;
 };
 
-function londonParts(base: Date): LondonParts {
-  const parts = new Intl.DateTimeFormat("en-CA", {
+// BUILDING an Intl.DateTimeFormat is the expensive part of reading a London
+// wall clock; formatting with one already built is roughly ten times cheaper.
+// This module used to build a fresh formatter on every reading, and a reading
+// happens per ROW in the tonight window test, so the cost scaled with the
+// listings dataset: on a phone-shaped CI box /today spent about 600ms of its
+// server render inside Intl constructors alone, and every row added to the
+// deals feed made it worse. The formatter carries no per-call state, so one
+// lazily built instance serves the whole process.
+let londonPartsFormatter: Intl.DateTimeFormat | null = null;
+
+function londonPartsFormat(): Intl.DateTimeFormat {
+  londonPartsFormatter ??= new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/London",
     year: "numeric",
     month: "2-digit",
@@ -266,7 +276,12 @@ function londonParts(base: Date): LondonParts {
     minute: "2-digit",
     second: "2-digit",
     hourCycle: "h23",
-  }).formatToParts(base);
+  });
+  return londonPartsFormatter;
+}
+
+function londonParts(base: Date): LondonParts {
+  const parts = londonPartsFormat().formatToParts(base);
   const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? "0");
   return {
     year: get("year"),
@@ -360,6 +375,19 @@ const POINT_ROW_GRACE_MS: Record<WhatsOnKind, number> = {
   deal: 0,
 };
 
+/**
+ * The 16:00-04:00 service window as instants, resolved once for a caller that
+ * is about to ask about many rows. Named for the SERVICE day it comes from,
+ * because lib/tflDisruption.ts publishes its own narrower 17:00-02:00 night
+ * window and two differently-bounded "tonight windows" must not read alike.
+ */
+export type TonightServiceWindow = { startMs: number; endMs: number };
+
+export function tonightServiceWindow(now: number = Date.now()): TonightServiceWindow {
+  const { start, end } = londonServiceDayBounds(now);
+  return { startMs: Date.parse(start), endMs: Date.parse(end) };
+}
+
 // Is the row happening during tonight's evening window?
 //
 // Overlap, not start-containment. The original test asked only whether
@@ -373,21 +401,27 @@ const POINT_ROW_GRACE_MS: Record<WhatsOnKind, number> = {
 // row uses its kind-aware effective end (POINT_ROW_GRACE_MS), so an in-progress
 // quiz or match still overlaps the window and tonight windowing never disagrees
 // with the past-dated guard (#417).
-export function isOnTonight(row: WhatsOnRow, now: number = Date.now()): boolean {
+export function isOnTonight(
+  row: WhatsOnRow,
+  now: number = Date.now(),
+  // Tonight's window, already resolved. It depends only on `now`, so a caller
+  // asking about many rows at one instant resolves it once and hands it in
+  // rather than paying for a London clock reading per row. Omit it and the
+  // answer is identical, just resolved here.
+  tonight: TonightServiceWindow = tonightServiceWindow(now),
+): boolean {
   if (!row.startsAt) return row.listedWindow === "tonight";
-  const { start, end } = londonServiceDayBounds(now);
   const startsAt = Date.parse(row.startsAt);
   if (!Number.isFinite(startsAt)) return false;
-  const windowStart = Date.parse(start);
-  const windowEnd = Date.parse(end);
   const effectiveEnd = rowEffectiveEnd(row);
-  // Half-open window [windowStart, windowEnd): the row must begin before the
-  // window closes and still be running at or after it opens.
-  return startsAt < windowEnd && effectiveEnd >= windowStart;
+  // Half-open window [startMs, endMs): the row must begin before the window
+  // closes and still be running at or after it opens.
+  return startsAt < tonight.endMs && effectiveEnd >= tonight.startMs;
 }
 
 export function filterTonight(rows: WhatsOnRow[], now: number = Date.now()): WhatsOnRow[] {
-  return rows.filter((row) => isOnTonight(row, now));
+  const tonight = tonightServiceWindow(now);
+  return rows.filter((row) => isOnTonight(row, now, tonight));
 }
 
 // The instant a row stops being relevant: its explicit endsAt, or (for a point

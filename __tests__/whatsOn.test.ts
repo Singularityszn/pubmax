@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   isValidWhatsOnRow,
   isWhatsOnKind,
@@ -7,6 +7,7 @@ import {
   dedupeRows,
   londonServiceDayBounds,
   isOnTonight,
+  tonightServiceWindow,
   filterTonight,
   rowEffectiveEnd,
   isPastDated,
@@ -225,6 +226,47 @@ describe("London tonight windowing (04:00 service-day rollback)", () => {
     const pointBeforeWindow = makeRow({ id: "point-before", startsAt: "2026-07-11T12:00:00+01:00" });
     expect(isOnTonight(lunchtimeOnly, now)).toBe(false);
     expect(isOnTonight(pointBeforeWindow, now)).toBe(false);
+  });
+
+  // The window depends only on `now`, so reading the London clock is a cost per
+  // FILTER and never a cost per row. It used to be per row, and each reading
+  // built a fresh Intl.DateTimeFormat, so /today's server render grew with the
+  // listings dataset - about 600ms of it by the time the deals feed reached 480
+  // rows. Count readings rather than time them: the clock is the only thing
+  // here that can scale with the row count, and a timing assertion on a shared
+  // CI box is a coin toss.
+  it("reads the London clock once per filter, not once per row", () => {
+    const now = Date.parse("2026-07-11T20:00:00.000Z");
+    const rows = Array.from({ length: 500 }, (_, index) =>
+      makeRow({ id: `row-${index}`, startsAt: "2026-07-11T19:30:00+01:00" }),
+    );
+    const readClock = vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts");
+    try {
+      filterTonight(rows.slice(0, 5), now);
+      const few = readClock.mock.calls.length;
+      readClock.mockClear();
+      filterTonight(rows, now);
+      const many = readClock.mock.calls.length;
+      expect(many).toBe(few);
+      // A handful resolves the window's two ends and their offsets. A hundred
+      // times that many is the per-row reading coming back.
+      expect(many).toBeLessThanOrEqual(8);
+    } finally {
+      readClock.mockRestore();
+    }
+  });
+
+  it("gives the same answer whether the window is handed in or resolved here", () => {
+    const now = Date.parse("2026-07-11T20:00:00.000Z");
+    const tonight = tonightServiceWindow(now);
+    for (const row of [
+      makeRow({ id: "in", startsAt: "2026-07-11T19:30:00+01:00" }),
+      makeRow({ id: "before", startsAt: "2026-07-11T10:00:00+01:00" }),
+      makeRow({ id: "after", startsAt: "2026-07-12T09:00:00+01:00" }),
+      makeRow({ id: "no-start", startsAt: undefined, listedWindow: "tonight" }),
+    ]) {
+      expect(isOnTonight(row, now, tonight)).toBe(isOnTonight(row, now));
+    }
   });
 });
 
