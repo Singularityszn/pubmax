@@ -189,8 +189,9 @@ export const CITIES: Record<CityId, CityConfig> = {
   }),
   // One stretch of the North Wales coast rather than one town: Llandudno and
   // the Great Orme, Deganwy and Llandudno Junction, Conwy, Rhos-on-Sea and
-  // Colwyn Bay. The opening camera holds the whole strip, and each pin carries
-  // the town OSM states for it, so a Conwy pub is never labelled Llandudno.
+  // Colwyn Bay. Each pin carries the town OSM states for it, so a Conwy pub is
+  // never labelled Llandudno. Searching Conwy or Colwyn Bay lands on this same
+  // map, because a place inside a curated city IS that city.
   llandudno: city({
     id: "llandudno",
     displayName: "Llandudno",
