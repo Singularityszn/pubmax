@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authedFetch } from "@/lib/authedFetch";
+import { discardBody } from "@/lib/responseBody";
 
 // Owner-only edit/delete controls for a durable Crawl Story (story 35). The story
 // page is a server component and never knows who is viewing; this client island
@@ -51,6 +52,7 @@ export default function CrawlStoryOwnerControls({
         body: JSON.stringify({ handle: viewer }),
       });
       if (!res.ok) {
+        discardBody(res);
         setMessage(res.status === 403 ? "You can only delete a crawl you authored." : "Could not delete this crawl.");
         return;
       }

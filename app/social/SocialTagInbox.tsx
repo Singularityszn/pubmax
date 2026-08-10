@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { SocialPostVisibility } from "@/lib/socialPosts";
+import { discardBody } from "@/lib/responseBody";
 
 type Proposal = {
   id: string;
@@ -71,7 +72,10 @@ export default function SocialTagInbox() {
         const response = await fetch(`/api/social/tags?${params}`, {
           cache: "no-store",
         });
-        if (!response.ok) throw new Error("Tag lane read failed");
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error("Tag lane read failed");
+        }
         const value = (await response.json()) as {
           proposals?: Proposal[];
           nextCursor?: string | null;
@@ -128,6 +132,7 @@ export default function SocialTagInbox() {
         }),
       });
       if (!response.ok) {
+        discardBody(response);
         if (action === "approve") {
           setError("Photo tag changed. Review it again.");
           await Promise.all([loadLane("proposed"), loadLane("approved")]);

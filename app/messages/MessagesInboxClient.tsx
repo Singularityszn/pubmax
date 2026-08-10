@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import { authedFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
+import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 
 import "./messages.css";
@@ -72,12 +73,14 @@ export default function MessagesInboxClient({
           signal,
         });
         if (res.status === 401) {
+          discardBody(res);
           setNeedsSignIn(true);
           setConversations([]);
           setFailed(false);
           return;
         }
         if (!res.ok) {
+          discardBody(res);
           setNeedsSignIn(false);
           setFailed(true);
           return;

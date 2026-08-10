@@ -8,6 +8,7 @@ import VenuePhotoModeration, {
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
+import { discardBody } from "@/lib/responseBody";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import SiteNav from "@/components/nav/SiteNav";
@@ -129,7 +130,10 @@ async function establishSession(token: string): Promise<boolean> {
     return res.ok;
   }
   const res = await fetch("/api/admin/session", SESSION_FETCH);
-  if (!res.ok) return false;
+  if (!res.ok) {
+    discardBody(res);
+    return false;
+  }
   const body = (await res.json()) as { authenticated?: boolean };
   return body.authenticated === true;
 }
@@ -138,7 +142,10 @@ async function establishSession(token: string): Promise<boolean> {
 // once (in the load handler) rather than adding a DB dependency just for names.
 async function fetchVenueNames(): Promise<Map<string, string>> {
   const res = await fetch("/data/pint_prices_app_dataset.json");
-  if (!res.ok) return new Map();
+  if (!res.ok) {
+    discardBody(res);
+    return new Map();
+  }
   const rows = (await res.json()) as VenuePrice[];
   return new Map(groupVenuePrices(rows).map((venue) => [venue.id, venue.name]));
 }
@@ -218,11 +225,13 @@ export default function AdminClient() {
         fetch(`/api/admin/import-notes${qs}`, SESSION_FETCH),
       );
       if (res.status === 403) {
+        discardBody(res);
         setImportNotes([]);
         setImportMsg("Not authorised. Check the admin token.");
         return;
       }
       if (!res.ok) {
+        discardBody(res);
         setImportNotes([]);
         setImportMsg("Could not load import notes.");
         return;
@@ -251,11 +260,13 @@ export default function AdminClient() {
 
       const res = await fetch("/api/pint-drops?status=hidden", SESSION_FETCH);
       if (res.status === 403) {
+        discardBody(res);
         setDrops([]);
         setMessage("Not authorised. Check the admin token.");
         return;
       }
       if (!res.ok) {
+        discardBody(res);
         setDrops([]);
         setMessage("Could not load reported drops.");
         return;
@@ -373,10 +384,12 @@ export default function AdminClient() {
         body: JSON.stringify({ action, id }),
       });
       if (res.status === 403) {
+        discardBody(res);
         setMessage("Not authorised. Check the admin token.");
         return;
       }
       if (!res.ok) {
+        discardBody(res);
         setMessage("Action failed. Try again.");
         return;
       }
@@ -405,10 +418,12 @@ export default function AdminClient() {
           body: JSON.stringify({ action, id: report.id }),
         });
         if (res.status === 403) {
+          discardBody(res);
           setMessage("Not authorised. Check the admin token.");
           return;
         }
         if (!res.ok) {
+          discardBody(res);
           setMessage("Action failed. Try again.");
           return;
         }
@@ -448,10 +463,12 @@ export default function AdminClient() {
           body: JSON.stringify({ action, id: photo.id }),
         });
         if (res.status === 403) {
+          discardBody(res);
           setMessage("Not authorised. Check the admin token.");
           return;
         }
         if (!res.ok) {
+          discardBody(res);
           setMessage("Action failed. Try again.");
           return;
         }
@@ -494,10 +511,12 @@ export default function AdminClient() {
           body: JSON.stringify({ action, handle: avatar.handle }),
         });
         if (res.status === 403) {
+          discardBody(res);
           setMessage("Not authorised. Check the admin token.");
           return;
         }
         if (!res.ok) {
+          discardBody(res);
           setMessage("Action failed. Try again.");
           return;
         }
@@ -535,10 +554,12 @@ export default function AdminClient() {
         body: JSON.stringify({ action, id }),
       });
       if (res.status === 403) {
+        discardBody(res);
         setMessage("Not authorised. Check the admin token.");
         return;
       }
       if (!res.ok) {
+        discardBody(res);
         setMessage("Action failed. Try again.");
         return;
       }
@@ -694,10 +715,12 @@ export default function AdminClient() {
           }),
         );
         if (res.status === 403) {
+          discardBody(res);
           setOperatorMsg("Not authorised. Check the admin token.");
           return;
         }
         if (!res.ok) {
+          discardBody(res);
           setOperatorMsg("Action failed. Try again.");
           return;
         }
@@ -726,10 +749,12 @@ export default function AdminClient() {
           }),
         );
         if (res.status === 403) {
+          discardBody(res);
           setOperatorMsg("Not authorised. Check the admin token.");
           return;
         }
         if (!res.ok) {
+          discardBody(res);
           setOperatorMsg("Action failed. Try again.");
           return;
         }

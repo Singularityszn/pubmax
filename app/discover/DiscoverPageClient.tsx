@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { discardBody } from "@/lib/responseBody";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import {
   cheapestPints,
@@ -285,7 +286,10 @@ export function DiscoverBody({
           const res = await fetch("/data/pint_prices_app_dataset.json", {
             signal: controller.signal,
           });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          if (!res.ok) {
+            discardBody(res);
+            throw new Error(`HTTP ${res.status}`);
+          }
           const rows = (await res.json()) as VenuePrice[];
           return groupVenuePrices(Array.isArray(rows) ? rows : []);
         },
@@ -296,7 +300,10 @@ export function DiscoverBody({
           const res = await fetch("/api/pint-drops", {
             signal: controller.signal,
           });
-          if (!res.ok) return [];
+          if (!res.ok) {
+            discardBody(res);
+            return [];
+          }
           const body = await res.json();
           return pickDrops(body);
         },

@@ -6,6 +6,8 @@
 // text and no sources. They are ambient orientation dots that complement the
 // sourced heritage landmarks, not duplicates of them.
 
+import { discardBody } from "@/lib/responseBody";
+
 // Transport categories carry their own real-world TfL / National Rail symbol on
 // the map (roundel, double-arrow, bus roundel, river-bus pier). The rest —
 // parks, gardens, markets, historic sites, viewpoints, sights — are ambient
@@ -130,7 +132,10 @@ export async function loadPoisFromPath(
 ): Promise<Poi[]> {
   if (!path) return [];
   const response = await fetch(path);
-  if (!response.ok) return [];
+  if (!response.ok) {
+    discardBody(response);
+    return [];
+  }
   return normalizePois(await response.json());
 }
 

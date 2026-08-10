@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import { authedFetch } from "@/lib/authedFetch";
+import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 
 import "@/app/messages/messages.css";
@@ -52,7 +53,10 @@ export default function ProfileMessageButton({
           other: targetHandle,
         }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        discardBody(res);
+        return;
+      }
       const body = (await res.json()) as { conversationId?: string };
       if (body.conversationId) {
         router.push(`/messages/${encodeURIComponent(body.conversationId)}`);

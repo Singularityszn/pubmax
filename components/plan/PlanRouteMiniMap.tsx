@@ -10,6 +10,7 @@ import {
   svgPath,
   type LngLat,
 } from "@/lib/routeMiniMap";
+import { discardBody } from "@/lib/responseBody";
 
 // A lightweight static route mini-map for the locked plan page. It draws the
 // crawl's stops as numbered discs joined by the walking line — a self-contained
@@ -129,7 +130,10 @@ export default function PlanRouteMiniMap({ stops }: { stops: Stop[] }) {
           `/api/walk-route?stops=${encodeURIComponent(stopsParam(resolved.coords))}`,
           { signal: controller.signal, headers: { accept: "application/json" } },
         );
-        if (!res.ok) return;
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
         const body = (await res.json()) as { line?: unknown; source?: unknown };
         const routed = lineCoordsFromFeatureCollection(body.line);
         if (controller.signal.aborted || routed.length < 2) return;

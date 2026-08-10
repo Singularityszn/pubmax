@@ -28,6 +28,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
 import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
@@ -74,7 +75,10 @@ export default function VenueTonightChips(props: VenueRef): React.JSX.Element | 
           signal: controller.signal,
           headers: { accept: "application/json" },
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
         const body = (await res.json()) as ApiResponse;
         const rows = Array.isArray(body.rows)
           ? body.rows.filter((r): r is WhatsOnRow => isValidWhatsOnRow(r))

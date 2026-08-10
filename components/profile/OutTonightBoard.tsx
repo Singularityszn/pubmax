@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import { getNightArea, type NightAreaSlug } from "@/lib/nightAreas";
@@ -81,7 +82,10 @@ export default function OutTonightBoard({ viewerHandle }: Props) {
         const res = await fetch(`/api/check-ins?viewer=${encodeURIComponent(viewer)}`, {
           signal: controller.signal,
         });
-        if (!res.ok) throw new Error(`check-ins ${res.status}`);
+        if (!res.ok) {
+          discardBody(res);
+          throw new Error(`check-ins ${res.status}`);
+        }
         const body = (await res.json()) as { checkIns?: CheckInDto[] };
         const rows = toBoardRows(body.checkIns ?? []);
         setState(rows.length ? { kind: "ready", rows } : { kind: "empty" });

@@ -20,6 +20,7 @@
 // working with whatever shards did load. Cache-first `/data/*.json` handling in
 // public/sw.js already covers every shard URL (see its strategy table).
 
+import { discardBody } from "@/lib/responseBody";
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { offlineCache } from "@/lib/offlineCache";
 import { loadSlimVenuesFromPath, type SlimVenue } from "@/lib/venuesSlim";
@@ -201,7 +202,10 @@ export function createSlimShardLoader(
   async function fetchManifest(): Promise<ShardManifest | null> {
     try {
       const response = await fetch(manifestPath);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error(`HTTP ${response.status}`);
+      }
       const parsed = parseShardManifest(await response.json());
       if (parsed) void offlineCache.set(manifestOfflineKey, parsed);
       return parsed;

@@ -15,6 +15,7 @@ import type {
   VisitReportDTO,
   VisitReportReadStatus,
 } from "@/lib/visitReports";
+import { discardBody } from "@/lib/responseBody";
 
 export type VisitReportVenueRead = {
   status: VisitReportReadStatus;
@@ -48,7 +49,10 @@ export async function fetchVisitReports(
     const res = await fetch(
       `/api/visit-reports?venueId=${encodeURIComponent(venueId)}`,
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      discardBody(res);
+      return null;
+    }
     return (await res.json()) as VisitReportVenueRead;
   } catch {
     return null;

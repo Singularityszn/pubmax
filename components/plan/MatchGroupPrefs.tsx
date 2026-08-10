@@ -10,6 +10,7 @@ import {
   type GroupPrefsOverlap,
   type MatePreference,
 } from "@/lib/groupPrefs";
+import { discardBody } from "@/lib/responseBody";
 
 type Props = {
   planId: string;
@@ -61,7 +62,10 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         cache: "no-store",
         headers: { authorization: `Bearer ${memberToken}` },
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        discardBody(response);
+        return;
+      }
       const body = await response.json() as { prefs?: MatePreference[]; overlap?: GroupPrefsOverlap };
       setPrefs(Array.isArray(body.prefs) ? body.prefs : []);
       setOverlap(body.overlap && typeof body.overlap === "object" ? body.overlap : EMPTY_OVERLAP);

@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { BookOpen, MessageCircle, Send, Sparkles } from "lucide-react";
+import { discardBody } from "@/lib/responseBody";
 import { venueKindNoun } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
 
@@ -62,7 +63,10 @@ export default function LandlordPanel(props: {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ venueId, venueName, question: trimmed, context }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          discardBody(res);
+          throw new Error(`HTTP ${res.status}`);
+        }
         setAnswer((await res.json()) as HeritageResponse);
       } catch {
         setError(true);

@@ -12,6 +12,7 @@ import SocialTabs, { type SocialTab } from "@/components/feed/SocialTabs";
 import SiteNav from "@/components/nav/SiteNav";
 import TonightConditionsStrip from "@/app/tonight/TonightConditionsStrip";
 import EmptyState from "@/components/EmptyState";
+import { discardBody } from "@/lib/responseBody";
 import { getAnonId } from "@/lib/anonId";
 import type { CheckIn } from "@/lib/checkIn";
 import {
@@ -312,7 +313,10 @@ export default function FeedPageClient({
         const res = await fetch(`/api/profiles/${encodeURIComponent(myHandle)}/following`, {
           signal: controller.signal,
         });
-        if (!res.ok) throw new Error(String(res.status));
+        if (!res.ok) {
+          discardBody(res);
+          throw new Error(String(res.status));
+        }
         const data = (await res.json()) as { following?: unknown };
         const list = Array.isArray(data.following) ? data.following : [];
         const set = new Set<string>();

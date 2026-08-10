@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { discardBody } from "@/lib/responseBody";
 
 type CityAreaResponse = {
   borough: string | null;
@@ -47,7 +48,10 @@ export default function BoroughPintPriceCard({
       try {
         const qs = new URLSearchParams({ borough: boroughName });
         const res = await fetch(`/api/citymcp/area?${qs.toString()}`);
-        if (!res.ok) return;
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
         const body = (await res.json()) as CityAreaResponse;
         if (active) setArea(body);
       } catch {

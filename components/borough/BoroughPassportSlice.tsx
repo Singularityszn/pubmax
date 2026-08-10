@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { buildBoroughPassport } from "@/lib/passport";
+import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle, type ProfileDrop } from "@/lib/profiles";
 
 type PublicDrop = ProfileDrop & { id?: string };
@@ -38,7 +39,10 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
         // public feed just to filter client-side.
         const qs = new URLSearchParams({ author: myHandle });
         const res = await fetch(`/api/pint-drops?${qs.toString()}`);
-        if (!res.ok) return;
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
         const body = (await res.json()) as { drops?: PublicDrop[] };
         const mine = (body.drops ?? []).filter(
           (drop) => normalizeHandle(drop.handle) === myHandle,

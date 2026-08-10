@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { authedFetch } from "@/lib/authedFetch";
+import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 
@@ -80,6 +81,7 @@ export default function FindYourLot({
             { cache: "no-store" },
           );
           if (!response.ok) {
+            discardBody(response);
             setStatus("error");
             setMatches([]);
             return;

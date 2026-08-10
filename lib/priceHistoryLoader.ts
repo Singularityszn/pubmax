@@ -14,6 +14,7 @@ import {
   parsePriceHistory,
   type PriceHistoryObservation,
 } from "@/lib/priceHistory";
+import { discardBody } from "@/lib/responseBody";
 
 export const PRICE_HISTORY_PATH = "/data/price_history/london.json";
 
@@ -21,7 +22,10 @@ async function fetchJson(path: string): Promise<unknown | null> {
   if (typeof window === "undefined") return null;
   try {
     const res = await fetch(path, { headers: { accept: "application/json" } });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      discardBody(res);
+      return null;
+    }
     return (await res.json()) as unknown;
   } catch {
     return null;

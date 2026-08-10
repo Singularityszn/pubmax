@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import ShareBar from "@/components/share/ShareBar";
+import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
 import { planCrewSharePath } from "@/lib/planCrewInviteUrl";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot } from "@/lib/planSessionCapability";
@@ -83,7 +84,10 @@ export default function PlanVibe({ planId, initialTally }: { planId: string; ini
     void (async () => {
       try {
         const response = await fetch(`/api/plans/${planId}/vibe-votes`, { cache: "no-store" });
-        if (!response.ok || cancelled) return;
+        if (!response.ok || cancelled) {
+          discardBody(response);
+          return;
+        }
         const body = await response.json() as { ok?: unknown; tally?: unknown };
         const fresh = body?.ok === true ? cleanTally(body.tally) : null;
         if (!fresh || cancelled) return;

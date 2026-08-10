@@ -11,6 +11,8 @@
  * community-contributed data.
  */
 
+import { discardBody } from "@/lib/responseBody";
+
 /** Attribution for a scraped fact — mirrors the repo's sourced-price shape. */
 export type WetherspoonsSource = {
   label: string;
@@ -66,6 +68,7 @@ export async function loadWetherspoonsDirectory(
 ): Promise<WetherspoonsDirectory> {
   const res = await fetch(WETHERSPOONS_DIRECTORY_URL, { signal });
   if (!res.ok) {
+    discardBody(res);
     throw new Error(`Failed to load Wetherspoon directory (${res.status})`);
   }
   return (await res.json()) as WetherspoonsDirectory;

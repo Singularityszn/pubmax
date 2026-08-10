@@ -30,6 +30,7 @@ import {
   type Drink,
   type DrinkCategory,
 } from "@/lib/drinks";
+import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   ROUND_SPEND_PRICE_LINE_MAX,
@@ -689,6 +690,7 @@ function RoundSpendComposer({
           cache: "no-store",
         });
         if (!res.ok) {
+          discardBody(res);
           if (active) setKnownDrinks([]);
           return;
         }

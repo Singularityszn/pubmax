@@ -4,6 +4,7 @@ import { MapPin } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { SearchField } from "@/components/ui/search-field";
+import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
 import {
@@ -157,6 +158,7 @@ export default function MapSearchSuggest({
           { signal: controller.signal, headers: { accept: "application/json" } },
         );
         if (!response.ok) {
+          discardBody(response);
           setNationalPubs([]);
           return;
         }

@@ -22,6 +22,7 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight, ExternalLink, MapPin } from "lucide-react";
 
 import { cityAwareMapPath } from "@/lib/curatedCrawls";
+import { discardBody } from "@/lib/responseBody";
 import { firstHttp } from "@/lib/httpUrl";
 
 import "./tonightNearbyLane.css";
@@ -100,6 +101,7 @@ export default function TonightNearbyLane() {
           },
         );
         if (!res.ok) {
+          discardBody(res);
           void Promise.resolve().then(() => {
             if (!controller.signal.aborted) setStatus("hidden");
           });

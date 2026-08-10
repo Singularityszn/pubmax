@@ -13,6 +13,7 @@ import PeopleDirectory from "@/components/social/PeopleDirectory";
 import { authedFetch } from "@/lib/authedFetch";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
+import { discardBody } from "@/lib/responseBody";
 import { getNightArea, NIGHT_AREAS } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
@@ -496,7 +497,10 @@ export default function SocialPageClient({
         credentials: "same-origin",
         signal: controller.signal,
       });
-      if (!response.ok) throw new Error("Social feed unavailable");
+      if (!response.ok) {
+        discardBody(response);
+        throw new Error("Social feed unavailable");
+      }
       const page = parsePostPage(await response.json());
       if (!page) throw new Error("Social feed malformed");
       if (feedRequestId.current !== requestId) return;

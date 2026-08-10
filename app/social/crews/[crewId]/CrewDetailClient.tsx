@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
 import { authedFetch } from "@/lib/authedFetch";
+import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import type { SocialCrewReadDTO } from "@/lib/socialCrew";
@@ -106,7 +107,10 @@ export default function CrewDetailClient({
           credentials: "same-origin",
           signal: controller.signal,
         });
-        if (!response.ok) return;
+        if (!response.ok) {
+          discardBody(response);
+          return;
+        }
         const body = (await response.json()) as { viewerHandle?: unknown };
         const handle =
           typeof body.viewerHandle === "string" ? normalizeHandle(body.viewerHandle) : "";
@@ -116,7 +120,10 @@ export default function CrewDetailClient({
           `/api/profiles/${encodeURIComponent(handle)}/lot`,
           { cache: "no-store", signal: controller.signal },
         );
-        if (!lotResponse.ok) return;
+        if (!lotResponse.ok) {
+          discardBody(lotResponse);
+          return;
+        }
         const lotBody = (await lotResponse.json()) as { lot?: unknown };
         setLot(Array.isArray(lotBody.lot) ? (lotBody.lot as string[]) : []);
       } catch {
@@ -144,6 +151,7 @@ export default function CrewDetailClient({
             { cache: "no-store", signal: controller.signal },
           );
           if (!response.ok) {
+            discardBody(response);
             setMatches([]);
             return;
           }

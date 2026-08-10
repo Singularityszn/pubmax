@@ -12,6 +12,7 @@ import {
   type UkBaseLoader,
   type UkBasePub,
 } from "@/lib/ukBasePubs";
+import { discardBody } from "@/lib/responseBody";
 
 // Streams the UK base layer (lib/ukBasePubs.ts) into the map's `uk-base`
 // source, one viewport at a time.
@@ -141,9 +142,18 @@ async function fetchUkBasePubById(id: string): Promise<{
 }> {
   try {
     const response = await fetch(`/api/uk-base/${encodeURIComponent(id)}`);
-    if (response.status === 404) return { pub: null, failure: "missing" };
-    if (response.status === 503) return { pub: null, failure: "unavailable" };
-    if (!response.ok) return { pub: null, failure: "unavailable" };
+    if (response.status === 404) {
+      discardBody(response);
+      return { pub: null, failure: "missing" };
+    }
+    if (response.status === 503) {
+      discardBody(response);
+      return { pub: null, failure: "unavailable" };
+    }
+    if (!response.ok) {
+      discardBody(response);
+      return { pub: null, failure: "unavailable" };
+    }
     const pub = parseUkBaseRestoreResponse(await response.json(), id);
     return pub
       ? { pub, failure: null }

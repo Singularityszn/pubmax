@@ -244,9 +244,17 @@ async function createPlanFixture(
     });
     expect(active.ok()).toBeTruthy();
   } else {
+    // Joining is invite-only: a bare plan id was an IDOR. The host reads its
+    // own invite token off the plan, the way ShareBar does.
+    const owned = await request.get(`/api/plans/${planId}`, {
+      headers: { authorization: `Bearer ${body.memberToken}` },
+    });
+    expect(owned.ok()).toBeTruthy();
+    const { inviteToken } = (await owned.json()) as { inviteToken?: string };
+    expect(inviteToken).toBeTruthy();
     const joined = await request.post(`/api/plans/${planId}/join`, {
       headers: { "idempotency-key": randomUUID() },
-      data: { name: "Luna" },
+      data: { name: "Luna", inviteToken },
     });
     expect(joined.ok()).toBeTruthy();
   }

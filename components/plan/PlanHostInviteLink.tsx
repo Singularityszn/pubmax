@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 
+import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
 import {
   parsePlanCapabilitySnapshot,
@@ -127,6 +128,7 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
         body: JSON.stringify({ memberToken }),
       });
       if (!res.ok) {
+        discardBody(res);
         setStatus("Couldn't make a new link.");
         return;
       }

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BookOpen, ExternalLink } from "lucide-react";
 
 import { ClaimBadge } from "@/components/map/venueInspectorBits";
+import { discardBody } from "@/lib/responseBody";
 import { formatPrice, type Venue } from "@/lib/venues";
 import { buildVenueClaims } from "@/lib/curation";
 import { heritageSourceLabel } from "@/lib/historicFilter";
@@ -80,7 +81,10 @@ export default function VenueStoryTab({
           )}`,
           { signal: controller.signal, headers: { accept: "application/json" } },
         );
-        if (!res.ok) return;
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
         const body = (await res.json()) as { facts?: unknown };
         const facts = sanitizeHeritageFacts(body.facts);
         if (facts.length === 0) return;

@@ -10,6 +10,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import { authedFetch } from "@/lib/authedFetch";
 import type { NotificationDTO, NotificationKind } from "@/lib/notifications";
+import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
 
@@ -104,6 +105,7 @@ export default function ActivityClient(): React.JSX.Element {
     try {
       const res = await authedFetch(`/api/notifications?handle=${encodeURIComponent(h)}`);
       if (!res.ok) {
+        discardBody(res);
         setFailed(true);
         return;
       }
