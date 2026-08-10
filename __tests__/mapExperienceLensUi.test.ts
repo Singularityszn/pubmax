@@ -81,9 +81,12 @@ describe("MapExperienceLens", () => {
     expect(pubMap).toMatch(
       /experienceLens === "all"\s*\?\s*\(\s*<TabsContent value="prices"/,
     );
-    expect(toolbar).toMatch(
-      /experienceLens === "all"\s*\?\s*\([\s\S]*?mapToolbarDrinksBtn/,
-    );
+    // The drink-shape control and the drink-lane picker beside it are both
+    // pint-map controls, so an experience view owns the map without them. One
+    // named derivation gates every one of them.
+    expect(toolbar).toContain('const laneAvailable = experienceLens === "all";');
+    expect(toolbar).toMatch(/laneAvailable \? \([\s\S]*?mapToolbarDrinksBtn/);
+    expect(toolbar).toMatch(/laneOpen && laneAvailable \? \(/);
     const overview = readFileSync(
       join(
         process.cwd(),
@@ -112,10 +115,21 @@ describe("MapExperienceLens", () => {
     expect(overview).toContain(
       'communityPrices.venuePriceStatus.get(venue.id) ?? "idle"',
     );
-    expect(overview).toContain("{noAlcoholEmptyNote(venueReadStatus)}");
-    expect(overview).toContain(
-      "return drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, status);",
+    // The sentence itself lives with the section that prints it, and the tab
+    // hands it that read rather than a settled boolean.
+    expect(overview).toMatch(
+      /<VenueDrinkPrices[\s\S]*?readStatus=\{venueReadStatus\}/,
     );
+    const drinkPrices = readFileSync(
+      join(process.cwd(), "components/map/VenueDrinkPrices.tsx"),
+      "utf8",
+    );
+    expect(drinkPrices).toContain(
+      "drinkLensEmptyVenueNote(laneNoun, readStatus)",
+    );
+    // And the no-alcohol view keeps the joined noun rather than naming one of
+    // its two categories and hiding the other.
+    expect(overview).toContain("? NO_ALCOHOL_LENS_PRICE_NOUN");
 
     const sheet = readFileSync(
       join(process.cwd(), "components/map/UnverifiedPubSheet.tsx"),
@@ -154,13 +168,11 @@ describe("MapExperienceLens", () => {
     );
 
     expect(inspector).toContain("drinkLensCategory={drinkLensCategory}");
-    expect(overview).toContain("drinkLensPriceNoun(drinkLensCategory)");
-    expect(overview).toContain(
-      "drinkLensEmptyVenueNote(drinkLensNoun, venueReadStatus)",
-    );
-    expect(overview).toContain(
-      'row.drinkCategory === drinkLensCategory',
-    );
+    // The tab names the lens through the lane table, which routes every
+    // category except the joined no-alcohol view to its own drink noun.
+    expect(overview).toContain("drinkLaneNoun(leadLane)");
+    expect(overview).toContain("drinkLensCategory ?? DEFAULT_DRINK_LANE");
+    expect(overview).toMatch(/<VenueDrinkPrices[\s\S]*?activeLane=\{leadLane\}/);
     expect(sheet).toContain("drinkLensCategory");
     expect(sheet).toContain(
       "drinkLensEmptyVenueNote(drinkLensNoun, readStatus)",

@@ -92,6 +92,7 @@ const MobilePlanActivation = dynamic(
   { ssr: false },
 );
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import DrinkLanePicker from "@/components/map/DrinkLanePicker";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import MapKey from "@/components/map/MapKey";
 import MapExperienceLensControl from "@/components/map/MapExperienceLens";
@@ -273,6 +274,12 @@ import {
   type MapExperienceLens as MapExperienceLensValue,
 } from "@/lib/mapExperienceLens";
 import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
+import {
+  activeDrinkLane,
+  applyDrinkLane,
+  DEFAULT_DRINK_LANE,
+  drinkLaneLabel,
+} from "@/lib/drinkLanes";
 import {
   bandChipDismissedKey,
   shouldShowBandOnboardingChip,
@@ -924,6 +931,14 @@ export default function PubMap({
     selectedDrinkCategory !== "beer"
       ? selectedDrinkCategory
       : null;
+  // The lane the reader put the map under, as the lane controls print it. An
+  // experience view owns the map instead, and it stands the drink refinements
+  // down, so the lane reads as the resting pint lane while one is on rather
+  // than naming a drink the pins are not showing.
+  const activeMapDrinkLane: DrinkCategory =
+    experienceLens === "all"
+      ? activeDrinkLane(filters.drinkCategory)
+      : DEFAULT_DRINK_LANE;
   useEffect(() => {
     if (mapDrinkLensCategory) {
       loadDrinkCategoryIndex(mapDrinkLensCategory);
@@ -1838,6 +1853,34 @@ export default function PubMap({
     if (beerId) persistFavoritePint(beerId);
     else clearFavoritePint();
   }, []);
+
+  // Putting the map under a drink is ONE write, wherever the reader taps it:
+  // the desktop lane panel, the phone lane sheet and the Filters copy all land
+  // here, so the three cannot drift into three different ideas of what a lane
+  // switch retires. A brand is a pint refinement, so leaving the pint lane
+  // clears the favourite too rather than leaving it set and inert.
+  const changeDrinkLane = useCallback(
+    (lane: DrinkCategory) => {
+      setFilters((current) => applyDrinkLane(current, lane));
+      if (lane !== DEFAULT_DRINK_LANE) changeFavoritePint(null);
+    },
+    [changeFavoritePint, setFilters],
+  );
+
+  // The brand refinement inside the pint lane. It names the lane explicitly so
+  // a brand chosen from the resting map still round-trips through the crawl URL.
+  const changeDrinkBrand = useCallback(
+    (drinkBrand: string) => {
+      setFilters((current) => ({
+        ...current,
+        drinkCategory: DEFAULT_DRINK_LANE,
+        drinkBrand,
+        drinkSubtype:
+          current.drinkCategory === DEFAULT_DRINK_LANE ? current.drinkSubtype : "",
+      }));
+    },
+    [setFilters],
+  );
 
   const [personaLensId, setPersonaLensId] = useState<string | null>(null);
   // What the drinker had set before an experience view took the map. The view
@@ -3467,19 +3510,9 @@ export default function PubMap({
           drinkFiltersActive={drinkFiltersActive}
           drinkCategory={filters.drinkCategory}
           drinkBrand={filters.drinkBrand}
-          onDrinkLensChange={({ drinkCategory, drinkBrand }) =>
-            setFilters((current) => ({
-              ...current,
-              drinkCategory,
-              drinkBrand,
-              // A category switch retires its refinement (see DrinkShapeChips).
-              drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "",
-              topShelfOnly: drinkCategory ? current.topShelfOnly : false,
-              // Keep cocktail amenity in sync with the drink lens.
-              requireCocktails:
-                drinkCategory === "cocktail" ? true : drinkCategory ? false : current.requireCocktails,
-            }))
-          }
+          onDrinkBrandChange={changeDrinkBrand}
+          onDrinkLaneChange={changeDrinkLane}
+          drinkLaneStatus={drinkIndexStatus}
           personaId={personaLensId}
           onPersonaSelect={selectPersona}
           personaTonightCategory={personaTonightCategory}
@@ -3658,6 +3691,8 @@ export default function PubMap({
           tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
           priceLabel={filters.maxPrice < NO_PINT_PRICE_CAP ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
           drinkFiltersActive={drinkFiltersActive}
+          drinkLaneLabel={drinkLaneLabel(activeMapDrinkLane)}
+          drinkLaneSelected={activeMapDrinkLane !== DEFAULT_DRINK_LANE}
           experienceFilterLabel={
             experienceLens === "no-alcohol"
               ? "no-alcohol view"
@@ -3678,8 +3713,10 @@ export default function PubMap({
             filters.maxPrice < NO_PINT_PRICE_CAP
           }
           areaPriceNoun={
+            // The Area sheet's own heading word, so the chip that opens it and
+            // the list inside it name the same drink the same way.
             mapDrinkLensCategory
-              ? drinkLensPriceNoun(mapDrinkLensCategory)
+              ? CATEGORY_META[mapDrinkLensCategory].label.toLowerCase()
               : "pints"
           }
           planOpen={planningOpen}
@@ -3750,22 +3787,16 @@ export default function PubMap({
                       index={zoneIndex}
                     />
                   ) : null}
-                  <FavoritePintPicker
-                    value={favoritePint}
-                    onChange={changeFavoritePint}
-                    drinkCategory={filters.drinkCategory}
-                    drinkBrand={filters.drinkBrand}
-                    onDrinkLensChange={({ drinkCategory, drinkBrand }) =>
-                      setFilters((current) => ({
-                        ...current,
-                        drinkCategory,
-                        drinkBrand,
-                        drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "",
-                        topShelfOnly: drinkCategory ? current.topShelfOnly : false,
-                        requireCocktails: drinkCategory === "cocktail",
-                      }))
-                    }
-                  />
+                  {/* Brand is a pint refinement. The drink itself is chosen on
+                      the map's own lane chip, never in this drawer. */}
+                  {activeMapDrinkLane === DEFAULT_DRINK_LANE ? (
+                    <FavoritePintPicker
+                      value={favoritePint}
+                      onChange={changeFavoritePint}
+                      drinkBrand={filters.drinkBrand}
+                      onDrinkBrandChange={changeDrinkBrand}
+                    />
+                  ) : null}
                   <PersonaLensPicker
                     personaId={personaLensId}
                     onSelect={selectPersona}
@@ -3802,6 +3833,20 @@ export default function PubMap({
                 </span>
               </label>
             </div>
+          }
+          drinkContent={
+            <DrinkLanePicker
+              lane={activeMapDrinkLane}
+              status={drinkIndexStatus}
+              variant="sheet"
+              onChange={(lane) => {
+                changeDrinkLane(lane);
+                // An experience view stands the drink lane down, so picking a
+                // drink has to hand the map back to All or the tap does nothing
+                // a reader can see.
+                if (experienceLens !== "all") changeExperienceLens("all");
+              }}
+            />
           }
           tflContent={<MobileTflPanel status={tflStatus} />}
           tonightContent={
@@ -3895,7 +3940,9 @@ export default function PubMap({
               {experienceLens === "all" ? (
                 <TabsContent value="prices" className="mobileMapFilters">
                   <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
-                  <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkCategory={filters.drinkCategory} drinkBrand={filters.drinkBrand} onDrinkLensChange={({ drinkCategory, drinkBrand }) => setFilters((current) => ({ ...current, drinkCategory, drinkBrand, drinkSubtype: drinkCategory === current.drinkCategory ? current.drinkSubtype : "", topShelfOnly: drinkCategory ? current.topShelfOnly : false, requireCocktails: drinkCategory === "cocktail" }))} />
+                  {activeMapDrinkLane === DEFAULT_DRINK_LANE ? (
+                    <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkBrand={filters.drinkBrand} onDrinkBrandChange={changeDrinkBrand} />
+                  ) : null}
                   <MobilePriceChoices
                     maxPrice={filters.maxPrice}
                     legend={activePriceLegend}
@@ -3975,11 +4022,7 @@ export default function PubMap({
               placeFocus={searchAreaTarget?.kind === "place" ? searchAreaTarget : null}
               venues={pubVenues}
               lensPrices={drinkLensPrices}
-              drinkLabel={
-                mapDrinkLensCategory
-                  ? CATEGORY_META[mapDrinkLensCategory].label
-                  : "Pints"
-              }
+              drinkCategory={mapDrinkLensCategory}
               lensStatus={drinkIndexStatus}
               distanceFrom={areaSheetDistanceFrom}
               onSelectVenue={selectVenue}

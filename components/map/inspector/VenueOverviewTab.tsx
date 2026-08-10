@@ -22,17 +22,13 @@ import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import SaveForNightButton from "@/components/wanted/SaveForNightButton";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
+import VenueDrinkPrices from "@/components/map/VenueDrinkPrices";
 import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
 import VenueAreaPriceCompare from "@/components/map/VenueAreaPriceCompare";
 import VenueWeatherRecommendations from "@/components/map/VenueWeatherRecommendations";
-import CommunityPriceReport from "@/components/map/CommunityPriceReport";
-import { communityStampLabel, communityTrustNote, submitCategoryLabel } from "@/lib/communityPrice";
-import {
-  freshestCommunityPrice,
-  type CommunityPricesState,
-} from "@/components/map/useCommunityPrices";
+import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import VenueBuzz from "@/components/map/VenueBuzz";
@@ -50,17 +46,11 @@ import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import {
-  drinkLensEmptyVenueNote,
-  drinkLensPriceNoun,
   NO_ALCOHOL_LENS_PRICE_NOUN,
   type MapExperienceLens,
-  type VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
-import {
-  CATEGORY_META,
-  namedLegacyPintPriceSource,
-  type DrinkCategory,
-} from "@/lib/drinks";
+import { DEFAULT_DRINK_LANE, drinkLaneNoun } from "@/lib/drinkLanes";
+import { namedLegacyPintPriceSource, type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import type { ZonePintIndex } from "@/lib/zones";
 
@@ -207,14 +197,6 @@ function VenuePriceSummary({
   ) : null;
 }
 
-/**
- * The pub has none on record, we are still looking, or we could not look. Only
- * the first is a fact about the pub, so the three never share a sentence.
- */
-function noAlcoholEmptyNote(status: VenuePriceReadStatus): string {
-  return drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, status);
-}
-
 export default function VenueOverviewTab({
   venue,
   tab,
@@ -317,25 +299,27 @@ export default function VenueOverviewTab({
       row.drinkCategory === "soft-drink" ||
       row.drinkCategory === "alcohol-free",
   );
-  const drinkLensRows = drinkLensCategory
-    ? communityRows?.filter((row) => row.drinkCategory === drinkLensCategory)
-    : undefined;
-  const communityPrice = freshestCommunityPrice(
+  // What the prices-by-drink section may show, and which drink it reads first.
+  // The food view reserves the slot for the sourced menu anchor below, and the
+  // no-alcohol view admits only its own two categories; every other view shows
+  // the pub's whole drink list with the map's lane at the top.
+  const drinkPriceRows =
     experienceLens === "food"
       ? undefined
       : experienceLens === "no-alcohol"
         ? noAlcoholRows
-        : drinkLensCategory
-          ? drinkLensRows
-          : communityRows,
-  );
-  const drinkLensNoun = drinkLensCategory
-    ? drinkLensPriceNoun(drinkLensCategory)
-    : null;
-  // The sheet is deliberately UNGATED - it shows what people reported, so an
-  // uncorroborated or aged-out figure still renders here in full. What changes
-  // is that the row admits its standing instead of implying it moved the map.
-  const communityTrustStanding = communityPrice ? communityTrustNote(communityPrice) : "";
+        : communityRows;
+  // Which lane leads, and what it is called in a sentence. The no-alcohol view
+  // joins two categories, so it keeps its own shared noun rather than naming
+  // one of them and hiding the other.
+  const leadLane: DrinkCategory =
+    experienceLens === "no-alcohol"
+      ? "alcohol-free"
+      : drinkLensCategory ?? DEFAULT_DRINK_LANE;
+  const leadLaneNoun =
+    experienceLens === "no-alcohol"
+      ? NO_ALCOHOL_LENS_PRICE_NOUN
+      : drinkLaneNoun(leadLane);
 
   const overviewPintGbp = overviewDisplayablePintGbp({
     cheapestPrice: venue.cheapestPrice,
@@ -485,60 +469,28 @@ export default function VenueOverviewTab({
         readStatus={venueReadStatus}
         readOnly
       />
-      {/* Tonight's community price sits ATOP the price on record, never
-          instead of it: its own row, its own dated badge, and the sourced /
-          baseline row below still renders untouched. A submission is an extra
-          dated observation - it never overwrites a scraped or sourced figure. */}
-      {communityPrice ? (
-        <div className="contributorPrice communityPriceRow">
-          <span>
-            <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
-          </span>
-          <PriceBadge variant="current">
-            {formatPrice(communityPrice.priceGbp)}
-          </PriceBadge>
-          <small className="communityPriceStamp">
-            {submitCategoryLabel(communityPrice.drinkCategory)} ·{" "}
-            {communityStampLabel(communityPrice.submittedAt)}
-          </small>
-          {/* Where this figure stands. A single report shows here in full,
-              dated, from the first tap - it just says so plainly rather than
-              letting the reader assume the map moved with it. Empty (and so
-              unrendered) once the price is corroborated and current. */}
-          {communityTrustStanding ? (
-            <small className="communityPriceStanding">{communityTrustStanding}</small>
-          ) : null}
-          <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
-          {/* Reporting stays public because a reader must be able to challenge
-              a displayed observation without becoming a contributor. The flag
-              is recorded for a human - it does not hide the row (see
-              CommunityPriceReport). */}
-          <CommunityPriceReport
-            price={communityPrice}
-            communityPrices={communityPrices}
-            venueName={venue.name}
-          />
-        </div>
-      ) : experienceLens === "no-alcohol" ? (
-        <div className="contributorPrice communityPriceRow">
-          <span>
-            <ClaimBadge kind="baseline" /> No-alcohol prices
-          </span>
-          <small className="communityPriceNote">
-            {noAlcoholEmptyNote(venueReadStatus)}
-          </small>
-        </div>
-      ) : drinkLensCategory && drinkLensNoun ? (
-        <div className="contributorPrice communityPriceRow">
-          <span>
-            <ClaimBadge kind="baseline" />{" "}
-            {CATEGORY_META[drinkLensCategory].label} prices
-          </span>
-          <small className="communityPriceNote">
-            {drinkLensEmptyVenueNote(drinkLensNoun, venueReadStatus)}
-          </small>
-        </div>
-      ) : null}
+      {/* Tonight's community prices sit ATOP the price on record, never
+          instead of it: their own rows, their own dated badges, and the
+          sourced / baseline row below still renders untouched. A submission is
+          an extra dated observation - it never overwrites a scraped or sourced
+          figure. One row per drink, the map's lane first, so a cocktail map
+          never opens a pub on somebody's coffee.
+          Reporting stays public on every row because a reader must be able to
+          challenge a displayed observation without becoming a contributor. The
+          flag is recorded for a human - it does not hide the row. */}
+      {experienceLens === "food" ? null : (
+        <VenueDrinkPrices
+          venueId={venue.id}
+          venueName={venue.name}
+          rows={drinkPriceRows}
+          activeLane={leadLane}
+          laneNoun={leadLaneNoun}
+          readStatus={venueReadStatus}
+          communityPrices={communityPrices}
+          onLogPrice={onLogTonightPrice}
+          canLog={isPubVenue(venue)}
+        />
+      )}
       {/* Price honesty on overview: community override wins, then sourced
           observation, then baseline-on-record. Never imply a live feed.
           Non-pub venues carry a type-specific anchor (a cocktail, a doner) —
@@ -604,6 +556,9 @@ export default function VenueOverviewTab({
           latestPintDropAt={latestPintDropAt}
           focusRequest={priceFocusRequest}
           includeSignals={false}
+          // The composer opens on the drink the map is under, so a cocktail map
+          // does not ask a drinker to find cocktails again.
+          laneCategory={leadLane}
         />
       ) : null}
       {mode === "build" && isPubVenue(venue) ? (

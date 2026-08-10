@@ -1,19 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, LocateFixed, LocateOff, Map as MapGlyph, MoonStar, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
+import { Ellipsis, GlassWater, LocateFixed, LocateOff, Map as MapGlyph, MoonStar, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
 import { areaChipClaim, areaChipClaimPrefix, type MapPlaceOrigin } from "@/lib/areaButton";
-import { buildFiltersChip, buildNearMeChip, buildTflCorner, buildTonightChip, type CornerUtilityModel, type PrimaryChipModel } from "@/lib/mapChromeTiers";
+import { buildFiltersChip, buildNearMeChip, buildTflCorner, buildTonightChip, type CornerUtilityModel, type PrimaryChipModel, type TonightChipModel } from "@/lib/mapChromeTiers";
 import { MAP_SHEET_TITLES, type MapOverlay, type MapSheetKind } from "@/lib/mobileShell";
 
 import "./mobileMapShell.css";
 
 const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
   "filters",
+  "drink",
   "tfl",
   "tonight",
   "layers",
@@ -71,7 +72,74 @@ function MapEdgeControls({
   );
 }
 
-export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+/**
+ * ONE docked lane under the one bar, shared by both chips, so the phone chrome
+ * still costs a bar plus a single 44px row however many chips it earns.
+ *
+ * Left: the drink the map is under, always named, because a map showing
+ * cocktail prices must never look like the pint map and that choice may not be
+ * buried two taps inside a refinement drawer.
+ * Right (P5 cold-start): What's On listings earn a one-tap path into the
+ * Tonight sheet, and a quiet night simply leaves that half empty.
+ *
+ * The row stops short of the published map-edge lane so TfL never swallows a
+ * chip's taps (components/mobile/mobileMapShell.css).
+ */
+function MapChipRow({
+  overlay,
+  drinkLaneLabel,
+  drinkLaneSelected,
+  tonightChip,
+  onOpen,
+}: {
+  overlay: MapOverlay;
+  drinkLaneLabel: string;
+  drinkLaneSelected: boolean;
+  tonightChip: TonightChipModel | null;
+  onOpen: (overlay: MapOverlay) => void;
+}) {
+  const drinkOpen = overlay === "drink";
+  const tonightOpen = overlay === "tonight";
+  return (
+    <div className="mobileMapChipRow">
+      <button
+        type="button"
+        className={
+          drinkOpen || drinkLaneSelected
+            ? "mobileMapDrinkChip isActive"
+            : "mobileMapDrinkChip"
+        }
+        aria-label={`Drink shown on the map: ${drinkLaneLabel}. Choose another drink`}
+        aria-expanded={drinkOpen}
+        aria-haspopup="dialog"
+        onClick={() => onOpen("drink")}
+      >
+        <GlassWater size={15} aria-hidden="true" />
+        <span className="mobileMapDrinkChipLabel">{drinkLaneLabel}</span>
+      </button>
+      {tonightChip ? (
+        <button
+          type="button"
+          className={
+            tonightOpen ? "mobileMapTonightChip isActive" : "mobileMapTonightChip"
+          }
+          aria-label={tonightChip.ariaLabel}
+          aria-expanded={tonightOpen}
+          aria-pressed={tonightOpen}
+          onClick={() => onOpen("tonight")}
+        >
+          <MoonStar size={15} aria-hidden="true" />
+          <span className="mobileMapTonightChipLabel">{tonightChip.label}</span>
+          <span className="mobileMapTonightChipCount" aria-hidden="true">
+            {tonightChip.count}
+          </span>
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
   cityLabel: string;
   /**
    * Whether that name is where the READER is, or only what the map is looking
@@ -119,6 +187,10 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
   tflStatus: "checking" | "clear" | "issues" | "unavailable";
   priceLabel: string;
   drinkFiltersActive: boolean;
+  /** The drink the map is under, as the lane chip prints it ("Pints"). */
+  drinkLaneLabel: string;
+  /** False for the resting pint lane, so the chip only marks a real choice. */
+  drinkLaneSelected: boolean;
   experienceFilterLabel?: "no-alcohol view" | "food view";
   /** #329 zone lens counts as a filters refinement (its mobile home is the filters sheet). */
   zoneActive?: boolean;
@@ -137,6 +209,8 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
   onPlan: () => void;
   searchContent: React.ReactNode;
   filtersContent: React.ReactNode;
+  /** The drink-lane picker body. Its own sheet, never a Filters section. */
+  drinkContent: React.ReactNode;
   tflContent: React.ReactNode;
   tonightContent: React.ReactNode;
   layersContent: React.ReactNode;
@@ -194,7 +268,7 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
   const sheetKind = CONTEXTUAL_SHEETS.includes(overlay as MapSheetKind)
     ? (overlay as MapSheetKind)
     : null;
-  const sheetContent = sheetKind === "filters" ? filtersContent : sheetKind === "tfl" ? tflContent : sheetKind === "tonight" ? tonightContent : sheetKind === "layers" ? layersContent : sheetKind === "moment" ? momentContent : sheetKind === "near-me" ? nearMeContent : sheetKind === "area" ? areaContent : palContent;
+  const sheetContent = sheetKind === "filters" ? filtersContent : sheetKind === "drink" ? drinkContent : sheetKind === "tfl" ? tflContent : sheetKind === "tonight" ? tonightContent : sheetKind === "layers" ? layersContent : sheetKind === "moment" ? momentContent : sheetKind === "near-me" ? nearMeContent : sheetKind === "area" ? areaContent : palContent;
 
   return (
     <>
@@ -259,31 +333,15 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
             </button>
           </div>
         ) : null}
-        {/* P5 cold-start: What's On listings earn a one-tap path into the
-            Tonight sheet. Quiet nights stay quiet. The chip stops short of the
-            map-edge lane so TfL never swallows its taps. */}
-        {overlay !== "search" && tonightChip ? (
-          <div className="mobileMapTonightRow">
-            <button
-              type="button"
-              className={
-                overlay === "tonight"
-                  ? "mobileMapTonightChip isActive"
-                  : "mobileMapTonightChip"
-              }
-              aria-label={tonightChip.ariaLabel}
-              aria-expanded={overlay === "tonight"}
-              aria-pressed={overlay === "tonight"}
-              onClick={() => set("tonight")}
-            >
-              <MoonStar size={15} aria-hidden="true" />
-              <span className="mobileMapTonightChipLabel">{tonightChip.label}</span>
-              <span className="mobileMapTonightChipCount" aria-hidden="true">
-                {tonightChip.count}
-              </span>
-            </button>
-          </div>
-        ) : null}
+        {overlay === "search" ? null : (
+          <MapChipRow
+            overlay={overlay}
+            drinkLaneLabel={drinkLaneLabel}
+            drinkLaneSelected={drinkLaneSelected}
+            tonightChip={tonightChip}
+            onOpen={set}
+          />
+        )}
       </div>
       {/* Near me failed. The control alone says "Try near me", which names no
           reason and offers no way on, so the reason docks under the one top

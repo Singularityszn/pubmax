@@ -277,23 +277,62 @@
     color: var(--color-text-soft);
   }
 
-  /* P5 cold-start — What's On → Tonight sheet in one tap. Lives under the one
-     top bar (never a sixth bar slot), stops short of the published map-edge
-     lane, and keeps the 44px tap floor. Quiet nights omit the row entirely. */
-  .mobileMapTonightRow {
+  /* ONE docked lane under the one bar, shared by the drink chip and the P5
+     What's On cold-start chip, so the phone chrome stays a bar plus a single
+     44px row however many chips it earns. It stops short of the published
+     map-edge lane, and keeps the 44px tap floor. */
+  .mobileMapChipRow {
     display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
     pointer-events: auto;
     /* Chrome already insets by --mobile-map-stack-right; reserve the rest of
-       the corner lane so TfL cannot steal the chip's right-edge taps. */
+       the corner lane so TfL cannot steal the chips' right-edge taps. */
     padding-right: calc(
       var(--mobile-map-corner-lane) - var(--mobile-map-stack-right)
     );
+  }
+
+  /* The drink the map is under. It never scrolls away and it never truncates
+     to a fragment: a lane label is the name of the prices on the pins, so it
+     shrinks its own padding before it gives up a letter. */
+  .mobileMapDrinkChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex: 0 1 auto;
+    min-width: 0;
+    min-height: 44px;
+    padding: 6px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--control-radius, 14px);
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+    font: inherit;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    transition: transform 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
+  }
+  .mobileMapDrinkChip:active { transform: scale(.98); --shared-press-scale: 1; }
+  .mobileMapDrinkChip.isActive {
+    border-color: color-mix(in srgb, var(--brass, #c8a24a) 45%, var(--color-border));
+    background: color-mix(in srgb, var(--brass, #c8a24a) 14%, var(--color-surface-raised));
+  }
+  .mobileMapDrinkChipLabel {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .mobileMapTonightChip {
     display: inline-flex;
     align-items: center;
     gap: 7px;
+    flex: 0 1 auto;
     max-width: 100%;
+    min-width: 0;
     min-height: 44px;
     padding: 6px 14px;
     border: 1px solid color-mix(in srgb, var(--color-border) 80%, var(--amber, #d3a44a) 20%);

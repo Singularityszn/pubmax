@@ -140,6 +140,14 @@
   margin-bottom: 8px;
 }
 
+/* The one line that turns an empty drink lane into something a reader can do
+   about it. Quieter than the empty statement above it, because the fact comes
+   first and the invitation second. */
+.areaSheetInvite {
+  margin-top: 6px;
+  font-size: 0.78rem;
+}
+
 /* "Use my location" — the first way out of this area, above the fixed twenty.
    It carries weight through a tinted surface and a soft lift, not a drawn box:
    every other control in this sheet already wears a 1px border, so one more

@@ -126,6 +126,7 @@
    "Show me" shares that idiom: it opens the experience-lens panel, which is
    closed at rest (design judgement 2026-08-01, finding 2.15). */
 .mapToolbarLensBtn,
+.mapToolbarDrinkLaneBtn,
 .mapToolbarDrinksBtn {
   display: inline-flex;
   align-items: center;
@@ -150,6 +151,7 @@
 }
 
 .mapToolbarLensBtn.isActive,
+.mapToolbarDrinkLaneBtn.isActive,
 .mapToolbarDrinksBtn.isActive {
   border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
   background: color-mix(in srgb, var(--brass) 8%, transparent);
@@ -589,6 +591,7 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   }
 
   .mapToolbarLensBtn,
+  .mapToolbarDrinkLaneBtn,
   .mapToolbarDrinksBtn {
     min-height: 44px;
     height: 44px;

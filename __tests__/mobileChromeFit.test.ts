@@ -99,32 +99,44 @@ describe("mobile chrome fit at 390px", () => {
     expect(content - taken, "area name column at 320px").toBeGreaterThanOrEqual(60);
   });
 
-  it("keeps the Tonight cold-start chip inside chrome budgets and the corner lane", () => {
+  it("keeps the docked chip row inside chrome budgets and the corner lane", () => {
     // Bar (~52) + chrome gap (6) + 44px chip stays under the 164px phone budget
     // that e2e/ui-consistency-layout.spec.ts and mobile-map-chrome-fit hold.
+    // The drink lane and Tonight share ONE row, so the budget is still one
+    // chip tall however many chips end up on it.
     const barH = Number(mobileMapCss.match(/--mobile-map-bar-h:\s*(\d+)px/)?.[1]);
     const chromeGap = Number(
       mobileMapCss.match(/\.mobileMapChrome\s*{[^}]*gap:\s*(\d+)px/)?.[1],
     );
-    const chip = mobileMapCss.match(/\.mobileMapTonightChip\s*{([^}]*)}/)?.[1] ?? "";
-    expect(chip, ".mobileMapTonightChip rule present").not.toBe("");
-    expect(chip).toMatch(/min-height:\s*44px/);
-    const chipMin = Number(chip.match(/min-height:\s*(\d+)px/)?.[1]);
+    const chipMins: number[] = [];
+    for (const selector of [".mobileMapTonightChip", ".mobileMapDrinkChip"]) {
+      const rule = mobileMapCss.match(
+        new RegExp(`\\${selector}\\s*{([^}]*)}`),
+      )?.[1] ?? "";
+      expect(rule, `${selector} rule present`).not.toBe("");
+      // Every chip on that row still clears the 44px tap floor.
+      expect(rule, `${selector} tap floor`).toMatch(/min-height:\s*44px/);
+      chipMins.push(Number(rule.match(/min-height:\s*(\d+)px/)?.[1]));
+    }
+    const chipMin = Math.max(...chipMins);
     for (const [label, value] of [
       ["bar height", barH],
       ["chrome gap", chromeGap],
-      ["tonight chip floor", chipMin],
+      ["chip row floor", chipMin],
     ] as const) {
       expect(Number.isFinite(value), `${label} parsed from CSS`).toBe(true);
     }
-    expect(barH + chromeGap + chipMin, "bar + tonight chip under 164px").toBeLessThanOrEqual(
+    expect(barH + chromeGap + chipMin, "bar + chip row under 164px").toBeLessThanOrEqual(
       164,
     );
 
     // The row clears the published map-edge lane so TfL cannot steal taps.
     expect(mobileMapCss).toMatch(
-      /\.mobileMapTonightRow\s*{[^}]*padding-right:\s*calc\(\s*var\(--mobile-map-corner-lane\)\s*-\s*var\(--mobile-map-stack-right\)/,
+      /\.mobileMapChipRow\s*{[^}]*padding-right:\s*calc\(\s*var\(--mobile-map-corner-lane\)\s*-\s*var\(--mobile-map-stack-right\)/,
     );
+    // A lane label may shorten, but the chip that names the prices on the pins
+    // never scrolls out of reach: the row wraps nothing off-screen.
+    expect(mobileMapCss).not.toMatch(/\.mobileMapChipRow\s*{[^}]*overflow-x:\s*auto/);
     // And the shell still publishes the balanced stack the chip sits inside.
     expect(mobileMapCss).toMatch(/--mobile-map-stack-left:\s*\d+px/);
     expect(mobileMapCss).toMatch(/--mobile-map-stack-right:\s*\d+px/);

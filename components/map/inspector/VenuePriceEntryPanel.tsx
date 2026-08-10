@@ -10,6 +10,8 @@ import {
   DEFAULT_SUBMIT_CATEGORY,
   type CommunityPriceMapReach,
 } from "@/lib/communityPrice";
+import { DEFAULT_DRINK_LANE } from "@/lib/drinkLanes";
+import type { DrinkCategory } from "@/lib/drinks";
 
 import VenuePriceSignInGate from "./VenuePriceSignInGate";
 import "../venuePriceSubmit.css";
@@ -27,6 +29,8 @@ type VenuePriceEntryPanelProps = {
   focusRequest?: number;
   /** When false, omit the signals block (Overview mounts its own read-first copy). */
   includeSignals?: boolean;
+  /** The drink the map is under. The composer opens on it. */
+  laneCategory?: DrinkCategory;
 };
 
 /**
@@ -47,6 +51,7 @@ export default function VenuePriceEntryPanel({
   mapReach = "paint",
   focusRequest = 0,
   includeSignals = true,
+  laneCategory = DEFAULT_DRINK_LANE,
 }: VenuePriceEntryPanelProps) {
   const viewedVenueId = useRef<string | null>(null);
   useEffect(() => {
@@ -70,6 +75,7 @@ export default function VenuePriceEntryPanel({
       latestPintDropAt={latestPintDropAt}
       mapReach={mapReach}
       focusRequest={focusRequest}
+      laneCategory={laneCategory}
     />
   ) : showSignInGate ? (
     <VenuePriceSignInGate

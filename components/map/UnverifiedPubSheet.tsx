@@ -16,6 +16,7 @@ import {
   communityTrustNote,
   submitCategoryLabel,
 } from "@/lib/communityPrice";
+import { DEFAULT_DRINK_LANE } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { COMMUNITY_PRICE_NOTE, formatPrice } from "@/lib/venues";
@@ -159,6 +160,7 @@ export default function UnverifiedPubSheet({
         showSignInGate
         authLoading={authLoading}
         mapReach="mark"
+        laneCategory={drinkLensCategory ?? DEFAULT_DRINK_LANE}
       />
 
       {/* ODbL requires attribution wherever these pins are publicly displayed
