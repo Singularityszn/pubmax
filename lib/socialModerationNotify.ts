@@ -1,7 +1,7 @@
 // Operator alert seam for stranded Social moderation (Social Launch WP4).
 //
-// Avatar uploads fail closed at the route, so an OpenAI outage surfaces to the
-// uploader immediately. The ported social-post queue can still leave posts
+// Avatar uploads scan ADVISORY at the route, so an OpenAI outage surfaces
+// nowhere but this log. The ported social-post queue can still leave posts
 // `pending` on outage with nothing for a human to review. This module reports
 // a growing pending backlog and repeated/terminal moderation failures as their
 // own named finding - never as silence.

@@ -2,10 +2,14 @@
 //
 // The face and the backdrop take the SAME journey — own the handle, stay inside
 // the per-actor budget, strip metadata, stage the bytes privately, sign a
-// short-lived URL, let the moderation adapter look at it, promote only on an
-// approval, and delete every earlier generation. Writing that twice is how the
+// short-lived URL, let the moderation adapter look at it, promote unless it
+// REFUSED, and delete every earlier generation. Writing that twice is how the
 // two slots drift, so `/api/profiles/[handle]/avatar` and
 // `/api/profiles/[handle]/cover` are both thin route files over this one pair.
+//
+// The scan is advisory (`lib/uploadedImageScan.server.ts`): a refusal refuses,
+// but a scanner we cannot reach is a fact about us, not about the photo, so it
+// never costs an owner their own face.
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -33,9 +37,9 @@ import {
 } from "@/lib/profileImageSlots";
 import {
   createProfileAvatarModerationAdapter,
-  ProfileAvatarModerationError,
   type ProfileAvatarModerationAdapter,
 } from "@/lib/profileAvatarModeration";
+import { scanUploadedImage } from "@/lib/uploadedImageScan.server";
 import {
   isProfileTombstoned,
   profileImageState,
@@ -206,49 +210,13 @@ export async function handleProfileImageUpload(
     staged = await stagePreparedProfileImage(slot, owned.profile.id, prepared, storage);
 
     const signedUrl = await signProfileImageObject(staged.stagingKey, storage);
-    if (!signedUrl) {
-      await discardStagedProfileImage(staged, storage);
-      staged = null;
-      return publicApiError(
-        `We could not check this ${spec.nounLower}. Try again.`,
-        "MODERATION_UNAVAILABLE",
-        503,
-        { retryable: true },
-      );
-    }
+    const scan = await scanUploadedImage({
+      surface: slot === "avatar" ? "profile-avatar" : "profile-cover",
+      signedUrl,
+      adapter: moderation,
+    });
 
-    let adapter: ProfileAvatarModerationAdapter;
-    try {
-      adapter = moderation();
-    } catch (error) {
-      await discardStagedProfileImage(staged, storage);
-      staged = null;
-      if (error instanceof ProfileAvatarModerationError) {
-        return publicApiError(
-          `We could not check this ${spec.nounLower}. Try again.`,
-          "MODERATION_UNAVAILABLE",
-          503,
-          { retryable: true },
-        );
-      }
-      throw error;
-    }
-
-    let decision: "approved" | "needs_review";
-    try {
-      ({ decision } = await adapter.moderate(signedUrl));
-    } catch {
-      await discardStagedProfileImage(staged, storage);
-      staged = null;
-      return publicApiError(
-        `We could not check this ${spec.nounLower}. Try again.`,
-        "MODERATION_UNAVAILABLE",
-        503,
-        { retryable: true },
-      );
-    }
-
-    if (decision !== "approved") {
+    if (scan.verdict === "refused") {
       await discardStagedProfileImage(staged, storage);
       staged = null;
       return publicApiError(

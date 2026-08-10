@@ -14,7 +14,9 @@
 // WHAT A PHOTO COSTS: one safety scan, which is a paid call to a provider that
 // can be spent by anyone with an upload button. So the per-account budget is
 // `failClosed` (a limiter we cannot reach refuses rather than waves through),
-// and nothing reaches the scan before the cap has been counted.
+// and nothing reaches the scan before the cap has been counted. The scan itself
+// is ADVISORY (`lib/uploadedImageScan.server.ts`): it still refuses what it
+// refuses, but a provider we cannot reach never closes the wall.
 //
 // WHAT THE CAP IS: 100 photos per account per venue, counted in the store
 // against that account's own live rows. The composer hides its button at the
@@ -39,9 +41,9 @@ import { readString } from "@/lib/textClean";
 import { crosspostVenuePhotoToFeed } from "@/lib/venuePhotoCrosspost.server";
 import {
   createProfileAvatarModerationAdapter,
-  ProfileAvatarModerationError,
   type ProfileAvatarModerationAdapter,
 } from "@/lib/profileAvatarModeration";
+import { scanUploadedImage } from "@/lib/uploadedImageScan.server";
 import {
   discardStagedVenuePhoto,
   prepareVenuePhoto,
@@ -285,33 +287,13 @@ export async function POST(request: Request): Promise<Response> {
     staged = await stagePreparedVenuePhoto(submission.venueId, photoId, prepared, storage);
 
     const signedUrl = await signVenuePhotoObject(staged.stagingKey, storage);
-    if (!signedUrl) {
-      await discardStagedVenuePhoto(staged, storage);
-      staged = null;
-      return publicApiError("We could not check this photo. Try again.", "MODERATION_UNAVAILABLE", 503, {
-        retryable: true,
-      });
-    }
+    const scan = await scanUploadedImage({
+      surface: "venue-photo",
+      signedUrl,
+      adapter: moderation,
+    });
 
-    let decision: "approved" | "needs_review";
-    try {
-      const adapter = moderation();
-      ({ decision } = await adapter.moderate(signedUrl));
-    } catch (error) {
-      await discardStagedVenuePhoto(staged, storage);
-      staged = null;
-      if (error instanceof ProfileAvatarModerationError || error instanceof Error) {
-        return publicApiError(
-          "We could not check this photo. Try again.",
-          "MODERATION_UNAVAILABLE",
-          503,
-          { retryable: true },
-        );
-      }
-      throw error;
-    }
-
-    if (decision !== "approved") {
+    if (scan.verdict === "refused") {
       // Refused bytes never reach the serving key, so nothing public was ever
       // one request away from existing.
       await discardStagedVenuePhoto(staged, storage);

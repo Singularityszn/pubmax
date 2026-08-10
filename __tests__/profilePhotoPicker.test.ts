@@ -172,8 +172,11 @@ describe("the crop step feeds the upload, and the upload is unchanged", () => {
   });
 
   it("leaves the safety scan on the upload path exactly where it was", () => {
-    const route = read("lib/profileImageRoute.server.ts");
-    expect(route).toContain("moderate");
+    // The scan is ADVISORY now (`lib/uploadedImageScan.server.ts` decides what
+    // counts as a verdict), but it still runs on every upload: widening the
+    // picker may never take the scan off the path.
+    expect(read("lib/profileImageRoute.server.ts")).toContain("scanUploadedImage");
+    expect(read("lib/uploadedImageScan.server.ts")).toContain("moderate");
   });
 });
 

@@ -4,9 +4,10 @@ import { expect, test, type Page } from "@playwright/test";
 // Playwright server (next build + next start, PUBMAX_E2E_KEYLESS=1).
 //
 // The keyless server has no Supabase storage bucket and no OPENAI_API_KEY, so
-// a real upload stops at the first honest refusal (storage or moderation). The
-// moderation-outage copy ("We could not check this photo. Try again.") is pinned
-// in __tests__/profileAvatarRoute.test.ts with injected memory storage.
+// a real upload stops at the first honest refusal, which is now storage alone:
+// a scan nobody configured is advisory and lets the upload through
+// (`lib/uploadedImageScan.server.ts`). Both are pinned in
+// __tests__/profileAvatarRoute.test.ts with injected memory storage.
 //
 // The upload → render → report → hide loop rehearses the captain demo UI with
 // browser route doubles for write paths that need durable storage, while
@@ -161,10 +162,11 @@ test("owner upload surfaces honest refusal when the keyless server cannot verify
   const status = page.locator(".profileEditorStatusErr");
   await expect(status).toBeVisible();
   // Keyless production e2e has no Supabase admin JWT verification, so the write
-  // stops at ownership before storage or OpenAI run. Storage/moderation outage
-  // copy is pinned in __tests__/profileAvatarRoute.test.ts with injected storage.
+  // stops at ownership before storage or the scan run. Storage-outage copy is
+  // pinned in __tests__/profileAvatarRoute.test.ts with injected storage; an
+  // unreachable scan has no copy at all now, because it no longer refuses.
   await expect(status).toContainText(
-    /sign in with the account that owns this handle|could not check this photo|photo storage is unavailable|profile storage is unavailable/i,
+    /sign in with the account that owns this handle|photo storage is unavailable|profile storage is unavailable/i,
   );
 });
 

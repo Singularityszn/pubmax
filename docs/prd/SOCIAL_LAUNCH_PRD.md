@@ -148,17 +148,21 @@ deleted when the account dies.
   with a CHECK-pinned prefix (precedent: migration 0074:27-28). UUID and
   generation keys only, never user-influenced filenames.
 - `lib/profileAvatarModeration.ts` - thin reuse of the
-  `OpenAISocialPostModerationAdapter` call shape, image-only input,
-  fail-closed (`lib/socialPostModeration.ts:19-22`).
+  `OpenAISocialPostModerationAdapter` call shape, image-only input. Its
+  verdicts are read through the advisory policy in
+  `lib/uploadedImageScan.server.ts`.
 - `app/api/profiles/[handle]/avatar/route.ts` - `export async function POST`
   multipart + `DELETE`; `gateHandleAction` ownership (Supabase JWT, same
   gate as the existing PATCH); `isLimited` per-actor with
   `failClosed: true` (each accepted upload spends an OpenAI call); every
   4xx/5xx via `publicApiError`. Inline scan order: normalise -> store to a
   private staging key -> sign a 180s URL -> call the adapter synchronously.
-  Flagged -> refuse and delete the staging object. Scan outage or no
-  decision -> 503 "We could not check this photo. Try again." and nothing
-  stored. Approved -> promote to the serving key, state `approved`.
+  Flagged -> refuse and delete the staging object. Approved -> promote to
+  the serving key, state `approved`.
+  SUPERSEDED 2026-08-10 (captain decision): scan outage or no decision no
+  longer refuses. The scan is advisory (`lib/uploadedImageScan.server.ts`),
+  a scanner we cannot reach lets the upload through as `approved` with one
+  logged skip, and the report/hide moderator lane is the safety net.
 - Migration: profiles avatar columns + storage key CHECK, SQL only.
 
 **Tombstone deletion (skeptic ADD, in this package):** migration 0078
@@ -403,11 +407,13 @@ empty; search finds a handle and follow works from it.
    image URL - never the handle, profile id, account id, or any user text
    alongside it (`__tests__/socialPostModeration.test.ts:53-54` is the
    fence to copy).
-2. **Moderation fail-closed:** If the moderation call is unconfigured,
-   times out, errors, or returns no usable decision, the upload is refused
-   with an honest `publicApiError` and nothing is stored or served - never
-   store-then-scan, never treat "no decision" as approval
-   (`lib/socialPostModeration.ts:19-22,67-74` is the posture to copy).
+2. **Moderation fail-closed:** posts only. A post the moderation call
+   cannot decide stays unpublished (`lib/socialPostModeration.ts:19-22,67-74`).
+   OWNED IMAGES took the opposite decision on 2026-08-10: an avatar, cover
+   or wall photo whose scan is unconfigured, times out, errors, or returns
+   no usable decision is stored and served, because a broken provider had
+   blocked every upload on the site. A real negative verdict still refuses.
+   See `lib/uploadedImageScan.server.ts` and the AGENTS.md bullet.
 3. **Honest copy and honest fallbacks:** While the launch flag is off, no
    surface may say "Open Social" (the `__tests__/*SocialHonesty.test.ts`
    fences must keep passing), and a missing, hidden, or unscanned avatar
