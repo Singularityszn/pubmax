@@ -1,3 +1,4 @@
+import { profileCoverPhotoStore } from "@/lib/profileCoverPhotoStore";
 import {
   defaultProfileImageServeDeps,
   handleProfileImageServe,
@@ -16,7 +17,15 @@ export function __setCoverServeRouteDepsForTest(
 }
 
 function deps(): ProfileImageServeDeps {
-  return { ...defaultProfileImageServeDeps, ...testDeps };
+  return {
+    ...defaultProfileImageServeDeps,
+    // A profile holds up to five covers and the row names only the first, so
+    // this route also serves any generation the rotation records for it. The
+    // store checks approval and the serving-key shape itself.
+    extraServingKey: (profileId, generation) =>
+      profileCoverPhotoStore().approvedObjectKey(profileId, generation),
+    ...testDeps,
+  };
 }
 
 type RouteContext = { params: Promise<{ profileId: string; generation: string }> };
