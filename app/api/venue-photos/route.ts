@@ -61,6 +61,7 @@ import {
 import {
   validateVenuePhotoSubmission,
   VENUE_PHOTO_REFUSED_LINE,
+  venuePhotoCapLine,
   venuePhotoServePath,
   type VenuePhotoCrosspost,
 } from "@/lib/venuePhotos";
@@ -273,11 +274,7 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
   if (held >= VENUE_PHOTO_CAP_PER_ACCOUNT) {
-    return publicApiError(
-      `You already have ${VENUE_PHOTO_CAP_PER_ACCOUNT} photos on this pub's wall. Remove one to add another.`,
-      "PHOTO_CAP_REACHED",
-      409,
-    );
+    return publicApiError(venuePhotoCapLine(), "PHOTO_CAP_REACHED", 409);
   }
 
   const photoId = crypto.randomUUID();

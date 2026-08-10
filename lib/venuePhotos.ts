@@ -354,8 +354,15 @@ export const VENUE_PHOTO_SIGN_IN_LINE =
 export const VENUE_PHOTO_REFUSED_LINE =
   "That photo did not pass our checks. Choose another.";
 
-export function venuePhotoCapLine(venueName: string): string {
-  return `You have ${VENUE_PHOTO_CAP_PER_ACCOUNT} photos on ${venueName}. Remove one to add another.`;
+/**
+ * What a drinker at the cap is told. It says the limit and stops: the wall
+ * offers its author no delete, so "remove one to add another" would be an
+ * instruction to use a control that is not there. Naming the pub is optional
+ * because the write path knows the venue id and not its name.
+ */
+export function venuePhotoCapLine(venueName?: string): string {
+  const where = venueName ? `on ${venueName}` : "on this pub's wall";
+  return `You have all ${VENUE_PHOTO_CAP_PER_ACCOUNT} of your photos ${where}. That is one account's limit for one pub.`;
 }
 
 /**
