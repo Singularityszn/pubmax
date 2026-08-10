@@ -191,4 +191,3 @@ Expected: no output.
 
 Mark all shipped slices complete and record any skipped gate with the exact
 resource reason.
-

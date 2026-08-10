@@ -20,4 +20,3 @@ and exact Plan generation already supports the Islington Night Area.
 
 No visual screenshot is needed because existing renderer consumes one more
 row without a new layout or component.
-

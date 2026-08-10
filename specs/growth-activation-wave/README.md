@@ -1,17 +1,31 @@
 # Growth Activation Wave
 
-Status: in progress, last updated 10 August 2026.
+Status: implemented, awaiting remote CI and production visual review. Last
+updated 10 August 2026.
 
-## Next Agent Prompt
+## Fable Review Handoff
 
-Implement slices 01 to 03 in their named isolated worktrees. Start with the
-failing tests. Preserve existing Plan, Crew, Night Memory, Pint Index, and
-analytics owners. Before ending a pass, update this status and the checklist.
+Three isolated worktrees implemented the slices with test-first red and green
+evidence. Integration branch is `codex/growth-outing-decision-20260810`.
 
-- [ ] Slice 01: enforce free-text access constraints through the existing grounded planner.
-- [ ] Slice 02: offer the usual lot from the one-time morning recap card.
-- [ ] Slice 03: add Islington as the fifth seed-borough campaign row.
-- [ ] Integrate commits and run targeted tests, lint, typecheck, and diff checks.
+- [x] Slice 01: enforce free-text access, numeric budget, and transport constraints through the grounded planner.
+- [x] Slice 02: offer the usual lot from the one-time morning recap card.
+- [x] Slice 03: add Islington as the fifth seed-borough campaign row.
+- [x] Integrate isolated commits.
+- [x] Run slice-level targeted tests, focused lint, and diff checks.
+- [ ] Run full typecheck, coverage, and build in GitHub CI.
+- [ ] Inspect the deployed morning card at 390px in light and dark mode.
+
+## Verification Evidence
+
+- Planner slice: 91 targeted tests passed across Tonight Agent, hard route
+  constraints, and Plan generation route tests. Focused ESLint and diff check
+  passed.
+- Morning slice: 10 targeted tests passed across usual-lot storage and the
+  mounted morning card. Focused ESLint and diff check passed.
+- Borough slice: 8 targeted tests passed. Focused ESLint and diff check passed.
+- Local full checks stopped when free disk fell below the agreed 500 MiB safety
+  floor. No product or Fable files were deleted to make room.
 
 ## Goal
 
@@ -50,7 +64,7 @@ order because planner behavior carries the highest user-risk.
 ## Review Map
 
 - Slice 01: targeted Vitest route and optimizer tests.
-- Slice 02: component source contract plus usual-lot tests. Visual review is
+- Slice 02: mounted component behavior plus usual-lot tests. Visual review is
   required on the integrated build at phone width before release.
 - Slice 03: pure unit test and playbook review. No new visual component.
 
@@ -61,4 +75,3 @@ order because planner behavior carries the highest user-risk.
   Venue ID, and canonical borough.
 - External Reddit, X, and creator posting stays owner-led. This wave prepares
   product loops and does not publish on the founder's behalf.
-

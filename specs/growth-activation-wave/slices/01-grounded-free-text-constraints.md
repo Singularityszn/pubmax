@@ -2,9 +2,10 @@
 
 ## Contract
 
-A free-text ask that explicitly requests supported access needs must never
-return a Stop without checked evidence. Tonight Agent must use the same
-completed-intake request seam as Plan's describe-first entry.
+A free-text ask that explicitly requests supported access, a numeric budget
+ceiling, or transport constraints must never bypass checked evidence. Tonight
+Agent must use the same completed-intake request seam as Plan's describe-first
+entry.
 
 ## API Seam
 
@@ -20,10 +21,11 @@ completed-intake request seam as Plan's describe-first entry.
 
 - `__tests__/planRouteConstraints.test.ts`: context-derived `step-free` is a
   hard constraint when intake accessibility was skipped.
-- `__tests__/planGenerateRoute.test.ts`: unknown access returns the existing
-  `GROUNDED_CONSTRAINTS_UNSATISFIED` response.
+- `__tests__/planRouteConstraints.test.ts`: no-intake access, numeric budget,
+  and transport constraints enter grounding and fail closed when evidence is
+  unavailable. A soft value preference without a numeric ceiling keeps the
+  legacy path.
 - `__tests__/tonightAgent.test.ts`: request builder includes a valid completed
   intake and trimmed query.
 
 Keep every existing Plan generation and Tonight Agent test green.
-
