@@ -174,8 +174,24 @@ export const metadata: Metadata = {
       { url: "/favicon-x.svg", type: "image/svg+xml", sizes: "any" },
       { url: "/icon-x-192.png", type: "image/png", sizes: "192x192" },
       { url: "/icon-x-512.png", type: "image/png", sizes: "512x512" },
+      // The one dark-icon selector the platforms actually honour today: a
+      // `media` query on a favicon link, which Chrome and Firefox resolve for
+      // the tab. The web app manifest has NO dark-icon field (its `icons`
+      // members are src/sizes/type/purpose and nothing else), so a dark PNG
+      // listed there would just be a second same-size candidate the UA could
+      // pick in a LIGHT context. It stays out of the manifest for that reason.
+      // Declared last so a UA that resolves media by document order lands here.
+      {
+        url: "/favicon-dark.svg",
+        type: "image/svg+xml",
+        sizes: "any",
+        media: "(prefers-color-scheme: dark)",
+      },
     ],
-    // iOS Safari requires a raster apple-touch-icon (SVG is ignored).
+    // iOS Safari requires a raster apple-touch-icon (SVG is ignored) and takes
+    // no `media`: whatever this URL holds is the Home Screen icon in every
+    // appearance. It is the LIGHT tile. See docs/BRAND_MARK.md "What iOS
+    // honours" for what the Tinted Home Screen appearance then does to it.
     apple: [{ url: "/apple-touch-icon-x.png", type: "image/png", sizes: "180x180" }],
   },
 };

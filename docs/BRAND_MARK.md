@@ -28,11 +28,17 @@ The brand reality the mark answers to:
 
 ## Geometry
 
-Drawn on a 64x64 grid, the single source of truth is `MARK_GEOMETRY` in
-`components/brand/PubmaxxMark.tsx`. Every stroke is a filled polygon (not a
-stroked path) so the flat-cut terminals stay crisp at every raster tier. The
-same numbers are copied, and MUST stay identical, in `scripts/gen-brand-assets.mjs`
-and `scripts/gen-native-app-icons.mjs`.
+Drawn on a 64x64 grid, the single source of truth is **`lib/brandMark.mjs`**.
+Every stroke is a filled polygon (not a stroked path) so the flat-cut terminals
+stay crisp at every raster tier.
+
+Four consumers read those numbers and none of them owns a copy: the in-app
+component (`MARK_GEOMETRY` in `components/brand/PubmaxxMark.tsx`), the satori
+share cards (`MARK_POLYGONS` in `lib/ogBrand.tsx`), and the two asset
+generators. Each used to write the coordinates down itself, which is how the
+shipped home-screen icon could drift off the brand with no test failing.
+`__tests__/brandIconAssets.test.ts` holds all of them together and fails on a
+generator that restates a polygon.
 
 ```svg
 <!-- bare X (transparent): favicon / PWA "any" icons. No ember on the icon. -->
@@ -41,12 +47,15 @@ and `scripts/gen-native-app-icons.mjs`.
   <polygon points="51,10 56,10 22,54 17,54" fill="#ff5a5f"/>  <!-- thin / B -->
   <polygon points="9,10 21,10 55,54 43,54" fill="#ff5a5f"/>   <!-- thick \ (on top) -->
 </svg>
-<!-- tile (app icon / maskable / apple-touch): coral X on ink-deep -->
+<!-- tile (app icon / maskable / apple-touch): coral X on the light field.
+     The mark is inset to 62% of the tile width; see "Static assets". -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="15" fill="#060607"/>
-  <polygon points="42,10 47,10 13,54 8,54" fill="#ff5a5f"/>
-  <polygon points="51,10 56,10 22,54 17,54" fill="#ff5a5f"/>
-  <polygon points="9,10 21,10 55,54 43,54" fill="#ff5a5f"/>
+  <rect width="64" height="64" rx="15" fill="#ffffff"/>
+  <g transform="translate(32 32) scale(0.8267) translate(-32 -32)">
+    <polygon points="42,10 47,10 13,54 8,54" fill="#ff5a5f"/>
+    <polygon points="51,10 56,10 22,54 17,54" fill="#ff5a5f"/>
+    <polygon points="9,10 21,10 55,54 43,54" fill="#ff5a5f"/>
+  </g>
 </svg>
 ```
 
@@ -121,23 +130,66 @@ the app's CSS. `mono` inherits theme ink via `currentColor`.
 
 ## Static assets
 
-`scripts/gen-brand-assets.mjs` stamps the **live** web assets from the geometry
-above. Run `node scripts/gen-brand-assets.mjs`; it needs `sharp` (already a
-dependency).
+Run `npm run gen:brand-assets` (`node scripts/gen-brand-assets.mjs`); it needs
+`sharp` (already a dependency). The script is only the WRITER: what each file is
+lives in `lib/brandIconAssets.mjs` as a table of tiers, and
+`__tests__/brandIconAssets.test.ts` regenerates that same table in memory and
+fails when a committed file no longer matches. Never hand-edit an icon.
+
+**Two fields, one mark.** The LIGHT tile is a white field with the coral mark
+and is what every linked icon ships as. The DARK tile is the same mark on
+`--ink-deep`. The mark takes **62% of the tile width** on the home-screen and
+browser-tab tier, and **54%** on the maskable and monochrome tier, because what
+a circular Android mask crops against is the mark's corner distance from centre
+rather than its width.
 
 Live under `public/`:
 
-- `favicon.svg`, `favicon.ico` (16 / 32 / 48 PNG members; the 16 uses the
-  simplified single-slash cut)
-- `icon-192.svg` / `icon-192.png`, `icon-512.svg` / `icon-512.png` (bare X)
-- `icon-maskable.svg` / `icon-maskable-512.png` (ink-deep tile, mark inside the
-  80% safe zone, rx 0 for the platform mask)
-- `apple-touch-icon.png` (180px, coral X on ink-deep, iOS supplies its own
-  corner mask)
+| file | field | tier |
+| --- | --- | --- |
+| `favicon.svg`, `favicon-x.svg` | light | rounded plaque |
+| `favicon-dark.svg` | dark | rounded plaque |
+| `favicon.ico` | light | 16 / 32 / 48 members; the 16 takes the simplified single-slash cut |
+| `icon-192.svg` / `.png`, `icon-512.svg` / `.png` (+ `icon-x-*`) | light | rounded plaque |
+| `icon-dark-192.png`, `icon-dark-512.png` | dark | rounded plaque |
+| `icon-maskable.svg`, `icon-maskable-512.png` | light | full bleed, safe zone, opaque |
+| `icon-maskable-dark-512.png` | dark | full bleed, safe zone, opaque |
+| `icon-monochrome.svg`, `icon-monochrome-512.png` | none | mark on transparency, `purpose: "monochrome"` |
+| `apple-touch-icon.png`, `apple-touch-icon-x.png` | light | 180px, full bleed, opaque |
+| `apple-touch-icon-dark.png` | dark | 180px, full bleed, opaque |
 
-A `public/brand/` reference mirror (plus `mark-mono.svg`) is refreshed by the
-same run. The `?v=` cache-busting token on the `<head>` icon URLs
-(`app/layout.tsx`) is bumped to `20260722-x`.
+The `-x` files are byte-identical mirrors, not separate designs. `app/layout.tsx`
+links the suffixed paths because a new PATH is the only reliable way to move a
+returning browser off a cached retired mark (browsers ignore a `?v=` bust on an
+icon). They are generated here, so a linked icon can no longer lag the file it
+mirrors. A `public/brand/` reference mirror (plus `mark-mono.svg`) is refreshed
+by the same run.
+
+## What iOS honours
+
+Checked 2026-08-10. State it this way and no stronger.
+
+- **The Home Screen icon is `apple-touch-icon`, and it takes no `media`.**
+  Whatever that one URL holds is the icon in every appearance. We point it at
+  the LIGHT tile. iOS bakes the icon when the web app is added, so an icon
+  change reaches an already-installed home screen only when it is re-added.
+- **The web app manifest has no dark-icon field.** An `icons` member is
+  `src` / `sizes` / `type` / `purpose` and nothing else, so a dark PNG listed
+  beside the light one at the same size is not a dark variant, it is a coin toss
+  the UA makes in a light context. Our dark tiles stay OUT of the manifest.
+- **`purpose: "monochrome"` is the only variant selector the manifest has.**
+  Android composites its own field and tint behind it. That is that platform's
+  answer to a tinted Home Screen, and we ship it.
+- **A `media="(prefers-color-scheme: dark)"` favicon link works** in Chrome and
+  Firefox for the browser tab. That is where `favicon-dark.svg` is wired, and it
+  is the only place a dark icon of ours is selected.
+- **iOS Dark and Tinted Home Screen appearances are applied to a web clip
+  without asking us.** There is no web equivalent of a native app's `dark` and
+  `tinted` icon slots. Tinted maps the artwork to luminance and paints the
+  user's tint over it, so a WHITE-field icon flattens towards a near-uniform
+  slab while an INK-field icon keeps a clear mark. The light tile is the
+  captain's ruling; flipping the Home Screen to the dark tile is a one-line
+  change of the `bleed("light")` apple-touch entry in `lib/brandIconAssets.mjs`.
 
 ## Native app icons and splash
 

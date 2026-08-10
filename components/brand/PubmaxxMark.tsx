@@ -1,3 +1,12 @@
+import {
+  BRAND_COLORS,
+  MARK_EMBER,
+  MARK_PLAQUE_RADIUS,
+  MARK_POLYGONS,
+  MARK_SLASH_SIMPLE,
+  MARK_VIEWBOX,
+} from "@/lib/brandMark.mjs";
+
 import "./pubmaxxMark.css";
 
 // ── PUBMAXX mark: "The Crossing X" ────────────────────────────────────────────
@@ -9,37 +18,32 @@ import "./pubmaxxMark.css";
 // survives down to a 16px favicon (where it falls back to the simplified single
 // ascending stroke, `slashSimple`, since the double-stroke channel closes up).
 //
-// Geometry lives on a 64×64 grid and is the single source of truth shared with
-// scripts/gen-brand-assets.mjs and scripts/gen-native-app-icons.mjs (which stamp
-// the static favicon / PWA / apple / native assets from the same numbers). If
-// you change a coordinate here, re-run those generators so the exported assets
-// stay identical. The strokes are filled polygons, not stroked paths, so the
-// flat-cut terminals stay crisp at every raster tier.
+// Geometry lives on a 64x64 grid and comes from lib/brandMark.mjs, the single
+// source of truth this component, the satori OG cards (lib/ogBrand.tsx) and the
+// two asset generators (scripts/gen-brand-assets.mjs,
+// scripts/gen-native-app-icons.mjs) all import. Each of them used to keep its
+// own copy of the coordinates, which is how the shipped home-screen icon could
+// drift off the brand with no test failing. Change a coordinate there and
+// re-run the generators. The strokes are filled polygons, not stroked paths, so
+// the flat-cut terminals stay crisp at every raster tier.
+//
+// This shape is kept for the ~40 in-app readers of MARK_GEOMETRY; it is a view
+// of the master, never a second copy of it.
 
 export const MARK_GEOMETRY = {
-  viewBox: "0 0 64 64",
-  // The thick descending stroke (\), ~12u wide, drawn on top of the two thin
-  // ascending strokes so the crossing reads as a clean interlock. `points`
-  // feeds an SVG <polygon> directly.
-  thick: "9,10 21,10 55,54 43,54",
-  // The ascending stroke (/) split into two thin (~5u) parallel strokes that
-  // pass either side of the thick one, with a ~4u channel between them where
-  // the thick stroke crosses — the double-struck construction. thinA is the
-  // upper-left stroke, thinB the lower-right.
-  thinA: "42,10 47,10 13,54 8,54",
-  thinB: "51,10 56,10 22,54 17,54",
-  // Simplified single ascending stroke (~8u) for the smallest raster tier
-  // (the 16px favicon.ico entry): at 16px the double-stroke channel closes up,
-  // so the icon falls back to a single clean forward slash + the thick stroke.
-  slashSimple: "45,10 53,10 19,54 11,54",
+  viewBox: MARK_VIEWBOX,
+  thick: MARK_POLYGONS.thick,
+  thinA: MARK_POLYGONS.thinA,
+  thinB: MARK_POLYGONS.thinB,
+  slashSimple: MARK_SLASH_SIMPLE,
   // The ember: a lit spark at the crossing. It is NOT part of the icon
-  // silhouette — the static favicon / PWA / app-icon exports drop it (the
+  // silhouette - the static favicon / PWA / app-icon exports drop it (the
   // double-struck crossing is already the event, and a dot muddies it). It is
   // kept only on the lit in-app brand surfaces (duo / plaque variants, the
   // Strike pop, the night seal, the loading ember) as a personality touch.
-  node: { cx: 32, cy: 32, r: 3.2 },
+  node: MARK_EMBER,
   // Full-bleed tile radius for the standalone/plaque variant.
-  plaqueRadius: 15,
+  plaqueRadius: MARK_PLAQUE_RADIUS,
 } as const;
 
 // Token colours with literal fallbacks so the mark also renders correctly
@@ -49,9 +53,9 @@ export const MARK_GEOMETRY = {
 // the same palette without re-declaring the tokens — a drift here would ship a
 // mark whose animated draw finishes in a different colour than the static rest.
 export const MARK_COLORS = {
-  coral: "var(--brass, #ff5a5f)",
-  bright: "var(--brass-bright, #ff7a55)",
-  inkDeep: "var(--ink-deep, #060607)",
+  coral: `var(--brass, ${BRAND_COLORS.coral})`,
+  bright: `var(--brass-bright, ${BRAND_COLORS.coralBright})`,
+  inkDeep: `var(--ink-deep, ${BRAND_COLORS.inkDeep})`,
 } as const;
 
 const COL = MARK_COLORS;

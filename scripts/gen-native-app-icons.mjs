@@ -30,39 +30,30 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
+import { BRAND_COLORS, MARK_VIEWBOX, markPolygonsSvg } from "../lib/brandMark.mjs";
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "assets");
 mkdirSync(OUT, { recursive: true });
 
-// Tokens — literal (these render outside the app CSS). MUST match
-// scripts/gen-brand-assets.mjs and components/brand/PubmaxxMark.tsx. `white` is
-// the Wave C app-icon field (owner verdict 2026-07-22): the icon set is a clean
-// white tile + coral X, so the iOS icon and Android adaptive layers flip from
-// the retired coral field / ink mark to a white field + coral mark. `inkDeep`
-// is retained only for the dark splash field (splashes are NOT icons and keep
-// the coral-on-ink treatment).
-const C = { coral: "#ff5a5f", bright: "#ff7a55", inkDeep: "#060607", white: "#ffffff" };
+// Tokens and geometry come from lib/brandMark.mjs, the one master the in-app
+// mark, the OG cards and the web icon set also read. `paper` is the Wave C
+// app-icon field (owner verdict 2026-07-22): the icon set is a clean white tile
+// + coral X. `inkDeep` is the dark splash field (a splash is NOT an icon and
+// keeps the coral-on-ink treatment).
+const C = BRAND_COLORS;
 
-// THE DOUBLE-STRUCK X on the canonical 64-unit grid: one thick descending
-// stroke (\) over two thin parallel ascending strokes (/).
-const G = {
-  thick: "9,10 21,10 55,54 43,54",
-  thinA: "42,10 47,10 13,54 8,54",
-  thinB: "51,10 56,10 22,54 17,54",
-};
-
-// The X group on a 64 grid, scaled about centre. `armColor` lets the dark
+// The X group on the 64 grid, scaled about centre. `armColor` lets the dark
 // splash flip the strokes to coral on an ink field. No ember on native icons.
 function clink(armColor, scale = 1) {
-  const inner =
-    `<polygon points="${G.thinA}" fill="${armColor}"/>` +
-    `<polygon points="${G.thinB}" fill="${armColor}"/>` +
-    `<polygon points="${G.thick}" fill="${armColor}"/>`;
-  return `<g transform="translate(32 32) scale(${scale}) translate(-32 -32)">${inner}</g>`;
+  return (
+    `<g transform="translate(32 32) scale(${scale}) translate(-32 -32)">` +
+    `${markPolygonsSvg(armColor)}</g>`
+  );
 }
 
 function svg(body) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${MARK_VIEWBOX}">${body}</svg>`;
 }
 
 async function png(markup, size, file) {
@@ -73,9 +64,9 @@ async function png(markup, size, file) {
 const jobs = [
   // iOS app icon: full-bleed WHITE square + coral X (no alpha, no rounding —
   // iOS masks). Wave C flips the field from coral to white and the mark to coral.
-  ["icon-only.png", 1024, svg(`<rect width="64" height="64" fill="${C.white}"/>${clink(C.coral, 0.82)}`)],
+  ["icon-only.png", 1024, svg(`<rect width="64" height="64" fill="${C.paper}"/>${clink(C.coral, 0.82)}`)],
   // Android adaptive background: flat WHITE (the system clips it to the mask).
-  ["icon-background.png", 1024, svg(`<rect width="64" height="64" fill="${C.white}"/>`)],
+  ["icon-background.png", 1024, svg(`<rect width="64" height="64" fill="${C.paper}"/>`)],
   // Android adaptive foreground: coral X on transparent. The generated
   // adaptive-icon XML already insets this layer 16.7%, so the mark must fill a
   // good part of the source or it lands tiny in the launcher. The double-struck

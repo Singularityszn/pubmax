@@ -2,6 +2,8 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import type { ReactNode } from "react";
 
+import { MARK_EMBER, MARK_POLYGONS, MARK_VIEWBOX } from "@/lib/brandMark.mjs";
+
 // Shared brand kit for the dynamic `next/og` share cards (Wave S2). These cards
 // render OUTSIDE the app's CSS — satori/@vercel/og only understands inline
 // styles and a small flexbox subset — so every design token the app expresses
@@ -138,16 +140,13 @@ export function priceStamp(value: number | null | undefined): string | null {
 // ── Shared marks ─────────────────────────────────────────────────────────────
 
 // The one 64-grid geometry every mark on a card is cut from: the master
-// double-struck X (docs/BRAND_MARK.md), re-declared here rather than imported
-// from components/brand/PubmaxxMark.tsx because that module pulls a stylesheet
-// and a client component into a Node OG route. `__tests__/homeOgCard.test.ts`
-// holds these strings against MARK_GEOMETRY so the copy can never drift from
-// the master the favicon and the app stamp.
-export const MARK_POLYGONS = {
-  thinA: "42,10 47,10 13,54 8,54",
-  thinB: "51,10 56,10 22,54 17,54",
-  thick: "9,10 21,10 55,54 43,54",
-} as const;
+// double-struck X (docs/BRAND_MARK.md). It comes from lib/brandMark.mjs rather
+// than from components/brand/PubmaxxMark.tsx because that module pulls a
+// stylesheet and a client component into a Node OG route, and rather than from
+// a literal here because a fourth copy of the coordinates is how the shipped
+// home-screen icon drifted off the brand. Re-exported under this name so the
+// ~17 card consumers stay untouched.
+export { MARK_POLYGONS };
 
 // The PUBMAXX X mark as an inline-literal SVG: one thick descending stroke (\)
 // and two thin parallel ascending strokes (/) either side of it, plus a lit
@@ -157,11 +156,11 @@ export const MARK_POLYGONS = {
 // stroke colour so the mark can sit on any card surface.
 export function CrossingMark({ ink, size = 46 }: { ink: string; size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
+    <svg width={size} height={size} viewBox={MARK_VIEWBOX} fill="none">
       <polygon points={MARK_POLYGONS.thinA} fill={ink} />
       <polygon points={MARK_POLYGONS.thinB} fill={ink} />
       <polygon points={MARK_POLYGONS.thick} fill={ink} />
-      <circle cx="32" cy="32" r="3.2" fill={OG.coralBright} />
+      <circle cx={MARK_EMBER.cx} cy={MARK_EMBER.cy} r={MARK_EMBER.r} fill={OG.coralBright} />
     </svg>
   );
 }
@@ -171,7 +170,7 @@ export function CrossingMark({ ink, size = 46 }: { ink: string; size?: number })
 // (components/brand/PubmaxxWordmark.tsx says the same).
 function WordmarkGlyph({ ink, size }: { ink: string; size: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
+    <svg width={size} height={size} viewBox={MARK_VIEWBOX} fill="none">
       <polygon points={MARK_POLYGONS.thinA} fill={ink} />
       <polygon points={MARK_POLYGONS.thinB} fill={ink} />
       <polygon points={MARK_POLYGONS.thick} fill={ink} />
