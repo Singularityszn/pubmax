@@ -1,7 +1,36 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/planRouteEvidence.server", () => ({
+  planPriceEvidenceForVenues: async (venues: Array<{ id: string }>) => new Map(
+    venues.map((venue) => [
+      venue.id,
+      { pence: null, source: null, confidenceState: "unknown" as const },
+    ]),
+  ),
+  planOpeningSchedulesForVenues: async (venues: Array<{ id: string }>) => new Map(
+    venues.map((venue) => [venue.id, null]),
+  ),
+  planAccessEvidenceForVenue: (venue: { name: string }) =>
+    venue.name === "The Ice Wharf - JD Wetherspoon"
+      ? {
+          stepFree: {
+            confirmed: true,
+            source: {
+              label: "J D Wetherspoon: The Ice Wharf",
+              url: "https://www.jdwetherspoon.com/pubs/the-ice-wharf-camden/",
+              observedAt: null,
+            },
+          },
+        }
+      : {},
+}));
 
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { parsePlanGenerationIntake } from "@/lib/planGenerationIntake";
+import {
+  selectPlanGenerationCandidates,
+  type ScoredPlanCandidate,
+} from "@/lib/planGenerationSelection.server";
 import {
   MAX_PLAN_GENERATION_BODY_BYTES,
   parsePlanGenerationRequest,
@@ -67,6 +96,36 @@ function candidate(
     access: {},
     openingSchedule: null,
     ...overrides,
+  };
+}
+
+function scoredCandidate(
+  id: string,
+  venue: Partial<ScoredPlanCandidate["venue"]> = {},
+): ScoredPlanCandidate {
+  const ordinal = Number(id.replace(/\D/g, "")) || 0;
+  return {
+    venue: {
+      id,
+      name: `Venue ${id}`,
+      area: "Camden",
+      lat: 51.54 + ordinal * 0.001,
+      lng: -0.143 + ordinal * 0.001,
+      cheapestPrice: null,
+      amenities: {
+        beerGarden: false,
+        cocktails: false,
+        food: false,
+        liveSports: false,
+        liveMusic: false,
+      },
+      nearWater: false,
+      hasStory: false,
+      canonical: true,
+      ...venue,
+    },
+    score: 100 - ordinal,
+    signalClaims: [],
   };
 }
 
@@ -191,6 +250,120 @@ describe("ordered grounded route optimization", () => {
 });
 
 describe("hard evidence fences", () => {
+  it("rejects unknown access when free text supplies a skipped intake need", async () => {
+    const parsed = parsePlanGenerationIntake(intake({
+      area: { kind: "night-patch", id: "camden" },
+      timeWindow: null,
+      accessibilityNeeds: [],
+      skipped: ["time-window", "accessibility"],
+    }), NOW);
+    if (!parsed.ok) throw new Error("expected intake");
+    const context = reconcilePlanContext(
+      "Step-free in Camden",
+      null,
+      parsed.value,
+      NOW,
+    ).context;
+
+    expect(context.accessibility).toEqual(["step-free"]);
+    await expect(selectPlanGenerationCandidates(
+      [1, 2, 3, 4].map((number) => scoredCandidate(`unknown-${number}`)),
+      context,
+      parsed.value,
+      NOW.getTime(),
+    )).resolves.toMatchObject({
+      ok: false,
+      selection: { rejected: { accessibility: 4 } },
+    });
+  });
+
+  it("rejects unknown access when free text has no intake", async () => {
+    const context = reconcilePlanContext(
+      "Step-free in Camden",
+      null,
+      null,
+      NOW,
+    ).context;
+
+    await expect(selectPlanGenerationCandidates(
+      [1, 2, 3, 4].map((number) => scoredCandidate(`unknown-${number}`)),
+      context,
+      null,
+      NOW.getTime(),
+    )).resolves.toMatchObject({
+      ok: false,
+      selection: { rejected: { accessibility: 4 } },
+    });
+  });
+
+  it("rejects unknown price evidence for a context ceiling with no intake", async () => {
+    const context = {
+      ...reconcilePlanContext("Camden", null, null, NOW).context,
+      budgetLimitPence: 1_200,
+    };
+
+    await expect(selectPlanGenerationCandidates(
+      [1, 2, 3, 4].map((number) => scoredCandidate(`unknown-${number}`)),
+      context,
+      null,
+      NOW.getTime(),
+    )).resolves.toMatchObject({
+      ok: false,
+      selection: { rejected: { budgetEvidence: 4 } },
+    });
+  });
+
+  it("returns selection failure for unsupported context transport with no intake", async () => {
+    const context = {
+      ...reconcilePlanContext("Camden", null, null, NOW).context,
+      transportConstraints: ["tube"],
+    };
+
+    await expect(selectPlanGenerationCandidates(
+      [1, 2, 3, 4].map((number) => scoredCandidate(`unknown-${number}`)),
+      context,
+      null,
+      NOW.getTime(),
+    )).resolves.toMatchObject({
+      ok: false,
+      selection: { eligibleCandidateCount: 0 },
+    });
+  });
+
+  it("keeps a value preference without a numeric ceiling on the soft legacy path", async () => {
+    const context = reconcilePlanContext("Cheap in Camden", null, null, NOW).context;
+
+    await expect(selectPlanGenerationCandidates(
+      [1, 2, 3, 4].map((number) => scoredCandidate(`unknown-${number}`)),
+      context,
+      null,
+      NOW.getTime(),
+    )).resolves.toMatchObject({ ok: true, legacy: true });
+  });
+
+  it("ignores unsupported context access values when intake skipped access", async () => {
+    const parsed = parsePlanGenerationIntake(intake({
+      area: { kind: "night-patch", id: "camden" },
+      timeWindow: null,
+      accessibilityNeeds: [],
+      skipped: ["time-window", "accessibility"],
+    }), NOW);
+    if (!parsed.ok) throw new Error("expected intake");
+    const context = {
+      ...reconcilePlanContext("Step-free in Camden", null, parsed.value, NOW).context,
+      accessibility: ["step-free", "maybe-step-free"],
+    };
+
+    await expect(selectPlanGenerationCandidates(
+      [1, 2, 3, 4].map((number) => scoredCandidate(`accessible-${number}`, {
+        name: "The Ice Wharf - JD Wetherspoon",
+      })),
+      context,
+      parsed.value,
+      NOW.getTime(),
+    )).resolves.toMatchObject({ ok: true, accessibilityEnforced: true });
+  });
+
   it("does not equate seated service with reliable seating", () => {
     const selection = selectGroundedPlanRoute([
       candidate("a", { access: { seatedService: { confirmed: true, source: SOURCE } } } as never),

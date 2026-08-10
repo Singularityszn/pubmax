@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildTonightAgentGenerateBody,
   TONIGHT_AGENT_NEXT_STEP,
   interpretTonightAgentGenerateBody,
   tonightInviteDraft,
@@ -29,6 +30,19 @@ describe("tonightInviteDraft", () => {
         startClock: "19:00",
       }),
     ).toBe("Friday in Soho · 3 stops · starts 19:00. Open the link and tap I'm in.");
+  });
+});
+
+describe("buildTonightAgentGenerateBody", () => {
+  it("sends a trimmed query with every unanswered intake step marked skipped", () => {
+    expect(buildTonightAgentGenerateBody("  Step-free in Camden  ")).toMatchObject({
+      query: "Step-free in Camden",
+      intake: {
+        version: 1,
+        accessibilityNeeds: [],
+        skipped: expect.arrayContaining(["accessibility"]),
+      },
+    });
   });
 });
 

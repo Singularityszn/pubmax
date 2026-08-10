@@ -2,7 +2,10 @@ import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { NightSignalClaim } from "@/lib/nightSignalClaims";
 import { canAffectRoute } from "@/lib/nightSignalClaims";
 import type { NightContext } from "@/lib/nightPlanning";
-import type { PlanAccessibilityNeed } from "@/lib/planIntake";
+import {
+  PLAN_ACCESSIBILITY_NEEDS,
+  type PlanAccessibilityNeed,
+} from "@/lib/planIntake";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import {
   planAccessEvidenceForVenue,
@@ -83,6 +86,17 @@ async function groundedRouteCandidates<T extends ScoredPlanCandidate>(
   }));
 }
 
+function requiredAccessibilityNeeds(
+  context: NightContext,
+  intake: ParsedPlanGenerationIntake | null,
+): PlanAccessibilityNeed[] {
+  if (intake && !intake.handoff.skipped.includes("accessibility")) {
+    return [...intake.handoff.accessibilityNeeds];
+  }
+  const contextNeeds = new Set(context.accessibility);
+  return PLAN_ACCESSIBILITY_NEEDS.flatMap(({ id }) => contextNeeds.has(id) ? [id] : []);
+}
+
 function groundedConstraints(
   context: NightContext,
   intake: ParsedPlanGenerationIntake | null,
@@ -101,18 +115,23 @@ function groundedConstraints(
   };
 }
 
-/** Join canonical evidence and run the intake-only hard-constraint optimizer. */
+/** Join canonical evidence and run the hard-constraint optimizer. */
 export async function selectPlanGenerationCandidates<T extends ScoredPlanCandidate>(
   candidates: readonly T[],
   context: NightContext,
   intake: ParsedPlanGenerationIntake | null,
   now: number,
 ): Promise<PlanGenerationSelection<T>> {
-  if (!intake) return { ok: true, legacy: true, chosen: candidates.slice(0, 3) };
-  const requiredAccessibilityNeeds: PlanAccessibilityNeed[] = [...intake.handoff.accessibilityNeeds];
+  const accessibilityNeeds = requiredAccessibilityNeeds(context, intake);
+  const hasContextHardConstraint = accessibilityNeeds.length > 0
+    || context.budgetLimitPence !== null
+    || context.transportConstraints.length > 0;
+  if (!intake && !hasContextHardConstraint) {
+    return { ok: true, legacy: true, chosen: candidates.slice(0, 3) };
+  }
   const selection = selectGroundedPlanRoute(
     await groundedRouteCandidates(candidates, now),
-    groundedConstraints(context, intake, requiredAccessibilityNeeds, now),
+    groundedConstraints(context, intake, accessibilityNeeds, now),
   );
   return selection.ok
     ? {
@@ -120,7 +139,7 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
         legacy: false,
         chosen: selection.stops.map((stop) => stop.value),
         selection,
-        accessibilityEnforced: requiredAccessibilityNeeds.length > 0,
+        accessibilityEnforced: accessibilityNeeds.length > 0,
       }
     : { ok: false, selection };
 }
@@ -137,14 +156,14 @@ export async function selectAnchoredPlanGenerationCandidates<T extends ScoredPla
   now: number,
   anchorVenueId: string,
 ): Promise<AnchoredPlanGenerationSelection<T>> {
-  const requiredAccessibilityNeeds: PlanAccessibilityNeed[] = intake ? [...intake.handoff.accessibilityNeeds] : [];
+  const accessibilityNeeds = requiredAccessibilityNeeds(context, intake);
   const selection = selectAnchoredGroundedPlanRoute(
     await groundedRouteCandidates(candidates, now),
-    groundedConstraints(context, intake, requiredAccessibilityNeeds, now),
+    groundedConstraints(context, intake, accessibilityNeeds, now),
     anchorVenueId,
   );
   if (!selection.ok) return { ok: false, reason: "ANCHOR_MISSING" };
-  const accessibilityEnforced = requiredAccessibilityNeeds.length > 0;
+  const accessibilityEnforced = accessibilityNeeds.length > 0;
   return selection.outcome === "anchor-only"
     ? {
         ok: true,

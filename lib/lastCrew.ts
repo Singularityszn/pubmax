@@ -16,6 +16,9 @@ export type LastCrew = {
   sourcePlanId?: string;
 };
 
+let lastCrewSnapshotRaw: string | null | undefined;
+let lastCrewSnapshot: LastCrew | null = null;
+
 /** Closed `source` values for the `next_night_committed` analytics event. */
 export type NextNightCommittedSource = "crew-reinvite" | "completed_plan";
 
@@ -61,8 +64,18 @@ export function readLastCrew(): LastCrew | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(LAST_CREW_STORAGE_KEY);
-    if (!raw) return null;
-    return parseLastCrew(JSON.parse(raw) as unknown);
+    if (raw === lastCrewSnapshotRaw) return lastCrewSnapshot;
+    let next: LastCrew | null = null;
+    if (raw) {
+      try {
+        next = parseLastCrew(JSON.parse(raw) as unknown);
+      } catch {
+        next = null;
+      }
+    }
+    lastCrewSnapshotRaw = raw;
+    lastCrewSnapshot = next;
+    return next;
   } catch {
     return null;
   }

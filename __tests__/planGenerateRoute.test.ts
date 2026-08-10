@@ -306,7 +306,7 @@ describe("POST /api/plans/generate", () => {
     });
   });
 
-  it("retains partial list-based context corrections", async () => {
+  it("retains partial soft list-based context corrections", async () => {
     const response = await POST(new Request("http://localhost/api/plans/generate", {
       method: "POST",
       body: JSON.stringify({
@@ -314,8 +314,6 @@ describe("POST /api/plans/generate", () => {
         context: {
           atmosphere: ["historic"],
           foodNeeds: ["kebab"],
-          accessibility: ["step-free"],
-          transportConstraints: ["tube"],
         },
       }),
     }));
@@ -325,15 +323,9 @@ describe("POST /api/plans/generate", () => {
     expect(body.inferredContext).toMatchObject({
       atmosphere: ["historic"],
       foodNeeds: ["kebab"],
-      accessibility: ["step-free"],
-      transportConstraints: ["tube"],
     });
     expect(body.contextEffects).toEqual(expect.arrayContaining(["atmosphere", "foodNeeds"]));
-    expect(body.missingContextEvidence).toEqual(expect.arrayContaining([
-      "venue_accessibility",
-      "per_venue_transport",
-      "food_terminal_specificity",
-    ]));
+    expect(body.missingContextEvidence).toContain("food_terminal_specificity");
   });
 
   it("records wetherspoonsPreferred in contextEffects without hard-filtering the route", async () => {
