@@ -329,6 +329,14 @@
   font-size: 1rem;
 }
 
+/* Shown under EVERY failure, never only for an account with no password: a
+   line that appeared conditionally would answer "does this handle exist". */
+.loginPageHandlePasswordGuidance {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+}
+
 .loginPageHandlePasswordActions {
   display: flex;
   flex-wrap: wrap;

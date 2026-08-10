@@ -1,11 +1,18 @@
+// Server-side password facts. Never import this from a browser module: it
+// resolves an account's auth email and speaks to GoTrue with the service role.
+//
+// The password itself is Supabase auth's to keep. Nothing here writes one, and
+// nothing here logs one. Setting a password is the OWNER's own call from a
+// signed-in browser (`components/auth/SetAccountPassword.tsx`), because GoTrue
+// binds `updateUser` to the caller's own JWT: a service-role write path would
+// be able to set anybody's password, and a bug in actor resolution there is
+// account takeover.
+
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 import { normalizeHandle } from "@/lib/profiles";
 import { profileStore } from "@/lib/profileStore";
+import { discardBody } from "@/lib/responseBody";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
-
-import {
-  HANDLE_PASSWORD_GENERIC_ERROR,
-  MIN_HANDLE_PASSWORD_LENGTH,
-} from "@/lib/handlePasswordConstants";
 
 export type HandlePasswordSession = {
   access_token: string;
@@ -40,6 +47,36 @@ export async function resolveAuthEmailForHandle(handle: string): Promise<string 
   return data.user.email;
 }
 
+/**
+ * Does this account already have a password?
+ *
+ * TRI-STATE, for the reason every identity read here is: `null` means we could
+ * not tell. `auth.users.encrypted_password` is not reachable over PostgREST, so
+ * the answer comes from `public.account_has_password` (migration 0099), which
+ * returns a BOOLEAN and never the hash it looked at. Until the captain applies
+ * that migration the RPC is missing and this answers
+ * `null`, and a surface that has not been told may never say "you have no
+ * password yet" - it says nothing about which.
+ */
+export async function accountHasPassword(
+  userId: string,
+): Promise<boolean | null> {
+  if (!userId || !isSupabaseConfigured()) return null;
+
+  const admin = getSupabaseAdmin();
+  if (!admin) return null;
+
+  try {
+    const { data, error } = await admin.rpc("account_has_password", {
+      p_user_id: userId,
+    });
+    if (error) return null;
+    return typeof data === "boolean" ? data : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Server-side password grant. Returns null on any failure (no enumeration). */
 export async function signInWithEmailPassword(
   email: string,
@@ -47,7 +84,7 @@ export async function signInWithEmailPassword(
 ): Promise<HandlePasswordSession | null> {
   const config = supabaseAuthConfig();
   if (!config) return null;
-  if (!password || password.length < MIN_HANDLE_PASSWORD_LENGTH) return null;
+  if (!password || password.length < MIN_PASSWORD_LENGTH) return null;
 
   let response: Response;
   try {
@@ -68,7 +105,10 @@ export async function signInWithEmailPassword(
     return null;
   }
 
-  if (!response.ok) return null;
+  if (!response.ok) {
+    discardBody(response);
+    return null;
+  }
 
   let body: Record<string, unknown>;
   try {

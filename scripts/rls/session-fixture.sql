@@ -35,10 +35,17 @@ alter default privileges in schema public
 create schema if not exists auth;
 grant usage on schema auth to anon, authenticated, service_role;
 
+-- The stand-in for GoTrue's own table. Only the columns a migration reads are
+-- here: `encrypted_password` because 0099 asks whether an account has one, and
+-- nothing about it is ever selected out.
 create table if not exists auth.users (
   id uuid primary key,
+  encrypted_password text,
   created_at timestamptz not null default now()
 );
+
+alter table auth.users
+  add column if not exists encrypted_password text;
 
 create or replace function auth.uid()
 returns uuid
