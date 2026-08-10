@@ -10,6 +10,7 @@
 import {
   isOnTonight,
   londonServiceDayBounds,
+  tonightServiceWindow,
   type WhatsOnConfidence,
   type WhatsOnKind,
   type WhatsOnRow,
@@ -96,9 +97,11 @@ export function stopEventChips(
   if (!Number.isFinite(planStartMs)) return chips;
 
   const byVenue = new Map<string, WhatsOnRow[]>();
+  // One London clock reading for the whole sweep, not one per row.
+  const tonight = tonightServiceWindow(now);
   for (const row of rows) {
     if (!row.venueId || !wanted.has(row.venueId)) continue;
-    if (!isOnTonight(row, now)) continue;
+    if (!isOnTonight(row, now, tonight)) continue;
     if (!isEventRelevantToPlanStart(row, planStartMs)) continue;
     const list = byVenue.get(row.venueId) ?? [];
     list.push(row);
