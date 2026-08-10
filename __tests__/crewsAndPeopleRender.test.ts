@@ -40,16 +40,27 @@ describe("crews stay behind the Social gate", () => {
 
   it("mounts on /social only inside the verified branch", () => {
     // showPostsControls is `isPosts && access === "verified"`, the same guard
-    // the composer sits behind. The ungated FindYourLot branch must never gain
-    // a crew.
+    // the composer sits behind. Everything an UNVERIFIED viewer meets must
+    // never gain a crew.
     expect(socialPageClient).toMatch(
       /showPostsControls \? \(\s*<CrewsPanel/,
     );
+    // The anchor moved with the surface: FindYourLot took its own section (and
+    // its aria-label) into the component, so this read for a matching section
+    // in the page found nothing and asserted against undefined. The ungated
+    // branch an unverified viewer lands on today is the directory section.
     const ungated = socialPageClient.match(
-      /aria-label="Find your lot"[\s\S]*?<\/section>/,
+      /aria-label="People on PUBMAXX"[\s\S]*?<\/section>/,
     )?.[0];
-    expect(ungated, "ungated find-your-lot branch present").toBeTruthy();
+    expect(ungated, "ungated friend-formation branch present").toBeTruthy();
     expect(ungated).not.toMatch(/CrewsPanel/);
+    // Friend formation itself rides the rail on `isPosts` alone, with no access
+    // gate in front of it. A crew may never join it there either.
+    const friendFormation = socialPageClient
+      .split("\n")
+      .filter((line) => line.includes("isPosts ?"));
+    expect(friendFormation.length).toBeGreaterThan(0);
+    for (const line of friendFormation) expect(line).not.toMatch(/CrewsPanel/);
   });
 
   it("asks the gate itself wherever no parent already did", () => {

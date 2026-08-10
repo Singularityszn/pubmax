@@ -39,6 +39,32 @@ test.describe("Social with the friends launch off", () => {
     ).toBeVisible();
   });
 
+  test("a directory with nobody left to offer says which empty it is", async ({
+    page,
+  }) => {
+    // The one state a node render cannot reach: the read has answered, it
+    // answered with nobody, and the reason is that this drinker already follows
+    // everyone it looked at. That must not read as an empty city.
+    await page.route("**/api/profiles/directory**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          people: [],
+          nextCursor: null,
+          alreadyFollowing: 6,
+        }),
+      });
+    });
+    await page.goto("/social");
+    await expect(
+      page.getByText("You already follow everyone here.").first(),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Nobody has claimed a handle yet."),
+    ).toHaveCount(0);
+  });
+
   test("the directory publishes handles and never an email", async ({ request }) => {
     const response = await request.get("/api/profiles/directory?limit=5");
     expect(response.status()).toBe(200);

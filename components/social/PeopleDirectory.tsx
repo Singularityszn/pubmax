@@ -11,6 +11,14 @@
 // Follow is the same one-sided edge as everywhere else. A lot is mutual, so the
 // row says what the edge is worth (lib/followRelation.ts) rather than implying
 // a friendship one tap cannot make.
+//
+// And this is DISCOVERY, so an account the viewer already follows is not on it:
+// the read is asked for the viewer by name and answers without them, and a tap
+// that lands takes its own card off the list. A spent "Mates" button under a
+// heading offering people to follow is a receipt, not a suggestion. The rule and
+// both empty lines live in lib/peopleDirectory.ts, once. The starter packs are a
+// separate lane and keep their followed members on purpose: a pack is a named
+// bundle, so seeing where you already stand in one is the point.
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -23,6 +31,7 @@ import {
   resolveFollowRelation,
   type FollowRelation,
 } from "@/lib/followRelation";
+import { directoryEmptyLine } from "@/lib/peopleDirectory";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
@@ -60,6 +69,8 @@ export default function PeopleDirectory({
   const [working, setWorking] = useState<string | null>(null);
   const [problem, setProblem] = useState("");
   const [storedHandle, setStoredHandle] = useState("");
+  const [handleRead, setHandleRead] = useState(false);
+  const [alreadyFollowing, setAlreadyFollowing] = useState(0);
 
   useEffect(() => {
     void Promise.resolve().then(() => {
@@ -69,23 +80,34 @@ export default function PeopleDirectory({
         );
       } catch {
         setStoredHandle("");
+      } finally {
+        setHandleRead(true);
       }
     });
   }, []);
   const viewer = normalizeHandle(myHandle ?? "") || storedHandle;
 
   useEffect(() => {
+    // Ask once the viewer is known. A read fired before then comes back with
+    // the people this reader already follows in it, and swapping that list out
+    // a moment later is worse than the skeleton it replaced.
+    if (!handleRead) return;
     const controller = new AbortController();
     void Promise.resolve().then(() => setStatus("loading"));
-    fetch(`/api/profiles/directory?limit=${limit}`, {
+    const viewerParam = viewer ? `&viewer=${encodeURIComponent(viewer)}` : "";
+    fetch(`/api/profiles/directory?limit=${limit}${viewerParam}`, {
       cache: "no-store",
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (!response.ok) throw new Error("Directory unavailable");
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error("Directory unavailable");
+        }
         const body = (await response.json()) as {
           people?: Person[];
           nextCursor?: string | null;
+          alreadyFollowing?: number;
         };
         if (!Array.isArray(body.people)) throw new Error("Directory malformed");
         return body;
@@ -93,6 +115,9 @@ export default function PeopleDirectory({
       .then((body) => {
         setPeople(body.people ?? []);
         setCursor(body.nextCursor ?? null);
+        setAlreadyFollowing(
+          typeof body.alreadyFollowing === "number" ? body.alreadyFollowing : 0,
+        );
         setStatus("ready");
       })
       .catch((error: unknown) => {
@@ -101,7 +126,7 @@ export default function PeopleDirectory({
         setStatus("error");
       });
     return () => controller.abort();
-  }, [attempt, limit]);
+  }, [attempt, handleRead, limit, viewer]);
 
   // Who already follows you back, so a row can say "Mates" instead of guessing.
   useEffect(() => {
@@ -142,8 +167,9 @@ export default function PeopleDirectory({
     if (!cursor || loadingMore) return;
     setLoadingMore(true);
     try {
+      const viewerParam = viewer ? `&viewer=${encodeURIComponent(viewer)}` : "";
       const response = await fetch(
-        `/api/profiles/directory?limit=${limit}&after=${encodeURIComponent(cursor)}`,
+        `/api/profiles/directory?limit=${limit}&after=${encodeURIComponent(cursor)}${viewerParam}`,
         { cache: "no-store" },
       );
       if (!response.ok) {
@@ -153,6 +179,7 @@ export default function PeopleDirectory({
       const body = (await response.json()) as {
         people?: Person[];
         nextCursor?: string | null;
+        alreadyFollowing?: number;
       };
       setPeople((current) => {
         const byId = new Map(current.map((person) => [person.id, person]));
@@ -160,12 +187,16 @@ export default function PeopleDirectory({
         return [...byId.values()];
       });
       setCursor(body.nextCursor ?? null);
+      if (typeof body.alreadyFollowing === "number") {
+        const dropped = body.alreadyFollowing;
+        setAlreadyFollowing((current) => current + dropped);
+      }
     } catch {
       setProblem("Could not load more people.");
     } finally {
       setLoadingMore(false);
     }
-  }, [cursor, limit, loadingMore]);
+  }, [cursor, limit, loadingMore, viewer]);
 
   const relationFor = (handle: string): FollowRelation => {
     const clean = normalizeHandle(handle);
@@ -198,12 +229,21 @@ export default function PeopleDirectory({
         error?: string;
       };
       if (!response.ok) throw new Error(body.error ?? "Could not follow them.");
+      const nowFollowing = body.following !== false;
       setFollowed((current) => {
         const next = new Set(current);
-        if (body.following === false) next.delete(clean);
-        else next.add(clean);
+        if (nowFollowing) next.add(clean);
+        else next.delete(clean);
         return next;
       });
+      // Discovery is what is left to do. A tap that landed is done, so the card
+      // goes with it rather than sitting there wearing its own answer.
+      if (nowFollowing) {
+        setPeople((current) =>
+          current.filter((person) => normalizeHandle(person.handle) !== clean),
+        );
+        setAlreadyFollowing((current) => current + 1);
+      }
     } catch (error) {
       setProblem(error instanceof Error ? error.message : "Could not follow them.");
     } finally {
@@ -211,15 +251,22 @@ export default function PeopleDirectory({
     }
   }
 
+  // Nobody left to offer, and the reason is that this reader has followed them
+  // all. The invitation below the heading is spent too, so it goes with them.
+  const allFollowed =
+    status === "ready" && people.length === 0 && alreadyFollowing > 0;
+
   return (
     <section className="peopleDir" aria-labelledby="people-dir-title">
       <h2 id="people-dir-title" className="peopleDir__title">
         People on PUBMAXX
       </h2>
-      <p className="peopleDir__body">
-        Everyone here chose a public handle. Follow a few; a lot forms when they
-        follow you back.
-      </p>
+      {allFollowed ? null : (
+        <p className="peopleDir__body">
+          Everyone here chose a public handle. Follow a few; a lot forms when
+          they follow you back.
+        </p>
+      )}
 
       {status === "loading" ? (
         <div className="peopleDir__skeletons" aria-hidden="true">
@@ -240,7 +287,10 @@ export default function PeopleDirectory({
         </div>
       ) : people.length === 0 ? (
         <p className="peopleDir__body" role="status">
-          Nobody has claimed a handle yet. You could be first.
+          {directoryEmptyLine({
+            alreadyFollowing,
+            moreToLoad: cursor !== null,
+          })}
         </p>
       ) : (
         <ul className="peopleDir__grid">

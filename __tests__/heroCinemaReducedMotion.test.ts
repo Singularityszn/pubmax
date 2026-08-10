@@ -38,7 +38,13 @@ describe("hero scroll cinema reduced-motion and phone gate", () => {
     // live inside the gate - none of them may leak outside it.
     expect(gatedBlock).toMatch(/\.thamesHeroPhoto\s*\{/);
     expect(gatedBlock).toMatch(/border-radius:\s*calc\(32px \* var\(--cinema-progress\)\)/);
-    expect(gatedBlock).toMatch(/transform:\s*scale\(calc\(1\.06 - 0\.06 \* var\(--cinema-progress\)\)\)/);
+    // The same overscale, now named: `1 + overscale * (1 - progress)` is
+    // `1.06 - 0.06 * progress` written so the caption's clearance can be
+    // derived from the token rather than eyeballed against a literal.
+    expect(gatedBlock).toMatch(
+      /transform:\s*scale\(\s*calc\(1 \+ var\(--cinema-open-overscale\) \* \(1 - var\(--cinema-progress\)\)\)\s*\)/,
+    );
+    expect(heroCinemaCss).toMatch(/--cinema-open-overscale:\s*0\.06;/);
 
     // Nothing outside the gate references --cinema-progress in a rule body
     // (only the safe :root default at the top of the file may).
