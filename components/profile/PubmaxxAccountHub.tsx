@@ -27,6 +27,11 @@ import StepOutNudgePref from "@/components/profile/StepOutNudgePref";
 import FindYourLot from "@/components/social/FindYourLot";
 import ReferralFollowBack from "@/components/social/ReferralFollowBack";
 import StarterPacks from "@/components/social/StarterPacks";
+import {
+  REFERRAL_RECOGNITION_NOTE,
+  referralMarkDetail,
+  referralMilestoneReached,
+} from "@/lib/referrals";
 import type { ReferralPrivateStatus } from "@/lib/referralStore";
 import {
   cleanNightProfileInput,
@@ -174,6 +179,9 @@ export function ReferralInviteCard({
 }): React.JSX.Element {
   const qualified = status?.qualifiedCount ?? 0;
   const referralLabel = qualified === 1 ? "qualified referral" : "qualified referrals";
+  // The mark is recognition, so it is printed and never branched on: no surface
+  // reads it to decide whether anything runs (`lib/referrals.ts` owns the law).
+  const mark = status?.mark ?? null;
   return (
     <div className="accountHubReferral">
       <h3>Invite a mate</h3>
@@ -189,10 +197,15 @@ export function ReferralInviteCard({
             : "All three milestones recorded."}
         </p>
       ) : null}
-      <small>
-        Rewards stay off while we add checks to stop people referring
-        themselves.
-      </small>
+      {mark ? (
+        <p
+          className="accountHubReferralMark"
+          title={referralMarkDetail(referralMilestoneReached(qualified)) ?? undefined}
+        >
+          {mark}
+        </p>
+      ) : null}
+      <small>{REFERRAL_RECOGNITION_NOTE}</small>
       {!link ? (
         <button type="button" disabled={busy} onClick={onInvite}>
           {busy ? "Getting your link…" : "Invite a mate"}

@@ -64,8 +64,7 @@ describe("PubmaxxAccountHub provider gating", () => {
         attributedCount: 2,
         qualifiedCount: 1,
         earned: [],
-        grantedFeatures: [],
-        grantsEnabled: false,
+        mark: "Brought a mate in",
         nextMilestone: 3,
       },
       busy: false,
@@ -81,10 +80,36 @@ describe("PubmaxxAccountHub provider gating", () => {
     expect(html).toContain("first accepted contribution");
     expect(html).toContain("1 qualified referral");
     expect(html).toContain("Next milestone: 3");
-    expect(html).toContain("Rewards stay off");
+    // A milestone is a mark of honour. The card prints it and says plainly
+    // that nothing is behind it, so nobody reads the count as a key.
+    expect(html).toContain("Brought a mate in");
+    expect(html).toContain("Nothing here is gated behind it.");
     expect(html).not.toMatch(/unlock/i);
+    expect(html).not.toMatch(/reward|perk|bounty|entitle/i);
     expect(html).not.toContain("inviter");
     expect(html).not.toContain("invitee");
+  });
+
+  it("prints no mark at all for somebody who has not reached a milestone", () => {
+    const html = renderToStaticMarkup(createElement(ReferralInviteCard, {
+      status: {
+        attributedCount: 2,
+        qualifiedCount: 0,
+        earned: [],
+        mark: null,
+        nextMilestone: 1,
+      },
+      busy: false,
+      link: null,
+      notice: "",
+      shareSupported: false,
+      onInvite: vi.fn(),
+      onCopy: vi.fn(),
+      onShare: vi.fn(),
+    }));
+
+    expect(html).not.toContain("accountHubReferralMark");
+    expect(html).not.toContain("Brought");
   });
 
   it("shows a selectable link only after a deliberate invite action", () => {

@@ -3,54 +3,55 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  REFERRAL_GRANT_GATE,
   REFERRAL_MILESTONES,
   REFERRAL_SIGNUP_PROOF_TTL_MS,
   referralSignupClaimFromUrl,
-  referralFeatureForMilestone,
-  referralFeaturesGrantedBy,
+  nextReferralMilestone,
+  parseReferralMilestone,
+  referralMark,
+  referralMarkDetail,
+  referralMarkForCount,
+  referralMilestoneReached,
 } from "@/lib/referrals";
 
-describe("referral reward policy", () => {
-  it("records approved 1, 3 and 5 referral milestones as permanent rewards", () => {
+describe("referral milestone policy", () => {
+  it("recognises 1, 3 and 5 qualified referrals, ascending", () => {
     expect(REFERRAL_MILESTONES).toEqual([1, 3, 5]);
-    expect(REFERRAL_MILESTONES.map(referralFeatureForMilestone)).toEqual([
-      "collaborative_night_credit",
-      "continuing_memories",
-      "post_trial_collaboration",
+    expect(REFERRAL_MILESTONES.map(referralMark)).toEqual([
+      "Brought a mate in",
+      "Brought 3 mates in",
+      "Brought 5 mates in",
     ]);
   });
 
-  it("keeps every grant closed until both identity blockers are removed", () => {
-    expect(REFERRAL_GRANT_GATE).toEqual({
-      enabled: false,
-      blockers: [
-        "authenticated_contribution_identity",
-        "person_level_self_referral_check",
-      ],
-    });
+  it("reads an untrusted milestone or nothing, and never guesses", () => {
+    expect(parseReferralMilestone(3)).toBe(3);
+    expect(parseReferralMilestone("5")).toBe(5);
+    expect(parseReferralMilestone(2)).toBeNull();
+    expect(parseReferralMilestone(0)).toBeNull();
+    expect(parseReferralMilestone(1.5)).toBeNull();
+    expect(parseReferralMilestone(null)).toBeNull();
+    expect(referralMark(2)).toBeNull();
+    expect(referralMarkDetail(2)).toBeNull();
+  });
 
-    expect(
-      referralFeaturesGrantedBy([
-        {
-          event: "milestone_earned",
-          feature: "collaborative_night_credit",
-          milestone: 1,
-          permanent: true,
-        },
-      ]),
-    ).toEqual([]);
+  it("marks the highest milestone a count has reached and points at the next", () => {
+    expect(referralMilestoneReached(0)).toBeNull();
+    expect(referralMilestoneReached(2)).toBe(1);
+    expect(referralMilestoneReached(9)).toBe(5);
+    expect(referralMarkForCount(0)).toBeNull();
+    expect(referralMarkForCount(4)).toBe("Brought 3 mates in");
+    expect(nextReferralMilestone(0)).toBe(1);
+    expect(nextReferralMilestone(3)).toBe(5);
+    expect(nextReferralMilestone(5)).toBeNull();
+  });
 
-    const migration = readFileSync(
-      join(
-        process.cwd(),
-        "supabase/migrations/20260728143000_0060_referrals.sql",
-      ),
-      "utf8",
-    );
-    expect(migration).toMatch(/referral_grant_insert_gate/);
-    expect(migration).toMatch(/is distinct from 'on'/);
-    expect(migration).toMatch(/referral feature grants are disabled/);
+  it("says what the mark is not, in the founding-mark words", () => {
+    for (const milestone of REFERRAL_MILESTONES) {
+      expect(referralMarkDetail(milestone)).toContain(
+        "Nothing is gated behind it.",
+      );
+    }
   });
 
   it("carries a valid referral fragment through the sign-up journey", () => {

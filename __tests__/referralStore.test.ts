@@ -87,7 +87,7 @@ describe("referral attribution store", () => {
     expect(await memoryReferralStore.privateStatus("user-a")).toMatchObject({
       qualifiedCount: 0,
       earned: [],
-      grantedFeatures: [],
+      mark: null,
     });
   });
 
@@ -126,16 +126,15 @@ describe("referral attribution store", () => {
 
     const status = await memoryReferralStore.privateStatus("inviter");
     expect(status.qualifiedCount).toBe(5);
-    expect(status.earned.map(({ milestone, feature, grantStatus }) => [
-      milestone,
-      feature,
-      grantStatus,
-    ])).toEqual([
-      [1, "collaborative_night_credit", "blocked_identity"],
-      [3, "continuing_memories", "blocked_identity"],
-      [5, "post_trial_collaboration", "blocked_identity"],
+    // A milestone row records recognition and nothing else: a mark to print,
+    // and no feature key, grant status or entitlement of any kind.
+    expect(status.earned.map(({ milestone, mark }) => [milestone, mark])).toEqual([
+      [1, "Brought a mate in"],
+      [3, "Brought 3 mates in"],
+      [5, "Brought 5 mates in"],
     ]);
-    expect(status.grantedFeatures).toEqual([]);
+    expect(status.mark).toBe("Brought 5 mates in");
+    expect(JSON.stringify(status)).not.toMatch(/feature|grant/i);
   });
 
   it("returns aggregate private status without exposing either side of an edge", async () => {
@@ -162,7 +161,7 @@ describe("referral attribution store", () => {
       attributedCount: 0,
       qualifiedCount: 0,
       earned: [],
-      grantedFeatures: [],
+      mark: null,
     });
   });
 

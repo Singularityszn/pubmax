@@ -397,7 +397,7 @@ empty; search finds a handle and follow works from it.
   `PUBMAX_SOCIAL_FRIENDS_LAUNCH` in production is the captain's act, after
   the WP5 rehearsal.
 - Standing honest-path anti-goals (root `CLAUDE.md`) apply unchanged: no
-  growth engine, no referral grants this wave, no payments theatre, no AI
+  growth engine, no referral feature grants ever, no payments theatre, no AI
   that fabricates.
 
 ## Guardrails (law, verbatim into every package)

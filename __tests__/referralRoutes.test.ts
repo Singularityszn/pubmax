@@ -172,8 +172,17 @@ describe("referral routes", () => {
     expect(body).toMatchObject({
       attributedCount: 1,
       qualifiedCount: 0,
-      grantsEnabled: false,
+      mark: null,
     });
+    // Recognition only. The route answers no entitlement of any kind, so a
+    // caller has nothing here to branch a capability on.
+    expect(Object.keys(body).sort()).toEqual([
+      "attributedCount",
+      "earned",
+      "mark",
+      "nextMilestone",
+      "qualifiedCount",
+    ]);
     expect(JSON.stringify(body)).not.toContain("inviter-secret");
     expect(JSON.stringify(body)).not.toContain("invitee-secret");
   });
