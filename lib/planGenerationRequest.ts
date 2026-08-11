@@ -19,6 +19,7 @@ import {
   type PlanningIntentSource,
 } from "@/lib/planningIntent";
 import { isPlanIdempotencyKey } from "@/lib/planStore";
+import { isPlanStopCount } from "@/lib/planStopCount";
 
 export const MAX_PLAN_GENERATION_BODY_BYTES = 16_384;
 export const MAX_PLAN_GENERATION_QUERY_LENGTH = 500;
@@ -33,6 +34,7 @@ const CONTEXT_KEYS = [
   "daypart",
   "partyType",
   "groupSize",
+  "stopCount",
   "budget",
   "budgetLimitPence",
   "zeroProof",
@@ -173,6 +175,10 @@ function parseContext(value: unknown): Partial<NightContext> | null | undefined 
           return undefined;
         }
         result.groupSize = item as number | null;
+        break;
+      case "stopCount":
+        if (!isPlanStopCount(item)) return undefined;
+        result.stopCount = item;
         break;
       case "budget":
         if (!isBudget(item)) return undefined;

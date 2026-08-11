@@ -29,6 +29,7 @@ import {
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
+import { isPlanStopCount, normalizePlanStopCount, PLAN_STOP_COUNTS, type PlanStopCount } from "@/lib/planStopCount";
 import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope } from "@/lib/planDraft";
 import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
 import { readPlanningIntent } from "@/lib/planningIntent";
@@ -118,7 +119,7 @@ export function isGroundedGeneratedRoute(value: unknown, stops: readonly DraftSt
     && (value as { grounded?: unknown }).grounded === true
     && typeof (value as { groundingProof?: unknown }).groundingProof === "string"
     && Boolean((value as { groundingProof: string }).groundingProof)
-    && stops.length === 3,
+    && isPlanStopCount(stops.length),
   );
 }
 
@@ -162,7 +163,7 @@ function routeAlternatives(value: unknown): RouteAlternative[] {
 /** Keep the generator's alternatives attached to their stop for preview swaps. */
 export function routeStopsFromGenerated(value: unknown, alternativePool?: unknown): DraftStop[] {
   if (!Array.isArray(value)) return [];
-  const candidates = value.slice(0, 3);
+  const candidates = value.slice(0, 6);
   const currentVenueIds = new Set(candidates.flatMap((candidate) => {
     if (!candidate || typeof candidate !== "object") return [];
     const row = candidate as { venueId?: unknown };
@@ -707,7 +708,7 @@ function PlanComposerForm({
     lockValidation === null &&
     startTimeIsValid &&
     new Set(completeStopIds).size === completeStopIds.length &&
-    (!nightContext || completeStops.length === 3);
+    (!nightContext || completeStops.length === normalizePlanStopCount(nightContext.stopCount));
 
   useEffect(() => {
     let active = true;
@@ -815,12 +816,18 @@ function PlanComposerForm({
     setPlanIntake(next);
   }
 
-  function submitFromEntry(query: string) {
+  function submitFromEntry(query: string, requestedStopCount?: PlanStopCount) {
     // Computed once and threaded through explicitly: setPlanIntake has not
     // re-rendered yet when sortWithConcierge runs below, so reading the
     // planIntake state variable here would still see the pre-skip draft and
     // send a body the server flags as PLAN_INTAKE_MALFORMED.
-    const skippedIntake = skipRemainingPlanIntake(planIntake);
+    const skippedIntake = skipRemainingPlanIntake({
+      ...planIntake,
+      answers: {
+        ...planIntake.answers,
+        ...(requestedStopCount !== undefined ? { stopCount: requestedStopCount } : {}),
+      },
+    });
     setConciergeQuery(query);
     updatePlanIntake(skippedIntake);
     sortWithConcierge(query, skippedIntake);
@@ -930,7 +937,7 @@ function PlanComposerForm({
       setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
       markPalRouteActivation();
       trackEvent("plan_generated", { stops: suggested.length, grounded });
-      setConciergeNote("Three stops we can stand behind, shaped by the outing you set below.");
+      setConciergeNote(`${suggested.length} stops we can stand behind, shaped by the outing you set below.`);
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
       if (body.inferredContext) {
         trackEvent("night_description_submitted", { area: body.inferredContext.nightArea, daypart: body.inferredContext.daypart });
@@ -963,8 +970,8 @@ function PlanComposerForm({
       setError("Choose distinct venues for every stop.");
       return;
     }
-    if (nightContext && completeStops.length !== 3) {
-      setError("A generated crawl needs exactly three stops we can stand behind before you lock it in.");
+    if (nightContext && completeStops.length !== normalizePlanStopCount(nightContext.stopCount)) {
+      setError(`A generated crawl needs exactly ${normalizePlanStopCount(nightContext.stopCount)} stops we can stand behind before you lock it in.`);
       return;
     }
     if (routeStale) {
@@ -1075,7 +1082,7 @@ function PlanComposerForm({
       <section className="planComposer__concierge" aria-labelledby="plan-concierge-title" aria-busy={sorting}>
         <div>
           <span className="planPage__eyebrow">Describe your outing</span>
-          <h2 id="plan-concierge-title">Say what you need. Get three useful stops.</h2>
+          <h2 id="plan-concierge-title">Say what you need. Get a route you can stand behind.</h2>
         </div>
         <div className="planComposer__conciergeInput">
           <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
@@ -1124,6 +1131,7 @@ function PlanComposerForm({
               <option value="solo">Solo</option><option value="friends">Friends</option><option value="work">Work</option>
             </select></label>
             <label htmlFor="plan-context-people">People<input id="plan-context-people" aria-describedby="plan-route-status" type="number" min="1" max="30" value={nightContext.groupSize ?? ""} onChange={(event) => updateNightContext({ groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
+            <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(nightContext.stopCount)} onChange={(event) => updateNightContext({ stopCount: normalizePlanStopCount(Number(event.target.value)) })}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
             <label htmlFor="plan-context-budget">Budget<select id="plan-context-budget" aria-describedby="plan-route-status" value={nightContext.budget} onChange={(event) => updateNightContext({ budget: event.target.value as NightContext["budget"] })}>
               <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
             </select></label>
@@ -1279,7 +1287,7 @@ function PlanComposerForm({
         <datalist id="plan-venue-options">
           {venues.map((venue) => <option key={venue.id} value={venue.name}>{venue.address}</option>)}
         </datalist>
-        <button className="planComposer__add" type="button" onClick={() => setStops((current) => [...current, { key: Math.max(0, ...current.map((stop) => stop.key)) + 1, venueId: "", venueName: "", alternatives: [] }])}>Add another stop</button>
+        <button className="planComposer__add" type="button" disabled={stops.length >= 6} onClick={() => setStops((current) => current.length >= 6 ? current : [...current, { key: Math.max(0, ...current.map((stop) => stop.key)) + 1, venueId: "", venueName: "", alternatives: [] }])}>Add another stop</button>
       </fieldset>
 
       {error ? <PlanComposerErrorNotice message={error} /> : null}

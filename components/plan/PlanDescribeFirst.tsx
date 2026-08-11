@@ -5,6 +5,9 @@ import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import WantedPlanChips from "@/components/wanted/WantedPlanChips";
 import { CULTURE_CRAWL_CHIPS, CULTURE_CRAWL_MISSION } from "@/lib/cultureCrawl";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
+import { inferNightContext } from "@/lib/nightPlanning";
+import { normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
+import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
 
 export { DESCRIBE_FIRST_CHIPS };
 
@@ -13,12 +16,13 @@ export default function PlanDescribeFirst({
   onGuideMeInstead,
   initialQuery = "",
 }: {
-  onSubmit: (query: string) => void;
+  onSubmit: (query: string, stopCount?: PlanStopCount) => void;
   onGuideMeInstead: () => void;
   /** Prefill from a confirmed Night OS Ask draft_plan proposal. */
   initialQuery?: string;
 }) {
   const [query, setQuery] = useState(initialQuery.slice(0, 500));
+  const [stopCount, setStopCount] = useState<PlanStopCount>(normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount));
   // The prefill arrives AFTER mount: the composer reads the URL in an effect,
   // so an `?occasion=` deep link would otherwise land on an empty field and
   // read as a broken destination. Adopt a later prefill only while the field is
@@ -29,12 +33,19 @@ export default function PlanDescribeFirst({
     if (touched || initialQuery === appliedPrefill.current) return;
     appliedPrefill.current = initialQuery;
     setQuery(initialQuery.slice(0, 500));
+    setStopCount(normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount));
   }, [initialQuery, touched]);
 
-  function submit() {
-    const trimmed = query.trim();
+  function submit(queryOverride = query) {
+    const trimmed = queryOverride.trim();
     if (!trimmed) return;
-    onSubmit(trimmed);
+    onSubmit(trimmed, stopCount);
+  }
+
+  function submitChip(value: string) {
+    const inferred = normalizePlanStopCount(inferNightContext(value).context.stopCount);
+    setStopCount(inferred);
+    onSubmit(value, inferred);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -56,15 +67,18 @@ export default function PlanDescribeFirst({
           value={query}
           onChange={(event) => {
             setTouched(true);
-            setQuery(event.target.value);
+            const value = event.target.value;
+            setQuery(value);
+            setStopCount(normalizePlanStopCount(inferNightContext(value).context.stopCount));
           }}
           onKeyDown={handleKeyDown}
           placeholder="coffee and a catch-up in Clapham for 2"
           maxLength={500}
         />
-        <button type="button" onClick={submit} disabled={!query.trim()}>Make a plan</button>
+        <button type="button" onClick={() => submit()} disabled={!query.trim()}>Make a plan</button>
       </div>
-      <WantedPlanChips onPick={onSubmit} />
+      <PlanStopCountPicker value={stopCount} onChange={setStopCount} />
+      <WantedPlanChips onPick={submitChip} />
       <div className="planDescribeFirst__culture" role="group" aria-label="Culture Crawl">
         <p className="planDescribeFirst__cultureLead">{CULTURE_CRAWL_MISSION}</p>
         <div className="planDescribeFirst__cultureChips">
@@ -73,7 +87,7 @@ export default function PlanDescribeFirst({
               key={chip.id}
               type="button"
               className="planDescribeFirst__chip planDescribeFirst__chip--culture"
-              onClick={() => onSubmit(chip.query)}
+              onClick={() => submitChip(chip.query)}
             >
               {chip.label}
             </button>
@@ -86,7 +100,7 @@ export default function PlanDescribeFirst({
             key={chip}
             type="button"
             className="planDescribeFirst__chip"
-            onClick={() => onSubmit(chip)}
+            onClick={() => submitChip(chip)}
           >
             {chip}
           </button>

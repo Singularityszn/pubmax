@@ -5,6 +5,7 @@ import { canTransitionPlannedNight, cleanCreatePlan, cleanEndingSelection, isPla
 import { CLASSIC_PLAN_INVITE_TOKEN_PATTERN } from "@/lib/planCrewInviteUrl";
 import type { NightContext } from "@/lib/nightPlanning";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { isPlanStopCount } from "@/lib/planStopCount";
 
 const PLANS = "plans";
 const STOPS = "plan_stops";
@@ -72,7 +73,7 @@ export function planRequestDigest(value: unknown): string {
 
 /**
  * Confirm anchor metadata is consistent with the submitted Stops: an anchor-only
- * outcome is exactly one Stop, a route outcome is exactly three, and either way
+ * outcome is exactly one Stop, a route outcome is three to six, and either way
  * the accepted anchor Venue is Stop 1.
  */
 function validatedCreateAnchor(
@@ -80,7 +81,8 @@ function validatedCreateAnchor(
   anchor: PlanAnchorMetadata | undefined,
 ): PlanAnchorMetadata | undefined | "invalid" {
   if (!anchor) return undefined;
-  const expectedStops = anchor.outcome === "route" ? 3 : 1;
+  const expectedStops = anchor.outcome === "route" ? clean.stops.length : 1;
+  if (anchor.outcome === "route" && !isPlanStopCount(expectedStops)) return "invalid";
   if (clean.stops.length !== expectedStops) return "invalid";
   if (clean.stops[0]?.venueId !== anchor.venueId) return "invalid";
   return anchor;
@@ -145,7 +147,7 @@ function completionFromRow(row: Record<string, unknown>): PlanCompletionDTO {
 }
 
 function cleanReplacementStops(stops: PlanStopDTO[] | undefined): PlanStopDTO[] | null {
-  if (!stops || stops.length !== 3) return null;
+  if (!stops || !isPlanStopCount(stops.length)) return null;
   if (new Set(stops.map((stop) => stop.venueId)).size !== stops.length) return null;
   if (stops.some((stop, position) => !stop.venueId || !stop.venueName || stop.position !== position)) return null;
   return stops.map((stop) => ({ ...stop }));

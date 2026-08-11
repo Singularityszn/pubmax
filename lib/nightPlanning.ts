@@ -1,5 +1,6 @@
 import { NIGHT_AREAS, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { cleanText } from "@/lib/textClean";
+import { inferPlanStopCount, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 
 export const DAYPARTS = ["daytime", "after_work", "evening", "late_night", "get_home"] as const;
 export type Daypart = (typeof DAYPARTS)[number];
@@ -14,6 +15,8 @@ export type NightContext = {
   daypart: Daypart;
   partyType: PartyType;
   groupSize: number | null;
+  /** Requested pub stops. Missing legacy context means the default three. */
+  stopCount?: PlanStopCount;
   budget: Budget;
   /** Explicit per-person budget for the three-stop route. Never inferred from profile history. */
   budgetLimitPence: number | null;
@@ -94,6 +97,11 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   const groupSize = numeric ? Number(numeric[1]) : word?.[1] ?? null;
   if (groupSize) reasons.push({ field: "groupSize", evidence: numeric?.[1] ?? (word?.[0].replace(/^./, (c) => c.toUpperCase()) ?? ""), explanation: "Matched the stated group size." });
 
+  const stopCount = inferPlanStopCount(lower, NUMBER_WORDS);
+  if (stopCount !== 3) {
+    reasons.push({ field: "stopCount", evidence: `${stopCount} stops`, explanation: "Matched the requested crawl size." });
+  }
+
   const partyType: PartyType = /colleague|team|work social|leaving do/.test(lower) ? "work" : /solo|just me|on my own/.test(lower) ? "solo" : "friends";
   const budget: Budget = /cheap|budget|value|not pricey|wetherspoons?|\bspoons\b/.test(lower)
     ? "value"
@@ -131,6 +139,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
       daypart,
       partyType,
       groupSize,
+      stopCount,
       budget,
       budgetLimitPence,
       zeroProof,
@@ -187,6 +196,9 @@ export function cleanNightContextPatch(value: unknown): Partial<NightContext> | 
       : typeof row.groupSize === "number" && row.groupSize >= 1 && row.groupSize <= 30
         ? { groupSize: Math.floor(row.groupSize) }
         : {}),
+    ...(row.stopCount === undefined
+      ? {}
+      : { stopCount: normalizePlanStopCount(row.stopCount) }),
     ...(isBudget(row.budget) ? { budget: row.budget } : {}),
     ...(row.budgetLimitPence === null
       ? { budgetLimitPence: null }
@@ -213,6 +225,7 @@ export function cleanNightContext(value: unknown): NightContext | null {
     daypart: row.daypart as Daypart,
     partyType: row.partyType as PartyType,
     groupSize: typeof row.groupSize === "number" && row.groupSize >= 1 && row.groupSize <= 30 ? Math.floor(row.groupSize) : null,
+    stopCount: normalizePlanStopCount(row.stopCount),
     budget: row.budget as Budget,
     budgetLimitPence: typeof row.budgetLimitPence === "number" && Number.isInteger(row.budgetLimitPence) && row.budgetLimitPence >= 500 && row.budgetLimitPence <= 50_000
       ? row.budgetLimitPence

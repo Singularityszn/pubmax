@@ -5,6 +5,7 @@ import {
   type PlanningIntentSource,
 } from "@/lib/planningIntent";
 import { DAY_MS } from "@/lib/dayMs";
+import { isPlanStopCount } from "@/lib/planStopCount";
 
 export const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 export const PLAN_ROUTE_DRAFT_V2_KEY = "pubmax:plan-route-draft:v2";
@@ -367,7 +368,7 @@ function cleanRouteIdentity(
   if (anchorVenueId === undefined || anchorSource === undefined || outcome === undefined) return null;
   const anchored = outcome === "route" || outcome === "anchor-only";
   if (
-    (outcome === "route" && stops.length !== 3)
+    (outcome === "route" && !isPlanStopCount(stops.length))
     || (outcome === "anchor-only" && stops.length !== 1)
     || (anchored && (!anchorVenueId || !anchorSource || stops[0]?.venueId !== anchorVenueId))
     || (!anchored && (anchorVenueId !== null || anchorSource !== null))

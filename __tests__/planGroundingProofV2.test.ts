@@ -56,6 +56,16 @@ describe("grounding proof V2 — mint and verify", () => {
     expect(verdict).toMatchObject({ ok: true, anchored: false, anchorVenueId: null, anchorSource: null });
   });
 
+  it("binds six ordered stops without changing anchor semantics", () => {
+    const routeVenueIds = ["venue-a", "venue-b", "venue-c", "venue-d", "venue-e", "venue-f"];
+    const proof = mintPlanGroundingProofV2(routeInput({ routeVenueIds, allowedVenueIds: routeVenueIds }), ISSUED_AT);
+    expect(verifyAnchoredPlanGroundingProofV2(proof, routeVenueIds, OPERATION, ISSUED_AT)).toMatchObject({
+      ok: true,
+      outcome: "route",
+      routeVenueIds,
+    });
+  });
+
   it("binds a one-Stop anchor-only outcome to its own anchor", () => {
     const proof = mintPlanGroundingProofV2(
       routeInput({

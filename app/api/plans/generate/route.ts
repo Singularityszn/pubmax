@@ -39,6 +39,7 @@ import type { PlanningIntentSource } from "@/lib/planningIntent";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { mintPlanGroundingProof, mintPlanGroundingProofV2 } from "@/lib/planGrounding.server";
 import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
+import { normalizePlanStopCount } from "@/lib/planStopCount";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
@@ -320,7 +321,7 @@ export async function POST(request: Request): Promise<Response> {
 		const generatedSelection = await selectPlanGenerationCandidates(candidates, context, intake, requestNow);
 		if (!generatedSelection.ok) {
 			return publicApiError(
-				`No three-stop route in ${area.name} meets every must-have need with the information available.`,
+				`No ${normalizePlanStopCount(context.stopCount)}-stop route in ${area.name} meets every must-have need with the information available.`,
 				"GROUNDED_CONSTRAINTS_UNSATISFIED",
 				422,
 				{ details: { nightArea: area.slug, availableVenueCount: candidates.length, ...generatedSelection.selection } },
@@ -335,7 +336,8 @@ export async function POST(request: Request): Promise<Response> {
 			accessibilityEnforced = generatedSelection.accessibilityEnforced;
 		}
 	}
-  if (chosen.length < 3) return publicApiError(`Not enough listed pubs in ${area.name} yet.`, "GROUNDED_VENUES_INSUFFICIENT", 422, { details: { nightArea: area.slug, availableVenueCount: chosen.length } });
+	const requestedStopCount = normalizePlanStopCount(context.stopCount);
+	if (chosen.length < requestedStopCount) return publicApiError(`Not enough listed pubs in ${area.name} to build a ${requestedStopCount}-stop route yet.`, "GROUNDED_VENUES_INSUFFICIENT", 422, { details: { nightArea: area.slug, availableVenueCount: chosen.length, requestedStopCount } });
 	const pricePence = chosen.map(({ venue }, position) => groundedStops
 		? groundedStops[position].price.pence
 		: venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100));
@@ -510,7 +512,7 @@ export async function POST(request: Request): Promise<Response> {
 	}
   return jsonNoStore({
     // This response is assembled exclusively from the reviewed venue dataset
-    // above and only exists when three canonical venue records were selected.
+    // above and only exists when the requested canonical venue records were selected.
     // The explicit flag lets clients distinguish server-grounded generation
     // from a manual draft without guessing from unrelated revision metadata.
     grounded: true,
