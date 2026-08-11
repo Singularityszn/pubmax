@@ -13,7 +13,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Beer } from "lucide-react";
+import { ArrowRight, Beer } from "lucide-react";
 
 import {
   formatObservedDate,
@@ -113,7 +113,7 @@ export default function TodayPintsCard({ index, nowIso }: Props) {
         <span className="todayProvenance">Lowest listed prices in {pints.areaName}.</span>
         <Link href="/map" className="todayTextButton">
           Change area
-          <ArrowUpRight size={14} aria-hidden="true" />
+          <ArrowRight size={14} aria-hidden="true" />
         </Link>
       </p>
     </section>

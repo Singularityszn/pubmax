@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  ArrowUpRight,
+  ArrowRight,
   Beer,
   CalendarClock,
   ChevronDown,
@@ -561,7 +561,7 @@ export default function TonightClient({
                       ) : (
                         <>
                           Open on map
-                          <ArrowUpRight size={13} aria-hidden="true" />
+                          <ArrowRight size={13} aria-hidden="true" />
                         </>
                       )}
                     </span>
@@ -692,7 +692,7 @@ export default function TonightClient({
           <p className="tonightFoot">
             <Link href="/map" className="tonightFootLink">
               See them on the map
-              <ArrowUpRight size={14} aria-hidden="true" />
+              <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </p>
         </>
@@ -737,7 +737,7 @@ export default function TonightClient({
                       <span className="tonightQuietTitle">{alt.title}</span>
                       <span className="tonightQuietSub">{alt.sub}</span>
                     </span>
-                    <ArrowUpRight size={15} aria-hidden="true" className="tonightQuietArrow" />
+                    <ArrowRight size={15} aria-hidden="true" className="tonightQuietArrow" />
                   </Link>
                 </li>
               );

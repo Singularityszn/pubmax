@@ -175,15 +175,19 @@
        overshooting to 54px. Radius adopts the shared --topbar-radius (14px, was
        --radius-lg 18px) so all four bars share one corner too. */
     padding: 3px 5px 3px 12px;
-    /* Taste — header glass parity: same brass-mix border + translucent panel
-       recipe as SiteNav .siteNavBar / landing .lpNav, so the phone map bar
-       reads as one header family rather than a neutral frosted outlier.
-       Geometry (padding, radius, 52px height) stays locked; only the surface. */
-    border: 1px solid color-mix(in srgb, var(--line) 82%, var(--brass) 18%);
+    /* PASSIVE CHROME IS NEUTRAL. This bar used to copy SiteNav's brass-mix
+       border and river-tinted gradient, so on one phone map screen the bottom
+       tab bar drew a neutral --hairline edge and the top bar drew a coral-brown
+       one with a blue wash behind it. app/theme.css states the rule in a
+       comment on the sibling bars ("Accent is reserved for hover/active; passive
+       chrome stays neutral") and that rule never reached this selector, because
+       it targets .siteNavBarFloating / .mapToolbar and the phone map bar is
+       neither. --hairline is the DOM divider in BOTH themes, so one declaration
+       answers light and dark. Geometry (padding, radius, 52px height) is
+       unchanged; only the surface. */
+    border: 1px solid var(--hairline);
     border-radius: var(--topbar-radius, 14px);
-    background:
-      linear-gradient(135deg, color-mix(in srgb, var(--panel-raised) 96%, transparent), color-mix(in srgb, var(--surface-tint-river) 62%, transparent)),
-      color-mix(in srgb, var(--panel-raised) 90%, transparent);
+    background: color-mix(in srgb, var(--panel-raised) 90%, transparent);
     /* Tight topbar shadow (landing mobile / SiteNav frame), not the desktop
        glass drop — that one carries a purple cast this map bar must not wear. */
     box-shadow: var(--topbar-shadow, var(--map-overlay-shadow-tight, 0 6px 16px rgba(0, 0, 0, 0.12)));

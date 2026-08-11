@@ -158,6 +158,19 @@
   align-self: center;
 }
 
+/* The signed-out door. It carries a whole sentence rather than a two-word
+   label, so it wraps and centres instead of riding one line like "Add a
+   photo". */
+.venuePhotoWallSignIn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  text-align: center;
+  text-decoration: none;
+  line-height: 1.35;
+}
+
 .venuePhotoWallStatus {
   font-size: 0.8125rem;
   color: var(--ink-soft, #6b6257);

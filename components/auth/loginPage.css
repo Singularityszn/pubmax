@@ -307,9 +307,30 @@
   font-weight: 650;
 }
 
+/* THE SECOND DOOR IS A CONTROL, NOT A HEADING. Removing the browser's own
+   button chrome left this one with no control language at all - transparent,
+   square, no border - so on a page of pills and 14px cards it read as a
+   section title that happened to be tappable. The primary above it is the
+   accent-filled "Email me a sign-in link"; this takes the SECONDARY shape
+   (`.loginPageSecondary`'s border, radius and panel fill), which is what makes
+   the pair a hierarchy rather than two things of equal weight. */
 .loginPageHandlePasswordToggle {
-  justify-self: start;
+  justify-content: center;
+  width: 100%;
   margin-top: 0.25rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 14px);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.loginPageHandlePasswordToggle:hover {
+  border-color: var(--brass);
+  color: var(--ink);
 }
 
 .loginPageHandlePassword {

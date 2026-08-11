@@ -97,8 +97,17 @@
 /* "Email me a link" is the primary action of the sign-in wall, so it wears the
    house accent fill (brass + on-accent) instead of inheriting the quiet
    panel-raised pill the OAuth buttons use. Fixes the low-contrast white-on-grey
-   render on /activity and /messages, in both themes. */
-.authMagicLinkButton {
+   render on /activity and /messages, in both themes.
+
+   THE SELECTOR CARRIES BOTH CLASSES ON PURPOSE. `.authSignIn` is declared later
+   in this file and sets `background: var(--panel-raised)` plus the `border`
+   SHORTHAND, so at equal specificity it won every one of these declarations
+   back and this rule moved no pixel anywhere: /login's only primary measured
+   `rgb(32,32,36)`, the same fill as the active thumb of the segmented control
+   above it, and the front door had no primary at all. Raising the selector
+   rather than reordering the file keeps the fix true whatever the source order
+   becomes. */
+.authSignIn.authMagicLinkButton {
   flex: 0 0 auto;
   border-color: var(--brass);
   background: var(--brass);
@@ -106,7 +115,7 @@
   font-weight: 700;
 }
 
-.authMagicLinkButton:hover:not(:disabled) {
+.authSignIn.authMagicLinkButton:hover:not(:disabled) {
   border-color: var(--brass-bright);
   background: var(--brass-bright);
 }

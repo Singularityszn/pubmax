@@ -99,6 +99,29 @@ describe("mobile chrome fit at 390px", () => {
     expect(content - taken, "area name column at 320px").toBeGreaterThanOrEqual(60);
   });
 
+  it("keeps the map top bar's resting surface neutral, like its sibling bars", () => {
+    // On one phone map screen the bottom tab bar drew a neutral --hairline edge
+    // and this bar drew `--line 82% / --brass 18%` with a --surface-tint-river
+    // gradient behind it: two lanes, opposite decisions, both shipped. Accent on
+    // PASSIVE chrome is the defect; hover and active states are untouched by
+    // this fence, which reads the resting rule alone.
+    const bar = mobileMapCss.match(/\.mobileMapTopbar\s*{([^}]*)}/)?.[1] ?? "";
+    expect(bar, ".mobileMapTopbar rule present").not.toBe("");
+
+    const border = bar.match(/border:\s*([^;]+);/)?.[1] ?? "";
+    expect(border, "the bar declares a resting border").not.toBe("");
+    expect(border, "a resting border mixes no accent").not.toMatch(
+      /--brass|--brick|--amber|--river|--pint/,
+    );
+    expect(border, "passive chrome takes the neutral divider").toContain("--hairline");
+
+    const background = bar.match(/background:\s*([^;]+);/)?.[1] ?? "";
+    expect(background, "the bar declares a resting background").not.toBe("");
+    expect(background, "no accent wash behind passive chrome").not.toMatch(
+      /--surface-tint-river|--surface-tint-brass|--brass|--river/,
+    );
+  });
+
   it("keeps the docked chip row inside chrome budgets and the corner lane", () => {
     // Bar (~52) + chrome gap (6) + 44px chip stays under the 164px phone budget
     // that e2e/ui-consistency-layout.spec.ts and mobile-map-chrome-fit hold.

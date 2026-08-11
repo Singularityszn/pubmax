@@ -45,7 +45,17 @@
 
   --pint: #18a76d; /* cheap pint / positive — Field Guide semantic */
   --amber: #f2a71b; /* mid price / lager-gold */
-  --brick: #ff5a5f; /* expensive / destructive (price job, not Plan CTA) */
+  /* Light --brick was byte-identical to --brass, so on the surface whose whole
+     argument is price, "this pint is dear" and "press this" were one colour.
+     Dark already separates them (#d47a82 against a #ff5a5f brass); light now
+     holds the same relationship from the other side — deeper and less
+     saturated, because a light basemap needs the dear band to sit BELOW the
+     paper rather than glow off it. Clears AA on every step of the light
+     elevation ladder (5.6:1 on --paper, 4.8:1 on the recessed well), so the
+     same token still carries destructive text. Read by the map at
+     documentElement (mapColor.css price buckets, mapKey.css legend swatch);
+     __tests__/mapPinBandContrast.test.ts holds the two tokens apart. */
+  --brick: #b8323c; /* expensive / destructive (price job, not Plan CTA) */
   --brass: #ff5a5f; /* Plan CTA primary — Candle Coral (legacy name kept) */
   --brass-bright: #ff7a55; /* louder warm hover for Plan hierarchy */
   --river: #2864d8; /* tube blue / by-water + heritage — Field Guide semantic */
@@ -3442,6 +3452,25 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .contributorPrice .communityPriceNote {
   color: var(--muted);
   font-weight: 500;
+}
+
+/* The publisher behind a sourced price is the one link that proves the
+   product's central claim, and it shipped with no rule at all: the browser's
+   own rgb(0,0,238) inside an --ink-soft provenance line. Same defect and the
+   same answer as `.profileFloor a` and `.lpFooterLegal a` - inherit the
+   sentence's colour, keep an underline so it still reads as a link. Keyed on
+   the CONTAINER as well as the class, so the next anchor dropped into a price
+   row cannot repeat it. */
+.contributorPrice a,
+.priceSourceLink {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.contributorPrice a:hover,
+.priceSourceLink:hover {
+  color: var(--ink);
 }
 
 /* First-drop nudge (Cycle-8 item 3) — the honest empty-price invitation shown

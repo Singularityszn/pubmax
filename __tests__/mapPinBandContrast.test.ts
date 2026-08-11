@@ -15,6 +15,8 @@ import { UNPRICED_PIN_FILL, VENUE_PIN_FILL_TOKEN } from "@/lib/mapIcons";
 // a black rim on a near-black basemap). A restated copy of the palette could not
 // have caught that, and cannot catch the next one.
 const themeCss = readFileSync(join(process.cwd(), "app/theme.css"), "utf8");
+// The LIGHT palette, read from its own shipped stylesheet for the same reason.
+const globalsCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
 
 function darkBlock(): string {
   const start = themeCss.indexOf('html[data-theme="dark"] {');
@@ -29,6 +31,28 @@ function darkToken(name: string): string {
   expect(match, `${name} must be a plain hex in the dark theme block`).toBeTruthy();
   return match![1].toLowerCase();
 }
+
+function lightBlock(): string {
+  const start = globalsCss.indexOf(":root {");
+  expect(start).toBeGreaterThan(-1);
+  const end = globalsCss.indexOf("\n}", start);
+  return globalsCss.slice(start, end);
+}
+
+function lightToken(name: string): string {
+  const match = new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, "i").exec(lightBlock());
+  expect(match, `${name} must be a plain hex in the light :root block`).toBeTruthy();
+  return match![1].toLowerCase();
+}
+
+const LIGHT = {
+  paper: lightToken("--paper"),
+  panel: lightToken("--panel"),
+  pint: lightToken("--pint"),
+  amber: lightToken("--amber"),
+  brick: lightToken("--brick"),
+  brass: lightToken("--brass"),
+};
 
 const DARK = {
   ink: darkToken("--ink"),
@@ -184,5 +208,28 @@ describe("dark-mode pin band contrast", () => {
     expect(contrast(DARK.brick, massedBuilding)).toBeLessThan(
       contrast(DARK.amber, massedBuilding),
     );
+  });
+});
+
+// "This pint is dear" and "press this" are two different sentences, so they may
+// never be one colour. Light shipped them byte-identical (#ff5a5f both), on the
+// surface whose entire argument is price; dark had always separated them. This
+// is the fence that keeps both themes honest.
+describe("the dear band is never the CTA colour", () => {
+  it("keeps --brick and --brass apart in both themes", () => {
+    expect(LIGHT.brick).not.toBe(LIGHT.brass);
+    expect(darkToken("--brick")).not.toBe(darkToken("--brass"));
+  });
+
+  it("keeps the three light price bands distinct from each other", () => {
+    const bands = [LIGHT.pint, LIGHT.amber, LIGHT.brick];
+    expect(new Set(bands).size).toBe(3);
+  });
+
+  it("keeps the light dear band legible as destructive text", () => {
+    // --color-negative is --brick, so the same token carries a refusal sentence
+    // on the light elevation ladder. The recessed well is its darkest step.
+    expect(contrast(LIGHT.brick, LIGHT.paper)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(LIGHT.brick, LIGHT.panel)).toBeGreaterThanOrEqual(4.5);
   });
 });

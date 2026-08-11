@@ -4,14 +4,18 @@ import { HANDLE_PASSWORD_GENERIC_ERROR } from "@/lib/passwordPolicy";
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
+// The route reads ONE thing from the rate limiter, so the mock supplies one
+// thing. It used to spread `importOriginal()`, which pulled the real
+// `lib/pintDrops` (and `@supabase/supabase-js` behind it) into the module
+// graph, and the `beforeEach` below then awaited that same import to call
+// `__resetPintDrops`. Under a full-file run that hook blew its 10s budget and
+// the file failed for its own SETUP, never for the route. Nothing here needs
+// the durable store: `isLimited` is replaced outright, so the reset it was
+// resetting could not affect a single assertion.
 const limitState = vi.hoisted(() => ({ limited: false }));
-vi.mock("@/lib/pintDrops", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
-  return {
-    ...actual,
-    isLimited: async () => limitState.limited,
-  };
-});
+vi.mock("@/lib/pintDrops", () => ({
+  isLimited: async () => limitState.limited,
+}));
 
 const resolveEmail = vi.hoisted(() => vi.fn());
 const passwordGrant = vi.hoisted(() => vi.fn());
@@ -28,6 +32,13 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   };
 });
 
+// Imported ONCE, at collection, rather than in every test body. The route's
+// own module graph costs seconds to transform, and paying that inside the
+// first `it` put it within milliseconds of the 5s test timeout. `vi.mock` is
+// hoisted above this import, so the route still sees every mock above; nothing
+// in it reads the environment until a request arrives.
+import { POST } from "@/app/api/auth/handle-password/route";
+
 const SUPABASE_URL = "https://mock-project.supabase.co";
 
 function post(body: unknown): Request {
@@ -41,14 +52,14 @@ function post(body: unknown): Request {
   });
 }
 
-beforeEach(async () => {
+// Synchronous by design: a hook that awaits an import is a hook that can time
+// out for reasons that have nothing to do with what the tests assert.
+beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE_URL);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
   limitState.limited = false;
   resolveEmail.mockReset();
   passwordGrant.mockReset();
-  const { __resetPintDrops } = await import("@/lib/pintDrops");
-  __resetPintDrops();
 });
 
 afterEach(() => {
@@ -58,8 +69,6 @@ afterEach(() => {
 
 describe("POST /api/auth/handle-password", () => {
   it("returns the same generic error for unknown handle and wrong password", async () => {
-    const { POST } = await import("@/app/api/auth/handle-password/route");
-
     resolveEmail.mockResolvedValueOnce(null);
     const unknown = await POST(post({ handle: "ghost", password: "secretpass" }));
     expect(unknown.status).toBe(401);
@@ -73,8 +82,6 @@ describe("POST /api/auth/handle-password", () => {
   });
 
   it("answers the same 401 shape whatever went wrong", async () => {
-    const { POST } = await import("@/app/api/auth/handle-password/route");
-
     // Unknown handle, wrong password, and a password too short to be tried:
     // one status, one code, one sentence. Nothing here says which.
     resolveEmail.mockResolvedValueOnce(null);
@@ -99,7 +106,6 @@ describe("POST /api/auth/handle-password", () => {
   });
 
   it("hands the typed handle on for normalizing, whatever its case", async () => {
-    const { POST } = await import("@/app/api/auth/handle-password/route");
     resolveEmail.mockResolvedValue("owner@example.com");
     passwordGrant.mockResolvedValue({
       access_token: "access-1",
@@ -121,7 +127,6 @@ describe("POST /api/auth/handle-password", () => {
   });
 
   it("returns a session and resume cookie on success", async () => {
-    const { POST } = await import("@/app/api/auth/handle-password/route");
     resolveEmail.mockResolvedValue("owner@example.com");
     passwordGrant.mockResolvedValue({
       access_token: "access-1",
@@ -143,14 +148,12 @@ describe("POST /api/auth/handle-password", () => {
 
   it("rate limits repeated attempts", async () => {
     limitState.limited = true;
-    const { POST } = await import("@/app/api/auth/handle-password/route");
     const res = await POST(post({ handle: "karan", password: "secretpass" }));
     expect(res.status).toBe(429);
     expect(resolveEmail).not.toHaveBeenCalled();
   });
 
   it("rejects cross-site posts", async () => {
-    const { POST } = await import("@/app/api/auth/handle-password/route");
     const res = await POST(
       new Request("http://localhost/api/auth/handle-password", {
         method: "POST",
