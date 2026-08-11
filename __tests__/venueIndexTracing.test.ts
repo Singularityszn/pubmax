@@ -15,7 +15,14 @@
 // import graph without being declared or carried as a named exception.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -30,6 +37,7 @@ import {
   runtimeDataPackRouteIncludes,
 } from "@/lib/venueIndexTracing.mjs";
 import { PINT_INDEX_SNAPSHOT_TRACING_INCLUDE } from "@/lib/pintIndexSnapshotFile.mjs";
+import { CITY_VENUE_PACKS } from "@/lib/cityVenuePacks.mjs";
 import { VENUE_IMAGE_HOST_TRACING_INCLUDES } from "@/lib/venueImageHostFiles.mjs";
 
 const root = join(__dirname, "..");
@@ -180,6 +188,41 @@ describe("runtime data-pack tracing", () => {
       "/recap/\\[storyId\\]",
     ]) {
       expect(includes[route], `${route} must ship the Oxford pack`).toContain(oxfordPack);
+    }
+  });
+
+  it("ships every file referenced by active map manifests", () => {
+    const manifests = [
+      join(root, "public", "data", "uk_base", "manifest.json"),
+      ...Object.entries(CITY_VENUE_PACKS)
+        .filter(([cityId, pack]) => pack.enabled && cityId !== "london")
+        .map(([, pack]) =>
+          join(
+            root,
+            "public",
+            pack.slimVenuesPath
+              .replace(/^\//, "")
+              .replace(/\.json$/, ".manifest.json"),
+          ),
+        ),
+    ];
+
+    for (const manifestPath of manifests) {
+      expect(existsSync(manifestPath), `${manifestPath} must be committed`).toBe(true);
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+        urlPrefix?: string;
+        shards?: Array<{ id?: string; url?: string }>;
+      };
+      expect(Array.isArray(manifest.shards), `${manifestPath} must list shards`).toBe(true);
+
+      for (const shard of manifest.shards ?? []) {
+        const url =
+          typeof shard.url === "string"
+            ? shard.url
+            : `${manifest.urlPrefix ?? ""}${shard.id ?? ""}.json`;
+        const assetPath = join(root, "public", url.replace(/^\//, ""));
+        expect(existsSync(assetPath), `${manifestPath} references missing ${url}`).toBe(true);
+      }
     }
   });
 

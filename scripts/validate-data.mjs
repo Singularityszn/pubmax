@@ -1427,6 +1427,40 @@ function validateCityPackRow(cityId, row, ids, bounds) {
   return errors;
 }
 
+function validateCityPackManifest(cityId, packFile) {
+  const errors = [];
+  const manifestFile = packFile.replace(/\.json$/, ".manifest.json");
+  if (!existsSync(manifestFile)) {
+    return [`${cityId}: shard manifest ${manifestFile} is missing`];
+  }
+
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(manifestFile, "utf8"));
+  } catch (e) {
+    return [`${cityId}: could not read/parse ${manifestFile} (${e.message})`];
+  }
+
+  if (manifest?.version !== 1 || !Array.isArray(manifest?.shards) || manifest.shards.length === 0) {
+    return [`${cityId}: ${manifestFile} has no usable shard list`];
+  }
+
+  for (const shard of manifest.shards) {
+    const url = typeof shard?.url === "string" ? shard.url : "";
+    const relative = url.replace(/^\/data\//, "");
+    const expectedPrefix = `cities/${cityId}/`;
+    if (!url.startsWith(`/data/${expectedPrefix}`) || !relative || relative.includes("..")) {
+      errors.push(`${cityId}: ${manifestFile} has unsafe shard URL "${url}"`);
+      continue;
+    }
+    const asset = join(DATA_DIR, relative);
+    if (!existsSync(asset)) {
+      errors.push(`${cityId}: ${manifestFile} references missing ${url}`);
+    }
+  }
+  return errors;
+}
+
 function validateCityVenuePacks() {
   const name = "public/data/cities/*/venues_slim.json";
   const errs = makeCollector();
@@ -1470,6 +1504,7 @@ function validateCityVenuePacks() {
         errs.add(error);
       }
     }
+    for (const error of validateCityPackManifest(cityId, file)) errs.add(error);
     packs += 1;
     venues += rows.length;
   }
@@ -1903,6 +1938,22 @@ function validateUkBaseOrphans(onDisk) {
   );
 }
 
+function validateUkBaseManifestReferences(shards, urlPrefix) {
+  const errors = [];
+  for (const shard of shards) {
+    const id = typeof shard?.id === "string" ? shard.id : "";
+    const file = `${urlPrefix}${id}.json`.replace(/^\/data\/uk_base\//, "");
+    if (!id || id.includes("/") || id.includes("\\") || id.includes("..")) {
+      errors.push(`manifest references invalid shard id "${id}"`);
+      continue;
+    }
+    if (!existsSync(join(UK_BASE_DIR, file))) {
+      errors.push(`manifest references missing shard body ${file}`);
+    }
+  }
+  return errors;
+}
+
 function validateUkBaseCuratedIdCollisions(ids) {
   const errors = [];
   // The base layer exists to fill the gaps the curated index leaves; an id in
@@ -1955,6 +2006,10 @@ function validateUkBaseShards() {
   const onDisk = new Set(
     shardJsonFiles.filter((file) => file !== "manifest.json"),
   );
+  // The browser expands these paths directly from manifest.json while panning.
+  // Keep this explicit beside the parser so a manifest can never point at a
+  // file that exists only in a local build or in an incidental deployment.
+  addUkBaseErrors(errs, validateUkBaseManifestReferences(shards, urlPrefix));
   const budgets = validateUkBasePayloadBudgets(manifestRaw, shardJsonFiles);
   addUkBaseErrors(errs, budgets.manifestErrors);
   addUkBaseErrors(errs, validateUkPlaceIndex());
