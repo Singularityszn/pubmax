@@ -114,6 +114,20 @@ export const VIBE_KILLED_TERMS = [
 /** The seven owner-locked chip ids — the ONLY valid vibe votes (spec, binding). */
 export const VIBE_CHIP_IDS: readonly VibeChipId[] = VIBE_CHIPS.map((chip) => chip.id);
 
+/**
+ * Keep Tonight's filter chips honest: a kind-backed chip is useful only when
+ * its kind exists in the current What's-On inventory. Ask-backed chips remain
+ * available because their destination can answer independently.
+ */
+export function visibleTonightVibeChips(
+  availableKinds: readonly WhatsOnKind[],
+): VibeChip[] {
+  const available = new Set(availableKinds);
+  return VIBE_CHIPS.filter(
+    (chip) => chip.tonight.type === "ask" || available.has(chip.tonight.kind),
+  );
+}
+
 /** Runtime guard: is `value` one of the seven owner-locked chip ids. */
 export function isVibeChipId(value: unknown): value is VibeChipId {
   return typeof value === "string" && (VIBE_CHIP_IDS as readonly string[]).includes(value);

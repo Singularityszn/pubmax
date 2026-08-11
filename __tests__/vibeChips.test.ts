@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 import { CONCIERGE_MOODS } from "@/lib/concierge/rank";
 import { detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
-import { palChatHref, VIBE_CHIPS, VIBE_KILLED_TERMS, vibeChipById } from "@/lib/vibeChips";
+import {
+  palChatHref,
+  VIBE_CHIPS,
+  VIBE_KILLED_TERMS,
+  vibeChipById,
+  visibleTonightVibeChips,
+} from "@/lib/vibeChips";
 
 // The vibe layer's honesty contract (docs/VIBE_LAYER_SPEC_2026-07-19.md):
 // every chip must land on a deterministic seam that answers with receipts.
@@ -98,5 +104,23 @@ describe("vibe chips (spec contract)", () => {
     expect(palChatHref(quiet)).toBe(
       `/pal/chat?ask=${encodeURIComponent(quiet.ask)}`,
     );
+  });
+
+  it("hides kind-backed vibes when no matching listing kind exists", () => {
+    expect(visibleTonightVibeChips([]).map((chip) => chip.id)).toEqual([
+      "quiet",
+      "cheeky",
+      "date",
+    ]);
+  });
+
+  it("keeps only available kind-backed vibes on a populated Tonight page", () => {
+    expect(visibleTonightVibeChips(["music", "quiz"]).map((chip) => chip.id)).toEqual([
+      "lit",
+      "quiet",
+      "cheeky",
+      "quiz",
+      "date",
+    ]);
   });
 });

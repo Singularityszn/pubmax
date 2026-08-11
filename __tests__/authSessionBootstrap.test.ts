@@ -29,6 +29,7 @@ describe("browser auth session bootstrap", () => {
     );
 
     expect(providerSource).toContain("bootstrapAuthSession");
+    expect(providerSource).toMatch(/bootstrapAuthSession\([\s\S]*?\)\.catch\(/);
     expect(providerSource).toMatch(
       /bootstrapAuthSession\([\s\S]*?setSessionLoading\(false\)/,
     );
@@ -66,6 +67,31 @@ describe("browser auth session bootstrap", () => {
     expect(browser.setSession).toHaveBeenCalledWith(RESTORED_SESSION);
   });
 
+  it("settles anonymous when the resume hint is absent before local session lookup finishes", async () => {
+    vi.useFakeTimers();
+    try {
+      let resolveLocal: ((value: { data: { session: null } }) => void) | undefined;
+      const browser = auth({
+        getSession: vi.fn(
+          () =>
+            new Promise<{ data: { session: null } }>((resolve) => {
+              resolveLocal = resolve;
+            }),
+        ),
+      });
+      const startedAt = Date.now();
+
+      await expect(
+        bootstrapAuthSession(browser, { readHint: async () => null }),
+      ).resolves.toEqual({ status: "none" });
+      expect(Date.now() - startedAt).toBeLessThan(1_000);
+
+      resolveLocal?.({ data: { session: null } });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("returns local session without touching the resume cookie", async () => {
     const localSession = {
       access_token: "access-local",
@@ -98,6 +124,17 @@ describe("browser auth session bootstrap", () => {
           status: "restored" as const,
           session: RESTORED_SESSION,
         }),
+      }),
+    ).resolves.toEqual({ status: "unavailable" });
+  });
+
+  it("converts a rejected redemption into unavailable", async () => {
+    await expect(
+      bootstrapAuthSession(auth(), {
+        readHint: async () => ({ maskedEmail: null }),
+        redeem: async () => {
+          throw new Error("offline");
+        },
       }),
     ).resolves.toEqual({ status: "unavailable" });
   });

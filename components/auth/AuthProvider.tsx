@@ -684,7 +684,9 @@ export function AuthProvider({
           return;
         }
 
-        const bootstrapped = await bootstrapAuthSession(supabase.auth);
+        const bootstrapped = await bootstrapAuthSession(supabase.auth).catch(
+          () => ({ status: "unavailable" } as const),
+        );
         if (!active) return;
         window.clearTimeout(loadingTimeout);
         if (bootstrapped.status === "local") {

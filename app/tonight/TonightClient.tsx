@@ -52,7 +52,7 @@ import { acceptTonightVenue } from "@/lib/tonightAcceptance";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { VibeChipButton, VibeChipLink, VibeChips } from "@/components/vibe/VibeChips";
 import { planOccasionHref, TONIGHT_SOFT_PLAN_CHIPS } from "@/lib/planOccasion";
-import { palChatHref, VIBE_CHIPS } from "@/lib/vibeChips";
+import { palChatHref, visibleTonightVibeChips } from "@/lib/vibeChips";
 import { dealDigestNote } from "@/lib/dealsDigest";
 import {
   dealEndsCaption,
@@ -272,8 +272,12 @@ export default function TonightClient({
   // tonight"). Reusing laneKindFacets on the grouped display rows keeps the map
   // lane's own facets (same shared helper) untouched.
   const facets = useMemo(() => laneKindFacets(groupedAll.map((g) => g.row)), [groupedAll]);
-
   const ready = status === "ready";
+  const visibleVibeChips = useMemo(
+    () => visibleTonightVibeChips(ready ? facets.map((facet) => facet.kind) : []),
+    [facets, ready],
+  );
+
   const empty = status === "empty";
   // Null when the source cannot be dated; the header then prints the plain
   // sentence instead of a dated chain segment.
@@ -407,17 +411,14 @@ export default function TonightClient({
 
       {ready || empty ? (
         /* Vibe picker (docs/VIBE_LAYER_SPEC_2026-07-19.md): the user's voice,
-           not the brand's — slang lives on the chips only. Kind-backed chips
-           compose the existing kind filter below (an empty kind shows the
-           page's own honest empty line); rank-backed chips hand their preset
-           ask to the Pub Pal. Rendered even on an empty night: the ask path
-           still answers honestly. */
+           not the brand's. Kind-backed chips appear only when their listing
+           kind exists; ask-backed chips remain useful on an empty night. */
         <VibeChips
           shellClassName="tonightVibes"
           groupLabel="What’s the vibe tonight"
           lede={"What’s the vibe?"}
         >
-          {VIBE_CHIPS.map((chip) =>
+          {visibleVibeChips.map((chip) =>
             chip.tonight.type === "filter" ? (
               <VibeChipButton
                 key={chip.id}
