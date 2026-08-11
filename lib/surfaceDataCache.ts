@@ -5,12 +5,12 @@
 // store of the JSON a surface has already read, handed back on the way in and
 // refreshed quietly behind the render.
 //
-// Three rules make it safe to keep an answer past a navigation.
+// Four rules make it safe to keep an answer past a navigation.
 //
-// IT LIVES IN MEMORY ONLY. The store is a module Map, so it dies with the
-// document. A device cache of who you are is the exact thing
-// lib/deviceAccountIdentity.ts exists to close, and this must never reopen it
-// from the other side.
+// IT LIVES IN THE BROWSER ONLY. The store is a module Map backed by a
+// sessionStorage namespace, so it dies with the browser session. A device
+// cache of who you are is the exact thing lib/deviceAccountIdentity.ts exists
+// to close, and this must never reopen it from the other side.
 //
 // IT NEVER HOLDS IDENTITY. A key under an auth or identity path is REFUSED,
 // loudly, rather than quietly passed through: a helper that silently declines
@@ -21,9 +21,10 @@
 // a follow edge, a saved list). The key carries the viewer, so a second account
 // never READS the first one's entry — but leaving those rows in memory after a
 // sign-out is the same shape of defect as leaving `@karan` on the device, so
-// the account boundary drops the whole store in one pass. The listener installs
-// itself on first use and rides the existing device-identity announcement, which
-// fires on both an account switch and a sign-out.
+// the account boundary drops the whole store in one pass. The listener binds
+// during browser module evaluation and rebinds on first use if the global
+// window is replaced. It rides the existing device-identity announcement,
+// which fires on both an account switch and a sign-out.
 //
 // And one honesty rule on top: an entry has a maximum age. A snapshot may seed a
 // first paint, never stand in for an answer nobody asked for again.
@@ -48,6 +49,14 @@ export const DEFAULT_SURFACE_SNAPSHOT_MAX_AGE_MS = 5 * 60_000;
 /** One short pause absorbs a brief mobile-network wobble without adding UI state. */
 export const SURFACE_CACHE_RETRY_BACKOFF_MS = 50;
 
+/** Versioned sessionStorage namespace for reloadable surface answers. */
+export const SURFACE_CACHE_NAMESPACE = "pubmax.surface.v1:";
+
+/** Keep large venue packs and other oversized answers out of tab storage. */
+export const MAX_PERSISTED_SURFACE_ENTRY_BYTES = 256 * 1024;
+
+const SURFACE_CACHE_NAMESPACE_ROOT = "pubmax.surface.";
+
 type Entry = { value: unknown; storedAt: number };
 
 // A "use client" module still EXECUTES on the server during SSR, so a module
@@ -62,6 +71,143 @@ const inBrowser = (): boolean => typeof window !== "undefined";
 // and it rebinds honestly wherever the global is replaced instead of leaving
 // the listener on something nobody dispatches to any more.
 let boundWindow: unknown = null;
+
+function getSessionStorage(): Storage | null {
+  if (!inBrowser()) return null;
+  try {
+    return window.sessionStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function removeStoredKey(storage: Storage, key: string): void {
+  try {
+    storage.removeItem(key);
+  } catch {
+    // Blocked or unavailable storage degrades to the memory tier.
+  }
+}
+
+function listNamespacedKeys(storage: Storage): string[] {
+  const keys: string[] = [];
+  let length: number;
+  try {
+    length = storage.length;
+  } catch {
+    return keys;
+  }
+  for (let index = 0; index < length; index += 1) {
+    try {
+      const key = storage.key(index);
+      if (key?.startsWith(SURFACE_CACHE_NAMESPACE_ROOT)) keys.push(key);
+    } catch {
+      // A storage read failure should not affect the in-memory tier.
+    }
+  }
+  return keys;
+}
+
+function clearPersistentSurfaceCache(): void {
+  const storage = getSessionStorage();
+  if (!storage) return;
+  for (const key of listNamespacedKeys(storage)) removeStoredKey(storage, key);
+}
+
+function pruneOldPersistentNamespaces(storage: Storage): void {
+  for (const key of listNamespacedKeys(storage)) {
+    if (!key.startsWith(SURFACE_CACHE_NAMESPACE)) removeStoredKey(storage, key);
+  }
+}
+
+function removePersistentSnapshot(storage: Storage, key: string): void {
+  removeStoredKey(storage, `${SURFACE_CACHE_NAMESPACE}${key}`);
+}
+
+function forgetSurfaceSnapshot(key: string): void {
+  store.delete(key);
+  const storage = getSessionStorage();
+  if (storage) removePersistentSnapshot(storage, key);
+}
+
+function persistedEntryBytes(serialized: string): number {
+  try {
+    return new TextEncoder().encode(serialized).byteLength;
+  } catch {
+    return serialized.length;
+  }
+}
+
+function persistSurfaceSnapshot(
+  key: string,
+  value: unknown,
+  storedAt: number,
+): void {
+  if (value === undefined) return;
+  const storage = getSessionStorage();
+  if (!storage) return;
+  let serialized: string | undefined;
+  try {
+    serialized = JSON.stringify({ value, storedAt });
+  } catch {
+    return;
+  }
+  if (
+    serialized === undefined ||
+    serialized.length > MAX_PERSISTED_SURFACE_ENTRY_BYTES ||
+    persistedEntryBytes(serialized) > MAX_PERSISTED_SURFACE_ENTRY_BYTES
+  ) {
+    return;
+  }
+  try {
+    storage.setItem(`${SURFACE_CACHE_NAMESPACE}${key}`, serialized);
+  } catch {
+    // Quota and private-mode errors leave the memory tier working.
+  }
+}
+
+function isPersistedEntry(value: unknown): value is Entry {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    Object.prototype.hasOwnProperty.call(candidate, "value") &&
+    typeof candidate.storedAt === "number" &&
+    Number.isFinite(candidate.storedAt)
+  );
+}
+
+function readPersistentSurfaceSnapshot<T>(
+  key: string,
+  maxAgeMs: number,
+  now: number,
+): T | undefined {
+  const storage = getSessionStorage();
+  if (!storage) return undefined;
+  const storageKey = `${SURFACE_CACHE_NAMESPACE}${key}`;
+  let raw: string | null;
+  try {
+    raw = storage.getItem(storageKey);
+  } catch {
+    return undefined;
+  }
+  if (raw === null) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isPersistedEntry(parsed)) {
+      removePersistentSnapshot(storage, key);
+      return undefined;
+    }
+    if (now - parsed.storedAt > maxAgeMs) {
+      removePersistentSnapshot(storage, key);
+      return undefined;
+    }
+    store.set(key, parsed);
+    return parsed.value as T;
+  } catch {
+    removePersistentSnapshot(storage, key);
+    return undefined;
+  }
+}
 
 /** Is this key one the store is allowed to remember? */
 export function isSurfaceCacheable(key: string): boolean {
@@ -78,10 +224,15 @@ function assertCacheable(key: string): void {
 function bindIdentityBoundary(): void {
   if (!inBrowser() || boundWindow === window) return;
   boundWindow = window;
+  const storage = getSessionStorage();
+  if (storage) pruneOldPersistentNamespaces(storage);
   subscribeDeviceIdentity(() => {
     store.clear();
+    clearPersistentSurfaceCache();
   });
 }
+
+if (inBrowser()) bindIdentityBoundary();
 
 function isTransientResponse(response: Response): boolean {
   return response.status === 408 ||
@@ -118,13 +269,13 @@ export function readSurfaceSnapshot<T>(
 ): T | undefined {
   assertCacheable(key);
   if (!inBrowser()) return undefined;
+  bindIdentityBoundary();
   const entry = store.get(key);
-  if (!entry) return undefined;
-  if (now - entry.storedAt > maxAgeMs) {
+  if (entry) {
+    if (now - entry.storedAt <= maxAgeMs) return entry.value as T;
     store.delete(key);
-    return undefined;
   }
-  return entry.value as T;
+  return readPersistentSurfaceSnapshot<T>(key, maxAgeMs, now);
 }
 
 /** Hold this answer for the next arrival on the surface that read it. */
@@ -137,11 +288,13 @@ export function writeSurfaceSnapshot<T>(
   if (!inBrowser()) return;
   bindIdentityBoundary();
   store.set(key, { value, storedAt: now });
+  persistSurfaceSnapshot(key, value, now);
 }
 
 /** The account boundary, and the test seam. */
 export function clearSurfaceCache(): void {
   store.clear();
+  clearPersistentSurfaceCache();
 }
 
 /** Test seam only: how many answers are held. */
@@ -188,8 +341,20 @@ export async function loadSurfaceJson<T>(
 
   const held = readSurfaceSnapshot<T>(key, maxAgeMs);
   if (held !== undefined && !requestSignal?.aborted) {
-    applied = "snapshot";
-    apply(held, "snapshot");
+    let valid = true;
+    if (validate) {
+      try {
+        valid = validate(held);
+      } catch {
+        valid = false;
+      }
+    }
+    if (valid) {
+      applied = "snapshot";
+      apply(held, "snapshot");
+    } else {
+      forgetSurfaceSnapshot(key);
+    }
   }
 
   const doFetch = fetchImpl ?? fetch;
