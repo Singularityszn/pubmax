@@ -20,7 +20,7 @@ export function Tabs({ value, onValueChange, className, ...props }: React.HTMLAt
  * the eye read the four wrong tabs as active.
  */
 export function TabsList({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div role="tablist" className={cn("flex min-h-11 gap-1 overflow-x-auto rounded-[var(--radius)] border border-[var(--color-border-soft)] bg-transparent p-1", className)} {...props} />;
+  return <div role="tablist" className={cn("flex min-h-11 gap-1 overflow-x-auto touch-pan-y rounded-[var(--radius)] border border-[var(--color-border-soft)] bg-transparent p-1", className)} {...props} />;
 }
 
 function valueId(value: string): string {

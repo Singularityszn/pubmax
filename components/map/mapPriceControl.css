@@ -296,7 +296,7 @@ html[data-theme="dark"] .mapPriceDot.grey {
   .mapPricePanel {
     max-height: min(
       40vh,
-      calc(100vh - var(--map-top-clearance, 80px) - var(--mobile-tab-clearance, 72px) - 120px)
+      calc(100dvh - var(--map-top-clearance, 80px) - var(--mobile-tab-clearance, 72px) - 120px)
     );
     overflow: auto;
   }

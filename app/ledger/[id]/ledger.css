@@ -9,7 +9,6 @@
    layout collapsing (single centred column, no fixed-width overflow traps). */
 
 .ledgerPage {
-  min-height: 100vh;
   min-height: 100dvh;
   padding: clamp(24px, 5vw, 64px) 20px 96px;
   max-width: 720px;

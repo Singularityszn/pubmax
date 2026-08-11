@@ -160,6 +160,7 @@
   padding-bottom: 4px;
   overflow-x: auto;
   overflow-y: hidden;
+  touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none; /* Firefox — the strip scrolls, no visible bar */
   border-bottom: 1px solid var(--line);
@@ -278,7 +279,7 @@
 @media (max-width: 640px) {
   /* Resting transforms must match lib/sheetSnap.ts SHEET_SNAP_FRACTIONS
      (revealed: peek 0.22 / half 0.55 / full 0.92 → translateY 78vh / 45vh /
-     8vh). The sheet is viewport-tall (height: 100vh below); translateY pushes
+     8vh). The sheet is viewport-tall (height: 100dvh below); translateY pushes
      it down so only the revealed fraction stays on-screen. globals.css's
      closed/open base transforms still apply when the drawer is closed; these
      rules override once `.open.sheet-*` is present. Keep in sync with
@@ -317,7 +318,6 @@
   .mapDrawer.right.open.sheet-full:not(.mobileSharedSheet),
   .mapDrawer.right.open.sheet-half:not(.mobileSharedSheet),
   .mapDrawer.right.open.sheet-peek:not(.mobileSharedSheet) {
-    height: 100vh;
     height: 100dvh;
     max-height: none;
   }

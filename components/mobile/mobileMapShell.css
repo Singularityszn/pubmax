@@ -711,7 +711,7 @@
   .mobilePlannerIntentInput small { color: var(--color-text-muted); }
   .mobilePlannerIntentGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .mobilePlannerIntentGrid input, .mobilePlannerIntentGrid select { min-width: 0; min-height: 44px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-raised); color: var(--color-text); font: inherit; }
-  .mobilePlannerIntentChips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .mobilePlannerIntentChips { display: flex; gap: 6px; overflow-x: auto; touch-action: pan-y; scrollbar-width: none; }
   .mobilePlannerIntentChips::-webkit-scrollbar { display: none; }
   .mobilePlannerIntentChips > button[aria-pressed="true"] { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 13%, var(--color-surface)); color: var(--color-accent); }
   .mobilePlannerIntentError { margin: 0; color: var(--color-danger); font-size: var(--text-sm); }

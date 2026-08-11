@@ -3,7 +3,6 @@
    accent, cream paper, serif headings) so the Round inherits the guidebook theme. */
 
 .roundShell {
-  min-height: 100vh;
   min-height: 100dvh;
   background: var(--paper);
   color: var(--ink);

@@ -3,7 +3,7 @@
    only, per docs/DESIGN_SYSTEM.md, so it flips light and dark with the rest. */
 
 .foundersPage {
-  min-height: 100vh;
+  min-height: 100dvh;
   color: var(--ink);
   background:
     linear-gradient(

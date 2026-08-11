@@ -198,9 +198,9 @@
   -webkit-overflow-scrolling: touch;
   min-width: 0;
   max-width: 100%;
-  /* A horizontal drag on the strip must never be claimed as a map/page
-     gesture, and its scroll must not chain into the map behind it. */
-  touch-action: pan-x;
+  /* The lane keeps horizontal swipes local while pan-y lets diagonal swipes
+     continue into page scrolling instead of fighting the map behind it. */
+  touch-action: pan-y;
   overscroll-behavior-x: contain;
   /* Nine chips overflow at 320–390px. Edge-fade marks the strip as a
      deliberate lane (same idiom as TonightNearbyLane / category showcase),
@@ -345,9 +345,9 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   -webkit-overflow-scrolling: touch;
   min-width: 0;
   max-width: 100%;
-  /* Same gesture contract as the category strip: a horizontal drag here is
-     never claimed by the map, and its scroll never chains into it. */
-  touch-action: pan-x;
+  /* Same gesture contract as the category strip: diagonal swipes continue
+     into page scrolling while the lane keeps its horizontal movement local. */
+  touch-action: pan-y;
   overscroll-behavior-x: contain;
   scroll-padding-inline: 14px;
   -webkit-mask-image: linear-gradient(

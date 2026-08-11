@@ -229,7 +229,7 @@
 .palNameIdeas { margin-top: 1.15rem; display: grid; gap: .85rem; }
 .palNameIdeas > div { display: grid; grid-template-columns: 4.5rem 1fr; align-items: center; gap: .65rem; }
 .palNameIdeas > div > span { color: var(--pal-soft); font: 650 var(--text-2xs)/1 var(--font-data); letter-spacing: .01em; }
-.palNameIdeas > div > div { display: flex; gap: .45rem; overflow-x: auto; scrollbar-width: none; }
+.palNameIdeas > div > div { display: flex; gap: .45rem; overflow-x: auto; touch-action: pan-y; scrollbar-width: none; }
 .palNameIdeas button { min-width: 3.8rem; min-height: 2.75rem; padding: 0 .8rem; border: 1px solid var(--pal-line); border-radius: 999px; background: var(--panel-raised); color: var(--pal-paper); cursor: pointer; }
 .palNameIdeas button:hover { border-color: var(--pal-accent); background: color-mix(in srgb, var(--pal-accent) 8%, var(--panel-raised)); }
 

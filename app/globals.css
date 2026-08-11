@@ -525,8 +525,19 @@ select {
   font: inherit;
 }
 
+:where(input, textarea, select) {
+  /* iOS zooms text controls below 16px. Keep this floor shared so route
+     styles cannot make one mobile form behave differently from another. */
+  font-size: max(16px, 1em) !important;
+}
+
 button {
   cursor: pointer;
+}
+
+:where(button, [role="button"], .pressable, a[data-pressable], .planBtn) {
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 :where(button, a, input, textarea, select, [tabindex]):focus-visible {
@@ -572,7 +583,6 @@ button {
 }
 
 .loadingShell {
-  min-height: 100vh;
   min-height: 100dvh;
   display: grid;
   place-items: center;
@@ -618,7 +628,7 @@ button {
   --map-chrome-inset: 10px;
   --map-chrome-radius: 14px;
   --map-chrome-gap: 6px;
-  height: 100vh;
+  height: 100dvh;
   position: relative;
   overflow: hidden;
 }
@@ -5020,7 +5030,6 @@ button:disabled {
   .mapDrawer.right.open.sheet-full:not(.sheet-dragging):not(.mobileSharedSheet),
   .mapDrawer.right.open.sheet-half:not(.sheet-dragging):not(.mobileSharedSheet),
   .mapDrawer.right.open.sheet-peek:not(.sheet-dragging):not(.mobileSharedSheet) {
-    height: 100vh;
     height: 100dvh;
     max-height: none;
   }
