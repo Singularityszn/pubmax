@@ -236,10 +236,26 @@ export function nightContextChanged(before: NightContext | null, after: NightCon
     || before.budgetLimitPence !== after.budgetLimitPence
     || before.zeroProof !== after.zeroProof
     || before.wetherspoonsPreferred !== after.wetherspoonsPreferred
+    || normalizePlanStopCount(before.stopCount) !== normalizePlanStopCount(after.stopCount)
     || !sameList(before.atmosphere, after.atmosphere)
     || !sameList(before.foodNeeds, after.foodNeeds)
     || !sameList(before.accessibility, after.accessibility)
     || !sameList(before.transportConstraints, after.transportConstraints);
+}
+
+export function applyPlanStopCount(
+  draft: PlanIntakeDraft,
+  context: NightContext | null,
+  stopCount: PlanStopCount,
+): { draft: PlanIntakeDraft; context: NightContext | null } {
+  return {
+    draft: normalizePlanStopCount(draft.answers.stopCount) === stopCount
+      ? draft
+      : { ...draft, answers: { ...draft.answers, stopCount } },
+    context: !context || normalizePlanStopCount(context.stopCount) === stopCount
+      ? context
+      : { ...context, stopCount },
+  };
 }
 
 export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null {
@@ -804,8 +820,11 @@ function PlanComposerForm({
   }, [hasDurableIntakeDraft, handoff]);
 
   function updatePlanIntake(next: PlanIntakeDraft) {
+    const reconciled = next.answers.stopCount === undefined
+      ? { draft: next, context: nightContext }
+      : applyPlanStopCount(next, nightContext, next.answers.stopCount);
     const answersChanged = JSON.stringify(planIntakeHandoff(planIntake))
-      !== JSON.stringify(planIntakeHandoff(next));
+      !== JSON.stringify(planIntakeHandoff(reconciled.draft));
     if (answersChanged && nightContext) {
       setRouteStale(true);
       setRouteStatus("Route needs refreshing after those planning details changed.");
@@ -817,8 +836,12 @@ function PlanComposerForm({
     // A step change through the wizard itself (including "Tune details"
     // reopening a settled step) always means the wizard is the active
     // surface, so the describe-first question never reappears mid-edit.
-    if (!next.completed) setEntryMode("wizard");
-    setPlanIntake(next);
+    if (!reconciled.draft.completed) setEntryMode("wizard");
+    if (next.answers.stopCount !== undefined) {
+      setExplicitNightContext((current) => ({ ...current, stopCount: next.answers.stopCount }));
+      setNightContext(reconciled.context);
+    }
+    setPlanIntake(reconciled.draft);
   }
 
   function submitFromEntry(query: string, requestedStopCount?: PlanStopCount) {
@@ -878,9 +901,13 @@ function PlanComposerForm({
       setRouteStale(true);
       setRouteStatus("Route needs refreshing after that context change.");
     }
-    setNightContext(next);
+    const reconciled = next.stopCount === undefined
+      ? { draft: planIntake, context: next }
+      : applyPlanStopCount(planIntake, next, next.stopCount);
+    setNightContext(reconciled.context);
+    setPlanIntake(reconciled.draft);
     setExplicitNightContext((current) => ({ ...current, ...patch }));
-    if (!user) writeDeviceNightContext(next);
+    if (!user) writeDeviceNightContext(reconciled.context ?? next);
   }
 
   function swapStop(key: number) {

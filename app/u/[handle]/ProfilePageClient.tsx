@@ -176,6 +176,74 @@ function localSavedDTOs(): Partial<Record<ListType, SavedPubDTO[]>> {
 // real profile; without either, /u/you renders the first-run passport (story 30).
 const YOU_SENTINEL = "you";
 
+export type ProfileSurface =
+  | "missing"
+  | "identity-loading"
+  | "you-invitation"
+  | "gone"
+  | "error"
+  | "profile";
+
+export function profileSurfaceFor({
+  routeHandle,
+  identityResolved,
+  hasUser,
+  viewerHandle,
+  state,
+}: {
+  routeHandle: string;
+  identityResolved: boolean;
+  hasUser: boolean;
+  viewerHandle: string;
+  state: LoadState;
+}): ProfileSurface {
+  if (!routeHandle) return "missing";
+  const isYouRoute = routeHandle === YOU_SENTINEL;
+  if (isYouRoute && identityResolved && !hasUser && viewerHandle === "") {
+    return "you-invitation";
+  }
+  if (isYouRoute && (!identityResolved || Boolean(viewerHandle))) {
+    return "identity-loading";
+  }
+  if (state === "gone") return "gone";
+  if (state === "error") return "error";
+  return "profile";
+}
+
+export function YouSignedOutSurface({
+  nightMemoriesInvite,
+}: {
+  nightMemoriesInvite: boolean;
+}) {
+  return (
+    <>
+      <section className="youIdentityIntro" aria-labelledby="you-title">
+        <div className="youIdentityAvatar" aria-hidden="true">PXX</div>
+        <div>
+          <p className="profileSectionKicker">Your PUBMAXX identity</p>
+          <h1 id="you-title">Make the night yours.</h1>
+          <p>Claim a unique @handle, meet your Pub Pal, and keep every moment in one place.</p>
+          {nightMemoriesInvite ? (
+            <p className="youMemoriesInvite" role="status">
+              Private Memories need a claimed @handle on your account. Claim yours below to keep nights in one place.
+            </p>
+          ) : null}
+        </div>
+        <div className="youIdentityActions">
+          <a href="#account-settings">Claim your @handle</a>
+          <Link href="/pal">Meet your Pub Pal</Link>
+        </div>
+      </section>
+
+      <WantedList />
+
+      <div id="account-settings">
+        <PubmaxxAccountHub />
+      </div>
+    </>
+  );
+}
+
 function isNightMemoriesHash(hash: string): boolean {
   return hash.replace(/^#/, "").toLowerCase() === "night-memories";
 }
@@ -479,7 +547,13 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // `/u/you` remains a sentinel for one render after a resolved handle arrives,
   // while the router moves to the account profile. Keep that handoff neutral so
   // the sentinel never paints the synthesized `You` card.
-  const viewerIdentityLoading = isYouRoute && (!identityResolved || Boolean(viewerHandle));
+  const surface = profileSurfaceFor({
+    routeHandle,
+    identityResolved,
+    hasUser: Boolean(user),
+    viewerHandle,
+    state,
+  });
   const passportIsOwn = isOwnProfile || (isYouRoute && isAnonymous);
   const joinedBadgeEventIds = new Set(badgeEventOptIns.optedInEventIds);
   const joinableBadgeEvents =
@@ -712,9 +786,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       <SiteNav active="profile" />
 
       <main id="main" className="container profileMain">
-        {!routeHandle ? (
+        {surface === "missing" ? (
           <p className="profileEmpty">That profile link is missing a handle.</p>
-        ) : viewerIdentityLoading ? (
+        ) : surface === "you-invitation" ? (
+          <YouSignedOutSurface nightMemoriesInvite={nightMemoriesInvite} />
+        ) : surface === "identity-loading" ? (
           <section className="profileIdentityLoadingSurface" aria-label="Loading your profile">
             <ProfileHeader
               profile={profile}
@@ -722,7 +798,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               viewerState="loading"
             />
           </section>
-        ) : state === "gone" ? (
+        ) : surface === "gone" ? (
           <section className="profileGoneState" aria-labelledby="profile-gone-title">
             <p className="profileSectionKicker">@{routeHandle}</p>
             <h1 id="profile-gone-title">This account has left</h1>
@@ -734,7 +810,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               <Link href="/map">Back to the map</Link>
             </p>
           </section>
-        ) : state === "error" ? (
+        ) : surface === "error" ? (
           <div className="profileErrorState">
             <ProfileHeader
               profile={profile}
@@ -753,41 +829,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           </div>
         ) : (
           <>
-            {youSignedOut ? (
-              // Signed-out /u/you is an invitation, not a profile — it keeps the
-              // single full-width column (intro + claim surface), never the
-              // multi-pane scaffolding.
-              <>
-                <section className="youIdentityIntro" aria-labelledby="you-title">
-                  <div className="youIdentityAvatar" aria-hidden="true">PXX</div>
-                  <div>
-                    <p className="profileSectionKicker">Your PUBMAXX identity</p>
-                    <h1 id="you-title">Make the night yours.</h1>
-                    <p>Claim a unique @handle, meet your Pub Pal, and keep every moment in one place.</p>
-                    {nightMemoriesInvite ? (
-                      <p className="youMemoriesInvite" role="status">
-                        Private Memories need a claimed @handle on your account. Claim yours below to keep nights in one place.
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="youIdentityActions">
-                    <a href="#account-settings">Claim your @handle</a>
-                    <Link href="/pal">Meet your Pub Pal</Link>
-                  </div>
-                </section>
-
-                <WantedList />
-
-                <div id="account-settings">
-                  <PubmaxxAccountHub />
-                </div>
-              </>
-            ) : (
-              // Desktop multi-pane (≥1024): identity/bio docks into a sticky left
-              // pane; passport, timeline and saved flow in the main pane. Both
-              // panes are display:contents below the breakpoint, so the phone
-              // layout is the same single column it was before.
-              <div className="profileLayout">
+            {/* Desktop multi-pane (≥1024): identity/bio docks into a sticky left
+                pane; passport, timeline and saved flow in the main pane. Both
+                panes are display:contents below the breakpoint, so the phone
+                layout is the same single column it was before. */}
+            <div className="profileLayout">
                 {isOwnProfile ? (
                   <div className="profileOwnerUtilities">
                     <SiteNavMore
@@ -1020,8 +1066,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                     </div>
                   ) : null}
                 </div>
-              </div>
-            )}
+            </div>
 
             <footer className="profileFloor">
               <p>
