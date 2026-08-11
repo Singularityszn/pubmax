@@ -21,6 +21,7 @@ import {
 import { cleanDateOfBirth } from "@/lib/privateIdentity";
 import { normalizeHandle } from "@/lib/profiles";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
+import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 
 import "./accountOnboarding.css";
 
@@ -187,9 +188,11 @@ export function AccountOnboardingForm({
 export function AccountOnboardingLoadError({
   error,
   onRetry,
+  offline = false,
 }: {
   error: string;
   onRetry: () => void;
+  offline?: boolean;
 }): React.JSX.Element {
   return (
     <section
@@ -200,7 +203,7 @@ export function AccountOnboardingLoadError({
         <p className="accountOnboardingEyebrow">Your PUBMAXX identity</p>
         <h2 id="account-onboarding-error-title">Account setup paused</h2>
         <p className="accountOnboardingError" role="alert">
-          {error}
+          {offline ? "You look offline. We will retry when you are back." : error}
         </p>
       </header>
       <button
@@ -247,6 +250,11 @@ function AccountOnboardingForUser({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const active = useRef(true);
+
+  const retryStatus = useCallback(() => {
+    setStatus("loading");
+    setStatusAttempt((current) => current + 1);
+  }, []);
 
   useEffect(() => {
     active.current = true;
@@ -313,6 +321,8 @@ function AccountOnboardingForUser({
       controller.abort();
     };
   }, [auth, identityResolved, statusAttempt]);
+
+  useReconnectRecovery(status === "unavailable", retryStatus);
 
   useEffect(() => {
     if (availability !== "checking") return;
@@ -471,10 +481,8 @@ function AccountOnboardingForUser({
     return (
       <AccountOnboardingLoadError
         error={statusError}
-        onRetry={() => {
-          setStatus("loading");
-          setStatusAttempt((current) => current + 1);
-        }}
+        offline={typeof window !== "undefined" && window.navigator?.onLine === false}
+        onRetry={retryStatus}
       />
     );
   }

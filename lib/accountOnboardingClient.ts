@@ -11,6 +11,10 @@ export type AccountOnboardingStatus =
   | { status: "unavailable"; error: string };
 
 export const ACCOUNT_ONBOARDING_RETRY_DELAY_MS = 250;
+export const ACCOUNT_ONBOARDING_RETRY_DELAYS_MS = [
+  ACCOUNT_ONBOARDING_RETRY_DELAY_MS,
+  1_500,
+] as const;
 
 type AccountHandleAvailability =
   | { status: "available" }
@@ -64,7 +68,7 @@ export async function loadAccountOnboardingStatus(
   }
 }
 
-function waitForRetry(signal?: AbortSignal): Promise<boolean> {
+function waitForRetry(delayMs: number, signal?: AbortSignal): Promise<boolean> {
   return new Promise((resolve) => {
     if (signal?.aborted) {
       resolve(false);
@@ -74,7 +78,7 @@ function waitForRetry(signal?: AbortSignal): Promise<boolean> {
       timer = null;
       signal?.removeEventListener("abort", onAbort);
       resolve(true);
-    }, ACCOUNT_ONBOARDING_RETRY_DELAY_MS);
+    }, delayMs);
     const onAbort = () => {
       if (timer !== null) clearTimeout(timer);
       timer = null;
@@ -92,10 +96,13 @@ export async function loadAccountOnboardingStatusWithRetry(
   request: AccountOnboardingRequest = authedFetch,
   signal?: AbortSignal,
 ): Promise<AccountOnboardingStatus> {
-  const first = await loadAccountOnboardingStatus(request, signal);
-  if (first.status !== "unavailable" || signal?.aborted) return first;
-  if (!(await waitForRetry(signal))) return first;
-  return loadAccountOnboardingStatus(request, signal);
+  let result = await loadAccountOnboardingStatus(request, signal);
+  for (const delayMs of ACCOUNT_ONBOARDING_RETRY_DELAYS_MS) {
+    if (result.status !== "unavailable" || signal?.aborted) return result;
+    if (!(await waitForRetry(delayMs, signal))) return result;
+    result = await loadAccountOnboardingStatus(request, signal);
+  }
+  return result;
 }
 
 export async function checkAccountHandleAvailability(

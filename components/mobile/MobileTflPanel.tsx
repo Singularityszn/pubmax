@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarClock, Info, TrainFront } from "lucide-react";
+
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 
 type Signal = { headline?: string; detail?: string; kind?: string; severity?: string; timeWindow?: string; areas?: string[] };
 type TubeLine = { line?: string; status?: string; disruption?: string };
@@ -9,22 +12,9 @@ export type TflPayload = { asOf?: string | null; signals?: Signal[]; tubeLines?:
 export type MobileTflStatus = { payload: TflPayload | null; failed: boolean; issueCount: number };
 
 const GROUPS = ["Alerts", "Transport", "Events", "Other"] as const;
-const TFL_CACHE_TTL_MS = 60_000;
-let cachedTfl: { payload: TflPayload; receivedAt: number } | null = null;
-let inflightTfl: Promise<TflPayload> | null = null;
-
-function loadTflStatus(): Promise<TflPayload> {
-  if (cachedTfl && Date.now() - cachedTfl.receivedAt < TFL_CACHE_TTL_MS) return Promise.resolve(cachedTfl.payload);
-  if (inflightTfl) return inflightTfl;
-  inflightTfl = fetch("/api/citymcp/status", { headers: { accept: "application/json" } })
-    .then(async (response) => response.ok ? response.json() as Promise<TflPayload> : Promise.reject(new Error("status")))
-    .then((payload) => {
-      cachedTfl = { payload, receivedAt: Date.now() };
-      return payload;
-    })
-    .finally(() => { inflightTfl = null; });
-  return inflightTfl;
-}
+const TFL_STATUS_SURFACE_KEY = "/api/citymcp/status";
+const TFL_STATUS_MAX_AGE_MS = 60_000;
+const OFFLINE_ERROR = "You look offline. We will retry when you are back.";
 
 function groupFor(signal: Signal): (typeof GROUPS)[number] {
   const kind = signal.kind?.toLowerCase() ?? "";
@@ -37,17 +27,34 @@ function groupFor(signal: Signal): (typeof GROUPS)[number] {
 export function useMobileTflStatus(): MobileTflStatus {
   const [payload, setPayload] = useState<TflPayload | null>(null);
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    let active = true;
-    loadTflStatus()
-      .then((value) => {
-        if (!active) return;
+    const controller = new AbortController();
+    void loadSurfaceJson<TflPayload>(
+      TFL_STATUS_SURFACE_KEY,
+      {
+        signal: controller.signal,
+        init: { headers: { accept: "application/json" } },
+        maxAgeMs: TFL_STATUS_MAX_AGE_MS,
+        validate: (value) => Boolean(value && typeof value === "object"),
+      },
+      (value) => {
         setPayload(value);
-      })
-      .catch(() => { if (active) setFailed(true); });
-    return () => { active = false; };
+        setFailed(false);
+      },
+    ).then((outcome) => {
+      if (outcome === "failed" && !controller.signal.aborted) setFailed(true);
+    });
+    return () => controller.abort();
+  }, [attempt]);
+
+  const retry = useCallback(() => {
+    setFailed(false);
+    setAttempt((value) => value + 1);
   }, []);
+
+  useReconnectRecovery(failed, retry);
 
   const issueCount = useMemo(
     () => (payload?.signals?.length ?? 0) + (payload?.tubeLines?.filter((line) => line.status?.toLowerCase() !== "good service").length ?? 0),
@@ -69,7 +76,10 @@ export default function MobileTflPanel({ status }: { status: MobileTflStatus }) 
   const disrupted = useMemo(() => payload?.tubeLines?.filter((line) => line.status && line.status.toLowerCase() !== "good service") ?? [], [payload]);
   const grouped = useMemo(() => GROUPS.map((label) => ({ label, rows: (payload?.signals ?? []).filter((signal) => groupFor(signal) === label) })).filter((group) => group.rows.length), [payload]);
 
-  if (failed) return <div className="mobileSheetEmpty" role="status"><Info /><strong>TfL updates are unavailable.</strong><p>The map and venue details still work.</p></div>;
+  if (failed) {
+    const offline = typeof window !== "undefined" && window.navigator?.onLine === false;
+    return <div className="mobileSheetEmpty" role="status"><Info /><strong>{offline ? OFFLINE_ERROR : "TfL updates are unavailable."}</strong><p>The map and venue details still work.</p></div>;
+  }
   if (!payload) return <div className="mobileSheetSkeleton" role="status">Checking TfL live status</div>;
   if (!disrupted.length && !grouped.length) return <div className="mobileSheetEmpty" role="status"><TrainFront /><strong>Nothing disrupting tonight.</strong><p>Checked live for this session.</p>{freshness(payload.asOf)}</div>;
 
