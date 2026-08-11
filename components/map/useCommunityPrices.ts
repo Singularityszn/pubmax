@@ -26,6 +26,7 @@ import type {
 import type { PriceSubmitFailureReason } from "@/lib/analyticsEvents";
 import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { discardBody } from "@/lib/responseBody";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { postCommunityContribution } from "@/lib/communityContributionClient";
 import { normalizeHandle } from "@/lib/profiles";
 import {
@@ -73,7 +74,7 @@ export type CommunityVenueSignalSubmitResult =
 
 export function rejectedCommunitySubmission(
   status: number,
-  error: string | undefined,
+  error: unknown,
   fallback: string,
   gateStatus?: string,
 ): CommunitySubmissionFailure {
@@ -88,7 +89,7 @@ export function rejectedCommunitySubmission(
           : null;
   return {
     ok: false,
-    error: error ?? fallback,
+    error: errorMessageFrom({ error }, fallback),
     reason: "rejected",
     ...(contributionStatus ? { status: contributionStatus } : {}),
   };
@@ -972,7 +973,7 @@ export function useCommunityPrices(): CommunityPricesState {
           | {
               price?: CommunityPrice;
               attribution?: unknown;
-              error?: string;
+              error?: unknown;
               status?: string;
             }
           | null;
@@ -1088,7 +1089,7 @@ export function useCommunityPrices(): CommunityPricesState {
           signalValue,
         });
         const data = (await response.json().catch(() => null)) as
-          | { signal?: CommunityVenueSignal; error?: string; status?: string }
+          | { signal?: CommunityVenueSignal; error?: unknown; status?: string }
           | null;
         if (!response.ok) {
           rollback();

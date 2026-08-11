@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { PlanStopDTO } from "@/lib/plan";
 import type { PlanConstraint, PlanConstraintKind, PlanInvite, PlanRouteProposal, PlanVote } from "@/lib/planCollaborationStore";
 import { discardBody } from "@/lib/responseBody";
@@ -40,12 +41,6 @@ const CONSTRAINT_KINDS: Array<{ value: PlanConstraintKind; label: string }> = [
 
 function operationKey(): string {
   return typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function errorMessage(body: unknown, fallback: string): string {
-  if (!body || typeof body !== "object") return fallback;
-  const error = (body as { error?: unknown }).error;
-  return typeof error === "string" ? error : fallback;
 }
 
 export default function PlanCollaborationPanel({ planId, memberToken, isHost, draftStops, routeRevision, canPropose, onProposalCreated }: Props) {
@@ -122,7 +117,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
         body: JSON.stringify({ expiresInMinutes: 1_440 }),
       });
       const body = await response.json();
-      if (!response.ok || !body?.token || !body?.invite) throw new Error(errorMessage(body, "Could not create an invite."));
+      if (!response.ok || !body?.token || !body?.invite) throw new Error(errorMessageFrom(body, "Could not create an invite."));
       const url = `${window.location.origin}/plan/${planId}#invite=${encodeURIComponent(body.token)}`;
       setInvite({ value: body.invite, url });
       // invite.id is the invite's own row id — an opaque, non-secret database
@@ -145,7 +140,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
         headers: { authorization: `Bearer ${memberToken}`, "idempotency-key": operationKey() },
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(errorMessage(body, "Could not revoke this invite."));
+      if (!response.ok) throw new Error(errorMessageFrom(body, "Could not revoke this invite."));
       if (invite?.value.id === inviteId) setInvite(null);
       setRevokeConfirmId(null);
       announce("invite");
@@ -165,7 +160,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
         body: JSON.stringify({ kind, priority, value: constraintValue }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(errorMessage(body, "Could not add that need."));
+      if (!response.ok) throw new Error(errorMessageFrom(body, "Could not add that need."));
       announce("constraint");
       setConstraintValue(""); setStatus("Crew need added to this plan."); await refresh();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not add that need."); }
@@ -184,7 +179,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
         body: JSON.stringify({ reason: proposalReason, expectedRouteRevision: revision, stops: draftStops, resolvedConstraintIds: [] }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(errorMessage(body, "Could not send that route proposal."));
+      if (!response.ok) throw new Error(errorMessageFrom(body, "Could not send that route proposal."));
       announce("proposal");
       setProposalReason(""); setStatus("Proposal sent. The host must confirm before the route changes.");
       onProposalCreated(); await refresh();
@@ -206,7 +201,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
         body: JSON.stringify({ evidence: { proposalId: proposal.id, routeRevision: proposal.expectedRouteRevision, sources } }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(errorMessage(body, "Could not check those sources."));
+      if (!response.ok) throw new Error(errorMessageFrom(body, "Could not check those sources."));
       announce("constraint");
       setResolutionConstraintId(""); setEvidenceProposalId(""); setEvidenceSources({}); setStatus("Sources added to this proposal."); await refresh();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not check those sources."); }
@@ -223,7 +218,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
         body: JSON.stringify(decision ? { decision: operation } : { value: operation }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(errorMessage(body, decision ? "The route was not changed." : "Could not record your vote."));
+      if (!response.ok) throw new Error(errorMessageFrom(body, decision ? "The route was not changed." : "Could not record your vote."));
       announce(decision ? "decision" : "vote");
       setStatus(decision ? `Proposal ${operation}.` : "Your vote is in.");
       await refresh();

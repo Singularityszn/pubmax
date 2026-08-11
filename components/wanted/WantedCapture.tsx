@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type {
   WantedDTO,
   WantedResolveCandidate,
@@ -45,14 +46,18 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
           rawPaste: rawPaste || paste,
         }),
       });
-      const body = (await res.json()) as { wanted?: WantedDTO; error?: string; status?: string };
+      const body = (await res.json().catch(() => null)) as { wanted?: WantedDTO; error?: unknown; status?: string } | null;
+      if (!body) {
+        setStatus("Could not save that Wanted place.");
+        return;
+      }
       if (!res.ok || !body.wanted) {
         if (body.status === "sign_in_required") {
           setStatus("Sign in to save a Wanted place.");
         } else if (body.status === "onboarding_required") {
           setStatus("Choose a public handle before saving Wanted places.");
         } else {
-          setStatus(body.error ?? "Could not save that Wanted place.");
+          setStatus(errorMessageFrom(body, "Could not save that Wanted place."));
         }
         return;
       }
@@ -86,12 +91,16 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
           note: note || undefined,
         }),
       });
-      const body = (await res.json()) as { wanted?: WantedDTO; error?: string; status?: string };
+      const body = (await res.json().catch(() => null)) as { wanted?: WantedDTO; error?: unknown; status?: string } | null;
+      if (!body) {
+        setStatus("Could not save that paste.");
+        return;
+      }
       if (!res.ok || !body.wanted) {
         if (body.status === "sign_in_required") {
           setStatus("Sign in to save a Wanted place.");
         } else {
-          setStatus(body.error ?? "Could not save that paste.");
+          setStatus(errorMessageFrom(body, "Could not save that paste."));
         }
         return;
       }
@@ -139,20 +148,24 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ paste: trimmed }),
       });
-      const body = (await res.json()) as {
-        error?: string;
+      const body = (await res.json().catch(() => null)) as {
+        error?: unknown;
         status?: string;
         candidates?: WantedResolveCandidate[];
         sourceUrl?: string;
         query?: string;
         rawPaste?: string;
         sourcePlatform?: WantedResolveResult["sourcePlatform"];
-      };
+      } | null;
+      if (!body) {
+        setStatus("Could not resolve that paste.");
+        return;
+      }
       if (!res.ok) {
         if (body.status === "sign_in_required") {
           setStatus("Sign in to save a Wanted place.");
         } else {
-          setStatus(body.error ?? "Could not resolve that paste.");
+          setStatus(errorMessageFrom(body, "Could not resolve that paste."));
         }
         return;
       }

@@ -13,6 +13,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import TonightConditionsStrip from "@/app/tonight/TonightConditionsStrip";
 import EmptyState from "@/components/EmptyState";
 import { discardBody } from "@/lib/responseBody";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { getAnonId } from "@/lib/anonId";
 import type { CheckIn } from "@/lib/checkIn";
 import {
@@ -680,7 +681,7 @@ export default function FeedPageClient({
         error?: string;
       };
       if (!response.ok || !data.drop) {
-        throw new Error(data.error ?? "Could not save that Spill.");
+        throw new Error(errorMessageFrom(data, "Could not save that Spill."));
       }
       const reconciledDrop: PintDropDTO = {
         ...data.drop,

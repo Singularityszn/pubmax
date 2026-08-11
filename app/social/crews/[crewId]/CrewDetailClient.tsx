@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
@@ -191,8 +192,7 @@ export default function CrewDetailClient({
         unknown
       > | null;
       if (!response.ok) {
-        const message = typeof body?.error === "string" ? body.error : null;
-        throw new Error(message ?? "That did not go through.");
+        throw new Error(errorMessageFrom(body, "That did not go through."));
       }
       return body;
     },

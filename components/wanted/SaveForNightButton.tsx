@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { isUkBaseVenueId, type WantedDTO } from "@/lib/wanted";
 
 import "./wanted.css";
@@ -32,9 +33,9 @@ export default function SaveForNightButton({
           rawPaste: venueName,
         }),
       });
-      const body = (await res.json()) as {
+      const body = (await res.json().catch(() => null)) as {
         wanted?: WantedDTO;
-        error?: string;
+        error?: unknown;
         status?: string;
       };
       if (!res.ok || !body.wanted) {
@@ -43,7 +44,7 @@ export default function SaveForNightButton({
         } else if (body.status === "onboarding_required") {
           setToast("Choose a public handle first.");
         } else {
-          setToast(body.error ?? "Could not save for a night.");
+          setToast(errorMessageFrom(body, "Could not save for a night."));
         }
         return;
       }

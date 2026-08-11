@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import ProfileCoverPhotosEditor from "@/components/profile/ProfileCoverPhotosEditor";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import { getAccessToken } from "@/lib/authClient";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { categoryLabel, MAP_LENS_DRINK_CATEGORIES } from "@/lib/drinks";
 import {
   PROFILE_IMAGE_PICKER_ACCEPT,
@@ -95,17 +96,6 @@ function initialOf(name: string, handle: string): string {
   return (source.charAt(0) || "?").toUpperCase();
 }
 
-function parseApiError(body: unknown, fallback: string): string {
-  if (
-    body &&
-    typeof body === "object" &&
-    typeof (body as { error?: unknown }).error === "string"
-  ) {
-    return (body as { error: string }).error;
-  }
-  return fallback;
-}
-
 function profileFrom(body: unknown): PublicProfile | null {
   return body && typeof body === "object"
     ? (body as { profile?: PublicProfile | null }).profile ?? null
@@ -187,7 +177,7 @@ export default function ProfileEditor({
         markImage(
           slot,
           "error",
-          parseApiError(body, "Could not upload that image. Try again."),
+          errorMessageFrom(body, "Could not upload that image. Try again."),
         );
         return;
       }
@@ -216,7 +206,7 @@ export default function ProfileEditor({
         markImage(
           slot,
           "error",
-          parseApiError(body, "Could not remove that image. Try again."),
+          errorMessageFrom(body, "Could not remove that image. Try again."),
         );
         return;
       }
@@ -253,7 +243,7 @@ export default function ProfileEditor({
 
       if (!res.ok) {
         setState("error");
-        setError(parseApiError(body, "Couldn't save. Try again."));
+        setError(errorMessageFrom(body, "Couldn't save. Try again."));
         return;
       }
 

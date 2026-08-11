@@ -19,6 +19,7 @@ import {
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { emitIdentityHandleChanged, syncDeviceHandle } from "@/lib/identityClient";
 import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
 import SetAccountPassword from "@/components/auth/SetAccountPassword";
@@ -258,7 +259,7 @@ function AccountHandleEditor({
         | null;
       if (controller.signal.aborted) return;
       if (!response.ok) {
-        setMessage(body?.error ?? "Your handle could not be loaded.");
+        setMessage(errorMessageFrom(body, "Your handle could not be loaded."));
         return;
       }
       const owned = body?.handle ?? null;
@@ -297,7 +298,7 @@ function AccountHandleEditor({
       };
       if (!active.current) return;
       if (!response.ok || !body.handle) {
-        setMessage(body.error ?? "That handle is unavailable.");
+        setMessage(errorMessageFrom(body, "That handle is unavailable."));
         return;
       }
       syncDeviceHandle(localStorage, body.handle);
@@ -554,7 +555,7 @@ export default function PubmaxxAccountHub() {
       if (response.status === 409 && body.details?.currentProfile !== undefined) {
         setAccountNightProfile(body.details.currentProfile);
       }
-      setMessage(body.error ?? "Your Night Profile could not be merged.");
+      setMessage(errorMessageFrom(body, "Your Night Profile could not be merged."));
       return;
     }
     setAccountNightProfile(body.profile);
@@ -604,7 +605,7 @@ export default function PubmaxxAccountHub() {
       error?: string;
     };
     if (!response.ok) {
-      setMessage(body.error ?? "Your private recap could not be brought onto your account.");
+      setMessage(errorMessageFrom(body, "Your private recap could not be brought onto your account."));
       return;
     }
     const nextIds = new Set(memoryCompletionIds);
@@ -644,7 +645,7 @@ export default function PubmaxxAccountHub() {
         setAccountNightProfile(body.details.currentProfile);
         setNightProfileDraft(nightProfileInput(body.details.currentProfile));
       }
-      setMessage(body.error ?? "Your Night Profile could not be saved.");
+      setMessage(errorMessageFrom(body, "Your Night Profile could not be saved."));
       return;
     }
     const input = nightProfileInput(body.profile);
@@ -667,12 +668,12 @@ export default function PubmaxxAccountHub() {
       const response = await authedFetch("/api/referrals/invite-link", {
         method: "POST",
       });
-      const body = (await response.json().catch(() => ({}))) as {
+      const body = (await response.json().catch(() => null)) as {
         url?: string;
-        error?: string;
-      };
-      if (!response.ok || !body.url) {
-        setReferralNotice(body.error ?? "Your invite link could not be made. Try again.");
+        error?: unknown;
+      } | null;
+      if (!response.ok || !body?.url) {
+        setReferralNotice(errorMessageFrom(body, "Your invite link could not be made. Try again."));
         return;
       }
       setReferralLink(body.url);

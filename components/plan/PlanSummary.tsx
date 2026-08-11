@@ -15,6 +15,7 @@ import { buildInvitePrivacyPreview, type InvitePrivacyPreviewDTO } from "@/lib/i
 import type { PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import type { VibeTally } from "@/lib/vibeTally";
 import { isPlanStopCount, normalizePlanStopCount } from "@/lib/planStopCount";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 
 /** Map the §4.10 preview onto the existing preview component's DTO. */
 function toInvitePreview(preview: PlanPrivacyPreviewDTO): InvitePrivacyPreviewDTO {
@@ -319,7 +320,7 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
         body: JSON.stringify({ context: state.context }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body?.error?.message || body?.error || "Could not find a replacement route.");
+      if (!response.ok) throw new Error(errorMessageFrom(body, "Could not find a replacement route."));
       const generated = routeStopsFromGenerated(body.stops, body.alternatives).map((stop, index) => ({
         venueId: stop.venueId,
         venueName: stop.venueName,
@@ -393,7 +394,7 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
       if (!response.ok) {
         throw new Error(response.status === 409 || response.status === 412
           ? "This route changed in another tab. Nothing was saved; refresh the plan before trying again."
-          : body?.error || "Could not save the route.");
+          : errorMessageFrom(body, "Could not save the route."));
       }
       const canonical = canonicalStateFromBody(body);
       if (!canonical) throw new Error("The server did not return a canonical route. Nothing was saved in this view.");

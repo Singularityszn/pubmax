@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { SocialCrewListItemDTO } from "@/lib/socialCrew";
 import { discardBody } from "@/lib/responseBody";
 import {
@@ -205,12 +206,12 @@ export default function CrewsPanel({
         body: JSON.stringify(body),
       });
       const planBody = (await planResponse.json().catch(() => null)) as
-        | { plan?: { plan?: { id?: string } }; memberToken?: string; error?: string }
+        | { plan?: { plan?: { id?: string } }; memberToken?: string; error?: unknown }
         | null;
       const planId = planBody?.plan?.plan?.id;
       const memberToken = planBody?.memberToken;
       if (!planResponse.ok || typeof planId !== "string" || typeof memberToken !== "string") {
-        throw new Error(planBody?.error ?? "Could not set the night up.");
+        throw new Error(errorMessageFrom(planBody, "Could not set the night up."));
       }
 
       const crewResponse = await authedFetch("/api/social/crews", {
@@ -228,8 +229,7 @@ export default function CrewsPanel({
         | null;
       const outcome = parseCrewMutation(crewBody);
       if (!crewResponse.ok || !outcome?.crewId) {
-        const message = typeof crewBody?.error === "string" ? crewBody.error : null;
-        throw new Error(message ?? "Could not start the crew.");
+        throw new Error(errorMessageFrom(crewBody, "Could not start the crew."));
       }
 
       setStart("idle");

@@ -43,6 +43,7 @@ import {
 } from "@/lib/activePlan";
 import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import type {
   CrawlEnding,
@@ -780,7 +781,7 @@ function NightModeSheet({
           throw new Error(
             response.status === 409 || response.status === 412
               ? "This route changed before the ending was saved. Nothing was completed; refresh the plan and try again."
-              : body?.error || "Could not save that ending.",
+              : errorMessageFrom(body, "Could not save that ending."),
           );
         }
         let canonical = canonicalPlanFromCompleteBody(body);
@@ -877,7 +878,7 @@ function NightModeSheet({
         throw new Error(
           response.status === 401
             ? "Sign in to move this local recap into your private Memories."
-            : (body.error ?? "Could not save this private Memory."),
+            : errorMessageFrom(body, "Could not save this private Memory."),
         );
       }
       resolvePendingPlanRecap(recap, "saved");

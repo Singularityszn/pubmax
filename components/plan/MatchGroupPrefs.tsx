@@ -10,6 +10,7 @@ import {
   type GroupPrefsOverlap,
   type MatePreference,
 } from "@/lib/groupPrefs";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 
 type Props = {
@@ -132,10 +133,10 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
       const body = await response.json().catch(() => ({})) as {
         pref?: MatePreference;
         overlap?: GroupPrefsOverlap;
-        error?: string;
+        error?: unknown;
       };
       if (!response.ok) {
-        setStatus(typeof body.error === "string" ? body.error : "Could not share these picks yet.");
+        setStatus(errorMessageFrom(body, "Could not share these picks yet."));
         return;
       }
       if (body.overlap) setOverlap(body.overlap);
@@ -158,9 +159,9 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         method: "DELETE",
         headers: { authorization: `Bearer ${memberToken}` },
       });
-      const body = await response.json().catch(() => ({})) as { overlap?: GroupPrefsOverlap; error?: string };
+      const body = await response.json().catch(() => ({})) as { overlap?: GroupPrefsOverlap; error?: unknown };
       if (!response.ok) {
-        setStatus(typeof body.error === "string" ? body.error : "Could not clear shared picks.");
+        setStatus(errorMessageFrom(body, "Could not clear shared picks."));
         return;
       }
       if (body.overlap) setOverlap(body.overlap);

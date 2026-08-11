@@ -11,6 +11,7 @@
 
 import type { RatingKind, RatingSummary, RatingValue } from "@/lib/ratings";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 
 const HANDLE_KEY = "pubmax_handle";
 
@@ -93,7 +94,7 @@ export async function postRating(input: {
     error?: string;
   };
   if (!res.ok || !body.summary) {
-    throw new Error(body.error ?? "Couldn't save your rating just now.");
+    throw new Error(errorMessageFrom(body, "Couldn't save your rating just now."));
   }
   return body.summary;
 }

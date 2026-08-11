@@ -13,6 +13,7 @@
 import { useEffect, useState } from "react";
 
 import { discardBody } from "@/lib/responseBody";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { trackEvent } from "@/lib/analytics";
 import { getNightArea, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
@@ -82,7 +83,7 @@ export default function OutTonightToggle({ handle }: Props) {
         error?: string;
         checkIn?: { areaSlug?: string | null };
       };
-      if (!res.ok) throw new Error(body.error ?? "That didn't send. Give it another go.");
+      if (!res.ok) throw new Error(errorMessageFrom(body, "That didn't send. Give it another go."));
       trackEvent("out_tonight_beacon_on");
       setState({ kind: "on", areaSlug: (body.checkIn?.areaSlug as NightAreaSlug) ?? null });
     } catch (err) {
@@ -102,7 +103,7 @@ export default function OutTonightToggle({ handle }: Props) {
         body: JSON.stringify({ handle }),
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(body.error ?? "That didn't send. Give it another go.");
+      if (!res.ok) throw new Error(errorMessageFrom(body, "That didn't send. Give it another go."));
       trackEvent("out_tonight_beacon_off");
       setState({ kind: "off" });
     } catch (err) {

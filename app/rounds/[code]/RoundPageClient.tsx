@@ -31,6 +31,7 @@ import {
   type DrinkCategory,
 } from "@/lib/drinks";
 import { discardBody } from "@/lib/responseBody";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   ROUND_SPEND_PRICE_LINE_MAX,
@@ -865,14 +866,14 @@ function RoundSpendComposer({
           );
           return {
             res,
-            data: (await res.json()) as RoundState | { error: string },
+            data: (await res.json()) as RoundState | { error: unknown },
           };
         },
       );
       if (!completion.current) return;
       const { res, data } = completion.value;
       if (!res.ok) {
-        setError((data as { error: string }).error ?? "Could not keep that round.");
+        setError(errorMessageFrom(data, "Could not keep that round."));
         return;
       }
       pendingRef.current = null;
@@ -1347,7 +1348,7 @@ function JoinForm({
           });
           return {
             res,
-            data: (await res.json()) as RoundState | { error: string },
+            data: (await res.json()) as RoundState | { error: unknown },
           };
         },
       );
@@ -1368,7 +1369,7 @@ function JoinForm({
         }
         onJoined(data as RoundState, anonymousHandle);
       } else {
-        setError((data as { error: string }).error ?? "Could not join.");
+        setError(errorMessageFrom(data, "Could not join."));
       }
     } catch {
       setError("Could not join. Try again.");
@@ -1490,7 +1491,7 @@ function AddStop({
           );
           return {
             res,
-            data: (await res.json()) as RoundState | { error: string },
+            data: (await res.json()) as RoundState | { error: unknown },
           };
         },
       );
@@ -1500,7 +1501,7 @@ function AddStop({
         setQuery("");
         onAdded(data as RoundState);
       } else {
-        setError((data as { error: string }).error ?? "Could not add that pub.");
+        setError(errorMessageFrom(data, "Could not add that pub."));
       }
     } catch {
       setError("Could not add that pub. Try again.");

@@ -16,6 +16,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import "../feed/feed.css";
 import "./we-are-out.css";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 
 type PostState = "idle" | "posting" | "done" | "error";
 
@@ -65,8 +66,8 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = false }: P
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle, areaSlug, note, visibility: "friends" }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Could not post that.");
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(errorMessageFrom(data, "Could not post that."));
       trackEvent("check_in_created");
       setState("done");
     } catch (err) {

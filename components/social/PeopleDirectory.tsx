@@ -24,6 +24,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
   followActionDescription,
   followActionLabel,
@@ -228,7 +229,7 @@ export default function PeopleDirectory({
         following?: boolean;
         error?: string;
       };
-      if (!response.ok) throw new Error(body.error ?? "Could not follow them.");
+      if (!response.ok) throw new Error(errorMessageFrom(body, "Could not follow them."));
       const nowFollowing = body.following !== false;
       setFollowed((current) => {
         const next = new Set(current);

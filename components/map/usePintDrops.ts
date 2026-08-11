@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
 import { unresolvedVenueLabel } from "@/lib/cityVenueIds";
@@ -502,9 +503,9 @@ export function usePintDrops(
       if (submittedVenueFile) body.set("venue_photo", submittedVenueFile);
 
       const response = await authedFetch("/api/pint-drops", { method: "POST", body });
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
       if (!response.ok) {
-        markFailed(data.error ?? "Could not save that drop.");
+        markFailed(errorMessageFrom(data, "Could not save that drop."));
         return;
       }
       trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });

@@ -23,6 +23,7 @@ import { useEffect, useState } from "react";
 
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { discardBody } from "@/lib/responseBody";
@@ -125,7 +126,7 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
           }
         | null;
       if (!response.ok || !Array.isArray(body?.results)) {
-        throw new Error(body?.error ?? "That didn't go through. Try again.");
+        throw new Error(errorMessageFrom(body, "That didn't go through. Try again."));
       }
       setPackState((current) => ({
         ...current,

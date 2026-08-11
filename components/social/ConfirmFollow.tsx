@@ -16,6 +16,7 @@ import HandleAvatar from "@/components/profile/HandleAvatar";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 
 type FollowState = "idle" | "working" | "done" | "error";
 
@@ -62,8 +63,8 @@ export default function ConfirmFollow({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ follower: myHandle }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Could not add them.");
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(errorMessageFrom(data, "Could not add them."));
       setState("done");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Network error. Try again.");

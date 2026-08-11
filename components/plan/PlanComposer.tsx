@@ -44,6 +44,7 @@ import { writePlanCapability } from "@/lib/planSessionCapability";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
   buildPlanGenerationIntakeBody,
   clearPlanIntakeDraft,
@@ -296,12 +297,10 @@ export function nightAreaMapHref(area: NightArea): string {
 export function errorMessageFromBody(body: unknown, fallback: string): string {
   // Concierge / plan generate scarcity must stay the server's sentence. Never
   // replace a grounded 422 with a softer invented route or a generic shrug.
-  if (!body || typeof body !== "object") return fallback;
+  if (!body || typeof body !== "object") return errorMessageFrom(body, fallback);
   const error = (body as { error?: unknown }).error;
-  if (typeof error === "string") return error;
   if (error && typeof error === "object") {
-    const structuredError = error as { code?: unknown; message?: unknown };
-    const message = structuredError.message;
+    const structuredError = error as { code?: unknown };
     if (
       structuredError.code === "NIGHT_AREA_ROUTE_NOT_READY" ||
       structuredError.code === "DISTRICT_ROUTE_NOT_READY"
@@ -315,9 +314,8 @@ export function errorMessageFromBody(body: unknown, fallback: string): string {
       const areaName = area?.name ?? "This area";
       return `${areaName} is not ready for route planning yet. We're still checking this area before planning a crawl. Choose another area to continue.`;
     }
-    if (typeof message === "string" && message.trim()) return message;
   }
-  return fallback;
+  return errorMessageFrom(body, fallback);
 }
 
 export function planGenerationFailureStatus(
@@ -1013,7 +1011,7 @@ function PlanComposerForm({
         // L11: surface the L09 anchored-lock failures honestly — 422 (proof
         // invalid/expired) and 409 (replay-conflict) — behind the handoff flags.
         const mapped = handoff ? composerLockErrorFromResponse(response.status) : null;
-        throw new Error(mapped || body?.error || "The plan could not be created.");
+        throw new Error(mapped || errorMessageFrom(body, "The plan could not be created."));
       }
       const attribution = serverPlanCreationAttribution(body);
       if (!attribution) throw new Error("We could not check the route details. Reload the plan before continuing.");
