@@ -10,9 +10,9 @@
 // design (lib/planSessionCapability.ts) and the plan member cookie is scoped to
 // `/api/plans/<id>`, so no server seam can reach it from here.
 //
-// The panel renders only for a verified Social actor. Its parent owns that
-// gate; with PUBMAX_SOCIAL_FRIENDS_LAUNCH off, access resolves to `preview` and
-// nothing below ever mounts.
+// The panel renders a neutral identity state before it reads anything. Its
+// parent owns the Social gate when it already has that answer; with the launch
+// flag off, access resolves to `preview` and protected crew data stays absent.
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -37,6 +37,11 @@ import {
   parseCrewMutation,
   startCrewPlanBody,
 } from "@/lib/socialCrewsUi";
+
+import {
+  SocialViewerState,
+  type SocialViewerPhase,
+} from "@/components/social/SocialViewerState";
 
 import "./crews.css";
 
@@ -70,7 +75,9 @@ export default function CrewsPanel({
    */
   resolveAccess?: boolean;
 }) {
-  const { identityResolved } = useAuth();
+  const { identityResolved, user } = useAuth();
+  const viewerPhase: SocialViewerPhase =
+    !identityResolved ? "unresolved" : user ? "resolved" : "signed-out";
   const [gate, setGate] = useState<"checking" | "open" | "closed">(
     resolveAccess ? "checking" : "open",
   );
@@ -89,6 +96,7 @@ export default function CrewsPanel({
 
   useEffect(() => {
     if (!resolveAccess || !identityResolved) return;
+    if (!user) return;
     const controller = new AbortController();
     void (async () => {
       try {
@@ -110,10 +118,10 @@ export default function CrewsPanel({
       }
     })();
     return () => controller.abort();
-  }, [identityResolved, resolveAccess]);
+  }, [identityResolved, resolveAccess, user]);
 
   useEffect(() => {
-    if (gate !== "open") return;
+    if (gate !== "open" || viewerPhase !== "resolved") return;
     const controller = new AbortController();
     void Promise.resolve().then(() => setStatus("loading"));
     authedFetch("/api/social/crews", {
@@ -137,12 +145,12 @@ export default function CrewsPanel({
         setStatus("error");
       });
     return () => controller.abort();
-  }, [attempt, gate]);
+  }, [attempt, gate, viewerPhase]);
 
   useEffect(() => {
     if (venueDebounce.current) clearTimeout(venueDebounce.current);
     const query = venueQuery.trim();
-    if (query.length < 2) {
+    if (viewerPhase !== "resolved" || query.length < 2) {
       void Promise.resolve().then(() => setVenues([]));
       return () => {
         if (venueDebounce.current) clearTimeout(venueDebounce.current);
@@ -172,7 +180,7 @@ export default function CrewsPanel({
       controller.abort();
       if (venueDebounce.current) clearTimeout(venueDebounce.current);
     };
-  }, [venueQuery]);
+  }, [venueQuery, viewerPhase]);
 
   const startCrew = useCallback(async () => {
     if (start === "working") return;
@@ -236,6 +244,24 @@ export default function CrewsPanel({
   }, [name, start, venue, viewerHandle, when]);
 
   const cleanName = cleanCrewName(name);
+
+  if (viewerPhase !== "resolved") {
+    return (
+      <section
+        className={compact ? "crews crews--compact" : "crews"}
+        aria-labelledby="crews-title"
+      >
+        <h2 id="crews-title" className="crews__title">
+          Your crews
+        </h2>
+        <SocialViewerState
+          phase={viewerPhase}
+          loadingLabel="Loading your crews"
+          inviteMessage="See your crews."
+        />
+      </section>
+    );
+  }
 
   // Closed gate renders nothing at all. A "Social is in preview" line here
   // would be a second, quieter promise of crews on a surface that never

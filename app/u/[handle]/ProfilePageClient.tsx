@@ -30,7 +30,7 @@ import SiteNavMore, {
   type SiteNavMoreItem,
 } from "@/components/nav/SiteNavMore";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
+import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { syncDeviceHandle } from "@/lib/identityClient";
 import { BADGE_EVENTS } from "@/lib/badgeEvents";
 import {
@@ -176,27 +176,6 @@ function localSavedDTOs(): Partial<Record<ListType, SavedPubDTO[]>> {
 // real profile; without either, /u/you renders the first-run passport (story 30).
 const YOU_SENTINEL = "you";
 
-/**
- * Who this page may treat as the viewer.
- *
- * Until the live session has answered, the viewer is UNKNOWN and this is "".
- * Reaching for the device handle any earlier is what made a second account read
- * as the first: `user` is null while the session restores, so the previous
- * account's cached handle won the first render and drove the /u/you redirect,
- * profile ownership, and the follow actor. A settled signed-OUT viewer keeps
- * the device handle, which is genuinely their own.
- */
-function resolvedViewerHandle(input: {
-  identityResolved: boolean;
-  signedIn: boolean;
-  accountHandle: string | null;
-  deviceHandle: string;
-}): string {
-  if (!input.identityResolved) return "";
-  if (!input.signedIn) return input.deviceHandle;
-  return normalizeHandle(input.accountHandle ?? "");
-}
-
 function isNightMemoriesHash(hash: string): boolean {
   return hash.replace(/^#/, "").toLowerCase() === "night-memories";
 }
@@ -206,7 +185,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const routeHandle = normalizeHandle(use(params)?.handle);
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
-  const { user, handle: accountHandle, identityResolved, signOut } = useAuth();
+  const { user, identityResolved, signOut } = useAuth();
   const storedBadgeEventOptInRaw = useSyncExternalStore(
     subscribeBadgeEventOptIns,
     currentBadgeEventOptInRaw,
@@ -228,16 +207,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // client's first (hydration) paint match, then fill in after mount.
   const [saved, setSaved] = useState<Partial<Record<ListType, SavedPubDTO[]>>>({});
   const [followedLists, setFollowedLists] = useState<FollowedSavedListDTO[]>([]);
-
-  // Signed-out fallback handle, read after mount so the server render and
-  // hydration agree. Signed-in ownership comes from the account identity.
-  const [myHandle, setMyHandle] = useState("");
-  const viewerHandle = resolvedViewerHandle({
-    identityResolved,
-    signedIn: Boolean(user),
-    accountHandle,
-    deviceHandle: myHandle,
-  });
+  // The shared reader is the only place this surface may learn who is holding
+  // the device. It returns null while identity is unresolved, so a cached
+  // handle cannot name the previous account during session restore.
+  const viewerHandle = useViewerHandle() ?? "";
   // The owner's own linked socials, public on their card by their own choice.
   const [socialLinks, setSocialLinks] = useState<PublicSocialLink[]>([]);
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
@@ -358,30 +331,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     void loadFollowedLists();
     return () => controller.abort();
   }, [routeHandle]);
-
-  // Read the signed-out fallback handle after mount. The server cannot know
-  // localStorage, and signed-in identity remains account-owned.
-  useEffect(() => {
-    let active = true;
-    async function loadHandle() {
-      try {
-        const handle = normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? "");
-        if (active) setMyHandle(handle);
-      } catch {
-        // storage disabled → stays anonymous, follow button hidden
-      }
-    }
-    void loadHandle();
-    // An account boundary clears the device handle under this page, so re-read
-    // rather than hold the value that was there when the page mounted.
-    const unsubscribe = subscribeDeviceIdentity(() => {
-      void loadHandle();
-    });
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, []);
 
   // This handle's published crawl-story count (story 35 authorship). Best-effort:
   // a failure just leaves 0, so the passport still renders. Runs in an async
@@ -522,6 +471,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // claim/account surface, never the pseudo-profile scaffolding (a "@you"
   // passport header, timeline, saved list) that reads like a bug (spec #393).
   const youSignedOut = isYouRoute && isAnonymous;
+  // `/u/you` remains a sentinel for one render after a resolved handle arrives,
+  // while the router moves to the account profile. Keep that handoff neutral so
+  // the sentinel never paints the synthesized `You` card.
+  const viewerIdentityLoading = isYouRoute && (!identityResolved || Boolean(viewerHandle));
   const passportIsOwn = isOwnProfile || (isYouRoute && isAnonymous);
   const joinedBadgeEventIds = new Set(badgeEventOptIns.optedInEventIds);
   const joinableBadgeEvents =
@@ -587,7 +540,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     } catch {
       // storage disabled — the in-memory claim below still owns this session
     }
-    setMyHandle(routeHandle);
     setEditing(true);
   }
 
@@ -757,6 +709,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       <main id="main" className="container profileMain">
         {!routeHandle ? (
           <p className="profileEmpty">That profile link is missing a handle.</p>
+        ) : viewerIdentityLoading ? (
+          <section className="profileIdentityLoadingSurface" aria-label="Loading your profile">
+            <ProfileHeader
+              profile={profile}
+              stats={stats}
+              viewerState="loading"
+            />
+          </section>
         ) : state === "gone" ? (
           <section className="profileGoneState" aria-labelledby="profile-gone-title">
             <p className="profileSectionKicker">@{routeHandle}</p>

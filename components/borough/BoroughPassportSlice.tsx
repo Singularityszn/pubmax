@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { buildBoroughPassport } from "@/lib/passport";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle, type ProfileDrop } from "@/lib/profiles";
@@ -15,29 +17,26 @@ type BoroughPassportSliceProps = {
 };
 
 export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughPassportSliceProps) {
-  const [handle, setHandle] = useState("");
+  const { identityResolved } = useAuth();
+  const viewerHandle = useViewerHandle();
+  const handle = viewerHandle ?? "";
   const [passport, setPassport] = useState(() =>
     buildBoroughPassport([], boroughName, venueIds),
   );
+  const identityLoading = !identityResolved;
 
   useEffect(() => {
     let active = true;
     async function load() {
-      let myHandle = "";
-      try {
-        myHandle = normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? "");
-        if (active) setHandle(myHandle);
-      } catch {
-        // storage disabled — stay anonymous
-      }
-      if (!myHandle) {
+      if (!identityResolved) return;
+      if (!handle) {
         if (active) setPassport(buildBoroughPassport([], boroughName, venueIds));
         return;
       }
       try {
         // Scope the feed to this handle via ?author= — never pull the global
         // public feed just to filter client-side.
-        const qs = new URLSearchParams({ author: myHandle });
+        const qs = new URLSearchParams({ author: handle });
         const res = await fetch(`/api/pint-drops?${qs.toString()}`);
         if (!res.ok) {
           discardBody(res);
@@ -45,7 +44,7 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
         }
         const body = (await res.json()) as { drops?: PublicDrop[] };
         const mine = (body.drops ?? []).filter(
-          (drop) => normalizeHandle(drop.handle) === myHandle,
+          (drop) => normalizeHandle(drop.handle) === handle,
         );
         if (active) {
           setPassport(buildBoroughPassport(mine, boroughName, venueIds));
@@ -58,17 +57,28 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
     return () => {
       active = false;
     };
-  }, [boroughName, venueIds]);
+  }, [boroughName, handle, identityResolved, venueIds]);
 
-  const hasActivity = !passport.isEmpty;
+  // A previous account's passport must not survive an unresolved account
+  // boundary. The live answer controls whether these stats are data or shapes.
+  const shownPassport = identityLoading
+    ? buildBoroughPassport([], boroughName, venueIds)
+    : passport;
+  const hasActivity = !shownPassport.isEmpty;
 
   return (
-    <section className="boroughSection boroughPassport" aria-labelledby="boroughPassportHeading">
+    <section
+      className={`boroughSection boroughPassport${identityLoading ? " boroughPassportLoading" : ""}`}
+      aria-labelledby="boroughPassportHeading"
+      aria-busy={identityLoading}
+    >
       <h2 id="boroughPassportHeading" className="boroughSectionTitle">
-        Your {boroughName} passport
+        {identityLoading ? "Borough passport" : `Your ${boroughName} passport`}
       </h2>
       <p className="boroughSectionDek">
-        {handle ? (
+        {identityLoading ? (
+          <span className="boroughPassportSkeleton boroughPassportSkeletonCopy" aria-hidden="true" />
+        ) : handle ? (
           <>
             Pubs logged, drinks tried, and pints stamped in {boroughName} for @{handle}.
           </>
@@ -82,19 +92,33 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
       <dl className="boroughPassportGrid" aria-label={`Passport stats for ${boroughName}`}>
         <div className="boroughPassportStat">
           <dt>Pubs visited</dt>
-          <dd>{passport.pubs}</dd>
+          <dd>
+            {identityLoading ? <span className="boroughPassportSkeleton" aria-hidden="true" /> : shownPassport.pubs}
+          </dd>
         </div>
         <div className="boroughPassportStat">
           <dt>Drinks tried</dt>
-          <dd>{passport.beers}</dd>
+          <dd>
+            {identityLoading ? <span className="boroughPassportSkeleton" aria-hidden="true" /> : shownPassport.beers}
+          </dd>
         </div>
         <div className="boroughPassportStat">
           <dt>Pints logged</dt>
-          <dd>{passport.pints}</dd>
+          <dd>
+            {identityLoading ? <span className="boroughPassportSkeleton" aria-hidden="true" /> : shownPassport.pints}
+          </dd>
         </div>
         <div className="boroughPassportStat">
           <dt>Cheapest pint</dt>
-          <dd>{passport.cheapestPintGbp == null ? "–" : `£${passport.cheapestPintGbp.toFixed(2)}`}</dd>
+          <dd>
+            {identityLoading ? (
+              <span className="boroughPassportSkeleton" aria-hidden="true" />
+            ) : shownPassport.cheapestPintGbp == null ? (
+              "–"
+            ) : (
+              `£${shownPassport.cheapestPintGbp.toFixed(2)}`
+            )}
+          </dd>
         </div>
       </dl>
       {hasActivity ? (

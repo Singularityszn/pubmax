@@ -2,9 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { discardBody } from "@/lib/responseBody";
 
+import {
+  SocialViewerState,
+  type SocialViewerPhase,
+} from "@/components/social/SocialViewerState";
 import SocialComposer from "./SocialComposer";
 
 type LegacyOutboxItem = {
@@ -53,6 +58,9 @@ export default function SocialOutbox({
   submittedPost: SocialPostDTO | null;
   onPostChanged: (post?: SocialPostDTO) => void;
 }) {
+  const { identityResolved, user } = useAuth();
+  const viewerPhase: SocialViewerPhase =
+    !identityResolved ? "unresolved" : user ? "resolved" : "signed-out";
   const [items, setItems] = useState<OutboxItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,14 +109,30 @@ export default function SocialOutbox({
   }, []);
 
   useEffect(() => {
+    if (viewerPhase !== "resolved") return;
     const controller = new AbortController();
     void Promise.resolve().then(() => loadPage(null, controller.signal));
     return () => controller.abort();
-  }, [loadPage, submittedPost?.id, submittedPost?.revision]);
+  }, [loadPage, submittedPost?.id, submittedPost?.revision, viewerPhase]);
 
   const visibleItems = submittedPost
     ? mergeItems(items, [submittedPost])
     : items;
+  if (viewerPhase !== "resolved") {
+    return (
+      <section
+        className="socialOutbox"
+        aria-labelledby="social-outbox-title"
+      >
+        <h2 id="social-outbox-title">Outbox</h2>
+        <SocialViewerState
+          phase={viewerPhase}
+          loadingLabel="Loading your outbox"
+          inviteMessage="See your posts."
+        />
+      </section>
+    );
+  }
   if (visibleItems.length === 0 && !error) return null;
   return (
     <section
@@ -147,6 +171,15 @@ export default function SocialOutbox({
           </li>
         ))}
       </ul>
+      {error && !loading ? (
+        <button
+          className="socialOutboxRetry"
+          type="button"
+          onClick={() => void loadPage()}
+        >
+          Retry
+        </button>
+      ) : null}
       {nextCursor ? (
         <button
           className="socialOutboxMore"

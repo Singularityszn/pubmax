@@ -22,6 +22,7 @@ import type { PublicSocialLink } from "@/lib/socialConnections";
 type ProfileHeaderProps = {
   profile: Profile;
   stats: ProfileStats;
+  viewerState?: "loading" | "resolved";
   socialLinks?: readonly PublicSocialLink[];
   crawls?: number;
   memories?: number;
@@ -30,6 +31,15 @@ type ProfileHeaderProps = {
   drops?: readonly ProfileDrop[];
   actions?: ReactNode;
 };
+
+const PROFILE_STAT_LABELS = [
+  "Pints logged",
+  "Cheapest pint",
+  "Followers",
+  "Following",
+  "Crawls",
+  "Memories",
+] as const;
 
 function initialOf(name: string, handle: string): string {
   const source = name.trim() || handle.trim();
@@ -70,6 +80,45 @@ function ProfileStatTile({
   );
 }
 
+function ProfileStatSkeletonTile({ label }: { label: string }) {
+  return (
+    <div className="profileStat">
+      <div className="profileStatLink" aria-hidden="true">
+        <dt>{label}</dt>
+        <dd>
+          <span className="profileSkeleton profileSkeletonStat" />
+        </dd>
+      </div>
+    </div>
+  );
+}
+
+function ProfileHeaderLoading() {
+  return (
+    <header className="profileHeader profileHeaderLoading" aria-busy="true" aria-label="Loading profile">
+      <div className="profileCover profileSkeleton" aria-hidden="true">
+        <span className="profileCoverFalloff" />
+      </div>
+
+      <div className="profileHeroBody">
+        <div className="profileIdentity">
+          <div className="profileAvatar profileSkeleton" aria-hidden="true" />
+          <div className="profileNames" aria-hidden="true">
+            <span className="profileSkeleton profileSkeletonLine profileSkeletonName" />
+            <span className="profileSkeleton profileSkeletonLine profileSkeletonHandle" />
+          </div>
+        </div>
+      </div>
+
+      <dl className="profileStats" aria-hidden="true">
+        {PROFILE_STAT_LABELS.map((label) => (
+          <ProfileStatSkeletonTile key={label} label={label} />
+        ))}
+      </dl>
+    </header>
+  );
+}
+
 /**
  * The three things a person says about themselves, in the order a stranger
  * reads them: what they drink, what they are into, where they work. Each is
@@ -87,6 +136,7 @@ function cardFacts(profile: Profile): Array<{ id: string; label: string; value: 
 export default function ProfileHeader({
   profile,
   stats,
+  viewerState = "resolved",
   socialLinks,
   crawls,
   memories,
@@ -97,6 +147,8 @@ export default function ProfileHeader({
 }: ProfileHeaderProps) {
   const { handle, displayName, homeCity, bio, avatarUrl, foundingMemberNumber } = profile;
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
+  if (viewerState === "loading") return <ProfileHeaderLoading />;
+
   const showAvatar = Boolean(avatarUrl) && failedAvatarUrl !== avatarUrl;
   // The backdrop is a rotation of up to five, and `profileCoverUrls` is the ONE
   // place the list and the single back-compat cover are reconciled.

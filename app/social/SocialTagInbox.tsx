@@ -2,8 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import type { SocialPostVisibility } from "@/lib/socialPosts";
 import { discardBody } from "@/lib/responseBody";
+
+import {
+  SocialViewerState,
+  type SocialViewerPhase,
+} from "@/components/social/SocialViewerState";
 
 type Proposal = {
   id: string;
@@ -53,6 +59,9 @@ function mergeProposals(current: Proposal[], incoming: Proposal[]): Proposal[] {
 }
 
 export default function SocialTagInbox() {
+  const { identityResolved, user } = useAuth();
+  const viewerPhase: SocialViewerPhase =
+    !identityResolved ? "unresolved" : user ? "resolved" : "signed-out";
   const [lanes, setLanes] = useState<Record<Lane, LaneState>>({
     proposed: EMPTY_LANE,
     approved: EMPTY_LANE,
@@ -108,10 +117,11 @@ export default function SocialTagInbox() {
   );
 
   useEffect(() => {
+    if (viewerPhase !== "resolved") return;
     void Promise.resolve().then(() =>
       Promise.all([loadLane("proposed"), loadLane("approved")]),
     );
-  }, [loadLane]);
+  }, [loadLane, viewerPhase]);
 
   async function act(
     item: Proposal,
@@ -152,6 +162,18 @@ export default function SocialTagInbox() {
   const hasLaneContent = (Object.keys(lanes) as Lane[]).some((lane) =>
     lanes[lane].items.length > 0 || lanes[lane].loading || lanes[lane].error,
   );
+  if (viewerPhase !== "resolved") {
+    return (
+      <section className="socialTagInbox" aria-labelledby="social-tags-title">
+        <h2 id="social-tags-title">Photo tags</h2>
+        <SocialViewerState
+          phase={viewerPhase}
+          loadingLabel="Loading photo tags"
+          inviteMessage="Review your photo tags."
+        />
+      </section>
+    );
+  }
   if (!hasLaneContent && !error) return null;
   return (
     <section className="socialTagInbox" aria-labelledby="social-tags-title">

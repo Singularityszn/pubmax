@@ -313,6 +313,48 @@
   );
 }
 
+/* The viewer identity is unknown while auth restores. Keep the profile card's
+   geometry, but replace every identity-bearing value with a quiet shape. */
+.profilePage .profileHeaderLoading .profileSkeleton {
+  display: block;
+  border-radius: 8px;
+  background: var(--line-soft, var(--line));
+}
+
+.profilePage .profileHeaderLoading .profileCover {
+  background: var(--line-soft, var(--line));
+}
+
+.profilePage .profileHeaderLoading .profileAvatar {
+  background: var(--line-soft, var(--line));
+}
+
+.profilePage .profileHeaderLoading .profileNames {
+  display: grid;
+  align-content: end;
+  gap: 8px;
+  width: min(100%, 260px);
+}
+
+.profilePage .profileHeaderLoading .profileSkeletonLine {
+  height: 20px;
+}
+
+.profilePage .profileHeaderLoading .profileSkeletonName {
+  width: min(100%, 220px);
+  height: 32px;
+}
+
+.profilePage .profileHeaderLoading .profileSkeletonHandle {
+  width: 112px;
+  height: 14px;
+}
+
+.profilePage .profileHeaderLoading .profileSkeletonStat {
+  width: 56px;
+  height: 24px;
+}
+
 .profilePage .profileHeroBody {
   display: grid;
   gap: 18px;
@@ -1480,6 +1522,22 @@
   .profilePage .profileCoverImage {
     transition: opacity 900ms ease-in-out;
   }
+
+  .profilePage .profileHeaderLoading .profileSkeleton {
+    background: linear-gradient(
+      100deg,
+      var(--line-soft, var(--line)) 30%,
+      color-mix(in srgb, var(--line) 55%, var(--panel-raised) 45%) 50%,
+      var(--line-soft, var(--line)) 70%
+    );
+    background-size: 220% 100%;
+    animation: profileSkeletonShimmer 1.9s linear infinite;
+  }
+}
+
+@keyframes profileSkeletonShimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
 }
 
 /* The editing controls are plain <button>s on purpose: app/globals.css already

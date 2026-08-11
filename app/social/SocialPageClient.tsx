@@ -12,6 +12,10 @@ import CrewsPanel from "@/components/social/CrewsPanel";
 import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
 import StarterPacks from "@/components/social/StarterPacks";
+import {
+  SocialViewerState,
+  type SocialViewerPhase,
+} from "@/components/social/SocialViewerState";
 import { authedFetch } from "@/lib/authedFetch";
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
@@ -190,7 +194,15 @@ export function SocialAccessBoundary({
       className="socialBoundary"
       role={state === "unavailable" ? "alert" : "status"}
     >
-      <h2>{asking ? ADULT_SELF_ASSERTION_LINE : BOUNDARY_COPY[state]}</h2>
+      {state === "sign_in_required" ? (
+        <SocialViewerState
+          phase="signed-out"
+          loadingLabel="Loading Social"
+          inviteMessage={BOUNDARY_COPY[state]}
+        />
+      ) : (
+        <h2>{asking ? ADULT_SELF_ASSERTION_LINE : BOUNDARY_COPY[state]}</h2>
+      )}
       {asking && onAssertAdult ? (
         <button
           className="socialButton"
@@ -384,7 +396,9 @@ export default function SocialPageClient({
   rivalry,
   heritageCrawls,
 }: SocialPageClientProps) {
-  const { identityResolved } = useAuth();
+  const { identityResolved, user } = useAuth();
+  const viewerPhase: SocialViewerPhase =
+    !identityResolved ? "unresolved" : user ? "resolved" : "signed-out";
   const [access, setAccess] = useState<AccessLoadState>("checking");
   const [adultPrompt, setAdultPrompt] = useState(false);
   const [assertBusy, setAssertBusy] = useState(false);
@@ -409,7 +423,20 @@ export default function SocialPageClient({
   );
 
   useEffect(() => {
-    if (initialState.tab === "discover" || !identityResolved) return;
+    if (initialState.tab === "discover") return;
+    if (!identityResolved) {
+      void Promise.resolve().then(() => setAccess("checking"));
+      return;
+    }
+    if (!user) {
+      void Promise.resolve().then(() => {
+        setAccess("sign_in_required");
+        setAdultPrompt(false);
+        setDraftScope(null);
+        setViewerHandle(null);
+      });
+      return;
+    }
 
     const controller = new AbortController();
     void Promise.resolve().then(() => setAccess("checking"));
@@ -442,7 +469,7 @@ export default function SocialPageClient({
         setAccess("unavailable");
       });
     return () => controller.abort();
-  }, [accessAttempt, identityResolved, initialState.tab]);
+  }, [accessAttempt, identityResolved, initialState.tab, user]);
 
   // Claiming a handle on this very page changes the answer the access route
   // gives, and the claim announces itself (`emitIdentityHandleChanged`). Without
@@ -600,7 +627,10 @@ export default function SocialPageClient({
   }, [access, initialState, loadingMore, nextCursor]);
 
   const isPosts = initialState.tab === "posts";
-  const showPostsControls = isPosts && access === "verified";
+  const showPostsControls =
+    isPosts && viewerPhase === "resolved" && access === "verified";
+  const showViewerCards =
+    isPosts && (viewerPhase !== "resolved" || access === "verified");
   return (
     <>
       <SiteNav active="social" />
@@ -612,8 +642,8 @@ export default function SocialPageClient({
               if (saved) setSubmittedPost(saved);
               setFeedAttempt((value) => value + 1);
             }} /> : null}
-            {showPostsControls ? <SocialTagInbox /> : null}
-            {showPostsControls ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
+            {showViewerCards ? <SocialTagInbox /> : null}
+            {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
               if (updated) setSubmittedPost(updated);
               setFeedAttempt((value) => value + 1);
             }} /> : null}
@@ -629,10 +659,10 @@ export default function SocialPageClient({
               </Link>
             </nav>
             {showPostsControls ? <PostsControls state={initialState} /> : null}
-            {/* Crews sit behind the same verified gate as the composer: a crew
-                is a night with other accounts in it, so nothing about it may
-                render while Social is in preview. */}
-            {showPostsControls ? (
+            {/* Crews render their own neutral identity state before the
+                verified gate answers. Protected crew data still stays behind
+                that gate. */}
+            {showViewerCards ? (
               <CrewsPanel viewerHandle={viewerHandle} compact />
             ) : null}
             {/* Friend-graph formation stays available while posts stay gated. */}
@@ -657,6 +687,28 @@ export default function SocialPageClient({
                 embedded
               />
             </div>
+          ) : viewerPhase === "unresolved" ? (
+            <section className="socialBoundary" role="status" aria-busy="true">
+              <h2>Loading Social</h2>
+              <SocialViewerState
+                phase="unresolved"
+                loadingLabel="Loading Social"
+                inviteMessage="Use Social."
+              />
+            </section>
+          ) : viewerPhase === "signed-out" ? (
+            <>
+              <SocialAccessBoundary
+                state="sign_in_required"
+              />
+              <section className="socialFeedEmpty" aria-label="People on PUBMAXX">
+                <SocialViewerState
+                  phase="signed-out"
+                  loadingLabel="Loading people on PUBMAXX"
+                  inviteMessage="Browse people on PUBMAXX."
+                />
+              </section>
+            </>
           ) : access === "checking" ? (
             <section className="socialBoundary" role="status" aria-busy="true">
               <h2>Checking Social access…</h2>
