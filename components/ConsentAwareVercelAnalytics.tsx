@@ -17,13 +17,14 @@ export function consentAwareBeforeSend(
 
 export function shouldMountVercelAnalytics(
   environment: string | undefined,
+  vercelDeployment?: string,
 ): boolean {
-  return environment === "production";
+  return environment === "production" && vercelDeployment === "1";
 }
 
 /** Vercel pageviews remain disabled until explicit analytics consent. */
 export default function ConsentAwareVercelAnalytics() {
   useEffect(() => { void flushVerifiedAnalyticsOutbox(); }, []);
-  if (!shouldMountVercelAnalytics(process.env.NODE_ENV)) return null;
+  if (!shouldMountVercelAnalytics(process.env.NODE_ENV, process.env.VERCEL)) return null;
   return <Analytics beforeSend={consentAwareBeforeSend} />;
 }

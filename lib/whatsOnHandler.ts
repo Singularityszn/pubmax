@@ -55,15 +55,17 @@ export async function handleWhatsOnRequest(
   request: Request,
   deps: LoadWhatsOnDeps = {},
 ): Promise<Response> {
-  // Own key/budget (lib/citymcpRateLimit.ts): whats-on is partly served from
-  // bundled data, so it must not share (and prematurely exhaust) the CityMCP
-  // proxy surface's budget. A 429 here is an allowed exception to the "never
-  // 500" fail-soft contract described above — upstream failures still 200.
-  if (await isWhatsOnLimited(request)) {
-    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true, compatibilityFields: { rows: [] } });
-  }
-
   try {
+    // Own key/budget (lib/citymcpRateLimit.ts): whats-on is partly served from
+    // bundled data, so it must not share (and prematurely exhaust) the CityMCP
+    // proxy surface's budget. A 429 here is an allowed exception to the "never
+    // 500" fail-soft contract described above — upstream failures still 200.
+    // Keep the limiter inside this boundary: a keyless or unavailable limiter
+    // is a failed dependency, not a reason for this read to escape as 500.
+    if (await isWhatsOnLimited(request)) {
+      return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true, compatibilityFields: { rows: [] } });
+    }
+
     const params = new URL(request.url).searchParams;
     const load: LoadWhatsOnParams = {};
     const kind = parseKind(params.get("kind"));
