@@ -36,6 +36,7 @@ import { requestMagicLink } from "@/lib/passwordlessAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { isCrossSiteRequest } from "@/lib/crossSiteRequest";
 
 assertServerEnv();
 
@@ -72,25 +73,6 @@ function setCookieHeaders(payload: AuthResumeCookiePayload | null): Headers {
   return headers;
 }
 
-/**
- * The cookie is SameSite=Lax, but the mutating actions also refuse plainly
- * cross-site requests so a forged persist cannot plant a foreign refresh
- * token. Sec-Fetch-Site is authoritative where present; otherwise a present
- * Origin must match the request origin. Requests carrying neither (same-origin
- * navigations, non-browser callers) pass — they hold no victim credentials.
- */
-function isCrossSite(request: Request): boolean {
-  const fetchSite = request.headers.get("sec-fetch-site");
-  if (fetchSite) return fetchSite === "cross-site";
-  const origin = request.headers.get("origin");
-  if (!origin) return false;
-  try {
-    return new URL(origin).origin !== new URL(request.url).origin;
-  } catch {
-    return true;
-  }
-}
-
 async function limited(
   request: Request,
   action: string,
@@ -112,7 +94,7 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  if (isCrossSite(request)) {
+  if (isCrossSiteRequest(request)) {
     return publicApiError("Cross-site requests are not accepted.", "FORBIDDEN", 403);
   }
 
@@ -131,7 +113,7 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 export async function DELETE(request: Request): Promise<Response> {
-  if (isCrossSite(request)) {
+  if (isCrossSiteRequest(request)) {
     return publicApiError("Cross-site requests are not accepted.", "FORBIDDEN", 403);
   }
   if (await limited(request, "clear", PERSIST_LIMIT, LIMIT_WINDOW_MS)) {

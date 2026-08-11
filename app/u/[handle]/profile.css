@@ -173,7 +173,7 @@
 
 .profilePage .youProfileTabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   border-block: 1px solid var(--line);
 }
 .profilePage .youProfileTabs a {
@@ -1922,7 +1922,9 @@
 .accountHubSignIn { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .75rem; }
 .accountHubSignIn p { margin: 0; max-width: 42rem; }
 @media (max-width: 760px) { .accountHubGrid { grid-template-columns: 1fr; } }
-.profilePrivateDetails { grid-template-columns: 1fr; margin-top: .75rem; }
+.accountHubSettings { display: grid; gap: .75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.accountHubSettings > h3 { margin: 0; font-size: 1.05rem; }
+.accountHubSettingsGrid { margin: 0; }
 @media (max-width: 520px) { .accountHubNightProfileGrid { grid-template-columns: 1fr; } .accountHubSignIn { align-items: stretch; flex-direction: column; } }
 
 .memoryStudio {

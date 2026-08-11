@@ -828,8 +828,6 @@ export default function PubmaxxAccountHub() {
           </div>
         )}
         <FoundingMemberCard />
-        <PrivateIdentityEditor />
-        <SetAccountPassword />
         <ReferralInviteCard
           status={referralStatus}
           busy={referralBusy}
@@ -840,9 +838,16 @@ export default function PubmaxxAccountHub() {
           onCopy={() => void copyInviteLink()}
           onShare={shareInviteLink}
         />
-        <StepOutNudgePref />
-        {analyticsControls}
       </div>
+      <section className="accountHubSettings" aria-labelledby="account-settings-title">
+        <h3 id="account-settings-title">Account settings</h3>
+        <div className="accountHubGrid accountHubSettingsGrid">
+          <PrivateIdentityEditor />
+          <SetAccountPassword />
+          <StepOutNudgePref />
+          {analyticsControls}
+        </div>
+      </section>
       <NightMemoryStudio key={user.id} userId={user.id} />
       {message ? <p role="status" className="accountHubMessage">{message}</p> : null}
     </section>

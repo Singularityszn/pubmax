@@ -6,7 +6,11 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import PasswordPolicyHint from "@/components/auth/PasswordPolicyHint";
 import { authedFetch } from "@/lib/authedFetch";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
-import { MIN_PASSWORD_LENGTH, checkPassword } from "@/lib/passwordPolicy";
+import {
+  MIN_PASSWORD_LENGTH,
+  PASSWORD_CHANGE_GENERIC_ERROR,
+  checkPassword,
+} from "@/lib/passwordPolicy";
 import { discardBody } from "@/lib/responseBody";
 
 /**
@@ -32,6 +36,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
   const [handleLoaded, setHandleLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -129,6 +134,10 @@ export default function SetAccountPassword(): React.JSX.Element | null {
       setError("Passwords do not match.");
       return;
     }
+    if (hasPassword === true && !currentPassword) {
+      setError(PASSWORD_CHANGE_GENERIC_ERROR);
+      return;
+    }
 
     setBusy(true);
     try {
@@ -137,17 +146,42 @@ export default function SetAccountPassword(): React.JSX.Element | null {
         setError("Sign-in is not configured on this build.");
         return;
       }
+      if (hasPassword === true) {
+        const verification = await authedFetch(
+          "/api/auth/change-password/verify",
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ currentPassword }),
+          },
+        );
+        if (!verification.ok) {
+          discardBody(verification);
+          setError(PASSWORD_CHANGE_GENERIC_ERROR);
+          return;
+        }
+        await verification.json().catch(() => null);
+      }
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) {
-        setError("Could not set your password. Try again.");
+        setError(
+          hasPassword === true
+            ? PASSWORD_CHANGE_GENERIC_ERROR
+            : "Could not set your password. Try again.",
+        );
         return;
       }
+      setCurrentPassword("");
       setPassword("");
       setConfirm("");
       setHasPassword(true);
       setMessage("Password saved. You can sign in with your handle next time.");
     } catch {
-      setError("Could not set your password. Try again.");
+      setError(
+        hasPassword === true
+          ? PASSWORD_CHANGE_GENERIC_ERROR
+          : "Could not set your password. Try again.",
+      );
     } finally {
       setBusy(false);
     }
@@ -175,6 +209,19 @@ export default function SetAccountPassword(): React.JSX.Element | null {
     >
       <h3>{heading}</h3>
       <p>{intro}</p>
+      {hasPassword === true ? (
+        <label>
+          Current password
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={currentPassword}
+            disabled={busy}
+            onChange={(event) => setCurrentPassword(event.target.value)}
+            required
+          />
+        </label>
+      ) : null}
       <label>
         {hasPassword === true ? "New password" : "Password"}
         <input
