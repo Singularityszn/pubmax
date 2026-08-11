@@ -97,7 +97,8 @@ describe("the profile page asks that question rather than its own", () => {
   });
 
   it("holds the You sentinel neutral until identity handoff finishes", () => {
-    expect(source).toContain("const viewerIdentityLoading = isYouRoute");
+    expect(source).toContain("const surface = profileSurfaceFor(");
+    expect(source).toContain('surface === "identity-loading"');
     expect(source).toContain('className="profileIdentityLoadingSurface"');
     expect(source).toContain('viewerState="loading"');
   });

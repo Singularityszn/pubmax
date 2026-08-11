@@ -69,6 +69,7 @@ afterEach(() => {
 
 describe("POST persist", () => {
   it("stores the refresh token and verified email in a durable HttpOnly Lax cookie", async () => {
+    vi.stubEnv("NODE_ENV", "production");
     verifyCallerAuth.mockResolvedValue({
       status: "verified",
       identity: { id: "user-1", email: "karan@example.com", createdAt: null },
@@ -87,6 +88,8 @@ describe("POST persist", () => {
     expect(setCookie).toContain("SameSite=Lax");
     expect(setCookie).toContain(`Max-Age=${30 * 24 * 60 * 60}`);
     expect(setCookie).toContain("Path=/");
+    expect(setCookie).toContain("Secure");
+    expect(setCookie).not.toMatch(/\bDomain=/i);
   });
 
   it("keeps the stored email for the SAME account when a persist cannot learn one", async () => {

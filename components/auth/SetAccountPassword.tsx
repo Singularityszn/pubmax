@@ -214,6 +214,8 @@ export default function SetAccountPassword(): React.JSX.Element | null {
   return (
     <form
       className={`accountHubPassword${hasPassword === false ? " accountHubPasswordOwed" : ""}`}
+      method="post"
+      autoComplete="on"
       onSubmit={onSubmit}
     >
       <h3>{heading}</h3>
@@ -223,6 +225,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
           Current password
           <input
             type="password"
+            name="current-password"
             autoComplete="current-password"
             value={currentPassword}
             disabled={busy}
@@ -235,6 +238,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
         {hasPassword === true ? "New password" : "Password"}
         <input
           type="password"
+          name="new-password"
           autoComplete="new-password"
           aria-describedby={hintId}
           minLength={MIN_PASSWORD_LENGTH}
@@ -249,6 +253,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
         Confirm password
         <input
           type="password"
+          name="new-password-confirmation"
           autoComplete="new-password"
           minLength={MIN_PASSWORD_LENGTH}
           value={confirm}

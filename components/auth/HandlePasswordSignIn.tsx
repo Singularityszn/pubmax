@@ -98,8 +98,6 @@ export default function HandlePasswordSignIn({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
-      setPassword("");
-      setOpen(false);
     } catch {
       setError(
         navigator.onLine === false
@@ -128,6 +126,8 @@ export default function HandlePasswordSignIn({
   return (
     <form
       className="loginPageHandlePassword"
+      method="post"
+      autoComplete="on"
       onSubmit={onSubmit}
       aria-label="Sign in with handle and password"
     >
@@ -136,7 +136,7 @@ export default function HandlePasswordSignIn({
         Handle
         <input
           type="text"
-          name="handle"
+          name="username"
           data-testid="e2e-login-handle"
           autoComplete="username"
           autoCapitalize="none"
