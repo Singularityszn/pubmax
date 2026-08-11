@@ -3,12 +3,15 @@ import { NextResponse } from "next/server";
 import type { NextRequest, ProxyConfig } from "next/server";
 
 import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
+import { assertE2ELoginSafe } from "@/lib/e2eReviewAuth";
 import { isPosterLandingSrc, posterNearHref } from "@/lib/posterLanding";
 import {
   MAP_DOCUMENT_PATH,
   MAP_DOCUMENT_TWIN_PATH,
   mapRequestNeedsDocumentTwin,
 } from "@/lib/mapDocumentTwin";
+
+assertE2ELoginSafe();
 
 const CANONICAL_HOST = "pubmaxxing.com";
 const LEGACY_UK_BASE_GENERATION = "e229e760f3e7a2fd";

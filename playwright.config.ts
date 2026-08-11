@@ -1,6 +1,8 @@
 import { randomBytes } from "node:crypto";
+import { loadEnvConfig } from "@next/env";
 import { defineConfig, devices } from "@playwright/test";
 
+import { assertE2ELoginSafe, isE2ELoginEnabled } from "./lib/e2eReviewAuth";
 import { resolvePlaywrightNextDistDir } from "./lib/playwrightDistDir";
 
 // P3.11 browser smoke suite. Chromium projects use production builds on
@@ -20,9 +22,18 @@ const FIREFOX_DESKTOP_MAP_CHROME_FIT =
 // a fresh clone installs Chromium alone and an absent browser would fail every
 // default `npm run test:e2e`.
 const WEBKIT_PROFILE_PHOTO_CROP = process.env.PW_WEBKIT_PROFILE_PHOTO_CROP === "1";
+const E2E_LOGIN = isE2ELoginEnabled();
+if (E2E_LOGIN) {
+  loadEnvConfig(process.cwd());
+  assertE2ELoginSafe();
+}
 const NEXT_DIST_DIR = resolvePlaywrightNextDistDir();
 const KEYLESS_NEXT_DIST_DIR =
   process.env.PW_KEYLESS_NEXT_DIST_DIR ?? `${NEXT_DIST_DIR}-keyless`;
+const AUTH_PORT = Number(process.env.PW_AUTH_PORT ?? PORT + 2);
+const AUTH_BASE_URL = `http://localhost:${AUTH_PORT}`;
+const AUTH_NEXT_DIST_DIR =
+  process.env.PW_AUTH_NEXT_DIST_DIR ?? `${NEXT_DIST_DIR}-auth`;
 // Production-style browser tests retain the keyless in-memory stores, but
 // trusted Plan claims never use that storage escape hatch. Give each Playwright
 // invocation a fresh process-only signing key shared by its build/start shell.
@@ -44,9 +55,22 @@ const E2E_DISCORD_INVITE_URL = "https://discord.gg/pubmaxx-e2e-invite";
 const E2E_RATE_LIMIT_SALT =
   process.env.RATE_LIMIT_SALT ?? "pubmax-e2e-rate-limit-salt-32-chars-min";
 const REAL_AUTH_CONFIGURED = Boolean(
-  process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  !E2E_LOGIN &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 );
+
+if (
+  E2E_LOGIN &&
+  (!process.env.SUPABASE_URL ||
+    !process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)
+) {
+  throw new Error(
+    "PUBMAX_E2E_LOGIN=1 requires real Supabase URL, publishable key, and service-role key in the local environment.",
+  );
+}
 
 export default defineConfig({
   testDir: "./e2e",
@@ -97,6 +121,7 @@ export default defineConfig({
         "**/map-fallback.spec.ts",
         "**/map-service-worker.spec.ts",
         "**/map-uk-base-layer.spec.ts",
+        "**/signed-in-review.spec.ts",
         // Flag-ON specs run only in the chromium-flag-on project against a
         // flag-on build (L20 zero-skip contract) — never in the default
         // flag-off suite, where their assertions would false-fail.
@@ -151,6 +176,17 @@ export default defineConfig({
           name: "chromium-real-auth",
           testMatch: "**/price-contribution-auth.spec.ts",
           use: { ...devices["Desktop Chrome"] },
+        }]
+      : []),
+    ...(E2E_LOGIN
+      ? [{
+          name: "chromium-authenticated",
+          testMatch: "**/signed-in-review.spec.ts",
+          use: {
+            ...devices["Desktop Chrome"],
+            baseURL: AUTH_BASE_URL,
+            storageState: { cookies: [], origins: [] },
+          },
         }]
       : []),
     {
@@ -282,17 +318,18 @@ export default defineConfig({
           PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
           ADMIN_TOKEN: E2E_ADMIN_TOKEN,
           RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
+          PUBMAX_E2E_LOGIN: "0",
           PUBMAX_E2E_KEYLESS: "1",
           // Auth regressions may opt into the real public Supabase project.
           // Keep these as pass-throughs: browser tests must not fake auth over
           // the wire, and ordinary keyless runs remain network-independent.
-          ...(process.env.NEXT_PUBLIC_SUPABASE_URL
+          ...(process.env.NEXT_PUBLIC_SUPABASE_URL && !E2E_LOGIN
             ? {
                 NEXT_PUBLIC_SUPABASE_URL:
                   process.env.NEXT_PUBLIC_SUPABASE_URL,
               }
             : {}),
-          ...(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+          ...(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !E2E_LOGIN
             ? {
                 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
                   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
@@ -355,10 +392,41 @@ export default defineConfig({
               NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
               NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
               PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
+              PUBMAX_E2E_LOGIN: "0",
               PUBMAX_E2E_KEYLESS: "1",
             },
             url: KEYLESS_BASE_URL,
             reuseExistingServer: !process.env.CI,
+            timeout: 600_000,
+            stdout: "pipe" as const,
+            stderr: "pipe" as const,
+          }]
+        : []),
+      ...(E2E_LOGIN
+        ? [{
+            command:
+              `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${AUTH_PORT}`,
+            env: {
+              NEXT_DIST_DIR: AUTH_NEXT_DIST_DIR,
+              NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+              NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+                process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "",
+              SUPABASE_URL: process.env.SUPABASE_URL ?? "",
+              SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+              ...(process.env.SUPABASE_STORAGE_BUCKET
+                ? { SUPABASE_STORAGE_BUCKET: process.env.SUPABASE_STORAGE_BUCKET }
+                : {}),
+              PUBMAX_E2E_LOGIN: "1",
+              VERCEL_ENV: "development",
+              NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
+              NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
+              NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: E2E_POSTHOG_PROJECT_TOKEN,
+              PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
+              ADMIN_TOKEN: E2E_ADMIN_TOKEN,
+              RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
+            },
+            url: AUTH_BASE_URL,
+            reuseExistingServer: false,
             timeout: 600_000,
             stdout: "pipe" as const,
             stderr: "pipe" as const,
