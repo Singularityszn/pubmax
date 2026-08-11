@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import ShareBar from "@/components/share/ShareBar";
 import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
@@ -36,12 +37,6 @@ function publishVibeTop(planId: string, slug: string | null): void {
 
 function operationKey(): string {
   return typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function errorMessage(body: unknown, fallback: string): string {
-  if (!body || typeof body !== "object") return fallback;
-  const error = (body as { error?: unknown }).error;
-  return typeof error === "string" ? error : fallback;
 }
 
 /** Accept only a well-shaped tally from the wire; anything else is dropped. */
@@ -116,7 +111,7 @@ export default function PlanVibe({ planId, initialTally }: { planId: string; ini
       if (!response.ok) {
         // Quiet inline states, value first: the tally on screen stays the last
         // saved truth. 429 and the 503 pre-migration window both land here.
-        setNote(`${errorMessage(body, "That vote did not save.")} The tally keeps the saved votes.`);
+        setNote(`${errorMessageFrom(body, "That vote did not save.")} The tally keeps the saved votes.`);
         return;
       }
       setMyVibe(chip.id);

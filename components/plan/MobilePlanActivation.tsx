@@ -21,6 +21,7 @@ import { planRouteTotalsFallbackLabel, resolvePlanRouteTotalLabel } from "@/lib/
 import { isPlanStopCount, normalizePlanStopCount, PLAN_STOP_COUNTS, type PlanStopCount } from "@/lib/planStopCount";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import type { Venue } from "@/lib/venues";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 
 type GeneratedStop = { venueId: string; venueName: string };
 
@@ -37,13 +38,7 @@ const MOODS = ["quiet", "lively", "historic", "music", "garden"] as const;
 const PACES = ["easy pace", "balanced pace", "fast pace"] as const;
 
 function responseError(body: unknown): string {
-  if (!body || typeof body !== "object") return "PUBMAXX could not build that route.";
-  const error = (body as { error?: unknown }).error;
-  if (typeof error === "string") return error;
-  if (error && typeof error === "object" && typeof (error as { message?: unknown }).message === "string") {
-    return (error as { message: string }).message;
-  }
-  return "PUBMAXX could not build that route.";
+  return errorMessageFrom(body, "PUBMAXX could not build that route.");
 }
 
 export function MobilePlanActivation({

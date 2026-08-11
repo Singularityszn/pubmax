@@ -8,6 +8,12 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { authedFetch } from "@/lib/authedFetch";
+import {
+  errorMessageFrom,
+  findYourLotInviteFailureMessage,
+  INVITE_LINK_FALLBACK_MESSAGE,
+  INVITE_LINK_OFFLINE_MESSAGE,
+} from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
@@ -118,8 +124,8 @@ export default function FindYourLot({
         },
       );
       if (!response.ok) {
-        const body = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? "Could not follow them.");
+        const body = (await response.json().catch(() => null)) as unknown;
+        throw new Error(errorMessageFrom(body, "Could not follow them."));
       }
       setFollowByHandle((current) => ({ ...current, [handle]: "done" }));
     } catch (error) {
@@ -139,15 +145,24 @@ export default function FindYourLot({
         body: "{}",
       });
       const body = (await response.json().catch(() => null)) as
-        | { url?: string; error?: string }
+        | { url?: string; error?: unknown }
         | null;
       if (!response.ok || typeof body?.url !== "string") {
-        throw new Error(body?.error ?? "Could not mint an invite link.");
+        throw new Error(
+          findYourLotInviteFailureMessage(
+            body,
+            typeof navigator === "undefined" || navigator.onLine,
+          ),
+        );
       }
       setInviteUrl(body.url);
     } catch (error) {
       setNotice(
-        error instanceof Error ? error.message : "Could not mint an invite link.",
+        typeof navigator !== "undefined" && !navigator.onLine
+          ? INVITE_LINK_OFFLINE_MESSAGE
+          : error instanceof Error
+            ? error.message
+            : INVITE_LINK_FALLBACK_MESSAGE,
       );
     } finally {
       setInviteBusy(false);

@@ -15,6 +15,7 @@ import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySna
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { subscribeToAuthFragmentRestored } from "@/lib/authRedirect";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 
 function readInviteTokenFromHash(): string | null {
   if (typeof window === "undefined") return null;
@@ -148,7 +149,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
     })
       .then(async (response) => ({ response, body: await response.json().catch(() => null) }))
       .then(({ response, body }) => {
-        if (!response.ok) throw new Error(typeof body?.error === "string" ? body.error : "Could not load crew decisions.");
+        if (!response.ok) throw new Error(errorMessageFrom(body, "Could not load crew decisions."));
         writePlanCapability(planId, { token: memberToken, collaborationAuthorized: true, role: "guest" });
         // body.inviteId is the invite's own row id (see upgradeMemberInvite in
         // lib/planCollaborationStore.ts) — links back to invite_created for
@@ -223,7 +224,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
         body: JSON.stringify({ name, inviteToken }),
       });
       const body = await response.json();
-      if (!response.ok || !body?.memberToken) throw new Error(body?.error || "Could not join this plan.");
+      if (!response.ok || !body?.memberToken) throw new Error(errorMessageFrom(body, "Could not join this plan."));
       writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: body.collaborationAuthorized === true, role: "guest" });
       clearPersistentPlanMutationKey(operationScope, operationKey);
       history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
@@ -271,7 +272,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
         body: JSON.stringify({ memberToken, status }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body?.error || "Could not update your status.");
+      if (!response.ok) throw new Error(errorMessageFrom(body, "Could not update your status."));
       setCrew(body.crew ?? crew);
       if (status === "here") {
         try {

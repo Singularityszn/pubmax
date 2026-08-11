@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversationControls, useConversationMode, useConversationStatus } from "@elevenlabs/react";
 import { Mic, MicOff, Send } from "lucide-react";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { PalAnimationState } from "@/lib/pubPal";
 import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
@@ -73,7 +74,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
       const response = await authedFetch("/api/pub-pal/voice-token", { method: "POST" });
       const body = await response.json() as VoiceTokenResponse;
       if (!response.ok || !body.signedUrl) {
-        setError(body.error ?? "Voice is unavailable. Use text instead.");
+        setError(errorMessageFrom(body, "Voice is unavailable. Use text instead."));
         onStateChange?.("error");
         return;
       }

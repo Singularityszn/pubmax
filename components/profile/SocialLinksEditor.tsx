@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
   SOCIAL_OAUTH_PROVIDERS,
   SOCIAL_PROVIDERS,
@@ -96,13 +97,13 @@ export default function SocialLinksEditor(): React.JSX.Element {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ mode: "manual", value }),
     }).catch(() => null);
-    const body = (await response?.json().catch(() => null)) as { error?: string } | null;
+    const body = (await response?.json().catch(() => null)) as { error?: unknown } | null;
     if (response?.ok) {
       setValue("");
       setNotice(`${socialProviderLabel(provider)} added.`);
       setLoadNonce((nonce) => nonce + 1);
     } else {
-      setNotice(body?.error ?? "That link could not be saved. Try again.");
+      setNotice(errorMessageFrom(body, "That link could not be saved. Try again."));
     }
     setBusy(false);
   }
@@ -118,13 +119,13 @@ export default function SocialLinksEditor(): React.JSX.Element {
     }).catch(() => null);
     const body = (await response?.json().catch(() => null)) as {
       authorizeUrl?: string;
-      error?: string;
+      error?: unknown;
     } | null;
     if (response?.ok && body?.authorizeUrl) {
       window.location.assign(body.authorizeUrl);
       return;
     }
-    setNotice(body?.error ?? "That connection is unavailable.");
+    setNotice(errorMessageFrom(body, "That connection is unavailable."));
     setBusy(false);
   }
 

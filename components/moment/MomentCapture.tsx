@@ -24,6 +24,7 @@ import { trackEvent } from "@/lib/analytics";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import { recordMomentNudgeTrigger } from "@/lib/identityNudge";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { captureNativePhoto } from "@/lib/nativeCamera";
 import { isNativeApp } from "@/lib/nativePlatform";
 import {
@@ -343,7 +344,7 @@ export default function MomentCapture(): React.JSX.Element {
           serverMemoryId: response?.status === 400 ? null : memoryId,
         });
         setSaveState("idle");
-        setMessage(responseBody.error ?? "Some photos could not be saved. The remaining draft is safe.");
+        setMessage(errorMessageFrom(responseBody, "Some photos could not be saved. The remaining draft is safe."));
         return;
       }
     }

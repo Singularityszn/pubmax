@@ -8,6 +8,7 @@ import "./NightMemoryStudio.css";
 
 import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { NightMomentKind } from "@/lib/nightMemory";
 import {
   readMemoryStudioDraft,
@@ -138,7 +139,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
       if (controller.signal.aborted) return;
       if (!response.ok || !body.story) {
         setWorkspace(null);
-        setMessage(body.error ?? "That Story preview could not be loaded.");
+        setMessage(errorMessageFrom(body, "That Story preview could not be loaded."));
         return;
       }
       setWorkspace(body);
@@ -154,7 +155,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     if (!storyId) return false;
     const response = await authedFetch(`/api/night-stories/${encodeURIComponent(storyId)}/workspace`);
     const body = await response.json().catch(() => ({})) as StoryWorkspace & { error?: string };
-    if (!response.ok || !body.story) throw new Error(body.error ?? "That Story preview could not be loaded.");
+    if (!response.ok || !body.story) throw new Error(errorMessageFrom(body, "That Story preview could not be loaded."));
     if (selectedStoryIdRef.current !== storyId) return false;
     setWorkspace(body);
     setStories((current) => current.map((story) => story.id === body.story.id ? body.story : story));
@@ -190,7 +191,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     });
     const body = await response.json().catch(() => ({})) as { memory?: Memory; error?: string };
     setSaving(false);
-    if (!response.ok || !body.memory) return setMessage(body.error ?? "Could not create that Memory.");
+    if (!response.ok || !body.memory) return setMessage(errorMessageFrom(body, "Could not create that Memory."));
     setMemories((current) => [body.memory!, ...current]);
     update({ memoryTitle: "", selectedMemoryId: body.memory.id, storyTitle: body.memory.title });
     setMessage("Private Memory created. Add the parts worth keeping.");
@@ -212,7 +213,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     });
     const body = await response.json().catch(() => ({})) as { moment?: Moment; error?: string };
     setSaving(false);
-    if (!response.ok || !body.moment) return setMessage(body.error ?? "Could not save that Moment.");
+    if (!response.ok || !body.moment) return setMessage(errorMessageFrom(body, "Could not save that Moment."));
     setMoments((current) => [body.moment!, ...current]);
     update({ momentCaption: "", venueId: "" });
     trackEvent("night_moment_saved", { kind: body.moment.kind, visibility: "private" });
@@ -230,7 +231,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     });
     const body = await response.json().catch(() => ({})) as { story?: Story; error?: string };
     setSaving(false);
-    if (!response.ok || !body.story) return setMessage(body.error ?? "Could not create that Story draft.");
+    if (!response.ok || !body.story) return setMessage(errorMessageFrom(body, "Could not create that Story draft."));
     const ownedStory: Story = { ...body.story, membership: { role: "host", status: "accepted", joinedAt: null } };
     setStories((current) => [ownedStory, ...current]);
     selectStory(body.story.id);
@@ -251,7 +252,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         body: JSON.stringify({ title: workspace.story.title, summary: workspace.story.summary }),
       });
       const body = await response.json().catch(() => ({})) as { story?: Story; error?: string };
-      if (!response.ok || !body.story) throw new Error(body.error ?? "That Story preview could not be saved.");
+      if (!response.ok || !body.story) throw new Error(errorMessageFrom(body, "That Story preview could not be saved."));
       if (selectedStoryIdRef.current !== storyId) return;
       setWorkspace((current) => current ? { ...current, story: body.story! } : current);
       setStories((current) => current.map((story) => story.id === body.story!.id ? body.story! : story));
@@ -272,7 +273,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         method: decision === "accept" ? "PATCH" : "DELETE",
       });
       const body = await response.json().catch(() => ({})) as { error?: string };
-      if (!response.ok) throw new Error(body.error ?? "That Story invitation could not be updated.");
+      if (!response.ok) throw new Error(errorMessageFrom(body, "That Story invitation could not be updated."));
       if (decision === "decline") {
         setStories((current) => current.filter((story) => story.id !== storyId));
         if (selectedStoryIdRef.current === storyId) selectStory("");
@@ -303,7 +304,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         body: JSON.stringify({ momentId, status }),
       });
       const body = await response.json().catch(() => ({})) as { error?: string };
-      if (!response.ok) throw new Error(body.error ?? "That consent choice could not be saved.");
+      if (!response.ok) throw new Error(errorMessageFrom(body, "That consent choice could not be saved."));
       if (!await refreshWorkspace(workspace.story.id)) return;
       if (status === "withdrawn") setSelectedMomentIds((current) => current.filter((id) => id !== momentId));
       setConfirmation(null);
@@ -330,7 +331,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         body: JSON.stringify({ altText }),
       });
       const body = await response.json().catch(() => ({})) as { altTextConfirmed?: boolean; error?: string };
-      if (!response.ok) throw new Error(body.error ?? "That photo description could not be saved.");
+      if (!response.ok) throw new Error(errorMessageFrom(body, "That photo description could not be saved."));
       if (!await refreshWorkspace(workspace.story.id)) return;
       setMessage(body.altTextConfirmed
         ? "Photo description saved. This photo can now be published."
@@ -360,7 +361,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         }),
       });
       const body = await response.json().catch(() => ({})) as { moment?: Moment; error?: string };
-      if (!response.ok || !body.moment) throw new Error(body.error ?? "That Moment could not be added to this Story.");
+      if (!response.ok || !body.moment) throw new Error(errorMessageFrom(body, "That Moment could not be added to this Story."));
       if (!await refreshWorkspace(storyId)) return;
       setContributionDraft({ kind: "quote", caption: "", venueId: "" });
       setMessage("Moment added privately. Approve it below only when you are ready for the host to include it.");
@@ -384,7 +385,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         body: JSON.stringify({ handle: inviteHandle, role: "contributor" }),
       });
       const body = await response.json().catch(() => ({})) as { error?: string };
-      if (!response.ok) throw new Error(body.error ?? "That contributor could not be invited.");
+      if (!response.ok) throw new Error(errorMessageFrom(body, "That contributor could not be invited."));
       setInviteHandle("");
       if (!await refreshWorkspace(workspace.story.id)) return;
       setConfirmation(null);
@@ -409,7 +410,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         body: JSON.stringify({ momentIds: selectedMomentIds, visibility: publishVisibility }),
       });
       const body = await response.json().catch(() => ({})) as { proposal?: { id: string }; confirmationToken?: string; error?: string };
-      if (!response.ok || !body.proposal || !body.confirmationToken) throw new Error(body.error ?? "Every selected Moment needs current owner approval.");
+      if (!response.ok || !body.proposal || !body.confirmationToken) throw new Error(errorMessageFrom(body, "Every selected Moment needs current owner approval."));
       if (selectedStoryIdRef.current !== storyId || previewRevisionRef.current !== revision) return;
       setConfirmation({
         storyId,
@@ -437,7 +438,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
         body: JSON.stringify({ proposalId: confirmation.proposalId, confirmationToken: confirmation.confirmationToken }),
       });
       const body = await response.json().catch(() => ({})) as { story?: Story; error?: string };
-      if (!response.ok || !body.story) throw new Error(body.error ?? "That Story could not be published.");
+      if (!response.ok || !body.story) throw new Error(errorMessageFrom(body, "That Story could not be published."));
       setConfirmation(null);
       trackEvent("night_story_published", { contributors: workspace.contributors.length, moments: selectedMomentIds.length });
       trackEvent("story_published", { visibility: publishVisibility, contributors: workspace.contributors.length, moments: selectedMomentIds.length });

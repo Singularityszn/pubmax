@@ -39,6 +39,25 @@ test.describe("Social with the friends launch off", () => {
     ).toBeVisible();
   });
 
+  test("structured invite failures render fallback copy", async ({ page }) => {
+    await page.route("**/api/referrals/invite-link", async (route) => {
+      await route.fulfill({
+        status: 502,
+        contentType: "application/json",
+        body: JSON.stringify({ error: { code: "X" } }),
+      });
+    });
+    await page.goto("/social");
+
+    const inviteButton = page.getByRole("button", { name: "Get invite link" }).first();
+    await expect(inviteButton).toBeVisible();
+    await inviteButton.click();
+
+    const notice = page.locator(".findLot__error").filter({ hasText: "Could not mint an invite link." }).first();
+    await expect(notice).toBeVisible();
+    await expect(page.getByText("[object Object]", { exact: true })).toHaveCount(0);
+  });
+
   test("a directory with nobody left to offer says which empty it is", async ({
     page,
   }) => {

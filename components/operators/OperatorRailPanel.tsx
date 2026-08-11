@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
   OPERATOR_EVIDENCE_KINDS,
   type OperatorClaimDTO,
@@ -111,7 +112,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
       });
       const data = (await res.json().catch(() => ({}))) as { claim?: OperatorClaimDTO; error?: string };
       if (!res.ok) {
-        setClaimFeedback({ kind: "error", text: data.error ?? "Could not file your claim just now." });
+        setClaimFeedback({ kind: "error", text: errorMessageFrom(data, "Could not file your claim just now.") });
         return;
       }
       if (data.claim) setClaim(data.claim);
@@ -147,7 +148,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        setProposalFeedback({ kind: "error", text: data.error ?? "Could not send your proposal." });
+        setProposalFeedback({ kind: "error", text: errorMessageFrom(data, "Could not send your proposal.") });
         return;
       }
       resetProposalForm();

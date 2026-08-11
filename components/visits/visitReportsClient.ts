@@ -16,6 +16,7 @@ import type {
   VisitReportReadStatus,
 } from "@/lib/visitReports";
 import { discardBody } from "@/lib/responseBody";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 
 export type VisitReportVenueRead = {
   status: VisitReportReadStatus;
@@ -69,7 +70,7 @@ export async function reportVisitReport(id: string): Promise<void> {
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? "Couldn't report this visit note just now.");
+    throw new Error(errorMessageFrom(body, "Couldn't report this visit note just now."));
   }
 }
 
@@ -86,7 +87,7 @@ export async function postVisitReport(
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {
-      error?: string;
+      error?: unknown;
       status?: unknown;
     };
     const status =
@@ -96,7 +97,7 @@ export async function postVisitReport(
         : undefined;
     return {
       ok: false,
-      error: body.error ?? "Couldn't save your visit report just now.",
+      error: errorMessageFrom(body, "Couldn't save your visit report just now."),
       ...(status ? { status } : {}),
     };
   }

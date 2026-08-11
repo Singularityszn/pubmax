@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import { getAccessToken } from "@/lib/authClient";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
   PROFILE_COVER_ADD_LABEL,
   PROFILE_COVER_MOVE_DOWN_LABEL,
@@ -59,17 +60,6 @@ type ProfileCoverPhotosEditorProps = {
 /** Identity of a chosen file, so a second pick arrives as a fresh crop step. */
 function fileKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`;
-}
-
-function parseApiError(body: unknown, fallback: string): string {
-  if (
-    body &&
-    typeof body === "object" &&
-    typeof (body as { error?: unknown }).error === "string"
-  ) {
-    return (body as { error: string }).error;
-  }
-  return fallback;
 }
 
 export default function ProfileCoverPhotosEditor({
@@ -146,7 +136,7 @@ export default function ProfileCoverPhotosEditor({
       const response = await fetch(url, init);
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
-        setError(parseApiError(body, fallbackError));
+          setError(errorMessageFrom(body, fallbackError));
         return;
       }
       applyReply(body);
