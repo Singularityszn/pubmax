@@ -11,6 +11,7 @@ import {
   nightContextChanged,
   parsePlanRouteDraft,
   planAcceptanceTelemetry,
+  planGenerationFailureStatus,
   planLockValidationError,
   routeStopsFromGenerated,
   serverPlanCreationAttribution,
@@ -114,6 +115,18 @@ describe("PlanComposer Night Area coverage states", () => {
 });
 
 describe("PlanComposer route preview seam", () => {
+  it("keeps first-generation failures free of stale-route wording", () => {
+    expect(planGenerationFailureStatus("Could not sort this one.", false)).toBe(
+      "Could not sort this one.",
+    );
+  });
+
+  it("names the retained route when a refresh fails", () => {
+    expect(planGenerationFailureStatus("Could not sort this one.", true)).toBe(
+      "The previous route is still here. Could not sort this one.",
+    );
+  });
+
   it("uses house error copy when Lock it in is missing only a name", () => {
     expect(planLockValidationError({
       title: "Thursday crawl",
@@ -182,7 +195,7 @@ describe("PlanComposer route preview seam", () => {
     expect(isGroundedGeneratedRoute({ grounded: true, groundingProof: "signed-proof" }, stops.slice(0, 2))).toBe(false);
   });
 
-  it("keeps exactly three generated stops and attaches the top-level alternative pool", () => {
+  it("keeps generated stops and attaches the top-level alternative pool", () => {
     const stops = routeStopsFromGenerated([
       { venueId: "a", venueName: "A" },
       { venueId: "b", venueName: "B" },
@@ -194,7 +207,7 @@ describe("PlanComposer route preview seam", () => {
       { venueId: "x", venueName: "X again" },
     ]);
 
-    expect(stops).toHaveLength(3);
+    expect(stops).toHaveLength(4);
     expect(stops[0]?.alternatives).toEqual([{ venueId: "x", venueName: "X" }]);
   });
 

@@ -10,6 +10,7 @@ import {
   minutesUntilLeaveBy,
   type LastTrainResult,
 } from "@/lib/tfl";
+import { lineDisplayLabel } from "@/lib/tflDisruption";
 
 export type GetHomeSummary = {
   // "Victoria line good service." or a short disruption note.
@@ -70,7 +71,7 @@ export function summariseGetHome(
   const disruption = decision?.disruptionSummary ?? null;
   const statusLine = disruption
     ? truncate(disruption)
-    : `${primaryLineName} line good service.`;
+    : `${lineDisplayLabel(primaryLineName)} good service.`;
 
   let trainLine = `Last train from ${stationName} ${lastTrain.clock}.`;
   const countdown = describeLeaveCountdown(

@@ -17,6 +17,11 @@
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
 import { discardBody } from "@/lib/responseBody";
 
+export function lineDisplayLabel(name: string): string {
+  const trimmed = name.trim();
+  return /\bline$/i.test(trimmed) ? trimmed : `${trimmed} line`;
+}
+
 // ---------------------------------------------------------------------------
 // Severity model.
 // ---------------------------------------------------------------------------
@@ -325,7 +330,7 @@ export function pickTopDisruption(
 // ---------------------------------------------------------------------------
 
 export function describeDisruption(d: MaterialDisruption): string {
-  const line = `${d.lineName} line`;
+  const line = lineDisplayLabel(d.lineName);
   switch (d.kind) {
     case "closed":
       return `${line} closed tonight, plan the bus or the walk`;

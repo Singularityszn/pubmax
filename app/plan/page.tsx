@@ -29,7 +29,7 @@ export default function NewPlanPage() {
       <section className="planPage__intro">
         <p className="planPage__eyebrow">One link for the whole group.</p>
         <h1>Describe the outing. We’ll put it in order.</h1>
-        <p>Get three useful stops, change anything you don&rsquo;t fancy, then send one plan the whole crew can open without an account.</p>
+        <p>Get three to six useful stops, change anything you don&rsquo;t fancy, then send one plan the whole crew can open without an account.</p>
       </section>
       <PlanComposer flags={flags} />
       <TonightAgentPanel />

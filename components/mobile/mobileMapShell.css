@@ -821,7 +821,7 @@
   /* Empty-price cell doubles as the drop CTA: a quiet accent-tinted button that
      keeps the price column's stacked look but reads as tappable. */
   /* Three cells, ONE idiom. "No price yet." used to sit in a bordered, tinted
-     mono box beside a plain "Near me / for walk time" cell and a filled CTA -
+     mono box beside a plain "Near me / Turn on location for walk times" cell and a filled CTA -
      three visual languages in one row, and the box shouted loudest about the
      thing the pub does NOT have (design judgement 2026-08-01, finding 2.16).
      It now reads exactly like its neighbour cell; the coral stays on the
