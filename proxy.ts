@@ -11,6 +11,7 @@ import {
 } from "@/lib/mapDocumentTwin";
 
 const CANONICAL_HOST = "pubmaxxing.com";
+const LEGACY_UK_BASE_GENERATION = "e229e760f3e7a2fd";
 
 // THE ONE CSP EXCEPTION, AND ITS WHOLE LIST.
 //
@@ -77,6 +78,29 @@ function isArtifactPreviewHost(request: NextRequest): boolean {
 
 function servesApiCaller(pathname: string): boolean {
   return pathname === "/api" || pathname.startsWith("/api/");
+}
+
+function legacyUkBaseRewrite(request: NextRequest): URL | null {
+  const prefix = `/data/uk_base/packs/${LEGACY_UK_BASE_GENERATION}/`;
+  const pathname = request.nextUrl.pathname;
+  if (!pathname.startsWith(prefix)) return null;
+
+  const activeGeneration = process.env.NEXT_PUBLIC_UK_BASE_GENERATION?.trim();
+  if (!activeGeneration || !/^[a-f0-9]{16}$/.test(activeGeneration)) return null;
+
+  const suffix = pathname.slice(prefix.length);
+  if (
+    !suffix ||
+    suffix.includes("/") ||
+    suffix.includes("..") ||
+    !suffix.endsWith(".json")
+  ) {
+    return null;
+  }
+
+  const target = new URL(request.url);
+  target.pathname = `/data/uk_base/packs/${activeGeneration}/${suffix}`;
+  return target;
 }
 
 // AN API REQUEST IS A CALLER, NOT A READER, SO IT IS NEVER SENT ELSEWHERE.
@@ -183,6 +207,10 @@ export function securityProxy(request: NextRequest) {
     return applyNonProductionRobotsTag(
       NextResponse.redirect(canonicalUrl, 308),
     );
+  }
+  const legacyUkBaseTarget = legacyUkBaseRewrite(request);
+  if (legacyUkBaseTarget) {
+    return applyNonProductionRobotsTag(NextResponse.rewrite(legacyUkBaseTarget));
   }
   // Physical QR path (PLG Wave 2): printed codes use /?src=poster (+ optional
   // utm_*), and the scan opens nearby prices rather than the marketing landing.

@@ -57,6 +57,7 @@ Useful scripts:
 | `npm run shots:extended` | Runs the same gate with the 430/1280 breakpoint audit |
 | `npm run setup` | Enables the pre-push git hook (`core.hooksPath=.githooks`) — run once |
 | `npm run build:slim` | Slim map index + **venue detail artifacts** (`data/generated/`) — also runs on `prebuild` |
+| `npm run build:city-slim` | Regenerates enabled city slim packs, eager cores, and manifests |
 
 ### Venue detail index
 

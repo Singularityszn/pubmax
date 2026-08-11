@@ -13,12 +13,22 @@
 // Usage:
 //   node scripts/build_city_slim_index.mjs --city=manchester
 //   node scripts/build_city_slim_index.mjs
+//
+// Each city also gets an eager core shard and manifest beside the canonical
+// venues_slim.json so the browser never probes a missing manifest before its
+// first map paint.
 
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { CITIES } from "./fetch_city_osm_pubs.mjs";
+import {
+  computeBbox,
+  CORE_FILE,
+  MANIFEST_FILE,
+  SHARD_VERSION,
+} from "./lib/slimShards.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -166,6 +176,22 @@ async function buildCity(city) {
   await mkdir(outDir, { recursive: true });
   const text = JSON.stringify(slim);
   await writeFile(outPath, text);
+  await writeFile(path.join(outDir, CORE_FILE), text);
+  await writeFile(
+    path.join(outDir, MANIFEST_FILE),
+    JSON.stringify({
+      version: SHARD_VERSION,
+      shards: [
+        {
+          id: "core",
+          core: true,
+          url: `/data/cities/${city.id}/${CORE_FILE}`,
+          count: slim.length,
+          bbox: computeBbox(slim),
+        },
+      ],
+    }),
+  );
 
   const kb = (Buffer.byteLength(text) / 1024).toFixed(1);
   console.log(

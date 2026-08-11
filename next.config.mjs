@@ -10,6 +10,15 @@ import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
+const ukBaseManifest = JSON.parse(
+  readFileSync(
+    path.join(projectRoot, "public", "data", "uk_base", "manifest.json"),
+    "utf8",
+  ),
+);
+const ukBaseGeneration =
+  /^\/data\/uk_base\/packs\/([a-f0-9]{16})\/$/.exec(ukBaseManifest.urlPrefix)?.[1] ?? "";
+
 // The freshness spine reads each dataset's artifact by a path taken from
 // data/freshness_registry.json AT RUNTIME (join(process.cwd(), dataset.artifact)).
 // Next's file tracing only follows paths it can see statically, so it traces NONE
@@ -177,6 +186,9 @@ const nextConfig = {
   env: {
     // See swVersion above — SW cache-busting build id.
     NEXT_PUBLIC_SW_VERSION: swVersion,
+    // proxy.ts uses this build-time value to keep stale UK base manifests
+    // readable after a content-addressed pack generation changes.
+    NEXT_PUBLIC_UK_BASE_GENERATION: ukBaseGeneration,
   },
   skipTrailingSlashRedirect: true,
   async redirects() {

@@ -8,7 +8,7 @@
   "scripts": {
     "predev": "npm run prepare:maplibre-worker",
     "dev": "next dev --webpack",
-    "prebuild": "npm run prepare:maplibre-worker && npm run build:slim && npm run build:pubmaxxing-seed && npm run build:uk-base",
+    "prebuild": "npm run prepare:maplibre-worker && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base",
     "build": "next build",
     "prestart": "node -e \"const d=process.env.NEXT_DIST_DIR||'.next'; require('fs').existsSync(d+'/BUILD_ID') || (console.error('\\n\\u2717 '+d+'/BUILD_ID is missing \\u2014 there is no completed production build to serve.\\n  Run npm run build to completion first. In this shared worktree a concurrent next dev/next build can clobber .next mid-build and leave it partial; for isolated production QA use NEXT_DIST_DIR=.next-prod.\\n'), process.exit(1))\"",
     "start": "next start",
@@ -23,7 +23,7 @@
     "shots": "PUBMAX_E2E_KEYLESS=1 PUBMAX_FRIEND_MEMBER_REHYDRATION_V2=1 PW_SCREENSHOTS=1 PUBMAX_TRACKED_OUTPUTS=docs/screenshots node scripts/run-with-restored-next-env.mjs sh -c 'npm run build && base=$((30000 + ($$ % 10000))); i=0; for p in shots-390-light shots-1440-light shots-390-dark shots-1440-dark; do PW_PORT=$((base + i)) playwright test --workers=1 --project=$p || exit; i=$((i + 1)); done'",
     "shots:extended": "PUBMAX_E2E_KEYLESS=1 PUBMAX_FRIEND_MEMBER_REHYDRATION_V2=1 PW_SCREENSHOTS=1 PUBMAX_TRACKED_OUTPUTS=docs/screenshots node scripts/run-with-restored-next-env.mjs sh -c 'npm run build && base=$((30000 + ($$ % 10000))); i=0; for p in shots-390-light shots-430-light shots-1280-light shots-1440-light shots-390-dark shots-430-dark shots-1280-dark shots-1440-dark; do PW_PORT=$((base + i)) playwright test --workers=1 --project=$p || exit; i=$((i + 1)); done'",
     "coverage": "vitest run --coverage --maxWorkers=4",
-    "prevalidate-data": "npm run build:slim && npm run build:pubmaxxing-seed && npm run build:uk-base",
+    "prevalidate-data": "npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base",
     "validate-data": "node scripts/validate-data.mjs",
     "check:freshness": "node scripts/check_freshness.mjs",
     "publish:pint-index-month": "tsx scripts/publish_pint_index_month.mjs",
