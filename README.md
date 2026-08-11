@@ -53,6 +53,7 @@ Useful scripts:
 | `npm run ci:isolated` | Collision-safe keyless `ci` in a unique temporary Next dist directory; restores Next-managed tracked files |
 | `npm test` | Vitest unit suite |
 | `npm run test:e2e` | Playwright smoke (builds, starts, drives Chromium) |
+| [Signed-in review harness](docs/testing/signed-in-review.md) | Seeded local authenticated browser review |
 | `npm run shots` | Generates required 390/1440 light/dark Gate-Z screenshots; map captures fail unless MapLibre paints a pub mark |
 | `npm run shots:extended` | Runs the same gate with the 430/1280 breakpoint audit |
 | `npm run setup` | Enables the pre-push git hook (`core.hooksPath=.githooks`) — run once |

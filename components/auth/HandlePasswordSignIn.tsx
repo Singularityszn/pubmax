@@ -111,6 +111,7 @@ export default function HandlePasswordSignIn({
       <button
         type="button"
         className="loginPageQuietLink loginPageHandlePasswordToggle"
+        data-testid="e2e-login-toggle"
         disabled={disabled || busy}
         onClick={() => setOpen(true)}
       >
@@ -131,6 +132,7 @@ export default function HandlePasswordSignIn({
         <input
           type="text"
           name="handle"
+          data-testid="e2e-login-handle"
           autoComplete="username"
           autoCapitalize="none"
           autoCorrect="off"
@@ -147,6 +149,7 @@ export default function HandlePasswordSignIn({
         <input
           type="password"
           name="password"
+          data-testid="e2e-login-password"
           autoComplete="current-password"
           minLength={MIN_PASSWORD_LENGTH}
           required
@@ -156,7 +159,12 @@ export default function HandlePasswordSignIn({
         />
       </label>
       <div className="loginPageHandlePasswordActions">
-        <button type="submit" className="loginPagePrimary" disabled={busy || disabled}>
+        <button
+          type="submit"
+          className="loginPagePrimary"
+          data-testid="e2e-login-submit"
+          disabled={busy || disabled}
+        >
           {busy ? "Signing in…" : "Sign in"}
         </button>
         <button
