@@ -5,7 +5,7 @@
 // WHY THIS IS NOT AN `<img src>` POINTED AT THE ROUTE. A DM photo is the one
 // owned image in this tree that is NOT public: the bytes are gated by the same
 // courtesy participant check the thread read makes, and that check reads a
-// bearer token an `<img>` cannot send. So the bytes come through `authedFetch`
+// bearer token an `<img>` cannot send. So the bytes come through `authedActionFetch`
 // like every other gated read on this surface, and the tile renders the object
 // URL. ONE gate, and no short-lived signed URL minted that would outlive the
 // check that authorised it.
@@ -23,7 +23,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import {
   MESSAGE_PHOTO_ASPECT_PROPERTY,
   MESSAGE_PHOTO_UNREADABLE_LINE,
@@ -60,7 +60,7 @@ export default function MessagePhoto({
 
     void (async () => {
       try {
-        const res = await authedFetch(address, { signal: controller.signal });
+        const res = await authedActionFetch(address, { signal: controller.signal });
         if (!res.ok) {
           // Between learning the status and reading the body, let the body go.
           discardBody(res);

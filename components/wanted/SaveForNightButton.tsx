@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { isUkBaseVenueId, type WantedDTO } from "@/lib/wanted";
 
@@ -23,7 +23,7 @@ export default function SaveForNightButton({
     setBusy(true);
     setToast(null);
     try {
-      const res = await authedFetch("/api/wanted", {
+      const res = await authedActionFetch("/api/wanted", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

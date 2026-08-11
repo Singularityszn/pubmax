@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversationControls, useConversationMode, useConversationStatus } from "@elevenlabs/react";
 import { Mic, MicOff, Send } from "lucide-react";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { PalAnimationState } from "@/lib/pubPal";
 import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
@@ -18,7 +18,7 @@ type VoiceTokenResponse = {
 
 async function releaseVoiceSession(durationSeconds: number): Promise<void> {
   try {
-    await authedFetch("/api/pub-pal/voice-token", {
+    await authedActionFetch("/api/pub-pal/voice-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "release", durationSeconds }),
@@ -71,7 +71,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     connectedAtRef.current = null;
     onStateChange?.("noticing");
     try {
-      const response = await authedFetch("/api/pub-pal/voice-token", { method: "POST" });
+      const response = await authedActionFetch("/api/pub-pal/voice-token", { method: "POST" });
       const body = await response.json() as VoiceTokenResponse;
       if (!response.ok || !body.signedUrl) {
         setError(errorMessageFrom(body, "Voice is unavailable. Use text instead."));

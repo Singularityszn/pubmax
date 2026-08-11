@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
   SOCIAL_OAUTH_PROVIDERS,
@@ -66,7 +66,7 @@ export default function SocialLinksEditor(): React.JSX.Element {
   useEffect(() => {
     const controller = new AbortController();
     async function load() {
-      const response = await authedFetch("/api/social-connections", {
+      const response = await authedActionFetch("/api/social-connections", {
         signal: controller.signal,
       }).catch(() => null);
       if (controller.signal.aborted) return;
@@ -92,7 +92,7 @@ export default function SocialLinksEditor(): React.JSX.Element {
     if (busy || !value.trim()) return;
     setBusy(true);
     setNotice("");
-    const response = await authedFetch(`/api/social-connections/${provider}`, {
+    const response = await authedActionFetch(`/api/social-connections/${provider}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ mode: "manual", value }),
@@ -112,7 +112,7 @@ export default function SocialLinksEditor(): React.JSX.Element {
     if (busy) return;
     setBusy(true);
     setNotice("");
-    const response = await authedFetch(`/api/social-connections/${target}`, {
+    const response = await authedActionFetch(`/api/social-connections/${target}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ mode: "oauth" }),
@@ -133,7 +133,7 @@ export default function SocialLinksEditor(): React.JSX.Element {
     if (busy) return;
     setBusy(true);
     setNotice("");
-    const response = await authedFetch(`/api/social-connections/${target}`, {
+    const response = await authedActionFetch(`/api/social-connections/${target}`, {
       method: "DELETE",
     }).catch(() => null);
     if (response?.ok) {

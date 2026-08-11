@@ -4,7 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { detectA2hsPlatform } from "@/lib/a2hsPrompt";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { registerWebPush, unregisterWebPush } from "@/lib/webPush";
 
@@ -52,7 +52,7 @@ export default function StepOutNudgePref(): React.JSX.Element {
   useEffect(() => {
     if (!user) return;
     const controller = new AbortController();
-    void authedFetch("/api/step-out-nudge", { signal: controller.signal })
+    void authedActionFetch("/api/step-out-nudge", { signal: controller.signal })
       .then(async (response) => {
         if (controller.signal.aborted) return;
         const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
@@ -91,7 +91,7 @@ export default function StepOutNudgePref(): React.JSX.Element {
         setNotice("Could not turn on web push. Check notification permission and try again.");
         return;
       }
-      const response = await authedFetch("/api/step-out-nudge", {
+      const response = await authedActionFetch("/api/step-out-nudge", {
         method: "POST",
         body: JSON.stringify({ enabled: true, token }),
       });
@@ -121,7 +121,7 @@ export default function StepOutNudgePref(): React.JSX.Element {
     setBusy(true);
     setNotice("");
     try {
-      const response = await authedFetch("/api/step-out-nudge", { method: "DELETE" });
+      const response = await authedActionFetch("/api/step-out-nudge", { method: "DELETE" });
       await unregisterWebPush();
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       if (!response.ok) {

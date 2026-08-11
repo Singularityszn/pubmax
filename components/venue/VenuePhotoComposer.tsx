@@ -20,7 +20,7 @@
 import { useRef, useState } from "react";
 
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
 import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
 import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
@@ -70,7 +70,7 @@ export default function VenuePhotoComposer({
         JSON.stringify({ venueId, drinkCategory, caption, shareToFeed }),
       );
       form.append("photo", file);
-      const response = await authedFetch("/api/venue-photos", {
+      const response = await authedActionFetch("/api/venue-photos", {
         method: "POST",
         body: form,
       });

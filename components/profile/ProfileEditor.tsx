@@ -5,8 +5,8 @@ import { useRef, useState } from "react";
 
 import ProfileCoverPhotosEditor from "@/components/profile/ProfileCoverPhotosEditor";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
-import { getAccessToken } from "@/lib/authClient";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { AuthActionSessionError, authedActionFetch } from "@/lib/authedFetch";
 import { categoryLabel, MAP_LENS_DRINK_CATEGORIES } from "@/lib/drinks";
 import {
   PROFILE_IMAGE_PICKER_ACCEPT,
@@ -139,14 +139,6 @@ export default function ProfileEditor({
   );
   const formBusy = state === "saving" || imageBusy;
 
-  async function authHeaders(json = false): Promise<Record<string, string>> {
-    const token = await getAccessToken();
-    const headers: Record<string, string> = {};
-    if (json) headers["content-type"] = "application/json";
-    if (token) headers.authorization = `Bearer ${token}`;
-    return headers;
-  }
-
   function markImage(slot: ProfileImageSlot, next: ImageState, message: string | null) {
     setImageState((prev) => ({ ...prev, [slot]: next }));
     setImageError((prev) => ({ ...prev, [slot]: message }));
@@ -167,9 +159,8 @@ export default function ProfileEditor({
     try {
       const form = new FormData();
       form.append("photo", file);
-      const res = await fetch(`/api/profiles/${encodeURIComponent(handle)}/${slot}`, {
+      const res = await authedActionFetch(`/api/profiles/${encodeURIComponent(handle)}/${slot}`, {
         method: "POST",
-        headers: await authHeaders(),
         body: form,
       });
       const body: unknown = await res.json().catch(() => null);
@@ -189,17 +180,22 @@ export default function ProfileEditor({
         if (slot === "avatar") setAvatarPreview(profile.avatarUrl ?? "");
       }
       markImage(slot, "idle", null);
-    } catch {
-      markImage(slot, "error", "Network error. Try again.");
+    } catch (error) {
+      markImage(
+        slot,
+        "error",
+        error instanceof AuthActionSessionError
+          ? error.message
+          : "Network error. Try again.",
+      );
     }
   }
 
   async function removeImage(slot: ProfileImageSlot) {
     markImage(slot, "removing", null);
     try {
-      const res = await fetch(`/api/profiles/${encodeURIComponent(handle)}/${slot}`, {
+      const res = await authedActionFetch(`/api/profiles/${encodeURIComponent(handle)}/${slot}`, {
         method: "DELETE",
-        headers: await authHeaders(),
       });
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
@@ -214,8 +210,14 @@ export default function ProfileEditor({
       if (profile) onProfileChanged(profile);
       if (slot === "avatar") setAvatarPreview("");
       markImage(slot, "idle", null);
-    } catch {
-      markImage(slot, "error", "Network error. Try again.");
+    } catch (error) {
+      markImage(
+        slot,
+        "error",
+        error instanceof AuthActionSessionError
+          ? error.message
+          : "Network error. Try again.",
+      );
     }
   }
 
@@ -227,9 +229,9 @@ export default function ProfileEditor({
     setError(null);
 
     try {
-      const res = await fetch(`/api/profiles/${encodeURIComponent(handle)}`, {
+      const res = await authedActionFetch(`/api/profiles/${encodeURIComponent(handle)}`, {
         method: "PATCH",
-        headers: await authHeaders(true),
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           displayName,
           bio,
@@ -250,9 +252,13 @@ export default function ProfileEditor({
       const profile = profileFrom(body);
       if (profile) onSaved(profile);
       setState("saved");
-    } catch {
+    } catch (error) {
       setState("error");
-      setError("Network error. Try again.");
+      setError(
+        error instanceof AuthActionSessionError
+          ? error.message
+          : "Network error. Try again.",
+      );
     }
   }
 

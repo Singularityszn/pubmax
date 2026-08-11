@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
@@ -49,7 +49,7 @@ export default function MessagesLink(): React.JSX.Element {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const res = await authedFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
+      const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
         signal: controller.signal,
       });
       if (!res.ok) {

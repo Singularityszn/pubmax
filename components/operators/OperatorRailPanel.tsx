@@ -11,12 +11,12 @@
 //                              / response) whose submissions route through REVIEW.
 //
 // Trusted data is never touched here: a proposal is a REQUEST an admin reviews.
-// All writes use authedFetch so the server binds the account to the verified JWT.
+// All writes use authedActionFetch so the server binds the account to the verified JWT.
 
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
   OPERATOR_EVIDENCE_KINDS,
@@ -80,7 +80,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
   useEffect(() => {
     if (!open || !signedIn) return;
     let active = true;
-    authedFetch(`/api/venue-operators/claim?venueId=${encodeURIComponent(venueId)}`)
+    authedActionFetch(`/api/venue-operators/claim?venueId=${encodeURIComponent(venueId)}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { claim: OperatorClaimDTO | null } | null) => {
         if (!active) return;
@@ -105,7 +105,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
     setSavingClaim(true);
     setClaimFeedback(null);
     try {
-      const res = await authedFetch("/api/venue-operators/claim", {
+      const res = await authedActionFetch("/api/venue-operators/claim", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ venueId, evidenceKind, evidenceNote: note }),
@@ -141,7 +141,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
     setSavingProposal(true);
     setProposalFeedback(null);
     try {
-      const res = await authedFetch("/api/operator-proposals", {
+      const res = await authedActionFetch("/api/operator-proposals", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ venueId, type: proposalType, payload }),

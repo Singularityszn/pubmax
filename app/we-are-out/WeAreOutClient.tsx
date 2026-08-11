@@ -15,7 +15,7 @@ import { getNightAreasForCity } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import "../feed/feed.css";
 import "./we-are-out.css";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 
 type PostState = "idle" | "posting" | "done" | "error";
@@ -61,7 +61,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = false }: P
     setState("posting");
     setError("");
     try {
-      const res = await authedFetch("/api/check-ins", {
+      const res = await authedActionFetch("/api/check-ins", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle, areaSlug, note, visibility: "friends" }),

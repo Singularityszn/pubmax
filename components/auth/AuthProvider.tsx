@@ -79,7 +79,7 @@ import {
   type CanonicalAuthAttemptStart,
   type CapturedAuthCallback,
 } from "@/lib/authRedirect";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch, publishAuthActionState } from "@/lib/authedFetch";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   claimSignupReferralFromAuthCallback,
@@ -648,7 +648,7 @@ export function AuthProvider({
             ? claimSignupReferralFromAuthCallback({
                 currentUrl: window.location.href,
                 callback: callbackAttempt,
-                request: authedFetch,
+                request: authedActionFetch,
                 replaceUrl: (cleanUrl) => {
                   window.history.replaceState(
                     window.history.state,
@@ -876,6 +876,20 @@ export function AuthProvider({
     },
     [],
   );
+
+  useEffect(() => {
+    publishAuthActionState({
+      status: !configured
+        ? "signed-out"
+        : loading
+          ? "unknown"
+          : session
+            ? "signed-in"
+            : "signed-out",
+      identityResolved:
+        !configured || (canonicalIdentityState.status === "resolved" && !loading),
+    });
+  }, [canonicalIdentityState.status, configured, loading, session]);
 
   const resumeSignIn = useCallback(async (): Promise<MagicLinkResult> => {
     if (typeof window === "undefined") {

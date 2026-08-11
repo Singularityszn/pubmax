@@ -9,7 +9,7 @@ import {
   followRelationHint,
   resolveFollowRelation,
 } from "@/lib/followRelation";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import type { FollowCounts } from "@/lib/followStore";
 
 // Follow / unfollow control for a public profile. The follower handle is passed
@@ -63,7 +63,7 @@ export default function FollowButton({
     setFollowing(next); // optimistic
 
     try {
-      const res = await authedFetch(`/api/profiles/${encodeURIComponent(targetHandle)}/follow`, {
+      const res = await authedActionFetch(`/api/profiles/${encodeURIComponent(targetHandle)}/follow`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

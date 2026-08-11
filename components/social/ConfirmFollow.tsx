@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { safeInviteReturnTo } from "@/lib/inviteReturnTo";
 
@@ -61,7 +61,7 @@ export default function ConfirmFollow({
     setState("working");
     setError("");
     try {
-      const res = await authedFetch(`/api/profiles/${encodeURIComponent(target)}/follow`, {
+      const res = await authedActionFetch(`/api/profiles/${encodeURIComponent(target)}/follow`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ follower: myHandle }),

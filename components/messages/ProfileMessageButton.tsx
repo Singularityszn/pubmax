@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 
@@ -44,7 +44,7 @@ export default function ProfileMessageButton({
   async function open() {
     setBusy(true);
     try {
-      const res = await authedFetch("/api/messages", {
+      const res = await authedActionFetch("/api/messages", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

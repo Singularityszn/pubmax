@@ -18,7 +18,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { SocialCrewListItemDTO } from "@/lib/socialCrew";
 import { discardBody } from "@/lib/responseBody";
@@ -101,7 +101,7 @@ export default function CrewsPanel({
     const controller = new AbortController();
     void (async () => {
       try {
-        const response = await authedFetch("/api/social/access", {
+        const response = await authedActionFetch("/api/social/access", {
           cache: "no-store",
           credentials: "same-origin",
           signal: controller.signal,
@@ -125,7 +125,7 @@ export default function CrewsPanel({
     if (gate !== "open" || viewerPhase !== "resolved") return;
     const controller = new AbortController();
     void Promise.resolve().then(() => setStatus("loading"));
-    authedFetch("/api/social/crews", {
+    authedActionFetch("/api/social/crews", {
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
@@ -161,7 +161,7 @@ export default function CrewsPanel({
     venueDebounce.current = setTimeout(() => {
       void (async () => {
         try {
-          const response = await authedFetch(
+          const response = await authedActionFetch(
             `/api/social/venues?q=${encodeURIComponent(query)}`,
             { cache: "no-store", credentials: "same-origin", signal: controller.signal },
           );
@@ -199,7 +199,7 @@ export default function CrewsPanel({
     setStart("working");
     try {
       const planKey = crewIdempotencyKey("crew-plan");
-      const planResponse = await authedFetch("/api/plans", {
+      const planResponse = await authedActionFetch("/api/plans", {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json", "idempotency-key": planKey },
@@ -214,7 +214,7 @@ export default function CrewsPanel({
         throw new Error(errorMessageFrom(planBody, "Could not set the night up."));
       }
 
-      const crewResponse = await authedFetch("/api/social/crews", {
+      const crewResponse = await authedActionFetch("/api/social/crews", {
         method: "POST",
         credentials: "same-origin",
         headers: {

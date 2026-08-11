@@ -1,4 +1,4 @@
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 
 type AccountOnboardingRequest = (
   input: string,
@@ -22,7 +22,7 @@ type AccountHandleAvailability =
   | { status: "unavailable"; error: string };
 
 export async function loadAccountOnboardingStatus(
-  request: AccountOnboardingRequest = authedFetch,
+  request: AccountOnboardingRequest = authedActionFetch,
   signal?: AbortSignal,
 ): Promise<AccountOnboardingStatus> {
   try {
@@ -93,7 +93,7 @@ function waitForRetry(delayMs: number, signal?: AbortSignal): Promise<boolean> {
  * Keep that transient failure out of the UI with one bounded, abort-safe retry.
  */
 export async function loadAccountOnboardingStatusWithRetry(
-  request: AccountOnboardingRequest = authedFetch,
+  request: AccountOnboardingRequest = authedActionFetch,
   signal?: AbortSignal,
 ): Promise<AccountOnboardingStatus> {
   let result = await loadAccountOnboardingStatus(request, signal);

@@ -20,6 +20,7 @@ import {
 
 vi.mock("@/lib/authedFetch", () => ({
   authedFetch: async () => new Response("{}", { status: 503 }),
+  authedActionFetch: async () => new Response("{}", { status: 503 }),
 }));
 
 const viewerState = vi.hoisted(() => ({ handle: null as string | null }));

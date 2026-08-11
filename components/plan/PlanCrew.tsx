@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import { trackEvent } from "@/lib/analytics";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
 import { isClassicPlanInviteToken } from "@/lib/planCrewInviteUrl";
@@ -218,7 +218,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
     try {
       const operationScope = `join:${planId}`;
       const operationKey = await persistentPlanMutationKey(operationScope, { name: name.trim(), inviteToken });
-      const response = await authedFetch(`/api/plans/${planId}/join`, {
+      const response = await authedActionFetch(`/api/plans/${planId}/join`, {
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": operationKey },
         body: JSON.stringify({ name, inviteToken }),

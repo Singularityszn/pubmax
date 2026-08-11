@@ -15,6 +15,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/authedFetch", () => ({
   authedFetch: async () => new Response("{}", { status: 403 }),
+  authedActionFetch: async () => new Response("{}", { status: 403 }),
 }));
 
 import CrewsPanel from "@/components/social/CrewsPanel";

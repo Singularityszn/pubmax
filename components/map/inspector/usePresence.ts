@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { isUkBaseVenueId } from "@/lib/wanted";
 import type { Venue } from "@/lib/venues";
 
@@ -46,7 +46,7 @@ export function usePresence(venue: Venue) {
     }
     setPresenceState("sending");
     try {
-      const res = await authedFetch("/api/presence", {
+      const res = await authedActionFetch("/api/presence", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle, venueId: venue.id }),

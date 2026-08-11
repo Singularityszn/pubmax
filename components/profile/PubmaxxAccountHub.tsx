@@ -18,7 +18,10 @@ import {
   captureAccountAuth,
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
-import { authedFetch } from "@/lib/authedFetch";
+import {
+  AuthActionSessionError,
+  authedActionFetch,
+} from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { emitIdentityHandleChanged, syncDeviceHandle } from "@/lib/identityClient";
 import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
@@ -445,9 +448,9 @@ export default function PubmaxxAccountHub() {
       }
     });
     void Promise.allSettled([
-      authedFetch("/api/me/night-profile", { signal: controller.signal }),
-      authedFetch("/api/referrals/status", { signal: controller.signal }),
-      authedFetch("/api/me/pending-plan-recaps", { signal: controller.signal }),
+      authedActionFetch("/api/me/night-profile", { signal: controller.signal }),
+      authedActionFetch("/api/referrals/status", { signal: controller.signal }),
+      authedActionFetch("/api/me/pending-plan-recaps", { signal: controller.signal }),
     ]).then(async ([nightProfileResult, referralsResult, pendingRecapResult]) => {
       if (controller.signal.aborted) return;
       const nightProfile = nightProfileResult.status === "fulfilled"
@@ -538,7 +541,7 @@ export default function PubmaxxAccountHub() {
       setMessage("Your account preferences were left unchanged.");
       return;
     }
-    const response = await authedFetch("/api/me/night-profile", {
+    const response = await authedActionFetch("/api/me/night-profile", {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -595,7 +598,7 @@ export default function PubmaxxAccountHub() {
         memberToken: memberToken === PLAN_HTTP_ONLY_SESSION ? PLAN_HTTP_ONLY_SESSION : memberToken,
       });
     }
-    const response = await authedFetch("/api/me/pending-plan-recaps", {
+    const response = await authedActionFetch("/api/me/pending-plan-recaps", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ action: "claim", choice: "bring-device", items }),
@@ -627,7 +630,7 @@ export default function PubmaxxAccountHub() {
 
   async function saveAccountNightProfile() {
     if (!nightProfileDraft || !nightProfileLoaded) return;
-    const response = await authedFetch("/api/me/night-profile", {
+    const response = await authedActionFetch("/api/me/night-profile", {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -665,7 +668,7 @@ export default function PubmaxxAccountHub() {
     setReferralBusy(true);
     setReferralNotice("");
     try {
-      const response = await authedFetch("/api/referrals/invite-link", {
+      const response = await authedActionFetch("/api/referrals/invite-link", {
         method: "POST",
       });
       const body = (await response.json().catch(() => null)) as {
@@ -678,8 +681,12 @@ export default function PubmaxxAccountHub() {
       }
       setReferralLink(body.url);
       setReferralNotice("Your invite link is ready. Copy it or share it.");
-    } catch {
-      setReferralNotice("Your invite link could not be made. Try again.");
+    } catch (error) {
+      setReferralNotice(
+        error instanceof AuthActionSessionError
+          ? error.message
+          : "Your invite link could not be made. Try again.",
+      );
     } finally {
       setReferralBusy(false);
     }

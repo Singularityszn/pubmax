@@ -25,7 +25,7 @@
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { parseFoundingMemberNumber } from "@/lib/foundingMembers";
 
 export type FoundingMembership =
@@ -51,7 +51,7 @@ export function useFoundingMembership(): FoundingMembership {
     }
     const controller = new AbortController();
     let live = true;
-    void authedFetch("/api/identity/handle/current", { signal: controller.signal })
+    void authedActionFetch("/api/identity/handle/current", { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) return null;
         return (await response.json().catch(() => null)) as
