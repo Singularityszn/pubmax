@@ -22,8 +22,7 @@
   /* iOS Safari scroll stability: `vh` resolves to the LARGE viewport and, worse,
      any `dvh` reflows as the URL bar collapses/expands mid-scroll — both make the
      feed jump. `svh` is the SMALL (stable) viewport, so the shell never resizes
-     as the toolbar animates. `100vh` stays as the fallback for older engines. */
-  min-height: 100vh;
+     as the toolbar animates. The stable small viewport is intentional here. */
   min-height: 100svh;
   background:
     linear-gradient(105deg, transparent 0 16%, color-mix(in srgb, var(--river) 7%, transparent) 16% 17%, transparent 17% 100%),
@@ -221,6 +220,7 @@
   padding: 0 2px;
   list-style: none;
   overflow-x: auto;
+  touch-action: pan-y;
   scrollbar-width: none;
   /* D8: the ticker used to hard-clip whichever item sat at the scroll edge
      mid-word ("@handle at 'T…") with no hint there was more to scroll.
@@ -1431,6 +1431,7 @@
     justify-content: flex-start;
     flex-wrap: nowrap;
     overflow-x: auto;
+    touch-action: pan-y;
     /* Judge-w2 polish 2 (second pass): tighter gap so all four primary labels
        sit whole inside a 390px viewport and the at-rest cut lands BETWEEN
        chips ("More" peeking under the fade), never mid-label — the w3 shot

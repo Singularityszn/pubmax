@@ -2,7 +2,6 @@
    this file is layout + the bubble language only. */
 
 .messagesPage {
-  min-height: 100vh;
   min-height: 100dvh;
   background: var(--paper);
 }

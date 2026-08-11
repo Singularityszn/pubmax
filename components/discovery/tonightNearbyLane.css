@@ -40,6 +40,7 @@
   display: flex;
   gap: 12px;
   overflow-x: auto;
+  touch-action: pan-y;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;

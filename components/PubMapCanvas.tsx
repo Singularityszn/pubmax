@@ -982,7 +982,7 @@ export default function PubMapCanvas({
     let didConstruct = false;
     let constructCleanup: (() => void) | undefined;
 
-    // --- Size gate. `.mapStage` is `absolute inset:0` inside a 100vh shell, so
+    // --- Size gate. `.mapStage` is `absolute inset:0` inside a 100dvh shell, so
     // it should be sized at mount — but if the shell hasn't laid out yet MapLibre
     // would build against a 0×0 canvas and paint nothing. Rather than construct
     // blind, wait (briefly) for a real box. This eliminates the 0-size hypothesis
@@ -3075,7 +3075,7 @@ export default function PubMapCanvas({
   const hoverCardStyle = hoveredVenue
     ? {
         left: `clamp(${HOVER_CARD_VIEWPORT_GUTTER_PX}px, ${hoveredVenue.x + HOVER_CARD_X_OFFSET_PX}px, calc(100vw - ${HOVER_CARD_WIDTH_PX + HOVER_CARD_VIEWPORT_GUTTER_PX}px))`,
-        top: `clamp(${HOVER_CARD_MIN_TOP_PX}px, ${hoveredVenue.y + HOVER_CARD_Y_OFFSET_PX}px, calc(100vh - ${HOVER_CARD_HEIGHT_PX + HOVER_CARD_VIEWPORT_GUTTER_PX}px))`,
+        top: `clamp(${HOVER_CARD_MIN_TOP_PX}px, ${hoveredVenue.y + HOVER_CARD_Y_OFFSET_PX}px, calc(100dvh - ${HOVER_CARD_HEIGHT_PX + HOVER_CARD_VIEWPORT_GUTTER_PX}px))`,
       }
     : undefined;
 

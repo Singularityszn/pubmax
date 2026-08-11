@@ -115,6 +115,7 @@
 
 .pintIndexTableWrap {
   overflow-x: auto;
+  touch-action: pan-y;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel);
