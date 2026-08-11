@@ -19,6 +19,7 @@ import {
 
 vi.mock("@/lib/authedFetch", () => ({
   authedFetch: async () => new Response("{}", { status: 401 }),
+  authedActionFetch: async () => new Response("{}", { status: 401 }),
 }));
 
 function availability(

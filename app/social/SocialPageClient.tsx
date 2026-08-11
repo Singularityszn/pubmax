@@ -16,7 +16,7 @@ import {
   SocialViewerState,
   type SocialViewerPhase,
 } from "@/components/social/SocialViewerState";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
@@ -440,7 +440,7 @@ export default function SocialPageClient({
 
     const controller = new AbortController();
     void Promise.resolve().then(() => setAccess("checking"));
-    authedFetch("/api/social/access", {
+    authedActionFetch("/api/social/access", {
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
@@ -487,7 +487,7 @@ export default function SocialPageClient({
   const assertAdult = useCallback(() => {
     setAssertBusy(true);
     setAssertError(null);
-    authedFetch("/api/identity/adult-assertion", {
+    authedActionFetch("/api/identity/adult-assertion", {
       method: "POST",
       cache: "no-store",
       credentials: "same-origin",
@@ -526,7 +526,7 @@ export default function SocialPageClient({
       setFeedStatus("loading");
       setLoadingMore(false);
     });
-    authedFetch(feedHref, {
+    authedActionFetch(feedHref, {
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
@@ -562,7 +562,7 @@ export default function SocialPageClient({
 
     const controller = new AbortController();
     void Promise.resolve().then(() => setActivityStatus("loading"));
-    authedFetch("/api/social/interactions?view=notifications&limit=5", {
+    authedActionFetch("/api/social/interactions?view=notifications&limit=5", {
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
@@ -596,7 +596,7 @@ export default function SocialPageClient({
     moreController.current = controller;
     setLoadingMore(true);
     try {
-      const response = await authedFetch(href, {
+      const response = await authedActionFetch(href, {
         cache: "no-store",
         credentials: "same-origin",
         signal: controller.signal,

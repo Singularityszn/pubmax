@@ -7,7 +7,7 @@ import { Check, Eye, LockKeyhole, UserPlus } from "lucide-react";
 import "./NightMemoryStudio.css";
 
 import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { NightMomentKind } from "@/lib/nightMemory";
 import {
@@ -66,8 +66,8 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
   useEffect(() => {
     const controller = new AbortController();
     void Promise.all([
-      authedFetch("/api/night-memories", { signal: controller.signal }),
-      authedFetch("/api/night-stories", { signal: controller.signal }),
+      authedActionFetch("/api/night-memories", { signal: controller.signal }),
+      authedActionFetch("/api/night-stories", { signal: controller.signal }),
     ]).then(async ([memoryResponse, storyResponse]) => {
       if (controller.signal.aborted) return;
       const nextMemories = memoryResponse.ok
@@ -116,7 +116,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
       return;
     }
     const controller = new AbortController();
-    void authedFetch(`/api/night-memories/${encodeURIComponent(draft.selectedMemoryId)}/moments`, {
+    void authedActionFetch(`/api/night-memories/${encodeURIComponent(draft.selectedMemoryId)}/moments`, {
       signal: controller.signal,
     }).then(async (response) => {
       if (!controller.signal.aborted && response.ok) {
@@ -132,7 +132,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
       return;
     }
     const controller = new AbortController();
-    void authedFetch(`/api/night-stories/${encodeURIComponent(selectedStoryId)}/workspace`, {
+    void authedActionFetch(`/api/night-stories/${encodeURIComponent(selectedStoryId)}/workspace`, {
       signal: controller.signal,
     }).then(async (response) => {
       const body = await response.json().catch(() => ({})) as StoryWorkspace & { error?: string };
@@ -153,7 +153,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
 
   async function refreshWorkspace(storyId: string = selectedStoryId): Promise<boolean> {
     if (!storyId) return false;
-    const response = await authedFetch(`/api/night-stories/${encodeURIComponent(storyId)}/workspace`);
+    const response = await authedActionFetch(`/api/night-stories/${encodeURIComponent(storyId)}/workspace`);
     const body = await response.json().catch(() => ({})) as StoryWorkspace & { error?: string };
     if (!response.ok || !body.story) throw new Error(errorMessageFrom(body, "That Story preview could not be loaded."));
     if (selectedStoryIdRef.current !== storyId) return false;
@@ -184,7 +184,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
   async function createMemory(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
-    const response = await authedFetch("/api/night-memories", {
+      const response = await authedActionFetch("/api/night-memories", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ title: draft.memoryTitle }),
@@ -201,7 +201,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     event.preventDefault();
     if (!draft.selectedMemoryId) return setMessage("Create or choose a Memory first.");
     setSaving(true);
-    const response = await authedFetch(`/api/night-memories/${encodeURIComponent(draft.selectedMemoryId)}/moments`, {
+      const response = await authedActionFetch(`/api/night-memories/${encodeURIComponent(draft.selectedMemoryId)}/moments`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -224,7 +224,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     event.preventDefault();
     if (!draft.selectedMemoryId) return setMessage("Choose a Memory before drafting its Story.");
     setSaving(true);
-    const response = await authedFetch("/api/night-stories", {
+      const response = await authedActionFetch("/api/night-stories", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ memoryId: draft.selectedMemoryId, title: draft.storyTitle, summary: draft.storySummary }),
@@ -246,7 +246,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     setMessage("");
     const storyId = workspace.story.id;
     try {
-      const response = await authedFetch(`/api/night-stories/${encodeURIComponent(storyId)}`, {
+      const response = await authedActionFetch(`/api/night-stories/${encodeURIComponent(storyId)}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ title: workspace.story.title, summary: workspace.story.summary }),
@@ -269,7 +269,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     setSaving(true);
     setMessage("");
     try {
-      const response = await authedFetch(`/api/night-stories/${encodeURIComponent(storyId)}/contributors`, {
+      const response = await authedActionFetch(`/api/night-stories/${encodeURIComponent(storyId)}/contributors`, {
         method: decision === "accept" ? "PATCH" : "DELETE",
       });
       const body = await response.json().catch(() => ({})) as { error?: string };
@@ -298,7 +298,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     setSaving(true);
     invalidatePublication();
     try {
-      const response = await authedFetch(`/api/night-stories/${encodeURIComponent(workspace.story.id)}/consents`, {
+      const response = await authedActionFetch(`/api/night-stories/${encodeURIComponent(workspace.story.id)}/consents`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ momentId, status }),
@@ -325,7 +325,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     setSaving(true);
     invalidatePublication();
     try {
-      const response = await authedFetch(`/api/night-moments/${encodeURIComponent(momentId)}/alt-text`, {
+      const response = await authedActionFetch(`/api/night-moments/${encodeURIComponent(momentId)}/alt-text`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ altText }),
@@ -350,7 +350,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     setSaving(true);
     setMessage("");
     try {
-      const response = await authedFetch(`/api/night-stories/${encodeURIComponent(storyId)}/moments`, {
+      const response = await authedActionFetch(`/api/night-stories/${encodeURIComponent(storyId)}/moments`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -379,7 +379,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     setSaving(true);
     invalidatePublication();
     try {
-      const response = await authedFetch(`/api/night-stories/${encodeURIComponent(workspace.story.id)}/contributors`, {
+      const response = await authedActionFetch(`/api/night-stories/${encodeURIComponent(workspace.story.id)}/contributors`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle: inviteHandle, role: "contributor" }),
@@ -404,7 +404,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     const storyId = workspace.story.id;
     const revision = previewRevisionRef.current;
     try {
-      const response = await authedFetch(`/api/night-stories/${encodeURIComponent(storyId)}/publish-proposals`, {
+      const response = await authedActionFetch(`/api/night-stories/${encodeURIComponent(storyId)}/publish-proposals`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ momentIds: selectedMomentIds, visibility: publishVisibility }),
@@ -432,7 +432,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     if (!workspace || !confirmation || confirmation.storyId !== workspace.story.id || confirmation.revision !== previewRevisionRef.current) return;
     setSaving(true);
     try {
-      const response = await authedFetch(`/api/night-stories/${encodeURIComponent(workspace.story.id)}/publish-confirmations`, {
+      const response = await authedActionFetch(`/api/night-stories/${encodeURIComponent(workspace.story.id)}/publish-confirmations`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ proposalId: confirmation.proposalId, confirmationToken: confirmation.confirmationToken }),

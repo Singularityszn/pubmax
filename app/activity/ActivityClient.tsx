@@ -8,7 +8,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import SiteNav from "@/components/nav/SiteNav";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import type { NotificationDTO, NotificationKind } from "@/lib/notifications";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
@@ -103,7 +103,7 @@ export default function ActivityClient(): React.JSX.Element {
     setLoading(true);
     setFailed(false);
     try {
-      const res = await authedFetch(`/api/notifications?handle=${encodeURIComponent(h)}`);
+      const res = await authedActionFetch(`/api/notifications?handle=${encodeURIComponent(h)}`);
       if (!res.ok) {
         discardBody(res);
         setFailed(true);
@@ -111,7 +111,7 @@ export default function ActivityClient(): React.JSX.Element {
       }
       const body = (await res.json()) as { notifications?: NotificationDTO[] };
       setItems(Array.isArray(body.notifications) ? body.notifications : []);
-      void authedFetch("/api/notifications", {
+      void authedActionFetch("/api/notifications", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle: h }),

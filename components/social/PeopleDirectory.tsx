@@ -23,7 +23,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
   followActionDescription,
@@ -217,7 +217,7 @@ export default function PeopleDirectory({
     setWorking(clean);
     setProblem("");
     try {
-      const response = await authedFetch(
+      const response = await authedActionFetch(
         `/api/profiles/${encodeURIComponent(clean)}/follow`,
         {
           method: "POST",

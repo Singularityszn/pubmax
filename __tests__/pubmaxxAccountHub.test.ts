@@ -185,7 +185,7 @@ describe("PubmaxxAccountHub provider gating", () => {
       source.indexOf("async function inviteMate"),
       source.indexOf("async function copyInviteLink"),
     );
-    expect(inviteMate).toContain("authedFetch(\"/api/referrals/invite-link\"");
+    expect(inviteMate).toContain("authedActionFetch(\"/api/referrals/invite-link\"");
     expect(inviteMate).not.toContain("navigator.share");
   });
 

@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import {
+  AuthActionSessionError,
+  authedActionFetch,
+} from "@/lib/authedFetch";
 import type { SocialPostVisibility } from "@/lib/socialPosts";
 import { discardBody } from "@/lib/responseBody";
 
@@ -78,7 +82,7 @@ export default function SocialTagInbox() {
       const params = new URLSearchParams({ lane, limit: "20" });
       if (cursor) params.set("cursor", cursor);
       try {
-        const response = await fetch(`/api/social/tags?${params}`, {
+        const response = await authedActionFetch(`/api/social/tags?${params}`, {
           cache: "no-store",
         });
         if (!response.ok) {
@@ -101,13 +105,16 @@ export default function SocialTagInbox() {
             retryCursor: null,
           },
         }));
-      } catch {
+      } catch (caught) {
         setLanes((current) => ({
           ...current,
           [lane]: {
             ...current[lane],
             loading: false,
-            error: `${LANE_LABEL[lane]} are unavailable right now.`,
+            error:
+              caught instanceof AuthActionSessionError
+                ? caught.message
+                : `${LANE_LABEL[lane]} are unavailable right now.`,
             retryCursor: cursor,
           },
         }));
@@ -130,7 +137,7 @@ export default function SocialTagInbox() {
     setBusyId(item.id);
     setError(null);
     try {
-      const response = await fetch("/api/social/tags", {
+      const response = await authedActionFetch("/api/social/tags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -152,8 +159,12 @@ export default function SocialTagInbox() {
         return;
       }
       await Promise.all([loadLane("proposed"), loadLane("approved")]);
-    } catch {
-      setError("Photo tag choice was not saved.");
+    } catch (caught) {
+      setError(
+        caught instanceof AuthActionSessionError
+          ? caught.message
+          : "Photo tag choice was not saved.",
+      );
     } finally {
       setBusyId(null);
     }

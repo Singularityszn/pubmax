@@ -19,7 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
@@ -73,7 +73,7 @@ export default function CrewDetailClient({
     if (!identityResolved) return;
     const controller = new AbortController();
     void Promise.resolve().then(() => setStatus("loading"));
-    authedFetch(`/api/social/crews/${encodeURIComponent(crewId)}`, {
+    authedActionFetch(`/api/social/crews/${encodeURIComponent(crewId)}`, {
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
@@ -107,7 +107,7 @@ export default function CrewDetailClient({
     const controller = new AbortController();
     void (async () => {
       try {
-        const response = await authedFetch("/api/social/access", {
+        const response = await authedActionFetch("/api/social/access", {
           cache: "no-store",
           credentials: "same-origin",
           signal: controller.signal,
@@ -178,7 +178,7 @@ export default function CrewDetailClient({
       path: string,
       init: { method: string; body?: string; prefix: string },
     ): Promise<Record<string, unknown> | null> => {
-      const response = await authedFetch(path, {
+      const response = await authedActionFetch(path, {
         method: init.method,
         credentials: "same-origin",
         headers: {

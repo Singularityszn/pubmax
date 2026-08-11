@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
 
 // Owner-only edit/delete controls for a durable Crawl Story (story 35). The story
@@ -46,7 +46,7 @@ export default function CrawlStoryOwnerControls({
     setBusy(true);
     setMessage(null);
     try {
-      const res = await authedFetch(`/api/crawls/${encodeURIComponent(slug)}`, {
+      const res = await authedActionFetch(`/api/crawls/${encodeURIComponent(slug)}`, {
         method: "DELETE",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle: viewer }),

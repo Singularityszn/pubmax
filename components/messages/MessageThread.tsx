@@ -11,7 +11,7 @@ import MessageVenueCard from "@/components/messages/MessageVenueCard";
 import MessageVenuePicker, {
   type PickedVenue,
 } from "@/components/messages/MessageVenuePicker";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
 import {
   MESSAGE_ATTACH_PHOTO_LABEL,
@@ -144,7 +144,7 @@ export default function MessageThread({
 
   // Refetch the thread through the participant-gated API. A 404 = we're not a
   // participant (or the conversation is gone) → show not-found, never a leak.
-  // Wave I2: 401 without sign-in → signedout; Bearer via authedFetch.
+  // Wave I2: 401 without sign-in -> signedout; Bearer via authedActionFetch.
   // A fetch that fails before THIS conversation has loaded lands on
   // "unreachable" so the loading line only ever stands for a load that is still
   // running; once this conversation HAS loaded, a failed poll keeps the messages
@@ -162,7 +162,7 @@ export default function MessageThread({
         return;
       }
       try {
-        const res = await authedFetch(
+        const res = await authedActionFetch(
           `/api/messages/${encodeURIComponent(conversationId)}?handle=${encodeURIComponent(h)}`,
           { signal },
         );
@@ -278,9 +278,9 @@ export default function MessageThread({
         const form = new FormData();
         form.append("post", JSON.stringify(post));
         form.append("photo", pending.file);
-        res = await authedFetch(address, { method: "POST", body: form });
+        res = await authedActionFetch(address, { method: "POST", body: form });
       } else {
-        res = await authedFetch(address, {
+        res = await authedActionFetch(address, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(post),
@@ -324,7 +324,7 @@ export default function MessageThread({
       const h = normalizeHandle(authHandle ?? "") || readHandle();
       if (!user || !h) return;
       try {
-        const res = await authedFetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
+        const res = await authedActionFetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ action: "report", handle: h, messageId }),

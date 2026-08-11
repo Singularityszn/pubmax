@@ -23,7 +23,7 @@ import { safeMomentReturnTo } from "@/components/nav/navigationModel";
 import { trackEvent } from "@/lib/analytics";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import { recordMomentNudgeTrigger } from "@/lib/identityNudge";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { captureNativePhoto } from "@/lib/nativeCamera";
 import { isNativeApp } from "@/lib/nativePlatform";
@@ -290,7 +290,7 @@ export default function MomentCapture(): React.JSX.Element {
 
     let memoryId = draft.serverMemoryId;
     if (!memoryId) {
-      const memoryResponse = await authedFetch("/api/night-memories", {
+      const memoryResponse = await authedActionFetch("/api/night-memories", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ title: draft.memoryTitle.trim() || "Tonight's Memory" }),
@@ -325,7 +325,7 @@ export default function MomentCapture(): React.JSX.Element {
         // private save; it only blocks publication later, never this save.
         body.set("altText", item.alt ?? "");
       }
-      const response = await authedFetch(
+      const response = await authedActionFetch(
         `/api/night-memories/${encodeURIComponent(memoryId)}/moments`,
         {
           method: "POST",

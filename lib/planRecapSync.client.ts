@@ -1,4 +1,4 @@
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import type { PendingPlanRecap } from "@/lib/planRecap";
 import { validatePendingPlanRecap } from "@/lib/planRecap";
 
@@ -17,7 +17,7 @@ export async function syncPendingPlanRecapToAccount(
   const safe = validatePendingPlanRecap(recap);
   if (!safe) return false;
   try {
-    const response = await authedFetch("/api/me/pending-plan-recaps", {
+    const response = await authedActionFetch("/api/me/pending-plan-recaps", {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ recap: safe }),

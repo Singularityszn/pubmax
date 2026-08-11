@@ -4,7 +4,10 @@ import { FormEvent, useEffect, useId, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import PasswordPolicyHint from "@/components/auth/PasswordPolicyHint";
-import { authedFetch } from "@/lib/authedFetch";
+import {
+  AuthActionSessionError,
+  authedActionFetch,
+} from "@/lib/authedFetch";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
 import {
   MIN_PASSWORD_LENGTH,
@@ -57,7 +60,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await authedFetch("/api/identity/handle/current");
+        const res = await authedActionFetch("/api/identity/handle/current");
         if (!res.ok) {
           discardBody(res);
           if (!cancelled) {
@@ -80,12 +83,16 @@ export default function SetAccountPassword(): React.JSX.Element | null {
           setHandleLoaded(true);
           setLoadError(null);
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
           setHasHandle(false);
           setHasPassword(null);
           setHandleLoaded(true);
-          setLoadError("Account details are unavailable right now.");
+          setLoadError(
+            error instanceof AuthActionSessionError
+              ? error.message
+              : "Account details are unavailable right now.",
+          );
         }
       }
     })();
@@ -147,7 +154,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
         return;
       }
       if (hasPassword === true) {
-        const verification = await authedFetch(
+        const verification = await authedActionFetch(
           "/api/auth/change-password/verify",
           {
             method: "POST",
@@ -176,11 +183,13 @@ export default function SetAccountPassword(): React.JSX.Element | null {
       setConfirm("");
       setHasPassword(true);
       setMessage("Password saved. You can sign in with your handle next time.");
-    } catch {
+    } catch (error) {
       setError(
-        hasPassword === true
-          ? PASSWORD_CHANGE_GENERIC_ERROR
-          : "Could not set your password. Try again.",
+        error instanceof AuthActionSessionError
+          ? error.message
+          : hasPassword === true
+            ? PASSWORD_CHANGE_GENERIC_ERROR
+            : "Could not set your password. Try again.",
       );
     } finally {
       setBusy(false);

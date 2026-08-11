@@ -168,7 +168,7 @@ describe("the crop step feeds the upload, and the upload is unchanged", () => {
   it("still posts one photo field to the slot's own route", () => {
     expect(source).toContain('form.append("photo", file)');
     expect(source).toContain(
-      "fetch(`/api/profiles/${encodeURIComponent(handle)}/${slot}`, {",
+      "authedActionFetch(`/api/profiles/${encodeURIComponent(handle)}/${slot}`, {",
     );
     expect(source).toContain('method: "POST"');
     expect(covers).toContain('form.append("photo", file)');
@@ -186,6 +186,14 @@ describe("the crop step feeds the upload, and the upload is unchanged", () => {
     expect(read("lib/profileImageMedia.server.ts")).not.toContain("heic");
     expect(read("lib/venuePhotoMedia.server.ts")).not.toContain("heic");
     expect(read("lib/messagePhotoMedia.server.ts")).not.toContain("heic");
+  });
+
+  it("uses strict auth transport for both profile photo paths", () => {
+    expect(source).toContain("authedActionFetch");
+    expect(source).toContain("AuthActionSessionError");
+    expect(source).not.toContain("getAccessToken");
+    expect(covers).toContain("authedActionFetch");
+    expect(covers).not.toContain("getAccessToken");
   });
 
   it("leaves the safety scan on the upload path exactly where it was", () => {

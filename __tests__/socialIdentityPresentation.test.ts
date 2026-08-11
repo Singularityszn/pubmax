@@ -70,6 +70,12 @@ describe("Social viewer identity presentation", () => {
     }
   });
 
+  it("uses strict auth transport for photo tag reads and actions", () => {
+    const source = cardSources[0] ?? "";
+    expect(source).toContain("authedActionFetch");
+    expect(source).not.toMatch(/\bfetch\s*\(/);
+  });
+
   it("keeps unresolved cards neutral and signed-out cards invitational", () => {
     const cards = [
       createElement(SocialTagInbox),

@@ -7,7 +7,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import {
   errorMessageFrom,
   findYourLotInviteFailureMessage,
@@ -115,7 +115,7 @@ export default function FindYourLot({
     setFollowByHandle((current) => ({ ...current, [handle]: "working" }));
     setNotice("");
     try {
-      const response = await authedFetch(
+      const response = await authedActionFetch(
         `/api/profiles/${encodeURIComponent(handle)}/follow`,
         {
           method: "POST",
@@ -139,7 +139,7 @@ export default function FindYourLot({
     setInviteBusy(true);
     setNotice("");
     try {
-      const response = await authedFetch("/api/referrals/invite-link", {
+      const response = await authedActionFetch("/api/referrals/invite-link", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: "{}",

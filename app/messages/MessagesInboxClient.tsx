@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
@@ -14,7 +14,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import "./messages.css";
 
 // The messaging inbox (PRD E4 / Wave I2): conversations for the signed-in
-// linked actor. Bearer via authedFetch; unsigned viewers get a sign-in prompt.
+// linked actor. Bearer via authedActionFetch; unsigned viewers get a sign-in prompt.
 
 const HANDLE_KEY = "pubmax_handle";
 const POLL_MS = 20_000;
@@ -69,7 +69,7 @@ export default function MessagesInboxClient({
         return;
       }
       try {
-        const res = await authedFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
+        const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
           signal,
         });
         if (res.status === 401) {

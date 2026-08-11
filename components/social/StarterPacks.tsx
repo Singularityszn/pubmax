@@ -22,7 +22,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
@@ -78,7 +78,7 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
     let live = true;
     void (async () => {
       try {
-        const response = await authedFetch(
+        const response = await authedActionFetch(
           `/api/starter-packs?viewer=${encodeURIComponent(viewer)}`,
           { cache: "no-store" },
         );
@@ -110,7 +110,7 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
     if (!viewer) return;
     setPackState((current) => ({ ...current, [pack.slug]: { status: "working" } }));
     try {
-      const response = await authedFetch(
+        const response = await authedActionFetch(
         `/api/starter-packs/${encodeURIComponent(pack.slug)}/follow`,
         {
           method: "POST",

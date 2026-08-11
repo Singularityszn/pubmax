@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { useAuth } from "@/components/auth/AuthProvider";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
@@ -502,7 +502,7 @@ export function usePintDrops(
       if (submittedPintFile) body.set("pint_photo", submittedPintFile);
       if (submittedVenueFile) body.set("venue_photo", submittedVenueFile);
 
-      const response = await authedFetch("/api/pint-drops", { method: "POST", body });
+      const response = await authedActionFetch("/api/pint-drops", { method: "POST", body });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         markFailed(errorMessageFrom(data, "Could not save that drop."));
@@ -581,7 +581,7 @@ export function usePintDrops(
       // Called from an event handler, so `window` exists; getAnonId() returns
       // "" when storage is unavailable and the server degrades to its shared
       // anon sentinel.
-      await authedFetch("/api/pint-drops", {
+      await authedActionFetch("/api/pint-drops", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "report", id, actor: getAnonId() }),

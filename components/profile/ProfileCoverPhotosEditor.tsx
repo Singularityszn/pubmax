@@ -1,11 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
-import { getAccessToken } from "@/lib/authClient";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import {
+  AuthActionSessionError,
+  authedActionFetch,
+} from "@/lib/authedFetch";
 import {
   PROFILE_COVER_ADD_LABEL,
   PROFILE_COVER_MOVE_DOWN_LABEL,
@@ -73,21 +76,12 @@ export default function ProfileCoverPhotosEditor({
   const [pending, setPending] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
-    // The server derives the actor from this token; a bare fetch here made a
-    // signed-in owner's own handle read as a hijack (`gatedActorAuth`).
-    const token = await getAccessToken();
-    return token ? { authorization: `Bearer ${token}` } : {};
-  }, []);
-
   const base = `/api/profiles/${encodeURIComponent(handle)}/covers`;
 
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
     async function load() {
-      const headers = await authHeaders();
-      if (controller.signal.aborted) return;
       const outcome = await loadSurfaceJson<{
         status?: ProfileCoverReadStatus;
         covers?: ProfileCoverPhotoDTO[];
@@ -95,7 +89,7 @@ export default function ProfileCoverPhotosEditor({
         base,
         {
           signal: controller.signal,
-          init: { headers },
+          fetchImpl: authedActionFetch,
           validate: (body) => Array.isArray(body?.covers),
         },
         (body) => {
@@ -113,7 +107,7 @@ export default function ProfileCoverPhotosEditor({
       active = false;
       controller.abort();
     };
-  }, [authHeaders, base]);
+  }, [base]);
 
   /** Every write answers the whole profile AND the whole rotation. */
   function applyReply(body: unknown): void {
@@ -133,15 +127,19 @@ export default function ProfileCoverPhotosEditor({
     setBusy(state);
     setError(null);
     try {
-      const response = await fetch(url, init);
+      const response = await authedActionFetch(url, init);
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
           setError(errorMessageFrom(body, fallbackError));
         return;
       }
       applyReply(body);
-    } catch {
-      setError("Network error. Try again.");
+    } catch (error) {
+      setError(
+        error instanceof AuthActionSessionError
+          ? error.message
+          : "Network error. Try again.",
+      );
     } finally {
       setBusy("idle");
     }
@@ -152,7 +150,7 @@ export default function ProfileCoverPhotosEditor({
     form.append("photo", file);
     await send(
       base,
-      { method: "POST", headers: await authHeaders(), body: form },
+      { method: "POST", body: form },
       "Could not add that cover. Try again.",
       "adding",
     );
@@ -161,7 +159,7 @@ export default function ProfileCoverPhotosEditor({
   async function remove(coverId: string): Promise<void> {
     await send(
       `${base}/${encodeURIComponent(coverId)}`,
-      { method: "DELETE", headers: await authHeaders() },
+      { method: "DELETE" },
       "Could not remove that cover. Try again.",
       "editing",
     );
@@ -172,7 +170,7 @@ export default function ProfileCoverPhotosEditor({
       `${base}/${encodeURIComponent(coverId)}`,
       {
         method: "PATCH",
-        headers: { ...(await authHeaders()), "content-type": "application/json" },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ move: direction }),
       },
       "Could not reorder your covers. Try again.",

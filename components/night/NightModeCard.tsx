@@ -42,7 +42,7 @@ import {
   type ActivePlanRef,
 } from "@/lib/activePlan";
 import { trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import type {
@@ -553,7 +553,7 @@ function NightModeSheet({
         const local = readPendingPlanRecap(id);
         let owned: PendingPlanRecap | null = null;
         try {
-          const ownedResponse = await authedFetch("/api/me/pending-plan-recaps", {
+          const ownedResponse = await authedActionFetch("/api/me/pending-plan-recaps", {
             signal: controller.signal,
           });
           if (ownedResponse.ok && !controller.signal.aborted) {
@@ -864,7 +864,7 @@ function NightModeSheet({
         );
         return;
       }
-      const response = await authedFetch(`/api/plans/${id}/recap`, {
+      const response = await authedActionFetch(`/api/plans/${id}/recap`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ memberToken, recap }),

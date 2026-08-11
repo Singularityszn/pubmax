@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type {
   WantedDTO,
@@ -34,7 +34,7 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
     setBusy(true);
     setStatus(null);
     try {
-      const res = await authedFetch("/api/wanted", {
+      const res = await authedActionFetch("/api/wanted", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -81,7 +81,7 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
     setBusy(true);
     setStatus(null);
     try {
-      const res = await authedFetch("/api/wanted", {
+      const res = await authedActionFetch("/api/wanted", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -143,7 +143,7 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
     setStatus(null);
     setResolve(null);
     try {
-      const res = await authedFetch("/api/wanted/resolve", {
+      const res = await authedActionFetch("/api/wanted/resolve", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ paste: trimmed }),

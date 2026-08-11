@@ -11,7 +11,7 @@ import {
 import type { VenueKind } from "@/lib/venues";
 
 import "./saveToList.css";
-import { authedFetch } from "@/lib/authedFetch";
+import { authedActionFetch } from "@/lib/authedFetch";
 
 // Save-a-venue-to-a-list control with CUSTOM LIST support (story 33). A small,
 // self-contained island: it shows the eligible built-in lists PLUS the viewer's
@@ -96,7 +96,7 @@ export default function SaveToListControl({
       // Register the custom list (best-effort) then file the venue under it.
       if (h) {
         try {
-          const res = await authedFetch("/api/saved-pubs", {
+          const res = await authedActionFetch("/api/saved-pubs", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ handle: h, action: "createList", name }),
