@@ -18,6 +18,14 @@ const handleSignInSource = readFileSync(
 );
 
 describe("SetAccountPassword gating", () => {
+  it("waits for the live identity answer before reading account password state", () => {
+    expect(setPasswordSource).toContain("identityResolved");
+    expect(setPasswordSource).toMatch(/if \(!user \|\| !identityResolved\)/);
+    expect(setPasswordSource).toMatch(
+      /!configured \|\| !user \|\| !identityResolved \|\| !handleLoaded/,
+    );
+  });
+
   it("requires a claimed handle before saving a password", () => {
     expect(setPasswordSource).toContain("Claim a handle before setting a password.");
     expect(setPasswordSource).toContain("/api/identity/handle/current");

@@ -290,11 +290,12 @@ function PrivateIdentityEditorForAccount({
   );
 }
 
-export default function PrivateIdentityEditor(): React.JSX.Element {
-  const { user, session } = useAuth();
+export default function PrivateIdentityEditor(): React.JSX.Element | null {
+  const { user, session, identityResolved } = useAuth();
   const auth = captureAccountAuth(user?.id ?? null, session);
   const email = typeof user?.email === "string" ? user.email : "";
-  if (!auth) {
+  if (!auth || !identityResolved) {
+    if (auth) return null;
     return (
       <PrivateIdentityEditorForm
         email=""

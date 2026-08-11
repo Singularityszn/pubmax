@@ -233,9 +233,11 @@ export function ReferralInviteCard({
 
 function AccountHandleEditor({
   auth,
+  identityResolved,
 }: {
   auth: AccountAuthSnapshot;
-}): React.JSX.Element {
+  identityResolved: boolean;
+}): React.JSX.Element | null {
   const router = useRouter();
   const [handle, setHandle] = useState("");
   const [currentHandle, setCurrentHandle] = useState<string | null>(null);
@@ -243,6 +245,7 @@ function AccountHandleEditor({
   const active = useRef(true);
 
   useEffect(() => {
+    if (!identityResolved) return;
     active.current = true;
     const controller = new AbortController();
     void accountBoundFetch(
@@ -270,7 +273,7 @@ function AccountHandleEditor({
       active.current = false;
       controller.abort();
     };
-  }, [auth]);
+  }, [auth, identityResolved]);
 
   async function rename(event: FormEvent) {
     event.preventDefault();
@@ -305,6 +308,8 @@ function AccountHandleEditor({
     }
   }
 
+  if (!identityResolved) return null;
+
   if (!currentHandle) {
     return (
       <div>
@@ -336,7 +341,7 @@ function AccountHandleEditor({
 }
 
 export default function PubmaxxAccountHub() {
-  const { user, loading, session } = useAuth();
+  const { user, loading, session, identityResolved } = useAuth();
   const accountAuth = useMemo(
     () => captureAccountAuth(user?.id ?? null, session),
     [session, user?.id],
@@ -619,15 +624,6 @@ export default function PubmaxxAccountHub() {
     );
   }
 
-  function editDeviceNightProfile(profile: NightProfileInput) {
-    if (!writeDeviceNightProfile(profile)) {
-      setMessage("This browser could not save your Night Profile.");
-      return;
-    }
-    setDeviceNightProfile(profile);
-    setMessage("Night Profile saved on this device.");
-  }
-
   async function saveAccountNightProfile() {
     if (!nightProfileDraft || !nightProfileLoaded) return;
     const response = await authedFetch("/api/me/night-profile", {
@@ -819,7 +815,11 @@ export default function PubmaxxAccountHub() {
       />
       <div className="accountHubGrid">
         {accountAuth ? (
-          <AccountHandleEditor key={accountAuth.userId} auth={accountAuth} />
+          <AccountHandleEditor
+            key={accountAuth.userId}
+            auth={accountAuth}
+            identityResolved={identityResolved}
+          />
         ) : (
           <div>
             <h3>Your @handle</h3>

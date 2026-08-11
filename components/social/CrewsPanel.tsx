@@ -17,6 +17,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
 import type { SocialCrewListItemDTO } from "@/lib/socialCrew";
 import { discardBody } from "@/lib/responseBody";
@@ -69,6 +70,7 @@ export default function CrewsPanel({
    */
   resolveAccess?: boolean;
 }) {
+  const { identityResolved } = useAuth();
   const [gate, setGate] = useState<"checking" | "open" | "closed">(
     resolveAccess ? "checking" : "open",
   );
@@ -86,7 +88,7 @@ export default function CrewsPanel({
   const venueDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!resolveAccess) return;
+    if (!resolveAccess || !identityResolved) return;
     const controller = new AbortController();
     void (async () => {
       try {
@@ -108,7 +110,7 @@ export default function CrewsPanel({
       }
     })();
     return () => controller.abort();
-  }, [resolveAccess]);
+  }, [identityResolved, resolveAccess]);
 
   useEffect(() => {
     if (gate !== "open") return;

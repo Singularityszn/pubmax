@@ -27,6 +27,15 @@ const formProps = {
 };
 
 describe("private identity editor", () => {
+  it("waits for identity resolution before loading private account details", () => {
+    const editorSource = readFileSync(
+      join(process.cwd(), "components/identity/PrivateIdentityEditor.tsx"),
+      "utf8",
+    );
+    expect(editorSource).toContain("identityResolved");
+    expect(editorSource).toMatch(/if \(!auth \|\| !identityResolved\)/);
+  });
+
   it("exposes the personal fields and states the privacy boundary", () => {
     const html = renderToStaticMarkup(
       createElement(PrivateIdentityEditorForm, formProps),

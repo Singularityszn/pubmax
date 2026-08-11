@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import { authedFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
@@ -52,6 +53,7 @@ export default function CrewDetailClient({
   invitationId: string | null;
 }) {
   const router = useRouter();
+  const { identityResolved } = useAuth();
   const [status, setStatus] = useState<LoadState>("loading");
   const [crew, setCrew] = useState<SocialCrewReadDTO | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -67,6 +69,7 @@ export default function CrewDetailClient({
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (!identityResolved) return;
     const controller = new AbortController();
     void Promise.resolve().then(() => setStatus("loading"));
     authedFetch(`/api/social/crews/${encodeURIComponent(crewId)}`, {
@@ -96,9 +99,10 @@ export default function CrewDetailClient({
         setStatus("error");
       });
     return () => controller.abort();
-  }, [attempt, crewId]);
+  }, [attempt, crewId, identityResolved]);
 
   useEffect(() => {
+    if (!identityResolved) return;
     const controller = new AbortController();
     void (async () => {
       try {
@@ -131,7 +135,7 @@ export default function CrewDetailClient({
       }
     })();
     return () => controller.abort();
-  }, []);
+  }, [identityResolved]);
 
   useEffect(() => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);

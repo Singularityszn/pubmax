@@ -23,6 +23,19 @@
   box-shadow: 0 24px 70px color-mix(in srgb, var(--ink-deep) 30%, transparent);
 }
 
+.accountOnboardingLoadError {
+  display: grid;
+  gap: 0.85rem;
+  width: min(31rem, calc(100% - 2rem));
+  margin: 1rem auto;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--ink-deep) 12%, transparent);
+}
+
 .accountOnboardingHead {
   display: grid;
   gap: 0.3rem;
@@ -113,7 +126,8 @@
 
 .accountOnboardingField input:focus-visible,
 .accountOnboardingField select:focus-visible,
-.accountOnboarding button:focus-visible {
+.accountOnboarding button:focus-visible,
+.accountOnboardingLoadError button:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
