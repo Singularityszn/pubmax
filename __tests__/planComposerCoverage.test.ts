@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   errorMessageFromBody,
+  applyPlanStopCount,
   isGroundedGeneratedRoute,
   nightAreaCoverageSummary,
   nightAreaCoverageMeta,
@@ -18,6 +19,7 @@ import {
   swapDraftStop,
 } from "@/components/plan/PlanComposer";
 import { getNightArea } from "@/lib/nightAreas";
+import { createPlanIntakeDraft } from "@/lib/planIntake";
 
 describe("PlanComposer Night Area coverage states", () => {
   const groups = nightAreaSelectorGroups(new Date("2026-07-13T12:00:00.000Z"));
@@ -256,5 +258,15 @@ describe("PlanComposer route preview seam", () => {
 
     expect(nightContextChanged(context, { ...context })).toBe(false);
     expect(nightContextChanged(context, { ...context, budget: "value" })).toBe(true);
+    expect(nightContextChanged(context, { ...context, stopCount: 3 })).toBe(false);
+    expect(nightContextChanged(context, { ...context, stopCount: 4 })).toBe(true);
+
+    const synced = applyPlanStopCount(
+      createPlanIntakeDraft(),
+      { ...context, stopCount: 3 },
+      4,
+    );
+    expect(synced.draft.answers.stopCount).toBe(4);
+    expect(synced.context?.stopCount).toBe(4);
   });
 });
