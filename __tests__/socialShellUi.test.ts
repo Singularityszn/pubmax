@@ -57,7 +57,11 @@ describe("Social access boundary", () => {
       expect(html).not.toContain(protectedPost.author.handle);
       expect(html).not.toContain(protectedPost.id);
       expect(html).not.toContain("/api/social/posts");
-      expect(html).not.toContain("href=");
+      if (state === "sign_in_required") {
+        expect(html).toContain('href="/login?mode=signin&amp;from=%2Fsocial"');
+      } else {
+        expect(html).not.toContain("href=");
+      }
     },
   );
 

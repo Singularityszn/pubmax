@@ -572,6 +572,37 @@
   color: var(--ink);
 }
 
+.boroughPassportLoading .boroughPassportSkeleton {
+  display: block;
+  width: 56px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--line-soft, var(--line));
+}
+
+.boroughPassportLoading .boroughPassportSkeletonCopy {
+  width: min(100%, 360px);
+  height: 18px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .boroughPassportLoading .boroughPassportSkeleton {
+    background: linear-gradient(
+      100deg,
+      var(--line-soft, var(--line)) 30%,
+      color-mix(in srgb, var(--line) 55%, var(--panel-raised) 45%) 50%,
+      var(--line-soft, var(--line)) 70%
+    );
+    background-size: 220% 100%;
+    animation: boroughPassportShimmer 1.9s linear infinite;
+  }
+}
+
+@keyframes boroughPassportShimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
 .boroughPassportFoot {
   margin: 14px 0 0;
   color: var(--ink-soft);

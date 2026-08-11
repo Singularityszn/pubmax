@@ -82,4 +82,23 @@ describe("the profile page asks that question rather than its own", () => {
     // to catch.
     expect(source).toContain("setPublicRead(outcome === \"failed\" ? \"failed\" : \"answered\")");
   });
+
+  it("keeps viewer naming on the shared tri-state reader", () => {
+    expect(source).toContain('import { useViewerHandle } from "@/components/auth/useViewerHandle";');
+    expect(source).not.toContain('window.localStorage.getItem("pubmax_handle")');
+  });
+
+  it("keeps signed-out You as an invitation rather than a pseudo-profile", () => {
+    expect(source).toContain('className="youIdentityIntro"');
+    expect(source).toContain("Make the night yours.");
+    expect(source).toContain("Claim your @handle");
+    expect(source).toContain('href="#account-settings"');
+    expect(source).not.toContain('className="profileHeader profileHeaderLoading"');
+  });
+
+  it("holds the You sentinel neutral until identity handoff finishes", () => {
+    expect(source).toContain("const viewerIdentityLoading = isYouRoute");
+    expect(source).toContain('className="profileIdentityLoadingSurface"');
+    expect(source).toContain('viewerState="loading"');
+  });
 });

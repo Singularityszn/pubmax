@@ -42,34 +42,37 @@ const crewDetailClient = readFileSync(
 describe("crews stay behind the Social gate", () => {
   it("waits for the live identity answer before checking Social access", () => {
     expect(socialPageClient).toContain("identityResolved");
-    expect(socialPageClient).toMatch(/if \(initialState\.tab === "discover" \|\| !identityResolved\)/);
+    expect(socialPageClient).toMatch(/if \(initialState\.tab === "discover"\)/);
     expect(foundingMembershipHook).toMatch(/if \(!userId \|\| !identityResolved\)/);
     expect(crewDetailClient).toContain("identityResolved");
     expect(crewDetailClient).toMatch(/if \(!identityResolved\) return;/);
   });
 
-  it("renders nothing at all while the panel resolves access for itself", () => {
-    expect(
-      renderToStaticMarkup(createElement(CrewsPanel, { resolveAccess: true })),
-    ).toBe("");
+  it("renders a neutral skeleton while its viewer identity resolves", () => {
+    const html = renderToStaticMarkup(
+      createElement(CrewsPanel, { resolveAccess: true }),
+    );
+    expect(html).toContain("socialIdentitySkeletons");
+    expect(html).toContain("Loading your crews");
+    expect(html).not.toContain("Try again");
   });
 
   it("mounts on /social only inside the verified branch", () => {
-    // showPostsControls is `isPosts && access === "verified"`, the same guard
-    // the composer sits behind. Everything an UNVERIFIED viewer meets must
-    // never gain a crew.
+    // The composer stays behind verified access. The crew card may render its
+    // own neutral identity state before that answer lands.
     expect(socialPageClient).toMatch(
-      /showPostsControls \? \(\s*<CrewsPanel/,
+      /showViewerCards \? \(\s*<CrewsPanel/,
     );
     // The anchor moved with the surface: FindYourLot took its own section (and
     // its aria-label) into the component, so this read for a matching section
     // in the page found nothing and asserted against undefined. The ungated
-    // branch an unverified viewer lands on today is the directory section.
+    // branch an unverified viewer lands on today is a neutral directory section.
     const ungated = socialPageClient.match(
       /aria-label="People on PUBMAXX"[\s\S]*?<\/section>/,
     )?.[0];
     expect(ungated, "ungated friend-formation branch present").toBeTruthy();
     expect(ungated).not.toMatch(/CrewsPanel/);
+    expect(ungated).toContain("SocialViewerState");
     // Friend formation itself rides the rail on `isPosts` alone, with no access
     // gate in front of it. A crew may never join it there either.
     const friendFormation = socialPageClient

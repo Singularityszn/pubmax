@@ -4,7 +4,7 @@
 // invents a line. The composer asks for the same things in three groups, so
 // eight inputs read as an identity rather than a settings page.
 
-import { createElement } from "react";
+import { createElement, type ComponentProps } from "react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -16,6 +16,9 @@ import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import type { Profile, ProfileStats } from "@/lib/profiles";
 
+type ViewerState = "loading" | "resolved";
+type HeaderProps = ComponentProps<typeof ProfileHeader> & { viewerState?: ViewerState };
+
 const STATS: ProfileStats = {
   pintsLogged: 3,
   cheapestPintGbp: 4.8,
@@ -23,12 +26,13 @@ const STATS: ProfileStats = {
   memoriesPosted: 0,
 };
 
-function header(profile: Partial<Profile>): string {
+function header(profile: Partial<Profile>, viewerState: ViewerState = "resolved"): string {
   return renderToStaticMarkup(
     createElement(ProfileHeader, {
       profile: { handle: "alice", displayName: "Alice Fennimore", ...profile },
       stats: STATS,
-    }),
+      viewerState,
+    } as HeaderProps),
   );
 }
 
@@ -45,6 +49,27 @@ function editor(initial: Record<string, string> = {}): string {
 }
 
 describe("public profile card", () => {
+  it("uses neutral loading shapes while viewer identity is unresolved", () => {
+    const markup = header({ handle: "you", displayName: "You" }, "loading");
+
+    expect(markup).toContain("profileHeaderLoading");
+    expect(markup).toContain("profileSkeleton");
+    expect(markup).not.toContain(">You<");
+    expect(markup).not.toContain("@you");
+    expect(markup).not.toMatch(/<dd>0<\/dd>/);
+  });
+
+  it("keeps resolved viewer data visible", () => {
+    const markup = header(
+      { handle: "alice", displayName: "Alice Fennimore" },
+      "resolved",
+    );
+
+    expect(markup).toContain(">Alice Fennimore<");
+    expect(markup).toContain("@alice");
+    expect(markup).toContain(">3<");
+  });
+
   it("prints the card facts its owner filled in, with their own labels", () => {
     const markup = header({
       favouriteDrink: "Guinness",
