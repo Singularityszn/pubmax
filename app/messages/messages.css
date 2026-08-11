@@ -725,6 +725,12 @@
   opacity: 0.72;
 }
 
+.profileMessageError {
+  margin: 0.25rem 0;
+  color: #b3261e;
+  font-size: 0.85rem;
+}
+
 @media (min-width: 1024px) {
   .messagesMain {
     max-width: var(--content-max-wide);

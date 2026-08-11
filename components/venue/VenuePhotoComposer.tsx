@@ -21,6 +21,7 @@ import { useRef, useState } from "react";
 
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
 import { categoryLabel, type DrinkCategory } from "@/lib/drinks";
 import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
@@ -76,11 +77,11 @@ export default function VenuePhotoComposer({
       });
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
-        const message =
-          body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string"
-            ? (body as { error: string }).error
-            : "Could not add that photo. Try again.";
-        setError(message);
+        setError(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : errorMessageFrom(body, "Could not add that photo. Try again."),
+        );
         return;
       }
       const payload = body as { photo?: VenuePhotoDTO; crosspost?: VenuePhotoCrosspost };
@@ -90,7 +91,11 @@ export default function VenuePhotoComposer({
       }
       onPosted(payload.photo, venuePhotoCrosspostNote(payload.crosspost?.state ?? "off"));
     } catch {
-      setError("Could not add that photo. Try again.");
+      setError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not add that photo. Try again.",
+      );
     } finally {
       setBusy(false);
     }

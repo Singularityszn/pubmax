@@ -86,7 +86,7 @@ export default function PintDropComposer({
 
   const mobile = useIsMobileComposer();
 
-  const { speechSupported, listening, toggleListening } = useSpeechDictation({
+  const { speechSupported, listening, error: speechError, toggleListening } = useSpeechDictation({
     note: dropForm.note,
     setDropForm,
     onTranscript: (typedBaseline) => setTransientVoiceNote((current) =>
@@ -210,6 +210,7 @@ export default function PintDropComposer({
             lastKnownPrice={lastKnownPrice}
             speechSupported={speechSupported}
             listening={listening}
+            speechError={speechError}
             toggleListening={toggleListening}
           />
 

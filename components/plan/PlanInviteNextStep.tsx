@@ -48,6 +48,8 @@ export default function PlanInviteNextStep({
   const [moreOpen, setMoreOpen] = useState(false);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [inviteReady, setInviteReady] = useState(false);
+  const [inviteError, setInviteError] = useState("");
+  const [shareError, setShareError] = useState("");
 
   const tokenEvent = planCapabilityEvent(planId);
   const capabilitySnapshot = useSyncExternalStore(
@@ -70,12 +72,19 @@ export default function PlanInviteNextStep({
       queueMicrotask(() => {
         setInviteToken(null);
         setInviteReady(false);
+        setInviteError("");
       });
       return;
     }
     let active = true;
+    queueMicrotask(() => {
+      if (active) setInviteError("");
+    });
     fetch(`/api/plans/${planId}`, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
+      .then((response) => {
+        if (!response.ok) throw new Error("Invite tools unavailable");
+        return response.json();
+      })
       .then((body: { inviteToken?: string | null } | null) => {
         if (!active) return;
         if (typeof body?.inviteToken === "string" && body.inviteToken) {
@@ -89,6 +98,11 @@ export default function PlanInviteNextStep({
         if (active) {
           setInviteToken(null);
           setInviteReady(true);
+          setInviteError(
+            navigator.onLine === false
+              ? "You look offline. Reconnect, then try again."
+              : "Invite tools are unavailable. Try again in a moment.",
+          );
         }
       });
     return () => {
@@ -113,9 +127,30 @@ export default function PlanInviteNextStep({
 
   const openWhatsApp = useCallback(() => {
     if (!inviteToken) return;
+    setShareError("");
     const absolute = toAbsoluteUrl(relativeUrl);
-    trackEvent("plan_invite_sent", { channel: "whatsapp" });
-    window.open(whatsappShareHref(text, absolute), "_blank", "noopener,noreferrer");
+    try {
+      const opened = window.open(
+        whatsappShareHref(text, absolute),
+        "_blank",
+        "noopener,noreferrer",
+      );
+      if (!opened) {
+        setShareError(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : "Could not open WhatsApp. Try again.",
+        );
+        return;
+      }
+      trackEvent("plan_invite_sent", { channel: "whatsapp" });
+    } catch {
+      setShareError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not open WhatsApp. Try again.",
+      );
+    }
   }, [inviteToken, relativeUrl, text]);
 
   return (
@@ -135,9 +170,14 @@ export default function PlanInviteNextStep({
         </a>
       ) : (
         <p className="planInviteNext__whatsapp planInviteNext__whatsapp--pending" role="status">
-          {memberToken ? "Preparing your WhatsApp invite…" : "Restoring your invite tools…"}
+          {inviteError || (memberToken ? "Preparing your WhatsApp invite…" : "Restoring your invite tools…")}
         </p>
       )}
+      {shareError ? (
+        <p className="planInviteNext__error" role="status">
+          {shareError}
+        </p>
+      ) : null}
       <PlanHostInviteLink planId={planId} />
       <button
         type="button"

@@ -148,6 +148,12 @@
   color: var(--ink-soft);
 }
 
+.a2hsError {
+  margin: calc(var(--space-2) * -1) 0 var(--space-3);
+  color: var(--accent-risk, #b3261e);
+  font-size: var(--text-sm);
+}
+
 /* iOS instruction steps */
 .a2hsSteps {
   list-style: none;

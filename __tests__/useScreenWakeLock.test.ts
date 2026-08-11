@@ -149,11 +149,17 @@ describe("createWakeLockManager", () => {
       wakeLock: { request: vi.fn(async () => Promise.reject(new Error("denied"))) },
     };
     const changes: boolean[] = [];
-    const manager = createWakeLockManager(nav, (active) => changes.push(active));
+    const errors: string[] = [];
+    const manager = createWakeLockManager(
+      nav,
+      (active) => changes.push(active),
+      () => errors.push("failed"),
+    );
 
     await expect(manager.enable()).resolves.toBeUndefined();
     expect(manager.isActive()).toBe(false);
     expect(changes).not.toContain(true);
+    expect(errors).toEqual(["failed"]);
   });
 
   it("is inert on an unsupported navigator", async () => {

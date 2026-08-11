@@ -1202,24 +1202,31 @@ function NightModeSheet({
       <SafeNightStrip planId={id} />
 
       {wakeLock.supported ? (
-        <button
-          type="button"
-          className="nightCard__awake"
-          role="switch"
-          aria-checked={keepAwake}
-          onClick={() => setKeepAwake((value) => !value)}
-        >
-          <span className="nightCard__awakeLabel">
-            <MonitorSmartphone size={15} aria-hidden="true" />
-            Keep screen awake
-          </span>
-          <span
-            className="nightCard__awakeState"
-            data-on={keepAwake ? "" : undefined}
+        <>
+          <button
+            type="button"
+            className="nightCard__awake"
+            role="switch"
+            aria-checked={keepAwake}
+            onClick={() => setKeepAwake((value) => !value)}
           >
-            {keepAwake ? "On" : "Off"}
-          </span>
-        </button>
+            <span className="nightCard__awakeLabel">
+              <MonitorSmartphone size={15} aria-hidden="true" />
+              Keep screen awake
+            </span>
+            <span
+              className="nightCard__awakeState"
+              data-on={keepAwake ? "" : undefined}
+            >
+              {keepAwake ? "On" : "Off"}
+            </span>
+          </button>
+          {wakeLock.error ? (
+            <p className="nightCard__endingStatus" role="status">
+              {wakeLock.error}
+            </p>
+          ) : null}
+        </>
       ) : null}
 
       {arrived.length > 0 ? (

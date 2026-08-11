@@ -122,10 +122,15 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
       // User cancelled the share sheet, or it failed — fall through to copy.
     }
     try {
-      await window.navigator.clipboard?.writeText(url);
+      if (!window.navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
+      await window.navigator.clipboard.writeText(url);
       flashShareNote("Plan link copied. Send it to someone at home.");
     } catch {
-      flashShareNote("Copy the plan link from your browser bar and send it on.");
+      flashShareNote(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Copy the plan link from your browser bar and send it on.",
+      );
     }
   };
 
@@ -147,10 +152,15 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
       // User cancelled the share sheet, or it failed — fall through to copy.
     }
     try {
-      await window.navigator.clipboard?.writeText(url);
+      if (!window.navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
+      await window.navigator.clipboard.writeText(url);
       flashShareNote("Pin link copied. Send it to someone at home.");
     } catch {
-      flashShareNote("Copy the pin link and send it to someone at home.");
+      flashShareNote(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Copy the pin link and send it to someone at home.",
+      );
     }
   };
 

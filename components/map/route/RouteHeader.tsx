@@ -29,13 +29,19 @@ export default function RouteHeader({
   onAltStyleChange,
 }: RouteHeaderProps) {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState("");
   async function copyLink() {
+    setCopyError("");
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // ponytail: clipboard denied (permissions/insecure origin) — no-op, no crash.
+      setCopyError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not copy link. Try again.",
+      );
     }
   }
 
@@ -64,6 +70,7 @@ export default function RouteHeader({
           {copied ? <Check size={14} /> : <Link2 size={14} />}
           {copied ? "Copied" : "Copy link"}
         </button>
+        {copyError ? <p role="status">{copyError}</p> : null}
         <Route size={24} />
       </div>
 

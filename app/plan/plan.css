@@ -463,6 +463,12 @@
 .planInviteNext__whatsapp--pending:hover {
   background: transparent;
 }
+.planInviteNext__error {
+  margin: 0;
+  color: #a52c24;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
 .planInviteNext .planHostInviteLink {
   margin-top: 0;
   padding-top: 0;

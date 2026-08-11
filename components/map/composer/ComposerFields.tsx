@@ -35,6 +35,7 @@ type ComposerFieldsProps = {
   lastKnownPrice: number | null;
   speechSupported: boolean;
   listening: boolean;
+  speechError: string;
   toggleListening: () => void;
 };
 
@@ -56,6 +57,7 @@ export function ComposerFields({
   lastKnownPrice,
   speechSupported,
   listening,
+  speechError,
   toggleListening,
 }: ComposerFieldsProps) {
   const handleId = useId();
@@ -203,6 +205,11 @@ export function ComposerFields({
         {speechSupported ? (
           <span role="status" className="visuallyHidden">
             {listening ? "Listening…" : ""}
+          </span>
+        ) : null}
+        {speechError ? (
+          <span role="status" className="voiceAffordance">
+            {speechError}
           </span>
         ) : null}
       </div>

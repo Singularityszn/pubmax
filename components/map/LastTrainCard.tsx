@@ -206,8 +206,11 @@ async function dispatchCrewShare(shareText: string): Promise<CrewShareOutcome> {
     try {
       await nav.share({ text: shareText });
       return "shared";
-    } catch {
-      return "idle";
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "AbortError") {
+        return "idle";
+      }
+      return "error";
     }
   }
   if (typeof window === "undefined") return "error";
@@ -306,7 +309,11 @@ function DecisionBlock({
           {shareState === "shared" ? "Sent to crew" : "Send to crew"}
         </button>
         {shareState === "error" ? (
-          <span style={styles.shareError}>Couldn&apos;t open the share. Try again.</span>
+          <span style={styles.shareError}>
+            {typeof navigator !== "undefined" && navigator.onLine === false
+              ? "You look offline. Reconnect, then try again."
+              : "Couldn&apos;t open the share. Try again."}
+          </span>
         ) : null}
       </div>
     </div>

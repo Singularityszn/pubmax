@@ -33,6 +33,7 @@ export default function ConfirmFollow({
   const [state, setState] = useState<FollowState>("idle");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [shareError, setShareError] = useState("");
 
   // setState fires from a microtask (never the sync effect body) per
   // react-hooks/set-state-in-effect — the house pattern on /feed.
@@ -76,6 +77,7 @@ export default function ConfirmFollow({
   }
 
   async function share() {
+    setShareError("");
     try {
       if (navigator.share) {
         await navigator.share({ title: "Add me on PUBMAXX", url: shareUrl });
@@ -90,6 +92,11 @@ export default function ConfirmFollow({
       setTimeout(() => setCopied(false), 2400);
     } catch {
       setCopied(false);
+      setShareError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not share your link. Try again.",
+      );
     }
   }
 
@@ -118,6 +125,7 @@ export default function ConfirmFollow({
         <button type="button" className="confirmFollowPrimary" onClick={share}>
           {copied ? "Link copied" : "Share your link"}
         </button>
+        {shareError ? <p className="confirmFollowError" role="status">{shareError}</p> : null}
         <Link className="confirmFollowGhost" href="/social">
           Back to Social
         </Link>

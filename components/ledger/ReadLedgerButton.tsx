@@ -26,6 +26,7 @@ export default function ReadLedgerButton({ text }: ReadLedgerButtonProps) {
   // on server-rendered Ledger pages.
   const [supported, setSupported] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -39,15 +40,20 @@ export default function ReadLedgerButton({ text }: ReadLedgerButtonProps) {
 
   const handleRead = useCallback(() => {
     if (!supported || !text.trim()) return;
+    setError("");
     try {
       window.speechSynthesis.cancel(); // clear anything already queued
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.onend = () => setSpeaking(false);
-      utterance.onerror = () => setSpeaking(false);
+      utterance.onerror = () => {
+        setSpeaking(false);
+        setError("Could not read this page. Try again.");
+      };
       setSpeaking(true);
       window.speechSynthesis.speak(utterance);
     } catch {
       setSpeaking(false);
+      setError("Could not read this page. Try again.");
     }
   }, [supported, text]);
 
@@ -63,13 +69,16 @@ export default function ReadLedgerButton({ text }: ReadLedgerButtonProps) {
   if (!supported) return null;
 
   return (
-    <button
-      type="button"
-      className="ledgerReadButton"
-      onClick={speaking ? handleStop : handleRead}
-      aria-pressed={speaking}
-    >
-      {speaking ? "Stop reading" : "Read this page"}
-    </button>
+    <>
+      <button
+        type="button"
+        className="ledgerReadButton"
+        onClick={speaking ? handleStop : handleRead}
+        aria-pressed={speaking}
+      >
+        {speaking ? "Stop reading" : "Read this page"}
+      </button>
+      {error ? <p role="status">{error}</p> : null}
+    </>
   );
 }

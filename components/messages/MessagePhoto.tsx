@@ -50,6 +50,7 @@ export default function MessagePhoto({
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
+  const [dialogError, setDialogError] = useState("");
   const dialogRef = useRef<HTMLDialogElement | null>(null);
 
   useEffect(() => {
@@ -88,8 +89,15 @@ export default function MessagePhoto({
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
+    try {
+      if (open && !dialog.open) dialog.showModal();
+      if (!open && dialog.open) dialog.close();
+    } catch {
+      queueMicrotask(() => {
+        setOpen(false);
+        setDialogError("Could not open photo. Try again.");
+      });
+    }
   }, [open]);
 
   const close = useCallback(() => setOpen(false), []);
@@ -119,7 +127,14 @@ export default function MessagePhoto({
 
   return (
     <figure className="messagePhotoFigure" style={tile}>
-      <button type="button" className="messagePhotoButton" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="messagePhotoButton"
+        onClick={() => {
+          setDialogError("");
+          setOpen(true);
+        }}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element -- gated bytes read as an object URL; no loader can fetch them */}
         <img
           className="messagePhoto"
@@ -130,6 +145,7 @@ export default function MessagePhoto({
           decoding="async"
         />
       </button>
+      {dialogError ? <p role="status">{dialogError}</p> : null}
       <dialog ref={dialogRef} className="messagePhotoViewer" onClose={close}>
         {/* eslint-disable-next-line @next/next/no-img-element -- same object URL, full frame */}
         <img className="messagePhotoViewerImage" src={objectUrl} alt={alt} />

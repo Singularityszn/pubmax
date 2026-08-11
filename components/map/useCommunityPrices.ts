@@ -162,6 +162,8 @@ export type CommunityPricesState = {
   reportPrice: (id: string) => void;
   /** Observation ids this device has already flagged this session. */
   reportedIds: ReadonlySet<string>;
+  /** Error shown when a report could not be recorded. */
+  reportErrors?: ReadonlyMap<string, string>;
 };
 
 /** Freshest-wins merge of one observation into a venue's per-category list. */
@@ -559,6 +561,7 @@ export function useCommunityPrices(): CommunityPricesState {
   >(() => new Map());
   const [submitting, setSubmitting] = useState(false);
   const [reportedIds, setReportedIds] = useState<Set<string>>(() => new Set());
+  const [reportErrors, setReportErrors] = useState<Map<string, string>>(() => new Map());
   const [provisionalBaseVenueIds, setProvisionalBaseVenueIds] = useState<
     ReadonlySet<string>
   >(() => new Set());
@@ -1136,24 +1139,50 @@ export function useCommunityPrices(): CommunityPricesState {
 
   const reportPrice = useCallback((id: string) => {
     if (!id || reportedIds.has(id)) return;
-    // Optimistic ACKNOWLEDGEMENT, not an optimistic removal: the figure stays
-    // on the sheet, dated, until a moderator hides it. Marking it locally is
-    // what stops the same reader flagging it twice and tells them it landed.
-    setReportedIds((current) => {
-      const next = new Set(current);
-      next.add(id);
+    setReportErrors((current) => {
+      const next = new Map(current);
+      next.delete(id);
       return next;
     });
     void (async () => {
       try {
-        await fetch("/api/price-submit", {
+        const res = await fetch("/api/price-submit", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ action: "report", id }),
         });
+        const body: unknown = await res.json().catch(() => null);
+        if (!res.ok) {
+          setReportErrors((current) => {
+            const next = new Map(current);
+            next.set(
+              id,
+              navigator.onLine === false
+                ? "You look offline. Reconnect, then try again."
+                : errorMessageFrom(body, "Could not report that price. Try again."),
+            );
+            return next;
+          });
+          return;
+        }
+        // Acknowledgement is not removal: the figure stays on the sheet until
+        // a moderator hides it, but only after the server records the report.
+        setReportedIds((current) => {
+          const next = new Set(current);
+          next.add(id);
+          return next;
+        });
       } catch {
-        // Swallow: the report is best-effort and the durable ledger de-dupes,
-        // so a retry on the next load is harmless.
+        setReportErrors((current) => {
+          const next = new Map(current);
+          next.set(
+            id,
+            navigator.onLine === false
+              ? "You look offline. Reconnect, then try again."
+              : "Could not report that price. Try again.",
+          );
+          return next;
+        });
       }
     })();
   }, [reportedIds]);
@@ -1186,5 +1215,6 @@ export function useCommunityPrices(): CommunityPricesState {
     submitting,
     reportPrice,
     reportedIds,
+    reportErrors,
   };
 }

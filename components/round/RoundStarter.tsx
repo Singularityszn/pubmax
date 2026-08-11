@@ -107,12 +107,17 @@ export default function RoundStarter({
   const hasSeeds = Boolean(seedStops && seedStops.length > 0);
 
   async function copyCode(code: string) {
+    setError(null);
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
-      // Clipboard blocked — code is still visible to copy manually.
+      setError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not copy Round code. Try again.",
+      );
     }
   }
 
@@ -191,6 +196,7 @@ export default function RoundStarter({
             Open Round board
           </Link>
         </div>
+        {error ? <p role="status">{error}</p> : null}
       </div>
     );
   }

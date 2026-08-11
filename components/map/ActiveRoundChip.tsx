@@ -35,6 +35,7 @@ export default function ActiveRoundChip({
   const [code, setCode] = useState("");
   const [dismissed, setDismissed] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState("");
 
   const syncFromStorage = useCallback(() => {
     setCode(readActiveRoundCode());
@@ -99,12 +100,17 @@ export default function ActiveRoundChip({
 
   async function copyCode() {
     if (!code) return;
+    setCopyError("");
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
-      // Clipboard blocked — code remains visible.
+      setCopyError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not copy link. Try again.",
+      );
     }
   }
 
@@ -124,6 +130,7 @@ export default function ActiveRoundChip({
       <button type="button" onClick={() => void copyCode()} aria-label="Copy Round code">
         <Copy size={14} aria-hidden="true" /> {copied ? "Copied" : "Copy"}
       </button>
+      {copyError ? <span role="status">{copyError}</span> : null}
       <Link href={`/rounds/${code}`} className="activeRoundChipBoard">
         Board
       </Link>

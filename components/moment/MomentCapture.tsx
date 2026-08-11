@@ -300,7 +300,11 @@ export default function MomentCapture(): React.JSX.Element {
         : {};
       if (!memoryResponse?.ok || !memoryBody.memory) {
         setSaveState("idle");
-        setMessage(memoryBody.error ?? "That Memory could not be created. Your draft is safe.");
+        setMessage(
+          typeof navigator !== "undefined" && navigator.onLine === false
+            ? "You look offline. Reconnect, then try again. Your draft is safe."
+            : errorMessageFrom(memoryBody, "That Memory could not be created. Your draft is safe."),
+        );
         return;
       }
       memoryId = memoryBody.memory.id;

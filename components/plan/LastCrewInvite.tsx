@@ -98,7 +98,11 @@ export default function LastCrewInvite({
         trackEvent("next_night_committed", nextNightCommittedProps("crew-reinvite", crew));
         setStatus("Invite copied. Paste it to the usual lot.");
       } catch {
-        setStatus("");
+        setStatus(
+          typeof navigator !== "undefined" && navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : "Could not copy invite. Try again.",
+        );
       }
     }
   }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import ShareBar from "@/components/share/ShareBar";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
@@ -152,11 +153,11 @@ export default function SavedListDetail({
       if (!res.ok) {
         setFollowing(!next);
         setCounts(previousCounts);
-        const message =
-          body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string"
-            ? (body as { error: string }).error
-            : "Couldn't update this list. Try again.";
-        setError(message);
+        setError(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : errorMessageFrom(body, "Could not update this list. Try again."),
+        );
         return;
       }
 
@@ -169,7 +170,11 @@ export default function SavedListDetail({
     } catch {
       setFollowing(!next);
       setCounts(previousCounts);
-      setError("Network error. Try again.");
+      setError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not update this list. Try again.",
+      );
     } finally {
       setBusy(false);
     }

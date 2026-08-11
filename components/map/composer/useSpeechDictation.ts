@@ -15,12 +15,14 @@ type UseSpeechDictationArgs = {
 type UseSpeechDictationResult = {
   speechSupported: boolean;
   listening: boolean;
+  error: string;
   toggleListening: () => void;
 };
 
 /**
  * Voice-to-text (issue #24): feature-detected, hidden entirely when the
- * browser has no Web Speech API. Degrades silently to typing on error.
+ * browser has no Web Speech API. Reports a failed start so typing remains an
+ * honest fallback.
  */
 export function useSpeechDictation({
   note,
@@ -29,6 +31,7 @@ export function useSpeechDictation({
 }: UseSpeechDictationArgs): UseSpeechDictationResult {
   const [speechSupported, setSpeechSupported] = useState(false);
   const [listening, setListening] = useState(false);
+  const [error, setError] = useState("");
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const noteBeforeListeningRef = useRef("");
 
@@ -57,6 +60,7 @@ export function useSpeechDictation({
   function startListening() {
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) return; // Feature-detected away — button isn't rendered anyway.
+    setError("");
     try {
       const recognition = new Ctor();
       recognition.lang = "en-GB";
@@ -74,8 +78,12 @@ export function useSpeechDictation({
         setDropForm((current) => ({ ...current, note: joined }));
       };
       recognition.onerror = () => {
-        // Silent degrade to typing — no error surfaced, per spec.
         setListening(false);
+        setError(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : "Could not start dictation. Try typing instead.",
+        );
       };
       recognition.onend = () => {
         setListening(false);
@@ -85,6 +93,11 @@ export function useSpeechDictation({
       setListening(true);
     } catch {
       setListening(false);
+      setError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not start dictation. Try typing instead.",
+      );
     }
   }
 
@@ -98,5 +111,5 @@ export function useSpeechDictation({
     else startListening();
   }
 
-  return { speechSupported, listening, toggleListening };
+  return { speechSupported, listening, error, toggleListening };
 }

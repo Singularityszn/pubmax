@@ -57,10 +57,15 @@ export default function TonightAgentPanel() {
 
   async function copyDraft(text: string) {
     try {
-      await navigator.clipboard?.writeText(text);
+      if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
+      await navigator.clipboard.writeText(text);
       setActionStatus("Invite draft copied.");
     } catch {
-      setActionStatus("Couldn't copy just now.");
+      setActionStatus(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not copy invite draft. Try again.",
+      );
     }
   }
 
