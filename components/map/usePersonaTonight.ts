@@ -10,8 +10,8 @@
 import { useEffect, useState } from "react";
 
 import type { DrinkCategory } from "@/lib/drinks";
-import { discardBody } from "@/lib/responseBody";
 import { drinkCategoryForSuggestion } from "@/lib/personaDrinks";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 type ConditionsResponse = {
   summary?: {
@@ -52,28 +52,27 @@ export function useTonightLaneCue(enabled: boolean): TonightLaneCue {
       return;
     }
     const controller = new AbortController();
-    (async () => {
-      try {
-        const res = await fetch("/api/tonight-conditions", {
-          signal: controller.signal,
-          headers: { accept: "application/json" },
-        });
-        if (!res.ok) {
-          discardBody(res);
-          throw new Error(`HTTP ${res.status}`);
-        }
-        const body = (await res.json()) as ConditionsResponse;
-        if (controller.signal.aborted) return;
+    void loadSurfaceJson<ConditionsResponse>(
+      "/api/tonight-conditions",
+      {
+        signal: controller.signal,
+        init: { headers: { accept: "application/json" } },
+        validate: (body) => Boolean(body && "summary" in body),
+      },
+      (body) => {
         const next: TonightLaneCue = {
           category: drinkCategoryForSuggestion(body.summary?.drinkSuggestion),
           gardenCue: gardenCueFromSummary(body.summary),
         };
-        Promise.resolve().then(() => setCue(next));
-      } catch {
-        if (controller.signal.aborted) return;
-        Promise.resolve().then(() => setCue({ category: null, gardenCue: null }));
+        Promise.resolve().then(() => {
+          if (!controller.signal.aborted) setCue(next);
+        });
+      },
+    ).then((outcome) => {
+      if (outcome === "failed" && !controller.signal.aborted) {
+        setCue({ category: null, gardenCue: null });
       }
-    })();
+    });
     return () => controller.abort();
   }, [enabled]);
 

@@ -15,12 +15,12 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight, MapPin, Sun } from "lucide-react";
 
 import { cityAwareMapPath } from "@/lib/curatedCrawls";
-import { discardBody } from "@/lib/responseBody";
 import {
   gardenWeatherHeadline,
   isGardenWeather,
   type GardenWeatherInput,
 } from "@/lib/gardenWeather";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import "./gardenTonightCard.css";
 
@@ -86,65 +86,74 @@ export default function GardenTonightCard() {
       });
     };
     (async () => {
-      try {
-        const statusRes = await fetch("/api/citymcp/status", {
+      const statusBox: { value: StatusResponse | null } = { value: null };
+      const statusOutcome = await loadSurfaceJson<StatusResponse>(
+        "/api/citymcp/status",
+        {
           signal: controller.signal,
-          headers: { accept: "application/json" },
-        });
-        if (!statusRes.ok) {
-          discardBody(statusRes);
-          hide();
-          return;
-        }
-        const statusBody = (await statusRes.json()) as StatusResponse;
-        const weather = statusBody.weather ?? null;
-        // Bad weather → hide immediately, without even asking for pubs.
-        if (!isGardenWeather(weather)) {
-          hide();
-          return;
-        }
-        const line = gardenWeatherHeadline(weather);
-        if (!line) {
-          hide();
-          return;
-        }
-
-        const placesRes = await fetch(
-          `/api/citymcp/places?q=${encodeURIComponent(PLACES_QUERY)}&openNow=true&sort=rating&limit=6`,
-          { signal: controller.signal, headers: { accept: "application/json" } },
-        );
-        if (!placesRes.ok) {
-          discardBody(placesRes);
-          hide();
-          return;
-        }
-        const placesBody = (await placesRes.json()) as PlacesResponse;
-        const rows = Array.isArray(placesBody.places)
-          ? placesBody.places.filter(
-              (p) =>
-                p &&
-                typeof p.id === "string" &&
-                typeof p.name === "string" &&
-                isGardenPub(p),
-            )
-          : [];
-        const picked = rows.slice(0, MAX_PUBS);
-        // Good weather but nothing open → honest empty, render nothing.
-        if (picked.length === 0) {
-          hide();
-          return;
-        }
-
-        void Promise.resolve().then(() => {
-          if (controller.signal.aborted) return;
-          setHeadline(line);
-          setPubs(picked);
-          setStatus("ready");
-        });
-      } catch {
-        // Fail-soft: hide the card entirely.
+          init: { headers: { accept: "application/json" } },
+          validate: (body) => Boolean(body && "weather" in body),
+        },
+        (body) => {
+          statusBox.value = body;
+        },
+      );
+      const statusAnswer = statusBox.value;
+      if (statusOutcome === "failed" || !statusAnswer || controller.signal.aborted) {
         hide();
+        return;
       }
+      const weather = statusAnswer.weather ?? null;
+      // Bad weather → hide immediately, without even asking for pubs.
+      if (!isGardenWeather(weather)) {
+        hide();
+        return;
+      }
+      const line = gardenWeatherHeadline(weather);
+      if (!line) {
+        hide();
+        return;
+      }
+
+      const placesBox: { value: PlacesResponse | null } = { value: null };
+      const placesOutcome = await loadSurfaceJson<PlacesResponse>(
+        `/api/citymcp/places?q=${encodeURIComponent(PLACES_QUERY)}&openNow=true&sort=rating&limit=6`,
+        {
+          signal: controller.signal,
+          init: { headers: { accept: "application/json" } },
+          validate: (body) => Array.isArray(body?.places),
+        },
+        (body) => {
+          placesBox.value = body;
+        },
+      );
+      const placesAnswer = placesBox.value;
+      if (placesOutcome === "failed" || !placesAnswer || controller.signal.aborted) {
+        hide();
+        return;
+      }
+      const rows = Array.isArray(placesAnswer.places)
+        ? placesAnswer.places.filter(
+            (p) =>
+              p &&
+              typeof p.id === "string" &&
+              typeof p.name === "string" &&
+              isGardenPub(p),
+          )
+        : [];
+      const picked = rows.slice(0, MAX_PUBS);
+      // Good weather but nothing open → honest empty, render nothing.
+      if (picked.length === 0) {
+        hide();
+        return;
+      }
+
+      void Promise.resolve().then(() => {
+        if (controller.signal.aborted) return;
+        setHeadline(line);
+        setPubs(picked);
+        setStatus("ready");
+      });
     })();
     return () => {
       controller.abort();

@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 
 import { coarsenViewerPoint } from "@/lib/geo";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import type { PatchDisruption } from "@/lib/tflDisruption";
 
 import "./disruptionLine.css";
@@ -31,15 +32,14 @@ export default function DisruptionLine({ lat, lng }: Props) {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`/api/tfl-disruption?lat=${rlat}&lng=${rlng}`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body: DisruptionResponse | null) => {
-        if (controller.signal.aborted) return;
-        setDisruption(body?.disruption ?? null);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setDisruption(null);
-      });
+    void loadSurfaceJson<DisruptionResponse>(
+      `/api/tfl-disruption?lat=${rlat}&lng=${rlng}`,
+      {
+        signal: controller.signal,
+        validate: (body) => Boolean(body && "disruption" in body),
+      },
+      (body) => setDisruption(body.disruption ?? null),
+    );
     return () => controller.abort();
   }, [rlat, rlng]);
 

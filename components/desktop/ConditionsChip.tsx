@@ -15,6 +15,7 @@ import { CloudSun } from "lucide-react";
 
 import type { TonightConditionsSummary } from "@/lib/tonightConditions";
 import { shortDrinkVerdict } from "@/lib/conditionsFormat";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import "./conditionsChip.css";
 
@@ -25,15 +26,16 @@ export default function ConditionsChip() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/tonight-conditions", { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body: ConditionsResponse | null) => {
-        if (controller.signal.aborted) return;
-        setSummary(body?.summary ?? null);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setSummary(null);
-      });
+    void loadSurfaceJson<ConditionsResponse>(
+      "/api/tonight-conditions",
+      {
+        signal: controller.signal,
+        validate: (body) => Boolean(body && "summary" in body),
+      },
+      (body) => setSummary(body.summary ?? null),
+    ).then((outcome) => {
+      if (outcome === "failed" && !controller.signal.aborted) setSummary(null);
+    });
     return () => controller.abort();
   }, []);
 

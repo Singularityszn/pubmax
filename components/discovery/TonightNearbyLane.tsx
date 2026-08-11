@@ -22,7 +22,7 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight, ExternalLink, MapPin } from "lucide-react";
 
 import { cityAwareMapPath } from "@/lib/curatedCrawls";
-import { discardBody } from "@/lib/responseBody";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { firstHttp } from "@/lib/httpUrl";
 
 import "./tonightNearbyLane.css";
@@ -91,26 +91,17 @@ export default function TonightNearbyLane() {
 
   useEffect(() => {
     const controller = new AbortController();
-    (async () => {
-      try {
-        const res = await fetch(
-          "/api/citymcp/things-to-do?window=tonight&limit=6",
-          {
-            signal: controller.signal,
-            headers: { accept: "application/json" },
-          },
+    void loadSurfaceJson<ApiResponse>(
+      "/api/citymcp/things-to-do?window=tonight&limit=6",
+      {
+        signal: controller.signal,
+        init: { headers: { accept: "application/json" } },
+        validate: (body) => Array.isArray(body?.opportunities),
+      },
+      (body) => {
+        const opportunities = (body.opportunities ?? []).filter(
+          (o) => o && typeof o.title === "string" && o.title.length > 0,
         );
-        if (!res.ok) {
-          discardBody(res);
-          void Promise.resolve().then(() => {
-            if (!controller.signal.aborted) setStatus("hidden");
-          });
-          return;
-        }
-        const body = (await res.json()) as ApiResponse;
-        const opportunities = Array.isArray(body.opportunities)
-          ? body.opportunities.filter((o) => o && typeof o.title === "string" && o.title.length > 0)
-          : [];
         void Promise.resolve().then(() => {
           if (controller.signal.aborted) return;
           if (opportunities.length === 0) {
@@ -120,13 +111,12 @@ export default function TonightNearbyLane() {
             setStatus("ready");
           }
         });
-      } catch {
-        // Fail-soft: hide the lane entirely.
-        void Promise.resolve().then(() => {
-          if (!controller.signal.aborted) setStatus("hidden");
-        });
+      },
+    ).then((outcome) => {
+      if (outcome === "failed" && !controller.signal.aborted) {
+        setStatus("hidden");
       }
-    })();
+    });
     return () => {
       controller.abort();
     };

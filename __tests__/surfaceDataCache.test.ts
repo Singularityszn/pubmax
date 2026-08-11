@@ -111,7 +111,9 @@ describe("stale-while-revalidate", () => {
     const outcome = await loadSurfaceJson<{ drops: string[] }>(
       "/api/pint-drops?author=karan",
       { fetchImpl },
-      (value, source) => applied.push([value, source]),
+      (value, source) => {
+        applied.push([value, source]);
+      },
     );
 
     expect(applied).toEqual([
@@ -145,7 +147,9 @@ describe("stale-while-revalidate", () => {
     await loadSurfaceJson(
       "/api/crawls?author=karan",
       { fetchImpl, signal: controller.signal },
-      (value) => applied.push(value),
+      (value) => {
+        applied.push(value);
+      },
     );
     expect(applied).toEqual([]);
   });
@@ -156,5 +160,108 @@ describe("stale-while-revalidate", () => {
     ) as unknown as typeof fetch;
     await loadSurfaceJson("/api/crawls?author=karan", { fetchImpl }, () => {});
     expect(surfaceCacheSize()).toBe(0);
+  });
+
+  it("retries one transient response and applies only its good answer", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("busy", { status: 503 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ rows: [1] }), { status: 200 }),
+      );
+    const applied: Array<[unknown, string]> = [];
+
+    await expect(
+      loadSurfaceJson("/api/whats-on?window=tonight", { fetchImpl }, (value, source) => {
+        applied.push([value, source]);
+      }),
+    ).resolves.toBe("network");
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(applied).toEqual([[{ rows: [1] }, "network"]]);
+  });
+
+  it("retries one transient network failure", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ count: 2 }), { status: 200 }));
+
+    await expect(
+      loadSurfaceJson("/api/crawls?author=karan", { fetchImpl }, () => {}),
+    ).resolves.toBe("network");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a permanent response", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response("no", { status: 404 }),
+    );
+
+    await expect(
+      loadSurfaceJson("/api/crawls?author=karan", { fetchImpl }, () => {}),
+    ).resolves.toBe("failed");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the snapshot after both transient attempts fail", async () => {
+    writeSurfaceSnapshot("/api/crawls?author=karan", { count: 2 });
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response("busy", { status: 503 }));
+
+    await expect(
+      loadSurfaceJson("/api/crawls?author=karan", { fetchImpl }, () => {}),
+    ).resolves.toBe("snapshot");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not remember a response that the caller rejects", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ error: "unavailable" }), { status: 200 }),
+    );
+
+    await expect(
+      loadSurfaceJson(
+        "/api/whats-on?window=tonight",
+        {
+          fetchImpl,
+          validate: (value: { error?: string }) => value.error === undefined,
+        },
+        () => {},
+      ),
+    ).resolves.toBe("failed");
+    expect(surfaceCacheSize()).toBe(0);
+  });
+
+  it("lets a parsed error stay out of last-good memory", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ error: "unavailable" }), { status: 200 }),
+    );
+
+    await expect(
+      loadSurfaceJson(
+        "/api/whats-on?window=tonight",
+        { fetchImpl },
+        () => false,
+      ),
+    ).resolves.toBe("network");
+    expect(surfaceCacheSize()).toBe(0);
+  });
+
+  it("does not spend the retry after the caller aborts during backoff", async () => {
+    const controller = new AbortController();
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response("busy", { status: 503 }),
+    );
+    const pending = loadSurfaceJson(
+      "/api/whats-on?window=tonight",
+      { fetchImpl, signal: controller.signal },
+      () => {},
+    );
+    setTimeout(() => controller.abort(), 5);
+
+    await expect(pending).resolves.toBe("failed");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

@@ -18,10 +18,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { coarsenViewerPoint } from "@/lib/geo";
-import {
-  readSurfaceSnapshot,
-  writeSurfaceSnapshot,
-} from "@/lib/surfaceDataCache";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import {
   EMPTY_KIND_OBSERVED_AT,
   isValidWhatsOnRow,
@@ -111,7 +108,28 @@ export type LoadTonightOpts = {
   /** Order rows by nearness to this point (the store sorts server-side).
    *  Omitted = the store's own order, exactly as before. */
   near?: { lat: number; lng: number } | null;
+  maxAgeMs?: number;
+  onResult?: (result: LoadTonightResult, source: "snapshot" | "network") => void;
 };
+
+function fetchWithTimeout(
+  fetchImpl: typeof fetch,
+  timeoutMs: number,
+): typeof fetch {
+  return async (input, init) => {
+    const controller = new AbortController();
+    const outerSignal = init?.signal;
+    const onOuterAbort = () => controller.abort();
+    outerSignal?.addEventListener("abort", onOuterAbort, { once: true });
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetchImpl(input, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+      outerSignal?.removeEventListener("abort", onOuterAbort);
+    }
+  };
+}
 
 /**
  * Fetch + validate tonight's whats-on rows. Injectable so the error and
@@ -122,47 +140,62 @@ export type LoadTonightOpts = {
 export async function loadWhatsOnTonight(
   opts: LoadTonightOpts = {},
 ): Promise<LoadTonightResult> {
-  const fetchImpl = opts.fetchImpl ?? fetch;
-  const timeoutMs = opts.timeoutMs ?? FETCH_TIMEOUT_MS;
-  const controller = new AbortController();
-  const onOuterAbort = () => controller.abort();
-  opts.signal?.addEventListener("abort", onOuterAbort, { once: true });
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetchImpl(whatsOnTonightRequestUrl(opts.near), {
-      signal: controller.signal,
-      headers: { accept: "application/json" },
-    });
-    if (!res.ok) {
-      return { rows: [], asOf: null, sourceObservedAt: null, sourceFreshnessKind: "unknown", kindObservedAt: EMPTY_KIND_OBSERVED_AT, status: "error" };
-    }
-    const body = (await res.json()) as ApiResponse;
-    if (typeof body.error === "string" && body.error.trim().length > 0) {
-      // Preserve any echoed asOf (the error state shows an outage, not a freshness
-      // line, so this never surfaces as a check) but the source kind stays unknown.
-      const echoed = body.sourceObservedAt ?? body.asOf ?? null;
-      return { rows: [], asOf: echoed, sourceObservedAt: echoed, sourceFreshnessKind: "unknown", kindObservedAt: EMPTY_KIND_OBSERVED_AT, status: "error" };
-    }
-    const rows = Array.isArray(body.rows)
-      ? body.rows.filter((r): r is WhatsOnRow => isValidWhatsOnRow(r))
-      : [];
-    // Prefer the explicit source-observed time; asOf is its compatibility alias.
-    const sourceObservedAt = body.sourceObservedAt ?? body.asOf ?? null;
-    return {
-      rows,
-      asOf: sourceObservedAt,
-      sourceObservedAt,
-      sourceFreshnessKind: parseFreshnessKind(body.sourceFreshnessKind),
-      kindObservedAt: parseKindObservedAt(body.kindObservedAt),
-      status: rows.length === 0 ? "empty" : "ready",
-    };
-  } catch {
-    // Network failure or timeout abort — an outage, not a quiet night.
-    return { rows: [], asOf: null, sourceObservedAt: null, sourceFreshnessKind: "unknown", kindObservedAt: EMPTY_KIND_OBSERVED_AT, status: "error" };
-  } finally {
-    clearTimeout(timer);
-    opts.signal?.removeEventListener("abort", onOuterAbort);
-  }
+  let result: LoadTonightResult = {
+    rows: [],
+    asOf: null,
+    sourceObservedAt: null,
+    sourceFreshnessKind: "unknown",
+    kindObservedAt: EMPTY_KIND_OBSERVED_AT,
+    status: "error",
+  };
+  const fetchImpl = fetchWithTimeout(
+    opts.fetchImpl ?? fetch,
+    opts.timeoutMs ?? FETCH_TIMEOUT_MS,
+  );
+  await loadSurfaceJson<ApiResponse>(
+    whatsOnTonightRequestUrl(opts.near),
+    {
+      signal: opts.signal,
+      maxAgeMs: opts.maxAgeMs,
+      init: { headers: { accept: "application/json" } },
+      fetchImpl,
+      validate: (body) => Boolean(
+        body &&
+          typeof body === "object" &&
+          Array.isArray((body as ApiResponse).rows),
+      ),
+    },
+    (body, source) => {
+      if (typeof body.error === "string" && body.error.trim().length > 0) {
+        // Preserve any echoed asOf (the error state shows an outage, not a freshness
+        // line, so this never surfaces as a check) but keep it out of last-good memory.
+        const echoed = body.sourceObservedAt ?? body.asOf ?? null;
+        result = {
+          rows: [],
+          asOf: echoed,
+          sourceObservedAt: echoed,
+          sourceFreshnessKind: "unknown",
+          kindObservedAt: EMPTY_KIND_OBSERVED_AT,
+          status: "error",
+        };
+        opts.onResult?.(result, source);
+        return false;
+      }
+      const rows = (Array.isArray(body.rows) ? body.rows : [])
+        .filter((r): r is WhatsOnRow => isValidWhatsOnRow(r));
+      const sourceObservedAt = body.sourceObservedAt ?? body.asOf ?? null;
+      result = {
+        rows,
+        asOf: sourceObservedAt,
+        sourceObservedAt,
+        sourceFreshnessKind: parseFreshnessKind(body.sourceFreshnessKind),
+        kindObservedAt: parseKindObservedAt(body.kindObservedAt),
+        status: rows.length === 0 ? "empty" : "ready",
+      };
+      opts.onResult?.(result, source);
+    },
+  );
+  return result;
 }
 
 const EMPTY_SUMMARY = new Map<string, VenueWhatsOnSummary>();
@@ -200,12 +233,16 @@ export function useWhatsOnTonight(
     }
     const controller = new AbortController();
     const near = nearLat != null && nearLng != null ? { lat: nearLat, lng: nearLng } : null;
-    const load: LoadTonightOpts = { signal: controller.signal };
+    const load: LoadTonightOpts = {
+      signal: controller.signal,
+      maxAgeMs: TONIGHT_SNAPSHOT_MAX_AGE_MS,
+    };
     if (near) load.near = near;
-    const key = whatsOnTonightRequestUrl(near);
-
-    const apply = (result: LoadTonightResult) => {
+    let painted = false;
+    load.onResult = (result, source) => {
       if (controller.signal.aborted) return;
+      if (result.status === "error" && painted && source === "network") return;
+      painted = true;
       setRows(result.rows);
       setAsOf(result.asOf);
       setSourceFreshnessKind(result.sourceFreshnessKind);
@@ -213,33 +250,13 @@ export function useWhatsOnTonight(
       setStatus(result.status);
     };
 
-    // The last answer this browser was given for exactly this request, so a
-    // return to Tonight (or to the map lane, which asks the same question)
-    // paints the listings it had instead of an empty spine. Deferred by a
-    // microtask like the network path, so no setState fires in the effect body.
-    let seeded = false;
-    void Promise.resolve().then(() => {
-      if (controller.signal.aborted) return;
-      const held = readSurfaceSnapshot<LoadTonightResult>(key, TONIGHT_SNAPSHOT_MAX_AGE_MS);
-      if (!held) return;
-      seeded = true;
-      apply(held);
-    });
-
     void loadWhatsOnTonight(load).then((result) => {
-      if (controller.signal.aborted) return;
-      void Promise.resolve().then(() => {
-        // An outage must never masquerade as a quiet night — but it must not
-        // blank real listings the reader is already looking at either. A failed
-        // revalidate over a seeded surface leaves the seeded rows standing,
-        // dated by their own source time; with nothing seeded it reports the
-        // outage exactly as before.
-        if (result.status === "error" && seeded) return;
-        // Only a real answer is remembered. An error carries no rows, and
-        // holding it would hand the next arrival an outage that has passed.
-        if (result.status !== "error") writeSurfaceSnapshot(key, result);
-        apply(result);
-      });
+      if (controller.signal.aborted || painted) return;
+      setRows(result.rows);
+      setAsOf(result.asOf);
+      setSourceFreshnessKind(result.sourceFreshnessKind);
+      setKindObservedAt(result.kindObservedAt ?? EMPTY_KIND_OBSERVED_AT);
+      setStatus(result.status);
     });
     return () => controller.abort();
   }, [enabled, retryAttempt, nearLat, nearLng]);

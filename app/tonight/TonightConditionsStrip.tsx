@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 import { CloudSun } from "lucide-react";
 
 import { coarsenViewerPoint } from "@/lib/geo";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import type { TonightConditionsSummary } from "@/lib/tonightConditions";
 
 import "./tonightConditions.css";
@@ -39,15 +40,14 @@ export default function TonightConditionsStrip({ origin }: Props) {
   useEffect(() => {
     const controller = new AbortController();
     const query = lat !== null && lng !== null ? `?lat=${lat}&lng=${lng}` : "";
-    fetch(`/api/tonight-conditions${query}`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body: ConditionsResponse | null) => {
-        if (controller.signal.aborted) return;
-        setSummary(body?.summary ?? null);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setSummary(null);
-      });
+    void loadSurfaceJson<ConditionsResponse>(
+      `/api/tonight-conditions${query}`,
+      {
+        signal: controller.signal,
+        validate: (body) => Boolean(body && "summary" in body),
+      },
+      (body) => setSummary(body.summary ?? null),
+    );
     return () => controller.abort();
   }, [lat, lng]);
 

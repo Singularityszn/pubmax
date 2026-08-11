@@ -6,8 +6,8 @@ import { useEffect, useState } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { buildBoroughPassport } from "@/lib/passport";
-import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle, type ProfileDrop } from "@/lib/profiles";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 type PublicDrop = ProfileDrop & { id?: string };
 
@@ -27,35 +27,36 @@ export default function BoroughPassportSlice({ boroughName, venueIds }: BoroughP
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     async function load() {
       if (!identityResolved) return;
       if (!handle) {
         if (active) setPassport(buildBoroughPassport([], boroughName, venueIds));
         return;
       }
-      try {
-        // Scope the feed to this handle via ?author= — never pull the global
-        // public feed just to filter client-side.
-        const qs = new URLSearchParams({ author: handle });
-        const res = await fetch(`/api/pint-drops?${qs.toString()}`);
-        if (!res.ok) {
-          discardBody(res);
-          return;
-        }
-        const body = (await res.json()) as { drops?: PublicDrop[] };
-        const mine = (body.drops ?? []).filter(
-          (drop) => normalizeHandle(drop.handle) === handle,
-        );
-        if (active) {
-          setPassport(buildBoroughPassport(mine, boroughName, venueIds));
-        }
-      } catch {
-        // offline — keep the zeroed slice
-      }
+      // Scope the feed to this handle via ?author= — never pull the global
+      // public feed just to filter client-side.
+      const qs = new URLSearchParams({ author: handle });
+      await loadSurfaceJson<{ drops?: PublicDrop[] }>(
+        `/api/pint-drops?${qs.toString()}`,
+        {
+          signal: controller.signal,
+          validate: (body) => Array.isArray(body?.drops),
+        },
+        (body) => {
+          const mine = (body.drops ?? []).filter(
+            (drop) => normalizeHandle(drop.handle) === handle,
+          );
+          if (active) {
+            setPassport(buildBoroughPassport(mine, boroughName, venueIds));
+          }
+        },
+      );
     }
     void load();
     return () => {
       active = false;
+      controller.abort();
     };
   }, [boroughName, handle, identityResolved, venueIds]);
 

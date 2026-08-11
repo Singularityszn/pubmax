@@ -7,8 +7,8 @@ import {
   streakLabel,
   type ContributionSummary,
 } from "@/lib/pintContributions";
-import { discardBody } from "@/lib/responseBody";
 import { nightsKeptLabel, readNightsKept } from "@/lib/nightsKept";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import "./yourContributionsCard.css";
 
@@ -63,20 +63,18 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
     if (!handle) return;
     const controller = new AbortController();
     (async () => {
-      try {
-        const res = await fetch(
-          `/api/pint-drops/stats?handle=${encodeURIComponent(handle)}`,
-          { signal: controller.signal },
-        );
-        if (!res.ok) {
-          discardBody(res);
-          throw new Error(`stats ${res.status}`);
-        }
-        const body = (await res.json()) as { stats?: ContributionSummary };
-        if (!body.stats) throw new Error("no stats");
-        setState({ kind: "ready", stats: body.stats });
-      } catch (err) {
-        if ((err as { name?: string }).name === "AbortError") return;
+      const outcome = await loadSurfaceJson<{ stats?: ContributionSummary }>(
+        `/api/pint-drops/stats?handle=${encodeURIComponent(handle)}`,
+        {
+          signal: controller.signal,
+          validate: (body) => Boolean(body?.stats),
+        },
+        (body) => {
+          if (!body.stats) return;
+          setState({ kind: "ready", stats: body.stats });
+        },
+      );
+      if (outcome === "failed" && !controller.signal.aborted) {
         setState({ kind: "error" });
       }
     })();

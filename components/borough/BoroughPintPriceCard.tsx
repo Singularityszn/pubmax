@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { discardBody } from "@/lib/responseBody";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 type CityAreaResponse = {
   borough: string | null;
@@ -43,25 +43,23 @@ export default function BoroughPintPriceCard({
   const [area, setArea] = useState<CityAreaResponse | null>(null);
 
   useEffect(() => {
-    let active = true;
-    async function load() {
-      try {
-        const qs = new URLSearchParams({ borough: boroughName });
-        const res = await fetch(`/api/citymcp/area?${qs.toString()}`);
-        if (!res.ok) {
-          discardBody(res);
-          return;
-        }
-        const body = (await res.json()) as CityAreaResponse;
-        if (active) setArea(body);
-      } catch {
-        // offline / upstream down — stay unrendered
-      }
-    }
-    void load();
-    return () => {
-      active = false;
-    };
+    const controller = new AbortController();
+    const qs = new URLSearchParams({ borough: boroughName });
+    void loadSurfaceJson<CityAreaResponse>(
+      `/api/citymcp/area?${qs.toString()}`,
+      {
+        signal: controller.signal,
+        validate: (body) =>
+          Boolean(
+            body &&
+              typeof body === "object" &&
+              "averagePintGbp" in body &&
+              "borough" in body,
+          ),
+      },
+      (body) => setArea(body),
+    );
+    return () => controller.abort();
   }, [boroughName]);
 
   if (!area || typeof area.averagePintGbp !== "number") return null;
