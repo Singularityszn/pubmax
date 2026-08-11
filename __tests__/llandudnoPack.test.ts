@@ -48,6 +48,41 @@ const SEED: { pubs: SeedPub[]; promotedFrom?: string; fetchedAt?: string } =
     readFileSync(join(ROOT, "data", "cities", "llandudno", "osm_pubs.json"), "utf8"),
   );
 
+const ESTATE_COVERAGE_PATH = join(
+  ROOT,
+  "public",
+  "data",
+  "cities",
+  "llandudno",
+  "estate_coverage.json",
+);
+const ESTATE_COVERAGE = JSON.parse(readFileSync(ESTATE_COVERAGE_PATH, "utf8")) as {
+  version: number;
+  city: string;
+  observedAt: string;
+  estates: Array<{
+    id: string;
+    venues: Array<{
+      cityVenueId: string;
+      name: string;
+      prices: unknown[];
+      source: { url: string; licence: string };
+      observedAt: string;
+      priceCheck?: {
+        status: string;
+        observedAt: string;
+        source: { url: string; licence: string };
+      };
+    }>;
+    priceUpdates: unknown[];
+    coverageCheck?: {
+      status: string;
+      observedAt: string;
+      source: { url: string; licence: string };
+    };
+  }>;
+};
+
 const PLACES = parseUkPlaceIndex(
   JSON.parse(
     readFileSync(join(ROOT, "public", "data", "uk_base", "places.json"), "utf8"),
@@ -55,6 +90,15 @@ const PLACES = parseUkPlaceIndex(
 );
 
 describe("Llandudno curated pack", () => {
+  it("keeps the audited estate source and shipped copy identical", () => {
+    expect(readFileSync(ESTATE_COVERAGE_PATH, "utf8")).toBe(
+      readFileSync(
+        join(ROOT, "data", "cities", "llandudno", "estate_coverage.json"),
+        "utf8",
+      ),
+    );
+  });
+
   it("ships real coastal pubs with city-salted ids, in bounds, and no price", () => {
     expect(SLIM.length).toBeGreaterThanOrEqual(20);
     const ids = new Set<string>();
@@ -67,6 +111,51 @@ describe("Llandudno curated pack", () => {
       // OSM is not a price source, and no price has been harvested here.
       expect(row.cheapestPrice).toBeNull();
       expect(row.filterHints?.searchText?.length ?? 0).toBeGreaterThan(0);
+    }
+  });
+
+  it("ships estate coverage with honest price and source states", () => {
+    expect(ESTATE_COVERAGE).toMatchObject({ version: 1, city: "llandudno" });
+    expect(Number.isFinite(Date.parse(ESTATE_COVERAGE.observedAt))).toBe(true);
+
+    const byEstate = new Map(ESTATE_COVERAGE.estates.map((estate) => [estate.id, estate]));
+    const wetherspoon = byEstate.get("wetherspoon");
+    expect(wetherspoon?.venues).toHaveLength(1);
+    expect(wetherspoon?.venues[0]).toMatchObject({
+      cityVenueId: "venue-lla-g00u76",
+      name: "The Palladium",
+      prices: [],
+    });
+    expect(wetherspoon?.venues[0]?.source.url).toMatch(/^https:\/\//);
+    expect(wetherspoon?.venues[0]?.source.licence).toBeTruthy();
+    expect(wetherspoon?.venues[0]?.priceCheck).toMatchObject({
+      status: "not-published-on-web",
+    });
+    expect(wetherspoon?.priceUpdates).toEqual([]);
+
+    for (const id of ["greene-king", "mitchells-butlers"]) {
+      const estate = byEstate.get(id);
+      expect(estate?.venues).toEqual([]);
+      expect(estate?.priceUpdates).toEqual([]);
+      expect(estate?.coverageCheck).toMatchObject({
+        status: "no-venues-in-scope",
+      });
+      expect(estate?.coverageCheck?.source.url).toMatch(/^https:\/\//);
+      expect(estate?.coverageCheck?.source.licence).toBeTruthy();
+    }
+
+    for (const estate of ESTATE_COVERAGE.estates) {
+      for (const venue of estate.venues) {
+        expect(Number.isFinite(Date.parse(venue.observedAt))).toBe(true);
+        if (venue.priceCheck) {
+          expect(Number.isFinite(Date.parse(venue.priceCheck.observedAt))).toBe(true);
+          expect(venue.priceCheck.source.url).toMatch(/^https:\/\//);
+          expect(venue.priceCheck.source.licence).toBeTruthy();
+        }
+      }
+      if (estate.coverageCheck) {
+        expect(Number.isFinite(Date.parse(estate.coverageCheck.observedAt))).toBe(true);
+      }
     }
   });
 
