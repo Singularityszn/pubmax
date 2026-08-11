@@ -1,6 +1,7 @@
 import { CITIES, type CityId } from "@/lib/cities";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import type { PlanStopDTO } from "@/lib/plan";
+import { isPlanStopCount } from "@/lib/planStopCount";
 
 /**
  * Rebuild a proposed route from the server-owned Venue Dataset. A Plan does not
@@ -8,7 +9,7 @@ import type { PlanStopDTO } from "@/lib/plan";
  * city dataset and always returns its canonical display names.
  */
 export async function canonicalPlanRoute(raw: unknown): Promise<PlanStopDTO[] | null> {
-  if (!Array.isArray(raw) || raw.length !== 3) return null;
+  if (!Array.isArray(raw) || !isPlanStopCount(raw.length)) return null;
   const ids = raw.map((value) => value && typeof value === "object"
     ? (value as Record<string, unknown>).venueId
     : null);

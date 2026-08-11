@@ -8,6 +8,7 @@ import { requireSupabaseAdmin } from "@/lib/supabase";
 import { isVibeChipId, type VibeChipId } from "@/lib/vibeChips";
 import { EMPTY_VIBE_TALLY, tallyVibeVotes, type VibeTally } from "@/lib/vibeTally";
 import { inviteExpiresAtIso, isPastPlanScheduledEnd } from "@/lib/inviteExpiry";
+import { isPlanStopCount } from "@/lib/planStopCount";
 
 export type PlanInvite = {
   id: string;
@@ -231,8 +232,8 @@ async function member(planId: string, token: unknown, role?: PlanMemberRole) {
 }
 
 function validStops(stops: readonly PlanStopDTO[]): boolean {
-  return stops.length === 3 &&
-    new Set(stops.map((stop) => stop.venueId)).size === 3 &&
+  return isPlanStopCount(stops.length) &&
+    new Set(stops.map((stop) => stop.venueId)).size === stops.length &&
     stops.every((stop, index) => stop.position === index && Boolean(stop.venueId) && Boolean(stop.venueName));
 }
 

@@ -1,5 +1,10 @@
 import { haversineKm } from "@/lib/haversine";
 import { DAY_MS } from "@/lib/dayMs";
+import {
+  MAX_PLAN_STOP_COUNT,
+  MIN_PLAN_STOP_COUNT,
+  normalizePlanStopCount,
+} from "@/lib/planStopCount";
 import type { PlanAccessibilityNeed } from "@/lib/planIntake";
 import type { Budget, NightAreaSlug } from "@/lib/nightPlanning";
 import type {
@@ -17,20 +22,31 @@ import {
   type PlanPriceEvidence,
 } from "@/lib/planRouteEvidence";
 
+export {
+  DEFAULT_PLAN_STOP_COUNT,
+  MAX_PLAN_STOP_COUNT,
+  MIN_PLAN_STOP_COUNT,
+} from "@/lib/planStopCount";
 export const PLAN_STOP_MINUTES = 50;
 export const PLAN_WALKING_KMH = 4.8;
 export const PLAN_TRANSFER_UNCERTAINTY_MINUTES = 5;
 export const MAX_PLAN_ROUTE_SEGMENT_KM = 1.6;
 export const MAX_PLAN_ROUTE_WALKING_KM = 3;
+const MAX_ROUTE_SEARCH_CANDIDATES = 14;
+const ROUTE_BEAM_WIDTH = 1_500;
 
 export type PlanVisitWindow = { startsAt: string; endsAt: string };
 export type PlanRouteTiming = {
-  visitWindows: readonly [PlanVisitWindow, PlanVisitWindow, PlanVisitWindow] | [];
+  visitWindows: readonly PlanVisitWindow[];
   straightLineWalkingKm: number;
   walkingMinutes: number;
   transferUncertaintyMinutes: number;
   scheduledRouteMinutes: number;
 };
+
+export function planStopCount(value: unknown): number {
+  return normalizePlanStopCount(value);
+}
 
 export type { PlanConstraintReport, PlanStopConstraintFlag } from "@/lib/planGenerationDto";
 
@@ -57,6 +73,8 @@ export type GroundedPlanRouteConstraints = {
   transportConstraints: readonly string[];
   routeWindow: { startsAt: string; endsAt: string } | null;
   now: number;
+  /** Requested number of pub stops. Missing means the original 3-stop default. */
+  stopCount?: number;
 };
 
 export type SelectedGroundedPlanStop<T> = GroundedPlanRouteCandidate<T> & {
@@ -69,12 +87,8 @@ export type SelectedGroundedPlanStop<T> = GroundedPlanRouteCandidate<T> & {
 export type GroundedPlanRouteSelection<T> =
   | {
       ok: true;
-      stops: readonly [SelectedGroundedPlanStop<T>, SelectedGroundedPlanStop<T>, SelectedGroundedPlanStop<T>];
-      alternatives: readonly [
-        readonly SelectedGroundedPlanStop<T>[],
-        readonly SelectedGroundedPlanStop<T>[],
-        readonly SelectedGroundedPlanStop<T>[],
-      ];
+      stops: readonly SelectedGroundedPlanStop<T>[];
+      alternatives: readonly (readonly SelectedGroundedPlanStop<T>[])[];
       timing: PlanRouteTiming;
       constraintReport: PlanConstraintReport;
     }
@@ -93,18 +107,16 @@ function legWalkingMinutes(km: number): number {
 }
 
 export function routeTiming<T>(
-  route: readonly [GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>],
+  route: readonly GroundedPlanRouteCandidate<T>[],
   routeWindow: GroundedPlanRouteConstraints["routeWindow"],
 ): PlanRouteTiming | null {
-  const firstKm = distanceKm(route[0], route[1]);
-  const secondKm = distanceKm(route[1], route[2]);
-  const distance = firstKm + secondKm;
-  if (firstKm > MAX_PLAN_ROUTE_SEGMENT_KM || secondKm > MAX_PLAN_ROUTE_SEGMENT_KM || distance > MAX_PLAN_ROUTE_WALKING_KM) {
-    return null;
-  }
-  const walkingMinutes = legWalkingMinutes(firstKm) + legWalkingMinutes(secondKm);
-  const uncertainty = PLAN_TRANSFER_UNCERTAINTY_MINUTES * 2;
-  const scheduledRouteMinutes = PLAN_STOP_MINUTES * 3 + walkingMinutes + uncertainty;
+  if (route.length < MIN_PLAN_STOP_COUNT || route.length > MAX_PLAN_STOP_COUNT) return null;
+  const legs = route.slice(1).map((candidate, index) => distanceKm(route[index]!, candidate));
+  const distance = legs.reduce((total, km) => total + km, 0);
+  if (legs.some((km) => km > MAX_PLAN_ROUTE_SEGMENT_KM) || distance > MAX_PLAN_ROUTE_WALKING_KM) return null;
+  const walkingMinutes = legs.reduce((total, km) => total + legWalkingMinutes(km), 0);
+  const uncertainty = PLAN_TRANSFER_UNCERTAINTY_MINUTES * legs.length;
+  const scheduledRouteMinutes = PLAN_STOP_MINUTES * route.length + walkingMinutes + uncertainty;
   if (!routeWindow) {
     return {
       visitWindows: [],
@@ -114,21 +126,21 @@ export function routeTiming<T>(
       scheduledRouteMinutes,
     };
   }
+
   let cursor = Date.parse(routeWindow.startsAt);
   const deadline = Date.parse(routeWindow.endsAt);
   if (!Number.isFinite(cursor) || !Number.isFinite(deadline)) return null;
   const visits: PlanVisitWindow[] = [];
-  for (let position = 0; position < 3; position += 1) {
+  for (let position = 0; position < route.length; position += 1) {
     const endsAt = cursor + PLAN_STOP_MINUTES * 60_000;
     visits.push({ startsAt: new Date(cursor).toISOString(), endsAt: new Date(endsAt).toISOString() });
-    if (position < 2) {
-      const km = position === 0 ? firstKm : secondKm;
-      cursor = endsAt + (legWalkingMinutes(km) + PLAN_TRANSFER_UNCERTAINTY_MINUTES) * 60_000;
+    if (position < route.length - 1) {
+      cursor = endsAt + (legWalkingMinutes(legs[position]!) + PLAN_TRANSFER_UNCERTAINTY_MINUTES) * 60_000;
     }
   }
-  if (Date.parse(visits[2].endsAt) > deadline) return null;
+  if (Date.parse(visits.at(-1)!.endsAt) > deadline) return null;
   return {
-    visitWindows: visits as [PlanVisitWindow, PlanVisitWindow, PlanVisitWindow],
+    visitWindows: visits,
     straightLineWalkingKm: distance,
     walkingMinutes,
     transferUncertaintyMinutes: uncertainty,
@@ -137,15 +149,15 @@ export function routeTiming<T>(
 }
 
 type EvaluatedRoute<T> = {
-  route: readonly [GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>];
+  route: readonly GroundedPlanRouteCandidate<T>[];
   timing: PlanRouteTiming;
-  opening: readonly [OpeningAssessment, OpeningAssessment, OpeningAssessment];
+  opening: readonly OpeningAssessment[];
   score: number;
   key: string;
 };
 
 function evaluateRoute<T>(
-  route: readonly [GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>],
+  route: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
 ): EvaluatedRoute<T> | null {
   if (constraints.budgetLimitPence !== null) {
@@ -161,7 +173,7 @@ function evaluateRoute<T>(
     candidate.openingSchedule,
     visits[position] ?? null,
     constraints.now,
-  )) as [OpeningAssessment, OpeningAssessment, OpeningAssessment];
+  ));
   if (visits.length > 0 && opening.some((assessment) => assessment.state !== "listed_open")) return null;
   return {
     route,
@@ -182,20 +194,18 @@ function flagsFor(opening: OpeningAssessment, hasVisit: boolean): PlanStopConstr
     : [];
 }
 
-function selectedStops<T>(evaluation: EvaluatedRoute<T>): [
-  SelectedGroundedPlanStop<T>, SelectedGroundedPlanStop<T>, SelectedGroundedPlanStop<T>,
-] {
+function selectedStops<T>(evaluation: EvaluatedRoute<T>): SelectedGroundedPlanStop<T>[] {
   return evaluation.route.map((candidate, position) => ({
     ...candidate,
     position,
     visitWindow: evaluation.timing.visitWindows[position] ?? null,
-    opening: evaluation.opening[position],
-    constraintFlags: flagsFor(evaluation.opening[position], Boolean(evaluation.timing.visitWindows[position])),
-  })) as [SelectedGroundedPlanStop<T>, SelectedGroundedPlanStop<T>, SelectedGroundedPlanStop<T>];
+    opening: evaluation.opening[position]!,
+    constraintFlags: flagsFor(evaluation.opening[position]!, Boolean(evaluation.timing.visitWindows[position])),
+  }));
 }
 
 function report<T>(evaluation: EvaluatedRoute<T>, constraints: GroundedPlanRouteConstraints): PlanConstraintReport {
-  const dated = evaluation.timing.visitWindows.length === 3;
+  const dated = evaluation.timing.visitWindows.length > 0;
   return {
     version: 1,
     source: "plan-intake-v1",
@@ -258,14 +268,36 @@ function better<T>(candidate: EvaluatedRoute<T>, incumbent: EvaluatedRoute<T> | 
   return candidate.key.localeCompare(incumbent.key, "en-GB") < 0;
 }
 
-const ROUTE_PERMUTATIONS = [
-  [0, 1, 2],
-  [0, 2, 1],
-  [1, 0, 2],
-  [1, 2, 0],
-  [2, 0, 1],
-  [2, 1, 0],
-] as const;
+function permutations(length: number): number[][] {
+  const result: number[][] = [];
+  const used = new Set<number>();
+  const current: number[] = [];
+  function visit(): void {
+    if (current.length === length) {
+      result.push([...current]);
+      return;
+    }
+    for (let index = 0; index < length; index += 1) {
+      if (used.has(index)) continue;
+      used.add(index);
+      current.push(index);
+      visit();
+      current.pop();
+      used.delete(index);
+    }
+  }
+  visit();
+  return result;
+}
+
+const permutationCache = new Map<number, number[][]>();
+function routePermutations(length: number): readonly number[][] {
+  const cached = permutationCache.get(length);
+  if (cached) return cached;
+  const generated = permutations(length);
+  permutationCache.set(length, generated);
+  return generated;
+}
 
 function hasCurrentAttributableOpeningSchedule(
   schedule: PlanOpeningSchedule | null,
@@ -288,61 +320,113 @@ function hasCurrentAttributableOpeningSchedule(
 }
 
 function bestRouteFromCombination<T>(
-  combination: readonly [
-    GroundedPlanRouteCandidate<T>,
-    GroundedPlanRouteCandidate<T>,
-    GroundedPlanRouteCandidate<T>,
-  ],
+  combination: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
   incumbent: EvaluatedRoute<T> | null,
 ): EvaluatedRoute<T> | null {
   let best = incumbent;
-  for (const permutation of ROUTE_PERMUTATIONS) {
-    const evaluated = evaluateRoute([
-      combination[permutation[0]],
-      combination[permutation[1]],
-      combination[permutation[2]],
-    ], constraints);
+  for (const permutation of routePermutations(combination.length)) {
+    const route = permutation.map((index) => combination[index]!);
+    const evaluated = evaluateRoute(route, constraints);
     if (evaluated && better(evaluated, best)) best = evaluated;
   }
   return best;
 }
 
-/**
- * Visit candidate triples in descending score-bound order. Once an incumbent
- * exists, a branch whose three best remaining scores cannot match it is
- * discarded. A surviving unordered triple still checks every ordering, so the
- * walking-distance and lexical route tie-breaks remain exact.
- */
+function partialRouteAllowed<T>(
+  route: readonly GroundedPlanRouteCandidate<T>[],
+  constraints: GroundedPlanRouteConstraints,
+): boolean {
+  if (constraints.budgetLimitPence !== null) {
+    if (!route.every((candidate) => priceEvidenceUsableForCeiling(candidate.price))) return false;
+    if (route.reduce((total, candidate) => total + candidate.price.pence!, 0) > constraints.budgetLimitPence) return false;
+  }
+  let distance = 0;
+  for (let index = 1; index < route.length; index += 1) {
+    const leg = distanceKm(route[index - 1]!, route[index]!);
+    if (leg > MAX_PLAN_ROUTE_SEGMENT_KM) return false;
+    distance += leg;
+  }
+  return distance <= MAX_PLAN_ROUTE_WALKING_KM;
+}
+
+function beamBestRoute<T>(
+  seeds: readonly (readonly GroundedPlanRouteCandidate<T>[])[],
+  additions: readonly GroundedPlanRouteCandidate<T>[],
+  target: number,
+  constraints: GroundedPlanRouteConstraints,
+): EvaluatedRoute<T> | null {
+  let beam = seeds.map((route) => ({ route: [...route], score: route.reduce((total, candidate) => total + candidate.score, 0) }));
+  while (beam[0] && beam[0].route.length < target) {
+    const next: { route: GroundedPlanRouteCandidate<T>[]; score: number; key: string; distance: number }[] = [];
+    for (const partial of beam) {
+      const used = new Set(partial.route.map((candidate) => candidate.venueId));
+      for (const candidate of additions) {
+        if (used.has(candidate.venueId)) continue;
+        const route = [...partial.route, candidate];
+        if (!partialRouteAllowed(route, constraints)) continue;
+        let distance = 0;
+        for (let index = 1; index < route.length; index += 1) {
+          distance += distanceKm(route[index - 1]!, route[index]!);
+        }
+        next.push({
+          route,
+          score: partial.score + candidate.score,
+          key: route.map((entry) => entry.venueId).join("|"),
+          distance,
+        });
+      }
+    }
+    next.sort((left, right) => right.score - left.score
+      || left.distance - right.distance
+      || left.key.localeCompare(right.key, "en-GB"));
+    beam = next.slice(0, ROUTE_BEAM_WIDTH).map(({ route, score }) => ({ route, score }));
+  }
+  let best: EvaluatedRoute<T> | null = null;
+  for (const partial of beam) {
+    const evaluated = evaluateRoute(partial.route, constraints);
+    if (evaluated && better(evaluated, best)) best = evaluated;
+  }
+  return best;
+}
+
+/** Visit unordered combinations in descending score-bound order, then check every ordering. */
 function findBestRoute<T>(
   eligible: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
 ): EvaluatedRoute<T> | null {
+  const target = planStopCount(constraints.stopCount);
+  // Six-stop route ordering grows factorially. Search the strongest fourteen
+  // grounded candidates, while keeping the complete eligible set for honest
+  // scarcity and per-stop alternatives.
   const ranked = [...eligible].sort((left, right) => right.score - left.score
-    || left.venueId.localeCompare(right.venueId, "en-GB"));
+    || left.venueId.localeCompare(right.venueId, "en-GB")).slice(0, MAX_ROUTE_SEARCH_CANDIDATES);
+  if (target > 3) {
+    return beamBestRoute(
+      ranked.map((candidate) => [candidate]),
+      ranked,
+      target,
+      constraints,
+    );
+  }
   const combination: GroundedPlanRouteCandidate<T>[] = [];
   let best: EvaluatedRoute<T> | null = null;
 
   const visit = (start: number, partialScore: number): void => {
-    const remaining = 3 - combination.length;
+    const remaining = target - combination.length;
     if (remaining === 0) {
-      best = bestRouteFromCombination(combination as [
-        GroundedPlanRouteCandidate<T>,
-        GroundedPlanRouteCandidate<T>,
-        GroundedPlanRouteCandidate<T>,
-      ], constraints, best);
+      best = bestRouteFromCombination(combination, constraints, best);
       return;
     }
 
     for (let index = start; index <= ranked.length - remaining; index += 1) {
-      let upperScore = partialScore + ranked[index].score;
+      let upperScore = partialScore + ranked[index]!.score;
       for (let offset = 1; offset < remaining; offset += 1) {
-        upperScore += ranked[index + offset].score;
+        upperScore += ranked[index + offset]!.score;
       }
       if (best && upperScore < best.score) break;
-
-      combination.push(ranked[index]);
-      visit(index + 1, partialScore + ranked[index].score);
+      combination.push(ranked[index]!);
+      visit(index + 1, partialScore + ranked[index]!.score);
       combination.pop();
     }
   };
@@ -353,13 +437,17 @@ function findBestRoute<T>(
 
 type RouteRejectionCounts = { safety: number; exclusions: number; accessibility: number; budgetEvidence: number; budgetCeiling: number };
 
-/** Apply the hard per-candidate eligibility filter, tallying rejection reasons. */
+/** Apply hard per-candidate eligibility and keep one candidate per venue id. */
 function routeEligibleCandidates<T>(
   candidates: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
   rejected: RouteRejectionCounts,
 ): GroundedPlanRouteCandidate<T>[] {
-  const eligible = [...candidates]
+  const unique = new Map<string, GroundedPlanRouteCandidate<T>>();
+  for (const candidate of candidates) {
+    if (!unique.has(candidate.venueId)) unique.set(candidate.venueId, candidate);
+  }
+  const eligible = [...unique.values()]
     .sort((left, right) => left.venueId.localeCompare(right.venueId, "en-GB"))
     .filter((candidate) => {
       if (candidate.promoted) { rejected.exclusions += 1; return false; }
@@ -390,17 +478,18 @@ function routeEligibleCandidates<T>(
     : eligible;
 }
 
-/** Select the strongest feasible three-stop route with deterministic tie-breaks. */
+/** Select the strongest feasible 3-6-stop route with deterministic tie-breaks. */
 export function selectGroundedPlanRoute<T>(
   candidates: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
 ): GroundedPlanRouteSelection<T> {
+  const target = planStopCount(constraints.stopCount);
   const rejected = { safety: 0, exclusions: 0, accessibility: 0, budgetEvidence: 0, budgetCeiling: 0 };
   if (constraints.transportConstraints.length > 0) {
     return { ok: false, eligibleCandidateCount: 0, rejected };
   }
   const routeEligible = routeEligibleCandidates(candidates, constraints, rejected);
-  if (routeEligible.length < 3) {
+  if (routeEligible.length < target) {
     return { ok: false, eligibleCandidateCount: routeEligible.length, rejected };
   }
 
@@ -411,16 +500,12 @@ export function selectGroundedPlanRoute<T>(
   const selectedIds = new Set(best.route.map((candidate) => candidate.venueId));
   const alternatives = stops.map((_, position) => routeEligible.flatMap((candidate) => {
     if (selectedIds.has(candidate.venueId)) return [];
-    const replacement = [...best!.route] as [
-      GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>,
-    ];
+    const replacement = [...best.route];
     replacement[position] = candidate;
     const evaluated = evaluateRoute(replacement, constraints);
-    return evaluated ? [selectedStops(evaluated)[position]] : [];
+    return evaluated ? [selectedStops(evaluated)[position]!] : [];
   }).sort((left, right) => right.score - left.score
-    || left.venueId.localeCompare(right.venueId, "en-GB"))) as [
-      SelectedGroundedPlanStop<T>[], SelectedGroundedPlanStop<T>[], SelectedGroundedPlanStop<T>[],
-    ];
+    || left.venueId.localeCompare(right.venueId, "en-GB")));
   return { ok: true, stops, alternatives, timing: best.timing, constraintReport: report(best, constraints) };
 }
 
@@ -428,12 +513,8 @@ export type AnchoredGroundedPlanRouteSelection<T> =
   | {
       ok: true;
       outcome: "route";
-      stops: readonly [SelectedGroundedPlanStop<T>, SelectedGroundedPlanStop<T>, SelectedGroundedPlanStop<T>];
-      alternatives: readonly [
-        readonly SelectedGroundedPlanStop<T>[],
-        readonly SelectedGroundedPlanStop<T>[],
-        readonly SelectedGroundedPlanStop<T>[],
-      ];
+      stops: readonly SelectedGroundedPlanStop<T>[];
+      alternatives: readonly (readonly SelectedGroundedPlanStop<T>[])[];
       timing: PlanRouteTiming;
       constraintReport: PlanConstraintReport;
     }
@@ -445,7 +526,6 @@ export type AnchoredGroundedPlanRouteSelection<T> =
     }
   | { ok: false; reason: "ANCHOR_MISSING" };
 
-/** Build the anchor as a standalone grounded Stop 1 (no visit window, no swap). */
 function anchorOnlyStop<T>(
   anchor: GroundedPlanRouteCandidate<T>,
   now: number,
@@ -454,18 +534,51 @@ function anchorOnlyStop<T>(
   return { ...anchor, position: 0, visitWindow: null, opening, constraintFlags: flagsFor(opening, false) };
 }
 
-/**
- * Select the strongest feasible route that keeps the accepted anchor as Stop 1.
- * Only permutations with the anchor at index zero are evaluated, the anchor has
- * no ordinary alternative, and when fewer than two companions can complete a
- * grounded route the accepted Venue is still returned as a one-Stop draft.
- */
+function findBestAnchoredRoute<T>(
+  anchor: GroundedPlanRouteCandidate<T>,
+  companions: readonly GroundedPlanRouteCandidate<T>[],
+  constraints: GroundedPlanRouteConstraints,
+): EvaluatedRoute<T> | null {
+  const targetCompanions = planStopCount(constraints.stopCount) - 1;
+  const ranked = [...companions].sort((left, right) => right.score - left.score
+    || left.venueId.localeCompare(right.venueId, "en-GB")).slice(0, MAX_ROUTE_SEARCH_CANDIDATES);
+  if (targetCompanions > 2) {
+    return beamBestRoute([[anchor]], ranked, planStopCount(constraints.stopCount), constraints);
+  }
+  const combination: GroundedPlanRouteCandidate<T>[] = [];
+  let best: EvaluatedRoute<T> | null = null;
+
+  const visit = (start: number, partialScore: number): void => {
+    const remaining = targetCompanions - combination.length;
+    if (remaining === 0) {
+      for (const permutation of routePermutations(combination.length)) {
+        const ordered = permutation.map((index) => combination[index]!);
+        const evaluated = evaluateRoute([anchor, ...ordered], constraints);
+        if (evaluated && better(evaluated, best)) best = evaluated;
+      }
+      return;
+    }
+    for (let index = start; index <= ranked.length - remaining; index += 1) {
+      let upperScore = anchor.score + partialScore + ranked[index]!.score;
+      for (let offset = 1; offset < remaining; offset += 1) {
+        upperScore += ranked[index + offset]!.score;
+      }
+      if (best && upperScore < best.score) break;
+      combination.push(ranked[index]!);
+      visit(index + 1, partialScore + ranked[index]!.score);
+      combination.pop();
+    }
+  };
+  visit(0, 0);
+  return best;
+}
+
+/** Keep accepted anchor as Stop 1; return an anchor-only draft when N-1 companions cannot be grounded. */
 export function selectAnchoredGroundedPlanRoute<T>(
   candidates: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
   anchorVenueId: string,
 ): AnchoredGroundedPlanRouteSelection<T> {
-  // The accepted Venue must be among the loaded candidates to carry evidence.
   const anchor = candidates.find((candidate) => candidate.venueId === anchorVenueId);
   if (!anchor) return { ok: false, reason: "ANCHOR_MISSING" };
 
@@ -476,39 +589,27 @@ export function selectAnchoredGroundedPlanRoute<T>(
     anchor: anchorStop,
     reason: "ANCHOR_COMPANIONS_INSUFFICIENT",
   };
-  // Transport constraints are not modelled for routing; keep the anchor useful.
   if (constraints.transportConstraints.length > 0) return insufficient;
 
   const rejected = { safety: 0, exclusions: 0, accessibility: 0, budgetEvidence: 0, budgetCeiling: 0 };
   const companions = routeEligibleCandidates(candidates, constraints, rejected)
     .filter((candidate) => candidate.venueId !== anchorVenueId);
+  if (companions.length < planStopCount(constraints.stopCount) - 1) return insufficient;
 
-  let best: EvaluatedRoute<T> | null = null;
-  for (let i = 0; i < companions.length; i += 1) {
-    for (let j = 0; j < companions.length; j += 1) {
-      if (i === j) continue;
-      const evaluated = evaluateRoute([anchor, companions[i], companions[j]], constraints);
-      if (evaluated && better(evaluated, best)) best = evaluated;
-    }
-  }
+  const best = findBestAnchoredRoute(anchor, companions, constraints);
   if (!best) return insufficient;
 
   const stops = selectedStops(best);
   const selectedIds = new Set(best.route.map((candidate) => candidate.venueId));
   const alternatives = stops.map((_, position) => position === 0
-    // The anchor owns Stop 1 and offers no ordinary alternative or Swap.
     ? []
     : companions.flatMap((candidate) => {
         if (selectedIds.has(candidate.venueId)) return [];
-        const replacement = [...best!.route] as [
-          GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>, GroundedPlanRouteCandidate<T>,
-        ];
+        const replacement = [...best.route];
         replacement[position] = candidate;
         const evaluated = evaluateRoute(replacement, constraints);
-        return evaluated ? [selectedStops(evaluated)[position]] : [];
+        return evaluated ? [selectedStops(evaluated)[position]!] : [];
       }).sort((left, right) => right.score - left.score
-        || left.venueId.localeCompare(right.venueId, "en-GB"))) as [
-          SelectedGroundedPlanStop<T>[], SelectedGroundedPlanStop<T>[], SelectedGroundedPlanStop<T>[],
-        ];
+        || left.venueId.localeCompare(right.venueId, "en-GB")));
   return { ok: true, outcome: "route", stops, alternatives, timing: best.timing, constraintReport: report(best, constraints) };
 }

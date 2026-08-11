@@ -14,6 +14,7 @@ import { setActivePlanRole } from "@/lib/activePlan";
 import { buildInvitePrivacyPreview, type InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
 import type { PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import type { VibeTally } from "@/lib/vibeTally";
+import { isPlanStopCount, normalizePlanStopCount } from "@/lib/planStopCount";
 
 /** Map the §4.10 preview onto the existing preview component's DTO. */
 function toInvitePreview(preview: PlanPrivacyPreviewDTO): InvitePrivacyPreviewDTO {
@@ -153,9 +154,9 @@ export function routeHasChanged(before: ReadonlyArray<{ venueId: string }>, afte
 }
 
 function validRouteDraft(stops: ReadonlyArray<EditableStop>): boolean {
-  return stops.length === 3
+  return isPlanStopCount(stops.length)
     && stops.every((stop) => stop.venueId.trim() && stop.venueName.trim())
-    && new Set(stops.map((stop) => stop.venueId)).size === 3;
+    && new Set(stops.map((stop) => stop.venueId)).size === stops.length;
 }
 
 function stopWithNextAlternative(stop: EditableStop, excludedVenueIds: ReadonlySet<string>): EditableStop {
@@ -309,7 +310,8 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
       return;
     }
     setLoadingPreview(true);
-    setStatus("Sorting a fresh three-stop route, with a backup for each stop…");
+    const requestedStopCount = normalizePlanStopCount(state.context.stopCount);
+    setStatus(`Sorting a fresh ${requestedStopCount}-stop route, with a backup for each stop…`);
     try {
       const response = await fetch("/api/plans/generate", {
         method: "POST",
@@ -324,7 +326,7 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
         position: index,
         alternatives: stop.alternatives,
       }));
-      if (!validRouteDraft(generated)) throw new Error("Couldn't get three good stops that time. Give it another go.");
+      if (!validRouteDraft(generated)) throw new Error(`Couldn't get ${requestedStopCount} good stops that time. Give it another go.`);
       setLocalStops(generated);
       writePendingRoute(planId, { stops: generated, expectedRouteRevision: routeRevisionFromPlanState(state) });
       setStatus(`Fresh route preview ready. Swap a stop, then ${isHost ? "save it" : "send it to the host"}.`);
@@ -365,7 +367,7 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
       return;
     }
     if (!validRouteDraft(draftStops) || !hasRouteChanged) {
-      setError("Choose three different stops and make a route change before saving.");
+      setError("Choose three to six different stops and make a route change before saving.");
       return;
     }
     if (routeRevision === null) {
@@ -428,7 +430,7 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
       {memberToken && canCollaborate && (editing || pending) ? (
         <div className="planSummary__editor" aria-labelledby="plan-route-editor-title">
           <h3 id="plan-route-editor-title">Route preview</h3>
-          <p>Swap a stop to make a private draft. {isHost ? "Save only when it differs and still has exactly three distinct stops." : "The route stays unchanged until the host accepts your proposal."}</p>
+          <p>Swap a stop to make a private draft. {isHost ? "Save only when it differs and still has three to six distinct stops." : "The route stays unchanged until the host accepts your proposal."}</p>
           <ol className="planSummary__editStops">
             {draftStops.map((stop, index) => (
               <li key={`${stop.position}-${stop.venueId}`}>

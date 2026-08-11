@@ -70,4 +70,25 @@ describe("parsePlanGenerationRequest", () => {
       },
     });
   });
+
+  it("allowlists a requested three-to-six stop count", async () => {
+    const result = await parsePlanGenerationRequest(
+      request({ query: "Camden", context: { stopCount: 6 } }),
+      NOW,
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { context: { stopCount: 6 } },
+    });
+  });
+
+  it("rejects stop counts outside the planner choices", async () => {
+    const result = await parsePlanGenerationRequest(
+      request({ query: "Camden", context: { stopCount: 7 } }),
+      NOW,
+    );
+
+    expect(result).toMatchObject({ ok: false, code: "MALFORMED_REQUEST" });
+  });
 });

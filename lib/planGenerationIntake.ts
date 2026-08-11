@@ -14,6 +14,7 @@ import {
 } from "@/lib/planIntake";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
 import type { Budget, NightAreaSlug } from "@/lib/nightPlanning";
+import { isPlanStopCount, normalizePlanStopCount } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 
 export const PLAN_GENERATION_HORIZON_DAYS = 14;
@@ -24,10 +25,12 @@ const INTAKE_KEYS = [
   "area",
   "timeWindow",
   "groupSize",
+  "stopCount",
   "budget",
   "accessibilityNeeds",
   "skipped",
 ] as const;
+const LEGACY_INTAKE_KEYS = INTAKE_KEYS.filter((key) => key !== "stopCount");
 const AREA_KEYS = ["kind", "id"] as const;
 const TIME_KEYS = ["id", "start", "end", "exactStartIso"] as const;
 const BUDGET_KEYS = ["tier", "limitPence"] as const;
@@ -62,6 +65,10 @@ export function isPlainRecord(value: unknown): value is Record<string, unknown> 
 function hasExactKeys(record: Record<string, unknown>, keys: readonly string[]): boolean {
   const actual = Object.keys(record);
   return actual.length === keys.length && actual.every((key) => keys.includes(key));
+}
+
+function hasIntakeKeys(record: Record<string, unknown>): boolean {
+  return hasExactKeys(record, INTAKE_KEYS) || hasExactKeys(record, LEGACY_INTAKE_KEYS);
 }
 
 function isNightPatchId(value: unknown): value is NightPatchId {
@@ -197,7 +204,7 @@ function malformed(message: string): PlanIntakeParseFailure {
 
 /** Strict v1 handoff parser. Unknown keys and incoherent skipped answers fail closed. */
 export function parsePlanGenerationIntake(raw: unknown, now = new Date()): PlanIntakeParseResult {
-  if (!isPlainRecord(raw) || !hasExactKeys(raw, INTAKE_KEYS)) return malformed("Plan intake is malformed.");
+  if (!isPlainRecord(raw) || !hasIntakeKeys(raw)) return malformed("Plan intake is malformed.");
   if (raw.version !== PLAN_INTAKE_VERSION) {
     return { ok: false, code: "INTAKE_VERSION_UNSUPPORTED", message: "This Plan intake version is not supported." };
   }
@@ -214,6 +221,9 @@ export function parsePlanGenerationIntake(raw: unknown, now = new Date()): PlanI
         ? raw.groupSize
         : undefined;
   if (groupSize === undefined) return malformed("Plan intake group size is invalid.");
+  if (raw.stopCount !== undefined && !isPlanStopCount(raw.stopCount)) {
+    return malformed("Plan intake stop count is invalid.");
+  }
   const budget = parseBudget(raw.budget);
   if (budget === undefined) return malformed("Plan intake budget is invalid.");
   if (
@@ -234,6 +244,7 @@ export function parsePlanGenerationIntake(raw: unknown, now = new Date()): PlanI
     area,
     timeWindow: parsedTime.value,
     groupSize,
+    ...(raw.stopCount !== undefined ? { stopCount: normalizePlanStopCount(raw.stopCount) } : {}),
     budget,
     accessibilityNeeds: [...raw.accessibilityNeeds],
     skipped: [...raw.skipped],

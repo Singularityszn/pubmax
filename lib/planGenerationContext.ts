@@ -25,6 +25,7 @@ function intakePatch(intake: ParsedPlanGenerationIntake): Partial<NightContext> 
     ...(!skipped.has("group-size") && intake.handoff.groupSize !== null
       ? { groupSize: intake.handoff.groupSize }
       : {}),
+    ...(intake.handoff.stopCount !== undefined ? { stopCount: intake.handoff.stopCount } : {}),
     ...(!skipped.has("budget") && intake.handoff.budget ? {
       budget: intake.handoff.budget.tier,
       budgetLimitPence: intake.handoff.budget.limitPence,
@@ -42,7 +43,9 @@ function intakeReason(field: keyof NightContext, intake: ParsedPlanGenerationInt
       ? intake.handoff.timeWindow?.id ?? "selected time"
       : field === "groupSize"
         ? String(intake.handoff.groupSize)
-        : field === "budgetLimitPence"
+        : field === "stopCount"
+          ? String(intake.handoff.stopCount ?? 3)
+          : field === "budgetLimitPence"
           ? intake.handoff.budget?.limitPence === null
             ? "no explicit ceiling"
             : `£${((intake.handoff.budget?.limitPence ?? 0) / 100).toFixed(2)}`

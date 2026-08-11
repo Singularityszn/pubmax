@@ -42,6 +42,15 @@ describe("inferNightContext", () => {
     expect(inferNightContext(query).context.groupSize).toBe(groupSize);
   });
 
+  it.each([
+    ["crawl in Camden for 5", 3],
+    ["a 6 pub crawl in Camden", 6],
+    ["a big crawl in Camden", 6],
+    ["five stops around Camden", 5],
+  ])("keeps group phrasing separate from requested stop count: %s", (query, stopCount) => {
+    expect(inferNightContext(query).context.stopCount).toBe(stopCount);
+  });
+
   it("recognises reviewed expansion aliases without treating them as route-ready", () => {
     const result = inferNightContext("A quiet evening near Camden Town");
     expect(result.context.nightArea).toBe("camden");

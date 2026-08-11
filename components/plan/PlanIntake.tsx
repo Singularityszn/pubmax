@@ -26,6 +26,7 @@ import {
 } from "@/lib/planIntake";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import type { Budget } from "@/lib/nightPlanning";
+import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
 
 const STEP_COPY: Record<PlanIntakeStep, { short: string; eyebrow: string; title: string; note: string }> = {
   area: {
@@ -203,6 +204,10 @@ export default function PlanIntake({
               ))}
             </div>
           ) : null}
+          <PlanStopCountPicker
+            value={draft.answers.stopCount}
+            onChange={(stopCount) => onChange({ ...draft, answers: { ...draft.answers, stopCount } })}
+          />
         </div>
         <button
           type="button"
@@ -238,6 +243,11 @@ export default function PlanIntake({
         Not sure?{" "}
         <Link href="/pal/chat">Ask your Pub Pal…</Link>
       </p>
+
+      <PlanStopCountPicker
+        value={draft.answers.stopCount}
+        onChange={(stopCount) => onChange({ ...draft, answers: { ...draft.answers, stopCount } })}
+      />
 
       <ol className="planIntake__progress" aria-label="Plan details progress">
         {PLAN_INTAKE_STEPS.map((step, index) => {

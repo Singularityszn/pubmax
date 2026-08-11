@@ -10,6 +10,7 @@ import type {
   NightContext,
   NightAreaSlug,
 } from "@/lib/nightPlanning";
+import { isPlanStopCount, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 
 export const PLAN_INTAKE_VERSION = 1 as const;
@@ -65,6 +66,7 @@ export type PlanIntakeAnswers = {
   timeWindow: PlanTimeWindowId | null;
   exactStartIso: string | null;
   groupSize: number | null;
+  stopCount?: PlanStopCount;
   budget: Budget | null;
   budgetLimitPence: number | null;
   accessibilityNeeds: PlanAccessibilityNeed[];
@@ -90,6 +92,7 @@ export type PlanIntakeHandoff = {
     exactStartIso: string;
   } | null;
   groupSize: number | null;
+  stopCount?: PlanStopCount;
   budget: { tier: Budget; limitPence: number | null } | null;
   accessibilityNeeds: PlanAccessibilityNeed[];
   skipped: PlanIntakeStep[];
@@ -315,6 +318,7 @@ function cleanAnswers(value: unknown, now: number): PlanIntakeAnswers | null {
     ? value as Record<string, unknown>
     : null;
   if (!row) return null;
+  if (row.stopCount !== undefined && !isPlanStopCount(row.stopCount)) return null;
   const groupSize = typeof row.groupSize === "number" && Number.isInteger(row.groupSize)
     && row.groupSize >= 1 && row.groupSize <= 30 ? row.groupSize : null;
   const budget = isBudget(row.budget) ? row.budget : null;
@@ -339,6 +343,7 @@ function cleanAnswers(value: unknown, now: number): PlanIntakeAnswers | null {
     timeWindow,
     exactStartIso,
     groupSize,
+    ...(row.stopCount !== undefined ? { stopCount: normalizePlanStopCount(row.stopCount) } : {}),
     budget,
     budgetLimitPence,
     accessibilityNeeds,
@@ -602,6 +607,7 @@ export function skipRemainingPlanIntake(draft: PlanIntakeDraft): PlanIntakeDraft
 
 export function planIntakeHandoff(draft: PlanIntakeDraft): PlanIntakeHandoff {
   const timeWindow = PLAN_TIME_WINDOWS.find((option) => option.id === draft.answers.timeWindow);
+  const stopCount = normalizePlanStopCount(draft.answers.stopCount);
   return {
     version: PLAN_INTAKE_VERSION,
     area: draft.answers.area ? { kind: "night-patch", id: draft.answers.area } : null,
@@ -615,6 +621,7 @@ export function planIntakeHandoff(draft: PlanIntakeDraft): PlanIntakeHandoff {
         }
       : null,
     groupSize: draft.answers.groupSize,
+    ...(stopCount !== 3 ? { stopCount } : {}),
     budget: draft.answers.budget
       ? { tier: draft.answers.budget, limitPence: draft.answers.budgetLimitPence }
       : null,
@@ -631,6 +638,9 @@ export function planIntakeNightContextPatch(draft: PlanIntakeDraft): Partial<Nig
     ...(nightArea ? { nightArea } : {}),
     ...(timeWindow ? { daypart: timeWindow.daypart } : {}),
     ...(draft.answers.groupSize !== null ? { groupSize: draft.answers.groupSize } : {}),
+    ...(normalizePlanStopCount(draft.answers.stopCount) !== 3
+      ? { stopCount: normalizePlanStopCount(draft.answers.stopCount) }
+      : {}),
     ...(draft.answers.budget ? { budget: draft.answers.budget } : {}),
     ...(draft.answers.budgetLimitPence !== null
       ? { budgetLimitPence: draft.answers.budgetLimitPence }
@@ -656,6 +666,7 @@ export function stripPlanIntakeOwnedContext(
   delete unowned.nightArea;
   delete unowned.daypart;
   delete unowned.groupSize;
+  delete unowned.stopCount;
   delete unowned.budget;
   delete unowned.budgetLimitPence;
   delete unowned.accessibility;

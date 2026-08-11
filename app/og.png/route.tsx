@@ -2,7 +2,10 @@ import { ImageResponse } from "next/og";
 
 import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
 
-export const runtime = "edge";
+// The shared brand module loads bundled fonts from public/ with node:fs.
+// Keep this route on the Node runtime so production builds and renders use the
+// same font path as the other Open Graph cards.
+export const runtime = "nodejs";
 
 const size = {
   width: 1200,

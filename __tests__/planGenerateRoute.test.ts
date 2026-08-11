@@ -175,6 +175,27 @@ describe("POST /api/plans/generate", () => {
     expect(body).not.toHaveProperty("planId");
   });
 
+  it.each([5, 6])("returns a grounded %i-stop route from free text", async (stopCount) => {
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: `a ${stopCount} pub crawl in Clapham` }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.inferredContext.stopCount).toBe(stopCount);
+    expect(body.stops).toHaveLength(stopCount);
+    expect(new Set(body.stops.map((stop: { venueId: string }) => stop.venueId)).size).toBe(stopCount);
+    expect(body.routeTotals).toMatchObject({ stopCount });
+    expect(verifyPlanGroundingProof(
+      body.groundingProof,
+      body.stops.map((stop: { venueId: string }) => stop.venueId),
+      body.operationKey,
+    )).toBe(true);
+    expect(body.stops.map((stop: { walkingMinutesFromPrevious: number | null }) => stop.walkingMinutesFromPrevious))
+      .toEqual([null, ...Array.from({ length: stopCount - 1 }, () => expect.any(Number))]);
+  });
+
   it("returns an actionable retry response when trusted proof signing is unavailable", async () => {
     vi.stubEnv("NODE_ENV", "development");
     process.env.SUPABASE_URL = "https://example.supabase.co";

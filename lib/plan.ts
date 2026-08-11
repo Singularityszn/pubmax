@@ -1,6 +1,7 @@
 import type { CrewMemberDTO } from "@/lib/crew";
 import { cleanText } from "@/lib/textClean";
 import type { NightContext } from "@/lib/nightPlanning";
+import { isPlanStopCount } from "@/lib/planStopCount";
 
 export const PLAN_TITLE_MAX = 80;
 export const PLAN_STOP_MAX = 8;
@@ -46,7 +47,7 @@ export type PlanDTO = {
  * anchor-only draft is never route-ready.
  */
 export function planRouteReady(plan: PlanDTO, stopCount: number): boolean {
-  return plan.outcome === "route" && typeof plan.routeReadyAt === "string" && Boolean(plan.routeReadyAt) && stopCount === 3;
+  return plan.outcome === "route" && typeof plan.routeReadyAt === "string" && Boolean(plan.routeReadyAt) && isPlanStopCount(stopCount);
 }
 
 /** Validate optional anchor metadata supplied on Plan creation. */

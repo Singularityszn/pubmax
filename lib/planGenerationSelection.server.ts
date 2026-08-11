@@ -7,6 +7,7 @@ import {
   type PlanAccessibilityNeed,
 } from "@/lib/planIntake";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
+import { normalizePlanStopCount } from "@/lib/planStopCount";
 import {
   planAccessEvidenceForVenue,
   planOpeningSchedulesForVenues,
@@ -109,6 +110,7 @@ function groundedConstraints(
     budgetLimitPence: context.budgetLimitPence,
     budgetTier: context.budget,
     groupSize: context.groupSize,
+    stopCount: normalizePlanStopCount(context.stopCount),
     transportConstraints: context.transportConstraints,
     routeWindow: intake?.routeWindow ?? null,
     now,
@@ -125,9 +127,10 @@ export async function selectPlanGenerationCandidates<T extends ScoredPlanCandida
   const accessibilityNeeds = requiredAccessibilityNeeds(context, intake);
   const hasContextHardConstraint = accessibilityNeeds.length > 0
     || context.budgetLimitPence !== null
-    || context.transportConstraints.length > 0;
+    || context.transportConstraints.length > 0
+    || normalizePlanStopCount(context.stopCount) !== 3;
   if (!intake && !hasContextHardConstraint) {
-    return { ok: true, legacy: true, chosen: candidates.slice(0, 3) };
+    return { ok: true, legacy: true, chosen: candidates.slice(0, normalizePlanStopCount(context.stopCount)) };
   }
   const selection = selectGroundedPlanRoute(
     await groundedRouteCandidates(candidates, now),

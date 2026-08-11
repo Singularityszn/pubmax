@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PLAN_STOP_MINUTES,
   selectGroundedPlanRoute,
   type GroundedPlanRouteCandidate,
   type GroundedPlanRouteConstraints,
@@ -58,6 +59,38 @@ function freshMondaySchedule(): PlanOpeningSchedule {
 }
 
 describe("selectGroundedPlanRoute", () => {
+  it.each([4, 5, 6])("selects exactly %i distinct grounded stops", (stopCount) => {
+    const candidates = Array.from({ length: stopCount + 1 }, (_, index) => candidate(`venue-${index}`));
+    const result = selectGroundedPlanRoute(candidates, constraints({ stopCount } as Partial<GroundedPlanRouteConstraints>));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.stops).toHaveLength(stopCount);
+    expect(new Set(result.stops.map((stop) => stop.venueId)).size).toBe(stopCount);
+    expect(result.alternatives).toHaveLength(stopCount);
+    expect(result.timing.scheduledRouteMinutes).toBeGreaterThan(PLAN_STOP_MINUTES * stopCount);
+  });
+
+  it("deduplicates repeated venue candidates before choosing a route", () => {
+    const result = selectGroundedPlanRoute(
+      [candidate("a", { score: 10 }), candidate("a", { score: 1 }), candidate("b"), candidate("c")],
+      constraints(),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.stops.map((stop) => stop.venueId)).toEqual(["a", "b", "c"]);
+  });
+
+  it.each([4, 5, 6])("reports honest scarcity for a requested %i-stop route", (stopCount) => {
+    const result = selectGroundedPlanRoute(
+      Array.from({ length: stopCount - 1 }, (_, index) => candidate(`venue-${index}`)),
+      constraints({ stopCount } as Partial<GroundedPlanRouteConstraints>),
+    );
+
+    expect(result).toMatchObject({ ok: false, eligibleCandidateCount: stopCount - 1 });
+  });
+
   it("fails closed when a dated route lacks opening evidence", () => {
     const result = selectGroundedPlanRoute(
       [candidate("a"), candidate("b"), candidate("c"), candidate("d")],

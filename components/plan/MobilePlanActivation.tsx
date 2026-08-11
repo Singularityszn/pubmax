@@ -18,6 +18,7 @@ import type { PlanBudgetSummary, PlanEndingRecommendation, PlanningConfidence, P
 import { shouldWarmMapIntent } from "@/lib/mapWarmup";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 import { planRouteTotalsFallbackLabel, resolvePlanRouteTotalLabel } from "@/lib/planRouteTotalsClient";
+import { isPlanStopCount, normalizePlanStopCount, PLAN_STOP_COUNTS, type PlanStopCount } from "@/lib/planStopCount";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import type { Venue } from "@/lib/venues";
 
@@ -72,6 +73,7 @@ export function MobilePlanActivation({
   const [paceTouched, setPaceTouched] = useState(false);
   const [budgetLimit, setBudgetLimit] = useState("");
   const [groupSize, setGroupSize] = useState(4);
+  const [stopCount, setStopCount] = useState<PlanStopCount>(3);
   const [groupSizeTouched, setGroupSizeTouched] = useState(false);
   const [stepFree, setStepFree] = useState(false);
   const [zeroProof, setZeroProof] = useState(false);
@@ -131,6 +133,7 @@ export function MobilePlanActivation({
           partyType: groupSize === 1 ? "solo" as const : "friends" as const,
           groupSize,
         } : {}),
+        ...(queryFields.has("stopCount") ? {} : { stopCount }),
         ...(budgetLimit ? {
           budget: Number(budgetLimit) <= 22 ? "value" as const : "standard" as const,
           budgetLimitPence: Math.round(Number(budgetLimit) * 100),
@@ -154,7 +157,7 @@ export function MobilePlanActivation({
         endingRecommendations?: PlanEndingRecommendation[];
         error?: unknown;
       };
-      if (!response.ok || body.stops?.length !== 3 || !body.inferredContext || !body.planningConfidence || !body.budgetSummary || !body.routeTotals || body.endingRecommendations?.length !== 3) {
+      if (!response.ok || !Array.isArray(body.stops) || !isPlanStopCount(body.stops.length) || !body.inferredContext || !body.planningConfidence || !body.budgetSummary || !body.routeTotals || body.endingRecommendations?.length !== 3) {
         throw new Error(responseError(body));
       }
       const generated = {
@@ -211,7 +214,7 @@ export function MobilePlanActivation({
         <Sparkles size={20} aria-hidden="true" />
         <div>
           <h3 id="mobile-plan-intent-title">Describe the outing</h3>
-          <p>Three stops you can edit, all straight off the map.</p>
+          <p>Choose three to six stops, all straight off the map.</p>
         </div>
       </div>
       <div className="mobilePlannerIntentInput">
@@ -226,6 +229,7 @@ export function MobilePlanActivation({
         <label>Area<select value={area} onChange={(event) => { setAreaTouched(true); setArea(event.target.value as NightAreaSlug); }}>{areas.map((nightArea) => <option key={nightArea.slug} value={nightArea.slug}>{nightArea.name}</option>)}</select></label>
         <label>Time<select value={daypart} onChange={(event) => { setDaypartTouched(true); setDaypart(event.target.value as NightContext["daypart"]); }}><option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option></select></label>
         <label>People<input type="number" min="1" max="30" value={groupSize} onChange={(event) => { setGroupSizeTouched(true); setGroupSize(Math.max(1, Math.min(30, Number(event.target.value) || 1))); }} /></label>
+        <label>Stops<select value={stopCount} onChange={(event) => setStopCount(normalizePlanStopCount(Number(event.target.value)))}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
         <label>Max each<input type="number" inputMode="decimal" min="5" max="500" value={budgetLimit} onChange={(event) => setBudgetLimit(event.target.value)} placeholder="£" /></label>
       </div>
       <AreaNewsBlock

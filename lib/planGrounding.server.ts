@@ -5,6 +5,7 @@ import {
   type PlanningIntentSource,
 } from "@/lib/planningIntent";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
+import { isPlanStopCount } from "@/lib/planStopCount";
 
 const PROOF_VERSION = 1;
 const PROOF_V2_VERSION = 2;
@@ -61,14 +62,14 @@ export function mintPlanGroundingProof(
   return `${encoded}.${signature(encoded, key).toString("base64url")}`;
 }
 
-/** Verify that exactly three accepted stops were covered by a server-minted proof. */
+/** Verify that three to six accepted stops were covered by a server-minted proof. */
 export function readPlanGroundingClaims(
   proof: unknown,
   acceptedVenueIds: readonly string[],
   operationKey: string,
 ): PlanGroundingClaims | null {
   if (typeof proof !== "string" || !proof || proof.length > PROOF_MAX_LENGTH) return null;
-  if (!operationKey.trim() || acceptedVenueIds.length !== 3 || new Set(acceptedVenueIds).size !== 3) return null;
+  if (!operationKey.trim() || !isPlanStopCount(acceptedVenueIds.length) || new Set(acceptedVenueIds).size !== acceptedVenueIds.length) return null;
   const parts = proof.split(".");
   if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
   try {
@@ -121,9 +122,9 @@ export function wasPlanGroundedAtCreation(
 }
 
 /* ------------------------------------------------------------------ *
- * Grounding proof V2 — anchored, exact-order, one-or-three Stop.
+ * Grounding proof V2 - anchored, exact-order, one-or-three-to-six Stop.
  *
- * V1 above stays valid only for legacy unanchored three-Stop creation.
+ * V1 above stays valid only for legacy unanchored route creation.
  * V2 binds the exact ordered Route, its approved alternatives, the anchor
  * Venue, and the acceptance source, so a client cannot reorder Stops, swap
  * the anchor, or forge an anchored outcome.
@@ -190,7 +191,7 @@ function operationDigestV2(operationKey: string, key: Buffer): string {
 }
 
 function orderedVenueIds(values: readonly string[]): string[] | null {
-  if (values.length !== 1 && values.length !== 3) return null;
+  if (values.length !== 1 && !isPlanStopCount(values.length)) return null;
   const ids = values.map((value) => (typeof value === "string" ? value.trim() : ""));
   if (ids.some((value) => !value || value.length > VENUE_ID_MAX)) return null;
   if (new Set(ids).size !== ids.length) return null;
@@ -227,7 +228,7 @@ function anchorIsConsistent(payload: {
     );
   }
   // outcome === "route"
-  if (routeVenueIds.length !== 3) return false;
+  if (!isPlanStopCount(routeVenueIds.length)) return false;
   if (anchorVenueId === null) return anchorSource === null;
   return anchorVenueId === routeVenueIds[0] && anchorSource !== null;
 }
@@ -239,7 +240,7 @@ export function mintPlanGroundingProofV2(
 ): string {
   const routeVenueIds = orderedVenueIds(input.routeVenueIds);
   if (!routeVenueIds || !input.operationKey.trim()) {
-    throw new Error("A V2 grounding proof needs one or three ordered venues and a create operation.");
+    throw new Error("A V2 grounding proof needs one or three to six ordered venues and a create operation.");
   }
   const allowedVenueIds = sortedAllowedVenueIds(
     input.allowedVenueIds ?? routeVenueIds,
