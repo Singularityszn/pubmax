@@ -117,11 +117,12 @@ describe("Visit Report feedback lines", () => {
     }
   });
 
-  it("proves the raw price token would not have cleared the bar", () => {
-    // Guards the fix itself: dropping the mix and painting --pint / --brick
-    // straight onto the light card is the regression this file exists for.
+  it("keeps the raw positive token below the bar while the dear token stays AA-safe", () => {
+    // PR #1010 changed light --brick to a deeper destructive colour that clears
+    // AA on its own. --pint remains a price-band colour, so visit feedback still
+    // needs the shipped ink mix.
     const light = THEMES[0];
     expect(contrast(light.pint, light.card)).toBeLessThan(4.5);
-    expect(contrast(light.brick, light.card)).toBeLessThan(4.5);
+    expect(contrast(light.brick, light.card)).toBeGreaterThanOrEqual(4.5);
   });
 });

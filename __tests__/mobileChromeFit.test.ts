@@ -41,12 +41,9 @@ describe("mobile chrome fit at 390px", () => {
     expect(globalCss).toMatch(
       /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{[^}]*box-shadow:\s*none/,
     );
-    expect(globalCss).toMatch(
-      /body:has\(\.mobilePlanActivation\) \.analyticsConsentPromptActions\s*{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
-    );
-    expect(globalCss).toMatch(
-      /body:has\(\.mobilePlanActivation\) \.analyticsConsentPromptActions button\s*{[^}]*background:\s*transparent/,
-    );
+    // PR #1017 removed map-only consent action overrides. Map activation now
+    // inherits the same full-size, equal choice controls as every mobile page.
+    expect(globalCss).not.toMatch(/body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt(?: p|Actions(?: button)?)\s*{/);
     expect(globalCss).not.toMatch(
       /body:has\(\.mobilePlanActivation\) \.analyticsConsentPrompt\s*{[^}]*(?:display:\s*none|opacity:\s*0)/,
     );
