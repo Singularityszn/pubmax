@@ -24,6 +24,7 @@ import { AlertTriangle, TrainFront } from "lucide-react";
 
 import { TUBE_WHEN_LABEL, type DaySlot } from "@/lib/dayGreeting";
 import { coarsenViewerPoint } from "@/lib/geo";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { readRememberedArea } from "@/lib/nightPatches";
 import type { PatchDisruption } from "@/lib/tflDisruption";
 
@@ -39,15 +40,14 @@ export default function TodayTubeCard({ slot }: { slot: DaySlot }) {
     const centre = rememberedAreaCentre(readRememberedArea());
     const { lat, lng } = coarsenViewerPoint(centre);
     const controller = new AbortController();
-    fetch(`/api/tfl-disruption?lat=${lat}&lng=${lng}`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body: DisruptionResponse | null) => {
-        if (controller.signal.aborted) return;
-        setDisruption(body?.disruption ?? null);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setDisruption(null);
-      });
+    void loadSurfaceJson<DisruptionResponse>(
+      `/api/tfl-disruption?lat=${lat}&lng=${lng}`,
+      {
+        signal: controller.signal,
+        validate: (body) => Boolean(body && "disruption" in body),
+      },
+      (body) => setDisruption(body.disruption ?? null),
+    );
     return () => controller.abort();
   }, []);
 

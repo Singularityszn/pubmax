@@ -19,6 +19,7 @@ import {
 } from "@/lib/dealsHonesty";
 import { preferredCityMapHref } from "@/lib/cityPreference";
 import { WhatsOnUrgencyBadge } from "@/components/map/WhatsOnUrgencyBadge";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import "./dealsTonightLane.css";
 
@@ -76,14 +77,21 @@ export default function DealsTonightLane({
   useEffect(() => {
     if (provided) return; // reuse mode: the host already loaded the spine.
     const controller = new AbortController();
-    fetch("/api/whats-on?kind=deal&window=tonight&limit=8", {
-      signal: controller.signal,
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body) => {
+    void loadSurfaceJson<unknown>(
+      "/api/whats-on?kind=deal&window=tonight&limit=8",
+      {
+        signal: controller.signal,
+        validate: (body) =>
+          Boolean(
+            body &&
+              typeof body === "object" &&
+              Array.isArray((body as { rows?: unknown }).rows),
+          ),
+      },
+      (body) => {
         setFetchedRows(dealsTonightRowsFromResponse(body));
-      })
-      .catch(() => undefined);
+      },
+    );
     return () => controller.abort();
   }, [provided]);
 

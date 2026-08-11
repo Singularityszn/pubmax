@@ -18,6 +18,7 @@ import { TrainFront } from "lucide-react";
 
 import DisruptionLine from "@/components/transport/DisruptionLine";
 import { coarsenViewerPoint } from "@/lib/geo";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
 import type { LastTrainResult } from "@/lib/tfl";
 
@@ -33,15 +34,24 @@ export default function TonightGetHomeStrip({ origin }: Props) {
   useEffect(() => {
     const controller = new AbortController();
     const { lat, lng } = coarsenViewerPoint({ lat: originLat, lng: originLng });
-    fetch(`/api/last-train?lat=${lat}&lng=${lng}`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body: LastTrainResult | null) => {
-        if (controller.signal.aborted) return;
-        setSummary(body ? summariseGetHome(body) : null);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setSummary(null);
-      });
+    void loadSurfaceJson<LastTrainResult>(
+      `/api/last-train?lat=${lat}&lng=${lng}`,
+      {
+        signal: controller.signal,
+        validate: (body) =>
+          Boolean(
+            body &&
+              typeof body === "object" &&
+              "station" in body &&
+              "trains" in body,
+          ),
+      },
+      (body) => setSummary(summariseGetHome(body)),
+    ).then((outcome) => {
+      if (outcome === "failed" && !controller.signal.aborted) {
+        setSummary(null);
+      }
+    });
     return () => controller.abort();
   }, [originLat, originLng]);
 

@@ -15,7 +15,7 @@ import {
   type BadgeProgress,
   type ProfileDrop,
 } from "@/lib/profiles";
-import { discardBody } from "@/lib/responseBody";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import "./nextBadgeChips.css";
 
@@ -55,26 +55,27 @@ export default function NextBadgeChips({
           (typeof window === "undefined" ? "" : (window.localStorage.getItem(HANDLE_KEY) ?? "")),
       );
       if (!resolved) return;
-      try {
-        const res = await fetch(
-          `/api/pint-drops?author=${encodeURIComponent(resolved)}`,
-          { signal: controller.signal },
-        );
-        if (!res.ok) {
-          discardBody(res);
-          return;
-        }
-        const body: unknown = await res.json();
-        const all: ProfileDrop[] =
-          body && typeof body === "object" && Array.isArray((body as { drops?: unknown }).drops)
-            ? ((body as { drops: ProfileDrop[] }).drops ?? [])
-            : [];
-        const mine = all.filter((d) => normalizeHandle(d.handle) === resolved);
-        if (controller.signal.aborted) return;
-        setQuests(nextBadgeProgress(mine, profileStats(mine)));
-      } catch {
-        // Silence over a guessed quest — aborts and network failures render nothing.
-      }
+      await loadSurfaceJson<unknown>(
+        `/api/pint-drops?author=${encodeURIComponent(resolved)}`,
+        {
+          signal: controller.signal,
+          validate: (body) =>
+            Boolean(
+              body &&
+                typeof body === "object" &&
+                Array.isArray((body as { drops?: unknown }).drops),
+            ),
+        },
+        (body) => {
+          const all: ProfileDrop[] =
+            body && typeof body === "object" && Array.isArray((body as { drops?: unknown }).drops)
+              ? ((body as { drops: ProfileDrop[] }).drops ?? [])
+              : [];
+          const mine = all.filter((d) => normalizeHandle(d.handle) === resolved);
+          if (controller.signal.aborted) return;
+          setQuests(nextBadgeProgress(mine, profileStats(mine)));
+        },
+      );
     }
 
     void load();

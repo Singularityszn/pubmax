@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
-import { discardBody } from "@/lib/responseBody";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 type ApiResponse = {
   opportunities?: ThingsToDoOpportunity[];
@@ -30,20 +30,17 @@ export function useTonightOpportunities(enabled: boolean): {
     }
 
     const controller = new AbortController();
-    (async () => {
-      try {
-        const res = await fetch("/api/citymcp/things-to-do?window=tonight&limit=8", {
-          signal: controller.signal,
-          headers: { accept: "application/json" },
-        });
-        if (!res.ok) {
-          discardBody(res);
-          throw new Error(`HTTP ${res.status}`);
-        }
-        const body = (await res.json()) as ApiResponse;
-        if (controller.signal.aborted) return;
-        const ops = Array.isArray(body.opportunities) ? body.opportunities : [];
+    void loadSurfaceJson<ApiResponse>(
+      "/api/citymcp/things-to-do?window=tonight&limit=8",
+      {
+        signal: controller.signal,
+        init: { headers: { accept: "application/json" } },
+        validate: (body) => Array.isArray(body?.opportunities),
+      },
+      (body) => {
+        const ops = body.opportunities ?? [];
         Promise.resolve().then(() => {
+          if (controller.signal.aborted) return;
           if (ops.length === 0) {
             setOpportunities([]);
             setStatus("hidden");
@@ -52,14 +49,13 @@ export function useTonightOpportunities(enabled: boolean): {
             setStatus("ready");
           }
         });
-      } catch {
-        if (controller.signal.aborted) return;
-        Promise.resolve().then(() => {
-          setOpportunities([]);
-          setStatus("hidden");
-        });
+      },
+    ).then((outcome) => {
+      if (outcome === "failed" && !controller.signal.aborted) {
+        setOpportunities([]);
+        setStatus("hidden");
       }
-    })();
+    });
 
     return () => controller.abort();
   }, [enabled]);

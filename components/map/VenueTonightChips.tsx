@@ -28,7 +28,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
 import {
   coveringObservedAt,
@@ -39,6 +38,7 @@ import {
 } from "@/lib/whatsOn";
 import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 import type { VenueRef } from "@/lib/tonight";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 // `asOf` is deliberately NOT read here. It is the freshest thing the whole
 // answer can show, and this line covers only the kinds at this one venue.
@@ -77,17 +77,14 @@ export default function VenueTonightChips(props: VenueRef): React.JSX.Element | 
         setAsOf(null);
       }
     });
-    (async () => {
-      try {
-        const res = await fetch("/api/whats-on?window=tonight&limit=60", {
-          signal: controller.signal,
-          headers: { accept: "application/json" },
-        });
-        if (!res.ok) {
-          discardBody(res);
-          return;
-        }
-        const body = (await res.json()) as ApiResponse;
+    void loadSurfaceJson<ApiResponse>(
+      "/api/whats-on?window=tonight&limit=60",
+      {
+        signal: controller.signal,
+        init: { headers: { accept: "application/json" } },
+        validate: (body) => Array.isArray(body?.rows),
+      },
+      (body) => {
         const rows = Array.isArray(body.rows)
           ? body.rows.filter((r): r is WhatsOnRow => isValidWhatsOnRow(r))
           : [];
@@ -105,10 +102,8 @@ export default function VenueTonightChips(props: VenueRef): React.JSX.Element | 
           // One signal per kind shown at this venue.
           for (const kind of derived) trackEvent("event_chip_view", { kind });
         });
-      } catch {
-        /* fail-soft: no chips */
-      }
-    })();
+      },
+    );
     return () => controller.abort();
   }, [id]);
 

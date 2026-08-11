@@ -19,6 +19,7 @@ import { LocateFixed, TrainFront, X } from "lucide-react";
 
 import DisruptionLine from "@/components/transport/DisruptionLine";
 import { coarsenViewerPoint } from "@/lib/geo";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { summariseGetHome, type GetHomeSummary } from "@/lib/tonightGetHome";
 import type { LastTrainResult } from "@/lib/tfl";
 
@@ -62,16 +63,27 @@ export default function TodayGetThereStrip() {
     // State settles only inside the async resolution/catch (never synchronously
     // in the effect body): the "Checking..." state is already the null default.
     const controller = new AbortController();
-    fetch(`/api/last-train?lat=${lat}&lng=${lng}`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body: LastTrainResult | null) => {
-        if (controller.signal.aborted) return;
-        const summary = body ? summariseGetHome(body) : null;
+    void loadSurfaceJson<LastTrainResult>(
+      `/api/last-train?lat=${lat}&lng=${lng}`,
+      {
+        signal: controller.signal,
+        validate: (body) =>
+          Boolean(
+            body &&
+              typeof body === "object" &&
+              "station" in body &&
+              "trains" in body,
+          ),
+      },
+      (body) => {
+        const summary = summariseGetHome(body);
         setResult(summary ? { kind: "summary", summary } : { kind: "none" });
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setResult({ kind: "none" });
-      });
+      },
+    ).then((outcome) => {
+      if (outcome === "failed" && !controller.signal.aborted) {
+        setResult({ kind: "none" });
+      }
+    });
     return () => controller.abort();
   }, [lat, lng]);
 

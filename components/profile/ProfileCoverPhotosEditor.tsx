@@ -25,7 +25,7 @@ import {
 } from "@/lib/profileImagePicker";
 import { profileImageOutputBox } from "@/lib/profileImageSlots";
 import type { PublicProfile } from "@/lib/profiles";
-import { discardBody } from "@/lib/responseBody";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 // The owner's cover ROTATION, inside the profile editor.
 //
@@ -94,28 +94,34 @@ export default function ProfileCoverPhotosEditor({
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     async function load() {
       const headers = await authHeaders();
-      const response = await fetch(base, { headers }).catch(() => null);
-      if (!response) return;
-      if (!response.ok) {
-        // Between learning the status and leaving, the body is let go: an
-        // undrained response is a request that never finishes.
-        discardBody(response);
-        if (active) setStatus("degraded");
-        return;
-      }
-      const body = (await response.json().catch(() => null)) as {
+      if (controller.signal.aborted) return;
+      const outcome = await loadSurfaceJson<{
         status?: ProfileCoverReadStatus;
         covers?: ProfileCoverPhotoDTO[];
-      } | null;
-      if (!active || !body) return;
-      setStatus(body.status === "degraded" ? "degraded" : "ready");
-      setCovers(body.covers ?? []);
+      }>(
+        base,
+        {
+          signal: controller.signal,
+          init: { headers },
+          validate: (body) => Array.isArray(body?.covers),
+        },
+        (body) => {
+          if (!active) return;
+          setStatus(body.status === "degraded" ? "degraded" : "ready");
+          setCovers(body.covers ?? []);
+        },
+      );
+      if (outcome === "failed" && active && !controller.signal.aborted) {
+        setStatus("degraded");
+      }
     }
     void load();
     return () => {
       active = false;
+      controller.abort();
     };
   }, [authHeaders, base]);
 

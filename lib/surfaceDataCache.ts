@@ -29,6 +29,7 @@
 // first paint, never stand in for an answer nobody asked for again.
 
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
+import { discardBody } from "@/lib/responseBody";
 
 /**
  * Paths whose answers may never be held past the request that asked for them.
@@ -43,6 +44,9 @@ export const SURFACE_CACHE_DENIED_PREFIXES = [
 
 /** The default a caller gets when it has no sharper opinion: five minutes. */
 export const DEFAULT_SURFACE_SNAPSHOT_MAX_AGE_MS = 5 * 60_000;
+
+/** One short pause absorbs a brief mobile-network wobble without adding UI state. */
+export const SURFACE_CACHE_RETRY_BACKOFF_MS = 50;
 
 type Entry = { value: unknown; storedAt: number };
 
@@ -76,6 +80,33 @@ function bindIdentityBoundary(): void {
   boundWindow = window;
   subscribeDeviceIdentity(() => {
     store.clear();
+  });
+}
+
+function isTransientResponse(response: Response): boolean {
+  return response.status === 408 ||
+    response.status === 425 ||
+    response.status === 429 ||
+    response.status >= 500;
+}
+
+function waitForRetry(signal: AbortSignal | undefined): Promise<boolean> {
+  if (signal?.aborted) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => finish(true), SURFACE_CACHE_RETRY_BACKOFF_MS);
+    const onAbort = () => {
+      clearTimeout(timer);
+      finish(false);
+    };
+    const finish = (shouldRetry: boolean) => {
+      if (settled) return;
+      settled = true;
+      if (signal) signal.removeEventListener("abort", onAbort);
+      resolve(shouldRetry);
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) onAbort();
   });
 }
 
@@ -118,11 +149,12 @@ export function surfaceCacheSize(): number {
   return store.size;
 }
 
-export type LoadSurfaceJsonOptions = {
+export type LoadSurfaceJsonOptions<T = unknown> = {
   signal?: AbortSignal;
   init?: RequestInit;
   maxAgeMs?: number;
   fetchImpl?: typeof fetch;
+  validate?: (value: T) => boolean;
 };
 
 /**
@@ -139,38 +171,55 @@ export type LoadSurfaceJsonOptions = {
  */
 export async function loadSurfaceJson<T>(
   key: string,
-  options: LoadSurfaceJsonOptions,
-  apply: (value: T, source: "snapshot" | "network") => void,
+  options: LoadSurfaceJsonOptions<T>,
+  apply: (value: T, source: "snapshot" | "network") => void | boolean,
 ): Promise<"snapshot" | "network" | "failed"> {
   assertCacheable(key);
-  const { signal, init, maxAgeMs, fetchImpl } = options;
+  const { signal, init, maxAgeMs, fetchImpl, validate } = options;
   let applied: "snapshot" | "network" | "failed" = "failed";
+  const requestSignal = signal ?? init?.signal ?? undefined;
 
   // Yield once before touching state, so a caller may start this in an effect
   // body without setState firing synchronously during render (the same rule the
   // rest of the client surfaces follow). One microtask still lands the held
   // answer in the mount frame.
   await Promise.resolve();
-  if (signal?.aborted) return applied;
+  if (requestSignal?.aborted) return applied;
 
   const held = readSurfaceSnapshot<T>(key, maxAgeMs);
-  if (held !== undefined && !signal?.aborted) {
+  if (held !== undefined && !requestSignal?.aborted) {
     applied = "snapshot";
     apply(held, "snapshot");
   }
 
-  try {
-    const doFetch = fetchImpl ?? fetch;
-    const response = await doFetch(key, { ...init, signal });
-    if (!response.ok) return applied;
-    const body = (await response.json()) as T;
-    if (signal?.aborted) return applied;
-    writeSurfaceSnapshot(key, body);
-    apply(body, "network");
-    return "network";
-  } catch {
-    // Aborted, offline, or a blip. A surface that already showed a real answer
-    // keeps it; one that showed nothing reports the failure to its caller.
-    return applied;
+  const doFetch = fetchImpl ?? fetch;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (requestSignal?.aborted) return applied;
+    try {
+      const response = await doFetch(key, { ...init, signal: requestSignal });
+      if (!response.ok) {
+        const retryable = isTransientResponse(response);
+        discardBody(response);
+        if (retryable && attempt === 0 && await waitForRetry(requestSignal)) continue;
+        return applied;
+      }
+      const body = (await response.json()) as T;
+      if (requestSignal?.aborted) return applied;
+      if (validate && !validate(body)) {
+        if (attempt === 0 && await waitForRetry(requestSignal)) continue;
+        return applied;
+      }
+      const shouldCache = apply(body, "network") !== false;
+      if (shouldCache) writeSurfaceSnapshot(key, body);
+      return "network";
+    } catch {
+      if (requestSignal?.aborted) return applied;
+      if (attempt === 0 && await waitForRetry(requestSignal)) continue;
+      // Aborted, offline, or a blip. A surface that already showed a real
+      // answer keeps it; one that showed nothing reports the failure to its
+      // caller.
+      return applied;
+    }
   }
+  return applied;
 }

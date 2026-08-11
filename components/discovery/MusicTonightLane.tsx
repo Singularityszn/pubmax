@@ -11,6 +11,7 @@ import { trackEvent } from "@/lib/analytics";
 import { isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 import { preferredCityMapHref } from "@/lib/cityPreference";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import "./dealsTonightLane.css";
 
@@ -39,13 +40,20 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
   useEffect(() => {
     if (provided) return; // reuse mode: the host already loaded the spine.
     const controller = new AbortController();
-    fetch("/api/whats-on?kind=music&window=tonight&limit=8", {
-      signal: controller.signal,
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body) => {
-        if (!body || !Array.isArray(body.rows)) return;
-        const rows = body.rows.filter(isValidWhatsOnRow).slice(0, 8);
+    void loadSurfaceJson<{
+      rows?: unknown;
+      asOf?: unknown;
+      kindObservedAt?: unknown;
+    }>(
+      "/api/whats-on?kind=music&window=tonight&limit=8",
+      {
+        signal: controller.signal,
+        validate: (body) => Array.isArray(body?.rows),
+      },
+      (body) => {
+        const rows = (Array.isArray(body.rows) ? body.rows : [])
+          .filter(isValidWhatsOnRow)
+          .slice(0, 8);
         // Self-fetch mode asks for kind=music alone, so the response-level
         // freshness IS this source's freshness; kindObservedAt.music is the
         // same answer and is preferred when the server sends it.
@@ -59,8 +67,8 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
                 ? body.asOf
                 : null,
         });
-      })
-      .catch(() => undefined);
+      },
+    );
     return () => controller.abort();
   }, [provided]);
 
