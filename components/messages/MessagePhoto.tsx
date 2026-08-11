@@ -12,15 +12,23 @@
 //
 // The tile is capped by HEIGHT rather than width, because a thread is read by
 // scrolling and a portrait photograph filling the line would push the words
-// after it a screen away. Tap opens the full frame in a dialog, so the thread
-// is still behind it and Escape is the way out on every platform.
+// after it a screen away. The cap itself is the viewport's rather than the
+// reader's font (app/messages/messages.css says why). Tap opens the full frame
+// in a dialog, so the thread is still behind it and Escape is the way out on
+// every platform.
+//
+// The figure is rendered in EVERY state that has a box, carrying the photo's
+// own aspect, so the space reserved before the bytes land is the space the
+// photograph takes when they do.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { authedFetch } from "@/lib/authedFetch";
 import {
+  MESSAGE_PHOTO_ASPECT_PROPERTY,
   MESSAGE_PHOTO_UNREADABLE_LINE,
   messagePhotoAltText,
+  messagePhotoAspect,
 } from "@/lib/messageAttachments";
 import { discardBody } from "@/lib/responseBody";
 
@@ -89,20 +97,28 @@ export default function MessagePhoto({
   if (failed) {
     return <p className="messagePhotoFailed">{MESSAGE_PHOTO_UNREADABLE_LINE}</p>;
   }
+
+  // The tile's own aspect, handed to the stylesheet once. The figure's width,
+  // the reserved box and the loaded photograph all read this one number, so
+  // there is no second copy to disagree with the first.
+  const tile = {
+    [MESSAGE_PHOTO_ASPECT_PROPERTY]: messagePhotoAspect(width, height),
+  } as React.CSSProperties;
+
   if (!objectUrl) {
     // The box is reserved at the photo's own aspect, so the thread does not
     // jump under a reader's thumb when the bytes land.
     return (
-      <p className="messagePhotoPending" style={{ aspectRatio: `${width} / ${height}` }}>
-        Loading photo
-      </p>
+      <figure className="messagePhotoFigure" style={tile}>
+        <p className="messagePhotoPending">Loading photo</p>
+      </figure>
     );
   }
 
   const alt = messagePhotoAltText(senderHandle);
 
   return (
-    <figure className="messagePhotoFigure">
+    <figure className="messagePhotoFigure" style={tile}>
       <button type="button" className="messagePhotoButton" onClick={() => setOpen(true)}>
         {/* eslint-disable-next-line @next/next/no-img-element -- gated bytes read as an object URL; no loader can fetch them */}
         <img

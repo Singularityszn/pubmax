@@ -12,10 +12,43 @@ import { expect, test, type Page } from "@playwright/test";
 // signed-in accounts, so this loads the real `/messages` document - which pulls
 // the real stylesheet - and measures the SAME markup the thread renders.
 
+// The SECOND thing this file measures is the attachment tile, after a captain
+// report from live mobile use that a photo in the thread rendered too large.
+//
+// The cap was `max-height: 15rem` - the READER'S FONT rather than the screen.
+// Measured in Chrome at 390x844 before the fix: the same photograph was 240px
+// tall at a 16px root, 300px at 20px and 360px (43% of the screen) at 24px, and
+// once the bubble's width bound the tile the box stopped matching the picture,
+// so `object-fit: cover` cut a quarter off its width with nothing to show for
+// it. The reserved box was 87x109 against a 192x240 tile, so every photo
+// reflowed the thread when its bytes landed.
+
 const VIEWPORTS = [
   { name: "phone 390", width: 390, height: 844 },
   { name: "desktop 1280", width: 1280, height: 800 },
 ] as const;
+
+/** The cap the stylesheet names, restated so the arithmetic can be checked. */
+const PHOTO_MAX_HEIGHT_PX = 240;
+const PHOTO_MAX_VIEWPORT_FRACTION = 0.4;
+
+/** The frame a message photo is cut to, and a landscape one for the width lane. */
+const PORTRAIT = { width: 1080, height: 1350 } as const;
+const LANDSCAPE = { width: 1080, height: 720 } as const;
+
+type Box = { width: number; height: number };
+
+type MeasuredMedia = {
+  photo: Box;
+  pending: Box;
+  landscape: Box;
+  /** Each tile is held to its OWN row's bubble; a bubble is sized by what is in it. */
+  bubble: Box;
+  landscapeBubble: Box;
+  venueBubble: Box;
+  venueCard: Box;
+  viewportHeight: number;
+};
 
 type Measured = {
   width: number;
@@ -107,6 +140,138 @@ async function measureBubbles(page: Page): Promise<Record<string, Measured>> {
   });
 }
 
+/**
+ * The thread's attachment markup, injected into the loaded document so it is
+ * measured under the shipped stylesheet. Kept in the same shape as
+ * components/messages/MessagePhoto.tsx and MessageVenueCard.tsx: the figure
+ * carries the photo's own aspect, and the reserved box and the photograph are
+ * both inside it.
+ *
+ * `rootFontPx` is what reproduces the defect: a reader who has raised the text
+ * size on their phone. The tile must not move.
+ */
+async function measureMedia(page: Page, rootFontPx: number): Promise<MeasuredMedia> {
+  return page.evaluate(
+    async ({ rootFontPx, portrait, landscape }) => {
+      document.getElementById("media-probe")?.remove();
+      document.documentElement.style.fontSize = `${rootFontPx}px`;
+
+      const draw = (w: number, h: number, fill: string): string => {
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const context = canvas.getContext("2d");
+        if (context) {
+          context.fillStyle = fill;
+          context.fillRect(0, 0, w, h);
+        }
+        return canvas.toDataURL("image/png");
+      };
+
+      const host = document.querySelector(".messagesMain") ?? document.body;
+      const list = document.createElement("ul");
+      list.className = "threadMessages";
+      list.id = "media-probe";
+
+      const row = (id: string, fill: (bubble: HTMLElement) => void): void => {
+        const item = document.createElement("li");
+        item.id = id;
+        item.className = "messageRow messageRowMine";
+        const line = document.createElement("div");
+        line.className = "messageLine";
+        const bubble = document.createElement("div");
+        bubble.className = "messageBubble messageBubbleMine";
+        fill(bubble);
+        const meta = document.createElement("div");
+        meta.className = "messageMeta";
+        line.append(bubble, meta);
+        item.append(line);
+        list.append(item);
+      };
+
+      const figure = (size: { width: number; height: number }): HTMLElement => {
+        const element = document.createElement("figure");
+        element.className = "messagePhotoFigure";
+        element.style.setProperty("--message-photo-aspect", String(size.width / size.height));
+        return element;
+      };
+
+      const loaded: Array<Promise<unknown>> = [];
+      const picture = (
+        size: { width: number; height: number },
+        fill: string,
+      ): HTMLElement => {
+        const element = figure(size);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "messagePhotoButton";
+        const img = document.createElement("img");
+        img.className = "messagePhoto";
+        img.width = size.width;
+        img.height = size.height;
+        img.alt = "";
+        img.src = draw(size.width, size.height, fill);
+        loaded.push(img.decode().catch(() => undefined));
+        button.append(img);
+        element.append(button);
+        return element;
+      };
+
+      row("photo-mine", (bubble) => bubble.append(picture(portrait, "#c96")));
+      row("photo-landscape", (bubble) => bubble.append(picture(landscape, "#69c")));
+      row("photo-pending", (bubble) => {
+        const element = figure(portrait);
+        const box = document.createElement("p");
+        box.className = "messagePhotoPending";
+        box.textContent = "Loading photo";
+        element.append(box);
+        bubble.append(element);
+      });
+      row("venue-mine", (bubble) => {
+        const card = document.createElement("a");
+        card.className = "messageVenueCard";
+        card.href = "/map?sel=probe";
+        for (const [cls, text] of [
+          ["messageVenueCardName", "The Coach and Horses"],
+          ["messageVenueCardArea", "Soho"],
+          ["messageVenueCardPrice", "Cheapest pint £5.20"],
+        ]) {
+          const span = document.createElement("span");
+          span.className = cls;
+          span.textContent = text;
+          card.append(span);
+        }
+        bubble.append(card);
+      });
+
+      host.append(list);
+      await Promise.all(loaded);
+
+      const box = (selector: string): { width: number; height: number } => {
+        const element = document.querySelector(selector);
+        if (!element) throw new Error(`missing ${selector}`);
+        const rect = element.getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+      };
+
+      const measured = {
+        photo: box("#photo-mine .messagePhoto"),
+        pending: box("#photo-pending .messagePhotoPending"),
+        landscape: box("#photo-landscape .messagePhoto"),
+        bubble: box("#photo-mine .messageBubble"),
+        landscapeBubble: box("#photo-landscape .messageBubble"),
+        venueBubble: box("#venue-mine .messageBubble"),
+        venueCard: box("#venue-mine .messageVenueCard"),
+        viewportHeight: window.innerHeight,
+      };
+      document.documentElement.style.fontSize = "";
+      document.getElementById("media-probe")?.remove();
+      return measured;
+    },
+    { rootFontPx, portrait: PORTRAIT, landscape: LANDSCAPE },
+  );
+}
+
 for (const viewport of VIEWPORTS) {
   test.describe(`message bubbles at ${viewport.name}`, () => {
     test.beforeEach(async ({ page }) => {
@@ -156,5 +321,90 @@ for (const viewport of VIEWPORTS) {
       }));
       expect(overflow.scrollWidth).toBe(overflow.clientWidth);
     });
+
+    test("a photo stays inside the cap, the bubble and its own aspect", async ({ page }) => {
+      const measured = await measureMedia(page, 16);
+
+      const cap = Math.min(
+        PHOTO_MAX_HEIGHT_PX,
+        measured.viewportHeight * PHOTO_MAX_VIEWPORT_FRACTION,
+      );
+      // THE DEFECT: 360px tall, 43% of the screen, on a phone at 150% text.
+      expect(measured.photo.height).toBeLessThanOrEqual(cap + 1);
+      expect(measured.landscape.height).toBeLessThanOrEqual(cap + 1);
+
+      // Max-width is the bubble's OWN, so a tile never pushes its row wider. A
+      // bubble is sized by what is in it, so each tile is held to its own.
+      expect(measured.photo.width).toBeLessThanOrEqual(measured.bubble.width + 1);
+      expect(measured.landscape.width).toBeLessThanOrEqual(
+        measured.landscapeBubble.width + 1,
+      );
+
+      // The sender's framing survives, in both orientations. `cover` used to cut
+      // a quarter off the width once the bubble bound the tile.
+      expect(measured.photo.width / measured.photo.height).toBeCloseTo(
+        PORTRAIT.width / PORTRAIT.height,
+        2,
+      );
+      expect(measured.landscape.width / measured.landscape.height).toBeCloseTo(
+        LANDSCAPE.width / LANDSCAPE.height,
+        2,
+      );
+    });
+
+    test("a photo is measured against the screen, never the reader's font", async ({ page }) => {
+      const [normal, large, largest] = [
+        await measureMedia(page, 16),
+        await measureMedia(page, 20),
+        await measureMedia(page, 24),
+      ];
+      // Measured before the fix at 390x844: 240px, 300px, 360px.
+      for (const raised of [large, largest]) {
+        expect(raised.photo.height).toBeCloseTo(normal.photo.height, 0);
+        expect(raised.photo.width).toBeCloseTo(normal.photo.width, 0);
+        expect(raised.photo.width / raised.photo.height).toBeCloseTo(
+          PORTRAIT.width / PORTRAIT.height,
+          2,
+        );
+      }
+    });
+
+    test("the reserved box is the rectangle the photograph lands in", async ({ page }) => {
+      const measured = await measureMedia(page, 16);
+      // THE DEFECT: 87x109 reserved for a 192x240 tile, so the thread jumped
+      // under a reader's thumb every time a photo's bytes arrived.
+      expect(measured.pending.width).toBeCloseTo(measured.photo.width, 0);
+      expect(measured.pending.height).toBeCloseTo(measured.photo.height, 0);
+    });
+
+    test("a shared pub is a compact row rather than a preview", async ({ page }) => {
+      const measured = await measureMedia(page, 16);
+      // Three short lines of text. Nothing here may grow a tile of its own.
+      expect(measured.venueCard.height).toBeLessThan(PHOTO_MAX_HEIGHT_PX / 2);
+      expect(measured.venueCard.width).toBeLessThanOrEqual(measured.venueBubble.width + 1);
+    });
   });
 }
+
+// The one viewport where the 40dvh limb of the cap binds instead of the flat
+// 240px: a phone held sideways. Without it the tile would be 240px of a 390px
+// screen, which is most of the thread.
+test.describe("message photos on a short viewport", () => {
+  test("the tile falls to the viewport's share of a sideways phone", async ({ page }) => {
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    const response = await page.goto("/messages");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".messagesMain")).toBeVisible();
+
+    const measured = await measureMedia(page, 16);
+    const cap = measured.viewportHeight * PHOTO_MAX_VIEWPORT_FRACTION;
+    expect(cap).toBeLessThan(PHOTO_MAX_HEIGHT_PX);
+    expect(measured.photo.height).toBeLessThanOrEqual(cap + 1);
+    expect(measured.photo.height).toBeGreaterThan(cap - 2);
+    expect(measured.pending.height).toBeCloseTo(measured.photo.height, 0);
+  });
+});

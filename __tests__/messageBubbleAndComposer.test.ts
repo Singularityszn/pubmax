@@ -20,17 +20,41 @@
 //    way every other field on their phone does: sentence case, autocorrect on,
 //    spelling checked. `autocorrect="off"` anywhere on this surface is the
 //    defect, and the sweep below is tree-wide over components/messages.
+//
+// 3. THE OVERSIZED PHOTO. Captain report from live mobile use. The tile was
+//    capped at `max-height: 15rem`, which is the READER'S FONT rather than the
+//    screen: measured in Chrome at 390x844, the same photograph rendered 240px
+//    tall at a 16px root, 300px at 20px and 360px - 43% of the screen - at
+//    24px. Past the point where the bubble's width bound the tile, the box's
+//    aspect stopped matching the picture's and `object-fit: cover` CUT the
+//    sender's framing (222x360 against a 4:5 photograph). And the reserved box
+//    was 87x109 against a 192x240 tile, so every photo reflowed the thread when
+//    its bytes landed.
+//
+//    The cap is now the viewport's and the bubble's, the aspect rides on the
+//    tile so nothing is ever cropped, and the figure takes a definite width so
+//    the placeholder and the photograph are one rectangle. Measured after, at
+//    390x844: 192x240 at 16px, 20px AND 24px root, aspect 0.8 exactly, zero
+//    jump; on a phone held sideways (844x390) the 40dvh limb binds at 124.8x156.
+//    `e2e/message-bubble-geometry.spec.ts` measures the rendered boxes.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import {
+  MESSAGE_ATTACHMENT_KINDS,
+  MESSAGE_PHOTO_ASPECT_PROPERTY,
+  MESSAGE_PHOTO_ASPECT_RATIO,
+  messagePhotoAspect,
+} from "@/lib/messageAttachments";
 import { MAX_MESSAGE_BODY } from "@/lib/messages";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 const CSS = read("app/messages/messages.css");
 const THREAD = read("components/messages/MessageThread.tsx");
+const PHOTO = read("components/messages/MessagePhoto.tsx");
 
 /** One rule body out of the shipped stylesheet, by selector. */
 function rule(selector: string): string {
@@ -156,5 +180,81 @@ describe("the composer is a field somebody can talk into", () => {
     for (const selector of [".composerSend", ".composerAttach", ".messagePhotoViewerClose"]) {
       expect(rule(selector), selector).toMatch(/min-width:\s*44px/);
     }
+  });
+});
+
+describe("a photo tile is measured against the screen, never the reader's font", () => {
+  it("caps the tile in viewport units and absolute pixels, with no rem anywhere", () => {
+    const figure = rule(".messagePhotoFigure");
+    // THE DEFECT, exactly: a cap denominated in the root font size, which grew
+    // the same photograph from 240px to 360px as a reader raised their text.
+    expect(figure).toMatch(/--message-photo-max-height:\s*min\(40dvh,\s*240px\)/);
+    for (const selector of [".messagePhotoFigure", ".messagePhoto", ".messagePhotoPending"]) {
+      const body = rule(selector);
+      const heightCaps = [...body.matchAll(/max-height:\s*([^;]+);/g)].map((hit) => hit[1]);
+      for (const cap of heightCaps) {
+        expect(cap, `${selector} caps a photo in rem`).not.toMatch(/rem/);
+      }
+    }
+    // `dvh` rather than `vh`: on a phone the URL bar makes them different, and
+    // this cap only ever binds on the short viewport where that shows.
+    expect(figure).not.toMatch(/\d+vh/);
+  });
+
+  it("never crops the sender's framing", () => {
+    // `cover` fills the box by CUTTING the picture, and the box stopped matching
+    // the picture the moment the bubble's width bound the tile. A reader cannot
+    // tell that anything was removed, which is what makes it worse than a tile
+    // of the wrong size.
+    expect(rule(".messagePhoto")).toMatch(/object-fit:\s*contain/);
+    expect(rule(".messagePhoto")).not.toMatch(/object-fit:\s*cover/);
+    expect(rule(".messagePhoto")).toMatch(
+      new RegExp(`aspect-ratio:\\s*var\\(${MESSAGE_PHOTO_ASPECT_PROPERTY}`),
+    );
+  });
+
+  it("reserves the same rectangle the photograph will occupy", () => {
+    // The placeholder used to be a bare `<p>` with an `aspect-ratio` and no
+    // width to measure it against, inside a `fit-content` line: 87x109 reserved
+    // for a 192x240 tile.
+    const figure = rule(".messagePhotoFigure");
+    expect(figure).toMatch(
+      new RegExp(
+        `width:\\s*calc\\(var\\(--message-photo-max-height\\)\\s*\\*\\s*var\\(${MESSAGE_PHOTO_ASPECT_PROPERTY}`,
+      ),
+    );
+    expect(figure).toMatch(/max-width:\s*100%/);
+    const pending = rule(".messagePhotoPending");
+    expect(pending).toMatch(/width:\s*100%/);
+    expect(pending).toMatch(
+      new RegExp(`aspect-ratio:\\s*var\\(${MESSAGE_PHOTO_ASPECT_PROPERTY}`),
+    );
+    // Both states render the figure, or there is nothing for the width to sit on.
+    expect(PHOTO).toContain(`[MESSAGE_PHOTO_ASPECT_PROPERTY]: messagePhotoAspect(width, height)`);
+    expect(PHOTO.match(/className="messagePhotoFigure" style=\{tile\}/g)).toHaveLength(2);
+  });
+
+  it("falls back to the frame a message photo is cut to when a dimension is missing", () => {
+    expect(messagePhotoAspect(1080, 1350)).toBeCloseTo(0.8, 10);
+    expect(messagePhotoAspect(1080, 720)).toBeCloseTo(1.5, 10);
+    for (const bad of [
+      [0, 1350],
+      [1080, 0],
+      [-4, 5],
+      [Number.NaN, 1350],
+      [null, undefined],
+      ["1080", "1350"],
+    ] as const) {
+      expect(messagePhotoAspect(bad[0], bad[1])).toBe(MESSAGE_PHOTO_ASPECT_RATIO);
+    }
+  });
+
+  it("has no document attachment to render, so nothing may grow a preview for one", () => {
+    // v1 shipped two kinds and only two. A compact row is what a non-photo
+    // attachment gets, and the pub card is already one.
+    expect([...MESSAGE_ATTACHMENT_KINDS]).toEqual(["photo", "venue"]);
+    const card = rule(".messageVenueCard");
+    expect(card).toMatch(/padding:\s*0\.5rem 0\.6rem/);
+    expect(card).not.toMatch(/(height|aspect-ratio):/);
   });
 });

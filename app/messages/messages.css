@@ -294,16 +294,42 @@
 }
 
 /* ── attachments in the thread ────────────────────────────────────────────── */
-/* A photo is a tile inside the bubble, capped by HEIGHT rather than width: a
-   thread is read by scrolling, and a portrait photograph that filled the line
-   would push the words after it a screen away. Its own aspect is preserved, so
-   the tile a sender framed is the tile a reader sees. */
+/* A PHOTOGRAPH IS NOT TEXT, SO ITS CAP IS NOT IN `rem`.
+   The cap used to be `max-height: 15rem`, which is the READER'S FONT. At the
+   default 16px that is 240px, but a phone at 150% text size renders the same
+   photograph 360px tall - 43% of an 844px screen - and it kept growing with
+   every step of the accessibility scale. Measured in Chrome at 390x844:
+   240px at 16px root, 300px at 20px, 360px at 24px.
+
+   Worse, past the point where the bubble's width bound the tile, the box's
+   aspect stopped matching the photograph's and `object-fit: cover` CUT the
+   sender's framing: 222x360 against a 4:5 picture is a quarter of its width
+   gone, and a reader cannot tell anything was removed.
+
+   So the cap is the VIEWPORT'S and the BUBBLE'S, never the font's, and the
+   aspect is carried on the tile itself so nothing is ever cropped. 40dvh is the
+   ceiling on a short viewport (a phone held sideways); the flat 240px is what
+   holds a tile modest on a tall one, at every text size.
+
+   ONE box, before the bytes land and after. The figure takes a DEFINITE width
+   from that cap and the photo's own aspect, so the reserved placeholder and the
+   loaded photograph are the same rectangle and the thread never reflows under a
+   reader's thumb. The cap is declared on the figure rather than on an ancestor
+   because an unresolvable `var()` drops the whole `width` line, and a tile that
+   quietly fell back to the bubble's width is the bug wearing another hat.
+   `--message-photo-aspect` is set per photo by the component;
+   lib/messageAttachments.ts owns that name. */
 .messagePhotoFigure {
+  --message-photo-max-height: min(40dvh, 240px);
+
   margin: 0;
+  width: calc(var(--message-photo-max-height) * var(--message-photo-aspect, 0.8));
+  max-width: 100%;
 }
 
 .messagePhotoButton {
   display: block;
+  width: 100%;
   padding: 0;
   border: none;
   background: none;
@@ -313,14 +339,28 @@
 
 .messagePhoto {
   display: block;
-  width: auto;
-  max-width: 100%;
-  max-height: 15rem;
+  width: 100%;
+  height: auto;
+  aspect-ratio: var(--message-photo-aspect, 0.8);
   border-radius: 0.6rem;
-  object-fit: cover;
+  /* `contain`, never `cover`: if a stored dimension ever disagreed with the
+     bytes, a photograph letterboxes rather than being silently cut. */
+  object-fit: contain;
 }
 
-.messagePhotoPending,
+/* The reserved box. Same width as the figure, same aspect as the photograph. */
+.messagePhotoPending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: var(--message-photo-aspect, 0.8);
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .messagePhotoFailed {
   display: flex;
   align-items: center;

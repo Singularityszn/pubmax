@@ -265,3 +265,27 @@ export function messageVenuePriceLine(priceGbp: number | null): string | null {
 export function messagePhotoAltText(senderHandle: string): string {
   return senderHandle ? `Photo from @${senderHandle}` : "Photo in this conversation";
 }
+
+// ── The tile a photo occupies ────────────────────────────────────────────────
+
+/**
+ * The custom property that sizes a photo tile. ONE name, read by the reserved
+ * box and by the loaded photograph, because a placeholder that is not the same
+ * box as the picture is a thread that jumps when the bytes land - which is
+ * exactly what it did: 87x109 reserved against a 192x240 tile at 390.
+ */
+export const MESSAGE_PHOTO_ASPECT_PROPERTY = "--message-photo-aspect";
+
+/**
+ * A photo's own aspect as ONE number, which is what both `aspect-ratio` and the
+ * tile-width `calc()` can read.
+ *
+ * A dimension that is missing or nonsense falls back to the frame every message
+ * photo is cut to. A box with no aspect reserves nothing, and reserving nothing
+ * is the defect.
+ */
+export function messagePhotoAspect(width: unknown, height: unknown): number {
+  const w = typeof width === "number" && Number.isFinite(width) && width > 0 ? width : 0;
+  const h = typeof height === "number" && Number.isFinite(height) && height > 0 ? height : 0;
+  return w > 0 && h > 0 ? w / h : MESSAGE_PHOTO_ASPECT_RATIO;
+}
