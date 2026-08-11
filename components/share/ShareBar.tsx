@@ -50,6 +50,7 @@ function toAbsoluteUrl(url: string): string {
 
 export default function ShareBar({ url, title, text, compact = false }: ShareBarProps) {
   const [copied, setCopied] = useState(false);
+  const [shareError, setShareError] = useState("");
   // Compact mode starts folded — the toggle reveals the exact same channel
   // buttons below. Non-compact ("default") mode never folds, unchanged from
   // before this prop existed (every other ShareBar call site is unaffected).
@@ -81,24 +82,33 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
 
   const handleCopy = useCallback(async () => {
     const absolute = toAbsoluteUrl(url);
+    setShareError("");
     try {
       await navigator.clipboard.writeText(absolute);
+      trackPlanInvite("copy");
+      flashCopied();
     } catch {
-      // Clipboard denied / unavailable — still confirm so the strip never looks
-      // broken; the link is right there in the address bar as a fallback.
+      setShareError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not copy link. Try again.",
+      );
     }
-    trackPlanInvite("copy");
-    flashCopied();
   }, [url, flashCopied, trackPlanInvite]);
 
   const handleNativeShare = useCallback(async () => {
     const absolute = toAbsoluteUrl(url);
+    setShareError("");
     try {
       await navigator.share({ title, text: shareText, url: absolute });
       trackPlanInvite("native");
-    } catch {
-      // The user cancelled the sheet, or share failed — nothing to do; no error
-      // state, sharing is a soft action.
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "AbortError") return;
+      setShareError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not share link. Try again.",
+      );
     }
   }, [url, title, shareText, trackPlanInvite]);
 
@@ -106,7 +116,19 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
   const openIntent = useCallback(
     (build: (absoluteUrl: string) => string) => {
       const absolute = toAbsoluteUrl(url);
-      window.open(build(absolute), "_blank", "noopener,noreferrer");
+      setShareError("");
+      try {
+        const opened = window.open(build(absolute), "_blank", "noopener,noreferrer");
+        if (opened) return true;
+      } catch {
+        // The browser can block an external handoff before it creates a window.
+      }
+      setShareError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not open sharing app. Try again.",
+      );
+      return false;
     },
     [url],
   );
@@ -160,8 +182,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
             href={whatsappHref(url)}
             onClick={(event) => {
               event.preventDefault();
-              trackPlanInvite("whatsapp");
-              openIntent(whatsappHref);
+              if (openIntent(whatsappHref)) trackPlanInvite("whatsapp");
             }}
             target="_blank"
             rel="noreferrer"
@@ -178,8 +199,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
             href={tweetHref(url)}
             onClick={(event) => {
               event.preventDefault();
-              trackPlanInvite("x");
-              openIntent(tweetHref);
+              if (openIntent(tweetHref)) trackPlanInvite("x");
             }}
             target="_blank"
             rel="noreferrer"
@@ -204,7 +224,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
 
       {/* Polite live confirmation for screen readers when a link is copied. */}
       <span className="shareBar__confirm" role="status" aria-live="polite">
-        {copied ? "Copied" : ""}
+        {copied ? "Copied" : shareError}
       </span>
     </div>
   );

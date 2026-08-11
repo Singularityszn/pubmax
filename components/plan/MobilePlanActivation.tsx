@@ -219,6 +219,7 @@ export function MobilePlanActivation({
           {speech.supported ? <Button type="button" variant="ghost" size="icon" aria-label={speech.listening ? "Stop describing the outing" : "Describe the outing by voice"} aria-pressed={speech.listening} onClick={speech.toggle}>{speech.listening ? <MicOff size={18} /> : <Mic size={18} />}</Button> : null}
         </div>
         {speech.listening ? <small role="status">Listening. The transcript stays in this field only.</small> : null}
+        {speech.error ? <small role="status">{speech.error}</small> : null}
       </div>
       <div className="mobilePlannerIntentGrid">
         <label>Area<select value={area} onChange={(event) => { setAreaTouched(true); setArea(event.target.value as NightAreaSlug); }}>{areas.map((nightArea) => <option key={nightArea.slug} value={nightArea.slug}>{nightArea.name}</option>)}</select></label>

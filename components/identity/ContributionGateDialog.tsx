@@ -12,6 +12,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { trackEvent } from "@/lib/analytics";
 
@@ -235,7 +236,7 @@ export function useContributionGate(): {
         error:
           result.status === "sign_in_required" && user
             ? "Your sign-in expired. Sign out, then sign in again."
-            : result.error ?? null,
+            : errorMessageFrom(result, "That action could not be completed."),
       });
     },
     [contributionAuth, invalidateContributionAuth, user, userId],

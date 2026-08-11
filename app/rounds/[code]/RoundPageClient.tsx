@@ -431,13 +431,19 @@ function RoundBoard({
   const crewLine = crewHere ? crewHereSummary(crewHere) : null;
 
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState("");
   async function copyCode() {
+    setCopyError("");
     try {
       await navigator.clipboard.writeText(round.code);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard denied — no-op.
+      setCopyError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not copy Round code. Try again.",
+      );
     }
   }
 
@@ -464,6 +470,11 @@ function RoundBoard({
           {copied ? (
             <span className="roundCopyFeedback" role="status">
               Code copied.
+            </span>
+          ) : null}
+          {copyError ? (
+            <span className="roundCopyFeedback" role="status">
+              {copyError}
             </span>
           ) : null}
         </div>
@@ -1577,6 +1588,7 @@ function CloseRound({
   onClosed: (next: RoundState) => void;
 }): React.JSX.Element {
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   // Closing a Round is irreversible and hits the whole crew, so it's a two-tap
   // action: the first tap arms a confirm, the second commits. The armed state
   // auto-disarms so a stray tap can't leave the "call it" button hot all night.
@@ -1598,6 +1610,7 @@ function CloseRound({
 
   async function close() {
     setBusy(true);
+    setError("");
     try {
       const completion = await runRoundMutationForCurrentOwner(
         identity,
@@ -1615,9 +1628,21 @@ function CloseRound({
       );
       if (!completion.current) return;
       const { res, data } = completion.value;
-      if (res.ok && data) onClosed(data);
+      if (res.ok && data) {
+        onClosed(data);
+      } else {
+        setError(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : errorMessageFrom(data, "Could not close the Round. Try again."),
+        );
+      }
     } catch {
-      // fail-soft — the poll will catch up
+      setError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not close the Round. Try again.",
+      );
     } finally {
       if (
         roundRequestIdentityOwnerKey(identity) ===
@@ -1645,13 +1670,17 @@ function CloseRound({
             <DoorClosed size={16} aria-hidden="true" /> {busy ? "Calling it…" : "Yes, call it"}
           </button>
         </div>
+        {error ? <p className="roundError" role="alert">{error}</p> : null}
       </div>
     );
   }
 
   return (
-    <button type="button" className="roundCloseBtn" onClick={arm} disabled={busy}>
-      <DoorClosed size={16} aria-hidden="true" /> Call the Round (close it)
-    </button>
+    <>
+      <button type="button" className="roundCloseBtn" onClick={arm} disabled={busy}>
+        <DoorClosed size={16} aria-hidden="true" /> Call the Round (close it)
+      </button>
+      {error ? <p className="roundError" role="alert">{error}</p> : null}
+    </>
   );
 }

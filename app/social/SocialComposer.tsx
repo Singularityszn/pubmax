@@ -3,6 +3,7 @@
 import { type RefObject, useEffect, useId, useRef, useState } from "react";
 
 import { NIGHT_AREAS } from "@/lib/nightAreas";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { readSocialDraftPhoto, saveSocialDraftPhoto } from "@/lib/socialComposerDrafts";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
@@ -497,7 +498,7 @@ export default function SocialComposer({
           }));
           throw new Error("Post request key was already used. Your draft is still here. Try posting again.");
         }
-        throw new Error(result.error ?? "Post was not saved.");
+        throw new Error(errorMessageFrom(result, "Post was not saved."));
       }
       localStorage.removeItem(draftKey);
       void saveSocialDraftPhoto(draftKey, null);
@@ -512,7 +513,11 @@ export default function SocialComposer({
       onSaved(result.post);
     } catch (cause) {
       setFeedback(
-        cause instanceof Error ? cause.message : "Post was not saved.",
+        typeof navigator !== "undefined" && navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : cause instanceof Error
+            ? cause.message
+            : "Post was not saved.",
       );
       setFeedbackIsStatus(false);
     } finally {

@@ -60,6 +60,13 @@
   line-height: 1.4;
 }
 
+.nativePushPrompt__error {
+  margin: calc(var(--space-2) * -1) 0 var(--space-3);
+  color: var(--accent-risk, #b3261e);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
 .nativePushPrompt__actions {
   display: flex;
   justify-content: flex-end;

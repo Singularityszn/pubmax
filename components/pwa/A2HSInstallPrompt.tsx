@@ -95,6 +95,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
   const [mounted, setMounted] = useState(false);
   const [surface, setSurface] = useState<A2hsSurface | null>(null);
   const [closing, setClosing] = useState(false);
+  const [installError, setInstallError] = useState("");
   const deferredPrompt = useSyncExternalStore(
     subscribeA2hsInstallPrompt,
     getA2hsInstallPrompt,
@@ -134,24 +135,24 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
   );
 
   const onAndroidInstall = useCallback(() => {
+    setInstallError("");
     const evt = consumeA2hsInstallPrompt();
     if (!evt) {
-      close(true);
+      setInstallError("Could not start installation. Try again.");
       return;
     }
     void evt
       .prompt()
-      .then(() => {
-        void evt.userChoice.then((choice) => {
-          if (choice.outcome === "accepted") {
-            // POST-#301: emit `pwa_install_completed` ({ platform: 'android' }).
-            finalize(() => writeA2hsState(registerInstalled(readA2hsState())));
-          } else {
-            close(true);
-          }
-        });
+      .then(() => evt.userChoice)
+      .then((choice) => {
+        if (choice.outcome === "accepted") {
+          // POST-#301: emit `pwa_install_completed` ({ platform: 'android' }).
+          finalize(() => writeA2hsState(registerInstalled(readA2hsState())));
+        } else {
+          close(true);
+        }
       })
-      .catch(() => close(true));
+      .catch(() => setInstallError("Could not start installation. Try again."));
   }, [close, finalize]);
 
   // "Don't ask again" — a hard opt-out (never re-offer on this device).
@@ -293,6 +294,11 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
           <p id="a2hsBody" className="a2hsBody">
             Listed pint prices, one tap away.
           </p>
+          {installError ? (
+            <p className="a2hsError" role="status">
+              {installError}
+            </p>
+          ) : null}
           <div className="a2hsActions">
             <button type="button" className="a2hsNever" onClick={onNeverAsk}>
               Don&apos;t ask again

@@ -42,7 +42,7 @@ export default function ShareWithFamilyButton({
   label = "Share with family",
   className,
 }: ShareWithFamilyButtonProps) {
-  const [status, setStatus] = useState<"idle" | "shared">("idle");
+  const [status, setStatus] = useState<"idle" | "shared" | "error">("idle");
 
   const shareText = buildFamilyShareText({ venueName, note, url });
 
@@ -55,9 +55,9 @@ export default function ShareWithFamilyButton({
           url: shareText.url,
         });
         setStatus("shared");
-      } catch {
-        // User cancelled the share sheet, or the call failed — no error UI,
-        // the mailto link below is always still there as a fallback.
+      } catch (caught) {
+        if (caught instanceof DOMException && caught.name === "AbortError") return;
+        setStatus("error");
       }
       return;
     }
@@ -68,13 +68,22 @@ export default function ShareWithFamilyButton({
   }, [shareText]);
 
   return (
-    <button
-      type="button"
-      className={className ? `familyShareButton ${className}` : "familyShareButton"}
-      onClick={handleClick}
-      aria-label={`${label}${note ? ": " + venueName : ""}`}
-    >
-      {status === "shared" ? "Shared" : label}
-    </button>
+    <>
+      <button
+        type="button"
+        className={className ? `familyShareButton ${className}` : "familyShareButton"}
+        onClick={handleClick}
+        aria-label={`${label}${note ? ": " + venueName : ""}`}
+      >
+        {status === "shared" ? "Shared" : label}
+      </button>
+      {status === "error" ? (
+        <span role="status">
+          {typeof navigator !== "undefined" && navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : "Could not share this. Try again."}
+        </span>
+      ) : null}
+    </>
   );
 }

@@ -104,9 +104,19 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
 
   async function copyLink() {
     const url = `${window.location.origin}/invite/${inviteToken}`;
-    await navigator.clipboard?.writeText(url).catch(() => undefined);
-    setStatus("Invite link copied.");
-    trackEvent("plan_invite_link_copied");
+    setStatus("");
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
+      await navigator.clipboard.writeText(url);
+      setStatus("Invite link copied.");
+      trackEvent("plan_invite_link_copied");
+    } catch {
+      setStatus(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not copy invite link. Try again.",
+      );
+    }
   }
 
   async function rotateLink() {
@@ -139,7 +149,11 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
         trackEvent("plan_invite_link_rotated");
       }
     } catch {
-      setStatus("Couldn't make a new link.");
+      setStatus(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Couldn't make a new link.",
+      );
     } finally {
       setRotating(false);
     }

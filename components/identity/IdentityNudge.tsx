@@ -26,6 +26,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { trackEvent } from "@/lib/analytics";
@@ -178,9 +179,9 @@ export default function IdentityNudge(): React.JSX.Element | null {
       if (!res.ok) {
         setStatus("error");
         setMessage(
-          typeof body.error === "string"
-            ? body.error
-            : "Could not save your email right now. Try again in a moment.",
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : errorMessageFrom(body, "Could not save your email right now. Try again in a moment."),
         );
         return;
       }
@@ -190,7 +191,11 @@ export default function IdentityNudge(): React.JSX.Element | null {
     } catch {
       // Network / offline — honest retryable error, no fake success.
       setStatus("error");
-      setMessage("Could not reach the server. Check your connection and try again.");
+      setMessage(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not reach the server. Try again.",
+      );
     }
   }
 

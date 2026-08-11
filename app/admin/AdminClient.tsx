@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import { discardBody } from "@/lib/responseBody";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import SiteNav from "@/components/nav/SiteNav";
@@ -605,7 +606,7 @@ export default function AdminClient() {
         return;
       }
       if (!res.ok) {
-        setImportMsg(payload.error ?? "Could not queue the note.");
+        setImportMsg(errorMessageFrom(payload, "Could not queue the note."));
         return;
       }
       setImportMsg(payload.message ?? "Queued for review");
@@ -646,7 +647,7 @@ export default function AdminClient() {
         return;
       }
       if (!res.ok) {
-        setImportMsg(payload.error ?? "Action failed. Try again.");
+        setImportMsg(errorMessageFrom(payload, "Action failed. Try again."));
         return;
       }
       setImportMsg(payload.message ?? (action === "dismiss" ? "Note dismissed." : "Note restored."));

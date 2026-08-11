@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
   accountBoundFetch,
   captureAccountAuth,
@@ -448,9 +449,9 @@ function AccountOnboardingForUser({
           if (body.code === "reserved") setAvailability("reserved");
           setCheckedHandle(null);
           setError(
-            typeof body.error === "string"
-              ? body.error
-              : "Could not claim that handle.",
+            navigator.onLine === false
+              ? "You look offline. Reconnect, then try again."
+              : errorMessageFrom(body, "Could not claim that handle."),
           );
           return;
         }
@@ -472,7 +473,11 @@ function AccountOnboardingForUser({
         finish();
       } catch {
         if (active.current) {
-          setError("Could not claim that handle. Check your connection.");
+          setError(
+            navigator.onLine === false
+              ? "You look offline. Reconnect, then try again."
+              : "Could not claim that handle. Try again.",
+          );
         }
       } finally {
         if (active.current) setBusy(false);

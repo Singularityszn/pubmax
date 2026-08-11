@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { discardBody } from "@/lib/responseBody";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { normalizeHandle } from "@/lib/profiles";
 
 import "@/app/messages/messages.css";
@@ -25,6 +25,7 @@ export default function ProfileMessageButton({
   const router = useRouter();
   const { user, handle: authHandle, configured } = useAuth();
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   const effectiveViewer = normalizeHandle(authHandle ?? "") || normalizeHandle(viewerHandle);
   if (!targetHandle || targetHandle === effectiveViewer) return null;
@@ -43,6 +44,7 @@ export default function ProfileMessageButton({
 
   async function open() {
     setBusy(true);
+    setError("");
     try {
       const res = await authedActionFetch("/api/messages", {
         method: "POST",
@@ -54,28 +56,46 @@ export default function ProfileMessageButton({
         }),
       });
       if (!res.ok) {
-        discardBody(res);
+        const body: unknown = await res.json().catch(() => null);
+        setError(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : errorMessageFrom(body, "Could not open messages. Try again."),
+        );
         return;
       }
       const body = (await res.json()) as { conversationId?: string };
       if (body.conversationId) {
         router.push(`/messages/${encodeURIComponent(body.conversationId)}`);
+      } else {
+        setError("Could not open messages. Try again.");
       }
     } catch {
-      // best-effort — a failed open leaves the profile as-is
+      setError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not open messages. Try again.",
+      );
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <button
-      type="button"
-      className="profileMessageBtn"
-      onClick={() => void open()}
-      disabled={busy}
-    >
-      Message
-    </button>
+    <>
+      <button
+        type="button"
+        className="profileMessageBtn"
+        onClick={() => void open()}
+        disabled={busy}
+      >
+        Message
+      </button>
+      {error ? (
+        <p className="profileMessageError" role="status">
+          {error}
+        </p>
+      ) : null}
+    </>
   );
 }

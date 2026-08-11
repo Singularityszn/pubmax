@@ -567,13 +567,13 @@ export function usePintDrops(
   async function reportDrop(venueId: string, id: string) {
     if (reportsInFlight.current.has(id)) return;
     reportsInFlight.current.add(id);
+    const reportedDrop = dropsByVenueId.get(venueId)?.find((drop) => drop.id === id);
     // Optimistic remove — moderation is minimal, no reason UI.
     setDropsByVenueId((current) => {
       const next = new Map(current);
       next.set(venueId, (next.get(venueId) ?? []).filter((drop) => drop.id !== id));
       return next;
     });
-    setDropMsg({ ok: true, text: "Report received. That Pint Drop is hidden." });
     try {
       // `actor` is the device's stable anon id (same attribution reactions and
       // comments use) — the server hashes it into the per-actor report key, so
@@ -581,14 +581,53 @@ export function usePintDrops(
       // Called from an event handler, so `window` exists; getAnonId() returns
       // "" when storage is unavailable and the server degrades to its shared
       // anon sentinel.
-      await authedActionFetch("/api/pint-drops", {
+      const res = await authedActionFetch("/api/pint-drops", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "report", id, actor: getAnonId() }),
       });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (reportedDrop) {
+          setDropsByVenueId((current) => {
+            const next = new Map(current);
+            next.set(venueId, [
+              reportedDrop,
+              ...(next.get(venueId) ?? []).filter((drop) => drop.id !== id),
+            ]);
+            return next;
+          });
+        }
+        reportsInFlight.current.delete(id);
+        setDropMsg({
+          ok: false,
+          text:
+            navigator.onLine === false
+              ? "You look offline. Reconnect, then try again."
+              : errorMessageFrom(body, "Could not report that Pint Drop. Try again."),
+        });
+        return;
+      }
+      setDropMsg({ ok: true, text: "Report received. That Pint Drop is hidden." });
     } catch {
-      // Swallow — the drop is already hidden locally; a failed report just
-      // means it reappears on next load, which is acceptable for demo moderation.
+      if (reportedDrop) {
+        setDropsByVenueId((current) => {
+          const next = new Map(current);
+          next.set(venueId, [
+            reportedDrop,
+            ...(next.get(venueId) ?? []).filter((drop) => drop.id !== id),
+          ]);
+          return next;
+        });
+      }
+      reportsInFlight.current.delete(id);
+      setDropMsg({
+        ok: false,
+        text:
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : "Could not report that Pint Drop. Try again.",
+      });
     }
   }
 

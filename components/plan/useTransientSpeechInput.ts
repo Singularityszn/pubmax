@@ -8,6 +8,7 @@ import { getSpeechRecognitionCtor, type SpeechRecognitionLike } from "@/lib/pint
 export function useTransientSpeechInput(value: string, onChange: (value: string) => void) {
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
+  const [error, setError] = useState("");
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const baseRef = useRef("");
 
@@ -29,6 +30,7 @@ export function useTransientSpeechInput(value: string, onChange: (value: string)
     }
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) return;
+    setError("");
     try {
       const recognition = new Ctor();
       recognition.lang = "en-GB";
@@ -42,15 +44,27 @@ export function useTransientSpeechInput(value: string, onChange: (value: string)
         }
         onChange([baseRef.current, transcript.trim()].filter(Boolean).join(" "));
       };
-      recognition.onerror = stop;
+      recognition.onerror = () => {
+        stop();
+        setError(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : "Could not start dictation. Try typing instead.",
+        );
+      };
       recognition.onend = stop;
       recognitionRef.current = recognition;
       recognition.start();
       setListening(true);
     } catch {
       stop();
+      setError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not start dictation. Try typing instead.",
+      );
     }
   }
 
-  return { supported, listening, toggle };
+  return { supported, listening, error, toggle };
 }

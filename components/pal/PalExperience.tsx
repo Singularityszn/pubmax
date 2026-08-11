@@ -444,18 +444,27 @@ export default function PalExperience() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(patch),
       });
-      const body = await response.json().catch(() => ({})) as { pal?: PubPal };
-      if (!response.ok || !body.pal) throw new Error("Pal control update failed");
+      const body = await response.json().catch(() => ({})) as { pal?: PubPal; error?: unknown };
+      if (!response.ok || !body.pal) {
+        throw new Error(errorMessageFrom(body, "Pal control update could not be saved."));
+      }
       if (activeOwnerRef.current !== ownerId || body.pal.ownerId !== ownerId) return;
       setPal(body.pal);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(body.pal));
       setPalAnimationState("celebrating");
       window.setTimeout(() => setPalAnimationState("idle"), 900);
-    } catch {
+    } catch (cause) {
       if (activeOwnerRef.current !== ownerId) return;
       setPalAnimationState("error");
       setPal(pal);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(pal));
+      setError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : cause instanceof Error
+            ? cause.message
+            : "Pal control update could not be saved.",
+      );
     } finally {
       if (controlSavingRef.current === lock) {
         controlSavingRef.current = null;

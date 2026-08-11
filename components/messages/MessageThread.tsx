@@ -12,6 +12,7 @@ import MessageVenuePicker, {
   type PickedVenue,
 } from "@/components/messages/MessageVenuePicker";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import {
   MESSAGE_ATTACH_PHOTO_LABEL,
@@ -301,11 +302,14 @@ export default function MessageThread({
         // The server's own sentence when it has one: a refused photo and a
         // conversation that is gone are different things to be told.
         const body: unknown = await res.json().catch(() => null);
-        const said =
-          body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string"
-            ? (body as { error: string }).error
-            : null;
-        setError(said ?? (pending ? MESSAGE_PHOTO_FAILED_LINE : "Couldn't send that message."));
+        setError(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : errorMessageFrom(
+                body,
+                pending ? MESSAGE_PHOTO_FAILED_LINE : "Could not send that message. Try again.",
+              ),
+        );
         return;
       }
       discardBody(res);
@@ -313,7 +317,13 @@ export default function MessageThread({
       clearPending();
       await refresh();
     } catch {
-      setError(pending ? MESSAGE_PHOTO_FAILED_LINE : "Couldn't send that message.");
+      setError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : pending
+            ? MESSAGE_PHOTO_FAILED_LINE
+            : "Could not send that message. Try again.",
+      );
     } finally {
       setSending(false);
     }
@@ -323,16 +333,30 @@ export default function MessageThread({
     async (messageId: string) => {
       const h = normalizeHandle(authHandle ?? "") || readHandle();
       if (!user || !h) return;
+      setError("");
       try {
         const res = await authedActionFetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ action: "report", handle: h, messageId }),
         });
+        if (!res.ok) {
+          const body: unknown = await res.json().catch(() => null);
+          setError(
+            navigator.onLine === false
+              ? "You look offline. Reconnect, then try again."
+              : errorMessageFrom(body, "Could not report that message. Try again."),
+          );
+          return;
+        }
         discardBody(res);
         await refresh();
       } catch {
-        // best-effort — a failed report is non-fatal
+        setError(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : "Could not report that message. Try again.",
+        );
       }
     },
     [conversationId, refresh, user, authHandle],

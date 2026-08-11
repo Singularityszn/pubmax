@@ -3,7 +3,7 @@
 // "Share tonight" affordance (Wave D · D1). Shares the /tonight URL — whose
 // crawler card is the D1 OG poster (app/tonight/opengraph-image) — via the
 // native share sheet, falling back to clipboard. Fires the D0 `poster_shared`
-// signal on a real share/copy. Fail-soft: never throws, and shows a brief
+// signal on a real share/copy. Failures stay visible, and a successful copy shows a brief
 // "Link copied" acknowledgement on the clipboard path.
 
 import { useState } from "react";
@@ -13,6 +13,7 @@ import { trackEvent } from "@/lib/analytics";
 
 export default function TonightShareButton(): React.JSX.Element {
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
 
   async function onShare() {
     if (typeof window === "undefined") return;
@@ -22,6 +23,7 @@ export default function TonightShareButton(): React.JSX.Element {
       text: "What's on in London tonight. A grounded, live read.",
       url,
     };
+    setError("");
     try {
       const nav = navigator as Navigator & {
         share?: (data: ShareData) => Promise<void>;
@@ -36,30 +38,40 @@ export default function TonightShareButton(): React.JSX.Element {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1600);
         trackEvent("poster_shared", { surface: "tonight" });
+        return;
       }
-    } catch {
-      // User dismissed the share sheet, or the API is unavailable — no-op.
+      setError("Could not share tonight. Try again.");
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "AbortError") return;
+      setError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not share tonight. Try again.",
+      );
     }
   }
 
   return (
-    <button
-      type="button"
-      className="tonightShare pressable"
-      onClick={onShare}
-      aria-label="Share tonight's listings"
-    >
-      {copied ? (
-        <>
-          <Check size={15} aria-hidden="true" />
-          Link copied
-        </>
-      ) : (
-        <>
-          <Share2 size={15} aria-hidden="true" />
-          Share
-        </>
-      )}
-    </button>
+    <span>
+      <button
+        type="button"
+        className="tonightShare pressable"
+        onClick={onShare}
+        aria-label="Share tonight's listings"
+      >
+        {copied ? (
+          <>
+            <Check size={15} aria-hidden="true" />
+            Link copied
+          </>
+        ) : (
+          <>
+            <Share2 size={15} aria-hidden="true" />
+            Share
+          </>
+        )}
+      </button>
+      {error ? <span role="status">{error}</span> : null}
+    </span>
   );
 }

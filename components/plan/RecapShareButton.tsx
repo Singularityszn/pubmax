@@ -41,6 +41,7 @@ function toAbsoluteUrl(url: string): string {
 
 export default function RecapShareButton({ planId, shareText, shareUrl }: RecapShareButtonProps) {
   const [copied, setCopied] = useState(false);
+  const [shareError, setShareError] = useState("");
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [canNativeShare] = useState(
     () => typeof navigator !== "undefined" && typeof navigator.share === "function",
@@ -58,24 +59,35 @@ export default function RecapShareButton({ planId, shareText, shareUrl }: RecapS
   const handleNativeShare = useCallback(async () => {
     if (!shareUrl) return;
     const absolute = toAbsoluteUrl(shareUrl);
+    setShareError("");
     try {
       await navigator.share({ text: shareText, url: absolute });
       trackEvent("recap_shared", { channel: "native", planId });
-    } catch {
-      // Sheet cancelled — sharing is a soft action, no error state.
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "AbortError") return;
+      setShareError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not share link. Try again.",
+      );
     }
   }, [shareUrl, shareText, planId]);
 
   const handleCopy = useCallback(async () => {
     if (!shareUrl) return;
     const absolute = toAbsoluteUrl(shareUrl);
+    setShareError("");
     try {
       await navigator.clipboard.writeText(absolute);
+      trackEvent("recap_shared", { channel: "copy", planId });
+      flashCopied();
     } catch {
-      // Clipboard denied — the link is still in the address bar.
+      setShareError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not copy link. Try again.",
+      );
     }
-    trackEvent("recap_shared", { channel: "copy", planId });
-    flashCopied();
   }, [shareUrl, planId, flashCopied]);
 
   // ── Pre-approval: the gateway into the consent flow, never a public link. ───
@@ -104,8 +116,29 @@ export default function RecapShareButton({ planId, shareText, shareUrl }: RecapS
         href={whatsappShareHref(shareText, shareUrl)}
         onClick={(event) => {
           event.preventDefault();
-          trackEvent("recap_shared", { channel: "whatsapp", planId });
-          window.open(whatsappShareHref(shareText, toAbsoluteUrl(shareUrl)), "_blank", "noopener,noreferrer");
+          setShareError("");
+          try {
+            const opened = window.open(
+              whatsappShareHref(shareText, toAbsoluteUrl(shareUrl)),
+              "_blank",
+              "noopener,noreferrer",
+            );
+            if (!opened) {
+              setShareError(
+                navigator.onLine === false
+                  ? "You look offline. Reconnect, then try again."
+                  : "Could not open WhatsApp. Try again.",
+              );
+              return;
+            }
+            trackEvent("recap_shared", { channel: "whatsapp", planId });
+          } catch {
+            setShareError(
+              navigator.onLine === false
+                ? "You look offline. Reconnect, then try again."
+                : "Could not open WhatsApp. Try again.",
+            );
+          }
         }}
         target="_blank"
         rel="noreferrer"
@@ -121,7 +154,7 @@ export default function RecapShareButton({ planId, shareText, shareUrl }: RecapS
         {copied ? "Copied" : "Copy link"}
       </button>
       <span className="recapShare__confirm" role="status" aria-live="polite">
-        {copied ? "Copied" : ""}
+        {copied ? "Copied" : shareError}
       </span>
     </div>
   );

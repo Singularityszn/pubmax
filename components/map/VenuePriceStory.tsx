@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { priceConfidence } from "@/lib/priceConfidence";
 import {
@@ -195,24 +196,39 @@ function PriceConfirmChip({
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [confirms, setConfirms] = useState<number | null>(null);
+  const [error, setError] = useState("");
 
   const confirm = useCallback(async () => {
     if (confirmed) return; // a vouch is one-way; re-taps are inert (idempotent).
     // Optimistic: flip to confirmed before the network round-trip so the tap
     // feels instant. The real distinct-confirmer count backfills when it lands.
     setConfirmed(true);
+    setError("");
     try {
       const res = await fetch("/api/price-confirm", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ venueId, priceGbp }),
       });
-      if (res.ok) {
-        const data = (await res.json()) as { confirms?: number };
-        if (typeof data.confirms === "number") setConfirms(data.confirms);
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        setConfirmed(false);
+        setError(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : errorMessageFrom(body, "Could not confirm that price. Try again."),
+        );
+        return;
       }
+      const data = body as { confirms?: number } | null;
+      if (typeof data?.confirms === "number") setConfirms(data.confirms);
     } catch {
-      // Fail-soft: the optimistic confirmed state stays put on any error.
+      setConfirmed(false);
+      setError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not confirm that price. Try again.",
+      );
     }
   }, [confirmed, venueId, priceGbp]);
 
@@ -262,6 +278,7 @@ function PriceConfirmChip({
           Confirmed{countLabel ? ` · ${countLabel}` : ""}.
         </span>
       ) : null}
+      {error ? <span role="status">{error}</span> : null}
     </div>
   );
 }

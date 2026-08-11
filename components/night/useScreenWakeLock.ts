@@ -73,6 +73,7 @@ export type WakeLockManager = {
 export function createWakeLockManager(
   nav: WakeLockNavigatorLike | undefined | null,
   onChange?: (active: boolean) => void,
+  onError?: () => void,
 ): WakeLockManager {
   const supported = wakeLockSupported(nav);
   let armed = false;
@@ -106,8 +107,9 @@ export function createWakeLockManager(
       setActive(true);
     } catch {
       // Denied or transient: stay inactive, no throw. A later visibility gain
-      // may still succeed.
+      // may still succeed, but the user must know the toggle did not take.
       setActive(false);
+      onError?.();
     }
   };
 
@@ -155,6 +157,8 @@ export type ScreenWakeLockState = {
   supported: boolean;
   /** A live screen wake lock is currently held. */
   active: boolean;
+  /** User-visible reason when the requested lock could not be acquired. */
+  error: string;
 };
 
 /**
@@ -164,6 +168,7 @@ export type ScreenWakeLockState = {
  */
 export function useScreenWakeLock(enabled: boolean): ScreenWakeLockState {
   const [active, setActive] = useState(false);
+  const [error, setError] = useState("");
   const managerRef = useRef<WakeLockManager | null>(null);
   const [supported] = useState(() =>
     typeof navigator !== "undefined" && wakeLockSupported(navigator as WakeLockNavigatorLike),
@@ -173,7 +178,11 @@ export function useScreenWakeLock(enabled: boolean): ScreenWakeLockState {
   // unmount so a closed card never keeps the screen awake.
   useEffect(() => {
     if (typeof navigator === "undefined" || typeof document === "undefined") return;
-    const manager = createWakeLockManager(navigator as WakeLockNavigatorLike, setActive);
+    const manager = createWakeLockManager(
+      navigator as WakeLockNavigatorLike,
+      setActive,
+      () => setError("Could not keep screen awake. Try again."),
+    );
     managerRef.current = manager;
     const onVisibility = () => {
       void manager.handleVisibility(document.visibilityState === "visible");
@@ -191,9 +200,10 @@ export function useScreenWakeLock(enabled: boolean): ScreenWakeLockState {
   useEffect(() => {
     const manager = managerRef.current;
     if (!manager) return;
+    setError("");
     if (enabled) void manager.enable();
     else void manager.disable();
   }, [enabled]);
 
-  return { supported, active };
+  return { supported, active, error };
 }

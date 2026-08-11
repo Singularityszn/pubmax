@@ -32,18 +32,24 @@ export default function CrawlProgressSection({
   shareMapHref,
 }: CrawlProgressSectionProps) {
   const [shareCopied, setShareCopied] = useState(false);
+  const [shareCopyError, setShareCopyError] = useState("");
 
   async function copyShareLink() {
     const absolute =
       typeof window !== "undefined"
         ? `${window.location.origin}${shareMapHref}`
         : shareMapHref;
+    setShareCopyError("");
     try {
       await navigator.clipboard.writeText(absolute);
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
     } catch {
-      // Clipboard denied — still offer the openable link below.
+      setShareCopyError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not copy link. Try again.",
+      );
     }
   }
 
@@ -93,6 +99,7 @@ export default function CrawlProgressSection({
             >
               {shareCopied ? "Link copied" : "Copy link"}
             </button>
+            {shareCopyError ? <p role="status">{shareCopyError}</p> : null}
             <Link
               className="crawlCelebrationLink"
               href={shareMapHref}

@@ -125,10 +125,27 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       // so it links safely to invite_redeemed for k-factor (docs/METRICS_FUNNEL.md).
       if (typeof body.invite?.id === "string") trackEvent("invite_created", { inviteId: body.invite.id });
       announce("invite");
-      await navigator.clipboard?.writeText(url).catch(() => undefined);
-      setStatus("Private one-use invite copied. It expires by plan end (or sooner).");
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
+        await navigator.clipboard.writeText(url);
+        setStatus("Private one-use invite copied. It expires by plan end (or sooner).");
+      } catch {
+        setStatus(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : "Invite created, but could not copy it. Try again.",
+        );
+      }
       await refresh();
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not create an invite."); }
+    } catch (caught) {
+      setError(
+        typeof navigator !== "undefined" && navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : caught instanceof Error
+            ? caught.message
+            : "Could not create an invite.",
+      );
+    }
     finally { setPending(""); }
   }
 
@@ -145,7 +162,15 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       setRevokeConfirmId(null);
       announce("invite");
       setStatus("Invite revoked."); await refresh();
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not revoke this invite."); }
+    } catch (caught) {
+      setError(
+        typeof navigator !== "undefined" && navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : caught instanceof Error
+            ? caught.message
+            : "Could not revoke this invite.",
+      );
+    }
     finally { setPending(""); }
   }
 

@@ -218,6 +218,9 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
             <span data-copy-done hidden>
               Copied
             </span>
+            <span data-copy-failed hidden>
+              Could not copy link. Try again.
+            </span>
           </button>
           <Link className="permalink__ghost" href={drop.venueMapUrl}>
             Open the pub on the map
@@ -244,7 +247,7 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
       <script
         nonce={nonce}
         dangerouslySetInnerHTML={{
-          __html: `(function(){var btn=document.querySelector('[data-copy-link]');if(!btn)return;btn.addEventListener('click',function(){var idle=btn.querySelector('[data-copy-idle]');var done=btn.querySelector('[data-copy-done]');function flash(){if(idle)idle.hidden=true;if(done)done.hidden=false;setTimeout(function(){if(idle)idle.hidden=false;if(done)done.hidden=true;},2000);}try{navigator.clipboard.writeText(window.location.href).then(flash,flash);}catch(e){flash();}});})();`,
+          __html: `(function(){var btn=document.querySelector('[data-copy-link]');if(!btn)return;btn.addEventListener('click',function(){var idle=btn.querySelector('[data-copy-idle]');var done=btn.querySelector('[data-copy-done]');var failed=btn.querySelector('[data-copy-failed]');function reset(){if(idle)idle.hidden=false;if(done)done.hidden=true;if(failed)failed.hidden=true;}function flash(){if(idle)idle.hidden=true;if(done)done.hidden=false;if(failed)failed.hidden=true;setTimeout(reset,2000);}function fail(){if(idle)idle.hidden=true;if(done)done.hidden=true;if(failed)failed.hidden=false;if(failed)failed.textContent=navigator.onLine===false?'You look offline. Reconnect, then try again.':'Could not copy link. Try again.';setTimeout(reset,3000);}try{navigator.clipboard.writeText(window.location.href).then(flash,fail);}catch(e){fail();}});})();`,
         }}
       />
     </main>

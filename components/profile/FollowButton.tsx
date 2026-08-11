@@ -10,6 +10,7 @@ import {
   resolveFollowRelation,
 } from "@/lib/followRelation";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { FollowCounts } from "@/lib/followStore";
 
 // Follow / unfollow control for a public profile. The follower handle is passed
@@ -74,11 +75,11 @@ export default function FollowButton({
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
         setFollowing(!next); // roll back
-        const message =
-          body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string"
-            ? (body as { error: string }).error
-            : "Couldn't update. Try again.";
-        setError(message);
+        setError(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : errorMessageFrom(body, "Could not update. Try again."),
+        );
         return;
       }
       // Reconcile with the server's truth (handles already-following, races).
@@ -89,7 +90,11 @@ export default function FollowButton({
       }
     } catch {
       setFollowing(!next); // roll back on network error
-      setError("Network error. Try again.");
+      setError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not update. Try again.",
+      );
     } finally {
       setBusy(false);
     }

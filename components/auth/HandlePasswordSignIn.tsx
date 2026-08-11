@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { persistSessionForResume } from "@/lib/authSessionResumeClient";
 import {
   HANDLE_PASSWORD_GENERIC_ERROR,
@@ -54,11 +55,11 @@ export default function HandlePasswordSignIn({
       const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 
       if (!res.ok) {
-        const message =
-          typeof body.error === "string"
-            ? body.error
-            : HANDLE_PASSWORD_GENERIC_ERROR;
-        setError(message);
+        setError(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : errorMessageFrom(body, HANDLE_PASSWORD_GENERIC_ERROR),
+        );
         return;
       }
 
@@ -100,7 +101,11 @@ export default function HandlePasswordSignIn({
       setPassword("");
       setOpen(false);
     } catch {
-      setError("Sign-in did not finish. Try again.");
+      setError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Sign-in did not finish. Try again.",
+      );
     } finally {
       setBusy(false);
     }

@@ -40,14 +40,18 @@ export default function CommunityPriceReport({
       </small>
     );
   }
+  const error = communityPrices.reportErrors?.get(id);
   return (
-    <button
-      type="button"
-      className="reportBtn"
-      onClick={() => communityPrices.reportPrice(id)}
-      aria-label={`Report this community price at ${venueName}`}
-    >
-      <Flag size={12} aria-hidden="true" /> Report
-    </button>
+    <span>
+      <button
+        type="button"
+        className="reportBtn"
+        onClick={() => communityPrices.reportPrice(id)}
+        aria-label={`Report this community price at ${venueName}`}
+      >
+        <Flag size={12} aria-hidden="true" /> Report
+      </button>
+      {error ? <small role="status">{error}</small> : null}
+    </span>
   );
 }

@@ -29,6 +29,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
   const [caption, setCaption] = useState("");
   const [tags, setTags] = useState<VibeTag[]>([]);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState("");
   // The durable permalink: the /crawls/[slug] URL returned by POST /api/crawls,
   // or "" until one is saved. "saving" gates a double-submit; "error" surfaces a
   // friendly failure without blowing away the anonymous copy path.
@@ -38,6 +39,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
 
   function toggleTag(tag: VibeTag) {
     setCopied(false);
+    setCopyError("");
     setSaveError("");
     setTags((current) =>
       current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag],
@@ -62,12 +64,17 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
 
   async function copyStoryLink() {
     const link = buildLink();
+    setCopyError("");
     try {
       await navigator.clipboard.writeText(link);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard denied (permissions / insecure origin) — no-op, no crash.
+      setCopyError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not copy link. Try again.",
+      );
     }
   }
 
@@ -123,7 +130,11 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
       try {
         await navigator.clipboard.writeText(link);
       } catch {
-        // Clipboard denied — the link is still shown below to copy manually.
+        setCopyError(
+          navigator.onLine === false
+            ? "You look offline. Reconnect, then try again."
+            : "Could not copy link. Try again.",
+        );
       }
     } catch {
       setSaveError("Couldn't save a permanent link right now.");
@@ -168,6 +179,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
           placeholder={defaultTitle || "Name this crawl"}
           onChange={(event) => {
             setCopied(false);
+            setCopyError("");
             setPermaLink("");
             setSaveError("");
             setTitle(event.target.value);
@@ -192,6 +204,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
           placeholder="What made this crawl worth walking?"
           onChange={(event) => {
             setCopied(false);
+            setCopyError("");
             setPermaLink("");
             setSaveError("");
             setCaption(event.target.value);
@@ -275,6 +288,12 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
       {saveError ? (
         <p role="alert" style={{ margin: 0, fontSize: "13px", color: "var(--brass)" }}>
           {saveError}
+        </p>
+      ) : null}
+
+      {copyError ? (
+        <p role="status" style={{ margin: 0, fontSize: "13px", color: "var(--brass)" }}>
+          {copyError}
         </p>
       ) : null}
 

@@ -137,13 +137,19 @@ function CrawlsPageInner() {
   }, [remainingCrawls]);
 
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState("");
   async function copyShareLink() {
+    setCopyError("");
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard denied (permissions / insecure origin) — no-op, no crash.
+      setCopyError(
+        navigator.onLine === false
+          ? "You look offline. Reconnect, then try again."
+          : "Could not copy link. Try again.",
+      );
     }
   }
 
@@ -152,7 +158,7 @@ function CrawlsPageInner() {
       <SiteNav active="crawls" />
 
       {story ? (
-        <CrawlPoster story={story} copied={copied} onCopy={copyShareLink} />
+        <CrawlPoster story={story} copied={copied} copyError={copyError} onCopy={copyShareLink} />
       ) : (
         <section className="crawlEmpty" aria-labelledby="crawlsHeading">
           <p className="crawlEyebrow">Crawls worth walking</p>
@@ -334,10 +340,12 @@ function CompactCrawlRow({
 function CrawlPoster({
   story,
   copied,
+  copyError,
   onCopy,
 }: {
   story: CrawlStory;
   copied: boolean;
+  copyError: string;
   onCopy: () => void;
 }) {
   const total = totalGbp(story);
@@ -398,6 +406,7 @@ function CrawlPoster({
               accessible name updates and is polite (non-interrupting). */}
           <span aria-live="polite">{copied ? "Copied" : "Copy share link"}</span>
         </button>
+        {copyError ? <p role="status">{copyError}</p> : null}
       </div>
 
       <p className="crawlFootnote">Pubs, prices and the route between them.</p>
