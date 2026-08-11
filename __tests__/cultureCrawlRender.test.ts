@@ -12,7 +12,9 @@ describe("Culture Crawl on the describe-first entry surface", () => {
 
   it("renders the chips from the closed set, never a hand-typed copy", () => {
     expect(source).toContain("CULTURE_CRAWL_CHIPS.map");
-    expect(source).toContain("onSubmit(chip.query)");
+    // Plan stop-count support routes chip taps through submitChip so the
+    // inferred count reaches the composer with the closed query set.
+    expect(source).toContain("onClick={() => submitChip(chip.query)}");
     expect(source).toContain("{chip.label}");
     for (const chip of CULTURE_CRAWL_CHIPS) {
       expect(source).not.toContain(chip.query);
