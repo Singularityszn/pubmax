@@ -40,7 +40,11 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+
+import MessageAttachmentPicker from "@/components/messages/MessageAttachmentPicker";
 
 import {
   MESSAGE_ATTACHMENT_KINDS,
@@ -54,6 +58,7 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 
 const CSS = read("app/messages/messages.css");
 const THREAD = read("components/messages/MessageThread.tsx");
+const PICKER = read("components/messages/MessageAttachmentPicker.tsx");
 const PHOTO = read("components/messages/MessagePhoto.tsx");
 
 /** One rule body out of the shipped stylesheet, by selector. */
@@ -180,6 +185,48 @@ describe("the composer is a field somebody can talk into", () => {
     for (const selector of [".composerSend", ".composerAttach", ".messagePhotoViewerClose"]) {
       expect(rule(selector), selector).toMatch(/min-width:\s*44px/);
     }
+  });
+});
+
+describe("mobile message attachment picker", () => {
+  it("renders labelled library, camera, and file targets with honest inputs", () => {
+    const markup = renderToStaticMarkup(
+      createElement(MessageAttachmentPicker, {
+        open: true,
+        disabled: false,
+        onOpenChange: () => {},
+        onFileChange: () => {},
+        onKindSelected: () => {},
+      }),
+    );
+
+    expect(markup).toContain('class="mobileSheetPortal messageAttachSheetPortal"');
+    expect(markup).toContain('class="mobileSharedSheet');
+    expect(markup).toContain(">Photos</span>");
+    expect(markup).toContain(">Camera</span>");
+    expect(markup).toContain(">Document</span>");
+    expect(markup).toMatch(/id="message-photo-file"[^>]*type="file"[^>]*>/);
+    expect(markup).toMatch(/id="message-camera-file"[^>]*type="file"[^>]*capture="environment"[^>]*>/);
+    expect(markup).toMatch(/id="message-document-file"[^>]*type="file"[^>]*>/);
+    expect(markup).not.toMatch(/id="message-photo-file"[^>]*capture=/);
+    expect(markup).not.toMatch(/id="message-document-file"[^>]*capture=/);
+  });
+
+  it("keeps picker controls mobile-only and touch-safe", () => {
+    const mobileGate = CSS.slice(CSS.indexOf("@media (max-width: 640px)"));
+    expect(THREAD).toContain("MOBILE_MEDIA_QUERY");
+    expect(mobileGate).toMatch(/\.composerMobileAttach\s*\{[\s\S]*display:\s*inline-flex/);
+    expect(mobileGate).toMatch(/\.composerPhotoDesktop\s*\{[\s\S]*display:\s*none/);
+    expect(CSS).toMatch(/\.messageAttachTarget\s*\{[\s\S]*min-width:\s*56px/);
+    expect(CSS).toMatch(/\.messageAttachTarget\s*\{[\s\S]*min-height:\s*56px/);
+    expect(CSS).toMatch(/\.messageAttachTarget\s*\{[\s\S]*touch-action:\s*manipulation/);
+    expect(CSS).toMatch(/\.messageAttachTarget\s*\{[\s\S]*user-select:\s*none/);
+    expect(THREAD).toContain('trackEvent("message_attach_selected", { kind });');
+    expect(PICKER).toContain("onClick={close}");
+    expect(PICKER).toContain("onPointerDown={onDragStart}");
+    expect(PICKER).toContain("onPointerMove={onDragMove}");
+    expect(PICKER).toContain("onPointerUp={onDragEnd}");
+    expect(PICKER).toContain("SWIPE_DISMISS_PX");
   });
 });
 

@@ -77,6 +77,7 @@ export const ANALYTICS_EVENTS = {
   sign_in_initiated: ["provider"],
   user_signed_in: [],
   user_signed_out: [],
+  message_attach_selected: ["kind"],
   // A device hopped between two accounts it already holds. No props at all: an
   // account id or a handle here would name a person, and which accounts share a
   // device is the most identifying pair this app could record.
@@ -395,6 +396,7 @@ const SAFE_STRING_VALUES = new Set([
   "bender", "lit", "quiet", "cheeky", "match", "quiz", "date",
   "sport", "deal", "music", "gig",
   "photo", "pint_drop", "pint-drop", "event", "venue", "quote", "person", "side_quest",
+  "photos", "camera", "document",
   "private", "unlisted", "public", "friends", "legacy", "anonymous",
   "direct", "site", "search",
   // A2HS platform values (#313): fixed enum, no UA strings
@@ -453,6 +455,7 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   plan_draft_saved: ["stops", "grounded", "anchored", "routeReady", "source"],
   plan_accepted: ["stops", "grounded", "anchored", "routeReady", "source"],
   crew_committed: ["source", "participants", "routeReady"],
+  message_attach_selected: ["kind"],
   meaningful_core_action: ["action"],
   // The funnel is a ratio, so a step with no drink category would be an
   // uncountable event rather than a partial one - fail closed like the rest.
@@ -676,6 +679,15 @@ function isAllowedInviteLoopProp(
   return true;
 }
 
+function isAllowedMessageAttachProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name !== "message_attach_selected" || key !== "kind") return true;
+  return includesValue(["photos", "camera", "document"], value);
+}
+
 export function isKnownEvent(name: string): name is AnalyticsEventName {
   return Object.prototype.hasOwnProperty.call(ANALYTICS_EVENTS, name);
 }
@@ -738,6 +750,7 @@ export function sanitizeEvent(
               && isAllowedContributionGateProp(name, key, value)
               && isAllowedPintIndexArrivalProp(name, key, value)
               && isAllowedInviteLoopProp(name, key, value)
+              && isAllowedMessageAttachProp(name, key, value)
               && isAllowedLandingCtaProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }

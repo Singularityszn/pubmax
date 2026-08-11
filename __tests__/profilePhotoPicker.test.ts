@@ -5,8 +5,9 @@
 // not a hint, it is an instruction to open the camera, and the sheet then
 // carries no Photo Library entry at all. Nothing in the DOM says so and no
 // automated browser reproduces it, because the sheet belongs to the operating
-// system rather than to the page. So the fence is the source itself: a profile
-// photo input may never carry that attribute again, whatever it is set to.
+// system rather than to the page. So the fence is the source itself: a
+// library/file picker may never carry that attribute, while the message camera
+// target is the one deliberate capture exception.
 //
 // The rest of the file pins the things that made the fix work end to end: one
 // accept list shared by both slots, a hidden input iOS will still open, and the
@@ -27,8 +28,8 @@ import { profileImageSlotSpec, PROFILE_IMAGE_SLOTS } from "@/lib/profileImageSlo
 /**
  * Every surface a person chooses a photo from. The rule is about pickers, not
  * about profiles, so a pub photo wall's composer and a message composer are
- * swept by the same fence: `capture` would hide the iOS library there in
- * exactly the same way.
+ * swept by the same fence. Library and file targets must keep iOS library
+ * access; only the message camera target may ask for capture.
  */
 const PHOTO_SURFACE_DIRS = [
   "components/profile",
@@ -107,11 +108,15 @@ describe("a profile photo input asks for a photo, never for a camera", () => {
     expect(ids).toContain("message-photo-file");
   });
 
-  it("carries no capture attribute on any of them", () => {
+  it("keeps capture on camera-only target and off every library/file picker", () => {
     for (const input of inputs) {
+      if (input.attributes.get("id") === "message-camera-file") {
+        expect(input.attributes.get("capture")).toBe("environment");
+        continue;
+      }
       expect(
         input.attributes.has("capture"),
-        `${input.file} puts a capture attribute on a profile photo input, which hides the iOS photo library`,
+        `${input.file} puts a capture attribute on a library/file input, which hides the iOS photo library`,
       ).toBe(false);
     }
   });
