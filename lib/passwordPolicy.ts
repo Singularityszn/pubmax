@@ -28,6 +28,10 @@ export const PASSWORD_POLICY_ERROR =
 /** Sign-in says nothing about WHICH half was wrong. */
 export const HANDLE_PASSWORD_GENERIC_ERROR = "Handle or password is wrong.";
 
+/** Change-password verification names no field when proof fails. */
+export const PASSWORD_CHANGE_GENERIC_ERROR =
+  "Could not change your password. Try again.";
+
 export type PasswordRuleId = "length" | "capital" | "number" | "special";
 
 export type PasswordRule = {

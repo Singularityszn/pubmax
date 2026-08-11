@@ -125,8 +125,8 @@ describe("social links editor", () => {
 
   it("edits public links beside the public fields, never the private ones", () => {
     // Linked socials are public content the owner typed in. They belong in the
-    // public profile editor; email, date of birth and gender stay in the
-    // private editor below them.
+    // public profile editor; email, date of birth and gender stay in Account
+    // settings.
     const source = readFileSync(
       join(process.cwd(), "app/u/[handle]/ProfilePageClient.tsx"),
       "utf8",
@@ -136,9 +136,7 @@ describe("social links editor", () => {
       source.indexOf("profileDropsSection"),
     );
     expect(surface).toContain("<SocialLinksEditor />");
-    expect(surface.indexOf("<SocialLinksEditor />")).toBeLessThan(
-      surface.indexOf("<PrivateIdentityEditor />"),
-    );
+    expect(surface).not.toContain("<PrivateIdentityEditor />");
     // One editor for one list: a second live copy on the same page would drift
     // from the first the moment either one wrote.
     expect(source.split("<SocialLinksEditor />").length - 1).toBe(1);

@@ -15,6 +15,7 @@ import {
 } from "@/lib/passwordPolicy";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { isCrossSiteRequest } from "@/lib/crossSiteRequest";
 import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
 import { cleanText } from "@/lib/textClean";
 import {
@@ -26,18 +27,6 @@ assertServerEnv();
 
 const RATE_LIMIT = 12;
 const RATE_WINDOW_MS = 15 * 60 * 1000;
-
-function isCrossSite(request: Request): boolean {
-  const fetchSite = request.headers.get("sec-fetch-site");
-  if (fetchSite) return fetchSite === "cross-site";
-  const origin = request.headers.get("origin");
-  if (!origin) return false;
-  try {
-    return new URL(origin).origin !== new URL(request.url).origin;
-  } catch {
-    return true;
-  }
-}
 
 function setResumeCookie(refreshToken: string, email: string | null): Headers {
   const headers = new Headers();
@@ -53,7 +42,7 @@ function setResumeCookie(refreshToken: string, email: string | null): Headers {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  if (isCrossSite(request)) {
+  if (isCrossSiteRequest(request)) {
     return publicApiError("Cross-site requests are not accepted.", "FORBIDDEN", 403);
   }
 

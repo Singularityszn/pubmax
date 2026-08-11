@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 137 mutating handlers across 111 route files.** Each exported
+> **Inventory: 139 mutating handlers across 112 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -61,6 +61,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/admin/social-posts`
 - `POST app/api/area-demand`
 - `POST app/api/auth/session`
+- `POST app/api/auth/change-password/verify`
 - `POST app/api/auth/handle-password`
 - `POST app/api/ask`
 - `POST app/api/check-ins`
@@ -1047,6 +1048,19 @@ commit.
   posture as the Social interaction tables. A missing migration falls back to
   memory outside deployed production; production writes fail closed. Truncating
   these tables removes only RSVPs and reactions, never the Plan itself.
+
+### `app/api/auth/change-password/verify` - caller-owned password proof
+
+- **What it writes:** nothing. The route uses the caller's verified Supabase
+  email to run `signInWithEmailPassword` and discards the temporary grant.
+  Password replacement stays in the signed-in browser through GoTrue's
+  owner-bound `updateUser` call.
+- **Boundaries:** same-origin only, verified bearer required, and eight
+  attempts per hashed IP per 15 minutes with fail-closed durable limiting.
+  Missing, short, or wrong current passwords share one 401 response.
+- **Rollback / kill:** remove the route and make the password form use the
+  create flow only. Existing password creation remains signed-in and
+  owner-bound.
 
 ### `app/api/auth/session` - durable sign-in resume cookie
 

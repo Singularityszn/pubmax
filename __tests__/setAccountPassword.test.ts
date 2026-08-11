@@ -16,6 +16,14 @@ const handleSignInSource = readFileSync(
   join(process.cwd(), "components/auth/HandlePasswordSignIn.tsx"),
   "utf8",
 );
+const profilePageSource = readFileSync(
+  join(process.cwd(), "app/u/[handle]/ProfilePageClient.tsx"),
+  "utf8",
+);
+const accountHubSource = readFileSync(
+  join(process.cwd(), "components/profile/PubmaxxAccountHub.tsx"),
+  "utf8",
+);
 
 describe("SetAccountPassword gating", () => {
   it("waits for the live identity answer before reading account password state", () => {
@@ -42,6 +50,24 @@ describe("SetAccountPassword gating", () => {
     expect(setPasswordSource).toContain("updateUser({ password })");
     expect(setPasswordSource).not.toMatch(/updateUserById|admin\.auth/);
   });
+
+  it("requires the old password before changing an existing password", () => {
+    expect(setPasswordSource).toContain('autoComplete="current-password"');
+    expect(setPasswordSource).toContain("/api/auth/change-password/verify");
+    expect(setPasswordSource).toContain("currentPassword");
+    expect(setPasswordSource).toContain("PASSWORD_CHANGE_GENERIC_ERROR");
+  });
+
+  it("keeps the no-password create flow free of an old-password field", () => {
+    expect(setPasswordSource).toContain('hasPassword === true');
+    expect(setPasswordSource).toContain('hasPassword === false');
+    expect(setPasswordSource).toMatch(
+      /hasPassword === true[\s\S]*autoComplete="current-password"/,
+    );
+    expect(setPasswordSource).toMatch(
+      /hasPassword === false[\s\S]*autoComplete="new-password"/,
+    );
+  });
 });
 
 describe("creating a password is a signed-in act", () => {
@@ -56,11 +82,16 @@ describe("creating a password is a signed-in act", () => {
   });
 
   it("mounts only inside the signed-in account surface", () => {
-    const mounts = readFileSync(
-      join(process.cwd(), "components/profile/PubmaxxAccountHub.tsx"),
-      "utf8",
-    );
-    expect(mounts).toContain("<SetAccountPassword />");
+    expect(accountHubSource).toContain("<SetAccountPassword />");
+  });
+
+  it("keeps password and private details to one live copy", () => {
+    const sources = `${profilePageSource}\n${accountHubSource}`;
+    expect(sources.match(/<SetAccountPassword\s*\/>/g) ?? []).toHaveLength(1);
+    expect(sources.match(/<PrivateIdentityEditor\s*\/>/g) ?? []).toHaveLength(1);
+    expect(profilePageSource).not.toContain("<PrivateIdentityEditor />");
+    expect(accountHubSource).toContain("Account settings");
+    expect(accountHubSource).toContain("<StepOutNudgePref />");
   });
 });
 

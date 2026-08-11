@@ -15,7 +15,6 @@ import OutTonightCrewLine from "@/components/profile/OutTonightCrewLine";
 import OutTonightToggle from "@/components/profile/OutTonightToggle";
 import PintPassport from "@/components/profile/PintPassport";
 import ProfileEditor from "@/components/profile/ProfileEditor";
-import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import SocialLinksEditor from "@/components/profile/SocialLinksEditor";
 import type { PublicSocialLink } from "@/lib/socialConnections";
@@ -882,7 +881,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                       <a href="#passport">Passport</a>
                       <a href="#wanted">Wanted</a>
                       <a href="#saved-pubs">Saved</a>
-                      <a href="#account-settings">Settings</a>
+                      <a href="#account-settings">Account settings</a>
                     </nav>
                   ) : null}
 
@@ -966,19 +965,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                         onClose={() => setEditing(false)}
                       />
                       {/* Linked socials are public content the owner typed in,
-                          so they edit beside the public fields, never beside
-                          the private ones below. Signed-out demo owners have no
-                          account to hang a link on. */}
+                          so they edit beside the public fields. Account
+                          plumbing lives in Account settings below. */}
                       {user ? <SocialLinksEditor /> : null}
-                      {/* Private personal fields (email, date of birth, gender)
-                          live beside the public editor so the owner finds them
-                          where they expect to edit themselves. Signed-out demo
-                          owners see the editor's own sign-in prompt. */}
-                      {user ? (
-                        <div className="accountHubGrid profilePrivateDetails">
-                          <PrivateIdentityEditor />
-                        </div>
-                      ) : null}
                     </section>
                   ) : null}
 
