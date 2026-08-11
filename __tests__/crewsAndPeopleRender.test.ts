@@ -30,8 +30,24 @@ const profileClient = readFileSync(
   join(process.cwd(), "app/u/[handle]/ProfilePageClient.tsx"),
   "utf8",
 );
+const foundingMembershipHook = readFileSync(
+  join(process.cwd(), "components/founding/useFoundingMembership.ts"),
+  "utf8",
+);
+const crewDetailClient = readFileSync(
+  join(process.cwd(), "app/social/crews/[crewId]/CrewDetailClient.tsx"),
+  "utf8",
+);
 
 describe("crews stay behind the Social gate", () => {
+  it("waits for the live identity answer before checking Social access", () => {
+    expect(socialPageClient).toContain("identityResolved");
+    expect(socialPageClient).toMatch(/if \(initialState\.tab === "discover" \|\| !identityResolved\)/);
+    expect(foundingMembershipHook).toMatch(/if \(!userId \|\| !identityResolved\)/);
+    expect(crewDetailClient).toContain("identityResolved");
+    expect(crewDetailClient).toMatch(/if \(!identityResolved\) return;/);
+  });
+
   it("renders nothing at all while the panel resolves access for itself", () => {
     expect(
       renderToStaticMarkup(createElement(CrewsPanel, { resolveAccess: true })),

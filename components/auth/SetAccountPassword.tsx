@@ -26,10 +26,12 @@ import { discardBody } from "@/lib/responseBody";
  * telling an owner with a password that they have none.
  */
 export default function SetAccountPassword(): React.JSX.Element | null {
-  const { configured, user } = useAuth();
+  const { configured, user, identityResolved } = useAuth();
   const [hasHandle, setHasHandle] = useState(false);
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
   const [handleLoaded, setHandleLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,11 +40,12 @@ export default function SetAccountPassword(): React.JSX.Element | null {
   const hintId = useId();
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !identityResolved) {
       void Promise.resolve().then(() => {
         setHasHandle(false);
         setHasPassword(null);
         setHandleLoaded(false);
+        setLoadError(null);
       });
       return;
     }
@@ -56,6 +59,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
             setHasHandle(false);
             setHasPassword(null);
             setHandleLoaded(true);
+            setLoadError("Account details are unavailable right now.");
           }
           return;
         }
@@ -69,21 +73,42 @@ export default function SetAccountPassword(): React.JSX.Element | null {
             typeof body.hasPassword === "boolean" ? body.hasPassword : null,
           );
           setHandleLoaded(true);
+          setLoadError(null);
         }
       } catch {
         if (!cancelled) {
           setHasHandle(false);
           setHasPassword(null);
           setHandleLoaded(true);
+          setLoadError("Account details are unavailable right now.");
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [identityResolved, loadAttempt, user]);
 
-  if (!configured || !user || !handleLoaded) return null;
+  if (!configured || !user || !identityResolved || !handleLoaded) return null;
+
+  if (loadError) {
+    return (
+      <section className="accountHubPassword accountHubPasswordReadError">
+        <h3>Password</h3>
+        <p role="alert">{loadError}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setLoadError(null);
+            setHandleLoaded(false);
+            setLoadAttempt((attempt) => attempt + 1);
+          }}
+        >
+          Try again
+        </button>
+      </section>
+    );
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

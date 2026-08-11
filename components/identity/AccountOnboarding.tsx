@@ -11,7 +11,7 @@ import {
 import { trackEvent } from "@/lib/analytics";
 import {
   checkAccountHandleAvailability,
-  loadAccountOnboardingStatus,
+  loadAccountOnboardingStatusWithRetry,
 } from "@/lib/accountOnboardingClient";
 import { parseFoundingMemberNumber } from "@/lib/foundingMembers";
 import {
@@ -192,29 +192,25 @@ export function AccountOnboardingLoadError({
   onRetry: () => void;
 }): React.JSX.Element {
   return (
-    <div className="accountOnboardingBackdrop" role="presentation">
-      <section
-        className="accountOnboarding"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="account-onboarding-error-title"
+    <section
+      className="accountOnboardingLoadError"
+      aria-labelledby="account-onboarding-error-title"
+    >
+      <header className="accountOnboardingHead">
+        <p className="accountOnboardingEyebrow">Your PUBMAXX identity</p>
+        <h2 id="account-onboarding-error-title">Account setup paused</h2>
+        <p className="accountOnboardingError" role="alert">
+          {error}
+        </p>
+      </header>
+      <button
+        type="button"
+        className="accountOnboardingPrimary accountOnboardingRetry"
+        onClick={onRetry}
       >
-        <header className="accountOnboardingHead">
-          <p className="accountOnboardingEyebrow">Your PUBMAXX identity</p>
-          <h2 id="account-onboarding-error-title">Account setup paused</h2>
-          <p className="accountOnboardingError" role="alert">
-            {error}
-          </p>
-        </header>
-        <button
-          type="button"
-          className="accountOnboardingPrimary accountOnboardingRetry"
-          onClick={onRetry}
-        >
-          Try again
-        </button>
-      </section>
-    </div>
+        Try again
+      </button>
+    </section>
   );
 }
 
@@ -230,8 +226,10 @@ function suggestedHandle(): string {
 
 function AccountOnboardingForUser({
   auth,
+  identityResolved,
 }: {
   auth: AccountAuthSnapshot;
+  identityResolved: boolean;
 }): React.JSX.Element | null {
   const [status, setStatus] = useState<
     "loading" | "needed" | "complete" | "unavailable"
@@ -239,10 +237,7 @@ function AccountOnboardingForUser({
   const [statusError, setStatusError] = useState(
     "Account setup is unavailable right now.",
   );
-  const [statusRequest, setStatusRequest] = useState(() => ({
-    auth,
-    attempt: 0,
-  }));
+  const [statusAttempt, setStatusAttempt] = useState(0);
   const [handle, setHandle] = useState(suggestedHandle);
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [fullName, setFullName] = useState("");
@@ -261,10 +256,11 @@ function AccountOnboardingForUser({
   }, []);
 
   useEffect(() => {
+    if (!identityResolved) return;
     let activeLoad = true;
     const controller = new AbortController();
-    void loadAccountOnboardingStatus(
-      (input, init) => accountBoundFetch(statusRequest.auth, input, init),
+    void loadAccountOnboardingStatusWithRetry(
+      (input, init) => accountBoundFetch(auth, input, init),
       controller.signal,
     ).then(
       (result) => {
@@ -286,7 +282,7 @@ function AccountOnboardingForUser({
             // Storage blocked: account ownership is still server-truth.
           }
           emitIdentityHandleChanged({
-            ownerId: statusRequest.auth.userId,
+            ownerId: auth.userId,
             handle: serverHandle,
           });
           // An account that already owns a handle is owed NOTHING on arrival.
@@ -316,7 +312,7 @@ function AccountOnboardingForUser({
       activeLoad = false;
       controller.abort();
     };
-  }, [statusRequest]);
+  }, [auth, identityResolved, statusAttempt]);
 
   useEffect(() => {
     if (availability !== "checking") return;
@@ -477,10 +473,7 @@ function AccountOnboardingForUser({
         error={statusError}
         onRetry={() => {
           setStatus("loading");
-          setStatusRequest((current) => ({
-            auth,
-            attempt: current.attempt + 1,
-          }));
+          setStatusAttempt((current) => current + 1);
         }}
       />
     );
@@ -502,8 +495,14 @@ function AccountOnboardingForUser({
 }
 
 export default function AccountOnboarding(): React.JSX.Element | null {
-  const { user, loading, session } = useAuth();
+  const { user, loading, session, identityResolved } = useAuth();
   const auth = captureAccountAuth(user?.id ?? null, session);
   if (loading || !user || !auth) return null;
-  return <AccountOnboardingForUser key={user.id} auth={auth} />;
+  return (
+    <AccountOnboardingForUser
+      key={user.id}
+      auth={auth}
+      identityResolved={identityResolved}
+    />
+  );
 }

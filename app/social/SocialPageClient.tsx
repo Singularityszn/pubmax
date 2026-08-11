@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DiscoverBody } from "@/app/discover/DiscoverPageClient";
+import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import CrewsPanel from "@/components/social/CrewsPanel";
@@ -383,6 +384,7 @@ export default function SocialPageClient({
   rivalry,
   heritageCrawls,
 }: SocialPageClientProps) {
+  const { identityResolved } = useAuth();
   const [access, setAccess] = useState<AccessLoadState>("checking");
   const [adultPrompt, setAdultPrompt] = useState(false);
   const [assertBusy, setAssertBusy] = useState(false);
@@ -407,7 +409,7 @@ export default function SocialPageClient({
   );
 
   useEffect(() => {
-    if (initialState.tab === "discover") return;
+    if (initialState.tab === "discover" || !identityResolved) return;
 
     const controller = new AbortController();
     void Promise.resolve().then(() => setAccess("checking"));
@@ -440,7 +442,7 @@ export default function SocialPageClient({
         setAccess("unavailable");
       });
     return () => controller.abort();
-  }, [accessAttempt, initialState.tab]);
+  }, [accessAttempt, identityResolved, initialState.tab]);
 
   // Claiming a handle on this very page changes the answer the access route
   // gives, and the claim announces itself (`emitIdentityHandleChanged`). Without

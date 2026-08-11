@@ -42,9 +42,10 @@ export function useFoundingMembership(): FoundingMembership {
   const userId = user?.id ?? null;
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !identityResolved) {
       // A signed-out reader is not an outsider, they are simply nobody here.
-      // Only a settled session may say "no number", and only about itself.
+      // An unresolved session is not an outsider either: only a settled
+      // identity may say "no number", and only about itself.
       const timer = window.setTimeout(() => setMembership(LOADING), 0);
       return () => window.clearTimeout(timer);
     }
