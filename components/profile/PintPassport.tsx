@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 
 import ShareBar from "@/components/share/ShareBar";
 import type { PassportData } from "@/lib/passport";
+import { formatCheapestPint } from "@/lib/profiles";
 import { buildPassportShareText } from "@/lib/shareArtifacts";
 
 // The Pint Passport (user story 29): a collectible field-guide "passport page"
@@ -30,10 +31,6 @@ type PintPassportProps = {
   // When true, lift the passport into the profile hero (own profile /u/you).
   hero?: boolean;
 };
-
-function formatGbp(value: number | null): string {
-  return value == null ? "–" : `£${value.toFixed(2)}`;
-}
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
@@ -129,7 +126,7 @@ export default function PintPassport({
         <Stat label="Beers" value={beers} />
         <Stat label="Crawls" value={crawls} />
         <Stat label="Pints" value={pints} />
-        <Stat label="Cheapest pint" value={formatGbp(cheapestPintGbp)} />
+        <Stat label="Cheapest pint" value={formatCheapestPint(cheapestPintGbp)} />
         <Stat label="Story posts" value={storyPosts} />
         <Stat label="Badges" value={badges.length} />
       </div>

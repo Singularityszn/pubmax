@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Camera, Coffee, Landmark, Leaf, Moon, Store, Waves } from "lucide-react";
+import { ArrowRight, Camera, Coffee, Landmark, Leaf, Moon, Store, Waves } from "lucide-react";
 
 import IntentLink from "@/components/nav/IntentLink";
 
@@ -57,7 +57,7 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
                   <Icon size={17} />
                 </span>
                 <span className="tonightSoftPlansLabel">{chip.label}</span>
-                <ArrowUpRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
+                <ArrowRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
               </IntentLink>
             </li>
           );
@@ -69,7 +69,7 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
                 <Moon size={17} />
               </span>
               <span className="tonightSoftPlansLabel">A quiet pint</span>
-              <ArrowUpRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
+              <ArrowRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
             </Link>
           </li>
         ) : null}
@@ -90,7 +90,7 @@ export default function TonightSoftPlansModule({ hasQuietPint = false }: Props) 
                   <Icon size={17} />
                 </span>
                 <span className="tonightSoftPlansLabel">{chip.label}</span>
-                <ArrowUpRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
+                <ArrowRight size={15} aria-hidden="true" className="tonightSoftPlansArrow" />
               </IntentLink>
             </li>
           );

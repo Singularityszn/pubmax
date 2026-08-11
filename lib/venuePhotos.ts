@@ -351,6 +351,22 @@ export function venuePhotoWallEmptyLine(status: VenuePhotoReadStatus): string {
 export const VENUE_PHOTO_SIGN_IN_LINE =
   "Sign in and pick a handle to add a photo to this wall.";
 
+/**
+ * An empty wall that NAMES an action has to OFFER it. The sentence above was
+ * the whole of the signed-out state and nothing on it was pressable, so the
+ * surface said what to do and gave the reader nowhere to do it.
+ *
+ * The door carries the way back, because the wall is read from three places
+ * (the map's venue sheet, a bar tab and a ledger) and a person sent to sign in
+ * and then dropped on the map has lost the pub they were looking at. `from`
+ * takes a path on this site or nothing; `arrivalDestination` refuses an
+ * off-site one on the other side regardless.
+ */
+export function venuePhotoSignInHref(from?: string | null): string {
+  const back = from && from.startsWith("/") ? from : "/map";
+  return `/login?from=${encodeURIComponent(back)}`;
+}
+
 export const VENUE_PHOTO_REFUSED_LINE =
   "That photo did not pass our checks. Choose another.";
 

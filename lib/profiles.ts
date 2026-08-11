@@ -207,6 +207,24 @@ export type ProfileStats = {
   boroughs?: string[];
 };
 
+/**
+ * What a stat grid prints where a cheapest pint would go when the handle has
+ * not logged one.
+ *
+ * The two profile grids each carried their own copy of
+ * `value == null ? "–" : ...`, so a fresh account was greeted by a bare en dash
+ * (U+2013): a SEPARATOR standing in for a sentence, saying nothing about why
+ * the cell is empty. `docs/VOICE.md` answers it directly - "No price logged
+ * here yet" beats "0 observations" - and the profile is the surface whose job
+ * is to make somebody want an account. One formatter, one absence, no dash of
+ * either width.
+ */
+export const NO_CHEAPEST_PINT = "None yet";
+
+export function formatCheapestPint(gbp: number | null): string {
+  return gbp == null ? NO_CHEAPEST_PINT : `£${gbp.toFixed(2)}`;
+}
+
 // An earned-or-not achievement badge. Pure data — the UI decides how to render.
 // `earned` lets callers keep the full catalogue (for a "locked" preview) or
 // filter to just the earned set; computeBadges returns the whole catalogue.

@@ -9,7 +9,14 @@ import ProfileCoverCarousel from "@/components/profile/ProfileCoverCarousel";
 import ProfileSocialLinks from "@/components/profile/ProfileSocialLinks";
 import { displayHandle } from "@/lib/handleDisplay";
 import { profileCoverUrls } from "@/lib/profileCovers";
-import { computeBadges, type Badge, type Profile, type ProfileDrop, type ProfileStats } from "@/lib/profiles";
+import {
+  computeBadges,
+  formatCheapestPint,
+  type Badge,
+  type Profile,
+  type ProfileDrop,
+  type ProfileStats,
+} from "@/lib/profiles";
 import type { PublicSocialLink } from "@/lib/socialConnections";
 
 type ProfileHeaderProps = {
@@ -61,10 +68,6 @@ function ProfileStatTile({
       </Link>
     </div>
   );
-}
-
-function formatGbp(value: number | null): string {
-  return value == null ? "–" : `£${value.toFixed(2)}`;
 }
 
 /**
@@ -212,7 +215,7 @@ export default function ProfileHeader({
         />
         <ProfileStatTile
           label="Cheapest pint"
-          value={formatGbp(stats.cheapestPintGbp)}
+          value={formatCheapestPint(stats.cheapestPintGbp)}
           href={`${profileBase}#timeline`}
           hint="Open the pint timeline"
         />

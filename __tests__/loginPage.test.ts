@@ -113,4 +113,40 @@ describe("login page", () => {
     expect(css).toMatch(/min-height:\s*100dvh/);
     expect(css).toMatch(/min-height:\s*46px/);
   });
+
+  // THE FRONT DOOR HAS A PRIMARY, AND EXACTLY ONE. The page shipped with none:
+  // its email CTA measured `rgb(32,32,36)`, the same fill as the active thumb
+  // of the segmented control above it, and the second door had no control
+  // language at all. Both halves were CSS, so both are pinned in CSS.
+  it("gives the email link the primary treatment and the second door a secondary shape", () => {
+    const authCss = readFileSync(join(process.cwd(), "app/auth/auth.css"), "utf8");
+    const loginCss = readFileSync(
+      join(process.cwd(), "components/auth/loginPage.css"),
+      "utf8",
+    );
+
+    // `.authSignIn` sets `background: var(--panel-raised)` and the `border`
+    // SHORTHAND further down the same file, so a bare `.authMagicLinkButton`
+    // rule loses the accent fill at equal specificity and paints nothing. The
+    // accent rule has to name both classes.
+    const accent = authCss.match(
+      /\.authSignIn\.authMagicLinkButton\s*{([^}]*)}/,
+    )?.[1];
+    expect(accent, "the accent rule must out-specify .authSignIn").toBeTruthy();
+    expect(accent).toMatch(/background:\s*var\(--brass\)/);
+    expect(accent).toMatch(/color:\s*var\(--color-on-accent\)/);
+
+    // The handle-and-password door is the SECONDARY: a real control shape, and
+    // never a second accent fill beside the primary.
+    const toggle = loginCss.match(
+      /\.loginPageHandlePasswordToggle\s*{([^}]*)}/,
+    )?.[1];
+    expect(toggle, ".loginPageHandlePasswordToggle rule present").toBeTruthy();
+    expect(toggle).toMatch(/border:\s*1px solid var\(--line\)/);
+    expect(toggle).toMatch(/border-radius:/);
+    expect(toggle).toMatch(/background:\s*var\(--panel\)/);
+    expect(toggle, "one filled accent on the page, and it is the primary").not.toMatch(
+      /background:\s*var\(--brass\)/,
+    );
+  });
 });

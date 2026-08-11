@@ -11,7 +11,7 @@
 // and every cited claim carries its source, like Pub of the Day. No em dashes.
 
 import Link from "next/link";
-import { ArrowUpRight, ExternalLink, Wine } from "lucide-react";
+import { ArrowRight, ExternalLink, Wine } from "lucide-react";
 
 import { ProseDisclosure } from "@/components/Disclosure";
 import type { QuietPintModule } from "@/lib/quietPint";
@@ -88,7 +88,7 @@ export default function TodayQuietPintCard({ module }: Props) {
         </span>
         <Link href="/historic" className="todayTextButton">
           More historic pubs
-          <ArrowUpRight size={14} aria-hidden="true" />
+          <ArrowRight size={14} aria-hidden="true" />
         </Link>
       </p>
     </section>

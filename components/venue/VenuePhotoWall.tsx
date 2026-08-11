@@ -17,6 +17,8 @@
 // a failed lookup may never be worded as a pub nobody has photographed.
 
 import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { categoryLabel } from "@/lib/drinks";
@@ -30,6 +32,7 @@ import {
   VENUE_PHOTO_OUTPUT_HEIGHT,
   VENUE_PHOTO_OUTPUT_WIDTH,
   VENUE_PHOTO_SIGN_IN_LINE,
+  venuePhotoSignInHref,
   type VenuePhotoDTO,
   type VenuePhotoPage,
   type VenuePhotoReadStatus,
@@ -63,6 +66,9 @@ export default function VenuePhotoWall({
   active = true,
 }: VenuePhotoWallProps) {
   const { user, handle, configured } = useAuth();
+  // Where the sign-in door comes back to. The wall reads from three places, so
+  // a hardcoded landing would send a bar-tab reader to the map.
+  const pathname = usePathname();
   const [wall, setWall] = useState<WallState>(EMPTY);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -225,7 +231,12 @@ export default function VenuePhotoWall({
               Add a photo
             </button>
           ) : (
-            <p className="venuePhotoWallStatus">{VENUE_PHOTO_SIGN_IN_LINE}</p>
+            <Link
+              className="venuePhotoWallButton venuePhotoWallSignIn"
+              href={venuePhotoSignInHref(pathname)}
+            >
+              {VENUE_PHOTO_SIGN_IN_LINE}
+            </Link>
           )}
         </div>
       )}

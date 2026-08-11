@@ -1,9 +1,14 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, it, expect } from "vitest";
 
 import {
   computeBadges,
   deriveProfileFromDrops,
+  formatCheapestPint,
   LOCAL_LEGEND_THRESHOLD,
+  NO_CHEAPEST_PINT,
   normalizeHandle,
   profileStats,
   REGULAR_THRESHOLD,
@@ -331,5 +336,37 @@ describe("groupByList", () => {
 
   it("omits empty lists", () => {
     expect(groupByList([])).toEqual({});
+  });
+});
+
+// A price the handle has not logged. The two profile stat grids each carried
+// their own `value == null ? "–" : ...`, so a fresh account was greeted by a
+// bare en dash: a separator standing in for a sentence. `docs/VOICE.md` wants
+// the words, and one formatter is what stops the two grids drifting apart
+// again. The source sweep is the half that matters - a unit test on the helper
+// cannot see a component that stopped calling it.
+describe("an absent cheapest pint says so in words", () => {
+  const GRIDS = [
+    "components/profile/PintPassport.tsx",
+    "components/profile/ProfileHeader.tsx",
+  ];
+
+  it("prints the words, never a dash of either width", () => {
+    expect(formatCheapestPint(null)).toBe(NO_CHEAPEST_PINT);
+    expect(NO_CHEAPEST_PINT).not.toMatch(/[–—-]/);
+    expect(formatCheapestPint(4.5)).toBe("£4.50");
+    expect(formatCheapestPint(0)).toBe("£0.00");
+  });
+
+  it("keeps both stat grids on the one formatter", () => {
+    for (const grid of GRIDS) {
+      const source = readFileSync(join(process.cwd(), grid), "utf8");
+      expect(source, `${grid} must format the cheapest pint through lib/profiles`)
+        .toContain("formatCheapestPint");
+      expect(source, `${grid} must not re-declare its own price formatter`)
+        .not.toMatch(/function formatGbp/);
+      expect(source, `${grid} must not print a bare dash for an absent price`)
+        .not.toMatch(/["'`]\s*[–—]\s*["'`]/);
+    }
   });
 });

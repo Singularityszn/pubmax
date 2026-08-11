@@ -143,6 +143,7 @@ function VenuePriceSummary({
         <small>
           {sourcedObserved ? `${sourcedObserved} · ` : ""}
           <a
+            className="priceSourceLink"
             href={sourcedPrice.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
