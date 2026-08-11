@@ -1,7 +1,12 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { venueSheetLabels } from "@/lib/venueSheetLabels";
 import type { Venue } from "@/lib/venues";
+
+const pubMapSource = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8");
 
 describe("venueSheetLabels", () => {
   it("uses generic venue language before a selected venue is known", () => {
@@ -23,6 +28,12 @@ describe("venueSheetLabels", () => {
       detailLabel: "Pub detail",
       closeLabel: "Close pub detail",
     });
+  });
+
+  it("keeps the mobile location summary as one clear label and support line", () => {
+    expect(pubMapSource).toContain('"Near me"');
+    expect(pubMapSource).toContain('"Turn on location for walk times"');
+    expect(pubMapSource).not.toContain('"for walk time"');
   });
 
   it.each([

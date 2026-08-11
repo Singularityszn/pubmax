@@ -320,6 +320,13 @@ export function errorMessageFromBody(body: unknown, fallback: string): string {
   return fallback;
 }
 
+export function planGenerationFailureStatus(
+  message: string,
+  hasPreviousRoute: boolean,
+): string {
+  return hasPreviousRoute ? `The previous route is still here. ${message}` : message;
+}
+
 export type PlanLockValidationInput = {
   title: string;
   creatorName: string;
@@ -946,7 +953,7 @@ function PlanComposerForm({
       const message = caught instanceof Error ? caught.message : "The concierge could not sort this one.";
       setError(message);
       setRouteStale(true);
-      setRouteStatus(`The previous route is still here. ${message}`);
+      setRouteStatus(planGenerationFailureStatus(message, stops.length > 0));
     } finally {
       setSorting(false);
     }

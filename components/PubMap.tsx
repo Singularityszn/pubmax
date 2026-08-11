@@ -3240,9 +3240,9 @@ export default function PubMap({
                     [userLocation.lng, userLocation.lat],
                     [selectedVenue.longitude, selectedVenue.latitude],
                   ) * 12.5))} min`
-                : "Near\u00A0me"}
+                : "Near me"}
             </strong>
-            <small>{userLocation ? "walk" : "for walk time"}</small>
+            <small>{userLocation ? "walk" : "Turn on location for walk times"}</small>
           </span>
           {selectedVenueIsPub ? (
             <button

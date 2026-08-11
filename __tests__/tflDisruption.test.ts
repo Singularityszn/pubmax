@@ -11,6 +11,7 @@ import {
   pickTopDisruption,
   describeDisruption,
   disruptionForPatch,
+  lineDisplayLabel,
   NIGHT_WINDOW_OPEN_HOUR,
   NIGHT_WINDOW_CLOSE_HOUR,
   type RawLineStatus,
@@ -34,6 +35,16 @@ function status(id: string, name: string, severity: number): RawLineStatus {
     lineStatuses: [{ statusSeverity: severity, statusSeverityDescription: name }],
   };
 }
+
+describe("line display labels", () => {
+  it.each([
+    ["Elizabeth line", "Elizabeth line"],
+    ["Victoria", "Victoria line"],
+    ["Weaver", "Weaver line"],
+  ])("formats %s as %s", (name, expected) => {
+    expect(lineDisplayLabel(name)).toBe(expected);
+  });
+});
 
 describe("severity classification (filter boundaries)", () => {
   it("treats Closed/Suspended/Part Suspended/Severe Delays as live-material", () => {

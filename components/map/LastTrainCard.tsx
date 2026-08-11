@@ -40,6 +40,7 @@ import {
   type LastPintDecisionKind,
   type LastTrainResult,
 } from "@/lib/tfl";
+import { lineDisplayLabel } from "@/lib/tflDisruption";
 import type { VenueKind } from "@/lib/venues";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -248,7 +249,7 @@ function emptyNoteForCity(cityId: CityId): string {
 
 function lastServiceLineLabel(lineName: string, mode: string): string {
   if (mode === "tram" || mode === "subway") return `Last ${lineName}`;
-  return `Last ${lineName} line`;
+  return `Last ${lineDisplayLabel(lineName)}`;
 }
 
 function showLondonStaticFallback(
