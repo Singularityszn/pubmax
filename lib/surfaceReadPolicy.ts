@@ -37,7 +37,6 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/map/CityPlaceStrip.tsx", fetchCount: 2, reason: "map place search and enrichment are interactive map reads" },
   { path: "components/map/CityStatusBanner.tsx", fetchCount: 1, reason: "map status is an optional provider status lane" },
   { path: "components/map/CitySuggestBanner.tsx", fetchCount: 1, reason: "map search suggestion is an interactive pack read" },
-  { path: "components/map/MapSearchSuggest.tsx", fetchCount: 1, reason: "typeahead search must not cache partial queries" },
   { path: "components/map/NearbyBusDepartures.tsx", fetchCount: 1, reason: "nearby transport is live and location-scoped" },
   { path: "components/map/VenueBuzz.tsx", fetchCount: 2, reason: "venue search and buzz are interactive detail reads" },
   { path: "components/map/VenueHygiene.tsx", fetchCount: 1, reason: "venue hygiene lookup is an additive detail read" },

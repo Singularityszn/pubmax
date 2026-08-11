@@ -316,7 +316,8 @@ describe("trackEvent", () => {
   it("does not load Vercel's remote debug script during local development", () => {
     expect(shouldMountVercelAnalytics("development")).toBe(false);
     expect(shouldMountVercelAnalytics("test")).toBe(false);
-    expect(shouldMountVercelAnalytics("production")).toBe(true);
+    expect(shouldMountVercelAnalytics("production")).toBe(false);
+    expect(shouldMountVercelAnalytics("production", "1")).toBe(true);
   });
 });
 

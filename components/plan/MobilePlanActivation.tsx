@@ -21,7 +21,7 @@ import { planRouteTotalsFallbackLabel, resolvePlanRouteTotalLabel } from "@/lib/
 import { isPlanStopCount, normalizePlanStopCount, PLAN_STOP_COUNTS, type PlanStopCount } from "@/lib/planStopCount";
 import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import type { Venue } from "@/lib/venues";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
 
 type GeneratedStop = { venueId: string; venueName: string };
 
@@ -143,7 +143,7 @@ export function MobilePlanActivation({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ cityId, ...(query.trim() ? { query: query.trim() } : {}), context }),
       });
-      const body = await response.json() as {
+      const body = await readApiJson(response) as {
         stops?: GeneratedStop[];
         inferredContext?: NightContext;
         planningConfidence?: PlanningConfidence;
@@ -151,8 +151,8 @@ export function MobilePlanActivation({
         routeTotals?: PlanRouteTotals;
         endingRecommendations?: PlanEndingRecommendation[];
         error?: unknown;
-      };
-      if (!response.ok || !Array.isArray(body.stops) || !isPlanStopCount(body.stops.length) || !body.inferredContext || !body.planningConfidence || !body.budgetSummary || !body.routeTotals || body.endingRecommendations?.length !== 3) {
+      } | null;
+      if (!response.ok || !body || !Array.isArray(body.stops) || !isPlanStopCount(body.stops.length) || !body.inferredContext || !body.planningConfidence || !body.budgetSummary || !body.routeTotals || body.endingRecommendations?.length !== 3) {
         throw new Error(responseError(body));
       }
       const generated = {

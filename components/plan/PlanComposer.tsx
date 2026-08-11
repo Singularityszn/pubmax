@@ -44,7 +44,7 @@ import { writePlanCapability } from "@/lib/planSessionCapability";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
 import {
   buildPlanGenerationIntakeBody,
   clearPlanIntakeDraft,
@@ -946,8 +946,17 @@ function PlanComposerForm({
           explicitNightContext,
         )),
       });
-      const body = await response.json();
+      const body = await readApiJson(response) as {
+        stops?: unknown;
+        alternatives?: unknown;
+        cultureOpener?: unknown;
+        inferredContext?: NightContext;
+        groundingProof?: unknown;
+        operationKey?: unknown;
+        error?: unknown;
+      } | null;
       if (!response.ok) throw new Error(errorMessageFromBody(body, "PUBMAXX could not sort this one."));
+      if (!body) throw new Error("PUBMAXX could not sort this one.");
       const suggested = routeStopsFromGenerated(body.stops, body.alternatives);
       if (!suggested.length) {
         // Zero matches is guidance, not failure (friction sweep follow-up 9):
@@ -972,7 +981,7 @@ function PlanComposerForm({
       setConciergeNote(`${suggested.length} stops we can stand behind, shaped by the outing you set below.`);
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
       if (body.inferredContext) {
-        trackEvent("night_description_submitted", { area: body.inferredContext.nightArea, daypart: body.inferredContext.daypart });
+        trackEvent("night_description_submitted", { area: body.inferredContext.nightArea ?? "", daypart: body.inferredContext.daypart });
       }
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "The concierge could not sort this one.";
