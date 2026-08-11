@@ -66,6 +66,8 @@ export const ANALYTICS_EVENTS = {
   ],
   map_search_no_results: [],
   map_search_ran: ["intent", "nationalHits", "nationalStatus"],
+  map_area_switched: [],
+  map_search_jump: [],
   tonight_result_opened: ["kind", "localityBasis"],
   crew_committed: ["source", "participants", "routeReady"],
   account_claimed: ["source"],

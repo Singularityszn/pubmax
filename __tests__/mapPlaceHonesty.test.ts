@@ -170,13 +170,6 @@ function renderShell(overrides: Record<string, unknown> = {}) {
   return renderToStaticMarkup(createElement(MobileMapShell, shellProps(overrides)));
 }
 
-/** The chip's accessible name — the sentence a screen reader is given. */
-function chipLabel(html: string): string {
-  return /<button[^>]*class="mobileMapArea"[^>]*aria-label="([^"]*)"/.exec(html)?.[1]
-    ?? /aria-label="([^"]*)\. See its cheapest/.exec(html)?.[1]
-    ?? "";
-}
-
 describe("Phone Tonight cold-start chip", () => {
   it("stays off the map when What's On is empty", () => {
     const html = renderShell({ tonightCount: 0 });
@@ -198,34 +191,20 @@ describe("Phone Tonight cold-start chip", () => {
   });
 });
 
-describe("Phone Area chip — whose place it names", () => {
-  it("wears the map, not a location pin, when no location was granted", () => {
+describe("Phone map area switcher", () => {
+  it("labels the current map area and exposes city switching", () => {
     const html = renderShell();
-    // The defect was the glyph as much as the words: a location pin beside a
-    // place name reads as "you are here".
-    expect(html).not.toContain('class="lucide lucide-map-pin"');
-    expect(html).toContain('class="lucide lucide-map"');
-    expect(chipLabel(html)).toBe(
-      "Area in view: Camden. See its cheapest pints or go somewhere else",
-    );
-    expect(html).not.toContain("Your area");
+    expect(html).toContain('class="citySwitcherTrigger"');
+    expect(html).toContain('aria-label="Map area: Camden. Change city"');
   });
 
-  it("names the reader's area, and marks it, once they are in it", () => {
+  it("keeps the area name stable when reader location changes", () => {
     const html = renderShell({ cityLabelOrigin: "reader", cityLabel: "Brixton" });
-    expect(chipLabel(html)).toBe(
-      "Your area: Brixton. See its cheapest pints or go somewhere else",
-    );
-    expect(html).toContain("lucide-locate-fixed");
-    expect(html).not.toContain('class="lucide lucide-map"');
+    expect(html).toContain('aria-label="Map area: Brixton. Change city"');
   });
 
-  it("keeps a base-pub arrival's place a map claim for screen readers too", () => {
-    // That chip is a span with no accessible name of its own, so the claim is
-    // read out beside the name rather than left to the glyph alone.
+  it("keeps a base-pub arrival in the same switcher", () => {
     const html = renderShell({ limitedCoverage: true, cityLabel: "Bath" });
-    expect(html).toContain("Area in view: ");
-    expect(html).toContain('class="lucide lucide-map"');
-    expect(html).not.toContain('class="lucide lucide-map-pin"');
+    expect(html).toContain('aria-label="Map area: Bath. Change city"');
   });
 });

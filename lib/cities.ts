@@ -48,20 +48,7 @@ export type CityConfig = {
   enabled: boolean;
 };
 
-const CITY_IDS: readonly CityId[] = [
-  "london",
-  "manchester",
-  "liverpool",
-  "oxford",
-  "durham",
-  "glasgow",
-  "bristol",
-  "cambridge",
-  "bath",
-  "llandudno",
-] as const;
-
-const CITY_ID_SET = new Set<string>(CITY_IDS);
+const CITY_ID_SET = new Set<string>(Object.keys(CITY_VENUE_PACKS));
 
 /** Shared cinematic tilt for every city map (matches London's opening camera). */
 const DEFAULT_PITCH = 42;
@@ -217,7 +204,9 @@ export function getCity(id: string | null | undefined): CityConfig {
 }
 
 export function listEnabledCities(): CityConfig[] {
-  return CITY_IDS.map((id) => CITIES[id]).filter((c) => c.enabled);
+  return Object.keys(CITY_VENUE_PACKS)
+    .map((id) => CITIES[id as CityId])
+    .filter((city): city is CityConfig => Boolean(city?.enabled));
 }
 
 export function pointInCityBounds(
