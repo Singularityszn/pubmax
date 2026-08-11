@@ -38,21 +38,40 @@ export const AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS = 20_000;
  *
  * The local Supabase session is the fast path. A missing local session is not
  * proof of sign-out because iOS Safari and browser storage pressure can evict
- * it. The durable cookie path must therefore settle before the caller clears
- * its loading state.
+ * it. Probe local storage for one microtask, then read the durable hint in
+ * parallel with any slower local lookup. A missing hint is a truthful fast
+ * anonymous answer; a present hint still waits for recovery before settling.
  */
 export async function bootstrapAuthSession(
   auth: BrowserAuthSession,
   deps: AuthSessionBootstrapDeps = {},
 ): Promise<AuthSessionBootstrapOutcome> {
-  let localSession: Session | null;
+  let localSettled = false;
+  let localSession: Session | null = null;
+  let localSessionPromise: Promise<Session | null>;
   try {
-    localSession = (await auth.getSession()).data.session ?? null;
+    localSessionPromise = auth
+      .getSession()
+      .then(({ data }) => {
+        localSettled = true;
+        localSession = data.session ?? null;
+        return localSession;
+      })
+      .catch(() => {
+        localSettled = true;
+        localSession = null;
+        return null;
+      });
   } catch {
-    localSession = null;
+    localSettled = true;
+    localSessionPromise = Promise.resolve(null);
   }
 
-  if (localSession) return { status: "local", session: localSession };
+  // Preserve the no-cookie fast path for a normal local session without
+  // starting a resume request that cannot be needed. A slow local lookup does
+  // not get to hold anonymous visitors behind the recovery ceiling.
+  await Promise.resolve();
+  if (localSettled && localSession) return { status: "local", session: localSession };
 
   const readHint = deps.readHint ?? fetchResumeHint;
   const redeem = deps.redeem ?? redeemPersistedSession;
@@ -63,6 +82,9 @@ export async function bootstrapAuthSession(
     return { status: "unavailable" };
   }
   if (!hint) return { status: "none" };
+
+  const resolvedLocalSession = await localSessionPromise;
+  if (resolvedLocalSession) return { status: "local", session: resolvedLocalSession };
 
   let restored: RedeemResult;
   try {
