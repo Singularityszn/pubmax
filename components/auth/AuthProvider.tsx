@@ -93,10 +93,12 @@ import {
   type IdentityHandleChangedDetail,
 } from "@/lib/identityClient";
 import {
+  AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS,
+  bootstrapAuthSession,
+} from "@/lib/authSessionBootstrap";
+import {
   clearPersistedSession,
-  fetchResumeHint,
   persistSessionForResume,
-  redeemPersistedSession,
   requestResumeLink,
   type ResumeHint,
 } from "@/lib/authSessionResumeClient";
@@ -501,7 +503,7 @@ export function AuthProvider({
     // effect body — so react-hooks/set-state-in-effect stays clean.
     const loadingTimeout = window.setTimeout(() => {
       if (active) setSessionLoading(false);
-    }, 2500);
+    }, AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS);
 
     // Lazy-load the browser client (dynamic import) off the critical path, then
     // subscribe and restore. Everything client-dependent runs after it resolves.
@@ -530,7 +532,12 @@ export function AuthProvider({
       const registration = supabase.auth.onAuthStateChange((event, nextSession) => {
         if (!active) return;
         const signedIn = updateSession(nextSession ?? null, event);
-        setSessionLoading(false);
+        // INITIAL_SESSION with no local session is only the beginning of a
+        // cold boot. The durable cookie still needs to be checked before the
+        // app can honestly publish a signed-out state.
+        if (event !== "INITIAL_SESSION" || nextSession) {
+          setSessionLoading(false);
+        }
         if (nextSession) {
           setWelcomeBack(null);
           // The device's remembered-account lane mirrors the SAME refresh token
@@ -677,37 +684,20 @@ export function AuthProvider({
           return;
         }
 
-        let localSession: Session | null = null;
-        try {
-          const { data } = await supabase.auth.getSession();
-          localSession = data.session ?? null;
-        } catch {
-          localSession = null;
-        }
+        const bootstrapped = await bootstrapAuthSession(supabase.auth);
         if (!active) return;
         window.clearTimeout(loadingTimeout);
-        updateSession(localSession);
+        if (bootstrapped.status === "local") {
+          // INITIAL_SESSION normally supplied this same session already. The
+          // explicit update also covers a client that did not emit that event.
+          updateSession(bootstrapped.session);
+        } else if (bootstrapped.status === "expired") {
+          setWelcomeBack({ maskedEmail: bootstrapped.maskedEmail });
+        }
+        // A restored result has already awaited auth.setSession. Supabase emits
+        // SIGNED_IN through the subscription above, so the session and identity
+        // boundary are updated before this loading state is cleared.
         setSessionLoading(false);
-        if (localSession) return;
-
-        // No local session. Browser storage is evictable (iOS Safari clears
-        // script-writable storage; in-app browsers keep their own), so before
-        // treating the visit as signed out for good, redeem the durable
-        // HttpOnly resume cookie. The GET hint costs one cheap same-origin
-        // request and is null for visitors who never signed in here.
-        const hint = await fetchResumeHint();
-        if (!active || !hint) return;
-        const redeemed = await redeemPersistedSession();
-        if (!active) return;
-        if (redeemed.status === "restored") {
-          // setSession fires SIGNED_IN through the subscription above, which
-          // updates state and re-persists the rotated refresh token.
-          void supabase.auth.setSession(redeemed.session).catch(() => {});
-          return;
-        }
-        if (redeemed.status === "expired") {
-          setWelcomeBack({ maskedEmail: redeemed.maskedEmail });
-        }
       })();
     });
 

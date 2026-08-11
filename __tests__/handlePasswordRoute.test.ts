@@ -127,6 +127,7 @@ describe("POST /api/auth/handle-password", () => {
   });
 
   it("returns a session and resume cookie on success", async () => {
+    vi.stubEnv("NODE_ENV", "production");
     resolveEmail.mockResolvedValue("owner@example.com");
     passwordGrant.mockResolvedValue({
       access_token: "access-1",
@@ -143,7 +144,12 @@ describe("POST /api/auth/handle-password", () => {
       refresh_token: "refresh-1",
     });
     expect(body.session.email).toBeUndefined();
-    expect(res.headers.get("set-cookie")).toMatch(/pubmax_session_resume=/i);
+    const setCookie = res.headers.get("set-cookie") ?? "";
+    expect(setCookie).toMatch(/pubmax_session_resume=/i);
+    expect(setCookie).toContain("Secure");
+    expect(setCookie).toContain("HttpOnly");
+    expect(setCookie).toContain("SameSite=Lax");
+    expect(setCookie).not.toMatch(/\bDomain=/i);
   });
 
   it("rate limits repeated attempts", async () => {
