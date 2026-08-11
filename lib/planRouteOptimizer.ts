@@ -1,7 +1,6 @@
 import { haversineKm } from "@/lib/haversine";
 import { DAY_MS } from "@/lib/dayMs";
 import {
-  DEFAULT_PLAN_STOP_COUNT,
   MAX_PLAN_STOP_COUNT,
   MIN_PLAN_STOP_COUNT,
   normalizePlanStopCount,
