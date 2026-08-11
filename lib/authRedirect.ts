@@ -1,4 +1,5 @@
 import { canonicalAuthStartUrl, siteOrigin } from "@/lib/siteUrl";
+import { inviteReturnToFromUrl } from "@/lib/inviteReturnTo";
 
 /**
  * Keep post-auth navigation on the app origin. This is shared by every auth
@@ -279,6 +280,10 @@ export function defaultEmailAuthNext(currentUrl: string): string | undefined {
   try {
     const current = new URL(currentUrl);
     if (current.hash && !parseAuthResponseFragment(current.hash)) return undefined;
+    const inviteReturnTo = inviteReturnToFromUrl(currentUrl);
+    if (current.pathname === HANDLE_CLAIM_NEXT && inviteReturnTo) {
+      return `${HANDLE_CLAIM_NEXT}?returnTo=${encodeURIComponent(inviteReturnTo)}`;
+    }
     return HANDLE_CLAIM_NEXT;
   } catch {
     return undefined;
