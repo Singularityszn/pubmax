@@ -97,10 +97,11 @@ class TestElement extends TestNode {
 }
 
 class TestDocument extends TestNode {
-  defaultView: Record<string, unknown>;
+  defaultView: unknown;
   documentElement: TestElement;
   body: TestElement;
   activeElement: TestElement;
+  visibilityState: DocumentVisibilityState = "visible";
 
   constructor() {
     super(9, "#document", null);
@@ -138,6 +139,13 @@ async function commit(work: () => void | Promise<void>): Promise<void> {
   await Promise.resolve();
 }
 
+function settleOnboarding(): Promise<void> {
+  return commit(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 beforeEach(() => {
   authState.current = {
     user: { id: "user-a" },
@@ -149,11 +157,22 @@ beforeEach(() => {
   requestState.responses = [];
 
   const document = new TestDocument();
-  const window = {
+  const window = Object.assign(new EventTarget() as EventTarget & {
+    document: TestDocument;
+    navigator: { onLine: true },
+    setTimeout: typeof setTimeout;
+    clearTimeout: typeof clearTimeout;
+    HTMLElement: typeof TestElement;
+    HTMLIFrameElement: typeof HTMLIFrameElement;
+    Node: typeof TestNode;
+    localStorage: {
+      getItem: () => null,
+      setItem: (key: string, value: string) => void;
+    },
+    sessionStorage: Storage | null,
+  }, {
     document,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => true,
+    navigator: { onLine: true },
     setTimeout,
     clearTimeout,
     HTMLElement: TestElement,
@@ -164,7 +183,7 @@ beforeEach(() => {
       setItem: () => {},
     },
     sessionStorage: null,
-  };
+  });
   document.defaultView = window;
   previousWindow = globalThis.window;
   previousDocument = globalThis.document;
@@ -251,9 +270,34 @@ describe("AccountOnboarding cold-open identity race", () => {
     vi.useRealTimers();
   });
 
+  it("keeps the quiet loading state while a failed read is retrying", async () => {
+    vi.useFakeTimers();
+    requestState.responses = [
+      new TypeError("Failed to fetch"),
+      Response.json({ complete: true }),
+    ];
+    authState.current.identityResolved = true;
+
+    await commit(() => root?.render(createElement(AccountOnboarding)));
+    await settleOnboarding();
+
+    expect(requestState.calls).toHaveLength(1);
+    expect(container.childNodes).toHaveLength(0);
+
+    await commit(() => {
+      vi.advanceTimersByTime(250);
+    });
+    await settleOnboarding();
+
+    expect(requestState.calls).toHaveLength(2);
+    expect(container.childNodes).toHaveLength(0);
+    vi.useRealTimers();
+  });
+
   it("shows persistent failure only after the quiet retry, inline", async () => {
     vi.useFakeTimers();
     requestState.responses = [
+      new TypeError("Failed to fetch"),
       new TypeError("Failed to fetch"),
       new TypeError("Failed to fetch"),
     ];
@@ -271,9 +315,67 @@ describe("AccountOnboarding cold-open identity race", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
+    await commit(() => {
+      vi.advanceTimersByTime(1_500);
+    });
+    await commit(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
 
-    expect(requestState.calls).toHaveLength(2);
+    expect(requestState.calls).toHaveLength(3);
     expect(container.childNodes[0]?.nodeName).toBe("SECTION");
+    vi.useRealTimers();
+  });
+
+  it("reloads an unavailable status after connectivity returns without caching identity", async () => {
+    vi.useFakeTimers();
+    window.setTimeout = setTimeout;
+    window.clearTimeout = clearTimeout;
+    const sessionValues = new Map<string, string>();
+    window.sessionStorage = {
+      get length() {
+        return sessionValues.size;
+      },
+      clear: () => sessionValues.clear(),
+      getItem: (key: string) => sessionValues.get(key) ?? null,
+      key: (index: number) => Array.from(sessionValues.keys())[index] ?? null,
+      removeItem: (key: string) => sessionValues.delete(key),
+      setItem: (key: string, value: string) => sessionValues.set(key, value),
+    } as Storage;
+    requestState.responses = [
+      new TypeError("Failed to fetch"),
+      new TypeError("Failed to fetch"),
+      new TypeError("Failed to fetch"),
+      Response.json({ complete: true, handle: "night_owl" }),
+    ];
+    authState.current.identityResolved = true;
+
+    await commit(() => root?.render(createElement(AccountOnboarding)));
+    await settleOnboarding();
+    await commit(() => {
+      vi.advanceTimersByTime(250);
+    });
+    await settleOnboarding();
+    await commit(() => {
+      vi.advanceTimersByTime(1_500);
+    });
+    await settleOnboarding();
+    expect(requestState.calls).toHaveLength(3);
+    expect(container.childNodes[0]?.nodeName).toBe("SECTION");
+    expect(sessionValues).toEqual(new Map());
+
+    await commit(() => {
+      window.dispatchEvent(new Event("online"));
+    });
+    await commit(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    await settleOnboarding();
+
+    expect(requestState.calls).toHaveLength(4);
+    expect(container.childNodes).toHaveLength(0);
+    expect(sessionValues).toEqual(new Map());
     vi.useRealTimers();
   });
 

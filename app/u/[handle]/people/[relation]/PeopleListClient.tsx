@@ -13,11 +13,13 @@
 // display name and an owned avatar. Nothing else about a person travels here.
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { followRelationHint, resolveFollowRelation } from "@/lib/followRelation";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 
 import "@/components/social/peopleDirectory.css";
 
@@ -34,6 +36,12 @@ const EMPTY: Record<PeopleRelation, string> = {
   followers: "Nobody follows this handle yet.",
   following: "This handle follows nobody yet.",
 };
+
+const PEOPLE_SNAPSHOT_MAX_AGE_MS = 60_000;
+const OFFLINE_ERROR = "You look offline. We will retry when you are back.";
+
+type PeopleListResponse = Record<string, unknown>;
+type PeopleLotResponse = { lot?: unknown };
 
 function initial(handle: string): string {
   const clean = normalizeHandle(handle);
@@ -56,39 +64,53 @@ export default function PeopleListClient({
     const controller = new AbortController();
     void Promise.resolve().then(() => setStatus("loading"));
     void (async () => {
-      try {
-        const [listResponse, lotResponse] = await Promise.all([
-          fetch(`/api/profiles/${encodeURIComponent(handle)}/${relation}`, {
-            cache: "no-store",
-            signal: controller.signal,
-          }),
-          fetch(`/api/profiles/${encodeURIComponent(handle)}/lot`, {
-            cache: "no-store",
-            signal: controller.signal,
-          }),
-        ]);
-        if (!listResponse.ok) throw new Error("List unavailable");
-        const body = (await listResponse.json()) as Record<string, unknown>;
-        const rows = body[relation];
-        if (!Array.isArray(rows)) throw new Error("List malformed");
-        setHandles(
-          rows.filter((row): row is string => typeof row === "string" && row.length > 0),
-        );
-        if (lotResponse.ok) {
-          const lotBody = (await lotResponse.json()) as { lot?: unknown };
-          setMutuals(
-            new Set(Array.isArray(lotBody.lot) ? (lotBody.lot as string[]) : []),
+      const listKey = `/api/profiles/${encodeURIComponent(handle)}/${relation}`;
+      const lotKey = `/api/profiles/${encodeURIComponent(handle)}/lot`;
+      const listPromise = loadSurfaceJson<PeopleListResponse>(
+        listKey,
+        {
+          signal: controller.signal,
+          maxAgeMs: PEOPLE_SNAPSHOT_MAX_AGE_MS,
+          validate: (body) => Array.isArray(body?.[relation]),
+        },
+        (body) => {
+          const rows = body[relation];
+          if (!Array.isArray(rows)) return false;
+          setHandles(
+            rows.filter((row): row is string => typeof row === "string" && row.length > 0),
           );
-        }
-        setStatus("ready");
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+          setStatus("ready");
+          return true;
+        },
+      );
+      const lotPromise = loadSurfaceJson<PeopleLotResponse>(
+        lotKey,
+        {
+          signal: controller.signal,
+          maxAgeMs: PEOPLE_SNAPSHOT_MAX_AGE_MS,
+          validate: (body) => Boolean(body && typeof body === "object"),
+        },
+        (body) => {
+          if (Array.isArray(body.lot)) setMutuals(new Set(body.lot.filter((entry): entry is string => typeof entry === "string")));
+        },
+      );
+      const [listOutcome] = await Promise.all([listPromise, lotPromise]);
+      if (listOutcome === "failed" && !controller.signal.aborted) {
         setHandles([]);
         setStatus("error");
       }
     })();
     return () => controller.abort();
   }, [attempt, handle, relation]);
+
+  const retry = useCallback(() => {
+    setStatus("loading");
+    setAttempt((value) => value + 1);
+  }, []);
+
+  useReconnectRecovery(status === "error", retry);
+
+  const offline = typeof window !== "undefined" && window.navigator?.onLine === false;
 
   return (
     <section className="peopleDir" aria-labelledby="people-list-title">
@@ -109,11 +131,11 @@ export default function PeopleListClient({
         </div>
       ) : status === "error" ? (
         <div className="peopleDir__notice" role="alert">
-          <p>Could not load this list. That is us, not you.</p>
+          <p>{offline ? OFFLINE_ERROR : "Could not load this list. That is us, not you."}</p>
           <button
             type="button"
             className="peopleDir__button"
-            onClick={() => setAttempt((value) => value + 1)}
+            onClick={retry}
           >
             Try again
           </button>

@@ -125,6 +125,28 @@ describe("account onboarding surface", () => {
     expect(html).toContain("Try again");
   });
 
+  it("uses honest offline copy without changing online fault copy", () => {
+    const online = renderToStaticMarkup(
+      createElement(AccountOnboardingLoadError, {
+        error: "Account setup is unavailable right now.",
+        onRetry: noop,
+        offline: false,
+      }),
+    );
+    expect(online).toContain("Account setup is unavailable right now.");
+    expect(online).not.toContain("You look offline.");
+
+    const offline = renderToStaticMarkup(
+      createElement(AccountOnboardingLoadError, {
+        error: "Account setup is unavailable right now.",
+        onRetry: noop,
+        offline: true,
+      }),
+    );
+    expect(offline).toContain("You look offline. We will retry when you are back.");
+    expect(offline).not.toContain("Account setup is unavailable right now.");
+  });
+
   it("treats offline status load as unavailable, never as claimable", async () => {
     const offline = async () => {
       throw new TypeError("Failed to fetch");
