@@ -265,3 +265,219 @@ describe("stale-while-revalidate", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
+
+type SessionStorageOptions = {
+  setItem?: (key: string, value: string) => void;
+  getItem?: (key: string) => string | null;
+};
+
+function makeSessionStorage(options: SessionStorageOptions = {}): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    clear() {
+      values.clear();
+    },
+    getItem(key) {
+      return options.getItem ? options.getItem(key) : values.get(key) ?? null;
+    },
+    key(index) {
+      return Array.from(values.keys())[index] ?? null;
+    },
+    removeItem(key) {
+      values.delete(key);
+    },
+    setItem(key, value) {
+      if (options.setItem) {
+        options.setItem(key, value);
+        return;
+      }
+      values.set(key, value);
+    },
+  } as Storage;
+}
+
+function stubBrowserWithSessionStorage(sessionStorage: Storage): void {
+  const browser = new EventTarget() as EventTarget & { sessionStorage: Storage };
+  browser.sessionStorage = sessionStorage;
+  vi.stubGlobal("window", browser);
+}
+
+async function importFreshSurfaceDataCache() {
+  vi.resetModules();
+  return import("@/lib/surfaceDataCache");
+}
+
+describe("persistent session snapshots", () => {
+  it("rehydrates a last-good answer after module state is reset", async () => {
+    const sessionStorage = makeSessionStorage();
+    stubBrowserWithSessionStorage(sessionStorage);
+    const key = "/api/whats-on?window=tonight";
+
+    writeSurfaceSnapshot(key, { rows: ["held"] }, 1_000);
+    const reloaded = await importFreshSurfaceDataCache();
+
+    expect(reloaded.surfaceCacheSize()).toBe(0);
+    expect(reloaded.readSurfaceSnapshot(key, 10_000, 5_000)).toEqual({
+      rows: ["held"],
+    });
+    expect(reloaded.surfaceCacheSize()).toBe(1);
+  });
+
+  it("never persists a denied-prefix answer", () => {
+    const sessionStorage = makeSessionStorage();
+    stubBrowserWithSessionStorage(sessionStorage);
+
+    expect(() => writeSurfaceSnapshot("/api/identity/onboarding", { complete: true })).toThrow(
+      /refuses/,
+    );
+    expect(sessionStorage.length).toBe(0);
+  });
+
+  it("wipes persisted answers on an identity change", () => {
+    const sessionStorage = makeSessionStorage();
+    stubBrowserWithSessionStorage(sessionStorage);
+    const key = "/api/profiles/karan?viewer=karan";
+
+    writeSurfaceSnapshot(key, { profile: 1 });
+    expect(sessionStorage.length).toBe(1);
+
+    window.dispatchEvent(new Event(DEVICE_IDENTITY_CHANGED_EVENT));
+
+    expect(sessionStorage.length).toBe(0);
+    expect(surfaceCacheSize()).toBe(0);
+  });
+
+  it("wipes persisted answers when identity changes before the first cache read", async () => {
+    const sessionStorage = makeSessionStorage();
+    stubBrowserWithSessionStorage(sessionStorage);
+    const { SURFACE_CACHE_NAMESPACE } = await importFreshSurfaceDataCache();
+    const key = "/api/profiles/karan?viewer=karan";
+    sessionStorage.setItem(
+      `${SURFACE_CACHE_NAMESPACE}${key}`,
+      JSON.stringify({ value: { profile: 1 }, storedAt: 1_000 }),
+    );
+
+    window.dispatchEvent(new Event(DEVICE_IDENTITY_CHANGED_EVENT));
+
+    expect(sessionStorage.getItem(`${SURFACE_CACHE_NAMESPACE}${key}`)).toBeNull();
+  });
+
+  it("wipes persisted answers when a cross-tab storage event announces identity change", () => {
+    const sessionStorage = makeSessionStorage();
+    stubBrowserWithSessionStorage(sessionStorage);
+    const key = "/api/profiles/karan?viewer=karan";
+
+    writeSurfaceSnapshot(key, { profile: 1 });
+    window.dispatchEvent(new Event("storage"));
+
+    expect(sessionStorage.length).toBe(0);
+    expect(surfaceCacheSize()).toBe(0);
+  });
+
+  it("prunes a corrupt persisted answer", async () => {
+    const sessionStorage = makeSessionStorage();
+    stubBrowserWithSessionStorage(sessionStorage);
+    const { SURFACE_CACHE_NAMESPACE } = await importFreshSurfaceDataCache();
+    const key = "/api/whats-on?window=tonight";
+    sessionStorage.setItem(`${SURFACE_CACHE_NAMESPACE}${key}`, "not-json");
+
+    const reloaded = await importFreshSurfaceDataCache();
+
+    expect(reloaded.readSurfaceSnapshot(key)).toBeUndefined();
+    expect(sessionStorage.getItem(`${SURFACE_CACHE_NAMESPACE}${key}`)).toBeNull();
+  });
+
+  it("keeps memory-only behaviour when sessionStorage quota rejects a write", async () => {
+    const sessionStorage = makeSessionStorage({
+      setItem: () => {
+        throw new DOMException("Quota exceeded", "QuotaExceededError");
+      },
+    });
+    stubBrowserWithSessionStorage(sessionStorage);
+    const key = "/api/whats-on?window=tonight";
+
+    expect(() => writeSurfaceSnapshot(key, { rows: ["held"] }, 1_000)).not.toThrow();
+    const reloaded = await importFreshSurfaceDataCache();
+
+    expect(reloaded.readSurfaceSnapshot(key, 10_000, 5_000)).toBeUndefined();
+  });
+
+  it("prunes a persisted answer when maxAgeMs says it is stale", async () => {
+    const sessionStorage = makeSessionStorage();
+    stubBrowserWithSessionStorage(sessionStorage);
+    const { SURFACE_CACHE_NAMESPACE } = await importFreshSurfaceDataCache();
+    const key = "/api/whats-on?window=tonight";
+    sessionStorage.setItem(
+      `${SURFACE_CACHE_NAMESPACE}${key}`,
+      JSON.stringify({ value: { rows: ["old"] }, storedAt: 1_000 }),
+    );
+    const reloaded = await importFreshSurfaceDataCache();
+
+    expect(reloaded.readSurfaceSnapshot(key, 100, 1_101)).toBeUndefined();
+    expect(sessionStorage.getItem(`${SURFACE_CACHE_NAMESPACE}${key}`)).toBeNull();
+  });
+
+  it("does not apply a persisted answer rejected by the caller validator", async () => {
+    const sessionStorage = makeSessionStorage();
+    stubBrowserWithSessionStorage(sessionStorage);
+    const { SURFACE_CACHE_NAMESPACE, loadSurfaceJson: loadFreshSurfaceJson } =
+      await importFreshSurfaceDataCache();
+    const key = "/api/whats-on?window=tonight";
+    sessionStorage.setItem(
+      `${SURFACE_CACHE_NAMESPACE}${key}`,
+      JSON.stringify({ value: { unexpected: true }, storedAt: Date.now() }),
+    );
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ rows: ["fresh"] }), { status: 200 }),
+    );
+    const applied: Array<[unknown, string]> = [];
+
+    await expect(
+      loadFreshSurfaceJson(
+        key,
+        {
+          fetchImpl,
+          validate: (value: { rows?: unknown }) => Array.isArray(value.rows),
+        },
+        (value, source) => {
+          applied.push([value, source]);
+        },
+      ),
+    ).resolves.toBe("network");
+
+    expect(applied).toEqual([[{ rows: ["fresh"] }, "network"]]);
+    expect(sessionStorage.getItem(`${SURFACE_CACHE_NAMESPACE}${key}`)).toContain(
+      '"rows":["fresh"]',
+    );
+  });
+
+  it("prunes entries from older namespace versions", async () => {
+    const sessionStorage = makeSessionStorage();
+    stubBrowserWithSessionStorage(sessionStorage);
+    const key = "/api/whats-on?window=tonight";
+    sessionStorage.setItem(
+      `pubmax.surface.v0:${key}`,
+      JSON.stringify({ value: { rows: ["old"] }, storedAt: 1_000 }),
+    );
+    const reloaded = await importFreshSurfaceDataCache();
+
+    expect(reloaded.readSurfaceSnapshot(key)).toBeUndefined();
+    expect(sessionStorage.getItem(`pubmax.surface.v0:${key}`)).toBeNull();
+  });
+
+  it("skips oversized persistence while keeping the memory answer", async () => {
+    const sessionStorage = makeSessionStorage();
+    stubBrowserWithSessionStorage(sessionStorage);
+    const key = "/api/whats-on?window=tonight";
+    const value = { rows: ["x".repeat(300_000)] };
+
+    writeSurfaceSnapshot(key, value);
+    const reloaded = await importFreshSurfaceDataCache();
+
+    expect(sessionStorage.length).toBe(0);
+    expect(reloaded.readSurfaceSnapshot(key)).toBeUndefined();
+  });
+});
