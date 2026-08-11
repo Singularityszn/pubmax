@@ -43,6 +43,18 @@ describe("sanitizeEvent", () => {
     expect(ev).toEqual({ name: "tonight_screen_view", props: {} });
   });
 
+  it("keeps one closed event for each message attachment target", () => {
+    expect(ANALYTICS_EVENTS.message_attach_selected).toEqual(["kind"]);
+    for (const kind of ["photos", "camera", "document"]) {
+      expect(sanitizeEvent("message_attach_selected", { kind })).toEqual({
+        name: "message_attach_selected",
+        props: { kind },
+      });
+    }
+    expect(sanitizeEvent("message_attach_selected", { kind: "other" })).toBeNull();
+    expect(sanitizeEvent("message_attach_selected")).toBeNull();
+  });
+
   it("rejects unsafe values: emails, over-long strings, non-finite numbers", () => {
     expect(sanitizeEvent("event_chip_view", { kind: "a@b.com" })?.props).toEqual({});
     expect(sanitizeEvent("event_chip_view", { kind: "x".repeat(41) })?.props).toEqual({});

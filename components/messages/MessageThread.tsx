@@ -1,18 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ChangeEvent,
+} from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
+import MessageAttachmentPicker, {
+  type MessageAttachKind,
+  type MessageAttachmentPickerHandle,
+} from "@/components/messages/MessageAttachmentPicker";
 import MessagePhoto from "@/components/messages/MessagePhoto";
 import MessageVenueCard from "@/components/messages/MessageVenueCard";
 import MessageVenuePicker, {
   type PickedVenue,
 } from "@/components/messages/MessageVenuePicker";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { trackEvent } from "@/lib/analytics";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import { discardBody } from "@/lib/responseBody";
 import {
   MESSAGE_ATTACH_PHOTO_LABEL,
@@ -24,7 +38,6 @@ import {
 } from "@/lib/messageAttachments";
 import { linkifyMentions, MAX_MESSAGE_BODY, type MessageDTO } from "@/lib/messages";
 import { subscribeToMessages } from "@/lib/messagesRealtime";
-import { PROFILE_IMAGE_PICKER_ACCEPT } from "@/lib/profileImagePicker";
 import { normalizeHandle } from "@/lib/profiles";
 
 import "@/app/messages/messages.css";
@@ -79,6 +92,18 @@ function useEnterSends(): boolean {
   return enterSends;
 }
 
+function subscribeMobileViewport(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const query = window.matchMedia(MOBILE_MEDIA_QUERY);
+  query.addEventListener("change", onStoreChange);
+  return () => query.removeEventListener("change", onStoreChange);
+}
+
+function getMobileViewportSnapshot(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia(MOBILE_MEDIA_QUERY).matches;
+}
+
 // Render a message body with @-mentions linkified to /u/<handle>. Pure segments
 // from lib/messages — text as-is, mentions as brass links.
 function MessageBody({ body }: { body: string }): React.JSX.Element {
@@ -125,11 +150,17 @@ export default function MessageThread({
   const [pending, setPending] = useState<PendingAttachment | null>(null);
   const [cropping, setCropping] = useState<File | null>(null);
   const [pickingVenue, setPickingVenue] = useState(false);
+  const [mobileAttachOpen, setMobileAttachOpen] = useState(false);
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const loadedForRef = useRef<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const attachmentPickerRef = useRef<MessageAttachmentPickerHandle | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const enterSends = useEnterSends();
+  const isMobileViewport = useSyncExternalStore(
+    subscribeMobileViewport,
+    getMobileViewportSnapshot,
+    () => false,
+  );
 
   useEffect(() => {
     let active = true;
@@ -254,6 +285,17 @@ export default function MessageThread({
     setPending(null);
     setCropping(null);
     setPickingVenue(false);
+  }, []);
+
+  const handlePhotoFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = "";
+    setError("");
+    setCropping(file);
+  }, []);
+
+  const handleAttachKindSelected = useCallback((kind: MessageAttachKind) => {
+    trackEvent("message_attach_selected", { kind });
   }, []);
 
   const send = useCallback(async () => {
@@ -463,25 +505,13 @@ export default function MessageThread({
 
       {error ? <p className="threadError">{error}</p> : null}
 
-      {/* BEAT ONE IS A PICKER, NEVER A CAMERA. No `capture` here: on iOS that
-          attribute leaves Photo Library out of the sheet entirely. The accept
-          list is the one shared constant, which names HEIC and HEIF because an
-          iPhone matches a library photo's own type before converting anything.
-          BEAT TWO is the cropper, whose JPEG is what makes that HEIC
-          uploadable. */}
-      <input
-        ref={fileInputRef}
-        id="message-photo-file"
-        type="file"
-        accept={PROFILE_IMAGE_PICKER_ACCEPT}
-        className="composerFileInput"
-        aria-label={MESSAGE_ATTACH_PHOTO_LABEL}
-        onChange={(event) => {
-          const file = event.target.files?.[0] ?? null;
-          event.target.value = "";
-          setError("");
-          setCropping(file);
-        }}
+      <MessageAttachmentPicker
+        ref={attachmentPickerRef}
+        open={mobileAttachOpen && isMobileViewport}
+        disabled={sending}
+        onOpenChange={setMobileAttachOpen}
+        onFileChange={handlePhotoFileChange}
+        onKindSelected={handleAttachKindSelected}
       />
 
       {cropping ? (
@@ -551,15 +581,30 @@ export default function MessageThread({
           }}
         />
         <div className="composerControls">
+          {isMobileViewport ? (
+            <button
+              type="button"
+              className="composerMobileAttach"
+              aria-label="Add an attachment"
+              aria-expanded={mobileAttachOpen}
+              disabled={sending}
+              onClick={() => {
+                setPickingVenue(false);
+                setMobileAttachOpen(true);
+              }}
+            >
+              Attach
+            </button>
+          ) : null}
           <button
             type="button"
-            className="composerAttach"
+            className="composerAttach composerPhotoDesktop"
             aria-label={MESSAGE_ATTACH_PHOTO_LABEL}
             aria-pressed={pending?.kind === "photo"}
             disabled={sending}
             onClick={() => {
               setPickingVenue(false);
-              fileInputRef.current?.click();
+              attachmentPickerRef.current?.select("photos");
             }}
           >
             {MESSAGE_ATTACH_PHOTO_SHORT}

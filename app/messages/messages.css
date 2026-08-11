@@ -474,6 +474,10 @@
   gap: 0.5rem;
 }
 
+.composerMobileAttach {
+  display: none;
+}
+
 .composerAttach {
   display: inline-flex;
   white-space: nowrap;
@@ -502,6 +506,116 @@
 .composerAttach:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* The mobile chooser follows the map's shared bottom-sheet material and
+   geometry. Its content is the only message-specific layer. */
+.messageAttachSheet {
+  display: none;
+  background: var(--ink-deep);
+  color: var(--color-on-inverse);
+}
+
+.messageAttachSheetHeader {
+  color: var(--color-on-inverse);
+}
+
+.messageAttachSheetHeader .mobileSharedSheetGrab {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 44px;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-on-inverse) 55%, transparent);
+  transform: translateX(-50%);
+}
+
+.messageAttachSheetClose {
+  grid-column: 3;
+  grid-row: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-on-inverse);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.messageAttachSheetClose:hover {
+  background: color-mix(in srgb, var(--color-on-inverse) 12%, transparent);
+}
+
+.messageAttachSheetClose:focus-visible,
+.messageAttachTarget:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 3px;
+}
+
+.messageAttachSheetBody {
+  padding-top: 12px;
+}
+
+.messageAttachGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 6px 0 8px;
+}
+
+.messageAttachTarget {
+  display: flex;
+  min-width: 56px;
+  min-height: 56px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-on-inverse);
+  font: inherit;
+  flex-direction: column;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.messageAttachIcon {
+  display: inline-flex;
+  width: 72px;
+  height: 72px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--brass);
+  color: var(--ink-deep);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--ink-deep) 46%, transparent);
+  transition:
+    transform var(--duration-press) var(--ease-out-strong),
+    background-color var(--duration-base) var(--ease-out);
+}
+
+.messageAttachTarget:active .messageAttachIcon {
+  transform: scale(0.94);
+}
+
+.messageAttachTarget:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.messageAttachLabel {
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 700;
+  line-height: 1;
 }
 
 /* The one 1px box the OS file sheet needs to open from. `display: none` is what
@@ -790,6 +904,45 @@
   }
 
   .threadBackLink {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .composerPhotoDesktop {
+    display: none;
+  }
+
+  .composerMobileAttach {
+    display: inline-flex;
+    min-height: 44px;
+    min-width: 44px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.7rem;
+    border: 1px solid var(--brass);
+    border-radius: 0.6rem;
+    background: transparent;
+    color: var(--brass);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .composerMobileAttach:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .messageAttachSheet {
+    display: flex;
+    transition: transform var(--duration-slow) var(--ease-drawer);
+  }
+}
+
+@media (min-width: 641px) {
+  .messageAttachSheetPortal {
     display: none;
   }
 }
