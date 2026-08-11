@@ -22,6 +22,7 @@ import { cleanDateOfBirth } from "@/lib/privateIdentity";
 import { normalizeHandle } from "@/lib/profiles";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
+import { inviteReturnToFromUrl } from "@/lib/inviteReturnTo";
 
 import "./accountOnboarding.css";
 
@@ -256,6 +257,18 @@ function AccountOnboardingForUser({
     setStatusAttempt((current) => current + 1);
   }, []);
 
+  const finish = useCallback(() => {
+    setStatus("complete");
+    const currentUrl =
+      typeof window !== "undefined" && typeof window.location?.href === "string"
+        ? window.location.href
+        : "";
+    const returnTo = inviteReturnToFromUrl(currentUrl);
+    if (returnTo && typeof window.location?.assign === "function") {
+      window.location.assign(returnTo);
+    }
+  }, []);
+
   useEffect(() => {
     active.current = true;
     return () => {
@@ -302,11 +315,11 @@ function AccountOnboardingForUser({
           // only React state ever dismissed it. Renaming lives in profile
           // editing; a missing private detail is asked for there too. Arrival
           // stays quiet either way. __tests__/accountOnboarding.test.ts pins it.
-          setStatus("complete");
+          finish();
           return;
         }
         if (result.status === "complete") {
-          setStatus("complete");
+          finish();
           return;
         }
         const suggestion = suggestedHandle();
@@ -320,7 +333,7 @@ function AccountOnboardingForUser({
       activeLoad = false;
       controller.abort();
     };
-  }, [auth, identityResolved, statusAttempt]);
+  }, [auth, finish, identityResolved, statusAttempt]);
 
   useReconnectRecovery(status === "unavailable", retryStatus);
 
@@ -427,7 +440,7 @@ function AccountOnboardingForUser({
                 handle: owned,
               });
               setError(null);
-              setStatus("complete");
+              finish();
               return;
             }
           }
@@ -456,7 +469,7 @@ function AccountOnboardingForUser({
         if (parseFoundingMemberNumber(body.foundingMemberNumber) !== null) {
           trackEvent("founding_grant");
         }
-        setStatus("complete");
+        finish();
       } catch {
         if (active.current) {
           setError("Could not claim that handle. Check your connection.");
@@ -471,6 +484,7 @@ function AccountOnboardingForUser({
       busy,
       checkedHandle,
       dateOfBirth,
+      finish,
       fullName,
       handle,
     ],

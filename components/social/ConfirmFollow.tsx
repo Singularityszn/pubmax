@@ -17,6 +17,7 @@ import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { authedFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { safeInviteReturnTo } from "@/lib/inviteReturnTo";
 
 type FollowState = "idle" | "working" | "done" | "error";
 
@@ -48,11 +49,13 @@ export default function ConfirmFollow({
   const isSelf = myHandle !== null && myHandle === target;
   const shareUrl =
     typeof window !== "undefined" ? `${window.location.origin}/add/${target}` : `/add/${target}`;
+  const inviteReturnTo = safeInviteReturnTo(`/add/${target}`);
+  const claimHref = inviteReturnTo
+    ? `/u/you?returnTo=${encodeURIComponent(inviteReturnTo)}`
+    : "/u/you";
 
   async function addToLot() {
     if (!myHandle) {
-      setError("Choose a handle in your account first.");
-      setState("error");
       return;
     }
     setState("working");
@@ -150,22 +153,29 @@ export default function ConfirmFollow({
       <p className="confirmFollowEyebrow">Your lot</p>
       <h1 className="confirmFollowTitle">Add {displayHandle(target)}?</h1>
       <p className="confirmFollowBody">
-        A lot is mutual. Add them, and once they add you back their nights, drops
-        and check-ins land in Your lot. No follower counts, no public list.
+        {myHandle
+          ? "A lot is mutual. Add them, and once they add you back their nights, drops and check-ins land in Your lot. No follower counts, no public list."
+          : "You need a handle first - it takes ten seconds. Then you can add them to your lot."}
       </p>
       {state === "error" && error ? (
         <p className="confirmFollowError" role="alert">
           {error}
         </p>
       ) : null}
-      <button
-        type="button"
-        className="confirmFollowPrimary"
-        disabled={state === "working"}
-        onClick={addToLot}
-      >
-        {state === "working" ? "Adding." : `Add ${displayHandle(target)}`}
-      </button>
+      {myHandle ? (
+        <button
+          type="button"
+          className="confirmFollowPrimary"
+          disabled={state === "working"}
+          onClick={addToLot}
+        >
+          {state === "working" ? "Adding." : `Add ${displayHandle(target)}`}
+        </button>
+      ) : (
+        <Link className="confirmFollowPrimary" href={claimHref}>
+          Claim a handle to add them
+        </Link>
+      )}
       <Link className="confirmFollowGhost" href="/social">
         Not now
       </Link>

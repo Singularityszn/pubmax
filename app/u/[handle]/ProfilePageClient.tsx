@@ -31,6 +31,7 @@ import SiteNavMore, {
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { syncDeviceHandle } from "@/lib/identityClient";
+import { inviteReturnToFromUrl } from "@/lib/inviteReturnTo";
 import { BADGE_EVENTS } from "@/lib/badgeEvents";
 import {
   BADGE_EVENT_OPT_INS_STORAGE_KEY,
@@ -373,6 +374,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   useEffect(() => {
     if (!isYouRoute) return;
     if (viewerHandle && viewerHandle !== YOU_SENTINEL) {
+      const returnTo = inviteReturnToFromUrl(window.location.href);
+      if (returnTo) {
+        router.replace(returnTo);
+        return;
+      }
       const hash = window.location.hash;
       router.replace(`/u/${encodeURIComponent(viewerHandle)}${hash}`);
     }
