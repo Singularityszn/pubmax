@@ -4,32 +4,33 @@ import { MapPin } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { SearchField } from "@/components/ui/search-field";
-import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
-import type { CityId } from "@/lib/cities";
+import { listEnabledCities, type CityId } from "@/lib/cities";
 import {
-  formatSuggestDistance,
+  loadMapSearchIndex,
+} from "@/lib/mapSearchIndexLoader";
+import {
+  searchMapSearchIndex,
+  type MapSearchIndex,
+  type MapSearchIndexResult,
+} from "@/lib/mapSearchIndex";
+import {
   buildMapSearchSuggestions,
   type AreaSuggestion,
   type MapSearchAreaOption,
   type PlaceSuggestion,
   type PubSuggestion,
-  type SuggestOrigin,
   type UkBasePubSuggestion,
   UK_BASE_SEARCH_GROUP_LABEL,
   UK_PLACE_SEARCH_GROUP_LABEL,
 } from "@/lib/mapSearchSuggest";
 import type { Locality } from "@/lib/localities";
-import { haversineKm } from "@/lib/haversine";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { UkPlace } from "@/lib/ukPlaceSearch";
 import type { Venue } from "@/lib/venues";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 
 import "./mapSearchSuggest.css";
-
-const UK_NATIONAL_SEARCH_GROUP_LABEL = "Pubs across the UK";
-const NATIONAL_FETCH_MIN_CHARS = 3;
 
 // The map's as-you-type search: the house SearchField plus a suggestions popup
 // beneath it, listing matching AREAS (the modelled areas + boroughs) and PUBS,
@@ -42,6 +43,8 @@ const NATIONAL_FETCH_MIN_CHARS = 3;
 // input. Desktop gets arrow-key + Enter navigation; a tap works everywhere.
 
 type FlatItem =
+  | { type: "city"; item: Extract<MapSearchIndexResult, { kind: "city" }> }
+  | { type: "indexedVenue"; item: Extract<MapSearchIndexResult, { kind: "venue" }> }
   | { type: "area"; item: AreaSuggestion }
   | { type: "pub"; item: PubSuggestion }
   | { type: "place"; item: PlaceSuggestion }
@@ -78,7 +81,7 @@ export type MapSearchSuggestProps = {
   mapCenter: [number, number];
   placeholder: string;
   /** Fly + open a pub's venue card (the same select a pin tap drives). */
-  onSelectVenue: (id: string) => void;
+  onSelectVenue: (id: string, cityId?: CityId) => void;
   /**
    * Open an unverified UK base pub sheet. Same seam MapVenueList uses; the
    * whole record rides because base pubs exist in no venue index.
@@ -90,6 +93,8 @@ export type MapSearchSuggestProps = {
    * that city guide.
    */
   onSelectPlace?: (place: PlaceSuggestion) => void;
+  /** Switch to a city selected from the local search index. */
+  onSelectCity?: (cityId: CityId) => void;
   /** Fly the map to an area/borough centre (reduced-motion safe in the canvas). */
   onFlyToArea: (option: MapSearchAreaOption) => void;
   /** Enter with nothing highlighted and no suggestions: keep the old behaviour. */
@@ -115,6 +120,7 @@ export default function MapSearchSuggest({
   onSelectVenue,
   onSelectUkBasePub,
   onSelectPlace,
+  onSelectCity,
   onFlyToArea,
   // onSubmitQuery intentionally not used: zero-result Enter keeps the miss
   // empty state open (hits use activate). Prop stays on the type for callers.
@@ -134,113 +140,37 @@ export default function MapSearchSuggest({
     if (active instanceof HTMLElement) active.blur();
   }, [mode]);
 
-  const deferredQuery = useDeferredValue(query);
-  const nationalQuery = deferredQuery.trim();
-  const nationalFetchActive = nationalQuery.length >= NATIONAL_FETCH_MIN_CHARS;
-  const [nationalPubs, setNationalPubs] = useState<UkBasePubSuggestion[]>([]);
-  const [nationalGroupLabel, setNationalGroupLabel] = useState(UK_BASE_SEARCH_GROUP_LABEL);
-  const activeNationalPubs = nationalFetchActive ? nationalPubs : [];
-  const activeNationalGroupLabel = nationalFetchActive
-    ? nationalGroupLabel
-    : UK_BASE_SEARCH_GROUP_LABEL;
-  const nationalTrackedQuery = useRef("");
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query), 80);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+  const deferredQuery = useDeferredValue(debouncedQuery);
+  const [searchIndex, setSearchIndex] = useState<MapSearchIndex | null>(null);
+  const [searchIndexLoading, setSearchIndexLoading] = useState(false);
+  const searchIndexPromiseRef = useRef<Promise<MapSearchIndex | null> | null>(null);
+  const ensureSearchIndex = useCallback(() => {
+    if (searchIndex || searchIndexPromiseRef.current) return;
+    setSearchIndexLoading(true);
+    const pending = loadMapSearchIndex({
+      currentCityId: cityId,
+      currentVenues: venues,
+    })
+      .then((index) => {
+        setSearchIndex(index);
+        return index;
+      })
+      .catch(() => null)
+      .finally(() => {
+        searchIndexPromiseRef.current = null;
+        setSearchIndexLoading(false);
+      });
+    searchIndexPromiseRef.current = pending;
+  }, [cityId, searchIndex, venues]);
 
   useEffect(() => {
-    const q = deferredQuery.trim();
-    if (q.length < NATIONAL_FETCH_MIN_CHARS) {
-      return;
-    }
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      try {
-        const response = await fetch(
-          `/api/map-search?q=${encodeURIComponent(q.slice(0, 80))}`,
-          { signal: controller.signal, headers: { accept: "application/json" } },
-        );
-        if (!response.ok) {
-          discardBody(response);
-          setNationalPubs([]);
-          return;
-        }
-        const body = (await response.json()) as {
-          intent?: { primary?: string };
-          nationalPubs?: Array<{
-            id: string;
-            name: string;
-            address?: string;
-            lat: number;
-            lng: number;
-          }>;
-          nationalStatus?: "ready" | "degraded";
-        };
-        const origin: SuggestOrigin = userLocation ? "user" : "map-centre";
-        const originPoint: [number, number] = userLocation
-          ? [userLocation.lng, userLocation.lat]
-          : mapCenter;
-        const residentIds = new Set(ukBasePubs.map((pub) => pub.id));
-        const curatedIds = new Set(venues.map((venue) => venue.id));
-        const hits = (body.nationalPubs ?? [])
-          .filter(
-            (hit) =>
-              hit &&
-              typeof hit.id === "string" &&
-              typeof hit.name === "string" &&
-              Number.isFinite(hit.lat) &&
-              Number.isFinite(hit.lng) &&
-              !residentIds.has(hit.id) &&
-              !curatedIds.has(hit.id),
-          )
-          .map((hit) => {
-            const pub: UkBasePub = {
-              id: hit.id,
-              name: hit.name,
-              address: typeof hit.address === "string" ? hit.address : "",
-              lat: hit.lat,
-              lng: hit.lng,
-              curatedVenueId: "",
-            };
-            const distanceKm = haversineKm(originPoint, [hit.lng, hit.lat]);
-            return {
-              id: hit.id,
-              name: hit.name,
-              address: pub.address,
-              distanceKm,
-              distanceLabel: formatSuggestDistance(distanceKm, origin),
-              pub,
-            } satisfies UkBasePubSuggestion;
-          });
-        setNationalPubs(hits);
-        setNationalGroupLabel(
-          hits.length > 0 ? UK_NATIONAL_SEARCH_GROUP_LABEL : UK_BASE_SEARCH_GROUP_LABEL,
-        );
-        if (nationalTrackedQuery.current !== q) {
-          nationalTrackedQuery.current = q;
-          const intent = body.intent?.primary;
-          if (
-            intent === "borough" ||
-            intent === "city" ||
-            intent === "area" ||
-            intent === "uk_place" ||
-            intent === "venue" ||
-            intent === "unknown"
-          ) {
-            trackEvent("map_search_ran", {
-              intent,
-              nationalHits: hits.length,
-              nationalStatus: body.nationalStatus ?? "degraded",
-            });
-          }
-        }
-      } catch (error) {
-        if ((error as { name?: string } | null)?.name === "AbortError") return;
-        setNationalPubs([]);
-      }
-    }, 120);
-    return () => {
-      controller.abort();
-      window.clearTimeout(timer);
-    };
-  }, [deferredQuery, mapCenter, ukBasePubs, userLocation, venues]);
+    if (mode === "overlay") ensureSearchIndex();
+  }, [cityId, ensureSearchIndex, mode]);
 
   const suggestions = useMemo(
     () =>
@@ -268,20 +198,52 @@ export default function MapSearchSuggest({
     ],
   );
 
+  const indexedResults = useMemo(
+    () => {
+      const cityOnlyIndex = {
+        cities: listEnabledCities().map((city) => ({
+          id: city.id,
+          name: city.displayName,
+        })),
+        venues: [],
+      } satisfies MapSearchIndex;
+      const cityResults = searchMapSearchIndex(cityOnlyIndex, deferredQuery);
+      const venueResults = searchIndex
+        ? searchMapSearchIndex(searchIndex, deferredQuery).filter(
+            (result) => result.kind === "venue",
+          )
+        : [];
+      return [...cityResults, ...venueResults];
+    },
+    [deferredQuery, searchIndex],
+  );
+  const indexedCities = useMemo(
+    () => indexedResults.filter((result): result is Extract<MapSearchIndexResult, { kind: "city" }> => result.kind === "city"),
+    [indexedResults],
+  );
+  const indexedVenues = useMemo(() => {
+    const localVenueIds = new Set(suggestions.pubs.map((pub) => pub.id));
+    return indexedResults.filter(
+      (result): result is Extract<MapSearchIndexResult, { kind: "venue" }> =>
+        result.kind === "venue" &&
+        (result.cityId !== cityId || !localVenueIds.has(result.id)),
+    );
+  }, [cityId, indexedResults, suggestions.pubs]);
+
   const mergedUkBasePubs = useMemo(() => {
-    const seen = new Set(suggestions.ukBasePubs.map((pub) => pub.id));
-    const extras = activeNationalPubs.filter((pub) => !seen.has(pub.id));
-    return [...suggestions.ukBasePubs, ...extras].slice(0, 12);
-  }, [activeNationalPubs, suggestions.ukBasePubs]);
+    return suggestions.ukBasePubs.slice(0, 12);
+  }, [suggestions.ukBasePubs]);
 
   const items = useMemo<FlatItem[]>(
     () => [
+      ...indexedCities.map((item) => ({ type: "city" as const, item })),
       ...suggestions.areas.map((item) => ({ type: "area" as const, item })),
+      ...indexedVenues.map((item) => ({ type: "indexedVenue" as const, item })),
       ...suggestions.pubs.map((item) => ({ type: "pub" as const, item })),
       ...suggestions.places.map((item) => ({ type: "place" as const, item })),
       ...mergedUkBasePubs.map((item) => ({ type: "ukBase" as const, item })),
     ],
-    [mergedUkBasePubs, suggestions],
+    [indexedCities, indexedVenues, mergedUkBasePubs, suggestions],
   );
 
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -301,11 +263,12 @@ export default function MapSearchSuggest({
   // never an effect) so the list and its active row can't drift out of sync.
   const changeQuery = useCallback(
     (next: string) => {
+      ensureSearchIndex();
       chooseActiveIndex(-1);
       if (mode === "toolbar") setToolbarFocused(true);
       onQueryChange(next);
     },
-    [chooseActiveIndex, mode, onQueryChange],
+    [chooseActiveIndex, ensureSearchIndex, mode, onQueryChange],
   );
 
   const trimmed = query.trim();
@@ -316,8 +279,17 @@ export default function MapSearchSuggest({
   // leaves the search surface; overlay search remains open until Escape/X.
   const panelEnabled = mode === "overlay" || toolbarFocused;
   const showPanel = panelEnabled && (trimmed.length > 0 || items.length > 0);
-  const hasResults = suggestions.hasResults || mergedUkBasePubs.length > 0;
-  const showEmptyLine = showPanel && trimmed.length > 0 && querySettled && !hasResults;
+  const hasResults =
+    suggestions.hasResults ||
+    indexedCities.length > 0 ||
+    indexedVenues.length > 0 ||
+    mergedUkBasePubs.length > 0;
+  const showEmptyLine =
+    showPanel &&
+    trimmed.length > 0 &&
+    querySettled &&
+    !searchIndexLoading &&
+    !hasResults;
 
   useEffect(() => {
     if (!showEmptyLine) {
@@ -341,6 +313,17 @@ export default function MapSearchSuggest({
   const activate = useCallback(
     (entry: FlatItem | undefined) => {
       if (!entry) return;
+      trackEvent("map_search_jump");
+      if (entry.type === "city") {
+        onSelectCity?.(entry.item.id);
+        closeToolbarPanel();
+        return;
+      }
+      if (entry.type === "indexedVenue") {
+        onSelectVenue(entry.item.id, entry.item.cityId);
+        closeToolbarPanel();
+        return;
+      }
       if (entry.type === "pub") {
         onSelectVenue(entry.item.id);
         closeToolbarPanel();
@@ -367,7 +350,7 @@ export default function MapSearchSuggest({
         closeToolbarPanel();
       }
     },
-    [closeToolbarPanel, onFlyToArea, onSelectPlace, onSelectUkBasePub, onSelectVenue],
+    [closeToolbarPanel, onFlyToArea, onSelectCity, onSelectPlace, onSelectUkBasePub, onSelectVenue],
   );
 
   const handleKeyDown = useCallback(
@@ -419,7 +402,9 @@ export default function MapSearchSuggest({
     [activate, chooseActiveIndex, items, mode, onClose],
   );
 
-  const pubStartIndex = suggestions.areas.length;
+  const areaStartIndex = indexedCities.length;
+  const indexedVenueStartIndex = areaStartIndex + suggestions.areas.length;
+  const pubStartIndex = indexedVenueStartIndex + indexedVenues.length;
   const placeStartIndex = pubStartIndex + suggestions.pubs.length;
   const ukBaseStartIndex = placeStartIndex + suggestions.places.length;
   const originNote =
@@ -437,21 +422,53 @@ export default function MapSearchSuggest({
         aria-describedby={showEmptyLine ? emptyStateId : undefined}
         aria-autocomplete="list"
         aria-activedescendant={safeActive >= 0 ? optionId(safeActive) : undefined}
-        aria-busy={!querySettled}
         value={query}
         onChange={changeQuery}
-        onFocus={() => setToolbarFocused(true)}
+        onFocus={() => {
+          setToolbarFocused(true);
+          ensureSearchIndex();
+        }}
         onBlur={() => {
           if (mode === "toolbar") setToolbarFocused(false);
         }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
+        aria-busy={!querySettled || searchIndexLoading}
         autoFocus={mode === "overlay"}
       />
 
       {showPanel ? (
         <div className="mapSearchSuggestPanel">
           <div id={listboxId} role="listbox" aria-label="Search suggestions" className="mapSearchSuggestScroll">
+            {indexedCities.length > 0 ? (
+              <div role="group" aria-label="Cities" className="mapSearchSuggestGroup">
+                <p className="mapSearchSuggestGroupHead">
+                  <span>Cities</span>
+                </p>
+                {indexedCities.map((city, offset) => {
+                  const index = offset;
+                  return (
+                    <div
+                      key={city.id}
+                      id={optionId(index)}
+                      role="option"
+                      aria-selected={safeActive === index}
+                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => activate({ type: "city", item: city })}
+                      onPointerEnter={() => chooseActiveIndex(index)}
+                    >
+                      <span className="mapSearchSuggestRowMain">
+                        <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
+                        <span className="mapSearchSuggestRowName">{city.name}</span>
+                        <span className="mapSearchSuggestBorough">City map</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+
             {suggestions.areas.length > 0 ? (
               <div role="group" aria-label="Areas" className="mapSearchSuggestGroup">
                 <p className="mapSearchSuggestGroupHead">
@@ -461,13 +478,13 @@ export default function MapSearchSuggest({
                 {suggestions.areas.map((area, index) => (
                   <div
                     key={area.key}
-                    id={optionId(index)}
+                    id={optionId(areaStartIndex + index)}
                     role="option"
-                    aria-selected={safeActive === index}
-                    className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                    aria-selected={safeActive === areaStartIndex + index}
+                    className={`mapSearchSuggestRow${safeActive === areaStartIndex + index ? " isActive" : ""}`}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => activate({ type: "area", item: area })}
-                    onPointerEnter={() => chooseActiveIndex(index)}
+                    onPointerEnter={() => chooseActiveIndex(areaStartIndex + index)}
                   >
                     <span className="mapSearchSuggestRowMain">
                       <MapPin size={15} aria-hidden="true" className="mapSearchSuggestRowIcon" />
@@ -487,6 +504,39 @@ export default function MapSearchSuggest({
                     ) : null}
                   </div>
                 ))}
+              </div>
+            ) : null}
+
+            {indexedVenues.length > 0 ? (
+              <div role="group" aria-label="Venues across city maps" className="mapSearchSuggestGroup">
+                <p className="mapSearchSuggestGroupHead">
+                  <span>Venues across city maps</span>
+                </p>
+                {indexedVenues.map((venue, offset) => {
+                  const index = indexedVenueStartIndex + offset;
+                  const cityName = searchIndex?.cities.find((city) => city.id === venue.cityId)?.name;
+                  const locationLabel = venue.area && venue.area !== cityName
+                    ? `${venue.area} · ${cityName ?? ""}`.trim()
+                    : venue.area || cityName;
+                  return (
+                    <div
+                      key={`${venue.cityId}:${venue.id}`}
+                      id={optionId(index)}
+                      role="option"
+                      data-venue-id={venue.id}
+                      aria-selected={safeActive === index}
+                      className={`mapSearchSuggestRow${safeActive === index ? " isActive" : ""}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => activate({ type: "indexedVenue", item: venue })}
+                      onPointerEnter={() => chooseActiveIndex(index)}
+                    >
+                      <span className="mapSearchSuggestRowMain">
+                        <span className="mapSearchSuggestRowName">{venue.name}</span>
+                        {locationLabel ? <span className="mapSearchSuggestBorough">{locationLabel}</span> : null}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
 
@@ -581,11 +631,11 @@ export default function MapSearchSuggest({
             {mergedUkBasePubs.length > 0 ? (
               <div
                 role="group"
-                aria-label={activeNationalGroupLabel}
+                aria-label={UK_BASE_SEARCH_GROUP_LABEL}
                 className="mapSearchSuggestGroup"
               >
                 <p className="mapSearchSuggestGroupHead">
-                  <span>{activeNationalGroupLabel}</span>
+                  <span>{UK_BASE_SEARCH_GROUP_LABEL}</span>
                 </p>
                 {mergedUkBasePubs.map((pub, offset) => {
                   const index = ukBaseStartIndex + offset;

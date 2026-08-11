@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { LocateFixed } from "lucide-react";
+import CitySwitcher from "@/components/map/CitySwitcher";
 
 import type { CityId } from "@/lib/cities";
 import {
@@ -347,6 +348,12 @@ export default function AreaSheet({
         {onUseMyLocation && locationNote ? (
           <p className="areaSheetLocateNote">{locationNote}</p>
         ) : null}
+        <h4 className="areaSheetSubheading">City maps</h4>
+        <CitySwitcher
+          cityId={cityId}
+          variant="list"
+          onClose={onClose}
+        />
         <ul className="areaSheetGrid">
           {elsewhere.map((option) => {
             const isCurrent = option.slug === area?.slug;

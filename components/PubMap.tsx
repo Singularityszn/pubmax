@@ -178,6 +178,7 @@ const MapConciergeAsk = dynamic(
 );
 import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
+import { cityMapShareUrl } from "@/lib/cityShare";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
@@ -296,7 +297,6 @@ import {
   resolveQueryRestoreFit,
 } from "@/lib/mapArrival";
 import {
-  areaLabelOrigin,
   areaSheetOpenDelay,
   areaClaimedByViewport,
   areaUnderCentre,
@@ -2576,14 +2576,6 @@ export default function PubMap({
     () => areaClaimedByViewport(cityId, mapViewport.center, mapBounds),
     [cityId, mapBounds, mapViewport.center],
   );
-  // ...and whether that name is also where the READER is. A base-pub arrival
-  // names a place from the URL, which nobody's location chose, so it stays a
-  // map claim whatever the browser later grants. Measured against the CLAIMED
-  // area, so an unclaimed view can never read as "Your area: London".
-  const areaChipOrigin = useMemo(
-    () => (ukPlaceArrival ? "map" : areaLabelOrigin(claimedArea, userLocation)),
-    [claimedArea, ukPlaceArrival, userLocation],
-  );
   // Where the Area sheet's row distances are measured from. A granted location
   // is the reader's own point, and only then may a row say "away". With none,
   // the map centre is all we have and the rows name it.
@@ -2671,13 +2663,19 @@ export default function PubMap({
   // a browse pin tap. The current search input text is NOT proof of origin — only
   // an explicit result selection through this seam is.
   const selectVenueFromSearch = useCallback(
-    (id: string) => {
+    (id: string, targetCityId?: CityId) => {
       // The reader picked a pub for this query, so the deferred typed-search
       // move must not fit the whole matched set over their choice on blur.
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
+      if (targetCityId && targetCityId !== cityId) {
+        window.location.assign(
+          `${cityMapShareUrl(targetCityId)}?sel=${encodeURIComponent(id)}`,
+        );
+        return;
+      }
       selectVenue(id, "overview", "map-search");
     },
-    [selectVenue, trimmedMapQuery],
+    [cityId, selectVenue, trimmedMapQuery],
   );
   const selectUkBasePubFromSearch = useCallback(
     (pub: UkBasePub) => {
@@ -2708,6 +2706,17 @@ export default function PubMap({
       window.location.assign(place.href);
     },
     [changeMapSearchQuery, cityId, clearLogIntent, trimmedMapQuery],
+  );
+  const selectCityFromSearch = useCallback(
+    (targetCityId: CityId) => {
+      if (targetCityId === cityId) {
+        setMapOverlay("none");
+        changeMapSearchQuery("");
+        return;
+      }
+      window.location.assign(cityMapShareUrl(targetCityId));
+    },
+    [changeMapSearchQuery, cityId],
   );
   // Prefetch the national place index once the reader is typing a place-shaped
   // query, or already on a national / uncovered surface that needs it.
@@ -2742,6 +2751,7 @@ export default function PubMap({
     onSelectVenue: selectVenueFromSearch,
     onSelectUkBasePub: selectUkBasePubFromSearch,
     onSelectPlace: selectPlaceFromSearch,
+    onSelectCity: selectCityFromSearch,
     onFlyToArea: selectSearchArea,
     onSubmitQuery: limitedCoverageSearch ? undefined : selectTopSearchMatch,
   } satisfies Omit<MapSearchSuggestProps, "id" | "mode" | "placeholder" | "onClose">;
@@ -3527,6 +3537,8 @@ export default function PubMap({
           searchableVenueCount={venues.length}
           zoneIndex={zoneIndex}
           cityId={cityId}
+          onUseMyLocation={showNearbyMap}
+          locationBusy={nearbyLoading}
           experienceLens={experienceLens}
           experienceSummary={experienceSummary}
           onExperienceLensChange={changeExperienceLens}
@@ -3670,8 +3682,8 @@ export default function PubMap({
 
         {mobileShellReady ? (
         <MobileMapShell
+          cityId={cityId}
           cityLabel={ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName}
-          cityLabelOrigin={areaChipOrigin}
           limitedCoverage={Boolean(ukPlaceArrival)}
           overlay={mobileShellState.overlay}
           onOverlayChange={changeMapOverlay}
@@ -3711,13 +3723,6 @@ export default function PubMap({
             experienceLens === "all" &&
             mapDrinkLensCategory === null &&
             filters.maxPrice < NO_PINT_PRICE_CAP
-          }
-          areaPriceNoun={
-            // The Area sheet's own heading word, so the chip that opens it and
-            // the list inside it name the same drink the same way.
-            mapDrinkLensCategory
-              ? CATEGORY_META[mapDrinkLensCategory].label.toLowerCase()
-              : "pints"
           }
           planOpen={planningOpen}
           planActive={routeMappedActive || activePlanRoute.length >= 2}

@@ -5,6 +5,10 @@
   flex: 0 0 auto;
 }
 
+.citySwitcher--list {
+  width: 100%;
+}
+
 .citySwitcherTrigger {
   display: inline-flex;
   align-items: center;
@@ -90,8 +94,43 @@
   cursor: pointer;
 }
 
-.citySwitcher.isPending .citySwitcherTrigger {
-  opacity: 0.72;
+.citySwitcherLocation {
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+}
+
+.citySwitcherLocationLink {
+  justify-content: flex-start;
+  gap: 8px;
+  background: color-mix(in srgb, var(--brass) 10%, var(--panel-raised));
+}
+
+.citySwitcherArea {
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, var(--brass) 30%);
+}
+
+.citySwitcherAreaLink {
+  color: var(--ink-soft);
+}
+
+.citySwitcherLocationLink:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.citySwitcher--list .citySwitcherList {
+  position: static;
+  width: 100%;
+  max-height: min(44vh, 22rem);
+  box-sizing: border-box;
+  box-shadow: none;
+}
+
+.citySwitcher--list .citySwitcherNational {
+  display: none;
 }
 
 .citySwitcherLink:hover {
@@ -164,6 +203,11 @@
     right: 0;
     left: auto;
     z-index: var(--z-map-toolbar);
+  }
+
+  .citySwitcher--list .citySwitcherList {
+    right: auto;
+    left: auto;
   }
 }
 

@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, GlassWater, LocateFixed, LocateOff, Map as MapGlyph, MoonStar, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
+import { Ellipsis, GlassWater, LocateFixed, LocateOff, MoonStar, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
+import CitySwitcher from "@/components/map/CitySwitcher";
 import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
-import { areaChipClaim, areaChipClaimPrefix, type MapPlaceOrigin } from "@/lib/areaButton";
 import { buildFiltersChip, buildNearMeChip, buildTflCorner, buildTonightChip, type CornerUtilityModel, type PrimaryChipModel, type TonightChipModel } from "@/lib/mapChromeTiers";
 import { MAP_SHEET_TITLES, type MapOverlay, type MapSheetKind } from "@/lib/mobileShell";
+import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 
 import "./mobileMapShell.css";
 
@@ -139,16 +140,9 @@ function MapChipRow({
   );
 }
 
-export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, areaPriceNoun, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+  cityId?: CityId;
   cityLabel: string;
-  /**
-   * Whether that name is where the READER is, or only what the map is looking
-   * at. A granted location inside the named area earns "reader"; everything
-   * else is "map". The chip carries the answer in its glyph and its accessible
-   * name, because a location pin beside a place name reads as "you are here"
-   * to a reader who never gave the map a location.
-   */
-  cityLabelOrigin: MapPlaceOrigin;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
   limitedCoverage: boolean;
   overlay: MapOverlay;
@@ -199,7 +193,6 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
   /** Open now filter counts as a filters refinement when on. */
   openNowActive?: boolean;
   priceCapActive: boolean;
-  areaPriceNoun: string;
   planOpen: boolean;
   planActive: boolean;
   planStopCount: number;
@@ -223,14 +216,6 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
   // The glyph is half the claim. LocateFixed is this map's "you are here" mark
   // (the Near me chip wears it), so it may appear only when a granted location
   // sits inside the named area. Otherwise the chip wears the map itself.
-  const areaGlyph =
-    cityLabelOrigin === "reader" ? (
-      <LocateFixed size={14} aria-hidden="true" />
-    ) : (
-      <MapGlyph size={14} aria-hidden="true" />
-    );
-  const areaClaim = areaChipClaim(cityLabelOrigin, cityLabel);
-
   if (limitedCoverage) {
     return (
       <div className="mobileMapChrome" aria-label="Map controls">
@@ -238,15 +223,12 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
           <Link href="/" className="mobileMapBrand" aria-label="Open PUBMAXX landing page">
             <PubmaxxWordmark />
           </Link>
-          <span className="mobileMapArea mobileMapAreaStatic">
-            {areaGlyph}
-            {/* The visible chip is one short name. The claim behind it is read
-                out here, so a screen reader is told what the name IS. */}
-            <span className="mobileMapAreaClaim">
-              {areaChipClaimPrefix(cityLabelOrigin)}
-            </span>
-            <span className="mobileMapAreaLabel">{cityLabel}</span>
-          </span>
+          <CitySwitcher
+            cityId={cityId}
+            triggerLabel={cityLabel}
+            className="citySwitcher--mobile"
+            onUseMyLocation={onNearMe}
+          />
         </header>
       </div>
     );
@@ -284,17 +266,13 @@ export default function MobileMapShell({ cityLabel, cityLabelOrigin, limitedCove
             so the bar cannot grow again in silence. */}
         <header className="mobileMapTopbar">
           <Link href="/" className="mobileMapBrand" aria-label="Open PUBMAXX landing page"><PubmaxxWordmark /></Link>
-          <button
-            type="button"
-            className="mobileMapArea"
-            aria-expanded={overlay === "area"}
-            aria-haspopup="dialog"
-            aria-label={`${areaClaim}. See its cheapest ${areaPriceNoun} or go somewhere else`}
-            onClick={() => set("area")}
-          >
-            {areaGlyph}
-            <span className="mobileMapAreaLabel">{cityLabel}</span>
-          </button>
+          <CitySwitcher
+            cityId={cityId}
+            triggerLabel={cityLabel}
+            className="citySwitcher--mobile"
+            onUseMyLocation={onNearMe}
+            onOpenArea={() => set("area")}
+          />
           <IconButton aria-label="Search the map" aria-expanded={overlay === "search"} onClick={() => set("search")}><Search size={19} /></IconButton>
           <IconButton
             className="mobileMapFiltersButton"

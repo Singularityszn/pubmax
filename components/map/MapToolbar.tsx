@@ -165,6 +165,9 @@ type MapToolbarProps = {
   cityId?: CityId;
   /** Camera is outside the priced city box — national browse entry softens the switcher. */
   outsideCurated?: boolean;
+  /** First city-switcher row: use the map's existing location flow. */
+  onUseMyLocation?: () => void;
+  locationBusy?: boolean;
   experienceLens: MapExperienceLens;
   experienceSummary: string;
   onExperienceLensChange: (lens: MapExperienceLens) => void;
@@ -197,6 +200,8 @@ export default function MapToolbar({
   zoneIndex,
   cityId = DEFAULT_CITY_ID,
   outsideCurated = false,
+  onUseMyLocation,
+  locationBusy = false,
   experienceLens,
   experienceSummary,
   onExperienceLensChange,
@@ -423,7 +428,12 @@ export default function MapToolbar({
           </span>
         </button>
 
-        <CitySwitcher cityId={cityId} outsideCurated={outsideCurated} />
+        <CitySwitcher
+          cityId={cityId}
+          outsideCurated={outsideCurated}
+          onUseMyLocation={onUseMyLocation}
+          locationBusy={locationBusy}
+        />
       </div>
 
       {lensOpen ? (

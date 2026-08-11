@@ -213,21 +213,13 @@
     .mobileMapBrand { display: none; }
   }
   .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }
-  /* Area button — the live Night Area under the map centre. Evolves the old
-     static, truncated city label into a first-class 44px control that opens the
-     house Area sheet. Middle columns give the name room; it ellipses gracefully
-     only past that. */
-  .mobileMapArea { display: inline-flex; align-items: center; gap: 4px; min-width: 0; min-height: 44px; padding-inline: 6px; border-radius: var(--radius-sm); color: var(--color-text-soft); cursor: pointer; }
-  .mobileMapArea > svg { flex: 0 0 auto; }
-  .mobileMapAreaLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; font-weight: 700; }
-  /* What the name IS, for a screen reader. The button states it in its own
-     accessible name; the static arrival chip is a span, so it carries the
-     claim here. It takes no room in the 44px bar. */
-  .mobileMapAreaClaim { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-  .mobileMapArea:hover, .mobileMapArea:focus-visible { color: var(--color-text); }
-  .mobileMapArea[aria-expanded="true"] { color: var(--color-text); background: var(--state-active-surface); }
-  .mobileMapAreaStatic { cursor: default; }
-  .mobileMapArea:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .citySwitcher--mobile { min-width: 0; }
+  .citySwitcher--mobile .citySwitcherTrigger { min-width: 0; max-width: 100%; border: 0; background: transparent; color: var(--color-text-soft); padding-inline: 6px; }
+  .citySwitcher--mobile .citySwitcherTrigger:hover,
+  .citySwitcher--mobile .citySwitcherTrigger:focus-visible,
+  .citySwitcher--mobile.isOpen .citySwitcherTrigger { border: 0; background: var(--state-active-surface); color: var(--color-text); }
+  .citySwitcher--mobile .citySwitcherLabelFull { display: inline; min-width: 0; max-width: 100%; font-size: .72rem; }
+  .citySwitcher--mobile .citySwitcherLabelShort { display: none; }
   .mobileMapTopbar > button { border: 0; background: transparent; }
   .mobileMapPalButton { color: var(--color-accent); }
   .mobilePalAvatar { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--color-accent) 58%, var(--color-border)); border-radius: 50%; background: radial-gradient(circle at 38% 30%, color-mix(in srgb, white 20%, transparent), transparent 34%), color-mix(in srgb, var(--color-accent) 13%, var(--color-surface)); overflow: hidden; }
