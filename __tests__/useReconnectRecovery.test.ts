@@ -126,4 +126,51 @@ describe("reconnect recovery", () => {
 
     expect(reload).not.toHaveBeenCalled();
   });
+
+  it("supports pageshow recovery only when restored from bfcache", () => {
+    const windowTarget = makeWindow();
+    const documentTarget = makeDocument();
+    const reload = vi.fn();
+    const stop = subscribeToReconnectRecovery(reload, {
+      windowTarget,
+      documentTarget,
+      events: ["pageshow"],
+      debounceMs: 25,
+    });
+
+    const normalPageShow = new Event("pageshow");
+    Object.defineProperty(normalPageShow, "persisted", { value: false });
+    windowTarget.dispatchEvent(normalPageShow);
+    vi.advanceTimersByTime(25);
+    expect(reload).not.toHaveBeenCalled();
+
+    const restoredPageShow = new Event("pageshow");
+    Object.defineProperty(restoredPageShow, "persisted", { value: true });
+    windowTarget.dispatchEvent(restoredPageShow);
+    vi.advanceTimersByTime(25);
+    expect(reload).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it("can limit recovery to foreground events", () => {
+    const windowTarget = makeWindow();
+    const documentTarget = makeDocument();
+    const reload = vi.fn();
+    const stop = subscribeToReconnectRecovery(reload, {
+      windowTarget,
+      documentTarget,
+      events: ["visible", "pageshow"],
+      debounceMs: 25,
+    });
+
+    windowTarget.dispatchEvent(new Event("online"));
+    vi.advanceTimersByTime(25);
+    expect(reload).not.toHaveBeenCalled();
+
+    documentTarget.visibilityState = "visible";
+    documentTarget.dispatchEvent(new Event("visibilitychange"));
+    vi.advanceTimersByTime(25);
+    expect(reload).toHaveBeenCalledTimes(1);
+    stop();
+  });
 });

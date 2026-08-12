@@ -73,6 +73,15 @@ const feedDataFiles = withRuntimeDataPacks(
 // package.json changes.
 const swVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? Date.now().toString(36);
 
+// Next 16 tags framework-owned assets and navigations with this identifier,
+// allowing skew protection to keep stale clients on one deployment during a
+// rollout. Vercel supplies its own deployment identifier on normal Git-based
+// builds, so leave that platform-owned value untouched. A prebuilt or local
+// build can provide DEPLOYMENT_VERSION; otherwise use the existing build-scoped
+// service-worker marker.
+const deploymentId = process.env.DEPLOYMENT_VERSION ??
+  (process.env.VERCEL ? undefined : swVersion);
+
 // Content-Security-Policy is NO LONGER served from here. It moved to proxy.ts
 // (Next.js 16's renamed `middleware` convention) so it can be built PER-REQUEST
 // with a fresh nonce — that is the only way to drop `script-src 'unsafe-inline'`
@@ -119,6 +128,7 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  deploymentId,
   // Don't advertise the framework/version on dynamic responses.
   poweredByHeader: false,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
