@@ -8,6 +8,7 @@ type AccountOnboardingRequest = (
 export type AccountOnboardingStatus =
   | { status: "complete"; handle?: string }
   | { status: "incomplete"; handle?: string }
+  | { status: "interrupted" }
   | { status: "unavailable"; error: string };
 
 export const ACCOUNT_ONBOARDING_RETRY_DELAY_MS = 250;
@@ -56,10 +57,7 @@ export async function loadAccountOnboardingStatus(
         };
   } catch (error) {
     if ((error as { name?: unknown })?.name === "AbortError") {
-      return {
-        status: "unavailable",
-        error: "Account setup was interrupted.",
-      };
+      return { status: "interrupted" };
     }
     return {
       status: "unavailable",

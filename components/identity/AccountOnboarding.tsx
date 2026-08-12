@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -287,6 +287,7 @@ function AccountOnboardingForUser({
     ).then(
       (result) => {
         if (!activeLoad) return;
+        if (result.status === "interrupted") return;
         if (result.status === "unavailable") {
           // Fetch failed: never fall through to the claim form.
           setStatusError(result.error);
@@ -523,7 +524,18 @@ function AccountOnboardingForUser({
 
 export default function AccountOnboarding(): React.JSX.Element | null {
   const { user, loading, session, identityResolved } = useAuth();
-  const auth = captureAccountAuth(user?.id ?? null, session);
+  const sessionAccessToken = session?.access_token ?? null;
+  const sessionUserId = session?.user.id ?? null;
+  const auth = useMemo(
+    () => {
+      if (!sessionAccessToken || !sessionUserId) return null;
+      return captureAccountAuth(user?.id ?? null, {
+        access_token: sessionAccessToken,
+        user: { id: sessionUserId },
+      });
+    },
+    [sessionAccessToken, sessionUserId, user?.id],
+  );
   if (loading || !user || !auth) return null;
   return (
     <AccountOnboardingForUser
