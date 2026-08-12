@@ -193,14 +193,34 @@ test("an account with no password is offered one, with the rules up front", asyn
   expect(counters.passwordWrites).toBe(1);
 });
 
+test("an account with a password keeps change collapsed until opened", async ({
+  page,
+}) => {
+  await installOwnedAccount(page, { hasPassword: true });
+
+  await page.goto(`/u/${HANDLE}`);
+  const disclosure = page.locator("details.accountHubPasswordChange");
+  await expect(disclosure).toHaveCount(1);
+  await expect(disclosure.locator("form.accountHubPassword")).toHaveCount(1);
+  await expect(disclosure.locator("form.accountHubPassword")).toBeHidden();
+  await expect(disclosure).not.toHaveAttribute("open", "");
+  await expect(disclosure.getByLabel("Current password")).toBeHidden();
+  await expect(disclosure.getByLabel("New password")).toBeHidden();
+  await expect(disclosure.getByLabel("Confirm password")).toBeHidden();
+
+  await disclosure.locator("summary").click();
+
+  await expect(disclosure).toHaveAttribute("open", "");
+  await expect(disclosure.getByLabel("Current password")).toBeVisible();
+  await expect(disclosure.getByLabel("New password")).toBeVisible();
+  await expect(disclosure.getByLabel("Confirm password")).toBeVisible();
+});
+
 test("a read that could not answer names neither state", async ({ page }) => {
   await installOwnedAccount(page, { hasPassword: null });
 
   await page.goto(`/u/${HANDLE}`);
-  const section = page.locator("form.accountHubPassword");
-  await expect(section.getByRole("heading", { name: "Password" })).toBeVisible();
-  await expect(section).not.toHaveClass(/accountHubPasswordOwed/);
-  await expect(
-    section.getByRole("heading", { name: "Create password" }),
-  ).toHaveCount(0);
+  await expect(page.locator(".accountHubPassword")).toHaveCount(0);
+  await expect(page.getByText("Create password", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Change password", { exact: true })).toHaveCount(0);
 });

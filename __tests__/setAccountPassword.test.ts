@@ -95,14 +95,24 @@ describe("creating a password is a signed-in act", () => {
   });
 });
 
-describe("the create / change heading is tri-state", () => {
-  it("names a state only when the read answered", () => {
-    expect(setPasswordSource).toContain('"Change password"');
-    expect(setPasswordSource).toContain('"Create password"');
-    // The neutral third case: a read that could not answer names neither.
+describe("the password UI is tri-state", () => {
+  it("renders neither password surface while the read is unknown", () => {
+    expect(setPasswordSource).toContain("if (hasPassword === null) return null;");
+    const unknownGuard = setPasswordSource.indexOf(
+      "if (hasPassword === null) return null;",
+    );
+    const form = setPasswordSource.indexOf("const passwordForm");
+    expect(unknownGuard).toBeGreaterThanOrEqual(0);
+    expect(unknownGuard).toBeLessThan(form);
+  });
+
+  it("keeps an existing password behind one collapsed disclosure", () => {
+    expect(setPasswordSource).toContain('className="accountHubPasswordChange"');
+    expect(setPasswordSource).toContain("<summary>Change password</summary>");
+    expect(setPasswordSource).not.toContain("<details open");
     expect(setPasswordSource).toContain('hasPassword === true');
     expect(setPasswordSource).toContain('hasPassword === false');
-    expect(setPasswordSource).toContain('"Password"');
+    expect(setPasswordSource).toContain('"Create password"');
   });
 
   it("only takes the prominent slot when an account is known to have none", () => {
