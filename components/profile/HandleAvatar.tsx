@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 import { avatarInitialFromHandle } from "@/lib/profiles";
+import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 
 type HandleAvatarProps = {
   handle: string;
@@ -29,9 +30,15 @@ export default function HandleAvatar({
   const initial = avatarInitialFromHandle(handle, displayName);
   const showImage = Boolean(avatarUrl) && failedUrl !== avatarUrl;
 
+  useReconnectRecovery(
+    Boolean(avatarUrl) && failedUrl === avatarUrl,
+    () => setFailedUrl(null),
+  );
+
   if (showImage) {
     return (
       <Image
+        key={avatarUrl}
         className={imageClassName ?? className}
         src={avatarUrl!}
         alt=""

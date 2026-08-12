@@ -21,6 +21,11 @@ const E2E_ADMIN_TOKEN = process.env.PW_E2E_ADMIN_TOKEN ?? "pubmax-e2e-admin-toke
 const LOOP_HANDLE = "avatarproof";
 const LOOP_GENERATION = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const LOOP_PROFILE_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const REPAINT_HANDLE = "avatarrepaint";
+const REPAINT_GENERATION = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const REPAINT_PROFILE_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+
+test.use({ serviceWorkers: "block" });
 
 /** Minimal valid JPEG (1×1) for multipart upload attempts. */
 function tinyJpeg(): Buffer {
@@ -168,6 +173,132 @@ test("owner upload surfaces honest refusal when the keyless server cannot verify
   await expect(status).toContainText(
     /sign in with the account that owns this handle|photo storage is unavailable|profile storage is unavailable/i,
   );
+});
+
+test("repaints a cached profile fallback when the network answer adds an avatar", async ({
+  page,
+}) => {
+  const avatarUrl = `/api/avatar/${REPAINT_PROFILE_ID}/${REPAINT_GENERATION}`;
+  const profileWithoutAvatar = {
+    id: REPAINT_PROFILE_ID,
+    handle: REPAINT_HANDLE,
+    displayName: "Avatar repaint",
+    createdAt: "2026-08-01T12:00:00.000Z",
+    updatedAt: "2026-08-01T12:00:00.000Z",
+  };
+  const profileWithAvatar = { ...profileWithoutAvatar, avatarUrl };
+  const cachedProfileResponse = { profile: profileWithoutAvatar };
+  let profileRequests = 0;
+  let releaseNetworkProfile!: () => void;
+  const networkProfileReady = new Promise<void>((resolve) => {
+    releaseNetworkProfile = resolve;
+  });
+
+  await page.addInitScript(
+    ({ key, value }) => {
+      window.sessionStorage.setItem(
+        key,
+        JSON.stringify({ value, storedAt: Date.now() }),
+      );
+    },
+    {
+      key: `pubmax.surface.v1:/api/profiles/${REPAINT_HANDLE}`,
+      value: cachedProfileResponse,
+    },
+  );
+  await page.route("**/api/pint-drops**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ drops: [] }),
+    });
+  });
+  await page.route(`**/api/profiles/${REPAINT_HANDLE}**`, async (route) => {
+    profileRequests += 1;
+    await networkProfileReady;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ profile: profileWithAvatar }),
+    });
+  });
+  await page.route(`**${avatarUrl}**`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: { "content-type": "image/jpeg" },
+      body: tinyJpeg(),
+    });
+  });
+
+  await page.goto(`/u/${REPAINT_HANDLE}`);
+  await expect(page.locator(".profileAvatarFallback")).toBeVisible();
+  await expect.poll(() => profileRequests).toBe(1);
+
+  releaseNetworkProfile();
+  await expect(page.locator("img.profileAvatar")).toHaveAttribute(
+    "src",
+    expect.stringContaining(avatarUrl),
+  );
+  await expect
+    .poll(() => page.locator("img.profileAvatar").evaluate((image) => image.naturalWidth))
+    .toBeGreaterThan(0);
+});
+
+test("retries a failed avatar after the browser reconnects", async ({ page }) => {
+  const avatarUrl = `/api/avatar/${REPAINT_PROFILE_ID}/${REPAINT_GENERATION}`;
+  let avatarRequests = 0;
+  let profileRequests = 0;
+
+  await page.route("**/api/pint-drops**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ drops: [] }),
+    });
+  });
+  await page.route(`**/api/profiles/${REPAINT_HANDLE}**`, async (route) => {
+    profileRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        profile: {
+          id: REPAINT_PROFILE_ID,
+          handle: REPAINT_HANDLE,
+          displayName: "Avatar recovery",
+          avatarUrl,
+          createdAt: "2026-08-01T12:00:00.000Z",
+          updatedAt: "2026-08-01T12:00:00.000Z",
+        },
+      }),
+    });
+  });
+  await page.route(`**${avatarUrl}**`, async (route) => {
+    avatarRequests += 1;
+    if (avatarRequests === 1) {
+      await route.fulfill({ status: 503, body: "temporary failure" });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      headers: { "content-type": "image/jpeg" },
+      body: tinyJpeg(),
+    });
+  });
+
+  await page.goto(`/u/${REPAINT_HANDLE}`);
+  await expect(page.locator(".profileAvatarFallback")).toBeVisible();
+  await expect.poll(() => profileRequests).toBe(1);
+
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(page.locator("img.profileAvatar")).toHaveAttribute(
+    "src",
+    expect.stringContaining(avatarUrl),
+  );
+  await expect
+    .poll(() => page.locator("img.profileAvatar").evaluate((image) => image.naturalWidth))
+    .toBeGreaterThan(0);
+  expect(avatarRequests).toBeGreaterThanOrEqual(2);
 });
 
 test("upload → render → report → hide dress rehearsal", async ({ page }) => {
