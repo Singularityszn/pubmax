@@ -157,6 +157,15 @@ describe("account onboarding surface", () => {
     });
   });
 
+  it("keeps an aborted obsolete status read out of unavailable UI state", async () => {
+    const interrupted = async () => {
+      throw new DOMException("The operation was aborted.", "AbortError");
+    };
+    await expect(loadAccountOnboardingStatus(interrupted)).resolves.toEqual({
+      status: "interrupted",
+    });
+  });
+
   it("returns a server handle on complete and incomplete status reads", async () => {
     const complete = async () =>
       Response.json({ complete: true, handle: "night_owl" });
