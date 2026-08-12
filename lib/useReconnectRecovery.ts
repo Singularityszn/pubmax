@@ -3,6 +3,12 @@
 import { useEffect, useRef } from "react";
 
 const DEFAULT_RECONNECT_RECOVERY_DEBOUNCE_MS = 150;
+const DEFAULT_RECOVERY_EVENTS: readonly ReconnectRecoveryEvent[] = [
+  "online",
+  "visible",
+];
+
+export type ReconnectRecoveryEvent = "online" | "visible" | "pageshow";
 
 type RecoveryWindow = Pick<Window, "addEventListener" | "removeEventListener" | "setTimeout" | "clearTimeout">;
 type RecoveryDocument = Pick<Document, "addEventListener" | "removeEventListener"> & {
@@ -11,6 +17,7 @@ type RecoveryDocument = Pick<Document, "addEventListener" | "removeEventListener
 
 export type ReconnectRecoveryOptions = {
   debounceMs?: number;
+  events?: readonly ReconnectRecoveryEvent[];
   windowTarget?: RecoveryWindow;
   documentTarget?: RecoveryDocument;
 };
@@ -39,6 +46,7 @@ export function subscribeToReconnectRecovery(
   if (!windowTarget || !documentTarget) return () => {};
 
   const debounceMs = options.debounceMs ?? DEFAULT_RECONNECT_RECOVERY_DEBOUNCE_MS;
+  const events = options.events ?? DEFAULT_RECOVERY_EVENTS;
   let timer: ReturnType<RecoveryWindow["setTimeout"]> | null = null;
   let eventScheduled = false;
 
@@ -58,13 +66,22 @@ export function subscribeToReconnectRecovery(
   const onVisibilityChange = () => {
     if (documentTarget.visibilityState === "visible") schedule();
   };
+  const onPageShow = (event: Event) => {
+    if ((event as PageTransitionEvent).persisted) schedule();
+  };
 
-  windowTarget.addEventListener("online", onOnline);
-  documentTarget.addEventListener("visibilitychange", onVisibilityChange);
+  if (events.includes("online")) windowTarget.addEventListener("online", onOnline);
+  if (events.includes("visible")) {
+    documentTarget.addEventListener("visibilitychange", onVisibilityChange);
+  }
+  if (events.includes("pageshow")) windowTarget.addEventListener("pageshow", onPageShow);
 
   return () => {
-    windowTarget.removeEventListener("online", onOnline);
-    documentTarget.removeEventListener("visibilitychange", onVisibilityChange);
+    if (events.includes("online")) windowTarget.removeEventListener("online", onOnline);
+    if (events.includes("visible")) {
+      documentTarget.removeEventListener("visibilitychange", onVisibilityChange);
+    }
+    if (events.includes("pageshow")) windowTarget.removeEventListener("pageshow", onPageShow);
     if (timer !== null) windowTarget.clearTimeout(timer);
     timer = null;
     eventScheduled = false;
@@ -74,10 +91,11 @@ export function subscribeToReconnectRecovery(
 export function useReconnectRecovery(
   enabled: boolean,
   reload: () => void,
-  options: Pick<ReconnectRecoveryOptions, "debounceMs"> = {},
+  options: Pick<ReconnectRecoveryOptions, "debounceMs" | "events"> = {},
 ): void {
   const reloadRef = useRef(reload);
   const debounceMs = options.debounceMs;
+  const events = options.events;
 
   useEffect(() => {
     reloadRef.current = reload;
@@ -87,7 +105,10 @@ export function useReconnectRecovery(
     if (!enabled) return undefined;
     return subscribeToReconnectRecovery(
       () => reloadRef.current(),
-      debounceMs === undefined ? {} : { debounceMs },
+      {
+        ...(debounceMs === undefined ? {} : { debounceMs }),
+        ...(events === undefined ? {} : { events }),
+      },
     );
-  }, [enabled, debounceMs]);
+  }, [enabled, debounceMs, events]);
 }

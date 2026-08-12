@@ -27,6 +27,7 @@ import AnalyticsConsentPrompt from "@/components/AnalyticsConsentPrompt";
 import PosthogPageviews from "@/components/PosthogPageviews";
 import SkipLink from "@/components/a11y/SkipLink";
 import SplashAperture from "@/components/splash/SplashAperture";
+import DeploymentSkewRecovery from "@/components/DeploymentSkewRecovery";
 
 // Site-wide structured data (Wave S1.3). WebSite + Organization only — the
 // identity graph Google reads for the brand panel and AI engines read to know
@@ -394,6 +395,7 @@ export default async function RootLayout({
           <PosthogPageviews />
         </Suspense>
         <AnalyticsConsentPrompt />
+        <DeploymentSkewRecovery />
       </body>
     </html>
   );
