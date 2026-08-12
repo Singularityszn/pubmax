@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
 import ProfileCoverCarousel from "@/components/profile/ProfileCoverCarousel";
+import HandleAvatar from "@/components/profile/HandleAvatar";
 import ProfileSocialLinks from "@/components/profile/ProfileSocialLinks";
 import { displayHandle } from "@/lib/handleDisplay";
 import { profileCoverUrls } from "@/lib/profileCovers";
@@ -40,11 +40,6 @@ const PROFILE_STAT_LABELS = [
   "Crawls",
   "Memories",
 ] as const;
-
-function initialOf(name: string, handle: string): string {
-  const source = name.trim() || handle.trim();
-  return (source.charAt(0) || "?").toUpperCase();
-}
 
 /**
  * One statistic and the surface it counts. The visible text stays the bare
@@ -146,10 +141,8 @@ export default function ProfileHeader({
   actions,
 }: ProfileHeaderProps) {
   const { handle, displayName, homeCity, bio, avatarUrl, foundingMemberNumber } = profile;
-  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
   if (viewerState === "loading") return <ProfileHeaderLoading />;
 
-  const showAvatar = Boolean(avatarUrl) && failedAvatarUrl !== avatarUrl;
   // The backdrop is a rotation of up to five, and `profileCoverUrls` is the ONE
   // place the list and the single back-compat cover are reconciled.
   const covers = profileCoverUrls(profile);
@@ -183,21 +176,14 @@ export default function ProfileHeader({
           bio as the opening line directly under both. */}
       <div className="profileHeroBody">
         <div className="profileIdentity">
-          {showAvatar ? (
-            <Image
-              className="profileAvatar"
-              src={avatarUrl!}
-              alt=""
-              width={176}
-              height={176}
-              unoptimized
-              onError={() => setFailedAvatarUrl(avatarUrl ?? null)}
-            />
-          ) : (
-            <div className="profileAvatar profileAvatarFallback" aria-hidden="true">
-              {initialOf(displayName, handle)}
-            </div>
-          )}
+          <HandleAvatar
+            handle={handle}
+            displayName={displayName}
+            avatarUrl={avatarUrl}
+            className="profileAvatar profileAvatarFallback"
+            imageClassName="profileAvatar"
+            size={176}
+          />
 
           <div className="profileNames">
             <h1 className="profileDisplayName">{displayName}</h1>
