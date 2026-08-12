@@ -29,16 +29,13 @@ import { discardBody } from "@/lib/responseBody";
  * stored in our tables and never logged.
  *
  * `hasPassword` is TRI-STATE (`/api/identity/handle/current`): null means the
- * read could not answer, and then the section names neither state rather than
- * telling an owner with a password that they have none.
+ * read could not answer, and then no password surface renders.
  */
 export default function SetAccountPassword(): React.JSX.Element | null {
   const { configured, user, identityResolved } = useAuth();
   const [hasHandle, setHasHandle] = useState(false);
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
   const [handleLoaded, setHandleLoaded] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [loadAttempt, setLoadAttempt] = useState(0);
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -53,7 +50,6 @@ export default function SetAccountPassword(): React.JSX.Element | null {
         setHasHandle(false);
         setHasPassword(null);
         setHandleLoaded(false);
-        setLoadError(null);
       });
       return;
     }
@@ -67,7 +63,6 @@ export default function SetAccountPassword(): React.JSX.Element | null {
             setHasHandle(false);
             setHasPassword(null);
             setHandleLoaded(true);
-            setLoadError("Account details are unavailable right now.");
           }
           return;
         }
@@ -81,46 +76,22 @@ export default function SetAccountPassword(): React.JSX.Element | null {
             typeof body.hasPassword === "boolean" ? body.hasPassword : null,
           );
           setHandleLoaded(true);
-          setLoadError(null);
         }
-      } catch (error) {
+      } catch {
         if (!cancelled) {
           setHasHandle(false);
           setHasPassword(null);
           setHandleLoaded(true);
-          setLoadError(
-            error instanceof AuthActionSessionError
-              ? error.message
-              : "Account details are unavailable right now.",
-          );
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [identityResolved, loadAttempt, user]);
+  }, [identityResolved, user]);
 
   if (!configured || !user || !identityResolved || !handleLoaded) return null;
-
-  if (loadError) {
-    return (
-      <section className="accountHubPassword accountHubPasswordReadError">
-        <h3>Password</h3>
-        <p role="alert">{loadError}</p>
-        <button
-          type="button"
-          onClick={() => {
-            setLoadError(null);
-            setHandleLoaded(false);
-            setLoadAttempt((attempt) => attempt + 1);
-          }}
-        >
-          Try again
-        </button>
-      </section>
-    );
-  }
+  if (hasPassword === null) return null;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -199,19 +170,13 @@ export default function SetAccountPassword(): React.JSX.Element | null {
   // Only a read that ANSWERED may name a state. A create-flavoured heading over
   // an account that already has one would read as "yours has gone".
   const heading =
-    hasPassword === true
-      ? "Change password"
-      : hasPassword === false
-        ? "Create password"
-        : "Password";
+    hasPassword === true ? "Change password" : "Create password";
   const intro =
     hasPassword === true
       ? "Pick a new password for signing in with your handle."
-      : hasPassword === false
-        ? "You sign in with an email link. Add a password and you can use your handle instead."
-        : "Sign in with your handle and password as well as an email link.";
+      : "You sign in with an email link. Add a password and you can use your handle instead.";
 
-  return (
+  const passwordForm = (
     <form
       className={`accountHubPassword${hasPassword === false ? " accountHubPasswordOwed" : ""}`}
       method="post"
@@ -276,5 +241,14 @@ export default function SetAccountPassword(): React.JSX.Element | null {
         </p>
       ) : null}
     </form>
+  );
+
+  return hasPassword === true ? (
+    <details className="accountHubPasswordChange">
+      <summary>Change password</summary>
+      {passwordForm}
+    </details>
+  ) : (
+    passwordForm
   );
 }
