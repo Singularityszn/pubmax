@@ -90,11 +90,12 @@ describe("the icon set is cut from the master mark", () => {
 
 describe("every committed icon matches a fresh regeneration", () => {
   it("stamps the files the generator declares and no others", () => {
-    // The `-x` mirrors are in this list because app/layout.tsx LINKS them. They
-    // were hand-copied before, so a regenerated icon could reach public/ while
-    // the browser was still sent to the stale path.
+    // The `-x` and versioned mirrors are in this list because app/layout.tsx
+    // LINKS them. They were hand-copied before, so a regenerated icon could
+    // reach public/ while the browser was still sent to the stale path.
     expect([...built.keys()].sort()).toEqual([
       "apple-touch-icon-dark.png",
+      "apple-touch-icon-v2.png",
       "apple-touch-icon-x.png",
       "apple-touch-icon.png",
       "favicon-dark.svg",
@@ -134,6 +135,7 @@ describe("every committed icon matches a fresh regeneration", () => {
   for (const name of [
     "apple-touch-icon.png",
     "apple-touch-icon-x.png",
+    "apple-touch-icon-v2.png",
     "apple-touch-icon-dark.png",
     "icon-192.png",
     "icon-x-192.png",
@@ -287,7 +289,7 @@ describe("what the head and the manifest point at exists", () => {
 
   it("lists only generated files in the manifest", () => {
     for (const icon of manifest.icons) {
-      const name = icon.src.replace(/^\//, "");
+      const name = icon.src.split("?", 1)[0].replace(/^\//, "");
       expect(`${icon.src} is generated`).toBe(
         `${icon.src} is ${built.has(name) ? "generated" : "MISSING"}`,
       );
@@ -308,7 +310,9 @@ describe("what the head and the manifest point at exists", () => {
   });
 
   it("links every icon the document declares", () => {
-    for (const url of layout.matchAll(/url: "(\/[^"]+\.(?:png|svg|ico))"/g)) {
+    const iconUrlPattern =
+      /url: "(\/(?:favicon|icon|apple-touch-icon)[^"]+\.(?:png|svg|ico))(?:\?[^"]+)?"/g;
+    for (const url of layout.matchAll(iconUrlPattern)) {
       const name = url[1].replace(/^\//, "");
       expect(`${url[1]} is generated`).toBe(
         `${url[1]} is ${built.has(name) ? "generated" : "MISSING"}`,
@@ -317,7 +321,7 @@ describe("what the head and the manifest point at exists", () => {
   });
 
   it("selects the dark favicon by media, and never the apple-touch icon", () => {
-    expect(layout).toContain('url: "/favicon-dark.svg"');
+    expect(layout).toContain('url: "/favicon-dark.svg?v=2"');
     expect(layout).toContain('media: "(prefers-color-scheme: dark)"');
     // iOS ignores `media` on an apple-touch-icon link, so declaring one there
     // would promise an appearance switch that never happens.
