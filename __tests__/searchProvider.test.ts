@@ -43,6 +43,7 @@ function tavilyResponse(overrides: Record<string, unknown> = {}) {
 }
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
@@ -124,6 +125,25 @@ describe("search provider selection", () => {
     const provider = createSearchProvider({
       env: { VERCEL_OIDC_TOKEN: "oidc-test-token" },
       dependencies: gatewayDependencies(generateText),
+    });
+
+    const result = await provider.search({ query: "official menu" });
+
+    expect(provider.configured).toBe(true);
+    expect(result.provider).toBe("exa");
+    expect(result.results).toHaveLength(1);
+  });
+
+  it("uses Exa with Vercel request-context OIDC credentials", async () => {
+    vi.stubGlobal(Symbol.for("@vercel/request-context"), {
+      get: () => ({ headers: { "x-vercel-oidc-token": "request-oidc-test-token" } }),
+    });
+    const provider = createSearchProvider({
+      env: {},
+      dependencies: gatewayDependencies(vi.fn(async () => ({
+        steps: [{ toolResults: [{ toolName: "exa_search", output: { results: [officialResult] } }] }],
+        usage: { inputTokens: 2, outputTokens: 3 },
+      }))),
     });
 
     const result = await provider.search({ query: "official menu" });

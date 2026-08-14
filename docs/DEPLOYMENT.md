@@ -47,7 +47,7 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `PLAN_IDEMPOTENCY_SECRET` | Optional dedicated HMAC secret of at least 32 random bytes for retry-safe Plan writes, grounding proofs, referral signup proofs, and verified loop analytics. When omitted, the required `RATE_LIMIT_SALT` is used. A configured short value fails startup/signing rather than silently falling back. |
 | `EXA_API_KEY` | Powers the scheduled signals-ingestion job (sol.md TL-6). If unset, that job is skipped; the interactive app path does not depend on it. |
 | `SEARCH_PROVIDER` | **Server-only** `exa` (default) or `tavily` selector for `/api/cron/enrich-city-pubs`. Set `tavily` to switch providers without a code change. |
-| `AI_GATEWAY_API_KEY` | Optional **server-only** explicit Vercel AI Gateway credential for Exa search in `/api/cron/enrich-city-pubs`. Vercel's injected `VERCEL_OIDC_TOKEN` is also accepted automatically. No separate Exa key is used by this path. |
+| `AI_GATEWAY_API_KEY` | Optional **server-only** explicit Vercel AI Gateway credential for Exa search in `/api/cron/enrich-city-pubs`. Vercel request-context OIDC is also accepted automatically. No separate Exa key is used by this path. |
 | `SEARCH_GATEWAY_MAX_CALLS` | Hard per-run Gateway call cap for city enrichment. The cron logs calls, model, and estimated tokens and stops before this cap is exceeded. |
 | `TAVILY_API_KEY` | **Server-only** fallback key for the rotating UK city pub-enrichment cron and `npm run enrich:city`. If neither selected provider is configured, the cron is an honest no-op (see `docs/CRON_PLANE_RUNBOOK.md`). |
 | `TFL_APP_KEY` | Optional TfL app key for every TfL read (`/api/last-train`, `/api/nearby-bus-departures`, via `lib/tflClient.server.ts`). The keyless TfL API is used by default; the key is only appended when present (higher rate limits). |
@@ -72,7 +72,7 @@ misconfigured.
 
 | Var | Purpose |
 |---|---|
-| `VERCEL_OIDC_TOKEN` | Minted and injected by the Vercel CLI / build (`vercel env pull`, `vercel dev`) for OIDC federation. AI SDK Gateway uses it automatically, and server-side search-provider selection checks its presence. Do not set it manually. |
+| `VERCEL_OIDC_TOKEN` | Supplied by the Vercel CLI / build (`vercel env pull`, `vercel dev`) for local OIDC federation. Production functions receive OIDC through request context. AI SDK Gateway and server-side search-provider selection resolve both paths. Do not set it manually. |
 
 ## Supabase setup
 

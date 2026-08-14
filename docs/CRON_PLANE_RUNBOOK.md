@@ -84,7 +84,7 @@ still sits clear of the evening read.
 | Events (later) | Ticketmaster Discovery | `TICKETMASTER_API_KEY` | Free instant key; lights up the events vertical when full ingest is wired. |
 | **Night Signals — candidates** | Exa | `EXA_API_KEY` | Cron logs the absent key and no-op skips; candidates stay wherever the last sweep left them. |
 | **Social text moderation** | OpenAI | `OPENAI_API_KEY` | Both crons return 503 before they claim a job; queued posts, comments, and quotes stay pending. |
-| **UK city pub enrichment** | Exa through Vercel AI Gateway, with Tavily fallback (discovery only - never provenance; see `data/price_sources.json`) | `SEARCH_PROVIDER`, `AI_GATEWAY_API_KEY` or Vercel-injected `VERCEL_OIDC_TOKEN`, `SEARCH_GATEWAY_MAX_CALLS`, `TAVILY_API_KEY` | Defaults to Exa. Missing Gateway credentials fall back loudly to Tavily. If neither path is configured, cron is an honest no-op. Set server-only values as Vercel secrets. |
+| **UK city pub enrichment** | Exa through Vercel AI Gateway, with Tavily fallback (discovery only - never provenance; see `data/price_sources.json`) | `SEARCH_PROVIDER`, `AI_GATEWAY_API_KEY` or automatic Vercel OIDC, `SEARCH_GATEWAY_MAX_CALLS`, `TAVILY_API_KEY` | Defaults to Exa. Missing Gateway credentials fall back loudly to Tavily. If neither path is configured, cron is an honest no-op. Set server-only values as Vercel secrets. |
 
 Provider-key failures follow the table above. A missing key never produces fake
 success.

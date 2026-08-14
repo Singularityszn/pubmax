@@ -1,3 +1,4 @@
+import { getVercelOidcTokenSync } from "@vercel/oidc";
 import { gateway, generateText } from "ai";
 
 export const SEARCH_GATEWAY_MODEL = "openai/gpt-5-nano";
@@ -161,7 +162,12 @@ function gatewayMaxCalls(env: Record<string, string | undefined>): number {
 }
 
 function hasGatewayCredentials(env: Record<string, string | undefined>): boolean {
-  return Boolean(env.AI_GATEWAY_API_KEY?.trim() || env.VERCEL_OIDC_TOKEN?.trim());
+  if (env.AI_GATEWAY_API_KEY?.trim() || env.VERCEL_OIDC_TOKEN?.trim()) return true;
+  try {
+    return Boolean(getVercelOidcTokenSync().trim());
+  } catch {
+    return false;
+  }
 }
 
 function makeStats(
