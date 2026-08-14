@@ -65,7 +65,7 @@ Run:
 
 Run:
 
-`npx playwright test e2e/tonight-trusted-ui.flag-on.spec.ts --project=chromium-flag-on`
+`PUBMAX_TONIGHT_GROUPING=1 PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE=1 npx playwright test e2e/tonight-trusted-ui.flag-on.spec.ts --project=chromium-flag-on`
 
 Expected: both suites pass. Default and canonical paths use the same main-list-first order.
 
