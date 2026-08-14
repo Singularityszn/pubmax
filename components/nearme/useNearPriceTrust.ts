@@ -8,6 +8,12 @@ import type { NearPriceTrustResponse } from "@/lib/nearPriceTrust";
 
 export type NearPriceTrustView = "loading" | NearPriceTrustResponse;
 
+export type NearPriceTrustRequest = {
+  promise: Promise<NearPriceTrustResponse>;
+  signal: AbortSignal;
+  abort: () => void;
+};
+
 const MAX_TRUST_IDS = 5;
 
 export function buildNearPriceTrustUrl(cards: readonly NearMeCard[]): string | null {
@@ -22,7 +28,10 @@ export function buildNearPriceTrustUrl(cards: readonly NearMeCard[]): string | n
 function isNearPriceTrustResponse(value: unknown): value is NearPriceTrustResponse {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<NearPriceTrustResponse>;
+  const responseKeys = Object.keys(candidate);
   return (
+    responseKeys.length === 3 &&
+    responseKeys.every((key) => ["status", "collectedAt", "results"].includes(key)) &&
     (candidate.status === "ready" || candidate.status === "degraded") &&
     typeof candidate.collectedAt === "string" &&
     Array.isArray(candidate.results) &&
@@ -30,12 +39,37 @@ function isNearPriceTrustResponse(value: unknown): value is NearPriceTrustRespon
       (item) =>
         item &&
         typeof item === "object" &&
+        Object.keys(item).length === 3 &&
+        ["venueId", "price", "publisher"].every((key) => Object.hasOwn(item, key)) &&
         typeof item.venueId === "string" &&
         typeof item.price === "number" &&
         Number.isFinite(item.price) &&
         (item.publisher === null || typeof item.publisher === "string"),
     )
   );
+}
+
+export function startNearPriceTrustRequest(
+  requestUrl: string,
+  fetcher: typeof fetch = fetch,
+): NearPriceTrustRequest {
+  const controller = new AbortController();
+  const promise = fetcher(requestUrl, {
+    cache: "no-store",
+    signal: controller.signal,
+  }).then(async (response) => {
+    if (!response.ok) throw new Error("near price trust read failed");
+    const body: unknown = await response.json();
+    if (!isNearPriceTrustResponse(body)) {
+      throw new Error("near price trust response invalid");
+    }
+    return body;
+  });
+  return {
+    promise,
+    signal: controller.signal,
+    abort: () => controller.abort(),
+  };
 }
 
 function degradedResponse(): NearPriceTrustResponse {
@@ -61,30 +95,24 @@ export function useNearPriceTrust(
   useEffect(() => {
     const generation = ++generationRef.current;
     if (!enabled || !requestUrl) return;
-    const controller = new AbortController();
     // An external server read owns this transition. Prices stay rendered.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setResolved({ requestUrl, view: "loading" });
-    void fetch(requestUrl, { cache: "no-store", signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("near price trust read failed");
-        const body: unknown = await response.json();
-        if (!isNearPriceTrustResponse(body)) throw new Error("near price trust response invalid");
-        return body;
-      })
+    const request = startNearPriceTrustRequest(requestUrl);
+    void request.promise
       .then((body) => {
         if (generation === generationRef.current) {
           setResolved({ requestUrl, view: body });
         }
       })
       .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
+        if (request.signal.aborted) return;
         if (generation === generationRef.current) {
           setResolved({ requestUrl, view: degradedResponse() });
         }
         void error;
       });
-    return () => controller.abort();
+    return () => request.abort();
   }, [enabled, requestUrl]);
 
   if (!enabled || !requestUrl) return undefined;

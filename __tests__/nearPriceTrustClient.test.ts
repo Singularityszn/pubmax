@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { buildNearPriceTrustUrl } from "@/components/nearme/useNearPriceTrust";
+import {
+  buildNearPriceTrustUrl,
+  startNearPriceTrustRequest,
+} from "@/components/nearme/useNearPriceTrust";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
 
 function card(id: string, price: number): NearMeCard {
@@ -41,5 +44,46 @@ describe("near price trust client request", () => {
 
   it("does not make an empty trust request", () => {
     expect(buildNearPriceTrustUrl([])).toBeNull();
+  });
+
+  it("passes an abort signal and cancels an in-flight request", async () => {
+    let rejectFetch: ((reason: unknown) => void) | undefined;
+    const fetcher = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          rejectFetch = reject;
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("The operation was aborted.", "AbortError"));
+          });
+        }),
+    );
+    const request = startNearPriceTrustRequest("/api/near-price-trust?venueId=venue-a", fetcher);
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/near-price-trust?venueId=venue-a",
+      expect.objectContaining({ cache: "no-store", signal: request.signal }),
+    );
+
+    request.abort();
+
+    expect(request.signal.aborted).toBe(true);
+    await expect(request.promise).rejects.toMatchObject({ name: "AbortError" });
+    rejectFetch?.(new Error("must not matter after abort"));
+  });
+
+  it("rejects a response that contains publisher data outside the display contract", async () => {
+    const fetcher = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          status: "ready",
+          collectedAt: "2026-07-03",
+          results: [{ venueId: "venue-a", price: 4.5, publisher: "Pint Prices", sourceUrl: "https://secret.example" }],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    const request = startNearPriceTrustRequest("/api/near-price-trust?venueId=venue-a", fetcher);
+
+    await expect(request.promise).rejects.toThrow("near price trust response invalid");
   });
 });
