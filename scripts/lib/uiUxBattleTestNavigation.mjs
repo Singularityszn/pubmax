@@ -1,3 +1,5 @@
+import { isLocalUiUxAuditOrigin } from "./uiUxBattleTestBrowser.mjs";
+
 export const AUDITED_ORIGINS = [
   { name: "live", url: "https://pubmaxxing.com" },
   { name: "local", url: "http://localhost:3000" },
@@ -58,7 +60,7 @@ export const AUDITED_ROUTES = [
     name: "crawls",
     path: "/crawls",
     readySelector:
-      "main.crawlsShell:not([aria-busy='true']):is([data-venue-index-status='ready'], :not([data-venue-index-status]))",
+      "main.crawlsShell:not([aria-busy='true']):is([data-venue-index-status='ready'], :not([data-venue-index-status]):has(.curatedPriceFrom))",
     waitForAuthResolution: true,
   },
 ];
@@ -118,11 +120,6 @@ export function selectAuditedFlows(routes) {
   );
 }
 
-function isLocalAuditUrl(value) {
-  const hostname = new URL(value).hostname;
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
-}
-
 export async function waitForAuditedRouteSettlement(page, route, timeout = 30_000) {
   await page.locator(route.readySelector).first().waitFor({ state: "visible", timeout });
   for (const selector of route.pendingSelectors ?? []) {
@@ -138,6 +135,15 @@ export async function waitForAuditedRouteSettlement(page, route, timeout = 30_00
       .waitFor({ state: "attached", timeout });
   }
   if (route.waitForPaintedMap) {
+    const localAudit = isLocalUiUxAuditOrigin(page.url());
+    if (!localAudit) {
+      const reducedMotion = await page.evaluate(() =>
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      );
+      if (!reducedMotion) {
+        throw new Error("Frozen live map audit requires reduced motion");
+      }
+    }
     await page.waitForFunction((requireEntranceSettlement) => {
       if (document.querySelector(".mapFallback")) return false;
       const pinTrace = performance.getEntriesByName("pubmax:first-pins").length > 0;
@@ -148,7 +154,7 @@ export async function waitForAuditedRouteSettlement(page, route, timeout = 30_00
         (!requireEntranceSettlement || entranceSettled) &&
         typeof tapPoints === "function" &&
         tapPoints().length > 0;
-    }, isLocalAuditUrl(page.url()), { timeout });
+    }, localAudit, { timeout });
   }
   await page.evaluate(async () => {
     await document.fonts.ready;

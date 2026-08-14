@@ -713,7 +713,15 @@
 
 .tonightPrimary {
   display: block;
+}
+
+.tonightPrimary[data-status="idle"] {
   min-height: min(640px, 75vh);
+}
+
+.tonightPage[data-listings-status="idle"] .tonightSecondaryLanes--mobile,
+.tonightPage[data-listings-status="idle"] .tonightAfterPrimary {
+  visibility: hidden;
 }
 
 /* Wide Tonight uses the same reading canvas as Plan: primary choices stay in

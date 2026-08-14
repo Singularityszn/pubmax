@@ -4,6 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 import {
   AUDITED_ORIGINS,
   AUDITED_ROUTES,
+  UI_UX_CLS_BUDGET,
   navigateToAuditedRoute,
   selectAuditedFlows,
   selectAuditedOrigins,
@@ -11,6 +12,7 @@ import {
 } from "../scripts/lib/uiUxBattleTestNavigation.mjs";
 import {
   UI_UX_CHROMIUM_ARGS,
+  uiUxAuditContextOptions,
   uiUxChromiumLaunchOptions,
 } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
 import { resolveAuditOutputRoot } from "../scripts/lib/uiUxBattleTestOutput.mjs";
@@ -49,6 +51,15 @@ test("audit browser policy supplies SwiftShader to every caller", () => {
   expect(uiUxChromiumLaunchOptions()).toEqual({
     headless: true,
     args: UI_UX_CHROMIUM_ARGS,
+  });
+  expect(uiUxChromiumLaunchOptions("chrome")).toEqual({
+    headless: true,
+    channel: "chrome",
+    args: UI_UX_CHROMIUM_ARGS,
+  });
+  expect(uiUxAuditContextOptions("http://localhost:3000")).toEqual({});
+  expect(uiUxAuditContextOptions("https://pubmaxxing.com")).toEqual({
+    reducedMotion: "reduce",
   });
 });
 
@@ -156,7 +167,18 @@ test("shared readiness accepts frozen live markers", async ({ page }) => {
     route.fulfill({
       status: 200,
       contentType: "text/html",
-      body: '<main class="crawlsShell">Crawls</main><div class="authUser"></div>',
+      body: `
+        <main class="crawlsShell">Crawls</main>
+        <div class="authUser"></div>
+        <script>
+          setTimeout(() => {
+            document.querySelector("main").insertAdjacentHTML(
+              "beforeend",
+              '<span class="curatedPriceFrom">Pints from £4.50</span>',
+            );
+          }, 100);
+        </script>
+      `,
     }),
   );
 
@@ -166,7 +188,68 @@ test("shared readiness accepts frozen live markers", async ({ page }) => {
     AUDITED_ROUTES.find(({ name }) => name === "crawls")!,
     500,
   );
+  expect(await page.locator(".curatedPriceFrom").count()).toBe(1);
   await expect(page.locator("main.crawlsShell")).toBeVisible();
+});
+
+test("frozen live map readiness requires reduced motion", async ({ page }) => {
+  await page.route("https://pubmaxxing.com/map/london", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: `
+        <main class="mapCanvasWrap"><canvas class="maplibreMap"></canvas></main>
+        <script>
+          performance.mark("pubmax:first-pins");
+          window.__pubmaxPaintedMapTapPoints = () => [
+            { kind: "pin", id: "venue-1", x: 40, y: 40 }
+          ];
+        </script>
+      `,
+    }),
+  );
+  const route = {
+    name: "live-map",
+    path: "/map/london",
+    readySelector: ".mapCanvasWrap:has(.maplibreMap)",
+    waitForPaintedMap: true,
+  };
+
+  await expect(
+    navigateToAuditedRoute(page, "https://pubmaxxing.com", route, 300),
+  ).rejects.toThrow("reduced motion");
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await navigateToAuditedRoute(page, "https://pubmaxxing.com", route, 500);
+});
+
+test("Tonight reserves loading space without holding settled content", async ({
+  baseURL,
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/whats-on?**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ rows: [], asOf: "2026-08-14T18:00:00.000Z" }),
+    });
+  });
+
+  const route = AUDITED_ROUTES.find(({ name }) => name === "tonight")!;
+  const navigation = navigateToAuditedRoute(page, baseURL!, route);
+  await expect(page.getByText("Reading tonight’s listings…")).toBeVisible();
+  expect(await page.locator(".tonightPrimary").evaluate((element) =>
+    Number.parseFloat(getComputedStyle(element).minHeight),
+  )).toBeGreaterThan(0);
+  await expect(page.locator(".tonightAfterPrimary")).toHaveCSS("visibility", "hidden");
+
+  const result = await navigation;
+  await expect(page.locator(".tonightPrimary")).toHaveCSS("min-height", "0px");
+  await expect(page.locator(".tonightAfterPrimary")).toHaveCSS("visibility", "visible");
+  expect(result.cls).not.toBeNull();
+  expect(result.cls!).toBeLessThan(UI_UX_CLS_BUDGET);
 });
 
 test("shared audit navigation measures layout shift from navigation start", async ({

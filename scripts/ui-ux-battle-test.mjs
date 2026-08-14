@@ -1,7 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
-import { uiUxChromiumLaunchOptions } from "./lib/uiUxBattleTestBrowser.mjs";
+import {
+  uiUxAuditContextOptions,
+  uiUxChromiumLaunchOptions,
+} from "./lib/uiUxBattleTestBrowser.mjs";
 import {
   AUDITED_ROUTES,
   UI_UX_CLS_BUDGET,
@@ -128,6 +131,7 @@ async function inspectPage(page, origin, viewport, route) {
       safeAreaConsumers,
       cls: layoutStability.supported ? layoutStability.cls : null,
       clsSupported: layoutStability.supported,
+      reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
       bodyBackground: getComputedStyle(document.body).backgroundColor,
     };
   });
@@ -270,6 +274,7 @@ async function exerciseNamedFlows(origin, viewport, auditedFlows) {
     isMobile: viewport.isMobile,
     hasTouch: viewport.hasTouch,
     colorScheme,
+    ...uiUxAuditContextOptions(origin.url),
   });
   await flowPage.addInitScript(() => {
     localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -417,6 +422,7 @@ for (const origin of selectedOrigins) {
       hasTouch: viewport.hasTouch,
       colorScheme,
       serviceWorkers: "block",
+      ...uiUxAuditContextOptions(origin.url),
     });
     const page = await context.newPage();
     page.on("pageerror", (error) => addFinding({
@@ -459,7 +465,13 @@ for (const origin of selectedOrigins) {
 
 await fs.writeFile(
   path.join(outputRoot, "audit.json"),
-  JSON.stringify({ clsBudget: UI_UX_CLS_BUDGET, pages, flows, findings }, null, 2),
+  JSON.stringify({
+    clsBudget: UI_UX_CLS_BUDGET,
+    motionPolicy: { live: "reduce", local: "no-preference" },
+    pages,
+    flows,
+    findings,
+  }, null, 2),
 );
 await Promise.race([
   browser.close(),

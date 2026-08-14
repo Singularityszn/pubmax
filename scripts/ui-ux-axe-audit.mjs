@@ -2,7 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
 import AxeBuilder from "@axe-core/playwright";
-import { uiUxChromiumLaunchOptions } from "./lib/uiUxBattleTestBrowser.mjs";
+import {
+  uiUxAuditContextOptions,
+  uiUxChromiumLaunchOptions,
+} from "./lib/uiUxBattleTestBrowser.mjs";
 import {
   AUDITED_ROUTES,
   navigateToAuditedRoute,
@@ -21,7 +24,12 @@ const browser = await chromium.launch(uiUxChromiumLaunchOptions(browserChannel))
 const results = [];
 
 for (const viewport of viewports) {
-  const context = await browser.newContext({ ...viewport, colorScheme, serviceWorkers: "block" });
+  const context = await browser.newContext({
+    ...viewport,
+    colorScheme,
+    serviceWorkers: "block",
+    ...uiUxAuditContextOptions(origin),
+  });
   const page = await context.newPage();
   for (const route of AUDITED_ROUTES) {
     await navigateToAuditedRoute(page, origin, route);
@@ -29,6 +37,9 @@ for (const viewport of viewports) {
     results.push({
       viewport: viewport.name,
       route: route.path,
+      reducedMotion: await page.evaluate(() =>
+        matchMedia("(prefers-reduced-motion: reduce)").matches,
+      ),
       violations: axe.violations.map(({ id, impact, description, help, nodes }) => ({
         id,
         impact,
