@@ -1,16 +1,18 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
+import {
+  AUDITED_ROUTES,
+  navigateToAuditedRoute,
+  selectAuditedOrigins,
+  selectAuditedRoutes,
+} from "./lib/uiUxBattleTestNavigation.mjs";
 import { prepareAuditOutputRoot } from "./lib/uiUxBattleTestOutput.mjs";
 
-const outputRoot = await prepareAuditOutputRoot(process.env.UI_UX_OUTPUT);
 const colorScheme = process.env.UI_UX_COLOR_SCHEME ?? "light";
-const originFilter = process.env.UI_UX_ORIGINS?.split(",").filter(Boolean);
-const routeFilter = process.env.UI_UX_ROUTES?.split(",").filter(Boolean);
-const origins = [
-  { name: "live", url: "https://pubmaxxing.com" },
-  { name: "local", url: "http://127.0.0.1:3000" },
-];
+const selectedOrigins = selectAuditedOrigins(process.env.UI_UX_ORIGINS);
+const selectedRoutes = selectAuditedRoutes(process.env.UI_UX_ROUTES);
+const outputRoot = await prepareAuditOutputRoot(process.env.UI_UX_OUTPUT);
 const viewports = [
   {
     name: "mobile-390",
@@ -27,25 +29,6 @@ const viewports = [
     hasTouch: false,
   },
 ];
-const routes = [
-  { name: "home", path: "/" },
-  { name: "today", path: "/today" },
-  { name: "tonight", path: "/tonight" },
-  { name: "near", path: "/near" },
-  { name: "add", path: "/add/karan" },
-  { name: "login", path: "/login" },
-  { name: "profile", path: "/u/karan" },
-  { name: "map", path: "/map/london" },
-  { name: "plan", path: "/plan" },
-  { name: "crawls", path: "/crawls" },
-];
-const selectedOrigins = originFilter
-  ? origins.filter((origin) => originFilter.includes(origin.name))
-  : origins;
-const selectedRoutes = routeFilter
-  ? routes.filter((route) => routeFilter.includes(route.name) || routeFilter.includes(route.path))
-  : routes;
-
 const browser = await chromium.launch({ headless: true });
 const findings = [];
 const pages = [];
@@ -172,12 +155,9 @@ async function inspectPage(page, origin, viewport, route) {
   }
 }
 
-async function navigate(page, origin, viewport, routePath) {
+async function navigate(page, origin, viewport, route) {
   try {
-    await page.goto(`${origin.url}${routePath}`, {
-      waitUntil: "domcontentloaded",
-      timeout: 30_000,
-    });
+    await navigateToAuditedRoute(page, origin.url, route);
     return true;
   } catch (error) {
     addFinding({
@@ -185,7 +165,7 @@ async function navigate(page, origin, viewport, routePath) {
       category: "navigation",
       origin: origin.name,
       viewport: viewport.name,
-      route: routePath,
+      route: route.path,
       element: "document",
       defect: `Navigation failed: ${error.message}`,
       evidence: "navigation",
@@ -195,6 +175,8 @@ async function navigate(page, origin, viewport, routePath) {
 }
 
 async function interact(origin, viewport) {
+  const homeRoute = AUDITED_ROUTES[0];
+  const todayRoute = AUDITED_ROUTES[1];
   const videoName = `${origin.name}-${viewport.name}-key-flow.webm`;
   const videoPage = await browser.newPage({
     viewport: viewport.viewport,
@@ -204,11 +186,10 @@ async function interact(origin, viewport) {
     colorScheme,
     recordVideo: { dir: path.join(outputRoot, "videos"), size: viewport.viewport },
   });
-  if (!await navigate(videoPage, origin, viewport, "/")) {
+  if (!await navigate(videoPage, origin, viewport, homeRoute)) {
     await videoPage.close();
     return;
   }
-  await videoPage.waitForTimeout(1200);
   const buttons = videoPage.locator("button:visible");
   const count = Math.min(await buttons.count(), 5);
   for (let index = 0; index < count; index += 1) {
@@ -225,11 +206,10 @@ async function interact(origin, viewport) {
       // A route can expose a transient or disabled control. The static sweep remains authoritative.
     }
   }
-  if (!await navigate(videoPage, origin, viewport, "/today")) {
+  if (!await navigate(videoPage, origin, viewport, todayRoute)) {
     await videoPage.close();
     return;
   }
-  await videoPage.waitForTimeout(800);
   await videoPage.keyboard.press("Tab");
   await videoPage.waitForTimeout(250);
   await videoPage.screenshot({ path: path.join(outputRoot, `${origin.name}-${viewport.name}-key-flow.png`) });
@@ -263,8 +243,7 @@ for (const origin of selectedOrigins) {
       evidence: "console",
     }));
     for (const route of selectedRoutes) {
-      if (!await navigate(page, origin, viewport, route.path)) continue;
-      await page.waitForTimeout(1200);
+      if (!await navigate(page, origin, viewport, route)) continue;
       try {
         await inspectPage(page, origin, viewport, route);
       } catch (error) {

@@ -68,7 +68,7 @@
 @media (hover: hover) and (pointer: fine) {
   .tonightShare:hover {
     border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
-    color: var(--brass);
+    color: var(--state-active-ink);
   }
 }
 
@@ -242,7 +242,7 @@
   padding: 0;
   font: inherit;
   font-weight: 700;
-  color: var(--brass);
+  color: var(--state-active-ink);
   cursor: pointer;
   text-decoration: underline;
 }
@@ -397,7 +397,7 @@
 /* A deal's own closing time, beside the start the row already prints. */
 .tonightRowEnds {
   font-weight: 700;
-  color: var(--brass);
+  color: var(--state-active-ink);
 }
 
 .tonightRowSource {
@@ -426,12 +426,13 @@
   min-height: 44px;
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--brass);
+  color: var(--state-active-ink);
   text-decoration: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .tonightFootLink:hover {
+    color: var(--ink);
     text-decoration: underline;
   }
 }
@@ -444,11 +445,12 @@
   margin-top: 2px;
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--brass);
+  color: var(--state-active-ink);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .tonightRow:hover .tonightRowCta {
+    color: var(--ink);
     text-decoration: underline;
   }
 }

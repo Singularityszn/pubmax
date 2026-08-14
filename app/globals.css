@@ -126,7 +126,7 @@
      engraved brass plaques (see .price-plaque), never coral price-alerts.
      Amber is full-chroma in both themes, so this role is theme-stable. */
   --accent-price: var(--amber);
-  --accent-price-ink: color-mix(in srgb, var(--amber) 66%, var(--ink));
+  --accent-price-ink: color-mix(in srgb, var(--amber) 52%, var(--ink));
   --price-plaque-surface: color-mix(in srgb, var(--amber) 11%, var(--panel-raised));
   --price-plaque-border: color-mix(in srgb, var(--amber) 46%, var(--line));
   --price-plaque-shine: inset 0 1px 0 color-mix(in srgb, #ffffff 42%, transparent);
@@ -182,7 +182,7 @@
   --accent-action: var(--brass);
   --accent-action-strong: var(--brass-bright);
   --accent-price: var(--amber);
-  --accent-price-ink: color-mix(in srgb, var(--amber) 66%, var(--ink));
+  --accent-price-ink: color-mix(in srgb, var(--amber) 52%, var(--ink));
   --price-plaque-surface: color-mix(in srgb, var(--amber) 11%, var(--panel-raised));
   --price-plaque-border: color-mix(in srgb, var(--amber) 46%, var(--line));
   --price-plaque-shine: inset 0 1px 0 color-mix(in srgb, #ffffff 42%, transparent);

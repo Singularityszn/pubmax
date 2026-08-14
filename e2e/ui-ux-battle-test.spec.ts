@@ -1,53 +1,14 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+import {
+  AUDITED_ORIGINS,
+  AUDITED_ROUTES,
+  navigateToAuditedRoute,
+  selectAuditedOrigins,
+  selectAuditedRoutes,
+} from "../scripts/lib/uiUxBattleTestNavigation.mjs";
 import { resolveAuditOutputRoot } from "../scripts/lib/uiUxBattleTestOutput.mjs";
-
-type AuditedRoute = {
-  path: string;
-  ready: string;
-  settles?: "profile" | "tonight";
-};
-
-const AUDITED_ROUTES: AuditedRoute[] = [
-  { path: "/", ready: "main#main" },
-  { path: "/today", ready: '[data-testid="today-screen"]' },
-  {
-    path: "/tonight",
-    ready: '[data-testid="tonight-screen"]',
-    settles: "tonight",
-  },
-  { path: "/near", ready: ".nmnIntro" },
-  { path: "/add/karan", ready: "main.addShell" },
-  {
-    path: "/login",
-    ready:
-      ".loginPageForm, .loginPageSignedIn, .loginPageWelcomeBack, .loginPageNotice:not(:has-text('Checking your session'))",
-  },
-  { path: "/u/karan", ready: "main.profileMain", settles: "profile" },
-  { path: "/map/london", ready: ".mapCanvasWrap" },
-  { path: "/plan", ready: "main.planPage h1" },
-  { path: "/crawls", ready: "main.crawlsShell:not([aria-busy='true'])" },
-];
-
-async function waitForAuditedRoute(page: Page, route: AuditedRoute) {
-  await expect(page.locator(route.ready).first(), `${route.path} ready marker`).toBeVisible({
-    timeout: 30_000,
-  });
-  if (route.settles === "tonight") {
-    await expect(page.getByText("Reading tonight’s listings…")).toHaveCount(0, {
-      timeout: 30_000,
-    });
-  }
-  if (route.settles === "profile") {
-    await expect(page.locator(".profileTimelineSkel, .profileHeaderLoading")).toHaveCount(0, {
-      timeout: 30_000,
-    });
-  }
-  if (route.path !== "/login" && route.path !== "/map/london") {
-    await expect(page.locator(".authUser").first()).toBeAttached({ timeout: 30_000 });
-  }
-}
 
 test("audit output stays inside dedicated temporary root", () => {
   expect(resolveAuditOutputRoot("after-dark")).toBe(
@@ -60,29 +21,103 @@ test("audit output stays inside dedicated temporary root", () => {
   }
 });
 
-test("audited labels keep readable contrast in reachable states", async ({ page }) => {
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await waitForAuditedRoute(page, AUDITED_ROUTES[0]);
-  const landing = await new AxeBuilder({ page })
-    .include(".lpProofSection .lpSectionLabel")
-    .withRules(["color-contrast"])
-    .analyze();
-  expect(landing.violations).toEqual([]);
+test("audit filters reject empty and unknown selections", () => {
+  expect(selectAuditedOrigins("local")).toEqual([AUDITED_ORIGINS[1]]);
+  expect(selectAuditedRoutes("today,/crawls")).toEqual([
+    AUDITED_ROUTES[1],
+    AUDITED_ROUTES[AUDITED_ROUTES.length - 1],
+  ]);
+  expect(() => selectAuditedOrigins("")).toThrow("select at least one origin");
+  expect(() => selectAuditedOrigins("staging")).toThrow("Unknown UI_UX_ORIGINS value: staging");
+  expect(() => selectAuditedRoutes("/missing")).toThrow("Unknown UI_UX_ROUTES value: /missing");
+});
 
-  await page.goto("/crawls?pack=old-london", { waitUntil: "domcontentloaded" });
-  await waitForAuditedRoute(page, AUDITED_ROUTES[AUDITED_ROUTES.length - 1]);
-  const crawls = await new AxeBuilder({ page })
-    .include(".routePackChip.isActive")
-    .include(".routePackActiveNote a")
-    .withRules(["color-contrast"])
-    .analyze();
-  expect(crawls.violations).toEqual([]);
+test("shared audit navigation rejects HTTP failures and waits for settled UI", async ({
+  baseURL,
+  page,
+}) => {
+  await page.route("**/audit-http-failure", (route) =>
+    route.fulfill({ status: 503, contentType: "text/html", body: "<main>Unavailable</main>" }),
+  );
+  await expect(
+    navigateToAuditedRoute(page, baseURL!, {
+      name: "failure",
+      path: "/audit-http-failure",
+      readySelector: "main",
+    }),
+  ).rejects.toThrow("HTTP 503");
+
+  await page.unroute("**/audit-http-failure");
+  await page.route("**/audit-delayed", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: `
+        <main class="pending">Loading</main>
+        <script>
+          setTimeout(() => {
+            document.querySelector(".pending").remove();
+            document.body.insertAdjacentHTML("beforeend", '<main class="ready">Ready</main>');
+          }, 100);
+        </script>
+      `,
+    }),
+  );
+  await navigateToAuditedRoute(page, baseURL!, {
+    name: "delayed",
+    path: "/audit-delayed",
+    readySelector: ".ready",
+    pendingSelectors: [".pending"],
+  });
+  await expect(page.locator(".ready")).toBeVisible();
+  await expect(page.locator(".pending")).toHaveCount(0);
+});
+
+test("audited labels keep readable contrast in reachable states", async ({ baseURL, page }) => {
+  test.setTimeout(120_000);
+  for (const theme of ["light", "dark"]) {
+    await page.goto("/");
+    await page.evaluate((value) => localStorage.setItem("pubmax-theme", value), theme);
+
+    await navigateToAuditedRoute(page, baseURL!, AUDITED_ROUTES[0]);
+    const landing = await new AxeBuilder({ page })
+      .include(".lpProofSection .lpSectionLabel")
+      .withRules(["color-contrast"])
+      .analyze();
+    expect(landing.violations, `${theme} landing contrast`).toEqual([]);
+
+    const tonightRoute = AUDITED_ROUTES.find((route) => route.name === "tonight")!;
+    await navigateToAuditedRoute(page, baseURL!, tonightRoute);
+    await page.locator(".tonightFootLink").hover();
+    const tonight = await new AxeBuilder({ page })
+      .include(".tonightFootLink")
+      .withRules(["color-contrast"])
+      .analyze();
+    expect(tonight.violations, `${theme} Tonight contrast`).toEqual([]);
+
+    const crawlsRoute = {
+      ...AUDITED_ROUTES.find((route) => route.name === "crawls")!,
+      path: "/crawls?pack=old-london",
+    };
+    await navigateToAuditedRoute(page, baseURL!, crawlsRoute);
+    await page.locator(".routePackChip.isActive").hover();
+    const crawls = await new AxeBuilder({ page })
+      .include(".routePackChip.isActive")
+      .include(".routePackActiveNote a")
+      .include(".curatedPriceFrom")
+      .withRules(["color-contrast"])
+      .analyze();
+    expect(crawls.violations, `${theme} Crawls contrast`).toEqual([]);
+  }
 });
 
 test.describe("UI UX battle-test guardrails", () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
-  test("audited mobile routes keep tap targets and page width within contract", async ({ page }) => {
+  test("audited mobile routes keep tap targets and page width within contract", async ({
+    baseURL,
+    page,
+  }) => {
     test.setTimeout(120_000);
     await page.addInitScript(() => {
       localStorage.setItem("pubmax-theme", "light");
@@ -92,8 +127,7 @@ test.describe("UI UX battle-test guardrails", () => {
     });
 
     for (const route of AUDITED_ROUTES) {
-      await page.goto(route.path, { waitUntil: "domcontentloaded", timeout: 30_000 });
-      await waitForAuditedRoute(page, route);
+      await navigateToAuditedRoute(page, baseURL!, route);
 
       const result = await page.evaluate(() => {
         const visible = (element: Element) => {
