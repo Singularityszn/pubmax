@@ -50,6 +50,8 @@ type Tab = {
 };
 
 const warmedTabs = new Set<string>();
+const subscribeStaticSnapshot = () => () => {};
+const serverReturnTo = () => "/";
 
 // The /today morning brief (Lane A). Added here rather than in the shared
 // PRIMARY_NAV_ITEMS model so the primary-nav contract test stays intact; it
@@ -126,7 +128,18 @@ export default function MobileTabBar() {
     readSoftKeyboardOpen,
     serverSoftKeyboardOpen,
   );
-  const returnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`;
+  const clientReturnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`;
+  // Root is prerendered, so shared layout HTML always carries the root Moment
+  // return path. Hydrate against that same stable value, then switch to the
+  // live route. Rendering the live pathname during hydration makes a client
+  // navigation back to root compare `/plan` with `/` and logs an attribute
+  // mismatch before React can repair the link.
+  const readClientReturnTo = useCallback(() => clientReturnTo, [clientReturnTo]);
+  const returnTo = useSyncExternalStore(
+    subscribeStaticSnapshot,
+    readClientReturnTo,
+    serverReturnTo,
+  );
   const tabs = useMemo(
     () => buildTabs(mapHref, returnTo, youHref),
     [mapHref, returnTo, youHref],

@@ -16,6 +16,12 @@ import NearMeNow from "./NearMeNow";
 import PosterLandingNote from "./PosterLandingNote";
 import "./nearPage.css";
 
+export function resolveNearAutoLocate(
+  searchParams: Pick<URLSearchParams, "get">,
+): boolean {
+  return searchParams.get("locate") === "1";
+}
+
 function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
@@ -26,6 +32,7 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
   const searchParams = useSearchParams();
   const patchParam = searchParams.get("patch");
   const initialPatchId = resolveNightPatch(patchParam)?.id ?? null;
+  const autoLocate = resolveNearAutoLocate(searchParams);
 
   // Mount-only: a fresh /near load without src=poster must not inherit a stale
   // poster session from an earlier scan in the same tab.
@@ -51,7 +58,7 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
             location. Shareable ?patch= deep links answer immediately. */}
         <NearMeNow
           cityId={cityId}
-          autoLocate={false}
+          autoLocate={autoLocate}
           initialPatchId={initialPatchId}
           syncPatchToUrl
           intentWrite={intentWrite}
