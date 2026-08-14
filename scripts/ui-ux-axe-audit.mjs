@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
 import AxeBuilder from "@axe-core/playwright";
+import { uiUxChromiumLaunchOptions } from "./lib/uiUxBattleTestBrowser.mjs";
 import {
   AUDITED_ROUTES,
   navigateToAuditedRoute,
@@ -10,12 +11,13 @@ import {
 const output = process.env.UI_UX_AXE_OUTPUT ?? "/tmp/pubmax-ui-ux-battle-test/axe.json";
 const origin = process.env.UI_UX_AXE_ORIGIN ?? "http://127.0.0.1:3000";
 const colorScheme = process.env.UI_UX_AXE_COLOR_SCHEME ?? "light";
+const browserChannel = process.env.UI_UX_BROWSER_CHANNEL;
 const viewports = [
   { name: "mobile-390", viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true },
   { name: "desktop-1440", viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, isMobile: false, hasTouch: false },
 ];
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch(uiUxChromiumLaunchOptions(browserChannel));
 const results = [];
 
 for (const viewport of viewports) {

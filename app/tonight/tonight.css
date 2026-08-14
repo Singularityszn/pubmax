@@ -706,10 +706,14 @@
    multi-host: Tonight page + desktop rails). */
 
 .tonightDesktopGrid,
-.tonightPrimary,
 .tonightAfterPrimary,
 .tonightContext {
   display: contents;
+}
+
+.tonightPrimary {
+  display: block;
+  min-height: min(640px, 75vh);
 }
 
 /* Wide Tonight uses the same reading canvas as Plan: primary choices stay in

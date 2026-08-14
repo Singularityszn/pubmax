@@ -16,7 +16,8 @@ export const AUDITED_ROUTES = [
   {
     name: "tonight",
     path: "/tonight",
-    readySelector: '[data-testid="tonight-screen"]',
+    readySelector:
+      '[data-testid="tonight-screen"]:is([data-listings-status="ready"], [data-listings-status="empty"], :not([data-listings-status])):has(.tonightFootLink, .tonightStatusLink)',
     pendingTexts: ["Reading tonight’s listings…"],
     waitForAuthResolution: true,
   },
@@ -57,9 +58,17 @@ export const AUDITED_ROUTES = [
     name: "crawls",
     path: "/crawls",
     readySelector:
-      "main.crawlsShell[data-venue-index-status='ready']:not([aria-busy='true'])",
+      "main.crawlsShell:not([aria-busy='true']):is([data-venue-index-status='ready'], :not([data-venue-index-status]))",
     waitForAuthResolution: true,
   },
+];
+
+export const AUDITED_FLOWS = [
+  { name: "login-sheet-open", route: "home", dependencies: ["home"] },
+  { name: "tonight-browse", route: "tonight", dependencies: ["tonight", "map"] },
+  { name: "near-answer", route: "near", dependencies: ["near"] },
+  { name: "add-form-open", route: "add", dependencies: ["add"] },
+  { name: "map-pan-zoom", route: "map", dependencies: ["map"] },
 ];
 
 function selectAuditValues(filter, values, environmentName, noun, matches) {
@@ -94,6 +103,26 @@ export function selectAuditedRoutes(filter) {
   );
 }
 
+export function selectAuditedFlows(routes) {
+  const routeNames = new Set(AUDITED_ROUTES.map(({ name }) => name));
+  for (const flow of AUDITED_FLOWS) {
+    for (const dependency of flow.dependencies) {
+      if (!routeNames.has(dependency)) {
+        throw new Error(`Unknown route dependency for ${flow.name}: ${dependency}`);
+      }
+    }
+  }
+  const selectedNames = new Set(routes.map(({ name }) => name));
+  return AUDITED_FLOWS.filter(({ dependencies }) =>
+    dependencies.every((dependency) => selectedNames.has(dependency)),
+  );
+}
+
+function isLocalAuditUrl(value) {
+  const hostname = new URL(value).hostname;
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+}
+
 export async function waitForAuditedRouteSettlement(page, route, timeout = 30_000) {
   await page.locator(route.readySelector).first().waitFor({ state: "visible", timeout });
   for (const selector of route.pendingSelectors ?? []) {
@@ -104,17 +133,22 @@ export async function waitForAuditedRouteSettlement(page, route, timeout = 30_00
   }
   if (route.waitForAuthResolution) {
     await page
-      .locator('[data-auth-resolved="true"]')
+      .locator('[data-auth-resolved="true"], .authUser')
       .first()
       .waitFor({ state: "attached", timeout });
   }
   if (route.waitForPaintedMap) {
-    await page.waitForFunction(() => {
+    await page.waitForFunction((requireEntranceSettlement) => {
       if (document.querySelector(".mapFallback")) return false;
       const pinTrace = performance.getEntriesByName("pubmax:first-pins").length > 0;
+      const entranceSettled =
+        performance.getEntriesByName("pubmax:pin-entrance-settled").length > 0;
       const tapPoints = window.__pubmaxPaintedMapTapPoints;
-      return pinTrace && typeof tapPoints === "function" && tapPoints().length > 0;
-    }, undefined, { timeout });
+      return pinTrace &&
+        (!requireEntranceSettlement || entranceSettled) &&
+        typeof tapPoints === "function" &&
+        tapPoints().length > 0;
+    }, isLocalAuditUrl(page.url()), { timeout });
   }
   await page.evaluate(async () => {
     await document.fonts.ready;
@@ -144,13 +178,28 @@ export async function navigateToAuditedRoute(page, originUrl, route, timeout = 3
   await page.addInitScript(() => {
     if (window.__pubmaxUiUxAuditMetrics) return;
     const supported = PerformanceObserver.supportedEntryTypes.includes("layout-shift");
-    window.__pubmaxUiUxAuditMetrics = { cls: 0, supported };
+    window.__pubmaxUiUxAuditMetrics = {
+      cls: 0,
+      supported,
+      sessionValue: 0,
+      sessionStart: 0,
+      lastShift: 0,
+    };
     if (!supported) return;
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        if (!entry.hadRecentInput) {
-          window.__pubmaxUiUxAuditMetrics.cls += entry.value ?? 0;
-        }
+        if (entry.hadRecentInput) continue;
+        const metrics = window.__pubmaxUiUxAuditMetrics;
+        const withinSession =
+          metrics.sessionValue > 0 &&
+          entry.startTime - metrics.lastShift < 1_000 &&
+          entry.startTime - metrics.sessionStart < 5_000;
+        metrics.sessionValue = withinSession
+          ? metrics.sessionValue + (entry.value ?? 0)
+          : entry.value ?? 0;
+        metrics.sessionStart = withinSession ? metrics.sessionStart : entry.startTime;
+        metrics.lastShift = entry.startTime;
+        metrics.cls = Math.max(metrics.cls, metrics.sessionValue);
       }
     }).observe({ type: "layout-shift", buffered: true });
   });

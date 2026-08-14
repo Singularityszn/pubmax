@@ -315,7 +315,12 @@ export default function TonightClient({
   const summaryRows = groupedAll.map((group) => group.row);
 
   return (
-    <main id="main" className="tonightPage" data-testid="tonight-screen">
+    <main
+      id="main"
+      className="tonightPage"
+      data-testid="tonight-screen"
+      data-listings-status={status}
+    >
       <SiteNav active="tonight" />
 
       <div className="tonightDesktopGrid">
@@ -381,7 +386,7 @@ export default function TonightClient({
         </div>
       </aside>
 
-      <div className="tonightPrimary">
+      <div className="tonightPrimary" data-status={status}>
       {loading ? (
         <p className="tonightStatus" role="status">
           Reading tonight&rsquo;s listings…

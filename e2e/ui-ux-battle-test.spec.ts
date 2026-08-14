@@ -5,9 +5,14 @@ import {
   AUDITED_ORIGINS,
   AUDITED_ROUTES,
   navigateToAuditedRoute,
+  selectAuditedFlows,
   selectAuditedOrigins,
   selectAuditedRoutes,
 } from "../scripts/lib/uiUxBattleTestNavigation.mjs";
+import {
+  UI_UX_CHROMIUM_ARGS,
+  uiUxChromiumLaunchOptions,
+} from "../scripts/lib/uiUxBattleTestBrowser.mjs";
 import { resolveAuditOutputRoot } from "../scripts/lib/uiUxBattleTestOutput.mjs";
 
 test("audit output stays inside dedicated temporary root", () => {
@@ -30,6 +35,21 @@ test("audit filters reject empty and unknown selections", () => {
   expect(() => selectAuditedOrigins("")).toThrow("select at least one origin");
   expect(() => selectAuditedOrigins("staging")).toThrow("Unknown UI_UX_ORIGINS value: staging");
   expect(() => selectAuditedRoutes("/missing")).toThrow("Unknown UI_UX_ROUTES value: /missing");
+});
+
+test("route filters constrain named flows to complete dependencies", () => {
+  expect(selectAuditedFlows([AUDITED_ROUTES[6]]).map(({ name }) => name)).toEqual([]);
+  expect(selectAuditedFlows([AUDITED_ROUTES[2], AUDITED_ROUTES[7]]).map(({ name }) => name))
+    .toEqual(["tonight-browse", "map-pan-zoom"]);
+});
+
+test("audit browser policy supplies SwiftShader to every caller", () => {
+  expect(UI_UX_CHROMIUM_ARGS).toContain("--use-angle=swiftshader");
+  expect(UI_UX_CHROMIUM_ARGS).toContain("--enable-unsafe-swiftshader");
+  expect(uiUxChromiumLaunchOptions()).toEqual({
+    headless: true,
+    args: UI_UX_CHROMIUM_ARGS,
+  });
 });
 
 test("shared audit navigation rejects HTTP failures and waits for settled UI", async ({
@@ -113,6 +133,7 @@ test("shared audit navigation requires a painted map trace", async ({ baseURL, p
               { kind: "pin", id: "venue-1", x: 40, y: 40 }
             ];
           }, 100);
+          setTimeout(() => performance.mark("pubmax:pin-entrance-settled"), 250);
         </script>
       `,
     }),
@@ -125,6 +146,27 @@ test("shared audit navigation requires a painted map trace", async ({ baseURL, p
     waitForPaintedMap: true,
   });
   await expect(page.locator(".mapFallback")).toHaveCount(0);
+  expect(await page.evaluate(() =>
+    performance.getEntriesByName("pubmax:pin-entrance-settled").length,
+  )).toBeGreaterThan(0);
+});
+
+test("shared readiness accepts frozen live markers", async ({ page }) => {
+  await page.route("https://pubmaxxing.com/crawls", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: '<main class="crawlsShell">Crawls</main><div class="authUser"></div>',
+    }),
+  );
+
+  await navigateToAuditedRoute(
+    page,
+    "https://pubmaxxing.com",
+    AUDITED_ROUTES.find(({ name }) => name === "crawls")!,
+    500,
+  );
+  await expect(page.locator("main.crawlsShell")).toBeVisible();
 });
 
 test("shared audit navigation measures layout shift from navigation start", async ({

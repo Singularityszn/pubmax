@@ -21,11 +21,19 @@ export type AuditNavigationResult = {
   clsBudget: number;
 };
 
+export type AuditedFlow = {
+  name: string;
+  route: string;
+  dependencies: string[];
+};
+
 export const AUDITED_ORIGINS: AuditedOrigin[];
 export const AUDITED_ROUTES: AuditedRoute[];
+export const AUDITED_FLOWS: AuditedFlow[];
 export const UI_UX_CLS_BUDGET: number;
 export function selectAuditedOrigins(filter?: string): AuditedOrigin[];
 export function selectAuditedRoutes(filter?: string): AuditedRoute[];
+export function selectAuditedFlows(routes: AuditedRoute[]): AuditedFlow[];
 export function waitForAuditedRouteSettlement(
   page: Page,
   route: AuditedRoute,

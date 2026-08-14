@@ -1,10 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
+import { uiUxChromiumLaunchOptions } from "./lib/uiUxBattleTestBrowser.mjs";
 import {
   AUDITED_ROUTES,
   UI_UX_CLS_BUDGET,
   navigateToAuditedRoute,
+  selectAuditedFlows,
   selectAuditedOrigins,
   selectAuditedRoutes,
   waitForAuditedRouteSettlement,
@@ -13,11 +15,9 @@ import { prepareAuditOutputRoot } from "./lib/uiUxBattleTestOutput.mjs";
 
 const colorScheme = process.env.UI_UX_COLOR_SCHEME ?? "light";
 const browserChannel = process.env.UI_UX_BROWSER_CHANNEL;
-if (browserChannel && browserChannel !== "chrome") {
-  throw new Error("UI_UX_BROWSER_CHANNEL must be chrome when set");
-}
 const selectedOrigins = selectAuditedOrigins(process.env.UI_UX_ORIGINS);
 const selectedRoutes = selectAuditedRoutes(process.env.UI_UX_ROUTES);
+const selectedFlows = selectAuditedFlows(selectedRoutes);
 const outputRoot = await prepareAuditOutputRoot(process.env.UI_UX_OUTPUT);
 const viewports = [
   {
@@ -35,12 +35,7 @@ const viewports = [
     hasTouch: false,
   },
 ];
-const browser = await chromium.launch({
-  headless: true,
-  ...(browserChannel
-    ? { channel: browserChannel }
-    : { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] }),
-});
+const browser = await chromium.launch(uiUxChromiumLaunchOptions(browserChannel));
 const findings = [];
 const pages = [];
 const flows = [];
@@ -266,7 +261,9 @@ async function waitForPaintedPointChange(page, previous) {
   }, previous);
 }
 
-async function exerciseNamedFlows(origin, viewport) {
+async function exerciseNamedFlows(origin, viewport, auditedFlows) {
+  if (auditedFlows.length === 0) return;
+  const enabled = new Set(auditedFlows.map(({ name }) => name));
   const flowPage = await browser.newPage({
     viewport: viewport.viewport,
     deviceScaleFactor: viewport.deviceScaleFactor,
@@ -307,21 +304,19 @@ async function exerciseNamedFlows(origin, viewport) {
     }
   };
 
-  if (!viewport.isMobile) {
+  if (enabled.has("login-sheet-open") && !viewport.isMobile) {
     await runFlow("login-sheet-open", auditedRoute("home"), async () => {
-      const authMarker = flowPage.locator('[data-auth-resolved="true"]').first();
-      const configured = await authMarker.getAttribute("data-auth-configured");
-      if (configured !== "true") {
+      const trigger = flowPage.getByRole("button", { name: "Sign in", exact: true }).first();
+      if (!await trigger.isVisible()) {
         flows.push({
           name: "login-sheet-open",
           origin: origin.name,
           viewport: viewport.name,
           status: "not-applicable",
-          reason: "auth-not-configured",
+          reason: "sign-in-trigger-unavailable",
         });
         return "not-applicable";
       }
-      const trigger = flowPage.getByRole("button", { name: "Sign in", exact: true }).first();
       await requireVisibleFocus(flowPage, trigger, "Sign in trigger");
       await trigger.click();
       const sheet = flowPage.locator('.authMenu[aria-label="Sign in options"]');
@@ -330,7 +325,7 @@ async function exerciseNamedFlows(origin, viewport) {
       await focused.waitFor({ state: "visible" });
       await requireVisibleFocus(flowPage, focused, "Sign in sheet control");
     });
-  } else {
+  } else if (enabled.has("login-sheet-open")) {
     flows.push({
       name: "login-sheet-open",
       origin: origin.name,
@@ -340,33 +335,39 @@ async function exerciseNamedFlows(origin, viewport) {
     });
   }
 
-  await runFlow("tonight-browse", auditedRoute("tonight"), async () => {
-    const browse = flowPage.getByRole("link", { name: "See them on the map" });
-    await requireVisibleFocus(flowPage, browse, "Tonight browse link");
-    await browse.click();
-    await flowPage.waitForURL((url) => url.pathname.startsWith("/map"));
-    await waitForAuditedRouteSettlement(flowPage, auditedRoute("map"));
-  });
+  if (enabled.has("tonight-browse")) {
+    await runFlow("tonight-browse", auditedRoute("tonight"), async () => {
+      const browse = flowPage.getByRole("link", { name: "See them on the map" });
+      await requireVisibleFocus(flowPage, browse, "Tonight browse link");
+      await browse.click();
+      await flowPage.waitForURL((url) => url.pathname.startsWith("/map"));
+      await waitForAuditedRouteSettlement(flowPage, auditedRoute("map"));
+    });
+  }
 
-  await runFlow("near-answer", auditedRoute("near"), async () => {
-    const soho = flowPage.getByRole("button", { name: "Soho", exact: true }).first();
-    await requireVisibleFocus(flowPage, soho, "Soho area choice");
-    await soho.click();
-    await flowPage.locator(".nmnHead").waitFor({ state: "visible" });
-    await flowPage.waitForURL((url) => url.searchParams.get("patch") === "soho");
-  });
+  if (enabled.has("near-answer")) {
+    await runFlow("near-answer", auditedRoute("near"), async () => {
+      const soho = flowPage.getByRole("button", { name: "Soho", exact: true }).first();
+      await requireVisibleFocus(flowPage, soho, "Soho area choice");
+      await soho.click();
+      await flowPage.locator(".nmnHead").waitFor({ state: "visible" });
+      await flowPage.waitForURL((url) => url.searchParams.get("patch") === "soho");
+    });
+  }
 
-  await runFlow("add-form-open", auditedRoute("add"), async () => {
-    const form = flowPage.locator('.confirmFollow[aria-label="Add @karan"]');
-    await form.waitFor({ state: "visible" });
-    await requireVisibleFocus(
-      flowPage,
-      form.locator(".confirmFollowPrimary"),
-      "Add form primary action",
-    );
-  });
+  if (enabled.has("add-form-open")) {
+    await runFlow("add-form-open", auditedRoute("add"), async () => {
+      const form = flowPage.locator('.confirmFollow[aria-label="Add @karan"]');
+      await form.waitFor({ state: "visible" });
+      await requireVisibleFocus(
+        flowPage,
+        form.locator(".confirmFollowPrimary"),
+        "Add form primary action",
+      );
+    });
+  }
 
-  if (!viewport.isMobile) {
+  if (enabled.has("map-pan-zoom") && !viewport.isMobile) {
     await runFlow("map-pan-zoom", auditedRoute("map"), async () => {
       const zoomIn = flowPage.getByRole("button", { name: "Zoom in" });
       await requireVisibleFocus(flowPage, zoomIn, "Map zoom in");
@@ -391,7 +392,7 @@ async function exerciseNamedFlows(origin, viewport) {
         "Map zoom out",
       );
     });
-  } else {
+  } else if (enabled.has("map-pan-zoom")) {
     flows.push({
       name: "map-pan-zoom",
       origin: origin.name,
@@ -452,7 +453,7 @@ for (const origin of selectedOrigins) {
     }
     await page.close();
     await context.close();
-    await exerciseNamedFlows(origin, viewport);
+    await exerciseNamedFlows(origin, viewport, selectedFlows);
   }
 }
 
