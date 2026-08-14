@@ -105,13 +105,12 @@ export default function PubMaxingShell({
     typeof window === "undefined" ? () => {} : holdBackgroundWarmup(),
   );
 
-  // Same lazy-initializer seam, opposite job: start the first frame's two
-  // certain dependencies (the MapLibre canvas chunk and the city's venue index)
-  // at the top of the arrival rather than one dynamic-import hop at a time.
-  useState(() => {
+  // Start the first frame's two certain dependencies after React commits this
+  // shell. Starting the dynamic import inside a state initializer updates
+  // Next's development style runtime while this component is still rendering.
+  useEffect(() => {
     warmCityMapFirstPaint(cityId);
-    return null;
-  });
+  }, [cityId]);
   useEffect(() => {
     const release = () => releaseWarmupHold();
     window.addEventListener(MAP_PIN_REVEAL_EVENT, release, { once: true });
