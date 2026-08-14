@@ -97,12 +97,12 @@ function recordFrom(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null ? value as Record<string, unknown> : null;
 }
 
-function resultsFromToolOutput(value: unknown): unknown[] {
+function resultsFromToolOutput(value: unknown): unknown[] | null {
   const record = recordFrom(value);
   if (Array.isArray(value)) return value;
   if (Array.isArray(record?.results)) return record.results;
   if (Array.isArray(record?.value)) return record.value;
-  return [];
+  return null;
 }
 
 function toolResultOutputs(value: unknown): unknown[] {
@@ -117,14 +117,23 @@ function toolResultOutputs(value: unknown): unknown[] {
   });
 }
 
-function normalizedExaResults(value: unknown): SearchResult[] {
+function normalisedExaResults(value: unknown): SearchResult[] | null {
   const outputs = toolResultOutputs(value);
-  const rawResults = outputs.flatMap((toolResult) => {
+  const rawResults: unknown[] = [];
+  let foundResultOutput = false;
+  for (const toolResult of outputs) {
     const record = recordFrom(toolResult);
-    return resultsFromToolOutput(record?.output ?? record?.result ?? record?.value ?? toolResult);
-  });
+    const results = resultsFromToolOutput(
+      record?.output ?? record?.result ?? record?.value ?? toolResult,
+    );
+    if (results !== null) {
+      foundResultOutput = true;
+      rawResults.push(...results);
+    }
+  }
+  if (!foundResultOutput) return null;
 
-  return rawResults.flatMap((raw) => {
+  const results = rawResults.flatMap((raw) => {
     const result = recordFrom(raw);
     const url = stringFrom(result?.url);
     if (!url) return [];
@@ -139,6 +148,7 @@ function normalizedExaResults(value: unknown): SearchResult[] {
       ...(stringFrom(result?.publishedDate) ? { publishedDate: stringFrom(result?.publishedDate) } : {}),
     }];
   });
+  return rawResults.length > 0 && results.length === 0 ? null : results;
 }
 
 function estimatedResultTokens(results: SearchResult[]): number {
@@ -148,6 +158,10 @@ function estimatedResultTokens(results: SearchResult[]): number {
 function gatewayMaxCalls(env: Record<string, string | undefined>): number {
   const parsed = Number(env.SEARCH_GATEWAY_MAX_CALLS);
   return Number.isInteger(parsed) && parsed >= 1 ? parsed : DEFAULT_SEARCH_GATEWAY_MAX_CALLS;
+}
+
+function hasGatewayCredentials(env: Record<string, string | undefined>): boolean {
+  return Boolean(env.AI_GATEWAY_API_KEY?.trim() || env.VERCEL_OIDC_TOKEN?.trim());
 }
 
 function makeStats(
@@ -171,17 +185,17 @@ class ExaGatewayProvider implements SearchProvider {
   private readonly statsValue: MutableStats;
 
   constructor(
-    private readonly apiKey: string | undefined,
+    configured: boolean,
     private readonly maxCalls: number,
     private readonly dependencies: SearchProviderDependencies,
   ) {
-    this.configured = Boolean(apiKey);
+    this.configured = configured;
     this.statsValue = makeStats("exa", maxCalls, SEARCH_GATEWAY_MODEL);
   }
 
   async search(request: SearchRequest): Promise<SearchResponse> {
     if (!this.configured) {
-      throw new SearchProviderUnavailableError("AI_GATEWAY_API_KEY is absent.");
+      throw new SearchProviderUnavailableError("AI Gateway credentials are absent.");
     }
     if (this.statsValue.gatewayCalls >= this.maxCalls) {
       throw new SearchProviderBudgetError(this.maxCalls);
@@ -202,6 +216,7 @@ class ExaGatewayProvider implements SearchProvider {
     if (request.endPublishedDate) toolOptions.endPublishedDate = request.endPublishedDate;
 
     const result = await this.dependencies.generateText({
+      maxRetries: 0,
       model: SEARCH_GATEWAY_MODEL,
       prompt: request.query,
       toolChoice: { type: "tool", toolName: "exa_search" },
@@ -209,13 +224,14 @@ class ExaGatewayProvider implements SearchProvider {
         exa_search: this.dependencies.gateway.tools.exaSearch(toolOptions),
       },
     });
-    const results = normalizedExaResults(result);
-    if (results.length === 0) {
-      throw new SearchProviderUnavailableError("AI Gateway returned no Exa search results.");
-    }
     const usage = recordFrom(recordFrom(result)?.usage);
     this.statsValue.estimatedTokens +=
-      numberFrom(usage?.inputTokens) + numberFrom(usage?.outputTokens) + estimatedResultTokens(results);
+      numberFrom(usage?.inputTokens) + numberFrom(usage?.outputTokens);
+    const results = normalisedExaResults(result);
+    if (results === null) {
+      throw new SearchProviderUnavailableError("AI Gateway returned malformed Exa search output.");
+    }
+    this.statsValue.estimatedTokens += estimatedResultTokens(results);
     return { provider: "exa", results };
   }
 
@@ -354,7 +370,7 @@ export function createSearchProvider(options: SearchProviderOptions = {}): Searc
     maxCalls,
   );
   const exa = new ExaGatewayProvider(
-    env.AI_GATEWAY_API_KEY?.trim(),
+    hasGatewayCredentials(env),
     maxCalls,
     dependencies,
   );
@@ -367,7 +383,7 @@ export function createSearchProvider(options: SearchProviderOptions = {}): Searc
   if (selected === "tavily") return tavily.configured ? tavily : new UnavailableProvider("tavily", maxCalls);
   if (exa.configured) return tavily.configured ? new FallbackProvider(exa, tavily, logger) : exa;
   if (tavily.configured) {
-    logger.warn("[search-provider] AI_GATEWAY_API_KEY absent; falling back to Tavily.");
+    logger.warn("[search-provider] AI Gateway credentials absent; falling back to Tavily.");
     return new FallbackProvider(exa, tavily, logger);
   }
   return new UnavailableProvider("exa", maxCalls);

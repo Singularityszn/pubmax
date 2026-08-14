@@ -72,6 +72,7 @@ describe("search provider selection", () => {
 
   it("defaults to Exa and uses gateway tool results", async () => {
     const generateText = vi.fn(async (options: Record<string, unknown>) => {
+      expect(options.maxRetries).toBe(0);
       expect(options.model).toBe(SEARCH_GATEWAY_MODEL);
       expect(options.toolChoice).toEqual({ type: "tool", toolName: "exa_search" });
       return {
@@ -114,6 +115,23 @@ describe("search provider selection", () => {
       },
     });
   });
+
+  it("uses Exa with Vercel OIDC credentials", async () => {
+    const generateText = vi.fn(async () => ({
+      steps: [{ toolResults: [{ toolName: "exa_search", output: { results: [officialResult] } }] }],
+      usage: { inputTokens: 2, outputTokens: 3 },
+    }));
+    const provider = createSearchProvider({
+      env: { VERCEL_OIDC_TOKEN: "oidc-test-token" },
+      dependencies: gatewayDependencies(generateText),
+    });
+
+    const result = await provider.search({ query: "official menu" });
+
+    expect(provider.configured).toBe(true);
+    expect(result.provider).toBe("exa");
+    expect(result.results).toHaveLength(1);
+  });
 });
 
 describe("search provider fallback", () => {
@@ -129,7 +147,7 @@ describe("search provider fallback", () => {
     const result = await provider.search({ query: "official menu" });
 
     expect(result.results).toHaveLength(1);
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("AI_GATEWAY_API_KEY"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("AI Gateway credentials"));
   });
 
   it("falls back to Tavily when an Exa request fails", async () => {
@@ -151,6 +169,50 @@ describe("search provider fallback", () => {
 
     expect(result.results[0].url).toBe("https://independentarms.co.uk/menu");
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("falling back to tavily"));
+  });
+
+  it("keeps a valid empty Exa result without falling back", async () => {
+    const fetchImpl = vi.fn(async () => tavilyResponse());
+    const provider = createSearchProvider({
+      env: {
+        AI_GATEWAY_API_KEY: "gateway-test-key",
+        TAVILY_API_KEY: "tavily-test-key",
+      },
+      fetchImpl,
+      dependencies: gatewayDependencies(vi.fn(async () => ({
+        steps: [{ toolResults: [{ toolName: "exa_search", output: { results: [] } }] }],
+        usage: { inputTokens: 4, outputTokens: 2 },
+      }))),
+    });
+
+    const result = await provider.search({ query: "no official page" });
+
+    expect(result).toEqual({ provider: "exa", results: [] });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("records Gateway usage before malformed output falls back", async () => {
+    const provider = createSearchProvider({
+      env: {
+        AI_GATEWAY_API_KEY: "gateway-test-key",
+        TAVILY_API_KEY: "tavily-test-key",
+      },
+      fetchImpl: vi.fn(async () => tavilyResponse()),
+      dependencies: gatewayDependencies(vi.fn(async () => ({
+        steps: [{ toolResults: [{ toolName: "exa_search", output: { unexpected: [] } }] }],
+        usage: { inputTokens: 7, outputTokens: 5 },
+      }))),
+      logger: { warn: vi.fn() },
+    });
+
+    const result = await provider.search({ query: "official menu" });
+
+    expect(result.provider).toBe("tavily");
+    expect(provider.stats()).toMatchObject({
+      estimatedTokens: 12,
+      gatewayCalls: 1,
+      tavilyCalls: 1,
+    });
   });
 });
 

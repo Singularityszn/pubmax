@@ -26,7 +26,7 @@ export async function GET(request: Request): Promise<Response> {
   const searchProvider = createSearchProvider();
   if (!searchProvider.configured) {
     console.warn(
-      `[cron:enrich-city-pubs] ${searchProvider.name === "tavily" ? "TAVILY_API_KEY" : "AI_GATEWAY_API_KEY and TAVILY_API_KEY"} absent - enrichment skipped.`,
+      `[cron:enrich-city-pubs] ${searchProvider.name === "tavily" ? "TAVILY_API_KEY" : "AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN, and TAVILY_API_KEY"} absent - enrichment skipped.`,
     );
     return jsonNoStore({
       ok: true,

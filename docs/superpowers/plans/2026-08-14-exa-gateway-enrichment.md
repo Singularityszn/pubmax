@@ -27,7 +27,7 @@
 - Modify: `package.json`, `package-lock.json`
 
 **Interfaces:**
-- Produces `SearchProvider.search(request)` returning normalized result pages and run statistics.
+- Produces `SearchProvider.search(request)` returning normalised result pages and run statistics.
 - Produces `createSearchProvider(options)` with config-driven selection and Tavily fallback.
 - Produces a per-run guard that rejects calls after `SEARCH_GATEWAY_MAX_CALLS` and logs calls, model, and estimated tokens.
 
@@ -45,10 +45,10 @@
 
 **Interfaces:**
 - Exa uses `generateText` and `gateway.tools.exaSearch()` with `openai/gpt-5-nano`, fast search, official-domain filters, date filters, and highlights capped for token efficiency.
-- Tavily preserves the existing POST request shape and normalizes `raw_content` or `content` into the shared result shape.
+- Tavily preserves the existing POST request shape and normalises `raw_content` or `content` into the shared result shape.
 - Exa tool results are read from AI SDK step tool results. A missing or malformed tool result is a provider failure and can fall back.
 
-- [ ] **Step 1: Add failing adapter tests** for Exa request options, normalized tool results, domain/date filters, and Tavily request compatibility.
+- [ ] **Step 1: Add failing adapter tests** for Exa request options, normalised tool results, domain/date filters, and Tavily request compatibility.
 - [ ] **Step 2: Run only those tests and confirm they fail for the missing adapter behaviour.**
 - [ ] **Step 3: Implement both adapters with dependency injection for `generateText`, gateway, and fetch in tests.** Do not expose raw provider payloads beyond the server seam.
 - [ ] **Step 4: Run provider tests and confirm all pass.**
