@@ -19,7 +19,7 @@ export const AUDITED_ROUTES = [
     name: "tonight",
     path: "/tonight",
     readySelector:
-      '[data-testid="tonight-screen"]:is([data-listings-status="ready"], [data-listings-status="empty"], :not([data-listings-status])):has(.tonightFootLink, .tonightStatusLink)',
+      '[data-testid="tonight-screen"][data-listings-status="ready"]:has(.tonightFootLink), [data-testid="tonight-screen"][data-listings-status="empty"]:has(.tonightStatusLink), [data-testid="tonight-screen"][data-listings-status="error"]:has(.tonightStatusError .tonightRetry), [data-testid="tonight-screen"]:not([data-listings-status]):has(.tonightFootLink, .tonightStatusLink, .tonightStatusError .tonightRetry)',
     pendingTexts: ["Reading tonight’s listings…"],
     waitForAuthResolution: true,
   },

@@ -9,6 +9,7 @@ import {
   selectAuditedFlows,
   selectAuditedOrigins,
   selectAuditedRoutes,
+  waitForAuditedRouteSettlement,
 } from "../scripts/lib/uiUxBattleTestNavigation.mjs";
 import {
   UI_UX_CHROMIUM_ARGS,
@@ -246,6 +247,31 @@ test("Tonight reserves loading space without holding settled content", async ({
   await expect(page.locator(".tonightAfterPrimary")).toHaveCSS("visibility", "hidden");
 
   const result = await navigation;
+  await expect(page.locator(".tonightPrimary")).toHaveCSS("min-height", "0px");
+  await expect(page.locator(".tonightAfterPrimary")).toHaveCSS("visibility", "visible");
+  expect(result.cls).not.toBeNull();
+  expect(result.cls!).toBeLessThan(UI_UX_CLS_BUDGET);
+});
+
+test("Tonight error settles without holding loading space", async ({ baseURL, page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/whats-on?**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ rows: [], error: "Store unavailable" }),
+    });
+  });
+
+  const route = AUDITED_ROUTES.find(({ name }) => name === "tonight")!;
+  const result = await navigateToAuditedRoute(page, baseURL!, {
+    ...route,
+    readySelector:
+      '[data-testid="tonight-screen"][data-listings-status="error"]:has(.tonightStatusError .tonightRetry)',
+  });
+  await waitForAuditedRouteSettlement(page, route, 500);
+  await expect(page.locator(".tonightStatusError")).toBeVisible();
   await expect(page.locator(".tonightPrimary")).toHaveCSS("min-height", "0px");
   await expect(page.locator(".tonightAfterPrimary")).toHaveCSS("visibility", "visible");
   expect(result.cls).not.toBeNull();
