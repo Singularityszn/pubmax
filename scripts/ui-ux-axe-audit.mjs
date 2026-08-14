@@ -10,10 +10,16 @@ import {
   AUDITED_ROUTES,
   navigateToAuditedRoute,
 } from "./lib/uiUxBattleTestNavigation.mjs";
+import {
+  buildUiUxAxeAuditDocument,
+  validateUiUxAxeColorScheme,
+} from "./lib/uiUxAxeAuditMetadata.mjs";
 
 const output = process.env.UI_UX_AXE_OUTPUT ?? "/tmp/pubmax-ui-ux-battle-test/axe.json";
 const origin = process.env.UI_UX_AXE_ORIGIN ?? "http://127.0.0.1:3000";
-const colorScheme = process.env.UI_UX_AXE_COLOR_SCHEME ?? "light";
+const colorScheme = validateUiUxAxeColorScheme(
+  process.env.UI_UX_AXE_COLOR_SCHEME ?? "light",
+);
 const browserChannel = process.env.UI_UX_BROWSER_CHANNEL;
 const viewports = [
   { name: "mobile-390", viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true },
@@ -53,7 +59,10 @@ for (const viewport of viewports) {
 }
 
 await fs.mkdir(path.dirname(output), { recursive: true });
-await fs.writeFile(output, JSON.stringify({ origin, results }, null, 2));
+await fs.writeFile(
+  output,
+  JSON.stringify(buildUiUxAxeAuditDocument(origin, colorScheme, results), null, 2),
+);
 await Promise.race([
   browser.close(),
   new Promise((resolve) => setTimeout(resolve, 5_000)),

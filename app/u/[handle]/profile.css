@@ -934,8 +934,14 @@
 }
 
 .profilePage .followBtn.isMates {
-  border-color: var(--color-positive, var(--pint));
-  color: var(--color-positive, var(--pint));
+  --follow-mates-ink: color-mix(in srgb, var(--color-positive, var(--pint)) 50%, var(--ink));
+  border-color: var(--follow-mates-ink);
+  color: var(--follow-mates-ink);
+}
+
+.profilePage .followBtn.isMates:hover:not(:disabled) {
+  border-color: var(--follow-mates-ink);
+  color: var(--follow-mates-ink);
 }
 
 /* Published crawls: the destination behind the Crawls tile. */
