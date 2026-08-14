@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { assertCompleteUiUxAudit } from "../scripts/lib/uiUxBattleTestCompletion.mjs";
@@ -32,6 +33,15 @@ const completionInput = {
 };
 
 describe("UI UX audit completion", () => {
+  it("writes raw diagnostics before enforcing completion", () => {
+    const source = readFileSync("scripts/ui-ux-battle-test.mjs", "utf8");
+    const writeIndex = source.indexOf('await fs.writeFile(\n  path.join(outputRoot, "audit.json")');
+    const assertionIndex = source.indexOf("assertCompleteUiUxAudit({");
+
+    expect(writeIndex).toBeGreaterThan(-1);
+    expect(assertionIndex).toBeGreaterThan(writeIndex);
+  });
+
   it("accepts a complete page and flow matrix", () => {
     expect(() => assertCompleteUiUxAudit(completionInput)).not.toThrow();
   });
@@ -147,5 +157,41 @@ describe("UI UX audit completion", () => {
       ...input,
       flowResults: [{ ...input.flowResults[0], authConfigured: true }],
     })).toThrow("Failed applicable flow: local/desktop-1440/login-sheet-open");
+
+    const liveInput = {
+      ...input,
+      originNames: ["live"],
+      motionPolicy: { live: "reduce" },
+      flowDefinitions: [{
+        ...input.flowDefinitions[0],
+        allowedNotApplicableResults: [{
+          reason: "frozen-live-autofocus-unavailable",
+          origin: "live",
+        }],
+      }],
+      pages: [{
+        ...input.pages[0],
+        origin: "live",
+        reducedMotion: true,
+      }],
+      flowResults: [{
+        ...input.flowResults[0],
+        origin: "live",
+        reason: "frozen-live-autofocus-unavailable",
+        authConfigured: undefined,
+      }],
+    };
+
+    expect(() => assertCompleteUiUxAudit(liveInput)).not.toThrow();
+    expect(() => assertCompleteUiUxAudit({
+      ...liveInput,
+      flowDefinitions: [{
+        ...liveInput.flowDefinitions[0],
+        allowedNotApplicableResults: [{
+          reason: "frozen-live-autofocus-unavailable",
+          origin: "local",
+        }],
+      }],
+    })).toThrow("Failed applicable flow: live/desktop-1440/login-sheet-open");
   });
 });

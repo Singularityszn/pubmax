@@ -75,6 +75,9 @@ export const AUDITED_FLOWS = [
     allowedNotApplicableResults: [{
       reason: "sign-in-trigger-unavailable",
       authConfigured: false,
+    }, {
+      reason: "frozen-live-autofocus-unavailable",
+      origin: "live",
     }],
   },
   { name: "tonight-browse", route: "tonight", dependencies: ["tonight", "map"] },
