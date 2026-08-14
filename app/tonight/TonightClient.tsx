@@ -104,9 +104,9 @@ function freshnessLabel(kind: TonightFreshnessKind, asOf: string | null): string
 
 const UNDATED_SOURCE_LINE = "We can’t date these listings yet.";
 
-// Deals/Music full lanes follow the main list on phones in every grouping
-// mode. Desktop keeps a compact rail summary instead (UI_UX_FIX_PRD #1): the
-// main column owns the full spine; never mount duplicate card lists in the rail.
+// Presentation order is independent of grouping: Deals/Music full lanes follow
+// the main list on phones. Desktop keeps a compact rail summary instead
+// (UI_UX_FIX_PRD #1), so the main column remains the only full listing spine.
 function mobileSecondaryLanes(lanes: ReactNode): ReactNode {
   return (
     <div className="tonightSecondaryLanes tonightSecondaryLanes--mobile">{lanes}</div>
@@ -295,9 +295,8 @@ export default function TonightClient({
   const showLocation = hasGeoRows || thinNight;
   const locationExpanded = locationOpen || origin != null;
 
-  // Secondary Deals/Music lanes reuse the already-loaded grouped heroes instead of
-  // each firing their own /api/whats-on fetch (dedup is always on — no duplicate
-  // first-viewport request). Their position is always below the main list.
+  // Secondary Deals/Music lanes reuse the already-loaded grouped heroes instead
+  // of each firing their own /api/whats-on fetch.
   const localityBasis = tonightLocalityBasis(origin != null, tonightNear);
   const secondaryHeroes = groupedAll.map((group) => group.row);
   const secondaryLanes = (
@@ -704,8 +703,6 @@ export default function TonightClient({
 
       </div>
 
-      {/* Main-list-first (§4.11): full Deals/Music lanes follow the main list on
-          phones. Desktop never mounts them. */}
       {mobileLanes}
 
       <div className="tonightAfterPrimary">
