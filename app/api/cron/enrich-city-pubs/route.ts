@@ -11,7 +11,7 @@ import { assertCronRequest } from "@/lib/cronAuth";
 import { createSearchProvider } from "@/lib/searchProvider.server";
 import {
   runScheduledCityEnrichment,
-  TAVILY_CRON_QUERY_CAP,
+  SEARCH_CRON_QUERY_CAP,
   type ScheduledEnrichmentProgress,
 } from "@/lib/tavilyPubEnrichment.server";
 
@@ -93,7 +93,7 @@ export async function GET(request: Request): Promise<Response> {
       city: result.city,
       startIndex: result.startIndex,
       nextIndex: result.nextIndex,
-      queryCap: TAVILY_CRON_QUERY_CAP,
+      queryCap: SEARCH_CRON_QUERY_CAP,
       provider: providerStats.selectedProvider,
       queriesSpent: result.queriesSpent,
       creditsSpent: result.creditsSpent,
