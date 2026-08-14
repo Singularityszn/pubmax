@@ -3307,7 +3307,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 30px;
+  min-height: 44px;
   padding: 4px 10px;
   border: 1px solid var(--line);
   border-radius: 999px;

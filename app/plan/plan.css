@@ -550,7 +550,7 @@
 .planStopCount { margin: 14px auto 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
 .planStopCount__label { color: var(--muted); font-size: 0.78rem; font-weight: 800; }
 .planStopCount__choices { display: flex; gap: 6px; }
-.planStopCount__choices button { min-width: 40px; min-height: 38px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; }
+.planStopCount__choices button { min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; }
 .planStopCount__choices button[aria-pressed="true"] { border-color: var(--plan-accent); background: color-mix(in srgb, var(--plan-accent) 13%, var(--panel)); color: var(--plan-accent-strong); }
 .planStopCount__choices button:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 2px; }
 .planDescribeFirst__chips { margin: 16px auto 0; max-width: 640px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }

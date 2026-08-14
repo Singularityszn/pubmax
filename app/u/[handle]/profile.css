@@ -413,7 +413,7 @@
 
 .profilePage .profileHandle {
   margin: 5px 0 0;
-  color: var(--brass);
+  color: var(--state-active-ink);
   font-size: clamp(0.98rem, 1.2vw, 1.12rem);
   font-weight: 600;
 }
@@ -575,14 +575,16 @@
   text-decoration: none;
 }
 
-.profilePage .profileStat dt {
+.profilePage .profileStatLabel {
+  display: block;
   color: var(--muted);
   font-size: 0.76rem;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
 
-.profilePage .profileStat dd {
+.profilePage .profileStatValue {
+  display: block;
   margin: 4px 0 0;
   font-family: var(--font-display, var(--serif), system-ui, sans-serif);
   font-size: 1.5rem;
@@ -1497,8 +1499,8 @@
   .profilePage .youProfileIdentity .profileStats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; background: transparent; }
   .profilePage .youProfileIdentity .profileStat { background: transparent; text-align: center; }
   .profilePage .youProfileIdentity .profileStatLink { padding: 9px 6px; }
-  .profilePage .youProfileIdentity .profileStat dt { font-size: 0.75rem; }
-  .profilePage .youProfileIdentity .profileStat dd { font-size: 1.12rem; }
+  .profilePage .youProfileIdentity .profileStatLabel { font-size: 0.75rem; }
+  .profilePage .youProfileIdentity .profileStatValue { font-size: 1.12rem; }
 }
 
 @media (max-width: 380px) {
@@ -2077,7 +2079,7 @@
    marketing page carries, at the base of the You surface. No banner, no nag. */
 .profilePage .profileFloor { margin-top: 32px; padding: 22px 4px 8px; border-top: 1px solid var(--line); text-align: center; }
 .profilePage .profileFloor p { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.55; }
-.profilePage .profileFloor a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.profilePage .profileFloor a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }
 
 /* ── Linked socials ───────────────────────────────────────────────────────
    The owner's own public handles, on their card and in their editor. One

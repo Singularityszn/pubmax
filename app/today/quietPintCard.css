@@ -106,7 +106,7 @@
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: var(--brass);
+  color: var(--state-active-ink);
 }
 
 .quietPintList {
@@ -171,7 +171,7 @@
   flex: none;
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--accent-price-ink);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
@@ -211,6 +211,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-height: 44px;
   font-size: 0.75rem;
   color: var(--ink-soft);
   text-decoration: underline;

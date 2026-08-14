@@ -240,7 +240,7 @@ export default function CityChooser({
               placeholder="Try Sheffield or your town"
               autoComplete="off"
               spellCheck="false"
-              aria-controls={`${listId}-search-results`}
+              aria-controls={normalizedQuery.length >= 2 ? `${listId}-search-results` : undefined}
               aria-describedby={`${listId}-search-help`}
             />
           </div>

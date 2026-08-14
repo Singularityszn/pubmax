@@ -215,6 +215,10 @@
 /* The one exit on an empty night: same quiet register as the status line,
    underlined so it reads as a door, not a shout. */
 .tonightStatusLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  vertical-align: middle;
   color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -419,6 +423,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 44px;
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--brass);
@@ -435,6 +440,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-height: 44px;
   margin-top: 2px;
   font-size: 0.82rem;
   font-weight: 700;

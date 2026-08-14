@@ -112,6 +112,7 @@
 .crawlCelebrationLink {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   padding: 5px 10px;
   font-size: 0.78rem;
   font-weight: 600;
@@ -135,7 +136,10 @@ button.crawlCelebrationCopyBtn {
 .crawlCelebrationDismiss {
   align-self: flex-start;
   margin: 0;
-  padding: 0;
+  min-height: 44px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
   border: none;
   background: none;
   font-size: 0.75rem;

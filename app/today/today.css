@@ -160,6 +160,10 @@
 }
 
 .todayProvenanceLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  vertical-align: middle;
   color: var(--ink-soft);
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -181,7 +185,7 @@
   margin-block: -10px;
   font-size: 0.85rem;
   font-weight: 700;
-  color: var(--brass);
+  color: var(--state-active-ink);
   text-decoration: none;
 }
 
@@ -394,7 +398,7 @@
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: var(--brass);
+  color: var(--state-active-ink);
 }
 
 /* Cheapest pints near you today */
@@ -442,7 +446,7 @@
   flex: none;
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--accent-price-ink);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
