@@ -4,7 +4,6 @@ import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 import ConditionsChip from "@/components/desktop/ConditionsChip";
 import DesktopRail from "@/components/desktop/DesktopRail";
 
-import "./mapDesktopRail.css";
 
 // Desktop map right-rail (D3.1). Composes the shared DesktopRail host with the
 // map's Conditions + Area-news slots. Mounted only at >=1024 with the venue

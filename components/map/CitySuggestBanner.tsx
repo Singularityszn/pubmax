@@ -27,7 +27,6 @@ import {
   type UkPlaceMapArrival,
 } from "@/lib/ukPlaceSearch";
 
-import "./citySuggestBanner.css";
 
 type CitySuggestBannerProps = {
   cityId: CityId;

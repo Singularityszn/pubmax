@@ -20,7 +20,6 @@ import { AlertTriangle, CloudRain, Info, Sun, TrainFront, X } from "lucide-react
 import { discardBody } from "@/lib/responseBody";
 import { firstHttp } from "@/lib/httpUrl";
 
-import "./cityStatusBanner.css";
 
 type Weather = {
   condition?: string;

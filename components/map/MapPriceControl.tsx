@@ -14,7 +14,6 @@ import { NO_PINT_PRICE_CAP, type Filters } from "@/lib/venues";
 import MapKey from "@/components/map/MapKey";
 import { trackEvent } from "@/lib/analytics";
 
-import "./mapPriceControl.css";
 
 const PRICE_OPTIONS: { label: string; maxPrice: number }[] = [
   // "Any" has to be the one OFF value, or picking it leaves a cap behind that

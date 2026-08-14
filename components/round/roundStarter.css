@@ -22,7 +22,7 @@
   align-self: flex-start;
   font-size: 12px;
   letter-spacing: 0.01em;
-  color: var(--brass);
+  color: var(--state-active-ink);
   font-weight: 700;
 }
 
@@ -79,7 +79,7 @@
   cursor: pointer;
   text-decoration: none;
   background: var(--brass);
-  color: var(--panel-raised, var(--color-on-accent, #1a1206));
+  color: var(--color-on-accent);
   border: 1px solid var(--brass);
 }
 

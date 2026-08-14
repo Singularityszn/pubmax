@@ -318,7 +318,7 @@
   border-left: 3px solid var(--brass);
 }
 .lpWhyCopy .lpSectionLabel {
-  color: var(--brass);
+  color: var(--ink);
 }
 .lpWhyCopy h2 {
   margin: 0;
@@ -420,7 +420,8 @@
 
 .lpMemorySection { padding: clamp(76px, 8vw, 124px) var(--lp-pad); background: var(--ink-deep); color: var(--color-on-inverse); }
 .lpMemoryCanvas { width: min(var(--lp-max), 100%); margin: 0 auto; display: grid; grid-template-columns: .92fr 1.08fr; gap: clamp(44px, 8vw, 110px); align-items: center; }
-.lpSectionLabel { margin: 0 0 18px; color: var(--brass-bright); font: 650 var(--text-2xs)/1 var(--font-data); letter-spacing: .01em; }
+.lpSectionLabel { margin: 0 0 18px; color: var(--ink); font: 650 var(--text-2xs)/1 var(--font-data); letter-spacing: .01em; }
+.lpMemorySection .lpSectionLabel { color: var(--color-on-inverse); }
 .lpSectionLabel::before { content: "// " / ""; }
 .lpCityChooser .cityChooserEyebrow { gap: .5ch; font: 650 var(--text-2xs)/1 var(--font-data); }
 .lpCityChooser .cityChooserEyebrow::before { content: "// " / ""; width: auto; height: auto; background: none; opacity: 1; }
@@ -509,7 +510,7 @@
    colour: rgb(158,158,255), the one periwinkle thing on the site, in the legal
    line of the front door. The profile's floor already styles its copy of this
    link (`.profileFloor a`); the footer now says the same thing. */
-.lpFooterLegal a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.lpFooterLegal a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }
 .lpFooterLegal a:hover { color: var(--ink); }
 
 @media (hover: hover) and (pointer: fine) { .thamesHeroHintTouch { display: none; }.thamesHeroHintPointer { display: inline; } }

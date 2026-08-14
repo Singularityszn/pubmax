@@ -59,7 +59,7 @@ function ProfileStatTile({
   hint: string;
 }) {
   return (
-    <div className="profileStat">
+    <div className="profileStat" role="listitem">
       {/* data-pressable is how an anchor joins the ONE shared press-scale owner
           in globals.css; a local transform here would compound with it. */}
       <Link
@@ -68,8 +68,8 @@ function ProfileStatTile({
         href={href}
         aria-label={`${label}: ${value}. ${hint}.`}
       >
-        <dt>{label}</dt>
-        <dd>{value}</dd>
+        <span className="profileStatLabel">{label}</span>
+        <strong className="profileStatValue">{value}</strong>
       </Link>
     </div>
   );
@@ -77,12 +77,12 @@ function ProfileStatTile({
 
 function ProfileStatSkeletonTile({ label }: { label: string }) {
   return (
-    <div className="profileStat">
+    <div className="profileStat" role="listitem">
       <div className="profileStatLink" aria-hidden="true">
-        <dt>{label}</dt>
-        <dd>
+        <span className="profileStatLabel">{label}</span>
+        <strong className="profileStatValue">
           <span className="profileSkeleton profileSkeletonStat" />
-        </dd>
+        </strong>
       </div>
     </div>
   );
@@ -105,11 +105,11 @@ function ProfileHeaderLoading() {
         </div>
       </div>
 
-      <dl className="profileStats" aria-hidden="true">
+      <div className="profileStats" role="list" aria-hidden="true">
         {PROFILE_STAT_LABELS.map((label) => (
           <ProfileStatSkeletonTile key={label} label={label} />
         ))}
-      </dl>
+      </div>
     </header>
   );
 }
@@ -244,7 +244,7 @@ export default function ProfileHeader({
           The row sits BELOW the hero and spans the whole card, because six
           figures squeezed into a narrow column is how they came to read as a
           receipt rather than as six doors. */}
-      <dl className="profileStats" aria-label="Profile statistics">
+      <div className="profileStats" role="list" aria-label="Profile statistics">
         <ProfileStatTile
           label="Pints logged"
           value={stats.pintsLogged}
@@ -285,7 +285,7 @@ export default function ProfileHeader({
           href={`${profileBase}#night-memories`}
           hint="Open night memories"
         />
-      </dl>
+      </div>
     </header>
   );
 }

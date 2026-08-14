@@ -192,9 +192,8 @@ describe("profile statistics are ways in", () => {
   );
 
   it("links every one of the six tiles", () => {
-    const grid = html.match(/profileStats[\s\S]*?<\/dl>/)?.[0] ?? "";
-    const tiles = grid.match(/class="profileStat"/g) ?? [];
-    const links = grid.match(/class="profileStatLink"/g) ?? [];
+    const tiles = html.match(/class="profileStat"/g) ?? [];
+    const links = html.match(/class="profileStatLink"/g) ?? [];
     expect(tiles).toHaveLength(6);
     expect(links).toHaveLength(6);
   });
@@ -213,6 +212,8 @@ describe("profile statistics are ways in", () => {
   });
 
   it("keeps the label and the figure as the only visible text", () => {
-    expect(html).toContain("<dt>Followers</dt><dd>14</dd>");
+    expect(html).toContain(
+      '<span class="profileStatLabel">Followers</span><strong class="profileStatValue">14</strong>',
+    );
   });
 });

@@ -4,6 +4,10 @@ import { defineConfig, devices } from "@playwright/test";
 
 import { assertE2ELoginSafe, isE2ELoginEnabled } from "./lib/e2eReviewAuth";
 import { resolvePlaywrightNextDistDir } from "./lib/playwrightDistDir";
+import {
+  UI_UX_CHROMIUM_ARGS,
+  uiUxChromiumProjectUse,
+} from "./scripts/lib/uiUxBattleTestBrowser.mjs";
 
 // P3.11 browser smoke suite. Chromium projects use production builds on
 // fixed ports (kept off 3000 so they won't collide
@@ -15,6 +19,7 @@ const KEYLESS_PORT = Number(process.env.PW_KEYLESS_PORT ?? PORT + 1);
 const KEYLESS_BASE_URL = `http://localhost:${KEYLESS_PORT}`;
 const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 const SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === "1";
+const UI_UX_BROWSER_USE = uiUxChromiumProjectUse(process.env.UI_UX_BROWSER_CHANNEL);
 const FIREFOX_DESKTOP_MAP_CHROME_FIT =
   process.env.PW_FIREFOX_DESKTOP_MAP_CHROME_FIT === "1";
 // The photo picker defect was an iPhone one, so the crop step is worth running
@@ -121,6 +126,7 @@ export default defineConfig({
         "**/map-fallback.spec.ts",
         "**/map-service-worker.spec.ts",
         "**/map-uk-base-layer.spec.ts",
+        "**/ui-ux-battle-test.spec.ts",
         "**/signed-in-review.spec.ts",
         // Flag-ON specs run only in the chromium-flag-on project against a
         // flag-on build (L20 zero-skip contract) — never in the default
@@ -155,7 +161,10 @@ export default defineConfig({
       : []),
     {
       name: "chromium-keyless",
-      testMatch: "**/price-contribution-entry.spec.ts",
+      testMatch: [
+        "**/price-contribution-entry.spec.ts",
+        "**/ui-ux-battle-test-keyless.spec.ts",
+      ],
       use: {
         ...devices["Desktop Chrome"],
         baseURL: KEYLESS_BASE_URL,
@@ -206,12 +215,11 @@ export default defineConfig({
         "**/map-webgl-recovery.spec.ts",
         // UK base layer: asserts the zoom gate + a real tap on a painted pin.
         "**/map-uk-base-layer.spec.ts",
+        "**/ui-ux-battle-test.spec.ts",
       ],
       use: {
         ...devices["Desktop Chrome"],
-        launchOptions: {
-          args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-        },
+        ...UI_UX_BROWSER_USE,
         // OfflineReady (components/OfflineReady.tsx) only registers public/sw.js
         // in production, and this project's webServer runs a production build —
         // so without this, the SW's stale-while-revalidate tile cache serves
@@ -232,7 +240,7 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
-          args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+          args: UI_UX_CHROMIUM_ARGS,
         },
         serviceWorkers: "allow",
       },
@@ -285,7 +293,7 @@ export default defineConfig({
                 // SwiftShader headless Chromium can sit forever on the map
                 // loading shell and the visual gate would snapshot a lie.
                 launchOptions: {
-                  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+                  args: UI_UX_CHROMIUM_ARGS,
                 },
               },
               testMatch: "**/screenshots.spec.ts",

@@ -146,6 +146,7 @@ import {
   sameMapRenderedState,
   type MapRenderedState,
 } from "@/lib/mapRenderedState";
+import { markPubmaxTiming } from "@/lib/performanceMarks";
 
 // MapLibre 6 is ESM-only. Its worker imports a sibling shared module, which
 // Next's asset URL transform does not emit beside the worker. The predev and
@@ -956,6 +957,7 @@ export default function PubMapCanvas({
     const phoneFirstImpression = window.matchMedia("(max-width: 640px)").matches;
     const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     reducedRef.current = reducedQuery.matches;
+    performance.clearMarks("pubmax:pin-entrance-settled");
     const onReducedChange = () => {
       reducedRef.current = reducedQuery.matches;
       orbitRef.current?.refreshGate();
@@ -1636,21 +1638,29 @@ export default function PubMapCanvas({
     // re-arms the layer's normal 250ms opacity transition (disabled for the
     // duration of the ramp so the manual per-frame writes above aren't
     // smoothed/lagged by it — same reasoning as pubs-selected-glow's pulse).
+    let pinEntranceSettled = false;
+    const markPinEntranceSettled = () => {
+      if (pinEntranceSettled) return;
+      pinEntranceSettled = true;
+      markPubmaxTiming("pubmax:pin-entrance-settled");
+    };
     const finishPinEntrance = () => {
       pinEntranceActiveRef.current = false;
       applyClusterEntranceFrame(1);
-      if (!map.getLayer("pubs-point")) return;
-      map.setPaintProperty("pubs-point", "text-opacity-transition", {
-        duration: 250,
-        delay: 0,
-      });
-      map.setPaintProperty("pubs-point", "icon-opacity-transition", {
-        duration: 250,
-        delay: 0,
-      });
-      map.setLayoutProperty("pubs-point", "icon-size", selectedPinIconSizeExpr(selectedIdRef.current));
-      map.setPaintProperty("pubs-point", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
-      map.setPaintProperty("pubs-point", "text-opacity", pubIconOpacityExpr(selectedIdRef.current));
+      if (map.getLayer("pubs-point")) {
+        map.setPaintProperty("pubs-point", "text-opacity-transition", {
+          duration: 250,
+          delay: 0,
+        });
+        map.setPaintProperty("pubs-point", "icon-opacity-transition", {
+          duration: 250,
+          delay: 0,
+        });
+        map.setLayoutProperty("pubs-point", "icon-size", selectedPinIconSizeExpr(selectedIdRef.current));
+        map.setPaintProperty("pubs-point", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
+        map.setPaintProperty("pubs-point", "text-opacity", pubIconOpacityExpr(selectedIdRef.current));
+      }
+      markPinEntranceSettled();
     };
     // Fired once per mount, when the tile-paint coordinator first flips the pub
     // layers back to visible. settleSceneReady calls this while the gate still
@@ -1669,7 +1679,10 @@ export default function PubMapCanvas({
       // Phone readiness waits for a frame with visible map content. Starting
       // the opacity entrance after that frame would immediately blank those
       // pins again while the parent loading chrome retires.
-      if (reducedRef.current || phoneFirstImpression) return;
+      if (reducedRef.current || phoneFirstImpression) {
+        markPinEntranceSettled();
+        return;
+      }
       pinEntranceActiveRef.current = true;
       pinEntranceStartRef.current = performance.now();
       map.setPaintProperty("pubs-point", "icon-opacity-transition", { duration: 0, delay: 0 });

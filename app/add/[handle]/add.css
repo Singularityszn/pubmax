@@ -160,6 +160,9 @@
 
 .confirmFollowGhost {
   align-self: center;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   color: var(--muted);
   font-weight: 600;
   font-size: 0.9rem;

@@ -15,6 +15,10 @@ const mobileMapShellCss = readFileSync(
   join(process.cwd(), "components/mobile/mobileMapShell.css"),
   "utf8",
 );
+const profileCss = readFileSync(
+  join(process.cwd(), "app/u/[handle]/profile.css"),
+  "utf8",
+);
 
 describe("activation chrome CSS", () => {
   it("keeps first-run tour actions thumb-sized", () => {
@@ -27,6 +31,16 @@ describe("activation chrome CSS", () => {
     expect(citySuggestBannerCss).toMatch(
       /\.citySuggestBannerDismiss\s*{[\s\S]*?min-height:\s*44px;[\s\S]*?min-width:\s*44px;/,
     );
+  });
+
+  it("uses readable role tokens for profile and map actions", () => {
+    const citySwitch = citySuggestBannerCss.match(/\.citySuggestBannerSwitch\s*{[\s\S]*?}/)?.[0];
+    const followButton = profileCss.match(/\.profilePage \.followBtn\s*{[\s\S]*?}/)?.[0];
+
+    expect(citySwitch).toMatch(/background:\s*var\(--state-active-surface\);/);
+    expect(citySwitch).toMatch(/color:\s*var\(--state-active-ink\);/);
+    expect(followButton).toMatch(/background:\s*var\(--accent-action\);/);
+    expect(followButton).toMatch(/color:\s*var\(--color-on-accent\);/);
   });
 
   it("keeps the primary mobile planning action clear of the bottom dock", () => {
