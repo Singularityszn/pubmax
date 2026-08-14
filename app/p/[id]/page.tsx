@@ -8,6 +8,7 @@ import HandleAvatar from "@/components/profile/HandleAvatar";
 import ShareBar from "@/components/share/ShareBar";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { displayHandle } from "@/lib/handleDisplay";
+import { formatLedgerDate } from "@/lib/ledger";
 import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
 import { buildPintDropShareText } from "@/lib/shareArtifacts";
 import { type ViewerContext } from "@/lib/pintDrops";
@@ -50,16 +51,6 @@ function formatGbp(value: number | null): string | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0
     ? `£${value.toFixed(2)}`
     : null;
-}
-
-function formatDate(iso: string): string | null {
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return null;
-  return new Date(t).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
 }
 
 export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
@@ -137,7 +128,7 @@ export default async function PintDropPermalink({ params, searchParams }: PagePr
 // ── The collectible pint memory card ─────────────────────────────────────────
 function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?: string }) {
   const price = formatGbp(drop.priceGbp);
-  const date = formatDate(drop.createdAt);
+  const date = formatLedgerDate(drop.createdAt);
   const headline = drop.drink || "A pint worth remembering";
   const hasPhoto = Boolean(drop.pintPhotoUrl || drop.venuePhotoUrl);
 

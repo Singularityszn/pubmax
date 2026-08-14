@@ -140,7 +140,6 @@ describe("VOICE.md compliance audit", () => {
     const nearHeadline = read("lib/nearMeAnswer.ts");
     const nearPage = read("app/near/page.tsx");
     const palChatPage = read("app/pal/chat/page.tsx");
-    const tonightNearby = read("components/discovery/TonightNearbyLane.tsx");
     const deals = read("components/discovery/DealsTonightLane.tsx");
     const rivalry = read("components/discovery/CityRivalryTable.tsx");
     const borough = read("app/borough/[slug]/page.tsx");
@@ -180,9 +179,6 @@ describe("VOICE.md compliance audit", () => {
     expect(palChatPage).not.toContain("grounded picks");
     expect(palChatPage).not.toContain("nothing is made up");
 
-    expect(tonightNearby).not.toContain("Curated things to do");
-    expect(tonightNearby).not.toContain("Grounded,");
-    expect(tonightNearby).not.toContain("upstream-sourced");
     expect(deals).not.toContain("experience deals");
     expect(rivalry).not.toContain(
       'caption = "UK city energy. Demo Pint Drops, curated crawls',
