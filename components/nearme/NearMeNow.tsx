@@ -220,6 +220,13 @@ function patchCoverageIsLimited(
   return Boolean(patch && patchProfile && patchIsLimited(patchProfile));
 }
 
+export function shouldResolveInitialNearPatch(
+  initialPatchId: string | null | undefined,
+  activePatchId: string | null | undefined,
+): boolean {
+  return Boolean(initialPatchId && initialPatchId !== activePatchId);
+}
+
 export default function NearMeNow({
   cityId = DEFAULT_CITY_ID,
   onSelectVenue,
@@ -255,12 +262,23 @@ export default function NearMeNow({
   const slimRef = useRef<PricedPoint[] | null>(venues ?? null);
   const loadingSlimRef = useRef<Promise<PricedPoint[]> | null>(null);
   const answerGenerationRef = useRef(0);
+  const [activeAnswerGeneration, setActiveAnswerGeneration] = useState(0);
   const lastTrackedAnswerRef = useRef(0);
   const [answerContext, setAnswerContext] = useState<{
     source: NearAnswerSource;
     generation: number;
   } | null>(null);
-  const priceTrust = useNearPriceTrust(cards, showPriceTrust);
+  const beginAnswer = useCallback(() => {
+    const generation = ++answerGenerationRef.current;
+    setActiveAnswerGeneration(generation);
+    return generation;
+  }, []);
+  const priceTrust = useNearPriceTrust(
+    cards,
+    showPriceTrust,
+    activeAnswerGeneration,
+    answerContext?.generation ?? null,
+  );
 
   const resolvedMapHref = mapHref ?? mapHrefForCity(cityId);
 
@@ -289,7 +307,7 @@ export default function NearMeNow({
       reason: PatchReason = null,
       answerSource: NearAnswerSource = "picked-area",
     ) => {
-      const generation = ++answerGenerationRef.current;
+      const generation = beginAnswer();
       setState("requesting");
       setPatch(next);
       setBorough(null);
@@ -337,12 +355,12 @@ export default function NearMeNow({
           setState("ready");
         });
     },
-    [loadSlim, pathname, router, syncPatchToUrl],
+    [beginAnswer, loadSlim, pathname, router, syncPatchToUrl],
   );
 
   const pickBorough = useCallback(
     (name: string, answerSource: NearAnswerSource = "picked-area") => {
-      const generation = ++answerGenerationRef.current;
+      const generation = beginAnswer();
       void loadSlim().then((slim) => {
         if (generation !== answerGenerationRef.current) return;
         setCards(rankBoroughCheapest(slim, name));
@@ -356,7 +374,7 @@ export default function NearMeNow({
         writeRememberedArea({ kind: "borough", name });
       });
     },
-    [loadSlim],
+    [beginAnswer, loadSlim],
   );
 
   // No fix (denied / unavailable / nothing priced in range): answer anyway.
@@ -387,7 +405,7 @@ export default function NearMeNow({
       answerWithoutFix("unavailable");
       return;
     }
-    const generation = ++answerGenerationRef.current;
+    const generation = beginAnswer();
     setState("requesting");
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -438,12 +456,12 @@ export default function NearMeNow({
       },
       GEO_OPTS,
     );
-  }, [loadSlim, answerWithoutFix]);
+  }, [answerWithoutFix, beginAnswer, loadSlim]);
 
   useEffect(() => {
     // Map mode: a location is already resolved — answer immediately, no prompt.
     if (initialLocation) {
-      const generation = ++answerGenerationRef.current;
+      const generation = beginAnswer();
       void loadSlim().then((slim) => {
         if (generation !== answerGenerationRef.current) return;
         const answer = rankNearMe(initialLocation.lat, initialLocation.lng, slim);
@@ -456,7 +474,7 @@ export default function NearMeNow({
       return;
     }
     // Shareable patch entry beats auto-locate so deep links stay honest.
-    if (bootPatch) {
+    if (bootPatch && shouldResolveInitialNearPatch(bootPatch.id, patch?.id)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       pickPatch(bootPatch, null);
       return;
@@ -849,7 +867,6 @@ function trustLabelForCard(
 ): string | null {
   if (!priceTrust) return null;
   if (priceTrust === "loading") return nearPriceTrustLabel("loading");
-  if (priceTrust.status === "degraded") return nearPriceTrustLabel("degraded");
   const match = priceTrust.results.find(
     (item) => item.venueId === card.id && item.price === card.cheapestPrice,
   );

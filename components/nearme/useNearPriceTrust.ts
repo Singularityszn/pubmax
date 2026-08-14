@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
 import type { NearPriceTrustResponse } from "@/lib/nearPriceTrust";
+import { discardBody } from "@/lib/responseBody";
 
 export type NearPriceTrustView = "loading" | NearPriceTrustResponse;
 
@@ -58,7 +59,10 @@ export function startNearPriceTrustRequest(
     cache: "no-store",
     signal: controller.signal,
   }).then(async (response) => {
-    if (!response.ok) throw new Error("near price trust read failed");
+    if (!response.ok) {
+      discardBody(response);
+      throw new Error("near price trust read failed");
+    }
     const body: unknown = await response.json();
     if (!isNearPriceTrustResponse(body)) {
       throw new Error("near price trust response invalid");
@@ -84,8 +88,11 @@ function degradedResponse(): NearPriceTrustResponse {
 export function useNearPriceTrust(
   cards: readonly NearMeCard[],
   enabled: boolean,
+  activeAnswerGeneration: number,
+  completedAnswerGeneration: number | null,
 ): NearPriceTrustView | undefined {
   const requestUrl = useMemo(() => buildNearPriceTrustUrl(cards), [cards]);
+  const answerComplete = activeAnswerGeneration === completedAnswerGeneration;
   const [resolved, setResolved] = useState<{
     requestUrl: string;
     view: NearPriceTrustView;
@@ -94,7 +101,7 @@ export function useNearPriceTrust(
 
   useEffect(() => {
     const generation = ++generationRef.current;
-    if (!enabled || !requestUrl) return;
+    if (!enabled || !requestUrl || !answerComplete) return;
     // An external server read owns this transition. Prices stay rendered.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setResolved({ requestUrl, view: "loading" });
@@ -113,8 +120,8 @@ export function useNearPriceTrust(
         void error;
       });
     return () => request.abort();
-  }, [enabled, requestUrl]);
+  }, [activeAnswerGeneration, answerComplete, enabled, requestUrl]);
 
-  if (!enabled || !requestUrl) return undefined;
+  if (!enabled || !requestUrl || !answerComplete) return undefined;
   return resolved?.requestUrl === requestUrl ? resolved.view : "loading";
 }

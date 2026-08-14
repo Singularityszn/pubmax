@@ -3,6 +3,9 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  shouldResolveInitialNearPatch,
+} from "@/components/nearme/NearMeNow";
+import {
   nearAnswerReadyProps,
   nearVenueOpenedProps,
 } from "@/lib/nearAnalytics";
@@ -58,5 +61,12 @@ describe("near answer analytics", () => {
     expect(nearSource).toContain("if (generation !== answerGenerationRef.current) return;");
     expect(nearSource).toContain('trackEvent(\n      "near_answer_ready"');
     expect(nearSource).toContain('trackEvent(\n            "near_venue_opened"');
+  });
+
+  it("does not resolve a self-authored patch URL as a second answer", () => {
+    expect(shouldResolveInitialNearPatch("soho", null)).toBe(true);
+    expect(shouldResolveInitialNearPatch("soho", "soho")).toBe(false);
+    expect(shouldResolveInitialNearPatch("camden", "soho")).toBe(true);
+    expect(shouldResolveInitialNearPatch(null, "soho")).toBe(false);
   });
 });

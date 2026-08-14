@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getVenueDetail } = vi.hoisted(() => ({ getVenueDetail: vi.fn() }));
+const { lookupVenueDetail } = vi.hoisted(() => ({ lookupVenueDetail: vi.fn() }));
 
 vi.mock("@/lib/venueDetailIndex", () => ({
-  getVenueDetail,
+  lookupVenueDetail,
   isVenueDetailId: (id: string) => /^venue-[a-z0-9-]+$/.test(id),
 }));
 
@@ -22,10 +22,17 @@ function detail(id: string, price = 4.5, pubUrl = "https://www.pint-prices.com/p
 }
 
 describe("GET /api/near-price-trust", () => {
-  beforeEach(() => getVenueDetail.mockReset());
+  beforeEach(() => lookupVenueDetail.mockReset());
 
   it("rejects empty, malformed, and oversized requests", async () => {
-    expect((await GET(request(""))).status).toBe(400);
+    const empty = await GET(request(""));
+    expect(empty.status).toBe(400);
+    expect(empty.headers.get("cache-control")).toBe("private, max-age=0, no-store");
+    expect(await empty.json()).toEqual({
+      error: "Provide one to five valid Venue IDs.",
+      code: "INVALID_REQUEST",
+      retryable: false,
+    });
     expect((await GET(request("venueId=../../secret"))).status).toBe(400);
     expect((await GET(request(
       "venueId=venue-a&venueId=venue-b&venueId=venue-c&venueId=venue-d&venueId=venue-e&venueId=venue-f",
@@ -33,7 +40,10 @@ describe("GET /api/near-price-trust", () => {
   });
 
   it("trims and deduplicates IDs before reading display-safe evidence", async () => {
-    getVenueDetail.mockImplementation(async (id: string) => detail(id));
+    lookupVenueDetail.mockImplementation(async (id: string) => ({
+      status: "found",
+      venue: detail(id),
+    }));
 
     const response = await GET(request("venueId=%20venue-a%20&venueId=venue-a&venueId=venue-b"));
 
@@ -47,17 +57,32 @@ describe("GET /api/near-price-trust", () => {
         { venueId: "venue-b", price: 4.5, publisher: "Pint Prices" },
       ],
     });
-    expect(getVenueDetail).toHaveBeenCalledTimes(2);
+    expect(lookupVenueDetail).toHaveBeenCalledTimes(2);
   });
 
-  it("reports a failed detail read as degraded, never as publisher-unrecorded", async () => {
-    getVenueDetail.mockRejectedValueOnce(new Error("detail store unavailable"));
+  it("keeps resolved evidence when another detail read is unavailable", async () => {
+    lookupVenueDetail
+      .mockResolvedValueOnce({ status: "found", venue: detail("venue-a") })
+      .mockResolvedValueOnce({ status: "unavailable" });
+
+    const response = await GET(request("venueId=venue-a&venueId=venue-b"));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      status: "degraded",
+      collectedAt: "2026-07-03",
+      results: [{ venueId: "venue-a", price: 4.5, publisher: "Pint Prices" }],
+    });
+  });
+
+  it("skips a missing Venue without degrading available reads", async () => {
+    lookupVenueDetail.mockResolvedValueOnce({ status: "missing" });
 
     const response = await GET(request("venueId=venue-a"));
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      status: "degraded",
+      status: "ready",
       collectedAt: "2026-07-03",
       results: [],
     });

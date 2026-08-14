@@ -89,6 +89,19 @@ describe("/near price trust rows", () => {
     expect(markup).not.toContain("Publisher not recorded");
   });
 
+  it("keeps matching publisher evidence in a mixed degraded response", () => {
+    const markup = render({
+      status: "degraded",
+      collectedAt: "2026-07-03",
+      results: [
+        { venueId: "venue-a", price: 3.25, publisher: "Pint Prices" },
+      ],
+    });
+
+    expect(markup).toContain("On record · Pint Prices");
+    expect(occurrences(markup, "On record · Publisher could not be checked")).toBe(1);
+  });
+
   it("uses the shared dataset stamp instead of an arbitrary response date", () => {
     const markup = render({
       status: "ready",

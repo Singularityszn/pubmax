@@ -86,4 +86,28 @@ describe("near price trust client request", () => {
 
     await expect(request.promise).rejects.toThrow("near price trust response invalid");
   });
+
+  it("cancels an unread error response body", async () => {
+    let cancelled = false;
+    const fetcher = vi.fn(async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode("failure"));
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { status: 503 },
+      ),
+    );
+    const request = startNearPriceTrustRequest(
+      "/api/near-price-trust?venueId=venue-a",
+      fetcher,
+    );
+
+    await expect(request.promise).rejects.toThrow("near price trust read failed");
+    await vi.waitFor(() => expect(cancelled).toBe(true));
+  });
 });
