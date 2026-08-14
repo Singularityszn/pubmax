@@ -31,19 +31,15 @@ function gatewayDependencies(
 }
 
 function tavilyResponse(overrides: Record<string, unknown> = {}) {
-  return {
-    ok: true,
-    status: 200,
-    json: async () => ({
-      results: [{
-        title: "Independent Arms menu",
-        url: "https://independentarms.co.uk/menu",
-        content: "House Bitter - Pint £4.50",
-      }],
-      usage: { credits: 1 },
-      ...overrides,
-    }),
-  };
+  return new Response(JSON.stringify({
+    results: [{
+      title: "Independent Arms menu",
+      url: "https://independentarms.co.uk/menu",
+      content: "House Bitter - Pint £4.50",
+    }],
+    usage: { credits: 1 },
+    ...overrides,
+  }), { status: 200, headers: { "content-type": "application/json" } });
 }
 
 afterEach(() => {

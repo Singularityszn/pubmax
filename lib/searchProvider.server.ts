@@ -81,7 +81,7 @@ export class SearchProviderUnavailableError extends Error {
 type MutableStats = SearchProviderStats;
 
 const defaultDependencies: SearchProviderDependencies = {
-  generateText: (options) => generateText(options as never),
+  generateText: (options) => generateText(options as Parameters<typeof generateText>[0]),
   gateway: gateway as unknown as SearchProviderDependencies["gateway"],
 };
 
