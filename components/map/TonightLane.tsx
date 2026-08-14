@@ -35,7 +35,6 @@ import {
   laneKindFacets,
 } from "@/lib/whatsOnBadges";
 
-import "./tonightLane.css";
 
 type TonightLaneProps = {
   rows: WhatsOnRow[];

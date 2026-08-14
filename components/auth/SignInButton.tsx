@@ -17,7 +17,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { LogIn } from "lucide-react";
 
 import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
@@ -44,6 +44,18 @@ import {
 
 /** Phone band: full-page /login instead of the nav popover. */
 const PHONE_LOGIN_MEDIA = "(max-width: 640px)";
+
+function subscribeClientHydration(): () => void {
+  return () => {};
+}
+
+function readClientHydration(): boolean {
+  return true;
+}
+
+function readServerHydration(): boolean {
+  return false;
+}
 
 /**
  * Hand the page they are standing on to /login, so signing in returns them to
@@ -133,6 +145,11 @@ export default function SignInButton({
     signOut,
     switchAccount,
   } = useAuth();
+  const clientHydrated = useSyncExternalStore(
+    subscribeClientHydration,
+    readClientHydration,
+    readServerHydration,
+  );
   // ONE live read of the remembered-account lane on the page. The card derives
   // its list and its sign-out scope from this, so neither can drift.
   const deviceAccounts = useDeviceAccounts();
@@ -305,11 +322,21 @@ export default function SignInButton({
     user,
     clerkIntegrationConfigured,
   );
-  if (!configured && !clerkSessionAvailable) return null;
+  if (!configured && !clerkSessionAvailable) {
+    return (
+      <span
+        hidden
+        data-auth-configured="false"
+        data-auth-resolved={clientHydrated ? "true" : "false"}
+      />
+    );
+  }
 
   // Avoid a flash of the wrong state while the first getSession() resolves.
   // Skip the wait only for an already established product session.
-  if (loading && !clerkSessionAvailable) return null;
+  if (loading && !clerkSessionAvailable) {
+    return <span hidden data-auth-configured="true" data-auth-resolved="false" />;
+  }
 
   if (user) {
     const { navName: name, cardName, avatar } = accountIdentity(
@@ -333,7 +360,12 @@ export default function SignInButton({
       // plumbing and sits quietly at the foot. Without a claimed handle the
       // links point at /u/you, which is the claim surface itself.
       return (
-        <div className="authUser authUserNav" ref={rootRef}>
+        <div
+          className="authUser authUserNav"
+          ref={rootRef}
+          data-auth-configured="true"
+          data-auth-resolved={clientHydrated ? "true" : "false"}
+        >
           <div className="authCompact">
             <button
               type="button"
@@ -374,7 +406,11 @@ export default function SignInButton({
     }
 
     return (
-      <div className="authUser">
+      <div
+        className="authUser"
+        data-auth-configured="true"
+        data-auth-resolved={clientHydrated ? "true" : "false"}
+      >
         {avatarControl}
         <span className="authName">{name}</span>
         <button
@@ -424,7 +460,11 @@ export default function SignInButton({
 
   if (!compact) {
     return (
-      <div className="authUser">
+      <div
+        className="authUser"
+        data-auth-configured="true"
+        data-auth-resolved={clientHydrated ? "true" : "false"}
+      >
         {options}
         {error ? (
           <span className="authError" role="alert">
@@ -439,7 +479,11 @@ export default function SignInButton({
   // the disclosure so the nav links never get crowded or clipped.
   if (phoneLogin) {
     return (
-      <div className="authUser authUserNav">
+      <div
+        className="authUser authUserNav"
+        data-auth-configured="true"
+        data-auth-resolved={clientHydrated ? "true" : "false"}
+      >
         <div className="authCompact">
           <Link
             href={signInHref}
@@ -457,7 +501,12 @@ export default function SignInButton({
   }
 
   return (
-    <div className="authUser authUserNav" ref={rootRef}>
+    <div
+      className="authUser authUserNav"
+      ref={rootRef}
+      data-auth-configured="true"
+      data-auth-resolved={clientHydrated ? "true" : "false"}
+    >
       <div className="authCompact">
         <button
           type="button"

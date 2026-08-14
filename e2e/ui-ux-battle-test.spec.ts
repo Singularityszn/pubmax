@@ -73,6 +73,98 @@ test("shared audit navigation rejects HTTP failures and waits for settled UI", a
   await expect(page.locator(".pending")).toHaveCount(0);
 });
 
+test("shared audit navigation requires a painted map trace", async ({ baseURL, page }) => {
+  await page.route("**/audit-map", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: `
+        <main class="mapCanvasWrap">
+          <div class="mapFallback">Fallback</div>
+        </main>
+        <script>
+          window.__pubmaxPaintedMapTapPoints = () => [];
+        </script>
+      `,
+    }),
+  );
+
+  await expect(
+    navigateToAuditedRoute(page, baseURL!, {
+      name: "map-fallback",
+      path: "/audit-map",
+      readySelector: ".mapCanvasWrap",
+      waitForPaintedMap: true,
+    }, 300),
+  ).rejects.toThrow();
+
+  await page.unroute("**/audit-map");
+  await page.route("**/audit-map", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: `
+        <main class="mapCanvasWrap"><canvas class="maplibreMap"></canvas></main>
+        <script>
+          window.__pubmaxPaintedMapTapPoints = () => [];
+          setTimeout(() => {
+            performance.mark("pubmax:first-pins");
+            window.__pubmaxPaintedMapTapPoints = () => [
+              { kind: "pin", id: "venue-1", x: 40, y: 40 }
+            ];
+          }, 100);
+        </script>
+      `,
+    }),
+  );
+
+  await navigateToAuditedRoute(page, baseURL!, {
+    name: "map-painted",
+    path: "/audit-map",
+    readySelector: ".mapCanvasWrap",
+    waitForPaintedMap: true,
+  });
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+});
+
+test("shared audit navigation measures layout shift from navigation start", async ({
+  baseURL,
+  page,
+}) => {
+  await page.route("**/audit-cls", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: `
+        <style>body { margin: 0; } main { height: 700px; background: #eee; }</style>
+        <main>Settling</main>
+        <script>
+          requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => {
+            const banner = document.createElement("div");
+            banner.style.height = "180px";
+            document.body.prepend(banner);
+            document.body.dataset.settled = "true";
+          }, 50)));
+        </script>
+      `,
+    }),
+  );
+
+  const result = await navigateToAuditedRoute(page, baseURL!, {
+    name: "layout-shift",
+    path: "/audit-cls",
+    readySelector: 'body[data-settled="true"]',
+  });
+  expect(result.cls).toBeGreaterThan(0);
+});
+
+test("keyless readiness waits for client hydration", async ({ baseURL, page }) => {
+  const near = AUDITED_ROUTES.find((route) => route.name === "near")!;
+  await navigateToAuditedRoute(page, baseURL!, near);
+  await page.getByRole("button", { name: "Soho", exact: true }).click();
+  await expect(page.locator(".nmnHead")).toBeVisible();
+});
+
 test("audited labels keep readable contrast in reachable states", async ({ baseURL, page }) => {
   test.setTimeout(120_000);
   for (const theme of ["light", "dark"]) {
@@ -100,6 +192,7 @@ test("audited labels keep readable contrast in reachable states", async ({ baseU
       path: "/crawls?pack=old-london",
     };
     await navigateToAuditedRoute(page, baseURL!, crawlsRoute);
+    await expect(page.locator('[data-venue-index-status="ready"]')).toBeVisible();
     await page.locator(".routePackChip.isActive").hover();
     const crawls = await new AxeBuilder({ page })
       .include(".routePackChip.isActive")
@@ -113,6 +206,18 @@ test("audited labels keep readable contrast in reachable states", async ({ baseU
 
 test.describe("UI UX battle-test guardrails", () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test("first-visit consent link meets the touch target floor", async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.removeItem("pubmaxx:analytics-consent:v1");
+    });
+    await page.goto("/today");
+    const privacy = page.locator(".analyticsConsentPrompt a");
+    await expect(privacy).toBeVisible();
+    const box = await privacy.boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(44);
+    expect(box?.height).toBeGreaterThanOrEqual(44);
+  });
 
   test("audited mobile routes keep tap targets and page width within contract", async ({
     baseURL,

@@ -1,29 +1,31 @@
 export const AUDITED_ORIGINS = [
   { name: "live", url: "https://pubmaxxing.com" },
-  { name: "local", url: "http://127.0.0.1:3000" },
+  { name: "local", url: "http://localhost:3000" },
 ];
 
+export const UI_UX_CLS_BUDGET = 0.1;
+
 export const AUDITED_ROUTES = [
-  { name: "home", path: "/", readySelector: "main#main", waitForAuthChrome: true },
+  { name: "home", path: "/", readySelector: "main#main", waitForAuthResolution: true },
   {
     name: "today",
     path: "/today",
     readySelector: '[data-testid="today-screen"]',
-    waitForAuthChrome: true,
+    waitForAuthResolution: true,
   },
   {
     name: "tonight",
     path: "/tonight",
     readySelector: '[data-testid="tonight-screen"]',
     pendingTexts: ["Reading tonight’s listings…"],
-    waitForAuthChrome: true,
+    waitForAuthResolution: true,
   },
-  { name: "near", path: "/near", readySelector: ".nmnIntro", waitForAuthChrome: true },
+  { name: "near", path: "/near", readySelector: ".nmnIntro", waitForAuthResolution: true },
   {
     name: "add",
     path: "/add/karan",
     readySelector: "main.addShell",
-    waitForAuthChrome: true,
+    waitForAuthResolution: true,
   },
   {
     name: "login",
@@ -36,25 +38,27 @@ export const AUDITED_ROUTES = [
     path: "/u/karan",
     readySelector: "main.profileMain",
     pendingSelectors: [".profileTimelineSkel", ".profileHeaderLoading"],
-    waitForAuthChrome: true,
+    waitForAuthResolution: true,
   },
   {
     name: "map",
     path: "/map/london",
-    readySelector: ".mapCanvasWrap:not(.mapCanvasSkeleton)",
+    readySelector: ".mapCanvasWrap:has(.maplibreMap)",
     pendingSelectors: ["main.mapSkeleton", ".mapLoading"],
+    waitForPaintedMap: true,
   },
   {
     name: "plan",
     path: "/plan",
     readySelector: "main.planPage h1",
-    waitForAuthChrome: true,
+    waitForAuthResolution: true,
   },
   {
     name: "crawls",
     path: "/crawls",
-    readySelector: "main.crawlsShell:not([aria-busy='true'])",
-    waitForAuthChrome: true,
+    readySelector:
+      "main.crawlsShell[data-venue-index-status='ready']:not([aria-busy='true'])",
+    waitForAuthResolution: true,
   },
 ];
 
@@ -90,16 +94,7 @@ export function selectAuditedRoutes(filter) {
   );
 }
 
-export async function navigateToAuditedRoute(page, originUrl, route, timeout = 30_000) {
-  const url = new URL(route.path, originUrl).href;
-  const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout });
-  if (!response) {
-    throw new Error(`Navigation produced no HTTP response for ${url}`);
-  }
-  if (!response.ok()) {
-    throw new Error(`Navigation returned HTTP ${response.status()} for ${url}`);
-  }
-
+export async function waitForAuditedRouteSettlement(page, route, timeout = 30_000) {
   await page.locator(route.readySelector).first().waitFor({ state: "visible", timeout });
   for (const selector of route.pendingSelectors ?? []) {
     await page.locator(selector).waitFor({ state: "hidden", timeout });
@@ -107,8 +102,19 @@ export async function navigateToAuditedRoute(page, originUrl, route, timeout = 3
   for (const text of route.pendingTexts ?? []) {
     await page.getByText(text).waitFor({ state: "hidden", timeout });
   }
-  if (route.waitForAuthChrome) {
-    await page.locator(".authUser").first().waitFor({ state: "attached", timeout });
+  if (route.waitForAuthResolution) {
+    await page
+      .locator('[data-auth-resolved="true"]')
+      .first()
+      .waitFor({ state: "attached", timeout });
+  }
+  if (route.waitForPaintedMap) {
+    await page.waitForFunction(() => {
+      if (document.querySelector(".mapFallback")) return false;
+      const pinTrace = performance.getEntriesByName("pubmax:first-pins").length > 0;
+      const tapPoints = window.__pubmaxPaintedMapTapPoints;
+      return pinTrace && typeof tapPoints === "function" && tapPoints().length > 0;
+    }, undefined, { timeout });
   }
   await page.evaluate(async () => {
     await document.fonts.ready;
@@ -123,4 +129,50 @@ export async function navigateToAuditedRoute(page, originUrl, route, timeout = 3
     await Promise.allSettled(settlingAnimations.map((animation) => animation.finished));
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   });
+
+  return page.evaluate((budget) => {
+    const metrics = window.__pubmaxUiUxAuditMetrics;
+    return {
+      cls: metrics?.supported ? metrics.cls : null,
+      clsSupported: metrics?.supported ?? false,
+      clsBudget: budget,
+    };
+  }, UI_UX_CLS_BUDGET);
+}
+
+export async function navigateToAuditedRoute(page, originUrl, route, timeout = 30_000) {
+  await page.addInitScript(() => {
+    if (window.__pubmaxUiUxAuditMetrics) return;
+    const supported = PerformanceObserver.supportedEntryTypes.includes("layout-shift");
+    window.__pubmaxUiUxAuditMetrics = { cls: 0, supported };
+    if (!supported) return;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (!entry.hadRecentInput) {
+          window.__pubmaxUiUxAuditMetrics.cls += entry.value ?? 0;
+        }
+      }
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+
+  const url = new URL(route.path, originUrl).href;
+  let response;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      response = page.url() === url
+        ? await page.reload({ waitUntil: "domcontentloaded", timeout })
+        : await page.goto(url, { waitUntil: "domcontentloaded", timeout });
+      break;
+    } catch (error) {
+      if (attempt > 0 || !String(error?.message).includes("net::ERR_ABORTED")) throw error;
+      await page.waitForTimeout(100);
+    }
+  }
+  if (!response) {
+    throw new Error(`Navigation produced no HTTP response for ${url}`);
+  }
+  if (!response.ok()) {
+    throw new Error(`Navigation returned HTTP ${response.status()} for ${url}`);
+  }
+  return waitForAuditedRouteSettlement(page, route, timeout);
 }

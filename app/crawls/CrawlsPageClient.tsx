@@ -91,11 +91,20 @@ function CrawlsPageInner() {
   // mount (same pattern as the Round route list); until it lands slimById is
   // empty and the cards simply render without metrics rather than guessing.
   const [slimVenues, setSlimVenues] = useState<SlimVenue[]>([]);
+  const [venueIndexStatus, setVenueIndexStatus] = useState<"loading" | "ready" | "error">(
+    "loading",
+  );
   useEffect(() => {
     let active = true;
-    void loadSlimVenues().then((venues) => {
-      if (active) setSlimVenues(venues);
-    });
+    void loadSlimVenues()
+      .then((venues) => {
+        if (!active) return;
+        setSlimVenues(venues);
+        setVenueIndexStatus("ready");
+      })
+      .catch(() => {
+        if (active) setVenueIndexStatus("error");
+      });
     return () => {
       active = false;
     };
@@ -154,7 +163,12 @@ function CrawlsPageInner() {
   }
 
   return (
-    <main id="main" className="crawlsShell">
+    <main
+      id="main"
+      className="crawlsShell"
+      aria-busy={venueIndexStatus === "loading"}
+      data-venue-index-status={venueIndexStatus}
+    >
       <SiteNav active="crawls" />
 
       {story ? (

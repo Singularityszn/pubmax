@@ -155,7 +155,10 @@ export default defineConfig({
       : []),
     {
       name: "chromium-keyless",
-      testMatch: "**/price-contribution-entry.spec.ts",
+      testMatch: [
+        "**/price-contribution-entry.spec.ts",
+        "**/ui-ux-battle-test-keyless.spec.ts",
+      ],
       use: {
         ...devices["Desktop Chrome"],
         baseURL: KEYLESS_BASE_URL,

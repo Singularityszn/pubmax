@@ -32,7 +32,6 @@ import type {
 import { useSpringValue } from "@/lib/useSpringValue";
 import type { ZonePintIndex } from "@/lib/zones";
 
-import "./mapToolbar.css";
 
 /**
  * The map's drink, named on a control of its own.

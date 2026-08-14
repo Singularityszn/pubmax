@@ -4,7 +4,7 @@ Date: 2026-08-14
 
 Scope: `https://pubmaxxing.com` and local `npm run dev`, audited with Playwright at 390x844 CSS px with touch and device scale factor 3, and 1440x900 CSS px. Routes: `/`, `/today`, `/tonight`, `/near`, `/add/karan`, `/login`, `/u/karan`, `/map/london`, `/plan`, and `/crawls`. Light and dark local captures cover the same route set.
 
-Repository evidence keeps 14 representative before-and-after stills in [`docs/proof/ui-ux-battle-test/`](../proof/ui-ux-battle-test/), under 10 MiB total. Full raw audits, remaining captures, and videos belong in the approved local archive at `/Users/karanmanoharan/karan-agent-workspace/data/ui-ux-battle-test/proof/`, outside Git. The baseline sweep found 92 findings. Most live findings remain visible because deployment is frozen. The local after sweep found no mobile tap-target, horizontal-overflow, or Axe violations.
+Repository evidence keeps 14 representative before-and-after stills in [`docs/proof/ui-ux-battle-test/`](../proof/ui-ux-battle-test/), under 10 MiB total. Every after still was regenerated through the shared settled-route boundary. Full raw audits, remaining captures, and videos belong in the approved local archive at `/Users/karanmanoharan/karan-agent-workspace/data/ui-ux-battle-test/proof/`, outside Git. The baseline sweep found 92 findings. Most live findings remain visible because deployment is frozen. The local after sweep found no mobile tap-target, horizontal-overflow, or focused Axe violations.
 
 ## Defect table
 
@@ -23,7 +23,8 @@ Repository evidence keeps 14 representative before-and-after stills in [`docs/pr
 
 - No audited local page had horizontal document overflow after fixes. The guard is [`e2e/ui-ux-battle-test.spec.ts`](../../e2e/ui-ux-battle-test.spec.ts), which passed against the dev server.
 - The sweep reported text overflow on PUBMAXX wordmark glyph containers and a plan label. These are internal child measurements. Full page width stayed within the viewport, and screenshots show no clipped user text. No style change was made.
-- Headless Chromium did not expose non-zero safe-area environment values. No safe-area defect was reproduced.
+- Safe-area checks read resolved `margin-top`, `top`, and `padding-bottom` values from visible navigation and tab-bar consumers. The emulated viewport exposed a zero inset; no safe-area defect was reproduced.
+- Buffered layout-shift observation started before navigation. Every settled local route stayed below the 0.1 CLS budget; the highest observed value was below 0.02.
 - The full dark sweep showed the same layout hierarchy and no additional Axe contrast failures. Reduced-motion behaviour was not changed.
 
 ## Needs decision

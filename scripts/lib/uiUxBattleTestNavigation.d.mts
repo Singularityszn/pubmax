@@ -11,16 +11,29 @@ export type AuditedRoute = {
   readySelector: string;
   pendingSelectors?: string[];
   pendingTexts?: string[];
-  waitForAuthChrome?: boolean;
+  waitForAuthResolution?: boolean;
+  waitForPaintedMap?: boolean;
+};
+
+export type AuditNavigationResult = {
+  cls: number | null;
+  clsSupported: boolean;
+  clsBudget: number;
 };
 
 export const AUDITED_ORIGINS: AuditedOrigin[];
 export const AUDITED_ROUTES: AuditedRoute[];
+export const UI_UX_CLS_BUDGET: number;
 export function selectAuditedOrigins(filter?: string): AuditedOrigin[];
 export function selectAuditedRoutes(filter?: string): AuditedRoute[];
+export function waitForAuditedRouteSettlement(
+  page: Page,
+  route: AuditedRoute,
+  timeout?: number,
+): Promise<AuditNavigationResult>;
 export function navigateToAuditedRoute(
   page: Page,
   originUrl: string,
   route: AuditedRoute,
   timeout?: number,
-): Promise<void>;
+): Promise<AuditNavigationResult>;

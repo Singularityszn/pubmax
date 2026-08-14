@@ -16,7 +16,6 @@ import {
 import type { AskProposal } from "@/lib/ask/types";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
-import "./mapConciergeAsk.css";
 
 const EXAMPLE_PROMPTS = [
   "Quiet-ish near Bank, 4 of us",

@@ -3,13 +3,19 @@ import path from "node:path";
 import { chromium } from "playwright";
 import {
   AUDITED_ROUTES,
+  UI_UX_CLS_BUDGET,
   navigateToAuditedRoute,
   selectAuditedOrigins,
   selectAuditedRoutes,
+  waitForAuditedRouteSettlement,
 } from "./lib/uiUxBattleTestNavigation.mjs";
 import { prepareAuditOutputRoot } from "./lib/uiUxBattleTestOutput.mjs";
 
 const colorScheme = process.env.UI_UX_COLOR_SCHEME ?? "light";
+const browserChannel = process.env.UI_UX_BROWSER_CHANNEL;
+if (browserChannel && browserChannel !== "chrome") {
+  throw new Error("UI_UX_BROWSER_CHANNEL must be chrome when set");
+}
 const selectedOrigins = selectAuditedOrigins(process.env.UI_UX_ORIGINS);
 const selectedRoutes = selectAuditedRoutes(process.env.UI_UX_ROUTES);
 const outputRoot = await prepareAuditOutputRoot(process.env.UI_UX_OUTPUT);
@@ -29,9 +35,15 @@ const viewports = [
     hasTouch: false,
   },
 ];
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  headless: true,
+  ...(browserChannel
+    ? { channel: browserChannel }
+    : { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] }),
+});
 const findings = [];
 const pages = [];
+const flows = [];
 
 function safeName(value) {
   return value.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "");
@@ -91,6 +103,25 @@ async function inspectPage(page, origin, viewport, route) {
         };
       })
       .filter((item) => item.scrollWidth > item.clientWidth + 1);
+    const safeAreaConsumers = [
+      [".siteNavBar:not(.siteNavBarFloating)", "marginTop"],
+      [".siteNavBarFloating", "top"],
+      [".lpNav", "top"],
+      [".mobileTabBar", "paddingBottom"],
+    ]
+      .flatMap(([selector, property]) =>
+        [...document.querySelectorAll(selector)]
+          .filter(visible)
+          .map((element) => ({
+            selector,
+            property,
+            value: getComputedStyle(element)[property],
+          })),
+      );
+    const layoutStability = window.__pubmaxUiUxAuditMetrics ?? {
+      cls: 0,
+      supported: false,
+    };
     return {
       url: location.href,
       title: document.title,
@@ -99,9 +130,9 @@ async function inspectPage(page, origin, viewport, route) {
       bodyScrollWidth: document.body?.scrollWidth ?? 0,
       interactive,
       textOverflow,
-      safeAreaTop: getComputedStyle(document.documentElement).getPropertyValue(
-        "env(safe-area-inset-top)",
-      ),
+      safeAreaConsumers,
+      cls: layoutStability.supported ? layoutStability.cls : null,
+      clsSupported: layoutStability.supported,
       bodyBackground: getComputedStyle(document.body).backgroundColor,
     };
   });
@@ -157,8 +188,20 @@ async function inspectPage(page, origin, viewport, route) {
 
 async function navigate(page, origin, viewport, route) {
   try {
-    await navigateToAuditedRoute(page, origin.url, route);
-    return true;
+    const result = await navigateToAuditedRoute(page, origin.url, route);
+    if (result.cls !== null && result.cls >= UI_UX_CLS_BUDGET) {
+      addFinding({
+        severity: "high",
+        category: "layout-stability",
+        origin: origin.name,
+        viewport: viewport.name,
+        route: route.path,
+        element: "document",
+        defect: `CLS ${result.cls.toFixed(4)} exceeds the ${UI_UX_CLS_BUDGET} budget.`,
+        evidence: `${safeName(`${origin.name}/${viewport.name}/${route.name}`)}.png`,
+      });
+    }
+    return result;
   } catch (error) {
     addFinding({
       severity: "high",
@@ -170,55 +213,198 @@ async function navigate(page, origin, viewport, route) {
       defect: `Navigation failed: ${error.message}`,
       evidence: "navigation",
     });
-    return false;
+    return null;
   }
 }
 
-async function interact(origin, viewport) {
-  const homeRoute = AUDITED_ROUTES[0];
-  const todayRoute = AUDITED_ROUTES[1];
-  const videoName = `${origin.name}-${viewport.name}-key-flow.webm`;
-  const videoPage = await browser.newPage({
+function auditedRoute(name) {
+  const route = AUDITED_ROUTES.find((candidate) => candidate.name === name);
+  if (!route) throw new Error(`Missing audited route: ${name}`);
+  return route;
+}
+
+async function requireVisibleFocus(page, locator, label) {
+  await locator.focus();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Shift+Tab");
+  const focus = await locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      active: document.activeElement === element,
+      focusVisible: element.matches(":focus-visible"),
+      outlineStyle: style.outlineStyle,
+      outlineWidth: style.outlineWidth,
+      boxShadow: style.boxShadow,
+    };
+  });
+  const outlineVisible = focus.outlineStyle !== "none" && focus.outlineWidth !== "0px";
+  const shadowVisible = focus.boxShadow !== "none";
+  if (!focus.active || !focus.focusVisible || (!outlineVisible && !shadowVisible)) {
+    throw new Error(`${label} has no visible keyboard focus indicator`);
+  }
+}
+
+async function paintedMapPoints(page) {
+  return page.evaluate(() => window.__pubmaxPaintedMapTapPoints?.() ?? []);
+}
+
+function paintedPointSignature(points) {
+  return points
+    .map(({ id, x, y }) => `${id}:${Math.round(x)}:${Math.round(y)}`)
+    .sort()
+    .join("|");
+}
+
+async function waitForPaintedPointChange(page, previous) {
+  await page.waitForFunction((prior) => {
+    const points = window.__pubmaxPaintedMapTapPoints?.() ?? [];
+    const next = points
+      .map(({ id, x, y }) => `${id}:${Math.round(x)}:${Math.round(y)}`)
+      .sort()
+      .join("|");
+    return points.length > 0 && next !== prior;
+  }, previous);
+}
+
+async function exerciseNamedFlows(origin, viewport) {
+  const flowPage = await browser.newPage({
     viewport: viewport.viewport,
     deviceScaleFactor: viewport.deviceScaleFactor,
     isMobile: viewport.isMobile,
     hasTouch: viewport.hasTouch,
     colorScheme,
-    recordVideo: { dir: path.join(outputRoot, "videos"), size: viewport.viewport },
   });
-  if (!await navigate(videoPage, origin, viewport, homeRoute)) {
-    await videoPage.close();
-    return;
-  }
-  const buttons = videoPage.locator("button:visible");
-  const count = Math.min(await buttons.count(), 5);
-  for (let index = 0; index < count; index += 1) {
-    if (index >= await buttons.count()) continue;
-    const button = buttons.nth(index);
-    const label = ((await button.getAttribute("aria-label").catch(() => "")) || (await button.innerText().catch(() => "")).trim()).slice(0, 80);
-    if (!label || /delete|remove|sign out|logout|publish|send|submit/i.test(label)) continue;
+  await flowPage.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+
+  const runFlow = async (name, route, action) => {
     try {
-      await button.click({ timeout: 1500 });
-      await videoPage.waitForTimeout(250);
-      const close = videoPage.locator('button[aria-label*="Close" i], [role="dialog"] button').first();
-      if (await close.isVisible().catch(() => false)) await close.click({ timeout: 1000 }).catch(() => {});
-    } catch {
-      // A route can expose a transient or disabled control. The static sweep remains authoritative.
+      await navigateToAuditedRoute(flowPage, origin.url, route);
+      const outcome = await action();
+      if (outcome === "not-applicable") return;
+      flows.push({ name, origin: origin.name, viewport: viewport.name, status: "passed" });
+    } catch (error) {
+      flows.push({
+        name,
+        origin: origin.name,
+        viewport: viewport.name,
+        status: "failed",
+        error: error.message,
+      });
+      addFinding({
+        severity: "high",
+        category: "key-flow",
+        origin: origin.name,
+        viewport: viewport.name,
+        route: route.path,
+        element: name,
+        defect: `${name} failed: ${error.message}`,
+        evidence: `${origin.name}-${viewport.name}-key-flow.png`,
+      });
     }
+  };
+
+  if (!viewport.isMobile) {
+    await runFlow("login-sheet-open", auditedRoute("home"), async () => {
+      const authMarker = flowPage.locator('[data-auth-resolved="true"]').first();
+      const configured = await authMarker.getAttribute("data-auth-configured");
+      if (configured !== "true") {
+        flows.push({
+          name: "login-sheet-open",
+          origin: origin.name,
+          viewport: viewport.name,
+          status: "not-applicable",
+          reason: "auth-not-configured",
+        });
+        return "not-applicable";
+      }
+      const trigger = flowPage.getByRole("button", { name: "Sign in", exact: true }).first();
+      await requireVisibleFocus(flowPage, trigger, "Sign in trigger");
+      await trigger.click();
+      const sheet = flowPage.locator('.authMenu[aria-label="Sign in options"]');
+      await sheet.waitFor({ state: "visible" });
+      const focused = sheet.locator(":focus");
+      await focused.waitFor({ state: "visible" });
+      await requireVisibleFocus(flowPage, focused, "Sign in sheet control");
+    });
+  } else {
+    flows.push({
+      name: "login-sheet-open",
+      origin: origin.name,
+      viewport: viewport.name,
+      status: "not-applicable",
+      reason: "desktop-popover-only",
+    });
   }
-  if (!await navigate(videoPage, origin, viewport, todayRoute)) {
-    await videoPage.close();
-    return;
+
+  await runFlow("tonight-browse", auditedRoute("tonight"), async () => {
+    const browse = flowPage.getByRole("link", { name: "See them on the map" });
+    await requireVisibleFocus(flowPage, browse, "Tonight browse link");
+    await browse.click();
+    await flowPage.waitForURL((url) => url.pathname.startsWith("/map"));
+    await waitForAuditedRouteSettlement(flowPage, auditedRoute("map"));
+  });
+
+  await runFlow("near-answer", auditedRoute("near"), async () => {
+    const soho = flowPage.getByRole("button", { name: "Soho", exact: true }).first();
+    await requireVisibleFocus(flowPage, soho, "Soho area choice");
+    await soho.click();
+    await flowPage.locator(".nmnHead").waitFor({ state: "visible" });
+    await flowPage.waitForURL((url) => url.searchParams.get("patch") === "soho");
+  });
+
+  await runFlow("add-form-open", auditedRoute("add"), async () => {
+    const form = flowPage.locator('.confirmFollow[aria-label="Add @karan"]');
+    await form.waitFor({ state: "visible" });
+    await requireVisibleFocus(
+      flowPage,
+      form.locator(".confirmFollowPrimary"),
+      "Add form primary action",
+    );
+  });
+
+  if (!viewport.isMobile) {
+    await runFlow("map-pan-zoom", auditedRoute("map"), async () => {
+      const zoomIn = flowPage.getByRole("button", { name: "Zoom in" });
+      await requireVisibleFocus(flowPage, zoomIn, "Map zoom in");
+      const beforeZoom = paintedPointSignature(await paintedMapPoints(flowPage));
+      await zoomIn.click();
+      await waitForPaintedPointChange(flowPage, beforeZoom);
+
+      const canvas = flowPage.locator(".maplibreMap canvas");
+      const box = await canvas.boundingBox();
+      if (!box) throw new Error("Map canvas has no visible bounds");
+      const beforePan = paintedPointSignature(await paintedMapPoints(flowPage));
+      await flowPage.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await flowPage.mouse.down();
+      await flowPage.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2 + 40, {
+        steps: 8,
+      });
+      await flowPage.mouse.up();
+      await waitForPaintedPointChange(flowPage, beforePan);
+      await requireVisibleFocus(
+        flowPage,
+        flowPage.getByRole("button", { name: "Zoom out" }),
+        "Map zoom out",
+      );
+    });
+  } else {
+    flows.push({
+      name: "map-pan-zoom",
+      origin: origin.name,
+      viewport: viewport.name,
+      status: "not-applicable",
+      reason: "desktop-zoom-controls-only",
+    });
   }
-  await videoPage.keyboard.press("Tab");
-  await videoPage.waitForTimeout(250);
-  await videoPage.screenshot({ path: path.join(outputRoot, `${origin.name}-${viewport.name}-key-flow.png`) });
-  const video = videoPage.video();
-  await videoPage.close();
-  const videoPath = video ? await video.path() : undefined;
-  if (videoPath) {
-    await fs.rename(videoPath, path.join(outputRoot, "videos", videoName)).catch(() => {});
-  }
+
+  await flowPage.screenshot({
+    path: path.join(outputRoot, `${origin.name}-${viewport.name}-key-flow.png`),
+  });
+  await flowPage.close();
 }
 
 for (const origin of selectedOrigins) {
@@ -266,11 +452,14 @@ for (const origin of selectedOrigins) {
     }
     await page.close();
     await context.close();
-    await interact(origin, viewport);
+    await exerciseNamedFlows(origin, viewport);
   }
 }
 
-await fs.writeFile(path.join(outputRoot, "audit.json"), JSON.stringify({ pages, findings }, null, 2));
+await fs.writeFile(
+  path.join(outputRoot, "audit.json"),
+  JSON.stringify({ clsBudget: UI_UX_CLS_BUDGET, pages, flows, findings }, null, 2),
+);
 await Promise.race([
   browser.close(),
   new Promise((resolve) => setTimeout(resolve, 5_000)),
