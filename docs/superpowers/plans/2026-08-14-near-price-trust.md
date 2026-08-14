@@ -65,7 +65,7 @@ Run `npx vitest run __tests__/nearPriceTrustRoute.test.ts --maxWorkers=1`.
 
 **Step 3: Implement route**
 
-Use `getVenueDetail`. Keep request and response bounded. Do not accept price from client as evidence authority.
+Use `lookupVenueDetail`. Keep request and response bounded. Do not accept price from client as evidence authority.
 
 **Step 4: Run GREEN**
 
@@ -77,6 +77,9 @@ Run resolver and route tests together.
 - Modify: `components/nearme/NearMeNow.tsx`
 - Modify: `components/nearme/nearMeNow.css`
 - Modify: `components/nearme/NearPageClient.tsx`
+- Create: `components/nearme/useNearPriceTrust.ts`
+- Create: `__tests__/nearPriceTrustClient.test.ts`
+- Create: `__tests__/nearPriceTrustLifecycle.test.ts`
 - Create: `__tests__/nearPriceTrustRows.test.ts`
 
 **Step 1: Write row-rendering tests**
@@ -110,6 +113,7 @@ Run row, ranker, locality, and de-box tests.
 
 **Files:**
 - Modify: `lib/analyticsEvents.ts`
+- Create: `lib/nearAnalytics.ts`
 - Modify: `components/nearme/NearMeNow.tsx`
 - Modify: `__tests__/analyticsEvents.test.ts`
 - Create: `__tests__/nearAnalytics.test.ts`

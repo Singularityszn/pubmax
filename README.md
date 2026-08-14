@@ -2,7 +2,7 @@
 
 **Every pint has a story.** A **price-aware, story-led London night-out map and pub-crawl planner**. Pubs keep observed pint prices; hand-curated bars, late-food institutions, and iconic restaurants use labelled, dated anchors for the item actually priced. Three layers share one living 3-D map: **price**, **setting**, and **story**, with visible provenance so history and legend never blur.
 
-Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build your own** by tapping pubs — or load a curated **Featured route** or **Pubs near me**. Any crawl is captured in the URL and shareable. Tap a pub to open **The Landlord**, a retrieval-grounded AI that tells the pub's real history and honestly says when it doesn't know.
+Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build your own** by tapping pubs, or load a curated **Featured route**. Any crawl is captured in the URL and shareable. Tap a pub to open **The Landlord**, a retrieval-grounded AI that tells the pub's real history and honestly says when it doesn't know.
 
 ## Features
 
@@ -14,7 +14,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **No alcohol and food views** - a "Show me" switch under the map search narrows the map to the night you are actually planning. The no-alcohol view keeps venues known to serve without alcohol, any pub with a corroborated soft-drink or alcohol-free price, and sourced food venues; the food view keeps late-food and restaurant venues. Soft drinks and alcohol-free drinks are their own logged categories, held to the same corroboration and freshness rules as a pint, and they colour and label pins like any other chosen drink. A food or dish anchor never prints on a pin: it stays on the venue sheet, labelled and sourced. A view's figure always names its drink or dish, and never reaches cheapest-pint buckets or the Pint Index. A pub with nothing logged says so plainly rather than implying it was checked.
 - **Crawl planner** — Suggest mode (greedy nearest-good-neighbour route) or Build mode (tap to add stops); story filters by price, amenities, water, heritage.
 - **Curated routes** — named "generational" Featured crawls loaded as ordered stops.
-- **Pubs near me** — a crawl built from your geolocation (degrades gracefully if denied).
+- **Pubs near me** - `/near` compares listed Pint Prices nearby, cheapest first. Each result shows its recorded publisher status, while one shared date tells you when the Venue Dataset was collected. Location stays on the device, and a denied or unavailable location falls back to a remembered or default area.
 - **Shareable URLs** — the whole crawl state round-trips through the URL; "Copy link" shares it.
 - **Rounds** - a shared beer mat for the buying rotation: whose turn is up, who bought last, what each round cost, and an immutable night diary. A map route or member-only active Plan can start one with its title and ordered stops already queued. Anyone with the code can add diary lines; only lines from a signed-in account with a claimed handle can enter the community-price lane, where the usual corroboration gate still applies. No balances, IOUs, or settling up.
 - **Pint Drops** — community photos + the price you paid + a passed-down note, moderated.

@@ -321,6 +321,28 @@ rsvp_change_rate        = count(invite_rsvp_submitted where isUpdate = true)
                         / count(invite_rsvp_submitted)
 ```
 
+## 8. Near answer-to-open conversion
+
+`/near` measures whether a useful price answer leads to a Venue open without
+making acceptance part of the funnel. `near_answer_ready` fires once for the
+latest completed answer. A superseded answer fires nothing.
+`near_venue_opened` fires before the selected result navigates to its Venue
+sheet.
+
+Source distinguishes a direct location answer from remembered, picked, and
+default area answers without naming the area. Result count and row position
+use coarse bands owned by `lib/nearAnalytics.ts`; their closed schemas remain
+in `lib/analyticsEvents.ts`.
+
+```
+near_answer_to_open_rate = count(near_venue_opened) / count(near_answer_ready)
+```
+
+Each event carries only the source and its result or position band. No Venue
+ID, Venue name, coordinate, area, price, or free text leaves the device in
+these events. Consent gating and server-side validation remain the same as for
+every event in this document.
+
 ## Registry additions
 
 All six new event names were added to `ANALYTICS_EVENTS` in

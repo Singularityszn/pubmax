@@ -33,6 +33,8 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
     if (!isPosterLandingSrc(searchParams.get("src"))) {
       clearPosterLandingSession();
     }
+    // Mount-only by contract: later query changes must not clear this session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
