@@ -88,4 +88,15 @@ describe("/near price trust rows", () => {
     expect(occurrences(markup, "On record · Publisher could not be checked")).toBe(2);
     expect(markup).not.toContain("Publisher not recorded");
   });
+
+  it("uses the shared dataset stamp instead of an arbitrary response date", () => {
+    const markup = render({
+      status: "ready",
+      collectedAt: "2026-07-04",
+      results: [{ venueId: "venue-a", price: 3.25, publisher: "Pint Prices" }],
+    });
+
+    expect(markup).toContain("Prices last collected 3 July 2026.");
+    expect(markup).not.toContain("Prices last collected 4 July 2026.");
+  });
 });

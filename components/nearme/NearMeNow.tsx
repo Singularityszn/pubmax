@@ -9,7 +9,10 @@ import type { NearAnswerSource } from "@/lib/analyticsEvents";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { mapHrefForCity } from "@/lib/cityPreference";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
-import { nearPriceTrustLabel } from "@/lib/nearPriceTrust";
+import {
+  NEAR_PRICE_TRUST_COLLECTED_AT,
+  nearPriceTrustLabel,
+} from "@/lib/nearPriceTrust";
 import { formatPrice } from "@/lib/venues";
 import { acceptNearVenue, type RawAcceptedArea } from "@/lib/venueAcceptance";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -836,16 +839,8 @@ function NearMeAreaAnswer({
 /** The one caption for the whole list. It heads the list; it never rides a row. */
 export const NEAR_ME_PRICE_CAPTION = "Cheapest pint";
 
-function collectedPriceLabel(value: string): string | null {
-  const timestamp = Date.parse(`${value}T12:00:00.000Z`);
-  if (!Number.isFinite(timestamp)) return null;
-  const date = new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/London",
-  }).format(new Date(timestamp));
-  return `Prices last collected ${date}.`;
+function collectedPriceLabel(): string {
+  return NEAR_PRICE_TRUST_COLLECTED_AT;
 }
 
 function trustLabelForCard(
@@ -922,7 +917,7 @@ export function NearMeCardList({
   if (cards.length === 0) return null;
   const collectedLabel =
     priceTrust && priceTrust !== "loading"
-      ? collectedPriceLabel(priceTrust.collectedAt)
+      ? collectedPriceLabel()
       : null;
   return (
     <>
