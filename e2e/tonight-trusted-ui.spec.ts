@@ -15,11 +15,12 @@ const SHOTS_DIR = path.join(process.cwd(), "e2e-shots", "tonight-trusted-ui");
 // Deterministic spine: a two-venue deal family (collapses to one card), plus a
 // music and a quiz row — enough to show grouping, the secondary lanes, and an
 // acceptable Venue, without depending on live upstream data.
+const TEST_TONIGHT_START = Date.now() + 60 * 60 * 1000;
 const ROWS = [
-  { id: "d1", venueId: "venue-deala", placeName: "The Deal Arms A", kind: "deal", startsAt: "2026-07-24T20:00:00.000Z", title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "d2", venueId: "venue-dealb", placeName: "The Deal Arms B", kind: "deal", startsAt: "2026-07-24T20:00:00.000Z", title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "m1", venueId: "venue-music", placeName: "The Blue Note", kind: "music", startsAt: "2026-07-24T21:00:00.000Z", title: "Live Jazz", source: { label: "Listings", url: "https://listings.example/jazz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
-  { id: "q1", venueId: "venue-quiz", placeName: "The Sharp Wit", kind: "quiz", startsAt: "2026-07-24T19:30:00.000Z", title: "Pub Quiz", source: { label: "Listings", url: "https://listings.example/quiz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
+  { id: "d1", venueId: "venue-deala", placeName: "The Deal Arms A", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
+  { id: "d2", venueId: "venue-dealb", placeName: "The Deal Arms B", kind: "deal", startsAt: new Date(TEST_TONIGHT_START).toISOString(), title: "Curry Club", source: { label: "Chain Co", url: "https://chain.example/deal" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
+  { id: "m1", venueId: "venue-music", placeName: "The Blue Note", kind: "music", startsAt: new Date(TEST_TONIGHT_START + 60 * 60 * 1000).toISOString(), title: "Live Jazz", source: { label: "Listings", url: "https://listings.example/jazz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
+  { id: "q1", venueId: "venue-quiz", placeName: "The Sharp Wit", kind: "quiz", startsAt: new Date(TEST_TONIGHT_START - 30 * 60 * 1000).toISOString(), title: "Pub Quiz", source: { label: "Listings", url: "https://listings.example/quiz" }, observedAt: "2026-07-20T12:00:00.000Z", confidence: "listed" },
 ];
 
 type WhatsOnBody = { sourceFreshnessKind?: string; sourceObservedAt?: string | null };
@@ -92,7 +93,7 @@ test.describe("Tonight trusted UI (flag off / shipped)", () => {
     const mobileTabBar = await page.locator(".mobileTabBar").boundingBox();
     expect(firstRow).not.toBeNull();
     expect(mobileTabBar).not.toBeNull();
-    expect(firstRow!.top).toBeLessThan(mobileTabBar!.top);
+    expect(firstRow!.y).toBeLessThan(mobileTabBar!.y);
     await shoot(page, "flagoff");
   });
 
