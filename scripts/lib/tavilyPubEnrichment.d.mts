@@ -39,6 +39,13 @@ export const CITY_DEFINITIONS: Readonly<
 >;
 export const OFFICIAL_SITE_SOURCE_LICENCE: string;
 
+export type SearchProvider = {
+  search(options: Record<string, unknown>): Promise<{
+    results: Array<Record<string, unknown>>;
+    creditsSpent?: number;
+  }>;
+};
+
 export function venueKeyForOsmPub(pub: OsmPub): string;
 export function classifyChainPub(
   pub: OsmPub,
@@ -59,7 +66,8 @@ export function mergeCanonicalPrices<T extends {
 export function runCityEnrichment(options: {
   city: string;
   pubs: OsmPub[];
-  apiKey: string;
+  apiKey?: string;
+  searchProvider?: SearchProvider;
   maxQueries?: number;
   startIndex?: number;
   observedAt?: string;

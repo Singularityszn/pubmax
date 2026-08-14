@@ -1,13 +1,14 @@
-// GET /api/cron/enrich-city-pubs - bounded Tavily discovery for UK city pubs.
+// GET /api/cron/enrich-city-pubs - bounded official-page discovery for UK city pubs.
 //
 // Local CLI runs own durable, reviewable repository output. Vercel functions
 // cannot commit static files, so cron rotates one bounded batch through same
 // tested enrichment core and emits structured observations to function logs.
-// TAVILY_API_KEY absent means honest no-op. CRON_SECRET protects invocation.
+// SEARCH_PROVIDER selects Exa or Tavily. CRON_SECRET protects invocation.
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { assertCronRequest } from "@/lib/cronAuth";
+import { createSearchProvider } from "@/lib/searchProvider.server";
 import {
   runScheduledCityEnrichment,
   TAVILY_CRON_QUERY_CAP,
@@ -22,12 +23,14 @@ export async function GET(request: Request): Promise<Response> {
   const denied = assertCronRequest(request);
   if (denied) return denied;
 
-  const apiKey = process.env.TAVILY_API_KEY?.trim();
-  if (!apiKey) {
-    console.warn("[cron:enrich-city-pubs] TAVILY_API_KEY absent - enrichment skipped.");
+  const searchProvider = createSearchProvider();
+  if (!searchProvider.configured) {
+    console.warn(
+      `[cron:enrich-city-pubs] ${searchProvider.name === "tavily" ? "TAVILY_API_KEY" : "AI_GATEWAY_API_KEY and TAVILY_API_KEY"} absent - enrichment skipped.`,
+    );
     return jsonNoStore({
       ok: true,
-      skipped: "no-tavily-key",
+      skipped: searchProvider.name === "tavily" ? "no-tavily-key" : "no-search-provider",
       queriesSpent: 0,
       creditsSpent: 0,
     });
@@ -39,7 +42,7 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     const result = await runScheduledCityEnrichment({
-      apiKey,
+      searchProvider,
       onProgress: (progress) => {
         lastProgress = progress;
         const newPrices = progress.prices.slice(loggedPrices);
@@ -59,6 +62,7 @@ export async function GET(request: Request): Promise<Response> {
         );
       },
     });
+    const providerStats = searchProvider.stats();
     console.log(
       "[cron:enrich-city-pubs][city-enrichment]",
       JSON.stringify({
@@ -67,6 +71,12 @@ export async function GET(request: Request): Promise<Response> {
         nextIndex: result.nextIndex,
         queriesSpent: result.queriesSpent,
         creditsSpent: result.creditsSpent,
+        provider: providerStats.selectedProvider,
+        gatewayCalls: providerStats.gatewayCalls,
+        gatewayMaxCalls: providerStats.gatewayMaxCalls,
+        gatewayModel: providerStats.model ?? null,
+        estimatedTokens: providerStats.estimatedTokens,
+        tavilyCalls: providerStats.tavilyCalls,
         matchedPubs: result.matchedPubs,
         prices: result.prices,
         pages: result.pages,
@@ -84,15 +94,21 @@ export async function GET(request: Request): Promise<Response> {
       startIndex: result.startIndex,
       nextIndex: result.nextIndex,
       queryCap: TAVILY_CRON_QUERY_CAP,
+      provider: providerStats.selectedProvider,
       queriesSpent: result.queriesSpent,
       creditsSpent: result.creditsSpent,
+      gatewayCalls: providerStats.gatewayCalls,
+      gatewayMaxCalls: providerStats.gatewayMaxCalls,
+      gatewayModel: providerStats.model ?? null,
+      estimatedTokens: providerStats.estimatedTokens,
+      tavilyCalls: providerStats.tavilyCalls,
       matchedPubs: result.matchedPubs,
       pricesExtracted: result.prices.length,
       chainPubsDelegated: result.delegatedChains.length,
     });
   } catch (error) {
     console.error(
-      "[cron:enrich-city-pubs][city-enrichment][ALERT] Tavily enrichment failed:",
+      "[cron:enrich-city-pubs][city-enrichment][ALERT] search enrichment failed:",
       error instanceof Error ? error.message : String(error),
     );
     // TS control flow cannot see the onProgress closure assignment above and

@@ -9,6 +9,7 @@ import {
   type TavilyEnrichmentResult,
 } from "@/scripts/lib/tavilyPubEnrichment.mjs";
 import { DAY_MS } from "@/lib/dayMs";
+import type { SearchProvider } from "@/lib/searchProvider.server";
 
 const CITY_ROTATION = [
   "manchester",
@@ -43,7 +44,8 @@ export type ScheduledEnrichmentProgress = {
 };
 
 export async function runScheduledCityEnrichment(options: {
-  apiKey: string;
+  apiKey?: string;
+  searchProvider?: SearchProvider;
   fetchImpl?: typeof fetch;
   now?: number;
   maxQueries?: number;
@@ -62,6 +64,7 @@ export async function runScheduledCityEnrichment(options: {
     city,
     pubs,
     apiKey: options.apiKey,
+    searchProvider: options.searchProvider,
     fetchImpl: options.fetchImpl,
     maxQueries,
     startIndex,

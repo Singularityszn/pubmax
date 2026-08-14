@@ -391,6 +391,7 @@ export async function runCityEnrichment({
   city: cityId,
   pubs,
   apiKey,
+  searchProvider,
   maxQueries = 200,
   startIndex = 0,
   observedAt = new Date().toISOString(),
@@ -399,7 +400,7 @@ export async function runCityEnrichment({
 }) {
   const city = CITY_DEFINITIONS[cityId];
   if (!city) throw new Error(`Unsupported enrichment city "${cityId}".`);
-  if (!apiKey?.trim()) throw new Error("TAVILY_API_KEY is required.");
+  if (!searchProvider && !apiKey?.trim()) throw new Error("TAVILY_API_KEY is required.");
   if (!Array.isArray(pubs)) throw new Error("Expected pubs to be an array.");
 
   const queryCap = Math.min(
@@ -431,8 +432,15 @@ export async function runCityEnrichment({
     if (queriesSpent >= queryCap) break;
 
     queriesSpent += 1;
-    const payload = await searchTavily({ pub, apiKey, fetchImpl });
-    creditsSpent += Number(payload?.usage?.credits) || 0;
+    const payload = searchProvider
+      ? await searchProvider.search({
+          query: searchQuery(pub),
+          maxResults: 10,
+          ...(hostnameOf(pub.website) ? { includeDomains: [hostnameOf(pub.website)] } : {}),
+          endPublishedDate: observedAt,
+        })
+      : await searchTavily({ pub, apiKey, fetchImpl });
+    creditsSpent += Number(payload?.creditsSpent ?? payload?.usage?.credits) || 0;
     const officialResults = acceptedOfficialResults(pub, payload, hostCounts, observedAt);
     const matchedPage = selectBestOfficialPage(officialResults);
 

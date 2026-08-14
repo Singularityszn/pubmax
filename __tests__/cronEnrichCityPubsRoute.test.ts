@@ -53,7 +53,7 @@ describe("GET /api/cron/enrich-city-pubs", () => {
     expect(response.status).toBe(401);
   });
 
-  it("is a safe no-op without TAVILY_API_KEY", async () => {
+  it("is a safe no-op without configured search credentials", async () => {
     const fetchImpl = vi.fn();
     vi.stubGlobal("fetch", fetchImpl);
 
@@ -62,7 +62,7 @@ describe("GET /api/cron/enrich-city-pubs", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       ok: true,
-      skipped: "no-tavily-key",
+      skipped: "no-search-provider",
       queriesSpent: 0,
       creditsSpent: 0,
     });
@@ -87,6 +87,24 @@ describe("GET /api/cron/enrich-city-pubs", () => {
     expect(body.nextIndex).toBeGreaterThan(body.startIndex);
     expect(body.matchedPubs).toBeGreaterThan(0);
     expect(fetchImpl).toHaveBeenCalledTimes(25);
+  });
+
+  it("keeps the cron result contract when Tavily is selected through the provider seam", async () => {
+    vi.stubEnv("SEARCH_PROVIDER", "tavily");
+    vi.stubEnv("TAVILY_API_KEY", "test-tavily-key");
+    vi.stubGlobal("fetch", vi.fn(tavilyOk));
+
+    const response = await GET(req("Bearer test-secret"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      provider: "tavily",
+      queriesSpent: 25,
+      creditsSpent: 25,
+      gatewayCalls: 0,
+    });
   });
 
   it("502s loudly without claiming spend when Tavily fails", async () => {

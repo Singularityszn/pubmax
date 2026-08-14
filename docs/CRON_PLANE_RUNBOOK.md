@@ -28,7 +28,7 @@ JSON and cannot carry inline comments.
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
 | `GET /api/cron/moderate-social-posts` | `* * * * *` | Every minute | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
 | `GET /api/cron/moderate-social-interactions` | `* * * * *` | Every minute | Claim and moderate up to 20 queued comments or quote posts; text stays held until approval | 30s |
-| `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating Tavily official-page discovery for one UK city batch (`lib/tavilyPubEnrichment.server.ts`) — structured observations to logs only; a function cannot commit repository files | 120s |
+| `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating Exa or Tavily official-page discovery for one UK city batch (`lib/searchProvider.server.ts`) - structured observations to logs only; a function cannot commit repository files | 120s |
 
 The What's-On slot is chosen to land **before London is awake**, and that is a
 change: it used to run at `0 14 * * *` (15:00 BST), which is the middle of the
@@ -84,7 +84,7 @@ still sits clear of the evening read.
 | Events (later) | Ticketmaster Discovery | `TICKETMASTER_API_KEY` | Free instant key; lights up the events vertical when full ingest is wired. |
 | **Night Signals — candidates** | Exa | `EXA_API_KEY` | Cron logs the absent key and no-op skips; candidates stay wherever the last sweep left them. |
 | **Social text moderation** | OpenAI | `OPENAI_API_KEY` | Both crons return 503 before they claim a job; queued posts, comments, and quotes stay pending. |
-| **UK city pub enrichment** | Tavily (discovery only — never provenance; see `data/price_sources.json`) | `TAVILY_API_KEY` | Cron is an honest no-op (`skipped: "no-tavily-key"`). Set as a Vercel secret. |
+| **UK city pub enrichment** | Exa through Vercel AI Gateway, with Tavily fallback (discovery only - never provenance; see `data/price_sources.json`) | `SEARCH_PROVIDER`, `AI_GATEWAY_API_KEY`, `SEARCH_GATEWAY_MAX_CALLS`, `TAVILY_API_KEY` | Defaults to Exa. Missing Gateway credentials fall back loudly to Tavily. If neither path is configured, cron is an honest no-op. Set server-only values as Vercel secrets. |
 
 Provider-key failures follow the table above. A missing key never produces fake
 success.
@@ -176,7 +176,9 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   - Social moderation success: each moderation route reports `processed`,
     `approved`, `needsReview`, `retried`, and `terminalErrors` counts.
   - City enrichment success: a `[city-enrichment]` JSON line with city, cursor,
-    queries/credits spent, matched pubs, and extracted prices.
+    selected provider, queries/credits spent, Gateway calls, Gateway model,
+    estimated tokens, matched pubs, and extracted prices. The Gateway fields
+    are the per-run spend record.
 - **Manual trigger** (with the secret):
   ```bash
   curl -sS -H "Authorization: Bearer $CRON_SECRET" \
@@ -210,7 +212,7 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   Retryable failures use bounded backoff; terminal failures require an
   authenticated requeue action.
 - Missing `OPENAI_API_KEY` returns **503** before any queued job is claimed.
-- City enrichment Tavily failure → **`502 PROVIDER_UNAVAILABLE`** with an
+- City enrichment provider failure → **`502 PROVIDER_UNAVAILABLE`** with an
   `[ALERT]` log; any partial batch already processed is logged as a
   `[partial]` line (progress observations stream per pub, so a mid-batch
   failure never loses what was found).
