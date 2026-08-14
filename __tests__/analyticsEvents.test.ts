@@ -29,6 +29,37 @@ describe("isKnownEvent", () => {
 });
 
 describe("sanitizeEvent", () => {
+  it("sanitizes near answer and open events to closed, coarse props", () => {
+    expect(sanitizeEvent("near_answer_ready", {
+      source: "picked-area",
+      resultBand: "4+",
+      venueId: "venue-private",
+      latitude: 51.5,
+      note: "private words",
+    })).toEqual({
+      name: "near_answer_ready",
+      props: { source: "picked-area", resultBand: "4+" },
+    });
+    expect(sanitizeEvent("near_venue_opened", {
+      source: "location",
+      positionBand: "2-3",
+      venueName: "Private pub",
+      price: 4.5,
+      coordinates: "51.5,-0.1",
+    })).toEqual({
+      name: "near_venue_opened",
+      props: { source: "location", positionBand: "2-3" },
+    });
+  });
+
+  it("rejects invented near sources and incomplete near opens", () => {
+    expect(sanitizeEvent("near_answer_ready", {
+      source: "exact-postcode",
+      resultBand: "4+",
+    })).toBeNull();
+    expect(sanitizeEvent("near_venue_opened", { source: "location" })).toBeNull();
+  });
+
   it("returns null for an unknown event", () => {
     expect(sanitizeEvent("nope", { kind: "gig" })).toBeNull();
   });
