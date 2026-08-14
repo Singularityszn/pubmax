@@ -1,5 +1,4 @@
-import { isSocialPostArea } from "@/lib/socialPosts";
-import type { NightAreaSlug } from "@/lib/nightAreas";
+import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 
 export type SocialFeedLane = "following" | "nearby" | "discover";
 
@@ -25,6 +24,12 @@ const SAFE_DEFAULT: SocialPostsShellState = {
   feed: "following",
   area: null,
 };
+
+const NIGHT_AREA_SET = new Set<string>(NIGHT_AREA_SLUGS);
+
+function isSocialPostArea(value: string | null | undefined): value is NightAreaSlug {
+  return typeof value === "string" && NIGHT_AREA_SET.has(value);
+}
 
 function paramsFrom(search: string | URLSearchParams): URLSearchParams {
   if (search instanceof URLSearchParams) return search;
