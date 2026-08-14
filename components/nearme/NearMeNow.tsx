@@ -8,6 +8,7 @@ import { trackEvent } from "@/lib/analytics";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { mapHrefForCity } from "@/lib/cityPreference";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { nearPriceTrustLabel } from "@/lib/nearPriceTrust";
 import { formatPrice } from "@/lib/venues";
 import { acceptNearVenue, type RawAcceptedArea } from "@/lib/venueAcceptance";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -40,6 +41,10 @@ import {
   type PatchCapabilityProfile,
 } from "@/lib/patchCapabilities";
 import UnsupportedAreaPreview from "@/components/coverage/UnsupportedAreaPreview";
+import {
+  useNearPriceTrust,
+  type NearPriceTrustView,
+} from "@/components/nearme/useNearPriceTrust";
 
 import "./nearMeNow.css";
 
@@ -93,6 +98,8 @@ export type NearMeNowProps = {
    * second heading right under it read as the title twice.
    */
   titledByHost?: boolean;
+  /** `/near` only: load bounded baseline publisher evidence for answer rows. */
+  showPriceTrust?: boolean;
 };
 
 /** The answer's headline, as a heading of its own or the host's plain line. */
@@ -141,19 +148,26 @@ function AnswerCards({
   onAccept,
   accept,
   receipt,
+  priceTrust,
 }: {
   cards: NearMeCard[];
   onOpen: (id: string) => void;
   onAccept: (id: string) => void;
   accept: boolean;
   receipt: string | null;
+  priceTrust?: NearPriceTrustView;
 }) {
   return (
     <>
       {accept && receipt && cards.length > 0 ? (
         <p className="nmnAcceptReceipt">{receipt}</p>
       ) : null}
-      <NearMeCardList cards={cards} onOpen={onOpen} onAccept={accept ? onAccept : undefined} />
+      <NearMeCardList
+        cards={cards}
+        onOpen={onOpen}
+        onAccept={accept ? onAccept : undefined}
+        priceTrust={priceTrust}
+      />
     </>
   );
 }
@@ -212,6 +226,7 @@ export default function NearMeNow({
   syncPatchToUrl = false,
   intentWrite = false,
   titledByHost = false,
+  showPriceTrust = false,
 }: NearMeNowProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -234,6 +249,7 @@ export default function NearMeNow({
   const [outsideCoverage, setOutsideCoverage] = useState<NearestPatch | null>(null);
   const slimRef = useRef<PricedPoint[] | null>(venues ?? null);
   const loadingSlimRef = useRef<Promise<PricedPoint[]> | null>(null);
+  const priceTrust = useNearPriceTrust(cards, showPriceTrust);
 
   const resolvedMapHref = mapHref ?? mapHrefForCity(cityId);
 
@@ -493,6 +509,7 @@ export default function NearMeNow({
           onAccept={acceptVenue}
           intentWrite={intentWrite}
           acceptReceipt={acceptReceipt}
+          priceTrust={priceTrust}
           resolvedMapHref={resolvedMapHref}
           onLocate={locate}
         />
@@ -514,6 +531,7 @@ export default function NearMeNow({
           onAccept={acceptVenue}
           intentWrite={intentWrite}
           acceptReceipt={acceptReceipt}
+          priceTrust={priceTrust}
           loadSlim={loadSlim}
           onPickPatch={pickPatch}
           onPickBorough={pickBorough}
@@ -611,6 +629,7 @@ function NearMeLocatedAnswer({
   onAccept,
   intentWrite,
   acceptReceipt,
+  priceTrust,
   resolvedMapHref,
   onLocate,
 }: {
@@ -621,6 +640,7 @@ function NearMeLocatedAnswer({
   onAccept: (id: string) => void;
   intentWrite: boolean;
   acceptReceipt: string | null;
+  priceTrust?: NearPriceTrustView;
   resolvedMapHref: string;
   onLocate: () => void;
 }) {
@@ -643,6 +663,7 @@ function NearMeLocatedAnswer({
         onAccept={onAccept}
         accept={intentWrite}
         receipt={acceptReceipt}
+        priceTrust={priceTrust}
       />
       <footer className="nmnFoot">
         <a className="nmnRetry" href={resolvedMapHref}>
@@ -671,6 +692,7 @@ function NearMeAreaAnswer({
   onAccept,
   intentWrite,
   acceptReceipt,
+  priceTrust,
   loadSlim,
   onPickPatch,
   onPickBorough,
@@ -690,6 +712,7 @@ function NearMeAreaAnswer({
   onAccept: (id: string) => void;
   intentWrite: boolean;
   acceptReceipt: string | null;
+  priceTrust?: NearPriceTrustView;
   loadSlim: () => Promise<PricedPoint[]>;
   onPickPatch: (patch: NightPatch) => void;
   onPickBorough: (name: string) => void;
@@ -715,6 +738,7 @@ function NearMeAreaAnswer({
         onAccept={onAccept}
         accept={intentWrite}
         receipt={acceptReceipt}
+        priceTrust={priceTrust}
       />
       {cards.length === 0 ? (
         <div className="nmnOutside">
@@ -755,7 +779,41 @@ function NearMeAreaAnswer({
 /** The one caption for the whole list. It heads the list; it never rides a row. */
 export const NEAR_ME_PRICE_CAPTION = "Cheapest pint";
 
-function NearMeCardBody({ card }: { card: NearMeCard }) {
+function collectedPriceLabel(value: string): string | null {
+  const timestamp = Date.parse(`${value}T12:00:00.000Z`);
+  if (!Number.isFinite(timestamp)) return null;
+  const date = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/London",
+  }).format(new Date(timestamp));
+  return `Prices last collected ${date}.`;
+}
+
+function trustLabelForCard(
+  card: NearMeCard,
+  priceTrust: NearPriceTrustView | undefined,
+): string | null {
+  if (!priceTrust) return null;
+  if (priceTrust === "loading") return nearPriceTrustLabel("loading");
+  if (priceTrust.status === "degraded") return nearPriceTrustLabel("degraded");
+  const match = priceTrust.results.find(
+    (item) => item.venueId === card.id && item.price === card.cheapestPrice,
+  );
+  if (!match) return nearPriceTrustLabel("degraded");
+  return match.publisher
+    ? nearPriceTrustLabel("named", match.publisher)
+    : nearPriceTrustLabel("unrecorded");
+}
+
+function NearMeCardBody({
+  card,
+  trustLabel,
+}: {
+  card: NearMeCard;
+  trustLabel: string | null;
+}) {
   const distance = formatNearDistance(card.distanceKm);
   return (
     <>
@@ -771,6 +829,7 @@ function NearMeCardBody({ card }: { card: NearMeCard }) {
             </span>
           ) : null}
         </span>
+        {trustLabel ? <span className="nmnCardTrust">{trustLabel}</span> : null}
       </span>
       <span className="nmnCardPrice">
         <span className="nmnCardPriceValue">{formatPrice(card.cheapestPrice)}</span>
@@ -790,6 +849,7 @@ export function NearMeCardList({
   cards,
   onOpen,
   onAccept,
+  priceTrust,
 }: {
   cards: NearMeCard[];
   onOpen: (id: string) => void;
@@ -799,8 +859,14 @@ export function NearMeCardList({
    * browse-only button it has always been.
    */
   onAccept?: (id: string) => void;
+  /** `/near` only. Embedded map answers omit this and keep their compact rows. */
+  priceTrust?: NearPriceTrustView;
 }) {
   if (cards.length === 0) return null;
+  const collectedLabel =
+    priceTrust && priceTrust !== "loading"
+      ? collectedPriceLabel(priceTrust.collectedAt)
+      : null;
   return (
     <>
     <p className="nmnListCaption">{NEAR_ME_PRICE_CAPTION}</p>
@@ -809,7 +875,7 @@ export function NearMeCardList({
         onAccept ? (
           <li key={card.id} className="nmnCardRow">
             <button type="button" className="nmnCard nmnCardBrowse" onClick={() => onOpen(card.id)}>
-              <NearMeCardBody card={card} />
+              <NearMeCardBody card={card} trustLabel={trustLabelForCard(card, priceTrust)} />
             </button>
             <button
               type="button"
@@ -823,12 +889,13 @@ export function NearMeCardList({
         ) : (
           <li key={card.id}>
             <button type="button" className="nmnCard" onClick={() => onOpen(card.id)}>
-              <NearMeCardBody card={card} />
+              <NearMeCardBody card={card} trustLabel={trustLabelForCard(card, priceTrust)} />
             </button>
           </li>
         ),
       )}
     </ul>
+    {collectedLabel ? <p className="nmnPriceCollected">{collectedLabel}</p> : null}
     </>
   );
 }

@@ -53,6 +53,7 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
           initialPatchId={initialPatchId}
           syncPatchToUrl
           intentWrite={intentWrite}
+          showPriceTrust
         />
       </main>
     </div>
