@@ -122,6 +122,12 @@ describe("GET /api/cron/enrich-city-pubs", () => {
     expect(errorSpy.mock.calls.some(([message]) =>
       typeof message === "string" && message.includes("[city-enrichment][ALERT]"),
     )).toBe(true);
+    expect(errorSpy.mock.calls.some(([message, payload]) =>
+      typeof message === "string" &&
+      message.includes("[city-enrichment][spend]") &&
+      typeof payload === "string" &&
+      payload.includes('"tavilyCalls":1'),
+    )).toBe(true);
   });
 
   it("preserves partial-run truth in logs when Tavily fails mid-batch", async () => {

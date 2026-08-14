@@ -107,9 +107,21 @@ export async function GET(request: Request): Promise<Response> {
       chainPubsDelegated: result.delegatedChains.length,
     });
   } catch (error) {
+    const providerStats = searchProvider.stats();
     console.error(
       "[cron:enrich-city-pubs][city-enrichment][ALERT] search enrichment failed:",
       error instanceof Error ? error.message : String(error),
+    );
+    console.error(
+      "[cron:enrich-city-pubs][city-enrichment][spend]",
+      JSON.stringify({
+        provider: providerStats.selectedProvider,
+        gatewayCalls: providerStats.gatewayCalls,
+        gatewayMaxCalls: providerStats.gatewayMaxCalls,
+        gatewayModel: providerStats.model ?? null,
+        estimatedTokens: providerStats.estimatedTokens,
+        tavilyCalls: providerStats.tavilyCalls,
+      }),
     );
     // TS control flow cannot see the onProgress closure assignment above and
     // narrows lastProgress to null here; widen back to the declared type.
