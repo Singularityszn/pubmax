@@ -74,18 +74,25 @@ async function shoot(page: Page, name: string) {
 }
 
 test.describe("Tonight trusted UI (flag off / shipped)", () => {
-  test("keeps Deals/Music above the main list (shipped position)", async ({ page }) => {
+  test("keeps the main list before Deals/Music and above the mobile tab bar", async ({ page }) => {
     await mockWhatsOn(page);
     await openTonight(page);
-    // Shipped order: the deals lane precedes the main list in the DOM.
+    // Every user gets the primary confirmed listings first, including the
+    // default flag-off installed-app cold-start path.
     const deals = page.locator(".dealsTonight").first();
     await expect(deals).toBeVisible();
     const order = await page.evaluate(() => {
       const d = document.querySelector(".dealsTonight");
       const l = document.querySelector('[data-testid="tonight-list"]');
-      return d && l ? d.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING : 0;
+      return d && l ? l.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING : 0;
     });
-    expect(order).toBeTruthy(); // list FOLLOWS deals → deals above
+    expect(order).toBeTruthy(); // list FOLLOWS deals → list above
+
+    const firstRow = await page.locator(".tonightRow").first().boundingBox();
+    const mobileTabBar = await page.locator(".mobileTabBar").boundingBox();
+    expect(firstRow).not.toBeNull();
+    expect(mobileTabBar).not.toBeNull();
+    expect(firstRow!.top).toBeLessThan(mobileTabBar!.top);
     await shoot(page, "flagoff");
   });
 
