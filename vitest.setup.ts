@@ -72,6 +72,14 @@ delete process.env.FIRECRAWL_API_KEY;
 delete process.env.TICKETMASTER_API_KEY;
 delete process.env.SKIDDLE_API_KEY;
 
+// Search-provider tests own selection and spend limits. Keep their keyless
+// baseline independent from deployment Gateway and Tavily configuration.
+delete process.env.AI_GATEWAY_API_KEY;
+delete process.env.VERCEL_OIDC_TOKEN;
+delete process.env.TAVILY_API_KEY;
+delete process.env.SEARCH_PROVIDER;
+delete process.env.SEARCH_GATEWAY_MAX_CALLS;
+
 // Same trap for the road-route plane: the walk-route provider (lib/walkRouteProvider.ts)
 // routes crawl legs through OpenRouteService when ORS_API_KEY is present. The
 // provider + route tests assert the documented keyless default (return null →

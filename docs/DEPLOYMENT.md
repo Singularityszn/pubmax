@@ -46,7 +46,10 @@ Set these in the Vercel project (Settings → Environment Variables).
 |---|---|
 | `PLAN_IDEMPOTENCY_SECRET` | Optional dedicated HMAC secret of at least 32 random bytes for retry-safe Plan writes, grounding proofs, referral signup proofs, and verified loop analytics. When omitted, the required `RATE_LIMIT_SALT` is used. A configured short value fails startup/signing rather than silently falling back. |
 | `EXA_API_KEY` | Powers the scheduled signals-ingestion job (sol.md TL-6). If unset, that job is skipped; the interactive app path does not depend on it. |
-| `TAVILY_API_KEY` | **Server-only** key for the rotating UK city pub-enrichment cron (`/api/cron/enrich-city-pubs`) and `npm run enrich:city`. Set as a Vercel secret. If unset, the cron is an honest no-op (see `docs/CRON_PLANE_RUNBOOK.md`). |
+| `SEARCH_PROVIDER` | **Server-only** `exa` (default) or `tavily` selector for `/api/cron/enrich-city-pubs`. `exa` may fall back to a configured Tavily key. `tavily` uses only Tavily, so one environment change can switch providers without a code change. |
+| `AI_GATEWAY_API_KEY` | Optional **server-only** explicit Vercel AI Gateway credential for Exa search in `/api/cron/enrich-city-pubs`. Vercel request-context OIDC is also accepted automatically. No separate Exa key is used by this path. |
+| `SEARCH_GATEWAY_MAX_CALLS` | Hard per-run Gateway call cap for city enrichment. See `docs/CRON_PLANE_RUNBOOK.md` for the billing and spend-log contract. |
+| `TAVILY_API_KEY` | **Server-only** key for `npm run enrich:city`, the explicit Tavily cron selection, and the Exa cron fallback. See `docs/CRON_PLANE_RUNBOOK.md` for missing-provider behaviour. |
 | `TFL_APP_KEY` | Optional TfL app key for every TfL read (`/api/last-train`, `/api/nearby-bus-departures`, via `lib/tflClient.server.ts`). The keyless TfL API is used by default; the key is only appended when present (higher rate limits). |
 | `ACTOR_HASH_SALT` / `PLAN_MEMBER_TOKEN_SALT` | Extra identity-hash salts. Both fall back safely (`ACTOR_HASH_SALT` → `RATE_LIMIT_SALT`; `PLAN_MEMBER_TOKEN_SALT` → `ACTOR_HASH_SALT`). Set distinct secrets in production. |
 
@@ -69,7 +72,7 @@ misconfigured.
 
 | Var | Purpose |
 |---|---|
-| `VERCEL_OIDC_TOKEN` | Minted and injected by the Vercel CLI / build (`vercel env pull`, `vercel dev`) for OIDC federation. Not read by application code in this repo — documented here so its origin is clear; do not set it manually. |
+| `VERCEL_OIDC_TOKEN` | Supplied by the Vercel CLI / build (`vercel env pull`, `vercel dev`) for local OIDC federation. Production functions receive OIDC through request context. AI SDK Gateway and server-side search-provider selection resolve both paths. Do not set it manually. |
 
 ## Supabase setup
 

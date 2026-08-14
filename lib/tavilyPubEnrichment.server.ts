@@ -9,6 +9,7 @@ import {
   type TavilyEnrichmentResult,
 } from "@/scripts/lib/tavilyPubEnrichment.mjs";
 import { DAY_MS } from "@/lib/dayMs";
+import type { SearchProvider } from "@/lib/searchProvider.server";
 
 const CITY_ROTATION = [
   "manchester",
@@ -18,7 +19,7 @@ const CITY_ROTATION = [
   "leeds",
   "bristol",
 ] as const;
-export const TAVILY_CRON_QUERY_CAP = 25;
+export const SEARCH_CRON_QUERY_CAP = 25;
 
 type UkPack = { pubs?: OsmPub[] };
 
@@ -43,14 +44,15 @@ export type ScheduledEnrichmentProgress = {
 };
 
 export async function runScheduledCityEnrichment(options: {
-  apiKey: string;
+  apiKey?: string;
+  searchProvider?: SearchProvider;
   fetchImpl?: typeof fetch;
   now?: number;
   maxQueries?: number;
   onProgress?: (progress: ScheduledEnrichmentProgress) => void | Promise<void>;
 }): Promise<ScheduledCityEnrichment> {
   const now = options.now ?? Date.now();
-  const maxQueries = options.maxQueries ?? TAVILY_CRON_QUERY_CAP;
+  const maxQueries = options.maxQueries ?? SEARCH_CRON_QUERY_CAP;
   const epochDay = Math.floor(now / DAY_MS);
   const city = CITY_ROTATION[epochDay % CITY_ROTATION.length];
   const pubs = selectCityPubs(city, loadUkPubs()).filter(
@@ -62,6 +64,7 @@ export async function runScheduledCityEnrichment(options: {
     city,
     pubs,
     apiKey: options.apiKey,
+    searchProvider: options.searchProvider,
     fetchImpl: options.fetchImpl,
     maxQueries,
     startIndex,

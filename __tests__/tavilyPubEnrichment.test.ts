@@ -45,6 +45,46 @@ function tavilyResponse(overrides: Record<string, unknown> = {}) {
 }
 
 describe("Tavily pub enrichment governance", () => {
+  it("accepts an injected search provider without changing enrichment output", async () => {
+    const searchProvider = {
+      name: "exa",
+      configured: true,
+      search: vi.fn(async () => ({
+        provider: "exa",
+        results: [{
+          title: "Independent Arms drinks menu",
+          url: "https://www.independentarms.co.uk/drinks",
+          content: "Injected Bitter - Pint £4.50",
+        }],
+      })),
+      stats: () => ({
+        selectedProvider: "exa",
+        gatewayCalls: 1,
+        gatewayMaxCalls: 25,
+        estimatedTokens: 12,
+        model: "openai/gpt-5-nano",
+        tavilyCalls: 0,
+      }),
+    };
+
+    const result = await runCityEnrichment({
+      city: "manchester",
+      pubs: [independentPub],
+      maxQueries: 1,
+      observedAt: OBSERVED_AT,
+      searchProvider,
+    });
+
+    expect(searchProvider.search).toHaveBeenCalledWith(expect.objectContaining({
+      includeDomains: ["independentarms.co.uk"],
+    }));
+    expect(result).toMatchObject({
+      queriesSpent: 1,
+      matchedPubs: 1,
+      prices: [expect.objectContaining({ drinkName: "Injected Bitter", priceGbp: 4.5 })],
+    });
+  });
+
   it("enforces a 200-query hard cap at the CLI boundary", () => {
     expect(parseArgs(["--city=leeds"])).toMatchObject({ maxQueries: 200 });
     expect(() => parseArgs(["--city=leeds", "--max-queries=201"])).toThrow(
