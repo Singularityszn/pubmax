@@ -5,9 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
+import type { NearAnswerSource } from "@/lib/analyticsEvents";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { mapHrefForCity } from "@/lib/cityPreference";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import {
+  NEAR_PRICE_TRUST_COLLECTED_AT,
+  nearPriceTrustLabel,
+} from "@/lib/nearPriceTrust";
 import { formatPrice } from "@/lib/venues";
 import { acceptNearVenue, type RawAcceptedArea } from "@/lib/venueAcceptance";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -31,6 +36,7 @@ import {
   type NightPatch,
 } from "@/lib/nightPatches";
 import { nearestSupportedPatch, type NearestPatch } from "@/lib/areaDemand";
+import { nearAnswerReadyProps, nearVenueOpenedProps } from "@/lib/nearAnalytics";
 import {
   derivePatchCapabilities,
   derivePatchProfile,
@@ -40,6 +46,10 @@ import {
   type PatchCapabilityProfile,
 } from "@/lib/patchCapabilities";
 import UnsupportedAreaPreview from "@/components/coverage/UnsupportedAreaPreview";
+import {
+  useNearPriceTrust,
+  type NearPriceTrustView,
+} from "@/components/nearme/useNearPriceTrust";
 
 import "./nearMeNow.css";
 
@@ -93,6 +103,8 @@ export type NearMeNowProps = {
    * second heading right under it read as the title twice.
    */
   titledByHost?: boolean;
+  /** `/near` only: load bounded baseline publisher evidence for answer rows. */
+  showPriceTrust?: boolean;
 };
 
 /** The answer's headline, as a heading of its own or the host's plain line. */
@@ -141,19 +153,26 @@ function AnswerCards({
   onAccept,
   accept,
   receipt,
+  priceTrust,
 }: {
   cards: NearMeCard[];
   onOpen: (id: string) => void;
   onAccept: (id: string) => void;
   accept: boolean;
   receipt: string | null;
+  priceTrust?: NearPriceTrustView;
 }) {
   return (
     <>
       {accept && receipt && cards.length > 0 ? (
         <p className="nmnAcceptReceipt">{receipt}</p>
       ) : null}
-      <NearMeCardList cards={cards} onOpen={onOpen} onAccept={accept ? onAccept : undefined} />
+      <NearMeCardList
+        cards={cards}
+        onOpen={onOpen}
+        onAccept={accept ? onAccept : undefined}
+        priceTrust={priceTrust}
+      />
     </>
   );
 }
@@ -201,6 +220,13 @@ function patchCoverageIsLimited(
   return Boolean(patch && patchProfile && patchIsLimited(patchProfile));
 }
 
+export function shouldResolveInitialNearPatch(
+  initialPatchId: string | null | undefined,
+  activePatchId: string | null | undefined,
+): boolean {
+  return Boolean(initialPatchId && initialPatchId !== activePatchId);
+}
+
 export default function NearMeNow({
   cityId = DEFAULT_CITY_ID,
   onSelectVenue,
@@ -212,6 +238,7 @@ export default function NearMeNow({
   syncPatchToUrl = false,
   intentWrite = false,
   titledByHost = false,
+  showPriceTrust = false,
 }: NearMeNowProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -234,6 +261,24 @@ export default function NearMeNow({
   const [outsideCoverage, setOutsideCoverage] = useState<NearestPatch | null>(null);
   const slimRef = useRef<PricedPoint[] | null>(venues ?? null);
   const loadingSlimRef = useRef<Promise<PricedPoint[]> | null>(null);
+  const answerGenerationRef = useRef(0);
+  const [activeAnswerGeneration, setActiveAnswerGeneration] = useState(0);
+  const lastTrackedAnswerRef = useRef(0);
+  const [answerContext, setAnswerContext] = useState<{
+    source: NearAnswerSource;
+    generation: number;
+  } | null>(null);
+  const beginAnswer = useCallback(() => {
+    const generation = ++answerGenerationRef.current;
+    setActiveAnswerGeneration(generation);
+    return generation;
+  }, []);
+  const priceTrust = useNearPriceTrust(
+    cards,
+    showPriceTrust,
+    activeAnswerGeneration,
+    answerContext?.generation ?? null,
+  );
 
   const resolvedMapHref = mapHref ?? mapHrefForCity(cityId);
 
@@ -257,7 +302,12 @@ export default function NearMeNow({
   // Answer from a patch centre with the same ranker the located path uses, so
   // walk minutes stay real (they read from the patch's walking heart).
   const pickPatch = useCallback(
-    (next: NightPatch, reason: PatchReason = null) => {
+    (
+      next: NightPatch,
+      reason: PatchReason = null,
+      answerSource: NearAnswerSource = "picked-area",
+    ) => {
+      const generation = beginAnswer();
       setState("requesting");
       setPatch(next);
       setBorough(null);
@@ -265,6 +315,7 @@ export default function NearMeNow({
       if (reason !== null) setPatchReason(reason);
       void loadSlim()
         .then((slim) => {
+          if (generation !== answerGenerationRef.current) return;
           try {
             const answer = rankNearMe(next.lat, next.lng, slim);
             setCards(answer.cards);
@@ -277,6 +328,7 @@ export default function NearMeNow({
             setScope("none");
             setPatchProfile(null);
           }
+          setAnswerContext({ source: answerSource, generation });
           setState("ready");
           writeRememberedArea({ kind: "patch", id: next.id });
           if (syncPatchToUrl && pathname) {
@@ -293,31 +345,36 @@ export default function NearMeNow({
           }
         })
         .catch(() => {
+          if (generation !== answerGenerationRef.current) return;
           // Slim index miss must still surface the chosen patch, never hang on
           // the locate spinner — empty cards + AreaPicker remain available.
           setCards([]);
           setScope("none");
           setPatchProfile(null);
+          setAnswerContext({ source: answerSource, generation });
           setState("ready");
         });
     },
-    [loadSlim, pathname, router, syncPatchToUrl],
+    [beginAnswer, loadSlim, pathname, router, syncPatchToUrl],
   );
 
   const pickBorough = useCallback(
-    (name: string) => {
+    (name: string, answerSource: NearAnswerSource = "picked-area") => {
+      const generation = beginAnswer();
       void loadSlim().then((slim) => {
+        if (generation !== answerGenerationRef.current) return;
         setCards(rankBoroughCheapest(slim, name));
         setBorough(name);
         setPatch(null);
         setPatchProfile(null);
         setOutsideCoverage(null);
         setScope("walkable");
+        setAnswerContext({ source: answerSource, generation });
         setState("ready");
         writeRememberedArea({ kind: "borough", name });
       });
     },
-    [loadSlim],
+    [beginAnswer, loadSlim],
   );
 
   // No fix (denied / unavailable / nothing priced in range): answer anyway.
@@ -328,12 +385,16 @@ export default function NearMeNow({
       const remembered = readRememberedArea();
       if (remembered?.kind === "borough") {
         setPatchReason(reason);
-        pickBorough(remembered.name);
+        pickBorough(remembered.name, "remembered-area");
         return;
       }
       const rememberedPatch =
         remembered?.kind === "patch" ? resolveNightPatch(remembered.id) : null;
-      pickPatch(rememberedPatch ?? CENTRAL_PATCH, reason);
+      pickPatch(
+        rememberedPatch ?? CENTRAL_PATCH,
+        reason,
+        rememberedPatch ? "remembered-area" : "default-area",
+      );
     },
     [pickBorough, pickPatch],
   );
@@ -344,10 +405,12 @@ export default function NearMeNow({
       answerWithoutFix("unavailable");
       return;
     }
+    const generation = beginAnswer();
     setState("requesting");
     navigator.geolocation.getCurrentPosition(
       (position) => {
         void loadSlim().then((slim) => {
+          if (generation !== answerGenerationRef.current) return;
           const answer = rankNearMe(position.coords.latitude, position.coords.longitude, slim);
           if (answer.scope === "none") {
             // Located fine, but nothing priced in range — be honest that we do
@@ -364,6 +427,7 @@ export default function NearMeNow({
               setPatchProfile(null);
               setPatchReason(null);
               setOutsideCoverage(nearest);
+              setAnswerContext({ source: "location", generation });
               setState("ready");
               return;
             }
@@ -379,9 +443,11 @@ export default function NearMeNow({
           setPatchProfile(null);
           setPatchReason(null);
           setOutsideCoverage(null);
+          setAnswerContext({ source: "location", generation });
         });
       },
       (error) => {
+        if (generation !== answerGenerationRef.current) return;
         // PERMISSION_DENIED === 1; anything else (timeout, position
         // unavailable) is treated as unavailable — both answer from an area.
         const reason = error.code === error.PERMISSION_DENIED ? "denied" : "unavailable";
@@ -390,22 +456,25 @@ export default function NearMeNow({
       },
       GEO_OPTS,
     );
-  }, [loadSlim, answerWithoutFix]);
+  }, [answerWithoutFix, beginAnswer, loadSlim]);
 
   useEffect(() => {
     // Map mode: a location is already resolved — answer immediately, no prompt.
     if (initialLocation) {
+      const generation = beginAnswer();
       void loadSlim().then((slim) => {
+        if (generation !== answerGenerationRef.current) return;
         const answer = rankNearMe(initialLocation.lat, initialLocation.lng, slim);
         setCards(answer.cards);
         setScope(answer.scope);
         setState("ready");
         setBorough(null);
+        setAnswerContext({ source: "location", generation });
       });
       return;
     }
     // Shareable patch entry beats auto-locate so deep links stay honest.
-    if (bootPatch) {
+    if (bootPatch && shouldResolveInitialNearPatch(bootPatch.id, patch?.id)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       pickPatch(bootPatch, null);
       return;
@@ -419,12 +488,37 @@ export default function NearMeNow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoLocate, initialLocation, bootPatch?.id]);
 
+  useEffect(() => {
+    if (
+      !showPriceTrust ||
+      state !== "ready" ||
+      !answerContext ||
+      lastTrackedAnswerRef.current === answerContext.generation
+    ) {
+      return;
+    }
+    lastTrackedAnswerRef.current = answerContext.generation;
+    trackEvent(
+      "near_answer_ready",
+      nearAnswerReadyProps(answerContext.source, cards.length),
+    );
+  }, [answerContext, cards.length, showPriceTrust, state]);
+
   const openVenue = useCallback(
     (id: string) => {
+      if (showPriceTrust && answerContext) {
+        const position = cards.findIndex((card) => card.id === id) + 1;
+        if (position > 0) {
+          trackEvent(
+            "near_venue_opened",
+            nearVenueOpenedProps(answerContext.source, position),
+          );
+        }
+      }
       if (onSelectVenue) onSelectVenue(id);
       else router.push(venueMapUrl(id));
     },
-    [onSelectVenue, router],
+    [answerContext, cards, onSelectVenue, router, showPriceTrust],
   );
 
   // Explicit acceptance (§4.8): only "Use this pub" reaches here — opening a card
@@ -493,6 +587,7 @@ export default function NearMeNow({
           onAccept={acceptVenue}
           intentWrite={intentWrite}
           acceptReceipt={acceptReceipt}
+          priceTrust={priceTrust}
           resolvedMapHref={resolvedMapHref}
           onLocate={locate}
         />
@@ -514,6 +609,7 @@ export default function NearMeNow({
           onAccept={acceptVenue}
           intentWrite={intentWrite}
           acceptReceipt={acceptReceipt}
+          priceTrust={priceTrust}
           loadSlim={loadSlim}
           onPickPatch={pickPatch}
           onPickBorough={pickBorough}
@@ -611,6 +707,7 @@ function NearMeLocatedAnswer({
   onAccept,
   intentWrite,
   acceptReceipt,
+  priceTrust,
   resolvedMapHref,
   onLocate,
 }: {
@@ -621,6 +718,7 @@ function NearMeLocatedAnswer({
   onAccept: (id: string) => void;
   intentWrite: boolean;
   acceptReceipt: string | null;
+  priceTrust?: NearPriceTrustView;
   resolvedMapHref: string;
   onLocate: () => void;
 }) {
@@ -643,6 +741,7 @@ function NearMeLocatedAnswer({
         onAccept={onAccept}
         accept={intentWrite}
         receipt={acceptReceipt}
+        priceTrust={priceTrust}
       />
       <footer className="nmnFoot">
         <a className="nmnRetry" href={resolvedMapHref}>
@@ -671,6 +770,7 @@ function NearMeAreaAnswer({
   onAccept,
   intentWrite,
   acceptReceipt,
+  priceTrust,
   loadSlim,
   onPickPatch,
   onPickBorough,
@@ -690,6 +790,7 @@ function NearMeAreaAnswer({
   onAccept: (id: string) => void;
   intentWrite: boolean;
   acceptReceipt: string | null;
+  priceTrust?: NearPriceTrustView;
   loadSlim: () => Promise<PricedPoint[]>;
   onPickPatch: (patch: NightPatch) => void;
   onPickBorough: (name: string) => void;
@@ -715,6 +816,7 @@ function NearMeAreaAnswer({
         onAccept={onAccept}
         accept={intentWrite}
         receipt={acceptReceipt}
+        priceTrust={priceTrust}
       />
       {cards.length === 0 ? (
         <div className="nmnOutside">
@@ -755,7 +857,32 @@ function NearMeAreaAnswer({
 /** The one caption for the whole list. It heads the list; it never rides a row. */
 export const NEAR_ME_PRICE_CAPTION = "Cheapest pint";
 
-function NearMeCardBody({ card }: { card: NearMeCard }) {
+function collectedPriceLabel(): string {
+  return NEAR_PRICE_TRUST_COLLECTED_AT;
+}
+
+function trustLabelForCard(
+  card: NearMeCard,
+  priceTrust: NearPriceTrustView | undefined,
+): string | null {
+  if (!priceTrust) return null;
+  if (priceTrust === "loading") return nearPriceTrustLabel("loading");
+  const match = priceTrust.results.find(
+    (item) => item.venueId === card.id && item.price === card.cheapestPrice,
+  );
+  if (!match) return nearPriceTrustLabel("degraded");
+  return match.publisher
+    ? nearPriceTrustLabel("named", match.publisher)
+    : nearPriceTrustLabel("unrecorded");
+}
+
+function NearMeCardBody({
+  card,
+  trustLabel,
+}: {
+  card: NearMeCard;
+  trustLabel: string | null;
+}) {
   const distance = formatNearDistance(card.distanceKm);
   return (
     <>
@@ -771,6 +898,7 @@ function NearMeCardBody({ card }: { card: NearMeCard }) {
             </span>
           ) : null}
         </span>
+        {trustLabel ? <span className="nmnCardTrust">{trustLabel}</span> : null}
       </span>
       <span className="nmnCardPrice">
         <span className="nmnCardPriceValue">{formatPrice(card.cheapestPrice)}</span>
@@ -790,6 +918,7 @@ export function NearMeCardList({
   cards,
   onOpen,
   onAccept,
+  priceTrust,
 }: {
   cards: NearMeCard[];
   onOpen: (id: string) => void;
@@ -799,8 +928,14 @@ export function NearMeCardList({
    * browse-only button it has always been.
    */
   onAccept?: (id: string) => void;
+  /** `/near` only. Embedded map answers omit this and keep their compact rows. */
+  priceTrust?: NearPriceTrustView;
 }) {
   if (cards.length === 0) return null;
+  const collectedLabel =
+    priceTrust && priceTrust !== "loading"
+      ? collectedPriceLabel()
+      : null;
   return (
     <>
     <p className="nmnListCaption">{NEAR_ME_PRICE_CAPTION}</p>
@@ -809,7 +944,7 @@ export function NearMeCardList({
         onAccept ? (
           <li key={card.id} className="nmnCardRow">
             <button type="button" className="nmnCard nmnCardBrowse" onClick={() => onOpen(card.id)}>
-              <NearMeCardBody card={card} />
+              <NearMeCardBody card={card} trustLabel={trustLabelForCard(card, priceTrust)} />
             </button>
             <button
               type="button"
@@ -823,12 +958,13 @@ export function NearMeCardList({
         ) : (
           <li key={card.id}>
             <button type="button" className="nmnCard" onClick={() => onOpen(card.id)}>
-              <NearMeCardBody card={card} />
+              <NearMeCardBody card={card} trustLabel={trustLabelForCard(card, priceTrust)} />
             </button>
           </li>
         ),
       )}
     </ul>
+    {collectedLabel ? <p className="nmnPriceCollected">{collectedLabel}</p> : null}
     </>
   );
 }
