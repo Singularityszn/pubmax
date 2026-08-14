@@ -13,6 +13,7 @@ export type AuditedRoute = {
   pendingTexts?: string[];
   waitForAuthResolution?: boolean;
   waitForPaintedMap?: boolean;
+  settlementTimeoutMs?: number;
 };
 
 export type AuditNavigationResult = {
@@ -25,6 +26,8 @@ export type AuditedFlow = {
   name: string;
   route: string;
   dependencies: string[];
+  desktopOnly?: boolean;
+  allowedNotApplicableResults?: Array<Record<string, unknown>>;
 };
 
 export const AUDITED_ORIGINS: AuditedOrigin[];

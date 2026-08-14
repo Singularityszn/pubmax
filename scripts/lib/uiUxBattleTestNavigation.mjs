@@ -72,7 +72,10 @@ export const AUDITED_FLOWS = [
     route: "home",
     dependencies: ["home"],
     desktopOnly: true,
-    allowedNotApplicableReasons: ["sign-in-trigger-unavailable"],
+    allowedNotApplicableResults: [{
+      reason: "sign-in-trigger-unavailable",
+      authConfigured: false,
+    }],
   },
   { name: "tonight-browse", route: "tonight", dependencies: ["tonight", "map"] },
   { name: "near-answer", route: "near", dependencies: ["near"] },

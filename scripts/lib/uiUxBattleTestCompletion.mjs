@@ -20,6 +20,8 @@ export function assertCompleteUiUxAudit({
   viewportNames,
   routeNames,
   flowDefinitions,
+  clsBudget,
+  motionPolicy,
   pages,
   flowResults,
 }) {
@@ -34,6 +36,16 @@ export function assertCompleteUiUxAudit({
   const failures = [];
   const expectedPageKeys = new Set();
   const expectedFlowKeys = new Set();
+
+  if (typeof clsBudget !== "number" || !Number.isFinite(clsBudget) || clsBudget <= 0) {
+    failures.push("Missing CLS budget");
+  }
+  for (const origin of originNames) {
+    const policy = motionPolicy?.[origin];
+    if (policy !== "reduce" && policy !== "no-preference") {
+      failures.push(`Missing motion policy: ${origin}`);
+    }
+  }
 
   for (const origin of originNames) {
     for (const viewport of viewportNames) {
@@ -73,6 +85,17 @@ export function assertCompleteUiUxAudit({
         if (!page || typeof page.cls !== "number" || !Number.isFinite(page.cls)) {
           failures.push(`Missing CLS record: ${key}`);
         }
+        if (!page || typeof page.reducedMotion !== "boolean") {
+          failures.push(`Missing reduced-motion record: ${key}`);
+        } else {
+          const policy = motionPolicy?.[origin];
+          if (
+            (policy === "reduce" && !page.reducedMotion) ||
+            (policy === "no-preference" && page.reducedMotion)
+          ) {
+            failures.push(`Reduced-motion policy mismatch: ${key}`);
+          }
+        }
       }
 
       for (const flow of flowDefinitions) {
@@ -94,7 +117,9 @@ export function assertCompleteUiUxAudit({
         if (isUiUxFlowApplicable(flow, viewport)) {
           const allowedUnavailable =
             result?.status === "not-applicable" &&
-            flow.allowedNotApplicableReasons?.includes(result.reason);
+            flow.allowedNotApplicableResults?.some((allowed) =>
+              Object.entries(allowed).every(([field, expected]) => result[field] === expected),
+            );
           if (result?.status !== "passed" && !allowedUnavailable) {
             failures.push(`Failed applicable flow: ${key}`);
           }

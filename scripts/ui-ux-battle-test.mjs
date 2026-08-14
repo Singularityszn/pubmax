@@ -2,7 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
 import {
+  UI_UX_MOTION_POLICY,
   UI_UX_PAGE_SCREENSHOT_OPTIONS,
+  assertUiUxCurrentFocus,
+  assertUiUxVisibleFocusIndicator,
+  hasResolvedUnconfiguredAuth,
   uiUxAuditContextOptions,
   uiUxChromiumLaunchOptions,
 } from "./lib/uiUxBattleTestBrowser.mjs";
@@ -235,21 +239,8 @@ async function requireVisibleFocus(page, locator, label) {
   await locator.focus();
   await page.keyboard.press("Tab");
   await page.keyboard.press("Shift+Tab");
-  const focus = await locator.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
-      active: document.activeElement === element,
-      focusVisible: element.matches(":focus-visible"),
-      outlineStyle: style.outlineStyle,
-      outlineWidth: style.outlineWidth,
-      boxShadow: style.boxShadow,
-    };
-  });
-  const outlineVisible = focus.outlineStyle !== "none" && focus.outlineWidth !== "0px";
-  const shadowVisible = focus.boxShadow !== "none";
-  if (!focus.active || !focus.focusVisible || (!outlineVisible && !shadowVisible)) {
-    throw new Error(`${label} has no visible keyboard focus indicator`);
-  }
+  await assertUiUxCurrentFocus(locator, label);
+  await assertUiUxVisibleFocusIndicator(locator, label);
 }
 
 async function paintedMapPoints(page) {
@@ -322,12 +313,16 @@ async function exerciseNamedFlows(origin, viewport, auditedFlows) {
     await runFlow("login-sheet-open", auditedRoute("home"), async () => {
       const trigger = flowPage.getByRole("button", { name: "Sign in", exact: true }).first();
       if (!await trigger.isVisible()) {
+        if (!await hasResolvedUnconfiguredAuth(flowPage)) {
+          throw new Error("Sign in trigger unavailable while auth is configured or unresolved");
+        }
         flows.push({
           name: "login-sheet-open",
           origin: origin.name,
           viewport: viewport.name,
           status: "not-applicable",
           reason: "sign-in-trigger-unavailable",
+          authConfigured: false,
         });
         return "not-applicable";
       }
@@ -339,7 +334,8 @@ async function exerciseNamedFlows(origin, viewport, auditedFlows) {
         .locator("button:not(:disabled), input:not(:disabled), [href]")
         .first();
       await firstEnabled.waitFor({ state: "visible" });
-      await requireVisibleFocus(flowPage, firstEnabled, "Sign in sheet control");
+      await assertUiUxCurrentFocus(firstEnabled, "Sign in sheet control");
+      await assertUiUxVisibleFocusIndicator(firstEnabled, "Sign in sheet control");
     });
   } else if (enabled.has("login-sheet-open")) {
     flows.push({
@@ -480,7 +476,7 @@ await Promise.race([
 ]);
 const audit = {
   clsBudget: UI_UX_CLS_BUDGET,
-  motionPolicy: { live: "reduce", local: "no-preference" },
+  motionPolicy: UI_UX_MOTION_POLICY,
   pages,
   flows,
   findings,
@@ -490,6 +486,8 @@ assertCompleteUiUxAudit({
   viewportNames: viewports.map(({ name }) => name),
   routeNames: selectedRoutes.map(({ name }) => name),
   flowDefinitions: selectedFlows,
+  clsBudget: audit.clsBudget,
+  motionPolicy: audit.motionPolicy,
   pages,
   flowResults: flows,
 });

@@ -13,7 +13,11 @@ import {
 } from "../scripts/lib/uiUxBattleTestNavigation.mjs";
 import {
   UI_UX_CHROMIUM_ARGS,
+  UI_UX_MOTION_POLICY,
   UI_UX_PAGE_SCREENSHOT_OPTIONS,
+  assertUiUxCurrentFocus,
+  assertUiUxVisibleFocusIndicator,
+  hasResolvedUnconfiguredAuth,
   uiUxAuditContextOptions,
   uiUxChromiumLaunchOptions,
 } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
@@ -63,7 +67,40 @@ test("audit browser policy supplies SwiftShader to every caller", () => {
   expect(uiUxAuditContextOptions("https://pubmaxxing.com")).toEqual({
     reducedMotion: "reduce",
   });
+  expect(UI_UX_MOTION_POLICY).toEqual({ live: "reduce", local: "no-preference" });
   expect(UI_UX_PAGE_SCREENSHOT_OPTIONS).toEqual({ fullPage: false });
+});
+
+test("audit checks existing product focus without moving it", async ({ page }) => {
+  await page.setContent(`
+    <style>:focus-visible { outline: 3px solid rgb(0, 0, 0); }</style>
+    <button id="trigger">Trigger</button>
+    <input id="first" />
+  `);
+  const trigger = page.locator("#trigger");
+  const first = page.locator("#first");
+  await trigger.focus();
+
+  await expect(assertUiUxCurrentFocus(first, "First control")).rejects.toThrow(
+    "did not receive product autofocus",
+  );
+  await expect(trigger).toBeFocused();
+
+  await page.keyboard.press("Tab");
+  await assertUiUxCurrentFocus(first, "First control");
+  await assertUiUxVisibleFocusIndicator(first, "First control");
+});
+
+test("audit skips unavailable sign in only for resolved keyless auth", async ({ page }) => {
+  await page.setContent(
+    '<span hidden data-auth-resolved="true" data-auth-configured="true"></span>',
+  );
+  expect(await hasResolvedUnconfiguredAuth(page)).toBe(false);
+
+  await page.setContent(
+    '<span hidden data-auth-resolved="true" data-auth-configured="false"></span>',
+  );
+  expect(await hasResolvedUnconfiguredAuth(page)).toBe(true);
 });
 
 test("shared audit navigation rejects HTTP failures and waits for settled UI", async ({
