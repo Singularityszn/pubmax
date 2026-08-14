@@ -51,10 +51,10 @@
   justify-content: center;
   min-height: 44px;
   padding: 0 11px;
-  border: 1px solid var(--brass);
+  border: 1px solid var(--state-active-border);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
-  color: var(--brass);
+  background: var(--state-active-surface);
+  color: var(--state-active-ink);
   font-size: 0.74rem;
   font-weight: 800;
   text-decoration: none;
@@ -64,7 +64,9 @@
 }
 
 .citySuggestBannerSwitch:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--brass) 22%, var(--panel-raised));
+  border-color: var(--state-active-ink);
+  background: color-mix(in srgb, var(--state-active-surface) 82%, var(--ink) 18%);
+  color: var(--ink);
 }
 
 .citySuggestBannerSwitch:disabled {

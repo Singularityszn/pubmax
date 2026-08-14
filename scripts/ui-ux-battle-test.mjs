@@ -13,6 +13,7 @@ import {
 import {
   AUDITED_ROUTES,
   UI_UX_CLS_BUDGET,
+  configureAuditedFlowsForRunMode,
   navigateToAuditedRoute,
   selectAuditedFlows,
   selectAuditedOrigins,
@@ -24,9 +25,17 @@ import { prepareAuditOutputRoot } from "./lib/uiUxBattleTestOutput.mjs";
 
 const colorScheme = process.env.UI_UX_COLOR_SCHEME ?? "light";
 const browserChannel = process.env.UI_UX_BROWSER_CHANNEL;
+const frozenLiveBaselineValue = process.env.UI_UX_FROZEN_LIVE_BASELINE;
+if (frozenLiveBaselineValue !== undefined && frozenLiveBaselineValue !== "1") {
+  throw new Error("UI_UX_FROZEN_LIVE_BASELINE must be 1 when set");
+}
+const frozenLiveBaseline = frozenLiveBaselineValue === "1";
 const selectedOrigins = selectAuditedOrigins(process.env.UI_UX_ORIGINS);
 const selectedRoutes = selectAuditedRoutes(process.env.UI_UX_ROUTES);
-const selectedFlows = selectAuditedFlows(selectedRoutes);
+const selectedFlows = configureAuditedFlowsForRunMode(
+  selectAuditedFlows(selectedRoutes),
+  { frozenLiveBaseline },
+);
 const outputRoot = await prepareAuditOutputRoot(process.env.UI_UX_OUTPUT);
 const viewports = [
   {
@@ -337,13 +346,14 @@ async function exerciseNamedFlows(origin, viewport, auditedFlows) {
       try {
         await assertUiUxCurrentFocus(firstEnabled, "Sign in sheet control");
       } catch (error) {
-        if (origin.name !== "live") throw error;
+        if (origin.name !== "live" || !frozenLiveBaseline) throw error;
         flows.push({
           name: "login-sheet-open",
           origin: origin.name,
           viewport: viewport.name,
           status: "not-applicable",
           reason: "frozen-live-autofocus-unavailable",
+          frozenLiveBaseline: true,
         });
         return "not-applicable";
       }
@@ -489,6 +499,7 @@ await Promise.race([
 const audit = {
   clsBudget: UI_UX_CLS_BUDGET,
   motionPolicy: UI_UX_MOTION_POLICY,
+  runMode: { frozenLiveBaseline },
   pages,
   flows,
   findings,

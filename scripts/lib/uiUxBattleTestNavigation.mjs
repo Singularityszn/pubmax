@@ -75,9 +75,6 @@ export const AUDITED_FLOWS = [
     allowedNotApplicableResults: [{
       reason: "sign-in-trigger-unavailable",
       authConfigured: false,
-    }, {
-      reason: "frozen-live-autofocus-unavailable",
-      origin: "live",
     }],
   },
   { name: "tonight-browse", route: "tonight", dependencies: ["tonight", "map"] },
@@ -131,6 +128,21 @@ export function selectAuditedFlows(routes) {
   return AUDITED_FLOWS.filter(({ dependencies }) =>
     dependencies.every((dependency) => selectedNames.has(dependency)),
   );
+}
+
+export function configureAuditedFlowsForRunMode(flows, { frozenLiveBaseline = false } = {}) {
+  if (!frozenLiveBaseline) return flows;
+  return flows.map((flow) => flow.name === "login-sheet-open" ? {
+    ...flow,
+    allowedNotApplicableResults: [
+      ...(flow.allowedNotApplicableResults ?? []),
+      {
+        reason: "frozen-live-autofocus-unavailable",
+        origin: "live",
+        frozenLiveBaseline: true,
+      },
+    ],
+  } : flow);
 }
 
 export async function waitForAuditedRouteSettlement(page, route, timeout) {

@@ -37,6 +37,10 @@ export const UI_UX_CLS_BUDGET: number;
 export function selectAuditedOrigins(filter?: string): AuditedOrigin[];
 export function selectAuditedRoutes(filter?: string): AuditedRoute[];
 export function selectAuditedFlows(routes: AuditedRoute[]): AuditedFlow[];
+export function configureAuditedFlowsForRunMode(
+  flows: AuditedFlow[],
+  options?: { frozenLiveBaseline?: boolean },
+): AuditedFlow[];
 export function waitForAuditedRouteSettlement(
   page: Page,
   route: AuditedRoute,

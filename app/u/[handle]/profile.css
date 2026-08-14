@@ -874,18 +874,31 @@
 .profilePage .followBtn {
   min-height: 44px;
   padding: 10px 16px;
-  border: 1px solid var(--brass);
+  border: 1px solid var(--accent-action);
   border-radius: var(--radius-sm);
-  background: var(--brass);
-  color: var(--paper);
+  background: var(--accent-action);
+  color: var(--color-on-accent);
   font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
 }
 
+.profilePage .followBtn:hover:not(:disabled) {
+  border-color: var(--accent-action-strong);
+  background: var(--accent-action-strong);
+  color: var(--color-on-accent-strong);
+}
+
 .profilePage .followBtn.isFollowing {
-  background: transparent;
-  color: var(--brass);
+  border-color: var(--state-active-border);
+  background: var(--state-active-surface);
+  color: var(--state-active-ink);
+}
+
+.profilePage .followBtn.isFollowing:hover:not(:disabled) {
+  border-color: var(--state-active-ink);
+  background: color-mix(in srgb, var(--state-active-surface) 82%, var(--ink) 18%);
+  color: var(--ink);
 }
 
 .profilePage .followBtn:disabled {

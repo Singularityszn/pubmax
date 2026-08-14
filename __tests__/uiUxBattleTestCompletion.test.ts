@@ -2,6 +2,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { assertCompleteUiUxAudit } from "../scripts/lib/uiUxBattleTestCompletion.mjs";
+import {
+  AUDITED_FLOWS,
+  configureAuditedFlowsForRunMode,
+} from "../scripts/lib/uiUxBattleTestNavigation.mjs";
 
 const completionInput = {
   originNames: ["local"],
@@ -158,17 +162,15 @@ describe("UI UX audit completion", () => {
       flowResults: [{ ...input.flowResults[0], authConfigured: true }],
     })).toThrow("Failed applicable flow: local/desktop-1440/login-sheet-open");
 
+    const configuredFlows = configureAuditedFlowsForRunMode(AUDITED_FLOWS, {
+      frozenLiveBaseline: true,
+    });
+    const loginFlow = configuredFlows.find(({ name }) => name === "login-sheet-open");
     const liveInput = {
       ...input,
       originNames: ["live"],
       motionPolicy: { live: "reduce" },
-      flowDefinitions: [{
-        ...input.flowDefinitions[0],
-        allowedNotApplicableResults: [{
-          reason: "frozen-live-autofocus-unavailable",
-          origin: "live",
-        }],
-      }],
+      flowDefinitions: [loginFlow],
       pages: [{
         ...input.pages[0],
         origin: "live",
@@ -179,19 +181,18 @@ describe("UI UX audit completion", () => {
         origin: "live",
         reason: "frozen-live-autofocus-unavailable",
         authConfigured: undefined,
+        frozenLiveBaseline: true,
       }],
     };
 
     expect(() => assertCompleteUiUxAudit(liveInput)).not.toThrow();
     expect(() => assertCompleteUiUxAudit({
       ...liveInput,
-      flowDefinitions: [{
-        ...liveInput.flowDefinitions[0],
-        allowedNotApplicableResults: [{
-          reason: "frozen-live-autofocus-unavailable",
-          origin: "local",
-        }],
-      }],
+      flowDefinitions: configureAuditedFlowsForRunMode(AUDITED_FLOWS),
+    })).toThrow("Failed applicable flow: live/desktop-1440/login-sheet-open");
+    expect(() => assertCompleteUiUxAudit({
+      ...liveInput,
+      flowResults: [{ ...liveInput.flowResults[0], frozenLiveBaseline: false }],
     })).toThrow("Failed applicable flow: live/desktop-1440/login-sheet-open");
   });
 });
