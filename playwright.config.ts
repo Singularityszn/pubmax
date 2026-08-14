@@ -343,11 +343,6 @@ export default defineConfig({
                   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
               }
             : {}),
-          // Pass-through for lane e2e that must exercise a flag-on server
-          // (L19 landing hierarchy). Unknown/absent stays off (strict 0|1).
-          ...(process.env.PUBMAX_LANDING_FIND_MY_PINT
-            ? { PUBMAX_LANDING_FIND_MY_PINT: process.env.PUBMAX_LANDING_FIND_MY_PINT }
-            : {}),
           // Trusted-handoff flag pass-throughs for the deferred lane e2e (L20
           // prep): each stays off unless the run exports it, so a flag-ON spec
           // (test.skip-gated on the same var) drives a matching flag-on server.

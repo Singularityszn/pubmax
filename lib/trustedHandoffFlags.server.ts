@@ -51,12 +51,6 @@ export const TRUSTED_HANDOFF_FLAG_DEFINITIONS = Object.freeze({
     removalCondition: "Remove after Pal acceptance handoff is stable and old result navigation is retired.",
     offBehavior: "Existing Pal results remain; Pal does not write PlanningIntent.",
   },
-  landingFindMyPint: {
-    env: "PUBMAX_LANDING_FIND_MY_PINT",
-    ownerLane: "L19",
-    removalCondition: "Remove after trusted handoff is stable and the landing hierarchy is permanent.",
-    offBehavior: "Existing landing hierarchy remains.",
-  },
   friendMemberRehydrationV2: {
     env: "PUBMAX_FRIEND_MEMBER_REHYDRATION_V2",
     ownerLane: "L10",
@@ -85,7 +79,6 @@ export function readTrustedHandoffFlags(
     mapRouteTransfer: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.mapRouteTransfer.env]),
     tonightGrouping: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.tonightGrouping.env]),
     palHandoff: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.palHandoff.env]),
-    landingFindMyPint: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.landingFindMyPint.env]),
     friendMemberRehydrationV2: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.friendMemberRehydrationV2.env]),
     socialFriendsLaunch: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.socialFriendsLaunch.env]),
   });

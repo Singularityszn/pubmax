@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import LandingPage from "@/components/landing/LandingPage";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { loadAboutStats } from "@/lib/aboutStats";
-import { readTrustedHandoffFlag, readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
+import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 // The words a forwarded link shows beside the card. They say the same thing the
 // page itself says, because a referral link (/r/<code>) lands on /#referral=…
@@ -85,10 +85,6 @@ export default async function Home() {
   // back to plain copy when a figure is missing. Passed as a plain serialisable
   // prop into the client LandingPage.
   const stats = await loadAboutStats();
-  // Trusted-handoff flags are server-owned (strict 0|1). The landing hierarchy
-  // flag is threaded as an immutable prop — the client never reads env itself
-  // (same pattern as Map RSC → shell for L05).
-  const { landingFindMyPint } = readTrustedHandoffFlags();
   // Soft launch keeps friends-launch unset/off. Thread the same gate the Social
   // APIs use so Memory CTAs never promise "Open Social" while /social still
   // answers "not open yet."
@@ -110,7 +106,6 @@ export default async function Home() {
       <AppEntryRoute />
       <LandingPage
         stats={stats}
-        landingFindMyPint={landingFindMyPint}
         socialFriendsLaunchEnabled={socialFriendsLaunchEnabled}
       />
     </>
