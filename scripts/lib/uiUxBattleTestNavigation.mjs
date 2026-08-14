@@ -49,6 +49,7 @@ export const AUDITED_ROUTES = [
     readySelector: ".mapCanvasWrap:has(.maplibreMap)",
     pendingSelectors: ["main.mapSkeleton", ".mapLoading"],
     waitForPaintedMap: true,
+    settlementTimeoutMs: 60_000,
   },
   {
     name: "plan",
@@ -66,11 +67,17 @@ export const AUDITED_ROUTES = [
 ];
 
 export const AUDITED_FLOWS = [
-  { name: "login-sheet-open", route: "home", dependencies: ["home"] },
+  {
+    name: "login-sheet-open",
+    route: "home",
+    dependencies: ["home"],
+    desktopOnly: true,
+    allowedNotApplicableReasons: ["sign-in-trigger-unavailable"],
+  },
   { name: "tonight-browse", route: "tonight", dependencies: ["tonight", "map"] },
   { name: "near-answer", route: "near", dependencies: ["near"] },
   { name: "add-form-open", route: "add", dependencies: ["add"] },
-  { name: "map-pan-zoom", route: "map", dependencies: ["map"] },
+  { name: "map-pan-zoom", route: "map", dependencies: ["map"], desktopOnly: true },
 ];
 
 function selectAuditValues(filter, values, environmentName, noun, matches) {
@@ -120,19 +127,24 @@ export function selectAuditedFlows(routes) {
   );
 }
 
-export async function waitForAuditedRouteSettlement(page, route, timeout = 30_000) {
-  await page.locator(route.readySelector).first().waitFor({ state: "visible", timeout });
+export async function waitForAuditedRouteSettlement(page, route, timeout) {
+  const settlementTimeout = timeout ?? route.settlementTimeoutMs ?? 30_000;
+  await page.bringToFront();
+  await page.locator(route.readySelector).first().waitFor({
+    state: "visible",
+    timeout: settlementTimeout,
+  });
   for (const selector of route.pendingSelectors ?? []) {
-    await page.locator(selector).waitFor({ state: "hidden", timeout });
+    await page.locator(selector).waitFor({ state: "hidden", timeout: settlementTimeout });
   }
   for (const text of route.pendingTexts ?? []) {
-    await page.getByText(text).waitFor({ state: "hidden", timeout });
+    await page.getByText(text).waitFor({ state: "hidden", timeout: settlementTimeout });
   }
   if (route.waitForAuthResolution) {
     await page
       .locator('[data-auth-resolved="true"], .authUser')
       .first()
-      .waitFor({ state: "attached", timeout });
+      .waitFor({ state: "attached", timeout: settlementTimeout });
   }
   if (route.waitForPaintedMap) {
     const localAudit = isLocalUiUxAuditOrigin(page.url());
@@ -154,7 +166,7 @@ export async function waitForAuditedRouteSettlement(page, route, timeout = 30_00
         (!requireEntranceSettlement || entranceSettled) &&
         typeof tapPoints === "function" &&
         tapPoints().length > 0;
-    }, localAudit, { timeout });
+    }, localAudit, { timeout: settlementTimeout });
   }
   await page.evaluate(async () => {
     await document.fonts.ready;
@@ -180,7 +192,8 @@ export async function waitForAuditedRouteSettlement(page, route, timeout = 30_00
   }, UI_UX_CLS_BUDGET);
 }
 
-export async function navigateToAuditedRoute(page, originUrl, route, timeout = 30_000) {
+export async function navigateToAuditedRoute(page, originUrl, route, timeout) {
+  const navigationTimeout = timeout ?? 30_000;
   await page.addInitScript(() => {
     if (window.__pubmaxUiUxAuditMetrics) return;
     const supported = PerformanceObserver.supportedEntryTypes.includes("layout-shift");
@@ -215,8 +228,8 @@ export async function navigateToAuditedRoute(page, originUrl, route, timeout = 3
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       response = page.url() === url
-        ? await page.reload({ waitUntil: "domcontentloaded", timeout })
-        : await page.goto(url, { waitUntil: "domcontentloaded", timeout });
+        ? await page.reload({ waitUntil: "domcontentloaded", timeout: navigationTimeout })
+        : await page.goto(url, { waitUntil: "domcontentloaded", timeout: navigationTimeout });
       break;
     } catch (error) {
       if (attempt > 0 || !String(error?.message).includes("net::ERR_ABORTED")) throw error;

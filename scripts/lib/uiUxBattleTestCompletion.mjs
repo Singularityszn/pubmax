@@ -1,0 +1,111 @@
+function recordKey(origin, viewport, item) {
+  return `${origin}/${viewport}/${item}`;
+}
+
+function countByKey(records, keyFor) {
+  const counts = new Map();
+  for (const record of records) {
+    const key = keyFor(record);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
+export function isUiUxFlowApplicable(flow, viewportName) {
+  return !flow.desktopOnly || viewportName === "desktop-1440";
+}
+
+export function assertCompleteUiUxAudit({
+  originNames,
+  viewportNames,
+  routeNames,
+  flowDefinitions,
+  pages,
+  flowResults,
+}) {
+  const pageCounts = countByKey(
+    pages,
+    ({ origin, viewport, routeName }) => recordKey(origin, viewport, routeName),
+  );
+  const flowCounts = countByKey(
+    flowResults,
+    ({ origin, viewport, name }) => recordKey(origin, viewport, name),
+  );
+  const failures = [];
+  const expectedPageKeys = new Set();
+  const expectedFlowKeys = new Set();
+
+  for (const origin of originNames) {
+    for (const viewport of viewportNames) {
+      for (const routeName of routeNames) {
+        expectedPageKeys.add(recordKey(origin, viewport, routeName));
+      }
+      for (const flow of flowDefinitions) {
+        expectedFlowKeys.add(recordKey(origin, viewport, flow.name));
+      }
+    }
+  }
+  for (const key of pageCounts.keys()) {
+    if (!expectedPageKeys.has(key)) failures.push(`Unexpected page record: ${key}`);
+  }
+  for (const key of flowCounts.keys()) {
+    if (!expectedFlowKeys.has(key)) failures.push(`Unexpected flow record: ${key}`);
+  }
+
+  for (const origin of originNames) {
+    for (const viewport of viewportNames) {
+      for (const routeName of routeNames) {
+        const key = recordKey(origin, viewport, routeName);
+        const count = pageCounts.get(key) ?? 0;
+        if (count === 0) {
+          failures.push(`Missing page record: ${key}`);
+          continue;
+        }
+        if (count > 1) {
+          failures.push(`Duplicate page record: ${key}`);
+          continue;
+        }
+        const page = pages.find((candidate) =>
+          candidate.origin === origin &&
+          candidate.viewport === viewport &&
+          candidate.routeName === routeName,
+        );
+        if (!page || typeof page.cls !== "number" || !Number.isFinite(page.cls)) {
+          failures.push(`Missing CLS record: ${key}`);
+        }
+      }
+
+      for (const flow of flowDefinitions) {
+        const key = recordKey(origin, viewport, flow.name);
+        const count = flowCounts.get(key) ?? 0;
+        if (count === 0) {
+          failures.push(`Missing flow record: ${key}`);
+          continue;
+        }
+        if (count > 1) {
+          failures.push(`Duplicate flow record: ${key}`);
+          continue;
+        }
+        const result = flowResults.find((candidate) =>
+          candidate.origin === origin &&
+          candidate.viewport === viewport &&
+          candidate.name === flow.name,
+        );
+        if (isUiUxFlowApplicable(flow, viewport)) {
+          const allowedUnavailable =
+            result?.status === "not-applicable" &&
+            flow.allowedNotApplicableReasons?.includes(result.reason);
+          if (result?.status !== "passed" && !allowedUnavailable) {
+            failures.push(`Failed applicable flow: ${key}`);
+          }
+        } else if (result?.status !== "not-applicable") {
+          failures.push(`Invalid non-applicable flow: ${key}`);
+        }
+      }
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`UI UX audit incomplete\n${failures.join("\n")}`);
+  }
+}

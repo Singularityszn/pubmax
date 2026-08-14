@@ -13,6 +13,7 @@ import {
 } from "../scripts/lib/uiUxBattleTestNavigation.mjs";
 import {
   UI_UX_CHROMIUM_ARGS,
+  UI_UX_PAGE_SCREENSHOT_OPTIONS,
   uiUxAuditContextOptions,
   uiUxChromiumLaunchOptions,
 } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
@@ -62,6 +63,7 @@ test("audit browser policy supplies SwiftShader to every caller", () => {
   expect(uiUxAuditContextOptions("https://pubmaxxing.com")).toEqual({
     reducedMotion: "reduce",
   });
+  expect(UI_UX_PAGE_SCREENSHOT_OPTIONS).toEqual({ fullPage: false });
 });
 
 test("shared audit navigation rejects HTTP failures and waits for settled UI", async ({
@@ -106,6 +108,10 @@ test("shared audit navigation rejects HTTP failures and waits for settled UI", a
 });
 
 test("shared audit navigation requires a painted map trace", async ({ baseURL, page }) => {
+  expect(AUDITED_ROUTES.find(({ name }) => name === "map")).toMatchObject({
+    settlementTimeoutMs: 60_000,
+  });
+
   await page.route("**/audit-map", (route) =>
     route.fulfill({
       status: 200,

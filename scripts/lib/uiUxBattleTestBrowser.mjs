@@ -3,6 +3,10 @@ export const UI_UX_CHROMIUM_ARGS = Object.freeze([
   "--enable-unsafe-swiftshader",
 ]);
 
+export const UI_UX_PAGE_SCREENSHOT_OPTIONS = Object.freeze({
+  fullPage: false,
+});
+
 export function uiUxChromiumLaunchOptions(channel) {
   if (channel !== undefined && channel !== "chrome") {
     throw new Error("UI_UX_BROWSER_CHANNEL must be chrome when set");

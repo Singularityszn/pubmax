@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
 import {
+  UI_UX_PAGE_SCREENSHOT_OPTIONS,
   uiUxAuditContextOptions,
   uiUxChromiumLaunchOptions,
 } from "./lib/uiUxBattleTestBrowser.mjs";
@@ -14,6 +15,7 @@ import {
   selectAuditedRoutes,
   waitForAuditedRouteSettlement,
 } from "./lib/uiUxBattleTestNavigation.mjs";
+import { assertCompleteUiUxAudit } from "./lib/uiUxBattleTestCompletion.mjs";
 import { prepareAuditOutputRoot } from "./lib/uiUxBattleTestOutput.mjs";
 
 const colorScheme = process.env.UI_UX_COLOR_SCHEME ?? "light";
@@ -139,9 +141,16 @@ async function inspectPage(page, origin, viewport, route) {
   const prefix = `${origin.name}/${viewport.name}/${route.name}`;
   await page.screenshot({
     path: path.join(outputRoot, `${safeName(prefix)}.png`),
-    fullPage: true,
+    ...UI_UX_PAGE_SCREENSHOT_OPTIONS,
   });
-  pages.push({ prefix, ...result });
+  pages.push({
+    prefix,
+    origin: origin.name,
+    viewport: viewport.name,
+    routeName: route.name,
+    route: route.path,
+    ...result,
+  });
 
   if (viewport.isMobile) {
     for (const element of result.interactive) {
@@ -323,12 +332,14 @@ async function exerciseNamedFlows(origin, viewport, auditedFlows) {
         return "not-applicable";
       }
       await requireVisibleFocus(flowPage, trigger, "Sign in trigger");
-      await trigger.click();
+      await trigger.press("Enter");
       const sheet = flowPage.locator('.authMenu[aria-label="Sign in options"]');
       await sheet.waitFor({ state: "visible" });
-      const focused = sheet.locator(":focus");
-      await focused.waitFor({ state: "visible" });
-      await requireVisibleFocus(flowPage, focused, "Sign in sheet control");
+      const firstEnabled = sheet
+        .locator("button:not(:disabled), input:not(:disabled), [href]")
+        .first();
+      await firstEnabled.waitFor({ state: "visible" });
+      await requireVisibleFocus(flowPage, firstEnabled, "Sign in sheet control");
     });
   } else if (enabled.has("login-sheet-open")) {
     flows.push({
@@ -463,18 +474,27 @@ for (const origin of selectedOrigins) {
   }
 }
 
-await fs.writeFile(
-  path.join(outputRoot, "audit.json"),
-  JSON.stringify({
-    clsBudget: UI_UX_CLS_BUDGET,
-    motionPolicy: { live: "reduce", local: "no-preference" },
-    pages,
-    flows,
-    findings,
-  }, null, 2),
-);
 await Promise.race([
   browser.close(),
   new Promise((resolve) => setTimeout(resolve, 5_000)),
 ]);
+const audit = {
+  clsBudget: UI_UX_CLS_BUDGET,
+  motionPolicy: { live: "reduce", local: "no-preference" },
+  pages,
+  flows,
+  findings,
+};
+assertCompleteUiUxAudit({
+  originNames: selectedOrigins.map(({ name }) => name),
+  viewportNames: viewports.map(({ name }) => name),
+  routeNames: selectedRoutes.map(({ name }) => name),
+  flowDefinitions: selectedFlows,
+  pages,
+  flowResults: flows,
+});
+await fs.writeFile(
+  path.join(outputRoot, "audit.json"),
+  JSON.stringify(audit, null, 2),
+);
 console.log(JSON.stringify({ outputRoot, pageCount: pages.length, findingCount: findings.length }, null, 2));

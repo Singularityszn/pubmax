@@ -9,7 +9,7 @@ const authState = vi.hoisted(() => ({
       id: "account-a",
       email: "reader@example.com",
       user_metadata: {},
-    },
+    } as { id: string; email: string; user_metadata: Record<string, unknown> } | null,
     loading: false,
     configured: true,
     clerkIntegrationConfigured: true,
@@ -31,7 +31,9 @@ vi.mock("@clerk/nextjs", () => ({
   SignUpButton: ({ children }: { children: ReactNode }) => children,
   UserButton: () => createElement("span", { className: "clerkUserButton" }),
 }));
-vi.mock("@/components/auth/MagicLinkForm", () => ({ default: () => null }));
+vi.mock("@/components/auth/MagicLinkForm", () => ({
+  default: () => createElement("input", { className: "authMagicLinkInput" }),
+}));
 vi.mock("@/components/auth/SocialSignInButtons", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
@@ -125,10 +127,14 @@ class TestElement extends TestNode {
   }
 
   querySelector(selector: string): TestElement | null {
-    return findElement(this, (element) =>
-      selector.includes("button") && element.tagName === "BUTTON" ||
-      selector.includes("[href]") && element.attributes.has("href"),
-    );
+    return findElement(this, (element) => {
+      const enabled = !element.attributes.has("disabled");
+      return enabled && (
+        selector.includes("button") && element.tagName === "BUTTON" ||
+        selector.includes("input") && element.tagName === "INPUT" ||
+        selector.includes("[href]") && element.attributes.has("href")
+      );
+    });
   }
 
   querySelectorAll(): TestElement[] {
@@ -216,6 +222,14 @@ async function mount(compact: boolean): Promise<void> {
 }
 
 beforeEach(() => {
+  authState.current.user = {
+    id: "account-a",
+    email: "reader@example.com",
+    user_metadata: {},
+  };
+  authState.current.loading = false;
+  authState.current.configured = true;
+  authState.current.clerkIntegrationConfigured = true;
   authState.current.signOut.mockClear();
   const document = new TestDocument();
   const window = {
@@ -303,5 +317,19 @@ describe("signed-in auth layout with fully configured Clerk", () => {
     expect(findByClass(container, "authUserNav")).toBeNull();
     expect(findByClass(container, "authSignOut")).not.toBeNull();
     expect(findByClass(container, "clerkAccount")).not.toBeNull();
+  });
+});
+
+describe("signed-out compact auth focus", () => {
+  it("focuses the first enabled popover control", async () => {
+    authState.current.user = null;
+    authState.current.clerkIntegrationConfigured = false;
+    await mount(true);
+    const trigger = findByClass(container, "authCompactTrigger");
+    expect(trigger).not.toBeNull();
+
+    await commitReactWork(() => mountedClick(trigger as TestElement));
+
+    expect(document.activeElement).toBe(findByClass(container, "authMagicLinkInput"));
   });
 });

@@ -243,7 +243,7 @@ export default function SignInButton({
   // invisible menu (issue #215).
   useEffect(() => {
     if (!menuOpen) return;
-    const first = menuRef.current?.querySelector<HTMLElement>("button, [href]");
+    const first = menuRef.current?.querySelector<HTMLElement>(AUTH_MENU_FOCUSABLE_SELECTOR);
     first?.focus();
   }, [menuOpen]);
 
