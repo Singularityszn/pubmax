@@ -10,9 +10,11 @@ import { loadHistoricPubs } from "@/lib/historic";
 import { loadPintIndexArchive } from "@/lib/pintIndexSnapshot.server";
 import { loadNightAreaLandings } from "@/lib/nightAreaLanding.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
+import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
 import * as nightAreaLandingServer from "@/lib/nightAreaLanding.server";
 import * as drinkBrandLandingServer from "@/lib/drinkBrandLanding.server";
+import * as drinkBrandAreaLandingServer from "@/lib/drinkBrandAreaLanding.server";
 import * as pintPriceLandingDataset from "@/lib/pintPriceLandingDataset.server";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
@@ -65,6 +67,7 @@ type ExpectedCounts = {
   editions: number;
   areas: number;
   drinkBrands: number;
+  drinkBrandAreas: number;
   total: number;
 };
 
@@ -84,6 +87,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
   const editions = (await loadPintIndexArchive()).length;
   const areas = (await loadNightAreaLandings()).length;
   const drinkBrands = (await loadDrinkBrandLandings()).length;
+  const drinkBrandAreas = (await loadDrinkBrandAreaLandings()).length;
   const counts = {
     cities,
     boroughs,
@@ -93,6 +97,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
     editions,
     areas,
     drinkBrands,
+    drinkBrandAreas,
   };
   return {
     ...counts,
@@ -105,7 +110,8 @@ async function expectedCounts(): Promise<ExpectedCounts> {
       counts.venues +
       counts.editions +
       counts.areas +
-      counts.drinkBrands,
+      counts.drinkBrands +
+      counts.drinkBrandAreas,
   };
 }
 
@@ -145,7 +151,12 @@ describe("sitemap()", () => {
     expect(familyCount("/landmark/")).toBe(expected.landmarks);
     expect(familyCount("/historic/")).toBe(expected.historic);
     expect(familyCount("/ledger/")).toBe(expected.venues);
-    expect(familyCount("/area/")).toBe(expected.areas);
+    expect(
+      urls.filter(
+        (url) => url.startsWith(`${SITE}/area/`) && url.includes("/drink/"),
+      ),
+    ).toHaveLength(expected.drinkBrandAreas);
+    expect(familyCount("/area/")).toBe(expected.areas + expected.drinkBrandAreas);
     // Sanity floors so a "0 expected" (dataset wipe) can't make the test pass.
     expect(expected.boroughs).toBeGreaterThan(0);
     expect(expected.historic).toBeGreaterThan(0);
@@ -154,7 +165,11 @@ describe("sitemap()", () => {
   });
 
   it("includes only governed area landing pages", () => {
-    expect(urls.filter((url) => url.startsWith(`${SITE}/area/`))).toEqual([
+    expect(
+      urls.filter(
+        (url) => url.startsWith(`${SITE}/area/`) && !url.includes("/drink/"),
+      ),
+    ).toEqual([
       `${SITE}/area/clapham`,
       `${SITE}/area/victoria`,
       `${SITE}/area/piccadilly-soho`,
@@ -186,6 +201,9 @@ describe("sitemap()", () => {
     const drinkReader = vi
       .spyOn(drinkBrandLandingServer, "loadDrinkBrandLandings")
       .mockResolvedValue([]);
+    const drinkBrandAreaReader = vi
+      .spyOn(drinkBrandAreaLandingServer, "loadDrinkBrandAreaLandings")
+      .mockResolvedValue([]);
 
     try {
       const rows = await sitemap();
@@ -195,6 +213,55 @@ describe("sitemap()", () => {
       reader.mockRestore();
       areaReader.mockRestore();
       drinkReader.mockRestore();
+      drinkBrandAreaReader.mockRestore();
+    }
+  });
+
+  it("enumerates each governed brand-area pair with Pint Price freshness", async () => {
+    const pairs = await loadDrinkBrandAreaLandings();
+    expect(pairs.length).toBeGreaterThan(0);
+
+    const pairReader = vi
+      .spyOn(drinkBrandAreaLandingServer, "loadDrinkBrandAreaLandings")
+      .mockResolvedValue(pairs);
+    const pricesModified = (
+      await fs.stat(
+        path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json"),
+      )
+    ).mtime;
+
+    try {
+      const rows = await sitemap();
+      const pairEntries = rows.filter(
+        (entry) => entry.url.startsWith(`${SITE}/area/`) && entry.url.includes("/drink/"),
+      );
+      const expectedUrls = pairs.map(
+        (pair) =>
+          `${SITE}/area/${encodeURIComponent(pair.areaSlug)}/drink/${encodeURIComponent(pair.brandSlug)}`,
+      );
+      const entriesByUrl = new Map(pairEntries.map((entry) => [entry.url, entry]));
+
+      expect(pairReader).toHaveBeenCalledTimes(1);
+      expect(pairEntries).toHaveLength(expectedUrls.length);
+      expect(entriesByUrl.size).toBe(expectedUrls.length);
+      for (const url of expectedUrls) {
+        expect(entriesByUrl.get(url)).toMatchObject({
+          url,
+          lastModified: pricesModified,
+          changeFrequency: "weekly",
+          priority: 0.75,
+        });
+      }
+
+      pairReader.mockResolvedValue([]);
+      const emptyRows = await sitemap();
+      expect(
+        emptyRows.some(
+          (entry) => entry.url.startsWith(`${SITE}/area/`) && entry.url.includes("/drink/"),
+        ),
+      ).toBe(false);
+    } finally {
+      pairReader.mockRestore();
     }
   });
 

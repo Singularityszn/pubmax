@@ -8,6 +8,7 @@ import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server
 import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 import { loadNightAreaLandings } from "@/lib/nightAreaLanding.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
+import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 
 // Wave S1.2 dynamic sitemap. Enumerates every token-free, crawlable surface so
 // search + AI crawlers discover the whole graph (the map-first UI otherwise hides
@@ -56,7 +57,7 @@ async function dataFileModified(name: string, fallback: Date): Promise<Date> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const [venues, historicPubs, pricesModified, historicModified, pintIndexSnapshot, pintIndexEditions, areaLandings, drinkBrandLandings] =
+  const [venues, historicPubs, pricesModified, historicModified, pintIndexSnapshot, pintIndexEditions, areaLandings, drinkBrandLandings, drinkBrandAreaLandings] =
     await Promise.all([
       loadPintPriceLandingVenues(),
       loadHistoricPubs(),
@@ -66,6 +67,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       loadPintIndexArchive(),
       loadNightAreaLandings(),
       loadDrinkBrandLandings(),
+      loadDrinkBrandAreaLandings(),
     ]);
   const pintIndexPublished = pintIndexSnapshot
     ? new Date(pintIndexSnapshot.generatedAt)
@@ -154,6 +156,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const landing of drinkBrandLandings) {
     entries.push({
       url: `${SITE_URL}/drink/${landing.slug}`,
+      lastModified: pricesModified,
+      changeFrequency: "weekly",
+      priority: 0.75,
+    });
+  }
+
+  // Governed brand-by-area pages. Eligibility and route order come from the
+  // same loader used by static params and page rendering.
+  for (const landing of drinkBrandAreaLandings) {
+    entries.push({
+      url: `${SITE_URL}/area/${encodeURIComponent(landing.areaSlug)}/drink/${encodeURIComponent(landing.brandSlug)}`,
       lastModified: pricesModified,
       changeFrequency: "weekly",
       priority: 0.75,
