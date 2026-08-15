@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 import { trackEvent } from "@/lib/analytics";
 import type { CommunityPriceAttribution } from "@/lib/communityPrice";
 
@@ -18,13 +16,13 @@ export default function PriceContributionImpact({ attribution }: Props) {
         Counted under <strong>@{attribution.handle}</strong> on the contributor
         record.
       </p>
-      <Link
+      <a
         className="vpsubImpactLink"
-        href={`/u/${encodeURIComponent(attribution.handle)}`}
+        href={`/u/${encodeURIComponent(attribution.handle)}#contribution-impact`}
         onClick={() => trackEvent("price_impact_opened")}
       >
         See your impact
-      </Link>
+      </a>
     </div>
   );
 }
