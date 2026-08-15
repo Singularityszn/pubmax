@@ -144,6 +144,7 @@ export default function MobileSharedSheet({
     Boolean(kind) && mobileSheetFocusContained(sheetSnap),
     sheetRef,
     "map-surface",
+    previousFocus,
   );
 
   if (!kind || typeof document === "undefined") return null;

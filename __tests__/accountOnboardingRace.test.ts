@@ -78,6 +78,13 @@ class TestNode {
     return this.childNodes[0] ?? null;
   }
 
+  get isConnected(): boolean {
+    if (this === this.ownerDocument?.body || this === this.ownerDocument?.documentElement) {
+      return true;
+    }
+    return this.parentNode?.isConnected ?? false;
+  }
+
   set textContent(value: string) {
     this.childNodes = value ? [new TestNode(3, "#text", this.ownerDocument)] : [];
   }

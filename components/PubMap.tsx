@@ -3064,7 +3064,12 @@ export default function PubMap({
   // never changes detent, so gating trap on mobile-oriented `sheetSnap` left it
   // inactive at its permanent `half` state.
   const detailDrawerRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(!mobileViewport && detailOpen, detailDrawerRef, "map-surface");
+  useFocusTrap(
+    !mobileViewport && detailOpen,
+    detailDrawerRef,
+    "map-surface",
+    preSheetFocusRef,
+  );
 
   // G3: Place story deep-link chip when `?band=` resolves. Takes priority over
   // curated onboarding so the two never fight.

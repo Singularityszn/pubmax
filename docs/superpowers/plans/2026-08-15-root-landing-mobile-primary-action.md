@@ -4,8 +4,8 @@
 after product handoff.
 
 **Architecture:** A route-aware wrapper owns visibility. Existing tab component
-owns all non-root hooks, warmups, and rendering. CSS reserves bottom space only
-when rendered navigation is present.
+owns all non-root hooks, warmups, and rendering. CSS reserves bottom space from
+the non-root fallback marker before hydration and from rendered navigation after.
 
 **Spec:** `specs/root-landing-mobile-primary-action.md`
 
@@ -32,7 +32,8 @@ when rendered navigation is present.
 
 - [ ] Export pure root visibility decision.
 - [ ] Split pathname wrapper from existing hook-owning tab content.
-- [ ] Reserve body clearance only when `.mobileTabBar` exists.
+- [ ] Reserve body clearance when non-root `.mobileTabBarClearance` or
+  `.mobileTabBar` exists, and render neither on exact root.
 - [ ] Remove landing footer tab-bar allowance.
 - [ ] Run focused Vitest, lint, typecheck, and diff check.
 
@@ -45,4 +46,3 @@ when rendered navigation is present.
   CSS ownership.
 - [ ] Run `NODE_OPTIONS=--max-old-space-size=4096 npm run verify`.
 - [ ] Re-run exact production Playwright gate and confirm clean git status.
-

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  FocusTrapInertOwner,
+  FocusTrapOwner,
   shouldEngageFocusTrap,
   shouldInertOutsideSibling,
   strictModalAllowsSurfaceRequest,
@@ -57,24 +57,46 @@ describe("shouldInertOutsideSibling", () => {
     ).toBe(false);
   });
 
+  it("keeps the command palette interactive beside a map sheet", () => {
+    expect(shouldInertOutsideSibling(el("cmdkBackdrop"), "map-surface")).toBe(false);
+  });
+
   it("inerts every outside sibling for a strict modal", () => {
     expect(shouldInertOutsideSibling(el("mobileTabBar"), "strict-modal")).toBe(true);
     expect(
       shouldInertOutsideSibling(el("accountOnboardingBackdrop"), "strict-modal"),
     ).toBe(true);
+    expect(shouldInertOutsideSibling(el("cmdkBackdrop"), "strict-modal")).toBe(true);
   });
 });
 
-describe("FocusTrapInertOwner", () => {
+describe("FocusTrapOwner", () => {
   function node(inert = false): HTMLElement {
     return { inert } as HTMLElement;
+  }
+
+  function focusOrigin() {
+    let focusCalls = 0;
+    const element = {
+      inert: false,
+      isConnected: true,
+      parentElement: null,
+      focus: () => {
+        focusCalls += 1;
+      },
+    } as unknown as HTMLElement;
+    return {
+      element,
+      disconnect: () => Object.defineProperty(element, "isConnected", { value: false }),
+      focusCalls: () => focusCalls,
+    };
   }
 
   for (const firstRelease of ["map", "strict"] as const) {
     it(`keeps an overlapping trap inert when ${firstRelease} releases first`, () => {
       const outside = node();
-      const map = new FocusTrapInertOwner();
-      const strict = new FocusTrapInertOwner();
+      const map = new FocusTrapOwner();
+      const strict = new FocusTrapOwner();
 
       map.reconcile([outside]);
       strict.reconcile([outside]);
@@ -89,7 +111,7 @@ describe("FocusTrapInertOwner", () => {
   }
 
   it("contains a sibling added after the trap engages", () => {
-    const owner = new FocusTrapInertOwner();
+    const owner = new FocusTrapOwner();
     const lateSibling = node();
 
     owner.reconcile([]);
@@ -100,6 +122,27 @@ describe("FocusTrapInertOwner", () => {
     owner.release();
 
     expect(lateSibling.inert).toBe(false);
+  });
+
+  it("restores the earlier map origin after overlapping teardown", () => {
+    const mapOrigin = focusOrigin();
+    const sheetOrigin = focusOrigin();
+    const map = new FocusTrapOwner();
+    const strict = new FocusTrapOwner();
+
+    map.captureFocus(mapOrigin.element);
+    strict.captureFocus(sheetOrigin.element);
+    strict.reconcile([mapOrigin.element]);
+
+    map.release();
+
+    expect(mapOrigin.focusCalls()).toBe(0);
+
+    sheetOrigin.disconnect();
+    strict.release();
+
+    expect(sheetOrigin.focusCalls()).toBe(0);
+    expect(mapOrigin.focusCalls()).toBe(1);
   });
 });
 

@@ -357,10 +357,7 @@ function AccountOnboardingForUser({
   useFocusTrap(onboardingVisible, dialogRef, "strict-modal");
   useEffect(() => {
     if (!onboardingVisible) return;
-    const previousFocus =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.focus({ preventScroll: true });
-    return () => previousFocus?.focus({ preventScroll: true });
   }, [onboardingVisible]);
 
   useEffect(() => {

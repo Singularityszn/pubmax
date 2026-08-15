@@ -19,7 +19,9 @@ navigation after a user enters Near, Map, Plan, or any other product route.
 
 ## Layout contract
 
-- Mobile body bottom clearance exists only while `MobileTabBar` exists.
+- Non-root mobile routes reserve the same bottom clearance through the temporary
+  `.mobileTabBarClearance` fallback before hydration and `MobileTabBar` after it
+  mounts. Exact root renders neither.
 - Root landing footer reserves its normal spacing and safe-area inset, not the
   64px app-tab allowance.
 - Route loading shells keep their existing app-tab allowance.
@@ -33,7 +35,8 @@ navigation after a user enters Near, Map, Plan, or any other product route.
 - Keep `MobileTabBar` as a pathname wrapper.
 - Move existing hooks and render logic into a child mounted only for non-root
   paths. This keeps hook order valid and prevents root warmups.
-- Gate body clearance with actual `.mobileTabBar` presence.
+- Gate body clearance with actual `.mobileTabBarClearance` or `.mobileTabBar`
+  presence.
 
 ## Verification
 
@@ -52,4 +55,3 @@ navigation after a user enters Near, Map, Plan, or any other product route.
 
 - New landing copy, analytics, CTA treatment, sticky controls, or feature flags.
 - Changes to app-route tab order, Moment treatment, or navigation destinations.
-

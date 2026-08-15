@@ -115,10 +115,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
   // that owned focus before the nudge opened.
   useEffect(() => {
     if (!canShow || !trigger) return;
-    const previousFocus =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.focus({ preventScroll: true });
-    return () => previousFocus?.focus({ preventScroll: true });
   }, [canShow, trigger]);
 
   if (!canShow || !trigger) return null;
