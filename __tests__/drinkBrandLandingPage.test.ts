@@ -109,7 +109,7 @@ describe("governed drink brand landing page", () => {
     await expect(
       generateMetadata({ params: Promise.resolve({ slug: "guinness" }) }),
     ).resolves.toMatchObject({
-      title: "Cheapest Guinness Pints in London · PUBMAXX",
+      title: "Cheapest Guinness Pints in London",
       alternates: { canonical: "/drink/guinness" },
       openGraph: {
         type: "website",

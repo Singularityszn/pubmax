@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const title = `Cheapest ${landing.brandLabel} Pints in London · PUBMAXX`;
+  const title = `Cheapest ${landing.brandLabel} Pints in London`;
   const cheapest = landing.rows[0]?.priceGbp;
   const description =
     typeof cheapest === "number"
