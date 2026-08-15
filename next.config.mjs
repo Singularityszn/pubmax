@@ -115,14 +115,16 @@ const securityHeaders = [
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
 
-// Public assets are classified by change rate. Class A is content-stable: a
-// replacement adds a new file instead of editing the old URL, so a full-year
-// immutable browser window is safe.
+// Public assets are classified by change rate, not by how static a directory
+// looks. Class A is content-stable: a replacement adds a new file instead of
+// editing the old URL, so a full-year immutable browser window is safe.
 const IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable";
 
-// Class B is edited in place. It takes a modest browser window and a year at
-// the edge, which Vercel purges on every deploy, so a retired mark, boot script
-// or dataset cannot stay pinned in a browser no deploy can reach.
+// Class B is edited in place. Any file a build rewrites belongs here even when
+// its contents look static. It takes a modest browser window and a year at the
+// edge, which Vercel purges on every deploy, so a retired mark, worker module,
+// generated asset or dataset cannot stay pinned in a browser no deploy can
+// reach.
 const UNHASHED_PUBLIC_ASSET_CACHE_CONTROL =
   "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800";
 
@@ -308,16 +310,17 @@ const nextConfig = {
           { key: "Cache-Control", value: UNHASHED_PUBLIC_ASSET_CACHE_CONTROL },
         ],
       },
-      // Class A: stable typefaces, the vendored MapLibre copy, store art, the
-      // preloaded landing hero set and Night Signal art. These are replaced by
-      // adding a file, never by editing one in place.
+      // Class A: checked-in typefaces, the preloaded landing hero set and Night
+      // Signal art. These are replaced by adding a file, never by editing one
+      // in place or by writing it during a build.
       cacheRule("/fonts/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
-      cacheRule("/vendor/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
-      cacheRule("/store-assets/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/landing/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/night-signals/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
-      // Class B: icons, brand marks, boot scripts, manifest and datasets are
+      // Class B: vendor workers and store exports are generated into fixed
+      // paths. Icons, brand marks, boot scripts, manifest and datasets are also
       // fixed URLs edited in place across deploys.
+      cacheRule("/vendor/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/store-assets/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/:icon(icon-.*\\.png)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/:icon(icon-.*\\.svg)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/:icon(apple-touch-icon.*\\.png)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),

@@ -3,9 +3,9 @@ import { expect, test } from "@playwright/test";
 // The V0.1 phone pass for the surfaces OUTSIDE the map shell. The map, the
 // landing and the venue sheet already have their own rendered-geometry fences
 // (e2e/mobile-map-chrome-fit.spec.ts, __tests__/mobileChromeFit.test.ts); these
-// pages had none, and the first measured run found three control rows painting
-// under the house 44px floor — the Discover brand chips at 35px, the Pubs jump
-// chips at 32px, and the Find-your-lot invite link at 16px.
+// pages had none, and the first measured run found five control rows painting
+// under the house 44px floor: Discover brand chips, Discover leaderboard pub
+// names, Pubs jump chips, Find-your-lot invite links, and About press-kit links.
 //
 // TWO THINGS ARE MEASURED, both from the rendered page rather than from CSS,
 // because both defects were invisible at desktop width and to any unit render:
@@ -21,6 +21,14 @@ import { expect, test } from "@playwright/test";
 const WIDTHS = [360, 390, 430] as const;
 
 const ROUTES = ["/about", "/discover", "/pubs", "/social", "/login", "/messages"] as const;
+type LaunchRoute = (typeof ROUTES)[number];
+
+const REQUIRED_TARGETS: Partial<Record<LaunchRoute, readonly string[]>> = {
+  "/about": [".aboutLogoLinks .aboutLink"],
+  "/discover": [".discoverBrandChip", "a.leaderboardPub"],
+  "/pubs": [".pubsJumpChip"],
+  "/social": [".findLot__ghost"],
+};
 
 const MIN_TAP_HEIGHT_PX = 44;
 const MIN_TAP_WIDTH_PX = 24;
@@ -75,9 +83,20 @@ test.describe("phone controls on the launch surfaces", () => {
         await settle(page);
 
         const report = await page.evaluate(
-          ({ minHeight, minWidth }) => {
+          ({ minHeight, minWidth, requiredSelectors }) => {
             const doc = document.documentElement;
             const overflowPx = Math.max(0, Math.round(doc.scrollWidth - doc.clientWidth));
+
+            const required = requiredSelectors.map((requiredSelector) => ({
+              selector: requiredSelector,
+              sizes: Array.from(document.querySelectorAll(requiredSelector)).flatMap((element) => {
+                const style = getComputedStyle(element);
+                if (style.visibility === "hidden" || style.display === "none") return [];
+                const rect = element.getBoundingClientRect();
+                if (rect.width === 0 || rect.height === 0) return [];
+                return [{ width: rect.width, height: rect.height }];
+              }),
+            }));
 
             const selector =
               'button, select, summary, [role="button"], [role="tab"], a[href]';
@@ -95,10 +114,31 @@ test.describe("phone controls on the launch surfaces", () => {
                 element.tagName.toLowerCase();
               small.push(`${name} ${Math.round(rect.width)}x${Math.round(rect.height)}`);
             }
-            return { overflowPx, small: [...new Set(small)] };
+            return { overflowPx, required, small: [...new Set(small)] };
           },
-          { minHeight: MIN_TAP_HEIGHT_PX, minWidth: MIN_TAP_WIDTH_PX },
+          {
+            minHeight: MIN_TAP_HEIGHT_PX,
+            minWidth: MIN_TAP_WIDTH_PX,
+            requiredSelectors: REQUIRED_TARGETS[route] ?? [],
+          },
         );
+
+        for (const target of report.required) {
+          expect(
+            target.sizes.length,
+            `${route} @${width}: ${target.selector} must render at least one visible element`,
+          ).toBeGreaterThan(0);
+          for (const size of target.sizes) {
+            expect(
+              size.height,
+              `${route} @${width}: ${target.selector} is ${Math.round(size.width)}x${Math.round(size.height)}`,
+            ).toBeGreaterThanOrEqual(MIN_TAP_HEIGHT_PX);
+            expect(
+              size.width,
+              `${route} @${width}: ${target.selector} is ${Math.round(size.width)}x${Math.round(size.height)}`,
+            ).toBeGreaterThanOrEqual(MIN_TAP_WIDTH_PX);
+          }
+        }
 
         expect(
           `${route} @${width}: overflow ${report.overflowPx}px`,

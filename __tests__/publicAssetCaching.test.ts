@@ -70,17 +70,9 @@ function walk(dir: string, acc: string[] = []): string[] {
 const publicFiles = walk(PUBLIC_DIR);
 const filesOutsideData = publicFiles.filter((file) => !file.startsWith("/data/"));
 
-const CLASS_A_PREFIXES = [
-  "/fonts/",
-  "/vendor/",
-  "/store-assets/",
-  "/landing/",
-  "/night-signals/",
-];
+const CLASS_A_PREFIXES = ["/fonts/", "/landing/", "/night-signals/"];
 const CLASS_A_PROBES = [
   "/fonts/example.woff2",
-  "/vendor/example.js",
-  "/store-assets/example.svg",
   "/landing/example.avif",
   "/night-signals/example.svg",
 ];
@@ -90,6 +82,8 @@ const CLASS_A = filesOutsideData.filter((file) =>
 
 const CLASS_B = filesOutsideData.filter(
   (file) =>
+    file.startsWith("/vendor/") ||
+    file.startsWith("/store-assets/") ||
     file.startsWith("/brand/") ||
     /^\/(?:icon-|apple-touch-icon|favicon)/.test(file) ||
     ["/theme-init.js", "/splash-init.js", "/manifest.webmanifest"].includes(file),
@@ -97,6 +91,19 @@ const CLASS_B = filesOutsideData.filter(
 
 const CLASS_C = ["/llms.txt"];
 const WORKERS = ["/sw.js", "/sw-plan-cache.js", "/offline.html"];
+
+const BUILD_WRITTEN_FIXED_URLS = [
+  {
+    prefix: "/vendor/maplibre/",
+    probe: "/vendor/maplibre/maplibre-gl-worker.mjs",
+    reason: "prebuild overwrites fixed MapLibre worker module URLs",
+  },
+  {
+    prefix: "/store-assets/png/",
+    probe: "/store-assets/png/ios/AppIcon-1024.png",
+    reason: "store export generation overwrites fixed PNG URLs",
+  },
+] as const;
 
 const DELIBERATE_OMISSIONS = new Map([
   [
@@ -129,6 +136,20 @@ describe("public asset caching", () => {
   it("never marks an edited-in-place or crawler asset immutable", () => {
     for (const file of [...CLASS_B, ...CLASS_C, "/data/venues_slim.json"]) {
       expect(cacheControlFor(file) ?? "", file).not.toContain("immutable");
+    }
+  });
+
+  it("keeps every build-written fixed URL out of the immutable class", () => {
+    for (const generated of BUILD_WRITTEN_FIXED_URLS) {
+      const files = [
+        generated.probe,
+        ...filesOutsideData.filter((file) => file.startsWith(generated.prefix)),
+      ];
+      for (const file of new Set(files)) {
+        expect(cacheControlFor(file), `${file}: ${generated.reason}`).toBe(
+          EDITED_IN_PLACE_CACHE,
+        );
+      }
     }
   });
 

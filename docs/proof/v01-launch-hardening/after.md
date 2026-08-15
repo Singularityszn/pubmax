@@ -63,8 +63,8 @@ Same `curl -I` against `next start`.
 
 | Path | Cache-Control |
 | --- | --- |
-| `/fonts/*`, `/vendor/*`, `/store-assets/*` | `public, max-age=31536000, immutable` |
-| `/landing/*`, `/night-signals/*` | same immutable class |
+| `/fonts/*`, `/landing/*`, `/night-signals/*` | `public, max-age=31536000, immutable` |
+| `/vendor/*`, `/store-assets/*` | `public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800` |
 | `/theme-init.js` | `public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800` |
 | `/splash-init.js` | same |
 | `/manifest.webmanifest` | same |
@@ -81,18 +81,20 @@ Same `curl -I` against `next start`.
 
 Caching follows change rate. Stable assets replaced by adding a file take a
 year-long immutable browser window. Fixed URLs edited in place take one hour in
-the browser and one year at the edge, which Vercel purges on deploy. `llms.txt`
-always revalidates in the browser and uses a short edge window. A worker and its
-offline document take neither, because a stale worker keeps answering from its
-own cache and a purge does not reach it.
+the browser and one year at the edge, which Vercel purges on deploy. This
+includes MapLibre worker modules and store PNG exports because their build
+scripts overwrite fixed paths. `llms.txt` always revalidates in the browser and
+uses a short edge window. A service worker and its offline document take
+neither, because a stale worker keeps answering from its own cache and a purge
+does not reach it.
 
 ## Executable contracts added
 
 | Contract | What it holds |
 | --- | --- |
-| `__tests__/publicAssetCaching.test.ts` | Evaluates `next.config.mjs`, keeps immutable, edited-in-place, crawler and worker classes separate, and classifies every shipped public file outside data. |
-| `__tests__/iosFormZoomFloor.test.ts` | The floor was already enforced globally and the measured sweep found zero controls below 16px; this fence protects the existing shared `!important` rule. |
-| `e2e/launch-phone-controls.spec.ts` | `/about`, `/discover`, `/pubs`, `/social`, `/login`, `/messages` at 360, 390 and 430 with touch emulation: no horizontal overflow, and every standalone control clears 44 × 24. A link flowing inside a sentence is exempt, by WCAG's own inline exception. |
+| `__tests__/publicAssetCaching.test.ts` | Evaluates `next.config.mjs`, keeps immutable, edited-in-place, crawler and worker classes separate, classifies every shipped public file outside data, and refuses immutable caching for build-written fixed URLs. |
+| `__tests__/iosFormZoomFloor.test.ts` | The floor was already enforced globally and the measured sweep found zero controls below 16px; this fence protects the existing shared `!important` rule and its phone-reachable media context. |
+| `e2e/launch-phone-controls.spec.ts` | `/about`, `/discover`, `/pubs`, `/social`, `/login`, `/messages` at 360, 390 and 430 with touch emulation: every fixed control row must render and clear 44 × 24, the generic sweep catches other small controls, and no route overflows horizontally. A link flowing inside a sentence is exempt, by WCAG's own inline exception. |
 | `perf/route-budgets.json` | `/about` and `/pubs` join the enforced budget. `/pubs` is there so the per-request dataset parse cannot come back unnoticed. |
 
 ## Pre-existing red on main (#1042), not from this pass
