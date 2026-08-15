@@ -26,7 +26,6 @@ export type FocusTrapOutsidePolicy = "strict-modal" | "map-surface";
 
 const strictModalListeners = new Set<() => void>();
 let strictModalTrapCount = 0;
-let strictModalTrapRevision = 0;
 
 export function subscribeStrictModalFocusTrap(listener: () => void): () => void {
   strictModalListeners.add(listener);
@@ -41,28 +40,7 @@ export function serverStrictModalFocusTrap(): boolean {
   return false;
 }
 
-export function readStrictModalFocusTrapRevision(): number {
-  return strictModalTrapRevision;
-}
-
-export function serverStrictModalFocusTrapRevision(): number {
-  return 0;
-}
-
-export function strictModalAllowsSurfaceRequest(input: {
-  requestRevision: number | null;
-  strictModalActive: boolean;
-  strictModalRevision: number;
-}): boolean {
-  return (
-    input.requestRevision !== null &&
-    !input.strictModalActive &&
-    input.requestRevision === input.strictModalRevision
-  );
-}
-
 function publishStrictModalFocusTrap(): void {
-  strictModalTrapRevision += 1;
   for (const listener of strictModalListeners) listener();
 }
 
@@ -86,8 +64,7 @@ export function shouldInertOutsideSibling(
   if (outsidePolicy === "strict-modal") return true;
   return !(
     node.classList.contains("mobileTabBar") ||
-    node.classList.contains("accountOnboardingBackdrop") ||
-    node.classList.contains("cmdkBackdrop")
+    node.classList.contains("accountOnboardingBackdrop")
   );
 }
 
@@ -253,15 +230,8 @@ export function useFocusTrap(
           ? document.activeElement
           : null,
     );
-    const syncOutsideSiblings = () => {
-      trapOwner.reconcile(outsideSiblings(container, outsidePolicy));
-    };
-    syncOutsideSiblings();
-    const observer =
-      typeof MutationObserver === "undefined"
-        ? null
-        : new MutationObserver(syncOutsideSiblings);
-    observer?.observe(document.body, { childList: true, subtree: true });
+    // Main's one-time scan does not contain later body siblings such as Command Palette.
+    trapOwner.reconcile(outsideSiblings(container, outsidePolicy));
     const releaseStrictModal =
       outsidePolicy === "strict-modal" ? claimStrictModalFocusTrap() : null;
 
@@ -286,7 +256,6 @@ export function useFocusTrap(
     };
     container.addEventListener("keydown", onTab);
     return () => {
-      observer?.disconnect();
       container.removeEventListener("keydown", onTab);
       trapOwner.release();
       releaseStrictModal?.();

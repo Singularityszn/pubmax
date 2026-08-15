@@ -7,6 +7,8 @@ action in the post-value identity nudge.
 provider, magic-link, Escape, and cooldown owners. Delete the parallel digest
 capture UI, route, store, confirmation dispatch, and `email_subscribed` event
 per captain decision D1. Keep migration 0042 and existing rows as history.
+Known gap: a body-level sibling mounted after a trap engages is not contained,
+so this PR keeps main's Command Palette overlap as a separate fix.
 
 **Spec:** `specs/honest-identity-nudge-email-action.md`
 
