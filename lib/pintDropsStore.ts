@@ -134,9 +134,9 @@ export type PintDropStore = {
   /** Moderator review queue: unreviewed drops in a status, with report metadata. */
   listForReview(status: "hidden" | "pending"): Promise<ModeratorDrop[]>;
   /**
-   * Public report: record metadata; hides at REPORT_HIDE_THRESHOLD. False =
-   * unknown id. Verified account identities count toward auto-hide through the
-   * atomic RPC. Anonymous IP identities are recorded without changing the count.
+   * Public report: every server-derived identity records metadata. Only distinct
+   * verified accounts advance the atomic auto-hide threshold; anonymous IP
+   * reports leave the count unchanged. False means unknown id.
    */
   report(
     id: string,
@@ -437,6 +437,8 @@ export function toModeratorDTO(
   photoUrls?: { pint: string | null; venue: string | null },
 ): ModeratorDrop {
   const { pintPhotoKey, venuePhotoKey, ...rest } = drop;
+  void pintPhotoKey;
+  void venuePhotoKey;
   return {
     ...rest,
     pintPhotoUrl: photoUrls?.pint ?? null,

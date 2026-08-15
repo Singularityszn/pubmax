@@ -502,9 +502,10 @@ export type PintDropReportIdentity =
   | { kind: "anonymous_ip"; actorHash: string };
 
 // Per-actor report ledger (memory mirror of pint_drop_reports' unique
-// (pint_drop_id, actor_hash) — migrations 0006/0008/0017): drop id → the set of
+// (pint_drop_id, actor_hash) - migrations 0006/0008/0017): drop id to the set of
 // actor hashes that already reported it. A same-actor duplicate is an idempotent
-// no-op, so one actor can never bump the counter twice across rate-limit windows.
+// no-op. A verified account cannot advance the counter twice, and anonymous
+// reports never advance it.
 const reportedActorsByDrop = new Map<string, Set<string>>();
 
 export function reportPintDrop(

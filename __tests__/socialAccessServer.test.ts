@@ -143,6 +143,23 @@ describe("server Social access resolution", () => {
     expect(readAccountAccess).not.toHaveBeenCalled();
   });
 
+  it("returns sign-in required when the durable resume cookie has invalid escapes", async () => {
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1");
+    vi.stubEnv("SOCIAL_INVITE_BETA_ENABLED", "0");
+    try {
+      const request = new Request("https://pubmaxxing.com/social", {
+        headers: { cookie: "pubmax_auth_resume=%zz" },
+      });
+
+      await expect(resolveSocialAccess(request)).resolves.toEqual({
+        available: true,
+        state: "sign_in_required",
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("returns verified from server-held account and Yoti evidence", async () => {
     await expect(
       resolveSocialAccess(undefined, dependencies()),
