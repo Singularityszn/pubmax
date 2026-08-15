@@ -103,7 +103,7 @@ async function settle(
 
 // A PHONE, not a narrow desktop window. The floors these pages state are
 // scoped to `@media (pointer: coarse)` so desktop density is untouched, and a
-// desktop context reports a fine pointer however narrow its viewport is — so a
+// desktop context reports a fine pointer however narrow its viewport is, so a
 // run without touch emulation would measure the desktop rules and report the
 // fix as missing.
 test.use({ hasTouch: true, isMobile: true });
@@ -132,7 +132,7 @@ test.describe("phone controls on the launch surfaces", () => {
         ];
         // Several of these pages reveal a section only once it is near the
         // viewport (Discover's leaderboard is the loudest), and how much of a
-        // page that is depends on the width — which is exactly how the first
+        // page that is depends on the width. This is how the first
         // run of this spec found the leaderboard link at 390 and not at 360.
         // Walk to the bottom, then wait for each named target before measuring.
         await settle(page, route, width, requiredSelectors);

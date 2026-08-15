@@ -19,10 +19,10 @@ edited on another branch at the same time and are measure-only here).
 
 **Stated limitation.** No WebKit build is installed on this machine, so the
 iPhone pass runs the iPhone viewport, DPR, touch and user agent over Blink. It
-is a phone-shaped Chromium, not Safari. The iOS form-zoom floor was already
-enforced by the shared `!important` rule in `app/globals.css`; the measured
-sweep found zero controls below 16px, and `__tests__/iosFormZoomFloor.test.ts`
-now protects that existing global rule.
+is a phone-shaped Chromium, not Safari. At baseline, the iOS form-zoom floor was
+enforced by a shared `!important` rule in `app/globals.css`, and the measured
+sweep found zero controls below 16px. The final fence replaced that broad rule
+with same-file component floors so desktop density stays unchanged.
 
 **Noise.** One sample per route per device on a shared 8 GB machine with other
 agents running. Across the two tables, non-`/pubs` run-to-run movement reaches
@@ -105,15 +105,15 @@ of them was cached at the edge at all.
    about 10 ms everywhere else. `lib/venuePriceIndex.ts` already held exactly
    that grouping for every other surface.
 3. **The iOS form-zoom floor was already enforced globally.** The measured
-   sweep found zero controls below 16px, and the fence now protects the existing
-   shared `!important` rule.
+   sweep found zero controls below 16px. The final change replaced that broad
+   rule with same-file component floors and a stylesheet fence.
 4. **Five control rows painted under the house 44px floor**, measured at 360,
    390 and 430: the Discover brand chips (35px), the Pubs jump chips (32px),
    the Find-your-lot invite link (16px), the About press-kit download links
    (24px) and the Discover leaderboard pub name (20px, and the only thing in
    that row a thumb can open).
 5. **The manifest had no `id`.** Android then derives install identity from
-   `start_url`, which moved from `/tonight` to `/` this month — so a later move
+   `start_url`, which moved from `/tonight` to `/` this month, so a later move
    would register as a different app.
 6. **Four list images had no `loading`/`decoding`.** The house standard beside
    them (`components/drinks/MenuCategoryGrid.tsx`) already sets both.

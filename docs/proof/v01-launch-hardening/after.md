@@ -48,11 +48,12 @@ profile and 161 → 35 ms on the Pixel one. Its TTFB movement is larger than the
 observed non-`/pubs` TTFB spread and has a direct mechanism: removal of the
 per-request 6.7 MB parse. Every other delta, including the Pixel `/about` rise,
 is inside the observed spread of this single-sample run and is unattributed,
-not reported as an improvement or regression. No route moved in bytes or
-requests because this pass added no JavaScript.
+not reported as an improvement or regression. No route moved in measured bytes
+or requests. Four existing image elements gained static browser hints, with no
+new client module, dependency or runtime branch.
 
 **What is not in this table.** The caching, install and touch fixes below do
-not show up in a single cold loopback load by construction — an edge window is
+not show up in a single cold loopback load by construction. An edge window is
 about the SECOND visit and about the CDN, a manifest `id` is about install
 identity, and a 44px floor is about a thumb. Each is held by its own executable
 contract instead.
@@ -109,8 +110,8 @@ this branch stashed, and neither is touched by this pass.
 
 | Test file | Failing case |
 | --- | --- |
-| `__tests__/socialSignInButtons.test.ts` | `hides Clerk login when no product Supabase session exists` — expected `''`, got a rendered `<span hidden data-auth-configured…>` |
-| `__tests__/trustedSigning.test.ts` | `assigns contribution E2E to matching auth projects` — `testMatch` is now an array of two globs where the test expects the single `**/price-contribution-entry.spec.ts` |
+| `__tests__/socialSignInButtons.test.ts` | `hides Clerk login when no product Supabase session exists`: expected `''`, got a rendered `<span hidden data-auth-configured...>` |
+| `__tests__/trustedSigning.test.ts` | `assigns contribution E2E to matching auth projects`: `testMatch` is now an array of two globs where the test expects the single `**/price-contribution-entry.spec.ts` |
 
 `git stash push -u` then `vitest run` on those two files reproduces both with
 none of this branch's changes present. Both files are in the diff of the lane
@@ -127,10 +128,11 @@ they are that lane's to fix.
 | `/tonight` | requests | 63 | 56 | +13% |
 
 `/tonight` measures 1886 KB here and measured **1886 KB in the baseline run
-taken before any change in this pass** — byte for byte identical. `/today` was
-not in the baseline set, but it shares the same shell, and this pass adds no
-JavaScript to any route: every change here is CSS, two image attributes, a
-manifest key, header rules and a server-side memo.
+taken before any change in this pass**, byte for byte identical. `/today` was
+not in the baseline set, but it shares the same shell. This pass adds no client
+module, dependency or runtime branch: its browser-facing changes are CSS,
+loading and decoding hints on four existing images, a manifest key and header
+rules. The memo is server-only.
 
 Neither is papered over. Raising a ceiling to cover another lane's regression
 is the mute button `docs/PERFORMANCE_BUDGETS.md` exists to refuse, and the two

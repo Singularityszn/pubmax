@@ -66,7 +66,7 @@ describe("listScrapedPubs", () => {
   });
 
   // The loader reads bundled files that cannot change between two requests to
-  // the same instance, and one of them is a 6.7 MB JSON.parse — so it is read
+  // the same instance, and one of them is a 6.7 MB JSON.parse, so it is read
   // once and the rows are handed back. Identity is the proof: a second call
   // that re-derived the list would return a different array.
   it("reads the bundled datasets once per instance", async () => {

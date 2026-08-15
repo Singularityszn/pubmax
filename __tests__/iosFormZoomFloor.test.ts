@@ -104,16 +104,6 @@ function whereTargets(selector: string): Set<string> {
   return new Set(match ? splitOutsideParentheses(match[1], ",") : []);
 }
 
-function minimumPx(value: string): number | null {
-  const max = /^max\((.*)\)$/.exec(value.trim());
-  const terms = max ? splitOutsideParentheses(max[1], ",") : [value.trim()];
-  const pixels = terms.flatMap((term) => {
-    const match = /^(\d+(?:\.\d+)?)px$/.exec(term);
-    return match ? [Number(match[1])] : [];
-  });
-  return pixels.length > 0 ? Math.max(...pixels) : null;
-}
-
 function mediaQueryMatchesPhone(query: string, width: number): boolean {
   const normalized = query.trim().toLowerCase();
   if (/\bnot\b/.test(normalized) || /\b(?:print|speech)\b/.test(normalized)) return false;
