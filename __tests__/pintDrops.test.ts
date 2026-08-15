@@ -865,37 +865,23 @@ describe("supabasePintDropStore.report — v2 RPC seam", () => {
     ).toBe(false);
   });
 
-  it("falls back to report_pint_drop when the v2 RPC errors (migration 0017 not applied)", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      const rpc = vi
-        .fn()
-        .mockResolvedValueOnce({
-          data: null,
-          error: { message: "function report_pint_drop_v2 does not exist" },
-        })
-        .mockResolvedValueOnce({ data: 1, error: null });
-      adminRef.client = { rpc };
+  it("returns a retryable 503 when verified-account deduplication is unavailable", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: "function report_pint_drop_v2 is unavailable" },
+    });
+    adminRef.client = { rpc };
+    supaGuard.configured = true;
 
-      const ok = await supabasePintDropStore.report(
-        "drop-1",
-        "spam",
-        reportIdentity("hash-abc"),
-      );
-      expect(ok).toBe(true);
-      expect(rpc).toHaveBeenCalledTimes(2);
-      expect(rpc.mock.calls[0][0]).toBe("report_pint_drop_v2");
-      expect(rpc.mock.calls[1][0]).toBe("report_pint_drop");
-      // The v1 fallback carries no actor hash (0004's signature has none).
-      expect(rpc.mock.calls[1][1]).toEqual({
-        p_id: "drop-1",
-        p_reason: "spam",
-        p_hide_threshold: 2,
-      });
-      expect(warn).toHaveBeenCalled();
-    } finally {
-      warn.mockRestore();
-    }
+    const response = await signedReport("drop-1", "user-one", "spam", "device-a");
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      code: "STORE_UNAVAILABLE",
+      retryable: true,
+    });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith("report_pint_drop_v2", expect.any(Object));
   });
 
 });

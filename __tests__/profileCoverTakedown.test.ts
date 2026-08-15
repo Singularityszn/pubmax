@@ -243,6 +243,92 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
     ).toBeNull();
   });
 
+  it("removes a durable upload when a takedown lands during its write", async () => {
+    const profile = {
+      id: ownedProfileId,
+      handle: HANDLE,
+      user_id: "user-alice",
+      cover_moderation_state: "approved",
+      created_at: "2026-08-01T00:00:00.000Z",
+      updated_at: "2026-08-01T00:00:00.000Z",
+    };
+    const rows: Array<Record<string, unknown>> = [];
+    const insert = vi.fn(async (row: Record<string, unknown>) => {
+      rows.push({ ...row });
+      profile.cover_moderation_state = "hidden";
+      return { error: null };
+    });
+
+    coverAdminRef.client = {
+      from(table: string) {
+        if (table === "profiles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                limit: async () => ({ data: [{ ...profile }], error: null }),
+              }),
+            }),
+          };
+        }
+        if (table !== "profile_cover_photos") throw new Error(`Unexpected ${table}`);
+        return {
+          select: () => {
+            const query = {
+              eq: () => query,
+              order: () => query,
+              limit: async () => ({ data: rows.map((row) => ({ ...row })), error: null }),
+            };
+            return query;
+          },
+          insert,
+          update(patch: Record<string, unknown>) {
+            return {
+              eq: () => ({
+                select: async () => {
+                  for (const row of rows) Object.assign(row, patch);
+                  return { data: rows.map(({ id }) => ({ id })), error: null };
+                },
+              }),
+            };
+          },
+          delete() {
+            let id = "";
+            let profileId = "";
+            const query = {
+              eq(column: string, value: string) {
+                if (column === "id") id = value;
+                if (column === "profile_id") profileId = value;
+                return query;
+              },
+              async select() {
+                const index = rows.findIndex(
+                  (row) => row.id === id && row.profile_id === profileId,
+                );
+                const removed = index >= 0 ? rows.splice(index, 1) : [];
+                return { data: removed, error: null };
+              },
+            };
+            return query;
+          },
+        };
+      },
+    };
+    supabaseConfigured.value = true;
+    const thirdGeneration = "99999999-9999-4999-8999-999999999998";
+
+    await expect(
+      supabaseProfileCoverPhotoStore.create({
+        id: "88888888-8888-4888-8888-888888888887",
+        profileId: ownedProfileId,
+        generation: thirdGeneration,
+        objectKey: profileImageServingKey("cover", ownedProfileId, thirdGeneration),
+      }),
+    ).rejects.toBeInstanceOf(ProfileCoverUploadBlockedError);
+
+    expect(insert).toHaveBeenCalledTimes(1);
+    expect(rows).toEqual([]);
+  });
+
   it("does not let a stale durable reorder resurrect hidden rows", async () => {
     const profile = {
       id: ownedProfileId,
@@ -290,7 +376,7 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
         created_at: "2026-08-01T00:00:01.000Z",
       },
     ];
-    let hideAfterApprovedRead = true;
+    let hideDuringUpsert = true;
 
     coverAdminRef.client = {
       from(table: string) {
@@ -316,19 +402,16 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
                 return builder;
               },
               async limit() {
-                const selected = rows
+                return {
+                  data: rows
                   .filter(
                     (row) =>
                       row.profile_id === ownedProfileId &&
                       (!moderationState || row.moderation_state === moderationState),
                   )
-                  .map((row) => ({ ...row }));
-                if (hideAfterApprovedRead && moderationState === "approved") {
-                  hideAfterApprovedRead = false;
-                  profile.cover_moderation_state = "hidden";
-                  for (const row of rows) row.moderation_state = "hidden";
-                }
-                return { data: selected, error: null };
+                  .map((row) => ({ ...row })),
+                  error: null,
+                };
               },
             };
             return builder;
@@ -348,6 +431,11 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
             };
           },
           async upsert(nextRows: typeof rows) {
+            if (hideDuringUpsert) {
+              hideDuringUpsert = false;
+              profile.cover_moderation_state = "hidden";
+              for (const row of rows) row.moderation_state = "hidden";
+            }
             for (const next of nextRows) {
               const current = rows.find((row) => row.id === next.id);
               if (current) Object.assign(current, next);
@@ -365,6 +453,7 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
     );
 
     expect(reordered).toEqual([]);
+    expect(hideDuringUpsert).toBe(false);
     expect(rows.every((row) => row.moderation_state === "hidden")).toBe(true);
   });
 

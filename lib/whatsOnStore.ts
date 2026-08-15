@@ -159,6 +159,7 @@ export type FetchLiveArgs = { now: number; area?: string; limit?: number };
 export type FetchLiveResult = {
   rows: WhatsOnRow[];
   sourceObservedAt: string | null;
+  stale?: boolean;
 };
 export type FetchLive = (args: FetchLiveArgs) => Promise<WhatsOnRow[] | FetchLiveResult>;
 
@@ -186,6 +187,7 @@ export const defaultFetchLive: FetchLive = async ({ now, area }) => {
   return {
     rows: mapThingsToDoToRows(result, { now }),
     sourceObservedAt: canonicalPastIso(result.asOf, now),
+    stale: result.stale === true,
   };
 };
 
@@ -224,6 +226,7 @@ function normaliseLiveResult(
   return {
     rows: Array.isArray(result.rows) ? result.rows : [],
     sourceObservedAt: canonicalPastIso(result.sourceObservedAt, now),
+    stale: result.stale === true,
   };
 }
 
@@ -264,6 +267,9 @@ export async function loadWhatsOn(
   try {
     // Do not pass params.limit. Grouping needs the provider's full inventory.
     live = normaliseLiveResult(await (deps.fetchLive ?? defaultFetchLive)({ now }), now);
+    if (live.stale) {
+      revalidation = { status: "unmeasured", reason: "live-provider-failed" };
+    }
   } catch {
     revalidation = { status: "unmeasured", reason: "live-provider-failed" };
   }

@@ -58,6 +58,22 @@ describe("GET /api/cron/refresh-whats-on", () => {
     warn.mockRestore();
   });
 
+  it("does not claim a degraded freshness write landed", async () => {
+    const stamp = vi
+      .spyOn(memoryFeedFreshnessStore, "stamp")
+      .mockResolvedValueOnce({ status: "stamped", failed: true });
+
+    const response = await GET(req("Bearer test-secret"));
+
+    expect(await response.json()).toMatchObject({
+      ok: true,
+      stamped: false,
+      stampDegraded: true,
+    });
+    expect(stamp).toHaveBeenCalledTimes(1);
+    stamp.mockRestore();
+  });
+
   it("reports a present provider key (loud-but-soft key awareness)", async () => {
     vi.stubEnv("TICKETMASTER_API_KEY", "tm-key");
     const res = await GET(req("Bearer test-secret"));

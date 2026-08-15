@@ -837,13 +837,11 @@ export const supabaseProfileStore: ProfileStore = {
       interests: null,
       workplace: null,
     }));
-    for (const slot of PROFILE_IMAGE_SLOTS) {
-      const columns = IMAGE_COLUMNS[slot];
-      row[columns.objectKey] = null;
-      row[columns.generation] = null;
-      row[columns.moderationState] = null;
-      Object.assign(row, clearImageReportRow(slot));
-    }
+    const avatarColumns = IMAGE_COLUMNS.avatar;
+    row[avatarColumns.objectKey] = null;
+    row[avatarColumns.generation] = null;
+    row[avatarColumns.moderationState] = null;
+    Object.assign(row, clearImageReportRow("avatar"));
     row.updated_at = new Date().toISOString();
 
     let query = admin()
@@ -859,7 +857,9 @@ export const supabaseProfileStore: ProfileStore = {
     if (error) throw new Error(error.message);
     const deleted = (data ?? [])[0];
     if (deleted) {
-      const profile = fromRow(deleted as Record<string, unknown>);
+      const updated = fromRow(deleted as Record<string, unknown>);
+      const clearedCover = await this.setOwnedImage(key, "cover", null);
+      const profile = clearedCover ?? (await this.getByHandle(key)) ?? updated;
       return {
         status: "deleted",
         profile,
@@ -1232,11 +1232,10 @@ export const memoryProfileStore: ProfileStore = {
       workplace: undefined,
       updatedAt: new Date().toISOString(),
     };
-    const profile = PROFILE_IMAGE_SLOTS.reduce<ProfileRecord>(
-      (record, slot) => withProfileImageState(record, slot, {}),
-      cleared,
-    );
-    memoryProfiles.set(key, profile);
+    const avatarCleared = withProfileImageState(cleared, "avatar", {});
+    memoryProfiles.set(key, avatarCleared);
+    const clearedCover = await this.setOwnedImage(key, "cover", null);
+    const profile = clearedCover ?? memoryProfiles.get(key) ?? avatarCleared;
     return {
       status: "deleted",
       profile,

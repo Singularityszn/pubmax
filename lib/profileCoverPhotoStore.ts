@@ -209,6 +209,11 @@ export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
       createdAt: new Date(now).toISOString(),
     };
     byId.set(photo.id, photo);
+    if ((await ownerCoverWriteState(fields.profileId)) === "hidden") {
+      await this.moderateAllForProfile(fields.profileId, "hidden");
+      byId.delete(photo.id);
+      throw new ProfileCoverUploadBlockedError();
+    }
     return photo;
   },
 
@@ -252,6 +257,10 @@ export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
     for (const { id, position } of coverPositionsFor(orderedIds)) {
       const row = byId.get(id);
       if (row && row.profileId === profileId) row.position = position;
+    }
+    if ((await ownerCoverWriteState(profileId)) === "hidden") {
+      await this.moderateAllForProfile(profileId, "hidden");
+      return [];
     }
     return this.listApproved(profileId);
   },
@@ -400,6 +409,14 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         };
         const { error } = await admin().from(TABLE).insert(toRow(photo));
         if (error) throw new Error(error.message);
+        if ((await ownerCoverWriteState(fields.profileId)) === "hidden") {
+          await supabaseProfileCoverPhotoStore.moderateAllForProfile(
+            fields.profileId,
+            "hidden",
+          );
+          await supabaseProfileCoverPhotoStore.remove(photo.id, fields.profileId);
+          throw new ProfileCoverUploadBlockedError();
+        }
         return photo;
       },
     });
@@ -537,6 +554,13 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         if (rows.length === 0) return held;
         const { error } = await admin().from(TABLE).upsert(rows, { onConflict: "id" });
         if (error) throw new Error(error.message);
+        if ((await ownerCoverWriteState(profileId)) === "hidden") {
+          await supabaseProfileCoverPhotoStore.moderateAllForProfile(
+            profileId,
+            "hidden",
+          );
+          return [];
+        }
         return supabaseProfileCoverPhotoStore.listApproved(profileId);
       },
     });

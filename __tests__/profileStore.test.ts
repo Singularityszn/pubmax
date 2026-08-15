@@ -4,8 +4,10 @@ import { RESERVED_CONTRIBUTOR_HANDLE_INPUTS } from "@/__tests__/fixtures/reserve
 import {
   memoryProfileStore,
   __resetMemoryProfiles,
+  profileImageState,
   type ProfileRecord,
 } from "@/lib/profileStore";
+import { profileImageServingKey } from "@/lib/profileImageSlots";
 
 // Force the in-memory path: Vercel runs vitest with the project env set, which
 // would otherwise route the store at the Supabase adapter. Deleting the two keys
@@ -215,6 +217,37 @@ describe("profileStore.softDeleteForCaller + getHandleByUserId", () => {
     expect(cleared.profile.bio).toBeUndefined();
     expect(cleared.profile.homeCity).toBeUndefined();
     expect(cleared.profile.avatarUrl).toBeUndefined();
+  });
+
+  it("preserves a hidden cover through soft-delete and a later owner upload", async () => {
+    const profile = await memoryProfileStore.createOwned("ken", "user-abc");
+    const firstGeneration = "11111111-1111-4111-8111-111111111111";
+    await memoryProfileStore.setOwnedImage("ken", "cover", {
+      objectKey: profileImageServingKey("cover", profile.id, firstGeneration),
+      generation: firstGeneration,
+      moderationState: "approved",
+    });
+    expect(await memoryProfileStore.moderateOwnedImage("ken", "cover", "hide")).toBe(
+      true,
+    );
+
+    const deleted = await memoryProfileStore.softDeleteForCaller("ken", "user-abc");
+    expect(deleted.status).toBe("deleted");
+    if (deleted.status !== "deleted") throw new Error("Expected profile deletion.");
+    expect(profileImageState(deleted.profile, "cover").moderationState).toBe("hidden");
+
+    const nextGeneration = "22222222-2222-4222-8222-222222222222";
+    expect(
+      await memoryProfileStore.setOwnedImage("ken", "cover", {
+        objectKey: profileImageServingKey("cover", profile.id, nextGeneration),
+        generation: nextGeneration,
+        moderationState: "approved",
+      }),
+    ).toBeNull();
+    expect(
+      profileImageState((await memoryProfileStore.getByHandle("ken"))!, "cover")
+        .moderationState,
+    ).toBe("hidden");
   });
 
   it("resolves a linked handle by user id", async () => {

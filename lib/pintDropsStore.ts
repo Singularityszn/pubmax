@@ -704,12 +704,9 @@ export const supabasePintDropStore: PintDropStore = {
 
   /** ONE atomic RPC (migration 0017) writes the verified-account report ledger
    *  (pint_drop_reports, unique (pint_drop_id, actor_hash)) and increments /
-   *  stamps / hides visit_reports in a single statement — two concurrent
-   *  reports can't lose an increment, and a same-account duplicate is an
-   *  idempotent no-op (the counter never moves twice for one account). Null
-   *  data = unknown id. Until 0017 is applied, the v2 call errors and we fall
-   *  back to the 0004 RPC (windowed-limit-only semantics), then to the
-   *  non-atomic update if 0004 is missing too. */
+   *  stamps / hides visit_reports in a single statement. Two concurrent
+   *  reports cannot lose an increment, and a same-account duplicate is an
+   *  idempotent no-op. Null data means unknown id. */
   async report(id, reason, identity) {
     if (identity.kind === "anonymous_ip") {
       return recordAnonymousReport(id, reason, identity.actorHash);
@@ -721,49 +718,10 @@ export const supabasePintDropStore: PintDropStore = {
       p_reason: reason ?? null,
       p_hide_threshold: REPORT_HIDE_THRESHOLD,
     });
-    if (!v2Error) {
-      const reported = v2Data !== null && v2Data !== undefined;
-      if (reported) await purgeHiddenDropPhotos(id);
-      return reported;
-    }
-    console.warn(
-      "[pint-drops] report_pint_drop_v2 RPC unavailable — falling back to report_pint_drop without per-actor uniqueness (apply migration 0017):",
-      v2Error.message,
-    );
-
-    const { data, error } = await admin().rpc("report_pint_drop", {
-      p_id: id,
-      p_reason: reason ?? null,
-      p_hide_threshold: REPORT_HIDE_THRESHOLD,
-    });
-    if (error) {
-      console.warn(
-        "[pint-drops] report_pint_drop RPC unavailable — falling back to non-atomic report update (apply migration 0004):",
-        error.message,
-      );
-      const { data: rows, error: readError } = await admin()
-        .from(TABLE)
-        .select("report_count")
-        .eq("id", id);
-      if (readError) throw new Error(readError.message);
-      if (!rows || rows.length === 0) return false;
-
-      const nextCount = Number((rows[0] as { report_count?: number }).report_count ?? 0) + 1;
-      const { error: updateError } = await admin()
-        .from(TABLE)
-        .update({
-          report_count: nextCount,
-          reported_at: new Date().toISOString(),
-          ...(reason ? { report_reason: reason } : {}),
-          ...(nextCount >= REPORT_HIDE_THRESHOLD ? { status: "hidden" } : {}),
-        })
-        .eq("id", id);
-      if (updateError) throw new Error(updateError.message);
-      await purgeHiddenDropPhotos(id);
-      return true;
-    }
-    if (data !== null && data !== undefined) await purgeHiddenDropPhotos(id);
-    return data !== null && data !== undefined;
+    if (v2Error) throw new Error(v2Error.message);
+    const reported = v2Data !== null && v2Data !== undefined;
+    if (reported) await purgeHiddenDropPhotos(id);
+    return reported;
   },
 
   async moderate(id, status, note) {

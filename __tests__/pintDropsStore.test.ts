@@ -229,8 +229,7 @@ describe("deletePhotos", () => {
 
 // Migration 0017: the atomic, per-actor-unique report_pint_drop_v2 RPC. The
 // route maps a false return to a 404, so the unknown-id path is a real
-// contract, not a detail. (The 0004 v1 fallback path is pinned in
-// pintDrops.test.ts.)
+// contract, not a detail.
 describe("supabasePintDropStore.report (atomic RPC)", () => {
   it("passes the actor hash + server-side hide threshold (one report can't hide content) and returns true on success", async () => {
     rpcMock.mockClear();
@@ -259,6 +258,26 @@ describe("supabasePintDropStore.report (atomic RPC)", () => {
         verifiedReportIdentity("hash-1"),
       ),
     ).toBe(false);
+  });
+
+  it("fails closed when the per-account RPC is unavailable", async () => {
+    rpcMock.mockClear();
+    updateMock.mockClear();
+    rpcMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "report_pint_drop_v2 unavailable" },
+    });
+
+    await expect(
+      supabasePintDropStore.report(
+        "d1",
+        "spam",
+        verifiedReportIdentity("hash-1"),
+      ),
+    ).rejects.toThrow("report_pint_drop_v2 unavailable");
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+    expect(rpcMock).toHaveBeenCalledWith("report_pint_drop_v2", expect.any(Object));
+    expect(updateMock).not.toHaveBeenCalled();
   });
 
   it("records an anonymous report without calling the counting RPC", async () => {

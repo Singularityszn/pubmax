@@ -278,6 +278,27 @@ describe("loadWhatsOn orchestration", () => {
     expect(result.revalidation).toEqual({ status: "measured" });
   });
 
+  it("marks a stale provider cache as unmeasured", async () => {
+    const result = await loadWhatsOn(
+      {},
+      {
+        now: NOW,
+        loadBaseline: () => [],
+        fetchLive: async () => ({
+          rows: [makeRow({ id: "cached-live" })],
+          sourceObservedAt: "2026-07-11T18:30:00.000Z",
+          stale: true,
+        }),
+      },
+    );
+
+    expect(result.rows.map((row) => row.id)).toEqual(["cached-live"]);
+    expect(result.revalidation).toEqual({
+      status: "unmeasured",
+      reason: "live-provider-failed",
+    });
+  });
+
   it("reports unknown source freshness when provider inventory has no source timestamp", async () => {
     const result = await loadWhatsOn(
       {},

@@ -107,7 +107,7 @@ export async function GET(request: Request): Promise<Response> {
     mode: "slim",
     observedAt: asOf,
     rowsServed: rows,
-    stamped: true,
+    stamped: stamp.failed !== true,
     stampDegraded: stamp.failed ?? false,
     ingestKeysPresent: ingestKeys,
     eventProviderKeysPresent: eventKeys,
