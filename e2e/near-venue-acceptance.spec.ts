@@ -89,6 +89,10 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page })
     localStorage.setItem("pubmax-theme", "dark");
   });
   await page.reload();
+  // The reload is a cold arrival on the CDN-cached /map document, so the sheet
+  // is rebuilt from ?sel= and its Venue read. Wait for the sheet the same way
+  // the first arrival above does; the receipt lives inside it.
+  await expect(acceptStop1).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("Kept for tonight. Make it Stop 1 when you are ready.")).toBeVisible();
   await expect(acceptStop1).toHaveText("Make it Stop 1");
   await page.evaluate(async () => {

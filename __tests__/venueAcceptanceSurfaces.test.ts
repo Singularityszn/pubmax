@@ -58,7 +58,8 @@ describe("Keep affordance weight (captain decision D3)", () => {
     expect(rule).not.toContain("var(--color-on-accent)");
     // Not a full-width bar: it shrinks to its own words and clears the card edge.
     expect(rule).toContain("width: fit-content");
-    expect(rule).toMatch(/min-height:\s*44px/);
+    // D3 lowered the weight, never the touch target.
+    expect(rule).toMatch(/min-height:\s*48px/);
   });
 
   it("renders Near's card Keep at the same secondary weight", () => {

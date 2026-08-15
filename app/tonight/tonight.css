@@ -467,7 +467,9 @@
   align-items: center;
   justify-content: center;
   width: fit-content;
-  min-height: 44px;
+  /* The touch target is unchanged at 48px: D3 lowered the WEIGHT, not the size
+     of the thing a thumb has to hit. */
+  min-height: 48px;
   margin: 0 16px 16px;
   padding: 6px 14px;
   border: 1px solid var(--state-active-border);
