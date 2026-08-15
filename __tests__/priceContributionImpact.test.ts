@@ -2,27 +2,9 @@ import { readFileSync } from "node:fs";
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import PriceContributionImpact from "@/components/map/PriceContributionImpact";
-
-// IntentLink reads the app router to warm its destination on pointer intent.
-// A bare static render has no router mounted, so the seam is stubbed here; the
-// assertion below is about the rendered anchor, not about the warm.
-vi.mock("next/navigation", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("next/navigation")>();
-  return {
-    ...actual,
-    useRouter: () => ({
-      back: () => undefined,
-      forward: () => undefined,
-      refresh: () => undefined,
-      push: () => undefined,
-      replace: () => undefined,
-      prefetch: () => undefined,
-    }),
-  };
-});
 
 describe("PriceContributionImpact", () => {
   it("links credited attribution to its encoded anchored public impact", () => {
@@ -44,15 +26,25 @@ describe("PriceContributionImpact", () => {
     expect(html).toBe("");
   });
 
-  it("keeps the impact link a client transition so the map survives the tap", () => {
-    // A raw <a> here is a full document load of a nonce'd dynamic page: the
-    // camera, the filters and the MapLibre instance all go. Pin the source.
+  it("keeps the fragment, which is the whole promise of the link", () => {
+    // Reviewed as "use Link, not <a>, so the map survives the tap". Measured
+    // instead: a client transition from /map (CDN-cached, no nonce) to
+    // /u/[handle] (nonce'd, dynamic) is a hard navigation either way, and Next
+    // drops the hash on it, landing the reader at the top of a long profile
+    // rather than on the impact card the link names. Proved in
+    // e2e/price-submission with IntentLink and with a bare next/link.
+    //
+    // So the anchor stays, and this fence records why, because "why is this a
+    // raw <a>?" is exactly the question the next reader will ask.
     const source = readFileSync(
       new URL("../components/map/PriceContributionImpact.tsx", import.meta.url),
       "utf8",
     );
 
-    expect(source).toContain("IntentLink");
-    expect(source).not.toMatch(/<a\s/);
+    expect(source).not.toMatch(/^import .*from "next\/link";$/m);
+    expect(source).not.toMatch(/^import .*IntentLink.*$/m);
+    expect(source).toContain("#contribution-impact");
+    // The reason is carried in the source, not in a commit message nobody reads.
+    expect(source).toContain("FRAGMENT GONE");
   });
 });

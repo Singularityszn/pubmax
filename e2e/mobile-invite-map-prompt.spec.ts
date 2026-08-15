@@ -77,10 +77,10 @@ test("guest RSVP reveals one ordered map handoff that fits mobile", async ({ req
   const { token, venues } = await createInvite(request);
 
   await page.goto(`/invite/${token}`);
-  // One map link on the page, and it is the island's. The stops are why the
-  // invite was opened, so the way to them is never gated on an RSVP; only the
-  // "RSVP saved." emphasis waits for an answer.
-  await expect(page.locator(".invite__mapLink")).toHaveCount(0);
+  // Exactly one map link on the page, and it is the RSVP island's. The stops
+  // are why the invite was opened, so the way to them is never gated on an
+  // RSVP; only the "RSVP saved." emphasis waits for an answer.
+  await expect(page.locator(".invite__mapLink")).toHaveCount(1);
   await expect(page.getByRole("link", { name: "Open these stops on the map" })).toHaveCount(1);
   await expect(page.getByText("RSVP saved.", { exact: true })).toHaveCount(0);
   if (UPDATE_PROOF) {
@@ -235,7 +235,7 @@ test("failed guest RSVP stays on invite without a map handoff", async ({ request
   });
 
   await page.goto(`/invite/${token}`);
-  await expect(page.locator(".invite__mapLink")).toHaveCount(0);
+  await expect(page.locator(".invite__mapLink")).toHaveCount(1);
   await page.locator(".inviteRsvp__nameInput").fill("Priya");
   await page.getByRole("button", { name: "Maybe", exact: true }).click();
   await page.getByRole("button", { name: "RSVP", exact: true }).click();

@@ -211,8 +211,9 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   const guestPage = await guest.newPage();
   await guestPage.goto(`/invite/${token}`);
   // The page-level link moved into the RSVP island. It is still unconditional
-  // there, so arriving without an RSVP still reaches the stops.
-  await expect(guestPage.locator(".invite__mapLink")).toHaveCount(0);
+  // there, so arriving without an RSVP still reaches the stops, and there is
+  // exactly one of it.
+  await expect(guestPage.locator(".invite__mapLink")).toHaveCount(1);
   await expect(
     guestPage.getByRole("link", { name: "Open these stops on the map" }),
   ).toBeVisible();

@@ -198,7 +198,12 @@ export function warmNavRoute(
   href: string,
   seen: Set<string> = warmedRoutes,
 ): void {
-  const prefetchHref = href.split("?")[0] || href;
+  // A fragment never reaches the server, so it is no part of what to warm.
+  // Prefetching the hash-bearing URL also keyed the router cache under an
+  // address the click then had to reconcile, and the landed URL lost its
+  // fragment: the price receipt's "See your impact" link stopped scrolling to
+  // the contribution card it names.
+  const prefetchHref = href.split("#")[0]?.split("?")[0] || href;
   const isMapRoute = prefetchHref === "/map" || prefetchHref.startsWith("/map/");
   if (isMapRoute) warmMapCanvasModule();
   if (!prefetchHref || seen.has(prefetchHref)) return;
