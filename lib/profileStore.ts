@@ -35,10 +35,6 @@ export type ProfileOwnedImage = {
   moderationState: ProfileAvatarModerationState;
 };
 
-export type SetOwnedImageOptions = {
-  preserveHiddenDecision?: boolean;
-};
-
 /**
  * A reported or hidden owned image as the moderator queue sees it. Carries the
  * report metadata a reviewer needs and NOTHING that identifies a reporter - the
@@ -221,6 +217,23 @@ export function profileImageState(
   };
 }
 
+function ownerImageWritePreservesHidden(slot: ProfileImageSlot): boolean {
+  return slot === "cover";
+}
+
+export const PROFILE_COVER_OWNER_WRITE_BLOCKED_LINE =
+  "A moderator hid this cover. Owner changes are unavailable until it is restored.";
+
+export function profileOwnerImageWriteBlocked(
+  profile: ProfileRecord,
+  slot: ProfileImageSlot,
+): boolean {
+  return (
+    ownerImageWritePreservesHidden(slot) &&
+    profileImageState(profile, slot).moderationState === "hidden"
+  );
+}
+
 /** Overlay one slot's state onto a record. Undefined values clear the field. */
 function withProfileImageState(
   profile: ProfileRecord,
@@ -401,13 +414,13 @@ export type ProfileStore = {
    * Set or clear the owned (uploaded) image fields for one slot. Passing null
    * clears the object key, generation, and moderation state together. A new or
    * cleared image also clears report/hide stamps so provenance cannot attach to
-   * the wrong generation. Does not touch the legacy hotlinked `avatarUrl`.
+   * the wrong generation. Owner writes cannot replace or clear a moderator-hidden
+   * cover. Does not touch the legacy hotlinked `avatarUrl`.
    */
   setOwnedImage(
     handle: string,
     slot: ProfileImageSlot,
     image: ProfileOwnedImage | null,
-    options?: SetOwnedImageOptions,
   ): Promise<ProfileRecord | null>;
   /**
    * Queue a reader flag on the current owned image. Never changes public
@@ -870,7 +883,7 @@ export const supabaseProfileStore: ProfileStore = {
     throw new Error("That handle is not available.");
   },
 
-  async setOwnedImage(handle, slot, image, options) {
+  async setOwnedImage(handle, slot, image) {
     const key = normalizeHandle(handle);
     if (!key) return null;
     const columns = IMAGE_COLUMNS[slot];
@@ -886,7 +899,7 @@ export const supabaseProfileStore: ProfileStore = {
       .from(TABLE)
       .update(row)
       .eq("handle", key);
-    if (options?.preserveHiddenDecision) {
+    if (ownerImageWritePreservesHidden(slot)) {
       query = query.or(
         `${columns.moderationState}.is.null,${columns.moderationState}.neq.hidden`,
       );
@@ -1243,14 +1256,11 @@ export const memoryProfileStore: ProfileStore = {
     throw new Error("That handle is not available.");
   },
 
-  async setOwnedImage(handle, slot, image, options) {
+  async setOwnedImage(handle, slot, image) {
     const key = normalizeHandle(handle);
     const existing = memoryProfiles.get(key);
     if (!existing) return null;
-    if (
-      options?.preserveHiddenDecision &&
-      profileImageState(existing, slot).moderationState === "hidden"
-    ) {
+    if (profileOwnerImageWriteBlocked(existing, slot)) {
       return null;
     }
     // A new generation is a different image; old flags must not travel with it.

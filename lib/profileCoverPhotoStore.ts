@@ -6,8 +6,8 @@
 // THREE things this store owns that a route must not re-derive.
 //
 // 1. THE CAP. `countForProfile` is the only place the captain's five is
-//    counted, and it counts that profile's own LIVE rows. A hidden cover gives
-//    its slot back, because a moderation decision is not a permanent penalty.
+//    counted, and it counts every stored row because the schema gives each row
+//    one of five unique positions. A profile-wide hide refuses new uploads.
 //
 // 2. THE ORDER. `listApproved` returns the rotation in `byCoverPosition` order
 //    and `reorder` is the only write that changes it. Positions are rewritten
@@ -29,12 +29,17 @@ import {
   isProfileCoverModerationState,
   nextCoverPosition,
   PROFILE_COVER_PHOTO_CAP,
+  profileCoverCapLine,
   type ProfileCoverModerationState,
   type ProfileCoverPhoto,
   type ProfileCoverPhotoFields,
 } from "@/lib/profileCovers";
 import { profileImageServePath, profileImageServingKey } from "@/lib/profileImageSlots";
-import { profileImageState, profileStore } from "@/lib/profileStore";
+import {
+  PROFILE_COVER_OWNER_WRITE_BLOCKED_LINE,
+  profileOwnerImageWriteBlocked,
+  profileStore,
+} from "@/lib/profileStore";
 import {
   createFailSoftGuard,
   onMissingDurableWrite,
@@ -46,6 +51,20 @@ const TABLE = "profile_cover_photos";
 const MIGRATION_HINT = "apply migration 0100";
 const REVIEW_LIMIT = 200;
 
+export class ProfileCoverUploadBlockedError extends Error {
+  constructor() {
+    super(PROFILE_COVER_OWNER_WRITE_BLOCKED_LINE);
+    this.name = "ProfileCoverUploadBlockedError";
+  }
+}
+
+export class ProfileCoverCapReachedError extends Error {
+  constructor() {
+    super(profileCoverCapLine());
+    this.name = "ProfileCoverCapReachedError";
+  }
+}
+
 export type ProfileCoverPhotoStore = {
   /**
    * Persist an approved cover at the back of the rotation. THROWS on a hard
@@ -55,7 +74,7 @@ export type ProfileCoverPhotoStore = {
   create(fields: ProfileCoverPhotoFields, now?: number): Promise<ProfileCoverPhoto>;
   /** The rotation, approved only, in the owner's order. */
   listApproved(profileId: string): Promise<ProfileCoverPhoto[]>;
-  /** How many live covers this profile already holds. */
+  /** How many stored covers this profile already holds. */
   countForProfile(profileId: string): Promise<number>;
   getById(id: string): Promise<ProfileCoverPhoto | null>;
   /**
@@ -119,7 +138,6 @@ export async function mirrorFirstCoverOntoProfile(
             moderationState: "approved",
           }
         : null,
-      { preserveHiddenDecision: true },
     );
   } catch (error) {
     log("warn", "profile_cover.mirror_skipped", {
@@ -158,7 +176,7 @@ async function ownerCoverWriteState(
 ): Promise<"approved" | "hidden"> {
   try {
     const profile = await profileStore().getById(profileId);
-    return profile && profileImageState(profile, "cover").moderationState === "hidden"
+    return profile && profileOwnerImageWriteBlocked(profile, "cover")
       ? "hidden"
       : "approved";
   } catch {
@@ -177,11 +195,17 @@ function memoryRowsFor(profileId: string): ProfileCoverPhoto[] {
 
 export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
   async create(fields, now = Date.now()) {
+    if ((await ownerCoverWriteState(fields.profileId)) === "hidden") {
+      throw new ProfileCoverUploadBlockedError();
+    }
     const held = memoryRowsFor(fields.profileId);
+    if (held.length >= PROFILE_COVER_PHOTO_CAP) {
+      throw new ProfileCoverCapReachedError();
+    }
     const photo: ProfileCoverPhoto = {
       ...fields,
       position: nextCoverPosition(held),
-      moderationState: await ownerCoverWriteState(fields.profileId),
+      moderationState: "approved",
       createdAt: new Date(now).toISOString(),
     };
     byId.set(photo.id, photo);
@@ -195,8 +219,7 @@ export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
   },
 
   async countForProfile(profileId) {
-    return memoryRowsFor(profileId).filter((row) => row.moderationState === "approved")
-      .length;
+    return memoryRowsFor(profileId).length;
   },
 
   async getById(id) {
@@ -362,11 +385,17 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         }),
       // No onError: a hard write failure THROWS so the route answers 503.
       run: async () => {
+        if ((await ownerCoverWriteState(fields.profileId)) === "hidden") {
+          throw new ProfileCoverUploadBlockedError();
+        }
         const held = await listStoredProfileCovers(fields.profileId);
+        if (held.length >= PROFILE_COVER_PHOTO_CAP) {
+          throw new ProfileCoverCapReachedError();
+        }
         const photo: ProfileCoverPhoto = {
           ...fields,
           position: nextCoverPosition(held),
-          moderationState: await ownerCoverWriteState(fields.profileId),
+          moderationState: "approved",
           createdAt: new Date(now).toISOString(),
         };
         const { error } = await admin().from(TABLE).insert(toRow(photo));
@@ -409,8 +438,7 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         const { count, error } = await admin()
           .from(TABLE)
           .select("id", { count: "exact", head: true })
-          .eq("profile_id", profileId)
-          .eq("moderation_state", "approved");
+          .eq("profile_id", profileId);
         if (error) throw new Error(error.message);
         return typeof count === "number" && count > 0 ? count : 0;
       },

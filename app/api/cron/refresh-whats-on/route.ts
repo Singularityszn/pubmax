@@ -60,20 +60,21 @@ export async function GET(request: Request): Promise<Response> {
   let failure: string | null = null;
   try {
     const result = await loadWhatsOn({ window: "tonight" });
-    rows = result.rows.length;
-    // Stamp the honest source-observed time when the feed reports one, so
-    // /api/freshness shows real freshness rather than the frozen generatedAt.
-    asOf = result.asOf;
+    if (result.revalidation.status === "measured") {
+      rows = result.rows.length;
+      asOf = result.asOf;
+    } else {
+      failure = result.revalidation.reason;
+      console.error(
+        "[cron:refresh-whats-on] tonight-window revalidation failed:",
+        failure,
+      );
+    }
   } catch (err) {
     failure = err instanceof Error ? err.message : String(err);
     console.error("[cron:refresh-whats-on] tonight-window revalidation failed:", failure);
   }
 
-  // A REVALIDATION THAT FAILED IS NOT AN OBSERVATION. Stamping the request
-  // instant here made the freshness spine read WHATS_ON as just-checked for the
-  // whole 48-hour staleness budget, hiding the outage it exists to report — the
-  // exact "never let an unmeasurable feed read as fresh" rule. So the failure
-  // path writes nothing and the previous stamp stands.
   if (asOf === null) {
     console.warn(
       "[cron:refresh-whats-on] observedAt NOT advanced: the revalidation failed, so the previous stamp stands.",

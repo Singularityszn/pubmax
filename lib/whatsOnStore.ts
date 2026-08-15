@@ -192,6 +192,9 @@ export const defaultFetchLive: FetchLive = async ({ now, area }) => {
 export type LoadWhatsOnResult = {
   rows: WhatsOnRow[];
   servedAt: string;
+  revalidation:
+    | { status: "measured" }
+    | { status: "unmeasured"; reason: "live-provider-failed" };
   sourceObservedAt: string | null;
   sourceFreshnessKind: WhatsOnSourceFreshnessKind;
   kindObservedAt: WhatsOnKindObservedAt;
@@ -257,13 +260,12 @@ export async function loadWhatsOn(
       : canonicalPastIso(deps.baselineSourceObservedAt, now);
 
   let live: FetchLiveResult = { rows: [], sourceObservedAt: null };
+  let revalidation: LoadWhatsOnResult["revalidation"] = { status: "measured" };
   try {
     // Do not pass params.limit. Grouping needs the provider's full inventory.
     live = normaliseLiveResult(await (deps.fetchLive ?? defaultFetchLive)({ now }), now);
   } catch {
-    // Fail soft to baseline. A live layer that threw contributes no rows and no
-    // freshness evidence, which is the same position as one that answered with
-    // neither - so the outcome needs no separate flag.
+    revalidation = { status: "unmeasured", reason: "live-provider-failed" };
   }
 
   let rows = filterNotPast(mergeWhatsOn(baseline, live.rows), now);
@@ -324,6 +326,7 @@ export async function loadWhatsOn(
   return {
     rows,
     servedAt,
+    revalidation,
     sourceObservedAt,
     sourceFreshnessKind,
     kindObservedAt,

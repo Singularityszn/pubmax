@@ -42,6 +42,8 @@ import {
   __resetProfileCoverPhotos,
   mirrorFirstCoverOntoProfile,
   memoryProfileCoverPhotoStore,
+  ProfileCoverCapReachedError,
+  ProfileCoverUploadBlockedError,
   supabaseProfileCoverPhotoStore,
 } from "@/lib/profileCoverPhotoStore";
 import { profileImageServingKey } from "@/lib/profileImageSlots";
@@ -215,18 +217,23 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
     ).toBeNull();
   });
 
-  it("persists an owner upload as hidden after a moderator takedown", async () => {
+  it("refuses an owner upload after a moderator takedown", async () => {
     await moderateProfileImageAcrossStores(HANDLE, "cover", "hide");
     const thirdGeneration = "99999999-9999-4999-8999-999999999999";
+    const countBefore = await memoryProfileCoverPhotoStore.countForProfile(ownedProfileId);
 
-    const created = await memoryProfileCoverPhotoStore.create({
-      id: "88888888-8888-4888-8888-888888888889",
-      profileId: ownedProfileId,
-      generation: thirdGeneration,
-      objectKey: profileImageServingKey("cover", ownedProfileId, thirdGeneration),
-    });
+    await expect(
+      memoryProfileCoverPhotoStore.create({
+        id: "88888888-8888-4888-8888-888888888889",
+        profileId: ownedProfileId,
+        generation: thirdGeneration,
+        objectKey: profileImageServingKey("cover", ownedProfileId, thirdGeneration),
+      }),
+    ).rejects.toBeInstanceOf(ProfileCoverUploadBlockedError);
 
-    expect(created.moderationState).toBe("hidden");
+    expect(await memoryProfileCoverPhotoStore.countForProfile(ownedProfileId)).toBe(
+      countBefore,
+    );
     expect(await memoryProfileCoverPhotoStore.listApproved(ownedProfileId)).toEqual([]);
     expect(
       await memoryProfileCoverPhotoStore.approvedObjectKey(
@@ -370,5 +377,97 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
     await moderateProfileImageAcrossStores(HANDLE, "avatar", "hide");
 
     expect(await memoryProfileCoverPhotoStore.listApproved(ownedProfileId)).toHaveLength(2);
+  });
+});
+
+describe("cover rotation cap", () => {
+  it("makes memory and durable stores refuse the same sixth live cover", async () => {
+    __resetProfileCoverPhotos();
+    const memoryProfile = __seedMemoryOwnedProfile(HANDLE, "user-alice");
+    for (let index = 0; index < 5; index += 1) {
+      const generation = `55555555-5555-4555-8555-55555555555${index}`;
+      await memoryProfileCoverPhotoStore.create({
+        id: `77777777-7777-4777-8777-77777777777${index}`,
+        profileId: memoryProfile.id,
+        generation,
+        objectKey: profileImageServingKey("cover", memoryProfile.id, generation),
+      });
+    }
+    const memoryGeneration = "99999999-9999-4999-8999-999999999991";
+    await expect(
+      memoryProfileCoverPhotoStore.create({
+        id: "99999999-9999-4999-8999-999999999992",
+        profileId: memoryProfile.id,
+        generation: memoryGeneration,
+        objectKey: profileImageServingKey(
+          "cover",
+          memoryProfile.id,
+          memoryGeneration,
+        ),
+      }),
+    ).rejects.toBeInstanceOf(ProfileCoverCapReachedError);
+
+    const durableRows = Array.from({ length: 5 }, (_, index) => {
+      const generation = `66666666-6666-4666-8666-66666666666${index}`;
+      return {
+        id: `88888888-8888-4888-8888-88888888888${index}`,
+        profile_id: PROFILE_ID,
+        position: index + 1,
+        generation,
+        object_key: profileImageServingKey("cover", PROFILE_ID, generation),
+        moderation_state: "approved",
+        report_count: 0,
+        report_actors: [],
+        created_at: `2026-08-01T00:00:0${index}.000Z`,
+      };
+    });
+    const insert = vi.fn();
+    coverAdminRef.client = {
+      from(table: string) {
+        if (table === "profiles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                limit: async () => ({
+                  data: [
+                    {
+                      id: PROFILE_ID,
+                      handle: HANDLE,
+                      user_id: "user-alice",
+                      cover_moderation_state: "approved",
+                      created_at: "2026-08-01T00:00:00.000Z",
+                      updated_at: "2026-08-01T00:00:00.000Z",
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        const query = {
+          eq: () => query,
+          order: () => query,
+          limit: async () => ({ data: durableRows, error: null }),
+        };
+        return { select: () => query, insert };
+      },
+    };
+    supabaseConfigured.value = true;
+    const durableGeneration = "99999999-9999-4999-8999-999999999993";
+
+    await expect(
+      supabaseProfileCoverPhotoStore.create({
+        id: "99999999-9999-4999-8999-999999999994",
+        profileId: PROFILE_ID,
+        generation: durableGeneration,
+        objectKey: profileImageServingKey(
+          "cover",
+          PROFILE_ID,
+          durableGeneration,
+        ),
+      }),
+    ).rejects.toBeInstanceOf(ProfileCoverCapReachedError);
+    expect(insert).not.toHaveBeenCalled();
   });
 });

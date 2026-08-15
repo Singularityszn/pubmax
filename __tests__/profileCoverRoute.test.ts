@@ -395,6 +395,44 @@ describe("cover moderation lane", () => {
     expect(await listHiddenProfileImages("cover")).toEqual([]);
   });
 
+  it("keeps a moderator-hidden cover hidden when the owner posts a replacement", async () => {
+    const storage = await uploadedCover();
+    const hiddenKey = (await profileStore().getByHandle("alice"))!.coverObjectKey!;
+    expect(await moderateProfileImage("alice", "cover", "hide")).toBe(true);
+    const uploadsBefore = storage.uploads.length;
+
+    approving(storage);
+    authState.userId = "user-alice";
+    const response = await POST(multipart(await wideImage()), params);
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("COVER_HIDDEN");
+    const profile = await profileStore().getByHandle("alice");
+    expect(profile?.coverModerationState).toBe("hidden");
+    expect(profile?.coverObjectKey).toBe(hiddenKey);
+    expect(storage.uploads).toHaveLength(uploadsBefore);
+  });
+
+  it("keeps a moderator-hidden cover and its bytes when the owner deletes", async () => {
+    const storage = await uploadedCover();
+    const hiddenKey = (await profileStore().getByHandle("alice"))!.coverObjectKey!;
+    expect(await moderateProfileImage("alice", "cover", "hide")).toBe(true);
+
+    authState.userId = "user-alice";
+    const response = await DELETE(
+      new Request("http://localhost/api/profiles/alice/cover", { method: "DELETE" }),
+      params,
+    );
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("COVER_HIDDEN");
+    const profile = await profileStore().getByHandle("alice");
+    expect(profile?.coverModerationState).toBe("hidden");
+    expect(profile?.coverObjectKey).toBe(hiddenKey);
+    expect(await storage.sign(hiddenKey)).not.toBeNull();
+    expect(storage.removed.flat()).not.toContain(hiddenKey);
+  });
+
   it("clears the cover with its bytes when the account is tombstoned", async () => {
     const storage = memoryStorage();
     const profile = await profileStore().getByHandle("alice");

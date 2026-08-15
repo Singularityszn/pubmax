@@ -7,6 +7,7 @@ vi.mock("@/lib/whatsOnStore", () => ({
   loadWhatsOn: vi.fn(async () => ({
     rows: [{ id: "a" }, { id: "b" }],
     asOf: "2026-07-21T14:00:00.000Z",
+    revalidation: { status: "measured" },
   })),
 }));
 
@@ -104,6 +105,7 @@ describe("GET /api/cron/refresh-whats-on", () => {
       kindObservedAt: {},
       localityBasis: "london-default",
       asOf: null,
+      revalidation: { status: "measured" },
     });
     const res = await GET(req("Bearer test-secret"));
 
@@ -117,5 +119,42 @@ describe("GET /api/cron/refresh-whats-on", () => {
     expect(after).toEqual(before);
 
     warn.mockRestore();
+  });
+
+  it("does NOT stamp baseline freshness after a swallowed provider failure", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await GET(req("Bearer test-secret"));
+    const before = await memoryFeedFreshnessStore.read(WHATS_ON_FEED_KEY);
+
+    vi.mocked(loadWhatsOn).mockResolvedValueOnce({
+      rows: [{ id: "baseline" }] as unknown as Awaited<
+        ReturnType<typeof loadWhatsOn>
+      >["rows"],
+      servedAt: "2026-07-21T15:00:00.000Z",
+      sourceObservedAt: "2026-07-21T14:30:00.000Z",
+      sourceFreshnessKind: "dataset-generated",
+      kindObservedAt: {},
+      localityBasis: "london-default",
+      asOf: "2026-07-21T14:30:00.000Z",
+      revalidation: {
+        status: "unmeasured",
+        reason: "live-provider-failed",
+      },
+    });
+    const response = await GET(req("Bearer test-secret"));
+
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      stamped: false,
+      observedAt: null,
+      rowsServed: 0,
+    });
+    expect(await memoryFeedFreshnessStore.read(WHATS_ON_FEED_KEY)).toEqual(before);
+    expect(error).toHaveBeenCalled();
+
+    warn.mockRestore();
+    error.mockRestore();
   });
 });
