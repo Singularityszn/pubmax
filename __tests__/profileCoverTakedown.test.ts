@@ -491,7 +491,7 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
     expect(rows).toEqual([existing]);
   });
 
-  it("does not let a stale durable reorder resurrect hidden rows", async () => {
+  it("does not let guard-failure recovery resurrect a landed takedown", async () => {
     const profile = {
       id: ownedProfileId,
       handle: HANDLE,
@@ -538,7 +538,8 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
         created_at: "2026-08-01T00:00:01.000Z",
       },
     ];
-    let hideDuringUpsert = true;
+    let profileReads = 0;
+    const upserts: Array<Array<Record<string, unknown>>> = [];
 
     coverAdminRef.client = {
       from(table: string) {
@@ -546,7 +547,15 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
           return {
             select: () => ({
               eq: () => ({
-                limit: async () => ({ data: [{ ...profile }], error: null }),
+                limit: async () => {
+                  profileReads += 1;
+                  return profileReads === 1
+                    ? { data: [{ ...profile }], error: null }
+                    : {
+                        data: null,
+                        error: { message: "profile read unavailable" },
+                      };
+                },
               }),
             }),
           };
@@ -592,15 +601,14 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
               }),
             };
           },
-          async upsert(nextRows: typeof rows) {
-            if (hideDuringUpsert) {
-              hideDuringUpsert = false;
-              profile.cover_moderation_state = "hidden";
-              for (const row of rows) row.moderation_state = "hidden";
-            }
+          async upsert(nextRows: Array<Record<string, unknown>>) {
+            upserts.push(nextRows.map((row) => ({ ...row })));
             for (const next of nextRows) {
               const current = rows.find((row) => row.id === next.id);
               if (current) Object.assign(current, next);
+            }
+            if (upserts.length === 1) {
+              for (const row of rows) row.moderation_state = "hidden";
             }
             return { error: null };
           },
@@ -609,13 +617,15 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
     };
     supabaseConfigured.value = true;
 
-    const reordered = await supabaseProfileCoverPhotoStore.reorder(
-      ownedProfileId,
-      [rows[1].id, rows[0].id],
-    );
+    await expect(
+      supabaseProfileCoverPhotoStore.reorder(
+        ownedProfileId,
+        [rows[1].id, rows[0].id],
+      ),
+    ).rejects.toBeInstanceOf(ProfileCoverGuardUnavailableError);
 
-    expect(reordered).toEqual([]);
-    expect(hideDuringUpsert).toBe(false);
+    expect(profileReads).toBe(2);
+    expect(upserts).toHaveLength(1);
     expect(rows.every((row) => row.moderation_state === "hidden")).toBe(true);
   });
 

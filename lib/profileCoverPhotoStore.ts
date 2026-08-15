@@ -601,10 +601,6 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         if (error) throw new Error(error.message);
         const stateAfter = await ownerCoverWriteState(profileId);
         if (stateAfter === "unavailable") {
-          const { error: rollbackError } = await admin()
-            .from(TABLE)
-            .upsert(held.map(toRow), { onConflict: "id" });
-          if (rollbackError) throw new Error(rollbackError.message);
           throw new ProfileCoverGuardUnavailableError();
         }
         if (stateAfter === "hidden") {
