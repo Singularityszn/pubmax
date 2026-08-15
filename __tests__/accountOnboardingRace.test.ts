@@ -340,7 +340,8 @@ describe("AccountOnboarding cold-open identity race", () => {
     });
 
     expect(requestState.calls).toHaveLength(3);
-    expect(container.childNodes[0]?.nodeName).toBe("SECTION");
+    expect(document.body.childNodes[0]?.nodeName).toBe("SECTION");
+    expect(container.childNodes).toHaveLength(0);
     vi.useRealTimers();
   });
 
@@ -378,7 +379,8 @@ describe("AccountOnboarding cold-open identity race", () => {
     });
     await settleOnboarding();
     expect(requestState.calls).toHaveLength(3);
-    expect(container.childNodes[0]?.nodeName).toBe("SECTION");
+    expect(document.body.childNodes[0]?.nodeName).toBe("SECTION");
+    expect(container.childNodes).toHaveLength(0);
     expect(sessionValues).toEqual(new Map());
 
     await commit(() => {
