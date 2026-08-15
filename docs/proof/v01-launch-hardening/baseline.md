@@ -19,14 +19,15 @@ edited on another branch at the same time and are measure-only here).
 
 **Stated limitation.** No WebKit build is installed on this machine, so the
 iPhone pass runs the iPhone viewport, DPR, touch and user agent over Blink. It
-is a phone-shaped Chromium, not Safari. The one defect class that needed real
-Safari semantics — the form-zoom floor — is therefore held by a CSS fence
-(`__tests__/iosFormZoomFloor.test.ts`) rather than by a browser run, because no
-Chromium reproduces it.
+is a phone-shaped Chromium, not Safari. The iOS form-zoom floor was already
+enforced by the shared `!important` rule in `app/globals.css`; the measured
+sweep found zero controls below 16px, and `__tests__/iosFormZoomFloor.test.ts`
+now protects that existing global rule.
 
 **Noise.** One sample per route per device on a shared 8 GB machine with other
-agents running. Treat anything under about ±150 ms of FCP/LCP movement as
-noise. Only `/pubs` moved past it.
+agents running. Across the two tables, non-`/pubs` run-to-run movement reaches
+21 ms for TTFB, 336 ms for FCP and 384 ms for LCP. One sample cannot separate
+a regression from machine contention inside those observed spreads.
 
 ## Document metrics
 
@@ -97,15 +98,15 @@ of them was cached at the edge at all.
 
 ## Findings the fixes answer
 
-1. **No edge caching for any unhashed public asset.** Above.
+1. **No edge caching for most unhashed public assets.** The dataset was the
+   existing exception. Above.
 2. **`/pubs` re-parsed the 6.7 MB price dataset on every request.** It was the
    only launch surface whose server render was not a shell: 161-183 ms against
    about 10 ms everywhere else. `lib/venuePriceIndex.ts` already held exactly
    that grouping for every other surface.
-3. **Ten stylesheets put a focusable control under 16px.** iOS Safari zooms the
-   page in when such a control takes focus and never zooms back out on blur.
-   Six of the ten are on these surfaces; four belong to the lanes in flight and
-   are listed in the PR under "Handed to Codex loop".
+3. **The iOS form-zoom floor was already enforced globally.** The measured
+   sweep found zero controls below 16px, and the fence now protects the existing
+   shared `!important` rule.
 4. **Five control rows painted under the house 44px floor**, measured at 360,
    390 and 430: the Discover brand chips (35px), the Pubs jump chips (32px),
    the Find-your-lot invite link (16px), the About press-kit download links

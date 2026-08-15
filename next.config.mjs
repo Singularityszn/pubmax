@@ -115,19 +115,21 @@ const securityHeaders = [
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
 
-// WHAT AN UNHASHED PUBLIC ASSET MAY BE CACHED FOR. Everything under
-// /_next/static carries a content hash in its URL and Next already marks it
-// immutable. Everything in public/ does NOT: its URL is fixed, so `immutable`
-// would let a returning browser pin a retired icon or a retired boot script
-// across a deploy with no way to bust it. The deal is therefore the one the
-// price dataset already takes: a modest browser window, so a returning drinker
-// revalidates, and a year at the edge, which Vercel purges on every deploy —
-// so the CDN answers these from cache between deploys and a deploy still
-// reaches everybody. Not a guess: without a header of our own these files are
-// served `max-age=0, must-revalidate`, which is a conditional request per
-// asset per page view.
+// Public assets are classified by change rate. Class A is content-stable: a
+// replacement adds a new file instead of editing the old URL, so a full-year
+// immutable browser window is safe.
+const IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable";
+
+// Class B is edited in place. It takes a modest browser window and a year at
+// the edge, which Vercel purges on every deploy, so a retired mark, boot script
+// or dataset cannot stay pinned in a browser no deploy can reach.
 const UNHASHED_PUBLIC_ASSET_CACHE_CONTROL =
   "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800";
+
+// Class C is crawler-facing text edited in place. Browsers always revalidate;
+// the edge keeps a short window and may serve stale while it refreshes.
+const SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL =
+  "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
 
 // A worker script and the document it falls back to are the two files that may
 // never outlive the deploy that shipped them: a stale service worker keeps
@@ -306,10 +308,16 @@ const nextConfig = {
           { key: "Cache-Control", value: UNHASHED_PUBLIC_ASSET_CACHE_CONTROL },
         ],
       },
-      // The brand marks, the share card and the two render-blocking boot
-      // scripts are requested on EVERY page view and change only on a deploy.
-      // They took the default `max-age=0, must-revalidate`, so each one cost a
-      // conditional round trip per navigation. Same deal as the dataset above.
+      // Class A: stable typefaces, the vendored MapLibre copy, store art, the
+      // preloaded landing hero set and Night Signal art. These are replaced by
+      // adding a file, never by editing one in place.
+      cacheRule("/fonts/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/vendor/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/store-assets/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/landing/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/night-signals/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
+      // Class B: icons, brand marks, boot scripts, manifest and datasets are
+      // fixed URLs edited in place across deploys.
       cacheRule("/:icon(icon-.*\\.png)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/:icon(icon-.*\\.svg)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/:icon(apple-touch-icon.*\\.png)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
@@ -320,6 +328,8 @@ const nextConfig = {
       cacheRule("/brand/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/:boot(theme-init\\.js|splash-init\\.js)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/manifest.webmanifest", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      // Class C: llms.txt is edited in place and read by crawlers and agents.
+      cacheRule("/llms.txt", SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL),
       // Declared AFTER the asset rules on purpose: a later matching rule wins,
       // so a worker can never inherit the year-long edge window above.
       cacheRule("/:worker(sw\\.js|sw-plan-cache\\.js)", WORKER_CACHE_CONTROL),

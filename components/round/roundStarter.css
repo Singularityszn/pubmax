@@ -179,11 +179,3 @@
   color: var(--brass) !important;
   filter: none;
 }
-
-/* iOS Safari zoom floor (see app/globals.css). Coarse pointers only. */
-@media (pointer: coarse) {
-  .roundStarterRow input,
-  .roundStarter.compact .roundStarterRow input {
-    font-size: 16px;
-  }
-}

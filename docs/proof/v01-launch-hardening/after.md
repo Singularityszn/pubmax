@@ -43,10 +43,13 @@ A single figure means it did not move.
 | `/near` | 11 → 9 | 128 → 160 | 128 → 160 | 0 | 1909 | 55 |
 | `/tonight` | 7 → 8 | 160 → 124 | 480 → 292 | 0 | 1886 | 62 |
 
-**What actually moved.** `/pubs`: server render 183 → 58 ms on the iPhone
-profile and 161 → 35 ms on the Pixel one, with LCP following it down. Nothing
-else moved past the noise floor stated in the baseline, and no route got worse
-in bytes or requests: this pass added no JavaScript.
+**What this pass can claim.** `/pubs`: server render 183 → 58 ms on the iPhone
+profile and 161 → 35 ms on the Pixel one. Its TTFB movement is larger than the
+observed non-`/pubs` TTFB spread and has a direct mechanism: removal of the
+per-request 6.7 MB parse. Every other delta, including the Pixel `/about` rise,
+is inside the observed spread of this single-sample run and is unattributed,
+not reported as an improvement or regression. No route moved in bytes or
+requests because this pass added no JavaScript.
 
 **What is not in this table.** The caching, install and touch fixes below do
 not show up in a single cold loopback load by construction — an edge window is
@@ -60,6 +63,8 @@ Same `curl -I` against `next start`.
 
 | Path | Cache-Control |
 | --- | --- |
+| `/fonts/*`, `/vendor/*`, `/store-assets/*` | `public, max-age=31536000, immutable` |
+| `/landing/*`, `/night-signals/*` | same immutable class |
 | `/theme-init.js` | `public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800` |
 | `/splash-init.js` | same |
 | `/manifest.webmanifest` | same |
@@ -68,23 +73,25 @@ Same `curl -I` against `next start`.
 | `/icon-192.png`, `/icon-x-512.png` | same |
 | `/brand/*` | same |
 | `/data/*` | same (unchanged) |
+| `/llms.txt` | `public, max-age=0, s-maxage=3600, stale-while-revalidate=86400` |
 | `/sw.js` | `public, max-age=0, must-revalidate` |
 | `/sw-plan-cache.js` | `public, max-age=0, must-revalidate` |
 | `/offline.html` | `public, max-age=0, must-revalidate` |
 | `/og.png` | unchanged: it is a route and answers with its own header |
 
-The deal is deliberately asymmetric. A year at the EDGE, which Vercel purges on
-every deploy, and one hour in the BROWSER, which no deploy can reach — so
-`immutable` is refused outright for a file whose URL never changes. A worker
-and its offline document take neither, because a stale worker keeps answering
-from its own cache and a purge does not reach it.
+Caching follows change rate. Stable assets replaced by adding a file take a
+year-long immutable browser window. Fixed URLs edited in place take one hour in
+the browser and one year at the edge, which Vercel purges on deploy. `llms.txt`
+always revalidates in the browser and uses a short edge window. A worker and its
+offline document take neither, because a stale worker keeps answering from its
+own cache and a purge does not reach it.
 
 ## Executable contracts added
 
 | Contract | What it holds |
 | --- | --- |
-| `__tests__/publicAssetCaching.test.ts` | Every asset a page view asks for has an edge window; none is `immutable` or cached in a browser for over a day; every worker revalidates. Evaluates `next.config.mjs` the way Next does, so it also proves the config still runs. |
-| `__tests__/iosFormZoomFloor.test.ts` | Sweeps every stylesheet for a focusable control under 16px with no coarse-pointer override. Four files are named as a documented exception because another lane owns them; the list may only shrink, and a fixed file must leave it. |
+| `__tests__/publicAssetCaching.test.ts` | Evaluates `next.config.mjs`, keeps immutable, edited-in-place, crawler and worker classes separate, and classifies every shipped public file outside data. |
+| `__tests__/iosFormZoomFloor.test.ts` | The floor was already enforced globally and the measured sweep found zero controls below 16px; this fence protects the existing shared `!important` rule. |
 | `e2e/launch-phone-controls.spec.ts` | `/about`, `/discover`, `/pubs`, `/social`, `/login`, `/messages` at 360, 390 and 430 with touch emulation: no horizontal overflow, and every standalone control clears 44 × 24. A link flowing inside a sentence is exempt, by WCAG's own inline exception. |
 | `perf/route-budgets.json` | `/about` and `/pubs` join the enforced budget. `/pubs` is there so the per-request dataset parse cannot come back unnoticed. |
 

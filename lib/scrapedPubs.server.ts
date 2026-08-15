@@ -36,8 +36,13 @@ async function loadZonesById(): Promise<Map<string, number>> {
   return byId;
 }
 
+type ScrapedPubsRead = {
+  pubs: ScrapedPub[];
+  complete: boolean;
+};
+
 /** All scraped enrichment pubs, newest sources first within name sort. */
-async function readScrapedPubs(): Promise<ScrapedPub[]> {
+async function readScrapedPubs(): Promise<ScrapedPubsRead> {
   const [index, venues, zonesById] = await Promise.all([
     loadVenueMenuEnrichmentIndex(),
     // The SHARED priced-venue index rather than a second parse of the same
@@ -90,29 +95,32 @@ async function readScrapedPubs(): Promise<ScrapedPub[]> {
     return a.name.localeCompare(b.name);
   });
 
-  return pubs;
+  return {
+    pubs,
+    complete: index.size > 0 && venues.length > 0 && zonesById.size > 0,
+  };
 }
 
-// Every input above is a file bundled with the deployment, so the answer cannot
-// change between two requests to the same instance. /pubs is on the per-request
-// render path (the CSP nonce keeps every route dynamic), and the price read
-// alone is a 6.7 MB JSON.parse — so an unmemoized loader charged that parse to
-// every single view of the page, which measured as a ~170 ms server render
-// against a ~10 ms one everywhere else. Same shape as loadAboutStats(), which
-// solved the same problem for the landing figures: hold the PROMISE, not the
-// value, so concurrent first requests share one read instead of racing several,
-// and the large intermediates are collected once the small result is built.
+// Healthy inputs are bundled with the deployment and cannot change between two
+// requests to one instance. Hold the promise so concurrent first requests share
+// the 6.7 MB parse. A fail-soft read is incomplete and must leave the next
+// request free to retry its dependency.
 let cachedPubs: Promise<ScrapedPub[]> | null = null;
 
 /** All scraped enrichment pubs, read once per instance. */
 export function listScrapedPubs(): Promise<ScrapedPub[]> {
-  // A rejection must not be remembered: every read above is already fail-soft,
-  // so a throw here means something unexpected and the next request deserves a
-  // fresh attempt rather than a permanently empty page.
-  cachedPubs ??= readScrapedPubs().catch((error) => {
-    cachedPubs = null;
-    throw error;
-  });
-  return cachedPubs;
-}
+  if (cachedPubs) return cachedPubs;
 
+  const attempt = readScrapedPubs().then(
+    ({ pubs, complete }) => {
+      if (!complete) cachedPubs = null;
+      return pubs;
+    },
+    (error: unknown) => {
+      cachedPubs = null;
+      throw error;
+    },
+  );
+  cachedPubs = attempt;
+  return attempt;
+}

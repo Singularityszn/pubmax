@@ -96,10 +96,3 @@
   text-decoration: underline;
   cursor: pointer;
 }
-
-/* iOS Safari zoom floor (see app/globals.css). Coarse pointers only. */
-@media (pointer: coarse) {
-  .saveToListNew input {
-    font-size: 16px;
-  }
-}

@@ -1,33 +1,17 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-// WHAT A PUBLIC ASSET IS ALLOWED TO BE CACHED FOR.
-//
-// Everything under /_next/static carries a content hash in its URL, so Next
-// already serves it immutable and nothing here is about those. Everything in
-// public/ has a FIXED url instead: the brand marks, the share card, the two
-// render-blocking boot scripts in <head>, the manifest, the dataset. Without a
-// header of our own each of those is served `max-age=0, must-revalidate`,
-// which is a conditional round trip per asset per page view — and the boot
-// scripts are render-blocking, so that round trip sits in front of first
-// paint.
-//
-// TWO RULES, and they pull opposite ways, which is why they are pinned
-// together:
-//   1. an unhashed asset may be cached hard at the EDGE (Vercel purges the CDN
-//      on every deploy) and only modestly in the BROWSER, which no deploy can
-//      reach — so `immutable` is refused outright here. A pinned retired icon
-//      or a pinned retired boot script is a bug nobody can clear remotely.
-//   2. a service worker and its offline document may never outlive the deploy
-//      that shipped them, because a stale worker keeps answering from its OWN
-//      cache and a CDN purge does not reach it. They revalidate every time.
-//
-// The config is evaluated the way Next evaluates it (in Node) rather than read
-// as text, so this also proves the config still runs.
 const REPO_ROOT = join(__dirname, "..");
+const PUBLIC_DIR = join(REPO_ROOT, "public");
+
+const IMMUTABLE_CACHE = "public, max-age=31536000, immutable";
+const EDITED_IN_PLACE_CACHE =
+  "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800";
+const SHORT_EDGE_CACHE = "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
+const REVALIDATE_CACHE = "public, max-age=0, must-revalidate";
 
 type HeaderRule = { source: string; headers: Array<{ key: string; value: string }> };
 
@@ -48,114 +32,125 @@ function configHeaders(): HeaderRule[] {
 
 const rules = configHeaders();
 
-/** The Cache-Control the LAST matching rule sets, which is the one that wins. */
-function cacheControlFor(pathname: string): string | null {
-  let winner: string | null = null;
-  for (const rule of rules) {
-    if (!matches(rule.source, pathname)) continue;
-    const header = rule.headers.find((h) => h.key.toLowerCase() === "cache-control");
-    if (header) winner = header.value;
-  }
-  return winner;
-}
-
-/**
- * The subset of Next's `source` syntax these rules use: a `:name(regex)`
- * segment, a `:name*` catch-all, and literal text. Scanned token by token,
- * because escaping the literals after substituting the groups would escape the
- * groups' own regex too.
- */
 function matches(source: string, pathname: string): boolean {
   const token = /\/:[A-Za-z0-9_]+\*|:[A-Za-z0-9_]+\(((?:[^()]|\([^()]*\))*)\)/g;
   let pattern = "";
   let cursor = 0;
-  for (let m = token.exec(source); m; m = token.exec(source)) {
-    pattern += source.slice(cursor, m.index).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    pattern += m[0].endsWith("*") ? "(?:/.*)?" : `(?:${m[1]})`;
-    cursor = m.index + m[0].length;
+  for (let match = token.exec(source); match; match = token.exec(source)) {
+    pattern += source.slice(cursor, match.index).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    pattern += match[0].endsWith("*") ? "(?:/.*)?" : `(?:${match[1]})`;
+    cursor = match.index + match[0].length;
   }
   pattern += source.slice(cursor).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`^${pattern}$`).test(pathname);
 }
 
-const PUBLIC_DIR = join(REPO_ROOT, "public");
+function cacheControlFor(pathname: string): string | null {
+  let winner: string | null = null;
+  for (const rule of rules) {
+    if (!matches(rule.source, pathname)) continue;
+    const header = rule.headers.find(
+      (candidate) => candidate.key.toLowerCase() === "cache-control",
+    );
+    if (header) winner = header.value;
+  }
+  return winner;
+}
 
 function walk(dir: string, acc: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
-    if (entry.startsWith(".")) continue;
+    if (entry === ".DS_Store") continue;
     const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      // The dataset has its own long-standing rule and its own reasoning.
-      if (relative(PUBLIC_DIR, full) === "data") continue;
-      walk(full, acc);
-    } else {
-      acc.push(`/${relative(PUBLIC_DIR, full)}`);
-    }
+    if (statSync(full).isDirectory()) walk(full, acc);
+    else acc.push(`/${relative(PUBLIC_DIR, full).split(sep).join("/")}`);
   }
   return acc;
 }
 
 const publicFiles = walk(PUBLIC_DIR);
+const filesOutsideData = publicFiles.filter((file) => !file.startsWith("/data/"));
 
-/** Requested on essentially every page view, so a round trip each is a bill. */
-const EVERY_PAGE_VIEW = [
-  "/theme-init.js",
-  "/splash-init.js",
-  "/manifest.webmanifest",
-  "/favicon.ico",
-  "/apple-touch-icon-v2.png",
-  "/icon-192.png",
-  "/icon-512.png",
+const CLASS_A_PREFIXES = [
+  "/fonts/",
+  "/vendor/",
+  "/store-assets/",
+  "/landing/",
+  "/night-signals/",
 ];
+const CLASS_A_PROBES = [
+  "/fonts/example.woff2",
+  "/vendor/example.js",
+  "/store-assets/example.svg",
+  "/landing/example.avif",
+  "/night-signals/example.svg",
+];
+const CLASS_A = filesOutsideData.filter((file) =>
+  CLASS_A_PREFIXES.some((prefix) => file.startsWith(prefix)),
+);
 
-/** Must never outlive its deploy. */
+const CLASS_B = filesOutsideData.filter(
+  (file) =>
+    file.startsWith("/brand/") ||
+    /^\/(?:icon-|apple-touch-icon|favicon)/.test(file) ||
+    ["/theme-init.js", "/splash-init.js", "/manifest.webmanifest"].includes(file),
+);
+
+const CLASS_C = ["/llms.txt"];
 const WORKERS = ["/sw.js", "/sw-plan-cache.js", "/offline.html"];
 
-const MAX_BROWSER_SECONDS = 24 * 60 * 60;
-
-function directive(value: string, name: string): number | null {
-  const match = new RegExp(`(?:^|,)\\s*${name}=(\\d+)`).exec(value);
-  return match ? Number(match[1]) : null;
-}
+const DELIBERATE_OMISSIONS = new Map([
+  [
+    "/.well-known/apple-app-site-association",
+    "Apple universal-link metadata keeps platform-controlled revalidation semantics.",
+  ],
+]);
 
 describe("public asset caching", () => {
-  it("caches the assets every page view asks for", () => {
-    for (const file of EVERY_PAGE_VIEW) {
-      const value = cacheControlFor(file);
-      expect(value, `${file} must declare a Cache-Control`).toBeTruthy();
-      expect(directive(value ?? "", "s-maxage"), `${file} needs an edge window`).toBeGreaterThan(
-        MAX_BROWSER_SECONDS,
-      );
+  it("gives content-stable assets the immutable class", () => {
+    expect(CLASS_A.length).toBeGreaterThan(0);
+    for (const file of [...CLASS_A, ...CLASS_A_PROBES]) {
+      expect(cacheControlFor(file), file).toBe(IMMUTABLE_CACHE);
     }
   });
 
-  it("never pins an unhashed asset in a browser it cannot reach", () => {
-    for (const file of [...EVERY_PAGE_VIEW, "/data/venues_slim.json"]) {
-      const value = cacheControlFor(file) ?? "";
-      expect(value, `${file} must not be immutable`).not.toMatch(/immutable/);
-      const browser = directive(value, "max-age");
-      expect(browser, `${file} needs a browser window`).not.toBeNull();
-      expect(browser ?? Infinity).toBeLessThanOrEqual(MAX_BROWSER_SECONDS);
+  it("gives files edited in place a short browser and long edge window", () => {
+    expect(cacheControlFor("/data/venues_slim.json")).toBe(EDITED_IN_PLACE_CACHE);
+    for (const file of CLASS_B) expect(cacheControlFor(file), file).toBe(EDITED_IN_PLACE_CACHE);
+  });
+
+  it("keeps crawler text revalidating in the browser", () => {
+    for (const file of CLASS_C) expect(cacheControlFor(file), file).toBe(SHORT_EDGE_CACHE);
+  });
+
+  it("keeps workers and their offline document revalidating", () => {
+    for (const file of WORKERS) expect(cacheControlFor(file), file).toBe(REVALIDATE_CACHE);
+  });
+
+  it("never marks an edited-in-place or crawler asset immutable", () => {
+    for (const file of [...CLASS_B, ...CLASS_C, "/data/venues_slim.json"]) {
+      expect(cacheControlFor(file) ?? "", file).not.toContain("immutable");
     }
   });
 
-  it("keeps every worker and its offline document revalidating", () => {
-    for (const file of WORKERS) {
-      const value = cacheControlFor(file) ?? "";
-      expect(`${file}: ${value}`).toBe(`${file}: public, max-age=0, must-revalidate`);
+  it("classifies every shipped public file outside data", () => {
+    const classes = [CLASS_A, CLASS_B, CLASS_C, WORKERS];
+    for (const file of filesOutsideData) {
+      const memberships = classes.filter((assetClass) => assetClass.includes(file)).length;
+      if (DELIBERATE_OMISSIONS.has(file)) {
+        expect(memberships, `${file}: ${DELIBERATE_OMISSIONS.get(file)}`).toBe(0);
+      } else {
+        expect(memberships, `${file} must belong to exactly one cache class`).toBe(1);
+      }
+    }
+    for (const [file, reason] of DELIBERATE_OMISSIONS) {
+      expect(reason.trim().length, `${file} needs an omission reason`).toBeGreaterThan(0);
+      expect(filesOutsideData, `${file} is no longer shipped`).toContain(file);
     }
   });
 
-  it("names only files that are really shipped", () => {
-    const shipped = new Set(publicFiles);
-    for (const file of [...EVERY_PAGE_VIEW, ...WORKERS]) {
-      expect(shipped.has(file), `${file} is not in public/`).toBe(true);
-    }
-  });
-
-  it("leaves the security headers on every path", () => {
+  it("leaves security headers on every path", () => {
     const everywhere = rules.filter((rule) => rule.source === "/:path*");
-    const keys = everywhere.flatMap((rule) => rule.headers.map((h) => h.key));
+    const keys = everywhere.flatMap((rule) => rule.headers.map((header) => header.key));
     expect(keys).toContain("Strict-Transport-Security");
     expect(keys).toContain("X-Content-Type-Options");
   });

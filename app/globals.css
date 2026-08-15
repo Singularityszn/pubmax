@@ -1323,20 +1323,6 @@ input[type="range"] {
   min-width: 168px;
 }
 
-/* iOS Safari zooms the whole page when a focused form control's font-size is
-   under 16px, and it never zooms back out on blur: the drinker is left on a
-   magnified page with the chrome off screen. The floor is a TOUCH rule, so it
-   is scoped to coarse pointers and desktop density is untouched. It is stated
-   next to the rule it raises, at equal specificity and after it, because a
-   bare-element rule in this file would lose to every component selector.
-   __tests__/iosFormZoomFloor.test.ts sweeps the tree for a control under the
-   floor with no such override. */
-@media (pointer: coarse) {
-  .mapToolbarSearch input {
-    font-size: 16px;
-  }
-}
-
 .mapToolbarClear {
   display: inline-flex;
   align-items: center;
