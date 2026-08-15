@@ -500,6 +500,16 @@ select {
   font: inherit;
 }
 
+:where(input, textarea, select) {
+  /* iOS zooms text controls below 16px. Keep this floor shared so route
+     styles cannot make one mobile form behave differently from another.
+     `!important` is load-bearing: this selector has zero specificity, so a
+     single component rule would otherwise win and that one surface would zoom
+     again. Restored after #1049 deleted it; __tests__/iosFormZoomFloor.test.ts
+     is the fence. */
+  font-size: max(16px, 1em) !important;
+}
+
 button {
   cursor: pointer;
 }
@@ -1315,14 +1325,6 @@ input[type="range"] {
   color: var(--ink);
   font-size: 0.85rem;
   min-width: 168px;
-}
-
-/* iOS Safari zooms focused controls below 16px. Keep desktop density and
-   raise this component selector only for coarse pointers. */
-@media (pointer: coarse) {
-  .mapToolbarSearch input {
-    font-size: 16px;
-  }
 }
 
 .mapToolbarClear {

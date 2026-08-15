@@ -96,10 +96,3 @@
   text-decoration: underline;
   cursor: pointer;
 }
-
-/* iOS Safari form-focus zoom floor. Desktop density stays unchanged. */
-@media (pointer: coarse) {
-  .saveToListNew input {
-    font-size: 16px;
-  }
-}

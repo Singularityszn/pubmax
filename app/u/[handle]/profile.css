@@ -2332,14 +2332,3 @@
   font-size: 12px;
   line-height: 1.5;
 }
-
-/* iOS Safari form-focus zoom floor. Desktop density stays unchanged. */
-@media (pointer: coarse) {
-  .profilePage .profileEditor input,
-  .profilePage .profileEditor textarea,
-  .memoryMomentAlt textarea,
-  .profilePage .socialLinksField select,
-  .profilePage .socialLinksField input {
-    font-size: 16px;
-  }
-}
