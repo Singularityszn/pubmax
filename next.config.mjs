@@ -115,21 +115,14 @@ const securityHeaders = [
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
 
-// Public assets are classified by change rate, not by how static a directory
-// looks. Class A is content-stable: a replacement adds a new file instead of
-// editing the old URL, so a full-year immutable browser window is safe.
-const IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable";
-
-// Class B is edited in place. Any file a build rewrites belongs here even when
-// its contents look static. It takes a modest browser window and a year at the
-// edge, which Vercel purges on every deploy, so a retired mark, worker module,
-// generated asset or dataset cannot stay pinned in a browser no deploy can
-// reach.
+// Every public asset has a fixed URL. Give it a modest browser window and a
+// year at the edge, which Vercel purges on every deploy, so a changed asset
+// cannot stay pinned in a browser no deploy can reach.
 const UNHASHED_PUBLIC_ASSET_CACHE_CONTROL =
   "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800";
 
-// Class C is crawler-facing text edited in place. Browsers always revalidate;
-// the edge keeps a short window and may serve stale while it refreshes.
+// Crawler and platform metadata always revalidate in browsers. The edge keeps
+// a short window and may serve stale while it refreshes.
 const SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL =
   "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
 
@@ -282,15 +275,9 @@ const nextConfig = {
         headers: [{ key: "x-last-orders", value: "23:00" }],
       },
       {
-        // Public asset caching follows change rate. The earlier blanket
-        // no-immutable rule was narrowed on purpose. Class A is immutable only
-        // for files replaced by adding a new path: /fonts, landing images and
-        // /night-signals. Class B gives one browser hour, one edge year and
-        // stale-while-revalidate to fixed URLs changed in place: icons, /brand,
-        // boot scripts, manifest, /data, /vendor, /store-assets and
-        // /landing/ATTRIBUTION.md. Class C always revalidates in browsers and
-        // uses a short edge window for /llms.txt and Apple association metadata.
-        // Workers and offline.html always revalidate; /og.png keeps the header
+        // Fixed-URL public assets take one browser hour, one edge year and
+        // stale-while-revalidate. Crawler metadata uses a short edge window.
+        // Workers and offline.html always revalidate. /og.png keeps the header
         // set by its route.
         //
         // The Apple universal-links manifest has no extension, so Next would
@@ -333,11 +320,8 @@ const nextConfig = {
       cacheRule("/brand/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/:boot(theme-init\\.js|splash-init\\.js)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/manifest.webmanifest", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
-      cacheRule("/fonts/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
-      cacheRule("/landing/:image(.*\\.avif)", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
-      cacheRule("/landing/:image(.*\\.webp)", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
-      cacheRule("/landing/:image(.*\\.jpg)", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
-      cacheRule("/night-signals/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/fonts/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/night-signals/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/llms.txt", SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL),
       // Declared AFTER the asset rules on purpose: a later matching rule wins,
       // so a worker can never inherit the year-long edge window above.

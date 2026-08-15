@@ -63,8 +63,7 @@ Same `curl -I` against `next start`.
 
 | Path | Cache-Control |
 | --- | --- |
-| `/fonts/*`, `/landing/*.{avif,webp,jpg}`, `/night-signals/*` | `public, max-age=31536000, immutable` |
-| `/landing/ATTRIBUTION.md` | `public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800` |
+| `/fonts/*`, `/landing/*`, `/night-signals/*` | `public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800` |
 | `/vendor/*`, `/store-assets/*` | `public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800` |
 | `/theme-init.js` | `public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800` |
 | `/splash-init.js` | same |
@@ -81,23 +80,18 @@ Same `curl -I` against `next start`.
 | `/offline.html` | `public, max-age=0, must-revalidate` |
 | `/og.png` | unchanged: it is a route and answers with its own header |
 
-The earlier blanket no-immutable policy was narrowed on purpose when the
-supervisor required classification by change rate. Class A is immutable only
-for files replaced by adding a new path: `/fonts`, landing images and
-`/night-signals`. Class B gives one browser hour and one edge year to fixed URLs
-changed in place: icons, `/brand`, both boot scripts, the manifest, `/data`,
-`/vendor`, `/store-assets` and landing attribution. Class C always revalidates
-in browsers and uses a short edge window for `/llms.txt` and Apple association
-metadata. Vercel purges the edge cache on every deploy. The service workers and
-`offline.html` always revalidate, while `/og.png` keeps the header set by its
-route.
+Every fixed-URL public asset gets one browser hour and one edge year. Vercel
+purges the edge cache on every deploy, but no deploy can clear a browser's
+immutable window. Crawler and platform metadata always revalidate in browsers
+and use a short edge window. Service workers and `offline.html` always
+revalidate, while `/og.png` keeps the header set by its route.
 
 ## Executable contracts added
 
 | Contract | What it holds |
 | --- | --- |
-| `__tests__/publicAssetCaching.test.ts` | Evaluates `next.config.mjs`, keeps immutable, edited-in-place, short-edge metadata and worker classes separate, classifies every shipped public file outside data, and refuses immutable caching for text or build-written fixed URLs. |
-| `__tests__/iosFormZoomFloor.test.ts` | The floor was already enforced globally and the measured sweep found zero controls below 16px; this fence protects the shared `!important` rule, its phone-reachable media context, and the absence of a lower important override in every shipped stylesheet. |
+| `__tests__/publicAssetCaching.test.ts` | Evaluates `next.config.mjs`, separates fixed URLs, short-edge metadata and workers, classifies every shipped public file outside data, and refuses immutable caching for all fixed URLs. |
+| `__tests__/iosFormZoomFloor.test.ts` | Sweeps shipped stylesheets for sub-16px form controls without a later, equal-selector coarse-pointer floor. Four files remain on the other lane's shrink-only handoff list. |
 | `e2e/launch-phone-controls.spec.ts` | `/about`, `/discover`, `/pubs`, `/social`, `/login`, `/messages` at 360, 390 and 430 with touch emulation: every fixed control row must render and clear 44 × 24, the generic sweep catches other small controls, and no route overflows horizontally. A link flowing inside a sentence is exempt, by WCAG's own inline exception. |
 | `perf/route-budgets.json` | `/about` and `/pubs` join the enforced budget. `/pubs` is there so the per-request dataset parse cannot come back unnoticed. |
 

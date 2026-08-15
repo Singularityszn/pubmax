@@ -7,7 +7,6 @@ import { describe, expect, it } from "vitest";
 const REPO_ROOT = join(__dirname, "..");
 const PUBLIC_DIR = join(REPO_ROOT, "public");
 
-const IMMUTABLE_CACHE = "public, max-age=31536000, immutable";
 const EDITED_IN_PLACE_CACHE =
   "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800";
 const SHORT_EDGE_CACHE = "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
@@ -71,18 +70,18 @@ const publicFiles = walk(PUBLIC_DIR);
 const filesOutsideData = publicFiles.filter((file) => !file.startsWith("/data/"));
 
 const LANDING_IMAGE_PATTERN = /\.(?:avif|webp|jpg)$/i;
-const CLASS_A_PREFIXES = ["/fonts/", "/night-signals/"];
-const CLASS_A_PROBES = [
+const FIXED_ASSET_PREFIXES = ["/fonts/", "/night-signals/"];
+const FIXED_ASSET_PROBES = [
   "/fonts/example.woff2",
   "/landing/hero-thames-1600.avif",
   "/night-signals/example.svg",
 ];
-const CLASS_A = filesOutsideData.filter((file) =>
-  CLASS_A_PREFIXES.some((prefix) => file.startsWith(prefix)) ||
+const FIXED_ASSETS = filesOutsideData.filter((file) =>
+  FIXED_ASSET_PREFIXES.some((prefix) => file.startsWith(prefix)) ||
   (file.startsWith("/landing/") && LANDING_IMAGE_PATTERN.test(file)),
 );
 
-const CLASS_B = filesOutsideData.filter(
+const EDITED_IN_PLACE_ASSETS = filesOutsideData.filter(
   (file) =>
     (file.startsWith("/landing/") && !LANDING_IMAGE_PATTERN.test(file)) ||
     file.startsWith("/vendor/") ||
@@ -92,7 +91,7 @@ const CLASS_B = filesOutsideData.filter(
     ["/theme-init.js", "/splash-init.js", "/manifest.webmanifest"].includes(file),
 );
 
-const CLASS_C = ["/llms.txt", "/.well-known/apple-app-site-association"];
+const REVALIDATING_METADATA = ["/llms.txt", "/.well-known/apple-app-site-association"];
 const WORKERS = ["/sw.js", "/sw-plan-cache.js", "/offline.html"];
 
 const BUILD_WRITTEN_FIXED_URLS = [
@@ -111,35 +110,39 @@ const BUILD_WRITTEN_FIXED_URLS = [
 const DELIBERATE_OMISSIONS = new Map<string, string>();
 
 describe("public asset caching", () => {
-  it("gives content-stable assets the immutable class", () => {
-    expect(CLASS_A.length).toBeGreaterThan(0);
-    for (const file of [...CLASS_A, ...CLASS_A_PROBES]) {
-      expect(cacheControlFor(file), file).toBe(IMMUTABLE_CACHE);
+  it("keeps fixed-URL assets reachable after a deploy", () => {
+    expect(FIXED_ASSETS.length).toBeGreaterThan(0);
+    for (const file of [...FIXED_ASSETS, ...FIXED_ASSET_PROBES]) {
+      expect(cacheControlFor(file), file).toBe(EDITED_IN_PLACE_CACHE);
     }
   });
 
   it("gives files edited in place a short browser and long edge window", () => {
     expect(cacheControlFor("/data/venues_slim.json")).toBe(EDITED_IN_PLACE_CACHE);
-    for (const file of CLASS_B) expect(cacheControlFor(file), file).toBe(EDITED_IN_PLACE_CACHE);
+    for (const file of EDITED_IN_PLACE_ASSETS) {
+      expect(cacheControlFor(file), file).toBe(EDITED_IN_PLACE_CACHE);
+    }
   });
 
   it("keeps crawler and platform metadata revalidating in the browser", () => {
-    for (const file of CLASS_C) expect(cacheControlFor(file), file).toBe(SHORT_EDGE_CACHE);
+    for (const file of REVALIDATING_METADATA) {
+      expect(cacheControlFor(file), file).toBe(SHORT_EDGE_CACHE);
+    }
   });
 
   it("keeps workers and their offline document revalidating", () => {
     for (const file of WORKERS) expect(cacheControlFor(file), file).toBe(REVALIDATE_CACHE);
   });
 
-  it("never marks an edited-in-place or crawler asset immutable", () => {
-    for (const file of [...CLASS_B, ...CLASS_C, "/data/venues_slim.json"]) {
+  it("never marks a fixed-URL public asset immutable", () => {
+    for (const file of [...publicFiles, "/data/venues_slim.json"]) {
       expect(cacheControlFor(file) ?? "", file).not.toContain("immutable");
     }
   });
 
-  it("keeps public text mutable while landing images stay immutable", () => {
+  it("gives landing text and images the same reachable browser window", () => {
     expect(cacheControlFor("/landing/ATTRIBUTION.md")).toBe(EDITED_IN_PLACE_CACHE);
-    expect(cacheControlFor("/landing/hero-thames-1600.avif")).toBe(IMMUTABLE_CACHE);
+    expect(cacheControlFor("/landing/hero-thames-1600.avif")).toBe(EDITED_IN_PLACE_CACHE);
 
     const textFiles = publicFiles.filter((file) => /\.(?:md|txt)$/i.test(file));
     for (const file of textFiles) {
@@ -162,7 +165,12 @@ describe("public asset caching", () => {
   });
 
   it("classifies every shipped public file outside data", () => {
-    const classes = [CLASS_A, CLASS_B, CLASS_C, WORKERS];
+    const classes = [
+      FIXED_ASSETS,
+      EDITED_IN_PLACE_ASSETS,
+      REVALIDATING_METADATA,
+      WORKERS,
+    ];
     for (const file of filesOutsideData) {
       const memberships = classes.filter((assetClass) => assetClass.includes(file)).length;
       if (DELIBERATE_OMISSIONS.has(file)) {

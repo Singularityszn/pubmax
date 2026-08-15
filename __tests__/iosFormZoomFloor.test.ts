@@ -5,25 +5,15 @@ import postcss, { type Container } from "postcss";
 import { describe, expect, it } from "vitest";
 
 // Mobile Safari owns form-focus zoom, so Chromium cannot supply computed-style
-// evidence for that browser behavior. Six branch-local coarse-pointer floors
-// and the four-file pending list were removed because app/globals.css already
-// ships one important floor, and the measured route sweep found zero controls
-// below 16px. Nothing remains on a pending handoff list. This fence guards that
-// one rule and rejects any shipped component rule it can identify as targeting
-// a control. Sub-16px non-important declarations remain valid because the
-// shared important floor overrides them. This is a static reader of shipped
-// CSS, not a CSS engine: it does not resolve custom properties, evaluate
-// calc(), model which rule wins across files, or know that a class-only selector
-// lands on a control. That class-only blind spot is known and accepted here;
-// e2e/launch-phone-controls.spec.ts complements this fence by checking computed
-// control sizes on every rendered launch surface. This static half remains
-// conservative and refuses any important size it can see but cannot prove has a
-// lower bound of at least 16px.
+// evidence for that browser behavior. A sub-16px component selector needs an
+// equal-specificity floor later in the same stylesheet and inside a coarse-
+// pointer media query. A global element rule cannot replace that contract: it
+// either loses the cascade or changes desktop density. Four files belong to a
+// concurrent lane and stay on a shrink-only handoff list.
 const FLOOR_PX = 16;
 const PHONE_WIDTHS_PX = [360, 390, 430];
 const CONTROL_ELEMENTS = ["input", "textarea", "select"];
 const REPO_ROOT = join(__dirname, "..");
-const GLOBAL_CSS = readFileSync(join(REPO_ROOT, "app", "globals.css"), "utf8");
 
 type Declaration = {
   property: string;
@@ -450,6 +440,51 @@ const SHIPPED_STYLESHEETS = ["app", "components"].flatMap((dir) =>
   walkStylesheets(join(REPO_ROOT, dir)),
 );
 
+const PENDING_TOUCH_FLOOR = new Set([
+  "app/plan/plan.css",
+  "components/map/mapSearchSuggest.css",
+  "components/map/mapToolbar.css",
+  "components/map/personaLens.css",
+]);
+
+function effectiveFontSizePx(rule: CssRule): number | null {
+  const declarations = rule.declarations.filter(
+    (candidate) => candidate.property === "font-size" || candidate.property === "font",
+  );
+  const declaration = declarations.at(-1);
+  if (!declaration) return null;
+  const proof =
+    declaration.property === "font"
+      ? fontShorthandSize(declaration.value)
+      : lengthLowerBound(declaration.value);
+  return proof.resolved ? proof.px : null;
+}
+
+function isCoarsePointerRule(rule: CssRule): boolean {
+  return rule.conditions.some(
+    (condition) =>
+      condition.startsWith("@media ") && /\((?:any-)?pointer\s*:\s*coarse\)/i.test(condition),
+  );
+}
+
+function uncoveredTouchFloorSelectors(css: string): string[] {
+  const parsed = parseCssRules(css);
+  return parsed.flatMap((rule, ruleIndex) => {
+    const size = effectiveFontSizePx(rule);
+    if (size === null || size >= FLOOR_PX || isCoarsePointerRule(rule)) return [];
+
+    return rule.selectors.filter((selector) => {
+      if (!selectorTargetsControl(selector)) return false;
+      return !parsed.slice(ruleIndex + 1).some(
+        (candidate) =>
+          isCoarsePointerRule(candidate) &&
+          candidate.selectors.includes(selector) &&
+          (effectiveFontSizePx(candidate) ?? -Infinity) >= FLOOR_PX,
+      );
+    });
+  });
+}
+
 describe("iOS form-zoom floor", () => {
   it("rejects a shared floor that only applies to desktop pointers", () => {
     const css = `
@@ -536,27 +571,25 @@ describe("iOS form-zoom floor", () => {
     expect(importantControlConflicts(css, "fixture.css")).toHaveLength(refused ? 1 : 0);
   });
 
-  it("keeps every form control on the shared important 16px floor", () => {
-    const rules = parseCssRules(GLOBAL_CSS);
-    const candidates = rules.filter(targetsEveryControl);
-    const floorRule = phoneReachableFloor(rules);
-    const fontSize = floorRule?.declarations.find(
-      (declaration) => declaration.property === "font-size",
-    );
+  it("keeps each sub-16px control floor beside its component rule", () => {
+    const unresolved = SHIPPED_STYLESHEETS.flatMap((file) => {
+      const path = relative(REPO_ROOT, file).split(sep).join("/");
+      const selectors = [...new Set(uncoveredTouchFloorSelectors(readFileSync(file, "utf8")))];
+      if (PENDING_TOUCH_FLOOR.has(path)) {
+        expect(selectors.length, `${path} no longer needs its pending handoff`).toBeGreaterThan(0);
+        return [];
+      }
+      return selectors.map((selector) => `${path}: ${selector}`);
+    });
 
-    expect(
-      floorRule,
-      candidates.length === 0
-        ? "app/globals.css must define the shared control floor"
-        : `shared control floor is outside phone conditions: ${candidates
-            .flatMap((rule) => rule.conditions)
-            .join("; ")}`,
-    ).toBeDefined();
-    expect(fontSize?.important, "component rules must not override the shared floor").toBe(true);
-    expect(
-      minimumPx(fontSize?.value ?? ""),
-      "floor must include a pixel minimum",
-    ).toBeGreaterThanOrEqual(FLOOR_PX);
+    expect(unresolved).toEqual([]);
+  });
+
+  it("names only shipped stylesheets in the pending handoff", () => {
+    const shipped = new Set(
+      SHIPPED_STYLESHEETS.map((file) => relative(REPO_ROOT, file).split(sep).join("/")),
+    );
+    for (const path of PENDING_TOUCH_FLOOR) expect(shipped.has(path), path).toBe(true);
   });
 
   it("keeps shipped important component rules from undercutting the floor", () => {
