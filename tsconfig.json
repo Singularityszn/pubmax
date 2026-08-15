@@ -37,7 +37,9 @@
     ".next-prod/types/**/*.ts",
     ".next-prod/dev/types/**/*.ts",
     ".next-mobile-qa/types/**/*.ts",
-    ".next-mobile-qa/dev/types/**/*.ts"
+    ".next-mobile-qa/dev/types/**/*.ts",
+    ".next-ab-after/types/**/*.ts",
+    ".next-ab-after/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
