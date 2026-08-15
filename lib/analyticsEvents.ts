@@ -84,7 +84,6 @@ export const ANALYTICS_EVENTS = {
   // device is the most identifying pair this app could record.
   account_switched: [],
   check_in_created: [],
-  email_subscribed: [],
   night_moment_saved: ["kind", "visibility"],
   night_memory_created: ["source"],
   night_story_published: ["contributors", "moments"],

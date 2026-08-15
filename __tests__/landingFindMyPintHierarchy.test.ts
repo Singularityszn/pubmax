@@ -1,11 +1,33 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-// L19 — Landing Find my pint hierarchy (flag-gated).
-// Source + CSS locks: flag-off path keeps the shipped three-button hero;
-// flag-on demotes Map/Plan to text; Pint Drop 8s fail-soft is untouched.
+vi.mock("next/dynamic", () => ({
+  default: () => () => null,
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ prefetch: () => Promise.resolve() }),
+}));
+vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
+vi.mock("@/components/city/CityChooser", () => ({ default: () => null }));
+vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
+vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
+vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
+vi.mock("@/components/landing/ThamesHero", () => ({ default: () => null }));
+vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+vi.mock("@/lib/cityPreference", () => ({
+  preferredCityMapHref: () => "/choose-city",
+  readPreferredCity: () => null,
+  subscribePreferredCity: () => () => {},
+}));
+
+import LandingPage from "@/components/landing/LandingPage";
+
+// One primary action is permanent; Map and Plan stay visible as text links.
 
 const landingTsx = readFileSync(
   join(process.cwd(), "components/landing/LandingPage.tsx"),
@@ -21,60 +43,53 @@ const pintDropStrip = readFileSync(
   "utf8",
 );
 
-describe("L19 landing Find my pint hierarchy", () => {
-  it("reads the flag only on the landing RSC and threads it as a prop", () => {
-    expect(pageTsx).toMatch(/readTrustedHandoffFlags/);
-    expect(pageTsx).toMatch(/trustedHandoffFlags\.server/);
-    expect(pageTsx).toMatch(/landingFindMyPint=\{landingFindMyPint\}/);
-    // Client must not interpret the env itself.
+describe("landing Find my pint hierarchy", () => {
+  it("keeps the hierarchy permanent without a landing flag", () => {
+    expect(pageTsx).not.toMatch(/readTrustedHandoffFlags/);
+    expect(pageTsx).not.toMatch(/landingFindMyPint/);
+    expect(landingTsx).not.toMatch(/landingFindMyPint/);
+    // The client landing component reads no environment at all, whatever a
+    // future flag is called. Kept from the flag era on purpose.
     expect(landingTsx).not.toMatch(/process\.env/);
     expect(landingTsx).not.toMatch(/PUBMAX_LANDING_FIND_MY_PINT/);
   });
 
-  it("flag-off snapshot: map-first hero, Open the map primary, Find my pint and Plan secondary", () => {
-    // Wave 0: flag-off default primary is Open the map, no geolocation gate.
-    expect(landingTsx).toMatch(/lpHeroActions--mapFirst/);
-    expect(landingTsx).toMatch(/lp--mapFirst/);
-    const mapFirstBlock = landingTsx.match(
-      /lpHeroActions--mapFirst[\s\S]*?lpHeroSecondaryRow[\s\S]*?<\/div>\s*<\/div>/,
-    )?.[0];
-    expect(mapFirstBlock, "flag-off map-first branch present").toBeTruthy();
-    // Primary is Open the map, via primaryCtaHref (city-aware, no geo gate).
-    // Attributes may span multiple JSX lines, so allow whitespace between them.
+  it("uses Find my pint as the only primary action", () => {
     expect(landingTsx).toMatch(
-      /className="lpButton lpButtonPrimary"[\s\S]*?href=\{primaryCtaHref\}[\s\S]*Open the map/,
+      /className="lpButton lpButtonPrimary"[\s\S]*?href="\/near\?locate=1"[\s\S]*?Find my pint/,
     );
-    // Find my pint and Plan with friends are demoted to secondary text links.
-    expect(mapFirstBlock).toMatch(/lpTextLink/);
-    expect(mapFirstBlock).toMatch(/Find my pint/);
-    expect(mapFirstBlock).toMatch(/Plan with friends/);
-    expect(mapFirstBlock).not.toMatch(/lpButtonQuiet/);
-    // Final CTA still opens the map when the flag is off.
-    expect(landingTsx).toMatch(
-      /primaryCtaHref[\s\S]*lpButtonPrimary[\s\S]*Open the map/,
-    );
+    expect(landingTsx).not.toMatch(/lpHeroActions--mapFirst/);
+    expect(landingTsx).not.toMatch(/lpHeroActions--findMyPint/);
   });
 
-  it("flag-on: one primary action; Map and Plan stay visible as lower-weight text", () => {
-    expect(landingTsx).toMatch(/lpHeroActions--findMyPint/);
-    expect(landingTsx).toMatch(/lpHeroSecondaryRow/);
-    expect(landingTsx).toMatch(/lp--findMyPint/);
-    // Secondary row uses text links, not quiet buttons.
-    const secondaryBlock = landingTsx.match(
-      /lpHeroActions--findMyPint[\s\S]*?lpHeroSecondaryRow[\s\S]*?<\/div>\s*<\/div>/,
+  it("asks for location only from the two deliberate CTAs, never the footer", () => {
+    const rendered = renderToStaticMarkup(createElement(LandingPage));
+    const footerNav = rendered.match(
+      /<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/,
     )?.[0];
-    expect(secondaryBlock, "flag-on secondary branch present").toBeTruthy();
+    expect(footerNav, "footer nav present").toBeTruthy();
+    expect(footerNav).toMatch(/href="\/near"/);
+    expect(footerNav).not.toMatch(/locate=1/);
+    expect(rendered.match(/href="\/near\?locate=1"/g)).toHaveLength(2);
+  });
+
+  it("keeps Map and Plan visible as lower-weight text links", () => {
+    expect(landingTsx).toMatch(/className="lpHeroActions"/);
+    expect(landingTsx).toMatch(/lpHeroSecondaryRow/);
+    const secondaryBlock = landingTsx.match(
+      /className="lpHeroActions"[\s\S]*?lpHeroSecondaryRow[\s\S]*?<\/div>\s*<\/div>/,
+    )?.[0];
+    expect(secondaryBlock, "secondary action row present").toBeTruthy();
     expect(secondaryBlock).toMatch(/lpTextLink/);
     expect(secondaryBlock).toMatch(/Open the map/);
     expect(secondaryBlock).toMatch(/Plan with friends/);
     expect(secondaryBlock).not.toMatch(/lpButtonQuiet/);
-    // Map + Plan never hidden.
     expect(landingTsx).toMatch(/href=\{primaryCtaHref\}[\s\S]*Open the map/);
     expect(landingTsx).toMatch(/href="\/plan"[\s\S]*Plan with friends/);
   });
 
   it("CSS scopes dominant primary and high-contrast secondary text", () => {
-    expect(landingCss).toMatch(/\.lpHeroActions--findMyPint\s*\{/);
+    expect(landingCss).toMatch(/\.lpHeroActions\s*\{/);
     expect(landingCss).toMatch(/\.lpHeroSecondaryRow\s*\{/);
     expect(landingCss).toMatch(
       /\.lpHeroSecondaryRow \.lpTextLink\s*\{[\s\S]*?color:\s*var\(--ink\)/,
@@ -82,9 +97,9 @@ describe("L19 landing Find my pint hierarchy", () => {
     expect(landingCss).toMatch(
       /\.lpButtonPrimary\s*\{[\s\S]*?color:\s*var\(--color-on-accent\)/,
     );
-    // Mobile: no equal-weight Map/Plan button pair under the flag-on stack.
+    // Mobile: no equal-weight Map/Plan button pair.
     expect(landingCss).toMatch(
-      /\.lpHeroActions--findMyPint\s*\{[^}]*grid-template-columns:\s*1fr/,
+      /\.lpHeroActions\s*\{[^}]*grid-template-columns:\s*1fr/,
     );
   });
 

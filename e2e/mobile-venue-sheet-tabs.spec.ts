@@ -26,6 +26,13 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
 
 const VIEWPORT = { width: 390, height: 844 };
 
+test.use({
+  viewport: VIEWPORT,
+  deviceScaleFactor: 1,
+  hasTouch: true,
+  isMobile: true,
+});
+
 const TABS: ReadonlyArray<{ label: string; panelId: string }> = [
   { label: "Overview", panelId: "venuePanel-overview" },
   { label: "Photos", panelId: "venuePanel-photos" },
@@ -39,7 +46,6 @@ const TABS: ReadonlyArray<{ label: string; panelId: string }> = [
 test.setTimeout(60_000);
 
 test.beforeEach(async ({ page }) => {
-  await page.setViewportSize(VIEWPORT);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -88,6 +94,66 @@ async function expectNoPageHorizontalOverflow(page: Page): Promise<void> {
     .toBeLessThanOrEqual(1);
 }
 
+async function openTouchSession(page: Page) {
+  const session = await page.context().newCDPSession(page);
+  await session.send("Emulation.setTouchEmulationEnabled", {
+    enabled: true,
+    maxTouchPoints: 1,
+  });
+  return session;
+}
+
+async function swipeLeftWithTouch(page: Page, target: Locator): Promise<void> {
+  const box = await target.boundingBox();
+  expect(box, "touch target should have a box").not.toBeNull();
+
+  const session = await openTouchSession(page);
+
+  const y = Math.round(box!.y + box!.height / 2);
+  const startX = Math.round(box!.x + box!.width - 24);
+  const endX = Math.round(box!.x + 24);
+  try {
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x: startX, y }],
+    });
+    for (let step = 1; step <= 5; step += 1) {
+      const x = Math.round(startX + ((endX - startX) * step) / 5);
+      await session.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [{ x, y }],
+      });
+    }
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+  } finally {
+    await session.detach();
+  }
+}
+
+async function tapWithTouch(page: Page, target: Locator): Promise<void> {
+  const box = await target.boundingBox();
+  expect(box, "touch target should have a box").not.toBeNull();
+
+  const session = await openTouchSession(page);
+  const x = Math.round(box!.x + box!.width / 2);
+  const y = Math.round(box!.y + box!.height / 2);
+  try {
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x, y }],
+    });
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+  } finally {
+    await session.detach();
+  }
+}
+
 async function expectPrimaryActions(page: Page): Promise<void> {
   const toolbar = page.locator(".venueSheetStickyBar");
   await expect(toolbar).toBeVisible();
@@ -108,6 +174,8 @@ async function expectPrimaryActions(page: Page): Promise<void> {
     }),
   );
 
+  // "Make <venue> Stop 1" belongs to permanent venue acceptance, which is a
+  // separate PR; this spec covers the tab strip's touch scrolling.
   expect(actions.map((action) => action.name)).toEqual([
     "Add a price at Arnos Arms",
     "Crawl",
@@ -197,4 +265,38 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
     }
     await expectNoPageHorizontalOverflow(page);
   }
+});
+
+test("a real 390px touch swipe reaches the final Venue tab", async ({ page }) => {
+  const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
+  expect(response?.status()).toBe(200);
+
+  const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(portal).toBeVisible();
+  const sheet = portal.locator(".mobileSharedSheet");
+  await expect(sheet).toHaveClass(/sheet-half/);
+  const tablist = portal.getByRole("tablist", { name: "Venue detail sections" });
+  const finalTab = tablist.getByRole("tab", { name: "Last train", exact: true });
+
+  await expect(tablist).toHaveAttribute("data-trailing-fade", "on");
+  const before = await tablist.evaluate((element) => element.scrollLeft);
+  const finalRightBefore = await finalTab.evaluate(
+    (element) => element.getBoundingClientRect().right,
+  );
+  expect(finalRightBefore).toBeGreaterThan(VIEWPORT.width);
+
+  await swipeLeftWithTouch(page, tablist);
+
+  await expect
+    .poll(() => tablist.evaluate((element) => element.scrollLeft))
+    .toBeGreaterThan(before);
+  await expect(tablist).toHaveAttribute("data-trailing-fade", "off");
+  await expect(sheet).toHaveClass(/sheet-half/);
+  await expectInViewport(finalTab, "Last train tab after touch swipe", page);
+  await expectTapTarget(finalTab, "Last train tab after touch swipe");
+
+  await tapWithTouch(page, finalTab);
+  await expect(finalTab).toHaveAttribute("aria-selected", "true");
+  await expect(portal.locator("#venuePanel-getting-home")).toBeVisible();
+  await expectNoPageHorizontalOverflow(page);
 });

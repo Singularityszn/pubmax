@@ -17,12 +17,34 @@ async function expectTappable(locator: Locator, label: string): Promise<void> {
   expect(box.width, `${label} should be wide enough to tap`).toBeGreaterThanOrEqual(44);
 }
 
-async function expectNoHorizontalOverflow(page: Page): Promise<void> {
+async function expectWithinFirstViewport(
+  page: Page,
+  locator: Locator,
+  label: string,
+): Promise<void> {
+  const box = await locator.boundingBox();
+  expect(box, `${label} should have a layout box`).not.toBeNull();
+  if (!box) return;
+  const viewportHeight = page.viewportSize()?.height ?? 0;
+  expect(
+    box.y + box.height,
+    `${label} should finish inside first viewport`,
+  ).toBeLessThanOrEqual(viewportHeight);
+}
+
+async function expectNoAppTabClearance(page: Page, label: string): Promise<void> {
+  const bodyPaddingBottom = await page.evaluate(() =>
+    Number.parseFloat(getComputedStyle(document.body).paddingBottom),
+  );
+  expect(bodyPaddingBottom, `${label} should not reserve app-tab clearance`).toBeLessThan(64);
+}
+
+async function expectNoHorizontalOverflow(page: Page, width = MOBILE.width): Promise<void> {
   const overflow = await page.evaluate(() => {
     const root = document.documentElement;
     return Math.ceil(root.scrollWidth - root.clientWidth);
   });
-  expect(overflow, "page should not horizontally overflow at 390px").toBeLessThanOrEqual(1);
+  expect(overflow, `page should not horizontally overflow at ${width}px`).toBeLessThanOrEqual(1);
 }
 
 test.describe("mobile landing entry", () => {
@@ -34,7 +56,87 @@ test.describe("mobile landing entry", () => {
     });
   });
 
-  test("keeps the first-run entry path tappable and unclipped", async ({ page }) => {
+  test("answers after one homepage tap", async ({ page, context }) => {
+    test.setTimeout(60_000);
+    await context.setGeolocation({ latitude: 51.5137, longitude: -0.132 });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await context.grantPermissions(["geolocation"], {
+      origin: new URL(page.url()).origin,
+    });
+
+    await page
+      .locator(".lpHeroActions")
+      .getByRole("link", { name: "Find my pint", exact: true })
+      .click();
+
+    await expect(page).toHaveURL(/\/near\?locate=1$/);
+    await expect(
+      page.getByRole("heading", { name: "Cheapest listed near you", exact: true }),
+    ).toBeVisible();
+    await expect(page.locator(".nmnCard")).toHaveCount(5);
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+    await expect(page.locator(".mobileTabBar")).toBeVisible();
+  });
+
+  test("keeps direct Near idle and gives a shared patch priority", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "geolocation", {
+        configurable: true,
+        value: {
+          getCurrentPosition: () => {
+            (window as Window & { __nearLocateCalls?: number }).__nearLocateCalls =
+              ((window as Window & { __nearLocateCalls?: number }).__nearLocateCalls ?? 0) + 1;
+          },
+        },
+      });
+    });
+
+    await page.goto("/near");
+    await expect(page.getByRole("button", { name: "Find my pint", exact: true })).toBeVisible();
+    await expect(page.locator(".nmnCard")).toHaveCount(0);
+
+    await page.goto("/near?patch=soho&locate=1");
+    await expect(page.locator(".nmnCard")).toHaveCount(5);
+    expect(
+      await page.evaluate(
+        () => (window as Window & { __nearLocateCalls?: number }).__nearLocateCalls ?? 0,
+      ),
+    ).toBe(0);
+  });
+
+  test("answers honestly when location permission is denied", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.removeItem("pubmax:nightPatch:v1");
+      Object.defineProperty(navigator, "geolocation", {
+        configurable: true,
+        value: {
+          getCurrentPosition: (
+            _success: PositionCallback,
+            error: PositionErrorCallback,
+          ) => {
+            (window as Window & { __nearLocateCalls?: number }).__nearLocateCalls =
+              ((window as Window & { __nearLocateCalls?: number }).__nearLocateCalls ?? 0) + 1;
+            error({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError);
+          },
+        },
+      });
+    });
+
+    await page.goto("/near?locate=1");
+    await expect(
+      page.getByRole("heading", { name: "Cheapest listed around central London" }),
+    ).toBeVisible();
+    await expect(page.getByText("Location's off, so here's central London. Not your patch?")).toBeVisible();
+    await expect(page.locator(".nmnCard")).toHaveCount(5);
+    await expect(page).toHaveURL(/patch=central/);
+    expect(
+      await page.evaluate(
+        () => (window as Window & { __nearLocateCalls?: number }).__nearLocateCalls ?? 0,
+      ),
+    ).toBe(1);
+  });
+
+  test("keeps the first-run entry path primary and unclipped", async ({ page }, testInfo) => {
     const errors = pageErrors(page);
     const response = await page.goto("/");
     expect(response?.status()).toBe(200);
@@ -45,15 +147,18 @@ test.describe("mobile landing entry", () => {
         exact: true,
       }),
     ).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+    await expect(page.locator(".mobileTabBar")).toHaveCount(0);
+    await expectNoAppTabClearance(page, "root landing");
 
+    const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
     await expectTappable(
-      page.getByRole("link", { name: "Open the map" }).first(),
-      "hero Open the map CTA",
+      findMyPint,
+      "hero Find my pint CTA",
     );
-    await expectTappable(page.getByRole("link", { name: "Find my pint" }).first(), "hero Find my pint link");
+    await expectWithinFirstViewport(page, findMyPint, "hero Find my pint CTA");
+    await expectTappable(page.locator(".lpHeroActions").getByRole("link", { name: "Open the map" }), "hero Open the map link");
     await expectTappable(page.getByRole("link", { name: "Plan with friends" }).first(), "hero Plan with friends link");
-    await expectTappable(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Map" }), "bottom Map tab");
 
     const visibleHeroPins = page.locator(".thamesHeroPin:visible");
     const pinCount = await visibleHeroPins.count();
@@ -63,26 +168,97 @@ test.describe("mobile landing entry", () => {
     }
 
     await expectNoHorizontalOverflow(page);
+    await page.screenshot({
+      path: testInfo.outputPath("landing-root-390-light.png"),
+      fullPage: true,
+    });
     expect(errors).toEqual([]);
   });
 
-  test("routes primary mobile CTAs to the map and secondary exploration", async ({ page }) => {
-    await page.goto("/");
+  for (const width of [320, 430]) {
+    test(`keeps root landing chrome-free at ${width}px`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto("/?source=mobile-entry");
 
-    // Primary CTA opens the map with no city preference set, straight to
-    // choose-city, no geolocation prompt.
-    await page.getByRole("link", { name: "Open the map" }).first().click();
-    await expect(page).toHaveURL(/\/(choose-city|map)/);
+      await expect(page.locator(".mobileTabBar")).toHaveCount(0);
+      await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+      await expectNoAppTabClearance(page, `root landing at ${width}px`);
+      const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
+      await expectTappable(
+        findMyPint,
+        `hero Find my pint CTA at ${width}px`,
+      );
+      await expectWithinFirstViewport(page, findMyPint, `hero Find my pint CTA at ${width}px`);
+      await expectNoHorizontalOverflow(page, width);
+      await page.screenshot({
+        path: testInfo.outputPath(`landing-root-${width}-light.png`),
+        fullPage: true,
+      });
+    });
+  }
+
+  test("keeps root landing chrome-free in dark mode", async ({ page }, testInfo) => {
+    await page.addInitScript(() => window.localStorage.setItem("pubmax-theme", "dark"));
     await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator(".mobileTabBar")).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+    await expectNoAppTabClearance(page, "dark root landing");
+    const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
+    await expectTappable(
+      findMyPint,
+      "dark hero Find my pint CTA",
+    );
+    await expectWithinFirstViewport(page, findMyPint, "dark hero Find my pint CTA");
     await expectNoHorizontalOverflow(page);
+    await page.screenshot({
+      path: testInfo.outputPath("landing-root-390-dark.png"),
+      fullPage: true,
+    });
+  });
+
+  test("routes secondary mobile CTAs to Map and Plan", async ({ page }) => {
+    await page.goto("/");
 
     await page.getByRole("link", { name: "Plan with friends" }).first().click();
     await expect(page).toHaveURL(/\/plan$/);
     await page.goto("/");
 
-    await page.getByRole("link", { name: "Find my pint" }).first().click();
-    await expect(page).toHaveURL(/\/near$/);
+    await page.getByRole("link", { name: "Open the map" }).first().click();
+    await expect(page).toHaveURL(/\/(choose-city|map)/);
   });
+});
+
+test("reserves app-tab clearance before hydration", async ({ browser, baseURL }) => {
+  const context = await browser.newContext({
+    baseURL,
+    javaScriptEnabled: false,
+    viewport: MOBILE,
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto("/privacy");
+
+    await expect(page.locator(".mobileTabBarClearance")).toHaveCount(1);
+    const bodyPaddingBottom = await page.evaluate(() =>
+      Number.parseFloat(getComputedStyle(document.body).paddingBottom),
+    );
+    expect(bodyPaddingBottom).toBeGreaterThanOrEqual(64);
+  } finally {
+    await context.close();
+  }
+});
+
+test("keeps desktop root free of mobile navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+
+  await expect(page.locator(".mobileTabBar")).toHaveCount(0);
+  await expectTappable(
+    page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" }),
+    "desktop hero Find my pint CTA",
+  );
+  await expectNoHorizontalOverflow(page, 1440);
 });
 
 test("keeps the drink-signal image within a deliberate mobile crop", async ({ page }) => {

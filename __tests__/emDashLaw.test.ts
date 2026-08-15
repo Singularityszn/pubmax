@@ -59,7 +59,6 @@ const LIB_NON_COPY_ALLOWLIST: ReadonlySet<string> = new Set([
   "lib/areaDemandStore.ts",
   "lib/commentsStore.ts",
   "lib/emailProvider.ts",
-  "lib/emailSubscribersStore.ts",
   "lib/feedFreshnessStore.ts",
   "lib/messagesStore.ts",
   "lib/notificationsStore.ts",

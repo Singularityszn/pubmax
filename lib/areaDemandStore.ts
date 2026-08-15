@@ -4,9 +4,8 @@
 // signal so coverage can be prioritised by real demand.
 //
 // ONE store interface, TWO implementations (process-memory + Supabase
-// public.area_demand) — the exact dual-backend seam as
-// lib/emailSubscribersStore.ts: Supabase when env keys exist, process-memory
-// otherwise, chosen at the single areaDemandStore() seam. Before migration 0045
+// public.area_demand) — the house dual-backend seam: Supabase when env keys
+// exist, process-memory otherwise, chosen at the single areaDemandStore() seam. Before migration 0045
 // lands (or on a schema miss), local/preview paths fail soft to memory. Deployed
 // production returns a failed write outcome so the route answers 503 instead of
 // acknowledging an ephemeral process-memory write.

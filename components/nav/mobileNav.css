@@ -79,7 +79,8 @@
   }
 }
 
-.mobileTabBar {
+.mobileTabBar,
+.mobileTabBarClearance {
   display: none;
 }
 
@@ -97,8 +98,7 @@
 }
 
 @media (max-width: 640px) {
-  /* Compact tab bar — room for a fifth tab later; map chrome stays clear. */
-  body {
+  body:has(.mobileTabBar, .mobileTabBarClearance) {
     padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   }
 

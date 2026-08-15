@@ -84,7 +84,7 @@
   min-height: 100dvh;
   width: min(1440px, 100%);
   margin: 0 auto;
-  padding: clamp(106px, 12vh, 142px) var(--lp-pad) clamp(62px, 8vh, 96px);
+  padding: clamp(96px, 10vh, 124px) var(--lp-pad) clamp(48px, 6vh, 72px);
   display: grid;
   grid-template-columns: minmax(0, .92fr) minmax(460px, 1.08fr);
   align-items: center;
@@ -180,51 +180,18 @@
   letter-spacing: -.04em;
   text-wrap: balance;
 }
-.lpHeroLede { max-width: 500px; margin: 25px 0 0; color: var(--ink-soft); font-size: clamp(16px, 1.45vw, 19px); line-height: 1.58; }
-.lpHeroActions { width: min(100%, 680px); margin-top: 30px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 10px; }
-/* L19 flag-on hierarchy: one full-weight primary; Map + Plan as text actions
-   (not equal quiet buttons). Keeps Map/Plan reachable without competing. */
-.lp--findMyPint .lpHero {
-  /* Pull the dominant CTA into the first 900px screen without touching flag-off. */
-  padding-top: clamp(96px, 10vh, 124px);
-  padding-bottom: clamp(48px, 6vh, 72px);
-}
-.lp--findMyPint .lpHero h1 {
-  font-size: clamp(56px, 4.45vw, 64px);
-}
-.lp--findMyPint .lpHeroLede { margin-top: 18px; }
-.lpHeroActions--findMyPint {
+.lpHeroLede { max-width: 500px; margin: 18px 0 0; color: var(--ink-soft); font-size: clamp(16px, 1.45vw, 19px); line-height: 1.58; }
+.lpHeroActions {
   width: min(100%, 420px);
   margin-top: 22px;
+  display: grid;
   grid-template-columns: 1fr;
   gap: 14px;
   align-items: start;
 }
-.lpHeroActions--findMyPint .lpButtonPrimary {
+.lpHeroActions .lpButtonPrimary {
   width: 100%;
   /* Brass on on-accent is the house high-contrast primary. */
-  box-shadow: 0 16px 38px color-mix(in srgb, var(--brass) 28%, transparent);
-}
-/* Wave 0 map-first default: same shape as the findMyPint stack above (one
-   full-weight primary, two secondary text links), duplicated rather than
-   grouped so the L19 flag-on rules stay untouched by this addition. */
-.lp--mapFirst .lpHero {
-  padding-top: clamp(96px, 10vh, 124px);
-  padding-bottom: clamp(48px, 6vh, 72px);
-}
-.lp--mapFirst .lpHero h1 {
-  font-size: clamp(56px, 4.45vw, 64px);
-}
-.lp--mapFirst .lpHeroLede { margin-top: 18px; }
-.lpHeroActions--mapFirst {
-  width: min(100%, 420px);
-  margin-top: 22px;
-  grid-template-columns: 1fr;
-  gap: 14px;
-  align-items: start;
-}
-.lpHeroActions--mapFirst .lpButtonPrimary {
-  width: 100%;
   box-shadow: 0 16px 38px color-mix(in srgb, var(--brass) 28%, transparent);
 }
 .lpHeroSecondaryRow {
@@ -546,11 +513,7 @@
   .lpHeroActions { order: 2; }
   .lpHeroMap { order: 3; }
   .lpLiveReadout { order: 4; }
-  .lpHero h1 { font-size: clamp(50px, 13vw, 58px); line-height: .91; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }.lpHeroActions .lpButton:first-child { grid-column: 1 / -1; }.lpHeroActions .lpButton { width: 100%; padding-inline: 10px; font-size: 13px; }
-  /* L19 flag-on: keep single primary stack — no equal-weight Map/Plan pair. */
-  .lpHeroActions--findMyPint { width: 100%; max-width: none; grid-template-columns: 1fr; }.lpHeroActions--findMyPint .lpButton:first-child { grid-column: auto; }.lpHeroActions--findMyPint .lpButtonPrimary { width: 100%; font-size: 14px; }
-  /* Wave 0 map-first default: same single-primary-stack shape, duplicated. */
-  .lpHeroActions--mapFirst { width: 100%; max-width: none; grid-template-columns: 1fr; }.lpHeroActions--mapFirst .lpButton:first-child { grid-column: auto; }.lpHeroActions--mapFirst .lpButtonPrimary { width: 100%; font-size: 14px; }
+  .lpHero h1 { font-size: clamp(50px, 13vw, 58px); line-height: .91; }.lpHeroLede { max-width: 34ch; font-size: 16px; }.lpHeroActions { width: 100%; max-width: none; grid-template-columns: 1fr; }.lpHeroActions .lpButton:first-child { grid-column: auto; }.lpHeroActions .lpButtonPrimary { width: 100%; padding-inline: 10px; font-size: 14px; }
   /* Column on a phone. The divider that separates two stats side by side is a
      LEFT rule + 20px indent; left in place once the row stacks it stepped each
      stat 20px further right, so three honest counts read as a broken staircase.
@@ -603,11 +566,6 @@
   .lpFinalCta > p { font-size: 12px; }
   .lpFooterInner { grid-template-columns: 1fr; gap: 36px; }
   .lpFooterPitch { font-size: 15px; }
-  /* Below-fold clearance: on phones the fixed tab bar overlays the footer, so
-     the coverage-stats row and legal line sit clipped. Add the shared
-     --tabbar-h token to the footer's own bottom pad (content spacing only; the
-     bar geometry itself lives in mobileNav.css / .lpNav, untouched here). */
-  .lpFooter { padding-bottom: calc(36px + var(--tabbar-h, 64px) + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 430px) {
@@ -621,8 +579,6 @@
   .lpNavActions .authUserNav { display: none; }
   .lpHeroActions { grid-template-columns: 1fr; }
   .lpHeroActions .lpButton:first-child { grid-column: auto; }
-  .lpHeroActions--findMyPint { grid-template-columns: 1fr; }
-  .lpHeroActions--mapFirst { grid-template-columns: 1fr; }
 }
 
 /* Hero / atmosphere presence. Three quiet motions only: orbit drift, scanline

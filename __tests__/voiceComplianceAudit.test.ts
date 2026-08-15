@@ -61,7 +61,6 @@ describe("VOICE.md compliance audit", () => {
     const contributionGate = read(
       "components/identity/ContributionGateDialog.tsx",
     );
-    const identityNudge = read("components/identity/IdentityNudge.tsx");
     const accountHub = read("components/profile/PubmaxxAccountHub.tsx");
     const checkInRoute = read("app/api/check-ins/route.ts");
     const checkInValidation = read("lib/checkIn.ts");
@@ -80,11 +79,6 @@ describe("VOICE.md compliance audit", () => {
     );
     expect(contributionGate).not.toContain("account-owned");
     expect(contributionGate).not.toContain("private profile");
-
-    expect(identityNudge).toContain(
-      "Leave your email. We&apos;ll send the weekly pint digest.",
-    );
-    expect(identityNudge).not.toContain("Just leave your email");
 
     expect(accountHub).toContain("<h3>Optional usage analytics</h3>");
     expect(accountHub).not.toContain("Anonymous usage analytics");

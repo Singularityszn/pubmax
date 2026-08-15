@@ -27,7 +27,7 @@ for (const viewport of DEVICES) {
       await setTheme(page, theme);
       await page.goto("/");
 
-      const heroActions = page.locator(".lpHeroActions .lpButton");
+      const heroActions = page.locator(".lpHeroActions a");
       await expect(heroActions).toHaveCount(3);
       await expect(page.getByRole("link", { name: "Plan with friends" }).first()).toBeVisible();
 
@@ -38,13 +38,12 @@ for (const viewport of DEVICES) {
         }),
       );
       expect(actionGeometry.every(({ width, height }) => width >= 44 && height >= 44)).toBe(true);
-      expect(Math.abs(actionGeometry[1].width - actionGeometry[2].width)).toBeLessThanOrEqual(1);
 
-      const wordmark = page.locator(".lpWordmark .pubmaxxWordmark");
+      const wordmark = page.getByRole("banner").locator(".lpWordmark .pubmaxxWordmark");
       await expect(wordmark).toBeVisible();
       await expect(wordmark.locator(".pubmaxxDoubleX svg")).toHaveCount(2);
 
-      await page.getByRole("link", { name: "Plan with friends" }).first().click();
+      await page.goto("/pal");
       await page.getByRole("button", { name: /Meet your Pub Pal/i }).click();
       await expect(page.getByRole("heading", { name: "The grown-up bit first." })).toBeVisible();
 

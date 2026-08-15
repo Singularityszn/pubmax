@@ -27,10 +27,17 @@ import {
   serverSoftKeyboardOpen,
   subscribeSoftKeyboard,
 } from "@/lib/softKeyboard";
+import {
+  readStrictModalFocusTrap,
+  serverStrictModalFocusTrap,
+  subscribeStrictModalFocusTrap,
+} from "@/lib/useFocusTrap";
 import "./mobileNav.css";
 
-// Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
-// desktop it is display:none so the existing desktop navs are untouched.
+// Mobile-first bottom tab bar. Mounted on every non-root route and visible only
+// ≤640px (see mobileNav.css); exact root landing intentionally omits it so
+// Find my pint owns entry. On desktop it is display:none, leaving existing
+// desktop navs untouched.
 //
 // Moment is the emphasized centre action and opens the private-first camera
 // composer. Pint Drop remains an explicit action inside Moment and the map.
@@ -99,8 +106,23 @@ function isActive(pathname: string, tab: Tab): boolean {
   return navPathMatches(pathname, tab.match ?? [tab.href]);
 }
 
+export function shouldShowMobileTabBar(pathname: string): boolean {
+  return pathname !== "/";
+}
+
+export function MobileTabBarClearanceFallback() {
+  const pathname = usePathname() ?? "";
+  if (!shouldShowMobileTabBar(pathname)) return null;
+  return <div className="mobileTabBarClearance" aria-hidden="true" />;
+}
+
 export default function MobileTabBar() {
   const pathname = usePathname() ?? "";
+  if (!shouldShowMobileTabBar(pathname)) return null;
+  return <MobileTabBarContent pathname={pathname} />;
+}
+
+function MobileTabBarContent({ pathname }: { pathname: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   // Preference may be null → /map. useSyncExternalStore: SSR/hydration stay on
@@ -126,6 +148,16 @@ export default function MobileTabBar() {
     readSoftKeyboardOpen,
     serverSoftKeyboardOpen,
   );
+  const strictModalOpen = useSyncExternalStore(
+    subscribeStrictModalFocusTrap,
+    readStrictModalFocusTrap,
+    serverStrictModalFocusTrap,
+  );
+  // The Moment return path is the page the tap left, so it is the live route on
+  // the server too. A constant server snapshot ("/") would send every
+  // server-rendered Moment link home until hydration repaired it. Root does not
+  // mount this bar (shouldShowMobileTabBar), so no rendered document ever
+  // compares a live pathname with the root one.
   const returnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`;
   const tabs = useMemo(
     () => buildTabs(mapHref, returnTo, youHref),
@@ -148,8 +180,8 @@ export default function MobileTabBar() {
   // setState.
   //
   // Held until the foreground surface has painted, and never issued for the
-  // route already on screen. The bar mounts on every page, so a mount-time
-  // warm spends the current page's main thread and bandwidth on the next tap;
+  // route already on screen. Non-root mounts spend the current page's main
+  // thread and bandwidth on the next tap;
   // on the map that cost lands squarely inside MapLibre's init. See
   // lib/backgroundWarmup.ts for why plain idle is not enough.
   useEffect(() => {
@@ -184,7 +216,7 @@ export default function MobileTabBar() {
       // that has slid off the bottom of the screen must not still be a tab stop
       // above the keyboard.
       aria-hidden={keyboardOpen || undefined}
-      inert={keyboardOpen || undefined}
+      inert={keyboardOpen || strictModalOpen || undefined}
     >
       {/* --tab-count feeds the count-driven layout model in mobileNav.css:
           column width and highlight geometry all derive from it (and from

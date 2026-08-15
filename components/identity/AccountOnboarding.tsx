@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
+import { createPortal } from "react-dom";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -24,6 +32,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 import { inviteReturnToFromUrl } from "@/lib/inviteReturnTo";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 
 import "./accountOnboarding.css";
 
@@ -36,6 +45,7 @@ type Availability =
   | "invalid";
 
 type AccountOnboardingFormProps = {
+  dialogRef?: RefObject<HTMLElement | null>;
   handle: string;
   dateOfBirth: string;
   fullName: string;
@@ -78,6 +88,7 @@ function availabilityCopy(availability: Availability): string | null {
  * never reaches this surface at all.
  */
 export function AccountOnboardingForm({
+  dialogRef,
   handle,
   dateOfBirth,
   fullName,
@@ -98,8 +109,10 @@ export function AccountOnboardingForm({
   return (
     <div className="accountOnboardingBackdrop" role="presentation">
       <section
+        ref={dialogRef}
         className="accountOnboarding"
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby="account-onboarding-title"
         aria-describedby="account-onboarding-lead account-onboarding-privacy"
@@ -252,6 +265,7 @@ function AccountOnboardingForUser({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const active = useRef(true);
+  const dialogRef = useRef<HTMLElement>(null);
 
   const retryStatus = useCallback(() => {
     setStatus("loading");
@@ -338,6 +352,13 @@ function AccountOnboardingForUser({
   }, [auth, finish, identityResolved, statusAttempt]);
 
   useReconnectRecovery(status === "unavailable", retryStatus);
+
+  const onboardingVisible = status === "needed";
+  useFocusTrap(onboardingVisible, dialogRef, "strict-modal");
+  useEffect(() => {
+    if (!onboardingVisible) return;
+    dialogRef.current?.focus({ preventScroll: true });
+  }, [onboardingVisible]);
 
   useEffect(() => {
     if (availability !== "checking") return;
@@ -508,6 +529,7 @@ function AccountOnboardingForUser({
   }
   return (
     <AccountOnboardingForm
+      dialogRef={dialogRef}
       handle={handle}
       dateOfBirth={dateOfBirth}
       fullName={fullName}
@@ -536,12 +558,15 @@ export default function AccountOnboarding(): React.JSX.Element | null {
     },
     [sessionAccessToken, sessionUserId, user?.id],
   );
-  if (loading || !user || !auth) return null;
-  return (
+  if (loading || !user || !auth || typeof document === "undefined") {
+    return null;
+  }
+  return createPortal(
     <AccountOnboardingForUser
       key={user.id}
       auth={auth}
       identityResolved={identityResolved}
-    />
+    />,
+    document.body,
   );
 }

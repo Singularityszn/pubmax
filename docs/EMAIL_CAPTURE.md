@@ -1,75 +1,42 @@
-# Early email capture (identity nudge)
+# Email digest capture: removed
 
-The Cycle-2 locked owner decision - *"push identity harder … early email
-capture"* - gives a signed-out user a **lightweight** alternative to account
-sign-in: leave just an email to receive the weekly pint digest. Email magic link
-and any enabled social provider remain the account paths; this is the one-field
-option next to them on the identity nudge sheet.
+There is no digest capture in PUBMAXX. The identity nudge has one email action,
+and it is functional magic-link sign-in. It does not collect a second address
+or promise a digest. The separate area-demand form may store an optional contact
+address for that named area.
 
-Privacy-first, GDPR-sane: **one purpose, stated at capture** (the weekly digest),
-and **double opt-in** — a captured address is stored *unconfirmed* and is never
-mailed until the recipient confirms.
+Captain decision, 2026-08-15: delete the path rather than leave it dormant. The
+capture surface had already gone (`specs/honest-identity-nudge-email-action.md`)
+because confirmation, delivery and the weekly schedule were never built, which
+left a public unauthenticated POST writing subscriber rows that no product
+surface called. A write nobody makes is a write nobody watches.
 
-## Pieces
+## What was deleted
 
 | Concern | File |
 |---|---|
-| Validation / normalisation / token minting (browser-safe) | `lib/emailSubscribers.ts` |
-| Dual-backend store (memory ↔ Supabase `email_subscribers`) | `lib/emailSubscribersStore.ts` |
-| Migration (RLS service-role only) | `supabase/migrations/20260718150000_0042_email_subscribers.sql` |
-| Capture route (envelope, per-IP + global durable limits, 503 on hard write fail) | `app/api/email-subscribers/route.ts` |
+| Capture route (public POST) | `app/api/email-subscribers/route.ts` |
 | Confirm / unsubscribe endpoints (token-gated GET) | `app/api/email-subscribers/confirm/route.ts`, `.../unsubscribe/route.ts` |
+| Dual-backend store (memory ↔ Supabase `email_subscribers`) | `lib/emailSubscribersStore.ts` |
 | Provider-gated confirmation email (inert until keys) | `lib/emailConfirmation.ts` |
-| Surface (email path on the identity nudge) | `components/identity/IdentityNudge.tsx` |
+| Analytics event with no emitter | `email_subscribed` in `lib/analyticsEvents.ts` |
 
-## Data model
+The address validation survives as `lib/emailAddress.ts`, because
+`lib/areaDemand.ts` still validates an optional contact address with it.
 
-`public.email_subscribers`: `email` (unique, lower-cased, validated),
-`source` (allowlist — `'identity-nudge'` today), `confirmed` (default `false`),
-`unsubscribe_token` (unique, opaque; backs both the confirm and unsubscribe
-links), `created_at` / `updated_at` / `confirmed_at`. **RLS enabled with no
-public policy** — the service-role route is the only reader/writer; emails and
-tokens never leave the API boundary.
+## What was kept
 
-## Double opt-in flow
+- `supabase/migrations/20260718150000_0042_email_subscribers.sql` and the
+  `public.email_subscribers` table. A migration is history, and no row is
+  deleted, confirmed or mailed by this removal. The table is now unreferenced by
+  the app; dropping it is a separate captain-applied migration.
+- Rendered signed-out IdentityNudge coverage in
+  `__tests__/identityNudgeComponent.test.ts`, which refuses digest capture and
+  shows the functional sign-in action.
 
-1. **Capture** → `POST /api/email-subscribers { email, source }`. The address is
-   stored `confirmed = false` (a *pending* subscriber). Idempotent by email: a
-   re-submit returns the existing row without re-confirming or rotating the token.
-2. **Confirm email** → `lib/emailConfirmation.ts` builds a single-purpose email
-   with a confirm link carrying the token. Sending is **provider-gated and inert
-   today** (noop until `RESEND_API_KEY` + `EMAIL_FROM` exist — the same seam as
-   `lib/emailProvider.ts` on `feat/email-digest`). The route reports
-   `confirmationSent: false` today, and the UI copy stays honest — it never
-   claims an email that did not go out.
-3. **Confirm** → the recipient follows the link → `GET /api/email-subscribers/
-   confirm?token=…` flips the row to `confirmed = true`. This is the *only* way an
-   address becomes mailable.
-4. **Unsubscribe / erasure** → `GET /api/email-subscribers/unsubscribe?token=…`
-   deletes the row.
+## If a digest is ever built
 
-## Digest recipient seam (#327 — do NOT edit `feat/email-digest`)
-
-`feat/email-digest` resolves recipients through
-`resolveDigestRecipients(members: DigestAudienceMember[])`, mailing a member only
-when `optIn === true && optOut !== true` (`isDigestOptedIn`). This capture concept
-wires in **without changing that predicate**:
-
-- `emailSubscribersStore().listConfirmedSubscribers()` yields the set of
-  **confirmed** emails (unconfirmed rows are never yielded).
-- When the branches meet, the digest's audience loader maps each confirmed
-  subscriber to a member as `{ id, email, optIn: true, optOut: false }`. An
-  unconfirmed subscriber is simply absent, so `optIn` stays effectively false and
-  double opt-in holds end-to-end.
-
-This module owns the confirmed/unconfirmed truth; the digest owns the send. The
-seam is `listConfirmedSubscribers()` — no edit to `#327`'s branch is required.
-
-## Failure posture (house rules)
-
-- Durable rate limits on **two axes** (per-IP + global) in production; degraded
-  budget on transient limiter failure; in-memory limiter for keyless dev.
-- A hard durable-store write failure answers **503** (degraded dependency, never
-  a fake success).
-- Before migration 0042 lands, the store fails soft to process-memory so capture
-  keeps working and becomes durable the moment the table exists.
+Build delivery first, then capture. One stated purpose at the point of capture,
+double opt-in, an unsubscribe token that never leaves the server, and durable
+per-IP plus global rate limits on the write. Nothing becomes mailable until the
+recipient confirms.

@@ -70,7 +70,7 @@ What still lags is not “does the page load at 1440px?” — it is:
 app/layout.tsx
   ├─ CommandPaletteProvider (⌘K / Ctrl+K)
   ├─ SiteNav (full links ≥641; compact ≤640)
-  ├─ MobileTabBar (CSS display:none ≥641; always mounted)
+  ├─ MobileTabBar (non-root routes; CSS display:none ≥641)
   └─ DeferredShellExtras (tour, A2HS, push, night mode…)
 ```
 

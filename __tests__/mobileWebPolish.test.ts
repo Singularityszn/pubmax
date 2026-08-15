@@ -44,7 +44,6 @@ describe("mobile web polish source contracts", () => {
       "components/landing/landing.css",
       "components/map/mapToolbar.css",
       "components/map/tonightLane.css",
-      "components/map/venueSheet.css",
       "components/mobile/mobileMapShell.css",
       "components/pubs/pubsGallery.css",
     ];

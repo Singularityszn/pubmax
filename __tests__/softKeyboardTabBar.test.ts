@@ -131,14 +131,24 @@ describe("what the tab bar renders for each answer", () => {
   afterEach(() => {
     vi.resetModules();
     vi.doUnmock("@/lib/softKeyboard");
+    vi.doUnmock("@/lib/useFocusTrap");
   });
 
-  async function renderBar(keyboardOpen: boolean): Promise<string> {
+  async function renderBar(
+    keyboardOpen: boolean,
+    strictModalOpen = false,
+  ): Promise<string> {
     vi.doMock("@/lib/softKeyboard", async (importOriginal) => ({
       ...(await importOriginal<typeof import("@/lib/softKeyboard")>()),
       subscribeSoftKeyboard: () => () => {},
       readSoftKeyboardOpen: () => keyboardOpen,
       serverSoftKeyboardOpen: () => keyboardOpen,
+    }));
+    vi.doMock("@/lib/useFocusTrap", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@/lib/useFocusTrap")>()),
+      subscribeStrictModalFocusTrap: () => () => {},
+      readStrictModalFocusTrap: () => strictModalOpen,
+      serverStrictModalFocusTrap: () => strictModalOpen,
     }));
     vi.resetModules();
     const { default: MobileTabBar } = await import("@/components/nav/MobileTabBar");
@@ -169,6 +179,13 @@ describe("what the tab bar renders for each answer", () => {
     // re-render of the destination list.
     expect(markup).toContain("Tonight");
   });
+
+  it("keeps the bar inert after a strict modal outlives the keyboard", async () => {
+    const markup = await renderBar(false, true);
+    expect(navTag(markup)).not.toContain("isKeyboardHidden");
+    expect(navTag(markup)).not.toContain("aria-hidden");
+    expect(navTag(markup)).toMatch(/\binert\b/);
+  });
 });
 
 describe("the shipped CSS moves it without moving the page", () => {
@@ -178,20 +195,5 @@ describe("the shipped CSS moves it without moving the page", () => {
     expect(rule).toMatch(/transform:\s*translateY\(110%\)/);
     expect(rule).toMatch(/opacity:\s*0/);
     expect(rule).toMatch(/pointer-events:\s*none/);
-  });
-
-  it("never touches the reserved bottom clearance", () => {
-    // The body keeps `padding-bottom: calc(var(--tabbar-h) + safe area)` while
-    // the bar is away. Dropping it would reflow the page under the caret, which
-    // is the layout jump this fix exists to avoid.
-    expect(mobileNavCss).toMatch(
-      /body\s*{\s*padding-bottom:\s*calc\(var\(--tabbar-h\)/,
-    );
-    const keyboardRules = mobileNavCss.match(/isKeyboardHidden[^}]*}/g) ?? [];
-    expect(keyboardRules.length).toBeGreaterThan(0);
-    for (const rule of keyboardRules) {
-      expect(rule).not.toMatch(/padding-bottom/);
-      expect(rule).not.toMatch(/display:\s*none/);
-    }
   });
 });

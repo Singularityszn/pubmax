@@ -19,6 +19,30 @@ function primaryNav(page: Page) {
 }
 
 test.describe("mobile bottom-tab navigation", () => {
+  test("keeps computed route clearance while keyboard state hides the bar", async ({ page }) => {
+    await page.goto("/privacy");
+
+    const nav = primaryNav(page);
+    await expect(nav).toBeVisible();
+    const visiblePadding = await page.evaluate(() =>
+      getComputedStyle(document.body).paddingBottom,
+    );
+    expect(Number.parseFloat(visiblePadding)).toBeGreaterThan(0);
+
+    await nav.evaluate((element) => element.classList.add("isKeyboardHidden"));
+    await expect(nav).toHaveCSS("opacity", "0");
+    const keyboardPadding = await page.evaluate(() =>
+      getComputedStyle(document.body).paddingBottom,
+    );
+    expect(keyboardPadding).toBe(visiblePadding);
+
+    await nav.evaluate((element) => element.classList.remove("isKeyboardHidden"));
+    await expect(nav).toHaveCSS("opacity", "1");
+    await expect
+      .poll(() => page.evaluate(() => getComputedStyle(document.body).paddingBottom))
+      .toBe(visiblePadding);
+  });
+
   test("hides while the planner bottom sheet owns the bottom edge", async ({ page }) => {
     await page.goto("/map");
 

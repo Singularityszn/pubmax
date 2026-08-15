@@ -1,7 +1,9 @@
-# Landing wave 0 proof
+# Landing wave 0 proof (historical)
 
-Browser evidence for the map-first acquisition landing (`landingFindMyPint`
-flag off, the shipped default).
+These shots record retired map-first acquisition work. They are not current UI
+proof. Current hierarchy and browser-proof requirements live in
+`docs/superpowers/plans/2026-08-14-permanent-one-tap-landing.md` and the landing
+E2E tests.
 
 ## How the shots were made
 
@@ -22,7 +24,7 @@ each size, theme toggle via the nav button, `screenshot`.
 | `03-mobile-390-light.png` | 390px, light theme |
 | `04-mobile-390-dark.png` | 390px, dark theme |
 
-## What they show
+## What the historical shots show
 
 - Primary CTA is "Open the map" (`primaryCtaHref`), no geolocation gate.
   "Find my pint" and "Plan with friends" are secondary text links.
@@ -33,5 +35,4 @@ each size, theme toggle via the nav button, `screenshot`.
 - Mobile shots show the product frame (`.lpHeroMap`) entering the first
   390x844 viewport; the stats-chip readout (`.lpLiveReadout`) sits below it.
 
-A pre-existing, out-of-scope cookie-consent banner overlaps the lower part
-of both mobile shots. Not part of this change.
+A consent banner overlaps the lower part of both historical mobile shots.

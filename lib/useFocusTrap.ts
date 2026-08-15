@@ -22,9 +22,171 @@ export function shouldEngageFocusTrap(input: {
   return !input.displayChain.includes("none");
 }
 
-/** Body-level siblings that must stay interactive while a map sheet traps focus. */
-export function shouldInertOutsideSibling(node: HTMLElement): boolean {
-  return !node.classList.contains("mobileTabBar");
+export type FocusTrapOutsidePolicy = "strict-modal" | "map-surface";
+
+const strictModalListeners = new Set<() => void>();
+let strictModalTrapCount = 0;
+
+export function subscribeStrictModalFocusTrap(listener: () => void): () => void {
+  strictModalListeners.add(listener);
+  return () => strictModalListeners.delete(listener);
+}
+
+export function readStrictModalFocusTrap(): boolean {
+  return strictModalTrapCount > 0;
+}
+
+export function serverStrictModalFocusTrap(): boolean {
+  return false;
+}
+
+function publishStrictModalFocusTrap(): void {
+  for (const listener of strictModalListeners) listener();
+}
+
+function claimStrictModalFocusTrap(): () => void {
+  strictModalTrapCount += 1;
+  publishStrictModalFocusTrap();
+  let active = true;
+  return () => {
+    if (!active) return;
+    active = false;
+    strictModalTrapCount -= 1;
+    publishStrictModalFocusTrap();
+  };
+}
+
+/** Body-level siblings that may stay interactive only beside a map surface. */
+export function shouldInertOutsideSibling(
+  node: HTMLElement,
+  outsidePolicy: FocusTrapOutsidePolicy,
+): boolean {
+  if (outsidePolicy === "strict-modal") return true;
+  return !(
+    node.classList.contains("mobileTabBar") ||
+    node.classList.contains("accountOnboardingBackdrop")
+  );
+}
+
+type InertOwnership = {
+  original: boolean;
+  owners: Set<symbol>;
+};
+
+const inertOwnership = new WeakMap<HTMLElement, InertOwnership>();
+
+type FocusRestoration = {
+  origin: HTMLElement | null;
+  active: boolean;
+};
+
+const focusRestorations: FocusRestoration[] = [];
+
+function claimInert(node: HTMLElement, owner: symbol): void {
+  const ownership = inertOwnership.get(node);
+  if (ownership) {
+    ownership.owners.add(owner);
+  } else {
+    inertOwnership.set(node, {
+      original: node.inert,
+      owners: new Set([owner]),
+    });
+  }
+  node.inert = true;
+}
+
+function releaseInert(node: HTMLElement, owner: symbol): void {
+  const ownership = inertOwnership.get(node);
+  if (!ownership || !ownership.owners.delete(owner)) return;
+  if (ownership.owners.size > 0) {
+    node.inert = true;
+    return;
+  }
+  node.inert = ownership.original;
+  inertOwnership.delete(node);
+}
+
+function focusOriginAvailable(origin: HTMLElement | null): origin is HTMLElement {
+  if (!origin?.isConnected) return false;
+  let cursor: HTMLElement | null = origin;
+  while (cursor) {
+    if (cursor.inert) return false;
+    cursor = cursor.parentElement;
+  }
+  return true;
+}
+
+function restoreFocus(origin: HTMLElement | null): boolean {
+  if (!focusOriginAvailable(origin)) return false;
+  origin.focus({ preventScroll: true });
+  return typeof document === "undefined" || document.activeElement === origin;
+}
+
+function releaseFocusRestoration(restoration: FocusRestoration): void {
+  const index = focusRestorations.indexOf(restoration);
+  if (index < 0 || !restoration.active) return;
+  restoration.active = false;
+  if (focusRestorations.slice(index + 1).some((entry) => entry.active)) return;
+
+  let activeBarrier = -1;
+  for (let candidate = index - 1; candidate >= 0; candidate -= 1) {
+    if (focusRestorations[candidate]?.active) {
+      activeBarrier = candidate;
+      break;
+    }
+  }
+  for (let candidate = index; candidate > activeBarrier; candidate -= 1) {
+    if (restoreFocus(focusRestorations[candidate]?.origin ?? null)) break;
+  }
+  focusRestorations.splice(activeBarrier + 1);
+}
+
+export class FocusTrapOwner {
+  private readonly owner = Symbol("focus-trap-owner");
+  private nodes = new Set<HTMLElement>();
+  private focusRestoration: FocusRestoration | null = null;
+
+  captureFocus(origin: HTMLElement | null): void {
+    if (this.focusRestoration) return;
+    this.focusRestoration = { origin, active: true };
+    focusRestorations.push(this.focusRestoration);
+  }
+
+  reconcile(nextNodes: Iterable<HTMLElement>): void {
+    const next = new Set(nextNodes);
+    for (const node of this.nodes) {
+      if (!next.has(node)) releaseInert(node, this.owner);
+    }
+    for (const node of next) {
+      if (!this.nodes.has(node)) claimInert(node, this.owner);
+    }
+    this.nodes = next;
+  }
+
+  release(): void {
+    this.reconcile([]);
+    if (!this.focusRestoration) return;
+    releaseFocusRestoration(this.focusRestoration);
+    this.focusRestoration = null;
+  }
+}
+
+function outsideSiblings(
+  container: HTMLElement,
+  outsidePolicy: FocusTrapOutsidePolicy,
+): Set<HTMLElement> {
+  const siblings = new Set<HTMLElement>();
+  let cursor: HTMLElement | null = container;
+  while (cursor && cursor !== document.body) {
+    const parent: HTMLElement | null = cursor.parentElement;
+    if (!parent) break;
+    for (const sibling of Array.from(parent.children)) {
+      if (sibling === cursor || !(sibling instanceof HTMLElement)) continue;
+      if (shouldInertOutsideSibling(sibling, outsidePolicy)) siblings.add(sibling);
+    }
+    cursor = parent;
+  }
+  return siblings;
 }
 
 function displayChain(container: HTMLElement): string[] {
@@ -47,11 +209,12 @@ function displayChain(container: HTMLElement): string[] {
 //      inside the app shell (desktop drawer). Prior `inert` values are restored
 //      on teardown.
 //   3. A container CSS has hidden never traps at all (shouldEngageFocusTrap).
-// Focus capture/restore and Esc stay with each caller (both surfaces already
-// own those); this hook is ONLY the trap.
+// Focus entry and restoration are coordinated here; Esc stays with each caller.
 export function useFocusTrap(
   active: boolean,
   containerRef: RefObject<HTMLElement | null>,
+  outsidePolicy: FocusTrapOutsidePolicy = "strict-modal",
+  focusOriginRef?: RefObject<HTMLElement | null>,
 ): void {
   useEffect(() => {
     if (!active || typeof document === "undefined") return;
@@ -59,21 +222,18 @@ export function useFocusTrap(
     if (!container) return;
     if (!shouldEngageFocusTrap({ active, displayChain: displayChain(container) })) return;
 
-    // Inert every element outside the container: at each level from the
-    // container up to <body>, inert the off-path siblings.
-    const inerted: { node: HTMLElement; prev: boolean }[] = [];
-    let cursor: HTMLElement | null = container;
-    while (cursor && cursor !== document.body) {
-      const parent: HTMLElement | null = cursor.parentElement;
-      if (!parent) break;
-      for (const sibling of Array.from(parent.children)) {
-        if (sibling === cursor || !(sibling instanceof HTMLElement)) continue;
-        if (!shouldInertOutsideSibling(sibling)) continue;
-        inerted.push({ node: sibling, prev: sibling.inert });
-        sibling.inert = true;
-      }
-      cursor = parent;
-    }
+    const trapOwner = new FocusTrapOwner();
+    trapOwner.captureFocus(
+      focusOriginRef
+        ? focusOriginRef.current
+        : document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null,
+    );
+    // Main's one-time scan does not contain later body siblings such as Command Palette.
+    trapOwner.reconcile(outsideSiblings(container, outsidePolicy));
+    const releaseStrictModal =
+      outsidePolicy === "strict-modal" ? claimStrictModalFocusTrap() : null;
 
     const onTab = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
@@ -83,7 +243,10 @@ export function useFocusTrap(
       if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      if (document.activeElement === container) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -94,7 +257,8 @@ export function useFocusTrap(
     container.addEventListener("keydown", onTab);
     return () => {
       container.removeEventListener("keydown", onTab);
-      for (const item of inerted) item.node.inert = item.prev;
+      trapOwner.release();
+      releaseStrictModal?.();
     };
-  }, [active, containerRef]);
+  }, [active, containerRef, focusOriginRef, outsidePolicy]);
 }

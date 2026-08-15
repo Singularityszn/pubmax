@@ -11,7 +11,7 @@
 // address is stored only if the user offers one for a heads-up.
 
 import { haversineKm } from "@/lib/haversine";
-import { parseEmail } from "@/lib/emailSubscribers";
+import { parseEmail } from "@/lib/emailAddress";
 import {
   CENTRAL_PATCH,
   NIGHT_PATCHES,

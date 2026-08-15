@@ -116,8 +116,8 @@ describe("map cold-open payload", () => {
     expect(effect).toContain("if (!mapCanvasReady && !filters.openNow) return;");
   });
 
-  // The tab bar is in the viewport on every page, so Next's automatic Link
-  // prefetch fired for all six destinations while the current page painted.
+  // The tab bar is in the viewport on every non-root phone route, so Next's
+  // automatic Link prefetch fired for all six destinations while it painted.
   // Its own pointer/hover warm and the gated background warm replace it.
   it("does not force automatic Link prefetch from the mobile tab bar", () => {
     const source = readFileSync(join(ROOT, "components/nav/MobileTabBar.tsx"), "utf8");
