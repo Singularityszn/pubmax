@@ -140,7 +140,11 @@ export default function MobileSharedSheet({
   // so keyboard focus must not walk the inert page behind an unreachable surface.
   // Peek is the tested exception — enough map stays live that trapping would lie.
   const sheetModal = mobileSheetIsModal(sheetSnap);
-  useFocusTrap(Boolean(kind) && mobileSheetFocusContained(sheetSnap), sheetRef);
+  useFocusTrap(
+    Boolean(kind) && mobileSheetFocusContained(sheetSnap),
+    sheetRef,
+    "map-surface",
+  );
 
   if (!kind || typeof document === "undefined") return null;
   // At the first level Home IS this sheet's close, so it keeps the sheet's own

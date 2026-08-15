@@ -52,8 +52,8 @@ tokens never leave the API boundary.
    with a confirm link carrying the token. Sending is **provider-gated and inert
    today** (noop until `RESEND_API_KEY` + `EMAIL_FROM` exist — the same seam as
    `lib/emailProvider.ts` on `feat/email-digest`). The route reports
-   `confirmationSent: false` today, and the UI copy stays honest — it never
-   claims an email that did not go out.
+   `confirmationSent: false` today, so any future caller can report delivery
+   truthfully.
 3. **Confirm** → the recipient follows the link → `GET /api/email-subscribers/
    confirm?token=…` flips the row to `confirmed = true`. This is the *only* way an
    address becomes mailable.

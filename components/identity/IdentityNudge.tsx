@@ -13,12 +13,13 @@
 // identity gate. Reuses the shared auth-sheet styling and the SignInButton
 // provider-button idiom (app/auth/auth.css).
 //
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import {
   IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS,
   getIdentityNudgeClientSnapshot,
@@ -65,6 +66,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
 
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // First-paint grace: never interrupt the very first moment on a page. The
   // nudge holds until the user has been here ~8s OR interacts, so a still-armed
@@ -107,6 +109,17 @@ export default function IdentityNudge(): React.JSX.Element | null {
   // button does, including recording that the reader was asked. Called above
   // the early return so the hook order never changes.
   useDismissOnEscape(canShow && Boolean(trigger), dismissAuthNudge);
+  useFocusTrap(canShow && Boolean(trigger), dialogRef, "strict-modal");
+
+  // Modal focus starts on its labelled dialog and returns to the exact control
+  // that owned focus before the nudge opened.
+  useEffect(() => {
+    if (!canShow || !trigger) return;
+    const previousFocus =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus({ preventScroll: true });
+    return () => previousFocus?.focus({ preventScroll: true });
+  }, [canShow, trigger]);
 
   if (!canShow || !trigger) return null;
 
@@ -135,8 +148,10 @@ export default function IdentityNudge(): React.JSX.Element | null {
   return (
     <div className="claimNightBackdrop identityNudgeBackdrop" role="presentation">
       <div
+        ref={dialogRef}
         className="claimNightDialog identityNudgeDialog"
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby="identity-nudge-title"
         aria-describedby="identity-nudge-body"

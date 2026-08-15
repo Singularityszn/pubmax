@@ -41,8 +41,21 @@ describe("shouldInertOutsideSibling", () => {
     } as HTMLElement;
   }
 
-  it("keeps the primary tab bar outside sheet inert", () => {
-    expect(shouldInertOutsideSibling(el("mobileTabBar"))).toBe(false);
-    expect(shouldInertOutsideSibling(el("appShell mapStage"))).toBe(true);
+  it("keeps the primary tab bar interactive beside a map sheet", () => {
+    expect(shouldInertOutsideSibling(el("mobileTabBar"), "map-surface")).toBe(false);
+    expect(shouldInertOutsideSibling(el("appShell mapStage"), "map-surface")).toBe(true);
+  });
+
+  it("keeps account setup above an open map sheet interactive", () => {
+    expect(
+      shouldInertOutsideSibling(el("accountOnboardingBackdrop"), "map-surface"),
+    ).toBe(false);
+  });
+
+  it("inerts every outside sibling for a strict modal", () => {
+    expect(shouldInertOutsideSibling(el("mobileTabBar"), "strict-modal")).toBe(true);
+    expect(
+      shouldInertOutsideSibling(el("accountOnboardingBackdrop"), "strict-modal"),
+    ).toBe(true);
   });
 });

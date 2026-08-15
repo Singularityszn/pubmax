@@ -22,9 +22,18 @@ export function shouldEngageFocusTrap(input: {
   return !input.displayChain.includes("none");
 }
 
-/** Body-level siblings that must stay interactive while a map sheet traps focus. */
-export function shouldInertOutsideSibling(node: HTMLElement): boolean {
-  return !node.classList.contains("mobileTabBar");
+export type FocusTrapOutsidePolicy = "strict-modal" | "map-surface";
+
+/** Body-level siblings that may stay interactive only beside a map surface. */
+export function shouldInertOutsideSibling(
+  node: HTMLElement,
+  outsidePolicy: FocusTrapOutsidePolicy,
+): boolean {
+  if (outsidePolicy === "strict-modal") return true;
+  return !(
+    node.classList.contains("mobileTabBar") ||
+    node.classList.contains("accountOnboardingBackdrop")
+  );
 }
 
 function displayChain(container: HTMLElement): string[] {
@@ -52,6 +61,7 @@ function displayChain(container: HTMLElement): string[] {
 export function useFocusTrap(
   active: boolean,
   containerRef: RefObject<HTMLElement | null>,
+  outsidePolicy: FocusTrapOutsidePolicy = "strict-modal",
 ): void {
   useEffect(() => {
     if (!active || typeof document === "undefined") return;
@@ -68,7 +78,7 @@ export function useFocusTrap(
       if (!parent) break;
       for (const sibling of Array.from(parent.children)) {
         if (sibling === cursor || !(sibling instanceof HTMLElement)) continue;
-        if (!shouldInertOutsideSibling(sibling)) continue;
+        if (!shouldInertOutsideSibling(sibling, outsidePolicy)) continue;
         inerted.push({ node: sibling, prev: sibling.inert });
         sibling.inert = true;
       }
@@ -83,7 +93,10 @@ export function useFocusTrap(
       if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      if (document.activeElement === container) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -96,5 +109,5 @@ export function useFocusTrap(
       container.removeEventListener("keydown", onTab);
       for (const item of inerted) item.node.inert = item.prev;
     };
-  }, [active, containerRef]);
+  }, [active, containerRef, outsidePolicy]);
 }
