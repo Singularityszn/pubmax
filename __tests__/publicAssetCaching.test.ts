@@ -92,7 +92,7 @@ const CLASS_B = filesOutsideData.filter(
     ["/theme-init.js", "/splash-init.js", "/manifest.webmanifest"].includes(file),
 );
 
-const CLASS_C = ["/llms.txt"];
+const CLASS_C = ["/llms.txt", "/.well-known/apple-app-site-association"];
 const WORKERS = ["/sw.js", "/sw-plan-cache.js", "/offline.html"];
 
 const BUILD_WRITTEN_FIXED_URLS = [
@@ -108,12 +108,7 @@ const BUILD_WRITTEN_FIXED_URLS = [
   },
 ] as const;
 
-const DELIBERATE_OMISSIONS = new Map([
-  [
-    "/.well-known/apple-app-site-association",
-    "Apple universal-link metadata keeps platform-controlled revalidation semantics.",
-  ],
-]);
+const DELIBERATE_OMISSIONS = new Map<string, string>();
 
 describe("public asset caching", () => {
   it("gives content-stable assets the immutable class", () => {
@@ -128,7 +123,7 @@ describe("public asset caching", () => {
     for (const file of CLASS_B) expect(cacheControlFor(file), file).toBe(EDITED_IN_PLACE_CACHE);
   });
 
-  it("keeps crawler text revalidating in the browser", () => {
+  it("keeps crawler and platform metadata revalidating in the browser", () => {
     for (const file of CLASS_C) expect(cacheControlFor(file), file).toBe(SHORT_EDGE_CACHE);
   });
 

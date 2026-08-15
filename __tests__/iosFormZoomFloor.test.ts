@@ -1,15 +1,22 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, relative, sep } from "node:path";
 
+import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
 // Mobile Safari owns form-focus zoom, so Chromium cannot supply computed-style
-// evidence for that browser behavior. This fence parses the shipped global CSS
-// as a declarative contract and protects the shared cascade invariant instead.
+// evidence for that browser behavior. Six branch-local coarse-pointer floors
+// and the four-file pending list were removed because app/globals.css already
+// ships one important floor, and the measured route sweep found zero controls
+// below 16px. Nothing remains on a pending handoff list. This fence guards that
+// one rule and rejects any shipped component rule that can beat it. Sub-16px
+// non-important declarations remain valid because the shared important floor
+// overrides them.
 const FLOOR_PX = 16;
 const PHONE_WIDTHS_PX = [360, 390, 430];
 const CONTROL_ELEMENTS = ["input", "textarea", "select"];
-const GLOBAL_CSS = readFileSync(join(__dirname, "..", "app", "globals.css"), "utf8");
+const REPO_ROOT = join(__dirname, "..");
+const GLOBAL_CSS = readFileSync(join(REPO_ROOT, "app", "globals.css"), "utf8");
 
 type Declaration = {
   property: string;
@@ -39,54 +46,32 @@ function splitOutsideParentheses(value: string, separator: string): string[] {
   return parts.filter(Boolean);
 }
 
-function parseDeclarations(body: string): Declaration[] {
-  return splitOutsideParentheses(body, ";").flatMap((entry) => {
-    const separator = entry.indexOf(":");
-    if (separator < 0) return [];
-    const property = entry.slice(0, separator).trim().toLowerCase();
-    const rawValue = entry.slice(separator + 1).trim();
-    const important = /\s*!important\s*$/i.test(rawValue);
-    return [
-      {
-        property,
-        value: rawValue.replace(/\s*!important\s*$/i, "").trim(),
-        important,
-      },
-    ];
-  });
-}
-
 function parseCssRules(css: string): CssRule[] {
-  const source = css.replace(/\/\*[\s\S]*?\*\//g, "");
   const parsed: CssRule[] = [];
-  const walk = (block: string, conditions: string[]): void => {
-    let start = 0;
-    for (let index = 0; index < block.length; index += 1) {
-      if (block[index] !== "{") continue;
-      const rawPrelude = block.slice(start, index).trim();
-      const prelude = rawPrelude.slice(rawPrelude.lastIndexOf(";") + 1).trim();
-      let depth = 1;
-      let end = index + 1;
-      while (end < block.length && depth > 0) {
-        if (block[end] === "{") depth += 1;
-        else if (block[end] === "}") depth -= 1;
-        end += 1;
-      }
-      const body = block.slice(index + 1, end - 1);
-      if (prelude.startsWith("@")) {
-        walk(body, [...conditions, prelude.replace(/\s+/g, " ")]);
-      } else if (prelude) {
-        parsed.push({
-          selectors: splitOutsideParentheses(prelude, ","),
-          declarations: parseDeclarations(body),
-          conditions,
-        });
-      }
-      index = end - 1;
-      start = end;
+  postcss.parse(css).walkRules((rule) => {
+    const conditions: string[] = [];
+    for (let parent = rule.parent; parent; parent = parent.parent) {
+      if (parent.type !== "atrule") continue;
+      conditions.unshift(
+        `@${parent.name}${parent.params ? ` ${parent.params}` : ""}`.replace(/\s+/g, " "),
+      );
     }
-  };
-  walk(source, []);
+    parsed.push({
+      selectors: rule.selectors,
+      declarations: (rule.nodes ?? []).flatMap((node) =>
+        node.type === "decl"
+          ? [
+              {
+                property: node.prop.toLowerCase(),
+                value: node.value.trim(),
+                important: node.important,
+              },
+            ]
+          : [],
+      ),
+      conditions,
+    });
+  });
   return parsed;
 }
 
@@ -155,6 +140,44 @@ function phoneReachableFloor(rules: CssRule[]): CssRule | undefined {
   );
 }
 
+type ImportantControlConflict = {
+  file: string;
+  selector: string;
+  value: string;
+};
+
+function selectorTargetsControl(selector: string): boolean {
+  return /(^|[\s>+~,(])(?:input|textarea|select)(?=$|[\s>+~#.:\[,(])/i.test(selector);
+}
+
+function importantControlConflicts(css: string, file: string): ImportantControlConflict[] {
+  return parseCssRules(css).flatMap((rule) => {
+    const declaration = rule.declarations.find(
+      (candidate) =>
+        candidate.property === "font-size" &&
+        candidate.important &&
+        (minimumPx(candidate.value) ?? FLOOR_PX) < FLOOR_PX,
+    );
+    if (!declaration) return [];
+    return rule.selectors
+      .filter(selectorTargetsControl)
+      .map((selector) => ({ file, selector, value: declaration.value }));
+  });
+}
+
+function walkStylesheets(dir: string, files: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) walkStylesheets(full, files);
+    else if (entry.endsWith(".css")) files.push(full);
+  }
+  return files;
+}
+
+const SHIPPED_STYLESHEETS = ["app", "components"].flatMap((dir) =>
+  walkStylesheets(join(REPO_ROOT, dir)),
+);
+
 describe("iOS form-zoom floor", () => {
   it("rejects a shared floor that only applies to desktop pointers", () => {
     const css = `
@@ -172,6 +195,18 @@ describe("iOS form-zoom floor", () => {
       }
     `;
     expect(phoneReachableFloor(parseCssRules(css))).toBeDefined();
+  });
+
+  it("rejects only important component declarations below the floor", () => {
+    const css = `
+      .fake-input { font-size: 11px !important; }
+      .field input { font-size: 15px; }
+      .field select { font-size: 15px !important; }
+      .field textarea { font-size: max(16px, 1em) !important; }
+    `;
+    expect(importantControlConflicts(css, "fixture.css")).toEqual([
+      { file: "fixture.css", selector: ".field select", value: "15px" },
+    ]);
   });
 
   it("keeps every form control on the shared important 16px floor", () => {
@@ -195,5 +230,20 @@ describe("iOS form-zoom floor", () => {
       minimumPx(fontSize?.value ?? ""),
       "floor must include a pixel minimum",
     ).toBeGreaterThanOrEqual(FLOOR_PX);
+  });
+
+  it("keeps shipped important component rules from undercutting the floor", () => {
+    const conflicts = SHIPPED_STYLESHEETS.flatMap((file) =>
+      importantControlConflicts(
+        readFileSync(file, "utf8"),
+        relative(REPO_ROOT, file).split(sep).join("/"),
+      ),
+    );
+    expect(
+      conflicts,
+      conflicts
+        .map(({ file, selector, value }) => `${file}: ${selector} -> ${value} !important`)
+        .join("\n"),
+    ).toEqual([]);
   });
 });

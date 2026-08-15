@@ -282,12 +282,25 @@ const nextConfig = {
         headers: [{ key: "x-last-orders", value: "23:00" }],
       },
       {
-        // Apple universal-links manifest (Capacitor iOS wrap). The file lives
-        // in public/ with NO extension, so Next would otherwise serve it as
-        // application/octet-stream — Apple's CDN requires application/json.
-        // Content + TEAMID placeholder: docs/CAPACITOR_WRAP.md.
+        // Public asset caching follows change rate. The earlier blanket
+        // no-immutable rule was narrowed on purpose. Class A is immutable only
+        // for files replaced by adding a new path: /fonts, landing images and
+        // /night-signals. Class B gives one browser hour, one edge year and
+        // stale-while-revalidate to fixed URLs changed in place: icons, /brand,
+        // boot scripts, manifest, /data, /vendor, /store-assets and
+        // /landing/ATTRIBUTION.md. Class C always revalidates in browsers and
+        // uses a short edge window for /llms.txt and Apple association metadata.
+        // Workers and offline.html always revalidate; /og.png keeps the header
+        // set by its route.
+        //
+        // The Apple universal-links manifest has no extension, so Next would
+        // otherwise serve it as application/octet-stream. Apple's CDN requires
+        // application/json. Content + TEAMID placeholder: docs/CAPACITOR_WRAP.md.
         source: "/.well-known/apple-app-site-association",
-        headers: [{ key: "Content-Type", value: "application/json" }],
+        headers: [
+          { key: "Content-Type", value: "application/json" },
+          { key: "Cache-Control", value: SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL },
+        ],
       },
       {
         // The pub-price dataset is ~6 MB and effectively static between deploys.
@@ -310,10 +323,6 @@ const nextConfig = {
           { key: "Cache-Control", value: UNHASHED_PUBLIC_ASSET_CACHE_CONTROL },
         ],
       },
-      // Class B: vendor workers and store exports are generated into fixed
-      // paths. Icons, brand marks, boot scripts, manifest and datasets are also
-      // fixed URLs edited in place across deploys. Landing non-images use this
-      // class by default because provenance text changes in place.
       cacheRule("/landing/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/vendor/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/store-assets/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
@@ -321,22 +330,14 @@ const nextConfig = {
       cacheRule("/:icon(icon-.*\\.svg)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/:icon(apple-touch-icon.*\\.png)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/:icon(favicon.*)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
-      // /og.png is NOT here: it is a route (app/og.png/route.tsx) that draws
-      // the share card and answers with its own Cache-Control. A rule here
-      // would attach a second, contradictory one.
       cacheRule("/brand/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/:boot(theme-init\\.js|splash-init\\.js)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/manifest.webmanifest", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
-      // Class A: checked-in typefaces, landing images and Night Signal art are
-      // replaced by adding a file, never by editing one in place or by writing
-      // it during a build. These specific landing rules follow the Class B
-      // fallback so future non-image files cannot inherit immutable caching.
       cacheRule("/fonts/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/landing/:image(.*\\.avif)", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/landing/:image(.*\\.webp)", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/landing/:image(.*\\.jpg)", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/night-signals/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
-      // Class C: llms.txt is edited in place and read by crawlers and agents.
       cacheRule("/llms.txt", SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL),
       // Declared AFTER the asset rules on purpose: a later matching rule wins,
       // so a worker can never inherit the year-long edge window above.
