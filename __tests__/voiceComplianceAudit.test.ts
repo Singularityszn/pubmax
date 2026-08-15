@@ -81,8 +81,8 @@ describe("VOICE.md compliance audit", () => {
     expect(contributionGate).not.toContain("account-owned");
     expect(contributionGate).not.toContain("private profile");
 
-    expect(identityNudge).toContain(
-      "Leave your email. We&apos;ll send the weekly pint digest.",
+    expect(identityNudge).not.toMatch(
+      /weekly pint digest|Get the digest|email-subscribers|email_subscribed/iu,
     );
     expect(identityNudge).not.toContain("Just leave your email");
 

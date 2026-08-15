@@ -1,14 +1,24 @@
-# Early email capture (identity nudge)
+# Dormant email digest capture infrastructure
 
-The Cycle-2 locked owner decision - *"push identity harder … early email
-capture"* - gives a signed-out user a **lightweight** alternative to account
-sign-in: leave just an email to receive the weekly pint digest. Email magic link
-and any enabled social provider remain the account paths; this is the one-field
-option next to them on the identity nudge sheet.
+Public digest capture is retired. The identity nudge now has one email action:
+functional magic-link sign-in. It must not collect a second email address or
+promise a digest until confirmation and delivery work end to end.
 
-Privacy-first, GDPR-sane: **one purpose, stated at capture** (the weekly digest),
-and **double opt-in** — a captured address is stored *unconfirmed* and is never
-mailed until the recipient confirms.
+Existing routes and subscriber rows remain in place as dormant infrastructure.
+No existing pending row is deleted, confirmed, or added to a mailing audience
+by this retirement. A future launch still requires one stated purpose at
+capture and double opt-in before any address becomes mailable.
+
+## Current product state
+
+- `components/identity/IdentityNudge.tsx` offers social sign-in when configured
+  and one magic-link email field.
+- No current product surface posts to `/api/email-subscribers`.
+- `email_subscribed` remains in the analytics registry for historical
+  compatibility, but the identity nudge no longer emits it.
+- Confirmation delivery, confirmed audience loading, provider delivery, and
+  the weekly schedule remain inactive. Do not restore capture until all four
+  are operational and proved in production.
 
 ## Pieces
 
@@ -20,7 +30,7 @@ mailed until the recipient confirms.
 | Capture route (envelope, per-IP + global durable limits, 503 on hard write fail) | `app/api/email-subscribers/route.ts` |
 | Confirm / unsubscribe endpoints (token-gated GET) | `app/api/email-subscribers/confirm/route.ts`, `.../unsubscribe/route.ts` |
 | Provider-gated confirmation email (inert until keys) | `lib/emailConfirmation.ts` |
-| Surface (email path on the identity nudge) | `components/identity/IdentityNudge.tsx` |
+| Retired public surface boundary | `components/identity/IdentityNudge.tsx` |
 
 ## Data model
 
@@ -31,11 +41,13 @@ links), `created_at` / `updated_at` / `confirmed_at`. **RLS enabled with no
 public policy** — the service-role route is the only reader/writer; emails and
 tokens never leave the API boundary.
 
-## Double opt-in flow
+## Dormant double opt-in flow
 
-1. **Capture** → `POST /api/email-subscribers { email, source }`. The address is
-   stored `confirmed = false` (a *pending* subscriber). Idempotent by email: a
-   re-submit returns the existing row without re-confirming or rotating the token.
+1. **Capture** → `POST /api/email-subscribers { email, source }`. No current
+   product surface calls this route. If a future launch restores capture, the
+   address is stored `confirmed = false` (a *pending* subscriber). Idempotent by
+   email: a re-submit returns the existing row without re-confirming or rotating
+   the token.
 2. **Confirm email** → `lib/emailConfirmation.ts` builds a single-purpose email
    with a confirm link carrying the token. Sending is **provider-gated and inert
    today** (noop until `RESEND_API_KEY` + `EMAIL_FROM` exist — the same seam as
