@@ -101,8 +101,17 @@ function isActive(pathname: string, tab: Tab): boolean {
   return navPathMatches(pathname, tab.match ?? [tab.href]);
 }
 
+export function shouldShowMobileTabBar(pathname: string): boolean {
+  return pathname !== "/";
+}
+
 export default function MobileTabBar() {
   const pathname = usePathname() ?? "";
+  if (!shouldShowMobileTabBar(pathname)) return null;
+  return <MobileTabBarContent pathname={pathname} />;
+}
+
+function MobileTabBarContent({ pathname }: { pathname: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   // Preference may be null → /map. useSyncExternalStore: SSR/hydration stay on

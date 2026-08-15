@@ -61,9 +61,12 @@ describe("Lane M3 taste P1 fixes", () => {
     expect(btn).toMatch(/color:\s*var\(--color-on-accent\)/);
   });
 
-  it("#4 landing footer/stats clear the tab bar on mobile", () => {
+  it("#4 landing footer does not reserve app-tab space", () => {
+    expect(landingCss).not.toMatch(
+      /\.lpFooter\s*{\s*padding-bottom:\s*calc\(36px \+ var\(--tabbar-h[^)]*\)/,
+    );
     expect(landingCss).toMatch(
-      /\.lpFooter\s*{\s*padding-bottom:\s*calc\(36px \+ var\(--tabbar-h[^)]*\) \+ env\(safe-area-inset-bottom\)\)/,
+      /\.lpFooter\s*{[^}]*padding:[^;]*env\(safe-area-inset-bottom\)/,
     );
   });
 

@@ -17,12 +17,27 @@ async function expectTappable(locator: Locator, label: string): Promise<void> {
   expect(box.width, `${label} should be wide enough to tap`).toBeGreaterThanOrEqual(44);
 }
 
-async function expectNoHorizontalOverflow(page: Page): Promise<void> {
+async function expectWithinFirstViewport(
+  page: Page,
+  locator: Locator,
+  label: string,
+): Promise<void> {
+  const box = await locator.boundingBox();
+  expect(box, `${label} should have a layout box`).not.toBeNull();
+  if (!box) return;
+  const viewportHeight = page.viewportSize()?.height ?? 0;
+  expect(
+    box.y + box.height,
+    `${label} should finish inside first viewport`,
+  ).toBeLessThanOrEqual(viewportHeight);
+}
+
+async function expectNoHorizontalOverflow(page: Page, width = MOBILE.width): Promise<void> {
   const overflow = await page.evaluate(() => {
     const root = document.documentElement;
     return Math.ceil(root.scrollWidth - root.clientWidth);
   });
-  expect(overflow, "page should not horizontally overflow at 390px").toBeLessThanOrEqual(1);
+  expect(overflow, `page should not horizontally overflow at ${width}px`).toBeLessThanOrEqual(1);
 }
 
 test.describe("mobile landing entry", () => {
@@ -52,6 +67,8 @@ test.describe("mobile landing entry", () => {
       page.getByRole("heading", { name: "Cheapest listed near you", exact: true }),
     ).toBeVisible();
     await expect(page.locator(".nmnCard")).toHaveCount(5);
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+    await expect(page.locator(".mobileTabBar")).toBeVisible();
   });
 
   test("keeps direct Near idle and gives a shared patch priority", async ({ page }) => {
@@ -102,7 +119,7 @@ test.describe("mobile landing entry", () => {
     await expect(page.locator(".nmnCard")).toHaveCount(5);
   });
 
-  test("keeps the first-run entry path tappable and unclipped", async ({ page }) => {
+  test("keeps the first-run entry path primary and unclipped", async ({ page }, testInfo) => {
     const errors = pageErrors(page);
     const response = await page.goto("/");
     expect(response?.status()).toBe(200);
@@ -113,15 +130,21 @@ test.describe("mobile landing entry", () => {
         exact: true,
       }),
     ).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+    await expect(page.locator(".mobileTabBar")).toHaveCount(0);
+    const bodyPaddingBottom = await page.evaluate(() =>
+      Number.parseFloat(getComputedStyle(document.body).paddingBottom),
+    );
+    expect(bodyPaddingBottom, "root landing should not reserve app-tab clearance").toBeLessThan(64);
 
+    const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
     await expectTappable(
-      page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" }),
+      findMyPint,
       "hero Find my pint CTA",
     );
+    await expectWithinFirstViewport(page, findMyPint, "hero Find my pint CTA");
     await expectTappable(page.locator(".lpHeroActions").getByRole("link", { name: "Open the map" }), "hero Open the map link");
     await expectTappable(page.getByRole("link", { name: "Plan with friends" }).first(), "hero Plan with friends link");
-    await expectTappable(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Map" }), "bottom Map tab");
 
     const visibleHeroPins = page.locator(".thamesHeroPin:visible");
     const pinCount = await visibleHeroPins.count();
@@ -131,7 +154,51 @@ test.describe("mobile landing entry", () => {
     }
 
     await expectNoHorizontalOverflow(page);
+    await page.screenshot({
+      path: testInfo.outputPath("landing-root-390-light.png"),
+      fullPage: true,
+    });
     expect(errors).toEqual([]);
+  });
+
+  for (const width of [320, 430]) {
+    test(`keeps root landing chrome-free at ${width}px`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto("/?source=mobile-entry");
+
+      await expect(page.locator(".mobileTabBar")).toHaveCount(0);
+      await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+      const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
+      await expectTappable(
+        findMyPint,
+        `hero Find my pint CTA at ${width}px`,
+      );
+      await expectWithinFirstViewport(page, findMyPint, `hero Find my pint CTA at ${width}px`);
+      await expectNoHorizontalOverflow(page, width);
+      await page.screenshot({
+        path: testInfo.outputPath(`landing-root-${width}-light.png`),
+        fullPage: true,
+      });
+    });
+  }
+
+  test("keeps root landing chrome-free in dark mode", async ({ page }, testInfo) => {
+    await page.addInitScript(() => window.localStorage.setItem("pubmax-theme", "dark"));
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator(".mobileTabBar")).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+    const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
+    await expectTappable(
+      findMyPint,
+      "dark hero Find my pint CTA",
+    );
+    await expectWithinFirstViewport(page, findMyPint, "dark hero Find my pint CTA");
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({
+      path: testInfo.outputPath("landing-root-390-dark.png"),
+      fullPage: true,
+    });
   });
 
   test("routes secondary mobile CTAs to Map and Plan", async ({ page }) => {
@@ -144,6 +211,18 @@ test.describe("mobile landing entry", () => {
     await page.getByRole("link", { name: "Open the map" }).first().click();
     await expect(page).toHaveURL(/\/(choose-city|map)/);
   });
+});
+
+test("keeps desktop root free of mobile navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+
+  await expect(page.locator(".mobileTabBar")).toHaveCount(0);
+  await expectTappable(
+    page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" }),
+    "desktop hero Find my pint CTA",
+  );
+  await expectNoHorizontalOverflow(page, 1440);
 });
 
 test("keeps the drink-signal image within a deliberate mobile crop", async ({ page }) => {

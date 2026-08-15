@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildTabs, tourSpotlightColumn } from "@/components/nav/MobileTabBar";
+import {
+  buildTabs,
+  shouldShowMobileTabBar,
+  tourSpotlightColumn,
+} from "@/components/nav/MobileTabBar";
 import { TOUR_TARGET_TAB_KEY, navPathMatches } from "@/components/nav/navigationModel";
 
 // Six-tab contract for the mobile bar (owner-locked journey order). The shared
@@ -13,6 +17,14 @@ function activeLabel(pathname: string, mapHref = "/map"): string | undefined {
 }
 
 describe("mobile tab bar contract", () => {
+  it("keeps app navigation off the exact landing pathname only", () => {
+    expect(shouldShowMobileTabBar("/")).toBe(false);
+    expect(shouldShowMobileTabBar("/near")).toBe(true);
+    expect(shouldShowMobileTabBar("/map")).toBe(true);
+    expect(shouldShowMobileTabBar("/plan")).toBe(true);
+    expect(shouldShowMobileTabBar("/area/clapham/drink/guinness")).toBe(true);
+  });
+
   it("renders exactly six tabs in the journey order", () => {
     const tabs = buildTabs("/map", "/tonight");
     expect(tabs.map((tab) => tab.label)).toEqual([
