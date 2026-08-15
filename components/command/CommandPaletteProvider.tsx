@@ -7,7 +7,24 @@
 // pop the palette. The dialog itself is only rendered while open, so "open"
 // state and "mounted" stay identical — see CommandPalette.tsx.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
+
+import {
+  readStrictModalFocusTrap,
+  readStrictModalFocusTrapRevision,
+  serverStrictModalFocusTrap,
+  serverStrictModalFocusTrapRevision,
+  strictModalAllowsSurfaceRequest,
+  subscribeStrictModalFocusTrap,
+} from "@/lib/useFocusTrap";
 
 import CommandPalette from "./CommandPalette";
 
@@ -40,34 +57,59 @@ export default function CommandPaletteProvider({
 }: {
   children: React.ReactNode;
 }): React.JSX.Element {
-  const [isOpen, setIsOpen] = useState(false);
+  const strictModalOpen = useSyncExternalStore(
+    subscribeStrictModalFocusTrap,
+    readStrictModalFocusTrap,
+    serverStrictModalFocusTrap,
+  );
+  const strictModalRevision = useSyncExternalStore(
+    subscribeStrictModalFocusTrap,
+    readStrictModalFocusTrapRevision,
+    serverStrictModalFocusTrapRevision,
+  );
+  const [openRequestRevision, setOpenRequestRevision] = useState<number | null>(null);
+  const isOpen = strictModalAllowsSurfaceRequest({
+    requestRevision: openRequestRevision,
+    strictModalActive: strictModalOpen,
+    strictModalRevision,
+  });
 
-  const open = useCallback(() => setIsOpen(true), []);
-  const close = useCallback(() => setIsOpen(false), []);
-  const toggle = useCallback(() => setIsOpen((v) => !v), []);
+  const open = useCallback(() => {
+    if (!strictModalOpen) setOpenRequestRevision(strictModalRevision);
+  }, [strictModalOpen, strictModalRevision]);
+  const close = useCallback(() => setOpenRequestRevision(null), []);
+  const toggle = useCallback(() => {
+    if (strictModalOpen) return;
+    setOpenRequestRevision((revision) =>
+      revision === strictModalRevision ? null : strictModalRevision,
+    );
+  }, [strictModalOpen, strictModalRevision]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      // ⌘K (mac) / Ctrl+K (win/linux) always toggles — even from inside an
-      // input — and we preventDefault so the browser's own ⌘K doesn't fire.
+      // ⌘K (mac) / Ctrl+K (win/linux) toggles from ordinary surfaces, even
+      // inside an input, and prevents the browser's own ⌘K action.
       const isPaletteKey =
         (event.metaKey || event.ctrlKey) &&
         !event.altKey &&
         (event.key === "k" || event.key === "K");
       if (isPaletteKey) {
         event.preventDefault();
-        setIsOpen((v) => !v);
+        if (strictModalOpen) return;
+        setOpenRequestRevision((revision) =>
+          revision === strictModalRevision ? null : strictModalRevision,
+        );
         return;
       }
       // Esc closes when open (the dialog also handles this locally; both are
       // idempotent). Left as a global safety net.
       if (event.key === "Escape") {
-        setIsOpen((wasOpen) => (wasOpen ? false : wasOpen));
+        setOpenRequestRevision(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [strictModalOpen, strictModalRevision]);
 
   const api = useMemo<CommandPaletteApi>(
     () => ({ isOpen, open, close, toggle }),

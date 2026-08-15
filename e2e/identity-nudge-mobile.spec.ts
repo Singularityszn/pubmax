@@ -65,6 +65,9 @@ test("Plan identity nudge keeps one sign-in email action on a 390px phone", asyn
   await expect(dialog).toBeVisible();
   await expect(dialog).toBeFocused();
   await expect(primaryNav).toHaveAttribute("inert", "");
+  await page.keyboard.press("Control+k");
+  await expect(page.getByRole("dialog", { name: "Command palette" })).toHaveCount(0);
+  expect(await dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
   expect(await page.evaluate(() => {
     const target = document.elementFromPoint(window.innerWidth / 2, window.innerHeight - 12);
     return Boolean(target?.closest(".identityNudgeBackdrop"));

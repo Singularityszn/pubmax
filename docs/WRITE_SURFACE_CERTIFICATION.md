@@ -162,7 +162,7 @@ Protection in a sibling method cannot certify another method.
 
 | Boundary | Purpose | Representative surfaces |
 |---|---|---|
-| Durable rate limit | Public/keyless abuse and provider-cost control | Events, discovery proxies, Pint Drops, crawl contributions, Plan creation, email capture |
+| Durable rate limit | Public/keyless abuse and provider-cost control | Events, discovery proxies, Pint Drops, crawl contributions, Plan creation, area-demand requests |
 | Account | Supabase-authenticated ownership | Night Memories/Stories, Pub Pal, profiles, social connections |
 | Capability | Narrow possession-based authority plus server validation | Plan actions, completion, invites, constraints, proposals, recap |
 | Moderator | Staff-only operational mutation | Import notes and moderation |
@@ -658,9 +658,7 @@ The Vercel cron freshness plane schedules routes under `app/api/cron/*`
 (inventory: `vercel.json`; runbook: `docs/CRON_PLANE_RUNBOOK.md`). They
 are **mutating by effect** (weather writes to the durable `weather_snapshots`
 store; What's-On stamps `feed_freshness`) but are deliberately **NOT counted in
-the mutating-route inventory** (see the count at the top of this document), for
-the same reason token-gated `GET`
-confirm/unsubscribe endpoints are excluded:
+the mutating-route inventory** (see the count at the top of this document):
 
 - **They are `GET` handlers.** Vercel Cron dispatches `GET` (its dispatcher also
   accepts `POST`); the inventory scans for public `POST/PUT/PATCH/DELETE`

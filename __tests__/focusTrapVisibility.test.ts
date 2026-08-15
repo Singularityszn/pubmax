@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { shouldEngageFocusTrap, shouldInertOutsideSibling } from "@/lib/useFocusTrap";
+import {
+  shouldEngageFocusTrap,
+  shouldInertOutsideSibling,
+  strictModalAllowsSurfaceRequest,
+} from "@/lib/useFocusTrap";
 
 // D2 — the desktop Pint Drop dead end. The phone sheet portal stays mounted at
 // desktop widths with `display: none`. Its "moment" sheet opens at the `full`
@@ -56,6 +60,35 @@ describe("shouldInertOutsideSibling", () => {
     expect(shouldInertOutsideSibling(el("mobileTabBar"), "strict-modal")).toBe(true);
     expect(
       shouldInertOutsideSibling(el("accountOnboardingBackdrop"), "strict-modal"),
+    ).toBe(true);
+  });
+});
+
+describe("strictModalAllowsSurfaceRequest", () => {
+  it("refuses a late-mounted sibling while a strict modal is active", () => {
+    expect(
+      strictModalAllowsSurfaceRequest({
+        requestRevision: 1,
+        strictModalActive: true,
+        strictModalRevision: 1,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not reopen a request from before the strict modal", () => {
+    expect(
+      strictModalAllowsSurfaceRequest({
+        requestRevision: 1,
+        strictModalActive: false,
+        strictModalRevision: 2,
+      }),
+    ).toBe(false);
+    expect(
+      strictModalAllowsSurfaceRequest({
+        requestRevision: 2,
+        strictModalActive: false,
+        strictModalRevision: 2,
+      }),
     ).toBe(true);
   });
 });
