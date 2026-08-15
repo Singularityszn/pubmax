@@ -41,8 +41,7 @@ export default function DrinkBrandLandingContent({
 }: {
   landing: DrinkBrandLanding;
 }) {
-  const firstRow = landing.rows[0];
-  const lowestPrice = firstRow ? formatPrice(firstRow.priceGbp) : "No price";
+  const lowestPrice = formatPrice(landing.rows[0].priceGbp);
 
   return (
     <>

@@ -34,11 +34,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const title = `Cheapest ${landing.brandLabel} Pints in London`;
-  const cheapest = landing.rows[0]?.priceGbp;
-  const description =
-    typeof cheapest === "number"
-      ? `${landing.totalPricedVenues} London venues with listed ${landing.brandLabel} pints from £${cheapest.toFixed(2)}.`
-      : `Listed ${landing.brandLabel} pint prices across London.`;
+  const cheapest = landing.rows[0].priceGbp;
+  const description = `${landing.totalPricedVenues} London venues with listed ${landing.brandLabel} pints from £${cheapest.toFixed(2)}.`;
   const canonical = `/drink/${encodeURIComponent(landing.slug)}`;
 
   return {

@@ -10,6 +10,10 @@ import { loadHistoricPubs } from "@/lib/historic";
 import { loadPintIndexArchive } from "@/lib/pintIndexSnapshot.server";
 import { loadNightAreaLandings } from "@/lib/nightAreaLanding.server";
 import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
+import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
+import * as nightAreaLandingServer from "@/lib/nightAreaLanding.server";
+import * as drinkBrandLandingServer from "@/lib/drinkBrandLanding.server";
+import * as pintPriceLandingDataset from "@/lib/pintPriceLandingDataset.server";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
 
@@ -169,6 +173,29 @@ describe("sitemap()", () => {
       `${SITE}/drink/camden-hells`,
       `${SITE}/drink/birra-moretti`,
     ]);
+  });
+
+  it("uses the shared Pint Price reader for Venue sitemap entries", async () => {
+    const venues = await loadPintPriceLandingVenues();
+    const reader = vi
+      .spyOn(pintPriceLandingDataset, "loadPintPriceLandingVenues")
+      .mockResolvedValue(venues.slice(0, 1));
+    const areaReader = vi
+      .spyOn(nightAreaLandingServer, "loadNightAreaLandings")
+      .mockResolvedValue([]);
+    const drinkReader = vi
+      .spyOn(drinkBrandLandingServer, "loadDrinkBrandLandings")
+      .mockResolvedValue([]);
+
+    try {
+      const rows = await sitemap();
+      expect(reader).toHaveBeenCalled();
+      expect(rows.filter((entry) => entry.url.includes("/ledger/")).length).toBe(1);
+    } finally {
+      reader.mockRestore();
+      areaReader.mockRestore();
+      drinkReader.mockRestore();
+    }
   });
 
   it("advertises no token / UGC / auth surface", () => {

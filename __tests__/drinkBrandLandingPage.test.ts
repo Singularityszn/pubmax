@@ -5,6 +5,14 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+vi.mock("next/og", () => ({
+  ImageResponse: class ImageResponse {},
+}));
+
+vi.mock("@/lib/siteUrlConfig.mjs", () => ({
+  PRODUCTION_SITE_ORIGIN: "https://example.test",
+}));
+
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ "x-nonce": "test-nonce" }),
 }));
@@ -30,6 +38,7 @@ import DrinkBrandLandingPage, {
   generateStaticParams,
   revalidate,
 } from "@/app/drink/[slug]/page";
+import DrinkBrandLandingImage from "@/app/drink/[slug]/opengraph-image";
 import DrinkBrandLandingContent from "@/components/drinks/DrinkBrandLandingContent";
 import {
   drinkBrandLandingJsonLd,
@@ -142,11 +151,19 @@ describe("governed drink brand landing page", () => {
       "ItemList",
     ]);
     expect(graph[0]?.itemListElement?.[0]?.item).toBe(
-      "https://pubmaxxing.com/map",
+      "https://example.test/map",
     );
     expect(graph[1]?.itemListElement).toHaveLength(20);
     expect(graph[1]?.itemListElement?.[0]?.url).toContain(
-      "https://pubmaxxing.com/ledger/",
+      "https://example.test/ledger/",
     );
+  });
+
+  it("returns 404 for an unknown brand Open Graph request", async () => {
+    await expect(
+      DrinkBrandLandingImage({
+        params: Promise.resolve({ slug: "not-a-brand" }),
+      }),
+    ).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/);
   });
 });

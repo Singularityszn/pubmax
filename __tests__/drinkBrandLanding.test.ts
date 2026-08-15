@@ -1,13 +1,15 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
 import {
   DRINK_BRAND_LANDING_PUBLICATION_FLOOR,
   DRINK_BRAND_LANDING_ROW_LIMIT,
+  type DrinkBrandLanding,
+  type DrinkBrandLandingRow,
   buildDrinkBrandLanding,
   listDrinkBrandLandings,
 } from "@/lib/drinkBrandLanding";
@@ -132,10 +134,17 @@ describe("governed drink brand landings", () => {
     expect(buildDrinkBrandLanding("guinness", belowFloor)).toBeNull();
   });
 
+  it("keeps governance constants private and landing rows non-empty", () => {
+    expectTypeOf(buildDrinkBrandLanding).toEqualTypeOf<
+      (slug: string, venues: readonly Venue[]) => DrinkBrandLanding | null
+    >();
+    expectTypeOf<DrinkBrandLanding["rows"]>().toEqualTypeOf<
+      [DrinkBrandLandingRow, ...DrinkBrandLandingRow[]]
+    >();
+  });
+
   it("keeps only valid pub rows and binds one cheapest exact row per Venue", () => {
-    const model = buildDrinkBrandLanding(
-      "guinness",
-      [
+    const model = buildDrinkBrandLanding("guinness", [
         venue("non-pub", [priceRow()], { kind: "bar" }),
         venue("invalid", [
           priceRow({ app_price_id: "invalid-null", price_gbp: null }),
@@ -159,11 +168,18 @@ describe("governed drink brand landings", () => {
         venue("publisher-missing", [
           priceRow({ app_price_id: "missing-source", price_gbp: 4.25, pub_url: "" }),
         ]),
-      ],
-      { publicationFloor: 1 },
-    );
+        ...Array.from({ length: 18 }, (_, index) =>
+          venue(`filler-${index}`, [
+            priceRow({
+              app_price_id: `filler-price-${index}`,
+              pub_name: `Filler ${index}`,
+              price_gbp: 10 + index,
+            }),
+          ]),
+        ),
+      ]);
 
-    expect(model?.rows.map((row) => row.venueId)).toEqual([
+    expect(model?.rows.slice(0, 2).map((row) => row.venueId)).toEqual([
       "alpha-a",
       "publisher-missing",
     ]);
@@ -180,14 +196,12 @@ describe("governed drink brand landings", () => {
       },
     });
     expect(model?.rows[1]?.publisher).toBeNull();
-    expect(model?.totalPricedVenues).toBe(2);
+    expect(model?.totalPricedVenues).toBe(20);
     expect(model?.collectedAt).toBe(PINT_DATASET_OBSERVED_AT.toISOString());
   });
 
   it("breaks equal row prices by app price id and ranked Venue ties by name then id", () => {
-    const model = buildDrinkBrandLanding(
-      "guinness",
-      [
+    const model = buildDrinkBrandLanding("guinness", [
         venue("alpha-b", [
           priceRow({ app_price_id: "b", pub_name: "Alpha B", price_gbp: 4 }),
         ]),
@@ -197,11 +211,18 @@ describe("governed drink brand landings", () => {
           priceRow({ app_price_id: "z", pub_name: "Alpha A", price_gbp: 4 }),
         ]),
         venue("cheap", [priceRow({ app_price_id: "cheap", price_gbp: 3 })]),
-      ],
-      { publicationFloor: 1 },
-    );
+        ...Array.from({ length: 17 }, (_, index) =>
+          venue(`filler-${index}`, [
+            priceRow({
+              app_price_id: `filler-price-${index}`,
+              pub_name: `Filler ${index}`,
+              price_gbp: 10 + index,
+            }),
+          ]),
+        ),
+      ]);
 
-    expect(model?.rows.map((row) => row.venueId)).toEqual([
+    expect(model?.rows.slice(0, 3).map((row) => row.venueId)).toEqual([
       "cheap",
       "alpha-a",
       "alpha-b",

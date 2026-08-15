@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { notFound } from "next/navigation";
 
 import { loadDrinkBrandLanding } from "@/lib/drinkBrandLanding.server";
 import {
@@ -24,10 +25,12 @@ export default async function Image({
 }) {
   const { slug } = await params;
   const landing = await loadDrinkBrandLanding(slug);
-  const brand = clampText(landing?.brandLabel, 24, "London pints");
-  const cheapest = priceStamp(landing?.rows[0]?.priceGbp ?? null);
-  const pricedVenueCount = landing?.totalPricedVenues ?? 0;
-  const route = `/drink/${encodeURIComponent(landing?.slug ?? slug)}`;
+  if (!landing) notFound();
+
+  const brand = clampText(landing.brandLabel, 24);
+  const cheapest = priceStamp(landing.rows[0].priceGbp);
+  const pricedVenueCount = landing.totalPricedVenues;
+  const route = `/drink/${encodeURIComponent(landing.slug)}`;
 
   return new ImageResponse(
     <CardShell>
@@ -78,7 +81,7 @@ export default async function Image({
             lineHeight: 0.9,
           }}
         >
-          {cheapest ?? "Prices checked"}
+          {cheapest}
         </div>
         <div
           style={{

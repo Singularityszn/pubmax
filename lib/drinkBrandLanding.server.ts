@@ -6,8 +6,7 @@ import {
   type DrinkBrandLanding,
 } from "@/lib/drinkBrandLanding";
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
-
-const SITE_URL = "https://pubmaxxing.com";
+import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 
 export type DrinkBrandLandingJsonLdNode = {
   "@context": "https://schema.org";
@@ -46,13 +45,13 @@ export function drinkBrandLandingJsonLd(
           "@type": "ListItem",
           position: 1,
           name: "Map",
-          item: `${SITE_URL}/map`,
+          item: `${PRODUCTION_SITE_ORIGIN}/map`,
         },
         {
           "@type": "ListItem",
           position: 2,
           name: landing.brandLabel,
-          item: `${SITE_URL}/drink/${encodeURIComponent(landing.slug)}`,
+          item: `${PRODUCTION_SITE_ORIGIN}/drink/${encodeURIComponent(landing.slug)}`,
         },
       ],
     },
@@ -66,7 +65,7 @@ export function drinkBrandLandingJsonLd(
         "@type": "ListItem" as const,
         position: row.rank,
         name: row.venueName,
-        url: `${SITE_URL}/ledger/${encodeURIComponent(row.venueId)}`,
+        url: `${PRODUCTION_SITE_ORIGIN}/ledger/${encodeURIComponent(row.venueId)}`,
       })),
     },
   ];

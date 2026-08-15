@@ -26,7 +26,7 @@ export type DrinkBrandLanding = {
   brandLabel: string;
   collectedAt: string;
   totalPricedVenues: number;
-  rows: DrinkBrandLandingRow[];
+  rows: [DrinkBrandLandingRow, ...DrinkBrandLandingRow[]];
 };
 
 function comparePriceRows(left: VenuePrice, right: VenuePrice): number {
@@ -52,13 +52,10 @@ function validMatchingPriceRows(venue: Venue, brand: (typeof DRINK_BRANDS.beer)[
 export function buildDrinkBrandLanding(
   slug: string,
   venues: readonly Venue[],
-  options: { publicationFloor?: number; rowLimit?: number } = {},
 ): DrinkBrandLanding | null {
   const brand = DRINK_BRANDS.beer.find((candidate) => candidate.id === slug);
   if (!brand) return null;
 
-  const publicationFloor = options.publicationFloor ?? DRINK_BRAND_LANDING_PUBLICATION_FLOOR;
-  const rowLimit = options.rowLimit ?? DRINK_BRAND_LANDING_ROW_LIMIT;
   const candidates = venues.flatMap((venue) => {
     if (!isPubVenueKind(venue.kind)) return [];
     const selected = validMatchingPriceRows(venue, brand).sort(comparePriceRows)[0];
@@ -75,7 +72,7 @@ export function buildDrinkBrandLanding(
     ];
   });
 
-  if (candidates.length < publicationFloor) return null;
+  if (candidates.length < DRINK_BRAND_LANDING_PUBLICATION_FLOOR) return null;
 
   const ranked = candidates
     .sort(
@@ -84,14 +81,17 @@ export function buildDrinkBrandLanding(
         left.venueName.localeCompare(right.venueName) ||
         left.venueId.localeCompare(right.venueId),
     )
-    .slice(0, rowLimit);
+    .slice(0, DRINK_BRAND_LANDING_ROW_LIMIT);
+  const rows = ranked.map((row, index) => ({ ...row, rank: index + 1 }));
+  const [firstRow, ...restRows] = rows;
+  if (!firstRow) return null;
 
   return {
     slug: brand.id,
     brandLabel: brand.label,
     collectedAt: PINT_DATASET_OBSERVED_AT.toISOString(),
     totalPricedVenues: candidates.length,
-    rows: ranked.map((row, index) => ({ ...row, rank: index + 1 })),
+    rows: [firstRow, ...restRows],
   };
 }
 
