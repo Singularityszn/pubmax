@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -8,8 +8,11 @@ import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { loadPintIndexArchive } from "@/lib/pintIndexSnapshot.server";
+import { loadNightAreaLandings } from "@/lib/nightAreaLanding.server";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
+
+vi.mock("server-only", () => ({}));
 
 // The number of static hub URLs the generator emits (the fixed list in
 // app/sitemap.ts). Kept here so a change to that list is a conscious test edit.
@@ -55,6 +58,7 @@ type ExpectedCounts = {
   historic: number;
   venues: number;
   editions: number;
+  areas: number;
   total: number;
 };
 
@@ -72,6 +76,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
   const historic = (await loadHistoricPubs()).length;
   // One URL per dated Pint Index edition actually published.
   const editions = (await loadPintIndexArchive()).length;
+  const areas = (await loadNightAreaLandings()).length;
   const counts = {
     cities,
     boroughs,
@@ -79,6 +84,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
     historic,
     venues: venues.length,
     editions,
+    areas,
   };
   return {
     ...counts,
@@ -89,7 +95,8 @@ async function expectedCounts(): Promise<ExpectedCounts> {
       counts.landmarks +
       counts.historic +
       counts.venues +
-      counts.editions,
+      counts.editions +
+      counts.areas,
   };
 }
 
@@ -129,10 +136,21 @@ describe("sitemap()", () => {
     expect(familyCount("/landmark/")).toBe(expected.landmarks);
     expect(familyCount("/historic/")).toBe(expected.historic);
     expect(familyCount("/ledger/")).toBe(expected.venues);
+    expect(familyCount("/area/")).toBe(expected.areas);
     // Sanity floors so a "0 expected" (dataset wipe) can't make the test pass.
     expect(expected.boroughs).toBeGreaterThan(0);
     expect(expected.historic).toBeGreaterThan(0);
     expect(expected.venues).toBeGreaterThan(0);
+    expect(expected.areas).toBe(4);
+  });
+
+  it("includes only governed area landing pages", () => {
+    expect(urls.filter((url) => url.startsWith(`${SITE}/area/`))).toEqual([
+      `${SITE}/area/clapham`,
+      `${SITE}/area/victoria`,
+      `${SITE}/area/piccadilly-soho`,
+      `${SITE}/area/canary-wharf`,
+    ]);
   });
 
   it("advertises no token / UGC / auth surface", () => {

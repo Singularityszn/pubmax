@@ -6,6 +6,7 @@ import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
+import { loadNightAreaLandings } from "@/lib/nightAreaLanding.server";
 
 // Wave S1.2 dynamic sitemap. Enumerates every token-free, crawlable surface so
 // search + AI crawlers discover the whole graph (the map-first UI otherwise hides
@@ -16,6 +17,7 @@ import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintInd
 //     /choose-city, /crawls
 //   - /map/{city} for every enabled non-London city (London is /map)
 //   - /borough/{slug} for every borough present in the price dataset
+//   - /area/{slug} only for governed, crawl-ready areas above the price floor
 //   - /landmark/{id} for every curated landmark
 //   - /historic/{slug} for every cited historic pub (static, self-canonical SEO
 //     pages, the heritage moat)
@@ -87,7 +89,7 @@ async function dataFileModified(name: string, fallback: Date): Promise<Date> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const [venues, historicPubs, pricesModified, historicModified, pintIndexSnapshot, pintIndexEditions] =
+  const [venues, historicPubs, pricesModified, historicModified, pintIndexSnapshot, pintIndexEditions, areaLandings] =
     await Promise.all([
       loadVenues(),
       loadHistoricPubs(),
@@ -95,6 +97,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       dataFileModified("historic_pubs.json", now),
       loadPublicPintIndexSnapshot(),
       loadPintIndexArchive(),
+      loadNightAreaLandings(),
     ]);
   const pintIndexPublished = pintIndexSnapshot
     ? new Date(pintIndexSnapshot.generatedAt)
@@ -164,6 +167,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: pricesModified,
       changeFrequency: "weekly",
       priority: 0.7,
+    });
+  }
+
+  // Governed area pages. Eligibility, unique Venue assignment, and the price
+  // floor come from the same model the route renders.
+  for (const area of areaLandings) {
+    entries.push({
+      url: `${SITE_URL}/area/${area.slug}`,
+      lastModified: pricesModified,
+      changeFrequency: "weekly",
+      priority: 0.75,
     });
   }
 
