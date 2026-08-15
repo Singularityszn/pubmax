@@ -32,3 +32,42 @@ export type PlanInviteRsvpSummary = {
   counts: { going: number; maybe: number };
   guests: PlanInviteGuest[];
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+/** Guards the public RSVP response before client state consumes it. */
+export function isPlanInviteRsvpSummary(value: unknown): value is PlanInviteRsvpSummary {
+  if (!isRecord(value) || !isRecord(value.counts) || !Array.isArray(value.guests)) return false;
+  if (!isNonNegativeInteger(value.counts.going) || !isNonNegativeInteger(value.counts.maybe)) {
+    return false;
+  }
+  if (value.counts.going + value.counts.maybe > RSVP_PLAN_CEILING) return false;
+  if (value.guests.length > GUEST_LIST_DISPLAY_CAP) return false;
+
+  const guestIds = new Set<string>();
+  const visibleCounts: Record<RsvpStatus, number> = { going: 0, maybe: 0 };
+  for (const guest of value.guests) {
+    const guestId = isRecord(guest) && typeof guest.id === "string" ? guest.id.trim() : "";
+    if (
+      !isRecord(guest) ||
+      guestId.length === 0 ||
+      guestIds.has(guestId) ||
+      typeof guest.displayName !== "string" ||
+      guest.displayName.trim().length === 0 ||
+      guest.displayName.length > GUEST_DISPLAY_NAME_MAX ||
+      !isRsvpStatus(guest.status)
+    ) {
+      return false;
+    }
+    guestIds.add(guestId);
+    visibleCounts[guest.status] += 1;
+  }
+
+  return value.counts.going >= visibleCounts.going && value.counts.maybe >= visibleCounts.maybe;
+}

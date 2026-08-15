@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import RouteThumbnail from "@/app/crawls/RouteThumbnail";
-import InviteMapLink from "@/components/plan/InviteMapLink";
 import InvitePageView from "@/components/plan/InvitePageView";
 import PlanInviteRsvp from "@/components/plan/PlanInviteRsvp";
 import type { PlanInviteRsvpSummary } from "@/lib/planInvite";
@@ -277,10 +276,6 @@ export default async function PlanInvitePage({ params }: PageProps) {
           ))}
         </ol>
 
-        {stops.length > 0 ? (
-          <InviteMapLink venueIds={stops.map((stop) => stop.venueId)} />
-        ) : null}
-
         <p className="invite__softNote">
           Joining the crew with a signed-in claimed handle connects you with
           the host in your lot.
@@ -291,6 +286,7 @@ export default async function PlanInvitePage({ params }: PageProps) {
           planId={lookup.planId}
           initialRsvp={summaries.rsvp}
           initialReactions={summaries.reactions}
+          venueIds={stops.map((stop) => stop.venueId)}
         />
         <InvitePageView hasRsvps={summaries.rsvp.guests.length > 0} />
       </div>
