@@ -52,6 +52,36 @@
   font-variant-numeric: tabular-nums;
 }
 
+.drinkBrandLanding__fromPublisher {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  font-weight: 500;
+  line-height: var(--leading-normal);
+}
+
+.drinkBrandLanding__fromPublisher a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-weight: 750;
+  text-decoration-color: var(--accent-action);
+  text-underline-offset: 3px;
+  touch-action: manipulation;
+}
+
+.drinkBrandLanding__fromPublisher a:hover {
+  color: var(--accent-action);
+}
+
+.drinkBrandLanding__fromPublisher a:focus-visible {
+  outline: 3px solid var(--accent-action);
+  outline-offset: 3px;
+}
+
 .drinkBrandLanding__summary {
   max-width: 55ch;
   margin: 10px 0 0;

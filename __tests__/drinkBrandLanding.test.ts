@@ -11,6 +11,7 @@ import {
   type DrinkBrandLanding,
   type DrinkBrandLandingRow,
   buildDrinkBrandLanding,
+  formatDrinkBrandLandingPublisherStatus,
   listDrinkBrandLandings,
 } from "@/lib/drinkBrandLanding";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
@@ -141,6 +142,18 @@ describe("governed drink brand landings", () => {
     expectTypeOf<DrinkBrandLanding["rows"]>().toEqualTypeOf<
       [DrinkBrandLandingRow, ...DrinkBrandLandingRow[]]
     >();
+  });
+
+  it("formats one exact publisher status for named and missing rows", () => {
+    expect(
+      formatDrinkBrandLandingPublisherStatus({
+        label: "Pint Prices",
+        url: "https://www.pint-prices.com/pub/exact",
+      }),
+    ).toBe("Publisher: Pint Prices");
+    expect(formatDrinkBrandLandingPublisherStatus(null)).toBe(
+      "Publisher not recorded",
+    );
   });
 
   it("keeps only valid pub rows and binds one cheapest exact row per Venue", () => {

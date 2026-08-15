@@ -109,6 +109,33 @@ async function expectVisibleFocus(locator: Locator, label: string): Promise<void
   expect(focusStyle.outlineWidth, `${label} should show a visible focus outline`).not.toBe("0px");
 }
 
+async function expectHeroPublisherLink(page: Page): Promise<void> {
+  const status = page.locator(".drinkBrandLanding__fromPublisher");
+  await expect(status).toHaveText("Publisher: Pint Prices");
+
+  const link = status.getByRole("link", {
+    name: "Publisher: Pint Prices",
+    exact: true,
+  });
+  await expect(link).toHaveAttribute(
+    "href",
+    /^https:\/\/www\.pint-prices\.com\/pub\//,
+  );
+  await expectTouchTarget(link, "hero publisher link");
+
+  const colours = await link.evaluate((element) => {
+    const heading = document.querySelector(".drinkBrandLanding h1");
+    return {
+      link: getComputedStyle(element).color,
+      ink: heading ? getComputedStyle(heading).color : "",
+    };
+  });
+  expect(colours.link, "hero publisher link should use the theme ink token").toBe(
+    colours.ink,
+  );
+  await expectVisibleFocus(link, "hero publisher link");
+}
+
 async function assertLandingContract(page: Page): Promise<void> {
   const response = await page.goto(`/drink/${BRAND_SLUG}`, { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
@@ -118,6 +145,7 @@ async function assertLandingContract(page: Page): Promise<void> {
 
   await expectAboveFold(page, page.locator(".drinkBrandLanding__from strong"), "From price");
   await expect(page.locator(".drinkBrandLanding__from strong")).toHaveText("From £3.09");
+  await expectHeroPublisherLink(page);
 
   const summary = page.locator(".drinkBrandLanding__summary");
   await expect(summary).toHaveText(SUMMARY);
@@ -207,6 +235,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
           page.getByRole("heading", { level: 1, name: `Cheapest ${BRAND} Pints in London`, exact: true }),
         ).toBeVisible();
         await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+        await expectHeroPublisherLink(page);
         await expectNoHorizontalOverflow(page);
         await page.screenshot({
           path: "docs/proof/drink-brand-landing/guinness-390-dark.png",

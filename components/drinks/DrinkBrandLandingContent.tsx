@@ -2,7 +2,11 @@ import Link from "next/link";
 
 import PriceBadge from "@/components/PriceBadge";
 import { formatObservedDate } from "@/lib/dataFreshness";
-import type { DrinkBrandLanding, DrinkBrandLandingRow } from "@/lib/drinkBrandLanding";
+import {
+  type DrinkBrandLanding,
+  type DrinkBrandLandingRow,
+  formatDrinkBrandLandingPublisherStatus,
+} from "@/lib/drinkBrandLanding";
 import { formatPrice } from "@/lib/venues";
 
 function formatCollectedDate(iso: string): string {
@@ -44,6 +48,26 @@ function PublisherDisclosure({
   );
 }
 
+function HeroPublisherDisclosure({ row }: { row: DrinkBrandLandingRow }) {
+  const status = formatDrinkBrandLandingPublisherStatus(row.publisher);
+
+  return (
+    <span className="drinkBrandLanding__fromPublisher">
+      {row.publisher ? (
+        <a
+          href={row.publisher.url}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {status}
+        </a>
+      ) : (
+        status
+      )}
+    </span>
+  );
+}
+
 export default function DrinkBrandLandingContent({
   landing,
 }: {
@@ -62,11 +86,7 @@ export default function DrinkBrandLandingContent({
         <h1>Cheapest {landing.brandLabel} Pints in London</h1>
         <p className="drinkBrandLanding__from">
           <strong>From {lowestPrice}</strong>
-          <br />
-          <PublisherDisclosure
-            className="drinkBrandLanding__fromPublisher"
-            row={firstRow}
-          />
+          <HeroPublisherDisclosure row={firstRow} />
         </p>
         <p className="drinkBrandLanding__summary">
           {landing.totalPricedVenues} venues with listed {landing.brandLabel} pints. Collected{" "}

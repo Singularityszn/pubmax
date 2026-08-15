@@ -14,8 +14,10 @@ hero price publisher, shared collection date, touch targets, page width, Map
 brand state, Back restoration, the explicit log picker, and the unknown-brand
 404. At 320, 390, and 430 pixels, every one of the 20 rank and price elements
 must be visible and horizontally inside the viewport. Focus proof covers the
-primary action, secondary action, Ledger row link, and publisher link; shared
-route CSS covers the remaining links of each repeated type.
+primary action, secondary action, Ledger row link, hero publisher link, and row
+publisher link; shared route CSS covers the remaining links of each repeated
+type. Light and dark proof also checks that the hero publisher link uses the
+active PUBMAXX ink token instead of browser link colours.
 
 Run the proof with:
 

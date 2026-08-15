@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { notFound } from "next/navigation";
 
+import { formatDrinkBrandLandingPublisherStatus } from "@/lib/drinkBrandLanding";
 import { loadDrinkBrandLanding } from "@/lib/drinkBrandLanding.server";
 import {
   CardShell,
@@ -31,9 +32,9 @@ export default async function Image({
   const firstRow = landing.rows[0];
   const cheapest = priceStamp(firstRow.priceGbp);
   const pricedVenueCount = landing.totalPricedVenues;
-  const publisherStatus = firstRow.publisher
-    ? `Publisher: ${firstRow.publisher.label}`
-    : "Publisher not recorded";
+  const publisherStatus = formatDrinkBrandLandingPublisherStatus(
+    firstRow.publisher,
+  );
   const route = `/drink/${encodeURIComponent(landing.slug)}`;
 
   return new ImageResponse(

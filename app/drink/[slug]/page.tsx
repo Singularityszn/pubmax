@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import DrinkBrandLandingContent from "@/components/drinks/DrinkBrandLandingContent";
 import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
+import { formatDrinkBrandLandingPublisherStatus } from "@/lib/drinkBrandLanding";
 import {
   drinkBrandLandingJsonLd,
   loadDrinkBrandLanding,
@@ -36,10 +37,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const title = `Cheapest ${landing.brandLabel} Pints in London`;
   const firstRow = landing.rows[0];
-  const publisherStatus = firstRow.publisher
-    ? `Publisher: ${firstRow.publisher.label}.`
-    : "Publisher not recorded.";
-  const description = `${landing.totalPricedVenues} London venues with listed ${landing.brandLabel} pints from ${formatPrice(firstRow.priceGbp)}. ${publisherStatus}`;
+  const publisherStatus = formatDrinkBrandLandingPublisherStatus(
+    firstRow.publisher,
+  );
+  const description = `${landing.totalPricedVenues} London venues with listed ${landing.brandLabel} pints from ${formatPrice(firstRow.priceGbp)}. ${publisherStatus}.`;
   const canonical = `/drink/${encodeURIComponent(landing.slug)}`;
 
   return {

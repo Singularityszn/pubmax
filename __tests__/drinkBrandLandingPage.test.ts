@@ -148,7 +148,13 @@ describe("governed drink brand landing page", () => {
 
     expect(html).toContain("From £3.09");
     expect(html).toContain('class="drinkBrandLanding__fromPublisher"');
+    expect(html).toContain(
+      '>Publisher: Exact Publisher</a>',
+    );
     expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(2);
+    expect(html).toMatch(
+      /class="drinkBrandLanding__publisher"><span>Publisher: <\/span><a href="https:\/\/publisher\.example\/price-1"[^>]*>Exact Publisher<\/a>/,
+    );
   });
 
   it("binds metadata to the canonical route and leaves unknown brands noindex", async () => {

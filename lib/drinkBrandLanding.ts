@@ -11,6 +11,14 @@ type DrinkBrandLandingPublisher = NonNullable<
   ReturnType<typeof namedLegacyPintPriceSource>
 >;
 
+export function formatDrinkBrandLandingPublisherStatus(
+  publisher: DrinkBrandLandingPublisher | null,
+): string {
+  return publisher
+    ? `Publisher: ${publisher.label}`
+    : "Publisher not recorded";
+}
+
 export type DrinkBrandLandingRow = {
   rank: number;
   venueId: string;
