@@ -291,7 +291,9 @@
   }
 
   .drinkBrandDirectory__sectionCount {
-    max-width: 14ch;
+    max-width: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .drinkBrandDirectory__row {

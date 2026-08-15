@@ -461,3 +461,56 @@ for (const viewport of [...MOBILE_VIEWPORTS, DESKTOP_VIEWPORT]) {
     });
   }
 }
+
+for (const viewport of MOBILE_VIEWPORTS) {
+  test.describe(`${viewport.name}px capped Clapham Guinness Ledger count`, () => {
+    test.use({
+      viewport: { width: viewport.width, height: viewport.height },
+      deviceScaleFactor: 1,
+      hasTouch: viewport.hasTouch,
+      isMobile: viewport.isMobile,
+    });
+
+    test("keeps full capped count visible without clipping", async ({ page }) => {
+      test.setTimeout(90_000);
+      await setLandingState(page, "light");
+      const response = await page.goto(
+        "/area/clapham/drink/guinness",
+        { waitUntil: "domcontentloaded" },
+      );
+      expect(response?.status()).toBe(200);
+
+      const count = page.locator(".drinkBrandAreaLanding__sectionCount");
+      await expect(count).toHaveText("Showing 20 of 21 venues");
+      await expect(count).toBeVisible();
+
+      const geometry = await count.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          width: rect.width,
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+          clientHeight: element.clientHeight,
+          scrollHeight: element.scrollHeight,
+        };
+      });
+      expect(geometry.width, "capped count should have a layout box").toBeGreaterThan(0);
+      expect(geometry.left, "capped count should start inside viewport").toBeGreaterThanOrEqual(0);
+      expect(
+        geometry.right,
+        "capped count should end inside viewport",
+      ).toBeLessThanOrEqual(viewport.width + 1);
+      expect(
+        geometry.scrollWidth,
+        "capped count text should not overflow its box",
+      ).toBeLessThanOrEqual(geometry.clientWidth + 1);
+      expect(
+        geometry.scrollHeight,
+        "capped count text should not overflow its box vertically",
+      ).toBeLessThanOrEqual(geometry.clientHeight + 1);
+      await expectNoHorizontalOverflow(page);
+    });
+  });
+}
