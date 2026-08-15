@@ -53,11 +53,16 @@ const ROUTE_ROOTS: Record<LaunchRoute, string> = {
 const MIN_TAP_HEIGHT_PX = 44;
 const MIN_TAP_WIDTH_PX = 24;
 
-/** How long a page is given to stop revealing sections before it is measured. */
+const REQUIRED_SELECTOR_TIMEOUT_MS = 45_000;
 const SETTLE_CEILING_MS = 15_000;
 const SETTLE_QUIET_MS = 600;
 
-async function settle(page: import("@playwright/test").Page): Promise<void> {
+async function settle(
+  page: import("@playwright/test").Page,
+  route: LaunchRoute,
+  width: (typeof WIDTHS)[number],
+  requiredSelectors: readonly string[],
+): Promise<void> {
   await page.evaluate(async () => {
     const step = Math.round(window.innerHeight * 0.8);
     for (let y = 0; y < document.body.scrollHeight; y += step) {
@@ -66,6 +71,21 @@ async function settle(page: import("@playwright/test").Page): Promise<void> {
     }
     window.scrollTo(0, document.body.scrollHeight);
   });
+
+  if (requiredSelectors.length > 0) {
+    await Promise.all(
+      requiredSelectors.map((selector) =>
+        expect(
+          page.locator(selector).first(),
+          `${route} @${width}: ${selector} never appeared`,
+        ).toBeVisible({ timeout: REQUIRED_SELECTOR_TIMEOUT_MS }),
+      ),
+    );
+    return;
+  }
+
+  // DOM quiet is only a fallback when a route has no required readiness target.
+  // Unchanged loading markup for 600ms does not prove deferred content arrived.
   const deadline = Date.now() + SETTLE_CEILING_MS;
   let previous = -1;
   let quietSince = Date.now();
@@ -89,6 +109,8 @@ async function settle(page: import("@playwright/test").Page): Promise<void> {
 test.use({ hasTouch: true, isMobile: true });
 
 test.describe("phone controls on the launch surfaces", () => {
+  test.describe.configure({ timeout: 180_000 });
+
   for (const route of ROUTES) {
     test(`${route} fits and stays tappable at 360/390/430`, async ({ page }) => {
       for (const width of WIDTHS) {
@@ -104,13 +126,16 @@ test.describe("phone controls on the launch surfaces", () => {
           page.locator(`${ROUTE_ROOTS[route]}:visible`).first(),
           `${route} @${width}: expected route root ${ROUTE_ROOTS[route]}`,
         ).toBeVisible();
+        const requiredSelectors = [
+          ...(REQUIRED_TARGETS[route] ?? []),
+          ...(REQUIRED_TEXT_FIELDS[route] ?? []),
+        ];
         // Several of these pages reveal a section only once it is near the
         // viewport (Discover's leaderboard is the loudest), and how much of a
         // page that is depends on the width — which is exactly how the first
         // run of this spec found the leaderboard link at 390 and not at 360.
-        // Walk to the bottom, then wait for the DOM to stop growing, so the
-        // sweep measures the same page every time.
-        await settle(page);
+        // Walk to the bottom, then wait for each named target before measuring.
+        await settle(page, route, width, requiredSelectors);
 
         const report = await page.evaluate(
           ({ minHeight, minWidth, requiredSelectors }) => {
@@ -212,10 +237,7 @@ test.describe("phone controls on the launch surfaces", () => {
           {
             minHeight: MIN_TAP_HEIGHT_PX,
             minWidth: MIN_TAP_WIDTH_PX,
-            requiredSelectors: [
-              ...(REQUIRED_TARGETS[route] ?? []),
-              ...(REQUIRED_TEXT_FIELDS[route] ?? []),
-            ],
+            requiredSelectors,
           },
         );
 
