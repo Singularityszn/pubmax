@@ -88,23 +88,24 @@ export function addLinkAwareDestination(
 /**
  * Whether the surface should perform the add on this render.
  *
- * ONCE is the whole point, so `attempted` is the guard the component holds in a
- * ref: a re-render, a re-focus or a second effect pass may not write a second
- * time. Identity is TRI-STATE like everywhere else here - an unresolved session
- * answers nothing, and a viewer with no handle has nothing to add anybody with.
+ * ONCE is the whole point, so `attemptedAccountIds` is the guard the component
+ * holds in a ref: a re-render, a re-focus or a second effect pass may not write
+ * a second time for the same account. Identity is TRI-STATE like everywhere
+ * else here - an unresolved session answers nothing, and a viewer with no
+ * handle has nothing to add anybody with.
  */
 export function shouldAutoAdd(input: {
   auto: boolean;
-  hasAccount: boolean;
+  accountId: string | null;
   identityResolved: boolean;
   viewerHandle: string | null;
   target: string;
-  attempted: boolean;
+  attemptedAccountIds: ReadonlySet<string>;
 }): boolean {
   if (
     !input.auto ||
-    !input.hasAccount ||
-    input.attempted ||
+    !input.accountId ||
+    input.attemptedAccountIds.has(input.accountId) ||
     !input.identityResolved
   ) {
     return false;

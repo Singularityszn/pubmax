@@ -23,7 +23,11 @@ import ConfirmFollow from "@/components/social/ConfirmFollow";
 import { ADD_LINK_AUTO_PARAM, parseAddLinkAuto } from "@/lib/addLink";
 import { profileMayWearAvatar } from "@/lib/avatarResolve";
 import { normalizeHandle } from "@/lib/profiles";
-import { profileStore, publicOwnedImageUrl } from "@/lib/profileStore";
+import {
+  isProfileTombstoned,
+  profileStore,
+  publicOwnedImageUrl,
+} from "@/lib/profileStore";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 import AddPageShell from "./AddPageShell";
@@ -56,7 +60,12 @@ export default async function AddHandlePage({
   const profile = await profileStore()
     .getByHandle(handle)
     .catch(() => undefined);
-  if (profile === null && isSupabaseConfigured()) notFound();
+  if (
+    isProfileTombstoned(profile) ||
+    (profile === null && isSupabaseConfigured())
+  ) {
+    notFound();
+  }
   const targetAvatarUrl =
     profile && profileMayWearAvatar(profile) ? publicOwnedImageUrl(profile, "avatar") ?? undefined : undefined;
   const auto = parseAddLinkAuto(first((await searchParams)[ADD_LINK_AUTO_PARAM]));

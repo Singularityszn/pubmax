@@ -17,6 +17,7 @@
 
 import { followStore, isSelfFollow } from "@/lib/followStore";
 import { emitNotification } from "@/lib/notificationsStore";
+import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 
 export type FollowWriteResult = "followed" | "already" | "self";
 
@@ -29,6 +30,10 @@ export async function followOnce(
   follower: string,
   target: string,
 ): Promise<FollowWriteResult> {
+  const targetProfile = await profileStore().getByHandle(target);
+  if (!targetProfile || isProfileTombstoned(targetProfile)) {
+    throw new Error("Follow target is unavailable.");
+  }
   if (isSelfFollow(follower, target)) return "self";
   const store = followStore();
   const already = await store.isFollowing(follower, target);

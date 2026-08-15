@@ -1,6 +1,8 @@
-import { createElement } from "react";
+import { act as reactAct, createElement } from "react";
+import { flushSync } from "react-dom";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -25,6 +27,7 @@ const auth = vi.hoisted(() => ({
   identityResolved: true,
 }));
 const viewer = vi.hoisted(() => ({ handle: null as string | null }));
+const followAction = vi.hoisted(() => ({ request: vi.fn() }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => auth,
@@ -32,6 +35,10 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 vi.mock("@/components/auth/useViewerHandle", () => ({
   useViewerHandle: () => viewer.handle,
 }));
+vi.mock("@/lib/authedFetch", () => ({
+  authedActionFetch: followAction.request,
+}));
+vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
 import ConfirmFollow from "@/components/social/ConfirmFollow";
 
@@ -41,10 +48,192 @@ function render(props: Record<string, unknown> = {}): string {
   );
 }
 
+class TestNode {
+  nodeType: number;
+  nodeName: string;
+  ownerDocument: TestDocument | null;
+  parentNode: TestNode | null = null;
+  childNodes: TestNode[] = [];
+
+  constructor(nodeType: number, nodeName: string, ownerDocument: TestDocument | null) {
+    this.nodeType = nodeType;
+    this.nodeName = nodeName;
+    this.ownerDocument = ownerDocument;
+  }
+
+  addEventListener(): void {}
+  removeEventListener(): void {}
+
+  appendChild(child: TestNode): TestNode {
+    child.parentNode = this;
+    this.childNodes.push(child);
+    return child;
+  }
+
+  insertBefore(child: TestNode, before: TestNode | null): TestNode {
+    child.parentNode = this;
+    const index = before ? this.childNodes.indexOf(before) : -1;
+    if (index < 0) this.childNodes.push(child);
+    else this.childNodes.splice(index, 0, child);
+    return child;
+  }
+
+  removeChild(child: TestNode): TestNode {
+    const index = this.childNodes.indexOf(child);
+    if (index >= 0) this.childNodes.splice(index, 1);
+    child.parentNode = null;
+    return child;
+  }
+
+  get firstChild(): TestNode | null {
+    return this.childNodes[0] ?? null;
+  }
+
+  get textContent(): string {
+    return this.childNodes.map((child) => child.textContent).join("");
+  }
+
+  set textContent(value: string) {
+    this.childNodes = value ? [new TestText(value, this.ownerDocument)] : [];
+  }
+}
+
+class TestText extends TestNode {
+  data: string;
+
+  constructor(value: string, ownerDocument: TestDocument | null) {
+    super(3, "#text", ownerDocument);
+    this.data = value;
+  }
+
+  override get textContent(): string {
+    return this.data;
+  }
+
+  override set textContent(value: string) {
+    this.data = value;
+  }
+}
+
+class TestElement extends TestNode {
+  tagName: string;
+  namespaceURI = "http://www.w3.org/1999/xhtml";
+  style: Record<string, string> = {};
+  attributes = new Map<string, string>();
+
+  constructor(tagName: string, ownerDocument: TestDocument) {
+    super(1, tagName.toUpperCase(), ownerDocument);
+    this.tagName = tagName.toUpperCase();
+  }
+
+  setAttribute(name: string, value: string): void {
+    this.attributes.set(name, String(value));
+  }
+
+  removeAttribute(name: string): void {
+    this.attributes.delete(name);
+  }
+}
+
+class TestDocument extends TestNode {
+  defaultView: Record<string, unknown>;
+  documentElement: TestElement;
+  body: TestElement;
+  activeElement: TestElement;
+
+  constructor() {
+    super(9, "#document", null);
+    this.ownerDocument = this;
+    this.documentElement = new TestElement("html", this);
+    this.body = new TestElement("body", this);
+    this.activeElement = this.body;
+    this.defaultView = {};
+  }
+
+  createElement(tagName: string): TestElement {
+    return new TestElement(tagName, this);
+  }
+
+  createElementNS(_namespace: string, tagName: string): TestElement {
+    return new TestElement(tagName, this);
+  }
+
+  createTextNode(value: string): TestText {
+    return new TestText(value, this);
+  }
+}
+
+let root: Root | null = null;
+let container: TestElement | null = null;
+let previousWindow: typeof globalThis.window | undefined;
+let previousDocument: typeof globalThis.document | undefined;
+
+async function commitReactWork(work: () => void | Promise<void>): Promise<void> {
+  if (typeof reactAct === "function") {
+    await reactAct(work);
+    return;
+  }
+  let pending: void | Promise<void> = undefined;
+  flushSync(() => {
+    pending = work();
+  });
+  await pending;
+}
+
+function mountEnvironment(): void {
+  const document = new TestDocument();
+  const window = {
+    document,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => true,
+    setTimeout,
+    clearTimeout,
+    location: { href: "http://localhost/add/karan?auto=1", origin: "http://localhost" },
+    HTMLElement: TestElement,
+    HTMLIFrameElement: class {},
+    Node: TestNode,
+  };
+  document.defaultView = window;
+  previousWindow = globalThis.window;
+  previousDocument = globalThis.document;
+  Object.assign(globalThis, {
+    window,
+    document,
+    IS_REACT_ACT_ENVIRONMENT: typeof reactAct === "function",
+  });
+  container = document.createElement("div");
+  root = createRoot(container as unknown as Element);
+}
+
 beforeEach(() => {
   auth.user = null;
   auth.identityResolved = true;
   viewer.handle = null;
+  followAction.request.mockReset();
+  followAction.request.mockResolvedValue(
+    new Response(JSON.stringify({ following: true }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }),
+  );
+});
+
+afterEach(async () => {
+  if (root) {
+    await commitReactWork(() => root?.unmount());
+    root = null;
+  }
+  container = null;
+  if (previousWindow !== undefined || previousDocument !== undefined) {
+    Object.assign(globalThis, {
+      window: previousWindow,
+      document: previousDocument,
+      IS_REACT_ACT_ENVIRONMENT: false,
+    });
+    previousWindow = undefined;
+    previousDocument = undefined;
+  }
 });
 
 describe("ConfirmFollow", () => {
@@ -115,5 +304,41 @@ describe("ConfirmFollow", () => {
     expect(html).toContain("Create account and add Karan M");
     expect(html).not.toContain("Share your link");
     expect(html).not.toContain("Add @karan</button>");
+  });
+
+  it("does not show the previous account receipt after an account switch", async () => {
+    mountEnvironment();
+    auth.user = { id: "account-a" };
+    viewer.handle = "viewer-a";
+
+    await commitReactWork(async () => {
+      root?.render(createElement(ConfirmFollow, { targetHandle: "karan", auto: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => {
+      expect(container?.textContent).toContain("@karan is in your lot.");
+    });
+
+    auth.user = { id: "account-b" };
+    auth.identityResolved = false;
+    viewer.handle = null;
+    await commitReactWork(() => {
+      root?.render(createElement(ConfirmFollow, { targetHandle: "karan", auto: true }));
+    });
+
+    expect(container?.textContent).toContain("Checking your session.");
+    expect(container?.textContent).not.toContain("@karan is in your lot.");
+
+    auth.identityResolved = true;
+    viewer.handle = "viewer-b";
+    await commitReactWork(async () => {
+      root?.render(createElement(ConfirmFollow, { targetHandle: "karan", auto: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => {
+      expect(followAction.request).toHaveBeenCalledTimes(2);
+    });
   });
 });

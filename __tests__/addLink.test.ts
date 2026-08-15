@@ -77,11 +77,11 @@ describe("the add link survives account creation", () => {
 describe("the add on arrival happens once", () => {
   const base = {
     auto: true,
-    hasAccount: true,
+    accountId: "account-a",
     identityResolved: true,
     viewerHandle: "newdrinker",
     target: "karan",
-    attempted: false,
+    attemptedAccountIds: new Set<string>(),
   };
 
   it("adds when the viewer has landed back with an account", () => {
@@ -89,7 +89,24 @@ describe("the add on arrival happens once", () => {
   });
 
   it("never runs twice", () => {
-    expect(shouldAutoAdd({ ...base, attempted: true })).toBe(false);
+    expect(
+      shouldAutoAdd({
+        ...base,
+        attemptedAccountIds: new Set(["account-a"]),
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps the attempt guard scoped to its account", () => {
+    const attemptedAccountIds = new Set(["account-a"]);
+    expect(shouldAutoAdd({ ...base, attemptedAccountIds })).toBe(false);
+    expect(
+      shouldAutoAdd({
+        ...base,
+        accountId: "account-b",
+        attemptedAccountIds,
+      }),
+    ).toBe(true);
   });
 
   it("waits for the live session rather than a device cache", () => {
@@ -98,7 +115,7 @@ describe("the add on arrival happens once", () => {
   });
 
   it("refuses a signed-out viewer carrying a cached handle", () => {
-    expect(shouldAutoAdd({ ...base, hasAccount: false })).toBe(false);
+    expect(shouldAutoAdd({ ...base, accountId: null })).toBe(false);
   });
 
   it("refuses without the flag, and refuses your own link", () => {

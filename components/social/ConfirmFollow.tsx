@@ -18,7 +18,13 @@
 // instead: copy / share your link so friends at the table can add you.
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
@@ -41,6 +47,19 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 
 type FollowState = "idle" | "working" | "done" | "error";
+type FollowResult = {
+  state: FollowState;
+  error: string;
+};
+type AccountFollowResults = Record<string, FollowResult>;
+
+function setAccountFollowResult(
+  setResults: Dispatch<SetStateAction<AccountFollowResults>>,
+  accountId: string,
+  result: FollowResult,
+): void {
+  setResults((current) => ({ ...current, [accountId]: result }));
+}
 
 /**
  * The one write this surface makes, outside the component so the button and the
@@ -51,11 +70,10 @@ type FollowState = "idle" | "working" | "done" | "error";
 async function performAdd(
   target: string,
   adder: string,
-  setState: (next: FollowState) => void,
-  setError: (next: string) => void,
+  accountId: string,
+  setResults: Dispatch<SetStateAction<AccountFollowResults>>,
 ): Promise<void> {
-  setState("working");
-  setError("");
+  setAccountFollowResult(setResults, accountId, { state: "working", error: "" });
   try {
     const res = await authedActionFetch(`/api/profiles/${encodeURIComponent(target)}/follow`, {
       method: "POST",
@@ -64,11 +82,13 @@ async function performAdd(
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error(errorMessageFrom(data, "Could not add them."));
-    setState("done");
+    setAccountFollowResult(setResults, accountId, { state: "done", error: "" });
     trackEvent("add_link_added", { surface: ADD_LINK_SURFACE, outcome: "added" });
   } catch (err) {
-    setError(err instanceof Error ? err.message : "Network error. Try again.");
-    setState("error");
+    setAccountFollowResult(setResults, accountId, {
+      state: "error",
+      error: err instanceof Error ? err.message : "Network error. Try again.",
+    });
     trackEvent("add_link_added", { surface: ADD_LINK_SURFACE, outcome: "failed" });
   }
 }
@@ -88,14 +108,16 @@ export default function ConfirmFollow({
   const target = normalizeHandle(targetHandle);
   const { user, identityResolved } = useAuth();
   const viewerHandle = useViewerHandle();
-  const [state, setState] = useState<FollowState>("idle");
-  const [error, setError] = useState("");
+  const accountId = user?.id ?? null;
+  const [followResults, setFollowResults] = useState<AccountFollowResults>({});
   const [copied, setCopied] = useState(false);
   const [shareError, setShareError] = useState("");
-  // ONCE. A re-render, a re-focus or a second effect pass may not write again.
-  const autoAttempted = useRef(false);
+  const attemptedAccountIds = useRef(new Set<string>());
 
-  const hasAccount = Boolean(user);
+  const hasAccount = Boolean(accountId);
+  const ownedResult = accountId ? followResults[accountId] : null;
+  const state = ownedResult?.state ?? "idle";
+  const error = ownedResult?.error ?? "";
   const isSelf =
     identityResolved &&
     hasAccount &&
@@ -110,8 +132,10 @@ export default function ConfirmFollow({
     : "/u/you";
   const name = (targetName ?? "").trim();
 
-  const addToLot = (adder: string) =>
-    performAdd(target, adder, setState, setError);
+  const addToLot = (adder: string) => {
+    if (!accountId) return Promise.resolve();
+    return performAdd(target, adder, accountId, setFollowResults);
+  };
 
   useEffect(() => {
     if (!target) return;
@@ -119,24 +143,25 @@ export default function ConfirmFollow({
   }, [target]);
 
   // The add on arrival. The server write is idempotent (lib/followWrite.server),
-  // so a repeat costs nothing; the ref is what keeps this surface from asking.
+  // so a repeat costs nothing; the ref keeps each account from asking twice.
   useEffect(() => {
     if (
       !viewerHandle ||
+      !accountId ||
       !shouldAutoAdd({
         auto,
-        hasAccount,
+        accountId,
         identityResolved,
         viewerHandle,
         target,
-        attempted: autoAttempted.current,
+        attemptedAccountIds: attemptedAccountIds.current,
       })
     ) {
       return;
     }
-    autoAttempted.current = true;
-    void performAdd(target, viewerHandle, setState, setError);
-  }, [auto, hasAccount, identityResolved, target, viewerHandle]);
+    attemptedAccountIds.current.add(accountId);
+    void performAdd(target, viewerHandle, accountId, setFollowResults);
+  }, [accountId, auto, identityResolved, target, viewerHandle]);
 
   async function share() {
     setShareError("");
@@ -169,6 +194,33 @@ export default function ConfirmFollow({
         <Link className="confirmFollowGhost" href="/social">
           Back to Social
         </Link>
+      </section>
+    );
+  }
+
+  const card = (
+    <>
+      <HandleAvatar
+        handle={target}
+        avatarUrl={targetAvatarUrl}
+        className="confirmFollowAvatar"
+        imageClassName="confirmFollowAvatar"
+        size={56}
+      />
+      <p className="confirmFollowEyebrow">{ADD_LINK_COPY.eyebrow}</p>
+      <h1 className="confirmFollowTitle">Add {name || displayHandle(target)}?</h1>
+      {name ? <p className="confirmFollowMeta">{displayHandle(target)}</p> : null}
+    </>
+  );
+
+  // The session has not answered yet. Nobody is named and no door is offered:
+  // guessing signed-out here is what would flash a sign-up form at somebody who
+  // is already signed in.
+  if (!identityResolved) {
+    return (
+      <section className="confirmFollow" aria-label={`Add ${displayHandle(target)}`} aria-busy="true">
+        {card}
+        <p className="confirmFollowBody">{ADD_LINK_COPY.checking}</p>
       </section>
     );
   }
@@ -213,33 +265,6 @@ export default function ConfirmFollow({
             </li>
           ))}
         </ul>
-      </section>
-    );
-  }
-
-  const card = (
-    <>
-      <HandleAvatar
-        handle={target}
-        avatarUrl={targetAvatarUrl}
-        className="confirmFollowAvatar"
-        imageClassName="confirmFollowAvatar"
-        size={56}
-      />
-      <p className="confirmFollowEyebrow">{ADD_LINK_COPY.eyebrow}</p>
-      <h1 className="confirmFollowTitle">Add {name || displayHandle(target)}?</h1>
-      {name ? <p className="confirmFollowMeta">{displayHandle(target)}</p> : null}
-    </>
-  );
-
-  // The session has not answered yet. Nobody is named and no door is offered:
-  // guessing signed-out here is what would flash a sign-up form at somebody who
-  // is already signed in.
-  if (!identityResolved) {
-    return (
-      <section className="confirmFollow" aria-label={`Add ${displayHandle(target)}`} aria-busy="true">
-        {card}
-        <p className="confirmFollowBody">{ADD_LINK_COPY.checking}</p>
       </section>
     );
   }

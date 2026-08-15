@@ -23,9 +23,14 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 });
 
 import { POST } from "@/app/api/profiles/[handle]/follow/route";
+import { followOnce } from "@/lib/followWrite.server";
 import { followStore, __resetMemoryFollows } from "@/lib/followStore";
 import { __resetMemoryNotifications } from "@/lib/notificationsStore";
-import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
+import {
+  memoryProfileStore,
+  __resetMemoryProfiles,
+  __tombstoneMemoryProfile,
+} from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/profiles";
 
@@ -47,13 +52,25 @@ function asUser(userId: string): void {
   authState.userId = userId;
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   authState.userId = null;
   __resetMemoryFollows();
   __resetMemoryNotifications();
   __resetMemoryProfiles();
+  await memoryProfileStore.createOwned("sam", "user-sam");
+});
+
+describe("shared follow write target guard", () => {
+  it("rejects missing and deleted targets without writing an edge", async () => {
+    await expect(followOnce("ken", "missing")).rejects.toBeInstanceOf(Error);
+
+    __tombstoneMemoryProfile("sam");
+    await expect(followOnce("ken", "sam")).rejects.toBeInstanceOf(Error);
+
+    expect(await followStore().listFollowing("ken")).toEqual([]);
+  });
 });
 
 describe("POST /api/profiles/[handle]/follow", () => {
