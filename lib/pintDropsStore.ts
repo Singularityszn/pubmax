@@ -49,7 +49,6 @@ import { londonDayKey } from "@/lib/pintContributions";
 
 const TABLE = "visit_reports";
 const REPORT_TABLE = "pint_drop_reports";
-const REPORT_ALIAS_DETAILS = "auth_transition_alias";
 
 /** Bounded public reads: the visible listing never returns more than this. */
 export const MAX_PUBLIC_DROPS = 500;
@@ -136,9 +135,8 @@ export type PintDropStore = {
   listForReview(status: "hidden" | "pending"): Promise<ModeratorDrop[]>;
   /**
    * Public report: record metadata; hides at REPORT_HIDE_THRESHOLD. False =
-   * unknown id. `identity` carries the primary account-or-IP actor plus its IP
-   * deduplication key. A duplicate on either identity is an idempotent no-op,
-   * durably enforced by the report_pint_drop_v2 RPC and reporter ledger.
+   * unknown id. Verified account identities count toward auto-hide through the
+   * atomic RPC. Anonymous IP identities are recorded without changing the count.
    */
   report(
     id: string,
@@ -194,47 +192,30 @@ function admin() {
   return requireSupabaseAdmin();
 }
 
-type ReporterLedgerRow = {
-  actor_hash: string;
-  details: string | null;
-};
-
-async function reporterLedgerRows(
+async function recordAnonymousReport(
   id: string,
-  actorHashes: readonly string[],
-): Promise<ReporterLedgerRow[]> {
-  const { data, error } = await admin()
-    .from(REPORT_TABLE)
-    .select("actor_hash,details")
-    .eq("pint_drop_id", id)
-    .in("actor_hash", [...new Set(actorHashes)]);
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => ({
-    actor_hash: String((row as Record<string, unknown>).actor_hash),
-    details:
-      typeof (row as Record<string, unknown>).details === "string"
-        ? String((row as Record<string, unknown>).details)
-        : null,
-  }));
-}
-
-async function ensureReporterLedgerRow(
-  id: string,
+  reason: string | undefined,
   actorHash: string,
-  details: string | null,
-): Promise<void> {
-  const { error } = await admin().from(REPORT_TABLE).upsert(
-    {
-      pint_drop_id: id,
-      actor_hash: actorHash,
-      details,
-    },
-    {
-      onConflict: "pint_drop_id,actor_hash",
-      ignoreDuplicates: true,
-    },
-  );
+): Promise<boolean> {
+  const { error: reportError } = await admin().from(REPORT_TABLE).insert({
+    pint_drop_id: id,
+    actor_hash: actorHash,
+    reason: reason ?? null,
+  });
+  if (reportError?.code === "23505") return true;
+  if (reportError?.code === "23503") return false;
+  if (reportError) throw new Error(reportError.message);
+
+  const { data, error } = await admin()
+    .from(TABLE)
+    .update({
+      reported_at: new Date().toISOString(),
+      ...(reason ? { report_reason: reason } : {}),
+    })
+    .eq("id", id)
+    .select("id");
   if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
 }
 
 // visit_reports (snake_case) <-> PintDrop (camelCase). Kept in one place so a
@@ -721,63 +702,28 @@ export const supabasePintDropStore: PintDropStore = {
     return toModeratorDTOsWithBatchedPhotos((data ?? []).map(fromRow));
   },
 
-  /** ONE atomic RPC (migration 0017) writes the per-actor report ledger
+  /** ONE atomic RPC (migration 0017) writes the verified-account report ledger
    *  (pint_drop_reports, unique (pint_drop_id, actor_hash)) and increments /
    *  stamps / hides visit_reports in a single statement — two concurrent
-   *  reports can't lose an increment, and a same-actor duplicate is an
-   *  idempotent no-op (the counter never moves twice for one actor). Null
+   *  reports can't lose an increment, and a same-account duplicate is an
+   *  idempotent no-op (the counter never moves twice for one account). Null
    *  data = unknown id. Until 0017 is applied, the v2 call errors and we fall
    *  back to the 0004 RPC (windowed-limit-only semantics), then to the
    *  non-atomic update if 0004 is missing too. */
   async report(id, reason, identity) {
-    const isSignedIn = identity.primaryActorHash !== identity.ipActorHash;
-    const ledgerRows = await reporterLedgerRows(id, [
-      identity.primaryActorHash,
-      identity.ipActorHash,
-    ]);
-    const primaryRow = ledgerRows.find(
-      (row) => row.actor_hash === identity.primaryActorHash,
-    );
-    const ipRow = ledgerRows.find((row) => row.actor_hash === identity.ipActorHash);
-
-    if (primaryRow) {
-      if (isSignedIn && !ipRow) {
-        await ensureReporterLedgerRow(
-          id,
-          identity.ipActorHash,
-          REPORT_ALIAS_DETAILS,
-        );
-      }
-      return true;
-    }
-    if (isSignedIn && ipRow?.details !== REPORT_ALIAS_DETAILS) {
-      await ensureReporterLedgerRow(
-        id,
-        identity.primaryActorHash,
-        REPORT_ALIAS_DETAILS,
-      );
-      return true;
+    if (identity.kind === "anonymous_ip") {
+      return recordAnonymousReport(id, reason, identity.actorHash);
     }
 
     const { data: v2Data, error: v2Error } = await admin().rpc("report_pint_drop_v2", {
       p_id: id,
-      p_actor_hash: identity.primaryActorHash,
+      p_actor_hash: identity.actorHash,
       p_reason: reason ?? null,
       p_hide_threshold: REPORT_HIDE_THRESHOLD,
     });
     if (!v2Error) {
       const reported = v2Data !== null && v2Data !== undefined;
-      if (reported) {
-        await ensureReporterLedgerRow(id, identity.primaryActorHash, null);
-        if (isSignedIn) {
-          await ensureReporterLedgerRow(
-            id,
-            identity.ipActorHash,
-            REPORT_ALIAS_DETAILS,
-          );
-        }
-        await purgeHiddenDropPhotos(id);
-      }
+      if (reported) await purgeHiddenDropPhotos(id);
       return reported;
     }
     console.warn(
@@ -813,30 +759,11 @@ export const supabasePintDropStore: PintDropStore = {
         })
         .eq("id", id);
       if (updateError) throw new Error(updateError.message);
-      await ensureReporterLedgerRow(id, identity.primaryActorHash, null);
-      if (isSignedIn) {
-        await ensureReporterLedgerRow(
-          id,
-          identity.ipActorHash,
-          REPORT_ALIAS_DETAILS,
-        );
-      }
       await purgeHiddenDropPhotos(id);
       return true;
     }
-    const reported = data !== null && data !== undefined;
-    if (reported) {
-      await ensureReporterLedgerRow(id, identity.primaryActorHash, null);
-      if (isSignedIn) {
-        await ensureReporterLedgerRow(
-          id,
-          identity.ipActorHash,
-          REPORT_ALIAS_DETAILS,
-        );
-      }
-      await purgeHiddenDropPhotos(id);
-    }
-    return reported;
+    if (data !== null && data !== undefined) await purgeHiddenDropPhotos(id);
+    return data !== null && data !== undefined;
   },
 
   async moderate(id, status, note) {

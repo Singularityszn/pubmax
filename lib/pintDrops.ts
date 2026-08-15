@@ -492,24 +492,20 @@ function findDrop(id: string): PintDrop | undefined {
   return undefined;
 }
 
-// Report-abuse policy (launch PRD): one unauthenticated report must not hide
-// content. Every report records metadata (and is rate-limited per drop at the
-// route); the drop leaves public reads only once this many reports accumulate.
+// Report-abuse policy (launch PRD): anonymous reports record moderation
+// metadata but never count toward hiding. The drop leaves public reads only
+// after this many distinct verified accounts report it.
 export const REPORT_HIDE_THRESHOLD = 2;
 
-export type PintDropReportIdentity = {
-  primaryActorHash: string;
-  ipActorHash: string;
-};
+export type PintDropReportIdentity =
+  | { kind: "verified_account"; actorHash: string }
+  | { kind: "anonymous_ip"; actorHash: string };
 
 // Per-actor report ledger (memory mirror of pint_drop_reports' unique
 // (pint_drop_id, actor_hash) — migrations 0006/0008/0017): drop id → the set of
 // actor hashes that already reported it. A same-actor duplicate is an idempotent
 // no-op, so one actor can never bump the counter twice across rate-limit windows.
-const reportedActorsByDrop = new Map<
-  string,
-  Map<string, "primary" | "alias">
->();
+const reportedActorsByDrop = new Map<string, Set<string>>();
 
 export function reportPintDrop(
   id: string,
@@ -519,29 +515,16 @@ export function reportPintDrop(
   const hit = findDrop(id);
   if (!hit) return false;
 
-  const seen = reportedActorsByDrop.get(id) ?? new Map<string, "primary" | "alias">();
-  const isSignedIn = identity.primaryActorHash !== identity.ipActorHash;
-  if (seen.has(identity.primaryActorHash)) {
-    if (isSignedIn && !seen.has(identity.ipActorHash)) {
-      seen.set(identity.ipActorHash, "alias");
-      reportedActorsByDrop.set(id, seen);
-    }
-    return true;
-  }
-  if (isSignedIn && seen.get(identity.ipActorHash) === "primary") {
-    seen.set(identity.primaryActorHash, "alias");
-    reportedActorsByDrop.set(id, seen);
-    return true;
-  }
-  seen.set(identity.primaryActorHash, "primary");
-  if (isSignedIn && !seen.has(identity.ipActorHash)) {
-    seen.set(identity.ipActorHash, "alias");
-  }
+  const seen = reportedActorsByDrop.get(id) ?? new Set<string>();
+  if (seen.has(identity.actorHash)) return true;
+  seen.add(identity.actorHash);
   reportedActorsByDrop.set(id, seen);
 
   hit.reportedAt = new Date().toISOString();
-  hit.reportCount = (hit.reportCount ?? 0) + 1;
   if (reason) hit.reportReason = reason;
+  if (identity.kind === "anonymous_ip") return true;
+
+  hit.reportCount = (hit.reportCount ?? 0) + 1;
   if (hit.reportCount >= REPORT_HIDE_THRESHOLD) hit.status = "hidden";
   return true;
 }

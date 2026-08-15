@@ -169,11 +169,8 @@ function get(venueId?: string): Promise<Response> {
   return GET(new Request(url));
 }
 
-// The counted reporter identity is SERVER-DERIVED (a verified account id, else
-// the salted hash of IP alone), so a `device` here is a different
-// CLIENT rather than a different string in the body. The per-actor budget is 1
-// report per drop per window (H1), and REPORT_HIDE_THRESHOLD (2) therefore needs
-// two genuinely different clients. The body's own `actor` field decides nothing.
+// Anonymous reports use the hashed client IP for flood control and recording.
+// Only verified account identities enter the auto-hide count.
 function deviceHeaders(device?: string): Record<string, string> | undefined {
   if (!device) return undefined;
   return { "x-forwarded-for": `203.0.113.${device === "device-a" ? "10" : "20"}` };
@@ -192,6 +189,20 @@ function report(id: string, reason?: string, device?: string): Promise<Response>
       }),
     }),
   );
+}
+
+async function signedReport(
+  id: string,
+  userId: string,
+  reason?: string,
+  device?: string,
+): Promise<Response> {
+  reportAuth.userId = userId;
+  try {
+    return await report(id, reason, device);
+  } finally {
+    reportAuth.userId = null;
+  }
 }
 
 // Moderator GET/POST. In test env (NODE_ENV !== production, ADMIN_TOKEN unset)
@@ -520,7 +531,7 @@ describe("validatePintDrop — Last Train compose fields (Wave G1)", () => {
 });
 
 describe("GET + moderation", () => {
-  it("lists a created drop, then hides it after report threshold (two DISTINCT actors)", async () => {
+  it("lists a created drop, then hides it after two verified accounts report", async () => {
     const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
     const { drop } = await created.json();
 
@@ -528,15 +539,18 @@ describe("GET + moderation", () => {
     expect(listed.status).toBe(200);
     expect((await listed.json()).drops).toHaveLength(1);
 
-    // First actor reports.
-    const reported = await report(drop.id, undefined, "device-a");
+    const reported = await signedReport(drop.id, "user-one", undefined, "device-a");
     expect(reported.status).toBe(200);
 
     const afterFirstReport = await get(VENUE);
     expect((await afterFirstReport.json()).drops).toHaveLength(1);
 
-    // A DIFFERENT actor reports → threshold (2) reached → hidden.
-    const secondReport = await report(drop.id, undefined, "device-b");
+    const secondReport = await signedReport(
+      drop.id,
+      "user-two",
+      undefined,
+      "device-b",
+    );
     expect(secondReport.status).toBe(200);
 
     const afterThreshold = await get(VENUE);
@@ -600,13 +614,13 @@ describe("moderation loop", () => {
   it("records reportedAt + reportCount and hides at report threshold", async () => {
     const id = await createDrop();
 
-    const res = await report(id, "wrong price", "device-a");
+    const res = await signedReport(id, "user-one", "wrong price", "device-a");
     expect(res.status).toBe(200);
 
     // First report records metadata but does not let one actor take down content.
     expect((await (await get(VENUE)).json()).drops).toHaveLength(1);
 
-    const hidden = await report(id, undefined, "device-b");
+    const hidden = await signedReport(id, "user-two", undefined, "device-b");
     expect(hidden.status).toBe(200);
 
     // Gone from the public list after the threshold.
@@ -623,8 +637,8 @@ describe("moderation loop", () => {
 
   it("restores a reported drop back to the public list", async () => {
     const id = await createDrop();
-    await report(id, undefined, "device-a");
-    await report(id, undefined, "device-b");
+    await signedReport(id, "user-one", undefined, "device-a");
+    await signedReport(id, "user-two", undefined, "device-b");
 
     const restored = await modAction("restore", id);
     expect(restored.status).toBe(200);
@@ -636,8 +650,8 @@ describe("moderation loop", () => {
 
   it("keeps a drop hidden after keep_hidden", async () => {
     const id = await createDrop();
-    await report(id, undefined, "device-a");
-    await report(id, undefined, "device-b");
+    await signedReport(id, "user-one", undefined, "device-a");
+    await signedReport(id, "user-two", undefined, "device-b");
 
     const kept = await modAction("keep_hidden", id);
     expect(kept.status).toBe(200);
@@ -694,60 +708,46 @@ describe("moderation loop", () => {
   });
 });
 
-// The counted identity is the server's, never the caller's. One person sending
-// `actor:"a"` then `actor:"b"` used to reach REPORT_HIDE_THRESHOLD on their own
-// and hide anybody's drop, while the comment beside the code claimed two
-// DIFFERENT actors were required.
-describe("a report is counted under a SERVER-derived identity", () => {
-  function reportAs(
-    id: string,
-    headers: Record<string, string>,
-    actor: string,
-  ): Promise<Response> {
-    return POST(
-      new Request(URL_BASE, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ action: "report", id, actor }),
-      }),
-    );
-  }
-
-  it("counts ONE report when one client sends two different actor strings", async () => {
+describe("verified-account Pint Drop report counting", () => {
+  it("accepts two anonymous reports without hiding the drop", async () => {
     const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
     const { drop } = await created.json();
-    const sameClient = {
-      "x-forwarded-for": "203.0.113.99",
-      "user-agent": "Mozilla/5.0 (one attacker)",
-    };
 
     vi.useFakeTimers();
     try {
-      expect((await reportAs(drop.id, sameClient, "a")).status).toBe(200);
-      // Past the per-actor window, so only the durable identity can refuse it.
+      expect((await report(drop.id, "wrong price", "device-a")).status).toBe(200);
       vi.advanceTimersByTime(61_000);
-      expect((await reportAs(drop.id, sameClient, "b")).status).toBe(200);
+      expect((await report(drop.id, "spam", "device-b")).status).toBe(200);
 
       const listed = (await (await get(VENUE)).json()).drops as Array<{
         reportCount?: number;
       }>;
-      // Still visible, still one report: the drop was NOT hidden.
       expect(listed).toHaveLength(1);
-      expect(listed[0].reportCount).toBe(1);
+      expect(listed[0]).not.toHaveProperty("reportCount");
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("counts ONE report when one IP changes its user agent", async () => {
+  it("hides the drop after two distinct verified accounts report", async () => {
+    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    const { drop } = await created.json();
+
+    await signedReport(drop.id, "user-one", undefined, "device-a");
+    await signedReport(drop.id, "user-two", undefined, "device-a");
+
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+  });
+
+  it("counts the same verified account once across report windows", async () => {
     const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
     const { drop } = await created.json();
 
     vi.useFakeTimers();
     try {
-      await reportAs(drop.id, { "x-forwarded-for": "203.0.113.99", "user-agent": "one" }, "a");
+      await signedReport(drop.id, "user-one", "wrong price", "device-a");
       vi.advanceTimersByTime(61_000);
-      await reportAs(drop.id, { "x-forwarded-for": "203.0.113.99", "user-agent": "two" }, "a");
+      await signedReport(drop.id, "user-one", "spam", "device-b");
 
       const listed = (await (await get(VENUE)).json()).drops as Array<{
         reportCount?: number;
@@ -755,89 +755,6 @@ describe("a report is counted under a SERVER-derived identity", () => {
       expect(listed).toHaveLength(1);
       expect(listed[0].reportCount).toBe(1);
     } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("counts two different IPs and hides the drop", async () => {
-    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
-    const { drop } = await created.json();
-
-    vi.useFakeTimers();
-    try {
-      await reportAs(drop.id, { "x-forwarded-for": "203.0.113.10" }, "a");
-      vi.advanceTimersByTime(61_000);
-      await reportAs(drop.id, { "x-forwarded-for": "203.0.113.20" }, "a");
-
-      expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("counts once when one client reports anonymously then signs in", async () => {
-    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
-    const { drop } = await created.json();
-    const sameClient = { "x-forwarded-for": "203.0.113.99" };
-
-    vi.useFakeTimers();
-    try {
-      await reportAs(drop.id, sameClient, "anonymous");
-      vi.advanceTimersByTime(61_000);
-      reportAuth.userId = "user-one";
-      await reportAs(drop.id, sameClient, "signed-in");
-
-      const listed = (await (await get(VENUE)).json()).drops as Array<{
-        reportCount?: number;
-      }>;
-      expect(listed).toHaveLength(1);
-      expect(listed[0].reportCount).toBe(1);
-    } finally {
-      reportAuth.userId = null;
-      vi.useRealTimers();
-    }
-  });
-
-  it("counts once when one client reports signed in then anonymously", async () => {
-    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
-    const { drop } = await created.json();
-    const sameClient = { "x-forwarded-for": "203.0.113.99" };
-
-    vi.useFakeTimers();
-    try {
-      reportAuth.userId = "user-one";
-      await reportAs(drop.id, sameClient, "signed-in");
-      vi.advanceTimersByTime(61_000);
-      reportAuth.userId = null;
-      await reportAs(drop.id, sameClient, "anonymous");
-
-      const listed = (await (await get(VENUE)).json()).drops as Array<{
-        reportCount?: number;
-      }>;
-      expect(listed).toHaveLength(1);
-      expect(listed[0].reportCount).toBe(1);
-    } finally {
-      reportAuth.userId = null;
-      vi.useRealTimers();
-    }
-  });
-
-  it("counts two verified accounts sharing one IP", async () => {
-    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
-    const { drop } = await created.json();
-    const sharedIp = { "x-forwarded-for": "203.0.113.99" };
-
-    vi.useFakeTimers();
-    try {
-      reportAuth.userId = "user-one";
-      await reportAs(drop.id, sharedIp, "first-account");
-      vi.advanceTimersByTime(61_000);
-      reportAuth.userId = "user-two";
-      await reportAs(drop.id, sharedIp, "second-account");
-
-      expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
-    } finally {
-      reportAuth.userId = null;
       vi.useRealTimers();
     }
   });
@@ -853,13 +770,18 @@ describe("durable per-actor report uniqueness", () => {
     // the store-level ledger must (H1 across windows / limiter cold-start).
     vi.useFakeTimers();
     try {
-      const first = await report(drop.id, "wrong price", "device-a");
+      const first = await signedReport(drop.id, "user-one", "wrong price", "device-a");
       expect(first.status).toBe(200);
 
       // New rate-limit window: the per-actor windowed budget has reset, so this
       // duplicate reaches the store — which must treat it as an idempotent no-op.
       vi.advanceTimersByTime(61_000);
-      const duplicate = await report(drop.id, "wrong price", "device-a");
+      const duplicate = await signedReport(
+        drop.id,
+        "user-one",
+        "wrong price",
+        "device-a",
+      );
       expect(duplicate.status).toBe(200); // no-op, not an error
 
       // Count stayed at 1 (below threshold) and the drop is still visible.
@@ -872,7 +794,7 @@ describe("durable per-actor report uniqueness", () => {
 
       // A DISTINCT actor's report is the second real one → threshold → hidden.
       vi.advanceTimersByTime(61_000);
-      const second = await report(drop.id, undefined, "device-b");
+      const second = await signedReport(drop.id, "user-two", undefined, "device-b");
       expect(second.status).toBe(200);
       expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
     } finally {
@@ -885,8 +807,8 @@ describe("durable per-actor report uniqueness", () => {
     const { drop } = await created.json();
 
     const firstIdentity: PintDropReportIdentity = {
-      primaryActorHash: "hash-1",
-      ipActorHash: "hash-1",
+      kind: "verified_account",
+      actorHash: "hash-1",
     };
     expect(reportPintDrop(drop.id, "spam", firstIdentity)).toBe(true);
     expect(reportPintDrop(drop.id, "spam", firstIdentity)).toBe(true); // idempotent, still true
@@ -899,8 +821,8 @@ describe("durable per-actor report uniqueness", () => {
     // A different actorHash is the second real report → hidden.
     expect(
       reportPintDrop(drop.id, undefined, {
-        primaryActorHash: "hash-2",
-        ipActorHash: "hash-2",
+        kind: "verified_account",
+        actorHash: "hash-2",
       }),
     ).toBe(true);
     expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
@@ -908,46 +830,13 @@ describe("durable per-actor report uniqueness", () => {
 });
 
 describe("supabasePintDropStore.report — v2 RPC seam", () => {
-  function reportIdentity(
-    primaryActorHash: string,
-    ipActorHash = primaryActorHash,
-  ): PintDropReportIdentity {
-    return { primaryActorHash, ipActorHash };
-  }
-
-  function reportAdmin(rpc: ReturnType<typeof vi.fn>) {
-    const ledger = new Map<string, { actor_hash: string; details: string | null }>();
-    return {
-      rpc,
-      from: (table: string) =>
-        table === "pint_drop_reports"
-          ? {
-              select: () => ({
-                eq: () => ({
-                  in: async (_column: string, hashes: string[]) => ({
-                    data: hashes.flatMap((hash) => {
-                      const row = ledger.get(hash);
-                      return row ? [row] : [];
-                    }),
-                    error: null,
-                  }),
-                }),
-              }),
-              upsert: async (row: {
-                actor_hash: string;
-                details: string | null;
-              }) => {
-                if (!ledger.has(row.actor_hash)) ledger.set(row.actor_hash, row);
-                return { error: null };
-              },
-            }
-          : {},
-    };
+  function reportIdentity(actorHash: string): PintDropReportIdentity {
+    return { kind: "verified_account", actorHash };
   }
 
   it("calls report_pint_drop_v2 with the actor hash", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: 1, error: null });
-    adminRef.client = reportAdmin(rpc);
+    adminRef.client = { rpc };
 
     const ok = await supabasePintDropStore.report(
       "drop-1",
@@ -966,7 +855,7 @@ describe("supabasePintDropStore.report — v2 RPC seam", () => {
 
   it("maps a null v2 result (unknown id) to false → route 404", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
-    adminRef.client = reportAdmin(rpc);
+    adminRef.client = { rpc };
     expect(
       await supabasePintDropStore.report(
         "nope",
@@ -986,7 +875,7 @@ describe("supabasePintDropStore.report — v2 RPC seam", () => {
           error: { message: "function report_pint_drop_v2 does not exist" },
         })
         .mockResolvedValueOnce({ data: 1, error: null });
-      adminRef.client = reportAdmin(rpc);
+      adminRef.client = { rpc };
 
       const ok = await supabasePintDropStore.report(
         "drop-1",
@@ -1009,48 +898,6 @@ describe("supabasePintDropStore.report — v2 RPC seam", () => {
     }
   });
 
-  it("deduplicates both authentication-transition orders in the durable ledger", async () => {
-    const anonymous = reportIdentity("ip-hash");
-    const signedIn = reportIdentity("user-hash", "ip-hash");
-
-    const anonymousFirstRpc = vi.fn().mockResolvedValue({ data: 1, error: null });
-    adminRef.client = reportAdmin(anonymousFirstRpc);
-    expect(await supabasePintDropStore.report("drop-1", undefined, anonymous)).toBe(
-      true,
-    );
-    expect(await supabasePintDropStore.report("drop-1", undefined, signedIn)).toBe(
-      true,
-    );
-    expect(anonymousFirstRpc).toHaveBeenCalledTimes(1);
-
-    const signedFirstRpc = vi.fn().mockResolvedValue({ data: 1, error: null });
-    adminRef.client = reportAdmin(signedFirstRpc);
-    expect(await supabasePintDropStore.report("drop-1", undefined, signedIn)).toBe(
-      true,
-    );
-    expect(await supabasePintDropStore.report("drop-1", undefined, anonymous)).toBe(
-      true,
-    );
-    expect(signedFirstRpc).toHaveBeenCalledTimes(1);
-  });
-
-  it("counts two verified accounts that share one IP", async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: 1, error: null });
-    adminRef.client = reportAdmin(rpc);
-
-    await supabasePintDropStore.report(
-      "drop-1",
-      undefined,
-      reportIdentity("user-one", "ip-hash"),
-    );
-    await supabasePintDropStore.report(
-      "drop-1",
-      undefined,
-      reportIdentity("user-two", "ip-hash"),
-    );
-
-    expect(rpc).toHaveBeenCalledTimes(2);
-  });
 });
 
 describe("durable rate limiting (Supabase configured)", () => {

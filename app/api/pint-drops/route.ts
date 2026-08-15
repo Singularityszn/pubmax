@@ -204,9 +204,9 @@ export async function POST(request: Request): Promise<Response> {
   }
   const { fields, photos } = parsed;
 
-  // Public moderation: a report records metadata; the drop is hidden from
-  // public reads once REPORT_HIDE_THRESHOLD reports accumulate (never on the
-  // first — see lib/pintDrops.ts).
+  // Public moderation: every report is recorded. Only verified account reports
+  // count toward REPORT_HIDE_THRESHOLD; anonymous reports go to moderation
+  // without auto-hiding the drop.
   if (fields.action === "report") {
     const id = readString(fields.id);
     if (!id) return notFound();
@@ -215,14 +215,13 @@ export async function POST(request: Request): Promise<Response> {
     //   • per-actor (`report:<id>:<actorHash>`)    — the SAME actor gets EXACTLY
     //     ONE report per drop per window, so a duplicate is rejected cheaply
     //     here before it touches storage.
-    // DURABLE per-actor uniqueness now lives in the store/RPC layer
+    // DURABLE per-account uniqueness lives in the store/RPC layer
     // (report_pint_drop_v2 + the pint_drop_reports unique (pint_drop_id,
     // actor_hash) pair; the in-memory store mirrors it): a same-actor repeat
     // that slips past this window (new window, limiter cold-start/outage) is an
-    // idempotent no-op in the store. Signed-in reports also record their IP key,
-    // so one caller cannot count once before sign-in and once after it. The
-    // client `actor` field decides NOTHING here. The server-derived primary
-    // identity also keys the per-actor window.
+    // idempotent no-op in the store. Anonymous IP hashes record reports and key
+    // flood control, but never enter the auto-hide count. The client `actor`
+    // field decides nothing.
     const identity = await pintDropReportIdentity(request);
     // Per-actor-per-drop budget of 1: limit=1 means the first report passes and
     // any second within the window is rejected (isLimited returns true when the
@@ -231,8 +230,8 @@ export async function POST(request: Request): Promise<Response> {
     if (
       (await isLimited(`report:${id}`, `report:${id}`)) ||
       (await isLimited(
-        `report:${id}:${identity.primaryActorHash}`,
-        `report:${id}:${identity.primaryActorHash}`,
+        `report:${id}:${identity.actorHash}`,
+        `report:${id}:${identity.actorHash}`,
         REPORT_PER_ACTOR_LIMIT,
       ))
     ) {

@@ -1,17 +1,10 @@
 // WHO reported a Pint Drop is decided HERE, by the server, and never by the
 // caller.
 //
-// Reporting is unauthenticated public moderation, and two reports hide a drop
-// (`REPORT_HIDE_THRESHOLD`). The counted identity used to be
-// `hashActor(fields.actor)` - an arbitrary client string - so one person sent
-// `actor:"a"` then `actor:"b"` and any drop on the site went dark. The comment
-// beside it claimed two DIFFERENT actors were required; they were not.
-//
-// A report carries the verified account id when available and always carries
-// the salted IP identity. The store deduplicates across both, so one caller
-// cannot count once anonymously and again after sign-in. An IP can be changed,
-// but it is not a free string the same client picks twice, and no client-supplied
-// field reaches the counted axis.
+// Reporting remains public. A verified account report counts toward automatic
+// hiding and is deduplicated by account. An anonymous report is recorded under
+// the salted IP identity for moderation and flood control, but it does not count
+// toward automatic hiding. No client-supplied field decides either identity.
 
 import { callerUserId } from "@/lib/authServer";
 import type { PintDropReportIdentity } from "@/lib/pintDrops";
@@ -31,9 +24,10 @@ export async function pintDropReportIdentity(
     // their own id: fall through to the request's own facts.
     userId = null;
   }
-  const ipActorHash = hashActor(`ip:${hashIp(clientIp(request))}`);
-  return {
-    primaryActorHash: userId ? hashActor(`user:${userId}`) : ipActorHash,
-    ipActorHash,
-  };
+  return userId
+    ? { kind: "verified_account", actorHash: hashActor(`user:${userId}`) }
+    : {
+        kind: "anonymous_ip",
+        actorHash: hashActor(`ip:${hashIp(clientIp(request))}`),
+      };
 }

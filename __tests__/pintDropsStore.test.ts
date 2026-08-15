@@ -20,23 +20,21 @@ const rpcMock = vi.fn();
 // its own resolved value(s); a from() call returns a fresh object every time so
 // the two inserts of a resilience retry each hit the queued mock in order.
 const insertMock = vi.fn();
-const selectChain: {
-  eq: ReturnType<typeof vi.fn>;
-  in: ReturnType<typeof vi.fn>;
-  maybeSingle: ReturnType<typeof vi.fn>;
-} = {
-  eq: vi.fn(),
-  in: vi.fn(async () => ({ data: [], error: null })),
-  maybeSingle: vi.fn(async () => ({ data: { status: "visible" }, error: null })),
+const updateMock = vi.fn(() => ({
+  eq: vi.fn(() => ({
+    select: vi.fn(async () => ({ data: [{ id: "x" }], error: null })),
+  })),
+}));
+const selectChain = {
+  eq: vi.fn(() => ({
+    maybeSingle: vi.fn(async () => ({ data: { status: "visible" }, error: null })),
+  })),
 };
-selectChain.eq.mockImplementation(() => selectChain);
-const upsertMock = vi.fn(async () => ({ error: null }));
 const mockAdmin = () => ({
   from: () => ({
     insert: insertMock,
-    upsert: upsertMock,
     select: vi.fn(() => selectChain),
-    update: vi.fn(() => ({ eq: vi.fn(() => ({ select: vi.fn(async () => ({ data: [{ id: "x" }], error: null })) })) })),
+    update: updateMock,
   }),
   storage: { from: () => ({ createSignedUrl, createSignedUrls, remove: removeMock }) },
   rpc: rpcMock,
@@ -51,8 +49,12 @@ import { validatePhoto, magicBytesOk, toDTO, toDTOWithPhotos, deletePhotos, supa
 import type { PersistableDrop } from "@/lib/pintDropsStore";
 import { REPORT_HIDE_THRESHOLD, type PintDropReportIdentity } from "@/lib/pintDrops";
 
-function reportIdentity(actorHash: string): PintDropReportIdentity {
-  return { primaryActorHash: actorHash, ipActorHash: actorHash };
+function verifiedReportIdentity(actorHash: string): PintDropReportIdentity {
+  return { kind: "verified_account", actorHash };
+}
+
+function anonymousReportIdentity(actorHash: string): PintDropReportIdentity {
+  return { kind: "anonymous_ip", actorHash };
 }
 
 // Pure validation only — no live Supabase. These run in the same node env as
@@ -236,7 +238,7 @@ describe("supabasePintDropStore.report (atomic RPC)", () => {
     const result = await supabasePintDropStore.report(
       "d1",
       "spam",
-      reportIdentity("hash-1"),
+      verifiedReportIdentity("hash-1"),
     );
     expect(result).toBe(true);
     expect(rpcMock).toHaveBeenCalledWith("report_pint_drop_v2", {
@@ -254,9 +256,56 @@ describe("supabasePintDropStore.report (atomic RPC)", () => {
       await supabasePintDropStore.report(
         "nope",
         undefined,
-        reportIdentity("hash-1"),
+        verifiedReportIdentity("hash-1"),
       ),
     ).toBe(false);
+  });
+
+  it("records an anonymous report without calling the counting RPC", async () => {
+    rpcMock.mockClear();
+    insertMock.mockReset();
+    updateMock.mockClear();
+    insertMock.mockResolvedValueOnce({ error: null });
+
+    expect(
+      await supabasePintDropStore.report(
+        "d1",
+        "wrong price",
+        anonymousReportIdentity("ip-hash"),
+      ),
+    ).toBe(true);
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(insertMock).toHaveBeenCalledWith({
+      pint_drop_id: "d1",
+      actor_hash: "ip-hash",
+      reason: "wrong price",
+    });
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(updateMock.mock.calls[0][0]).toMatchObject({
+      report_reason: "wrong price",
+      reported_at: expect.any(String),
+    });
+    expect(updateMock.mock.calls[0][0]).not.toHaveProperty("report_count");
+    expect(updateMock.mock.calls[0][0]).not.toHaveProperty("status");
+  });
+
+  it("maps an anonymous report for an unknown drop to false", async () => {
+    rpcMock.mockClear();
+    insertMock.mockReset();
+    updateMock.mockClear();
+    insertMock.mockResolvedValueOnce({
+      error: { code: "23503", message: "foreign key violation" },
+    });
+
+    expect(
+      await supabasePintDropStore.report(
+        "nope",
+        "spam",
+        anonymousReportIdentity("ip-hash"),
+      ),
+    ).toBe(false);
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
   });
 });
 
