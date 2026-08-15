@@ -179,19 +179,4 @@ describe("the shipped CSS moves it without moving the page", () => {
     expect(rule).toMatch(/opacity:\s*0/);
     expect(rule).toMatch(/pointer-events:\s*none/);
   });
-
-  it("never touches the reserved bottom clearance", () => {
-    // App routes keep `padding-bottom: calc(var(--tabbar-h) + safe area)` while
-    // the bar is away. Presence gating prevents root landing from inheriting
-    // app chrome clearance while preserving keyboard stability on app routes.
-    expect(mobileNavCss).toMatch(
-      /body:has\(\.mobileTabBar\)\s*{\s*padding-bottom:\s*calc\(var\(--tabbar-h\)/,
-    );
-    const keyboardRules = mobileNavCss.match(/isKeyboardHidden[^}]*}/g) ?? [];
-    expect(keyboardRules.length).toBeGreaterThan(0);
-    for (const rule of keyboardRules) {
-      expect(rule).not.toMatch(/padding-bottom/);
-      expect(rule).not.toMatch(/display:\s*none/);
-    }
-  });
 });

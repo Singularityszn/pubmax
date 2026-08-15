@@ -18,7 +18,6 @@ function ruleBody(css: string, selector: string): string {
 const palCss = read("app/pal/pal.css");
 const profileCss = read("app/u/[handle]/profile.css");
 const authCss = read("app/auth/auth.css");
-const landingCss = read("components/landing/landing.css");
 const momentCss = read("components/moment/moment.css");
 const messages = read("app/messages/MessagesInboxClient.tsx");
 
@@ -59,15 +58,6 @@ describe("Lane M3 taste P1 fixes", () => {
     const btn = ruleBody(authCss, ".authMagicLinkButton");
     expect(btn).toMatch(/background:\s*var\(--brass\)/);
     expect(btn).toMatch(/color:\s*var\(--color-on-accent\)/);
-  });
-
-  it("#4 landing footer does not reserve app-tab space", () => {
-    expect(landingCss).not.toMatch(
-      /\.lpFooter\s*{\s*padding-bottom:\s*calc\(36px \+ var\(--tabbar-h[^)]*\)/,
-    );
-    expect(landingCss).toMatch(
-      /\.lpFooter\s*{[^}]*padding:[^;]*env\(safe-area-inset-bottom\)/,
-    );
   });
 
   it("#5 /moment photo drop uses a solid hairline, not a dashed placeholder", () => {

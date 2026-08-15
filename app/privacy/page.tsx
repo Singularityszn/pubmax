@@ -107,6 +107,14 @@ export default function PrivacyPage() {
           website you visit does.
         </p>
 
+        <h3 className="legalH3">If you ask for a new area</h3>
+        <p className="legalBody">
+          We store the area name you send. You can add an email address if you
+          want one message when PUBMAXX reaches that area. Most area requests
+          have no email address. We don&rsquo;t add it to a marketing list or a
+          digest.
+        </p>
+
         <h3 className="legalH3">If you make an account</h3>
         <p className="legalBody">
           Sign-in is handled by Supabase, using either an emailed magic link or
@@ -523,9 +531,9 @@ export default function PrivacyPage() {
             that works.
           </li>
           <li>
-            <strong>Because you said yes (consent).</strong>{" "}Usage analytics,
-            push notifications and the email digest are consent-only, and you
-            can withdraw consent at any time without losing the rest of the app.
+            <strong>Because you said yes (consent).</strong>{" "}Usage analytics
+            and push notifications are consent-only, and you can withdraw
+            consent at any time without losing the rest of the app.
           </li>
         </ul>
       </section>
@@ -684,12 +692,14 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>Email and push</dt>
             <dd>
-              If you opt in to the weekly digest, your email address goes to our
-              email provider. If you turn notifications on, PUBMAXX stores your
-              browser&rsquo;s push subscription, the endpoint plus its keys, so
-              it can send you the notification; the subscription itself belongs
-              to your own browser&rsquo;s push service. We keep that stored row
-              until the push service reports it dead or you ask us to remove it.
+              Supabase sends account magic links and stores an optional contact
+              address when you ask PUBMAXX to cover an area. There is no
+              marketing list or email digest. If you turn notifications on,
+              PUBMAXX stores your browser&rsquo;s push subscription, the endpoint
+              plus its keys, so it can send you the notification; the
+              subscription itself belongs to your own browser&rsquo;s push service.
+              We keep that stored row until the push service reports it dead or
+              you ask us to remove it.
               The separate Step Out weekly nudge is off by default. If you turn
               it on, we store that preference against your account, bind it to
               the same web push subscription, and may send at most one
@@ -764,6 +774,12 @@ export default function PrivacyPage() {
             keyed to salted hashes, never raw IP addresses. Each row expires at
             the end of its limiter window and is deleted the next time the
             durable limiter runs. The longest current window is seven days.
+          </li>
+          <li>
+            <strong>Area requests:</strong>{" "}the area demand signal stays so we
+            can plan coverage. An optional contact address stays until we send
+            the one area update or you ask us to delete it at{" "}
+            <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>.
           </li>
           <li>
             <strong>Push subscriptions:</strong>{" "}if you turned notifications

@@ -179,7 +179,7 @@ These are derived from the actual code, not aspirations. File references are inl
 Declare the following. Everything else: Not Collected.
 
 - **Data Used to Track You:** None.
-- **Data Linked to You:** Contact Info > Email Address (only if the user submits it), purpose App Functionality. User Content > Photos or Videos (Moments, on publish), purpose App Functionality.
+- **Data Linked to You:** Contact Info > Email Address (account sign-in or optional area-demand contact), purpose App Functionality. User Content > Photos or Videos (Moments, on publish), purpose App Functionality.
 - **Data Not Linked to You:** Identifiers > Device ID (push token), purpose App Functionality. Usage Data > Product Interaction (opt-in analytics), purpose Analytics.
 - **Location:** Because location is processed only on device and never leaves it, Apple's rules mean it is not "collected". Do not declare it as collected. It is still gated by the standard iOS location permission prompt at runtime.
 
@@ -187,12 +187,12 @@ Declare the following. Everything else: Not Collected.
 
 - **Does your app collect or share any of the required user data types?** Yes.
 - **Location:** Not collected (processed on-device only). If the reviewer disagrees because the permission is present, be ready to explain the on-device-only handling above.
-- **Personal info > Email address:** Collected, not shared, optional, purpose App functionality. Encrypted in transit. User can request deletion (unsubscribe route).
+- **Personal info > Email address:** Collected, not shared, optional, purpose App functionality. Encrypted in transit. Account deletion removes the sign-in address; other erasure requests use the public contact in `lib/siteContact.ts`.
 - **Photos and videos:** Collected (on Moment publish), not shared publicly by default, purpose App functionality.
 - **App activity > Product interaction:** Collected, not shared, optional (opt-in), purpose Analytics. Encrypted in transit.
 - **Device or other IDs:** Collected (push token), not shared, purpose App functionality.
 - **Is all data encrypted in transit?** Yes (HTTPS only, the shell loads `https://pubmaxxing.com`).
-- **Can users request data deletion?** Yes for email (unsubscribe) and Moments; describe the contact route.
+- **Can users request data deletion?** Yes. Account deletion covers account-linked data; the public contact in `lib/siteContact.ts` handles other requests, including an optional area-demand address and Moments.
 
 **Privacy policy URL:** required by both stores. Use `https://pubmaxxing.com/privacy` — the site publishes it (with `/terms`) from `app/privacy` / `app/terms`; see the AGENTS.md privacy-notice entry for the keep-it-honest rule.
 

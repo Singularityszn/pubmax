@@ -18,7 +18,7 @@
 
 ## Steps
 
-1. Extend `e2e/mobile-venue-sheet-tabs.spec.ts` with a real touch swipe from the visible strip, `scrollLeft` proof, final-tab viewport proof, fade-state proof, and touch activation proof. Refresh the stale toolbar roster so the existing test includes the permanent `Make it Stop 1` action. Run the new gesture proof first and confirm RED.
+1. Extend `e2e/mobile-venue-sheet-tabs.spec.ts` with a real touch swipe from the visible strip, `scrollLeft` proof, final-tab viewport proof, fade-state proof, and touch activation proof. Run the new gesture proof first and confirm RED.
 2. Change only the tab strip touch policy in `components/map/venueSheet.css`. Keep grab-zone gesture handling unchanged.
 3. Run focused browser proof at 390px, focused unit coverage for the fade predicate, lint, typecheck, and full verification.
 4. Review diff for touch conflicts, target size, overflow, generated-file churn, and unrelated changes. Commit only this slice and its selected proof images.

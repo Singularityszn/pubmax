@@ -1,7 +1,31 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/dynamic", () => ({
+  default: () => () => null,
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ prefetch: () => Promise.resolve() }),
+}));
+vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
+vi.mock("@/components/city/CityChooser", () => ({ default: () => null }));
+vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
+vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
+vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
+vi.mock("@/components/landing/ThamesHero", () => ({ default: () => null }));
+vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+vi.mock("@/lib/cityPreference", () => ({
+  preferredCityMapHref: () => "/choose-city",
+  readPreferredCity: () => null,
+  subscribePreferredCity: () => () => {},
+}));
+
+import LandingPage from "@/components/landing/LandingPage";
 
 // One primary action is permanent; Map and Plan stay visible as text links.
 
@@ -39,13 +63,14 @@ describe("landing Find my pint hierarchy", () => {
   });
 
   it("asks for location only from the two deliberate CTAs, never the footer", () => {
-    const footerNav = landingTsx.match(
-      /className="lpFooterNav"[\s\S]*?<\/nav>/,
+    const rendered = renderToStaticMarkup(createElement(LandingPage));
+    const footerNav = rendered.match(
+      /<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/,
     )?.[0];
     expect(footerNav, "footer nav present").toBeTruthy();
     expect(footerNav).toMatch(/href="\/near"/);
     expect(footerNav).not.toMatch(/locate=1/);
-    expect(landingTsx.match(/\/near\?locate=1/g)).toHaveLength(2);
+    expect(rendered.match(/href="\/near\?locate=1"/g)).toHaveLength(2);
   });
 
   it("keeps Map and Plan visible as lower-weight text links", () => {

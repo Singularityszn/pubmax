@@ -86,14 +86,46 @@ class TestElement extends TestNode {
   tagName: string;
   namespaceURI = "http://www.w3.org/1999/xhtml";
   style: Record<string, string> = {};
+  attributes = new Map<string, string>();
+  inert = false;
 
   constructor(tagName: string, ownerDocument: TestDocument) {
     super(1, tagName.toUpperCase(), ownerDocument);
     this.tagName = tagName.toUpperCase();
   }
 
-  setAttribute(): void {}
-  removeAttribute(): void {}
+  setAttribute(name: string, value: string): void {
+    this.attributes.set(name, value);
+  }
+
+  getAttribute(name: string): string | null {
+    return this.attributes.get(name) ?? null;
+  }
+
+  removeAttribute(name: string): void {
+    this.attributes.delete(name);
+  }
+
+  get parentElement(): TestElement | null {
+    return this.parentNode instanceof TestElement ? this.parentNode : null;
+  }
+
+  get children(): TestElement[] {
+    return this.childNodes.filter(
+      (child): child is TestElement => child instanceof TestElement,
+    );
+  }
+
+  get classList(): Pick<DOMTokenList, "contains"> {
+    return {
+      contains: (token: string) =>
+        (this.attributes.get("class") ?? "").split(/\s+/u).includes(token),
+    };
+  }
+
+  focus(): void {
+    this.ownerDocument!.activeElement = this;
+  }
 }
 
 class TestDocument extends TestNode {
@@ -129,6 +161,14 @@ let root: Root | null = null;
 let container: TestElement;
 let previousWindow: typeof globalThis.window | undefined;
 let previousDocument: typeof globalThis.document | undefined;
+let previousHTMLElement: typeof globalThis.HTMLElement | undefined;
+
+function elementsUnder(node: TestNode): TestElement[] {
+  return node.childNodes.flatMap((child) => [
+    ...(child.nodeType === 1 ? [child as TestElement] : []),
+    ...elementsUnder(child),
+  ]);
+}
 
 async function commit(work: () => void | Promise<void>): Promise<void> {
   if (typeof reactAct === "function") {
@@ -162,6 +202,7 @@ beforeEach(() => {
     navigator: { onLine: true },
     setTimeout: typeof setTimeout;
     clearTimeout: typeof clearTimeout;
+    getComputedStyle: () => CSSStyleDeclaration;
     HTMLElement: typeof TestElement;
     HTMLIFrameElement: typeof HTMLIFrameElement;
     Node: typeof TestNode;
@@ -175,6 +216,7 @@ beforeEach(() => {
     navigator: { onLine: true },
     setTimeout,
     clearTimeout,
+    getComputedStyle: () => ({ display: "block" }) as CSSStyleDeclaration,
     HTMLElement: TestElement,
     HTMLIFrameElement: class {},
     Node: TestNode,
@@ -187,9 +229,11 @@ beforeEach(() => {
   document.defaultView = window;
   previousWindow = globalThis.window;
   previousDocument = globalThis.document;
+  previousHTMLElement = globalThis.HTMLElement;
   Object.assign(globalThis, {
     window,
     document,
+    HTMLElement: TestElement,
     IS_REACT_ACT_ENVIRONMENT: typeof reactAct === "function",
   });
   container = document.createElement("div");
@@ -204,12 +248,44 @@ afterEach(async () => {
   Object.assign(globalThis, {
     window: previousWindow,
     document: previousDocument,
+    HTMLElement: previousHTMLElement,
     IS_REACT_ACT_ENVIRONMENT: false,
   });
   vi.useRealTimers();
 });
 
 describe("AccountOnboarding cold-open identity race", () => {
+  it("supersedes an open sheet with strict modal focus and restores its owner", async () => {
+    const testDocument = document as unknown as TestDocument;
+    const sheetControl = testDocument.createElement("button");
+    sheetControl.setAttribute("class", "mobileTabBar");
+    testDocument.body.appendChild(sheetControl);
+    sheetControl.focus();
+    requestState.responses = [Response.json({ complete: false })];
+    authState.current.identityResolved = true;
+
+    await commit(() => root?.render(createElement(AccountOnboarding)));
+    await settleOnboarding();
+
+    const dialog = elementsUnder(testDocument.body).find(
+      (element) => element.getAttribute("role") === "dialog",
+    );
+    expect(dialog).toBeDefined();
+    expect(testDocument.activeElement).toBe(dialog);
+    expect(sheetControl.inert).toBe(true);
+
+    authState.current = {
+      user: null,
+      session: null,
+      loading: false,
+      identityResolved: true,
+    };
+    await commit(() => root?.render(createElement(AccountOnboarding)));
+
+    expect(testDocument.activeElement).toBe(sheetControl);
+    expect(sheetControl.inert).toBe(false);
+  });
+
   it("does not read onboarding status without a live session", async () => {
     authState.current = {
       user: null,

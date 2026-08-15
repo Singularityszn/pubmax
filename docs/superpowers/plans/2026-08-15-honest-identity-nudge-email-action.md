@@ -4,9 +4,9 @@
 action in the post-value identity nudge.
 
 **Architecture:** Keep existing identity trigger, grace, prompt budget, social
-provider, magic-link, Escape, and cooldown owners. Delete only the parallel
-digest capture UI and its client state. Preserve dormant server infrastructure
-and historical event compatibility for a complete future launch.
+provider, magic-link, Escape, and cooldown owners. Delete the parallel digest
+capture UI, route, store, confirmation dispatch, and `email_subscribed` event
+per captain decision D1. Keep migration 0042 and existing rows as history.
 
 **Spec:** `specs/honest-identity-nudge-email-action.md`
 
@@ -55,6 +55,7 @@ and historical event compatibility for a complete future launch.
 
 - [ ] State that public digest capture is retired until full double-opt-in and
   delivery are operational.
-- [ ] Keep dormant server and data-path documentation exact.
+- [ ] Record the deleted route, store, confirmation dispatch, and analytics
+  event while keeping migration 0042 and existing rows untouched.
 - [ ] Run independent review and full `npm run verify`.
 - [ ] Re-run production browser proof and confirm clean worktree.

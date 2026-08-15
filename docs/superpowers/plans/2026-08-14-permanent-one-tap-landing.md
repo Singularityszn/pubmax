@@ -74,8 +74,9 @@
 - Modify: `docs/plans/LANDING_ACQUISITION.md`
 - Modify: `docs/proof/landing-wave0/README.md`
 
-1. Hydrate Moment return links from one stable server snapshot, then switch to
-   current client route.
+1. Use the live route for the Moment return link on the server and client. The
+   earlier stable `"/"` snapshot step is superseded because root no longer
+   mounts the tab bar.
 2. Update stale mobile button proof to test current landing and Pub Pal entry.
 3. Mark retired landing experiment documents and screenshots as historical.
 4. Re-run browser tests and confirm no hydration mismatch is logged.
