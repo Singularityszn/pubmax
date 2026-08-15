@@ -29,8 +29,10 @@ import {
 } from "@/lib/softKeyboard";
 import "./mobileNav.css";
 
-// Mobile-first bottom tab bar. Visible only ≤640px (see mobileNav.css); on
-// desktop it is display:none so the existing desktop navs are untouched.
+// Mobile-first bottom tab bar. Mounted on every non-root route and visible only
+// ≤640px (see mobileNav.css); exact root landing intentionally omits it so
+// Find my pint owns entry. On desktop it is display:none, leaving existing
+// desktop navs untouched.
 //
 // Moment is the emphasized centre action and opens the private-first camera
 // composer. Pint Drop remains an explicit action inside Moment and the map.
@@ -170,8 +172,8 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
   // setState.
   //
   // Held until the foreground surface has painted, and never issued for the
-  // route already on screen. The bar mounts on every page, so a mount-time
-  // warm spends the current page's main thread and bandwidth on the next tap;
+  // route already on screen. Non-root mounts spend the current page's main
+  // thread and bandwidth on the next tap;
   // on the map that cost lands squarely inside MapLibre's init. See
   // lib/backgroundWarmup.ts for why plain idle is not enough.
   useEffect(() => {

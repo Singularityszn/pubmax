@@ -32,6 +32,13 @@ async function expectWithinFirstViewport(
   ).toBeLessThanOrEqual(viewportHeight);
 }
 
+async function expectNoAppTabClearance(page: Page, label: string): Promise<void> {
+  const bodyPaddingBottom = await page.evaluate(() =>
+    Number.parseFloat(getComputedStyle(document.body).paddingBottom),
+  );
+  expect(bodyPaddingBottom, `${label} should not reserve app-tab clearance`).toBeLessThan(64);
+}
+
 async function expectNoHorizontalOverflow(page: Page, width = MOBILE.width): Promise<void> {
   const overflow = await page.evaluate(() => {
     const root = document.documentElement;
@@ -132,10 +139,7 @@ test.describe("mobile landing entry", () => {
     ).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
     await expect(page.locator(".mobileTabBar")).toHaveCount(0);
-    const bodyPaddingBottom = await page.evaluate(() =>
-      Number.parseFloat(getComputedStyle(document.body).paddingBottom),
-    );
-    expect(bodyPaddingBottom, "root landing should not reserve app-tab clearance").toBeLessThan(64);
+    await expectNoAppTabClearance(page, "root landing");
 
     const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
     await expectTappable(
@@ -168,6 +172,7 @@ test.describe("mobile landing entry", () => {
 
       await expect(page.locator(".mobileTabBar")).toHaveCount(0);
       await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+      await expectNoAppTabClearance(page, `root landing at ${width}px`);
       const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
       await expectTappable(
         findMyPint,
@@ -188,6 +193,7 @@ test.describe("mobile landing entry", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(page.locator(".mobileTabBar")).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+    await expectNoAppTabClearance(page, "dark root landing");
     const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
     await expectTappable(
       findMyPint,

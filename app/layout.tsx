@@ -343,8 +343,10 @@ export default async function RootLayout({
                   children so SiteNav's ⌘K affordance can read its context. */}
               <CommandPaletteProvider>
                 {children}
-                {/* App-wide bottom tab bar — visible only on ≤640px (see mobileNav.css);
-                    display:none on desktop so the existing navs are untouched.
+                {/* App-wide bottom tab bar — mounted on non-root routes and visible
+                    only on ≤640px (see mobileNav.css); exact root landing omits it
+                    so Find my pint owns entry. display:none on desktop leaves the
+                    existing navs untouched.
                     Suspense boundary: it reads useSearchParams; under any future
                     prerendered route that read would otherwise bail the whole
                     page out to CSR. Harmless today, required tomorrow. */}
