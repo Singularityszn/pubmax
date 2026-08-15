@@ -553,6 +553,52 @@ function cleanAvatarReportReason(reason: string | undefined): string | undefined
   return cleaned === "" ? undefined : cleaned;
 }
 
+const REPORT_ACTOR_APPEND_RPC = "append_profile_image_report_actor";
+let reportActorRpcMissingWarned = false;
+
+/** PostgREST / Postgres signals that migration 0105 is not deployed yet. */
+function isMissingReportActorRpc(error: { message?: string; code?: string }): boolean {
+  const code = error.code ?? "";
+  // PGRST202 = function not in schema cache; 42883 = undefined_function.
+  if (code === "PGRST202" || code === "42883") return true;
+  const message = error.message ?? "";
+  return (
+    new RegExp(REPORT_ACTOR_APPEND_RPC, "i").test(message) &&
+    /does not exist|Could not find the function|schema cache/i.test(message)
+  );
+}
+
+/**
+ * Append one reporter to an owned image in ONE statement, or NULL when the
+ * function is not deployed - which is the caller's signal to take the older
+ * read-modify-write path rather than to refuse a reader's flag.
+ */
+async function appendReportActorAtomically(
+  handle: string,
+  slot: ProfileImageSlot,
+  actor: string,
+  reason: string | undefined,
+): Promise<boolean | null> {
+  const { data, error } = await admin().rpc(REPORT_ACTOR_APPEND_RPC, {
+    p_handle: handle,
+    p_slot: slot,
+    p_actor: actor,
+    p_reason: reason ?? null,
+  });
+  if (error) {
+    if (!isMissingReportActorRpc(error)) throw new Error(error.message);
+    if (!reportActorRpcMissingWarned) {
+      reportActorRpcMissingWarned = true;
+      console.warn(
+        `[profiles] ${REPORT_ACTOR_APPEND_RPC} not deployed - reporting falls back to a ` +
+          "read-modify-write that loses one of two concurrent reporters (apply migration 0105).",
+      );
+    }
+    return null;
+  }
+  return data === true;
+}
+
 function clearImageReportRow(slot: ProfileImageSlot): Record<string, unknown> {
   const columns = IMAGE_COLUMNS[slot];
   return {
@@ -846,6 +892,19 @@ export const supabaseProfileStore: ProfileStore = {
     const key = normalizeHandle(handle);
     const actor = typeof actorHash === "string" ? actorHash.trim() : "";
     if (!key || !actor) return false;
+
+    // ONE statement, so two reporters cannot clobber each other: the append
+    // happens in Postgres and the UPDATE's own predicate carries the gate.
+    // Migration 0105. Until it is applied the read-modify-write below still
+    // runs - correct for one reporter, racy for two, which is what it always was.
+    const appended = await appendReportActorAtomically(
+      key,
+      slot,
+      actor,
+      cleanAvatarReportReason(reason),
+    );
+    if (appended !== null) return appended;
+
     const existing = await this.getByHandle(key);
     if (!existing) return false;
     const state = profileImageState(existing, slot);

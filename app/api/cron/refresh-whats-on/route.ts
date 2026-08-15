@@ -56,7 +56,8 @@ export async function GET(request: Request): Promise<Response> {
 
   // Revalidate the servable window (fail-soft to baseline inside loadWhatsOn).
   let rows = 0;
-  let asOf = new Date().toISOString();
+  let asOf: string | null = null;
+  let failure: string | null = null;
   try {
     const result = await loadWhatsOn({ window: "tonight" });
     rows = result.rows.length;
@@ -66,7 +67,31 @@ export async function GET(request: Request): Promise<Response> {
     // served instant — we never invent a source timestamp from request time.
     asOf = result.asOf ?? result.servedAt;
   } catch (err) {
-    console.error("[cron:refresh-whats-on] tonight-window revalidation failed:", err instanceof Error ? err.message : String(err));
+    failure = err instanceof Error ? err.message : String(err);
+    console.error("[cron:refresh-whats-on] tonight-window revalidation failed:", failure);
+  }
+
+  // A REVALIDATION THAT FAILED IS NOT AN OBSERVATION. Stamping the request
+  // instant here made the freshness spine read WHATS_ON as just-checked for the
+  // whole 48-hour staleness budget, hiding the outage it exists to report — the
+  // exact "never let an unmeasurable feed read as fresh" rule. So the failure
+  // path writes nothing and the previous stamp stands.
+  if (asOf === null) {
+    console.warn(
+      "[cron:refresh-whats-on] observedAt NOT advanced: the revalidation failed, so the previous stamp stands.",
+    );
+    return jsonNoStore({
+      ok: false,
+      feed: WHATS_ON_FEED_KEY,
+      mode: "slim",
+      observedAt: null,
+      rowsServed: 0,
+      stamped: false,
+      stampDegraded: false,
+      error: failure ?? "tonight-window revalidation failed",
+      ingestKeysPresent: ingestKeys,
+      eventProviderKeysPresent: eventKeys,
+    });
   }
 
   const stamp = await feedFreshnessStore().stamp({
@@ -83,6 +108,7 @@ export async function GET(request: Request): Promise<Response> {
     mode: "slim",
     observedAt: asOf,
     rowsServed: rows,
+    stamped: true,
     stampDegraded: stamp.failed ?? false,
     ingestKeysPresent: ingestKeys,
     eventProviderKeysPresent: eventKeys,

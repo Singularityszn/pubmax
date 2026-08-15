@@ -80,7 +80,7 @@ import {
 import { messagePhotoServingKey, messagePhotoStagingKey } from "@/lib/messageAttachments";
 import type { MessagePhotoStorage } from "@/lib/messagePhotoMedia.server";
 import { __resetMemoryMessages } from "@/lib/messagesStore";
-import { __resetMemoryProfiles } from "@/lib/profileStore";
+import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
 const BASE = "http://localhost/api/messages";
@@ -224,6 +224,11 @@ beforeEach(() => {
   __resetPintDrops();
   __setMessagePhotoRouteDepsForTest(null);
   __setMessagePhotoServeRouteDepsForTest(null);
+  // A conversation is opened WITH somebody, so every handle here has to exist
+  // and be owned by the account that signs in as it.
+  for (const handle of ["ken", "sam", "mallory"]) {
+    __seedMemoryOwnedProfile(handle, `user-${handle}`);
+  }
 });
 
 describe("sending a photo", () => {

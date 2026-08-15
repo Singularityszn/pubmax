@@ -76,6 +76,18 @@ export type ProfileCoverPhotoStore = {
     state: ProfileCoverModerationState,
     note?: string,
   ): Promise<boolean>;
+  /**
+   * The SAME moderator decision, applied to every cover this profile holds.
+   * A hide on `profiles.cover_*` is a decision about this person's backdrop, and
+   * the rotation carries up to five photographs the admin lane never named; the
+   * two lanes must not disagree about whether a backdrop may be seen. Returns
+   * how many rows moved.
+   */
+  moderateAllForProfile(
+    profileId: string,
+    state: ProfileCoverModerationState,
+    note?: string,
+  ): Promise<number>;
   /** Moderator queue: flagged and undecided. Fail-soft. */
   listForReview(): Promise<ProfileCoverPhoto[]>;
   /** Moderator hidden lane, so a hide stays reversible. Fail-soft. */
@@ -228,6 +240,16 @@ export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
     hit.moderatedAt = new Date().toISOString();
     if (note) hit.moderatorNote = note;
     return true;
+  },
+
+  async moderateAllForProfile(profileId, state, note) {
+    const rows = memoryRowsFor(profileId);
+    for (const row of rows) {
+      row.moderationState = state;
+      row.moderatedAt = new Date().toISOString();
+      if (note) row.moderatorNote = note;
+    }
+    return rows.length;
   },
 
   async listForReview() {
@@ -515,6 +537,32 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
           .select("id");
         if (error) throw new Error(error.message);
         return (data ?? []).length > 0;
+      },
+    });
+  },
+
+  async moderateAllForProfile(profileId, state, note) {
+    return guard<number>({
+      context: "moderateAllForProfile",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "profile-cover-photos",
+          migrationHint: MIGRATION_HINT,
+          fallback: () =>
+            memoryProfileCoverPhotoStore.moderateAllForProfile(profileId, state, note),
+        }),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .update({
+            moderation_state: state,
+            moderated_at: new Date().toISOString(),
+            ...(note ? { moderator_note: note } : {}),
+          })
+          .eq("profile_id", profileId)
+          .select("id");
+        if (error) throw new Error(error.message);
+        return (data ?? []).length;
       },
     });
   },

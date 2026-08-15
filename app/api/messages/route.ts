@@ -12,7 +12,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // Reads are fail-soft (the store returns an empty inbox on error) so an outage
-// never 500s the inbox. Sends are rate-limited per handle (~20/min).
+// never 500s the inbox. EVERY write action is rate-limited per handle (~20/min)
+// by one limiter above the action switch, and a recipient handle must resolve to
+// a live profile before any conversation row is written.
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -22,6 +24,7 @@ import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
+import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
@@ -83,9 +86,29 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("You can't message yourself.", "INVALID_REQUEST", 400);
   }
 
+  // ONE limiter, ABOVE the action switch AND above the ownership read it would
+  // otherwise pay for. It used to sit inside `send` alone, so `open` - which
+  // upserts a conversations row per distinct pair - was unbounded, and the
+  // tree-wide "every mutating route consults isLimited" fence could not see the
+  // gap because the file called it somewhere. Anything added below is bounded
+  // by construction.
+  const key = `msg-write:${handle}:${hashIp(clientIp(request))}`;
+  if (await isLimited(key, key, SEND_LIMIT, SEND_WINDOW_MS)) {
+    return publicApiError("Too many messages, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
+  }
+
+  // A conversation is opened WITH somebody. A handle nobody holds is not
+  // somebody, and accepting one minted a durable row per fabricated name.
+  if (action === "open" || action === "send") {
+    const recipient = await profileStore().getByHandle(other);
+    if (!recipient || isProfileTombstoned(recipient)) {
+      return publicApiError("We couldn't find that person.", "NOT_FOUND", 404);
+    }
   }
 
   const store = messagesStore();
@@ -99,10 +122,6 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (action === "send") {
-    const key = `msg-send:${handle}:${hashIp(clientIp(request))}`;
-    if (await isLimited(key, key, SEND_LIMIT, SEND_WINDOW_MS)) {
-      return publicApiError("Too many messages, slow down.", "RATE_LIMITED", 429, { retryable: true });
-    }
     const messageBody = readString(body.body);
     if (!messageBody) return publicApiError("Write a message.", "INVALID_REQUEST", 400);
     const conversationId = await store.openConversation(handle, other);

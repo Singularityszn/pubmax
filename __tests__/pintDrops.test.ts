@@ -159,19 +159,26 @@ function get(venueId?: string): Promise<Response> {
   return GET(new Request(url));
 }
 
-// A report carries an optional `actor` (the hashed-anon device id). The per-actor
-// budget is 1 report per drop per window (H1), so distinct actors are REQUIRED to
-// reach REPORT_HIDE_THRESHOLD (2). Callers that want two reports to both land must
-// pass two DIFFERENT actor values.
-function report(id: string, reason?: string, actor?: string): Promise<Response> {
+// The counted reporter identity is SERVER-DERIVED (a verified account id, else
+// the salted hash of IP plus user agent), so a `device` here is a different
+// CLIENT rather than a different string in the body. The per-actor budget is 1
+// report per drop per window (H1), and REPORT_HIDE_THRESHOLD (2) therefore needs
+// two genuinely different clients. The body's own `actor` field decides nothing.
+function deviceHeaders(device?: string): Record<string, string> | undefined {
+  if (!device) return undefined;
+  return { "x-forwarded-for": `203.0.113.${device === "device-a" ? "10" : "20"}` };
+}
+
+function report(id: string, reason?: string, device?: string): Promise<Response> {
   return POST(
     new Request(URL_BASE, {
       method: "POST",
+      headers: deviceHeaders(device),
       body: JSON.stringify({
         action: "report",
         id,
         ...(reason ? { reason } : {}),
-        ...(actor ? { actor } : {}),
+        ...(device ? { actor: device } : {}),
       }),
     }),
   );
@@ -673,6 +680,68 @@ describe("moderation loop", () => {
     // in production — but the point is the 403 gate is cleared).
     const withToken = await modGet("hidden", "s3cret");
     expect(withToken.status).not.toBe(403);
+  });
+});
+
+// The counted identity is the server's, never the caller's. One person sending
+// `actor:"a"` then `actor:"b"` used to reach REPORT_HIDE_THRESHOLD on their own
+// and hide anybody's drop, while the comment beside the code claimed two
+// DIFFERENT actors were required.
+describe("a report is counted under a SERVER-derived identity", () => {
+  function reportAs(
+    id: string,
+    headers: Record<string, string>,
+    actor: string,
+  ): Promise<Response> {
+    return POST(
+      new Request(URL_BASE, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ action: "report", id, actor }),
+      }),
+    );
+  }
+
+  it("counts ONE report when one client sends two different actor strings", async () => {
+    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    const { drop } = await created.json();
+    const sameClient = {
+      "x-forwarded-for": "203.0.113.99",
+      "user-agent": "Mozilla/5.0 (one attacker)",
+    };
+
+    vi.useFakeTimers();
+    try {
+      expect((await reportAs(drop.id, sameClient, "a")).status).toBe(200);
+      // Past the per-actor window, so only the durable identity can refuse it.
+      vi.advanceTimersByTime(61_000);
+      expect((await reportAs(drop.id, sameClient, "b")).status).toBe(200);
+
+      const listed = (await (await get(VENUE)).json()).drops as Array<{
+        reportCount?: number;
+      }>;
+      // Still visible, still one report: the drop was NOT hidden.
+      expect(listed).toHaveLength(1);
+      expect(listed[0].reportCount).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts two when the user agent differs, so two real clients still hide it", async () => {
+    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    const { drop } = await created.json();
+
+    vi.useFakeTimers();
+    try {
+      await reportAs(drop.id, { "x-forwarded-for": "203.0.113.99", "user-agent": "one" }, "a");
+      vi.advanceTimersByTime(61_000);
+      await reportAs(drop.id, { "x-forwarded-for": "203.0.113.99", "user-agent": "two" }, "a");
+
+      expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

@@ -18,6 +18,7 @@ import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
+import { pintDropReportActorHash } from "@/lib/pintDropReportActor.server";
 import {
   isLimited,
   validatePintDrop,
@@ -30,7 +31,7 @@ import {
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { clientIp, hashActor, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
+import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { getVenueIndex, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -220,11 +221,12 @@ export async function POST(request: Request): Promise<Response> {
     // that slips past this window (new window, limiter cold-start/outage) is an
     // idempotent no-op in the store — the counter never moves twice for one
     // actor, so REPORT_HIDE_THRESHOLD (2) still requires two DIFFERENT actors.
-    // The actor is the same hashed anon id used by reactions/comments
-    // (hashActor over the client `actor` field; a blank id hashes a shared
-    // "anon" sentinel, matching the sitewide degradation). Falling back to the
-    // hashed IP keeps a per-actor cap even when no actor id is supplied.
-    const actorHash = hashActor(readString(fields.actor) || `ip:${hashIp(clientIp(request))}`);
+    // That claim only holds because the counted identity is SERVER-DERIVED
+    // (`lib/pintDropReportActor.server.ts`): a verified account id, else the
+    // salted hash of IP plus user agent. The client `actor` field decides
+    // NOTHING here — choosing it was how one person hid any drop with two
+    // requests — so the same server identity keys the per-actor window too.
+    const actorHash = await pintDropReportActorHash(request);
     // Per-actor-per-drop budget of 1: limit=1 means the first report passes and
     // any second within the window is rejected (isLimited returns true when the
     // window's hit count EXCEEDS the limit).
