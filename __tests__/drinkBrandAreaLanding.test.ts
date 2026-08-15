@@ -1,7 +1,6 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import { describe, expect, expectTypeOf, it } from "vitest";
+vi.mock("server-only", () => ({}));
 
 import {
   DRINK_BRAND_AREA_PUBLICATION_FLOOR,
@@ -13,6 +12,7 @@ import {
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { DRINK_BRANDS } from "@/lib/drinkBrands";
 import { haversineKm } from "@/lib/haversine";
+import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
 import {
   assignVenueToNightArea,
 } from "@/lib/nightAreaLanding";
@@ -22,16 +22,12 @@ import {
   type DrinkBrandLandingRow,
 } from "@/lib/drinkBrandLanding";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
-import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import { type Venue, type VenuePrice } from "@/lib/venues";
 
 const NOW = new Date("2026-08-15T12:00:00.000Z");
 
 async function realVenues(): Promise<Venue[]> {
-  const raw = await readFile(
-    path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json"),
-    "utf8",
-  );
-  return groupVenuePrices(JSON.parse(raw) as VenuePrice[]);
+  return loadPintPriceLandingVenues();
 }
 
 function priceRow(overrides: Partial<VenuePrice> = {}): VenuePrice {
@@ -210,6 +206,42 @@ describe("governed drink brand by Night Area landings", () => {
     ).toBeNull();
   });
 
+  it("requires ten unique matching pub Venues for the publication floor", () => {
+    const area = getNightArea("clapham");
+    const nineUnique = enoughVenues(
+      area,
+      DRINK_BRAND_AREA_PUBLICATION_FLOOR - 1,
+    );
+    const duplicate = nineUnique[0]!;
+
+    expect(
+      buildDrinkBrandAreaLanding(
+        area.slug,
+        "guinness",
+        [...nineUnique, duplicate, duplicate],
+        [area],
+        NOW,
+      ),
+    ).toBeNull();
+
+    const tenUnique = [
+      ...nineUnique,
+      pricedVenue("clapham-10", area),
+    ];
+    const landing = buildDrinkBrandAreaLanding(
+      area.slug,
+      "guinness",
+      [...tenUnique, duplicate],
+      [area],
+      NOW,
+    );
+
+    const rowIds = landing?.rows.map((row) => row.venueId) ?? [];
+    expect(landing?.totalPricedVenues).toBe(10);
+    expect(new Set(rowIds).size).toBe(rowIds.length);
+    expect(rowIds).toContain(duplicate.id);
+  });
+
   it("assigns an overlapping Venue to one nearest Night Area", () => {
     const clapham = getNightArea("clapham");
     const brixton = getNightArea("brixton");
@@ -232,6 +264,57 @@ describe("governed drink brand by Night Area landings", () => {
       )[0]!.area;
 
     expect(assignVenueToNightArea(venue, [clapham, brixton])?.slug).toBe(expected.slug);
+  });
+
+  it("assigns a shared matching Venue to only its nearest overlapping route-ready area", () => {
+    const left = {
+      ...getNightArea("clapham"),
+      centre: { lat: 51.5, lng: -0.14 },
+      radiusKm: 1,
+    };
+    const right = {
+      ...getNightArea("victoria"),
+      centre: { lat: 51.5, lng: -0.13 },
+      radiusKm: 1,
+    };
+    const shared = venueAt(
+      "shared",
+      51.5,
+      -0.136,
+      [
+        priceRow({
+          app_price_id: "shared-price",
+          pub_name: "Shared",
+          price_gbp: 4.25,
+        }),
+      ],
+    );
+    const areas = [left, right];
+    const venues = [
+      ...enoughVenues(left, DRINK_BRAND_AREA_PUBLICATION_FLOOR),
+      ...enoughVenues(right, DRINK_BRAND_AREA_PUBLICATION_FLOOR),
+      shared,
+    ];
+
+    const leftLanding = buildDrinkBrandAreaLanding(
+      left.slug,
+      "guinness",
+      venues,
+      areas,
+      NOW,
+    );
+    const rightLanding = buildDrinkBrandAreaLanding(
+      right.slug,
+      "guinness",
+      venues,
+      areas,
+      NOW,
+    );
+
+    expect(leftLanding?.totalPricedVenues).toBe(11);
+    expect(leftLanding?.rows.some((row) => row.venueId === shared.id)).toBe(true);
+    expect(rightLanding?.totalPricedVenues).toBe(10);
+    expect(rightLanding?.rows.some((row) => row.venueId === shared.id)).toBe(false);
   });
 
   it("selects one exact cheapest matching brand row without mutating Venue prices", () => {
@@ -272,13 +355,35 @@ describe("governed drink brand by Night Area landings", () => {
 
   it("ranks deterministic ties by price, Venue name, then Venue id", () => {
     const area = getNightArea("clapham");
+    const nameFirst = pricedVenue("z-id", area, 4, {
+      pub_name: "Alpha Pub",
+      app_price_id: "z-price",
+    });
+    nameFirst.name = "Alpha Pub";
+    const nameSecond = pricedVenue("a-id", area, 4, {
+      pub_name: "Beta Pub",
+      app_price_id: "a-price",
+    });
+    nameSecond.name = "Beta Pub";
+    const sameNameZ = pricedVenue("z-same", area, 4, {
+      pub_name: "Same Pub",
+      app_price_id: "z-same-price",
+    });
+    sameNameZ.name = "Same Pub";
+    const sameNameA = pricedVenue("a-same", area, 4, {
+      pub_name: "Same Pub",
+      app_price_id: "a-same-price",
+    });
+    sameNameA.name = "Same Pub";
     const venues = [
-      pricedVenue("z-id", area, 4, { pub_name: "Same Name", app_price_id: "z-price" }),
-      pricedVenue("a-id", area, 4, { pub_name: "Same Name", app_price_id: "a-price" }),
+      nameFirst,
+      nameSecond,
+      sameNameZ,
+      sameNameA,
       pricedVenue("cheap", area, 3, { pub_name: "Cheap Name", app_price_id: "cheap-price" }),
-      ...enoughVenues(area, 7, 5),
+      ...enoughVenues(area, 6, 5),
     ];
-    venues[0]!.prices.push(
+    nameFirst.prices.push(
       priceRow({ app_price_id: "a-row", pint_name: "Guinness A", price_gbp: 4, pub_name: "Same Name" }),
     );
 
@@ -286,8 +391,12 @@ describe("governed drink brand by Night Area landings", () => {
 
     expect(landing?.rows.slice(0, 3).map((row) => row.venueId)).toEqual([
       "cheap",
-      "a-id",
       "z-id",
+      "a-id",
+    ]);
+    expect(landing?.rows.slice(3, 5).map((row) => row.venueId)).toEqual([
+      "a-same",
+      "z-same",
     ]);
     expect(selectDrinkBrandPriceForVenue(venues[0]!, DRINK_BRANDS.beer[0]!)?.app_price_id).toBe(
       "a-row",
@@ -314,13 +423,22 @@ describe("governed drink brand by Night Area landings", () => {
   it("uses one shared collection date and the exact displayed-row publisher", () => {
     const area = getNightArea("clapham");
     const venues = enoughVenues(area, DRINK_BRAND_AREA_PUBLICATION_FLOOR);
-    venues[0]!.prices[0] = priceRow({
-      app_price_id: "named-source",
-      pub_name: "Named Source",
-      pint_name: "Guinness Draught",
-      price_gbp: 3,
-      pub_url: "https://www.pint-prices.com/pub/named-source",
-    });
+    venues[0]!.prices = [
+      priceRow({
+        app_price_id: "missing-expensive",
+        pub_name: "Conflicting Source",
+        pint_name: "Guinness Extra",
+        price_gbp: 3.5,
+        pub_url: "",
+      }),
+      priceRow({
+        app_price_id: "named-cheapest",
+        pub_name: "Conflicting Source",
+        pint_name: "Guinness Draught",
+        price_gbp: 3,
+        pub_url: "https://www.pint-prices.com/pub/named-source",
+      }),
+    ];
     venues[1]!.prices[0] = priceRow({
       app_price_id: "missing-source",
       pub_name: "Missing Source",
@@ -341,6 +459,7 @@ describe("governed drink brand by Night Area landings", () => {
     });
     expect(landing?.rows[0]).toMatchObject({
       venueId: venues[0]!.id,
+      pintName: "Guinness Draught",
       priceGbp: 3,
       publisher: {
         label: "Pint Prices",
