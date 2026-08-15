@@ -370,13 +370,16 @@ import {
   UK_NATIONAL_MAP_VIEW,
 } from "@/lib/ukNationalBrowse";
 import {
+  PLANNING_INTENT_CHANGED_EVENT,
   readPlanningIntent,
   type PlanningIntentSource,
 } from "@/lib/planningIntent";
 import {
   acceptMapVenue,
-  verifiedAcceptedArrivalSource,
+  invalidateAcceptedArrivalSource,
+  readAcceptedArrivalSource,
 } from "@/lib/mapAcceptance";
+import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 
 // The "Near me now" instant-answer cards (Cycle 3, Lane 1). Loaded lazily so it
 // never rides in the eager map chunk (perf budget, PR #306) — it only mounts
@@ -400,12 +403,24 @@ function currentSearch(): string {
   return typeof window === "undefined" ? "" : window.location.search;
 }
 
+// A same-tab PlanningIntent write raises no `storage` event, so this lane also
+// listens for the writer's own announcement. Without it the accepted-arrival
+// answer only refreshed because the snapshot callback's identity changed with
+// the search params, which is a coincidence rather than a subscription.
+const ACCEPTED_ARRIVAL_EVENTS = [
+  "storage",
+  "popstate",
+  PLANNING_INTENT_CHANGED_EVENT,
+] as const;
+
 function subscribeAcceptedArrival(onStoreChange: () => void): () => void {
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener("popstate", onStoreChange);
+  const notify = () => {
+    invalidateAcceptedArrivalSource();
+    onStoreChange();
+  };
+  for (const name of ACCEPTED_ARRIVAL_EVENTS) window.addEventListener(name, notify);
   return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener("popstate", onStoreChange);
+    for (const name of ACCEPTED_ARRIVAL_EVENTS) window.removeEventListener(name, notify);
   };
 }
 
@@ -718,11 +733,11 @@ export default function PubMap({
   const reactiveAcceptanceSearch = searchParams?.toString() ?? "";
   const acceptanceSelectedVenueId = searchParams?.get("sel") ?? seed.selectedVenueId;
   const acceptedArrivalSnapshot = useCallback(
-    () => verifiedAcceptedArrivalSource({
+    () => readAcceptedArrivalSource({
       search: reactiveAcceptanceSearch,
       selectedVenueId: acceptanceSelectedVenueId,
       cityId,
-    }, { cleanupInvalid: false }),
+    }),
     [acceptanceSelectedVenueId, cityId, reactiveAcceptanceSearch],
   );
   const acceptedArrivalSource = useSyncExternalStore(
@@ -1793,7 +1808,7 @@ export default function PubMap({
       search: currentSearch(),
     });
     if (!result.accepted || !result.telemetry || !result.destination) {
-      setAcceptanceError("Couldn’t keep this Venue on this device. Try again.");
+      setAcceptanceError(VENUE_ACCEPTANCE_STORAGE_ERROR);
       return;
     }
     setAcceptanceError(null);
@@ -3305,6 +3320,18 @@ export default function PubMap({
             </strong>
             <small>{userLocation ? "walk" : "Turn on location for walk times"}</small>
           </span>
+          {/* Adding a pub to the crawl you are building is a different capability
+              from "Make it Stop 1", which starts one plan around one accepted
+              pub. Keeping both is why the peek has three columns. */}
+          {selectedVenueIsPub ? (
+            <button
+              type="button"
+              aria-pressed={builtIds.includes(selectedVenue.id)}
+              onClick={() => toggleBuiltStop(selectedVenue.id)}
+            >
+              {builtIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
+            </button>
+          ) : null}
         </div>
         {selectedDetailStatus === "loading" ? (
           <VenueSheetSkeleton loadingLabel={selectedVenueLabels.loadingLabel} />

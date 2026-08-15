@@ -14,7 +14,11 @@ import {
   nearPriceTrustLabel,
 } from "@/lib/nearPriceTrust";
 import { formatPrice } from "@/lib/venues";
-import { acceptNearVenue, type RawAcceptedArea } from "@/lib/venueAcceptance";
+import {
+  acceptNearVenue,
+  VENUE_ACCEPTANCE_STORAGE_ERROR,
+  type RawAcceptedArea,
+} from "@/lib/venueAcceptance";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
 import {
@@ -553,7 +557,7 @@ export default function NearMeNow({
         fallbackCityId: resolveFallbackCityId(cityId),
       });
       if (!result.accepted || !result.telemetry) {
-        setAcceptanceError("Couldn’t keep this Venue on this device. Try again.");
+        setAcceptanceError(VENUE_ACCEPTANCE_STORAGE_ERROR);
         return;
       }
       setAcceptanceError("");

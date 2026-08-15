@@ -127,7 +127,7 @@ test.describe("Tonight trusted UI (flag off / shipped)", () => {
 
     await expect(page).toHaveURL(/\/tonight$/);
     await expect(page.locator(".tonightAcceptanceError")).toHaveText(
-      "Couldn’t keep this Venue on this device. Try again.",
+      "Couldn’t keep this pub on this device. Try again.",
     );
     await page.waitForTimeout(400);
     expect(payloads.some((payload) => (

@@ -10,6 +10,8 @@ import {
   GUEST_DISPLAY_NAME_MAX,
   isPlanInviteRsvpSummary,
   isRsvpStatus,
+  markDeviceRsvpCommitted,
+  readDeviceRsvpCommitted,
   type PlanInviteRsvpSummary,
   type RsvpStatus,
 } from "@/lib/planInvite";
@@ -39,6 +41,20 @@ function readStoredGuestName(): string {
   }
 }
 
+function deviceStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function subscribeDeviceRsvp(onStoreChange: () => void): () => void {
+  window.addEventListener("storage", onStoreChange);
+  return () => window.removeEventListener("storage", onStoreChange);
+}
+
 function writeStoredGuestName(name: string): void {
   try {
     window.localStorage.setItem(GUEST_NAME_STORAGE_KEY, name);
@@ -54,12 +70,18 @@ export function InviteMapPrompt({
   committed: boolean;
   venueIds: string[];
 }) {
-  if (!committed) return null;
+  // The map link is never gated on the RSVP. Gating it meant a guest who
+  // answered and reloaded, came back the next day, answered from another
+  // device, or was already Going before the deploy could no longer reach the
+  // stops the invite is about. "RSVP saved." is emphasis laid on top of a way
+  // out that was always there, not the thing that unlocks it.
+  //
+  // It carries no live region of its own: the form below already owns one, and
+  // this line is also rendered on arrival for a returning guest, where an
+  // announcement would be news about nothing.
   return (
     <div className="inviteRsvp__mapPrompt">
-      <p className="inviteRsvp__status" role="status">
-        RSVP saved.
-      </p>
+      {committed ? <p className="inviteRsvp__status">RSVP saved.</p> : null}
       <InviteMapLink venueIds={venueIds} />
     </div>
   );
@@ -104,6 +126,17 @@ export default function PlanInviteRsvp({
   );
   const { token: memberToken, role } = parsePlanCapabilitySnapshot(capabilitySnapshot);
   const isHost = Boolean(memberToken && role === "host");
+
+  // A guest's own device is the only record we hold of their answer, so a
+  // return visit restores the saved emphasis from it. The server snapshot is
+  // false because the server knows nothing about this device, and the value is
+  // a boolean, so it is stable across renders. Another tab's RSVP arrives
+  // through `storage`; this tab's own arrives through `rsvpCommitted`.
+  const rsvpRemembered = useSyncExternalStore(
+    subscribeDeviceRsvp,
+    () => readDeviceRsvpCommitted(planId, deviceStorage()),
+    () => false,
+  );
 
   useEffect(() => {
     if (memberToken) return;
@@ -204,6 +237,7 @@ export default function PlanInviteRsvp({
         if (isPlanInviteRsvpSummary(data.summary)) {
           setRsvp(data.summary);
           setRsvpCommitted(true);
+          markDeviceRsvpCommitted(planId, deviceStorage());
           trackEvent("invite_rsvp_submitted", { status: chosen, isUpdate: data.isUpdate === true });
         } else {
           setRsvpError("Couldn't save that RSVP.");
@@ -214,7 +248,7 @@ export default function PlanInviteRsvp({
         setSubmittingRsvp(false);
       }
     },
-    [name, submittingRsvp, token],
+    [name, planId, submittingRsvp, token],
   );
 
   const onSubmit = useCallback(
@@ -353,7 +387,7 @@ export default function PlanInviteRsvp({
         </p>
       ) : null}
 
-      <InviteMapPrompt committed={rsvpCommitted} venueIds={venueIds} />
+      <InviteMapPrompt committed={rsvpCommitted || rsvpRemembered} venueIds={venueIds} />
 
       <div className="inviteRsvp__reactions">
         {REACTION_KEYS.map((key) => {

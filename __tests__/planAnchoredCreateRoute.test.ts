@@ -20,7 +20,10 @@ vi.mock("@/lib/concierge/venues.server", () => ({
 
 import { POST as CREATE } from "@/app/api/plans/route";
 import { PATCH } from "@/app/api/plans/[id]/route";
-import { mintPlanGroundingProofV2 } from "@/lib/planGrounding.server";
+import {
+  mintPlanGroundingProof,
+  mintPlanGroundingProofV2,
+} from "@/lib/planGrounding.server";
 import { __resetMemoryPlans } from "@/lib/planStore";
 
 const URL = "http://localhost/api/plans";
@@ -223,6 +226,53 @@ describe("POST /api/plans — anchored lock", () => {
     });
     expect(wrongOp.status).toBe(422);
     expect((await wrongOp.json()).code).toBe("PLAN_ANCHOR_PROOF_OPERATION_MISMATCH");
+  });
+
+  it("treats a legacy V1 creation proof as no upgrade claim, not a malformed one", async () => {
+    // V1 was only ever minted for unanchored creation. Once the anchored gate
+    // lost its rollout flag, a caller replaying its own create proof onto a
+    // route replacement started meeting the V2 "malformed proof" 422 for a
+    // claim it never made, refusing a save that used to go through.
+    const { planId, memberToken } = await createDraft();
+    const stops = [
+      { venueId: "venue-a", venueName: "A" },
+      { venueId: "venue-b", venueName: "B" },
+      { venueId: "venue-c", venueName: "C" },
+    ];
+    const legacy = await patchUpgrade(planId, {
+      memberToken,
+      stops,
+      expectedRouteRevision: 1,
+      groundingProof: mintPlanGroundingProof(
+        stops.map((stop) => stop.venueId),
+        "op-legacy-v1-create",
+      ),
+      operationKey: "op-legacy-v1-create",
+    });
+
+    // The same answer a caller sending no proof at all gets: the V1 proof is
+    // not read as a broken anchored claim, so the store decides the request on
+    // its own terms rather than the route refusing it with a proof 422.
+    expect(legacy.status).toBe(403);
+    expect((await legacy.json()).code).toBe("PLAN_UPDATE_FORBIDDEN");
+  });
+
+  it("still refuses a forged proof that is neither a real V1 nor a real V2", async () => {
+    const { planId, memberToken } = await createDraft();
+    const stops = [
+      { venueId: "venue-a", venueName: "A" },
+      { venueId: "venue-b", venueName: "B" },
+      { venueId: "venue-c", venueName: "C" },
+    ];
+    const forged = await patchUpgrade(planId, {
+      memberToken,
+      stops,
+      expectedRouteRevision: 1,
+      groundingProof: `${routeProof("op-upgrade-forge")}x`,
+      operationKey: "op-upgrade-forge",
+    });
+
+    expect(forged.status).toBe(422);
   });
 
   it("accepts an anchor by default and preserves generic creation without one", async () => {

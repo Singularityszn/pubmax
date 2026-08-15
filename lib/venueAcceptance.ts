@@ -56,6 +56,16 @@ export type VenueAcceptedTelemetry = {
   hasProvenance: boolean;
 };
 
+/**
+ * The one sentence every acceptance surface says when the envelope would not
+ * persist. Near, Tonight and Map fail the same way and must not word it three
+ * ways: it was pasted into three components and had already drifted from the
+ * lowercase "Keep this venue" button beside it. "Venue" is our own noun for a
+ * row in the index, so the reader is told about a pub instead.
+ */
+export const VENUE_ACCEPTANCE_STORAGE_ERROR =
+  "Couldn’t keep this pub on this device. Try again.";
+
 export type VenueAcceptance = {
   /** True only when the PlanningIntent envelope actually persisted. */
   accepted: boolean;

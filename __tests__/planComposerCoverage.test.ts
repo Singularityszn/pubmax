@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  anchorConflictMessage,
   errorMessageFromBody,
   applyPlanStopCount,
   generatedPlanAnchorFromResponse,
@@ -388,5 +389,35 @@ describe("PlanComposer route preview seam", () => {
     );
     expect(synced.draft.answers.stopCount).toBe(4);
     expect(synced.context?.stopCount).toBe(4);
+  });
+});
+
+describe("PlanComposer anchor-conflict reporting", () => {
+  // The route optimizer answers HTTP 200 with an empty Stops list when the
+  // accepted pub itself is what refused, so the empty-route branch would have
+  // printed "No venues matched that ask" over the one sentence that names the
+  // real reason. Every conflict code travels this way.
+  it("prints the server sentence for an anchor conflict answered 200", () => {
+    expect(anchorConflictMessage({
+      grounded: false,
+      outcome: "anchor-conflict",
+      stops: [],
+      reason: "ANCHOR_OPENING_CONFLICT",
+      message: "That pub is not open for your chosen time. Adjust the time or accept another pub.",
+    })).toBe("That pub is not open for your chosen time. Adjust the time or accept another pub.");
+  });
+
+  it("falls back to one honest sentence when the conflict carries no message", () => {
+    expect(anchorConflictMessage({ outcome: "anchor-conflict", stops: [] }))
+      .toBe("We could not build a route from that pub right now. Try a different pub.");
+    expect(anchorConflictMessage({ outcome: "anchor-conflict", message: "   " }))
+      .toBe("We could not build a route from that pub right now. Try a different pub.");
+  });
+
+  it("stays out of the way of every other generation outcome", () => {
+    expect(anchorConflictMessage({ outcome: "anchor-only", message: "Kept." })).toBeNull();
+    expect(anchorConflictMessage({ stops: [], message: "Nothing matched." })).toBeNull();
+    expect(anchorConflictMessage(null)).toBeNull();
+    expect(anchorConflictMessage("anchor-conflict")).toBeNull();
   });
 });

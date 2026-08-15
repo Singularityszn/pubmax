@@ -455,24 +455,27 @@
   }
 }
 
-/* Explicit Tonight acceptance. Distinct from the browse CTA above it. */
+/* Explicit Tonight acceptance, at SECONDARY weight (captain decision D3).
+   Keeping a pub is a real action and it stays on every row, but a filled coral
+   button under every listing put a dozen primary actions on one page and left
+   the page's own primary action competing with them. The tokens are the ones
+   .tonightRowMoreAccept already uses for the same action inside the grouped
+   alternates, so one act reads one way wherever it appears. It shrinks to its
+   own text and sits inside the card's padding rather than spanning the row. */
 .tonightRowAccept {
-  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
-  margin-top: 10px;
-  padding: 9px 16px;
-  border: none;
-  border-radius: 999px;
-  /* Match the app's canonical filled-CTA pairing (cream on accent) that every
-     other primary action uses, so contrast is consistent with the shipped design
-     system rather than an ad-hoc colour. */
-  font-size: 0.86rem;
+  width: fit-content;
+  min-height: 44px;
+  margin: 0 16px 16px;
+  padding: 6px 14px;
+  border: 1px solid var(--state-active-border);
+  border-radius: var(--control-radius, 14px);
+  font-size: 0.8rem;
   font-weight: 700;
-  color: var(--color-on-accent);
-  background: var(--accent-action);
+  color: var(--state-active-ink);
+  background: var(--state-active-surface);
   cursor: pointer;
 }
 

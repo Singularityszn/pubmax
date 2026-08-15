@@ -4,7 +4,9 @@ import {
   acceptMapVenue,
   buildMapAcceptanceIntentInput,
   initialAcceptanceSource,
+  invalidateAcceptedArrivalSource,
   isPlanningIntentSource,
+  readAcceptedArrivalSource,
 } from "@/lib/mapAcceptance";
 import {
   createPlanningIntent,
@@ -382,5 +384,77 @@ describe("acceptMapVenue", () => {
 
     expect(result.telemetry?.source).toBe("map-search");
     expect(storedIntent(storage)?.source).toBe("map-search");
+  });
+});
+
+describe("readAcceptedArrivalSource", () => {
+  const query = {
+    search: `?sel=${ACCEPTED_VENUE}&accept=1&src=near`,
+    selectedVenueId: ACCEPTED_VENUE,
+    cityId: "london" as const,
+  };
+
+  beforeEach(() => {
+    invalidateAcceptedArrivalSource();
+  });
+
+  it("parses the envelope once for one unchanged question", () => {
+    // useSyncExternalStore asks its snapshot on every render, so an unmemoised
+    // reader ran a storage read plus a JSON.parse per PubMap render.
+    const storage = memoryStorage();
+    seedIntent(storage, {
+      source: "near",
+      cityId: "london",
+      acceptedVenueId: ACCEPTED_VENUE,
+      acceptedArea: { kind: "borough", name: "Camden" },
+      startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    });
+
+    expect(readAcceptedArrivalSource(query, { storage, now: NOW })).toBe("near");
+    const readsAfterFirst = storage.reads;
+    for (let index = 0; index < 20; index += 1) {
+      expect(readAcceptedArrivalSource(query, { storage, now: NOW })).toBe("near");
+    }
+
+    expect(storage.reads).toBe(readsAfterFirst);
+  });
+
+  it("asks again for a different Venue, and after an invalidation", () => {
+    const storage = memoryStorage();
+    seedIntent(storage, {
+      source: "near",
+      cityId: "london",
+      acceptedVenueId: ACCEPTED_VENUE,
+      acceptedArea: null,
+      startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    });
+
+    expect(readAcceptedArrivalSource(query, { storage, now: NOW })).toBe("near");
+    const readsAfterFirst = storage.reads;
+
+    // A different question is a different key, so it is never answered from
+    // the previous Venue's cached answer.
+    expect(readAcceptedArrivalSource({
+      ...query,
+      selectedVenueId: "venue-other",
+      search: "?sel=venue-other&accept=1&src=near",
+    }, { storage, now: NOW })).toBeNull();
+    expect(storage.reads).toBeGreaterThan(readsAfterFirst);
+
+    // The same question after a write, a clear, another tab or a history move.
+    const readsBeforeInvalidate = storage.reads;
+    invalidateAcceptedArrivalSource();
+    expect(readAcceptedArrivalSource(query, { storage, now: NOW })).toBe("near");
+    expect(storage.reads).toBeGreaterThan(readsBeforeInvalidate);
+  });
+
+  it("never cleans a rejected envelope away, because a render is a look", () => {
+    const storage = memoryStorage();
+    storage.map.set(PLANNING_INTENT_STORAGE_KEY, "{not json");
+
+    expect(readAcceptedArrivalSource(query, { storage, now: NOW })).toBeNull();
+    expect(storage.map.has(PLANNING_INTENT_STORAGE_KEY)).toBe(true);
   });
 });

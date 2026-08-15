@@ -27,6 +27,8 @@ import {
   londonServiceDateLabel,
   seedProvisionalStop1,
   resolveComposerHydration,
+  UNRESOLVED_ACCEPTED_VENUE_LABEL,
+  UNRESOLVED_ACCEPTED_VENUE_NAME,
 } from "@/lib/planComposerHandoff";
 
 const NOW = Date.parse("2026-07-24T12:00:00.000Z");
@@ -253,6 +255,35 @@ describe("provisional accepted Venue Stop 1 seed", () => {
       venueName: "The Accepted Arms",
       alternatives: [],
     });
+  });
+
+  it("never seeds a raw Venue id as the Stop name", () => {
+    // A pin promoted out of the UK base layer is absent from the slim index for
+    // good, so the id would have printed as a pub name permanently rather than
+    // for the moment before the fetch answered.
+    const seeded = seedProvisionalStop1({
+      acceptedVenueId: "venue-uk-osm-8123456",
+      venues: [{ id: "venue-other", name: "Somewhere Else" }],
+      recoveredRouteStops: [],
+      recoveredPlanStops: [],
+    });
+
+    expect(seeded).toEqual({
+      key: 1,
+      venueId: "venue-uk-osm-8123456",
+      venueName: UNRESOLVED_ACCEPTED_VENUE_NAME,
+      alternatives: [],
+    });
+    expect(seeded?.venueName).not.toContain("venue-");
+    expect(UNRESOLVED_ACCEPTED_VENUE_LABEL).not.toContain("venue-");
+
+    // A missing index answers the same way as an index that does not carry it.
+    expect(seedProvisionalStop1({
+      acceptedVenueId: "venue-uk-osm-8123456",
+      venues: null,
+      recoveredRouteStops: [],
+      recoveredPlanStops: [],
+    })?.venueName).toBe(UNRESOLVED_ACCEPTED_VENUE_NAME);
   });
 
   it("does not replace recovered Route or Plan stops", () => {

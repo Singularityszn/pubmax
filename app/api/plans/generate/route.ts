@@ -127,7 +127,7 @@ async function runAnchoredGeneration<T extends ScoredPlanCandidate>(params: {
 	const anchorVenueId = anchorResolution.canonical.venueId;
 	const selection = await selectAnchoredPlanGenerationCandidates(candidates, context, intake, requestNow, anchorVenueId);
 	if (!selection.ok) {
-		return anchorConflict("ANCHOR_ROUTE_CONFLICT", "We could not build a Route from that Venue right now. Try a different anchor.");
+		return anchorConflict("ANCHOR_ROUTE_CONFLICT", "We could not build a route from that pub right now. Try a different pub.");
 	}
 	if (selection.outcome === "anchor-only") {
 		let anchorOnlyProof: string;

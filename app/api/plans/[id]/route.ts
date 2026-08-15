@@ -4,7 +4,11 @@ import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { isPlanId, PLANNED_NIGHT_STATUSES, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import { cleanNightContext } from "@/lib/nightPlanning";
-import { verifyAnchoredPlanGroundingProofV2, type PlanGroundingRejectionV2 } from "@/lib/planGrounding.server";
+import {
+  verifyAnchoredPlanGroundingProofV2,
+  verifyPlanGroundingProof,
+  type PlanGroundingRejectionV2,
+} from "@/lib/planGrounding.server";
 import { planMemberCapability } from "@/lib/planMemberCapability";
 import { planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { resolvePlanProjection } from "@/lib/planPrivacyBoundary.server";
@@ -48,7 +52,17 @@ function checkAnchoredUpgrade(
   if (!stops || !groundingProof || !operationKey) {
     return { groundedUpgrade: false, upgradeAnchored: false };
   }
-  const verdict = verifyAnchoredPlanGroundingProofV2(groundingProof, stops.map((stop) => stop.venueId), operationKey);
+  const routeVenueIds = stops.map((stop) => stop.venueId);
+  // A legacy V1 creation proof is not an upgrade claim. V1 was only ever minted
+  // for unanchored creation, so a caller replaying its own create proof onto a
+  // route replacement is not asking to be upgraded, and answering it with the
+  // V2 "your proof is malformed" 422 would refuse a save that main allowed.
+  // Only OUR signature can reach this branch, so a forged or tampered proof
+  // still falls through to the strict V2 verification below.
+  if (verifyPlanGroundingProof(groundingProof, routeVenueIds, operationKey)) {
+    return { groundedUpgrade: false, upgradeAnchored: false };
+  }
+  const verdict = verifyAnchoredPlanGroundingProofV2(groundingProof, routeVenueIds, operationKey);
   if (!verdict.ok) {
     const mapped = upgradeProofError(verdict.reason);
     return { done: publicApiError(mapped.message, mapped.code, 422) };

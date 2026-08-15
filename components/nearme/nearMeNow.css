@@ -284,6 +284,9 @@
   min-width: 0;
 }
 
+/* Secondary weight (captain decision D3), matching Tonight's own Keep action:
+   the affordance stays on every card, but a filled coral button per card made
+   a list of a dozen equally loud primary actions. */
 .nmnAccept {
   flex: none;
   display: inline-flex;
@@ -291,10 +294,10 @@
   justify-content: center;
   min-height: 44px;
   padding: 0 var(--space-4);
-  border: 1px solid transparent;
+  border: 1px solid var(--state-active-border);
   border-radius: var(--radius-lg);
-  background: var(--accent-action);
-  color: var(--color-on-accent);
+  background: var(--state-active-surface);
+  color: var(--state-active-ink);
   font-size: 0.85rem;
   font-weight: 700;
   white-space: nowrap;
@@ -303,8 +306,7 @@
 }
 
 .nmnAccept:hover {
-  background: var(--accent-action-strong);
-  color: var(--color-on-accent-strong);
+  background: color-mix(in srgb, var(--state-active-surface) 82%, var(--ink));
 }
 
 .nmnAccept:active {

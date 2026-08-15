@@ -14,7 +14,7 @@
 
 - Use `Venue`, `Crawl Route`, `Crawl Stop`, and `Planned Night` from `CONTEXT.md`.
 - Browsing a Venue must never create or replace a PlanningIntent.
-- Storage failure must stay on current surface, show `Couldn’t keep this Venue on this device. Try again.`, and emit no acceptance or handoff event.
+- Storage failure must stay on current surface, show `Couldn’t keep this pub on this device. Try again.`, and emit no acceptance or handoff event.
 - Existing Plan or Route draft keeps Stop 1. Accepted Venue may replace it only through explicit replacement.
 - Accepted anchor must remain Stop 1 through generation and Plan creation.
 - Keep `mapRouteTransfer`, `tonightGrouping`, and unrelated flags unchanged.

@@ -152,9 +152,23 @@ type SeedVenue = {
 };
 
 /**
+ * What a surface calls the accepted Venue before the slim index has answered.
+ * A raw id is never a name: `venue-uk-osm-123456` is what we call a row, and a
+ * pin promoted out of the UK base layer is absent from the slim index for good,
+ * so the id would have stood in that field permanently. Empty is the honest
+ * value - the Stop input is the person's own to fill, and the resolve below
+ * writes the real name the moment the index lands.
+ */
+export const UNRESOLVED_ACCEPTED_VENUE_NAME = "";
+
+/** The neutral label a read-only summary prints while the name is unresolved. */
+export const UNRESOLVED_ACCEPTED_VENUE_LABEL = "The pub you kept";
+
+/**
  * Seed the accepted Venue as one editable Stop 1 only when no saved Route or
  * Plan stops exist. The Venue id remains the accepted id; the display name is
- * resolved from the loaded Venue index when available.
+ * resolved from the loaded Venue index when available, and stays empty rather
+ * than falling back to the id when it is not.
  */
 export function seedProvisionalStop1(input: {
   acceptedVenueId: string | null | undefined;
@@ -170,7 +184,7 @@ export function seedProvisionalStop1(input: {
     return null;
   }
   const indexed = input.venues?.find((venue) => venue.id.trim() === venueId);
-  const venueName = indexed?.name.trim() || venueId;
+  const venueName = indexed?.name.trim() || UNRESOLVED_ACCEPTED_VENUE_NAME;
   return {
     key: 1,
     venueId,

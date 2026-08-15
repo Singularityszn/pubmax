@@ -130,7 +130,7 @@ test("storage denial stays on Near and emits no acceptance events", async ({ pag
 
   await expect(page).toHaveURL(/\/near\?patch=soho$/);
   await expect(page.locator(".nmnAcceptError")).toHaveText(
-    "Couldn’t keep this Venue on this device. Try again.",
+    "Couldn’t keep this pub on this device. Try again.",
   );
   await page.waitForTimeout(400);
   expect(payloads.some((payload) => (

@@ -71,3 +71,43 @@ export function isPlanInviteRsvpSummary(value: unknown): value is PlanInviteRsvp
 
   return value.counts.going >= visibleCounts.going && value.counts.maybe >= visibleCounts.maybe;
 }
+
+// A guest's RSVP is remembered on their own device, per Plan, so returning to
+// the invite still reads as "you answered this one". It is a memory, never a
+// permission: the map link below it is unconditional, because the stops are
+// what the link was opened for and a guest who answered on another device, or
+// cleared their browser, has lost nothing but the emphasis.
+export const INVITE_RSVP_DEVICE_PREFIX = "pubmax:inviteRsvp:v1:";
+
+export type InviteRsvpDeviceStorage = Pick<Storage, "getItem" | "setItem">;
+
+export function inviteRsvpDeviceKey(planId: string): string {
+  return `${INVITE_RSVP_DEVICE_PREFIX}${planId.trim()}`;
+}
+
+/** True only when this device recorded a confirmed RSVP for this Plan. */
+export function readDeviceRsvpCommitted(
+  planId: string,
+  storage: InviteRsvpDeviceStorage | null,
+): boolean {
+  if (!planId.trim() || !storage) return false;
+  try {
+    return storage.getItem(inviteRsvpDeviceKey(planId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Record a confirmed RSVP. Written only after the server accepted it. */
+export function markDeviceRsvpCommitted(
+  planId: string,
+  storage: InviteRsvpDeviceStorage | null,
+): void {
+  if (!planId.trim() || !storage) return;
+  try {
+    storage.setItem(inviteRsvpDeviceKey(planId), "1");
+  } catch {
+    // Storage full or denied. The RSVP still landed; only the emphasis on a
+    // later visit is lost, and the map link never depended on it.
+  }
+}

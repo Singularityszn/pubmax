@@ -3,6 +3,14 @@ import { CITIES, type CityId } from "@/lib/cities";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
 
 export const PLANNING_INTENT_STORAGE_KEY = "pubmax:planning-intent:v1";
+/**
+ * A same-tab write raises no `storage` event, so a reader that only listened
+ * for one kept the previous answer until a full page load. Every write and
+ * every clear announces itself here instead, the way the device-identity lane
+ * already does (lib/deviceAccountIdentity). Listeners are browser-only; the
+ * event is a no-op on the server.
+ */
+export const PLANNING_INTENT_CHANGED_EVENT = "pubmax:planning-intent-changed";
 export const PLANNING_INTENT_MAX_RAW_BYTES = 4 * 1024;
 export const PLANNING_INTENT_TTL_MS = 2 * 60 * 60 * 1000;
 export const PLANNING_INTENT_MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
@@ -82,6 +90,16 @@ const NIGHT_PATCH_AREA_KEYS = ["kind", "id"] as const;
 const BOROUGH_AREA_KEYS = ["kind", "name"] as const;
 const EVIDENCE_KEYS = ["kind", "observedAt"] as const;
 const VENUE_ID_PATTERN = /^[A-Za-z0-9:_-]{1,128}$/;
+
+function announcePlanningIntentChange(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(new Event(PLANNING_INTENT_CHANGED_EVENT));
+  } catch {
+    // A browser that refuses the dispatch still holds the written envelope;
+    // only the live refresh is lost, and the next read still finds it.
+  }
+}
 
 function currentTime(now: PlanningIntentOptions["now"]): number {
   return typeof now === "function" ? now() : now ?? Date.now();
@@ -309,6 +327,7 @@ export function writePlanningIntent(
   if (rawByteLength(raw) > PLANNING_INTENT_MAX_RAW_BYTES) return null;
   try {
     storage.setItem(PLANNING_INTENT_STORAGE_KEY, raw);
+    announcePlanningIntentChange();
     return intent;
   } catch {
     return null;
@@ -319,6 +338,7 @@ export function clearPlanningIntent(
   options: Pick<PlanningIntentOptions, "storage"> = {},
 ): void {
   bestEffortRemove(selectedStorage(options));
+  announcePlanningIntentChange();
 }
 
 /**

@@ -140,6 +140,50 @@ export function verifiedAcceptedArrivalSource(
   return acceptedArrivalIntent(input, options)?.source ?? null;
 }
 
+// `useSyncExternalStore` asks its snapshot on EVERY render, so an unmemoised
+// reader ran a localStorage read plus a JSON.parse per PubMap render. The cache
+// holds one answer per (revision, query) pair; the revision is bumped by the
+// subscriber the moment a write, a clear, another tab, or a history move could
+// have changed the answer, so a stale answer is not reachable.
+let acceptedArrivalRevision = 0;
+let acceptedArrivalCache: {
+  key: string;
+  value: PlanningIntentSource | null;
+} | null = null;
+
+/** Drop the memoised answer. The subscriber calls this before it notifies. */
+export function invalidateAcceptedArrivalSource(): void {
+  acceptedArrivalRevision += 1;
+  acceptedArrivalCache = null;
+}
+
+/**
+ * The memoised `verifiedAcceptedArrivalSource`, safe to call on every render.
+ * Never reads a rejected envelope's bytes away (`cleanupInvalid: false`): a
+ * render is a look, not a decision.
+ *
+ * The key is the QUERY, not the storage, because one browser has one of those.
+ * A caller injecting its own storage invalidates first.
+ */
+export function readAcceptedArrivalSource(
+  input: AcceptedArrivalInput,
+  options: Pick<PlanningIntentOptions, "storage" | "now"> = {},
+): PlanningIntentSource | null {
+  const key = [
+    acceptedArrivalRevision,
+    input.cityId,
+    input.selectedVenueId,
+    input.search,
+  ].join("|");
+  if (acceptedArrivalCache?.key === key) return acceptedArrivalCache.value;
+  const value = verifiedAcceptedArrivalSource(input, {
+    ...options,
+    cleanupInvalid: false,
+  });
+  acceptedArrivalCache = { key, value };
+  return value;
+}
+
 /**
  * Explicitly accept the selected Map Venue into the trusted handoff.
  *

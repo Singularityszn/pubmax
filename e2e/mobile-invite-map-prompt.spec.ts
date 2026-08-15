@@ -77,8 +77,12 @@ test("guest RSVP reveals one ordered map handoff that fits mobile", async ({ req
   const { token, venues } = await createInvite(request);
 
   await page.goto(`/invite/${token}`);
+  // One map link on the page, and it is the island's. The stops are why the
+  // invite was opened, so the way to them is never gated on an RSVP; only the
+  // "RSVP saved." emphasis waits for an answer.
   await expect(page.locator(".invite__mapLink")).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Open these stops on the map" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Open these stops on the map" })).toHaveCount(1);
+  await expect(page.getByText("RSVP saved.", { exact: true })).toHaveCount(0);
   if (UPDATE_PROOF) {
     await page.evaluate(() => {
       document.documentElement.dataset.theme = "light";
@@ -184,9 +188,24 @@ test("guest RSVP reveals one ordered map handoff that fits mobile", async ({ req
     && (payload as { name?: unknown }).name === "invite_map_opened"
   )).length).toBe(1);
 
+  // Returning guest: the answer is remembered on this device, so the saved
+  // emphasis comes back with the link rather than the page reading as if they
+  // had never RSVP'd.
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`/invite/${token}$`));
-  await expect(handoff).toHaveCount(0);
+  await expect(handoff).toHaveCount(1);
+  await expect(page.getByText("RSVP saved.", { exact: true })).toBeVisible();
+
+  // A fresh device has no memory of the answer, and still reaches the stops.
+  const stranger = await page.context().browser()!.newContext();
+  const strangerPage = await stranger.newPage();
+  await strangerPage.setViewportSize({ width: 390, height: 844 });
+  await strangerPage.goto(`/invite/${token}`);
+  await expect(
+    strangerPage.getByRole("link", { name: "Open these stops on the map" }),
+  ).toHaveCount(1);
+  await expect(strangerPage.getByText("RSVP saved.", { exact: true })).toHaveCount(0);
+  await stranger.close();
 });
 
 test("Maybe RSVP reveals the canonical one-stop map handoff", async ({ request, page }) => {
@@ -222,7 +241,9 @@ test("failed guest RSVP stays on invite without a map handoff", async ({ request
   await page.getByRole("button", { name: "RSVP", exact: true }).click();
 
   await expect(page.locator(".inviteRsvp__error")).toHaveText("Couldn't save that RSVP.");
-  await expect(page.getByRole("link", { name: "Open these stops on the map" })).toHaveCount(0);
+  // The refusal takes the saved emphasis, never the way to the stops.
+  await expect(page.getByText("RSVP saved.", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Open these stops on the map" })).toHaveCount(1);
   await expect(page.locator(".inviteRsvp__guest", { hasText: "Priya" })).toHaveCount(0);
 });
 
@@ -244,6 +265,8 @@ test("guest RSVP rejects a success response without a valid summary", async ({ r
   await page.getByRole("button", { name: "RSVP", exact: true }).click();
 
   await expect(page.locator(".inviteRsvp__error")).toHaveText("Couldn't save that RSVP.");
-  await expect(page.getByRole("link", { name: "Open these stops on the map" })).toHaveCount(0);
+  // The refusal takes the saved emphasis, never the way to the stops.
+  await expect(page.getByText("RSVP saved.", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Open these stops on the map" })).toHaveCount(1);
   await expect(page.locator(".inviteRsvp__guest", { hasText: "Priya" })).toHaveCount(0);
 });

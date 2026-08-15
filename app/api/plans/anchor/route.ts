@@ -10,11 +10,20 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { parseCityId } from "@/lib/cities";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
+import { isLimited } from "@/lib/pintDrops";
 import { resolvePlanningAnchor } from "@/lib/planningAnchor.server";
 import type { PlanningIntentArea } from "@/lib/planningIntent";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { clientIp, hashIp } from "@/lib/supabase";
 
 assertServerEnv();
+
+// One preflight per accepted pub, so a person answers a handful of these a
+// night. The route answered 404 while it was behind a rollout flag, so it is
+// newly reachable, and it loads a Venue record plus its opening evidence per
+// call: cheap for a drinker, worth capping for anybody else.
+const RATE_LIMIT = 60;
+const RATE_WINDOW_MS = 60_000;
 
 function parseAcceptedArea(params: URLSearchParams): PlanningIntentArea | undefined {
   const kind = params.get("areaKind");
@@ -33,6 +42,13 @@ function parseAcceptedArea(params: URLSearchParams): PlanningIntentArea | undefi
 }
 
 export async function GET(request: Request): Promise<Response> {
+  const limiterKey = `plan-anchor:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS)) {
+    return publicApiError("Too many anchor checks, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
+  }
+
   const params = new URL(request.url).searchParams;
 
   const cityId = parseCityId(params.get("cityId"));

@@ -49,6 +49,7 @@ import {
   walkMinutes,
 } from "@/lib/tonight";
 import { acceptTonightVenue } from "@/lib/tonightAcceptance";
+import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { VibeChipButton, VibeChipLink, VibeChips } from "@/components/vibe/VibeChips";
 import { planOccasionHref, TONIGHT_SOFT_PLAN_CHIPS } from "@/lib/planOccasion";
@@ -210,7 +211,7 @@ export default function TonightClient({
         fallbackCityId: "london",
       });
       if (!result.accepted || !result.telemetry) {
-        setAcceptanceError("Couldn’t keep this Venue on this device. Try again.");
+        setAcceptanceError(VENUE_ACCEPTANCE_STORAGE_ERROR);
         return;
       }
       setAcceptanceError("");

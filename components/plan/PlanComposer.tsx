@@ -43,6 +43,8 @@ import {
   londonServiceDateLabel,
   resolveComposerHydration,
   seedProvisionalStop1,
+  UNRESOLVED_ACCEPTED_VENUE_LABEL,
+  UNRESOLVED_ACCEPTED_VENUE_NAME,
   type ComposerHydration,
 } from "@/lib/planComposerHandoff";
 import { writePlanCapability } from "@/lib/planSessionCapability";
@@ -432,6 +434,20 @@ export function errorMessageFromBody(body: unknown, fallback: string): string {
   return errorMessageFrom(body, fallback);
 }
 
+/**
+ * An anchor conflict answers HTTP 200 with no Stops, so the empty-route branch
+ * would otherwise print "No venues matched that ask" over the server's own
+ * sentence about the accepted pub. The server sentence is the only one that
+ * names what is actually in the way, so it wins whenever the outcome says so.
+ */
+export function anchorConflictMessage(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const payload = body as { outcome?: unknown; message?: unknown };
+  if (payload.outcome !== "anchor-conflict") return null;
+  const message = typeof payload.message === "string" ? payload.message.trim() : "";
+  return message || "We could not build a route from that pub right now. Try a different pub.";
+}
+
 export function planGenerationFailureStatus(
   message: string,
   hasPreviousRoute: boolean,
@@ -645,9 +661,12 @@ export function AcceptedContextPanel({
   handoff: ComposerHydration;
   acceptedVenueName?: string | null;
 }) {
+  // Never the raw id: it is our name for a row, and a pin promoted out of the
+  // UK base layer never reaches the slim index, so the id would have stood here
+  // for good. A neutral label says the same true thing and reads as English.
   const venueName = acceptedVenueName ?? handoff.routePreview?.value.stops
     .find((stop) => stop.venueId === handoff.acceptedVenueId)?.venueName
-    ?? handoff.acceptedVenueId;
+    ?? UNRESOLVED_ACCEPTED_VENUE_LABEL;
   const whenLabel = londonServiceDateLabel(handoff.startsAt);
   return (
     <>
@@ -858,10 +877,13 @@ function PlanComposerForm({
   const conciergeStatus = conciergeStatusText(sorting, unsupportedIntakePatch, conciergeNote);
   const composerVisible =
     planIntake.completed || Boolean(recoveredDraft || recoveredRouteDraft || handoff?.acceptedVenueId);
+  // An unresolved Stop 1 carries an empty name on purpose, and an empty string
+  // is not nullish, so it must be dropped here or the summary prints a blank
+  // row instead of falling through to the neutral label.
   const acceptedVenueName = handoff?.acceptedVenueId
-    ? venues.find((venue) => venue.id === handoff.acceptedVenueId)?.name
-      ?? stops.find((stop) => stop.venueId === handoff.acceptedVenueId)?.venueName
-      ?? null
+    ? venues.find((venue) => venue.id === handoff.acceptedVenueId)?.name.trim()
+      || stops.find((stop) => stop.venueId === handoff.acceptedVenueId)?.venueName.trim()
+      || null
     : null;
   const completeStopIds = completeStops.map((stop) => stop.venueId);
   const matchingAnchorOnlyPlan = isMatchingAnchorOnlyPlan({
@@ -916,7 +938,7 @@ function PlanComposerForm({
         setStops((current) => current.map((stop, index) => (
           index === 0
           && stop.venueId === acceptedVenueId
-          && stop.venueName === acceptedVenueId
+          && stop.venueName.trim() === UNRESOLVED_ACCEPTED_VENUE_NAME
             ? { ...stop, venueName: accepted.name }
             : stop
         )));
@@ -1145,10 +1167,18 @@ function PlanComposerForm({
         anchorVenueId?: unknown;
         anchorSource?: unknown;
         outcome?: unknown;
+        message?: unknown;
         error?: unknown;
       } | null;
       if (!response.ok) throw new Error(errorMessageFromBody(body, "PUBMAXX could not sort this one."));
       if (!body) throw new Error("PUBMAXX could not sort this one.");
+      const anchorConflict = anchorConflictMessage(body);
+      if (anchorConflict) {
+        // Answered 200 with no Stops on purpose: the kept pub is what is in the
+        // way, and only the server knows which check refused it.
+        setConciergeNote(anchorConflict);
+        return;
+      }
       const suggested = routeStopsFromGenerated(body.stops, body.alternatives);
       if (!suggested.length) {
         // Zero matches is guidance, not failure (friction sweep follow-up 9):

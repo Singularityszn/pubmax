@@ -63,7 +63,10 @@ describe("PlanComposer rendered UI", () => {
 
     expect(handoff.showAcceptedSummary).toBe(true);
     expect(html).toContain("Carried over from what you accepted");
-    expect(html).toContain("venue-intent");
+    // The id is what we call a row, never what a person calls a pub, and a pin
+    // promoted out of the UK base layer never reaches the slim index at all.
+    expect(html).not.toContain("venue-intent");
+    expect(html).toContain("The pub you kept");
   });
 
   it("renders the accepted Venue/area/date summary and marks area+date answered so intake never re-asks", () => {
@@ -74,7 +77,8 @@ describe("PlanComposer rendered UI", () => {
     const html = renderToStaticMarkup(createElement(AcceptedContextPanel, { handoff }));
 
     expect(html).toContain("Carried over from what you accepted");
-    expect(html).toContain("venue-intent");
+    expect(html).not.toContain("venue-intent");
+    expect(html).toContain("The pub you kept");
     expect(html).toContain("soho");
     expect(html).toContain("Jul"); // London service-date label for the accepted start
     expect(html).toContain("You can still change any of these below");
@@ -82,6 +86,14 @@ describe("PlanComposer rendered UI", () => {
     // area/date intake steps (PlanIntake is seeded settled; untouched here per the hold).
     expect(handoff.answeredArea).toBe(true);
     expect(handoff.answeredDate).toBe(true);
+
+    // A resolved name always wins over the neutral label.
+    const named = renderToStaticMarkup(createElement(AcceptedContextPanel, {
+      handoff,
+      acceptedVenueName: "The Accepted Arms",
+    }));
+    expect(named).toContain("The Accepted Arms");
+    expect(named).not.toContain("The pub you kept");
   });
 
   it("renders the 'kept existing Plan work' conflict note when a newer Plan draft beats a newer intent", () => {
