@@ -147,8 +147,109 @@ type ImportantControlConflict = {
   reason: string;
 };
 
+const TYPE_SELECTOR_BOUNDARIES = new Set([
+  " ",
+  "\t",
+  "\n",
+  "\r",
+  "\f",
+  ">",
+  "+",
+  "~",
+  ",",
+  "(",
+  "|",
+]);
+
+function stripSelectorNoise(selector: string): string {
+  let stripped = "";
+  let attributeDepth = 0;
+  let quote = "";
+  for (let index = 0; index < selector.length; index += 1) {
+    const character = selector[index];
+    if (quote) {
+      if (character === "\\") index += 1;
+      else if (character === quote) quote = "";
+      stripped += " ";
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      stripped += " ";
+      continue;
+    }
+    if (character === "/" && selector[index + 1] === "*") {
+      stripped += "  ";
+      index += 2;
+      while (
+        index < selector.length &&
+        !(selector[index] === "*" && selector[index + 1] === "/")
+      ) {
+        stripped += " ";
+        index += 1;
+      }
+      if (index < selector.length) stripped += "  ";
+      index += 1;
+      continue;
+    }
+    if (character === "[") {
+      attributeDepth += 1;
+      stripped += " ";
+      continue;
+    }
+    if (attributeDepth > 0) {
+      if (character === "]") attributeDepth -= 1;
+      stripped += " ";
+      continue;
+    }
+    if (character === "\\") {
+      stripped += "  ";
+      index += 1;
+      continue;
+    }
+    stripped += character;
+  }
+  return stripped;
+}
+
+function isIdentifierStart(character: string): boolean {
+  const code = character.charCodeAt(0);
+  return (
+    character === "-" ||
+    character === "_" ||
+    (code >= 65 && code <= 90) ||
+    (code >= 97 && code <= 122)
+  );
+}
+
+function isIdentifierCharacter(character: string): boolean {
+  const code = character.charCodeAt(0);
+  return isIdentifierStart(character) || (code >= 48 && code <= 57);
+}
+
+function typeSelectorTokens(selector: string): string[] {
+  const stripped = stripSelectorNoise(selector);
+  const tokens: string[] = [];
+  for (let index = 0; index < stripped.length; ) {
+    if (!isIdentifierStart(stripped[index])) {
+      index += 1;
+      continue;
+    }
+    const start = index;
+    index += 1;
+    while (index < stripped.length && isIdentifierCharacter(stripped[index])) {
+      index += 1;
+    }
+    const preceding = start === 0 ? "" : stripped[start - 1];
+    if (start === 0 || TYPE_SELECTOR_BOUNDARIES.has(preceding)) {
+      tokens.push(stripped.slice(start, index).toLowerCase());
+    }
+  }
+  return tokens;
+}
+
 function selectorTargetsControl(selector: string): boolean {
-  return /(^|[\s>+~,(])(?:input|textarea|select)(?=$|[\s>+~#.:\[,(])/i.test(selector);
+  return typeSelectorTokens(selector).some((token) => CONTROL_ELEMENTS.includes(token));
 }
 
 type LowerBoundProof =
@@ -274,6 +375,21 @@ describe("iOS form-zoom floor", () => {
     const conflicts = importantControlConflicts(css, "fixture.css");
     expect(conflicts.length).toBe(refused ? 1 : 0);
     if (refused) expect(conflicts[0]).toMatchObject({ reason: expect.any(String) });
+  });
+
+  it.each([
+    [".field :is(input)", true],
+    [":where(.a, textarea)", true],
+    ["form:has(select)", true],
+    [".x:not(.y) input", true],
+    [":matches(.group, :is(textarea))", true],
+    [".input-wrap", false],
+    ["#select-all", false],
+    ['[data-role="input"]', false],
+    [".textarea-note", false],
+  ])("recognizes control type selectors in %s", (selector, refused) => {
+    const css = `${selector} { font-size: 12px !important; }`;
+    expect(importantControlConflicts(css, "fixture.css")).toHaveLength(refused ? 1 : 0);
   });
 
   it("uses the last important font-size declaration in a rule", () => {
