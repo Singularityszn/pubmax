@@ -85,7 +85,9 @@ describe("governed drink brand landing page", () => {
     );
     expect(html.match(/Collected 3 July 2026\./g)).toHaveLength(1);
     expect(html.match(/<ol\b/g)).toHaveLength(1);
-    expect(html.match(/<li class="drinkBrandLanding__row"/g)).toHaveLength(20);
+    expect(
+      html.match(/<li class="[^"]*\bdrinkBrandLanding__row\b[^"]*"/g),
+    ).toHaveLength(20);
     expect(html).toContain("J.J. Moon's - JD Wetherspoon");
     expect(html).toContain("Pint Prices");
     expect(html).toContain("href=\"https://www.pint-prices.com/pub/");
@@ -147,13 +149,15 @@ describe("governed drink brand landing page", () => {
     );
 
     expect(html).toContain("From £3.09");
-    expect(html).toContain('class="drinkBrandLanding__fromPublisher"');
+    expect(html).toMatch(
+      /class="[^"]*\bdrinkBrandLanding__fromPublisher\b[^"]*"/,
+    );
     expect(html).toContain(
       '>Publisher: Exact Publisher</a>',
     );
     expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(2);
     expect(html).toMatch(
-      /class="drinkBrandLanding__publisher"><span>Publisher: <\/span><a href="https:\/\/publisher\.example\/price-1"[^>]*>Exact Publisher<\/a>/,
+      /class="[^"]*\bdrinkBrandLanding__publisher\b[^"]*"><span>Publisher: <\/span><a href="https:\/\/publisher\.example\/price-1"[^>]*>Exact Publisher<\/a>/,
     );
   });
 

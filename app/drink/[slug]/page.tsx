@@ -13,6 +13,7 @@ import {
 } from "@/lib/drinkBrandLanding.server";
 import { formatPrice } from "@/lib/venues";
 
+import "@/components/drinks/drinkBrandDirectory.css";
 import "./drink.css";
 
 type PageProps = { params: Promise<{ slug: string }> };

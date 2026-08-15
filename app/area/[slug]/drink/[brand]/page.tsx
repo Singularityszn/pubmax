@@ -13,6 +13,7 @@ import {
 } from "@/lib/drinkBrandAreaLanding.server";
 import { formatPrice } from "@/lib/venues";
 
+import "@/components/drinks/drinkBrandDirectory.css";
 import "./drink-area.css";
 
 type PageProps = {

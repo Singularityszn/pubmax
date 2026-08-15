@@ -93,9 +93,11 @@ describe("governed drink brand by Night Area landing page", () => {
     expect(html.match(new RegExp(`href="${escapeRegExp(htmlHref(mapHref))}"`, "g"))).toHaveLength(1);
     expect(html.match(/<ol\b/g)).toHaveLength(1);
     expect(html.match(/<ol\b[^>]*\brole="list"/g)).toHaveLength(1);
-    expect(html.match(/class="drinkBrandAreaLanding__row"/g)).toHaveLength(
-      landing!.rows.length,
-    );
+    expect(
+      html.match(
+        /class="[^"]*\bdrinkBrandAreaLanding__row\b[^"]*"/g,
+      ),
+    ).toHaveLength(landing!.rows.length);
     expect(html.match(/href="\/ledger\//g)).toHaveLength(landing!.rows.length);
 
     for (const row of landing!.rows) {
@@ -142,6 +144,34 @@ describe("governed drink brand by Night Area landing page", () => {
     expect(html.match(/Publisher not recorded/g)).toHaveLength(2);
     expect(html).not.toContain('target="_blank"');
     expect(html).not.toContain('href="http');
+  });
+
+  it("shows the full eligible Venue count when Ledger rows are capped", () => {
+    const rows = Array.from({ length: 20 }, (_, index) => ({
+      rank: index + 1,
+      venueId: `venue-${index + 1}`,
+      venueName: `Test Venue ${index + 1}`,
+      borough: "Lambeth",
+      pintName: "Guinness Draught",
+      priceGbp: 4.5 + index / 100,
+      publisher: null,
+    }));
+    const landing: DrinkBrandAreaLanding = {
+      areaSlug: "clapham" as const,
+      areaName: "Clapham",
+      brandSlug: "guinness",
+      brandLabel: "Guinness",
+      collectedAt: "2026-07-03T12:00:00.000Z",
+      totalPricedVenues: 21,
+      rows: rows as [typeof rows[number], ...typeof rows],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(DrinkBrandAreaLandingContent, { landing }),
+    );
+
+    expect(html).toContain("Showing 20 of 21 venues");
+    expect(html).not.toContain(">21 venues</span>");
   });
 
   it("returns 404 and noindex metadata for unknown and below-floor pairs", async () => {

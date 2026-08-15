@@ -1,17 +1,12 @@
 import Link from "next/link";
 
 import PriceBadge from "@/components/PriceBadge";
-import { formatObservedDate } from "@/lib/dataFreshness";
 import {
-  type DrinkBrandLandingRow,
-  formatDrinkBrandLandingPublisherStatus,
-} from "@/lib/drinkBrandLanding";
+  DrinkBrandPublisherDisclosure,
+  formatDrinkBrandCollectedDate,
+} from "@/components/drinks/DrinkBrandDirectory";
 import type { DrinkBrandAreaLanding } from "@/lib/drinkBrandAreaLanding";
 import { formatPrice } from "@/lib/venues";
-
-function formatCollectedDate(iso: string): string {
-  return formatObservedDate(new Date(iso));
-}
 
 function mapHref(
   landing: DrinkBrandAreaLanding,
@@ -32,48 +27,22 @@ function ledgerHref(venueId: string): string {
   return `/ledger/${encodeURIComponent(venueId)}`;
 }
 
-function PublisherDisclosure({ row }: { row: DrinkBrandLandingRow }) {
-  return row.publisher ? (
-    <span className="drinkBrandAreaLanding__publisher">
-      <span>Publisher: </span>
-      <a href={row.publisher.url} target="_blank" rel="noopener noreferrer">
-        {row.publisher.label}
-      </a>
-    </span>
-  ) : (
-    <span className="drinkBrandAreaLanding__publisher">
-      Publisher not recorded
-    </span>
-  );
-}
-
-function HeroPublisherDisclosure({ row }: { row: DrinkBrandLandingRow }) {
-  const status = formatDrinkBrandLandingPublisherStatus(row.publisher);
-
-  return (
-    <span className="drinkBrandAreaLanding__fromPublisher">
-      {row.publisher ? (
-        <a href={row.publisher.url} target="_blank" rel="noopener noreferrer">
-          {status}
-        </a>
-      ) : (
-        status
-      )}
-    </span>
-  );
-}
-
 export default function DrinkBrandAreaLandingContent({
   landing,
 }: {
   landing: DrinkBrandAreaLanding;
 }) {
   const firstRow = landing.rows[0];
+  const renderedVenueCount = landing.rows.length;
+  const venueCountLabel =
+    landing.totalPricedVenues > renderedVenueCount
+      ? `Showing ${renderedVenueCount} of ${landing.totalPricedVenues} venues`
+      : `${landing.totalPricedVenues} venues`;
 
   return (
-    <>
-      <header className="drinkBrandAreaLanding__head">
-        <p className="drinkBrandAreaLanding__eyebrow">
+    <div className="drinkBrandDirectory">
+      <header className="drinkBrandDirectory__head drinkBrandAreaLanding__head">
+        <p className="drinkBrandDirectory__eyebrow drinkBrandAreaLanding__eyebrow">
           <Link href="/map">London map</Link> <span aria-hidden="true">·</span>{" "}
           <Link href={`/area/${encodeURIComponent(landing.areaSlug)}`}>
             {landing.areaName}
@@ -83,17 +52,21 @@ export default function DrinkBrandAreaLandingContent({
         <h1>
           Cheapest {landing.brandLabel} pints in {landing.areaName}
         </h1>
-        <p className="drinkBrandAreaLanding__from">
+        <p className="drinkBrandDirectory__from drinkBrandAreaLanding__from">
           <strong>From {formatPrice(firstRow.priceGbp)}</strong>
-          <HeroPublisherDisclosure row={firstRow} />
+          <DrinkBrandPublisherDisclosure
+            className="drinkBrandAreaLanding__fromPublisher drinkBrandDirectory__fromPublisher"
+            row={firstRow}
+            variant="hero"
+          />
         </p>
-        <p className="drinkBrandAreaLanding__summary">
+        <p className="drinkBrandDirectory__summary drinkBrandAreaLanding__summary">
           {landing.totalPricedVenues} venues with listed {landing.brandLabel} pints. Collected{" "}
-          {formatCollectedDate(landing.collectedAt)}.
+          {formatDrinkBrandCollectedDate(landing.collectedAt)}.
         </p>
-        <div className="drinkBrandAreaLanding__actions">
+        <div className="drinkBrandDirectory__actions drinkBrandAreaLanding__actions">
           <Link
-            className="drinkBrandAreaLanding__primary"
+            className="drinkBrandDirectory__primary drinkBrandAreaLanding__primary"
             href={mapHref(landing)}
           >
             Open {landing.areaName} on Map
@@ -102,38 +75,49 @@ export default function DrinkBrandAreaLandingContent({
       </header>
 
       <section
-        className="drinkBrandAreaLanding__prices"
+        className="drinkBrandDirectory__prices drinkBrandAreaLanding__prices"
         aria-labelledby="drink-brand-area-price-heading"
       >
-        <div className="drinkBrandAreaLanding__sectionHead">
+        <div className="drinkBrandDirectory__sectionHead drinkBrandAreaLanding__sectionHead">
           <h2 id="drink-brand-area-price-heading">Venue Ledger</h2>
-          <span>{landing.totalPricedVenues} venues</span>
+          <span className="drinkBrandDirectory__sectionCount drinkBrandAreaLanding__sectionCount">
+            {venueCountLabel}
+          </span>
         </div>
-        <ol className="drinkBrandAreaLanding__list" role="list">
+        <ol
+          className="drinkBrandDirectory__list drinkBrandAreaLanding__list"
+          role="list"
+        >
           {landing.rows.map((row) => (
-            <li className="drinkBrandAreaLanding__row" key={row.venueId}>
+            <li
+              className="drinkBrandDirectory__row drinkBrandAreaLanding__row"
+              key={row.venueId}
+            >
               <span
-                className="drinkBrandAreaLanding__rank"
+                className="drinkBrandDirectory__rank drinkBrandAreaLanding__rank"
                 aria-label={`Rank ${row.rank}`}
               >
                 {row.rank}
               </span>
-              <div className="drinkBrandAreaLanding__details">
+              <div className="drinkBrandDirectory__details drinkBrandAreaLanding__details">
                 <Link
-                  className="drinkBrandAreaLanding__venue"
+                  className="drinkBrandDirectory__venue drinkBrandAreaLanding__venue"
                   href={ledgerHref(row.venueId)}
                 >
                   {row.venueName}
                 </Link>
-                <span className="drinkBrandAreaLanding__borough">
+                <span className="drinkBrandDirectory__borough drinkBrandAreaLanding__borough">
                   {row.borough}
                 </span>
-                <span className="drinkBrandAreaLanding__pint">
+                <span className="drinkBrandDirectory__pint drinkBrandAreaLanding__pint">
                   {row.pintName}
                 </span>
-                <PublisherDisclosure row={row} />
+                <DrinkBrandPublisherDisclosure
+                  className="drinkBrandAreaLanding__publisher drinkBrandDirectory__publisher"
+                  row={row}
+                />
                 <Link
-                  className="drinkBrandAreaLanding__contribution"
+                  className="drinkBrandDirectory__contribution drinkBrandAreaLanding__contribution"
                   href={mapHref(landing, row.venueId)}
                 >
                   Log this price
@@ -141,7 +125,7 @@ export default function DrinkBrandAreaLandingContent({
               </div>
               <PriceBadge
                 variant="current"
-                className="drinkBrandAreaLanding__price"
+                className="drinkBrandDirectory__price drinkBrandAreaLanding__price"
               >
                 {formatPrice(row.priceGbp)}
               </PriceBadge>
@@ -149,6 +133,6 @@ export default function DrinkBrandAreaLandingContent({
           ))}
         </ol>
       </section>
-    </>
+    </div>
   );
 }
