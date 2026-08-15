@@ -220,6 +220,45 @@ describe("acceptMapVenue", () => {
     expect(storage.reads).toBe(1);
   });
 
+  it("keeps trusted Near provenance when the UI source has not settled", () => {
+    seedIntent(storage, {
+      source: "near",
+      cityId: "london",
+      acceptedVenueId: ACCEPTED_VENUE,
+      acceptedArea: { kind: "borough", name: "Camden" },
+      startsAt: "2026-07-24T20:00:00.000Z",
+      displayEvidence: {
+        kind: "price",
+        observedAt: "2026-07-24T17:00:00.000Z",
+      },
+    });
+
+    const result = acceptMapVenue(
+      {
+        source: "map-search",
+        cityId: "london",
+        acceptedVenueId: ACCEPTED_VENUE,
+        search: `?sel=${ACCEPTED_VENUE}&accept=1&src=near`,
+      },
+      { storage, now: NOW },
+    );
+
+    expect(result.telemetry).toEqual({
+      source: "near",
+      hasArea: true,
+      hasDate: true,
+      hasProvenance: true,
+    });
+    expect(storedIntent(storage)).toMatchObject({
+      source: "near",
+      acceptedArea: { kind: "borough", name: "Camden" },
+      displayEvidence: {
+        kind: "price",
+        observedAt: "2026-07-24T17:00:00.000Z",
+      },
+    });
+  });
+
   it("writes a minimal directory intent for a generic Map selection", () => {
     seedIntent(storage, {
       source: "near",
