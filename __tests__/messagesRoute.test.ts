@@ -132,6 +132,27 @@ describe("POST /api/messages — open + send validation", () => {
     expect(send.status).toBe(404);
   });
 
+  it("returns retryable 503 when recipient lookup is unavailable", async () => {
+    asUser("user-ken");
+    const original = memoryProfileStore.getByHandle.bind(memoryProfileStore);
+    const spy = vi
+      .spyOn(memoryProfileStore, "getByHandle")
+      .mockImplementation((handle) =>
+        handle === "sam" ? Promise.reject(new Error("store down")) : original(handle),
+      );
+    try {
+      const res = await postInbox({ action: "open", handle: "ken", other: "sam" });
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({
+        error: "Profile storage is unavailable.",
+        code: "UNAVAILABLE",
+        retryable: true,
+      });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("rate-limits `open` the way it rate-limits `send`", async () => {
     asUser("user-ken");
     let limited: Response | null = null;

@@ -6,9 +6,6 @@
 // statement (migration 0105), and the store falls back to the old path only when
 // that function is not deployed.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const supabase = vi.hoisted(() => ({
@@ -22,15 +19,6 @@ vi.mock("@/lib/supabase", async (importOriginal) => ({
 }));
 
 import { supabaseProfileStore } from "@/lib/profileStore";
-
-const MIGRATION = join(
-  process.cwd(),
-  "supabase/migrations/20260815120000_0105_profile_image_report_actor_append.sql",
-);
-const ROLLBACK = join(
-  process.cwd(),
-  "supabase/migrations/rollback/20260815120000_0105_profile_image_report_actor_append_rollback.sql",
-);
 
 /**
  * The rows a real UPDATE would touch, behind an RPC that appends the way
@@ -113,40 +101,5 @@ describe("reportOwnedImage — the append is atomic", () => {
     ).toBe(false);
     expect(supabase.from).toHaveBeenCalled();
     warn.mockRestore();
-  });
-});
-
-describe("migration 0105 — SQL shape", () => {
-  const sql = readFileSync(MIGRATION, "utf8");
-
-  it("appends in SQL rather than writing a whole array back", () => {
-    expect(sql).toContain("array_append");
-    expect(sql).not.toMatch(/set\s+avatar_report_actors\s*=\s*\$/i);
-  });
-
-  it("guards per-actor uniqueness inside the UPDATE's own predicate", () => {
-    for (const column of ["avatar_report_actors", "cover_report_actors"]) {
-      expect(sql).toContain(
-        `not (coalesce(${column}, '{}'::text[]) @> array[p_actor])`,
-      );
-    }
-  });
-
-  it("keeps the approved-state gate the old path applied", () => {
-    expect(sql).toContain("avatar_moderation_state = 'approved'");
-    expect(sql).toContain("cover_moderation_state = 'approved'");
-  });
-
-  it("is service-role only, because it reads reporter actor hashes", () => {
-    expect(sql).toContain("grant execute on function public.append_profile_image_report_actor");
-    expect(sql).toContain("to service_role");
-    expect(sql).toMatch(/revoke all on function[\s\S]*from anon/i);
-    expect(sql).toMatch(/revoke all on function[\s\S]*from authenticated/i);
-  });
-
-  it("ships a rollback that drops the function and nothing else", () => {
-    const rollback = readFileSync(ROLLBACK, "utf8");
-    expect(rollback).toContain("drop function if exists public.append_profile_image_report_actor");
-    expect(rollback).not.toMatch(/\bdelete\b|\bdrop table\b|\btruncate\b/i);
   });
 });

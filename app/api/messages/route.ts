@@ -24,7 +24,11 @@ import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
-import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
+import {
+  isProfileTombstoned,
+  profileStore,
+  type ProfileRecord,
+} from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
@@ -105,7 +109,14 @@ export async function POST(request: Request): Promise<Response> {
   // A conversation is opened WITH somebody. A handle nobody holds is not
   // somebody, and accepting one minted a durable row per fabricated name.
   if (action === "open" || action === "send") {
-    const recipient = await profileStore().getByHandle(other);
+    let recipient: ProfileRecord | null;
+    try {
+      recipient = await profileStore().getByHandle(other);
+    } catch {
+      return publicApiError("Profile storage is unavailable.", "UNAVAILABLE", 503, {
+        retryable: true,
+      });
+    }
     if (!recipient || isProfileTombstoned(recipient)) {
       return publicApiError("We couldn't find that person.", "NOT_FOUND", 404);
     }

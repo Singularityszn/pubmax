@@ -223,7 +223,7 @@ export async function POST(request: Request): Promise<Response> {
     // actor, so REPORT_HIDE_THRESHOLD (2) still requires two DIFFERENT actors.
     // That claim only holds because the counted identity is SERVER-DERIVED
     // (`lib/pintDropReportActor.server.ts`): a verified account id, else the
-    // salted hash of IP plus user agent. The client `actor` field decides
+    // salted hash of IP alone. The client `actor` field decides
     // NOTHING here — choosing it was how one person hid any drop with two
     // requests — so the same server identity keys the per-actor window too.
     const actorHash = await pintDropReportActorHash(request);

@@ -35,6 +35,10 @@ export type ProfileOwnedImage = {
   moderationState: ProfileAvatarModerationState;
 };
 
+export type SetOwnedImageOptions = {
+  preserveHiddenDecision?: boolean;
+};
+
 /**
  * A reported or hidden owned image as the moderator queue sees it. Carries the
  * report metadata a reviewer needs and NOTHING that identifies a reporter - the
@@ -403,6 +407,7 @@ export type ProfileStore = {
     handle: string,
     slot: ProfileImageSlot,
     image: ProfileOwnedImage | null,
+    options?: SetOwnedImageOptions,
   ): Promise<ProfileRecord | null>;
   /**
    * Queue a reader flag on the current owned image. Never changes public
@@ -865,7 +870,7 @@ export const supabaseProfileStore: ProfileStore = {
     throw new Error("That handle is not available.");
   },
 
-  async setOwnedImage(handle, slot, image) {
+  async setOwnedImage(handle, slot, image, options) {
     const key = normalizeHandle(handle);
     if (!key) return null;
     const columns = IMAGE_COLUMNS[slot];
@@ -877,11 +882,16 @@ export const supabaseProfileStore: ProfileStore = {
       ...clearImageReportRow(slot),
       updated_at: new Date().toISOString(),
     };
-    const { data, error } = await admin()
+    let query = admin()
       .from(TABLE)
       .update(row)
-      .eq("handle", key)
-      .select("*")
+      .eq("handle", key);
+    if (options?.preserveHiddenDecision) {
+      query = query.or(
+        `${columns.moderationState}.is.null,${columns.moderationState}.neq.hidden`,
+      );
+    }
+    const { data, error } = await query.select("*")
       .limit(1);
     if (error) throw new Error(error.message);
     const updated = (data ?? [])[0];
@@ -1233,10 +1243,16 @@ export const memoryProfileStore: ProfileStore = {
     throw new Error("That handle is not available.");
   },
 
-  async setOwnedImage(handle, slot, image) {
+  async setOwnedImage(handle, slot, image, options) {
     const key = normalizeHandle(handle);
     const existing = memoryProfiles.get(key);
     if (!existing) return null;
+    if (
+      options?.preserveHiddenDecision &&
+      profileImageState(existing, slot).moderationState === "hidden"
+    ) {
+      return null;
+    }
     // A new generation is a different image; old flags must not travel with it.
     const next = withProfileImageState(
       { ...existing, updatedAt: new Date().toISOString() },

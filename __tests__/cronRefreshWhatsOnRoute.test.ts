@@ -89,4 +89,33 @@ describe("GET /api/cron/refresh-whats-on", () => {
     warn.mockRestore();
     error.mockRestore();
   });
+
+  it("does NOT stamp a fail-soft answer with only servedAt", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await GET(req("Bearer test-secret"));
+    const before = await memoryFeedFreshnessStore.read(WHATS_ON_FEED_KEY);
+
+    vi.mocked(loadWhatsOn).mockResolvedValueOnce({
+      rows: [],
+      servedAt: "2026-07-21T15:00:00.000Z",
+      sourceObservedAt: null,
+      sourceFreshnessKind: "unknown",
+      kindObservedAt: {},
+      localityBasis: "london-default",
+      asOf: null,
+    });
+    const res = await GET(req("Bearer test-secret"));
+
+    expect(await res.json()).toMatchObject({
+      ok: false,
+      stamped: false,
+      observedAt: null,
+      rowsServed: 0,
+    });
+    const after = await memoryFeedFreshnessStore.read(WHATS_ON_FEED_KEY);
+    expect(after).toEqual(before);
+
+    warn.mockRestore();
+  });
 });

@@ -97,8 +97,11 @@ function servingKey(
 ): { objectKey: string } | { refusal: ProfileImageServeRefusal } {
   if (!profileMayWearAvatar(profile)) return { refusal: "profile_unclaimed" };
   const state = profileImageState(profile, slot);
+  if (!state.objectKey && !state.generation && !state.moderationState) {
+    return { refusal: "image_absent" };
+  }
   if (state.moderationState !== "approved") return { refusal: "moderation_not_approved" };
-  if (!state.objectKey) return { refusal: "image_absent" };
+  if (!state.objectKey || !state.generation) return { refusal: "object_key_unexpected" };
   if (state.generation !== generation) return { refusal: "generation_mismatch" };
   if (!isProfileImageServingKey(slot, profile.id, generation, state.objectKey)) {
     return { refusal: "object_key_unexpected" };

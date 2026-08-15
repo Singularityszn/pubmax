@@ -9,11 +9,10 @@
 //
 // The counted identity is now the strongest thing the request itself proves:
 // a verified account id when the caller brought one, otherwise the salted hash
-// of the client IP plus the user agent. Neither is unforgeable - an IP can be
-// changed - but neither is a free string the same client picks twice, which is
-// the whole distance between "two people objected" and "one person clicked
-// twice". The client `actor` field is still read for flood dedup on the
-// caller's own device; it never reaches the counted axis.
+// of the client IP alone. An IP can be changed, but it is not a free string the
+// same client picks twice, and no client-supplied field reaches the counted
+// axis. That is the whole distance between "two people objected" and "one
+// person clicked twice".
 
 import { callerUserId } from "@/lib/authServer";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
@@ -32,6 +31,5 @@ export async function pintDropReportActorHash(request: Request): Promise<string>
   }
   if (userId) return hashActor(`user:${userId}`);
 
-  const userAgent = request.headers.get("user-agent")?.trim() ?? "";
-  return hashActor(`ip:${hashIp(clientIp(request))}:ua:${hashIp(userAgent)}`);
+  return hashActor(`ip:${hashIp(clientIp(request))}`);
 }

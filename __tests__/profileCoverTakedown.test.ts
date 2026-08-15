@@ -33,6 +33,7 @@ import {
 import { moderateProfileImageAcrossStores } from "@/lib/profileCoverModeration.server";
 import {
   __resetProfileCoverPhotos,
+  mirrorFirstCoverOntoProfile,
   memoryProfileCoverPhotoStore,
 } from "@/lib/profileCoverPhotoStore";
 import { profileImageServingKey } from "@/lib/profileImageSlots";
@@ -41,6 +42,7 @@ import {
   __resetMemoryProfiles,
   __seedMemoryOwnedProfile,
   memoryProfileStore,
+  profileImageState,
 } from "@/lib/profileStore";
 
 const HANDLE = "alice";
@@ -60,16 +62,20 @@ const JPEG = {
  * `hidden`, and the rotation - which nothing in the console names - is still
  * approved. That disagreement is the whole finding.
  */
-function serveWith(coverModerationState: "approved" | "hidden"): void {
+function serveWith(coverModerationState: "approved" | "hidden" | "absent"): void {
   supabaseConfigured.value = true;
   __setCoverServeRouteDepsForTest({
     getProfileById: async (): Promise<ProfileRecord> => ({
       id: PROFILE_ID,
       handle: HANDLE,
       userId: "user-alice",
-      coverObjectKey: firstKey,
-      coverGeneration: FIRST_GENERATION,
-      coverModerationState,
+      ...(coverModerationState === "absent"
+        ? {}
+        : {
+            coverObjectKey: firstKey,
+            coverGeneration: FIRST_GENERATION,
+            coverModerationState,
+          }),
       createdAt: "2026-08-01T00:00:00.000Z",
       updatedAt: "2026-08-01T00:00:00.000Z",
     }),
@@ -135,6 +141,11 @@ describe("a hidden cover is not served out of the rotation", () => {
     expect(response.status).toBe(404);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   });
+
+  it("serves an approved rotation when the back-compat mirror is absent", async () => {
+    serveWith("absent");
+    expect((await serve(SECOND_GENERATION)).status).toBe(200);
+  });
 });
 
 // The in-memory profile store mints its own ids, so this section seeds the
@@ -176,6 +187,23 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
     expect(await moderateProfileImageAcrossStores(HANDLE, "cover", "restore")).toBe(true);
 
     expect(await memoryProfileCoverPhotoStore.listApproved(ownedProfileId)).toHaveLength(2);
+  });
+
+  it("keeps both stores hidden when a takedown lands before a stale owner mirror", async () => {
+    const staleApproved = await memoryProfileCoverPhotoStore.listApproved(ownedProfileId);
+
+    await moderateProfileImageAcrossStores(HANDLE, "cover", "hide");
+    await mirrorFirstCoverOntoProfile(HANDLE, staleApproved);
+
+    const profile = await memoryProfileStore.getByHandle(HANDLE);
+    expect(profileImageState(profile!, "cover").moderationState).toBe("hidden");
+    expect(await memoryProfileCoverPhotoStore.listApproved(ownedProfileId)).toEqual([]);
+    expect(
+      await memoryProfileCoverPhotoStore.approvedObjectKey(
+        ownedProfileId,
+        SECOND_GENERATION,
+      ),
+    ).toBeNull();
   });
 
   it("leaves the rotation alone for the face", async () => {

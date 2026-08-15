@@ -160,7 +160,7 @@ function get(venueId?: string): Promise<Response> {
 }
 
 // The counted reporter identity is SERVER-DERIVED (a verified account id, else
-// the salted hash of IP plus user agent), so a `device` here is a different
+// the salted hash of IP alone), so a `device` here is a different
 // CLIENT rather than a different string in the body. The per-actor budget is 1
 // report per drop per window (H1), and REPORT_HIDE_THRESHOLD (2) therefore needs
 // two genuinely different clients. The body's own `actor` field decides nothing.
@@ -728,7 +728,7 @@ describe("a report is counted under a SERVER-derived identity", () => {
     }
   });
 
-  it("counts two when the user agent differs, so two real clients still hide it", async () => {
+  it("counts ONE report when one IP changes its user agent", async () => {
     const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
     const { drop } = await created.json();
 
@@ -737,6 +737,26 @@ describe("a report is counted under a SERVER-derived identity", () => {
       await reportAs(drop.id, { "x-forwarded-for": "203.0.113.99", "user-agent": "one" }, "a");
       vi.advanceTimersByTime(61_000);
       await reportAs(drop.id, { "x-forwarded-for": "203.0.113.99", "user-agent": "two" }, "a");
+
+      const listed = (await (await get(VENUE)).json()).drops as Array<{
+        reportCount?: number;
+      }>;
+      expect(listed).toHaveLength(1);
+      expect(listed[0].reportCount).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts two different IPs and hides the drop", async () => {
+    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    const { drop } = await created.json();
+
+    vi.useFakeTimers();
+    try {
+      await reportAs(drop.id, { "x-forwarded-for": "203.0.113.10" }, "a");
+      vi.advanceTimersByTime(61_000);
+      await reportAs(drop.id, { "x-forwarded-for": "203.0.113.20" }, "a");
 
       expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
     } finally {

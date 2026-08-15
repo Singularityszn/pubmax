@@ -119,6 +119,7 @@ export async function mirrorFirstCoverOntoProfile(
             moderationState: "approved",
           }
         : null,
+      { preserveHiddenDecision: true },
     );
   } catch (error) {
     log("warn", "profile_cover.mirror_skipped", {
