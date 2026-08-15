@@ -168,6 +168,7 @@ describe("search provider fallback", () => {
 
     expect(result.results).toHaveLength(1);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("AI Gateway credentials"));
+    expect(provider.stats().selectedProvider).toBe("tavily");
   });
 
   it("falls back to Tavily when an Exa request fails", async () => {
@@ -189,6 +190,7 @@ describe("search provider fallback", () => {
 
     expect(result.results[0].url).toBe("https://independentarms.co.uk/menu");
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("falling back to tavily"));
+    expect(provider.stats().selectedProvider).toBe("tavily");
   });
 
   it("keeps a valid empty Exa result without falling back", async () => {

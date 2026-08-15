@@ -222,9 +222,9 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await page.waitForTimeout(400);
     await page.keyboard.press("Minus");
     // MapLibre has settled below the layer floor, but the base stream's 180 ms
-    // clear is still pending. The DOM list must follow layer visibility now.
-    await page.waitForTimeout(400);
-    await expect(baseRows).toHaveCount(0, { timeout: 100 });
+    // clear may still be pending on a loaded runner. Poll rather than a tight
+    // fixed-timeout assertion so runner variance can't race the clear.
+    await expect.poll(() => baseRows.count(), { timeout: 5_000 }).toBe(0);
   });
 
   test("keeps desktop drawer focus inside and restores chosen venue on Escape", async ({

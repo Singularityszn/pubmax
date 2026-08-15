@@ -314,6 +314,11 @@ class TavilyProvider implements SearchProvider {
 class FallbackProvider implements SearchProvider {
   readonly name: SearchProviderName;
   readonly configured = true;
+  // Primary attempts still count toward `gatewayCalls` even when they throw
+  // and fall through, so stats() cannot infer "did the primary ever actually
+  // serve a response" from the call counters alone — it has to be tracked.
+  private primarySucceeded = false;
+  private fallbackServed = false;
 
   constructor(
     private readonly primary: SearchProvider,
@@ -325,7 +330,9 @@ class FallbackProvider implements SearchProvider {
 
   async search(request: SearchRequest): Promise<SearchResponse> {
     try {
-      return await this.primary.search(request);
+      const response = await this.primary.search(request);
+      this.primarySucceeded = true;
+      return response;
     } catch (error) {
       if (error instanceof SearchProviderBudgetError) throw error;
       this.logger.warn(
@@ -333,15 +340,23 @@ class FallbackProvider implements SearchProvider {
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      return this.fallback.search(request);
+      const response = await this.fallback.search(request);
+      this.fallbackServed = true;
+      return response;
     }
   }
 
   stats(): SearchProviderStats {
     const primary = this.primary.stats();
     const fallback = this.fallback.stats();
+    // `this.name` is fixed to the primary at construction, but every call
+    // this run may have fallen through to the secondary provider (e.g. the
+    // primary is unconfigured or erroring). Report which provider actually
+    // served a response rather than always claiming the primary.
+    const selectedProvider =
+      !this.primarySucceeded && this.fallbackServed ? this.fallback.name : this.name;
     return {
-      selectedProvider: this.name,
+      selectedProvider,
       gatewayCalls: primary.gatewayCalls,
       gatewayMaxCalls: primary.gatewayMaxCalls,
       estimatedTokens: primary.estimatedTokens,
