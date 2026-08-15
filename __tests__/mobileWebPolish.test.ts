@@ -44,7 +44,6 @@ describe("mobile web polish source contracts", () => {
       "components/landing/landing.css",
       "components/map/mapToolbar.css",
       "components/map/tonightLane.css",
-      "components/map/venueSheet.css",
       "components/mobile/mobileMapShell.css",
       "components/pubs/pubsGallery.css",
     ];
@@ -52,6 +51,10 @@ describe("mobile web polish source contracts", () => {
     for (const file of laneSources) {
       expect(read(file), file).toMatch(/touch-action:\s*pan-y|touch-pan-y/);
     }
+
+    expect(read("components/map/venueSheet.css")).toMatch(
+      /\.venueTabs\s*\{[^}]*touch-action:\s*pan-x pan-y pinch-zoom;/,
+    );
   });
 
   test("does not add text selection suppression outside controls", () => {
