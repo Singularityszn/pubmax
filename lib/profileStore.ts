@@ -234,6 +234,18 @@ export function profileOwnerImageWriteBlocked(
   );
 }
 
+function isHiddenOwnedImageHold(
+  profile: ProfileRecord,
+  slot: ProfileImageSlot,
+): boolean {
+  const state = profileImageState(profile, slot);
+  return (
+    profileOwnerImageWriteBlocked(profile, slot) &&
+    !state.objectKey &&
+    !state.generation
+  );
+}
+
 /** Overlay one slot's state onto a record. Undefined values clear the field. */
 function withProfileImageState(
   profile: ProfileRecord,
@@ -842,6 +854,10 @@ export const supabaseProfileStore: ProfileStore = {
     row[avatarColumns.generation] = null;
     row[avatarColumns.moderationState] = null;
     Object.assign(row, clearImageReportRow("avatar"));
+    const coverColumns = IMAGE_COLUMNS.cover;
+    row[coverColumns.objectKey] = null;
+    row[coverColumns.generation] = null;
+    Object.assign(row, clearImageReportRow("cover"));
     row.updated_at = new Date().toISOString();
 
     let query = admin()
@@ -965,25 +981,41 @@ export const supabaseProfileStore: ProfileStore = {
     const existing = await this.getByHandle(key);
     if (!existing) return false;
     const state = profileImageState(existing, slot);
-    if (!state.objectKey || !state.generation || !state.moderationState) return false;
-    if (state.moderationState !== "approved" && state.moderationState !== "hidden") {
+    const restoringHold =
+      action === "restore" && isHiddenOwnedImageHold(existing, slot);
+    if (
+      !restoringHold &&
+      (!state.objectKey || !state.generation || !state.moderationState)
+    ) {
+      return false;
+    }
+    if (
+      !restoringHold &&
+      state.moderationState !== "approved" &&
+      state.moderationState !== "hidden"
+    ) {
       return false;
     }
 
     const cleanedNote = cleanAvatarReportReason(note);
     const columns = IMAGE_COLUMNS[slot];
     const row: Record<string, unknown> = {
-      [columns.moderationState]: action === "hide" ? "hidden" : "approved",
-      [columns.moderatedAt]: new Date().toISOString(),
+      [columns.moderationState]: restoringHold
+        ? null
+        : action === "hide"
+          ? "hidden"
+          : "approved",
+      [columns.moderatedAt]: restoringHold ? null : new Date().toISOString(),
+      ...(restoringHold ? { [columns.moderatorNote]: null } : {}),
       updated_at: new Date().toISOString(),
     };
-    if (cleanedNote) row[columns.moderatorNote] = cleanedNote;
-    const { data, error } = await admin()
+    if (cleanedNote && !restoringHold) row[columns.moderatorNote] = cleanedNote;
+    let query = admin()
       .from(TABLE)
       .update(row)
-      .eq("handle", key)
-      .select("id")
-      .limit(1);
+      .eq("handle", key);
+    if (restoringHold) query = query.eq(columns.moderationState, "hidden");
+    const { data, error } = await query.select("id").limit(1);
     if (error) throw new Error(error.message);
     return Boolean((data ?? [])[0]);
   },
@@ -1233,9 +1265,16 @@ export const memoryProfileStore: ProfileStore = {
       updatedAt: new Date().toISOString(),
     };
     const avatarCleared = withProfileImageState(cleared, "avatar", {});
-    memoryProfiles.set(key, avatarCleared);
+    const payloadCleared = withProfileImageState(
+      avatarCleared,
+      "cover",
+      profileOwnerImageWriteBlocked(existing, "cover")
+        ? { moderationState: "hidden" }
+        : {},
+    );
+    memoryProfiles.set(key, payloadCleared);
     const clearedCover = await this.setOwnedImage(key, "cover", null);
-    const profile = clearedCover ?? memoryProfiles.get(key) ?? avatarCleared;
+    const profile = clearedCover ?? memoryProfiles.get(key) ?? payloadCleared;
     return {
       status: "deleted",
       profile,
@@ -1314,6 +1353,19 @@ export const memoryProfileStore: ProfileStore = {
     const existing = memoryProfiles.get(key);
     if (!existing) return false;
     const state = profileImageState(existing, slot);
+    const restoringHold =
+      action === "restore" && isHiddenOwnedImageHold(existing, slot);
+    if (restoringHold) {
+      memoryProfiles.set(
+        key,
+        withProfileImageState(
+          { ...existing, updatedAt: new Date().toISOString() },
+          slot,
+          {},
+        ),
+      );
+      return true;
+    }
     if (!state.objectKey || !state.generation || !state.moderationState) return false;
     if (state.moderationState !== "approved" && state.moderationState !== "hidden") {
       return false;
