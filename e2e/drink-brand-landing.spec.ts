@@ -1,13 +1,28 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
 const BRAND = "Guinness";
 const BRAND_SLUG = "guinness";
 const SUMMARY = "347 venues with listed Guinness pints. Collected 3 July 2026.";
+const TRACKED_PROOF_DIR = "docs/proof/drink-brand-landing";
+type ProofScreenshotName =
+  | "guinness-390-light.png"
+  | "guinness-390-dark.png"
+  | "guinness-1440-light.png";
 const MOBILE_VIEWPORTS = [
   { width: 320, height: 844 },
   { width: 390, height: 844 },
   { width: 430, height: 932 },
 ] as const;
+
+function drinkBrandProofScreenshotPath(
+  testInfo: TestInfo,
+  fileName: ProofScreenshotName,
+  updateProof = process.env.PUBMAX_UPDATE_DRINK_BRAND_PROOF === "1",
+): string {
+  return updateProof
+    ? `${TRACKED_PROOF_DIR}/${fileName}`
+    : testInfo.outputPath(fileName);
+}
 
 function watchBrowserErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -217,7 +232,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       isMobile: true,
     });
 
-    test(`answers above the fold with touch-safe rows`, async ({ page }) => {
+    test(`answers above the fold with touch-safe rows`, async ({ page }, testInfo) => {
       test.setTimeout(90_000);
       const errors = watchBrowserErrors(page);
       await setLandingState(page);
@@ -226,8 +241,16 @@ for (const viewport of MOBILE_VIEWPORTS) {
       await assertLandingContract(page);
 
       if (viewport.width === 390) {
+        expect(
+          drinkBrandProofScreenshotPath(testInfo, "guinness-390-light.png", false),
+          "normal validation should use Playwright output",
+        ).toBe(testInfo.outputPath("guinness-390-light.png"));
+        expect(
+          drinkBrandProofScreenshotPath(testInfo, "guinness-390-light.png", true),
+          "explicit proof refresh should use the tracked evidence path",
+        ).toBe(`${TRACKED_PROOF_DIR}/guinness-390-light.png`);
         await page.screenshot({
-          path: "docs/proof/drink-brand-landing/guinness-390-light.png",
+          path: drinkBrandProofScreenshotPath(testInfo, "guinness-390-light.png"),
         });
         await page.evaluate(() => localStorage.setItem("pubmax-theme", "dark"));
         await page.reload({ waitUntil: "domcontentloaded" });
@@ -238,7 +261,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
         await expectHeroPublisherLink(page);
         await expectNoHorizontalOverflow(page);
         await page.screenshot({
-          path: "docs/proof/drink-brand-landing/guinness-390-dark.png",
+          path: drinkBrandProofScreenshotPath(testInfo, "guinness-390-dark.png"),
         });
       }
 
@@ -300,7 +323,7 @@ test.describe("Guinness landing desktop proof", () => {
     isMobile: false,
   });
 
-  test("keeps the ranked answer readable at 1440px", async ({ page }) => {
+  test("keeps the ranked answer readable at 1440px", async ({ page }, testInfo) => {
     test.setTimeout(90_000);
     const errors = watchBrowserErrors(page);
     await setLandingState(page);
@@ -311,7 +334,7 @@ test.describe("Guinness landing desktop proof", () => {
     );
     await expectNoHorizontalOverflow(page);
     await page.screenshot({
-      path: "docs/proof/drink-brand-landing/guinness-1440-light.png",
+      path: drinkBrandProofScreenshotPath(testInfo, "guinness-1440-light.png"),
     });
     expect(errors, "desktop landing should not emit page or console errors").toEqual([]);
   });
