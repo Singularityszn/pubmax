@@ -308,7 +308,7 @@ export default function PeopleDirectory({
                   <span className="peopleDir__avatar" aria-hidden="true">
                     {person.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- owned avatar path
-                      <img src={person.avatarUrl} alt="" />
+                      <img src={person.avatarUrl} alt="" loading="lazy" decoding="async" />
                     ) : (
                       initial(person.handle)
                     )}

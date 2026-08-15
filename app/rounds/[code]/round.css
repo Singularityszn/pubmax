@@ -993,3 +993,16 @@
     transform: none;
   }
 }
+
+/* iOS Safari zoom floor. A focused control under 16px zooms the page in and
+   never zooms back out, so a round's own fields would leave the drinker on a
+   magnified page mid-order. Coarse pointers only, so desktop density is
+   untouched. See app/globals.css for the rule and
+   __tests__/iosFormZoomFloor.test.ts for the sweep that holds it. */
+@media (pointer: coarse) {
+  .roundField select,
+  .roundField input,
+  .roundSearch {
+    font-size: 16px;
+  }
+}

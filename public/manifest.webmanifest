@@ -1,7 +1,10 @@
 {
+  "id": "/",
   "name": "PUBMAXXING",
   "short_name": "PUBMAXXING",
   "description": "Price-aware nightlife map, planner, and stories worth remembering.",
+  "lang": "en-GB",
+  "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

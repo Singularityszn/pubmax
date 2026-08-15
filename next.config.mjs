@@ -115,6 +115,33 @@ const securityHeaders = [
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
 
+// WHAT AN UNHASHED PUBLIC ASSET MAY BE CACHED FOR. Everything under
+// /_next/static carries a content hash in its URL and Next already marks it
+// immutable. Everything in public/ does NOT: its URL is fixed, so `immutable`
+// would let a returning browser pin a retired icon or a retired boot script
+// across a deploy with no way to bust it. The deal is therefore the one the
+// price dataset already takes: a modest browser window, so a returning drinker
+// revalidates, and a year at the edge, which Vercel purges on every deploy —
+// so the CDN answers these from cache between deploys and a deploy still
+// reaches everybody. Not a guess: without a header of our own these files are
+// served `max-age=0, must-revalidate`, which is a conditional request per
+// asset per page view.
+const UNHASHED_PUBLIC_ASSET_CACHE_CONTROL =
+  "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800";
+
+// A worker script and the document it falls back to are the two files that may
+// never outlive the deploy that shipped them: a stale service worker keeps
+// serving a retired app shell from its own cache, which no CDN purge can
+// reach. They revalidate on every request. (components/OfflineReady.tsx also
+// registers /sw.js under a per-deploy ?v=, so this is the second line.)
+const WORKER_CACHE_CONTROL = "public, max-age=0, must-revalidate";
+
+/** One header rule: `source` takes `Cache-Control: value`. */
+const cacheRule = (source, value) => ({
+  source,
+  headers: [{ key: "Cache-Control", value }],
+});
+
 // CORS policy (deliberate): we set NO `Access-Control-Allow-Origin` header. Vercel's
 // CDN attaches `Access-Control-Allow-Origin: *` to PUBLIC static/prerendered assets
 // only (HTML, /_next/static/*, /data/*.json) — that is safe: the content is already
@@ -276,12 +303,27 @@ const nextConfig = {
         // added staleness risk vs. the previous header.
         source: "/data/:path*",
         headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800",
-          },
+          { key: "Cache-Control", value: UNHASHED_PUBLIC_ASSET_CACHE_CONTROL },
         ],
       },
+      // The brand marks, the share card and the two render-blocking boot
+      // scripts are requested on EVERY page view and change only on a deploy.
+      // They took the default `max-age=0, must-revalidate`, so each one cost a
+      // conditional round trip per navigation. Same deal as the dataset above.
+      cacheRule("/:icon(icon-.*\\.png)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/:icon(icon-.*\\.svg)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/:icon(apple-touch-icon.*\\.png)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/:icon(favicon.*)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      // /og.png is NOT here: it is a route (app/og.png/route.tsx) that draws
+      // the share card and answers with its own Cache-Control. A rule here
+      // would attach a second, contradictory one.
+      cacheRule("/brand/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/:boot(theme-init\\.js|splash-init\\.js)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/manifest.webmanifest", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      // Declared AFTER the asset rules on purpose: a later matching rule wins,
+      // so a worker can never inherit the year-long edge window above.
+      cacheRule("/:worker(sw\\.js|sw-plan-cache\\.js)", WORKER_CACHE_CONTROL),
+      cacheRule("/offline.html", WORKER_CACHE_CONTROL),
     ];
   },
 };

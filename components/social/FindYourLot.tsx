@@ -245,7 +245,7 @@ export default function FindYourLot({
                   <span className="findLot__avatar" aria-hidden="true">
                     {match.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- owned avatar path
-                      <img src={match.avatarUrl} alt="" />
+                      <img src={match.avatarUrl} alt="" loading="lazy" decoding="async" />
                     ) : (
                       avatarInitial(match.handle)
                     )}

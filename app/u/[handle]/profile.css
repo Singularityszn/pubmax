@@ -2332,3 +2332,15 @@
   font-size: 12px;
   line-height: 1.5;
 }
+
+/* iOS Safari zoom floor (see app/globals.css). Editing a profile and adding a
+   social link are both typed on a phone, so both sets of controls take the
+   16px touch floor. Coarse pointers only. */
+@media (pointer: coarse) {
+  .profilePage .profileEditor input,
+  .profilePage .profileEditor textarea,
+  .profilePage .socialLinksField select,
+  .profilePage .socialLinksField input {
+    font-size: 16px;
+  }
+}

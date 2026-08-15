@@ -371,3 +371,16 @@
     animation: none;
   }
 }
+
+/* Touch target floor. Every other link on this page flows inside a sentence
+   and is exempt by WCAG's inline exception, but the press-kit row lays its two
+   download links out as their own boxes, side by side, which makes them
+   controls: they painted 24px tall. Coarse pointers only, so the desktop row
+   keeps its measure. e2e/launch-phone-controls.spec.ts measures it. */
+@media (pointer: coarse) {
+  .aboutLogoLinks .aboutLink {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

@@ -1039,3 +1039,14 @@
   font: inherit;
   cursor: pointer;
 }
+
+/* Touch target floor. Mirrors components/social/findYourLot.css, which carries
+   the reasoning: this page restates the Find-your-lot rules, so a floor stated
+   in only one of the two would depend on which stylesheet loaded last. */
+@media (pointer: coarse) {
+  .findLot__ghost {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

@@ -7,7 +7,7 @@ import path from "node:path";
 import { loadVenueMenuEnrichmentIndex } from "@/lib/venueMenuEnrichment";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import { firstHttp } from "@/lib/httpUrl";
-import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 import {
   drinkAccentForVenue,
   drinkShelfForVenue,
@@ -16,21 +16,6 @@ import {
   type ScrapedPub,
   type ScrapedPubSourceId,
 } from "@/lib/scrapedPubs";
-
-async function loadGroupedVenues() {
-  try {
-    const file = path.join(
-      process.cwd(),
-      "public",
-      "data",
-      "pint_prices_app_dataset.json",
-    );
-    const rows = JSON.parse(await readFile(file, "utf8")) as VenuePrice[];
-    return groupVenuePrices(Array.isArray(rows) ? rows : []);
-  } catch {
-    return [];
-  }
-}
 
 /** id → nearest-station fare zone, from the slim index (single source of truth). */
 async function loadZonesById(): Promise<Map<string, number>> {
@@ -52,10 +37,13 @@ async function loadZonesById(): Promise<Map<string, number>> {
 }
 
 /** All scraped enrichment pubs, newest sources first within name sort. */
-export async function listScrapedPubs(): Promise<ScrapedPub[]> {
+async function readScrapedPubs(): Promise<ScrapedPub[]> {
   const [index, venues, zonesById] = await Promise.all([
     loadVenueMenuEnrichmentIndex(),
-    loadGroupedVenues(),
+    // The SHARED priced-venue index rather than a second parse of the same
+    // 6.7 MB file: lib/venuePriceIndex.ts already holds exactly this grouping
+    // for every other surface that needs it.
+    getPricedVenues(),
     loadZonesById(),
   ]);
   const byId = new Map(venues.map((venue) => [venue.id, venue]));
@@ -104,3 +92,27 @@ export async function listScrapedPubs(): Promise<ScrapedPub[]> {
 
   return pubs;
 }
+
+// Every input above is a file bundled with the deployment, so the answer cannot
+// change between two requests to the same instance. /pubs is on the per-request
+// render path (the CSP nonce keeps every route dynamic), and the price read
+// alone is a 6.7 MB JSON.parse — so an unmemoized loader charged that parse to
+// every single view of the page, which measured as a ~170 ms server render
+// against a ~10 ms one everywhere else. Same shape as loadAboutStats(), which
+// solved the same problem for the landing figures: hold the PROMISE, not the
+// value, so concurrent first requests share one read instead of racing several,
+// and the large intermediates are collected once the small result is built.
+let cachedPubs: Promise<ScrapedPub[]> | null = null;
+
+/** All scraped enrichment pubs, read once per instance. */
+export function listScrapedPubs(): Promise<ScrapedPub[]> {
+  // A rejection must not be remembered: every read above is already fail-soft,
+  // so a throw here means something unexpected and the next request deserves a
+  // fresh attempt rather than a permanently empty page.
+  cachedPubs ??= readScrapedPubs().catch((error) => {
+    cachedPubs = null;
+    throw error;
+  });
+  return cachedPubs;
+}
+

@@ -1181,3 +1181,27 @@
 .discoverHubLink:focus-visible {
   border-color: var(--brass);
 }
+
+/* Touch target floor. A brand chip is a standalone destination, not a link in
+   a sentence, so it owes the house 44px — and it painted 35px, which a thumb
+   misses beside its neighbours. Raised for coarse pointers only, so the
+   desktop chip row keeps its density. Measured at 360/390/430 by
+   e2e/launch-tap-targets.spec.ts. */
+@media (pointer: coarse) {
+  .discoverBrandChip {
+    min-height: 44px;
+  }
+}
+
+/* Touch target floor. The leaderboard's pub name is the ONLY thing in the row
+   a thumb can open, and it painted 20px tall over a full-width row — the
+   easiest miss on the page. Raised for coarse pointers only, and only where it
+   is a link: the same class labels a plain span inside the city-rivalry table,
+   which is not a target of its own. */
+@media (pointer: coarse) {
+  a.leaderboardPub {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

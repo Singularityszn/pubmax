@@ -546,3 +546,12 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Touch target floor (see app/discover/discover.css). The jump chips painted
+   32px, which is under the house 44px in a row where the chips sit shoulder to
+   shoulder. Coarse pointers only. */
+@media (pointer: coarse) {
+  .pubsJumpChip {
+    min-height: 44px;
+  }
+}

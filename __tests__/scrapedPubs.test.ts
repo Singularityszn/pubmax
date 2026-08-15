@@ -58,4 +58,13 @@ describe("listScrapedPubs", () => {
     expect(pubs.some((pub) => pub.source === "nicholsonspubs.co.uk")).toBe(true);
     expect(pubs.some((pub) => pub.source === "youngs.co.uk")).toBe(true);
   });
+
+  // The loader reads bundled files that cannot change between two requests to
+  // the same instance, and one of them is a 6.7 MB JSON.parse — so it is read
+  // once and the rows are handed back. Identity is the proof: a second call
+  // that re-derived the list would return a different array.
+  it("reads the bundled datasets once per instance", async () => {
+    const { listScrapedPubs } = await import("@/lib/scrapedPubs.server");
+    expect(await listScrapedPubs()).toBe(await listScrapedPubs());
+  });
 });
