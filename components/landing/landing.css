@@ -566,11 +566,6 @@
   .lpFinalCta > p { font-size: 12px; }
   .lpFooterInner { grid-template-columns: 1fr; gap: 36px; }
   .lpFooterPitch { font-size: 15px; }
-  /* Below-fold clearance: on phones the fixed tab bar overlays the footer, so
-     the coverage-stats row and legal line sit clipped. Add the shared
-     --tabbar-h token to the footer's own bottom pad (content spacing only; the
-     bar geometry itself lives in mobileNav.css / .lpNav, untouched here). */
-  .lpFooter { padding-bottom: calc(36px + var(--tabbar-h, 64px) + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 430px) {

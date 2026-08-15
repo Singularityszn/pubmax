@@ -181,11 +181,11 @@ describe("the shipped CSS moves it without moving the page", () => {
   });
 
   it("never touches the reserved bottom clearance", () => {
-    // The body keeps `padding-bottom: calc(var(--tabbar-h) + safe area)` while
-    // the bar is away. Dropping it would reflow the page under the caret, which
-    // is the layout jump this fix exists to avoid.
+    // App routes keep `padding-bottom: calc(var(--tabbar-h) + safe area)` while
+    // the bar is away. Presence gating prevents root landing from inheriting
+    // app chrome clearance while preserving keyboard stability on app routes.
     expect(mobileNavCss).toMatch(
-      /body\s*{\s*padding-bottom:\s*calc\(var\(--tabbar-h\)/,
+      /body:has\(\.mobileTabBar\)\s*{\s*padding-bottom:\s*calc\(var\(--tabbar-h\)/,
     );
     const keyboardRules = mobileNavCss.match(/isKeyboardHidden[^}]*}/g) ?? [];
     expect(keyboardRules.length).toBeGreaterThan(0);
