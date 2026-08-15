@@ -284,6 +284,13 @@ async function assertLandingContract(
     await rows.count(),
     "rendered Ledger count should match checked Victoria/Guinness fixture",
   ).toBe(CHECKED_VICTORIA_GUINNESS_FIXTURE.totalPricedVenues);
+  const summaryVenueCount = Number((await summary.innerText()).match(/^\d+/)?.[0]);
+  expect(summaryVenueCount, "collection summary count should be numeric").toBe(
+    CHECKED_VICTORIA_GUINNESS_FIXTURE.totalPricedVenues,
+  );
+  expect(summaryVenueCount, "collection summary count should match rendered Ledger count").toBe(
+    await rows.count(),
+  );
   const priceTexts = await rows.locator(".drinkBrandAreaLanding__price").allTextContents();
   const prices = priceTexts.map((text) => Number(text.replace(/[^\d.]/g, "")));
   expect(prices.every(Number.isFinite), "every ranked price should be numeric").toBe(true);
