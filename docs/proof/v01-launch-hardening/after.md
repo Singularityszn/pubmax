@@ -88,14 +88,39 @@ from its own cache and a purge does not reach it.
 | `e2e/launch-phone-controls.spec.ts` | `/about`, `/discover`, `/pubs`, `/social`, `/login`, `/messages` at 360, 390 and 430 with touch emulation: no horizontal overflow, and every standalone control clears 44 × 24. A link flowing inside a sentence is exempt, by WCAG's own inline exception. |
 | `perf/route-budgets.json` | `/about` and `/pubs` join the enforced budget. `/pubs` is there so the per-request dataset parse cannot come back unnoticed. |
 
-## Pre-existing breach, not from this pass
+## Pre-existing red on main (#1042), not from this pass
 
-Running the existing budget spec over this build reports `/today` and
-`/tonight` past their tracked JS and request ceilings by 47-49% and 12-13%.
-`/tonight` measures 1886 KB here and measured 1886 KB in the baseline run taken
-before any change in this pass; `/today` was not in the baseline set, but it
-shares the same shell and this pass adds no JavaScript to any route. CI has
-not run since 2026-08-10 (issue #1042), which is how the regression landed
-unseen. It is reported rather than papered over: raising a ceiling to cover
-another lane's regression is the mute button that
-`docs/PERFORMANCE_BUDGETS.md` exists to refuse.
+CI has not run since 2026-08-10 (issue #1042), so two things landed on `main`
+unseen. Both were verified at the merge base `c9d915f9` with every change in
+this branch stashed, and neither is touched by this pass.
+
+**Two unit tests fail at the merge base.**
+
+| Test file | Failing case |
+| --- | --- |
+| `__tests__/socialSignInButtons.test.ts` | `hides Clerk login when no product Supabase session exists` — expected `''`, got a rendered `<span hidden data-auth-configured…>` |
+| `__tests__/trustedSigning.test.ts` | `assigns contribution E2E to matching auth projects` — `testMatch` is now an array of two globs where the test expects the single `**/price-contribution-entry.spec.ts` |
+
+`git stash push -u` then `vitest run` on those two files reproduces both with
+none of this branch's changes present. Both files are in the diff of the lane
+editing the landing, map-sheet, Tonight, Near, Area and planner surfaces, so
+they are that lane's to fix.
+
+**Two routes are past their tracked performance ceilings.**
+
+| Route | Metric | Measured | Ceiling | Over by |
+| --- | --- | ---: | ---: | ---: |
+| `/today` | JS decoded (KB) | 1936 | 1300 | +49% |
+| `/today` | requests | 58 | 52 | +12% |
+| `/tonight` | JS decoded (KB) | 1886 | 1280 | +47% |
+| `/tonight` | requests | 63 | 56 | +13% |
+
+`/tonight` measures 1886 KB here and measured **1886 KB in the baseline run
+taken before any change in this pass** — byte for byte identical. `/today` was
+not in the baseline set, but it shares the same shell, and this pass adds no
+JavaScript to any route: every change here is CSS, two image attributes, a
+manifest key, header rules and a server-side memo.
+
+Neither is papered over. Raising a ceiling to cover another lane's regression
+is the mute button `docs/PERFORMANCE_BUDGETS.md` exists to refuse, and the two
+test files belong to a branch in flight.
