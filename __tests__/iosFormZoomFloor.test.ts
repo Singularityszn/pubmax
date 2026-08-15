@@ -9,12 +9,16 @@ import { describe, expect, it } from "vitest";
 // and the four-file pending list were removed because app/globals.css already
 // ships one important floor, and the measured route sweep found zero controls
 // below 16px. Nothing remains on a pending handoff list. This fence guards that
-// one rule and rejects any shipped component rule that can beat it. Sub-16px
-// non-important declarations remain valid because the shared important floor
-// overrides them. This is a static reader of shipped CSS, not a CSS engine: it
-// does not resolve custom properties, evaluate calc(), or model which rule wins
-// across files. It is conservative and refuses any important size it cannot
-// prove has a lower bound of at least 16px.
+// one rule and rejects any shipped component rule it can identify as targeting
+// a control. Sub-16px non-important declarations remain valid because the
+// shared important floor overrides them. This is a static reader of shipped
+// CSS, not a CSS engine: it does not resolve custom properties, evaluate
+// calc(), model which rule wins across files, or know that a class-only selector
+// lands on a control. That class-only blind spot is known and accepted here;
+// e2e/launch-phone-controls.spec.ts complements this fence by checking computed
+// control sizes on every rendered launch surface. This static half remains
+// conservative and refuses any important size it can see but cannot prove has a
+// lower bound of at least 16px.
 const FLOOR_PX = 16;
 const PHONE_WIDTHS_PX = [360, 390, 430];
 const CONTROL_ELEMENTS = ["input", "textarea", "select"];

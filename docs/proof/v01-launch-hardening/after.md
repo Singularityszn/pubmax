@@ -101,6 +101,10 @@ route.
 | `e2e/launch-phone-controls.spec.ts` | `/about`, `/discover`, `/pubs`, `/social`, `/login`, `/messages` at 360, 390 and 430 with touch emulation: every fixed control row must render and clear 44 × 24, the generic sweep catches other small controls, and no route overflows horizontally. A link flowing inside a sentence is exempt, by WCAG's own inline exception. |
 | `perf/route-budgets.json` | `/about` and `/pubs` join the enforced budget. `/pubs` is there so the per-request dataset parse cannot come back unnoticed. |
 
+Named follow-up: the Messages composer's phone geometry is unmeasured because
+it needs an authenticated `/messages/[id]` session. It belongs in a separate
+fixture-backed journey, not this signed-out launch-surface pass.
+
 ## Pre-existing red on main (#1042), not from this pass
 
 CI has not run since 2026-08-10 (issue #1042), so two things landed on `main`

@@ -7,10 +7,16 @@ import { expect, test } from "@playwright/test";
 // under the house 44px floor: Discover brand chips, Discover leaderboard pub
 // names, Pubs jump chips, Find-your-lot invite links, and About press-kit links.
 //
-// TWO THINGS ARE MEASURED, both from the rendered page rather than from CSS,
-// because both defects were invisible at desktop width and to any unit render:
+// THREE THINGS ARE MEASURED, all from the rendered page rather than from CSS,
+// because these defects were invisible at desktop width and to any unit render:
 //   - no horizontal overflow at 360, 390 and 430;
-//   - every standalone control clears 44px tall and 24px wide.
+//   - every standalone control clears 44px tall and 24px wide;
+//   - every visible zoom-triggering form control computes to at least 16px.
+//
+// The computed-size sweep complements __tests__/iosFormZoomFloor.test.ts. That
+// static half guards the shared important floor and control selectors it can
+// identify; this rendered half also catches class-only selectors, shorthands,
+// nesting and inline styles after the browser resolves the cascade.
 //
 // WHAT COUNTS AS A STANDALONE CONTROL, and why the line is drawn there: a link
 // flowing inside a sentence is exempt from the target-size rule by WCAG's own
@@ -33,7 +39,6 @@ const REQUIRED_TARGETS: Partial<Record<LaunchRoute, readonly string[]>> = {
 const REQUIRED_TEXT_FIELDS: Partial<Record<LaunchRoute, readonly string[]>> = {
   "/login": [".authMagicLinkInput"],
   "/social": [".findLot__field input"],
-  "/messages": [".composerInput"],
 };
 
 const ROUTE_ROOTS: Record<LaunchRoute, string> = {
@@ -162,6 +167,25 @@ test.describe("phone controls on the launch surfaces", () => {
               }),
             }));
 
+            const subFloorControls = Array.from(
+              document.querySelectorAll("input, textarea, select"),
+            ).flatMap((element) => {
+              if (
+                element instanceof HTMLInputElement &&
+                ["hidden", "checkbox", "radio", "range"].includes(element.type)
+              ) {
+                return [];
+              }
+              if (isInvisible(element)) return [];
+              const rect = element.getBoundingClientRect();
+              if (rect.width === 0 || rect.height === 0) return [];
+              const fontSize = Number.parseFloat(getComputedStyle(element).fontSize);
+              if (!Number.isFinite(fontSize) || fontSize >= 16) return [];
+              const tag = element.tagName.toLowerCase();
+              const firstClass = Array.from(element.classList)[0] ?? "(no-class)";
+              return [`${tag}.${firstClass} ${Number(fontSize.toFixed(2))}px`];
+            });
+
             const selector =
               'button, input:not([type="hidden"]), textarea, select, summary, [role="button"], [role="tab"], a[href]';
             const small: string[] = [];
@@ -178,7 +202,12 @@ test.describe("phone controls on the launch surfaces", () => {
                 element.tagName.toLowerCase();
               small.push(`${name} ${Math.round(rect.width)}x${Math.round(rect.height)}`);
             }
-            return { overflowPx, required, small: [...new Set(small)] };
+            return {
+              overflowPx,
+              required,
+              small: [...new Set(small)],
+              subFloorControls: [...new Set(subFloorControls)],
+            };
           },
           {
             minHeight: MIN_TAP_HEIGHT_PX,
@@ -215,6 +244,12 @@ test.describe("phone controls on the launch surfaces", () => {
         expect(
           `${route} @${width}: ${report.small.join(", ") || "every control clears the floor"}`,
         ).toBe(`${route} @${width}: every control clears the floor`);
+
+        expect(
+          `${route} @${width}: ${
+            report.subFloorControls.join(", ") || "every form control clears the 16px floor"
+          }`,
+        ).toBe(`${route} @${width}: every form control clears the 16px floor`);
       }
     });
   }
