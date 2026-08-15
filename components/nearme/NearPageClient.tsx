@@ -28,6 +28,11 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
     readPreferredCity,
     () => null,
   );
+  const preferredCityResolved = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const cityId = preferredCity ?? DEFAULT_CITY_ID;
   const searchParams = useSearchParams();
   const patchParam = searchParams.get("patch");
@@ -58,7 +63,7 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
             location. Shareable ?patch= deep links answer immediately. */}
         <NearMeNow
           cityId={cityId}
-          autoLocate={autoLocate}
+          autoLocate={preferredCityResolved && autoLocate}
           initialPatchId={initialPatchId}
           syncPatchToUrl
           intentWrite={intentWrite}
