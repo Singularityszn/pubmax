@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  FocusTrapInertOwner,
   shouldEngageFocusTrap,
   shouldInertOutsideSibling,
   strictModalAllowsSurfaceRequest,
@@ -61,6 +62,44 @@ describe("shouldInertOutsideSibling", () => {
     expect(
       shouldInertOutsideSibling(el("accountOnboardingBackdrop"), "strict-modal"),
     ).toBe(true);
+  });
+});
+
+describe("FocusTrapInertOwner", () => {
+  function node(inert = false): HTMLElement {
+    return { inert } as HTMLElement;
+  }
+
+  for (const firstRelease of ["map", "strict"] as const) {
+    it(`keeps an overlapping trap inert when ${firstRelease} releases first`, () => {
+      const outside = node();
+      const map = new FocusTrapInertOwner();
+      const strict = new FocusTrapInertOwner();
+
+      map.reconcile([outside]);
+      strict.reconcile([outside]);
+      (firstRelease === "map" ? map : strict).release();
+
+      expect(outside.inert).toBe(true);
+
+      (firstRelease === "map" ? strict : map).release();
+
+      expect(outside.inert).toBe(false);
+    });
+  }
+
+  it("contains a sibling added after the trap engages", () => {
+    const owner = new FocusTrapInertOwner();
+    const lateSibling = node();
+
+    owner.reconcile([]);
+    owner.reconcile([lateSibling]);
+
+    expect(lateSibling.inert).toBe(true);
+
+    owner.release();
+
+    expect(lateSibling.inert).toBe(false);
   });
 });
 

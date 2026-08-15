@@ -110,6 +110,12 @@ export function shouldShowMobileTabBar(pathname: string): boolean {
   return pathname !== "/";
 }
 
+export function MobileTabBarClearanceFallback() {
+  const pathname = usePathname() ?? "";
+  if (!shouldShowMobileTabBar(pathname)) return null;
+  return <div className="mobileTabBarClearance" aria-hidden="true" />;
+}
+
 export default function MobileTabBar() {
   const pathname = usePathname() ?? "";
   if (!shouldShowMobileTabBar(pathname)) return null;

@@ -90,6 +90,75 @@ export function shouldInertOutsideSibling(
   );
 }
 
+type InertOwnership = {
+  original: boolean;
+  owners: Set<symbol>;
+};
+
+const inertOwnership = new WeakMap<HTMLElement, InertOwnership>();
+
+function claimInert(node: HTMLElement, owner: symbol): void {
+  const ownership = inertOwnership.get(node);
+  if (ownership) {
+    ownership.owners.add(owner);
+  } else {
+    inertOwnership.set(node, {
+      original: node.inert,
+      owners: new Set([owner]),
+    });
+  }
+  node.inert = true;
+}
+
+function releaseInert(node: HTMLElement, owner: symbol): void {
+  const ownership = inertOwnership.get(node);
+  if (!ownership || !ownership.owners.delete(owner)) return;
+  if (ownership.owners.size > 0) {
+    node.inert = true;
+    return;
+  }
+  node.inert = ownership.original;
+  inertOwnership.delete(node);
+}
+
+export class FocusTrapInertOwner {
+  private readonly owner = Symbol("focus-trap-inert-owner");
+  private nodes = new Set<HTMLElement>();
+
+  reconcile(nextNodes: Iterable<HTMLElement>): void {
+    const next = new Set(nextNodes);
+    for (const node of this.nodes) {
+      if (!next.has(node)) releaseInert(node, this.owner);
+    }
+    for (const node of next) {
+      if (!this.nodes.has(node)) claimInert(node, this.owner);
+    }
+    this.nodes = next;
+  }
+
+  release(): void {
+    this.reconcile([]);
+  }
+}
+
+function outsideSiblings(
+  container: HTMLElement,
+  outsidePolicy: FocusTrapOutsidePolicy,
+): Set<HTMLElement> {
+  const siblings = new Set<HTMLElement>();
+  let cursor: HTMLElement | null = container;
+  while (cursor && cursor !== document.body) {
+    const parent: HTMLElement | null = cursor.parentElement;
+    if (!parent) break;
+    for (const sibling of Array.from(parent.children)) {
+      if (sibling === cursor || !(sibling instanceof HTMLElement)) continue;
+      if (shouldInertOutsideSibling(sibling, outsidePolicy)) siblings.add(sibling);
+    }
+    cursor = parent;
+  }
+  return siblings;
+}
+
 function displayChain(container: HTMLElement): string[] {
   const chain: string[] = [];
   let cursor: HTMLElement | null = container;
@@ -123,21 +192,16 @@ export function useFocusTrap(
     if (!container) return;
     if (!shouldEngageFocusTrap({ active, displayChain: displayChain(container) })) return;
 
-    // Inert every element outside the container: at each level from the
-    // container up to <body>, inert the off-path siblings.
-    const inerted: { node: HTMLElement; prev: boolean }[] = [];
-    let cursor: HTMLElement | null = container;
-    while (cursor && cursor !== document.body) {
-      const parent: HTMLElement | null = cursor.parentElement;
-      if (!parent) break;
-      for (const sibling of Array.from(parent.children)) {
-        if (sibling === cursor || !(sibling instanceof HTMLElement)) continue;
-        if (!shouldInertOutsideSibling(sibling, outsidePolicy)) continue;
-        inerted.push({ node: sibling, prev: sibling.inert });
-        sibling.inert = true;
-      }
-      cursor = parent;
-    }
+    const inertOwner = new FocusTrapInertOwner();
+    const syncOutsideSiblings = () => {
+      inertOwner.reconcile(outsideSiblings(container, outsidePolicy));
+    };
+    syncOutsideSiblings();
+    const observer =
+      typeof MutationObserver === "undefined"
+        ? null
+        : new MutationObserver(syncOutsideSiblings);
+    observer?.observe(document.body, { childList: true, subtree: true });
     const releaseStrictModal =
       outsidePolicy === "strict-modal" ? claimStrictModalFocusTrap() : null;
 
@@ -162,8 +226,9 @@ export function useFocusTrap(
     };
     container.addEventListener("keydown", onTab);
     return () => {
+      observer?.disconnect();
       container.removeEventListener("keydown", onTab);
-      for (const item of inerted) item.node.inert = item.prev;
+      inertOwner.release();
       releaseStrictModal?.();
     };
   }, [active, containerRef, outsidePolicy]);

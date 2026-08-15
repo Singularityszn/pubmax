@@ -229,6 +229,26 @@ test.describe("mobile landing entry", () => {
   });
 });
 
+test("reserves app-tab clearance before hydration", async ({ browser, baseURL }) => {
+  const context = await browser.newContext({
+    baseURL,
+    javaScriptEnabled: false,
+    viewport: MOBILE,
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto("/privacy");
+
+    await expect(page.locator(".mobileTabBarClearance")).toHaveCount(1);
+    const bodyPaddingBottom = await page.evaluate(() =>
+      Number.parseFloat(getComputedStyle(document.body).paddingBottom),
+    );
+    expect(bodyPaddingBottom).toBeGreaterThanOrEqual(64);
+  } finally {
+    await context.close();
+  }
+});
+
 test("keeps desktop root free of mobile navigation", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");

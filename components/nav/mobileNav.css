@@ -79,7 +79,8 @@
   }
 }
 
-.mobileTabBar {
+.mobileTabBar,
+.mobileTabBarClearance {
   display: none;
 }
 
@@ -97,10 +98,7 @@
 }
 
 @media (max-width: 640px) {
-  /* Compact tab bar — room for a fifth tab later; map chrome stays clear.
-     Clearance follows rendered navigation presence, so the root landing does
-     not inherit app chrome space when its bar is intentionally unmounted. */
-  body:has(.mobileTabBar) {
+  body:has(.mobileTabBar, .mobileTabBarClearance) {
     padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   }
 
