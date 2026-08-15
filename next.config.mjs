@@ -115,6 +115,30 @@ const securityHeaders = [
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
 
+// Every public asset has a fixed URL. Give it a modest browser window and a
+// year at the edge, which Vercel purges on every deploy, so a changed asset
+// cannot stay pinned in a browser no deploy can reach.
+const UNHASHED_PUBLIC_ASSET_CACHE_CONTROL =
+  "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800";
+
+// Crawler and platform metadata always revalidate in browsers. The edge keeps
+// a short window and may serve stale while it refreshes.
+const SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL =
+  "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
+
+// A worker script and the document it falls back to are the two files that may
+// never outlive the deploy that shipped them: a stale service worker keeps
+// serving a retired app shell from its own cache, which no CDN purge can
+// reach. They revalidate on every request. (components/OfflineReady.tsx also
+// registers /sw.js under a per-deploy ?v=, so this is the second line.)
+const WORKER_CACHE_CONTROL = "public, max-age=0, must-revalidate";
+
+/** One header rule: `source` takes `Cache-Control: value`. */
+const cacheRule = (source, value) => ({
+  source,
+  headers: [{ key: "Cache-Control", value }],
+});
+
 // CORS policy (deliberate): we set NO `Access-Control-Allow-Origin` header. Vercel's
 // CDN attaches `Access-Control-Allow-Origin: *` to PUBLIC static/prerendered assets
 // only (HTML, /_next/static/*, /data/*.json) — that is safe: the content is already
@@ -251,12 +275,19 @@ const nextConfig = {
         headers: [{ key: "x-last-orders", value: "23:00" }],
       },
       {
-        // Apple universal-links manifest (Capacitor iOS wrap). The file lives
-        // in public/ with NO extension, so Next would otherwise serve it as
-        // application/octet-stream — Apple's CDN requires application/json.
-        // Content + TEAMID placeholder: docs/CAPACITOR_WRAP.md.
+        // Fixed-URL public assets take one browser hour, one edge year and
+        // stale-while-revalidate. Crawler metadata uses a short edge window.
+        // Workers and offline.html always revalidate. /og.png keeps the header
+        // set by its route.
+        //
+        // The Apple universal-links manifest has no extension, so Next would
+        // otherwise serve it as application/octet-stream. Apple's CDN requires
+        // application/json. Content + TEAMID placeholder: docs/CAPACITOR_WRAP.md.
         source: "/.well-known/apple-app-site-association",
-        headers: [{ key: "Content-Type", value: "application/json" }],
+        headers: [
+          { key: "Content-Type", value: "application/json" },
+          { key: "Cache-Control", value: SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL },
+        ],
       },
       {
         // The pub-price dataset is ~6 MB and effectively static between deploys.
@@ -276,12 +307,26 @@ const nextConfig = {
         // added staleness risk vs. the previous header.
         source: "/data/:path*",
         headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800",
-          },
+          { key: "Cache-Control", value: UNHASHED_PUBLIC_ASSET_CACHE_CONTROL },
         ],
       },
+      cacheRule("/landing/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/vendor/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/store-assets/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/:icon(icon-.*\\.png)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/:icon(icon-.*\\.svg)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/:icon(apple-touch-icon.*\\.png)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/:icon(favicon.*)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/brand/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/:boot(theme-init\\.js|splash-init\\.js)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/manifest.webmanifest", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/fonts/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/night-signals/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/llms.txt", SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL),
+      // Declared AFTER the asset rules on purpose: a later matching rule wins,
+      // so a worker can never inherit the year-long edge window above.
+      cacheRule("/:worker(sw\\.js|sw-plan-cache\\.js)", WORKER_CACHE_CONTROL),
+      cacheRule("/offline.html", WORKER_CACHE_CONTROL),
     ];
   },
 };

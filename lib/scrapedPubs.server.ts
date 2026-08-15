@@ -7,7 +7,7 @@ import path from "node:path";
 import { loadVenueMenuEnrichmentIndex } from "@/lib/venueMenuEnrichment";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import { firstHttp } from "@/lib/httpUrl";
-import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 import {
   drinkAccentForVenue,
   drinkShelfForVenue,
@@ -16,21 +16,6 @@ import {
   type ScrapedPub,
   type ScrapedPubSourceId,
 } from "@/lib/scrapedPubs";
-
-async function loadGroupedVenues() {
-  try {
-    const file = path.join(
-      process.cwd(),
-      "public",
-      "data",
-      "pint_prices_app_dataset.json",
-    );
-    const rows = JSON.parse(await readFile(file, "utf8")) as VenuePrice[];
-    return groupVenuePrices(Array.isArray(rows) ? rows : []);
-  } catch {
-    return [];
-  }
-}
 
 /** id → nearest-station fare zone, from the slim index (single source of truth). */
 async function loadZonesById(): Promise<Map<string, number>> {
@@ -51,11 +36,19 @@ async function loadZonesById(): Promise<Map<string, number>> {
   return byId;
 }
 
+type ScrapedPubsRead = {
+  pubs: ScrapedPub[];
+  complete: boolean;
+};
+
 /** All scraped enrichment pubs, newest sources first within name sort. */
-export async function listScrapedPubs(): Promise<ScrapedPub[]> {
+async function readScrapedPubs(): Promise<ScrapedPubsRead> {
   const [index, venues, zonesById] = await Promise.all([
     loadVenueMenuEnrichmentIndex(),
-    loadGroupedVenues(),
+    // The SHARED priced-venue index rather than a second parse of the same
+    // 6.7 MB file: lib/venuePriceIndex.ts already holds exactly this grouping
+    // for every other surface that needs it.
+    getPricedVenues(),
     loadZonesById(),
   ]);
   const byId = new Map(venues.map((venue) => [venue.id, venue]));
@@ -102,5 +95,32 @@ export async function listScrapedPubs(): Promise<ScrapedPub[]> {
     return a.name.localeCompare(b.name);
   });
 
-  return pubs;
+  return {
+    pubs,
+    complete: index.size > 0 && venues.length > 0 && zonesById.size > 0,
+  };
+}
+
+// Healthy inputs are bundled with the deployment and cannot change between two
+// requests to one instance. Hold the promise so concurrent first requests share
+// the 6.7 MB parse. A fail-soft read is incomplete and must leave the next
+// request free to retry its dependency.
+let cachedPubs: Promise<ScrapedPub[]> | null = null;
+
+/** All scraped enrichment pubs, read once per instance. */
+export function listScrapedPubs(): Promise<ScrapedPub[]> {
+  if (cachedPubs) return cachedPubs;
+
+  const attempt = readScrapedPubs().then(
+    ({ pubs, complete }) => {
+      if (!complete) cachedPubs = null;
+      return pubs;
+    },
+    (error: unknown) => {
+      cachedPubs = null;
+      throw error;
+    },
+  );
+  cachedPubs = attempt;
+  return attempt;
 }

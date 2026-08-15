@@ -251,7 +251,12 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: 
       {post.photo ? (
         <figure className="socialPostPhoto">
           {/* eslint-disable-next-line @next/next/no-img-element -- private signed delivery route. */}
-          <img src={`/api/social/media/${post.photo.mediaId}`} alt={post.photo.altText} />
+          <img
+            src={`/api/social/media/${post.photo.mediaId}`}
+            alt={post.photo.altText}
+            loading="lazy"
+            decoding="async"
+          />
           {post.photo.tags && post.photo.tags.length > 0 ? (
             <figcaption>{post.photo.tags.map((tag) => `@${tag.handle}`).join(" ")}</figcaption>
           ) : null}

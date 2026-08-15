@@ -42,6 +42,22 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 1280,
       "requests": 56
+    },
+    {
+      "path": "/about",
+      "readySelector": "main",
+      "why": "The page that states what the figures mean and where they come from, linked from every trust claim on the site. It composes nothing per request, so it is the floor a server-rendered page here should sit on.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1900,
+      "requests": 70
+    },
+    {
+      "path": "/pubs",
+      "readySelector": ".pubsPage",
+      "why": "The one launch surface whose server render was not a shell: it re-parsed the 6.7 MB price dataset per request until the shared priced-venue index was reused. The ceiling is here so that read cannot come back unnoticed.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1950,
+      "requests": 75
     }
   ]
 }

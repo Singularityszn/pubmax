@@ -188,7 +188,7 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
                   <li key={member.handle} className="starterPacks__face">
                     {member.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- owned avatar path
-                      <img src={member.avatarUrl} alt="" />
+                      <img src={member.avatarUrl} alt="" loading="lazy" decoding="async" />
                     ) : (
                       avatarInitial(member.handle)
                     )}

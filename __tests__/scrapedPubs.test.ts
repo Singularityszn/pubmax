@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   drinkAccentForVenue,
@@ -49,6 +49,12 @@ describe("scrapedPubs helpers", () => {
 });
 
 describe("listScrapedPubs", () => {
+  afterEach(() => {
+    vi.doUnmock("@/lib/venueMenuEnrichment");
+    vi.doUnmock("@/lib/venuePriceIndex");
+    vi.resetModules();
+  });
+
   it("loads enrichment pubs with drink accents and source labels", async () => {
     const { listScrapedPubs } = await import("@/lib/scrapedPubs.server");
     const pubs = await listScrapedPubs();
@@ -57,5 +63,56 @@ describe("listScrapedPubs", () => {
     expect(pubs.every((pub) => pub.drinkAccent)).toBe(true);
     expect(pubs.some((pub) => pub.source === "nicholsonspubs.co.uk")).toBe(true);
     expect(pubs.some((pub) => pub.source === "youngs.co.uk")).toBe(true);
+  });
+
+  // The loader reads bundled files that cannot change between two requests to
+  // the same instance, and one of them is a 6.7 MB JSON.parse, so it is read
+  // once and the rows are handed back. Identity is the proof: a second call
+  // that re-derived the list would return a different array.
+  it("reads the bundled datasets once per instance", async () => {
+    const { listScrapedPubs } = await import("@/lib/scrapedPubs.server");
+    expect(await listScrapedPubs()).toBe(await listScrapedPubs());
+  });
+
+  it("deduplicates a degraded read but retries it on the next request", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/venueMenuEnrichment", () => {
+      let attempt = 0;
+      return {
+        loadVenueMenuEnrichmentIndex: async () => {
+          attempt += 1;
+          return attempt === 1
+            ? new Map()
+            : new Map([
+                [
+                  "venue-recovered",
+                  { source: "youngs.co.uk", menuUrl: "https://example.com/menu" },
+                ],
+              ]);
+        },
+      };
+    });
+    vi.doMock("@/lib/venuePriceIndex", () => ({
+      getPricedVenues: async () => [
+        {
+          id: "venue-recovered",
+          name: "Recovered Arms",
+          primaryBorough: "Camden",
+          imageUrl: "",
+          cheapestPrice: 5.5,
+        },
+      ],
+    }));
+
+    const { listScrapedPubs } = await import("@/lib/scrapedPubs.server");
+    const first = listScrapedPubs();
+    const concurrent = listScrapedPubs();
+
+    expect(concurrent).toBe(first);
+    expect(await first).toEqual([]);
+
+    const recovered = await listScrapedPubs();
+    expect(recovered).toHaveLength(1);
+    expect(recovered[0]?.name).toBe("Recovered Arms");
   });
 });
