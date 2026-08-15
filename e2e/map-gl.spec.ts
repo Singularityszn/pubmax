@@ -148,6 +148,37 @@ test("/map phone handoff contains real price clusters before loading retires", a
   ).toBeGreaterThanOrEqual(500);
 });
 
+test("three-stop invite handoff fits the mobile map canvas", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 300 });
+  const cameraWarnings: string[] = [];
+  page.on("console", (message) => {
+    if (message.text().includes("Map cannot fit within canvas")) {
+      cameraWarnings.push(message.text());
+    }
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+
+  await page.goto(
+    "/map?mode=build&pubs=venue-xjf3n0%2Cvenue-lrz4u2%2Cvenue-1f5ygjb",
+  );
+
+  await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 20_000 });
+  const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
+  if ((await planner.count()) === 0) await page.locator(".mobilePlanActivation").click();
+  await expect.poll(() => planner.locator("ol.routeList > li").count()).toBeGreaterThan(1);
+  const canvas = page.locator(".maplibreMap canvas").first();
+  await expect(canvas).toBeVisible({ timeout: 20_000 });
+  await page.waitForTimeout(2_000);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+  await expect(canvas).toBeVisible();
+  expect(cameraWarnings).toEqual([]);
+});
+
 test("/map renders the MapLibre canvas with real size and never falls back", async ({
   page,
 }) => {

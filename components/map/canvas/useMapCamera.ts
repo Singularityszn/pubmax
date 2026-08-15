@@ -16,6 +16,33 @@ const PHONE_BOTTOM_INSET = 190;
 const DESKTOP_TOP_INSET = 150;
 const DESKTOP_BOTTOM_INSET = 110;
 
+const PHONE_ROUTE_PADDING = { top: 160, right: 28, bottom: 200, left: 28 };
+const MIN_ROUTE_CONTENT_PX = 48;
+
+function routeFitPadding(
+  map: maplibregl.Map,
+  isPhone: boolean,
+): number | maplibregl.PaddingOptions {
+  if (!isPhone) return 90;
+  const container = map.getContainer();
+  const verticalScale = Math.min(
+    1,
+    Math.max(0, (container.clientHeight - MIN_ROUTE_CONTENT_PX)
+      / (PHONE_ROUTE_PADDING.top + PHONE_ROUTE_PADDING.bottom)),
+  );
+  const horizontalScale = Math.min(
+    1,
+    Math.max(0, (container.clientWidth - MIN_ROUTE_CONTENT_PX)
+      / (PHONE_ROUTE_PADDING.left + PHONE_ROUTE_PADDING.right)),
+  );
+  return {
+    top: Math.floor(PHONE_ROUTE_PADDING.top * verticalScale),
+    right: Math.floor(PHONE_ROUTE_PADDING.right * horizontalScale),
+    bottom: Math.floor(PHONE_ROUTE_PADDING.bottom * verticalScale),
+    left: Math.floor(PHONE_ROUTE_PADDING.left * horizontalScale),
+  };
+}
+
 /** The one sheet class that can cover the map on a phone. */
 const BOTTOM_SHEET_SELECTOR = ".mobileSharedSheet.open";
 
@@ -191,9 +218,7 @@ export function useMapCamera(refs: CameraRefs) {
     current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
     scheduleCamera("route", `route:${current.map((venue) => venue.id).join(">")}`, (map) => map.fitBounds(bounds, {
-      padding: isPhone
-        ? { top: 160, right: 28, bottom: 200, left: 28 }
-        : 90,
+      padding: routeFitPadding(map, isPhone),
       maxZoom: 15,
       duration: reducedRef.current ? 0 : 800,
       // fitBounds defaults bearing to 0, silently flattening a rotated map on
