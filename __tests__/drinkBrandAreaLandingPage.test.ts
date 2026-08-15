@@ -92,6 +92,7 @@ describe("governed drink brand by Night Area landing page", () => {
     expect(html).toContain(`Collected ${formatObservedDate(new Date(landing!.collectedAt))}.`);
     expect(html.match(new RegExp(`href="${escapeRegExp(htmlHref(mapHref))}"`, "g"))).toHaveLength(1);
     expect(html.match(/<ol\b/g)).toHaveLength(1);
+    expect(html.match(/<ol\b[^>]*\brole="list"/g)).toHaveLength(1);
     expect(html.match(/class="drinkBrandAreaLanding__row"/g)).toHaveLength(
       landing!.rows.length,
     );

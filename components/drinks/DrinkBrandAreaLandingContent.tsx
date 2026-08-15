@@ -109,7 +109,7 @@ export default function DrinkBrandAreaLandingContent({
           <h2 id="drink-brand-area-price-heading">Venue Ledger</h2>
           <span>{landing.totalPricedVenues} venues</span>
         </div>
-        <ol className="drinkBrandAreaLanding__list">
+        <ol className="drinkBrandAreaLanding__list" role="list">
           {landing.rows.map((row) => (
             <li className="drinkBrandAreaLanding__row" key={row.venueId}>
               <span
