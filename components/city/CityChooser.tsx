@@ -16,6 +16,7 @@ import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import { MAIN_LANDMARK_ID } from "@/lib/a11yLandmarks";
+import { cityCoverageDisclosure } from "@/lib/cityCoverageDisclosure";
 import { buildCityChooserSearchResults } from "@/lib/cityChooserSearch";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
@@ -45,6 +46,11 @@ type PlaceIndexState =
   | { status: "idle" | "loading"; places: UkPlace[] }
   | { status: "ready"; places: UkPlace[] }
   | { status: "error"; places: UkPlace[] };
+
+function formatNeededCoverage(needed: readonly string[]): string {
+  if (needed.length === 1) return `${needed[0]} needed`;
+  return `${needed.slice(0, -1).join(", ")} and ${needed.at(-1)} needed`;
+}
 
 /**
  * Full-bleed city picker: enabled cities as map links, optional geolocation,
@@ -194,7 +200,11 @@ export default function CityChooser({
       <div className="cityChooserInner">
         <header className="cityChooserHead">
           {variant === "page" ? (
-            <Link href="/" className="cityChooserBrand" aria-label="PUBMAXXING home">
+            <Link
+              href="/"
+              className="cityChooserBrand"
+              aria-label="PUBMAXXING home"
+            >
               <span className="cityChooserBrandMark" aria-hidden="true">
                 <Beer size={18} strokeWidth={1.5} />
               </span>
@@ -219,13 +229,15 @@ export default function CityChooser({
             </h2>
           )}
           <p className="cityChooserLede">
-            Open a price-aware pub map. Crawls and drink-shaped pins for the
-            night you want.
+            Pick a city pub map. Each card says what is ready.
           </p>
         </header>
 
         <div className="cityChooserSearch">
-          <label htmlFor={`${listId}-search`} className="cityChooserSearchLabel">
+          <label
+            htmlFor={`${listId}-search`}
+            className="cityChooserSearchLabel"
+          >
             Find your town
           </label>
           <div className="cityChooserSearchField">
@@ -240,13 +252,17 @@ export default function CityChooser({
               placeholder="Try Sheffield or your town"
               autoComplete="off"
               spellCheck="false"
-              aria-controls={normalizedQuery.length >= 2 ? `${listId}-search-results` : undefined}
+              aria-controls={
+                normalizedQuery.length >= 2
+                  ? `${listId}-search-results`
+                  : undefined
+              }
               aria-describedby={`${listId}-search-help`}
             />
           </div>
           <p id={`${listId}-search-help`} className="cityChooserSearchHelp">
-            The nine city guides have prices and crawls. Other UK places open
-            the pub map without prices.
+            London has dated Pint Prices. Other city guides say what is ready
+            and what needs work.
           </p>
         </div>
 
@@ -256,7 +272,9 @@ export default function CityChooser({
             className="cityChooserLocate"
             onClick={useMyLocation}
             disabled={locateState === "pending"}
-            aria-describedby={locateMessage ? `${listId}-locate-status` : undefined}
+            aria-describedby={
+              locateMessage ? `${listId}-locate-status` : undefined
+            }
           >
             <LocateFixed size={16} strokeWidth={1.75} aria-hidden="true" />
             {locateState === "pending" ? "Locating…" : "Use my location"}
@@ -338,8 +356,8 @@ export default function CityChooser({
               </p>
             ) : placeIndex.status === "error" ? (
               <p className="cityChooserSearchStatus" role="status">
-                Town search isn’t available right now. The nine city maps are
-                below.
+                Town search isn’t available right now. The {cities.length} city
+                maps are below.
               </p>
             ) : (
               <p className="cityChooserSearchStatus">
@@ -366,6 +384,11 @@ export default function CityChooser({
           <ul id={listId} className="cityChooserList">
             {cities.map((city, i) => {
               const href = cityMapShareUrl(city.id);
+              const coverage = cityCoverageDisclosure(city.id);
+              const available = coverage.available.join(" · ");
+              const needed = coverage.needed.length
+                ? formatNeededCoverage(coverage.needed)
+                : null;
               return (
                 <li
                   key={city.id}
@@ -376,10 +399,20 @@ export default function CityChooser({
                     href={href}
                     className="cityChooserLink"
                     onClick={() => selectCity(city.id)}
-                    aria-label={`${city.displayName}: ${city.tagline}. Open map.`}
+                    aria-label={`${city.displayName}: ${city.tagline}. ${available}.${needed ? ` ${needed}.` : ""} Open map.`}
                   >
                     <span className="cityChooserName">{city.displayName}</span>
                     <p className="cityChooserTagline">{city.tagline}</p>
+                    <span className="cityChooserCoverage">
+                      <span className="cityChooserCoverageAvailable">
+                        {available}
+                      </span>
+                      {needed ? (
+                        <span className="cityChooserCoverageNeeded">
+                          {needed}
+                        </span>
+                      ) : null}
+                    </span>
                   </Link>
                 </li>
               );
