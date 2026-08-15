@@ -41,15 +41,18 @@ Publish useful London brand-price pages from PUBMAXX Pint Price evidence. A sear
 - One primary button: `Find {brand} on Map`.
 - One secondary text link: `Log a {brand} Pint Price`.
 - One cheapest-first semantic list with rank, Venue, borough, exact pint name, publisher, and price.
+- Each ranked row has exactly one Ledger navigation target. Do not create duplicate tab stops for the same Venue.
 - Rank and price remain visible at 320, 390, and 430 px with no horizontal page scroll.
 - Action and row navigation targets are at least 44 px.
 - Every interactive element has visible focus.
 - Light and dark themes use existing PUBMAXX tokens and respect reduced motion.
+- Bottom padding includes `env(safe-area-inset-bottom)` so mobile navigation cannot cover the final row.
 
 ## Search Surface
 
 - Valid pages expose canonical, Open Graph, and Twitter metadata.
 - JSON-LD contains only `BreadcrumbList` and the rendered `ItemList`.
+- Breadcrumb starts at canonical `/map`, not a redirecting route.
 - Sitemap entries come from the same governed loader as static params and pages.
 - Runtime tracing includes the shared Pint Price landing data reader for page, sitemap, and Open Graph functions.
 

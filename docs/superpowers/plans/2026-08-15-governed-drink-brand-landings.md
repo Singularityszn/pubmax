@@ -22,6 +22,7 @@
 - Use British spelling, PUBMAXX ubiquitous language, no em dash, and `docs/VOICE.md` price disclosure rules.
 - Mobile widths are 320, 390, and 430 px. Lowest listed figure and both actions remain above the fold. All action and row-navigation targets are at least 44 px. Page has no horizontal overflow.
 - Use existing design tokens. Support light, dark, reduced motion, keyboard focus, browser zoom, and safe-area insets.
+- Each ranked row has exactly one Ledger navigation target. Breadcrumb starts at canonical `/map`.
 
 ---
 
@@ -143,7 +144,7 @@ expect(html).toContain('href="/map?drink=beer&amp;brand=guinness&amp;log=1"');
 expect(html.match(/Collected 3 July 2026\./g)).toHaveLength(1);
 ```
 
-Also assert 20 semantic list rows, exact publisher links, `Publisher not recorded`, Ledger links, canonical metadata, two JSON-LD types, and unknown-brand noindex plus 404.
+Also assert 20 semantic list rows, exact publisher links, `Publisher not recorded`, exactly one Ledger link per row, canonical Map breadcrumb, canonical metadata, two JSON-LD types, and unknown-brand noindex plus 404.
 
 - [ ] **Step 2: Run RED**
 
@@ -166,7 +167,7 @@ Implement `loadDrinkBrandLanding(slug)` and `loadDrinkBrandLandings()` in `lib/d
 
 - [ ] **Step 4: Implement mobile-first content**
 
-Use semantic `<header>`, `<section>`, and `<ol>`. Put `From {lowest listed price}` and both actions above the fold at 320, 390, and 430 px. Primary action is a button-shaped Link. Secondary contribution action is a text Link. Each row keeps rank and price visible, wraps Venue and publisher text, and gives Ledger navigation at least 44 px.
+Use semantic `<header>`, `<section>`, and `<ol>`. Put `From {lowest listed price}` and both actions above the fold at 320, 390, and 430 px. Primary action is a button-shaped Link. Secondary contribution action is a text Link. Each row keeps rank and price visible, wraps Venue and publisher text, and gives exactly one Ledger navigation target at least 44 px. Route CSS includes safe-area bottom padding.
 
 - [ ] **Step 5: Implement Open Graph image**
 
