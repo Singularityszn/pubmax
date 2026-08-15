@@ -1,0 +1,75 @@
+# Governed priced landings
+
+Two crawlable page families answer one question from PUBMAXX Pint Price
+evidence: what a named beer costs, and what it costs in one part of London.
+
+- `/drink/{brand}` - cheapest listed pints of one brand across London.
+- `/area/{area}/drink/{brand}` - the same question inside one Night Area.
+
+## Held: `/area/{area}`
+
+The area landing page itself is NOT published. Captain decision, 2026-08-15: it
+duplicates `/borough/{slug}`, which is already linked from the borough index,
+the Pint Index league table and the site footer, and two crawlable
+"cheapest pints in X" families would compete for one canonical. The path
+segment exists only as the parent of the brand-by-area page, so `/area/clapham`
+answers 404 and nothing links to it, advertises it or breadcrumbs to it. The
+brand-by-area page's parent crumb is the brand's own London page.
+
+## What a page may claim
+
+- Every figure comes from the exact price row that owns it.
+- The publisher label and link come from that same row through
+  `namedLegacyPintPriceSource`. A row with no publisher reads
+  `Publisher not recorded` and carries no link.
+- `PINT_DATASET_OBSERVED_AT` prints once as shared collection context. It is
+  never described as live, current, updated, or a per-row observation.
+- The count says how many pubs cleared the floor, and discloses the cap
+  ("Showing 20 of 347 pubs") whenever the page prints fewer than it counted.
+- Nothing here is a community submission, and nothing here reaches map
+  authority. Community prices still travel through identity, corroboration,
+  freshness and moderation.
+
+## Which pages exist
+
+- Brands come from `DRINK_BRANDS.beer`. Areas come from `NIGHT_AREAS`.
+- A brand page needs 20 pubs with a valid matching row. A brand-by-area page
+  needs 10.
+- One pub counts once, at its own cheapest matching row.
+- Only pub venue kinds, only finite positive prices.
+- Ranked cheapest first, then pub name, then pub id. At most 20 rows printed.
+- Anything unpublished is a 404 with `noindex, nofollow` metadata, absent from
+  static params and absent from the sitemap.
+
+## Where the page sends a reader
+
+- `/drink/{brand}` primary: `/map?brand={brand}`. Beer is the lane the map rests
+  in, so `?drink=beer` would select a lens and swap the pint bands; a matched
+  brand already implies its category.
+- `/drink/{brand}` secondary: the cheapest row's own
+  `/map?sel={venueId}&brand={brand}&log=1`, because `log=1` arms the composer
+  for a RESOLVED venue and has nothing to open without one.
+- `/area/{area}/drink/{brand}` primary: `/map?sel={cheapest venueId}&brand={brand}`.
+  Never `?q={area name}`: `q` is a free-text venue filter, so an area name
+  narrows the map to whatever pubs happen to carry those words, and
+  "Piccadilly & Soho" matches none.
+- Each row: its own `/ledger/{venueId}`, and on the brand-by-area page its own
+  `Log this price` arrival.
+
+## Surface
+
+- One H1, one immediate `From {price}` answer, the publisher status, the count
+  and the collection date, all above the fold at 320, 390 and 430 CSS pixels.
+- One cheapest-first list. The rank is presentational: the ordered list already
+  carries position, and a name on a bare span is dropped by assistive tech.
+- Every action is at least 44 by 44 CSS pixels and shows visible focus.
+- No horizontal page scroll. Light and dark use existing tokens.
+- Bottom padding carries `env(safe-area-inset-bottom)`, so phone navigation
+  cannot cover the last row.
+
+## Rejected
+
+- A page for every borough: borough membership is broader than night-out
+  intent and would multiply weak pages.
+- Publishing thin combinations to grow URL count.
+- Any figure derived rather than read from a row.

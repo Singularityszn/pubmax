@@ -161,6 +161,36 @@ describe("runtime data-pack tracing", () => {
     }
   });
 
+  it("carries the shared Pint Price reader to the landing pages and the sitemap", () => {
+    const pack = RUNTIME_DATA_PACKS.find(
+      (candidate) => candidate.id === "pint-price-landing-dataset",
+    );
+    expect(pack).toEqual({
+      id: "pint-price-landing-dataset",
+      modules: ["lib/pintPriceLandingDataset.server.ts"],
+      files: ["./public/data/pint_prices_app_dataset.json"],
+    });
+
+    const routes = discoverRuntimeReaderRouteGlobs(
+      root,
+      "lib/pintPriceLandingDataset.server.ts",
+    );
+    expect(routes).toEqual(
+      expect.arrayContaining([
+        "/drink/\\[slug\\]",
+        "/drink/\\[slug\\]/opengraph-image",
+        "/area/\\[slug\\]/drink/\\[brand\\]",
+        "/area/\\[slug\\]/drink/\\[brand\\]/opengraph-image",
+        "/sitemap.xml",
+      ]),
+    );
+
+    const includes = tracingIncludes();
+    for (const route of routes) {
+      expect(includes[route]).toContain("./public/data/pint_prices_app_dataset.json");
+    }
+  });
+
   it("traces the image-proxy allowlist datasets without widening other routes", () => {
     const includes = tracingIncludes();
 
