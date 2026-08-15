@@ -527,6 +527,37 @@
 
 .planComposer { max-width: 920px; margin: 0 auto; padding: clamp(22px, 5vw, 46px); display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
 
+.planComposer__accepted {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: clamp(16px, 3vw, 24px);
+  border: 1px solid color-mix(in srgb, var(--plan-accent) 42%, var(--line));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--plan-accent) 8%, var(--panel));
+}
+.planComposer__acceptedList {
+  margin: 14px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 12px;
+}
+.planComposer__acceptedList > div { min-width: 0; display: grid; gap: 4px; }
+.planComposer__acceptedList dt { color: var(--muted); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; }
+.planComposer__acceptedList dd { min-width: 0; margin: 0; color: var(--ink); font-weight: 800; overflow-wrap: anywhere; }
+.planComposer__acceptedNote { margin: 14px 0 0; color: var(--ink-soft); font-size: 0.8rem; }
+.planComposer__conflicts {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0;
+  padding: 14px 16px 14px 34px;
+  border: 1px solid color-mix(in srgb, var(--color-caution) 52%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-caution) 9%, var(--panel));
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 /* Describe-first entry: the default open for /plan. One question, one input,
    a handful of real example chips. The five-step wizard (.planIntake below)
    sits one quiet link away rather than gating the free-text path. */

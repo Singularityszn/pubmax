@@ -15,24 +15,6 @@ export type TrustedHandoffFlagDefinition = Readonly<{
 }>;
 
 export const TRUSTED_HANDOFF_FLAG_DEFINITIONS = Object.freeze({
-  intentWrite: {
-    env: "PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE",
-    ownerLane: "L03",
-    removalCondition: "Remove after PlanningIntent V1 is the only supported acceptance producer and rollback window closes.",
-    offBehavior: "No new PlanningIntent writes; existing Near and Map paths remain available.",
-  },
-  intentRead: {
-    env: "PUBMAX_TRUSTED_HANDOFF_INTENT_READ",
-    ownerLane: "L03",
-    removalCondition: "Remove after V2 draft migration and intent arbitration are permanently active.",
-    offBehavior: "Stored intent is ignored but preserved; generic Plan remains available.",
-  },
-  anchoredGeneration: {
-    env: "PUBMAX_ANCHORED_GENERATION",
-    ownerLane: "L08",
-    removalCondition: "Remove after anchored generation and one-Stop lifecycle complete the rollback window.",
-    offBehavior: "Accepted Venue remains provisional; no silent unanchored generation occurs.",
-  },
   mapRouteTransfer: {
     env: "PUBMAX_MAP_ROUTE_TRANSFER",
     ownerLane: "L12",
@@ -73,9 +55,6 @@ export function readTrustedHandoffFlags(
   env: Record<string, string | undefined> = process.env,
 ): TrustedHandoffFlagsDTO {
   return createTrustedHandoffFlagsDTO({
-    intentWrite: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.intentWrite.env]),
-    intentRead: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.intentRead.env]),
-    anchoredGeneration: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.anchoredGeneration.env]),
     mapRouteTransfer: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.mapRouteTransfer.env]),
     tonightGrouping: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.tonightGrouping.env]),
     palHandoff: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.palHandoff.env]),

@@ -7,10 +7,13 @@ import {
 import type { ParsedPlanDraft } from "@/lib/planDraft";
 import type { ParsedPlanIntakeDraft } from "@/lib/planIntake";
 import type { ParsedPlanRouteDraft } from "@/lib/planRouteDraft";
-import type { PlanningIntentArea, PlanningIntentV1 } from "@/lib/planningIntent";
+import type {
+  PlanningIntentArea,
+  PlanningIntentSource,
+  PlanningIntentV1,
+} from "@/lib/planningIntent";
 import type { PlanTemplate } from "@/lib/planTemplates";
 import type { RememberedArea } from "@/lib/nightPatches";
-import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
 
 /**
  * L11 client glue between the L04 arbitration resolver and PlanComposer. It runs
@@ -21,10 +24,8 @@ import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
  * across StrictMode double-invocation and duplicate tabs.
  */
 
-export type ComposerHandoffFlags = Pick<TrustedHandoffFlagsDTO, "intentRead" | "anchoredGeneration">;
-
 export type ComposerHydration = {
-  /** True when a trusted-handoff flag engages the new path; off = generic Plan. */
+  /** True when persisted Plan context participates in this hydration. */
   active: boolean;
   /** Arbitration finished; the composer may now run its default-write effects. */
   defaultsMayWrite: boolean;
@@ -32,6 +33,15 @@ export type ComposerHydration = {
   creatorName: string | null;
   startsAt: string | null;
   acceptedVenueId: string | null;
+  /** Acceptance source when the accepted Venue came from a trusted handoff. */
+  acceptedSource: PlanningIntentSource | null;
+  /** Exact accepted anchor for generation, when its source is known. */
+  acceptedAnchor: {
+    venueId: string;
+    source: PlanningIntentSource;
+    acceptedArea: PlanningIntentArea;
+    startsAt: string | null;
+  } | null;
   area: PlanningIntentArea;
   /** Show the accepted Venue/area/date summary before intake. */
   showAcceptedSummary: boolean;
@@ -62,41 +72,110 @@ export type ResolveComposerHydrationInput = {
   intakeDraft: ParsedPlanIntakeDraft | null;
   planningIntent: PlanningIntentV1 | null;
   rememberedArea: RememberedArea | null;
-  flags: ComposerHandoffFlags;
   url?: Partial<DraftArbitrationUrl> | null;
   lastAppliedOperationKey?: string | null;
 };
 
 export function resolveComposerHydration(input: ResolveComposerHydrationInput): ComposerHydration {
-  const anchored = input.flags.anchoredGeneration;
   const result = arbitratePlanDrafts({
     url: input.url ?? null,
     planDraft: input.planDraft,
     routeDraft: input.routeDraft,
     intakeDraft: input.intakeDraft,
     planningIntent: input.planningIntent,
-    // PlanningIntent participates only when intent read is enabled.
-    intentReadEnabled: input.flags.intentRead,
+    // PlanningIntent is a permanent handoff path.
+    intentReadEnabled: true,
     rememberedArea: input.rememberedArea,
     lastAppliedOperationKey: input.lastAppliedOperationKey,
   });
 
   const acceptedVenueId = result.acceptedVenueId.value;
+  const acceptedSource = result.acceptedVenueId.source === "planning-intent"
+    ? input.planningIntent?.source ?? null
+    : result.acceptedVenueId.source === "route-v2" || result.acceptedVenueId.source === "route-legacy"
+      ? result.routePreview?.value.anchorSource ?? null
+      : null;
+  const acceptedAnchor = acceptedVenueId && acceptedSource
+    ? {
+        venueId: acceptedVenueId,
+        source: acceptedSource,
+        acceptedArea: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
+          ? input.planningIntent.acceptedArea
+          : result.area.value,
+        startsAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
+          ? input.planningIntent.startsAt
+          : result.startsAt.value,
+      }
+    : null;
+  const active = Boolean(
+    input.planDraft
+    || input.routeDraft
+    || input.intakeDraft
+    || input.planningIntent
+    || acceptedVenueId,
+  );
   return {
-    active: input.flags.intentRead || anchored,
+    active,
     defaultsMayWrite: result.hydration.defaultsMayWrite,
     title: result.title.source === "none" ? null : result.title.value,
     creatorName: result.creatorName.source === "none" ? null : result.creatorName.value,
     startsAt: result.startsAt.value,
     acceptedVenueId,
+    acceptedSource,
+    acceptedAnchor,
     area: result.area.value,
-    // Anchor UI only surfaces under anchored generation, and only for a real acceptance.
-    showAcceptedSummary: anchored && Boolean(acceptedVenueId) && isAcceptanceSource(result.acceptedVenueId.source),
-    answeredArea: anchored && isAnswered(result.area.source),
-    answeredDate: anchored && isAnswered(result.startsAt.source),
+    // Accepted context is always visible for a real acceptance.
+    showAcceptedSummary: Boolean(acceptedVenueId) && isAcceptanceSource(result.acceptedVenueId.source),
+    answeredArea: isAnswered(result.area.source),
+    answeredDate: isAnswered(result.startsAt.source),
     conflicts: result.conflicts,
     routePreview: result.routePreview,
     routeProofPresent: result.routeProofPresent,
+  };
+}
+
+export type ProvisionalStopSeed = {
+  key: 1;
+  venueId: string;
+  venueName: string;
+  alternatives: [];
+};
+
+type SeedStop = {
+  venueId?: string | null;
+  venueName?: string | null;
+};
+
+type SeedVenue = {
+  id: string;
+  name: string;
+};
+
+/**
+ * Seed the accepted Venue as one editable Stop 1 only when no saved Route or
+ * Plan stops exist. The Venue id remains the accepted id; the display name is
+ * resolved from the loaded Venue index when available.
+ */
+export function seedProvisionalStop1(input: {
+  acceptedVenueId: string | null | undefined;
+  venues?: ReadonlyArray<SeedVenue> | null;
+  recoveredRouteStops?: ReadonlyArray<SeedStop> | null;
+  recoveredPlanStops?: ReadonlyArray<SeedStop> | null;
+}): ProvisionalStopSeed | null {
+  const venueId = typeof input.acceptedVenueId === "string"
+    ? input.acceptedVenueId.trim()
+    : "";
+  if (!venueId) return null;
+  if ((input.recoveredRouteStops?.length ?? 0) > 0 || (input.recoveredPlanStops?.length ?? 0) > 0) {
+    return null;
+  }
+  const indexed = input.venues?.find((venue) => venue.id.trim() === venueId);
+  const venueName = indexed?.name.trim() || venueId;
+  return {
+    key: 1,
+    venueId,
+    venueName,
+    alternatives: [],
   };
 }
 

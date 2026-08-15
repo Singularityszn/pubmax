@@ -166,6 +166,7 @@ export default function TonightClient({
   // browser-only and the first paint must match SSR.
   const [remembered, setRemembered] = useState<RememberedArea | null>(null);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
+  const [acceptanceError, setAcceptanceError] = useState("");
   // The location card is a quiet, collapsed row until tapped — it must not be
   // the first thing on the page. Once a position is shared it stays open so the
   // last-train strip has somewhere to live.
@@ -193,11 +194,11 @@ export default function TonightClient({
     tonightNear?.near ?? null,
   );
 
-  // Explicit acceptance (§4.8): only "Use this Venue" reaches here — opening a
+  // Explicit acceptance (§4.8): only "Keep this venue" reaches here. Opening a
   // listing stays browse-only. Writes one PlanningIntent (source "tonight")
   // carrying the remembered area and the honest source-freshness date, then hands
-  // the Venue off via the accept deep link. Storage failure degrades to a browse
-  // selection and emits nothing. Never rendered with intentWrite off.
+  // the Venue off via the accept deep link. Storage failure stays on Tonight,
+  // reports the error, and emits nothing.
   const acceptVenue = useCallback(
     (venueId: string) => {
       const result = acceptTonightVenue({
@@ -208,7 +209,12 @@ export default function TonightClient({
         observedAt: sourceObservedAt,
         fallbackCityId: "london",
       });
-      if (result.telemetry) trackEvent("venue_accepted", result.telemetry);
+      if (!result.accepted || !result.telemetry) {
+        setAcceptanceError("Couldn’t keep this Venue on this device. Try again.");
+        return;
+      }
+      setAcceptanceError("");
+      trackEvent("venue_accepted", result.telemetry);
       router.push(result.href);
     },
     [remembered, sourceObservedAt, router],
@@ -504,6 +510,9 @@ export default function TonightClient({
             </div>
           ) : null}
 
+          {acceptanceError ? (
+            <p className="tonightAcceptanceError" role="alert">{acceptanceError}</p>
+          ) : null}
           <ul id="tonight-list" className="tonightList" data-testid="tonight-list">
             {grouped.map((group) => {
               const row = group.row;
@@ -601,16 +610,15 @@ export default function TonightClient({
                   ) : (
                     <div className="tonightRowLink">{RowInner}</div>
                   )}
-                  {/* Explicit acceptance, distinct from the browse tap above
-                      (§4.8). Only present when intentWrite is on, so the flag-off
-                      surface is byte-identical to today. */}
-                  {flags.intentWrite && typeof row.venueId === "string" && row.venueId.length > 0 ? (
+                  {/* Explicit acceptance stays distinct from the browse tap. */}
+                  {typeof row.venueId === "string" && row.venueId.length > 0 ? (
                     <button
                       type="button"
                       className="tonightRowAccept pressable"
+                      aria-label={`Keep ${row.placeName} for tonight`}
                       onClick={() => acceptVenue(row.venueId as string)}
                     >
-                      Use this venue
+                      Keep this venue
                     </button>
                   ) : null}
                   {group.venueCount > 1 ? (
@@ -667,6 +675,16 @@ export default function TonightClient({
                                   ) : null}
                                 </span>
                               )}
+                              {typeof alt.venueId === "string" && alt.venueId.length > 0 ? (
+                                <button
+                                  type="button"
+                                  className="tonightRowMoreAccept pressable"
+                                  aria-label={`Keep ${alt.placeName} for tonight`}
+                                  onClick={() => acceptVenue(alt.venueId as string)}
+                                >
+                                  Keep
+                                </button>
+                              ) : null}
                             </li>
                           );
                         })}

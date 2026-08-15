@@ -35,8 +35,6 @@ import { verifyAnchoredPlanGroundingProofV2 } from "@/lib/planGrounding.server";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { PlanIntakeHandoff } from "@/lib/planIntake";
 
-const FLAG = "PUBMAX_ANCHORED_GENERATION";
-
 function claphamVenue(id: string, index: number, options: Partial<ConciergeVenue> = {}): ConciergeVenue {
   return {
     id,
@@ -98,13 +96,11 @@ describe("POST /api/plans/generate — anchored", () => {
     process.env.PLAN_IDEMPOTENCY_SECRET = "a".repeat(48);
   });
   afterEach(() => {
-    delete process.env[FLAG];
     delete process.env.PLAN_IDEMPOTENCY_SECRET;
   });
 
-  it("ignores the anchor and stays byte-identical when the flag is off", async () => {
-    delete process.env[FLAG];
-    const response = await generate({ query: "Four of us after work in Clapham, cheap and lively", anchor: ANCHOR });
+  it("keeps generic generation unanchored when no accepted Venue is supplied", async () => {
+    const response = await generate({ query: "Four of us after work in Clapham, cheap and lively" });
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body.grounded).toBe(true);
@@ -114,8 +110,7 @@ describe("POST /api/plans/generate — anchored", () => {
     expect(resolvePlanningAnchorMock).not.toHaveBeenCalled();
   });
 
-  it("returns a route outcome with the anchor first and a valid V2 proof", async () => {
-    process.env[FLAG] = "1";
+  it("handles an accepted Venue by default and returns it first with a valid V2 proof", async () => {
     resolvePlanningAnchorMock.mockResolvedValue(resolved("anchor-venue"));
     loadConciergeVenuesMock.mockResolvedValueOnce([
       claphamVenue("anchor-venue", 0, { cheapestPrice: 5 }),
@@ -141,7 +136,6 @@ describe("POST /api/plans/generate — anchored", () => {
   });
 
   it("returns anchor-only when companions are insufficient", async () => {
-    process.env[FLAG] = "1";
     resolvePlanningAnchorMock.mockResolvedValue(resolved("anchor-venue"));
     loadConciergeVenuesMock.mockResolvedValueOnce([
       claphamVenue("anchor-venue", 0),
@@ -161,7 +155,6 @@ describe("POST /api/plans/generate — anchored", () => {
   });
 
   it("surfaces a resolver conflict as an anchor-conflict outcome", async () => {
-    process.env[FLAG] = "1";
     resolvePlanningAnchorMock.mockResolvedValue({
       status: "conflict", code: "ANCHOR_AREA_CONFLICT", message: "outside area",
     });
@@ -175,7 +168,6 @@ describe("POST /api/plans/generate — anchored", () => {
   });
 
   it("returns a route conflict when the anchor is absent from the area candidates", async () => {
-    process.env[FLAG] = "1";
     resolvePlanningAnchorMock.mockResolvedValue(resolved("anchor-venue"));
     loadConciergeVenuesMock.mockResolvedValueOnce([
       claphamVenue("companion-1", 1),

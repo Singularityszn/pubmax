@@ -9,6 +9,7 @@ import { linkPlanMemberUser, linkPlanOwnerUser } from "@/lib/planCrewIdentity";
 import { planMemberIdentity, planRequestDigest, planStore } from "@/lib/planStore";
 import { profileStore } from "@/lib/profileStore";
 import {
+  readPlanGroundingClaimsV2,
   verifyAnchoredPlanGroundingProofV2,
   verifyPlanGroundingProof,
   wasPlanGroundedAtCreation,
@@ -19,7 +20,6 @@ import { attachPlanMemberSession } from "@/lib/planMemberCapability";
 import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
-import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { planAcceptedEventTokens, planDraftSavedEventToken, planLoopEventTokens } from "@/lib/verifiedAnalytics.server";
 
 assertServerEnv();
@@ -73,11 +73,18 @@ export async function POST(request: Request): Promise<Response> {
   const groundingProofDigest = typeof body.groundingProof === "string" && body.groundingProof
     ? planRequestDigest(body.groundingProof)
     : undefined;
-  // Anchored lock (§3.3): behind the flag, an accepted anchor must carry a valid
-  // V2 grounding proof whose exact ordered Stops match this Plan. Every proof
-  // failure is an explicit 422; a same-key replay with a changed anchor or proof
-  // is resolved to a 409 by the store's idempotency hash below.
-  const anchor = readTrustedHandoffFlag("anchoredGeneration") ? cleanPlanAnchor(body.anchor) : null;
+  // Anchored lock (§3.3): an accepted anchor must carry a valid V2 grounding
+  // proof whose exact ordered Stops match this Plan. Every proof failure is an
+  // explicit 422; a same-key replay with a changed anchor or proof is resolved
+  // to a 409 by the store's idempotency hash below.
+  const anchorSupplied = Object.prototype.hasOwnProperty.call(body, "anchor");
+  const anchor = cleanPlanAnchor(body.anchor);
+  if (anchorSupplied && !anchor) {
+    return publicApiError("Include the accepted Venue and its source.", "PLAN_ANCHOR_INVALID", 422);
+  }
+  if (!anchor && readPlanGroundingClaimsV2(body.groundingProof)) {
+    return publicApiError("Include the accepted Venue for this grounded Route.", "PLAN_ANCHOR_REQUIRED", 422);
+  }
   let anchorAnchored = false;
   if (anchor) {
     const verdict = verifyAnchoredPlanGroundingProofV2(body.groundingProof, acceptedVenueIds, idempotencyKey);
@@ -87,6 +94,12 @@ export async function POST(request: Request): Promise<Response> {
     }
     if (verdict.outcome !== anchor.outcome) {
       return publicApiError("That saved route does not match this plan.", "PLAN_ANCHOR_OUTCOME_MISMATCH", 422);
+    }
+    if (verdict.anchorVenueId !== anchor.venueId) {
+      return publicApiError("That saved Venue does not match this Plan.", "PLAN_ANCHOR_VENUE_MISMATCH", 422);
+    }
+    if (verdict.anchorSource !== anchor.source) {
+      return publicApiError("That saved Venue source does not match this Plan.", "PLAN_ANCHOR_SOURCE_MISMATCH", 422);
     }
     anchorAnchored = verdict.anchored;
   }

@@ -1,7 +1,4 @@
 export const TRUSTED_HANDOFF_FLAG_KEYS = [
-  "intentWrite",
-  "intentRead",
-  "anchoredGeneration",
   "mapRouteTransfer",
   "tonightGrouping",
   "palHandoff",
@@ -14,9 +11,6 @@ export type TrustedHandoffFlagKey = (typeof TRUSTED_HANDOFF_FLAG_KEYS)[number];
 export type TrustedHandoffFlagsDTO = Readonly<Record<TrustedHandoffFlagKey, boolean>>;
 
 export const TRUSTED_HANDOFF_FLAGS_OFF: TrustedHandoffFlagsDTO = Object.freeze({
-  intentWrite: false,
-  intentRead: false,
-  anchoredGeneration: false,
   mapRouteTransfer: false,
   tonightGrouping: false,
   palHandoff: false,
@@ -28,9 +22,6 @@ export function createTrustedHandoffFlagsDTO(
   values: Record<TrustedHandoffFlagKey, boolean>,
 ): TrustedHandoffFlagsDTO {
   return Object.freeze({
-    intentWrite: values.intentWrite,
-    intentRead: values.intentRead,
-    anchoredGeneration: values.anchoredGeneration,
     mapRouteTransfer: values.mapRouteTransfer,
     tonightGrouping: values.tonightGrouping,
     palHandoff: values.palHandoff,

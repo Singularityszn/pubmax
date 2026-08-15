@@ -37,6 +37,18 @@
   text-wrap: balance;
 }
 
+.venueAcceptanceReceipt {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-positive) 42%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-positive) 10%, var(--panel-raised));
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
 /* Venue detail hydration skeleton — keeps sheet geometry stable while the
    lazy /api/venue/[id] payload arrives (Loop 1 perceived-speed pass). */
 .venueSheetSkeleton {

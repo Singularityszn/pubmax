@@ -363,6 +363,32 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
     });
   });
 
+  it("threads an exact accepted Venue anchor through generation intake", () => {
+    const anchor = {
+      venueId: "venue-intent",
+      source: "near" as const,
+      acceptedArea: { kind: "night-patch" as const, id: "soho" as const },
+      startsAt: "2026-07-24T20:00:00.000Z",
+    };
+    const body = buildPlanGenerationIntakeBody(
+      answeredDraft(),
+      "quiet pints",
+      generatedContext,
+      {},
+      anchor,
+    );
+
+    expect(body.anchor).toEqual(anchor);
+    expect(Object.keys(body.anchor ?? {})).toEqual([
+      "venueId", "source", "acceptedArea", "startsAt",
+    ]);
+  });
+
+  it("omits anchor from generic generation intake bodies", () => {
+    const body = buildPlanGenerationIntakeBody(answeredDraft(), "", generatedContext);
+    expect(body).not.toHaveProperty("anchor");
+  });
+
   it("does not silently coerce Hackney into a different generation area", () => {
     const draft = createPlanIntakeDraft({ kind: "patch", id: "hackney" });
     expect(planIntakeHandoff(draft).area).toEqual({ kind: "night-patch", id: "hackney" });

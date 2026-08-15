@@ -87,15 +87,8 @@ export type NearMeNowProps = {
   initialPatchId?: string | null;
   /** When true, patch picks rewrite `?patch=` on the current path. */
   syncPatchToUrl?: boolean;
-  /**
-   * Trusted-handoff intent-write flag (`PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE`),
-   * delivered as a server-owned DTO by the caller — never read from the env on
-   * the client. Off (the default) keeps every card a browse-only link exactly
-   * as before. On adds an explicit "Use this pub" acceptance to each card that
-   * records a PlanningIntent (source `near`) and hands the Venue off as
-   * accepted, distinct from opening it for a look.
-   */
-  intentWrite?: boolean;
+  /** `/near` enables explicit acceptance. Embedded Map answers stay browse-only. */
+  allowVenueAcceptance?: boolean;
   /**
    * The host already prints this answer's heading, so print the headline as a
    * plain line instead. The map's near-me sheet is the case: its chrome header
@@ -143,9 +136,8 @@ function resolveFallbackCityId(cityId: CityId | string): CityId {
 }
 
 /**
- * The answer's cards plus, when acceptance is live, the evidence receipt above
- * them and a "Use this pub" affordance on each. With `accept` off this is the
- * exact browse-only list it has always been.
+ * The answer's cards plus, on the full Near surface, one explicit acceptance
+ * action per Venue. Embedded Map answers keep their compact browse-only rows.
  */
 function AnswerCards({
   cards,
@@ -182,11 +174,9 @@ function resolveAreaLabel(borough: string | null, patch: NightPatch | null): str
   return borough ?? patch?.label ?? null;
 }
 
-/** Evidence receipt (§L06): what "Use this pub" carries into the plan. */
-function acceptanceReceiptText(intentWrite: boolean, areaLabel: string | null): string | null {
-  return intentWrite
-    ? `Keeps this pub for tonight${areaLabel ? ` in ${areaLabel}` : ""}.`
-    : null;
+/** Pre-action instruction. It never claims a Venue has already been accepted. */
+function acceptanceReceiptText(allowVenueAcceptance: boolean): string | null {
+  return allowVenueAcceptance ? "Choose a pub to keep for tonight." : null;
 }
 
 /** Why we're answering from a patch instead of the viewer's own spot, in words. */
@@ -236,7 +226,7 @@ export default function NearMeNow({
   initialLocation = null,
   initialPatchId = null,
   syncPatchToUrl = false,
-  intentWrite = false,
+  allowVenueAcceptance = false,
   titledByHost = false,
   showPriceTrust = false,
 }: NearMeNowProps) {
@@ -259,6 +249,7 @@ export default function NearMeNow({
   // Located fine but nothing priced within reach: the honest "we do not cover
   // where you are yet" state, carrying the REAL nearest supported patch.
   const [outsideCoverage, setOutsideCoverage] = useState<NearestPatch | null>(null);
+  const [acceptanceError, setAcceptanceError] = useState("");
   const slimRef = useRef<PricedPoint[] | null>(venues ?? null);
   const loadingSlimRef = useRef<Promise<PricedPoint[]> | null>(null);
   const answerGenerationRef = useRef(0);
@@ -521,12 +512,12 @@ export default function NearMeNow({
     [answerContext, cards, onSelectVenue, router, showPriceTrust],
   );
 
-  // Explicit acceptance (§4.8): only "Use this pub" reaches here — opening a card
+  // Explicit acceptance (§4.8): only "Keep for tonight" reaches here. Opening a card
   // above stays browse-only. Records one PlanningIntent (source "near") carrying
   // the active area, tonight, and the price provenance, then hands the Venue off
-  // via the accept deep link. A storage failure degrades to a browse selection
-  // (canonical `?sel=`) and emits nothing, so an unrecorded acceptance is never
-  // counted. Never fires with intentWrite off.
+  // via the accept deep link. A storage failure stays on Near, reports the error,
+  // and emits nothing, so an unrecorded acceptance is never counted. Embedded
+  // Map answers never wire this action.
   const acceptVenue = useCallback(
     (id: string) => {
       const result = acceptNearVenue({
@@ -537,16 +528,21 @@ export default function NearMeNow({
         observedAt: PINT_DATASET_OBSERVED_AT.toISOString(),
         fallbackCityId: resolveFallbackCityId(cityId),
       });
-      if (result.telemetry) trackEvent("venue_accepted", result.telemetry);
+      if (!result.accepted || !result.telemetry) {
+        setAcceptanceError("Couldn’t keep this Venue on this device. Try again.");
+        return;
+      }
+      setAcceptanceError("");
+      trackEvent("venue_accepted", result.telemetry);
       router.push(result.href);
     },
     [patch, borough, cityId, router],
   );
 
   const areaLabel = resolveAreaLabel(borough, patch);
-  // Evidence receipt (§L06): what "Use this pub" carries into the plan. Shown
-  // only when acceptance is live, so the browse-only surface stays uncluttered.
-  const acceptReceipt = acceptanceReceiptText(intentWrite, areaLabel);
+  // Pre-action instruction. Shown only when acceptance is available, so the
+  // embedded browse-only surface stays uncluttered.
+  const acceptReceipt = acceptanceReceiptText(allowVenueAcceptance);
   const patchMessage = patchStatusMessage(areaLabel, patchReason);
 
   // Honest, derived coverage tier for the active patch. The note reads from real
@@ -585,8 +581,9 @@ export default function NearMeNow({
           cards={cards}
           onOpen={openVenue}
           onAccept={acceptVenue}
-          intentWrite={intentWrite}
+          allowVenueAcceptance={allowVenueAcceptance}
           acceptReceipt={acceptReceipt}
+          acceptanceError={acceptanceError}
           priceTrust={priceTrust}
           resolvedMapHref={resolvedMapHref}
           onLocate={locate}
@@ -607,8 +604,9 @@ export default function NearMeNow({
           cards={cards}
           onOpen={openVenue}
           onAccept={acceptVenue}
-          intentWrite={intentWrite}
+          allowVenueAcceptance={allowVenueAcceptance}
           acceptReceipt={acceptReceipt}
+          acceptanceError={acceptanceError}
           priceTrust={priceTrust}
           loadSlim={loadSlim}
           onPickPatch={pickPatch}
@@ -705,8 +703,9 @@ function NearMeLocatedAnswer({
   cards,
   onOpen,
   onAccept,
-  intentWrite,
+  allowVenueAcceptance,
   acceptReceipt,
+  acceptanceError,
   priceTrust,
   resolvedMapHref,
   onLocate,
@@ -716,8 +715,9 @@ function NearMeLocatedAnswer({
   cards: NearMeCard[];
   onOpen: (id: string) => void;
   onAccept: (id: string) => void;
-  intentWrite: boolean;
+  allowVenueAcceptance: boolean;
   acceptReceipt: string | null;
+  acceptanceError: string;
   priceTrust?: NearPriceTrustView;
   resolvedMapHref: string;
   onLocate: () => void;
@@ -739,10 +739,11 @@ function NearMeLocatedAnswer({
         cards={cards}
         onOpen={onOpen}
         onAccept={onAccept}
-        accept={intentWrite}
+        accept={allowVenueAcceptance}
         receipt={acceptReceipt}
         priceTrust={priceTrust}
       />
+      {acceptanceError ? <p className="nmnAcceptError" role="alert">{acceptanceError}</p> : null}
       <footer className="nmnFoot">
         <a className="nmnRetry" href={resolvedMapHref}>
           <MapPin size={16} aria-hidden="true" /> Open the full map
@@ -768,8 +769,9 @@ function NearMeAreaAnswer({
   cards,
   onOpen,
   onAccept,
-  intentWrite,
+  allowVenueAcceptance,
   acceptReceipt,
+  acceptanceError,
   priceTrust,
   loadSlim,
   onPickPatch,
@@ -788,8 +790,9 @@ function NearMeAreaAnswer({
   cards: NearMeCard[];
   onOpen: (id: string) => void;
   onAccept: (id: string) => void;
-  intentWrite: boolean;
+  allowVenueAcceptance: boolean;
   acceptReceipt: string | null;
+  acceptanceError: string;
   priceTrust?: NearPriceTrustView;
   loadSlim: () => Promise<PricedPoint[]>;
   onPickPatch: (patch: NightPatch) => void;
@@ -814,10 +817,11 @@ function NearMeAreaAnswer({
         cards={cards}
         onOpen={onOpen}
         onAccept={onAccept}
-        accept={intentWrite}
+        accept={allowVenueAcceptance}
         receipt={acceptReceipt}
         priceTrust={priceTrust}
       />
+      {acceptanceError ? <p className="nmnAcceptError" role="alert">{acceptanceError}</p> : null}
       {cards.length === 0 ? (
         <div className="nmnOutside">
           <UnsupportedAreaPreview
@@ -923,8 +927,8 @@ export function NearMeCardList({
   cards: NearMeCard[];
   onOpen: (id: string) => void;
   /**
-   * When present (intent-write on), each card gains a distinct "Use this pub"
-   * acceptance beside the browse tap. When absent, the card is the exact
+   * When present, each card gains a distinct acceptance action beside the
+   * browse tap. When absent, the card is the exact
    * browse-only button it has always been.
    */
   onAccept?: (id: string) => void;
@@ -949,10 +953,10 @@ export function NearMeCardList({
             <button
               type="button"
               className="nmnAccept"
-              aria-label={`Use ${card.name} for your plan`}
+              aria-label={`Keep ${card.name} for tonight`}
               onClick={() => onAccept(card.id)}
             >
-              Use this pub
+              Keep for tonight
             </button>
           </li>
         ) : (

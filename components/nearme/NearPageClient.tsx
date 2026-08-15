@@ -22,7 +22,7 @@ export function resolveNearAutoLocate(
   return searchParams.get("locate") === "1";
 }
 
-function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
+function NearPageBody() {
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
     readPreferredCity,
@@ -61,7 +61,7 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
           autoLocate={autoLocate}
           initialPatchId={initialPatchId}
           syncPatchToUrl
-          intentWrite={intentWrite}
+          allowVenueAcceptance
           showPriceTrust
         />
       </main>
@@ -69,10 +69,10 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
   );
 }
 
-export default function NearPageClient({ intentWrite = false }: { intentWrite?: boolean }) {
+export default function NearPageClient() {
   return (
     <Suspense fallback={<div className="nmnPage" aria-busy="true" />}>
-      <NearPageBody intentWrite={intentWrite} />
+      <NearPageBody />
     </Suspense>
   );
 }

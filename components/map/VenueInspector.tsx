@@ -63,11 +63,9 @@ type VenueInspectorProps = {
   shareLoggedAt?: number | null;
   onToggleStop: (id: string) => void;
   onSelectVenue?: (id: string) => void;
-  /**
-   * Trusted-handoff §4.8 "Make it Stop 1": accept this Venue into a Plan. Only
-   * provided when the intent-write flag is on; the action is otherwise absent.
-   */
+  /** Trusted-handoff §4.8 "Make it Stop 1": accept this Venue into a Plan. */
   onAcceptStop1?: () => void;
+  acceptanceError?: string | null;
   initialTab?: TabKey;
   pintDrops: PintDropsState;
   /**
@@ -132,6 +130,7 @@ export default function VenueInspector({
   onToggleStop,
   onSelectVenue,
   onAcceptStop1,
+  acceptanceError = null,
   initialTab = DEFAULT_TAB,
   pintDrops,
   communityPrices,
@@ -394,6 +393,7 @@ export default function VenueInspector({
         inCrawl={inCrawl}
         onToggleStop={onToggleStop}
         onAcceptStop1={onAcceptStop1}
+        acceptanceError={acceptanceError}
         onAddPrice={requestPriceEntry}
         shareVenue={shareVenue}
         currentShareFeedback={currentShareFeedback}

@@ -5,9 +5,6 @@
 // The canonical machine context stays server-side and feeds anchored generation
 // directly, so it never crosses the wire here.
 //
-// Gated on PUBMAX_ANCHORED_GENERATION: while off there is no anchored surface,
-// so the route reports 404 and the accepted Venue simply stays provisional.
-
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
@@ -15,7 +12,6 @@ import { parseCityId } from "@/lib/cities";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
 import { resolvePlanningAnchor } from "@/lib/planningAnchor.server";
 import type { PlanningIntentArea } from "@/lib/planningIntent";
-import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 
 assertServerEnv();
@@ -37,10 +33,6 @@ function parseAcceptedArea(params: URLSearchParams): PlanningIntentArea | undefi
 }
 
 export async function GET(request: Request): Promise<Response> {
-  if (!readTrustedHandoffFlag("anchoredGeneration")) {
-    return publicApiError("Anchored planning is not available.", "PLAN_ANCHOR_DISABLED", 404);
-  }
-
   const params = new URL(request.url).searchParams;
 
   const cityId = parseCityId(params.get("cityId"));

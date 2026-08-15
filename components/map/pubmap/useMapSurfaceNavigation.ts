@@ -17,6 +17,7 @@ import {
 import {
   browseSelectionUrl,
   cleanMapUrl,
+  refreshSelectionUrl,
   searchHasSelection,
 } from "@/lib/mapSelectionHistory";
 import {
@@ -71,8 +72,11 @@ function urlForStack(
 ): string {
   const { pathname, search, hash } = window.location;
   const venueId = selectedVenueId(stack);
+  const liveVenueId = new URLSearchParams(search).get("sel");
   return venueId
-    ? browseSelectionUrl(pathname, search, venueId, hash, selectionHint)
+    ? liveVenueId === venueId
+      ? refreshSelectionUrl(pathname, search, venueId, hash, selectionHint)
+      : browseSelectionUrl(pathname, search, venueId, hash, selectionHint)
     : cleanMapUrl(pathname, search, hash);
 }
 

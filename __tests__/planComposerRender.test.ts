@@ -13,12 +13,10 @@ import {
 import {
   composerLockErrorFromResponse,
   resolveComposerHydration,
-  type ComposerHandoffFlags,
 } from "@/lib/planComposerHandoff";
 import { createPlanningIntent } from "@/lib/planningIntent";
 
 const NOW = Date.parse("2026-07-24T12:00:00.000Z");
-const ON: ComposerHandoffFlags = { intentRead: true, anchoredGeneration: true };
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -55,11 +53,23 @@ function v2Plan(savedAt: number): ParsedPlanDraft {
   return readPlanDraftEnvelope(storage, savedAt) as ParsedPlanDraft;
 }
 
-describe("PlanComposer flag-on rendered UI", () => {
+describe("PlanComposer rendered UI", () => {
+  it("renders accepted context before intake completion", () => {
+    const handoff = resolveComposerHydration({
+      planDraft: null, routeDraft: null, intakeDraft: null,
+      planningIntent: intent(), rememberedArea: null,
+    });
+    const html = renderToStaticMarkup(createElement(AcceptedContextPanel, { handoff }));
+
+    expect(handoff.showAcceptedSummary).toBe(true);
+    expect(html).toContain("Carried over from what you accepted");
+    expect(html).toContain("venue-intent");
+  });
+
   it("renders the accepted Venue/area/date summary and marks area+date answered so intake never re-asks", () => {
     const handoff = resolveComposerHydration({
       planDraft: null, routeDraft: null, intakeDraft: null,
-      planningIntent: intent(), rememberedArea: null, flags: ON,
+      planningIntent: intent(), rememberedArea: null,
     });
     const html = renderToStaticMarkup(createElement(AcceptedContextPanel, { handoff }));
 
@@ -77,7 +87,7 @@ describe("PlanComposer flag-on rendered UI", () => {
   it("renders the 'kept existing Plan work' conflict note when a newer Plan draft beats a newer intent", () => {
     const handoff = resolveComposerHydration({
       planDraft: v2Plan(NOW + 2_000), routeDraft: null, intakeDraft: null,
-      planningIntent: intent(), rememberedArea: null, flags: ON,
+      planningIntent: intent(), rememberedArea: null,
     });
     expect(handoff.conflicts.map((conflict) => conflict.code)).toContain("intent-preserved-existing");
 

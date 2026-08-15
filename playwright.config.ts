@@ -343,32 +343,20 @@ export default defineConfig({
                   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
               }
             : {}),
-          // Trusted-handoff flag pass-throughs for the deferred lane e2e (L20
-          // prep): each stays off unless the run exports it, so a flag-ON spec
-          // (test.skip-gated on the same var) drives a matching flag-on server.
-          ...(process.env.PUBMAX_TRUSTED_HANDOFF_INTENT_READ
-            ? { PUBMAX_TRUSTED_HANDOFF_INTENT_READ: process.env.PUBMAX_TRUSTED_HANDOFF_INTENT_READ }
-            : {}),
-          ...(process.env.PUBMAX_ANCHORED_GENERATION
-            ? { PUBMAX_ANCHORED_GENERATION: process.env.PUBMAX_ANCHORED_GENERATION }
-            : {}),
+          // Remaining trusted-handoff rollout flags stay off unless the run
+          // exports one for its dedicated flag-on project.
           ...(process.env.PUBMAX_MAP_ROUTE_TRANSFER
             ? { PUBMAX_MAP_ROUTE_TRANSFER: process.env.PUBMAX_MAP_ROUTE_TRANSFER }
             : {}),
           ...(process.env.PUBMAX_PAL_HANDOFF
             ? { PUBMAX_PAL_HANDOFF: process.env.PUBMAX_PAL_HANDOFF }
             : {}),
-          // L15 Tonight trusted UI: the canonical grouping/layout and the explicit
-          // Venue acceptance are each flag-ON server behaviour, so the flag-ON spec
-          // exports these to drive a matching server. Absent stays off (strict 0|1).
+          // L15 Tonight trusted UI: canonical grouping remains rollout-controlled.
           ...(process.env.PUBMAX_TONIGHT_GROUPING
             ? { PUBMAX_TONIGHT_GROUPING: process.env.PUBMAX_TONIGHT_GROUPING }
             : {}),
           ...(process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2
             ? { PUBMAX_FRIEND_MEMBER_REHYDRATION_V2: process.env.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2 }
-            : {}),
-          ...(process.env.PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE
-            ? { PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE: process.env.PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE }
             : {}),
           ...(process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH
             ? { PUBMAX_SOCIAL_FRIENDS_LAUNCH: process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH }

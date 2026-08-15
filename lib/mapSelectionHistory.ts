@@ -138,6 +138,25 @@ export function browseSelectionUrl(
   return toUrl(pathname, params, hash);
 }
 
+/**
+ * Refresh the URL for the Venue that is already selected. Unlike a switch to a
+ * different Venue, this keeps accepted-arrival markers so a tab or detail
+ * hydration update cannot silently turn an accepted Venue back into browsing.
+ */
+export function refreshSelectionUrl(
+  pathname: string,
+  search: string,
+  venueId: string,
+  hash = "",
+  hint = "",
+): string {
+  const params = normalizeSearch(search);
+  params.set("sel", venueId);
+  if (hint) params.set(SELECTION_HINT_PARAM, hint);
+  else params.delete(SELECTION_HINT_PARAM);
+  return toUrl(pathname, params, hash);
+}
+
 export type SelectionHistoryAction =
   | { kind: "none" }
   /** clean Map → first Venue selection: push one selected entry. */
