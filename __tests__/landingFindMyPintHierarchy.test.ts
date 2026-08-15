@@ -24,6 +24,10 @@ describe("landing Find my pint hierarchy", () => {
     expect(pageTsx).not.toMatch(/readTrustedHandoffFlags/);
     expect(pageTsx).not.toMatch(/landingFindMyPint/);
     expect(landingTsx).not.toMatch(/landingFindMyPint/);
+    // The client landing component reads no environment at all, whatever a
+    // future flag is called. Kept from the flag era on purpose.
+    expect(landingTsx).not.toMatch(/process\.env/);
+    expect(landingTsx).not.toMatch(/PUBMAX_LANDING_FIND_MY_PINT/);
   });
 
   it("uses Find my pint as the only primary action", () => {
@@ -32,6 +36,16 @@ describe("landing Find my pint hierarchy", () => {
     );
     expect(landingTsx).not.toMatch(/lpHeroActions--mapFirst/);
     expect(landingTsx).not.toMatch(/lpHeroActions--findMyPint/);
+  });
+
+  it("asks for location only from the two deliberate CTAs, never the footer", () => {
+    const footerNav = landingTsx.match(
+      /className="lpFooterNav"[\s\S]*?<\/nav>/,
+    )?.[0];
+    expect(footerNav, "footer nav present").toBeTruthy();
+    expect(footerNav).toMatch(/href="\/near"/);
+    expect(footerNav).not.toMatch(/locate=1/);
+    expect(landingTsx.match(/\/near\?locate=1/g)).toHaveLength(2);
   });
 
   it("keeps Map and Plan visible as lower-weight text links", () => {

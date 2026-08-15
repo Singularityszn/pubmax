@@ -46,17 +46,28 @@ test.describe("landing Find my pint hierarchy", () => {
     await expect(planLink).toHaveAttribute("href", "/plan");
   });
 
-  test("dominant primary stays tappable and above the mobile fold", async ({ page }) => {
-    await openLanding(page, { width: 390, height: 844 });
-    const hero = page.locator(".lpHeroActions");
-    await expect(hero.getByRole("link", { name: /Find my pint/i })).toHaveAttribute("href", "/near?locate=1");
-    await expect(hero.getByRole("link", { name: /Open the map/i })).toHaveAttribute("href", "/choose-city");
-    await expect(hero.getByRole("link", { name: /Plan with friends/i })).toHaveAttribute("href", "/plan");
-    const primary = hero.locator(".lpButtonPrimary");
-    await expect(primary).toHaveCount(1);
-    await expect(primary).toContainText("Find my pint");
-    const box = await primary.boundingBox();
-    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-    expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(845);
-  });
+  // Both viewports, because the retired flag-on spec proved the fold on the
+  // desktop screen too and a mobile-only check cannot see a hero that grows on
+  // a wide layout.
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+  ] as const) {
+    test(`dominant primary stays tappable and above the fold at ${viewport.width}`, async ({ page }) => {
+      await openLanding(page, viewport);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const hero = page.locator(".lpHeroActions");
+      await expect(hero.getByRole("link", { name: /Find my pint/i })).toHaveAttribute("href", "/near?locate=1");
+      await expect(hero.getByRole("link", { name: /Open the map/i })).toHaveAttribute("href", "/choose-city");
+      await expect(hero.getByRole("link", { name: /Plan with friends/i })).toHaveAttribute("href", "/plan");
+      const primary = hero.locator(".lpButtonPrimary");
+      await expect(primary).toHaveCount(1);
+      await expect(primary).toContainText("Find my pint");
+      const box = await primary.boundingBox();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);
+      // No equal-weight Map/Plan button pair beside the one primary.
+      await expect(hero.locator(".lpButtonQuiet")).toHaveCount(0);
+    });
+  }
 });

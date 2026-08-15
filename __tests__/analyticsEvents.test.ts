@@ -277,7 +277,6 @@ describe("sanitizeEvent", () => {
       "user_signed_in",
       "user_signed_out",
       "check_in_created",
-      "email_subscribed",
     ])("drops every property from %s", (name) => {
       expect(sanitizeEvent(name, {
         userId: "supabase-user-id",

@@ -503,7 +503,10 @@ export default function LandingPage({
             <div className="lpFooterCol">
               <h2>Get out tonight</h2>
               <Link href={primaryCtaHref} {...warmProps}>The map</Link>
-              <Link href="/near?locate=1">Find my pint</Link>
+              {/* Bare /near: a footer directory tap is browsing, so it must not
+                  fire the geolocation prompt. Only the two deliberate one-tap
+                  CTAs above ask for a location on arrival. */}
+              <Link href="/near">Find my pint</Link>
               <Link href="/tonight">Tonight</Link>
               <Link href="/plan">Plan a night</Link>
             </div>
