@@ -81,6 +81,23 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   );
 }
 
+async function expectHorizontallyInsideViewport(
+  page: Page,
+  locator: Locator,
+  label: string,
+): Promise<void> {
+  await expect(locator, `${label} should be visible`).toBeVisible();
+  const box = await locator.boundingBox();
+  expect(box, `${label} should have a layout box`).not.toBeNull();
+  if (!box) return;
+  const viewportWidth = page.viewportSize()?.width ?? 0;
+  expect(box.x, `${label} should start inside the viewport`).toBeGreaterThanOrEqual(0);
+  expect(
+    box.x + box.width,
+    `${label} should end inside the viewport`,
+  ).toBeLessThanOrEqual(viewportWidth + 1);
+}
+
 async function expectVisibleFocus(locator: Locator, label: string): Promise<void> {
   await locator.focus();
   await expect(locator, `${label} should receive keyboard focus`).toBeFocused();
@@ -108,20 +125,25 @@ async function assertLandingContract(page: Page): Promise<void> {
 
   const actions = page.locator(".drinkBrandLanding__actions");
   await expectAboveFold(page, actions, "brand actions");
-  await expect(actions.getByRole("link", { name: `Find ${BRAND} on Map`, exact: true })).toHaveAttribute(
+  const primaryAction = actions.getByRole("link", { name: `Find ${BRAND} on Map`, exact: true });
+  const secondaryAction = actions.getByRole("link", {
+    name: `Log a ${BRAND} Pint Price`,
+    exact: true,
+  });
+  await expect(primaryAction).toHaveAttribute(
     "href",
     "/map?drink=beer&brand=guinness",
   );
-  await expect(actions.getByRole("link", { name: `Log a ${BRAND} Pint Price`, exact: true })).toHaveAttribute(
+  await expect(secondaryAction).toHaveAttribute(
     "href",
     "/map?drink=beer&brand=guinness&log=1",
   );
   await expectTouchTarget(
-    actions.getByRole("link", { name: `Find ${BRAND} on Map`, exact: true }),
+    primaryAction,
     "Find on Map action",
   );
   await expectTouchTarget(
-    actions.getByRole("link", { name: `Log a ${BRAND} Pint Price`, exact: true }),
+    secondaryAction,
     "Log Pint Price action",
   );
 
@@ -134,8 +156,12 @@ async function assertLandingContract(page: Page): Promise<void> {
 
   for (let index = 0; index < 20; index += 1) {
     const row = rows.nth(index);
+    const rank = row.locator(".drinkBrandLanding__rank");
+    const price = row.locator(".drinkBrandLanding__price");
     await expect(row.locator(".drinkBrandLanding__venue")).toHaveCount(1);
     await expect(row.locator(".drinkBrandLanding__publisher")).toHaveCount(1);
+    await expectHorizontallyInsideViewport(page, rank, `row ${index + 1} rank`);
+    await expectHorizontallyInsideViewport(page, price, `row ${index + 1} price`);
     await expectTouchTarget(row.locator(".drinkBrandLanding__venue"), `row ${index + 1} Ledger link`);
     const publisherLink = row.locator(".drinkBrandLanding__publisher a");
     if (await publisherLink.count()) {
@@ -143,11 +169,15 @@ async function assertLandingContract(page: Page): Promise<void> {
     }
   }
 
+  await expectVisibleFocus(primaryAction, "Find on Map action");
+  await expectVisibleFocus(secondaryAction, "Log Pint Price action");
+  await expectVisibleFocus(rows.first().locator(".drinkBrandLanding__venue"), "Ledger row link");
   await expectVisibleFocus(
-    actions.getByRole("link", { name: `Find ${BRAND} on Map`, exact: true }),
-    "Find on Map action",
+    rows.first().locator(".drinkBrandLanding__publisher a"),
+    "publisher link",
   );
   await expectNoHorizontalOverflow(page);
+  await page.evaluate(() => window.scrollTo(0, 0));
 }
 
 for (const viewport of MOBILE_VIEWPORTS) {

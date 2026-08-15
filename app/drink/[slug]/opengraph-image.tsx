@@ -28,8 +28,12 @@ export default async function Image({
   if (!landing) notFound();
 
   const brand = clampText(landing.brandLabel, 24);
-  const cheapest = priceStamp(landing.rows[0].priceGbp);
+  const firstRow = landing.rows[0];
+  const cheapest = priceStamp(firstRow.priceGbp);
   const pricedVenueCount = landing.totalPricedVenues;
+  const publisherStatus = firstRow.publisher
+    ? `Publisher: ${firstRow.publisher.label}`
+    : "Publisher not recorded";
   const route = `/drink/${encodeURIComponent(landing.slug)}`;
 
   return new ImageResponse(
@@ -105,7 +109,7 @@ export default async function Image({
           fontSize: 22,
         }}
       >
-        <div style={{ display: "flex" }}>PUBMAXX pint evidence</div>
+        <div style={{ display: "flex" }}>{publisherStatus}</div>
         <div style={{ display: "flex", color: OG.inkSoft }}>{`pubmaxxing.com${route}`}</div>
       </div>
     </CardShell>,

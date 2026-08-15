@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it, vi } from "vitest";
@@ -6,7 +6,13 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 vi.mock("next/og", () => ({
-  ImageResponse: class ImageResponse {},
+  ImageResponse: class ImageResponse {
+    element: unknown;
+
+    constructor(element: unknown) {
+      this.element = element;
+    }
+  },
 }));
 
 vi.mock("@/lib/siteUrlConfig.mjs", () => ({
@@ -60,7 +66,7 @@ describe("governed drink brand landing page", () => {
     ]);
   });
 
-  it("keeps route rendering static and revalidates the bundled evidence daily", () => {
+  it("keeps governed route constants while nonce headers make the document dynamic", () => {
     expect(dynamicParams).toBe(false);
     expect(revalidate).toBe(86_400);
   });
@@ -109,9 +115,40 @@ describe("governed drink brand landing page", () => {
       createElement(DrinkBrandLandingContent, { landing: model }),
     );
 
-    expect(html).toContain("Publisher not recorded");
+    expect(html.match(/Publisher not recorded/g)).toHaveLength(2);
     expect(html).not.toContain('target="_blank"');
     expect(html).not.toContain('href="http');
+  });
+
+  it("links the hero price to the exact publisher carried by its first row", () => {
+    const model: DrinkBrandLanding = {
+      slug: "guinness",
+      brandLabel: "Guinness",
+      collectedAt: "2026-07-03T12:00:00.000Z",
+      totalPricedVenues: 20,
+      rows: [
+        {
+          rank: 1,
+          venueId: "venue-1",
+          venueName: "Test Venue",
+          borough: "Camden",
+          pintName: "Guinness",
+          priceGbp: 3.09,
+          publisher: {
+            label: "Exact Publisher",
+            url: "https://publisher.example/price-1",
+          },
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(DrinkBrandLandingContent, { landing: model }),
+    );
+
+    expect(html).toContain("From £3.09");
+    expect(html).toContain('class="drinkBrandLanding__fromPublisher"');
+    expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(2);
   });
 
   it("binds metadata to the canonical route and leaves unknown brands noindex", async () => {
@@ -119,10 +156,18 @@ describe("governed drink brand landing page", () => {
       generateMetadata({ params: Promise.resolve({ slug: "guinness" }) }),
     ).resolves.toMatchObject({
       title: "Cheapest Guinness Pints in London",
+      description:
+        "347 London venues with listed Guinness pints from £3.09. Publisher: Pint Prices.",
       alternates: { canonical: "/drink/guinness" },
       openGraph: {
         type: "website",
         url: "/drink/guinness",
+        description:
+          "347 London venues with listed Guinness pints from £3.09. Publisher: Pint Prices.",
+      },
+      twitter: {
+        description:
+          "347 London venues with listed Guinness pints from £3.09. Publisher: Pint Prices.",
       },
     });
 
@@ -165,5 +210,18 @@ describe("governed drink brand landing page", () => {
         params: Promise.resolve({ slug: "not-a-brand" }),
       }),
     ).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/);
+  });
+
+  it("names the exact first-row publisher beside the Open Graph price", async () => {
+    const response = await DrinkBrandLandingImage({
+      params: Promise.resolve({ slug: "guinness" }),
+    });
+    const html = renderToStaticMarkup(
+      (response as unknown as { element: ReactElement }).element,
+    );
+
+    expect(html).toContain("£3.09");
+    expect(html).toContain("Publisher: Pint Prices");
+    expect(html).not.toContain("PUBMAXX pint evidence");
   });
 });

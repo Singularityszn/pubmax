@@ -3,10 +3,7 @@ import Link from "next/link";
 import PriceBadge from "@/components/PriceBadge";
 import { formatObservedDate } from "@/lib/dataFreshness";
 import type { DrinkBrandLanding, DrinkBrandLandingRow } from "@/lib/drinkBrandLanding";
-
-function formatPrice(value: number): string {
-  return `£${value.toFixed(2)}`;
-}
+import { formatPrice } from "@/lib/venues";
 
 function formatCollectedDate(iso: string): string {
   return formatObservedDate(new Date(iso));
@@ -20,19 +17,30 @@ function contributionHref(slug: string): string {
   return `${mapHref(slug)}&log=1`;
 }
 
-function Publisher({ row }: { row: DrinkBrandLandingRow }) {
-  if (!row.publisher) {
-    return <span>Publisher not recorded</span>;
-  }
-
+function PublisherDisclosure({
+  className,
+  row,
+}: {
+  className: string;
+  row: DrinkBrandLandingRow;
+}) {
   return (
-    <a
-      href={row.publisher.url}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      {row.publisher.label}
-    </a>
+    <span className={className}>
+      {row.publisher ? (
+        <>
+          <span>Publisher: </span>
+          <a
+            href={row.publisher.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {row.publisher.label}
+          </a>
+        </>
+      ) : (
+        "Publisher not recorded"
+      )}
+    </span>
   );
 }
 
@@ -41,7 +49,8 @@ export default function DrinkBrandLandingContent({
 }: {
   landing: DrinkBrandLanding;
 }) {
-  const lowestPrice = formatPrice(landing.rows[0].priceGbp);
+  const firstRow = landing.rows[0];
+  const lowestPrice = formatPrice(firstRow.priceGbp);
 
   return (
     <>
@@ -53,6 +62,11 @@ export default function DrinkBrandLandingContent({
         <h1>Cheapest {landing.brandLabel} Pints in London</h1>
         <p className="drinkBrandLanding__from">
           <strong>From {lowestPrice}</strong>
+          <br />
+          <PublisherDisclosure
+            className="drinkBrandLanding__fromPublisher"
+            row={firstRow}
+          />
         </p>
         <p className="drinkBrandLanding__summary">
           {landing.totalPricedVenues} venues with listed {landing.brandLabel} pints. Collected{" "}
@@ -90,16 +104,10 @@ export default function DrinkBrandLandingContent({
                 </Link>
                 <span className="drinkBrandLanding__borough">{row.borough}</span>
                 <span className="drinkBrandLanding__pint">{row.pintName}</span>
-                <span className="drinkBrandLanding__publisher">
-                  {row.publisher ? (
-                    <>
-                      <span className="drinkBrandLanding__publisherLabel">Publisher: </span>
-                      <Publisher row={row} />
-                    </>
-                  ) : (
-                    <Publisher row={row} />
-                  )}
-                </span>
+                <PublisherDisclosure
+                  className="drinkBrandLanding__publisher"
+                  row={row}
+                />
               </div>
               <PriceBadge variant="current" className="drinkBrandLanding__price">
                 {formatPrice(row.priceGbp)}

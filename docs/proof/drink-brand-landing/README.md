@@ -10,8 +10,12 @@ Browser proof for `/drink/guinness`.
 
 The Playwright journey also checks 320 × 844 and 430 × 932. It verifies the
 governed 347-venue count, 20 cheapest rows, first result, publisher state,
-shared collection date, touch targets, keyboard focus, page width, Map brand
-state, Back restoration, the explicit log picker, and the unknown-brand 404.
+hero price publisher, shared collection date, touch targets, page width, Map
+brand state, Back restoration, the explicit log picker, and the unknown-brand
+404. At 320, 390, and 430 pixels, every one of the 20 rank and price elements
+must be visible and horizontally inside the viewport. Focus proof covers the
+primary action, secondary action, Ledger row link, and publisher link; shared
+route CSS covers the remaining links of each repeated type.
 
 Run the proof with:
 

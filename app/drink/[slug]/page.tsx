@@ -10,6 +10,7 @@ import {
   loadDrinkBrandLanding,
   loadDrinkBrandLandings,
 } from "@/lib/drinkBrandLanding.server";
+import { formatPrice } from "@/lib/venues";
 
 import "./drink.css";
 
@@ -34,8 +35,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const title = `Cheapest ${landing.brandLabel} Pints in London`;
-  const cheapest = landing.rows[0].priceGbp;
-  const description = `${landing.totalPricedVenues} London venues with listed ${landing.brandLabel} pints from £${cheapest.toFixed(2)}.`;
+  const firstRow = landing.rows[0];
+  const publisherStatus = firstRow.publisher
+    ? `Publisher: ${firstRow.publisher.label}.`
+    : "Publisher not recorded.";
+  const description = `${landing.totalPricedVenues} London venues with listed ${landing.brandLabel} pints from ${formatPrice(firstRow.priceGbp)}. ${publisherStatus}`;
   const canonical = `/drink/${encodeURIComponent(landing.slug)}`;
 
   return {

@@ -51,7 +51,7 @@ Publish useful London brand-price pages from PUBMAXX Pint Price evidence. A sear
 ## Search Surface
 
 - Valid pages expose canonical, Open Graph, and Twitter metadata.
-- JSON-LD contains only `BreadcrumbList` and the rendered `ItemList`.
+- Route-specific JSON-LD contains only `BreadcrumbList` and the rendered `ItemList`. The root layout continues to supply the site-wide `WebSite` and `Organization` graph.
 - Breadcrumb starts at canonical `/map`, not a redirecting route.
 - Sitemap entries come from the same governed loader as static params and pages.
 - Runtime tracing includes the shared Pint Price landing data reader for page, sitemap, and Open Graph functions.

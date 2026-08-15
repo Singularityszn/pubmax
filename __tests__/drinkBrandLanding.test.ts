@@ -134,7 +134,7 @@ describe("governed drink brand landings", () => {
     expect(buildDrinkBrandLanding("guinness", belowFloor)).toBeNull();
   });
 
-  it("keeps governance constants private and landing rows non-empty", () => {
+  it("keeps the fixed builder signature and non-empty landing row invariant", () => {
     expectTypeOf(buildDrinkBrandLanding).toEqualTypeOf<
       (slug: string, venues: readonly Venue[]) => DrinkBrandLanding | null
     >();
