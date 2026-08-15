@@ -17,10 +17,10 @@
 - Current governed slugs are derived, never copied into page or sitemap code.
 - Every figure, pint name, and publisher comes from the exact brand-matching Pint Price row.
 - Collection date is shared page context and appears once, never once per row.
-- Primary action opens `/map?drink=beer&brand={slug}`. Secondary text link opens `/map?log=1`.
+- Primary action opens `/map?drink=beer&brand={slug}`. Secondary text link opens `/map?drink=beer&brand={slug}&log=1`, preserves the brand lens, and never chooses a Venue implicitly.
 - Unsupported or thin brands return 404, noindex, and no sitemap entry.
 - Use British spelling, PUBMAXX ubiquitous language, no em dash, and `docs/VOICE.md` price disclosure rules.
-- Mobile width is 390 px. All action and row-navigation targets are at least 44 px. Page has no horizontal overflow.
+- Mobile widths are 320, 390, and 430 px. Lowest listed figure and both actions remain above the fold. All action and row-navigation targets are at least 44 px. Page has no horizontal overflow.
 - Use existing design tokens. Support light, dark, reduced motion, keyboard focus, browser zoom, and safe-area insets.
 
 ---
@@ -137,8 +137,9 @@ expect(await generateStaticParams()).toEqual([
   { slug: "birra-moretti" },
 ]);
 expect(html).toContain("Cheapest Guinness Pints in London");
+expect(html).toContain("From £3.09");
 expect(html).toContain('href="/map?drink=beer&amp;brand=guinness"');
-expect(html).toContain('href="/map?log=1"');
+expect(html).toContain('href="/map?drink=beer&amp;brand=guinness&amp;log=1"');
 expect(html.match(/Collected 3 July 2026\./g)).toHaveLength(1);
 ```
 
@@ -165,7 +166,7 @@ Implement `loadDrinkBrandLanding(slug)` and `loadDrinkBrandLandings()` in `lib/d
 
 - [ ] **Step 4: Implement mobile-first content**
 
-Use semantic `<header>`, `<section>`, and `<ol>`. Primary action is a button-shaped Link. Secondary contribution action is a text Link. Each row keeps rank and price visible at 390 px, wraps Venue and publisher text, and gives Ledger navigation at least 44 px.
+Use semantic `<header>`, `<section>`, and `<ol>`. Put `From {lowest listed price}` and both actions above the fold at 320, 390, and 430 px. Primary action is a button-shaped Link. Secondary contribution action is a text Link. Each row keeps rank and price visible, wraps Venue and publisher text, and gives Ledger navigation at least 44 px.
 
 - [ ] **Step 5: Implement Open Graph image**
 
@@ -260,7 +261,7 @@ git commit -m "feat: index governed drink brand pages"
 
 - [ ] **Step 1: Add browser acceptance test**
 
-At 390x844 with mobile and touch context, assert status 200, exact H1, 347-priced-Venue summary, 20 rows, first result `J.J. Moon's - JD Wetherspoon` at `£3.09`, one collection date, 20 publisher disclosures, primary and secondary destinations, 44 px targets, visible keyboard focus, no horizontal overflow, and no console or page errors. Repeat screenshots in light and dark. At 1440x900 capture light layout. Assert `/drink/not-real` returns 404.
+At 320x844, 390x844, and 430x932 with mobile and touch context, assert status 200, exact H1, above-fold `From £3.09`, 347-priced-Venue summary, both above-fold actions, 20 rows, first result `J.J. Moon's - JD Wetherspoon` at `£3.09`, one collection date, 20 publisher disclosures, 44 px targets, visible keyboard focus, no horizontal overflow, and no console or page errors. Click the primary route and prove active brand Map state, then Back restores `/drink/guinness`. Click the secondary route and prove Venue selection opens while `drink=beer`, `brand=guinness`, and `log=1` remain in the URL. Capture 390 px light and dark plus 1440x900 light. Assert `/drink/not-real` returns 404.
 
 - [ ] **Step 2: Run focused browser proof**
 

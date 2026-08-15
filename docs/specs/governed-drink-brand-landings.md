@@ -31,16 +31,17 @@ Publish useful London brand-price pages from PUBMAXX Pint Price evidence. A sear
 - Unsupported and below-floor brands return 404, use noindex metadata, stay out of static params, and stay out of sitemap.
 - Canonical URL: `/drink/{slug}`.
 - Map URL: `/map?drink=beer&brand={slug}`.
-- Contribution URL: `/map?log=1`.
+- Contribution URL: `/map?drink=beer&brand={slug}&log=1`. The log flow opens Venue selection and keeps the brand lens. It never chooses a Venue implicitly.
 
 ## Mobile Surface
 
 - One H1: `Cheapest {brand} Pints in London`.
+- One immediate `From {lowest listed price}` answer above the fold.
 - One concise count and shared collection date.
 - One primary button: `Find {brand} on Map`.
-- One secondary text link: `Log a Pint Price`.
+- One secondary text link: `Log a {brand} Pint Price`.
 - One cheapest-first semantic list with rank, Venue, borough, exact pint name, publisher, and price.
-- Rank and price remain visible at 390 px with no horizontal page scroll.
+- Rank and price remain visible at 320, 390, and 430 px with no horizontal page scroll.
 - Action and row navigation targets are at least 44 px.
 - Every interactive element has visible focus.
 - Light and dark themes use existing PUBMAXX tokens and respect reduced motion.
@@ -56,5 +57,4 @@ Publish useful London brand-price pages from PUBMAXX Pint Price evidence. A sear
 
 - Domain and page tests prove exact row binding, publisher binding, floor, stable sorting, 404, metadata, Map and contribution destinations, collection date, and JSON-LD.
 - Sitemap tests prove the exact governed route set.
-- Browser proof covers 390x844 light and dark, 1440x900, touch sizes, keyboard focus, no horizontal overflow, route destinations, console errors, and unknown-brand 404.
-
+- Browser proof covers 320x844, 390x844 light and dark, 430x932, and 1440x900. It proves above-fold answer and actions, touch sizes, keyboard focus, no horizontal overflow, Map lens state, brand-preserving log flow, Back restoration, console errors, and unknown-brand 404.
