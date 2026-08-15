@@ -5,6 +5,7 @@ import Image from "next/image";
 import VenuePhotoModeration, {
   type ModeratorVenuePhoto,
 } from "./VenuePhotoModeration";
+import CoverageDemandQueue from "./CoverageDemandQueue";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
@@ -80,7 +81,7 @@ type ModeratorProfileAvatar = {
   previewUrl?: string;
 };
 
-type AdminTab = "moderation" | "import" | "operators";
+type AdminTab = "moderation" | "import" | "operators" | "coverage";
 
 // Operator rail (Wayfinder 3.5) review DTOs, as returned by the moderator GETs.
 type OperatorClaimRow = {
@@ -118,6 +119,10 @@ const SESSION_FETCH: RequestInit = { credentials: "include" };
 function readStoredToken(): string {
   if (typeof window === "undefined") return "";
   return window.localStorage.getItem(TOKEN_KEY) ?? "";
+}
+
+function isAdminFailureMessage(message: string): boolean {
+  return message.startsWith("Not authorised") || message.startsWith("Could not");
 }
 
 async function establishSession(token: string): Promise<boolean> {
@@ -816,6 +821,15 @@ export default function AdminClient() {
         >
           Operators
         </button>
+        <button
+          type="button"
+          role="tab"
+          className="admin-tab"
+          aria-selected={tab === "coverage"}
+          onClick={() => setTab("coverage")}
+        >
+          Coverage demand
+        </button>
       </div>
 
       <div className="admin-bar">
@@ -841,11 +855,7 @@ export default function AdminClient() {
           {message ? (
             <div
               className="admin-msg"
-              role={
-                message.startsWith("Not authorised") || message.startsWith("Could not")
-                  ? "alert"
-                  : "status"
-              }
+              role={isAdminFailureMessage(message) ? "alert" : "status"}
             >
               {message}
             </div>
@@ -1382,7 +1392,7 @@ export default function AdminClient() {
             )}
           </div>
         </>
-      ) : (
+      ) : tab === "operators" ? (
         <>
           <h2 className="admin-section" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
             Operator rail
@@ -1506,6 +1516,11 @@ export default function AdminClient() {
             </div>
           )}
         </>
+      ) : (
+        <CoverageDemandQueue
+          ensureAdminSession={ensureAdminSession}
+          retryWithFreshSession={retryWithFreshSession}
+        />
       )}
     </main>
   );

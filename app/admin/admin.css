@@ -67,6 +67,7 @@
 }
 
 .admin-btn {
+  min-height: 44px;
   padding: 0.55rem 0.9rem;
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);
@@ -123,6 +124,7 @@
 }
 
 .admin-card {
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
@@ -131,6 +133,7 @@
 
 .admin-card-head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
   gap: 0.5rem;
@@ -138,6 +141,10 @@
 }
 
 .admin-handle {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: inherit;
   font-weight: 600;
   color: var(--ink);
 }
@@ -210,11 +217,13 @@
 
 .admin-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   margin: 0 0 1.25rem;
 }
 
 .admin-tab {
+  min-height: 44px;
   padding: 0.45rem 0.85rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -225,7 +234,8 @@
   cursor: pointer;
 }
 
-.admin-tab.active {
+.admin-tab.active,
+.admin-tab[aria-selected="true"] {
   border-color: var(--brass);
   background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
   color: var(--ink);

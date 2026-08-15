@@ -38,6 +38,53 @@ export type RecordAreaDemandOutcome = {
   failed?: true;
 };
 
+export const AREA_DEMAND_SUMMARY_DEFAULT_LIMIT = 50;
+export const AREA_DEMAND_SUMMARY_MAX_LIMIT = 100;
+export const AREA_DEMAND_SUMMARY_DEFAULT_DAYS = 90;
+export const AREA_DEMAND_SUMMARY_MAX_DAYS = 365;
+
+export type AreaDemandSummaryOptions = Readonly<{
+  limit: number;
+  sinceDays: number;
+}>;
+
+export type AreaDemandSummary = Readonly<{
+  area: string;
+  areaKey: string;
+  matchedPatchId: string | null;
+  signalCount: number;
+  sourceCounts: Readonly<Record<AreaDemandSource, number>>;
+  firstSeen: string;
+  lastSeen: string;
+}>;
+
+export type AreaDemandSummaryResult = Readonly<{
+  items: readonly AreaDemandSummary[];
+  partial: boolean;
+  status: "ready" | "degraded";
+}>;
+
+export function normaliseAreaDemandSummaryOptions(
+  input: Partial<AreaDemandSummaryOptions> = {},
+): AreaDemandSummaryOptions {
+  const rawLimit = Number.isFinite(input.limit)
+    ? Math.floor(input.limit ?? 0)
+    : 0;
+  const rawSinceDays = Number.isFinite(input.sinceDays)
+    ? Math.floor(input.sinceDays ?? 0)
+    : 0;
+  return {
+    limit:
+      rawLimit > 0
+        ? Math.min(rawLimit, AREA_DEMAND_SUMMARY_MAX_LIMIT)
+        : AREA_DEMAND_SUMMARY_DEFAULT_LIMIT,
+    sinceDays:
+      rawSinceDays > 0
+        ? Math.min(rawSinceDays, AREA_DEMAND_SUMMARY_MAX_DAYS)
+        : AREA_DEMAND_SUMMARY_DEFAULT_DAYS,
+  };
+}
+
 export type AreaDemandStore = {
   /**
    * Record one demand signal. NEVER throws; a durable write that hard-fails
@@ -50,11 +97,20 @@ export type AreaDemandStore = {
   /** Count of recorded signals for an area (case-insensitive), for prioritising
    *  coverage. NEVER throws; a read failure resolves 0. */
   countForArea(area: string): Promise<number>;
+  /** Ranked, privacy-safe coverage demand. Contact fields never leave the
+   *  store. `partial` means the durable safety cap was reached. */
+  listSummary(
+    options?: Partial<AreaDemandSummaryOptions>,
+    now?: number,
+  ): Promise<AreaDemandSummaryResult>;
 };
 
 // Bound process memory in a long-lived server — evict the oldest rows past this
 // many (the durable table has no such cap).
 const MAX_ROWS = 50_000;
+const DAY_MS = 86_400_000;
+const SUMMARY_PAGE_SIZE = 1_000;
+const SUMMARY_ROW_CAP = 20_000;
 
 // ── In-memory implementation ─────────────────────────────────────────────────
 type DemandRecord = {
@@ -66,12 +122,81 @@ type DemandRecord = {
   createdAt: number;
 };
 
-// Module-level so it persists across requests within a process; never a browser
-// global.
-const rows: DemandRecord[] = [];
+// Anchor keyless data to the server process. Next can evaluate the public write
+// route and admin read route in separate module bundles, so a module-local array
+// would make a recorded signal disappear from the admin queue.
+const areaDemandMemoryGlobal = globalThis as typeof globalThis & {
+  __pubmaxAreaDemandRows?: DemandRecord[];
+};
+const rows = areaDemandMemoryGlobal.__pubmaxAreaDemandRows ??= [];
 
 function areaKey(area: string): string {
   return area.toLowerCase();
+}
+
+type DemandSummaryRow = Omit<DemandRecord, "email">;
+
+function emptySourceCounts(): Record<AreaDemandSource, number> {
+  return { "near-empty": 0, "area-picker": 0, "map-miss": 0 };
+}
+
+function summariseRows(
+  summaryRows: readonly DemandSummaryRow[],
+  limit: number,
+): AreaDemandSummary[] {
+  const grouped = new Map<
+    string,
+    {
+      area: string;
+      areaKey: string;
+      matchedPatchId: string | null;
+      signalCount: number;
+      sourceCounts: Record<AreaDemandSource, number>;
+      firstSeen: number;
+      lastSeen: number;
+    }
+  >();
+
+  for (const row of summaryRows) {
+    const key = `${row.areaKey}\u0000${row.matchedPatchId ?? ""}`;
+    const existing = grouped.get(key);
+    if (!existing) {
+      const sourceCounts = emptySourceCounts();
+      sourceCounts[row.source] = 1;
+      grouped.set(key, {
+        area: row.area,
+        areaKey: row.areaKey,
+        matchedPatchId: row.matchedPatchId,
+        signalCount: 1,
+        sourceCounts,
+        firstSeen: row.createdAt,
+        lastSeen: row.createdAt,
+      });
+      continue;
+    }
+
+    existing.signalCount += 1;
+    existing.sourceCounts[row.source] += 1;
+    existing.firstSeen = Math.min(existing.firstSeen, row.createdAt);
+    if (row.createdAt >= existing.lastSeen) {
+      existing.area = row.area;
+      existing.lastSeen = row.createdAt;
+    }
+  }
+
+  return [...grouped.values()]
+    .sort(
+      (a, b) =>
+        b.signalCount - a.signalCount ||
+        b.lastSeen - a.lastSeen ||
+        a.areaKey.localeCompare(b.areaKey),
+    )
+    .slice(0, limit)
+    .map((row) => ({
+      ...row,
+      firstSeen: new Date(row.firstSeen).toISOString(),
+      lastSeen: new Date(row.lastSeen).toISOString(),
+    }));
 }
 
 export const memoryAreaDemandStore: AreaDemandStore = {
@@ -94,6 +219,17 @@ export const memoryAreaDemandStore: AreaDemandStore = {
     const key = areaKey(area.trim());
     if (!key) return 0;
     return rows.reduce((count, row) => (row.areaKey === key ? count + 1 : count), 0);
+  },
+
+  async listSummary(inputOptions, now = Date.now()) {
+    const options = normaliseAreaDemandSummaryOptions(inputOptions);
+    const cutoff = now - options.sinceDays * DAY_MS;
+    const summaryRows = rows.filter((row) => row.createdAt >= cutoff);
+    return {
+      items: summariseRows(summaryRows, options.limit),
+      partial: rows.length === MAX_ROWS,
+      status: "ready",
+    };
   },
 };
 
@@ -155,6 +291,72 @@ export const supabaseAreaDemandStore: AreaDemandStore = {
           .eq("area_key", key);
         if (error) throw new Error(error.message);
         return typeof count === "number" ? count : 0;
+      },
+    });
+  },
+
+  async listSummary(inputOptions, now = Date.now()) {
+    const options = normaliseAreaDemandSummaryOptions(inputOptions);
+    const cutoff = new Date(now - options.sinceDays * DAY_MS).toISOString();
+    const empty: AreaDemandSummaryResult = {
+      items: [],
+      partial: false,
+      status: "degraded",
+    };
+    return guard<AreaDemandSummaryResult>({
+      context: "listSummary",
+      onSchemaMiss: async () => ({
+        ...(await memoryAreaDemandStore.listSummary(options, now)),
+        status: "degraded",
+      }),
+      message: "listSummary failed - returning no summary",
+      onError: () => empty,
+      run: async () => {
+        const summaryRows: DemandSummaryRow[] = [];
+        let offset = 0;
+        let rowsRead = 0;
+        let exhausted = false;
+
+        while (rowsRead < SUMMARY_ROW_CAP) {
+          const pageSize = Math.min(
+            SUMMARY_PAGE_SIZE,
+            SUMMARY_ROW_CAP - rowsRead,
+          );
+          const { data, error } = await requireSupabaseAdmin()
+            .from("area_demand")
+            .select("area,area_key,matched_patch_id,source,created_at")
+            .gte("created_at", cutoff)
+            .order("created_at", { ascending: false })
+            .range(offset, offset + pageSize - 1);
+          if (error) throw new Error(error.message);
+
+          const page = data ?? [];
+          rowsRead += page.length;
+          for (const raw of page) {
+            const area = normaliseArea(raw.area);
+            const createdAt = Date.parse(raw.created_at);
+            if (!area || !Number.isFinite(createdAt)) continue;
+            summaryRows.push({
+              area,
+              areaKey: areaKey(raw.area_key || area),
+              matchedPatchId: raw.matched_patch_id ?? null,
+              source: coerceAreaDemandSource(raw.source),
+              createdAt,
+            });
+          }
+
+          if (page.length < pageSize) {
+            exhausted = true;
+            break;
+          }
+          offset += page.length;
+        }
+
+        return {
+          items: summariseRows(summaryRows, options.limit),
+          partial: !exhausted,
+          status: "ready",
+        };
       },
     });
   },
