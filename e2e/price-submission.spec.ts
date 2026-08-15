@@ -104,8 +104,14 @@ async function installContributorBoundary(
 }> {
   await seedSignedInSession(page);
   let onboardingComplete = !options.requireOnboarding;
+  let lastSubmittedAt = Date.now();
   const submittedPrices: SubmittedPrice[] = [];
   const submittedSignals: SubmittedSignal[] = [];
+
+  const nextSubmittedAt = (): number => {
+    lastSubmittedAt = Math.max(lastSubmittedAt + 1, Date.now());
+    return lastSubmittedAt;
+  };
 
   await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
     await route.fulfill({
@@ -195,7 +201,7 @@ async function installContributorBoundary(
         venueId: body.venueId,
         signalKey: body.signalKey,
         signalValue: body.signalValue,
-        submittedAt: Date.now(),
+        submittedAt: nextSubmittedAt(),
         source: "community",
         corroborations: 1,
       };
@@ -212,7 +218,7 @@ async function installContributorBoundary(
       venueId: body.venueId,
       drinkCategory: body.drinkCategory,
       priceGbp: body.priceGbp,
-      submittedAt: Date.now(),
+      submittedAt: nextSubmittedAt(),
       source: "community",
       corroborations: 1,
     };
@@ -264,6 +270,7 @@ test("an over-limit drink price is blocked before any network attempt", async ({
       writes += 1;
     }
   });
+  await installContributorBoundary(page, { requireOnboarding: false });
 
   const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
   expect(response?.status()).toBe(200);
@@ -548,10 +555,16 @@ test("a person can log soft-drink, alcohol-free and coffee prices from the pub s
     ).toBe(Number(entry.price));
   }
 
-  // Freshest across categories wins the overview row; coffee was last.
+  // The default pint lane has no submitted beer, so menu order leads with
+  // alcohol-free. Coffee remains its own row rather than replacing another
+  // category's observation.
   const communityRow = venueSheet.locator(".communityPriceRow");
-  await expect(communityRow).toContainText("Coffee");
-  await expect(communityRow).toContainText("£2.50");
+  await expect(communityRow).toContainText("Alcohol-free");
+  await expect(communityRow).toContainText("£4.60");
+  const coffeeRow = venueSheet.locator(".venueDrinkPriceRow", {
+    hasText: "Coffee",
+  });
+  await expect(coffeeRow).toContainText("£2.50");
   expect(errors).toEqual([]);
 });
 
