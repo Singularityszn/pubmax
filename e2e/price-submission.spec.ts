@@ -311,6 +311,7 @@ test("a drinker logs tonight's price after completing private signup", async ({
     requireOnboarding: true,
   });
   await page.route("**/api/profiles/night_owl/lane-stats", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -325,6 +326,18 @@ test("a drinker logs tonight's price after completing private signup", async ({
         },
       }),
     });
+  });
+
+  await page.addInitScript(() => {
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    const browser = window as typeof window & { __impactScrolls?: number };
+    browser.__impactScrolls = 0;
+    Element.prototype.scrollIntoView = function (...args) {
+      if (this instanceof HTMLElement && this.id === "contribution-impact") {
+        browser.__impactScrolls = (browser.__impactScrolls ?? 0) + 1;
+      }
+      return originalScrollIntoView.apply(this, args);
+    };
   });
 
   const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
@@ -480,12 +493,18 @@ test("a drinker logs tonight's price after completing private signup", async ({
   await expect(impact).toBeVisible();
   await expect(impact.locator(".contribStatValue").first()).toHaveText("1");
   await expect(impact.locator(".contribStatLabel").first()).toHaveText("price");
+  await expect(page.locator(".contribNudge")).toHaveCount(0);
   await expect.poll(() =>
     impact.evaluate((element) => {
       const rect = element.getBoundingClientRect();
       return rect.top < window.innerHeight && rect.bottom > 0;
     }),
   ).toBe(true);
+  expect(
+    await page.evaluate(
+      () => (window as typeof window & { __impactScrolls?: number }).__impactScrolls ?? 0,
+    ),
+  ).toBe(1);
   const arrivalWelcome = page.locator(".arrivalWelcome");
   if (await arrivalWelcome.isVisible()) {
     await expect.poll(async () => {
