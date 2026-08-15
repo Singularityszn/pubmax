@@ -1,0 +1,176 @@
+.priceLandingPage {
+  min-height: 100vh;
+  padding: 1rem 1rem 7rem;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.priceLandingContent {
+  width: min(100%, 48rem);
+  margin: 2rem auto 0;
+}
+
+.priceLandingHead {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+}
+
+.priceLandingEyebrow,
+.priceLandingHead h1,
+.priceLandingSummary,
+.priceLandingRanked h2 {
+  margin: 0;
+}
+
+.priceLandingEyebrow,
+.priceLandingRankedHead > span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.priceLandingHead h1 {
+  max-width: 18ch;
+  font-size: clamp(2rem, 7vw, 4.5rem);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.priceLandingSummary {
+  max-width: 42rem;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.priceLandingMapLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 0.65rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.priceLandingRanked {
+  margin-top: 2.5rem;
+}
+
+.priceLandingRankedHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 1rem;
+  padding: 0 0.25rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+}
+
+.priceLandingRanked h2 {
+  font-size: 1.1rem;
+}
+
+.priceLandingList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.priceLandingRow {
+  display: grid;
+  min-height: 82px;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 0.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 13%, transparent);
+}
+
+.priceLandingRank {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.priceLandingVenue {
+  display: grid;
+  min-width: 0;
+}
+
+.priceLandingVenueLink {
+  display: grid;
+  min-height: 44px;
+  align-content: center;
+  gap: 0.22rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.priceLandingName {
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+  font-weight: 780;
+}
+
+.priceLandingMeta,
+.priceLandingPublisher {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.priceLandingPublisher {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  text-underline-offset: 0.18em;
+}
+
+.priceLandingPrice {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--pint);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: clamp(1.05rem, 5vw, 1.35rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+
+.priceLandingRow:hover,
+.priceLandingRow:focus-within {
+  background: color-mix(in srgb, var(--pint) 8%, transparent);
+}
+
+.priceLandingMapLink:focus-visible,
+.priceLandingVenueLink:focus-visible,
+.priceLandingPublisher:focus-visible,
+.priceLandingPrice:focus-visible {
+  border-radius: 0.3rem;
+  outline: 2px solid var(--pint);
+  outline-offset: 2px;
+}
+
+@media (max-width: 430px) {
+  .priceLandingPage {
+    padding-inline: 0.75rem;
+  }
+
+  .priceLandingContent {
+    margin-top: 1.5rem;
+  }
+
+  .priceLandingRow {
+    grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+    gap: 0.55rem;
+  }
+}

@@ -2,7 +2,7 @@
 <img width="320" height="168" alt="opengraph-image-pwu6ef" src="https://github.com/user-attachments/assets/a405a37f-1a1a-4e8d-8fd6-269ee6d4fba6" />
 </a>
 
-# Skills For Design Engineers
+# Skills For Designers and Engineers
 
 [![skills.sh](https://skills.sh/b/emilkowalski/skills)](https://skills.sh/emilkowalski/skills)
 
@@ -16,9 +16,9 @@ All the skills here are a side-effect of domain-expertise. AI doesn’t replace 
 
 So learn to code, design, or develop expertise in any other field. It’s extremely valuable.
 
-You’ll build animation expertise here:
+You can stay up to date with my skills here:
 
-[Check out animations.dev](https://animations.dev/)
+[Sign Up To The Newsletter](https://animations.dev/skills)
 
 ## Install
 
@@ -30,18 +30,21 @@ npx skills@latest add emilkowalski/skills
 
 Agents don’t have great taste
 
-I have seen plenty of times that agents don’t pick the right ingredients for an animation. An `ease-in` easing for an enter animation when it’s supposed to be `ease-out` ([here’s why](https://emilkowal.ski/ui/7-practical-animation-tips#4.-choose-the-right-easing)). Or they choose a solid border instead of a semi-transparent shadow.
+I have seen plenty of times that agents don’t pick the right ingredients for an animation. An `ease-in` easing for an enter animation when it’s supposed to be `ease-out` ([here’s why](https://emilkowal.ski/ui/7-practical-animation-tips#4.-choose-the-right-easing)). Or they choose a solid border instead of a semi-transparent shadow for your UIs.
 
-All these little things compound and make your interface either amazing, or just... not that great.
+All these small things compound and make your interface either amazing, or just... not that great.
 
 As explained in [Agents with Taste](https://emilkowal.ski/ui/agents-with-taste), these skills list all the little mistakes agents can potentially make and explain how to fix them.
 
 This is your shortcut to great interfaces. A shortcut to stand out in a sea of slop.
 
-
 ## Reference
 
-- **[emil-design-eng](./skills/emil-design-eng/SKILL.md)** — The main skill that consinsts of mostly animation, but also some design advice.
+- **[emil-design-eng](./skills/emil-design-eng/SKILL.md)** — The main skill that consists of mostly animation, but also some design advice.
 - **[review-animations](./skills/review-animations/SKILL.md)** — Review your animations in a strict way, based on my rules.
+- **[improve-animations](./skills/improve-animations/SKILL.md)** — Audit all the animations in your codebase and get prioritized, self-contained plans that any agent can execute.
+- **[find-animation-opportunities](./skills/find-animation-opportunities/SKILL.md)** — Search your UI for places that would genuinely benefit from motion, while also telling you what not to animate.
 - **[animation-vocabulary](./skills/animation-vocabulary/SKILL.md)** — Get better animations from an AI by telling it exactly what you want by using the right words.
 - **[apple-design](./skills/apple-design/SKILL.md)** — Apple’s principles for interface design and fluid motion, distilled from their WWDC design talks and translated for the web.
+- **[pick-ui-library](./skills/pick-ui-library/SKILL.md)** — Have your agent pick the right library for the task based on libraries I use and trust, instead of letting AI hand-roll a toast component or install an abandoned package.
+- **[prototype](./skills/prototype/SKILL.md)** — Build multiple different versions of a UI piece you describe and go through them using a switcher.

@@ -4,8 +4,8 @@
 // follows real walking roads. Per leg: serve the cached routed geometry, else
 // route it through OpenRouteService foot-walking (server-side ORS_API_KEY), else
 // fall back to the straight segment. Stitched into a single line with a `source`
-// flag ("ors" when any leg routed, "straight" when every leg fell back) so the
-// map draws it SOLID for real roads and DASHED for the approximate fallback.
+// flag ("ors" only when every leg routed, "straight" for a mixed or fully
+// approximate route) so one fallback leg cannot be drawn as real pavement.
 //
 // ALWAYS 200 with a drawable line (fail-soft, never blocks the map). Keyless is
 // the documented default: no ORS_API_KEY ⇒ the straight fallback, no network.
@@ -29,6 +29,8 @@
 // ORS_DAILY_BUDGET default 2000). Over the daily cap ⇒ skip the provider and
 // serve the straight leg — the same fail-soft the keyless/unroutable paths use.
 // Cache hits and the keyless path never call it, so they never consume budget.
+// A route-wide 200/min limiter also sits ahead of the per-client key. That
+// backstop remains effective when a caller rotates forwarded-address values.
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -44,6 +46,7 @@ import {
   stopPairs,
   straightLegCoordinates,
   WALK_ROUTE_MAX_STOPS,
+  WALK_ROUTE_GLOBAL_RATE_LIMIT,
   WALK_ROUTE_RATE_LIMIT,
   WALK_ROUTE_RATE_WINDOW_MS,
   type LngLat,
@@ -92,6 +95,16 @@ async function resolveLegs(stops: LngLat[]): Promise<WalkLeg[]> {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  if (
+    await isLimited(
+      "walk-route:global:local",
+      "walk-route:global",
+      WALK_ROUTE_GLOBAL_RATE_LIMIT,
+      WALK_ROUTE_RATE_WINDOW_MS,
+    )
+  ) {
+    return publicApiError("Too many route requests.", "RATE_LIMITED", 429, { retryable: true });
+  }
   const limiterKey = `walk-route:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, WALK_ROUTE_RATE_LIMIT, WALK_ROUTE_RATE_WINDOW_MS)) {
     return publicApiError("Too many requests.", "RATE_LIMITED", 429, { retryable: true });

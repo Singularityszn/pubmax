@@ -11,6 +11,12 @@ import { resolveNightPatch } from "@/lib/nightPatches";
 import NearMeNow from "./NearMeNow";
 import "./nearPage.css";
 
+export function resolveNearAutoLocate(
+  searchParams: Pick<URLSearchParams, "get">,
+): boolean {
+  return searchParams.get("locate") === "1";
+}
+
 function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
@@ -21,6 +27,7 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
   const searchParams = useSearchParams();
   const patchParam = searchParams.get("patch");
   const initialPatchId = resolveNightPatch(patchParam)?.id ?? null;
+  const autoLocate = resolveNearAutoLocate(searchParams);
 
   return (
     <div className="nmnPage">
@@ -33,10 +40,11 @@ function NearPageBody({ intentWrite }: { intentWrite: boolean }) {
             location. Shareable ?patch= deep links answer immediately. */}
         <NearMeNow
           cityId={cityId}
-          autoLocate={false}
+          autoLocate={autoLocate}
           initialPatchId={initialPatchId}
           syncPatchToUrl
           intentWrite={intentWrite}
+          showPriceTrust
         />
       </main>
     </div>

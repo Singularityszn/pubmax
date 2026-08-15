@@ -70,7 +70,7 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
 
   if (state.kind === "loading") {
     return (
-      <section className="contribCard" aria-labelledby="contrib-title" aria-busy="true">
+      <section id="your-contributions" className="contribCard" aria-labelledby="contrib-title" aria-busy="true">
         <p className="contribKicker" id="contrib-title">Your contributions</p>
         <p className="contribMuted">Counting your pints…</p>
         <ContributorRecordLink />
@@ -80,7 +80,7 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
 
   if (state.kind === "error") {
     return (
-      <section className="contribCard" aria-labelledby="contrib-title">
+      <section id="your-contributions" className="contribCard" aria-labelledby="contrib-title">
         <p className="contribKicker" id="contrib-title">Your contributions</p>
         <p className="contribMuted">Couldn&apos;t load your stats right now.</p>
         <ContributorRecordLink />
@@ -94,7 +94,7 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
   const hasContributed = pintsMapped > 0 || streak.activeDays > 0;
 
   return (
-    <section className="contribCard" aria-labelledby="contrib-title">
+    <section id="your-contributions" className="contribCard" aria-labelledby="contrib-title">
       <p className="contribKicker" id="contrib-title">Your contributions</p>
 
       {!hasContributed ? (

@@ -45,6 +45,21 @@ export function boundsFromCoords(coords: readonly LngLat[]): Bounds | null {
   return { minLng, minLat, maxLng, maxLat };
 }
 
+/** Fit both the numbered stops and every vertex in a routed detour. */
+export function routeBoundsFromCoords(
+  stopCoords: readonly LngLat[],
+  routeCoords: readonly LngLat[],
+): Bounds | null {
+  return boundsFromCoords([...stopCoords, ...routeCoords]);
+}
+
+/** Stable effect identity for stop ids and the names exposed in the SVG label. */
+export function stopsSignature(
+  stops: readonly { venueId: string; venueName: string }[],
+): string {
+  return JSON.stringify(stops.map(({ venueId, venueName }) => ({ venueId, venueName })));
+}
+
 /**
  * Project one `[lng, lat]` into the viewport under an equirectangular fit.
  *

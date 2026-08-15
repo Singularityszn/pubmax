@@ -51,6 +51,7 @@ export const ANALYTICS_EVENTS = {
   // Trusted pint-to-crew handoff. Every prop is fixed-schema and low-cardinality;
   // required-field validation below rejects the whole event on mismatch.
   near_answer_ready: ["source", "resultBand"],
+  near_venue_opened: ["source", "positionBand"],
   venue_accepted: ["source", "hasArea", "hasDate", "hasProvenance"],
   planning_handoff_opened: ["from", "to"],
   planning_handoff_preserved: [
@@ -151,6 +152,7 @@ export const ANALYTICS_EVENTS = {
   price_submitted: ["category"],
   price_submit_failed: ["category", "reason"],
   contribution_gate: ["step"],
+  contribution_impact_opened: [],
   // Press-arrival funnel (the London Pint Index). Three questions, and these
   // events exist to answer exactly those: how many ARRIVED on the Index or one
   // of its dated editions (pint_index_viewed, once per page view), how many
@@ -206,10 +208,22 @@ export const TONIGHT_LOCALITY_BASES = [
 ] as const;
 export type TonightLocalityBasis = (typeof TONIGHT_LOCALITY_BASES)[number];
 
+export const NEAR_ANSWER_SOURCES = [
+  "location",
+  "remembered-area",
+  "picked-area",
+  "default-area",
+] as const;
+export type NearAnswerSource = (typeof NEAR_ANSWER_SOURCES)[number];
+
 export type TrustedHandoffAnalyticsPropsByEvent = {
   near_answer_ready: {
-    source: "location" | "remembered-area" | "picked-area";
+    source: NearAnswerSource;
     resultBand: "0" | "1-3" | "4+";
+  };
+  near_venue_opened: {
+    source: NearAnswerSource;
+    positionBand: "1" | "2-3" | "4+";
   };
   venue_accepted: {
     source: AcceptanceSource;
@@ -325,7 +339,7 @@ const SAFE_STRING_VALUES = new Set([
   "landing", "home", "map", "tonight", "plan", "you", "pal", "borough", "crawl", "recap",
   "shared-plan", "plan-link", "crew-reinvite", "completed_plan",
   "near", "map-search", "direct-plan", "mobile-route-preview",
-  "location", "remembered-area", "picked-area", "0", "1-3", "4+",
+  "location", "remembered-area", "picked-area", "default-area", "0", "1", "1-3", "2-3", "4+",
   "live-location", "remembered-patch", "remembered-borough", "london-default", "other",
   "tonight-lane", "whats-on-quiz", "whats-on-sport", "whats-on-deal", "whats-on-music",
   // fixed actions, states, providers, and fallbacks
@@ -377,6 +391,7 @@ function isAllowedDistrictEventProp(name: AnalyticsEventName, key: string, value
 
 const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   near_answer_ready: ["source", "resultBand"],
+  near_venue_opened: ["source", "positionBand"],
   venue_accepted: ["source", "hasArea", "hasDate", "hasProvenance"],
   planning_handoff_opened: ["from", "to"],
   planning_handoff_preserved: [
@@ -446,8 +461,12 @@ function isAllowedTrustedHandoffEventProp(
   switch (name) {
     case "near_answer_ready":
       return key === "source"
-        ? includesValue(["location", "remembered-area", "picked-area"], value)
+        ? includesValue(NEAR_ANSWER_SOURCES, value)
         : key === "resultBand" && includesValue(["0", "1-3", "4+"], value);
+    case "near_venue_opened":
+      return key === "source"
+        ? includesValue(NEAR_ANSWER_SOURCES, value)
+        : key === "positionBand" && includesValue(["1", "2-3", "4+"], value);
     case "venue_accepted":
       return key === "source"
         ? includesValue(ACCEPTANCE_SOURCES, value)

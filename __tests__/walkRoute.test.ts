@@ -99,11 +99,11 @@ describe("stitchLegCoordinates", () => {
 });
 
 describe("routeSource", () => {
-  it("is straight only when every leg fell back, ors when any leg routed", () => {
+  it("is routed only when every leg has routed geometry", () => {
     const straight: WalkLeg = { fromIndex: 0, toIndex: 1, coordinates: [A, B], source: "straight" };
     const ors: WalkLeg = { fromIndex: 1, toIndex: 2, coordinates: [B, C], source: "ors" };
     expect(routeSource([straight, straight])).toBe("straight");
-    expect(routeSource([straight, ors])).toBe("ors");
+    expect(routeSource([straight, ors])).toBe("straight");
     expect(routeSource([])).toBe("straight");
   });
 });
@@ -119,13 +119,13 @@ describe("legsToLineString", () => {
     expect((feature.geometry as GeoJSON.LineString).coordinates).toEqual([A, B, C]);
   });
 
-  it("marks the line ors when a leg carries routed geometry", () => {
+  it("keeps a mixed line approximate when one leg falls back", () => {
     const legs: WalkLeg[] = [
       { fromIndex: 0, toIndex: 1, coordinates: [A, [-0.099, 51.5139], B], source: "ors" },
       { fromIndex: 1, toIndex: 2, coordinates: [B, C], source: "straight" },
     ];
     const fc = legsToLineString(legs);
-    expect(fc.features[0].properties).toEqual({ source: "ors" });
+    expect(fc.features[0].properties).toEqual({ source: "straight" });
     expect((fc.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([
       A,
       [-0.099, 51.5139],

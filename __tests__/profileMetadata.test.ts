@@ -6,9 +6,36 @@ import { describe, expect, it, vi } from "vitest";
 // (see __tests__/opsFreeze.test.ts).
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
+const resolution = vi.hoisted(() => ({ value: null as null | {
+  profileId: string;
+  requestedHandle: string;
+  currentHandle: string;
+  redirect: boolean;
+} }));
+vi.mock("@/lib/identityHandleStore", () => ({
+  identityHandleStore: () => ({ resolve: async () => resolution.value }),
+}));
+
 import { generateMetadata } from "@/app/u/[handle]/page";
 
 describe("profile route metadata", () => {
+  it("canonicalises a retired handle to its current public handle", async () => {
+    resolution.value = {
+      profileId: "profile-1",
+      requestedHandle: "old_name",
+      currentHandle: "new_name",
+      redirect: true,
+    };
+
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ handle: "old_name" }),
+    });
+
+    expect(metadata.alternates).toEqual({ canonical: "/u/new_name" });
+    expect(metadata.openGraph).toMatchObject({ url: "/u/new_name" });
+    resolution.value = null;
+  });
+
   it("titles a real handle profile with the handle and pins a canonical", async () => {
     const metadata = await generateMetadata({
       params: Promise.resolve({ handle: "Sam" }),

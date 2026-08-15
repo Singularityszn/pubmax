@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { identityHandleStore } from "@/lib/identityHandleStore";
 import { normalizeHandle } from "@/lib/profiles";
 
 import ProfilePageClient from "./ProfilePageClient";
@@ -11,12 +12,11 @@ import ProfilePageClient from "./ProfilePageClient";
 // in this folder, so generateMetadata deliberately sets NO openGraph.images —
 // Next merges the file-convention image in automatically.
 //
-// PRIVACY: the metadata reads ONLY the handle, which is already public in the
-// URL. It never fetches the profile row, drops, saves, or follow graph, so the
-// title/description can never leak anything the page doesn't already render
-// publicly. "you" is the viewer's own sentinel route (it redirects to their
-// real handle client-side), so it is noindex — it is a per-viewer surface, not
-// a public profile.
+// PRIVACY: metadata resolves only the public handle alias. It never fetches
+// drops, saves, or the follow graph, so title/description cannot leak anything
+// beyond the public profile identity. "you" is the viewer's own sentinel route
+// (it redirects to their real handle client-side), so it is noindex - it is a
+// per-viewer surface, not a public profile.
 
 const YOU_SENTINEL = "you";
 
@@ -35,9 +35,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const title = `@${handle}`;
-  const description = `@${handle}'s pint passport on PUBMAXX. Their Pint Drops, saved venues, and the crawls they've walked.`;
-  const url = `/u/${handle}`;
+  // Handle aliases are public identity data. Resolve them before emitting
+  // canonical and social URLs so a retired handle does not create a second
+  // indexable profile document or share stale attribution.
+  const resolution = await identityHandleStore()
+    .resolve(handle)
+    .catch(() => null);
+  const canonicalHandle = normalizeHandle(resolution?.currentHandle) || handle;
+
+  const title = `@${canonicalHandle}`;
+  const description = `@${canonicalHandle}'s pint passport on PUBMAXX. Their Pint Drops, saved venues, and the crawls they've walked.`;
+  const url = `/u/${canonicalHandle}`;
 
   return {
     title,

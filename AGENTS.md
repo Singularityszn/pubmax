@@ -1,5 +1,23 @@
 # AGENTS.md
 
+## Global writing rules
+
+- Use ASD-STE100 Simplified Technical English in all communication.
+- Before each task, find and read all `CONTEXT.md` files in the repository. Use
+  the ubiquitous language that these files define.
+- Never use the em dash. Use a plain dash instead.
+- Never add an agent name as a commit co-author.
+- Never manually modify `CHANGELOG.md` or any auto-generated file.
+
+## UI descriptions
+
+- Do not add subtitles, helper text, or descriptive copy below headings, labels,
+  cards, or settings by default.
+- Use one concise, self-explanatory heading or label.
+- Add supporting copy only when the user requests it or when it prevents
+  misunderstanding or error.
+- Never use supporting copy to repeat the heading or label.
+
 ## Cursor Cloud specific instructions
 
 PubMaxing is a single Next.js 16 (App Router, React 19, TypeScript) web app — a price-aware London pub-crawl planner with a MapLibre 3-D map. There is one service.

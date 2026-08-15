@@ -330,6 +330,21 @@
   color: var(--ink-soft);
 }
 
+.vpsubImpactLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--river);
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
+
+.vpsubImpactLink:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 .vpsubStampDot {
   flex: 0 0 auto;
   /* Sits on the FIRST line like a bullet - centring it against a three-line

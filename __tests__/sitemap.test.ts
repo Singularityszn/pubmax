@@ -7,6 +7,7 @@ import { listEnabledCities } from "@/lib/cities";
 import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
+import { buildNightAreaLandingModels } from "@/lib/nightAreaLanding";
 import { loadPintIndexArchive } from "@/lib/pintIndexSnapshot.server";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
@@ -16,7 +17,7 @@ import type { MetadataRoute } from "next";
 // Includes /pint-index (Wave S3.3 — the London Pint Index hub), /about
 // (founder story + press kit hub) and the two legal content pages
 // (/privacy, /terms) linked from the site footer.
-const STATIC_HUB_COUNT = 14;
+const STATIC_HUB_COUNT = 15;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -47,6 +48,7 @@ const FORBIDDEN_SUBSTRINGS = [
 type ExpectedCounts = {
   cities: number;
   boroughs: number;
+  areas: number;
   landmarks: number;
   historic: number;
   venues: number;
@@ -65,12 +67,14 @@ async function expectedCounts(): Promise<ExpectedCounts> {
   const venues = groupVenuePrices(rows);
   const cities = listEnabledCities().filter((c) => c.id !== "london").length;
   const boroughs = listBoroughs(venues).length;
+  const areas = buildNightAreaLandingModels(venues).length;
   const historic = (await loadHistoricPubs()).length;
   // One URL per dated Pint Index edition actually published.
   const editions = (await loadPintIndexArchive()).length;
   const counts = {
     cities,
     boroughs,
+    areas,
     landmarks: landmarks.length,
     historic,
     venues: venues.length,
@@ -82,6 +86,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
       STATIC_HUB_COUNT +
       counts.cities +
       counts.boroughs +
+      counts.areas +
       counts.landmarks +
       counts.historic +
       counts.venues +
@@ -114,7 +119,7 @@ describe("sitemap()", () => {
   });
 
   it("includes the core static hubs", () => {
-    for (const hub of ["/", "/map", "/borough", "/historic", "/discover", "/crawls", "/about"]) {
+    for (const hub of ["/", "/map", "/borough", "/historic", "/discover", "/drink/beer", "/crawls", "/about"]) {
       expect(urls).toContain(`${SITE}${hub}`);
     }
   });
@@ -122,11 +127,13 @@ describe("sitemap()", () => {
   it("emits the promised count for every dynamic family", () => {
     expect(familyCount("/map/")).toBe(expected.cities);
     expect(familyCount("/borough/")).toBe(expected.boroughs);
+    expect(familyCount("/area/")).toBe(expected.areas);
     expect(familyCount("/landmark/")).toBe(expected.landmarks);
     expect(familyCount("/historic/")).toBe(expected.historic);
     expect(familyCount("/ledger/")).toBe(expected.venues);
     // Sanity floors so a "0 expected" (dataset wipe) can't make the test pass.
     expect(expected.boroughs).toBeGreaterThan(0);
+    expect(expected.areas).toBe(4);
     expect(expected.historic).toBeGreaterThan(0);
     expect(expected.venues).toBeGreaterThan(0);
   });

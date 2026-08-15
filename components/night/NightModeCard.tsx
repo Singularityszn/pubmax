@@ -314,9 +314,7 @@ export function endingOptionsForSignals({
     {
       id: "get_home",
       title: "Get home",
-      description: leaveByIso
-        ? `Live last-train time for ${stationName ?? "the nearest station"}.`
-        : `Check ${stationName ?? "the nearest station"} before you confirm.`,
+      description: getHomeEndingDescription(stationName, leaveByIso),
       actionLabel: "Check the way home",
       recommended: true,
     },
@@ -330,6 +328,19 @@ export function endingOptionsForSignals({
       actionLabel: "See what's near",
     },
   ];
+}
+
+export function getHomeEndingDescription(
+  stationName: string | null,
+  leaveByIso: string | null,
+): string {
+  return leaveByIso
+    ? `Live leave-by time for ${stationName ?? "the nearest station"}.`
+    : `Check ${stationName ?? "the nearest station"} before you confirm.`;
+}
+
+export function keepGoingDistanceDescription(distanceKm: number): string {
+  return `${distanceKm.toFixed(1)} km straight-line`;
 }
 
 export function confirmedEndingForPlan(
@@ -1228,7 +1239,7 @@ function GetHomeEndingConfirmation({
       <strong>Getting home</strong>
       <p>
         {leaveByIso
-          ? `We've got a live last-train time for ${stationName ?? "the nearest station"}.`
+          ? `We've got a live leave-by time for ${stationName ?? "the nearest station"}.`
           : `Check the last trains from ${stationName ?? "the nearest station"} before you head off.`}
       </p>
       <button
@@ -1284,7 +1295,7 @@ function KeepGoingPicker({
             >
               <span>{extension.name}</span>
               <small>
-                {extension.distanceKm.toFixed(1)} km away ·{" "}
+                {keepGoingDistanceDescription(extension.distanceKm)} ·{" "}
                 {extension.cheapestPrice === null
                   ? "no price yet"
                   : `about £${extension.cheapestPrice.toFixed(2)} a pint`}{" "}

@@ -91,6 +91,11 @@ export function isFinalStop(stops: readonly PlanStopDTO[], cursor: number): bool
   return count > 0 && clampStopIndex(cursor, count) === count - 1;
 }
 
+/** Whether an arrive/skip action can still advance the crawl. */
+export function canActOnNightCrawl(stops: readonly PlanStopDTO[], cursor: number): boolean {
+  return nightCrawlHero(stops, cursor) !== null && !isFinalStop(stops, cursor);
+}
+
 /** Advance the cursor one stop, clamped so it never walks past the last pub. */
 export function advanceNightCrawl(cursor: number, stopCount: number): number {
   return clampStopIndex(cursor + 1, stopCount);

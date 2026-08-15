@@ -122,11 +122,8 @@ function footerFacts(
 
 export default function LandingPage({
   stats,
-  // Server-threaded trusted-handoff flag (default off = current hierarchy).
-  landingFindMyPint = false,
 }: {
   stats?: AboutStats;
-  landingFindMyPint?: boolean;
 }) {
   const router = useRouter();
   const preferredCity = useSyncExternalStore(
@@ -155,12 +152,12 @@ export default function LandingPage({
   }, []);
 
   const heroPrimary = (
-    <Link className="lpButton lpButtonPrimary" href="/near">
+    <Link className="lpButton lpButtonPrimary" href="/near?locate=1">
       <LocateFixed size={18} aria-hidden="true" /> Find my pint
     </Link>
   );
-  const heroActions = landingFindMyPint ? (
-    <div className="lpHeroActions lpHeroActions--findMyPint">
+  const heroActions = (
+    <div className="lpHeroActions">
       {heroPrimary}
       <div className="lpHeroSecondaryRow">
         <Link className="lpTextLink" href={primaryCtaHref} {...warmProps}>
@@ -171,16 +168,6 @@ export default function LandingPage({
         </Link>
       </div>
     </div>
-  ) : (
-    <div className="lpHeroActions">
-      {heroPrimary}
-      <Link className="lpButton lpButtonQuiet" href={primaryCtaHref} {...warmProps}>
-        <MapPin size={17} aria-hidden="true" /> Open the map
-      </Link>
-      <Link className="lpButton lpButtonQuiet" href="/plan">
-        <MessageSquareText size={17} aria-hidden="true" /> Plan my night
-      </Link>
-    </div>
   );
   const heroLede = (
     <p className="lpHeroLede">
@@ -190,7 +177,7 @@ export default function LandingPage({
   );
 
   return (
-    <div className={landingFindMyPint ? "lp lp--findMyPint" : "lp"}>
+    <div className="lp">
       <header className="lpNav">
         <Link href="/" className="lpWordmark" aria-label="PUBMAXXING home">
           <PubmaxxWordmark />
@@ -225,20 +212,8 @@ export default function LandingPage({
 
           <div className="lpHeroCopy">
             <h1 id="hero-title">Listed pint prices on an interactive map. Plan a crawl with your mates.</h1>
-            {/* Flag off: lede then three equal-slot buttons (shipped).
-                Flag on: actions immediately under the title so Find my pint
-                owns the first screen; Map + Plan as secondary text. */}
-            {landingFindMyPint ? (
-              <>
-                {heroActions}
-                {heroLede}
-              </>
-            ) : (
-              <>
-                {heroLede}
-                {heroActions}
-              </>
-            )}
+            {heroActions}
+            {heroLede}
             {readout.length > 0 ? (
               <dl className="lpLiveReadout" aria-label="What PUBMAXX tracks right now">
                 {readout.map(({ icon: Icon, value, label }) => (
@@ -329,25 +304,12 @@ export default function LandingPage({
           <div className="lpFinalLines" aria-hidden="true"><span /><span /><span /></div>
           <p>PUBMAXX · Make a memory, not a spreadsheet</p>
           <h2 id="final-title">Your city is already happening.</h2>
-          {landingFindMyPint ? (
-            <>
-              <Link href="/near" className="lpButton lpButtonPrimary">
-                Find my pint <ArrowRight size={18} aria-hidden="true" />
-              </Link>
-              <Link href={primaryCtaHref} className="lpTextLink" {...warmProps}>
-                Open the map <ArrowRight size={16} aria-hidden="true" />
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link href={primaryCtaHref} className="lpButton lpButtonPrimary" {...warmProps}>
-                Open the map <ArrowRight size={18} aria-hidden="true" />
-              </Link>
-              <Link href="/about" className="lpTextLink">
-                Our story <ArrowRight size={16} aria-hidden="true" />
-              </Link>
-            </>
-          )}
+          <Link href="/near?locate=1" className="lpButton lpButtonPrimary">
+            Find my pint <ArrowRight size={18} aria-hidden="true" />
+          </Link>
+          <Link href={primaryCtaHref} className="lpTextLink" {...warmProps}>
+            Open the map <ArrowRight size={16} aria-hidden="true" />
+          </Link>
         </section>
       </main>
 
@@ -377,7 +339,7 @@ export default function LandingPage({
             <div className="lpFooterCol">
               <h2>Get out tonight</h2>
               <Link href={primaryCtaHref} {...warmProps}>The map</Link>
-              <Link href="/near">Find my pint</Link>
+              <Link href="/near?locate=1">Find my pint</Link>
               <Link href="/tonight">Tonight</Link>
               <Link href="/plan">Plan a night</Link>
             </div>

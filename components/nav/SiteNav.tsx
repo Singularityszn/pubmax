@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { CirclePlus } from "lucide-react";
 import { useSyncExternalStore, type ReactNode } from "react";
 
@@ -97,6 +97,8 @@ export default function SiteNav({
   mobileMapUtility?: ReactNode;
 }): React.JSX.Element {
   const pathname = usePathname() ?? "";
+  const searchParams = useSearchParams();
+  const returnPath = searchParams?.toString() ? `${pathname}?${searchParams}` : pathname;
   const primaryActive = primaryKeyForLegacyActive(active);
   // Imperative handle onto the global ⌘K palette (feature N1) — the button below
   // opens it for pointer users who won't reach for the shortcut.
@@ -171,7 +173,7 @@ export default function SiteNav({
             uses (momentHref) so composing returns to the current page. Hidden
             ≤640px in siteNavMoment.css — the FAB covers mobile. */}
         <Link
-          href={momentHref(pathname)}
+          href={momentHref(returnPath)}
           className="siteNavMoment"
           aria-label="Share a Moment"
           title="Share a Moment"

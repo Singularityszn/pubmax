@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   advanceNightCrawl,
+  canActOnNightCrawl,
   classifyActionOutcome,
   isFinalStop,
   nightCrawlActionNote,
@@ -88,6 +89,14 @@ describe("isFinalStop", () => {
     expect(isFinalStop(THREE, 2)).toBe(true);
     expect(isFinalStop(THREE, 99)).toBe(true);
     expect(isFinalStop([], 0)).toBe(false);
+  });
+});
+
+describe("canActOnNightCrawl", () => {
+  it("blocks a second action after the final stop", () => {
+    expect(canActOnNightCrawl(THREE, 2)).toBe(false);
+    expect(canActOnNightCrawl(THREE, 1)).toBe(true);
+    expect(canActOnNightCrawl([], 0)).toBe(false);
   });
 });
 

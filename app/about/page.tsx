@@ -2,10 +2,15 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 
+import JsonLd from "@/components/seo/JsonLd";
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
 import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
 import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
 import { CONTACT_EMAIL } from "@/lib/siteContact";
+import {
+  countCorroboratedCommunityCategories,
+  type CorroboratedCategoryCount,
+} from "@/lib/communityPriceStore";
 
 import "./about.css";
 
@@ -94,10 +99,17 @@ function tractionStats(s: AboutStats): Stat[] {
   ];
 }
 
+function communityLaneCount(result: CorroboratedCategoryCount): string {
+  if (result.degraded) return "Community total could not be read just now.";
+  const count = `${fmtInt(result.count)}${result.truncated ? "+" : ""}`;
+  return `${count} corroborated venue-and-drink prices currently have map authority.`;
+}
+
 export default async function AboutPage() {
-  const [stats, pintIndexSnapshot] = await Promise.all([
+  const [stats, pintIndexSnapshot, communityPrices] = await Promise.all([
     loadAboutStats(),
     loadPublicPintIndexSnapshot(),
+    countCorroboratedCommunityCategories(),
   ]);
   const pintIndexRows = pintIndexSnapshot
     ? buildLeagueTable(pintIndexSnapshot)
@@ -105,11 +117,8 @@ export default async function AboutPage() {
   const pintIndexSummary = indexSummary(pintIndexRows);
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
-  // AboutPage + Organization JSON-LD. NOTE (see agent report): components/seo/
-  // JsonLd.tsx from PR #274 is NOT on this base branch, so this is inlined here
-  // following the layout.tsx nonce-aware CSP pattern. If #274 lands first,
-  // migrate this block to <JsonLd> and drop the inline script to avoid two
-  // Organization nodes on the site.
+  // AboutPage + Organization JSON-LD. The shared injector owns CSP nonce and
+  // XSS-safe serialization, so this route never carries a parallel script seam.
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "AboutPage",
@@ -140,13 +149,7 @@ export default async function AboutPage() {
 
   return (
     <main className="aboutPage">
-      <script
-        type="application/ld+json"
-        nonce={nonce}
-        // JSON-LD is inert data, not executable script; serialised once on the
-        // server. XSS-safe: JSON.stringify of a fixed object, no user input.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} nonce={nonce} />
 
       {/* ── Story ──────────────────────────────────────────────── */}
       <header className="aboutHead">
@@ -261,6 +264,24 @@ export default async function AboutPage() {
             </div>
           ))}
         </dl>
+        <section className="aboutPriceLanes" aria-labelledby="aboutPriceLanesTitle">
+          <h3 id="aboutPriceLanesTitle">Where prices come from</h3>
+          <dl>
+            <div>
+              <dt>Venue Dataset</dt>
+              <dd>
+                <strong>{fmtInt(stats.pintPricesObserved)}</strong> Pint Price
+                readings. {fmtInt(stats.publisherRecordedPintPrices)} publisher
+                recorded · {fmtInt(stats.publisherNotRecordedPintPrices)} publisher
+                not recorded.
+              </dd>
+            </div>
+            <div>
+              <dt>Community map authority</dt>
+              <dd>{communityLaneCount(communityPrices)}</dd>
+            </div>
+          </dl>
+        </section>
         <p className="aboutPriceLine">
           Across <strong>{fmtInt(stats.boroughsCovered)}</strong> London
           boroughs and neighbourhoods, the cheapest pint we&rsquo;ve logged is{" "}

@@ -122,8 +122,10 @@ function usePriceConfirmTally(
   confirmTargetGbp: number,
   baselineGbp: number | null,
   nowGbp: number | null,
+  refreshNonce: number,
 ): ConfirmRead | null {
-  const [read, setRead] = useState<ConfirmRead | null>(null);
+  const requestKey = `${venueId}:${confirmTargetGbp}:${baselineGbp ?? ""}:${nowGbp ?? ""}:${refreshNonce}`;
+  const [readState, setReadState] = useState<{ key: string; value: ConfirmRead } | null>(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -153,10 +155,13 @@ function usePriceConfirmTally(
           }),
           { now: Date.now() },
         );
-        setRead({
-          tally,
-          confidence: tally.confirms > 0 ? priceConfidence(tally, Date.now()) : null,
-          conflictGbps: conflictPrices(resolution),
+        setReadState({
+          key: requestKey,
+          value: {
+            tally,
+            confidence: tally.confirms > 0 ? priceConfidence(tally, Date.now()) : null,
+            conflictGbps: conflictPrices(resolution),
+          },
         });
       } catch {
         // Fail-soft: no tally, chip behaves as before.
@@ -165,8 +170,8 @@ function usePriceConfirmTally(
     return () => {
       cancelled = true;
     };
-  }, [venueId, confirmTargetGbp, baselineGbp, nowGbp]);
-  return read;
+  }, [venueId, confirmTargetGbp, baselineGbp, nowGbp, refreshNonce, requestKey]);
+  return readState?.key === requestKey ? readState.value : null;
 }
 
 // One-tap "still accurate?" micro-contribution. Tapping vouches the displayed
@@ -182,12 +187,14 @@ function PriceConfirmChip({
   priceLabel,
   confidence,
   onPriceChanged,
+  onConfirmed,
 }: {
   venueId: string;
   priceGbp: number;
   priceLabel: string;
   confidence: { state: string; label: string | null } | null;
   onPriceChanged?: () => void;
+  onConfirmed?: () => void;
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [confirms, setConfirms] = useState<number | null>(null);
@@ -206,11 +213,12 @@ function PriceConfirmChip({
       if (res.ok) {
         const data = (await res.json()) as { confirms?: number };
         if (typeof data.confirms === "number") setConfirms(data.confirms);
+        onConfirmed?.();
       }
     } catch {
       // Fail-soft: the optimistic confirmed state stays put on any error.
     }
-  }, [confirmed, venueId, priceGbp]);
+  }, [confirmed, onConfirmed, venueId, priceGbp]);
 
   // Post-tap the server tally wins; pre-tap the reader-visible confidence line
   // (from the mounted GET) speaks — "×3 this week" / "vouched recently" — so
@@ -270,6 +278,7 @@ type VenuePriceStoryProps = {
 };
 
 export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenuePriceStoryProps) {
+  const [refreshNonce, setRefreshNonce] = useState(0);
   const story = computeVenuePriceStory(venue, drops);
   // Hooks run unconditionally (before the empty-state return): the freshest
   // actionable price to vouch for is the community "now" when present, else the
@@ -282,6 +291,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
     confirmTarget ? confirmTarget.gbp : 0,
     story.baseline ? story.baseline.gbp : null,
     story.now ? story.now.gbp : null,
+    refreshNonce,
   );
   const confidence = confirmTarget ? (read?.confidence ?? null) : null;
   const conflictGbps = read?.conflictGbps ?? [];
@@ -395,6 +405,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
         <PriceConfirmChip
           confidence={confidence}
           onPriceChanged={onPriceChanged}
+          onConfirmed={() => setRefreshNonce((value) => value + 1)}
           key={`${venue.id}:${Math.round(confirmTarget.gbp * 100)}`}
           venueId={venue.id}
           priceGbp={confirmTarget.gbp}

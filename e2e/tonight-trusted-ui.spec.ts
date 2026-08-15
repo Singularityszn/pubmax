@@ -66,6 +66,14 @@ async function shoot(page: Page, name: string) {
     await page.evaluate((s) => document.documentElement.setAttribute("data-theme", s), scheme);
     for (const width of [390, 1440] as const) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+      // A responsive route can trigger one final development compilation after
+      // the viewport changes. Do not save transient framework chrome as proof.
+      await page.waitForTimeout(750);
+      await page.evaluate(() => {
+        document.querySelectorAll<HTMLElement>("nextjs-portal").forEach((portal) => {
+          portal.style.display = "none";
+        });
+      });
       await page.screenshot({ path: path.join(SHOTS_DIR, `${name}-${width}-${scheme}.png`), fullPage: true });
     }
   }
@@ -74,18 +82,38 @@ async function shoot(page: Page, name: string) {
 }
 
 test.describe("Tonight trusted UI (flag off / shipped)", () => {
-  test("keeps Deals/Music above the main list (shipped position)", async ({ page }) => {
+  test("puts the main list before Deals and Music in the mobile journey", async ({ page }) => {
     await mockWhatsOn(page);
     await openTonight(page);
-    // Shipped order: the deals lane precedes the main list in the DOM.
+    const list = page.getByTestId("tonight-list");
     const deals = page.locator(".dealsTonight").first();
     await expect(deals).toBeVisible();
     const order = await page.evaluate(() => {
-      const d = document.querySelector(".dealsTonight");
       const l = document.querySelector('[data-testid="tonight-list"]');
-      return d && l ? d.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING : 0;
+      const d = document.querySelector(".dealsTonight");
+      return l && d ? l.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING : 0;
     });
-    expect(order).toBeTruthy(); // list FOLLOWS deals → deals above
+    expect(order).toBeTruthy();
+
+    // At 390 x 844, at least one primary choice must start before the fixed
+    // tab bar. Secondary lanes must not consume the useful first viewport.
+    const firstRowBox = await list.getByTestId("tonight-row").first().boundingBox();
+    const tabBarBox = await page.locator(".mobileTabBar").boundingBox();
+    expect(firstRowBox).not.toBeNull();
+    expect(tabBarBox).not.toBeNull();
+    const unobscuredRowHeight =
+      Math.min(firstRowBox!.y + firstRowBox!.height, tabBarBox!.y) - firstRowBox!.y;
+    expect(unobscuredRowHeight).toBeGreaterThanOrEqual(44);
+
+    // DOM order and visual order must agree on desktop too. A prior grid-row
+    // override put the secondary rail above the primary cards even though it
+    // followed them in the document, which also split sighted and focus order.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const desktopListBox = await list.boundingBox();
+    const desktopDealsBox = await deals.boundingBox();
+    expect(desktopListBox).not.toBeNull();
+    expect(desktopDealsBox).not.toBeNull();
+    expect(desktopListBox!.y).toBeLessThan(desktopDealsBox!.y);
     await shoot(page, "flagoff");
   });
 

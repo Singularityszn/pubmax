@@ -91,15 +91,12 @@ function freshnessLabel(kind: TonightFreshnessKind, asOf: string | null): string
 
 const UNDATED_SOURCE_LINE = "We can’t date these listings yet.";
 
-// Deals/Music placement. Flag off keeps their shipped slot above the main list.
-// Flag on wraps them so CSS can place them: on desktop they populate the right
-// rail (using the canvas, matching the flag-off desktop shape); below the rail
-// breakpoint they stack under the main list (§4.11 main-list-first). Keeping the
-// branch in a helper holds TonightClient under the cyclomatic-complexity cap.
-function placeSecondaryLanes(below: boolean, lanes: ReactNode): { above: ReactNode; below: ReactNode } {
-  return below
-    ? { above: null, below: <div className="tonightSecondaryLanes">{lanes}</div> }
-    : { above: lanes, below: null };
+// Deals and Music are secondary to confirmed Tonight listings. The wrapper
+// lets desktop CSS use the right rail while phone layouts stack these lanes
+// after the main list. Keeping this in a helper holds TonightClient under the
+// cyclomatic-complexity cap.
+function placeSecondaryLanes(lanes: ReactNode): ReactNode {
+  return <div className="tonightSecondaryLanes">{lanes}</div>;
 }
 
 // A thin night (0-2 confirmed listings) leaves the list short enough that the
@@ -108,6 +105,19 @@ function placeSecondaryLanes(below: boolean, lanes: ReactNode): { above: ReactNo
 // three things someone standing here actually still wants: where's cheap,
 // how do I get home, and what else is there to do tonight.
 const THIN_NIGHT_MAX_ROWS = 2;
+
+function isThinNight(empty: boolean, ready: boolean, rowCount: number): boolean {
+  return empty || (ready && rowCount <= THIN_NIGHT_MAX_ROWS);
+}
+
+function hasGeoRows(ready: boolean, rows: readonly WhatsOnRow[]): boolean {
+  return (
+    ready &&
+    rows.some(
+      (row) => typeof row.lat === "number" && typeof row.lng === "number",
+    )
+  );
+}
 
 type QuietAlternative = {
   href: string;
@@ -249,28 +259,22 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
   // Unfiltered `rows.length`, not the kind-filtered `visible.length` — a thin
   // night stays thin regardless of which chip is active, and this must not
   // flicker in/out as the user taps filters.
-  const thinNight = empty || (ready && rows.length <= THIN_NIGHT_MAX_ROWS);
-  const hasGeoRows =
-    ready &&
-    rows.some(
-      (row) => typeof row.lat === "number" && typeof row.lng === "number",
-    );
-  const showLocation = hasGeoRows || thinNight;
+  const thinNight = isThinNight(empty, ready, rows.length);
+  const hasLocatedRows = hasGeoRows(ready, rows);
+  const showLocation = hasLocatedRows || thinNight;
   const locationExpanded = locationOpen || origin != null;
 
-  // Secondary Deals/Music lanes reuse the already-loaded grouped heroes instead of
-  // each firing their own /api/whats-on fetch (dedup is always on — no duplicate
-  // first-viewport request). Their POSITION is flag-gated below: flag off keeps
-  // their prod slot above the list; flag on moves them under the main list.
+  // Secondary Deals/Music lanes reuse the already-loaded grouped heroes instead
+  // of each firing their own /api/whats-on fetch. They always follow the primary
+  // list, independent of grouping and intent-write flags.
   const localityBasis = tonightLocalityBasis(origin != null, tonightNear);
   const secondaryHeroes = groupedAll.map((group) => group.row);
-  const secondaryLanes = (
+  const secondaryLanes = placeSecondaryLanes(
     <>
       <DealsTonightLane rows={secondaryHeroes} asOf={asOf} />
       <MusicTonightLane rows={secondaryHeroes} asOf={asOf} />
     </>
   );
-  const lanePlacement = placeSecondaryLanes(flags.tonightGrouping, secondaryLanes);
 
   return (
     <main className="tonightPage" data-testid="tonight-screen">
@@ -313,10 +317,6 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
       </header>
 
       <TonightConditionsStrip origin={origin} />
-      {/* Deals/Music secondary treatment. Flag off keeps their shipped position
-          here (above the main list) so the page is byte-identical to prod; flag on
-          moves them below the main list (§4.11 main-list-first). */}
-      {lanePlacement.above}
       {/* Wide viewports place the strip plus this block in a sticky right rail
           (tonight.css grid); below the breakpoint the rail block simply follows
           the strip in flow. Area news needs a coarse area: the shared
@@ -636,9 +636,8 @@ export default function TonightClient({ flags }: { flags: TrustedHandoffFlagsDTO
         </>
       ) : null}
 
-      {/* Main-list-first (§4.11): under the canonical model the Deals/Music
-          treatment follows the main list instead of preceding it. */}
-      {lanePlacement.below}
+      {/* Main-list-first: Deals and Music always follow confirmed listings. */}
+      {secondaryLanes}
 
       {thinNight ? (
         <section className="tonightQuiet" aria-label="While it's quiet">

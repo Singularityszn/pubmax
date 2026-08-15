@@ -116,9 +116,6 @@ describe("surface and type hierarchy", () => {
     expect(landingCss).toMatch(
       /\.lpSignalGrid article:first-child h3\s*{[^}]*font-size:\s*clamp\(/,
     );
-    expect(landingCss).toMatch(
-      /\.lpButtonQuiet\s*{[^}]*background:\s*transparent;[^}]*border-color:\s*transparent/,
-    );
   });
 
   it("removes nested panel chrome and makes venue names the primary type", () => {

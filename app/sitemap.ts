@@ -3,6 +3,7 @@ import type { MetadataRoute } from "next";
 import { listEnabledCities } from "@/lib/cities";
 import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
+import { buildNightAreaLandingModels } from "@/lib/nightAreaLanding";
 import { loadHistoricPubs } from "@/lib/historic";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
@@ -12,10 +13,11 @@ import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintInd
 // most of it from bots). Scope is provenance-first and honest:
 //
 //  Included:
-//   - static hubs: /, /map, /borough, /historic, /discover, /pubs, /tonight,
-//     /choose-city, /crawls, /feed
+//   - static hubs: /, /map, /borough, /historic, /discover, /drink/beer,
+//     /pubs, /tonight, /choose-city, /crawls, /feed
 //   - /map/{city} for every enabled non-London city (London is /map)
 //   - /borough/{slug} for every borough present in the price dataset
+//   - /area/{slug} for every governed Night Area landing model
 //   - /landmark/{id} for every curated landmark
 //   - /historic/{slug} for every cited historic pub (static, self-canonical SEO
 //     pages — the heritage moat)
@@ -125,6 +127,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/pint-index", priority: 0.8, changeFrequency: "monthly", lastModified: pintIndexPublished },
     { path: "/historic", priority: 0.8, changeFrequency: "weekly", lastModified: historicModified },
     { path: "/discover", priority: 0.7, changeFrequency: "weekly", lastModified: now },
+    { path: "/drink/beer", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
     { path: "/crawls", priority: 0.6, changeFrequency: "weekly", lastModified: now },
@@ -161,6 +164,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const borough of listBoroughs(venues)) {
     entries.push({
       url: `${SITE_URL}/borough/${borough.slug}`,
+      lastModified: pricesModified,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    });
+  }
+
+  // Night Area pages use the same publication gate as the route itself. Thin,
+  // stale, and publisher-less areas never get a second path into search.
+  for (const area of buildNightAreaLandingModels(venues)) {
+    entries.push({
+      url: `${SITE_URL}/area/${area.slug}`,
       lastModified: pricesModified,
       changeFrequency: "weekly",
       priority: 0.7,

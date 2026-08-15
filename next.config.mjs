@@ -148,6 +148,12 @@ const nextConfig = {
   env: {
     // See swVersion above — SW cache-busting build id.
     NEXT_PUBLIC_SW_VERSION: swVersion,
+    // Clerk 7 enters an accountless development mode when ClerkProvider mounts
+    // without explicit keys. That generated instance is outside PUBMAXX's
+    // exact-origin CSP and used to produce a blocked script plus an unhandled
+    // rejection on every keyless local page. PUBMAXX has its own two-key Clerk
+    // gates, so only captain-supplied keys may start Clerk.
+    NEXT_PUBLIC_CLERK_KEYLESS_DISABLED: "1",
   },
   skipTrailingSlashRedirect: true,
   async redirects() {

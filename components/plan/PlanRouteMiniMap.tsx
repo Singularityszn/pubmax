@@ -3,9 +3,10 @@
 import { useEffect, useId, useMemo, useState } from "react";
 
 import {
-  boundsFromCoords,
   lineCoordsFromFeatureCollection,
   projectCoords,
+  routeBoundsFromCoords,
+  stopsSignature,
   stopsParam,
   svgPath,
   type LngLat,
@@ -91,27 +92,32 @@ type DrawnRoute = { line: LngLat[]; source: RouteSource };
 
 export default function PlanRouteMiniMap({ stops }: { stops: Stop[] }) {
   const [resolved, setResolved] = useState<ResolvedStops | null>(null);
+  const [resolvedKey, setResolvedKey] = useState<string | null>(null);
   const [drawn, setDrawn] = useState<DrawnRoute | null>(null);
+  const [drawnKey, setDrawnKey] = useState<string | null>(null);
 
-  const stopsKey = stops.map((stop) => stop.venueId).join(",");
+  const stopsKey = stopsSignature(stops);
   const titleId = useId();
   const descId = useId();
 
-  // 1) Resolve stop coordinates, then paint the straight line immediately. All
-  //    state writes happen inside the async callback (never synchronously in the
-  //    effect body), and a null result clears any prior map so a later fetch
-  //    failure degrades to nothing rather than lingering on stale geometry.
+  // 1) Resolve stop coordinates, then paint the straight line immediately. The
+  //    key gates old state while a new request is pending, so a slow lookup
+  //    cannot display the previous plan without a synchronous effect update.
   useEffect(() => {
     const controller = new AbortController();
     void fetchStopCoords(stops, controller.signal).then((next) => {
       if (controller.signal.aborted) return;
       if (!next) {
         setResolved(null);
+        setResolvedKey(stopsKey);
         setDrawn(null);
+        setDrawnKey(stopsKey);
         return;
       }
       setResolved(next);
+      setResolvedKey(stopsKey);
       setDrawn({ line: next.coords, source: "straight" }); // instant straight paint
+      setDrawnKey(stopsKey);
     });
     return () => controller.abort();
     // stopsKey captures the meaningful identity of `stops`.
@@ -121,7 +127,7 @@ export default function PlanRouteMiniMap({ stops }: { stops: Stop[] }) {
   // 2) Upgrade to the routed line once coordinates exist. Honesty rule: solid
   //    only when the endpoint routed real roads ("ors"); otherwise stay dashed.
   useEffect(() => {
-    if (!resolved) return;
+    if (!resolved || resolvedKey !== stopsKey) return;
     const controller = new AbortController();
     (async () => {
       try {
@@ -134,33 +140,37 @@ export default function PlanRouteMiniMap({ stops }: { stops: Stop[] }) {
         const routed = lineCoordsFromFeatureCollection(body.line);
         if (controller.signal.aborted || routed.length < 2) return;
         setDrawn({ line: routed, source: body.source === "ors" ? "ors" : "straight" });
+        setDrawnKey(stopsKey);
       } catch {
         /* fail-soft: keep the straight line already drawn */
       }
     })();
     return () => controller.abort();
-  }, [resolved]);
+  }, [resolved, resolvedKey, stopsKey]);
+
+  const activeResolved = resolvedKey === stopsKey ? resolved : null;
+  const activeDrawn = drawnKey === stopsKey ? drawn : null;
 
   const geometry = useMemo(() => {
-    if (!resolved || !drawn) return null;
-    const bounds = boundsFromCoords(resolved.coords);
+    if (!activeResolved || !activeDrawn) return null;
+    const bounds = routeBoundsFromCoords(activeResolved.coords, activeDrawn.line);
     if (!bounds) return null;
     const viewport = { width: VIEW_W, height: VIEW_H, padding: PADDING };
-    const discs = projectCoords(resolved.coords, bounds, viewport);
-    const linePoints = projectCoords(drawn.line, bounds, viewport);
+    const discs = projectCoords(activeResolved.coords, bounds, viewport);
+    const linePoints = projectCoords(activeDrawn.line, bounds, viewport);
     return { discs, path: svgPath(linePoints) };
-  }, [resolved, drawn]);
+  }, [activeResolved, activeDrawn]);
 
-  if (!resolved || !geometry) return null;
+  if (!activeResolved || !activeDrawn || !geometry) return null;
 
-  const count = resolved.coords.length;
-  const title = resolved.area
-    ? `Route map: ${count} stops in ${resolved.area}`
+  const count = activeResolved.coords.length;
+  const title = activeResolved.area
+    ? `Route map: ${count} stops in ${activeResolved.area}`
     : `Route map: ${count} stops`;
-  const description = `Walking route between ${resolved.names.join(", ")}.`;
+  const description = `Walking route between ${activeResolved.names.join(", ")}.`;
 
   return (
-    <figure className="planRouteMiniMap planRouteMiniMap--in" data-source={drawn?.source ?? "straight"}>
+    <figure className="planRouteMiniMap planRouteMiniMap--in" data-source={activeDrawn.source}>
       <svg
         className="planRouteMiniMap__svg"
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
@@ -177,7 +187,7 @@ export default function PlanRouteMiniMap({ stops }: { stops: Stop[] }) {
           </>
         ) : null}
         {geometry.discs.map((point, index) => (
-          <g className="planRouteMiniMap__stop" key={`${index}-${resolved.names[index]}`}>
+          <g className="planRouteMiniMap__stop" key={`${index}-${activeResolved.names[index]}`}>
             <circle
               className="planRouteMiniMap__disc"
               cx={point.x}

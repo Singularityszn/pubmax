@@ -34,6 +34,52 @@ test.describe("mobile landing entry", () => {
     });
   });
 
+  test("answers after one homepage tap", async ({ page, context }) => {
+    test.setTimeout(60_000);
+    await context.setGeolocation({ latitude: 51.5137, longitude: -0.132 });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await context.grantPermissions(["geolocation"], {
+      origin: new URL(page.url()).origin,
+    });
+
+    await page
+      .locator(".lpHeroActions")
+      .getByRole("link", { name: "Find my pint", exact: true })
+      .click();
+
+    await expect(page).toHaveURL(/\/near\?locate=1$/);
+    await expect(
+      page.getByRole("heading", { name: "Cheapest listed near you", exact: true }),
+    ).toBeVisible();
+    await expect(page.locator(".nmnCard")).toHaveCount(5);
+  });
+
+  test("keeps direct Near idle and gives a shared patch priority", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "geolocation", {
+        configurable: true,
+        value: {
+          getCurrentPosition: () => {
+            (window as Window & { __nearLocateCalls?: number }).__nearLocateCalls =
+              ((window as Window & { __nearLocateCalls?: number }).__nearLocateCalls ?? 0) + 1;
+          },
+        },
+      });
+    });
+
+    await page.goto("/near");
+    await expect(page.getByRole("button", { name: "Find my pint", exact: true })).toBeVisible();
+    await expect(page.locator(".nmnCard")).toHaveCount(0);
+
+    await page.goto("/near?patch=soho&locate=1");
+    await expect(page.locator(".nmnCard")).toHaveCount(5);
+    expect(
+      await page.evaluate(
+        () => (window as Window & { __nearLocateCalls?: number }).__nearLocateCalls ?? 0,
+      ),
+    ).toBe(0);
+  });
+
   test("keeps the first-run entry path tappable and unclipped", async ({ page }) => {
     const errors = pageErrors(page);
     const response = await page.goto("/");
@@ -41,19 +87,17 @@ test.describe("mobile landing entry", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "Real pint prices on a live map. Plan a crawl your mates will actually walk.",
+        name: "Listed pint prices on an interactive map. Plan a crawl with your mates.",
         exact: true,
       }),
     ).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
 
     await expectTappable(
-      page.getByRole("link", { name: "Open the map" }).first(),
-      "hero Open the map CTA",
+      page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" }),
+      "hero Find my pint CTA",
     );
-    await expectTappable(page.getByRole("link", { name: "How it works" }).first(), "hero How it works CTA");
-    await expectTappable(page.getByRole("link", { name: "Plan my night" }).first(), "hero Plan my night CTA");
-    await expectTappable(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Map" }), "bottom Map tab");
+    await expectTappable(page.locator(".lpHeroActions").getByRole("link", { name: "Open the map" }), "hero Open the map CTA");
+    await expectTappable(page.locator(".lpHeroActions").getByRole("link", { name: "Plan my night" }), "hero Plan my night CTA");
 
     const visibleHeroPins = page.locator(".thamesHeroPin:visible");
     const pinCount = await visibleHeroPins.count();
@@ -69,16 +113,11 @@ test.describe("mobile landing entry", () => {
   test("routes primary mobile CTAs to the map and secondary exploration", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByRole("link", { name: "How it works" }).first().click();
-    await expect(page).toHaveURL(/\/#wedge$/);
-    await page.goto("/");
-    await expectNoHorizontalOverflow(page);
-
-    await page.getByRole("link", { name: "Plan my night" }).first().click();
-    await expect(page).toHaveURL(/\/pal$/);
+    await page.locator(".lpHeroActions").getByRole("link", { name: "Plan my night" }).click();
+    await expect(page).toHaveURL(/\/plan$/);
     await page.goto("/");
 
-    await page.getByRole("link", { name: "Open the map" }).first().click();
+    await page.locator(".lpHeroActions").getByRole("link", { name: "Open the map" }).click();
     await expect(page).toHaveURL(/\/(choose-city|map)/);
   });
 });

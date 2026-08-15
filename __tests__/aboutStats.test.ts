@@ -60,6 +60,24 @@ describe("computeAboutStats", () => {
     expect(s.averagePint).toBe(5.33);
   });
 
+  it("splits every usable Pint Price by recorded publisher status", () => {
+    const rows = [
+      row({ pub_name: "A", address: "1", pub_url: "https://www.pint-prices.com/pub/a" }),
+      row({ pub_name: "B", address: "2", pub_url: "https://example.org/prices" }),
+      row({ pub_name: "C", address: "3", pub_url: "" }),
+      row({ pub_name: "D", address: "4", pub_url: "not-a-url" }),
+      row({ pub_name: "E", address: "5", price_gbp: null, pub_url: "https://example.org/e" }),
+    ];
+
+    const s = computeAboutStats(rows, { historicPubsCited: 0, citiesCovered: 0 });
+
+    expect(s.publisherRecordedPintPrices).toBe(2);
+    expect(s.publisherNotRecordedPintPrices).toBe(2);
+    expect(
+      s.publisherRecordedPintPrices + s.publisherNotRecordedPintPrices,
+    ).toBe(s.pintPricesObserved);
+  });
+
   it("counts distinct, non-empty primary boroughs", () => {
     const rows = [
       row({ pub_name: "A", address: "1", primary_borough: "Camden" }),

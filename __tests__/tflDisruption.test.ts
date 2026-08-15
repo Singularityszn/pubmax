@@ -88,6 +88,14 @@ describe("tonightWindow", () => {
     expect(new Date(start).toISOString()).toBe("2026-07-24T16:00:00.000Z");
     expect(new Date(end).toISOString()).toBe("2026-07-25T01:00:00.000Z");
   });
+
+  it("uses the offset at each boundary across the autumn clock change", () => {
+    const autumnEvening = new Date("2026-10-24T19:00:00Z");
+    const { start, end } = tonightWindow(autumnEvening);
+    expect(new Date(start).toISOString()).toBe("2026-10-24T16:00:00.000Z");
+    // 02:00 on 25 October is GMT, not the BST offset at the evening start.
+    expect(new Date(end).toISOString()).toBe("2026-10-25T02:00:00.000Z");
+  });
 });
 
 describe("periodOverlapsTonight", () => {

@@ -74,6 +74,8 @@ export type StoryContributor = {
   role: StoryContributorRole;
   status: StoryContributorStatus;
   joinedAt: string | null;
+  /** Snapshot retained at account departure so public redaction can scrub names after profile deletion. */
+  departedDisplayName?: string | null;
 };
 
 export type MomentConsent = {

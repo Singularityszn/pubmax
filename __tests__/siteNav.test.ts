@@ -2,6 +2,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+let searchParams = new URLSearchParams();
+
 // SiteNav pulls in several context-bound children (auth, command palette,
 // theme) and the app-router `usePathname` hook. This test isolates SiteNav's
 // own markup — specifically the desktop Moment compose affordance (audit
@@ -9,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // href shape under test is the same one the mobile FAB produces.
 vi.mock("next/navigation", () => ({
   usePathname: () => "/tonight",
+  useSearchParams: () => searchParams,
 }));
 vi.mock("@/components/command/CommandPaletteProvider", () => ({
   useCommandPalette: () => ({ open: () => {} }),
@@ -28,6 +31,7 @@ async function renderSiteNav(): Promise<string> {
 describe("SiteNav desktop Moment affordance (audit D2)", () => {
   afterEach(() => {
     vi.clearAllMocks();
+    searchParams = new URLSearchParams();
   });
 
   it("renders a Moment compose link into the action cluster", async () => {
@@ -41,6 +45,14 @@ describe("SiteNav desktop Moment affordance (audit D2)", () => {
     // Same href shape the mobile FAB emits via momentHref(): the compose route
     // with the current path url-encoded as returnTo so composing round-trips.
     expect(markup).toContain('href="/moment?returnTo=%2Ftonight"');
+  });
+
+  it("preserves query-backed page state in the desktop return path", async () => {
+    searchParams = new URLSearchParams("sel=pub-1&lens=no-alcohol");
+    const markup = await renderSiteNav();
+    expect(markup).toContain(
+      'href="/moment?returnTo=%2Ftonight%3Fsel%3Dpub-1%26lens%3Dno-alcohol"',
+    );
   });
 
   it("keeps the Moment affordance free of em dashes", async () => {

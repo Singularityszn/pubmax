@@ -7,6 +7,8 @@ import {
   endingOptionsForSignals,
   foodEndingSelection,
   getHomeEndingSelection,
+  getHomeEndingDescription,
+  keepGoingDistanceDescription,
   keepGoingEndingSelection,
   rankKeepGoingExtensions,
   recommendedEndingForPlan,
@@ -71,6 +73,16 @@ describe("endingOptionsForSignals", () => {
     expect(options[0].description).toContain("2 reviewed nearby options");
     expect(options[1].description).toContain("Clapham Common");
     expect(options[2].description).toContain("2 nearby spots");
+  });
+
+  it("calls a safety-adjusted deadline a leave-by time", () => {
+    expect(getHomeEndingDescription("Clapham Common", "2026-07-16T23:40:00.000Z")).toBe(
+      "Live leave-by time for Clapham Common.",
+    );
+  });
+
+  it("labels haversine distance as straight-line", () => {
+    expect(keepGoingDistanceDescription(0.4)).toBe("0.4 km straight-line");
   });
 });
 

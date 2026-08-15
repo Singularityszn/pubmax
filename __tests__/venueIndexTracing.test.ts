@@ -30,6 +30,7 @@ import {
   runtimeDataPackRouteIncludes,
 } from "@/lib/venueIndexTracing.mjs";
 import { PINT_INDEX_SNAPSHOT_TRACING_INCLUDE } from "@/lib/pintIndexSnapshotFile.mjs";
+import { PINT_DATASET_TRACING_INCLUDE } from "@/lib/pintPriceDatasetFile.mjs";
 import { VENUE_IMAGE_HOST_TRACING_INCLUDES } from "@/lib/venueImageHostFiles.mjs";
 
 const root = join(__dirname, "..");
@@ -163,6 +164,19 @@ describe("runtime data-pack tracing", () => {
     const includes = tracingIncludes();
 
     expect(includes["/about"]).toContain(PINT_INDEX_SNAPSHOT_TRACING_INCLUDE);
+  });
+
+  it("ships the Pint Price dataset with every grouped-Venue reader", () => {
+    const includes = tracingIncludes();
+
+    for (const route of ["/area/\\[slug\\]", "/drink/\\[category\\]", "/pint-index"]) {
+      expect(includes[route], `${route} must ship the Pint Price dataset`).toContain(
+        PINT_DATASET_TRACING_INCLUDE,
+      );
+    }
+    expect(RUNTIME_PATH_MODULES_PENDING_DECLARATION).not.toHaveProperty(
+      "lib/venueDataset.ts",
+    );
   });
 
   it("ships non-London slim packs to every venue-detail reader", () => {

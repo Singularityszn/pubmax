@@ -36,7 +36,7 @@ Run comprehensive checks across 5 dimensions. Score each dimension 0-4 using the
 - **Hard-coded colors**: raw hex instead of semantic system colors (iOS) / Material color roles (Android) / design tokens
 - **Broken dark appearance**: missing dark variants, poor contrast in dark, quick inverts
 - **Dynamic Color** (Android 12+): no static fallback scheme, or ignored where it fits
-- **Off-platform materials**: hand-rolled blur/glassmorphism instead of system materials or tonal elevation
+- **Off-platform materials**: hand-rolled visual materials where system materials or tonal elevation are expected
 
 **Score 0-4**: 0=Hard-coded everything, 1=Minimal tokens, 2=Partial (tokens exist, inconsistently used), 3=Good (minor hard-coded values), 4=Excellent (semantic throughout, both appearances first-class)
 
@@ -48,7 +48,7 @@ Score against the loaded platform reference(s), including their slop tests. **Ch
 - **Off-platform navigation**: custom global nav, overloaded tab bars, iOS patterns on Android or vice versa
 - **Web-shaped controls**: HTML-style buttons, custom toggles, hover-dependent affordances
 - **Icon drift**: mixed icon sets instead of SF Symbols / Material Symbols
-- **AI tells**: the shared absolute bans still apply (AI palette, gradient text, hero metrics)
+- **System drift**: repeated shortcuts or decorative patterns that conflict with the product, platform, or established design system
 
 **Score 0-4**: 0=Web port (nothing native), 1=Heavy violations (3-4 kinds), 2=Some (1-2 noticeable), 3=Mostly conformant (subtle issues), 4=Fully native (a fluent user trusts every screen)
 
@@ -102,7 +102,7 @@ For each issue, document:
 - **Impact**: How it affects users
 - **Guideline**: The HIG / Material rule it violates (if applicable)
 - **Recommendation**: How to fix it
-- **Suggested command**: Which command to use (prefer: /impeccable adapt, /impeccable animate, /impeccable audit, /impeccable bolder, /impeccable clarify, /impeccable colorize, /impeccable critique, /impeccable delight, /impeccable distill, /impeccable document, /impeccable harden, /impeccable layout, /impeccable onboard, /impeccable optimize, /impeccable overdrive, /impeccable polish, /impeccable quieter, /impeccable shape, /impeccable typeset)
+- **Suggested command**: Which command to use (prefer: $impeccable adapt, $impeccable animate, $impeccable audit, $impeccable bolder, $impeccable clarify, $impeccable colorize, $impeccable critique, $impeccable delight, $impeccable distill, $impeccable document, $impeccable harden, $impeccable layout, $impeccable onboard, $impeccable optimize, $impeccable overdrive, $impeccable polish, $impeccable quieter, $impeccable shape, $impeccable typeset)
 
 ### Patterns & Systemic Issues
 
@@ -118,16 +118,16 @@ Note what's working well: good practices to maintain and replicate.
 
 List recommended commands in priority order (P0 first, then P1, then P2):
 
-1. **[P?] `/command-name`**: Brief description (specific context from audit findings)
-2. **[P?] `/command-name`**: Brief description (specific context)
+1. **[P?] `$command-name`**: Brief description (specific context from audit findings)
+2. **[P?] `$command-name`**: Brief description (specific context)
 
-**Rules**: Only recommend commands from: /impeccable adapt, /impeccable animate, /impeccable audit, /impeccable bolder, /impeccable clarify, /impeccable colorize, /impeccable critique, /impeccable delight, /impeccable distill, /impeccable document, /impeccable harden, /impeccable layout, /impeccable onboard, /impeccable optimize, /impeccable overdrive, /impeccable polish, /impeccable quieter, /impeccable shape, /impeccable typeset. Map findings to the most appropriate command. End with `/impeccable polish` as the final step if any fixes were recommended.
+**Rules**: Only recommend commands from: $impeccable adapt, $impeccable animate, $impeccable audit, $impeccable bolder, $impeccable clarify, $impeccable colorize, $impeccable critique, $impeccable delight, $impeccable distill, $impeccable document, $impeccable harden, $impeccable layout, $impeccable onboard, $impeccable optimize, $impeccable overdrive, $impeccable polish, $impeccable quieter, $impeccable shape, $impeccable typeset. Map findings to the most appropriate command. End with `$impeccable polish` as the final step if any fixes were recommended.
 
 After presenting the summary, tell the user:
 
 > You can ask me to run these one at a time, all at once, or in any order you prefer.
 >
-> Re-run `/impeccable audit` after fixes to see your score improve.
+> Re-run `$impeccable audit` after fixes to see your score improve.
 
 **IMPORTANT**: Be thorough but actionable. Too many P3 issues creates noise. Focus on what actually matters.
 

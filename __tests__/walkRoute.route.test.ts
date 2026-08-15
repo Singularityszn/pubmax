@@ -8,7 +8,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetWalkRouteStore } from "@/lib/walkRouteStore";
-import { encodeStops, WALK_ROUTE_RATE_LIMIT, type LngLat, type WalkLegDistance } from "@/lib/walkRoute";
+import {
+  encodeStops,
+  WALK_ROUTE_GLOBAL_RATE_LIMIT,
+  WALK_ROUTE_RATE_LIMIT,
+  type LngLat,
+  type WalkLegDistance,
+} from "@/lib/walkRoute";
 
 // The route module runs assertServerEnv() at import scope (the house pattern).
 // On Vercel vitest reads as production without test-scoped Supabase vars, so the
@@ -45,9 +51,13 @@ const A: LngLat = [-0.1005, 51.5136];
 const B: LngLat = [-0.0975, 51.5142];
 const C: LngLat = [-0.0951, 51.5155];
 
-function get(stops: LngLat[] | string): Promise<Response> {
+function get(stops: LngLat[] | string, ip = "198.51.100.1"): Promise<Response> {
   const raw = typeof stops === "string" ? stops : encodeStops(stops);
-  return GET(new Request(`https://pubmaxxing.com/api/walk-route?stops=${encodeURIComponent(raw)}`));
+  return GET(
+    new Request(`https://pubmaxxing.com/api/walk-route?stops=${encodeURIComponent(raw)}`, {
+      headers: { "x-forwarded-for": ip },
+    }),
+  );
 }
 
 async function body(res: Response) {
@@ -121,14 +131,14 @@ describe("GET /api/walk-route", () => {
     expect(fetchWalkLeg).not.toHaveBeenCalled();
   });
 
-  it("falls back to straight for a leg ORS cannot route (mixed stays ors overall)", async () => {
+  it("marks a mixed route approximate when one leg ORS cannot route", async () => {
     orsApiKey.mockReturnValue("ork_secret");
     fetchWalkLeg
       .mockResolvedValueOnce([A, [-0.099, 51.5139], B]) // leg 1 routed
       .mockResolvedValueOnce(null); // leg 2 unroutable -> straight
     const res = await get([A, B, C]);
     const { line, source } = await body(res);
-    expect(source).toBe("ors");
+    expect(source).toBe("straight");
     const coords = (line.features[0].geometry as GeoJSON.LineString).coordinates;
     expect(coords[coords.length - 1]).toEqual(C);
   });
@@ -163,6 +173,14 @@ describe("GET /api/walk-route", () => {
     const payload = (await limited.json()) as { code: string; retryable: boolean };
     expect(payload.code).toBe("RATE_LIMITED");
     expect(payload.retryable).toBe(true);
+  });
+
+  it("keeps a global backstop when callers rotate forwarded addresses", async () => {
+    for (let i = 0; i < WALK_ROUTE_GLOBAL_RATE_LIMIT; i += 1) {
+      expect((await get([A, B], `198.51.100.${(i % 200) + 1}`)).status).toBe(200);
+    }
+    const limited = await get([A, B], "203.0.113.250");
+    expect(limited.status).toBe(429);
   });
 });
 

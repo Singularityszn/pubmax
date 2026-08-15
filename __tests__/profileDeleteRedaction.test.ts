@@ -59,7 +59,7 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
     const memory = await createNightMemory("host", { title: "Friday orbit" });
     const hostMoment = await addNightMoment("host", memory!.id, {
       kind: "quote",
-      caption: "Great night with @jordanx",
+      caption: "Great night with Jordan and @jordanx",
     });
     const story = await createNightStory("host", { memoryId: memory!.id, title: "Orbit with Jordan" });
     await upsertStoryContributor("host", story!.id, { handle: "jordanx", role: "contributor" });
@@ -86,7 +86,7 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
     // The gate now emits only the host's Moment, with a scrubbed caption.
     const after = await getPublishedRecapSource(story!.id);
     expect(after!.moments.map((m) => m.id)).toEqual([hostMoment!.id]);
-    expect(after!.moments[0].caption).toBe("Great night with a friend");
+    expect(after!.moments[0].caption).toBe("Great night with a friend and a friend");
     expect(JSON.stringify(after!.moments)).not.toMatch(/jordan/i);
   });
 

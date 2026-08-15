@@ -3,12 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Hermetic: loadWhatsOn is mocked (no CityMCP network); the freshness stamp lands
 // in the process-memory feed-freshness store (no Supabase env).
 
-vi.mock("@/lib/whatsOnStore", () => ({
-  loadWhatsOn: vi.fn(async () => ({
-    rows: [{ id: "a" }, { id: "b" }],
-    asOf: "2026-07-21T14:00:00.000Z",
-  })),
-}));
+const loadWhatsOnMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/whatsOnStore", () => ({ loadWhatsOn: loadWhatsOnMock }));
 
 import { GET } from "@/app/api/cron/refresh-whats-on/route";
 import {
@@ -26,6 +23,10 @@ function req(auth?: string): Request {
 beforeEach(() => {
   __resetFeedFreshnessStore();
   vi.stubEnv("CRON_SECRET", "test-secret");
+  loadWhatsOnMock.mockResolvedValue({
+    rows: [{ id: "a" }, { id: "b" }],
+    asOf: "2026-07-21T14:00:00.000Z",
+  });
 });
 
 afterEach(() => {
@@ -61,5 +62,17 @@ describe("GET /api/cron/refresh-whats-on", () => {
     const res = await GET(req("Bearer test-secret"));
     const body = await res.json();
     expect(body.eventProviderKeysPresent).toContain("TICKETMASTER_API_KEY");
+  });
+
+  it("does not stamp request time when the refresh fails", async () => {
+    loadWhatsOnMock.mockRejectedValueOnce(new Error("provider unavailable"));
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await GET(req("Bearer test-secret"));
+    const body = await res.json();
+
+    expect(body).toMatchObject({ ok: false, status: "unresolved", observedAt: null, rowsServed: null });
+    expect(await memoryFeedFreshnessStore.read(WHATS_ON_FEED_KEY)).toBeNull();
+    expect(error).toHaveBeenCalled();
   });
 });

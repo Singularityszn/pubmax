@@ -30,6 +30,7 @@ import {
 } from "@/lib/activePlan";
 import {
   advanceNightCrawl,
+  canActOnNightCrawl,
   classifyActionOutcome,
   isFinalStop,
   nightCrawlActionNote,
@@ -200,7 +201,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
 
   const runAction = useCallback(
     async (type: NightCrawlActionType) => {
-      if (busy || !hero) return;
+      if (busy || !hero || !canActOnNightCrawl(stops, cursor)) return;
       const stopPosition = hero.position;
       const heroName = hero.venueName;
       const previousCursor = cursor;
@@ -262,7 +263,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       }
       setBusy(null);
     },
-    [busy, hero, cursor, stops.length, memberToken, planId, clearOptimistic],
+    [busy, hero, cursor, stops, memberToken, planId, clearOptimistic],
   );
 
   if (!activeNow) return null;

@@ -35,8 +35,8 @@ describe("trusted handoff flag parser", () => {
 });
 
 describe("trusted handoff flag registry", () => {
-  it("registers exactly eight flags with ownership and removal metadata", () => {
-    expect(TRUSTED_HANDOFF_FLAG_KEYS).toHaveLength(8);
+  it("registers exactly seven active flags with ownership and removal metadata", () => {
+    expect(TRUSTED_HANDOFF_FLAG_KEYS).toHaveLength(7);
     expect(Object.keys(TRUSTED_HANDOFF_FLAG_DEFINITIONS)).toEqual(TRUSTED_HANDOFF_FLAG_KEYS);
 
     for (const definition of Object.values(TRUSTED_HANDOFF_FLAG_DEFINITIONS)) {
@@ -64,7 +64,6 @@ describe("trusted handoff flag registry", () => {
       mapRouteTransfer: true,
       tonightGrouping: true,
       palHandoff: true,
-      landingFindMyPint: true,
       friendMemberRehydrationV2: true,
     });
   });

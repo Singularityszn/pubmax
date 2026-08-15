@@ -15,9 +15,10 @@
 
 import freshnessRegistry from "@/data/freshness_registry.json";
 import { resolveObservedAt, type FreshnessRegistry } from "@/lib/freshness";
+import { PINT_DATASET_FILE } from "@/lib/pintPriceDatasetFile.mjs";
 
 /** The bundled London pint-price dataset every borough/index page reads. */
-export const PINT_DATASET_FILE = "pint_prices_app_dataset.json";
+export { PINT_DATASET_FILE };
 
 /** Registry id of the bundled pint-price dataset entry (the stamp we read). */
 const PINT_DATASET_REGISTRY_ID = "pint_prices";

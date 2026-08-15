@@ -307,6 +307,17 @@ describe("community-price funnel events", () => {
     expect(isKnownEvent("price_submitted")).toBe(true);
     expect(isKnownEvent("price_submit_failed")).toBe(true);
     expect(isKnownEvent("contribution_gate")).toBe(true);
+    expect(isKnownEvent("contribution_impact_opened")).toBe(true);
+  });
+
+  it("records an impact return with no identity or price properties", () => {
+    expect(
+      sanitizeEvent("contribution_impact_opened", {
+        handle: "night_owl",
+        venueId: "venue-one",
+        priceGbp: 4.2,
+      }),
+    ).toEqual({ name: "contribution_impact_opened", props: {} });
   });
 
   it("keeps the drink category and the failure reason", () => {

@@ -5,7 +5,6 @@ export const TRUSTED_HANDOFF_FLAG_KEYS = [
   "mapRouteTransfer",
   "tonightGrouping",
   "palHandoff",
-  "landingFindMyPint",
   "friendMemberRehydrationV2",
 ] as const;
 
@@ -20,7 +19,6 @@ export const TRUSTED_HANDOFF_FLAGS_OFF: TrustedHandoffFlagsDTO = Object.freeze({
   mapRouteTransfer: false,
   tonightGrouping: false,
   palHandoff: false,
-  landingFindMyPint: false,
   friendMemberRehydrationV2: false,
 });
 
@@ -34,7 +32,6 @@ export function createTrustedHandoffFlagsDTO(
     mapRouteTransfer: values.mapRouteTransfer,
     tonightGrouping: values.tonightGrouping,
     palHandoff: values.palHandoff,
-    landingFindMyPint: values.landingFindMyPint,
     friendMemberRehydrationV2: values.friendMemberRehydrationV2,
   });
 }

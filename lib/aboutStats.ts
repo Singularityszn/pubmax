@@ -11,6 +11,7 @@
 // way the map/discovery surfaces count a venue.
 
 import { listEnabledCities } from "@/lib/cities";
+import { namedLegacyPintPriceSource } from "@/lib/drinks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
@@ -20,6 +21,10 @@ export type AboutStats = {
   pubsTracked: number;
   /** Individual observed pint-price readings across all venues. */
   pintPricesObserved: number;
+  /** Usable Pint Price rows whose exact row carries a named publisher URL. */
+  publisherRecordedPintPrices: number;
+  /** Usable Pint Price rows whose exact row carries no named publisher URL. */
+  publisherNotRecordedPintPrices: number;
   /** Cheapest observed pint (GBP), or null when no priced row exists. */
   cheapestPint: number | null;
   /** Dearest observed pint (GBP), or null when no priced row exists. */
@@ -63,6 +68,11 @@ export function computeAboutStats(
   const prices = pricedRows.map((row) => row.price_gbp as number);
 
   const pintPricesObserved = prices.length;
+  const publisherRecordedPintPrices = pricedRows.filter(
+    (row) => namedLegacyPintPriceSource(row) !== null,
+  ).length;
+  const publisherNotRecordedPintPrices =
+    pintPricesObserved - publisherRecordedPintPrices;
   const cheapestPint = prices.length ? Math.min(...prices) : null;
   const dearestPint = prices.length ? Math.max(...prices) : null;
   const averagePint = prices.length
@@ -78,6 +88,8 @@ export function computeAboutStats(
   return {
     pubsTracked,
     pintPricesObserved,
+    publisherRecordedPintPrices,
+    publisherNotRecordedPintPrices,
     cheapestPint,
     dearestPint,
     averagePint,

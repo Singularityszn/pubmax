@@ -5,6 +5,8 @@ import {
   lineCoordsFromFeatureCollection,
   projectCoords,
   projectPoint,
+  routeBoundsFromCoords,
+  stopsSignature,
   stopsParam,
   svgPath,
   type LngLat,
@@ -38,6 +40,23 @@ describe("boundsFromCoords", () => {
 
   it("returns null when every coordinate is non-finite", () => {
     expect(boundsFromCoords([[Infinity, Infinity]])).toBeNull();
+  });
+});
+
+describe("route mini-map identity and bounds", () => {
+  it("fits routed detours as well as the stop coordinates", () => {
+    expect(routeBoundsFromCoords([A, B], [[-0.16, 51.515], [-0.13, 51.52]])).toEqual({
+      minLng: -0.16,
+      minLat: 51.51,
+      maxLng: -0.13,
+      maxLat: 51.52,
+    });
+  });
+
+  it("changes identity when a stop keeps its id but gets a new name", () => {
+    expect(stopsSignature([{ venueId: "pub-1", venueName: "Old name" }])).not.toBe(
+      stopsSignature([{ venueId: "pub-1", venueName: "New name" }]),
+    );
   });
 });
 

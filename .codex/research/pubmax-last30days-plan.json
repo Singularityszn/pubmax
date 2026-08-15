@@ -1,0 +1,35 @@
+{
+  "intent": "concept",
+  "freshness_mode": "balanced_recent",
+  "cluster_mode": "none",
+  "subqueries": [
+    {
+      "label": "primary",
+      "search_query": "PUBMAXX pubmaxxing London pub price map social app",
+      "ranking_query": "What are people saying about PUBMAXX, London pub discovery, pub prices, and social night planning?",
+      "sources": ["reddit", "x", "youtube", "tiktok", "instagram", "hackernews", "polymarket"],
+      "weight": 1.0
+    },
+    {
+      "label": "jobs-to-be-done",
+      "search_query": "London pub recommendations cheap pints vibe weather last train route planning",
+      "ranking_query": "What problems do London pub-goers face when choosing a pub and planning a night?",
+      "sources": ["reddit", "x", "youtube", "tiktok", "instagram"],
+      "weight": 0.85
+    },
+    {
+      "label": "social-retention",
+      "search_query": "pub tracking app pub crawl app friends memories recommendations",
+      "ranking_query": "Which social, tracking, memory, and recommendation features make pub apps useful or habit-forming?",
+      "sources": ["reddit", "youtube", "tiktok", "instagram", "hackernews"],
+      "weight": 0.75
+    },
+    {
+      "label": "growth-monetisation",
+      "search_query": "local discovery app network effects subscriptions pub rewards venue offers",
+      "ranking_query": "How do local discovery and social apps grow, retain users, and monetise without damaging trust?",
+      "sources": ["reddit", "x", "youtube", "hackernews"],
+      "weight": 0.65
+    }
+  ]
+}

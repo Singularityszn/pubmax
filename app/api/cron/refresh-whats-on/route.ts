@@ -55,30 +55,38 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   // Revalidate the servable window (fail-soft to baseline inside loadWhatsOn).
-  let rows = 0;
-  let asOf = new Date().toISOString();
+  let rows: number | null = null;
+  let asOf: string | null = null;
+  let refreshFailed = false;
   try {
     const result = await loadWhatsOn({ window: "tonight" });
     rows = result.rows.length;
     // Stamp the honest source-observed time when the feed reports one, so
     // /api/freshness shows real freshness rather than the frozen generatedAt.
-    // Only when source freshness is genuinely unknown do we fall back to the
-    // served instant — we never invent a source timestamp from request time.
-    asOf = result.asOf ?? result.servedAt;
+    asOf = result.asOf;
+    if (!asOf) refreshFailed = true;
   } catch (err) {
+    refreshFailed = true;
     console.error("[cron:refresh-whats-on] tonight-window revalidation failed:", err instanceof Error ? err.message : String(err));
   }
 
-  const stamp = await feedFreshnessStore().stamp({
-    feed: WHATS_ON_FEED_KEY,
-    observedAt: asOf,
-    rowsServed: rows,
-    note: "slim tonight-window revalidation (full ingest is out-of-function; see runbook)",
-  });
+  const stamp = refreshFailed || !asOf
+    ? { failed: false }
+    : await feedFreshnessStore().stamp({
+        feed: WHATS_ON_FEED_KEY,
+        observedAt: asOf,
+        rowsServed: rows,
+        note: "slim tonight-window revalidation (full ingest is out-of-function; see runbook)",
+      });
 
-  console.log(`[cron:refresh-whats-on] revalidated tonight window: ${rows} rows at ${asOf}${stamp.failed ? " (stamp write degraded)" : ""}.`);
+  console.log(
+    refreshFailed
+      ? "[cron:refresh-whats-on] revalidation unresolved; freshness stamp unchanged."
+      : `[cron:refresh-whats-on] revalidated tonight window: ${rows} rows at ${asOf}${stamp.failed ? " (stamp write degraded)" : ""}.`,
+  );
   return jsonNoStore({
-    ok: true,
+    ok: !refreshFailed,
+    status: refreshFailed ? "unresolved" : "ready",
     feed: WHATS_ON_FEED_KEY,
     mode: "slim",
     observedAt: asOf,

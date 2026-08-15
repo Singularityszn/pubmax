@@ -27,6 +27,17 @@ const STATUS_ORDER: Array<{ bucket: CoverageBucket; label: string }> = [
   { bucket: "paused", label: "Paused" },
 ];
 
+/** Reader-facing reason for an area that is not route-ready yet. */
+export function coverageDetailForArea(area: NightArea, now: Date): string {
+  if (isNightAreaRouteReady(area, now)) {
+    return "Prices here are fresh and checked. Plan a crawl whenever.";
+  }
+  const openChecks = area.missingEvidence.length;
+  return openChecks > 0
+    ? `${openChecks} more ${openChecks === 1 ? "check" : "checks"} to do here before a crawl.`
+    : "Not enough fresh information here yet to plan a crawl.";
+}
+
 function stateForArea(area: NightArea, now: Date): CoverageState {
   const routeReady = isNightAreaRouteReady(area, now);
   if (routeReady) {
@@ -40,10 +51,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
     };
   }
 
-  const openChecks = area.missingEvidence.length;
-  const gateDetail = openChecks > 0
-    ? `${openChecks} more price ${openChecks === 1 ? "check" : "checks"} to do here before a crawl.`
-    : "Not enough fresh prices here yet to plan a crawl.";
+  const gateDetail = coverageDetailForArea(area, now);
   const shared = {
     actionLabel: "See the pubs",
     href: `/map?q=${encodeURIComponent(area.name)}`,

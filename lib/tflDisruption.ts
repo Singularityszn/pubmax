@@ -162,12 +162,12 @@ function londonOffsetMs(base: Date): number {
  * Tonight's window as absolute epoch-ms bounds: [17:00, 02:00) London. Before
  * 02:00 the window's evening date rolls back a day — at 00:30 we are still inside
  * the night that opened at 17:00 yesterday, so a closure running to 02:00 must
- * still count. A single offset (read at `now`) is exact enough; the window never
- * straddles the 01:00 DST switch in a way that changes an overlap decision here.
+ * still count. Each wall-clock boundary resolves its own London offset, so the
+ * autumn and spring clock changes do not shorten or extend the window by an
+ * hour.
  */
 export function tonightWindow(now: Date): { start: number; end: number } {
   const p = londonParts(now);
-  const offset = londonOffsetMs(now);
 
   let ey = p.year;
   let em = p.month;
@@ -180,8 +180,17 @@ export function tonightWindow(now: Date): { start: number; end: number } {
     ed = prev.getUTCDate();
   }
 
-  const start = Date.UTC(ey, em - 1, ed, NIGHT_WINDOW_OPEN_HOUR, 0, 0) - offset;
-  const end = Date.UTC(ey, em - 1, ed + 1, NIGHT_WINDOW_CLOSE_HOUR, 0, 0) - offset;
+  const wallTimeToInstant = (year: number, month: number, day: number, hour: number): number => {
+    const wallAsUtc = Date.UTC(year, month - 1, day, hour, 0, 0);
+    // Estimate, then resolve the offset at that estimated instant. Two passes
+    // handle either side of a London DST transition without a timezone package.
+    let instant = wallAsUtc - londonOffsetMs(new Date(wallAsUtc));
+    instant = wallAsUtc - londonOffsetMs(new Date(instant));
+    return instant;
+  };
+
+  const start = wallTimeToInstant(ey, em, ed, NIGHT_WINDOW_OPEN_HOUR);
+  const end = wallTimeToInstant(ey, em, ed + 1, NIGHT_WINDOW_CLOSE_HOUR);
   return { start, end };
 }
 

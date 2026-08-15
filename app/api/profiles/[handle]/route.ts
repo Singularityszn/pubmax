@@ -255,6 +255,19 @@ export async function DELETE(
       );
     }
 
+    // Redaction must run before profile fields are cleared: public reads use the
+    // departing display name to scrub free-text mentions as well as the handle.
+    // Fail closed if the redaction queue cannot be marked, so deletion is
+    // retried rather than exposing published content.
+    if (existing.userId) {
+      const marked = await markContributorsDepartedByProfileId(existing.userId, existing.displayName);
+      if (marked > 0) {
+        console.info(
+          `[redaction] account deletion for @${handle}: marked ${marked} Story contribution(s) departed`,
+        );
+      }
+    }
+
     if (existing.userId) {
       await privateIdentityStore().erase(existing.userId);
     }
@@ -262,28 +275,6 @@ export async function DELETE(
 
     if (existing.userId) {
       await referralStore().eraseAccount(existing.userId);
-    }
-
-    // Redaction on account deletion (Wayfinder 5.5): mark this account's Story
-    // contributions "withdrawn" so the publish gate erases their content +
-    // identity from every published Story on the next public read — without
-    // destroying the rest of anyone's Story. Additive, and fail-soft: a marking
-    // hiccup must not fail the delete the caller already succeeded at, but it is
-    // logged loudly so the owner can reconcile.
-    if (existing.userId) {
-      try {
-        const marked = await markContributorsDepartedByProfileId(existing.userId);
-        if (marked > 0) {
-          console.info(
-            `[redaction] account deletion for @${handle}: marked ${marked} Story contribution(s) departed`,
-          );
-        }
-      } catch (err) {
-        console.error(
-          `[redaction] account deletion for @${handle}: FAILED to mark Story contributions departed — reconcile manually`,
-          err,
-        );
-      }
     }
 
     return jsonNoStore({ profile: toPublicProfile(profile) }, { status: 200 });

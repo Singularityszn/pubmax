@@ -117,6 +117,8 @@ function contributorFromRow(row: Record<string, unknown>): StoryContributor {
     role: row.role as StoryContributor["role"],
     status: row.status as StoryContributor["status"],
     joinedAt: typeof row.joined_at === "string" ? row.joined_at : null,
+    departedDisplayName:
+      typeof row.departed_display_name === "string" ? row.departed_display_name : null,
   };
 }
 
@@ -542,7 +544,13 @@ async function resolveDepartedContributors(
   return Promise.all(
     [...departedIds].sort().map(async (profileId) => {
       const profile = await store.getByUserId(profileId).catch(() => null);
-      return { profileId, handle: profile?.handle ?? null, displayName: profile?.displayName ?? null };
+      return {
+        profileId,
+        handle: profile?.handle ?? null,
+        displayName: contributorsList.find((item) => item.profileId === profileId)?.departedDisplayName
+          ?? profile?.displayName
+          ?? null,
+      };
     }),
   );
 }
@@ -554,7 +562,10 @@ async function resolveDepartedContributors(
  * it never frees the host slot or touches Moments (redaction is emission-time).
  * Returns the number of contributions marked so the caller can log loudly.
  */
-export async function markContributorsDepartedByProfileId(profileId: string): Promise<number> {
+export async function markContributorsDepartedByProfileId(
+  profileId: string,
+  departedDisplayName?: string | null,
+): Promise<number> {
   const id = typeof profileId === "string" ? profileId.trim() : "";
   if (!id) return 0;
   if (!isSupabaseConfigured()) {
@@ -565,7 +576,11 @@ export async function markContributorsDepartedByProfileId(profileId: string): Pr
         if (contributor.profileId === id && contributor.status === "accepted") {
           changed = true;
           count += 1;
-          return { ...contributor, status: "withdrawn" as const };
+          return {
+            ...contributor,
+            status: "withdrawn" as const,
+            departedDisplayName: departedDisplayName?.trim() || null,
+          };
         }
         return contributor;
       });
@@ -575,7 +590,7 @@ export async function markContributorsDepartedByProfileId(profileId: string): Pr
   }
   const { data, error } = await requireSupabaseAdmin()
     .from("night_story_contributors")
-    .update({ status: "withdrawn" })
+    .update({ status: "withdrawn", departed_display_name: departedDisplayName?.trim() || null })
     .eq("profile_id", id)
     .eq("status", "accepted")
     .select("story_id");

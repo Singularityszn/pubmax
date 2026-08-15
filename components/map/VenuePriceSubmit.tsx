@@ -23,6 +23,7 @@ import type { DrinkCategory } from "@/lib/drinks";
 import { formatPrice } from "@/lib/venues";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
+import ContributionImpactLink from "@/components/profile/ContributionImpactLink";
 import { trackEvent } from "@/lib/analytics";
 
 // The word-of-mouth moment: you're standing in the pub, you tap what you're
@@ -312,7 +313,10 @@ export default function VenuePriceSubmit({
             {logged.attribution.status === "credited" ? (
               <>
                 Counted under <strong>@{logged.attribution.handle}</strong> on
-                the contributor record.
+                the contributor record.{" "}
+                <ContributionImpactLink
+                  handle={logged.attribution.handle}
+                />
               </>
             ) : null}
           </p>
