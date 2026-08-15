@@ -400,8 +400,17 @@ function currentSearch(): string {
   return typeof window === "undefined" ? "" : window.location.search;
 }
 
-function subscribeHydration(): () => void {
-  return () => {};
+function subscribeAcceptedArrival(onStoreChange: () => void): () => void {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("popstate", onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("popstate", onStoreChange);
+  };
+}
+
+function noAcceptedArrivalSource(): null {
+  return null;
 }
 
 // D4 — take `log=1` off the current history entry. Idempotent, so it can run
@@ -707,14 +716,20 @@ export default function PubMap({
     seed.selectedVenueId || restoredMobileSession?.selectedVenueId || "",
   );
   const reactiveAcceptanceSearch = searchParams?.toString() ?? "";
-  const hydrated = useSyncExternalStore(subscribeHydration, () => true, () => false);
-  const acceptedArrivalSource = hydrated
-    ? verifiedAcceptedArrivalSource({
+  const acceptanceSelectedVenueId = searchParams?.get("sel") ?? seed.selectedVenueId;
+  const acceptedArrivalSnapshot = useCallback(
+    () => verifiedAcceptedArrivalSource({
       search: reactiveAcceptanceSearch,
-      selectedVenueId: searchParams?.get("sel") ?? seed.selectedVenueId,
+      selectedVenueId: acceptanceSelectedVenueId,
       cityId,
-    }, { cleanupInvalid: false })
-    : null;
+    }, { cleanupInvalid: false }),
+    [acceptanceSelectedVenueId, cityId, reactiveAcceptanceSearch],
+  );
+  const acceptedArrivalSource = useSyncExternalStore(
+    subscribeAcceptedArrival,
+    acceptedArrivalSnapshot,
+    noAcceptedArrivalSource,
+  );
   const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(null);
   const [acceptanceError, setAcceptanceError] = useState<string | null>(null);
   const preSheetFocusRef = useRef<HTMLElement | null>(null);

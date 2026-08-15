@@ -85,7 +85,7 @@ test("Venue actions fit 320px and 390px", async ({ page }) => {
   }
 });
 
-test("1440px accepted arrival keeps receipt and visible keyboard focus", async ({ page }) => {
+test("1440px accepted arrival keeps receipt, focus, and Near provenance", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.addInitScript(([key, venueId]) => {
     const now = Date.now();
@@ -94,9 +94,12 @@ test("1440px accepted arrival keeps receipt and visible keyboard focus", async (
       source: "near",
       cityId: "london",
       acceptedVenueId: venueId,
-      acceptedArea: null,
-      startsAt: null,
-      displayEvidence: { kind: "directory", observedAt: null },
+      acceptedArea: { kind: "borough", name: "Camden" },
+      startsAt: new Date(now + 60 * 60 * 1000).toISOString(),
+      displayEvidence: {
+        kind: "price",
+        observedAt: new Date(now - 60 * 60 * 1000).toISOString(),
+      },
       acceptedAt: new Date(now).toISOString(),
       expiresAt: new Date(now + 2 * 60 * 60 * 1000).toISOString(),
     }));
@@ -111,6 +114,18 @@ test("1440px accepted arrival keeps receipt and visible keyboard focus", async (
   await accept.focus();
   await expect(accept).toBeFocused();
   expect(await accept.evaluate((button) => getComputedStyle(button).outlineStyle)).not.toBe("none");
+
+  await accept.click();
+  await expect(page).toHaveURL(/\/plan$/);
+  const intent = await page.evaluate((key) => {
+    const raw = sessionStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  }, INTENT_KEY);
+  expect(intent).toMatchObject({
+    source: "near",
+    acceptedArea: { kind: "borough", name: "Camden" },
+    displayEvidence: { kind: "price", observedAt: expect.any(String) },
+  });
 });
 
 test("storage denial stays on Venue and emits no acceptance events", async ({ page }) => {
