@@ -64,6 +64,7 @@ describe("ConfirmFollow", () => {
 
     expect(html).toContain("Add Karan M?");
     expect(html).toContain("@karan");
+    expect(html).toContain("Create account and add Karan M");
   });
 
   it("offers an account with no handle the claim surface, carrying the same return", () => {
@@ -104,5 +105,15 @@ describe("ConfirmFollow", () => {
 
     expect(html).toContain("Share your link");
     expect(html).not.toContain("Create account and add");
+  });
+
+  it("does not treat a signed-out cached handle as the target account", () => {
+    viewer.handle = "karan";
+
+    const html = render({ targetName: "Karan M" });
+
+    expect(html).toContain("Create account and add Karan M");
+    expect(html).not.toContain("Share your link");
+    expect(html).not.toContain("Add @karan</button>");
   });
 });

@@ -381,6 +381,7 @@ export default function LoginPage({
    * /login sign-in keeps showing its signed-in card, as it always has.
    */
   const passwordDestination = from ? destination : null;
+  const providerDestination = from ? destination : undefined;
 
   const chooseDoor = useCallback((next: ArrivalIntent) => {
     setIntent(next);
@@ -410,33 +411,39 @@ export default function LoginPage({
     trackEvent("sign_in_initiated", { provider: "google" });
     setBusy("google");
     setError(null);
-    const { error: signInError } = await signInWithGoogle();
+    const { error: signInError } = providerDestination
+      ? await signInWithGoogle(providerDestination)
+      : await signInWithGoogle();
     if (signInError) {
       setError(signInError);
       setBusy(null);
     }
-  }, [signInWithGoogle]);
+  }, [providerDestination, signInWithGoogle]);
 
   const onSignInApple = useCallback(async () => {
     trackEvent("sign_in_initiated", { provider: "apple" });
     setBusy("apple");
     setError(null);
-    const { error: signInError } = await signInWithApple();
+    const { error: signInError } = providerDestination
+      ? await signInWithApple(providerDestination)
+      : await signInWithApple();
     if (signInError) {
       setError(signInError);
       setBusy(null);
     }
-  }, [signInWithApple]);
+  }, [providerDestination, signInWithApple]);
 
   const onResume = useCallback(async () => {
     if (resumeStatus === "sending" || resumeStatus === "sent") return;
     trackEvent("sign_in_initiated", { provider: "email_resume" });
     setResumeStatus("sending");
     setResumeMessage("");
-    const result = await resumeSignIn();
+    const result = providerDestination
+      ? await resumeSignIn(providerDestination)
+      : await resumeSignIn();
     setResumeStatus(result.status);
     setResumeMessage(result.message);
-  }, [resumeSignIn, resumeStatus]);
+  }, [providerDestination, resumeSignIn, resumeStatus]);
 
   const onSignOut = useCallback(
     async (scope: SignOutScope) => {

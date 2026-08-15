@@ -95,7 +95,12 @@ export default function ConfirmFollow({
   // ONCE. A re-render, a re-focus or a second effect pass may not write again.
   const autoAttempted = useRef(false);
 
-  const isSelf = Boolean(viewerHandle) && viewerHandle === target;
+  const hasAccount = Boolean(user);
+  const isSelf =
+    identityResolved &&
+    hasAccount &&
+    Boolean(viewerHandle) &&
+    normalizeHandle(viewerHandle ?? "") === target;
   const shareUrl =
     typeof window !== "undefined" ? `${window.location.origin}/add/${target}` : `/add/${target}`;
   const doors = addLinkDoors(target);
@@ -120,6 +125,7 @@ export default function ConfirmFollow({
       !viewerHandle ||
       !shouldAutoAdd({
         auto,
+        hasAccount,
         identityResolved,
         viewerHandle,
         target,
@@ -130,7 +136,7 @@ export default function ConfirmFollow({
     }
     autoAttempted.current = true;
     void performAdd(target, viewerHandle, setState, setError);
-  }, [auto, identityResolved, target, viewerHandle]);
+  }, [auto, hasAccount, identityResolved, target, viewerHandle]);
 
   async function share() {
     setShareError("");
@@ -193,7 +199,7 @@ export default function ConfirmFollow({
     return (
       <section className="confirmFollow" role="status">
         <p className="confirmFollowEyebrow">{ADD_LINK_COPY.eyebrow}</p>
-        <h1 className="confirmFollowTitle">{addLinkReceiptTitle(target)}</h1>
+        <h1 className="confirmFollowTitle">{addLinkReceiptTitle(target, name)}</h1>
         <p className="confirmFollowBody">{ADD_LINK_RECEIPT_BODY}</p>
         <ul className="confirmFollowNext">
           {addLinkNextSteps(target).map((step, index) => (
@@ -247,7 +253,7 @@ export default function ConfirmFollow({
 
   // No account. ONE primary action, and the sign-in door under it. Both carry
   // this add link, so the add lands by itself on the way back.
-  if (!user && doors) {
+  if (!hasAccount && doors) {
     return (
       <section className="confirmFollow" aria-label={`Add ${displayHandle(target)}`}>
         {card}
@@ -262,7 +268,7 @@ export default function ConfirmFollow({
             })
           }
         >
-          {addLinkCreateCta(target)}
+          {addLinkCreateCta(target, name)}
         </Link>
         <Link
           className="confirmFollowSecondary"

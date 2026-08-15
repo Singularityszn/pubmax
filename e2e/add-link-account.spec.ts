@@ -13,6 +13,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const PHONE = { width: 390, height: 844 };
 const TARGET = "karan";
+const TARGET_NAME = `@${TARGET}`;
 const RETURN_TO = "%2Fadd%2Fkaran%3Fauto%3D1";
 const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-00000000000e";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
@@ -50,7 +51,7 @@ test.use({ viewport: PHONE });
 test("a stranger meets one way in, and it carries the add link", async ({ page }) => {
   await page.goto(`/add/${TARGET}`);
 
-  const create = page.getByRole("link", { name: `Create account and add @${TARGET}` });
+  const create = page.getByRole("link", { name: `Create account and add ${TARGET_NAME}` });
   await expect(create).toBeVisible();
   await expect(create).toHaveAttribute("href", `/login?mode=signup&from=${RETURN_TO}`);
 
@@ -74,7 +75,7 @@ test("the sign-up door opens the account form with the add link still on it", as
 }) => {
   await page.goto(`/add/${TARGET}`);
   await page
-    .getByRole("link", { name: `Create account and add @${TARGET}` })
+    .getByRole("link", { name: `Create account and add ${TARGET_NAME}` })
     .click();
 
   await expect(page).toHaveURL(new RegExp(`/login\\?mode=signup&from=${RETURN_TO}`));
@@ -125,11 +126,11 @@ test("landing back with an account adds them once and shows the receipt", async 
   await page.goto(`/add/${TARGET}?auto=1`);
 
   await expect(
-    page.getByRole("heading", { name: `@${TARGET} is in your lot.` }),
+    page.getByRole("heading", { name: `${TARGET_NAME} is in your lot.` }),
   ).toBeVisible();
   // No button to press: the add the person chose before they had an account is
   // the thing that just happened.
-  await expect(page.getByRole("button", { name: `Add @${TARGET}` })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: `Add ${TARGET_NAME}` })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Open the map" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Find a pint" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Send them a message" })).toHaveAttribute(

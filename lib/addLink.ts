@@ -95,12 +95,20 @@ export function addLinkAwareDestination(
  */
 export function shouldAutoAdd(input: {
   auto: boolean;
+  hasAccount: boolean;
   identityResolved: boolean;
   viewerHandle: string | null;
   target: string;
   attempted: boolean;
 }): boolean {
-  if (!input.auto || input.attempted || !input.identityResolved) return false;
+  if (
+    !input.auto ||
+    !input.hasAccount ||
+    input.attempted ||
+    !input.identityResolved
+  ) {
+    return false;
+  }
   const viewer = normalizeHandle(input.viewerHandle ?? "");
   const target = normalizeHandle(input.target);
   if (!viewer || !target) return false;
@@ -134,14 +142,18 @@ export const ADD_LINK_COPY = {
   handleCta: "Choose a handle to add them",
 } as const;
 
-/** "Create account and add @karan" - the one primary action for a stranger. */
-export function addLinkCreateCta(handle: string): string {
-  return `Create account and add ${displayHandle(handle)}`;
+function addLinkTargetLabel(handle: string, name?: string | null): string {
+  return name?.trim() || displayHandle(handle);
+}
+
+/** "Create account and add Karan" - the one primary action for a stranger. */
+export function addLinkCreateCta(handle: string, name?: string | null): string {
+  return `Create account and add ${addLinkTargetLabel(handle, name)}`;
 }
 
 /** The receipt heading. */
-export function addLinkReceiptTitle(handle: string): string {
-  return `${displayHandle(handle)} is in your lot.`;
+export function addLinkReceiptTitle(handle: string, name?: string | null): string {
+  return `${addLinkTargetLabel(handle, name)} is in your lot.`;
 }
 
 /** The receipt line under it. */

@@ -77,6 +77,7 @@ describe("the add link survives account creation", () => {
 describe("the add on arrival happens once", () => {
   const base = {
     auto: true,
+    hasAccount: true,
     identityResolved: true,
     viewerHandle: "newdrinker",
     target: "karan",
@@ -96,6 +97,10 @@ describe("the add on arrival happens once", () => {
     expect(shouldAutoAdd({ ...base, viewerHandle: null })).toBe(false);
   });
 
+  it("refuses a signed-out viewer carrying a cached handle", () => {
+    expect(shouldAutoAdd({ ...base, hasAccount: false })).toBe(false);
+  });
+
   it("refuses without the flag, and refuses your own link", () => {
     expect(shouldAutoAdd({ ...base, auto: false })).toBe(false);
     expect(shouldAutoAdd({ ...base, viewerHandle: "karan" })).toBe(false);
@@ -105,7 +110,9 @@ describe("the add on arrival happens once", () => {
 
 describe("what the add surface says and reports", () => {
   it("names the friend in the one primary action and in the receipt", () => {
-    expect(addLinkCreateCta("karan")).toBe("Create account and add @karan");
+    expect(addLinkCreateCta("karan", "Karan M")).toBe("Create account and add Karan M");
+    expect(addLinkReceiptTitle("karan", "Karan M")).toBe("Karan M is in your lot.");
+    expect(addLinkCreateCta("karan", "  ")).toBe("Create account and add @karan");
     expect(addLinkReceiptTitle("karan")).toBe("@karan is in your lot.");
   });
 
@@ -119,8 +126,8 @@ describe("what the add surface says and reports", () => {
     const lines = [
       ...Object.values(ADD_LINK_COPY),
       ADD_LINK_RECEIPT_BODY,
-      addLinkCreateCta("karan"),
-      addLinkReceiptTitle("karan"),
+      addLinkCreateCta("karan", "Karan M"),
+      addLinkReceiptTitle("karan", "Karan M"),
       ...addLinkNextSteps("karan").map((step) => step.label),
     ];
     for (const line of lines) {
