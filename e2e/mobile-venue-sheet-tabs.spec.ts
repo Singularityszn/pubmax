@@ -174,8 +174,9 @@ async function expectPrimaryActions(page: Page): Promise<void> {
     }),
   );
 
+  // "Make <venue> Stop 1" belongs to permanent venue acceptance, which is a
+  // separate PR; this spec covers the tab strip's touch scrolling.
   expect(actions.map((action) => action.name)).toEqual([
-    "Make Arnos Arms Stop 1",
     "Add a price at Arnos Arms",
     "Crawl",
     "Share Arnos Arms",
