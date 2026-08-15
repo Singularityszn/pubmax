@@ -31,6 +31,9 @@ the current visible price contribution count.
 ## UI contract
 
 - Stable section id is `contribution-impact` in loading, degraded, and ready states.
+- If owner identity resolution mounts the section after the browser's first
+  fragment pass, exact `#contribution-impact` arrival scrolls the mounted section
+  into view once.
 - Section heading is `Your contributor record`.
 - Ready state includes `price` or `prices` with correct singular grammar.
 - A price-only contributor is not shown the empty state.
@@ -53,4 +56,3 @@ the current visible price contribution count.
 - Public contributor leaderboard changes.
 - New API, store, migration, CSS system, analytics property, or metric.
 - Quantity levels, drinking streaks, or claims about alcohol consumed.
-

@@ -29,6 +29,8 @@ stable section id survives loading, degraded, and ready transitions.
 
 - [ ] Add fragment to credited link only.
 - [ ] Give all card states `id="contribution-impact"` and one stable heading.
+- [ ] On exact fragment arrival, scroll the mounted section once after owner
+  identity resolution if the browser's initial fragment pass ran too early.
 - [ ] Consume `stats.prices`, include it in contributed decision, and render it
   beside Visit Reports and Recommendations.
 - [ ] Keep degraded state non-numeric and analytics event property-free.
@@ -52,4 +54,3 @@ stable section id survives loading, degraded, and ready transitions.
   privacy, and mobile geometry.
 - [ ] Run full `npm run verify` on reviewed commit.
 - [ ] Re-run exact production browser gate and confirm clean worktree.
-
