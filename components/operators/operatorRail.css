@@ -153,12 +153,3 @@
     color: #e5806c;
   }
 }
-
-/* iOS Safari form-focus zoom floor. Desktop density stays unchanged. */
-@media (pointer: coarse) {
-  .operatorRailField input,
-  .operatorRailField select,
-  .operatorRailField textarea {
-    font-size: 16px;
-  }
-}

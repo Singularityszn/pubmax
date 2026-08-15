@@ -993,12 +993,3 @@
     transform: none;
   }
 }
-
-/* iOS Safari form-focus zoom floor. Desktop density stays unchanged. */
-@media (pointer: coarse) {
-  .roundField select,
-  .roundField input,
-  .roundSearch {
-    font-size: 16px;
-  }
-}

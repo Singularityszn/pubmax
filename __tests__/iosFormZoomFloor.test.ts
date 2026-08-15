@@ -4,12 +4,33 @@ import { join, relative, sep } from "node:path";
 import postcss, { type Container } from "postcss";
 import { describe, expect, it } from "vitest";
 
-// Mobile Safari owns form-focus zoom, so Chromium cannot supply computed-style
-// evidence for that browser behavior. A sub-16px component selector needs an
-// equal-specificity floor later in the same stylesheet and inside a coarse-
-// pointer media query. A global element rule cannot replace that contract: it
-// either loses the cascade or changes desktop density. Four files belong to a
-// concurrent lane and stay on a shrink-only handoff list.
+// THE FLOOR IS ONE RULE, AND THIS FENCE EXISTS BECAUSE IT WAS DELETED.
+//
+// Mobile Safari zooms the page in when a focused form control's font-size is
+// under 16px, and it does not zoom back out on blur: the drinker is left on a
+// magnified page with the site chrome off screen. Chromium does not reproduce
+// it, so no computed-style run can supply the evidence and the shipped CSS is
+// the fence.
+//
+// app/globals.css carries the whole policy in one place:
+//
+//   :where(input, textarea, select) { font-size: max(16px, 1em) !important; }
+//
+// Two things about it are load-bearing. `:where()` gives it ZERO specificity,
+// so `!important` is the only reason it wins - drop that keyword and a single
+// component rule takes the surface back. And it is stated ONCE, so no route
+// can make one mobile form behave differently from the next. Per-file
+// coarse-pointer copies of it are therefore duplicates, not defence: #1049
+// added six of them and, in the same pass, deleted the rule they duplicated,
+// which is exactly the failure this fence now refuses.
+//
+// So the contract is: the shared rule EXISTS, reaches a phone, covers all
+// three controls, is at least 16px, and carries `!important`; and no shipped
+// stylesheet undercuts it with an important sub-16px control declaration of
+// its own, which is the one way a component can still win. A sub-16px
+// declaration WITHOUT `!important` is fine and deliberately not swept: the
+// shared floor already beats it, and failing on those would ask every route to
+// restate a rule that is stated once on purpose.
 const FLOOR_PX = 16;
 const PHONE_WIDTHS_PX = [360, 390, 430];
 const CONTROL_ELEMENTS = ["input", "textarea", "select"];
@@ -430,51 +451,6 @@ const SHIPPED_STYLESHEETS = ["app", "components"].flatMap((dir) =>
   walkStylesheets(join(REPO_ROOT, dir)),
 );
 
-const PENDING_TOUCH_FLOOR = new Set([
-  "app/plan/plan.css",
-  "components/map/mapSearchSuggest.css",
-  "components/map/mapToolbar.css",
-  "components/map/personaLens.css",
-]);
-
-function effectiveFontSizePx(rule: CssRule): number | null {
-  const declarations = rule.declarations.filter(
-    (candidate) => candidate.property === "font-size" || candidate.property === "font",
-  );
-  const declaration = declarations.at(-1);
-  if (!declaration) return null;
-  const proof =
-    declaration.property === "font"
-      ? fontShorthandSize(declaration.value)
-      : lengthLowerBound(declaration.value);
-  return proof.resolved ? proof.px : null;
-}
-
-function isCoarsePointerRule(rule: CssRule): boolean {
-  return rule.conditions.some(
-    (condition) =>
-      condition.startsWith("@media ") && /\((?:any-)?pointer\s*:\s*coarse\)/i.test(condition),
-  );
-}
-
-function uncoveredTouchFloorSelectors(css: string): string[] {
-  const parsed = parseCssRules(css);
-  return parsed.flatMap((rule, ruleIndex) => {
-    const size = effectiveFontSizePx(rule);
-    if (size === null || size >= FLOOR_PX || isCoarsePointerRule(rule)) return [];
-
-    return rule.selectors.filter((selector) => {
-      if (!selectorTargetsControl(selector)) return false;
-      return !parsed.slice(ruleIndex + 1).some(
-        (candidate) =>
-          isCoarsePointerRule(candidate) &&
-          candidate.selectors.includes(selector) &&
-          (effectiveFontSizePx(candidate) ?? -Infinity) >= FLOOR_PX,
-      );
-    });
-  });
-}
-
 describe("iOS form-zoom floor", () => {
   it("rejects a shared floor that only applies to desktop pointers", () => {
     const css = `
@@ -561,25 +537,26 @@ describe("iOS form-zoom floor", () => {
     expect(importantControlConflicts(css, "fixture.css")).toHaveLength(refused ? 1 : 0);
   });
 
-  it("keeps each sub-16px control floor beside its component rule", () => {
-    const unresolved = SHIPPED_STYLESHEETS.flatMap((file) => {
-      const path = relative(REPO_ROOT, file).split(sep).join("/");
-      const selectors = [...new Set(uncoveredTouchFloorSelectors(readFileSync(file, "utf8")))];
-      if (PENDING_TOUCH_FLOOR.has(path)) {
-        expect(selectors.length, `${path} no longer needs its pending handoff`).toBeGreaterThan(0);
-        return [];
-      }
-      return selectors.map((selector) => `${path}: ${selector}`);
-    });
+  it("still ships the one shared floor, and it still carries !important", () => {
+    const globals = parseCssRules(readFileSync(join(REPO_ROOT, "app", "globals.css"), "utf8"));
+    const floor = phoneReachableFloor(globals);
 
-    expect(unresolved).toEqual([]);
-  });
+    // Named rather than asserted as a bare truthy, because "the floor is gone"
+    // and "the floor no longer reaches a phone" are two different regressions
+    // and the failure has to say which one happened.
+    expect(
+      floor ? "a phone-reachable shared floor is shipped" : "NO phone-reachable shared floor",
+    ).toBe("a phone-reachable shared floor is shipped");
 
-  it("names only shipped stylesheets in the pending handoff", () => {
-    const shipped = new Set(
-      SHIPPED_STYLESHEETS.map((file) => relative(REPO_ROOT, file).split(sep).join("/")),
-    );
-    for (const path of PENDING_TOUCH_FLOOR) expect(shipped.has(path), path).toBe(true);
+    const declaration = floor!.declarations.filter((d) => d.property === "font-size").at(-1)!;
+    expect(declaration.important, "the floor has zero specificity, so !important is what makes it win").toBe(true);
+
+    const proof = lengthLowerBound(declaration.value);
+    expect(proof.resolved && proof.px >= FLOOR_PX, `${declaration.value} must prove at least ${FLOOR_PX}px`).toBe(true);
+
+    for (const control of CONTROL_ELEMENTS) {
+      expect(whereTargets(floor!.selectors.join(",")).has(control), `${control} must be covered`).toBe(true);
+    }
   });
 
   it("keeps shipped important component rules from undercutting the floor", () => {
