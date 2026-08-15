@@ -1,14 +1,4 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
-
-import { formatObservedDate } from "@/lib/dataFreshness";
-import {
-  buildDrinkBrandAreaLanding,
-  type DrinkBrandAreaLanding,
-} from "@/lib/drinkBrandAreaLanding";
-import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 
 const AREA_SLUG = "victoria";
 const AREA_NAME = "Victoria";
@@ -16,7 +6,10 @@ const BRAND_SLUG = "guinness";
 const BRAND_LABEL = "Guinness";
 const LANDING_PATH = `/area/${AREA_SLUG}/drink/${BRAND_SLUG}`;
 const TRACKED_PROOF_DIR = "docs/proof/drink-brand-area-landing";
+// Checked browser fixture for Victoria and Guinness on 3 July 2026. Unit
+// tests own policy and dataset derivation; this proof owns rendered URLs.
 const CHECKED_VICTORIA_GUINNESS_FIXTURE = {
+  totalPricedVenues: 17,
   collectionDate: "3 July 2026",
   firstRow: {
     venueId: "venue-1duinu2",
@@ -24,34 +17,26 @@ const CHECKED_VICTORIA_GUINNESS_FIXTURE = {
     priceLabel: "£5.50",
     publisherStatus: "Publisher: Pint Prices",
   },
+  orderedVenueIds: [
+    "venue-1duinu2",
+    "venue-s4j91a",
+    "venue-ra82d1",
+    "venue-pelryu",
+    "venue-18vbvjc",
+    "venue-brpr9s",
+    "venue-1rvq067",
+    "venue-vpuut8",
+    "venue-1gefp76",
+    "venue-1rrqimj",
+    "venue-14xhi57",
+    "venue-f7pmqo",
+    "venue-i9us8j",
+    "venue-1a6n6da",
+    "venue-gugv4t",
+    "venue-iec6ez",
+    "venue-ukflm",
+  ],
 } as const;
-
-function loadExpectedLanding(): DrinkBrandAreaLanding {
-  // The server wrapper imports `server-only`, which cannot load in Playwright.
-  // Use its shared pure policy builder with the same published dataset input.
-  const datasetPath = path.join(
-    process.cwd(),
-    "public",
-    "data",
-    "pint_prices_app_dataset.json",
-  );
-  const rows: unknown = JSON.parse(readFileSync(datasetPath, "utf8"));
-  if (!Array.isArray(rows)) {
-    throw new Error("brand area proof: pint-price dataset is not an array");
-  }
-  const landing = buildDrinkBrandAreaLanding(
-    AREA_SLUG,
-    BRAND_SLUG,
-    groupVenuePrices(rows as VenuePrice[]),
-  );
-  if (!landing) {
-    throw new Error("brand area proof: expected Victoria Guinness landing is unavailable");
-  }
-  return landing;
-}
-
-const EXPECTED_LANDING = loadExpectedLanding();
-const EXPECTED_ROWS = EXPECTED_LANDING.rows;
 const MOBILE_VIEWPORTS = [
   { name: "320", width: 320, height: 844, hasTouch: true, isMobile: true },
   { name: "390", width: 390, height: 844, hasTouch: true, isMobile: true },
@@ -301,11 +286,8 @@ async function assertLandingContract(
   await expectAboveFold(page, primaryAction, `${viewportName}px ${theme} primary action`);
   await expect(fromPrice).toHaveText(`From ${CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.priceLabel}`);
   await expect(heroPublisher).toHaveText(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.publisherStatus);
-  expect(formatObservedDate(new Date(EXPECTED_LANDING.collectedAt))).toBe(
-    CHECKED_VICTORIA_GUINNESS_FIXTURE.collectionDate,
-  );
   await expect(summary).toHaveText(
-    `${EXPECTED_LANDING.totalPricedVenues} venues with listed ${BRAND_LABEL} pints. Collected ${CHECKED_VICTORIA_GUINNESS_FIXTURE.collectionDate}.`,
+    `${CHECKED_VICTORIA_GUINNESS_FIXTURE.totalPricedVenues} venues with listed ${BRAND_LABEL} pints. Collected ${CHECKED_VICTORIA_GUINNESS_FIXTURE.collectionDate}.`,
   );
   await expect(primaryAction).toHaveAttribute("href", expectedMapHref());
   await expectTouchTarget(primaryAction, `${viewportName}px ${theme} primary action`);
@@ -320,24 +302,24 @@ async function assertLandingContract(
   await expectGlobalNavigationInViewport(page);
 
   const rows = page.locator(".drinkBrandAreaLanding__row");
-  await expect(rows).toHaveCount(EXPECTED_ROWS.length);
+  await expect(rows).toHaveCount(CHECKED_VICTORIA_GUINNESS_FIXTURE.orderedVenueIds.length);
   expect(
     await rows.count(),
-    "rendered Ledger count should match governed Victoria/Guinness fixture rows",
-  ).toBe(EXPECTED_ROWS.length);
+    "rendered Ledger count should match checked Victoria/Guinness Venue ids",
+  ).toBe(CHECKED_VICTORIA_GUINNESS_FIXTURE.orderedVenueIds.length);
   const summaryVenueCount = Number((await summary.innerText()).match(/^\d+/)?.[0]);
   expect(summaryVenueCount, "collection summary count should be numeric").toBe(
-    EXPECTED_LANDING.totalPricedVenues,
+    CHECKED_VICTORIA_GUINNESS_FIXTURE.totalPricedVenues,
   );
   expect(
     summaryVenueCount,
     "collection summary should include every rendered Ledger row within its row cap",
   ).toBeGreaterThanOrEqual(await rows.count());
   expect(
-    EXPECTED_LANDING.totalPricedVenues,
+    CHECKED_VICTORIA_GUINNESS_FIXTURE.totalPricedVenues,
     "governed total should include every rendered Ledger row within its row cap",
-  ).toBeGreaterThanOrEqual(EXPECTED_ROWS.length);
-  expect(EXPECTED_ROWS[0]?.venueId).toBe(
+  ).toBeGreaterThanOrEqual(CHECKED_VICTORIA_GUINNESS_FIXTURE.orderedVenueIds.length);
+  expect(CHECKED_VICTORIA_GUINNESS_FIXTURE.orderedVenueIds[0]).toBe(
     CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId,
   );
   const priceTexts = await rows.locator(".drinkBrandAreaLanding__price").allTextContents();
@@ -386,11 +368,11 @@ async function assertLandingContract(
     await expectHorizontallyInsideViewport(page, contribution, `row ${index + 1} log action`);
     await expectHorizontallyInsideViewport(page, price, `row ${index + 1} price`);
 
-    const expectedRow = EXPECTED_ROWS[index];
-    expect(expectedRow, `row ${index + 1} should have a governed fixture identity`).toBeDefined();
-    if (!expectedRow) continue;
-    const expectedLedgerHref = `/ledger/${encodeURIComponent(expectedRow.venueId)}`;
-    const expectedContributionHref = expectedMapHref(expectedRow.venueId);
+    const expectedVenueId = CHECKED_VICTORIA_GUINNESS_FIXTURE.orderedVenueIds[index];
+    expect(expectedVenueId, `row ${index + 1} should have a checked fixture identity`).toBeDefined();
+    if (!expectedVenueId) continue;
+    const expectedLedgerHref = `/ledger/${encodeURIComponent(expectedVenueId)}`;
+    const expectedContributionHref = expectedMapHref(expectedVenueId);
     await expect(venue, `row ${index + 1} Venue should match governed fixture order`).toHaveAttribute(
       "href",
       expectedLedgerHref,
