@@ -169,6 +169,9 @@ turns into a logged price.
 - `price_submit_failed` — `{ category, reason }`. `reason` is a three-value
   enum: `invalid` (the client-side envelope check), `rejected` (a non-2xx from
   `/api/price-submit`), `offline` (transport failure).
+- `price_impact_opened` - no properties. Fires only when a credited submitter
+  opens their own public profile from the confirmed price receipt. It carries
+  no handle, Venue, price, category, or free text.
 - `contribution_gate` - `{ step }`. Fires when required identity adds
   friction. The closed steps are `sign_in_required` and
   `onboarding_required`. No handle, account id, birth date, venue or price is
@@ -180,6 +183,9 @@ turns into a logged price.
 ```
 community_price_submission_rate = count(price_submitted)
                                 / count(price_submit_viewed)
+
+price_impact_open_rate = count(price_impact_opened)
+                       / count(price_submitted)
 
 required_sign_in_cost = count(contribution_gate where step = sign_in_required)
                       / count(price_submit_viewed)
@@ -357,7 +363,7 @@ pwa_install_completed: [],
 pwa_standalone_launch: [],
 ```
 
-The community-price funnel added four more, with scoped validators
+The community-price funnel added five more, with scoped validators
 (`isAllowedPriceFunnelProp` and `isAllowedContributionGateProp`) so shared prop
 keys keep the right closed set per event:
 
@@ -365,6 +371,7 @@ keys keep the right closed set per event:
 price_submit_viewed: ["category"],
 price_submitted: ["category"],
 price_submit_failed: ["category", "reason"],
+price_impact_opened: [],
 contribution_gate: ["step"],
 ```
 

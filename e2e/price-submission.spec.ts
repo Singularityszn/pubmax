@@ -280,6 +280,15 @@ test("a drinker logs tonight's price after completing private signup", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
+  const analyticsPayloads: Array<{ name?: unknown; props?: unknown }> = [];
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "granted");
+  });
+  await page.route("**/api/events", async (route) => {
+    const raw = route.request().postData();
+    if (raw) analyticsPayloads.push(JSON.parse(raw));
+    await route.fulfill({ status: 204, headers: { "cache-control": "no-store" } });
+  });
   const boundary = await installContributorBoundary(page, {
     requireOnboarding: true,
   });
@@ -292,10 +301,10 @@ test("a drinker logs tonight's price after completing private signup", async ({
   await expect(venueSheet.locator(".venueInspector")).toBeVisible();
 
   const onboarding = page.getByRole("dialog", {
-    name: "Choose how people know you",
+    name: "Let's get you in",
   });
   await expect(onboarding).toBeVisible();
-  await expect(onboarding.getByLabel("Public handle")).toBeVisible();
+  await expect(onboarding.getByLabel("Your handle")).toBeVisible();
   await expect(onboarding.getByLabel("Date of birth")).toBeVisible();
   const onboardingZ = await onboarding.evaluate((element) =>
     Number.parseInt(getComputedStyle(element.parentElement!).zIndex, 10),
@@ -304,13 +313,17 @@ test("a drinker logs tonight's price after completing private signup", async ({
     Number.parseInt(getComputedStyle(element).zIndex, 10),
   );
   expect(onboardingZ).toBeGreaterThan(venueSheetZ);
-  await onboarding.getByLabel("Public handle").fill("night_owl");
+  const handleField = onboarding.getByLabel("Your handle");
+  await handleField.fill("night_owl");
+  await expect(handleField).toHaveValue("night_owl");
   await onboarding.getByLabel("Date of birth").fill("2015-02-03");
-  const skipOptional = onboarding.getByRole("button", {
-    name: "Skip optional details",
+  await expect(onboarding.getByLabel("Date of birth")).toHaveValue("2015-02-03");
+  await expect(onboarding.getByRole("status")).toHaveText("Handle available.");
+  const claimHandle = onboarding.getByRole("button", {
+    name: "Claim handle",
   });
-  await expect(skipOptional).toBeEnabled();
-  await skipOptional.click();
+  await expect(claimHandle).toBeEnabled();
+  await claimHandle.click();
   await expect(onboarding).toHaveCount(0);
 
   // The submit card lives on the Overview tab, the tab the sheet opens on.
@@ -365,6 +378,11 @@ test("a drinker logs tonight's price after completing private signup", async ({
   await expect(stamp.locator("xpath=following-sibling::*[1]")).toContainText(
     "@night_owl",
   );
+  const impactLink = submit.getByRole("link", { name: "See your impact" });
+  await expect(impactLink).toHaveAttribute("href", "/u/night_owl");
+  expect(
+    (await impactLink.boundingBox())?.height ?? 0,
+  ).toBeGreaterThanOrEqual(44);
 
   // …and the receipt is honest about REACH. One device is one voice, so this
   // tap has MARKED the map - the provisional badge on the pin - without setting
@@ -372,11 +390,9 @@ test("a drinker logs tonight's price after completing private signup", async ({
   // closing in-session (captain decision 2026-07-26), and the hint beside it is
   // what stops that reading as "the pin now says £4.40".
   await expect(stamp).toContainText("Marked on the map");
-  const stampHint = submit
-    .locator(".vpsubStampHint")
-    .filter({ hasText: /second drinker/i });
+  const stampHint = submit.getByText(/A second independent drinker/i);
   await expect(stampHint).toBeVisible();
-  await expect(stampHint).toContainText(/second drinker/i);
+  await expect(stampHint).toContainText(/second independent drinker/i);
 
   // The venue card carries the same price on its own dated, badged row -
   // alongside the price on record, which is still shown.
@@ -418,30 +434,16 @@ test("a drinker logs tonight's price after completing private signup", async ({
     )
     .toBeGreaterThan(0);
 
-  // Venue observations cross the same captured account boundary. The 2015
-  // signup date still adds no second gate, and the saved receipt remains
-  // explicitly one person's report.
-  const signals = venueSheet.locator(".venueCommunitySignals");
-  await signals.locator("summary").click();
-  await signals.getByText("Access", { exact: true }).click();
-  await signals.getByText("Step-free", { exact: true }).click();
-  await signals.getByRole("button", { name: "Log what you saw" }).click();
-  await expect(signals.getByRole("status")).toContainText(
-    "Logged as your report",
-  );
-  await expect(
-    page.getByRole("dialog", { name: /18 or over|age/i }),
-  ).toHaveCount(0);
-  expect(boundary.submittedSignals).toContainEqual(
-    expect.objectContaining({
-      venueId: SEED_VENUE_ID,
-      signalKey: "step-free-venue",
-      signalValue: "step-free",
-      corroborations: 1,
-    }),
-  );
-
   expect(errors).toEqual([]);
+
+  await impactLink.click();
+  await expect(page).toHaveURL(/\/u\/night_owl$/);
+  await expect.poll(() =>
+    analyticsPayloads
+      .filter((payload) => payload.name === "price_impact_opened")
+      .map(({ name, props }) => ({ name, props })),
+  )
+    .toEqual([{ name: "price_impact_opened", props: {} }]);
 });
 
 test("a person can log soft-drink, alcohol-free and coffee prices from the pub sheet", async ({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -536,12 +537,15 @@ export default function AccountOnboarding(): React.JSX.Element | null {
     },
     [sessionAccessToken, sessionUserId, user?.id],
   );
-  if (loading || !user || !auth) return null;
-  return (
+  if (loading || !user || !auth || typeof document === "undefined") {
+    return null;
+  }
+  return createPortal(
     <AccountOnboardingForUser
       key={user.id}
       auth={auth}
       identityResolved={identityResolved}
-    />
+    />,
+    document.body,
   );
 }

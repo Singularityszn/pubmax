@@ -165,6 +165,7 @@ export const ANALYTICS_EVENTS = {
   price_submit_viewed: ["category"],
   price_submitted: ["category"],
   price_submit_failed: ["category", "reason"],
+  price_impact_opened: [],
   contribution_gate: ["step"],
   // Press-arrival funnel (the London Pint Index). Three questions, and these
   // events exist to answer exactly those: how many ARRIVED on the Index or one

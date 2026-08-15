@@ -24,7 +24,10 @@ export function shouldEngageFocusTrap(input: {
 
 /** Body-level siblings that must stay interactive while a map sheet traps focus. */
 export function shouldInertOutsideSibling(node: HTMLElement): boolean {
-  return !node.classList.contains("mobileTabBar");
+  return !(
+    node.classList.contains("mobileTabBar") ||
+    node.classList.contains("accountOnboardingBackdrop")
+  );
 }
 
 function displayChain(container: HTMLElement): string[] {

@@ -45,4 +45,8 @@ describe("shouldInertOutsideSibling", () => {
     expect(shouldInertOutsideSibling(el("mobileTabBar"))).toBe(false);
     expect(shouldInertOutsideSibling(el("appShell mapStage"))).toBe(true);
   });
+
+  it("keeps account setup above an open map sheet interactive", () => {
+    expect(shouldInertOutsideSibling(el("accountOnboardingBackdrop"))).toBe(false);
+  });
 });
