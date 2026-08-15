@@ -129,7 +129,7 @@ export default function ContributionLanesCard({ handle }: Props) {
       document.getElementById("contribution-impact")?.scrollIntoView({ block: "center" });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [state.kind]);
+  }, []);
 
   useEffect(() => {
     if (!handle) return;

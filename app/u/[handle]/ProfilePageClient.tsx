@@ -210,6 +210,18 @@ export function profileSurfaceFor({
   return "profile";
 }
 
+export function shouldShowContributionClaimNudge({
+  isOwnProfile,
+  identityResolved,
+  hasUser,
+}: {
+  isOwnProfile: boolean;
+  identityResolved: boolean;
+  hasUser: boolean;
+}): boolean {
+  return isOwnProfile && identityResolved && !hasUser;
+}
+
 export function YouSignedOutSurface({
   nightMemoriesInvite,
 }: {
@@ -874,7 +886,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                   ) : null}
 
                   {isOwnProfile ? (
-                    <YourContributionsCard handle={routeHandle} claimNudge />
+                    <YourContributionsCard
+                      handle={routeHandle}
+                      claimNudge={shouldShowContributionClaimNudge({
+                        isOwnProfile,
+                        identityResolved,
+                        hasUser: Boolean(user),
+                      })}
+                    />
                   ) : null}
 
                   {isOwnProfile ? (

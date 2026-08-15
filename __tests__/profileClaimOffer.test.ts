@@ -13,6 +13,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { shouldShowContributionClaimNudge } from "@/app/u/[handle]/ProfilePageClient";
 import { handleIsAdoptable, type PublicProfile } from "@/lib/profiles";
 
 const OWNER: PublicProfile = {
@@ -101,5 +102,36 @@ describe("the profile page asks that question rather than its own", () => {
     expect(source).toContain('surface === "identity-loading"');
     expect(source).toContain('className="profileIdentityLoadingSurface"');
     expect(source).toContain('viewerState="loading"');
+  });
+
+  it("keeps claim nudge for unclaimed viewers, not signed-in owners", () => {
+    expect(
+      shouldShowContributionClaimNudge({
+        isOwnProfile: true,
+        identityResolved: true,
+        hasUser: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldShowContributionClaimNudge({
+        isOwnProfile: true,
+        identityResolved: false,
+        hasUser: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowContributionClaimNudge({
+        isOwnProfile: true,
+        identityResolved: true,
+        hasUser: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowContributionClaimNudge({
+        isOwnProfile: false,
+        identityResolved: true,
+        hasUser: false,
+      }),
+    ).toBe(false);
   });
 });
