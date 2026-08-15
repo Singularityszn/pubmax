@@ -6,6 +6,16 @@ const BRAND_SLUG = "guinness";
 const BRAND_LABEL = "Guinness";
 const LANDING_PATH = `/area/${AREA_SLUG}/drink/${BRAND_SLUG}`;
 const TRACKED_PROOF_DIR = "docs/proof/drink-brand-area-landing";
+const CHECKED_VICTORIA_GUINNESS_FIXTURE = {
+  totalPricedVenues: 17,
+  summary: "17 venues with listed Guinness pints. Collected 3 July 2026.",
+  firstRow: {
+    venueId: "venue-1duinu2",
+    venueName: "Alma",
+    priceLabel: "£5.50",
+    publisherStatus: "Publisher: Pint Prices",
+  },
+} as const;
 const MOBILE_VIEWPORTS = [
   { name: "320", width: 320, height: 844, hasTouch: true, isMobile: true },
   { name: "390", width: 390, height: 844, hasTouch: true, isMobile: true },
@@ -96,8 +106,13 @@ async function expectVisibleFocus(locator: Locator, label: string): Promise<void
   await expect(locator, `${label} should receive keyboard focus`).toBeFocused();
   const focusStyle = await locator.evaluate((element) => {
     const style = getComputedStyle(element);
-    return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
+    return {
+      matchesFocusVisible: element.matches(":focus-visible"),
+      outlineStyle: style.outlineStyle,
+      outlineWidth: style.outlineWidth,
+    };
   });
+  expect(focusStyle.matchesFocusVisible, `${label} should match :focus-visible`).toBe(true);
   expect(focusStyle.outlineStyle, `${label} should show a focus outline`).not.toBe("none");
   expect(focusStyle.outlineWidth, `${label} should show a visible focus outline`).not.toBe("0px");
 }
@@ -130,6 +145,82 @@ async function expectHorizontallyInsideViewport(
     box.x + box.width,
     `${label} should end inside the viewport`,
   ).toBeLessThanOrEqual(viewportWidth + 1);
+}
+
+async function expectGlobalNavigationInViewport(page: Page): Promise<void> {
+  const geometry = await page.evaluate(() => {
+    const nav = document.querySelector<HTMLElement>(".siteNavBar");
+    if (!nav) return { missing: true } as const;
+
+    const viewportWidth = window.innerWidth;
+    const navRect = nav.getBoundingClientRect();
+    const visibleControls = Array.from(nav.querySelectorAll<HTMLElement>("a, button")).filter(
+      (element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      },
+    );
+    const outOfViewport = visibleControls.filter((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.left < -1 || rect.right > viewportWidth + 1;
+    }).length;
+    const clippingAncestors: string[] = [];
+    for (let ancestor = nav.parentElement; ancestor; ancestor = ancestor.parentElement) {
+      const style = getComputedStyle(ancestor);
+      const clipsX = ["hidden", "clip", "scroll", "auto"].includes(style.overflowX);
+      if (!clipsX) continue;
+      const rect = ancestor.getBoundingClientRect();
+      if (navRect.left < rect.left - 1 || navRect.right > rect.right + 1) {
+        clippingAncestors.push(ancestor.className || ancestor.tagName);
+      }
+    }
+    return {
+      missing: false,
+      nav: { left: navRect.left, right: navRect.right },
+      viewportWidth,
+      visibleControlCount: visibleControls.length,
+      outOfViewport,
+      clippingAncestors,
+    } as const;
+  });
+
+  expect(geometry.missing, "global SiteNav should render").toBe(false);
+  if (geometry.missing) return;
+  expect(geometry.nav.left, "global SiteNav should start inside viewport").toBeGreaterThanOrEqual(0);
+  expect(geometry.nav.right, "global SiteNav should end inside viewport").toBeLessThanOrEqual(
+    geometry.viewportWidth + 1,
+  );
+  expect(geometry.visibleControlCount, "global SiteNav should expose visible controls").toBeGreaterThan(0);
+  expect(geometry.outOfViewport, "global SiteNav controls should stay inside viewport").toBe(0);
+  expect(geometry.clippingAncestors, "global SiteNav should not be clipped by its route shell").toEqual([]);
+}
+
+async function expectDesktopLedgerGeometry(page: Page, rows: Locator): Promise<void> {
+  if ((page.viewportSize()?.width ?? 0) <= 560) return;
+
+  const geometry = await rows.evaluateAll((elements) =>
+    elements.map((element) => {
+      const row = element as HTMLElement;
+      const details = row.querySelector<HTMLElement>(".drinkBrandAreaLanding__details");
+      return {
+        rowHeight: row.getBoundingClientRect().height,
+        detailsColumns: details ? getComputedStyle(details).gridTemplateColumns : "",
+      };
+    }),
+  );
+  expect(
+    geometry.every(({ rowHeight }) => rowHeight >= 56),
+    "desktop Ledger rows should retain touch-safe density",
+  ).toBe(true);
+  expect(
+    geometry.every(({ rowHeight }) => rowHeight <= 96),
+    "desktop Ledger rows should use compact density",
+  ).toBe(true);
+  expect(
+    geometry.every(({ detailsColumns }) => detailsColumns.split(" ").length === 5),
+    "desktop Ledger details should use five horizontal information tracks",
+  ).toBe(true);
 }
 
 function expectedMapHref(venueId?: string): string {
@@ -172,14 +263,27 @@ async function assertLandingContract(
   await expectAboveFold(page, heroPublisher, `${viewportName}px ${theme} publisher status`);
   await expectAboveFold(page, summary, `${viewportName}px ${theme} collection summary`);
   await expectAboveFold(page, primaryAction, `${viewportName}px ${theme} primary action`);
-  await expect(fromPrice).toHaveText(/^From £\d+\.\d{2}$/);
-  await expect(heroPublisher).toBeVisible();
+  await expect(fromPrice).toHaveText(`From ${CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.priceLabel}`);
+  await expect(heroPublisher).toHaveText(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.publisherStatus);
+  await expect(summary).toHaveText(CHECKED_VICTORIA_GUINNESS_FIXTURE.summary);
   await expect(primaryAction).toHaveAttribute("href", expectedMapHref());
   await expectTouchTarget(primaryAction, `${viewportName}px ${theme} primary action`);
   await expectVisibleFocus(primaryAction, `${viewportName}px ${theme} primary action`);
+  await expectVisibleFocus(
+    heroPublisher.getByRole("link", {
+      name: CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.publisherStatus,
+      exact: true,
+    }),
+    `${viewportName}px ${theme} hero publisher link`,
+  );
+  await expectGlobalNavigationInViewport(page);
 
   const rows = page.locator(".drinkBrandAreaLanding__row");
-  await expect(rows).toHaveCount(17);
+  await expect(rows).toHaveCount(CHECKED_VICTORIA_GUINNESS_FIXTURE.totalPricedVenues);
+  expect(
+    await rows.count(),
+    "rendered Ledger count should match checked Victoria/Guinness fixture",
+  ).toBe(CHECKED_VICTORIA_GUINNESS_FIXTURE.totalPricedVenues);
   const priceTexts = await rows.locator(".drinkBrandAreaLanding__price").allTextContents();
   const prices = priceTexts.map((text) => Number(text.replace(/[^\d.]/g, "")));
   expect(prices.every(Number.isFinite), "every ranked price should be numeric").toBe(true);
@@ -189,7 +293,21 @@ async function assertLandingContract(
       `row ${index + 1} price should not be below row ${index} price`,
     ).toBeGreaterThanOrEqual(prices[index - 1]!);
   }
-  await expect(fromPrice).toHaveText(`From ${priceTexts[0]!.trim()}`);
+  await expect(fromPrice).toHaveText(`From ${CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.priceLabel}`);
+
+  const firstRow = rows.first();
+  const firstVenue = firstRow.locator(".drinkBrandAreaLanding__venue");
+  const firstContribution = firstRow.getByRole("link", { name: "Log this price", exact: true });
+  const firstPublisher = firstRow.locator(".drinkBrandAreaLanding__publisher");
+  const firstLedgerHref = `/ledger/${encodeURIComponent(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId)}`;
+  const firstContributionHref = expectedMapHref(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId);
+  await expect(firstVenue).toHaveText(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueName);
+  await expect(firstVenue).toHaveAttribute("href", firstLedgerHref);
+  await expect(firstRow.locator(".drinkBrandAreaLanding__price")).toHaveText(
+    CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.priceLabel,
+  );
+  await expect(firstPublisher).toHaveText(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.publisherStatus);
+  await expect(firstContribution).toHaveAttribute("href", firstContributionHref);
 
   for (let index = 0; index < await rows.count(); index += 1) {
     const row = rows.nth(index);
@@ -215,32 +333,59 @@ async function assertLandingContract(
     const venueHref = await venue.getAttribute("href");
     expect(venueHref, `row ${index + 1} Venue should link to its Ledger`).toMatch(/^\/ledger\//);
     const venueId = decodeURIComponent(venueHref!.slice("/ledger/".length));
-    await expect(contribution).toHaveAttribute("href", expectedMapHref(venueId));
+    const expectedContributionHref = index === 0
+      ? expectedMapHref(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId)
+      : expectedMapHref(venueId);
+    await expect(contribution).toHaveAttribute("href", expectedContributionHref);
 
     const publisherLink = publisher.getByRole("link");
     if (await publisherLink.count()) {
       await expectTouchTarget(publisherLink, `row ${index + 1} publisher link`);
+      await expectVisibleFocus(publisherLink, `${viewportName}px ${theme} row ${index + 1} publisher link`);
     }
+    await expectVisibleFocus(venue, `${viewportName}px ${theme} row ${index + 1} Ledger link`);
+    await expectVisibleFocus(contribution, `${viewportName}px ${theme} row ${index + 1} log action`);
   }
 
-  await expectVisibleFocus(
-    rows.first().locator(".drinkBrandAreaLanding__venue"),
-    `${viewportName}px ${theme} first Ledger link`,
-  );
-  await expectVisibleFocus(
-    rows.first().getByRole("link", { name: "Log this price", exact: true }),
-    `${viewportName}px ${theme} first row log action`,
-  );
-  const firstPublisherLink = rows.first().locator(".drinkBrandAreaLanding__publisher a");
-  if (await firstPublisherLink.count()) {
-    await expectVisibleFocus(
-      firstPublisherLink,
-      `${viewportName}px ${theme} first publisher link`,
-    );
-  }
-
+  await expectDesktopLedgerGeometry(page, rows);
   await expectNoHorizontalOverflow(page);
   await page.evaluate(() => window.scrollTo(0, 0));
+}
+
+async function assertExactMapJourneys(page: Page): Promise<void> {
+  const expectedPrimaryPath = expectedMapHref();
+  const expectedRowPath = expectedMapHref(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId);
+  const assertPath = (expected: string) => {
+    const current = new URL(page.url());
+    expect(`${current.pathname}${current.search}`).toBe(expected);
+  };
+
+  const primaryAction = page.getByRole("link", {
+    name: `Open ${AREA_NAME} on Map`,
+    exact: true,
+  });
+  await Promise.all([
+    page.waitForURL(
+      (url) => `${url.pathname}${url.search}` === expectedPrimaryPath,
+      { waitUntil: "commit" },
+    ),
+    primaryAction.click(),
+  ]);
+  assertPath(expectedPrimaryPath);
+
+  await page.goto(LANDING_PATH, { waitUntil: "domcontentloaded" });
+  const firstContribution = page
+    .locator(".drinkBrandAreaLanding__row")
+    .first()
+    .getByRole("link", { name: "Log this price", exact: true });
+  await Promise.all([
+    page.waitForURL(
+      (url) => `${url.pathname}${url.search}` === expectedRowPath,
+      { waitUntil: "commit" },
+    ),
+    firstContribution.click(),
+  ]);
+  assertPath(expectedRowPath);
 }
 
 for (const viewport of [...MOBILE_VIEWPORTS, DESKTOP_VIEWPORT]) {
@@ -265,6 +410,11 @@ for (const viewport of [...MOBILE_VIEWPORTS, DESKTOP_VIEWPORT]) {
           ),
           fullPage: false,
         });
+        if (viewport.name === "390" && theme === "light") {
+          // URL-only journey proof intentionally stops at Map. It does not wait
+          // on private auth, a venue picker, or contribution submission.
+          await assertExactMapJourneys(page);
+        }
         expect(errors, `${viewport.name}px ${theme} landing should not emit browser errors`).toEqual([]);
       });
     });

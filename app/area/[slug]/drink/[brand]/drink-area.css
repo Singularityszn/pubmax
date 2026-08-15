@@ -1,14 +1,20 @@
 .drinkBrandAreaLanding {
-  width: min(100%, 920px);
+  width: 100%;
+  max-width: none;
   min-width: 0;
   margin: 0 auto;
   padding: 24px 20px calc(96px + env(safe-area-inset-bottom));
   color: var(--ink);
-  overflow-x: hidden;
+}
+
+.drinkBrandAreaLanding__head,
+.drinkBrandAreaLanding__prices {
+  width: min(100%, 920px);
+  margin-inline: auto;
 }
 
 .drinkBrandAreaLanding__head {
-  margin: 28px 0 34px;
+  margin: 28px auto 34px;
 }
 
 .drinkBrandAreaLanding__eyebrow {
@@ -173,8 +179,11 @@
 
 .drinkBrandAreaLanding__details {
   display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.85fr) minmax(0, 1fr) minmax(0, 1.05fr) max-content;
   min-width: 0;
   align-content: center;
+  align-items: center;
+  column-gap: 12px;
 }
 
 .drinkBrandAreaLanding__venue {
@@ -257,7 +266,12 @@
   }
 
   .drinkBrandAreaLanding__head {
+    width: auto;
     margin: 22px 4px 28px;
+  }
+
+  .drinkBrandAreaLanding__prices {
+    width: auto;
   }
 
   .drinkBrandAreaLanding h1 {
@@ -292,6 +306,12 @@
     gap: 8px;
     padding: 8px 8px 8px 6px;
     border-radius: 14px;
+  }
+
+  .drinkBrandAreaLanding__details {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
+    column-gap: 0;
   }
 
   .drinkBrandAreaLanding__rank {
