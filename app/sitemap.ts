@@ -7,6 +7,7 @@ import { loadHistoricPubs } from "@/lib/historic";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
 import { loadNightAreaLandings } from "@/lib/nightAreaLanding.server";
+import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 
 // Wave S1.2 dynamic sitemap. Enumerates every token-free, crawlable surface so
 // search + AI crawlers discover the whole graph (the map-first UI otherwise hides
@@ -89,7 +90,7 @@ async function dataFileModified(name: string, fallback: Date): Promise<Date> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const [venues, historicPubs, pricesModified, historicModified, pintIndexSnapshot, pintIndexEditions, areaLandings] =
+  const [venues, historicPubs, pricesModified, historicModified, pintIndexSnapshot, pintIndexEditions, areaLandings, drinkBrandLandings] =
     await Promise.all([
       loadVenues(),
       loadHistoricPubs(),
@@ -98,6 +99,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       loadPublicPintIndexSnapshot(),
       loadPintIndexArchive(),
       loadNightAreaLandings(),
+      loadDrinkBrandLandings(),
     ]);
   const pintIndexPublished = pintIndexSnapshot
     ? new Date(pintIndexSnapshot.generatedAt)
@@ -175,6 +177,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const area of areaLandings) {
     entries.push({
       url: `${SITE_URL}/area/${area.slug}`,
+      lastModified: pricesModified,
+      changeFrequency: "weekly",
+      priority: 0.75,
+    });
+  }
+
+  // Governed drink brand pages. Eligibility and route order come from the
+  // same loader used by static params and page rendering.
+  for (const landing of drinkBrandLandings) {
+    entries.push({
+      url: `${SITE_URL}/drink/${landing.slug}`,
       lastModified: pricesModified,
       changeFrequency: "weekly",
       priority: 0.75,

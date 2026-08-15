@@ -9,6 +9,7 @@ import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { loadPintIndexArchive } from "@/lib/pintIndexSnapshot.server";
 import { loadNightAreaLandings } from "@/lib/nightAreaLanding.server";
+import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
 
@@ -59,6 +60,7 @@ type ExpectedCounts = {
   venues: number;
   editions: number;
   areas: number;
+  drinkBrands: number;
   total: number;
 };
 
@@ -77,6 +79,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
   // One URL per dated Pint Index edition actually published.
   const editions = (await loadPintIndexArchive()).length;
   const areas = (await loadNightAreaLandings()).length;
+  const drinkBrands = (await loadDrinkBrandLandings()).length;
   const counts = {
     cities,
     boroughs,
@@ -85,6 +88,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
     venues: venues.length,
     editions,
     areas,
+    drinkBrands,
   };
   return {
     ...counts,
@@ -96,7 +100,8 @@ async function expectedCounts(): Promise<ExpectedCounts> {
       counts.historic +
       counts.venues +
       counts.editions +
-      counts.areas,
+      counts.areas +
+      counts.drinkBrands,
   };
 }
 
@@ -150,6 +155,19 @@ describe("sitemap()", () => {
       `${SITE}/area/victoria`,
       `${SITE}/area/piccadilly-soho`,
       `${SITE}/area/canary-wharf`,
+    ]);
+  });
+
+  it("includes exactly the current governed drink brand landing pages", () => {
+    expect(urls.filter((url) => url.startsWith(`${SITE}/drink/`))).toEqual([
+      `${SITE}/drink/guinness`,
+      `${SITE}/drink/neck-oil`,
+      `${SITE}/drink/estrella`,
+      `${SITE}/drink/peroni`,
+      `${SITE}/drink/amstel`,
+      `${SITE}/drink/madri`,
+      `${SITE}/drink/camden-hells`,
+      `${SITE}/drink/birra-moretti`,
     ]);
   });
 
