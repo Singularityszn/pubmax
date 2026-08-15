@@ -20,11 +20,14 @@ const rpcMock = vi.fn();
 // its own resolved value(s); a from() call returns a fresh object every time so
 // the two inserts of a resilience retry each hit the queued mock in order.
 const insertMock = vi.fn();
-const updateMock = vi.fn(() => ({
-  eq: vi.fn(() => ({
-    select: vi.fn(async () => ({ data: [{ id: "x" }], error: null })),
-  })),
-}));
+const updateMock = vi.fn((values: Record<string, unknown>) => {
+  void values;
+  return {
+    eq: vi.fn(() => ({
+      select: vi.fn(async () => ({ data: [{ id: "x" }], error: null })),
+    })),
+  };
+});
 const selectChain = {
   eq: vi.fn(() => ({
     maybeSingle: vi.fn(async () => ({ data: { status: "visible" }, error: null })),

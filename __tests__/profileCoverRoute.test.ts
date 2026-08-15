@@ -42,6 +42,7 @@ import { POST as reportCover } from "@/app/api/profiles/[handle]/cover/report/ro
 import { GET as getProfile } from "@/app/api/profiles/[handle]/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import {
+  PROFILE_IMAGE_SIGNED_TTL_SECONDS,
   prepareProfileImage,
   purgeProfileImageObjects,
   type ProfileImageStorage,
@@ -429,7 +430,9 @@ describe("cover moderation lane", () => {
     const profile = await profileStore().getByHandle("alice");
     expect(profile?.coverModerationState).toBe("hidden");
     expect(profile?.coverObjectKey).toBe(hiddenKey);
-    expect(await storage.sign(hiddenKey)).not.toBeNull();
+    expect(
+      await storage.sign(hiddenKey, PROFILE_IMAGE_SIGNED_TTL_SECONDS),
+    ).not.toBeNull();
     expect(storage.removed.flat()).not.toContain(hiddenKey);
   });
 
