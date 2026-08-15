@@ -32,14 +32,19 @@ import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { isPlanStopCount, normalizePlanStopCount, PLAN_STOP_COUNTS, type PlanStopCount } from "@/lib/planStopCount";
 import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope } from "@/lib/planDraft";
 import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
-import { readPlanningIntent } from "@/lib/planningIntent";
+import {
+  PLANNING_INTENT_SOURCES,
+  readPlanningIntent,
+  settlePlanningIntent,
+  type PlanningIntentSource,
+} from "@/lib/planningIntent";
 import {
   composerLockErrorFromResponse,
   londonServiceDateLabel,
   resolveComposerHydration,
+  seedProvisionalStop1,
   type ComposerHydration,
 } from "@/lib/planComposerHandoff";
-import { TRUSTED_HANDOFF_FLAGS_OFF, type TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
 import { writePlanCapability } from "@/lib/planSessionCapability";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
@@ -82,12 +87,53 @@ export type StoredRouteDraft = {
   routeStale: boolean;
   groundingProof: string | null;
   createOperationKey: string | null;
+  planAnchor: GeneratedPlanAnchor | null;
 };
 
 export type ServerPlanCreationAttribution = {
   created: boolean;
   grounded: boolean;
 };
+
+export type GeneratedPlanAnchor = {
+  venueId: string;
+  source: PlanningIntentSource;
+  outcome: "route" | "anchor-only";
+};
+
+function cleanGeneratedPlanAnchor(value: unknown): GeneratedPlanAnchor | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as { venueId?: unknown; source?: unknown; outcome?: unknown };
+  const venueId = typeof row.venueId === "string" ? row.venueId.trim() : "";
+  if (!venueId || venueId.length > 128) return null;
+  if (
+    typeof row.source !== "string"
+    || !(PLANNING_INTENT_SOURCES as readonly string[]).includes(row.source)
+  ) return null;
+  if (row.outcome !== "route" && row.outcome !== "anchor-only") return null;
+  return {
+    venueId,
+    source: row.source as PlanningIntentSource,
+    outcome: row.outcome,
+  };
+}
+
+/** Read only explicit server-returned anchor metadata. */
+export function generatedPlanAnchorFromResponse(value: unknown): GeneratedPlanAnchor | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as {
+    anchored?: unknown;
+    anchorVenueId?: unknown;
+    anchorSource?: unknown;
+    outcome?: unknown;
+  };
+  if (row.anchored !== true) return null;
+  return cleanGeneratedPlanAnchor({
+    venueId: row.anchorVenueId,
+    source: row.anchorSource,
+    outcome: row.outcome,
+  });
+}
 
 /** Validate attribution returned by POST /api/plans; never source it from draft storage. */
 export function serverPlanCreationAttribution(value: unknown): ServerPlanCreationAttribution | null {
@@ -104,7 +150,52 @@ export function planAcceptanceTelemetry(value: unknown, stops: number): { stops:
   return { stops, grounded: attribution.grounded };
 }
 
-function responseEventToken(value: unknown, key: "planAccepted" | "meaningfulCoreAction"): string | null {
+/** Rebuild the signed one-Stop save event from server attribution and the submitted anchor. */
+export function planDraftSavedTelemetry(
+  value: unknown,
+  anchor: GeneratedPlanAnchor | null,
+  stops: ReadonlyArray<{ venueId: string }>,
+): {
+  stops: 1;
+  grounded: true;
+  anchored: true;
+  routeReady: false;
+  source: PlanningIntentSource;
+} | null {
+  const attribution = serverPlanCreationAttribution(value);
+  if (
+    !attribution?.grounded
+    || anchor?.outcome !== "anchor-only"
+    || stops.length !== 1
+    || stops[0]?.venueId !== anchor.venueId
+  ) return null;
+  return {
+    stops: 1,
+    grounded: true,
+    anchored: true,
+    routeReady: false,
+    source: anchor.source,
+  };
+}
+
+/** A created Plan consumes acceptance only when the accepted Venue remains Stop 1. */
+export function planCreationConsumesPlanningIntent(
+  intent: { acceptedVenueId: string } | null,
+  stops: ReadonlyArray<{ venueId: string }>,
+): boolean {
+  return Boolean(intent && stops[0]?.venueId === intent.acceptedVenueId);
+}
+
+function settleConsumedPlanningIntent(stops: ReadonlyArray<{ venueId: string }>): void {
+  if (planCreationConsumesPlanningIntent(readPlanningIntent(), stops)) {
+    settlePlanningIntent("plan-created");
+  }
+}
+
+function responseEventToken(
+  value: unknown,
+  key: "planDraftSaved" | "planAccepted" | "meaningfulCoreAction",
+): string | null {
   if (!value || typeof value !== "object") return null;
   const tokens = (value as { eventTokens?: unknown }).eventTokens;
   if (!tokens || typeof tokens !== "object") return null;
@@ -114,13 +205,19 @@ function responseEventToken(value: unknown, key: "planAccepted" | "meaningfulCor
 
 /** Trust only the generator's explicit server-owned grounding assertion. */
 export function isGroundedGeneratedRoute(value: unknown, stops: readonly DraftStop[]): boolean {
+  if (
+    !value
+    || typeof value !== "object"
+    || (value as { grounded?: unknown }).grounded !== true
+    || typeof (value as { groundingProof?: unknown }).groundingProof !== "string"
+    || !(value as { groundingProof: string }).groundingProof
+  ) return false;
+  if (isPlanStopCount(stops.length)) return true;
+  const anchor = generatedPlanAnchorFromResponse(value);
   return Boolean(
-    value
-    && typeof value === "object"
-    && (value as { grounded?: unknown }).grounded === true
-    && typeof (value as { groundingProof?: unknown }).groundingProof === "string"
-    && Boolean((value as { groundingProof: string }).groundingProof)
-    && isPlanStopCount(stops.length),
+    anchor?.outcome === "anchor-only"
+    && stops.length === 1
+    && stops[0]?.venueId === anchor.venueId,
   );
 }
 
@@ -275,6 +372,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
       createOperationKey: typeof value.createOperationKey === "string" && value.createOperationKey.length <= 120
         ? value.createOperationKey
         : null,
+      planAnchor: cleanGeneratedPlanAnchor(value.planAnchor),
     };
   } catch {
     return null;
@@ -347,7 +445,25 @@ export type PlanLockValidationInput = {
   startTime: string;
   completeStopCount: number;
   visibleStopCount: number;
+  groundingProof?: string | null;
+  singleStopVenueId?: string | null;
+  planAnchor?: GeneratedPlanAnchor | null;
 };
+
+export function isMatchingAnchorOnlyPlan(input: {
+  groundingProof?: string | null;
+  completeStopCount: number;
+  singleStopVenueId?: string | null;
+  planAnchor?: GeneratedPlanAnchor | null;
+}): boolean {
+  return Boolean(
+    input.groundingProof
+    && input.completeStopCount === 1
+    && input.singleStopVenueId
+    && input.planAnchor?.outcome === "anchor-only"
+    && input.planAnchor.venueId === input.singleStopVenueId,
+  );
+}
 
 export function planLockValidationError({
   title,
@@ -355,6 +471,9 @@ export function planLockValidationError({
   startTime,
   completeStopCount,
   visibleStopCount,
+  groundingProof = null,
+  singleStopVenueId = null,
+  planAnchor = null,
 }: PlanLockValidationInput): { message: string; focus: "name" | null } | null {
   if (!title.trim()) {
     return { message: "Give this plan a title before locking it in.", focus: null };
@@ -365,7 +484,24 @@ export function planLockValidationError({
   const missingName = !creatorName.trim();
   const missingTime = !startTime;
   const missingStops = completeStopCount === 0;
-  if (!missingName && !missingTime && !missingStops) return null;
+  if (!missingName && !missingTime && !missingStops) {
+    const generatedOneStop = Boolean(groundingProof) && completeStopCount === 1;
+    if (
+      generatedOneStop
+      && !isMatchingAnchorOnlyPlan({
+        groundingProof,
+        completeStopCount,
+        singleStopVenueId,
+        planAnchor,
+      })
+    ) {
+      return {
+        message: "Regenerate this accepted Venue before locking it in.",
+        focus: null,
+      };
+    }
+    return null;
+  }
   if (missingName && !missingTime && !missingStops) {
     return { message: "Add your name.", focus: "name" };
   }
@@ -502,8 +638,14 @@ function conciergeStatusText(
  * their favour. Rendered only when the handoff is active; the underlying fields
  * stay editable below, so nothing is hidden or silently changed.
  */
-export function AcceptedContextPanel({ handoff }: { handoff: ComposerHydration }) {
-  const venueName = handoff.routePreview?.value.stops
+export function AcceptedContextPanel({
+  handoff,
+  acceptedVenueName = null,
+}: {
+  handoff: ComposerHydration;
+  acceptedVenueName?: string | null;
+}) {
+  const venueName = acceptedVenueName ?? handoff.routePreview?.value.stops
     .find((stop) => stop.venueId === handoff.acceptedVenueId)?.venueName
     ?? handoff.acceptedVenueId;
   const whenLabel = londonServiceDateLabel(handoff.startsAt);
@@ -554,8 +696,8 @@ type ComposerDraftFields = {
 };
 
 /**
- * L11: prefer arbitrated accepted context when the handoff is active; the ??
- * chain keeps the generic Plan values when handoff is null (flags off).
+ * Prefer arbitrated accepted context when the handoff is present. The ?? chain
+ * keeps generic Plan values when no accepted context exists.
  * `startTime` keeps the bare `nextEvening` function reference (not a call) so
  * `useState` still lazily initialises it when neither source has a value.
  */
@@ -574,15 +716,20 @@ function initialComposerDraftFields(
 function initialComposerStops(
   recoveredRouteDraft: StoredRouteDraft | null,
   recoveredDraft: ReturnType<typeof parsePlanDraft>,
+  handoff: ComposerHydration | null,
 ): DraftStop[] {
-  return (
-    recoveredRouteDraft?.stops ??
-    recoveredDraft?.stops.map((stop) => ({
+  const recoveredPlanStops = recoveredDraft?.stops.map((stop) => ({
       ...stop,
       alternatives: [],
-    })) ??
-    []
-  );
+    })) ?? [];
+  if (recoveredRouteDraft?.stops.length) return recoveredRouteDraft.stops;
+  if (recoveredPlanStops.length) return recoveredPlanStops;
+  const provisional = seedProvisionalStop1({
+    acceptedVenueId: handoff?.acceptedVenueId,
+    recoveredRouteStops: recoveredRouteDraft?.stops,
+    recoveredPlanStops,
+  });
+  return provisional ? [provisional] : [];
 }
 
 type ComposerRouteDraftFields = {
@@ -591,6 +738,7 @@ type ComposerRouteDraftFields = {
   routeStale: boolean;
   groundingProof: string | null;
   createOperationKey: string | null;
+  planAnchor: GeneratedPlanAnchor | null;
   routeStatus: string;
 };
 
@@ -603,6 +751,7 @@ function initialComposerRouteDraft(
     routeStale: recoveredRouteDraft?.routeStale ?? false,
     groundingProof: recoveredRouteDraft?.groundingProof ?? null,
     createOperationKey: recoveredRouteDraft?.createOperationKey ?? null,
+    planAnchor: recoveredRouteDraft?.planAnchor ?? null,
     routeStatus: recoveredRouteDraft
       ? recoveredRouteDraft.routeStale
         ? "Recovered a route that needs refreshing before it can be locked."
@@ -617,12 +766,14 @@ function PlanComposerForm({
   recoveredIntake,
   hasDurableIntakeDraft,
   handoff,
+  canPersist,
 }: {
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
   recoveredIntake: PlanIntakeDraft;
   hasDurableIntakeDraft: boolean;
   handoff: ComposerHydration | null;
+  canPersist: boolean;
 }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -634,7 +785,7 @@ function PlanComposerForm({
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
   const [startTime, setStartTime] = useState(draftFields.startTime);
   const [stops, setStops] = useState<DraftStop[]>(
-    initialComposerStops(recoveredRouteDraft, recoveredDraft),
+    initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
   const [conciergeQuery, setConciergeQuery] = useState(draftFields.conciergeQuery);
@@ -678,6 +829,7 @@ function PlanComposerForm({
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
+  const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
   const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -705,8 +857,19 @@ function PlanComposerForm({
   );
   const conciergeStatus = conciergeStatusText(sorting, unsupportedIntakePatch, conciergeNote);
   const composerVisible =
-    planIntake.completed || Boolean(recoveredDraft || recoveredRouteDraft);
+    planIntake.completed || Boolean(recoveredDraft || recoveredRouteDraft || handoff?.acceptedVenueId);
+  const acceptedVenueName = handoff?.acceptedVenueId
+    ? venues.find((venue) => venue.id === handoff.acceptedVenueId)?.name
+      ?? stops.find((stop) => stop.venueId === handoff.acceptedVenueId)?.venueName
+      ?? null
+    : null;
   const completeStopIds = completeStops.map((stop) => stop.venueId);
+  const matchingAnchorOnlyPlan = isMatchingAnchorOnlyPlan({
+    groundingProof,
+    completeStopCount: completeStops.length,
+    singleStopVenueId: completeStops[0]?.venueId,
+    planAnchor,
+  });
   const startTimeIsValid = Boolean(
     resolveFutureLondonStartIso(
       startTime,
@@ -720,6 +883,9 @@ function PlanComposerForm({
     startTime,
     completeStopCount: completeStops.length,
     visibleStopCount: stops.length,
+    groundingProof,
+    singleStopVenueId: completeStops.length === 1 ? completeStops[0]?.venueId : null,
+    planAnchor,
   });
   const canLockPlan =
     composerVisible &&
@@ -729,24 +895,42 @@ function PlanComposerForm({
     lockValidation === null &&
     startTimeIsValid &&
     new Set(completeStopIds).size === completeStopIds.length &&
-    (!nightContext || completeStops.length === normalizePlanStopCount(nightContext.stopCount));
+    (
+      !nightContext
+      || matchingAnchorOnlyPlan
+      || completeStops.length === normalizePlanStopCount(nightContext.stopCount)
+    );
 
   useEffect(() => {
     let active = true;
     fetch("/data/venues_slim.json")
       .then((response) => response.json())
       .then((rows: unknown) => {
-        if (active) setVenues(planVenueOptions(rows));
+        if (!active) return;
+        const nextVenues = planVenueOptions(rows);
+        setVenues(nextVenues);
+        const acceptedVenueId = handoff?.acceptedVenueId;
+        if (!acceptedVenueId) return;
+        const accepted = nextVenues.find((venue) => venue.id === acceptedVenueId);
+        if (!accepted) return;
+        setStops((current) => current.map((stop, index) => (
+          index === 0
+          && stop.venueId === acceptedVenueId
+          && stop.venueName === acceptedVenueId
+            ? { ...stop, venueName: accepted.name }
+            : stop
+        )));
       })
       .catch(() => undefined);
     return () => { active = false; };
-  }, []);
+  }, [handoff?.acceptedVenueId]);
 
   useEffect(() => {
     if (recoveredDraft) trackEvent("draft_recovered", { kind: "plan", surface: "plan" });
   }, [recoveredDraft]);
 
   useEffect(() => {
+    if (!canPersist) return;
     try {
       sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
         title,
@@ -758,9 +942,10 @@ function PlanComposerForm({
     } catch {
       // Storage can be unavailable in private mode; planning still works in-memory.
     }
-  }, [title, creatorName, startTime, conciergeQuery, stops]);
+  }, [canPersist, title, creatorName, startTime, conciergeQuery, stops]);
 
   useEffect(() => {
+    if (!canPersist) return;
     if (!nightContext && routeRevision === null && !stops.some((stop) => stop.alternatives.length > 0)) return;
     try {
       localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
@@ -770,11 +955,12 @@ function PlanComposerForm({
         routeStale,
         groundingProof,
         createOperationKey,
+        planAnchor,
       } satisfies StoredRouteDraft));
     } catch {
       // A blocked localStorage should not make the route editor unusable.
     }
-  }, [createOperationKey, groundingProof, nightContext, routeRevision, routeStale, stops]);
+  }, [canPersist, createOperationKey, groundingProof, nightContext, planAnchor, routeRevision, routeStale, stops]);
 
   useEffect(() => {
     if (planIntake === initialPlanIntakeRef.current) return;
@@ -891,6 +1077,7 @@ function PlanComposerForm({
     // longer carry provenance from the generated candidate set.
     setGroundingProof(null);
     setCreateOperationKey(null);
+    setPlanAnchor(null);
     setRouteStatus("Stop edited in the route preview. Review it before locking.");
   }
 
@@ -944,6 +1131,7 @@ function PlanComposerForm({
           query,
           nightContext,
           explicitNightContext,
+          handoff?.acceptedAnchor,
         )),
       });
       const body = await readApiJson(response) as {
@@ -953,6 +1141,10 @@ function PlanComposerForm({
         inferredContext?: NightContext;
         groundingProof?: unknown;
         operationKey?: unknown;
+        anchored?: unknown;
+        anchorVenueId?: unknown;
+        anchorSource?: unknown;
+        outcome?: unknown;
         error?: unknown;
       } | null;
       if (!response.ok) throw new Error(errorMessageFromBody(body, "PUBMAXX could not sort this one."));
@@ -976,6 +1168,7 @@ function PlanComposerForm({
       setRouteStale(false);
       setGroundingProof(typeof body.groundingProof === "string" ? body.groundingProof : null);
       setCreateOperationKey(typeof body.operationKey === "string" ? body.operationKey : null);
+      setPlanAnchor(generatedPlanAnchorFromResponse(body));
       markPalRouteActivation();
       trackEvent("plan_generated", { stops: suggested.length, grounded });
       setConciergeNote(`${suggested.length} stops we can stand behind, shaped by the outing you set below.`);
@@ -1001,6 +1194,9 @@ function PlanComposerForm({
       startTime,
       completeStopCount: completeStops.length,
       visibleStopCount: stops.length,
+      groundingProof,
+      singleStopVenueId: completeStops.length === 1 ? completeStops[0]?.venueId : null,
+      planAnchor,
     });
     if (validationError) {
       setError(validationError.message);
@@ -1011,7 +1207,11 @@ function PlanComposerForm({
       setError("Choose distinct venues for every stop.");
       return;
     }
-    if (nightContext && completeStops.length !== normalizePlanStopCount(nightContext.stopCount)) {
+    if (
+      nightContext
+      && !matchingAnchorOnlyPlan
+      && completeStops.length !== normalizePlanStopCount(nightContext.stopCount)
+    ) {
       setError(`A generated crawl needs exactly ${normalizePlanStopCount(nightContext.stopCount)} stops we can stand behind before you lock it in.`);
       return;
     }
@@ -1035,6 +1235,7 @@ function PlanComposerForm({
         startTime: exactStartIso,
         stops: completeStops.map(({ venueId, venueName }) => ({ venueId, venueName })),
         ...(groundingProof ? { groundingProof } : {}),
+        ...(planAnchor ? { anchor: planAnchor } : {}),
       };
       const operationKey = createOperationKey ?? await persistentPlanMutationKey("create", createPayload);
       const response = await fetch("/api/plans", {
@@ -1044,17 +1245,23 @@ function PlanComposerForm({
       });
       const body = await response.json();
       if (!response.ok || !body?.plan?.plan?.id) {
-        // L11: surface the L09 anchored-lock failures honestly — 422 (proof
-        // invalid/expired) and 409 (replay-conflict) — behind the handoff flags.
+        // Surface anchored-lock failures honestly: 422 for invalid or expired
+        // proof, and 409 for replay conflict.
         const mapped = handoff ? composerLockErrorFromResponse(response.status) : null;
         throw new Error(mapped || errorMessageFrom(body, "The plan could not be created."));
       }
       const attribution = serverPlanCreationAttribution(body);
       if (!attribution) throw new Error("We could not check the route details. Reload the plan before continuing.");
+      settleConsumedPlanningIntent(completeStops);
       const { grounded } = attribution;
       const acceptanceTelemetry = planAcceptanceTelemetry(body, completeStops.length);
+      const draftSavedTelemetry = planDraftSavedTelemetry(body, planAnchor, completeStops);
+      const draftSavedToken = responseEventToken(body, "planDraftSaved");
       const acceptedToken = responseEventToken(body, "planAccepted");
       const meaningfulToken = responseEventToken(body, "meaningfulCoreAction");
+      if (draftSavedTelemetry && draftSavedToken) {
+        trackEvent("plan_draft_saved", draftSavedTelemetry, { deliveryToken: draftSavedToken });
+      }
       if (acceptanceTelemetry && acceptedToken && meaningfulToken) {
         trackEvent("plan_accepted", acceptanceTelemetry, { deliveryToken: acceptedToken });
         trackMeaningfulCoreAction("plan_accepted", meaningfulToken);
@@ -1105,7 +1312,7 @@ function PlanComposerForm({
 
   return (
     <form id="plan-composer" className="planComposer" onSubmit={submit} noValidate>
-      {handoff && <AcceptedContextPanel handoff={handoff} />}
+      {handoff && <AcceptedContextPanel handoff={handoff} acceptedVenueName={acceptedVenueName} />}
       {!planIntake.completed && entryMode === "describe" ? (
         <PlanDescribeFirst
           initialQuery={askDraftQuery}
@@ -1314,8 +1521,15 @@ function PlanComposerForm({
                 className="planComposer__swap"
                 type="button"
                 onClick={() => swapStop(stop.key)}
-                disabled={stop.alternatives.length === 0}
-                aria-label={stop.alternatives.length > 0 ? `Swap stop ${index + 1}, currently ${stop.venueName}` : `No alternatives for stop ${index + 1}`}
+                disabled={Boolean(
+                  (index === 0 && planAnchor?.venueId === stop.venueId)
+                  || stop.alternatives.length === 0
+                )}
+                aria-label={index === 0 && planAnchor?.venueId === stop.venueId
+                  ? `${stop.venueName} is the accepted Stop 1`
+                  : stop.alternatives.length > 0
+                    ? `Swap stop ${index + 1}, currently ${stop.venueName}`
+                    : `No alternatives for stop ${index + 1}`}
               >
                 Swap{stop.alternatives.length > 0 ? ` · ${stop.alternatives.length}` : ""}
               </button>
@@ -1340,30 +1554,29 @@ function PlanComposerForm({
   );
 }
 
-export default function PlanComposer({ flags = TRUSTED_HANDOFF_FLAGS_OFF }: { flags?: TrustedHandoffFlagsDTO } = {}) {
+export default function PlanComposer() {
   const hydrated = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
-  // L11: resolve persisted state through the L04 arbitration seam BEFORE the
-  // form writes any product default. Both flags off yields a null handoff, so
-  // the composer behaves exactly like the generic Plan (byte-identical rollback).
+  // L11: resolve persisted state through arbitration before the form writes a
+  // product default. A generic Plan with no recovered context gets no panel.
   const handoff = useMemo<ComposerHydration | null>(() => {
-    if (!hydrated || (!flags.intentRead && !flags.anchoredGeneration)) return null;
+    if (!hydrated) return null;
     try {
-      return resolveComposerHydration({
+      const resolved = resolveComposerHydration({
         planDraft: readPlanDraftEnvelope(sessionStorage),
         routeDraft: readPlanRouteDraftEnvelope(localStorage),
         intakeDraft: readPlanIntakeDraftWithMetadata(),
-        planningIntent: flags.intentRead ? readPlanningIntent() : null,
+        planningIntent: readPlanningIntent(),
         rememberedArea: readRememberedArea(),
-        flags,
       });
+      return resolved.active ? resolved : null;
     } catch {
       return null;
     }
-  }, [hydrated, flags]);
+  }, [hydrated]);
   const recoveredDraft = useMemo(() => {
     if (!hydrated) return null;
     try { return parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY)); } catch { return null; }
@@ -1388,6 +1601,7 @@ export default function PlanComposer({ flags = TRUSTED_HANDOFF_FLAGS_OFF }: { fl
       recoveredIntake={recoveredIntake.draft}
       hasDurableIntakeDraft={recoveredIntake.hasDurableDraft}
       handoff={handoff}
+      canPersist={hydrated}
     />
   );
 }

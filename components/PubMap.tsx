@@ -371,12 +371,11 @@ import {
 } from "@/lib/ukNationalBrowse";
 import {
   readPlanningIntent,
-  writePlanningIntent,
   type PlanningIntentSource,
 } from "@/lib/planningIntent";
 import {
-  buildMapAcceptanceIntentInput,
-  initialAcceptanceSource,
+  acceptMapVenue,
+  verifiedAcceptedArrivalSource,
 } from "@/lib/mapAcceptance";
 
 // The "Near me now" instant-answer cards (Cycle 3, Lane 1). Loaded lazily so it
@@ -399,6 +398,10 @@ function readSavedVenueIds(): Set<string> {
 // param probes below can't drift on the SSR ("") fallback.
 function currentSearch(): string {
   return typeof window === "undefined" ? "" : window.location.search;
+}
+
+function subscribeHydration(): () => void {
+  return () => {};
 }
 
 // D4 — take `log=1` off the current history entry. Idempotent, so it can run
@@ -667,12 +670,12 @@ export default function PubMap({
   // If any of these are present, the arrival is intentional and we never onboard.
   // §4.7 shared onboarding intent: the generic first-run tour and this curated
   // "Start with a story" overlay consume the SAME answer, so an intentional Map
-  // arrival never gets a tour/onboarding stacked over it. PlanningIntent is only
-  // consulted when intent read is on (off keeps it ignored-but-preserved).
+  // arrival never gets a tour/onboarding stacked over it. A valid
+  // PlanningIntent is always explicit Map intent.
   const [explicitArrivalIntent] = useState(() =>
     explicitMapIntent({
       search: currentSearch(),
-      planningIntent: flags.intentRead ? readPlanningIntent() : null,
+      planningIntent: readPlanningIntent(),
       restoredMobileSession,
     }),
   );
@@ -703,7 +706,17 @@ export default function PubMap({
   const [selectedVenueId, setSelectedVenueId] = useState<string>(
     seed.selectedVenueId || restoredMobileSession?.selectedVenueId || "",
   );
+  const reactiveAcceptanceSearch = searchParams?.toString() ?? "";
+  const hydrated = useSyncExternalStore(subscribeHydration, () => true, () => false);
+  const acceptedArrivalSource = hydrated
+    ? verifiedAcceptedArrivalSource({
+      search: reactiveAcceptanceSearch,
+      selectedVenueId: searchParams?.get("sel") ?? seed.selectedVenueId,
+      cityId,
+    }, { cleanupInvalid: false })
+    : null;
   const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(null);
+  const [acceptanceError, setAcceptanceError] = useState<string | null>(null);
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
@@ -1686,8 +1699,11 @@ export default function PubMap({
   // an ordinary pin tap or generic `?sel=` selection. Consumed ONLY by an
   // explicit Make it Stop 1 — opening details never writes intent.
   const selectionOriginRef = useRef<PlanningIntentSource | null>(
-    initialAcceptanceSource(currentSearch()),
+    acceptedArrivalSource,
   );
+  useEffect(() => {
+    if (acceptedArrivalSource) selectionOriginRef.current = acceptedArrivalSource;
+  }, [acceptedArrivalSource]);
 
   const selectVenue = useCallback(
     (
@@ -1697,6 +1713,7 @@ export default function PubMap({
     ) => {
       if (!id) return;
       setSelectionNotice(null);
+      setAcceptanceError(null);
       setDetailStatusById((current) => {
         if (!current.has(id)) return current;
         const next = new Map(current);
@@ -1746,29 +1763,29 @@ export default function PubMap({
     ],
   );
 
-  // §4.8 Make it Stop 1 — the ONE Map intent-write. The caller only wires this
-  // when the intent-write flag is on; the guard is defence in depth. It records
-  // a minimal honest PlanningIntent for the accepted Venue with its typed source
-  // (map-search selection, or the accepted-handoff arrival source), fires the
-  // verified acceptance + handoff analytics, then hands off to the Plan
-  // composer. Only an explicit tap reaches here — opening details never does.
+  // §4.8 Make it Stop 1. Only a confirmed PlanningIntent write may emit
+  // acceptance telemetry or hand the person to Plan. A matching Near/Tonight
+  // arrival keeps its richer area and provenance envelope.
   const acceptStop1 = useCallback(() => {
-    if (!flags.intentWrite) return;
     const venue = selectedVenue;
     if (!venue) return;
-    const source: PlanningIntentSource = selectionOriginRef.current ?? "map-search";
-    writePlanningIntent(
-      buildMapAcceptanceIntentInput({ source, cityId, acceptedVenueId: venue.id }),
-    );
-    trackEvent("venue_accepted", {
+    const source: PlanningIntentSource =
+      acceptedArrivalSource ?? selectionOriginRef.current ?? "map-search";
+    const result = acceptMapVenue({
       source,
-      hasArea: false,
-      hasDate: false,
-      hasProvenance: false,
+      cityId,
+      acceptedVenueId: venue.id,
+      search: currentSearch(),
     });
-    trackEvent("planning_handoff_opened", { from: source, to: "plan" });
-    if (typeof window !== "undefined") window.location.assign("/plan");
-  }, [flags.intentWrite, selectedVenue, cityId]);
+    if (!result.accepted || !result.telemetry || !result.destination) {
+      setAcceptanceError("Couldn’t keep this Venue on this device. Try again.");
+      return;
+    }
+    setAcceptanceError(null);
+    trackEvent("venue_accepted", result.telemetry);
+    trackEvent("planning_handoff_opened", { from: result.telemetry.source, to: "plan" });
+    if (typeof window !== "undefined") window.location.assign(result.destination);
+  }, [acceptedArrivalSource, selectedVenue, cityId]);
 
   // The tapped UK base pub, held whole because it exists in no index this
   // component has: the map hands the record up with the tap. Selection itself
@@ -3221,9 +3238,16 @@ export default function PubMap({
     if (!detailOpen || !selectedVenue) return null;
     const selectedLensPrice =
       activeLensPrices?.get(selectedVenue.id) ?? null;
+    const showsAcceptedArrivalReceipt =
+      acceptedArrivalSource !== null && selectedVenue.id === selParam;
 
     return (
       <>
+        {showsAcceptedArrivalReceipt ? (
+          <p className="venueAcceptanceReceipt" role="status">
+            Kept for tonight. Make it Stop 1 when you are ready.
+          </p>
+        ) : null}
         <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
           {activeLensPrices !== null ? (
             <span>
@@ -3266,15 +3290,6 @@ export default function PubMap({
             </strong>
             <small>{userLocation ? "walk" : "Turn on location for walk times"}</small>
           </span>
-          {selectedVenueIsPub ? (
-            <button
-              type="button"
-              aria-pressed={builtIds.includes(selectedVenue.id)}
-              onClick={() => toggleBuiltStop(selectedVenue.id)}
-            >
-              {builtIds.includes(selectedVenue.id) ? "In plan" : "Plan stop"}
-            </button>
-          ) : null}
         </div>
         {selectedDetailStatus === "loading" ? (
           <VenueSheetSkeleton loadingLabel={selectedVenueLabels.loadingLabel} />
@@ -3300,7 +3315,8 @@ export default function PubMap({
           shareLoggedAt={venueSignals.get(selectedVenue.id)?.latestContributorAt ?? null}
           onToggleStop={toggleBuiltStop}
           onSelectVenue={selectVenue}
-          onAcceptStop1={flags.intentWrite && selectedVenueIsPub ? acceptStop1 : undefined}
+          onAcceptStop1={selectedVenueIsPub ? acceptStop1 : undefined}
+          acceptanceError={acceptanceError}
           initialTab={venueInitialTab}
           pintDrops={pintDrops}
           communityPrices={communityPrices}

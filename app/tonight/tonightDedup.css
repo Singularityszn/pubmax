@@ -58,6 +58,13 @@
   gap: 2px;
 }
 
+.tonightRowMoreItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+}
+
 .tonightRowMoreLink {
   display: flex;
   align-items: center;
@@ -94,4 +101,22 @@ a.tonightRowMoreLink:focus-visible {
   font-size: 0.76rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.tonightRowMoreAccept {
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid var(--state-active-border);
+  border-radius: var(--control-radius, 14px);
+  background: var(--state-active-surface);
+  color: var(--state-active-ink);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.tonightRowMoreAccept:focus-visible {
+  outline: 2px solid var(--accent-action);
+  outline-offset: 2px;
 }

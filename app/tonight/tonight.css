@@ -455,10 +455,13 @@
   }
 }
 
-/* Explicit Tonight acceptance — the one filled action on a row (§4.8), rendered
-   only when intentWrite is on. Distinct from the browse CTA above it. */
+/* Explicit Tonight acceptance. Distinct from the browse CTA above it. */
 .tonightRowAccept {
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
   margin-top: 10px;
   padding: 9px 16px;
   border: none;
@@ -471,6 +474,13 @@
   color: var(--color-on-accent);
   background: var(--accent-action);
   cursor: pointer;
+}
+
+.tonightAcceptanceError {
+  margin: 0 0 12px;
+  color: var(--color-negative, var(--brick));
+  font-size: 0.86rem;
+  font-weight: 700;
 }
 
 .tonightRowAccept:focus-visible {

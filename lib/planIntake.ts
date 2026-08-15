@@ -10,6 +10,7 @@ import type {
   NightContext,
   NightAreaSlug,
 } from "@/lib/nightPlanning";
+import type { PlanningIntentArea, PlanningIntentSource } from "@/lib/planningIntent";
 import { isPlanStopCount, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 
@@ -655,6 +656,15 @@ export type PlanGenerationIntakeBody = {
   query?: string;
   context?: Partial<NightContext>;
   intake: PlanIntakeHandoff;
+  anchor?: PlanGenerationAnchor;
+};
+
+/** Exact accepted Venue anchor passed to grounded generation. */
+export type PlanGenerationAnchor = {
+  venueId: string;
+  source: PlanningIntentSource;
+  acceptedArea: PlanningIntentArea;
+  startsAt: string | null;
 };
 
 /** Remove values inherited from an earlier intake before applying its current answers. */
@@ -683,6 +693,7 @@ export function buildPlanGenerationIntakeBody(
   query: string,
   currentContext: NightContext | null,
   explicitContext: Partial<NightContext> = {},
+  anchor?: PlanGenerationAnchor | null,
 ): PlanGenerationIntakeBody {
   const cleanQuery = query.trim();
   const context = {
@@ -694,6 +705,14 @@ export function buildPlanGenerationIntakeBody(
     ...(cleanQuery ? { query: cleanQuery } : {}),
     ...(Object.keys(context).length > 0 ? { context } : {}),
     intake: planIntakeHandoff(draft),
+    ...(anchor ? {
+      anchor: {
+        venueId: anchor.venueId,
+        source: anchor.source,
+        acceptedArea: anchor.acceptedArea,
+        startsAt: anchor.startsAt,
+      },
+    } : {}),
   };
 }
 

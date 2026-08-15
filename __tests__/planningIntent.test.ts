@@ -238,6 +238,14 @@ describe("PlanningIntent storage lifecycle", () => {
     }
   });
 
+  it("can validate without mutating storage during a render snapshot", () => {
+    const raw = "{";
+    const storage = memoryStorage(raw);
+
+    expect(readPlanningIntent({ storage, now: NOW, cleanupInvalid: false })).toBeNull();
+    expect(storage.values.get(PLANNING_INTENT_STORAGE_KEY)).toBe(raw);
+  });
+
   it("never throws when storage access is blocked", () => {
     const blocked: PlanningIntentStorage = {
       getItem: () => { throw new Error("blocked"); },

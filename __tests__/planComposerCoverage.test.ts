@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   errorMessageFromBody,
   applyPlanStopCount,
+  generatedPlanAnchorFromResponse,
+  isMatchingAnchorOnlyPlan,
   isGroundedGeneratedRoute,
   nightAreaCoverageSummary,
   nightAreaCoverageMeta,
@@ -12,6 +14,8 @@ import {
   nightContextChanged,
   parsePlanRouteDraft,
   planAcceptanceTelemetry,
+  planCreationConsumesPlanningIntent,
+  planDraftSavedTelemetry,
   planGenerationFailureStatus,
   planLockValidationError,
   routeStopsFromGenerated,
@@ -20,6 +24,52 @@ import {
 } from "@/components/plan/PlanComposer";
 import { getNightArea } from "@/lib/nightAreas";
 import { createPlanIntakeDraft } from "@/lib/planIntake";
+
+describe("PlanComposer PlanningIntent settlement", () => {
+  const intent = { acceptedVenueId: "venue-accepted" };
+
+  it("settles only when created Stop 1 consumed the accepted Venue", () => {
+    expect(planCreationConsumesPlanningIntent(intent, [
+      { venueId: "venue-accepted" },
+      { venueId: "venue-next" },
+    ])).toBe(true);
+    expect(planCreationConsumesPlanningIntent(intent, [
+      { venueId: "venue-existing" },
+      { venueId: "venue-accepted" },
+    ])).toBe(false);
+    expect(planCreationConsumesPlanningIntent(null, [
+      { venueId: "venue-accepted" },
+    ])).toBe(false);
+  });
+});
+
+describe("PlanComposer anchor-only telemetry", () => {
+  it("rebuilds plan_draft_saved only from grounded server attribution and matching anchor metadata", () => {
+    const anchor = { venueId: "venue-accepted", source: "near", outcome: "anchor-only" } as const;
+
+    expect(planDraftSavedTelemetry(
+      { created: true, grounded: true },
+      anchor,
+      [{ venueId: "venue-accepted" }],
+    )).toEqual({
+      stops: 1,
+      grounded: true,
+      anchored: true,
+      routeReady: false,
+      source: "near",
+    });
+    expect(planDraftSavedTelemetry(
+      { created: true, grounded: false },
+      anchor,
+      [{ venueId: "venue-accepted" }],
+    )).toBeNull();
+    expect(planDraftSavedTelemetry(
+      { created: true, grounded: true },
+      anchor,
+      [{ venueId: "venue-other" }],
+    )).toBeNull();
+  });
+});
 
 describe("PlanComposer Night Area coverage states", () => {
   const groups = nightAreaSelectorGroups(new Date("2026-07-13T12:00:00.000Z"));
@@ -165,6 +215,47 @@ describe("PlanComposer route preview seam", () => {
     });
   });
 
+  it("blocks a generated one-Stop Plan unless its anchor-only outcome names Stop 1", () => {
+    const generatedOneStop = {
+      title: "Thursday crawl",
+      creatorName: "Karan",
+      startTime: "2026-07-20T18:00",
+      completeStopCount: 1,
+      visibleStopCount: 1,
+      groundingProof: "signed-proof",
+      singleStopVenueId: "venue-a",
+    };
+
+    expect(planLockValidationError(generatedOneStop)).toEqual({
+      message: "Regenerate this accepted Venue before locking it in.",
+      focus: null,
+    });
+    expect(planLockValidationError({
+      ...generatedOneStop,
+      planAnchor: { venueId: "venue-a", source: "near", outcome: "route" as const },
+    })).toEqual({
+      message: "Regenerate this accepted Venue before locking it in.",
+      focus: null,
+    });
+    expect(planLockValidationError({
+      ...generatedOneStop,
+      planAnchor: { venueId: "venue-b", source: "near", outcome: "anchor-only" as const },
+    })).toEqual({
+      message: "Regenerate this accepted Venue before locking it in.",
+      focus: null,
+    });
+    expect(planLockValidationError({
+      ...generatedOneStop,
+      planAnchor: { venueId: "venue-a", source: "near", outcome: "anchor-only" as const },
+    })).toBeNull();
+    expect(isMatchingAnchorOnlyPlan({
+      groundingProof: "signed-proof",
+      completeStopCount: 1,
+      singleStopVenueId: "venue-a",
+      planAnchor: { venueId: "venue-a", source: "near", outcome: "anchor-only" },
+    })).toBe(true);
+  });
+
   it("never restores client-writable grounding attribution from local storage", () => {
     const restored = parsePlanRouteDraft(JSON.stringify({
       stops: [
@@ -193,8 +284,37 @@ describe("PlanComposer route preview seam", () => {
     ]);
 
     expect(isGroundedGeneratedRoute({ grounded: true, groundingProof: "signed-proof" }, stops)).toBe(true);
+    expect(isGroundedGeneratedRoute({
+      grounded: true,
+      groundingProof: "signed-proof",
+      anchored: true,
+      anchorVenueId: "a",
+      anchorSource: "near",
+      outcome: "anchor-only",
+    }, stops.slice(0, 1))).toBe(true);
     expect(isGroundedGeneratedRoute({ routeRevision: 7 }, stops)).toBe(false);
     expect(isGroundedGeneratedRoute({ grounded: true, groundingProof: "signed-proof" }, stops.slice(0, 2))).toBe(false);
+  });
+
+  it("reads only exact server-returned anchor metadata", () => {
+    expect(generatedPlanAnchorFromResponse({
+      anchored: true,
+      anchorVenueId: "venue-a",
+      anchorSource: "near",
+      outcome: "route",
+    })).toEqual({ venueId: "venue-a", source: "near", outcome: "route" });
+    expect(generatedPlanAnchorFromResponse({
+      anchored: true,
+      anchorVenueId: "venue-a",
+      anchorSource: "near",
+      outcome: "wrong",
+    })).toBeNull();
+    expect(generatedPlanAnchorFromResponse({
+      anchored: false,
+      anchorVenueId: "venue-a",
+      anchorSource: "near",
+      outcome: "route",
+    })).toBeNull();
   });
 
   it("keeps generated stops and attaches the top-level alternative pool", () => {

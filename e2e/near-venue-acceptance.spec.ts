@@ -1,13 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 
-// DAG L06 — with intent-write off (the shipped default) /near stays a browse-only
-// surface: the standard SiteNav shell renders, each answer card is a single
-// browse button, and opening one selects the Venue on the Map (?sel=) WITHOUT
-// writing a PlanningIntent. Accepting a Venue is a separate, explicit act the
-// PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE flag gates on; none of its affordances
-// appear here. The explicit-acceptance path itself is exercised exhaustively in
-// __tests__/venueAcceptance.test.ts (pure, node-env), since the flag DTO is
-// delivered to the client by the Map lane (L05) and is off on this base.
+test.setTimeout(60_000);
+
+// Permanent Near acceptance keeps browsing and accepting separate. Opening a
+// card selects it on Map without writing. Only the explicit acceptance action
+// persists PlanningIntent and adds the accepted-arrival URL markers.
 
 const PLANNING_INTENT_KEY = "pubmax:planning-intent:v1";
 
@@ -17,8 +14,26 @@ function watchPageErrors(page: Page): string[] {
   return errors;
 }
 
-test("Near is browse-only and writes no PlanningIntent with acceptance off", async ({ page }) => {
+async function captureAnalytics(page: Page): Promise<unknown[]> {
+  const payloads: unknown[] = [];
+  await page.route("**/api/events", async (route) => {
+    const raw = route.request().postData();
+    if (raw) payloads.push(JSON.parse(raw));
+    await route.fulfill({ status: 204, headers: { "cache-control": "no-store" } });
+  });
+  return payloads;
+}
+
+test("Near separates browsing from permanent Venue acceptance", async ({ page }) => {
   const errors = watchPageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    if (!localStorage.getItem("pubmax-theme")) localStorage.setItem("pubmax-theme", "light");
+  });
 
   // Shareable patch link answers immediately, no geolocation prompt needed.
   const response = await page.goto("/near?patch=soho");
@@ -33,10 +48,12 @@ test("Near is browse-only and writes no PlanningIntent with acceptance off", asy
   const firstCard = page.locator(".nmnCard").first();
   await expect(firstCard).toBeVisible();
 
-  // Acceptance affordances are absent while the flag is off: no "Use this pub"
-  // button and no evidence receipt.
-  await expect(page.locator(".nmnAccept")).toHaveCount(0);
-  await expect(page.locator(".nmnAcceptReceipt")).toHaveCount(0);
+  const accept = page.locator(".nmnAccept").first();
+  await expect(accept).toBeVisible();
+  await expect(accept).toHaveText("Keep for tonight");
+  await expect(page.locator(".nmnAcceptReceipt")).toHaveText(
+    "Choose a pub to keep for tonight.",
+  );
 
   // Nothing was written just by rendering the answer.
   const beforeClick = await page.evaluate(
@@ -55,6 +72,111 @@ test("Near is browse-only and writes no PlanningIntent with acceptance off", asy
   );
   expect(afterClick).toBeNull();
 
+  await page.goBack();
+  await expect(page.locator(".nmnAccept").first()).toBeVisible();
+  await page.locator(".nmnAccept").first().click();
+  await expect(page).toHaveURL(/\/map(\/[a-z-]+)?\?[^#]*\bsel=[^&]+&accept=1&src=near/);
+  await expect(page.getByText("Kept for tonight. Make it Stop 1 when you are ready.")).toBeVisible();
+  const acceptStop1 = page
+    .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
+    .getByRole("button", { name: /^Make .+ Stop 1$/ });
+  await expect(acceptStop1).toBeVisible({ timeout: 30_000 });
+  await expect(acceptStop1).toHaveText("Make it Stop 1");
+  await page.screenshot({
+    path: "docs/proof/venue-acceptance/accepted-map-390-light.png",
+  });
+  await page.evaluate(() => {
+    localStorage.setItem("pubmax-theme", "dark");
+  });
+  await page.reload();
+  await expect(page.getByText("Kept for tonight. Make it Stop 1 when you are ready.")).toBeVisible();
+  await expect(acceptStop1).toHaveText("Make it Stop 1");
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+  });
+  await page.screenshot({
+    path: "docs/proof/venue-acceptance/accepted-map-390-dark.png",
+  });
+  const stored = await page.evaluate((key) => {
+    const raw = window.sessionStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  }, PLANNING_INTENT_KEY);
+  expect(stored?.source).toBe("near");
+  expect(stored?.acceptedVenueId).toBeTruthy();
+
   // The /near surface itself raised no uncaught errors.
   expect(errors).toEqual([]);
+});
+
+test("storage denial stays on Near and emits no acceptance events", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "granted");
+    const nativeSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function setItem(key: string, value: string) {
+      if (this === sessionStorage && key === "pubmax:planning-intent:v1") {
+        throw new DOMException("Quota exceeded", "QuotaExceededError");
+      }
+      return nativeSetItem.call(this, key, value);
+    };
+  });
+  const payloads = await captureAnalytics(page);
+
+  await page.goto("/near?patch=soho");
+  await page.locator(".nmnAccept").first().click();
+
+  await expect(page).toHaveURL(/\/near\?patch=soho$/);
+  await expect(page.locator(".nmnAcceptError")).toHaveText(
+    "Couldn’t keep this Venue on this device. Try again.",
+  );
+  await page.waitForTimeout(400);
+  expect(payloads.some((payload) => (
+    payload && typeof payload === "object"
+    && ["venue_accepted", "planning_handoff_opened"].includes(
+      String((payload as { name?: unknown }).name),
+    )
+  ))).toBe(false);
+});
+
+test("Map rejects forged Near acceptance markers", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax-theme", "light");
+  });
+
+  await page.goto("/near?patch=soho");
+  const firstCard = page.locator(".nmnCard").first();
+  await expect(firstCard).toBeVisible();
+  await firstCard.click();
+  await expect(page).toHaveURL(/\/map(\/[a-z-]+)?\?[^#]*\bsel=/);
+  const forgedUrl = new URL(page.url());
+  forgedUrl.searchParams.set("accept", "1");
+  forgedUrl.searchParams.set("src", "near");
+
+  expect(
+    await page.evaluate((key) => window.sessionStorage.getItem(key), PLANNING_INTENT_KEY),
+  ).toBeNull();
+  await page.goto(forgedUrl.toString());
+
+  const acceptStop1 = page
+    .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
+    .getByRole("button", { name: /^Make .+ Stop 1$/ });
+  await expect(acceptStop1).toBeVisible({ timeout: 45_000 });
+  await expect(page.locator(".venueAcceptanceReceipt")).toHaveCount(0);
+
+  await acceptStop1.click();
+  await expect(page).toHaveURL(/\/plan(?:\?|$)/);
+  const stored = await page.evaluate((key) => {
+    const raw = window.sessionStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  }, PLANNING_INTENT_KEY);
+  expect(stored?.source).toBe("map-search");
 });

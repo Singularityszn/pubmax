@@ -63,6 +63,8 @@ export type PlanningIntentDisposition =
 export type PlanningIntentOptions = {
   storage?: PlanningIntentStorage | null;
   now?: number | (() => number);
+  /** Set false for pure render snapshots that must not clean rejected bytes. */
+  cleanupInvalid?: boolean;
 };
 
 const INTENT_KEYS = [
@@ -271,7 +273,7 @@ export function createPlanningIntent(
   return parsePlanningIntent(JSON.stringify(intent), now);
 }
 
-/** Read without extending expiry. Rejected and expired values clear best-effort. */
+/** Read without extending expiry. Rejected and expired values clear best-effort by default. */
 export function readPlanningIntent(
   options: PlanningIntentOptions = {},
 ): PlanningIntentV1 | null {
@@ -287,7 +289,7 @@ export function readPlanningIntent(
   if (raw === null) return null;
 
   const intent = parsePlanningIntent(raw, currentTime(options.now));
-  if (!intent) bestEffortRemove(storage);
+  if (!intent && options.cleanupInvalid !== false) bestEffortRemove(storage);
   return intent;
 }
 

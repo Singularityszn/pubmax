@@ -1,9 +1,9 @@
 // Map-originated Venue acceptance (trusted-handoff §4.8).
 //
-// Turning an inspected Venue into an accepted Stop 1 from the Map is the ONE
-// place L05 writes a PlanningIntent. The write is gated by the caller on the
-// intent-write flag; this module only builds the exact, minimal envelope and
-// resolves the typed acceptance source, so both are unit-testable with no DOM.
+// Turning an inspected Venue into an accepted Stop 1 from the Map writes a
+// PlanningIntent only after the reader presses the explicit action. This module
+// builds the exact, minimal envelope and resolves the typed acceptance source,
+// so both are unit-testable with no DOM.
 //
 // Honesty: a Map acceptance carries no accepted area or date yet (the server
 // resolvePlanningAnchor recomputes the canonical Night Area, §4.3), and its
@@ -14,10 +14,17 @@
 
 import type { CityId } from "@/lib/cities";
 import type {
+  PlanningIntentV1,
   PlanningIntentInput,
+  PlanningIntentOptions,
   PlanningIntentSource,
 } from "@/lib/planningIntent";
-import { PLANNING_INTENT_SOURCES } from "@/lib/planningIntent";
+import {
+  PLANNING_INTENT_SOURCES,
+  readPlanningIntent,
+  writePlanningIntent,
+} from "@/lib/planningIntent";
+import type { VenueAcceptedTelemetry } from "@/lib/venueAcceptance";
 
 /** Valid PlanningIntent sources that a Map acceptance can legitimately carry. */
 export function isPlanningIntentSource(
@@ -60,5 +67,125 @@ export function buildMapAcceptanceIntentInput(input: {
     acceptedArea: null,
     startsAt: null,
     displayEvidence: { kind: "directory", observedAt: null },
+  };
+}
+
+export type MapAcceptanceInput = {
+  source: PlanningIntentSource;
+  cityId: CityId;
+  acceptedVenueId: string;
+  /** The frozen Map arrival search, used to recognise an accepted handoff. */
+  search?: string;
+};
+
+export type MapAcceptanceResult = {
+  accepted: boolean;
+  /** Only a confirmed write may hand the reader to Plan. */
+  destination: "/plan" | null;
+  telemetry: VenueAcceptedTelemetry | null;
+};
+
+type AcceptedArrivalInput = {
+  search: string;
+  selectedVenueId: string;
+  cityId: CityId;
+};
+
+function planningIntentInput(intent: PlanningIntentV1): PlanningIntentInput {
+  return {
+    source: intent.source,
+    cityId: intent.cityId,
+    acceptedVenueId: intent.acceptedVenueId,
+    acceptedArea: intent.acceptedArea,
+    startsAt: intent.startsAt,
+    displayEvidence: intent.displayEvidence,
+  };
+}
+
+function acceptedArrivalIntent(
+  input: AcceptedArrivalInput,
+  options: PlanningIntentOptions = {},
+): PlanningIntentV1 | null {
+  const search = input.search;
+  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  const source = initialAcceptanceSource(search);
+  if (
+    source === null ||
+    params.get("sel") !== input.selectedVenueId
+  ) {
+    return null;
+  }
+
+  const existing = readPlanningIntent(options);
+  if (
+    !existing ||
+    existing.source !== source ||
+    existing.cityId !== input.cityId ||
+    existing.acceptedVenueId !== input.selectedVenueId
+  ) {
+    return null;
+  }
+  return existing;
+}
+
+/**
+ * Return a trusted accepted-arrival source only when URL markers match a live
+ * PlanningIntent for the same Venue and city. URL text alone carries no
+ * acceptance authority.
+ */
+export function verifiedAcceptedArrivalSource(
+  input: AcceptedArrivalInput,
+  options: PlanningIntentOptions = {},
+): PlanningIntentSource | null {
+  return acceptedArrivalIntent(input, options)?.source ?? null;
+}
+
+/**
+ * Explicitly accept the selected Map Venue into the trusted handoff.
+ *
+ * A matching Near or Tonight arrival may carry a richer intent already written
+ * by that surface. Every other Map selection gets the minimal directory input.
+ * The final result is successful only when the chosen input persists.
+ */
+export function acceptMapVenue(
+  input: MapAcceptanceInput,
+  options: PlanningIntentOptions = {},
+): MapAcceptanceResult {
+  const arrivalIntent = acceptedArrivalIntent(
+    {
+      search: input.search ?? "",
+      selectedVenueId: input.acceptedVenueId,
+      cityId: input.cityId,
+    },
+    options,
+  );
+  const effectiveSource =
+    arrivalIntent?.source === input.source ? input.source : "map-search";
+  let intentInput = buildMapAcceptanceIntentInput({
+    ...input,
+    source: effectiveSource,
+  });
+
+  if (
+    arrivalIntent &&
+    (arrivalIntent.source === "near" || arrivalIntent.source === "tonight")
+  ) {
+    intentInput = planningIntentInput(arrivalIntent);
+  }
+
+  const intent = writePlanningIntent(intentInput, options);
+  if (!intent) {
+    return { accepted: false, destination: null, telemetry: null };
+  }
+
+  return {
+    accepted: true,
+    destination: "/plan",
+    telemetry: {
+      source: intent.source,
+      hasArea: intent.acceptedArea !== null,
+      hasDate: intent.startsAt !== null,
+      hasProvenance: intent.displayEvidence.observedAt !== null,
+    },
   };
 }

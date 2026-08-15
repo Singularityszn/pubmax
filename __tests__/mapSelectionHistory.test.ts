@@ -7,6 +7,7 @@ import {
   isSelectionSentinel,
   parseSelectionHint,
   PUBMAX_SELECTION_SENTINEL,
+  refreshSelectionUrl,
   searchHasSelection,
   selectionSentinel,
   selectionSentinelVenueId,
@@ -101,6 +102,28 @@ describe("browseSelectionUrl", () => {
     // base → curated must never leave the previous pub's coordinates behind.
     expect(browseSelectionUrl("/map", "?sel=venue-uk-n1&at=51.5003,-0.2218", "v2")).toBe(
       "/map?sel=v2",
+    );
+  });
+});
+
+describe("refreshSelectionUrl", () => {
+  it("keeps accepted-arrival markers while the same Venue surface refreshes", () => {
+    expect(refreshSelectionUrl(
+      "/map",
+      "?sel=v1&accept=1&src=near&food=1",
+      "v1",
+    )).toBe("/map?sel=v1&accept=1&src=near&food=1");
+  });
+
+  it("still refreshes the base-pub location hint", () => {
+    expect(refreshSelectionUrl(
+      "/map",
+      "?sel=venue-uk-n1&accept=1&src=near",
+      "venue-uk-n1",
+      "",
+      "51.5003,-0.2218",
+    )).toBe(
+      "/map?sel=venue-uk-n1&accept=1&src=near&at=51.5003%2C-0.2218",
     );
   });
 });

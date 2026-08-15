@@ -24,7 +24,6 @@ import { mintPlanGroundingProofV2 } from "@/lib/planGrounding.server";
 import { __resetMemoryPlans } from "@/lib/planStore";
 
 const URL = "http://localhost/api/plans";
-const FLAG = "PUBMAX_ANCHORED_GENERATION";
 const OP = "op-anchor-lock-01";
 
 function anchorOnlyProof(operationKey = OP): string {
@@ -55,10 +54,9 @@ const ANCHOR = { venueId: "venue-a", source: "near", outcome: "anchor-only" };
 
 describe("POST /api/plans — anchored lock", () => {
   beforeEach(() => { __resetMemoryPlans(); });
-  afterEach(() => { __resetMemoryPlans(); delete process.env[FLAG]; });
+  afterEach(() => { __resetMemoryPlans(); });
 
   it("persists a one-Stop draft and emits plan_draft_saved, never plan_accepted", async () => {
-    process.env[FLAG] = "1";
     const response = await create({
       stops: [{ venueId: "venue-a", venueName: "A" }],
       groundingProof: anchorOnlyProof(),
@@ -75,7 +73,6 @@ describe("POST /api/plans — anchored lock", () => {
   });
 
   it("maps each proof failure to an explicit 422", async () => {
-    process.env[FLAG] = "1";
     const [encoded, signature] = anchorOnlyProof().split(".");
 
     const missing = await create({ stops: [{ venueId: "venue-a", venueName: "A" }], anchor: ANCHOR });
@@ -109,8 +106,50 @@ describe("POST /api/plans — anchored lock", () => {
     expect((await mismatch.json()).code).toBe("PLAN_ANCHOR_PROOF_ROUTE_MISMATCH");
   });
 
+  it("rejects malformed submitted anchor metadata instead of creating a generic Plan", async () => {
+    const response = await create({
+      stops: [{ venueId: "venue-a", venueName: "A" }],
+      groundingProof: anchorOnlyProof(),
+      anchor: { venueId: "venue-a", source: "near" },
+    });
+
+    expect(response.status).toBe(422);
+    expect((await response.json()).code).toBe("PLAN_ANCHOR_INVALID");
+  });
+
+  it("rejects a signed V2 proof when anchor metadata is missing", async () => {
+    const response = await create({
+      stops: [{ venueId: "venue-a", venueName: "A" }],
+      groundingProof: anchorOnlyProof(),
+    });
+
+    expect(response.status).toBe(422);
+    expect((await response.json()).code).toBe("PLAN_ANCHOR_REQUIRED");
+  });
+
+  it("rejects a submitted anchor Venue that differs from the signed proof", async () => {
+    const response = await create({
+      stops: [{ venueId: "venue-a", venueName: "A" }],
+      groundingProof: anchorOnlyProof(),
+      anchor: { venueId: "venue-b", source: "near", outcome: "anchor-only" },
+    });
+
+    expect(response.status).toBe(422);
+    expect((await response.json()).code).toBe("PLAN_ANCHOR_VENUE_MISMATCH");
+  });
+
+  it("rejects a submitted anchor source that differs from the signed proof", async () => {
+    const response = await create({
+      stops: [{ venueId: "venue-a", venueName: "A" }],
+      groundingProof: anchorOnlyProof(),
+      anchor: { venueId: "venue-a", source: "tonight", outcome: "anchor-only" },
+    });
+
+    expect(response.status).toBe(422);
+    expect((await response.json()).code).toBe("PLAN_ANCHOR_SOURCE_MISMATCH");
+  });
+
   it("conflicts (409) when the same operation key relocks with a changed anchor", async () => {
-    process.env[FLAG] = "1";
     const first = await create({ stops: [{ venueId: "venue-a", venueName: "A" }], groundingProof: anchorOnlyProof(), anchor: ANCHOR });
     expect(first.status).toBe(201);
     // Same idempotency key, different anchor/proof → the store's request hash conflicts.
@@ -151,7 +190,6 @@ describe("POST /api/plans — anchored lock", () => {
   }
 
   it("upgrades a one-Stop draft to a grounded route and emits plan_accepted once", async () => {
-    process.env[FLAG] = "1";
     const { planId, memberToken } = await createDraft();
     const upgraded = await patchUpgrade(planId, {
       memberToken,
@@ -171,7 +209,6 @@ describe("POST /api/plans — anchored lock", () => {
   });
 
   it("refuses an upgrade without a valid proof and maps proof failures to 422", async () => {
-    process.env[FLAG] = "1";
     const { planId, memberToken } = await createDraft();
     const stops = [{ venueId: "venue-a", venueName: "A" }, { venueId: "venue-b", venueName: "B" }, { venueId: "venue-c", venueName: "C" }];
 
@@ -188,8 +225,7 @@ describe("POST /api/plans — anchored lock", () => {
     expect((await wrongOp.json()).code).toBe("PLAN_ANCHOR_PROOF_OPERATION_MISMATCH");
   });
 
-  it("ignores the anchor when the flag is off and stays on the legacy event shape", async () => {
-    delete process.env[FLAG];
+  it("accepts an anchor by default and preserves generic creation without one", async () => {
     const response = await create({
       stops: [{ venueId: "venue-a", venueName: "A" }],
       groundingProof: anchorOnlyProof(),
@@ -197,10 +233,24 @@ describe("POST /api/plans — anchored lock", () => {
     });
     expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.plan.plan.outcome).toBeNull();
+    expect(body.plan.plan).toMatchObject({
+      anchorVenueId: "venue-a",
+      anchorSource: "near",
+      outcome: "anchor-only",
+    });
     expect(body.plan.plan.routeReadyAt).toBeNull();
-    expect(body.eventTokens).not.toHaveProperty("planDraftSaved");
-    expect(body.eventTokens).toHaveProperty("planAccepted");
-    expect(body.eventTokens).toHaveProperty("meaningfulCoreAction");
+    expect(body.eventTokens.planDraftSaved).toEqual(expect.any(String));
+
+    const generic = await create({
+      stops: [{ venueId: "venue-a", venueName: "A" }],
+    }, "op-generic-plan-01");
+    expect(generic.status).toBe(201);
+    const genericBody = await generic.json();
+    expect(genericBody.plan.plan).toMatchObject({
+      anchorVenueId: null,
+      anchorSource: null,
+      outcome: null,
+    });
+    expect(genericBody.eventTokens).not.toHaveProperty("planDraftSaved");
   });
 });

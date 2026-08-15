@@ -12,7 +12,6 @@ import { canonicalPlanRoute } from "@/lib/planRoute";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { planInviteToken, planMemberIdentityResult, planStateResult, planStore, type PlanWriteError } from "@/lib/planStore";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { planAcceptedEventTokens } from "@/lib/verifiedAnalytics.server";
 import { isPlanStopCount } from "@/lib/planStopCount";
 
@@ -33,9 +32,9 @@ function upgradeProofError(reason: PlanGroundingRejectionV2): { message: string;
 type AnchoredUpgrade = { done: Response } | { groundedUpgrade: boolean; upgradeAnchored: boolean };
 
 /**
- * Gate a route replacement as a grounded upgrade. Only a stops replacement,
- * behind the flag, carrying a valid V2 proof over the exact new order becomes a
- * grounded upgrade; every proof failure returns a 422 the caller forwards.
+ * Gate a route replacement as a grounded upgrade. Only a stops replacement
+ * carrying a valid V2 proof over the exact new order becomes a grounded
+ * upgrade; every proof failure returns a 422 the caller forwards.
  */
 function checkAnchoredUpgrade(
   stops: PlanStopDTO[] | null | undefined,
@@ -46,7 +45,7 @@ function checkAnchoredUpgrade(
   const operationKey = typeof rawOperationKey === "string" && rawOperationKey.trim().length >= 8 && rawOperationKey.trim().length <= 120
     ? rawOperationKey.trim()
     : null;
-  if (!stops || !readTrustedHandoffFlag("anchoredGeneration") || !groundingProof || !operationKey) {
+  if (!stops || !groundingProof || !operationKey) {
     return { groundedUpgrade: false, upgradeAnchored: false };
   }
   const verdict = verifyAnchoredPlanGroundingProofV2(groundingProof, stops.map((stop) => stop.venueId), operationKey);

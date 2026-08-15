@@ -6,8 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 // DAG L15 flag-ON half, split out of tonight-trusted-ui.spec.ts so neither half
 // needs a runtime test.skip (L20 zero-skip contract). This file runs ONLY in the
 // flag-on invocation: the chromium-flag-on project drives a server built with
-// PUBMAX_TONIGHT_GROUPING=1 and PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE=1 (see the
-// flag-on run's documented env set + playwright.config webServer pass-through),
+// PUBMAX_TONIGHT_GROUPING=1 (see Playwright webServer pass-through),
 // so every assertion below always executes.
 
 const SHOTS_DIR = path.join(process.cwd(), "e2e-shots", "tonight-trusted-ui");
@@ -96,7 +95,7 @@ test.describe("Tonight trusted UI (flag on / canonical)", () => {
   test("accepting a Tonight Venue arrives at the map as src=tonight", async ({ page }) => {
     await mockWhatsOn(page);
     await openTonight(page);
-    const accept = page.getByRole("button", { name: /Use this venue/i }).first();
+    const accept = page.getByRole("button", { name: /Keep .+ for tonight/i }).first();
     await expect(accept).toBeVisible();
     await accept.click();
     await page.waitForURL(/\/map\?/);
@@ -104,5 +103,17 @@ test.describe("Tonight trusted UI (flag on / canonical)", () => {
     expect(url.searchParams.get("accept")).toBe("1");
     expect(url.searchParams.get("src")).toBe("tonight");
     expect(url.searchParams.get("sel")).toMatch(/^venue-/);
+  });
+
+  test("a grouped alternate keeps Tonight provenance", async ({ page }) => {
+    await mockWhatsOn(page);
+    await openTonight(page);
+    await page.locator("summary", { hasText: "Same deal at 2 pubs" }).click();
+    const keepAlternate = page.getByRole("button", {
+      name: "Keep The Deal Arms B for tonight",
+    });
+    await expect(keepAlternate).toBeVisible();
+    await keepAlternate.click();
+    await expect(page).toHaveURL(/\/map\?[^#]*sel=venue-dealb[^#]*&accept=1&src=tonight/);
   });
 });
