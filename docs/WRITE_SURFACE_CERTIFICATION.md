@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 139 mutating handlers across 112 route files.** Each exported
+> **Inventory: 138 mutating handlers across 111 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -68,7 +68,6 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/citymcp/journey`
 - `POST app/api/concierge`
 - `POST app/api/crawls`
-- `POST app/api/email-subscribers`
 - `POST app/api/events`
 - `POST app/api/heritage`
 - `POST app/api/identity/adult-assertion`
@@ -205,10 +204,6 @@ moderation state, revision or timestamp is accepted from the request body.
   limiter when Supabase is not configured.
 - Public community contribution paths use durable limits in production and a
   tightened degraded budget on transient limiter failures.
-- Email capture (`POST /api/email-subscribers`) enforces durable limits on **two
-  axes** — per-IP and a global circuit breaker — and answers 503 on a hard
-  durable-store write failure rather than a fake success. It stores the address
-  UNCONFIRMED (double opt-in); nothing is mailed until the recipient confirms.
 - Account, moderator, and Plan-capability routes reject missing authority before
   persistence. Confirmation-protected publication requires a separate one-use
   token.

@@ -22,8 +22,10 @@ weekly digest capture until double opt-in and delivery work end to end.
   recipient loading, delivery, and schedule are inactive.
 - The nudge must not call `/api/email-subscribers`.
 - The nudge must not emit `email_subscribed`.
-- Existing pending subscriber rows, routes, stores, and historical analytics
-  registry entries remain unchanged.
+- Captain decision, 2026-08-15: the route, its store, its confirmation dispatch
+  and the `email_subscribed` registry entry were then DELETED, because a public
+  unauthenticated write with no caller is a write nobody watches. Pending
+  subscriber rows and migration 0042 are untouched. See `docs/EMAIL_CAPTURE.md`.
 - This slice does not claim that a digest has launched or that pending rows are
   confirmed subscribers.
 
