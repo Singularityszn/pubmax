@@ -492,31 +492,40 @@ function findDrop(id: string): PintDrop | undefined {
   return undefined;
 }
 
-// Report-abuse policy (launch PRD): one unauthenticated report must not hide
-// content. Every report records metadata (and is rate-limited per drop at the
-// route); the drop leaves public reads only once this many reports accumulate.
+// Report-abuse policy (launch PRD): anonymous reports record moderation
+// metadata but never count toward hiding. The drop leaves public reads only
+// after this many distinct verified accounts report it.
 export const REPORT_HIDE_THRESHOLD = 2;
 
+export type PintDropReportIdentity =
+  | { kind: "verified_account"; actorHash: string }
+  | { kind: "anonymous_ip"; actorHash: string };
+
 // Per-actor report ledger (memory mirror of pint_drop_reports' unique
-// (pint_drop_id, actor_hash) — migrations 0006/0008/0017): drop id → the set of
+// (pint_drop_id, actor_hash) - migrations 0006/0008/0017): drop id to the set of
 // actor hashes that already reported it. A same-actor duplicate is an idempotent
-// no-op, so one actor can never bump the counter twice across rate-limit windows.
+// no-op. A verified account cannot advance the counter twice, and anonymous
+// reports never advance it.
 const reportedActorsByDrop = new Map<string, Set<string>>();
 
-export function reportPintDrop(id: string, reason?: string, actorHash?: string): boolean {
+export function reportPintDrop(
+  id: string,
+  reason: string | undefined,
+  identity: PintDropReportIdentity,
+): boolean {
   const hit = findDrop(id);
   if (!hit) return false;
-  if (actorHash) {
-    const seen = reportedActorsByDrop.get(id) ?? new Set<string>();
-    // Duplicate report by the same actor: idempotent no-op — the counter, the
-    // reason, and the status stay exactly as they are (matches the v2 RPC).
-    if (seen.has(actorHash)) return true;
-    seen.add(actorHash);
-    reportedActorsByDrop.set(id, seen);
-  }
+
+  const seen = reportedActorsByDrop.get(id) ?? new Set<string>();
+  if (seen.has(identity.actorHash)) return true;
+  seen.add(identity.actorHash);
+  reportedActorsByDrop.set(id, seen);
+
   hit.reportedAt = new Date().toISOString();
-  hit.reportCount = (hit.reportCount ?? 0) + 1;
   if (reason) hit.reportReason = reason;
+  if (identity.kind === "anonymous_ip") return true;
+
+  hit.reportCount = (hit.reportCount ?? 0) + 1;
   if (hit.reportCount >= REPORT_HIDE_THRESHOLD) hit.status = "hidden";
   return true;
 }

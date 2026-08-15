@@ -7,6 +7,7 @@ vi.mock("@/lib/whatsOnStore", () => ({
   loadWhatsOn: vi.fn(async () => ({
     rows: [{ id: "a" }, { id: "b" }],
     asOf: "2026-07-21T14:00:00.000Z",
+    revalidation: { status: "measured" },
   })),
 }));
 
@@ -16,6 +17,7 @@ import {
   __resetFeedFreshnessStore,
 } from "@/lib/feedFreshnessStore";
 import { WHATS_ON_FEED_KEY } from "@/lib/freshnessStoreOverlay";
+import { loadWhatsOn } from "@/lib/whatsOnStore";
 
 function req(auth?: string): Request {
   return new Request("https://pubmaxxing.com/api/cron/refresh-whats-on", {
@@ -56,10 +58,119 @@ describe("GET /api/cron/refresh-whats-on", () => {
     warn.mockRestore();
   });
 
+  it("does not claim a degraded freshness write landed", async () => {
+    const stamp = vi
+      .spyOn(memoryFeedFreshnessStore, "stamp")
+      .mockResolvedValueOnce({ status: "stamped", failed: true });
+
+    const response = await GET(req("Bearer test-secret"));
+
+    expect(await response.json()).toMatchObject({
+      ok: true,
+      stamped: false,
+      stampDegraded: true,
+    });
+    expect(stamp).toHaveBeenCalledTimes(1);
+    stamp.mockRestore();
+  });
+
   it("reports a present provider key (loud-but-soft key awareness)", async () => {
     vi.stubEnv("TICKETMASTER_API_KEY", "tm-key");
     const res = await GET(req("Bearer test-secret"));
     const body = await res.json();
     expect(body.eventProviderKeysPresent).toContain("TICKETMASTER_API_KEY");
+  });
+
+  // A revalidation that FAILED is not an observation. Stamping the request
+  // instant made the freshness spine read this feed as just-checked for its
+  // whole 48-hour budget, hiding the outage it exists to report.
+  it("does NOT advance observedAt when the revalidation throws", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // A good run first, so there is a previous stamp to protect.
+    await GET(req("Bearer test-secret"));
+    const before = await memoryFeedFreshnessStore.read(WHATS_ON_FEED_KEY);
+    expect(before?.observedAt).toBe("2026-07-21T14:00:00.000Z");
+
+    vi.mocked(loadWhatsOn).mockRejectedValueOnce(new Error("baseline row is malformed"));
+    const res = await GET(req("Bearer test-secret"));
+    const body = await res.json();
+    expect(body).toMatchObject({ ok: false, stamped: false, observedAt: null, rowsServed: 0 });
+    expect(body.error).toContain("malformed");
+
+    const after = await memoryFeedFreshnessStore.read(WHATS_ON_FEED_KEY);
+    expect(after?.observedAt).toBe("2026-07-21T14:00:00.000Z");
+    expect(error).toHaveBeenCalled();
+
+    warn.mockRestore();
+    error.mockRestore();
+  });
+
+  it("does NOT stamp a fail-soft answer with only servedAt", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await GET(req("Bearer test-secret"));
+    const before = await memoryFeedFreshnessStore.read(WHATS_ON_FEED_KEY);
+
+    vi.mocked(loadWhatsOn).mockResolvedValueOnce({
+      rows: [],
+      servedAt: "2026-07-21T15:00:00.000Z",
+      sourceObservedAt: null,
+      sourceFreshnessKind: "unknown",
+      kindObservedAt: {},
+      localityBasis: "london-default",
+      asOf: null,
+      revalidation: { status: "measured" },
+    });
+    const res = await GET(req("Bearer test-secret"));
+
+    expect(await res.json()).toMatchObject({
+      ok: false,
+      stamped: false,
+      observedAt: null,
+      rowsServed: 0,
+    });
+    const after = await memoryFeedFreshnessStore.read(WHATS_ON_FEED_KEY);
+    expect(after).toEqual(before);
+
+    warn.mockRestore();
+  });
+
+  it("does NOT stamp baseline freshness after a swallowed provider failure", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await GET(req("Bearer test-secret"));
+    const before = await memoryFeedFreshnessStore.read(WHATS_ON_FEED_KEY);
+
+    vi.mocked(loadWhatsOn).mockResolvedValueOnce({
+      rows: [{ id: "baseline" }] as unknown as Awaited<
+        ReturnType<typeof loadWhatsOn>
+      >["rows"],
+      servedAt: "2026-07-21T15:00:00.000Z",
+      sourceObservedAt: "2026-07-21T14:30:00.000Z",
+      sourceFreshnessKind: "dataset-generated",
+      kindObservedAt: {},
+      localityBasis: "london-default",
+      asOf: "2026-07-21T14:30:00.000Z",
+      revalidation: {
+        status: "unmeasured",
+        reason: "live-provider-failed",
+      },
+    });
+    const response = await GET(req("Bearer test-secret"));
+
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      stamped: false,
+      observedAt: null,
+      rowsServed: 0,
+    });
+    expect(await memoryFeedFreshnessStore.read(WHATS_ON_FEED_KEY)).toEqual(before);
+    expect(error).toHaveBeenCalled();
+
+    warn.mockRestore();
+    error.mockRestore();
   });
 });

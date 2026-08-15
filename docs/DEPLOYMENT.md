@@ -105,7 +105,7 @@ difference until a live apply. Write any `digest()`/pgcrypto call as
 
 Quick post-migration smoke:
 
-- `POST /api/messages` with `{ "action": "send", "handle": "alice", "other": "bob", "body": "hello" }` returns `201`.
+- With a signed-in account-linked `@alice` and a live `@bob` profile, `POST /api/messages` with `{ "action": "send", "handle": "alice", "other": "bob", "body": "hello" }` returns `201`.
 - `POST /api/ratings` with `{ "kind": "venue", "venueId": "venue-16pnwmm", "handle": "alice", "rating": 5 }` returns `200`.
 - Anonymous REST reads of raw `conversations`, `messages`, `drink_ratings`, and `venue_ratings` should not expose rows.
 

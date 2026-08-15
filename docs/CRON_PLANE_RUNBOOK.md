@@ -22,7 +22,7 @@ JSON and cannot carry inline comments.
 | Route | Schedule (UTC) | London (BST / GMT) | Purpose | maxDuration |
 |---|---|---|---|---|
 | `GET /api/cron/refresh-weather` | `0 */6 * * *` | 01:00·07:00·13:00·19:00 / 00:00·06:00·12:00·18:00 | Fetch Open-Meteo for every night area → durable `weather_snapshots` store | 60s |
-| `GET /api/cron/refresh-whats-on` | `30 5 * * *` | **06:30** / 05:30 | SLIM: revalidate the servable tonight window + stamp `feed_freshness` (pre-morning) | 60s |
+| `GET /api/cron/refresh-whats-on` | `30 5 * * *` | **06:30** / 05:30 | SLIM: revalidate the servable tonight window; stamp `feed_freshness` only after a measured result (pre-morning) | 60s |
 | `GET /api/cron/refresh-prices` | `0 7 * * 1` | 08:00 / 07:00 | Retrieve and validate permissible-source rows; stamp the `price_update_retrieval` feed only when valid rows exist (never the served `price_updates` snapshot) | 60s |
 | `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine, report stale feeds and unresolvable feeds as two separate findings (console only) | 30s |
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
@@ -205,8 +205,9 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   freshness stamp untouched.
 - Price provider failure → **`502 PROVIDER_UNAVAILABLE`**, prior freshness
   stamp untouched.
-- What's-On window revalidation throws → logged; the freshness stamp still
-  records the attempt time and row count (0 on failure).
+- What's-On window revalidation fails → **`200`** with `ok:false`,
+  `stamped:false`, `observedAt:null`, and an error; the prior freshness stamp
+  remains unchanged.
 - Freshness audit → **never 500s**; a broken artifact surfaces as that dataset's
   own `unknown` status. Alerting is **console-only** today
   (`lib/freshnessNotify.ts` is the seam a later push/alert integration hangs

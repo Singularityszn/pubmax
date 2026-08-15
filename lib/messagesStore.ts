@@ -178,6 +178,17 @@ function isMissingMessagesSchema(err: unknown): boolean {
   );
 }
 
+// A memory-minted conversation id is `c` followed by a decimal sequence number
+// and nothing else (see memoryMessagesStore.openConversation). A durable id is a
+// Postgres UUID, and `c` is a hex digit, so a bare `startsWith("c")` claimed one
+// durable conversation in sixteen for the empty in-memory store. Match the whole
+// shape instead: a UUID always carries hyphens, so it can never satisfy this.
+const MEMORY_CONVERSATION_ID = /^c\d+$/;
+
+export function isMemoryConversationId(conversationId: string): boolean {
+  return MEMORY_CONVERSATION_ID.test(conversationId);
+}
+
 function warnMemoryFallback(context: string, err: unknown): void {
   if (memoryFallbackWarnings.has(context)) return;
   memoryFallbackWarnings.add(context);
@@ -229,7 +240,7 @@ export const supabaseMessagesStore: MessagesStore = {
     const senderHandle = normalizeHandle(sender);
     const clean = attachment ? cleanAttachedBody(body) : cleanBody(body);
     if (!conversationId || !senderHandle || clean === null) return null;
-    if (conversationId.startsWith("c")) {
+    if (isMemoryConversationId(conversationId)) {
       return memoryMessagesStore.send(conversationId, senderHandle, clean, attachment);
     }
     try {
@@ -326,7 +337,7 @@ export const supabaseMessagesStore: MessagesStore = {
   async listMessages(conversationId, handle) {
     const me = normalizeHandle(handle);
     if (!conversationId || !me) return null;
-    if (conversationId.startsWith("c")) {
+    if (isMemoryConversationId(conversationId)) {
       return memoryMessagesStore.listMessages(conversationId, me);
     }
     try {
@@ -368,7 +379,7 @@ export const supabaseMessagesStore: MessagesStore = {
   async report(conversationId, messageId, reporterHandle) {
     const reporter = normalizeHandle(reporterHandle);
     if (!conversationId || !messageId || !reporter) return false;
-    if (conversationId.startsWith("c")) {
+    if (isMemoryConversationId(conversationId)) {
       return memoryMessagesStore.report(conversationId, messageId, reporter);
     }
     try {
@@ -394,7 +405,7 @@ export const supabaseMessagesStore: MessagesStore = {
   async photoObjectKey(conversationId, messageId, handle) {
     const me = normalizeHandle(handle);
     if (!conversationId || !messageId || !me) return null;
-    if (conversationId.startsWith("c")) {
+    if (isMemoryConversationId(conversationId)) {
       return memoryMessagesStore.photoObjectKey(conversationId, messageId, me);
     }
     try {

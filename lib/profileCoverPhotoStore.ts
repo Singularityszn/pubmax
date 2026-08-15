@@ -6,8 +6,8 @@
 // THREE things this store owns that a route must not re-derive.
 //
 // 1. THE CAP. `countForProfile` is the only place the captain's five is
-//    counted, and it counts that profile's own LIVE rows. A hidden cover gives
-//    its slot back, because a moderation decision is not a permanent penalty.
+//    counted, and it counts every stored row because the schema gives each row
+//    one of five unique positions. A profile-wide hide refuses new uploads.
 //
 // 2. THE ORDER. `listApproved` returns the rotation in `byCoverPosition` order
 //    and `reorder` is the only write that changes it. Positions are rewritten
@@ -29,12 +29,17 @@ import {
   isProfileCoverModerationState,
   nextCoverPosition,
   PROFILE_COVER_PHOTO_CAP,
+  profileCoverCapLine,
   type ProfileCoverModerationState,
   type ProfileCoverPhoto,
   type ProfileCoverPhotoFields,
 } from "@/lib/profileCovers";
 import { profileImageServePath, profileImageServingKey } from "@/lib/profileImageSlots";
-import { profileStore } from "@/lib/profileStore";
+import {
+  PROFILE_COVER_OWNER_WRITE_BLOCKED_LINE,
+  profileOwnerImageWriteBlocked,
+  profileStore,
+} from "@/lib/profileStore";
 import {
   createFailSoftGuard,
   onMissingDurableWrite,
@@ -46,6 +51,27 @@ const TABLE = "profile_cover_photos";
 const MIGRATION_HINT = "apply migration 0100";
 const REVIEW_LIMIT = 200;
 
+export class ProfileCoverUploadBlockedError extends Error {
+  constructor() {
+    super(PROFILE_COVER_OWNER_WRITE_BLOCKED_LINE);
+    this.name = "ProfileCoverUploadBlockedError";
+  }
+}
+
+export class ProfileCoverGuardUnavailableError extends Error {
+  constructor() {
+    super("Profile cover state is unavailable.");
+    this.name = "ProfileCoverGuardUnavailableError";
+  }
+}
+
+export class ProfileCoverCapReachedError extends Error {
+  constructor() {
+    super(profileCoverCapLine());
+    this.name = "ProfileCoverCapReachedError";
+  }
+}
+
 export type ProfileCoverPhotoStore = {
   /**
    * Persist an approved cover at the back of the rotation. THROWS on a hard
@@ -55,7 +81,7 @@ export type ProfileCoverPhotoStore = {
   create(fields: ProfileCoverPhotoFields, now?: number): Promise<ProfileCoverPhoto>;
   /** The rotation, approved only, in the owner's order. */
   listApproved(profileId: string): Promise<ProfileCoverPhoto[]>;
-  /** How many live covers this profile already holds. */
+  /** How many stored covers this profile already holds. */
   countForProfile(profileId: string): Promise<number>;
   getById(id: string): Promise<ProfileCoverPhoto | null>;
   /**
@@ -76,6 +102,18 @@ export type ProfileCoverPhotoStore = {
     state: ProfileCoverModerationState,
     note?: string,
   ): Promise<boolean>;
+  /**
+   * The SAME moderator decision, applied to every cover this profile holds.
+   * A hide on `profiles.cover_*` is a decision about this person's backdrop, and
+   * the rotation carries up to five photographs the admin lane never named; the
+   * two lanes must not disagree about whether a backdrop may be seen. Returns
+   * how many rows moved.
+   */
+  moderateAllForProfile(
+    profileId: string,
+    state: ProfileCoverModerationState,
+    note?: string,
+  ): Promise<number>;
   /** Moderator queue: flagged and undecided. Fail-soft. */
   listForReview(): Promise<ProfileCoverPhoto[]>;
   /** Moderator hidden lane, so a hide stays reversible. Fail-soft. */
@@ -140,6 +178,19 @@ export async function publicCoverUrls(
   }
 }
 
+async function ownerCoverWriteState(
+  profileId: string,
+): Promise<"approved" | "hidden" | "unavailable"> {
+  try {
+    const profile = await profileStore().getById(profileId);
+    return profile && profileOwnerImageWriteBlocked(profile, "cover")
+      ? "hidden"
+      : "approved";
+  } catch {
+    return "unavailable";
+  }
+}
+
 // ── In-memory implementation ─────────────────────────────────────────────────
 // Resets on restart, which is right for dev, demo and test; production uses
 // Supabase.
@@ -151,16 +202,34 @@ function memoryRowsFor(profileId: string): ProfileCoverPhoto[] {
 
 export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
   async create(fields, now = Date.now()) {
-    const live = memoryRowsFor(fields.profileId).filter(
-      (row) => row.moderationState === "approved",
-    );
+    const stateBefore = await ownerCoverWriteState(fields.profileId);
+    if (stateBefore === "unavailable") {
+      throw new ProfileCoverGuardUnavailableError();
+    }
+    if (stateBefore === "hidden") {
+      throw new ProfileCoverUploadBlockedError();
+    }
+    const held = memoryRowsFor(fields.profileId);
+    if (held.length >= PROFILE_COVER_PHOTO_CAP) {
+      throw new ProfileCoverCapReachedError();
+    }
     const photo: ProfileCoverPhoto = {
       ...fields,
-      position: nextCoverPosition(live),
+      position: nextCoverPosition(held),
       moderationState: "approved",
       createdAt: new Date(now).toISOString(),
     };
     byId.set(photo.id, photo);
+    const stateAfter = await ownerCoverWriteState(fields.profileId);
+    if (stateAfter === "unavailable") {
+      byId.delete(photo.id);
+      throw new ProfileCoverGuardUnavailableError();
+    }
+    if (stateAfter === "hidden") {
+      await this.moderateAllForProfile(fields.profileId, "hidden");
+      byId.delete(photo.id);
+      throw new ProfileCoverUploadBlockedError();
+    }
     return photo;
   },
 
@@ -171,8 +240,7 @@ export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
   },
 
   async countForProfile(profileId) {
-    return memoryRowsFor(profileId).filter((row) => row.moderationState === "approved")
-      .length;
+    return memoryRowsFor(profileId).length;
   },
 
   async getById(id) {
@@ -198,9 +266,33 @@ export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
   },
 
   async reorder(profileId, orderedIds) {
+    const stateBefore = await ownerCoverWriteState(profileId);
+    if (stateBefore === "unavailable") {
+      throw new ProfileCoverGuardUnavailableError();
+    }
+    if (stateBefore === "hidden") {
+      await this.moderateAllForProfile(profileId, "hidden");
+      return [];
+    }
+    const held = memoryRowsFor(profileId).map((row) => ({
+      id: row.id,
+      position: row.position,
+    }));
     for (const { id, position } of coverPositionsFor(orderedIds)) {
       const row = byId.get(id);
       if (row && row.profileId === profileId) row.position = position;
+    }
+    const stateAfter = await ownerCoverWriteState(profileId);
+    if (stateAfter === "unavailable") {
+      for (const { id, position } of held) {
+        const row = byId.get(id);
+        if (row && row.profileId === profileId) row.position = position;
+      }
+      throw new ProfileCoverGuardUnavailableError();
+    }
+    if (stateAfter === "hidden") {
+      await this.moderateAllForProfile(profileId, "hidden");
+      return [];
     }
     return this.listApproved(profileId);
   },
@@ -228,6 +320,16 @@ export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
     hit.moderatedAt = new Date().toISOString();
     if (note) hit.moderatorNote = note;
     return true;
+  },
+
+  async moderateAllForProfile(profileId, state, note) {
+    const rows = memoryRowsFor(profileId);
+    for (const row of rows) {
+      row.moderationState = state;
+      row.moderatedAt = new Date().toISOString();
+      if (note) row.moderatorNote = note;
+    }
+    return rows.length;
   },
 
   async listForReview() {
@@ -297,6 +399,21 @@ function fromRow(row: Record<string, unknown>): ProfileCoverPhoto {
   };
 }
 
+async function listStoredProfileCovers(
+  profileId: string,
+): Promise<ProfileCoverPhoto[]> {
+  const { data, error } = await admin()
+    .from(TABLE)
+    .select("*")
+    .eq("profile_id", profileId)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(PROFILE_COVER_PHOTO_CAP);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => fromRow(row as Record<string, unknown>));
+}
+
 export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
   async create(fields, now = Date.now()) {
     return guard<ProfileCoverPhoto>({
@@ -309,7 +426,17 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         }),
       // No onError: a hard write failure THROWS so the route answers 503.
       run: async () => {
-        const held = await supabaseProfileCoverPhotoStore.listApproved(fields.profileId);
+        const stateBefore = await ownerCoverWriteState(fields.profileId);
+        if (stateBefore === "unavailable") {
+          throw new ProfileCoverGuardUnavailableError();
+        }
+        if (stateBefore === "hidden") {
+          throw new ProfileCoverUploadBlockedError();
+        }
+        const held = await listStoredProfileCovers(fields.profileId);
+        if (held.length >= PROFILE_COVER_PHOTO_CAP) {
+          throw new ProfileCoverCapReachedError();
+        }
         const photo: ProfileCoverPhoto = {
           ...fields,
           position: nextCoverPosition(held),
@@ -318,6 +445,19 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         };
         const { error } = await admin().from(TABLE).insert(toRow(photo));
         if (error) throw new Error(error.message);
+        const stateAfter = await ownerCoverWriteState(fields.profileId);
+        if (stateAfter === "unavailable") {
+          await supabaseProfileCoverPhotoStore.remove(photo.id, fields.profileId);
+          throw new ProfileCoverGuardUnavailableError();
+        }
+        if (stateAfter === "hidden") {
+          await supabaseProfileCoverPhotoStore.moderateAllForProfile(
+            fields.profileId,
+            "hidden",
+          );
+          await supabaseProfileCoverPhotoStore.remove(photo.id, fields.profileId);
+          throw new ProfileCoverUploadBlockedError();
+        }
         return photo;
       },
     });
@@ -356,8 +496,7 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         const { count, error } = await admin()
           .from(TABLE)
           .select("id", { count: "exact", head: true })
-          .eq("profile_id", profileId)
-          .eq("moderation_state", "approved");
+          .eq("profile_id", profileId);
         if (error) throw new Error(error.message);
         return typeof count === "number" && count > 0 ? count : 0;
       },
@@ -437,6 +576,17 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         }),
       run: async () => {
         const held = await supabaseProfileCoverPhotoStore.listApproved(profileId);
+        const stateBefore = await ownerCoverWriteState(profileId);
+        if (stateBefore === "unavailable") {
+          throw new ProfileCoverGuardUnavailableError();
+        }
+        if (stateBefore === "hidden") {
+          await supabaseProfileCoverPhotoStore.moderateAllForProfile(
+            profileId,
+            "hidden",
+          );
+          return [];
+        }
         const byRowId = new Map(held.map((row) => [row.id, row]));
         // ONE statement, so the deferred (profile_id, position) uniqueness is
         // checked at commit rather than half way through a swap.
@@ -449,6 +599,17 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         if (rows.length === 0) return held;
         const { error } = await admin().from(TABLE).upsert(rows, { onConflict: "id" });
         if (error) throw new Error(error.message);
+        const stateAfter = await ownerCoverWriteState(profileId);
+        if (stateAfter === "unavailable") {
+          throw new ProfileCoverGuardUnavailableError();
+        }
+        if (stateAfter === "hidden") {
+          await supabaseProfileCoverPhotoStore.moderateAllForProfile(
+            profileId,
+            "hidden",
+          );
+          return [];
+        }
         return supabaseProfileCoverPhotoStore.listApproved(profileId);
       },
     });
@@ -515,6 +676,32 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
           .select("id");
         if (error) throw new Error(error.message);
         return (data ?? []).length > 0;
+      },
+    });
+  },
+
+  async moderateAllForProfile(profileId, state, note) {
+    return guard<number>({
+      context: "moderateAllForProfile",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "profile-cover-photos",
+          migrationHint: MIGRATION_HINT,
+          fallback: () =>
+            memoryProfileCoverPhotoStore.moderateAllForProfile(profileId, state, note),
+        }),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .update({
+            moderation_state: state,
+            moderated_at: new Date().toISOString(),
+            ...(note ? { moderator_note: note } : {}),
+          })
+          .eq("profile_id", profileId)
+          .select("id");
+        if (error) throw new Error(error.message);
+        return (data ?? []).length;
       },
     });
   },

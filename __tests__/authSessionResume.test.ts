@@ -66,6 +66,19 @@ describe("auth session resume cookie helpers", () => {
     expect(authResumeCookieFromHeader(null)).toBeNull();
   });
 
+  it("reads junk cookie bytes as ABSENT rather than throwing", () => {
+    // `decodeURIComponent` throws URIError on an invalid escape, and this helper
+    // is called outside the try in verifySupabaseSessionFromRequest — so the
+    // throw used to leave every Social read as an unhandled 500 for anyone whose
+    // own cookie got corrupted.
+    for (const junk of ["%zz", "%", "%E0%A4%A", "abc%"]) {
+      expect(authResumeCookieFromHeader(`${AUTH_RESUME_COOKIE}=${junk}`)).toBeNull();
+    }
+    expect(
+      authResumeCookieFromHeader(`theme=dark; ${AUTH_RESUME_COOKIE}=%zz; other=1`),
+    ).toBeNull();
+  });
+
   it("masks an email to first character plus domain", () => {
     expect(maskEmail("karan@example.com")).toBe("k…@example.com");
     expect(maskEmail("a@b.co")).toBe("a…@b.co");

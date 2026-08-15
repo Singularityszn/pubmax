@@ -7,7 +7,9 @@
 // so a face falls back to initials and a cover to the brass treatment) and never
 // deletes storage or report provenance; restore puts an approved image back.
 // Reporter actor hashes never leave the store. `slot` defaults to the face, so a
-// console that predates covers keeps working unchanged.
+// console that predates covers keeps working unchanged. A COVER decision crosses
+// two stores - see `lib/profileCoverModeration.server.ts` - because the rotation
+// holds up to five photographs the console never names.
 
 import { isModerator } from "@/lib/adminAuth";
 import { publicApiError } from "@/lib/apiError";
@@ -15,10 +17,10 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { isProfileImageSlot, type ProfileImageSlot } from "@/lib/profileImageSlots";
+import { moderateProfileImageAcrossStores } from "@/lib/profileCoverModeration.server";
 import {
   listHiddenProfileImages,
   listReportedProfileImages,
-  moderateProfileImage,
 } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -77,7 +79,12 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const slot = requestedSlot(body.slot);
-    const ok = await moderateProfileImage(handle, slot, action, readString(body.note));
+    const ok = await moderateProfileImageAcrossStores(
+      handle,
+      slot,
+      action,
+      readString(body.note),
+    );
     if (!ok) return publicApiError("Profile image not found.", "NOT_FOUND", 404);
     return jsonNoStore({ ok: true }, { status: 200 });
   } catch {

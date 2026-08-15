@@ -24,7 +24,12 @@ import {
   POST as POST_THREAD,
 } from "@/app/api/messages/[id]/route";
 import { __resetMemoryMessages } from "@/lib/messagesStore";
-import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
+import { __resetPintDrops } from "@/lib/pintDrops";
+import {
+  __resetMemoryProfiles,
+  __seedMemoryOwnedProfile,
+  memoryProfileStore,
+} from "@/lib/profileStore";
 
 const BASE = "http://localhost/api/messages";
 
@@ -59,12 +64,19 @@ function postThread(id: string, body: unknown): Promise<Response> {
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   authState.userId = null;
   __resetMemoryMessages();
   __resetMemoryProfiles();
+  __resetPintDrops();
+  // A conversation is opened WITH somebody, so every handle these cases talk to
+  // has to exist and be owned by the account that signs in as it. An unknown
+  // recipient has its own cases below.
+  for (const handle of ["ken", "sam", "max", "mallory", "jen"]) {
+    __seedMemoryOwnedProfile(handle, `user-${handle}`);
+  }
 });
 
 describe("GET /api/messages — inbox", () => {
@@ -93,10 +105,66 @@ describe("POST /api/messages — open + send validation", () => {
   });
 
   it("rejects a missing handle / recipient / self-message", async () => {
-    asUser("user-ken");
+    // An account that owns no handle has none to fall back on. A LINKED account
+    // resolves its own, which is the documented preference.
+    asUser("user-nobody");
     expect((await postInbox({ action: "open", other: "sam" })).status).toBe(400);
+    asUser("user-ken");
     expect((await postInbox({ action: "open", handle: "ken" })).status).toBe(400);
     expect((await postInbox({ action: "open", handle: "ken", other: "ken" })).status).toBe(400);
+  });
+
+  // `open` upserts a durable conversations row per distinct pair. It used to
+  // take an unbounded number of them, against handles nobody holds, because the
+  // limiter sat inside the `send` branch alone.
+  it("refuses to open a conversation with a handle nobody holds", async () => {
+    asUser("user-ken");
+    const res = await postInbox({ action: "open", handle: "ken", other: "nobodyhere" });
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toBeTruthy();
+
+    const send = await postInbox({
+      action: "send",
+      handle: "ken",
+      other: "nobodyhere",
+      body: "hello?",
+    });
+    expect(send.status).toBe(404);
+  });
+
+  it("returns retryable 503 when recipient lookup is unavailable", async () => {
+    asUser("user-ken");
+    const original = memoryProfileStore.getByHandle.bind(memoryProfileStore);
+    const spy = vi
+      .spyOn(memoryProfileStore, "getByHandle")
+      .mockImplementation((handle) =>
+        handle === "sam" ? Promise.reject(new Error("store down")) : original(handle),
+      );
+    try {
+      const res = await postInbox({ action: "open", handle: "ken", other: "sam" });
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({
+        error: "Profile storage is unavailable.",
+        code: "UNAVAILABLE",
+        retryable: true,
+      });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("rate-limits `open` the way it rate-limits `send`", async () => {
+    asUser("user-ken");
+    let limited: Response | null = null;
+    for (let i = 0; i < 40; i += 1) {
+      const res = await postInbox({ action: "open", handle: "ken", other: "sam" });
+      if (res.status === 429) {
+        limited = res;
+        break;
+      }
+    }
+    expect(limited).not.toBeNull();
+    expect((await limited!.json()).code).toBe("RATE_LIMITED");
   });
 
   it("opens a conversation and returns a stable id", async () => {

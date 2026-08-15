@@ -97,13 +97,30 @@ function servingKey(
 ): { objectKey: string } | { refusal: ProfileImageServeRefusal } {
   if (!profileMayWearAvatar(profile)) return { refusal: "profile_unclaimed" };
   const state = profileImageState(profile, slot);
+  if (!state.objectKey && !state.generation && !state.moderationState) {
+    return { refusal: "image_absent" };
+  }
   if (state.moderationState !== "approved") return { refusal: "moderation_not_approved" };
-  if (!state.objectKey) return { refusal: "image_absent" };
+  if (!state.objectKey || !state.generation) return { refusal: "object_key_unexpected" };
   if (state.generation !== generation) return { refusal: "generation_mismatch" };
   if (!isProfileImageServingKey(slot, profile.id, generation, state.objectKey)) {
     return { refusal: "object_key_unexpected" };
   }
   return { objectKey: state.objectKey };
+}
+
+/**
+ * The closed set of row refusals a second serving lane may still answer. Both
+ * say "this generation is not the one on the row"; neither says anything about
+ * whether the profile's images are allowed to be seen.
+ */
+const ROTATION_MAY_ANSWER: ReadonlySet<ProfileImageServeRefusal> = new Set([
+  "generation_mismatch",
+  "image_absent",
+]);
+
+function mayAskRotation(refusal: ProfileImageServeRefusal): boolean {
+  return ROTATION_MAY_ANSWER.has(refusal);
 }
 
 export async function handleProfileImageServe(
@@ -136,15 +153,14 @@ export async function handleProfileImageServe(
   const resolved = servingKey(profile, slot, gen);
   let objectKey = "objectKey" in resolved ? resolved.objectKey : null;
   // The row holds ONE generation, and a cover rotation holds up to five. So a
-  // generation the row does not name is asked of the list before it is refused
-  // - but only for a claimed profile, because `profile_unclaimed` is a fact
-  // about the account rather than about which photo was asked for.
-  if (
-    !objectKey &&
-    deps.extraServingKey &&
-    "refusal" in resolved &&
-    resolved.refusal !== "profile_unclaimed"
-  ) {
+  // generation the row does not name is asked of the list before it is refused.
+  // ONLY those two refusals may ask: every other one is a DECISION about this
+  // profile's images rather than a fact about which generation was asked for,
+  // and a decision must be terminal. A moderator hide used to fall through to
+  // the rotation - whose own row the admin lane never touches - and the hidden
+  // bytes kept serving 200. `moderation_not_approved` is checked BEFORE the
+  // generation, so refusing here takes covers 2-5 down with cover 1.
+  if (!objectKey && deps.extraServingKey && "refusal" in resolved && mayAskRotation(resolved.refusal)) {
     objectKey = await deps.extraServingKey(id, gen);
   }
   if (!objectKey) {

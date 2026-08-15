@@ -42,7 +42,9 @@ import {
 import { scanUploadedImage } from "@/lib/uploadedImageScan.server";
 import {
   isProfileTombstoned,
+  PROFILE_COVER_OWNER_WRITE_BLOCKED_LINE,
   profileImageState,
+  profileOwnerImageWriteBlocked,
   profileStore,
   publicProfileFromRecord,
   reportProfileImage,
@@ -59,6 +61,14 @@ import { readString } from "@/lib/textClean";
 
 const IMAGE_RATE_LIMIT = 10;
 const IMAGE_RATE_WINDOW_MS = 60 * 60 * 1000;
+
+function hiddenCoverOwnerWriteRefusal(): Response {
+  return publicApiError(
+    PROFILE_COVER_OWNER_WRITE_BLOCKED_LINE,
+    "COVER_HIDDEN",
+    409,
+  );
+}
 
 export type ProfileImageRouteDeps = {
   storage: ProfileImageStorage;
@@ -166,6 +176,9 @@ export async function handleProfileImageUpload(
     });
   }
   if (!owned.ok) return owned.response;
+  if (profileOwnerImageWriteBlocked(owned.profile, slot)) {
+    return hiddenCoverOwnerWriteRefusal();
+  }
 
   const limiterKey = `profile-${slot}:${hashActor(owned.callerUserId)}`;
   if (
@@ -296,6 +309,9 @@ export async function handleProfileImageDelete(
     });
   }
   if (!owned.ok) return owned.response;
+  if (profileOwnerImageWriteBlocked(owned.profile, slot)) {
+    return hiddenCoverOwnerWriteRefusal();
+  }
 
   const limiterKey = `profile-${slot}-delete:${hashActor(owned.callerUserId)}`;
   if (
@@ -310,13 +326,20 @@ export async function handleProfileImageDelete(
 
   const { storage } = deps;
   try {
-    await purgeProfileImageObjects(slot, owned.profile.id, storage, priorKeys(owned.profile, slot));
     const updated = await profileStore().setOwnedImage(handle, slot, null);
     if (!updated) {
       return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, {
         retryable: true,
       });
     }
+    try {
+      await purgeProfileImageObjects(
+        slot,
+        owned.profile.id,
+        storage,
+        priorKeys(owned.profile, slot),
+      );
+    } catch {}
     return jsonNoStore({ profile: publicProfileFromRecord(updated) }, { status: 200 });
   } catch (error) {
     if (error instanceof ProfileImageError) return photoError(error, slot);

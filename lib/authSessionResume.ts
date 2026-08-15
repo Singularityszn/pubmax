@@ -105,7 +105,17 @@ export function decodeAuthResumeCookie(
   }
 }
 
-/** Extract the resume cookie value from a Cookie request header. */
+/**
+ * Extract the resume cookie value from a Cookie request header.
+ *
+ * ANYTHING MALFORMED READS AS ABSENT, which is the contract `decodeAuthResumeCookie`
+ * already keeps. A value carrying an invalid percent-escape (`%zz`, a lone `%`,
+ * a truncated write) makes `decodeURIComponent` throw, and this helper is called
+ * OUTSIDE the try in `verifySupabaseSessionFromRequest`, so a junk cookie in a
+ * caller's own browser turned a clean "not signed in" into an unhandled 500 on
+ * every Social read. The sibling reader `lib/planMemberCapability.ts` already
+ * guards the identical call.
+ */
 export function authResumeCookieFromHeader(
   cookieHeader: string | null | undefined,
 ): string | null {
@@ -115,7 +125,12 @@ export function authResumeCookieFromHeader(
     if (eq === -1) continue;
     if (part.slice(0, eq).trim() !== AUTH_RESUME_COOKIE) continue;
     const value = part.slice(eq + 1).trim();
-    return value ? decodeURIComponent(value) : null;
+    if (!value) return null;
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return null;
+    }
   }
   return null;
 }

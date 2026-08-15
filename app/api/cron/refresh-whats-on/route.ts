@@ -56,17 +56,41 @@ export async function GET(request: Request): Promise<Response> {
 
   // Revalidate the servable window (fail-soft to baseline inside loadWhatsOn).
   let rows = 0;
-  let asOf = new Date().toISOString();
+  let asOf: string | null = null;
+  let failure: string | null = null;
   try {
     const result = await loadWhatsOn({ window: "tonight" });
-    rows = result.rows.length;
-    // Stamp the honest source-observed time when the feed reports one, so
-    // /api/freshness shows real freshness rather than the frozen generatedAt.
-    // Only when source freshness is genuinely unknown do we fall back to the
-    // served instant — we never invent a source timestamp from request time.
-    asOf = result.asOf ?? result.servedAt;
+    if (result.revalidation.status === "measured") {
+      rows = result.rows.length;
+      asOf = result.asOf;
+    } else {
+      failure = result.revalidation.reason;
+      console.error(
+        "[cron:refresh-whats-on] tonight-window revalidation failed:",
+        failure,
+      );
+    }
   } catch (err) {
-    console.error("[cron:refresh-whats-on] tonight-window revalidation failed:", err instanceof Error ? err.message : String(err));
+    failure = err instanceof Error ? err.message : String(err);
+    console.error("[cron:refresh-whats-on] tonight-window revalidation failed:", failure);
+  }
+
+  if (asOf === null) {
+    console.warn(
+      "[cron:refresh-whats-on] observedAt NOT advanced: the revalidation failed, so the previous stamp stands.",
+    );
+    return jsonNoStore({
+      ok: false,
+      feed: WHATS_ON_FEED_KEY,
+      mode: "slim",
+      observedAt: null,
+      rowsServed: 0,
+      stamped: false,
+      stampDegraded: false,
+      error: failure ?? "tonight-window revalidation failed",
+      ingestKeysPresent: ingestKeys,
+      eventProviderKeysPresent: eventKeys,
+    });
   }
 
   const stamp = await feedFreshnessStore().stamp({
@@ -83,6 +107,7 @@ export async function GET(request: Request): Promise<Response> {
     mode: "slim",
     observedAt: asOf,
     rowsServed: rows,
+    stamped: stamp.failed !== true,
     stampDegraded: stamp.failed ?? false,
     ingestKeysPresent: ingestKeys,
     eventProviderKeysPresent: eventKeys,

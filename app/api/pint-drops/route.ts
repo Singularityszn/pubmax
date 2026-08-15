@@ -18,6 +18,7 @@ import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
+import { pintDropReportIdentity } from "@/lib/pintDropReportActor.server";
 import {
   isLimited,
   validatePintDrop,
@@ -30,7 +31,7 @@ import {
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { clientIp, hashActor, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
+import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { getVenueIndex, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -203,9 +204,9 @@ export async function POST(request: Request): Promise<Response> {
   }
   const { fields, photos } = parsed;
 
-  // Public moderation: a report records metadata; the drop is hidden from
-  // public reads once REPORT_HIDE_THRESHOLD reports accumulate (never on the
-  // first — see lib/pintDrops.ts).
+  // Public moderation: every report is recorded. Only verified account reports
+  // count toward REPORT_HIDE_THRESHOLD; anonymous reports go to moderation
+  // without auto-hiding the drop.
   if (fields.action === "report") {
     const id = readString(fields.id);
     if (!id) return notFound();
@@ -214,17 +215,14 @@ export async function POST(request: Request): Promise<Response> {
     //   • per-actor (`report:<id>:<actorHash>`)    — the SAME actor gets EXACTLY
     //     ONE report per drop per window, so a duplicate is rejected cheaply
     //     here before it touches storage.
-    // DURABLE per-actor uniqueness now lives in the store/RPC layer
+    // DURABLE per-account uniqueness lives in the store/RPC layer
     // (report_pint_drop_v2 + the pint_drop_reports unique (pint_drop_id,
     // actor_hash) pair; the in-memory store mirrors it): a same-actor repeat
     // that slips past this window (new window, limiter cold-start/outage) is an
-    // idempotent no-op in the store — the counter never moves twice for one
-    // actor, so REPORT_HIDE_THRESHOLD (2) still requires two DIFFERENT actors.
-    // The actor is the same hashed anon id used by reactions/comments
-    // (hashActor over the client `actor` field; a blank id hashes a shared
-    // "anon" sentinel, matching the sitewide degradation). Falling back to the
-    // hashed IP keeps a per-actor cap even when no actor id is supplied.
-    const actorHash = hashActor(readString(fields.actor) || `ip:${hashIp(clientIp(request))}`);
+    // idempotent no-op in the store. Anonymous IP hashes record reports and key
+    // flood control, but never enter the auto-hide count. The client `actor`
+    // field decides nothing.
+    const identity = await pintDropReportIdentity(request);
     // Per-actor-per-drop budget of 1: limit=1 means the first report passes and
     // any second within the window is rejected (isLimited returns true when the
     // window's hit count EXCEEDS the limit).
@@ -232,8 +230,8 @@ export async function POST(request: Request): Promise<Response> {
     if (
       (await isLimited(`report:${id}`, `report:${id}`)) ||
       (await isLimited(
-        `report:${id}:${actorHash}`,
-        `report:${id}:${actorHash}`,
+        `report:${id}:${identity.actorHash}`,
+        `report:${id}:${identity.actorHash}`,
         REPORT_PER_ACTOR_LIMIT,
       ))
     ) {
@@ -242,7 +240,9 @@ export async function POST(request: Request): Promise<Response> {
     const unavailable = productionStorageUnavailable();
     if (unavailable) return unavailable;
     try {
-      return (await pintDropsStore().report(id, readString(fields.reason), actorHash)) ? ok() : notFound();
+      return (await pintDropsStore().report(id, readString(fields.reason), identity))
+        ? ok()
+        : notFound();
     } catch (err) {
       log("error", "pint_drops.report_failed", {
         route: "POST /api/pint-drops",

@@ -36,13 +36,14 @@ vi.mock("@/lib/pintDropsStore", async () => {
 //   • getSupabaseAdmin — swappable via adminRef so the supabasePintDropStore
 //     report tests below can script rpc() responses without a network client.
 //     Defaults to null (= unconfigured), matching the real default in tests.
-const { storeCreate, checkRateLimitDurableDetailed, supaGuard, adminRef } = vi.hoisted(() => ({
+const { storeCreate, checkRateLimitDurableDetailed, supaGuard, adminRef, reportAuth } = vi.hoisted(() => ({
   storeCreate: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   checkRateLimitDurableDetailed: vi.fn<
     (key: string) => Promise<{ verdict: boolean | null; reason?: "missing-rpc" | "error" | "no-client" }>
   >(),
   supaGuard: { configured: false, requiresStore: false },
   adminRef: { client: null as unknown },
+  reportAuth: { userId: null as string | null },
 }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -59,6 +60,14 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
       if (!client) throw new Error("Supabase not configured.");
       return client;
     },
+  };
+});
+
+vi.mock("@/lib/authServer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authServer")>();
+  return {
+    ...actual,
+    callerUserId: async () => reportAuth.userId,
   };
 });
 
@@ -144,6 +153,7 @@ import {
   __resetPintDrops,
   dropMatchesCityScope,
   reportPintDrop,
+  type PintDropReportIdentity,
   validatePintDrop,
 } from "@/lib/pintDrops";
 import { supabasePintDropStore } from "@/lib/pintDropsStore";
@@ -159,22 +169,40 @@ function get(venueId?: string): Promise<Response> {
   return GET(new Request(url));
 }
 
-// A report carries an optional `actor` (the hashed-anon device id). The per-actor
-// budget is 1 report per drop per window (H1), so distinct actors are REQUIRED to
-// reach REPORT_HIDE_THRESHOLD (2). Callers that want two reports to both land must
-// pass two DIFFERENT actor values.
-function report(id: string, reason?: string, actor?: string): Promise<Response> {
+// Anonymous reports use the hashed client IP for flood control and recording.
+// Only verified account identities enter the auto-hide count.
+function deviceHeaders(device?: string): Record<string, string> | undefined {
+  if (!device) return undefined;
+  return { "x-forwarded-for": `203.0.113.${device === "device-a" ? "10" : "20"}` };
+}
+
+function report(id: string, reason?: string, device?: string): Promise<Response> {
   return POST(
     new Request(URL_BASE, {
       method: "POST",
+      headers: deviceHeaders(device),
       body: JSON.stringify({
         action: "report",
         id,
         ...(reason ? { reason } : {}),
-        ...(actor ? { actor } : {}),
+        ...(device ? { actor: device } : {}),
       }),
     }),
   );
+}
+
+async function signedReport(
+  id: string,
+  userId: string,
+  reason?: string,
+  device?: string,
+): Promise<Response> {
+  reportAuth.userId = userId;
+  try {
+    return await report(id, reason, device);
+  } finally {
+    reportAuth.userId = null;
+  }
 }
 
 // Moderator GET/POST. In test env (NODE_ENV !== production, ADMIN_TOKEN unset)
@@ -231,6 +259,7 @@ beforeEach(() => {
   checkRateLimitDurableDetailed.mockReset();
   checkRateLimitDurableDetailed.mockResolvedValue({ verdict: null, reason: "error" });
   adminRef.client = null;
+  reportAuth.userId = null;
   delete process.env.RATE_LIMIT_STRICT;
 });
 
@@ -502,7 +531,7 @@ describe("validatePintDrop — Last Train compose fields (Wave G1)", () => {
 });
 
 describe("GET + moderation", () => {
-  it("lists a created drop, then hides it after report threshold (two DISTINCT actors)", async () => {
+  it("lists a created drop, then hides it after two verified accounts report", async () => {
     const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
     const { drop } = await created.json();
 
@@ -510,15 +539,18 @@ describe("GET + moderation", () => {
     expect(listed.status).toBe(200);
     expect((await listed.json()).drops).toHaveLength(1);
 
-    // First actor reports.
-    const reported = await report(drop.id, undefined, "device-a");
+    const reported = await signedReport(drop.id, "user-one", undefined, "device-a");
     expect(reported.status).toBe(200);
 
     const afterFirstReport = await get(VENUE);
     expect((await afterFirstReport.json()).drops).toHaveLength(1);
 
-    // A DIFFERENT actor reports → threshold (2) reached → hidden.
-    const secondReport = await report(drop.id, undefined, "device-b");
+    const secondReport = await signedReport(
+      drop.id,
+      "user-two",
+      undefined,
+      "device-b",
+    );
     expect(secondReport.status).toBe(200);
 
     const afterThreshold = await get(VENUE);
@@ -582,13 +614,13 @@ describe("moderation loop", () => {
   it("records reportedAt + reportCount and hides at report threshold", async () => {
     const id = await createDrop();
 
-    const res = await report(id, "wrong price", "device-a");
+    const res = await signedReport(id, "user-one", "wrong price", "device-a");
     expect(res.status).toBe(200);
 
     // First report records metadata but does not let one actor take down content.
     expect((await (await get(VENUE)).json()).drops).toHaveLength(1);
 
-    const hidden = await report(id, undefined, "device-b");
+    const hidden = await signedReport(id, "user-two", undefined, "device-b");
     expect(hidden.status).toBe(200);
 
     // Gone from the public list after the threshold.
@@ -605,8 +637,8 @@ describe("moderation loop", () => {
 
   it("restores a reported drop back to the public list", async () => {
     const id = await createDrop();
-    await report(id, undefined, "device-a");
-    await report(id, undefined, "device-b");
+    await signedReport(id, "user-one", undefined, "device-a");
+    await signedReport(id, "user-two", undefined, "device-b");
 
     const restored = await modAction("restore", id);
     expect(restored.status).toBe(200);
@@ -618,8 +650,8 @@ describe("moderation loop", () => {
 
   it("keeps a drop hidden after keep_hidden", async () => {
     const id = await createDrop();
-    await report(id, undefined, "device-a");
-    await report(id, undefined, "device-b");
+    await signedReport(id, "user-one", undefined, "device-a");
+    await signedReport(id, "user-two", undefined, "device-b");
 
     const kept = await modAction("keep_hidden", id);
     expect(kept.status).toBe(200);
@@ -676,6 +708,58 @@ describe("moderation loop", () => {
   });
 });
 
+describe("verified-account Pint Drop report counting", () => {
+  it("accepts two anonymous reports without hiding the drop", async () => {
+    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    const { drop } = await created.json();
+
+    vi.useFakeTimers();
+    try {
+      expect((await report(drop.id, "wrong price", "device-a")).status).toBe(200);
+      vi.advanceTimersByTime(61_000);
+      expect((await report(drop.id, "spam", "device-b")).status).toBe(200);
+
+      const listed = (await (await get(VENUE)).json()).drops as Array<{
+        reportCount?: number;
+      }>;
+      expect(listed).toHaveLength(1);
+      expect(listed[0]).not.toHaveProperty("reportCount");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("hides the drop after two distinct verified accounts report", async () => {
+    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    const { drop } = await created.json();
+
+    await signedReport(drop.id, "user-one", undefined, "device-a");
+    await signedReport(drop.id, "user-two", undefined, "device-a");
+
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+  });
+
+  it("counts the same verified account once across report windows", async () => {
+    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    const { drop } = await created.json();
+
+    vi.useFakeTimers();
+    try {
+      await signedReport(drop.id, "user-one", "wrong price", "device-a");
+      vi.advanceTimersByTime(61_000);
+      await signedReport(drop.id, "user-one", "spam", "device-b");
+
+      const listed = (await (await get(VENUE)).json()).drops as Array<{
+        reportCount?: number;
+      }>;
+      expect(listed).toHaveLength(1);
+      expect(listed[0].reportCount).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("durable per-actor report uniqueness", () => {
   it("same-actor repeat report across rate-limit windows is an idempotent no-op", async () => {
     const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
@@ -686,13 +770,18 @@ describe("durable per-actor report uniqueness", () => {
     // the store-level ledger must (H1 across windows / limiter cold-start).
     vi.useFakeTimers();
     try {
-      const first = await report(drop.id, "wrong price", "device-a");
+      const first = await signedReport(drop.id, "user-one", "wrong price", "device-a");
       expect(first.status).toBe(200);
 
       // New rate-limit window: the per-actor windowed budget has reset, so this
       // duplicate reaches the store — which must treat it as an idempotent no-op.
       vi.advanceTimersByTime(61_000);
-      const duplicate = await report(drop.id, "wrong price", "device-a");
+      const duplicate = await signedReport(
+        drop.id,
+        "user-one",
+        "wrong price",
+        "device-a",
+      );
       expect(duplicate.status).toBe(200); // no-op, not an error
 
       // Count stayed at 1 (below threshold) and the drop is still visible.
@@ -705,7 +794,7 @@ describe("durable per-actor report uniqueness", () => {
 
       // A DISTINCT actor's report is the second real one → threshold → hidden.
       vi.advanceTimersByTime(61_000);
-      const second = await report(drop.id, undefined, "device-b");
+      const second = await signedReport(drop.id, "user-two", undefined, "device-b");
       expect(second.status).toBe(200);
       expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
     } finally {
@@ -717,8 +806,12 @@ describe("durable per-actor report uniqueness", () => {
     const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
     const { drop } = await created.json();
 
-    expect(reportPintDrop(drop.id, "spam", "hash-1")).toBe(true);
-    expect(reportPintDrop(drop.id, "spam", "hash-1")).toBe(true); // idempotent, still true
+    const firstIdentity: PintDropReportIdentity = {
+      kind: "verified_account",
+      actorHash: "hash-1",
+    };
+    expect(reportPintDrop(drop.id, "spam", firstIdentity)).toBe(true);
+    expect(reportPintDrop(drop.id, "spam", firstIdentity)).toBe(true); // idempotent, still true
 
     // One counted report → still visible with reportCount 1.
     const listed = (await (await get(VENUE)).json()).drops as Array<{ reportCount?: number }>;
@@ -726,17 +819,30 @@ describe("durable per-actor report uniqueness", () => {
     expect(listed[0].reportCount).toBe(1);
 
     // A different actorHash is the second real report → hidden.
-    expect(reportPintDrop(drop.id, undefined, "hash-2")).toBe(true);
+    expect(
+      reportPintDrop(drop.id, undefined, {
+        kind: "verified_account",
+        actorHash: "hash-2",
+      }),
+    ).toBe(true);
     expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
   });
 });
 
 describe("supabasePintDropStore.report — v2 RPC seam", () => {
+  function reportIdentity(actorHash: string): PintDropReportIdentity {
+    return { kind: "verified_account", actorHash };
+  }
+
   it("calls report_pint_drop_v2 with the actor hash", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: 1, error: null });
     adminRef.client = { rpc };
 
-    const ok = await supabasePintDropStore.report("drop-1", "spam", "hash-abc");
+    const ok = await supabasePintDropStore.report(
+      "drop-1",
+      "spam",
+      reportIdentity("hash-abc"),
+    );
     expect(ok).toBe(true);
     expect(rpc).toHaveBeenCalledTimes(1);
     expect(rpc).toHaveBeenCalledWith("report_pint_drop_v2", {
@@ -750,37 +856,34 @@ describe("supabasePintDropStore.report — v2 RPC seam", () => {
   it("maps a null v2 result (unknown id) to false → route 404", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
     adminRef.client = { rpc };
-    expect(await supabasePintDropStore.report("nope", undefined, "hash-abc")).toBe(false);
+    expect(
+      await supabasePintDropStore.report(
+        "nope",
+        undefined,
+        reportIdentity("hash-abc"),
+      ),
+    ).toBe(false);
   });
 
-  it("falls back to report_pint_drop when the v2 RPC errors (migration 0017 not applied)", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      const rpc = vi
-        .fn()
-        .mockResolvedValueOnce({
-          data: null,
-          error: { message: "function report_pint_drop_v2 does not exist" },
-        })
-        .mockResolvedValueOnce({ data: 1, error: null });
-      adminRef.client = { rpc };
+  it("returns a retryable 503 when verified-account deduplication is unavailable", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: "function report_pint_drop_v2 is unavailable" },
+    });
+    adminRef.client = { rpc };
+    supaGuard.configured = true;
 
-      const ok = await supabasePintDropStore.report("drop-1", "spam", "hash-abc");
-      expect(ok).toBe(true);
-      expect(rpc).toHaveBeenCalledTimes(2);
-      expect(rpc.mock.calls[0][0]).toBe("report_pint_drop_v2");
-      expect(rpc.mock.calls[1][0]).toBe("report_pint_drop");
-      // The v1 fallback carries no actor hash (0004's signature has none).
-      expect(rpc.mock.calls[1][1]).toEqual({
-        p_id: "drop-1",
-        p_reason: "spam",
-        p_hide_threshold: 2,
-      });
-      expect(warn).toHaveBeenCalled();
-    } finally {
-      warn.mockRestore();
-    }
+    const response = await signedReport("drop-1", "user-one", "spam", "device-a");
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      code: "STORE_UNAVAILABLE",
+      retryable: true,
+    });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith("report_pint_drop_v2", expect.any(Object));
   });
+
 });
 
 describe("durable rate limiting (Supabase configured)", () => {

@@ -42,6 +42,7 @@ import { POST as reportCover } from "@/app/api/profiles/[handle]/cover/report/ro
 import { GET as getProfile } from "@/app/api/profiles/[handle]/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import {
+  PROFILE_IMAGE_SIGNED_TTL_SECONDS,
   prepareProfileImage,
   purgeProfileImageObjects,
   type ProfileImageStorage,
@@ -393,6 +394,46 @@ describe("cover moderation lane", () => {
     expect(await moderateProfileImage("alice", "cover", "restore")).toBe(true);
     expect(publicOwnedImageUrl((await profileStore().getByHandle("alice"))!, "cover")).toBeTruthy();
     expect(await listHiddenProfileImages("cover")).toEqual([]);
+  });
+
+  it("keeps a moderator-hidden cover hidden when the owner posts a replacement", async () => {
+    const storage = await uploadedCover();
+    const hiddenKey = (await profileStore().getByHandle("alice"))!.coverObjectKey!;
+    expect(await moderateProfileImage("alice", "cover", "hide")).toBe(true);
+    const uploadsBefore = storage.uploads.length;
+
+    approving(storage);
+    authState.userId = "user-alice";
+    const response = await POST(multipart(await wideImage()), params);
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("COVER_HIDDEN");
+    const profile = await profileStore().getByHandle("alice");
+    expect(profile?.coverModerationState).toBe("hidden");
+    expect(profile?.coverObjectKey).toBe(hiddenKey);
+    expect(storage.uploads).toHaveLength(uploadsBefore);
+  });
+
+  it("keeps a moderator-hidden cover and its bytes when the owner deletes", async () => {
+    const storage = await uploadedCover();
+    const hiddenKey = (await profileStore().getByHandle("alice"))!.coverObjectKey!;
+    expect(await moderateProfileImage("alice", "cover", "hide")).toBe(true);
+
+    authState.userId = "user-alice";
+    const response = await DELETE(
+      new Request("http://localhost/api/profiles/alice/cover", { method: "DELETE" }),
+      params,
+    );
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("COVER_HIDDEN");
+    const profile = await profileStore().getByHandle("alice");
+    expect(profile?.coverModerationState).toBe("hidden");
+    expect(profile?.coverObjectKey).toBe(hiddenKey);
+    expect(
+      await storage.sign(hiddenKey, PROFILE_IMAGE_SIGNED_TTL_SECONDS),
+    ).not.toBeNull();
+    expect(storage.removed.flat()).not.toContain(hiddenKey);
   });
 
   it("clears the cover with its bytes when the account is tombstoned", async () => {

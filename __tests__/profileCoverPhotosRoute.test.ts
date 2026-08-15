@@ -52,6 +52,7 @@ import {
   __setCoverServeRouteDepsForTest,
 } from "@/app/api/cover/[profileId]/[generation]/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import { moderateProfileImageAcrossStores } from "@/lib/profileCoverModeration.server";
 import { PROFILE_COVER_PHOTO_CAP } from "@/lib/profileCovers";
 import {
   __resetProfileCoverPhotos,
@@ -258,6 +259,38 @@ describe("adding a cover", () => {
     expect((await addCover(multipart(await wideImage()), params)).status).toBe(429);
     expect(storage.uploads).toHaveLength(0);
   });
+
+  it("refuses an upload while the profile cover is moderator-hidden", async () => {
+    await add();
+    const profile = await profileStore().getByHandle(HANDLE);
+    expect(await moderateProfileImageAcrossStores(HANDLE, "cover", "hide")).toBe(true);
+    const hiddenBefore = await memoryProfileCoverPhotoStore.listHidden();
+    const countBefore = await profileCoverPhotoStore().countForProfile(profile!.id);
+    const uploadsBefore = storage.uploads.length;
+
+    const response = await addCover(multipart(await wideImage()), params);
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("COVER_HIDDEN");
+    expect(storage.uploads).toHaveLength(uploadsBefore);
+    expect(await memoryProfileCoverPhotoStore.listHidden()).toEqual(hiddenBefore);
+    expect(await profileCoverPhotoStore().countForProfile(profile!.id)).toBe(countBefore);
+  });
+
+  it("answers a profile guard outage as a retryable store failure", async () => {
+    vi.spyOn(memoryProfileStore, "getById").mockRejectedValueOnce(
+      new Error("profile read unavailable"),
+    );
+
+    const response = await addCover(multipart(await wideImage()), params);
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body).toMatchObject({
+      code: "STORE_UNAVAILABLE",
+      retryable: true,
+    });
+  });
 });
 
 describe("the cap", () => {
@@ -274,16 +307,15 @@ describe("the cap", () => {
     expect(storage.uploads).toHaveLength(staged);
   });
 
-  // A hide is a moderation decision, not a permanent penalty: the slot comes
-  // back, because the cap counts what the account currently HAS.
-  it("gives the slot back when a moderator hides one", async () => {
+  it("keeps memory inside the durable five-position cap after a row is hidden", async () => {
     for (let i = 0; i < PROFILE_COVER_PHOTO_CAP; i += 1) await add();
     const profile = await profileStore().getByHandle(HANDLE);
     const held = await profileCoverPhotoStore().listApproved(profile!.id);
     expect(await profileCoverPhotoStore().moderate(held[2]!.id, "hidden")).toBe(true);
 
     const response = await addCover(multipart(await wideImage()), params);
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("COVER_CAP_REACHED");
   });
 });
 

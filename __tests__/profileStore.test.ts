@@ -4,8 +4,10 @@ import { RESERVED_CONTRIBUTOR_HANDLE_INPUTS } from "@/__tests__/fixtures/reserve
 import {
   memoryProfileStore,
   __resetMemoryProfiles,
+  profileImageState,
   type ProfileRecord,
 } from "@/lib/profileStore";
+import { profileImageServingKey } from "@/lib/profileImageSlots";
 
 // Force the in-memory path: Vercel runs vitest with the project env set, which
 // would otherwise route the store at the Supabase adapter. Deleting the two keys
@@ -215,6 +217,35 @@ describe("profileStore.softDeleteForCaller + getHandleByUserId", () => {
     expect(cleared.profile.bio).toBeUndefined();
     expect(cleared.profile.homeCity).toBeUndefined();
     expect(cleared.profile.avatarUrl).toBeUndefined();
+  });
+
+  it("soft-deletes a profile with a cover and clears its full image state", async () => {
+    const profile = await memoryProfileStore.createOwned("ken", "user-abc");
+    const firstGeneration = "11111111-1111-4111-8111-111111111111";
+    await memoryProfileStore.setOwnedImage("ken", "cover", {
+      objectKey: profileImageServingKey("cover", profile.id, firstGeneration),
+      generation: firstGeneration,
+      moderationState: "approved",
+    });
+    expect(
+      await memoryProfileStore.reportOwnedImage(
+        "ken",
+        "cover",
+        "unsafe",
+        "reporter-one",
+      ),
+    ).toBe(true);
+    expect(await memoryProfileStore.moderateOwnedImage("ken", "cover", "hide")).toBe(
+      true,
+    );
+
+    const deleted = await memoryProfileStore.softDeleteForCaller("ken", "user-abc");
+    expect(deleted.status).toBe("deleted");
+    if (deleted.status !== "deleted") throw new Error("Expected profile deletion.");
+    expect(profileImageState(deleted.profile, "cover")).toEqual({});
+    expect(await memoryProfileStore.moderateOwnedImage("ken", "cover", "restore")).toBe(
+      false,
+    );
   });
 
   it("resolves a linked handle by user id", async () => {

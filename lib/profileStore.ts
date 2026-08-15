@@ -217,6 +217,23 @@ export function profileImageState(
   };
 }
 
+function ownerImageWritePreservesHidden(slot: ProfileImageSlot): boolean {
+  return slot === "cover";
+}
+
+export const PROFILE_COVER_OWNER_WRITE_BLOCKED_LINE =
+  "A moderator hid this cover. Owner changes are unavailable until it is restored.";
+
+export function profileOwnerImageWriteBlocked(
+  profile: ProfileRecord,
+  slot: ProfileImageSlot,
+): boolean {
+  return (
+    ownerImageWritePreservesHidden(slot) &&
+    profileImageState(profile, slot).moderationState === "hidden"
+  );
+}
+
 /** Overlay one slot's state onto a record. Undefined values clear the field. */
 function withProfileImageState(
   profile: ProfileRecord,
@@ -397,7 +414,8 @@ export type ProfileStore = {
    * Set or clear the owned (uploaded) image fields for one slot. Passing null
    * clears the object key, generation, and moderation state together. A new or
    * cleared image also clears report/hide stamps so provenance cannot attach to
-   * the wrong generation. Does not touch the legacy hotlinked `avatarUrl`.
+   * the wrong generation. Owner writes cannot replace or clear a moderator-hidden
+   * cover. Does not touch the legacy hotlinked `avatarUrl`.
    */
   setOwnedImage(
     handle: string,
@@ -551,6 +569,52 @@ function cleanAvatarReportReason(reason: string | undefined): string | undefined
   if (typeof reason !== "string") return undefined;
   const cleaned = cleanText(reason, MAX_AVATAR_REPORT_REASON);
   return cleaned === "" ? undefined : cleaned;
+}
+
+const REPORT_ACTOR_APPEND_RPC = "append_profile_image_report_actor";
+let reportActorRpcMissingWarned = false;
+
+/** PostgREST / Postgres signals that migration 0105 is not deployed yet. */
+function isMissingReportActorRpc(error: { message?: string; code?: string }): boolean {
+  const code = error.code ?? "";
+  // PGRST202 = function not in schema cache; 42883 = undefined_function.
+  if (code === "PGRST202" || code === "42883") return true;
+  const message = error.message ?? "";
+  return (
+    new RegExp(REPORT_ACTOR_APPEND_RPC, "i").test(message) &&
+    /does not exist|Could not find the function|schema cache/i.test(message)
+  );
+}
+
+/**
+ * Append one reporter to an owned image in ONE statement, or NULL when the
+ * function is not deployed - which is the caller's signal to take the older
+ * read-modify-write path rather than to refuse a reader's flag.
+ */
+async function appendReportActorAtomically(
+  handle: string,
+  slot: ProfileImageSlot,
+  actor: string,
+  reason: string | undefined,
+): Promise<boolean | null> {
+  const { data, error } = await admin().rpc(REPORT_ACTOR_APPEND_RPC, {
+    p_handle: handle,
+    p_slot: slot,
+    p_actor: actor,
+    p_reason: reason ?? null,
+  });
+  if (error) {
+    if (!isMissingReportActorRpc(error)) throw new Error(error.message);
+    if (!reportActorRpcMissingWarned) {
+      reportActorRpcMissingWarned = true;
+      console.warn(
+        `[profiles] ${REPORT_ACTOR_APPEND_RPC} not deployed - reporting falls back to a ` +
+          "read-modify-write that loses one of two concurrent reporters (apply migration 0105).",
+      );
+    }
+    return null;
+  }
+  return data === true;
 }
 
 function clearImageReportRow(slot: ProfileImageSlot): Record<string, unknown> {
@@ -831,11 +895,16 @@ export const supabaseProfileStore: ProfileStore = {
       ...clearImageReportRow(slot),
       updated_at: new Date().toISOString(),
     };
-    const { data, error } = await admin()
+    let query = admin()
       .from(TABLE)
       .update(row)
-      .eq("handle", key)
-      .select("*")
+      .eq("handle", key);
+    if (ownerImageWritePreservesHidden(slot)) {
+      query = query.or(
+        `${columns.moderationState}.is.null,${columns.moderationState}.neq.hidden`,
+      );
+    }
+    const { data, error } = await query.select("*")
       .limit(1);
     if (error) throw new Error(error.message);
     const updated = (data ?? [])[0];
@@ -846,6 +915,19 @@ export const supabaseProfileStore: ProfileStore = {
     const key = normalizeHandle(handle);
     const actor = typeof actorHash === "string" ? actorHash.trim() : "";
     if (!key || !actor) return false;
+
+    // ONE statement, so two reporters cannot clobber each other: the append
+    // happens in Postgres and the UPDATE's own predicate carries the gate.
+    // Migration 0105. Until it is applied the read-modify-write below still
+    // runs - correct for one reporter, racy for two, which is what it always was.
+    const appended = await appendReportActorAtomically(
+      key,
+      slot,
+      actor,
+      cleanAvatarReportReason(reason),
+    );
+    if (appended !== null) return appended;
+
     const existing = await this.getByHandle(key);
     if (!existing) return false;
     const state = profileImageState(existing, slot);
@@ -1178,6 +1260,9 @@ export const memoryProfileStore: ProfileStore = {
     const key = normalizeHandle(handle);
     const existing = memoryProfiles.get(key);
     if (!existing) return null;
+    if (profileOwnerImageWriteBlocked(existing, slot)) {
+      return null;
+    }
     // A new generation is a different image; old flags must not travel with it.
     const next = withProfileImageState(
       { ...existing, updatedAt: new Date().toISOString() },

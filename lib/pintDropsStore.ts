@@ -31,6 +31,7 @@ import {
   restorePintDrop,
   visibilityOf,
   type PintDrop,
+  type PintDropReportIdentity,
   type PintDropStatus,
   type ViewerContext,
   type VibeTag,
@@ -47,6 +48,7 @@ import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 
 const TABLE = "visit_reports";
+const REPORT_TABLE = "pint_drop_reports";
 
 /** Bounded public reads: the visible listing never returns more than this. */
 export const MAX_PUBLIC_DROPS = 500;
@@ -132,13 +134,15 @@ export type PintDropStore = {
   /** Moderator review queue: unreviewed drops in a status, with report metadata. */
   listForReview(status: "hidden" | "pending"): Promise<ModeratorDrop[]>;
   /**
-   * Public report: record metadata; hides at REPORT_HIDE_THRESHOLD. False =
-   * unknown id. `actorHash` is the salted per-actor hash (route hashActor) —
-   * a duplicate report by the same actor is an idempotent no-op (the counter
-   * is never bumped twice by one actor), durably enforced by the
-   * report_pint_drop_v2 RPC / pint_drop_reports unique pair.
+   * Public report: every server-derived identity records metadata. Only distinct
+   * verified accounts advance the atomic auto-hide threshold; anonymous IP
+   * reports leave the count unchanged. False means unknown id.
    */
-  report(id: string, reason: string | undefined, actorHash: string): Promise<boolean>;
+  report(
+    id: string,
+    reason: string | undefined,
+    identity: PintDropReportIdentity,
+  ): Promise<boolean>;
   /** Moderator decision: set the final status and stamp the review. False = unknown id. */
   moderate(id: string, status: PintDropStatus, note?: string): Promise<boolean>;
   /**
@@ -186,6 +190,32 @@ export const magicBytesOk = magicBytesOkPure;
 
 function admin() {
   return requireSupabaseAdmin();
+}
+
+async function recordAnonymousReport(
+  id: string,
+  reason: string | undefined,
+  actorHash: string,
+): Promise<boolean> {
+  const { error: reportError } = await admin().from(REPORT_TABLE).insert({
+    pint_drop_id: id,
+    actor_hash: actorHash,
+    reason: reason ?? null,
+  });
+  if (reportError?.code === "23505") return true;
+  if (reportError?.code === "23503") return false;
+  if (reportError) throw new Error(reportError.message);
+
+  const { data, error } = await admin()
+    .from(TABLE)
+    .update({
+      reported_at: new Date().toISOString(),
+      ...(reason ? { report_reason: reason } : {}),
+    })
+    .eq("id", id)
+    .select("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
 }
 
 // visit_reports (snake_case) <-> PintDrop (camelCase). Kept in one place so a
@@ -407,6 +437,8 @@ export function toModeratorDTO(
   photoUrls?: { pint: string | null; venue: string | null },
 ): ModeratorDrop {
   const { pintPhotoKey, venuePhotoKey, ...rest } = drop;
+  void pintPhotoKey;
+  void venuePhotoKey;
   return {
     ...rest,
     pintPhotoUrl: photoUrls?.pint ?? null,
@@ -454,8 +486,8 @@ export const memoryPintDropStore: PintDropStore = {
   async listForReview(status) {
     return listByStatus(status).map((d) => toModeratorDTO(d));
   },
-  async report(id, reason, actorHash) {
-    return reportPintDrop(id, reason, actorHash);
+  async report(id, reason, identity) {
+    return reportPintDrop(id, reason, identity);
   },
   async moderate(id, status, note) {
     return status === "visible" ? restorePintDrop(id, note) : keepHiddenPintDrop(id, note);
@@ -672,64 +704,26 @@ export const supabasePintDropStore: PintDropStore = {
     return toModeratorDTOsWithBatchedPhotos((data ?? []).map(fromRow));
   },
 
-  /** ONE atomic RPC (migration 0017) writes the per-actor report ledger
+  /** ONE atomic RPC (migration 0017) writes the verified-account report ledger
    *  (pint_drop_reports, unique (pint_drop_id, actor_hash)) and increments /
-   *  stamps / hides visit_reports in a single statement — two concurrent
-   *  reports can't lose an increment, and a same-actor duplicate is an
-   *  idempotent no-op (the counter never moves twice for one actor). Null
-   *  data = unknown id. Until 0017 is applied, the v2 call errors and we fall
-   *  back to the 0004 RPC (windowed-limit-only semantics), then to the
-   *  non-atomic update if 0004 is missing too. */
-  async report(id, reason, actorHash) {
+   *  stamps / hides visit_reports in a single statement. Two concurrent
+   *  reports cannot lose an increment, and a same-account duplicate is an
+   *  idempotent no-op. Null data means unknown id. */
+  async report(id, reason, identity) {
+    if (identity.kind === "anonymous_ip") {
+      return recordAnonymousReport(id, reason, identity.actorHash);
+    }
+
     const { data: v2Data, error: v2Error } = await admin().rpc("report_pint_drop_v2", {
       p_id: id,
-      p_actor_hash: actorHash,
+      p_actor_hash: identity.actorHash,
       p_reason: reason ?? null,
       p_hide_threshold: REPORT_HIDE_THRESHOLD,
     });
-    if (!v2Error) {
-      const reported = v2Data !== null && v2Data !== undefined;
-      if (reported) await purgeHiddenDropPhotos(id);
-      return reported;
-    }
-    console.warn(
-      "[pint-drops] report_pint_drop_v2 RPC unavailable — falling back to report_pint_drop without per-actor uniqueness (apply migration 0017):",
-      v2Error.message,
-    );
-
-    const { data, error } = await admin().rpc("report_pint_drop", {
-      p_id: id,
-      p_reason: reason ?? null,
-      p_hide_threshold: REPORT_HIDE_THRESHOLD,
-    });
-    if (error) {
-      console.warn(
-        "[pint-drops] report_pint_drop RPC unavailable — falling back to non-atomic report update (apply migration 0004):",
-        error.message,
-      );
-      const { data: rows, error: readError } = await admin()
-        .from(TABLE)
-        .select("report_count")
-        .eq("id", id);
-      if (readError) throw new Error(readError.message);
-      if (!rows || rows.length === 0) return false;
-
-      const nextCount = Number((rows[0] as { report_count?: number }).report_count ?? 0) + 1;
-      const { error: updateError } = await admin()
-        .from(TABLE)
-        .update({
-          report_count: nextCount,
-          reported_at: new Date().toISOString(),
-          ...(reason ? { report_reason: reason } : {}),
-          ...(nextCount >= REPORT_HIDE_THRESHOLD ? { status: "hidden" } : {}),
-        })
-        .eq("id", id);
-      if (updateError) throw new Error(updateError.message);
-      await purgeHiddenDropPhotos(id);
-      return true;
-    }
-    if (data !== null && data !== undefined) await purgeHiddenDropPhotos(id);
-    return data !== null && data !== undefined;
+    if (v2Error) throw new Error(v2Error.message);
+    const reported = v2Data !== null && v2Data !== undefined;
+    if (reported) await purgeHiddenDropPhotos(id);
+    return reported;
   },
 
   async moderate(id, status, note) {

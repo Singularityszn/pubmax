@@ -39,6 +39,8 @@ import {
 } from "@/lib/profileCovers";
 import {
   mirrorFirstCoverOntoProfile,
+  ProfileCoverCapReachedError,
+  ProfileCoverUploadBlockedError,
   profileCoverPhotoStore,
 } from "@/lib/profileCoverPhotoStore";
 import {
@@ -64,6 +66,8 @@ import {
 import { scanUploadedImage } from "@/lib/uploadedImageScan.server";
 import {
   isProfileTombstoned,
+  PROFILE_COVER_OWNER_WRITE_BLOCKED_LINE,
+  profileOwnerImageWriteBlocked,
   profileStore,
   publicProfileFromRecord,
   type ProfileRecord,
@@ -111,6 +115,14 @@ function unavailable(): Response {
   return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, {
     retryable: true,
   });
+}
+
+function hiddenCoverUploadRefusal(): Response {
+  return publicApiError(
+    PROFILE_COVER_OWNER_WRITE_BLOCKED_LINE,
+    "COVER_HIDDEN",
+    409,
+  );
 }
 
 async function requireOwnedProfile(
@@ -254,6 +266,9 @@ export async function handleProfileCoverPhotoUpload(
     return unavailable();
   }
   if (!owned.ok) return owned.response;
+  if (profileOwnerImageWriteBlocked(owned.profile, "cover")) {
+    return hiddenCoverUploadRefusal();
+  }
 
   // Every upload costs a safety scan, which anyone with an Add button can
   // spend, so the budget fails CLOSED.
@@ -358,6 +373,12 @@ export async function handleProfileCoverPhotoUpload(
     }
     if (error instanceof ProfileImageError || error instanceof RequestBodyTooLargeError) {
       return photoError(error);
+    }
+    if (error instanceof ProfileCoverUploadBlockedError) {
+      return hiddenCoverUploadRefusal();
+    }
+    if (error instanceof ProfileCoverCapReachedError) {
+      return publicApiError(profileCoverCapLine(), "COVER_CAP_REACHED", 409);
     }
     log("error", "profile_cover.create_failed", {
       handle,
