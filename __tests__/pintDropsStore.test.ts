@@ -20,15 +20,21 @@ const rpcMock = vi.fn();
 // its own resolved value(s); a from() call returns a fresh object every time so
 // the two inserts of a resilience retry each hit the queued mock in order.
 const insertMock = vi.fn();
-const selectChain = {
-  eq: vi.fn(() => ({
-    maybeSingle: vi.fn(async () => ({ data: { status: "visible" }, error: null })),
-  })),
+const selectChain: {
+  eq: ReturnType<typeof vi.fn>;
+  in: ReturnType<typeof vi.fn>;
+  maybeSingle: ReturnType<typeof vi.fn>;
+} = {
+  eq: vi.fn(),
   in: vi.fn(async () => ({ data: [], error: null })),
+  maybeSingle: vi.fn(async () => ({ data: { status: "visible" }, error: null })),
 };
+selectChain.eq.mockImplementation(() => selectChain);
+const upsertMock = vi.fn(async () => ({ error: null }));
 const mockAdmin = () => ({
   from: () => ({
     insert: insertMock,
+    upsert: upsertMock,
     select: vi.fn(() => selectChain),
     update: vi.fn(() => ({ eq: vi.fn(() => ({ select: vi.fn(async () => ({ data: [{ id: "x" }], error: null })) })) })),
   }),
@@ -43,7 +49,11 @@ vi.mock("@/lib/supabase", () => ({
 
 import { validatePhoto, magicBytesOk, toDTO, toDTOWithPhotos, deletePhotos, supabasePintDropStore } from "@/lib/pintDropsStore";
 import type { PersistableDrop } from "@/lib/pintDropsStore";
-import { REPORT_HIDE_THRESHOLD } from "@/lib/pintDrops";
+import { REPORT_HIDE_THRESHOLD, type PintDropReportIdentity } from "@/lib/pintDrops";
+
+function reportIdentity(actorHash: string): PintDropReportIdentity {
+  return { primaryActorHash: actorHash, ipActorHash: actorHash };
+}
 
 // Pure validation only — no live Supabase. These run in the same node env as
 // the rest of the suite (no keys required).
@@ -223,7 +233,11 @@ describe("supabasePintDropStore.report (atomic RPC)", () => {
   it("passes the actor hash + server-side hide threshold (one report can't hide content) and returns true on success", async () => {
     rpcMock.mockClear();
     rpcMock.mockResolvedValueOnce({ data: 1, error: null });
-    const result = await supabasePintDropStore.report("d1", "spam", "hash-1");
+    const result = await supabasePintDropStore.report(
+      "d1",
+      "spam",
+      reportIdentity("hash-1"),
+    );
     expect(result).toBe(true);
     expect(rpcMock).toHaveBeenCalledWith("report_pint_drop_v2", {
       p_id: "d1",
@@ -236,7 +250,13 @@ describe("supabasePintDropStore.report (atomic RPC)", () => {
   it("returns false for an unknown id (null data → 404 upstream)", async () => {
     rpcMock.mockClear();
     rpcMock.mockResolvedValueOnce({ data: null, error: null });
-    expect(await supabasePintDropStore.report("nope", undefined, "hash-1")).toBe(false);
+    expect(
+      await supabasePintDropStore.report(
+        "nope",
+        undefined,
+        reportIdentity("hash-1"),
+      ),
+    ).toBe(false);
   });
 });
 

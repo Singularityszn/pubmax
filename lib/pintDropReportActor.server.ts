@@ -7,20 +7,22 @@
 // `actor:"a"` then `actor:"b"` and any drop on the site went dark. The comment
 // beside it claimed two DIFFERENT actors were required; they were not.
 //
-// The counted identity is now the strongest thing the request itself proves:
-// a verified account id when the caller brought one, otherwise the salted hash
-// of the client IP alone. An IP can be changed, but it is not a free string the
-// same client picks twice, and no client-supplied field reaches the counted
-// axis. That is the whole distance between "two people objected" and "one
-// person clicked twice".
+// A report carries the verified account id when available and always carries
+// the salted IP identity. The store deduplicates across both, so one caller
+// cannot count once anonymously and again after sign-in. An IP can be changed,
+// but it is not a free string the same client picks twice, and no client-supplied
+// field reaches the counted axis.
 
 import { callerUserId } from "@/lib/authServer";
+import type { PintDropReportIdentity } from "@/lib/pintDrops";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 
 /**
  * The identity a report is COUNTED under. Server-derived, always.
  */
-export async function pintDropReportActorHash(request: Request): Promise<string> {
+export async function pintDropReportIdentity(
+  request: Request,
+): Promise<PintDropReportIdentity> {
   let userId: string | null = null;
   try {
     userId = await callerUserId(request);
@@ -29,7 +31,9 @@ export async function pintDropReportActorHash(request: Request): Promise<string>
     // their own id: fall through to the request's own facts.
     userId = null;
   }
-  if (userId) return hashActor(`user:${userId}`);
-
-  return hashActor(`ip:${hashIp(clientIp(request))}`);
+  const ipActorHash = hashActor(`ip:${hashIp(clientIp(request))}`);
+  return {
+    primaryActorHash: userId ? hashActor(`user:${userId}`) : ipActorHash,
+    ipActorHash,
+  };
 }

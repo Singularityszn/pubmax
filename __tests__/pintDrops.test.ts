@@ -36,13 +36,14 @@ vi.mock("@/lib/pintDropsStore", async () => {
 //   • getSupabaseAdmin — swappable via adminRef so the supabasePintDropStore
 //     report tests below can script rpc() responses without a network client.
 //     Defaults to null (= unconfigured), matching the real default in tests.
-const { storeCreate, checkRateLimitDurableDetailed, supaGuard, adminRef } = vi.hoisted(() => ({
+const { storeCreate, checkRateLimitDurableDetailed, supaGuard, adminRef, reportAuth } = vi.hoisted(() => ({
   storeCreate: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   checkRateLimitDurableDetailed: vi.fn<
     (key: string) => Promise<{ verdict: boolean | null; reason?: "missing-rpc" | "error" | "no-client" }>
   >(),
   supaGuard: { configured: false, requiresStore: false },
   adminRef: { client: null as unknown },
+  reportAuth: { userId: null as string | null },
 }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -59,6 +60,14 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
       if (!client) throw new Error("Supabase not configured.");
       return client;
     },
+  };
+});
+
+vi.mock("@/lib/authServer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authServer")>();
+  return {
+    ...actual,
+    callerUserId: async () => reportAuth.userId,
   };
 });
 
@@ -144,6 +153,7 @@ import {
   __resetPintDrops,
   dropMatchesCityScope,
   reportPintDrop,
+  type PintDropReportIdentity,
   validatePintDrop,
 } from "@/lib/pintDrops";
 import { supabasePintDropStore } from "@/lib/pintDropsStore";
@@ -238,6 +248,7 @@ beforeEach(() => {
   checkRateLimitDurableDetailed.mockReset();
   checkRateLimitDurableDetailed.mockResolvedValue({ verdict: null, reason: "error" });
   adminRef.client = null;
+  reportAuth.userId = null;
   delete process.env.RATE_LIMIT_STRICT;
 });
 
@@ -763,6 +774,73 @@ describe("a report is counted under a SERVER-derived identity", () => {
       vi.useRealTimers();
     }
   });
+
+  it("counts once when one client reports anonymously then signs in", async () => {
+    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    const { drop } = await created.json();
+    const sameClient = { "x-forwarded-for": "203.0.113.99" };
+
+    vi.useFakeTimers();
+    try {
+      await reportAs(drop.id, sameClient, "anonymous");
+      vi.advanceTimersByTime(61_000);
+      reportAuth.userId = "user-one";
+      await reportAs(drop.id, sameClient, "signed-in");
+
+      const listed = (await (await get(VENUE)).json()).drops as Array<{
+        reportCount?: number;
+      }>;
+      expect(listed).toHaveLength(1);
+      expect(listed[0].reportCount).toBe(1);
+    } finally {
+      reportAuth.userId = null;
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts once when one client reports signed in then anonymously", async () => {
+    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    const { drop } = await created.json();
+    const sameClient = { "x-forwarded-for": "203.0.113.99" };
+
+    vi.useFakeTimers();
+    try {
+      reportAuth.userId = "user-one";
+      await reportAs(drop.id, sameClient, "signed-in");
+      vi.advanceTimersByTime(61_000);
+      reportAuth.userId = null;
+      await reportAs(drop.id, sameClient, "anonymous");
+
+      const listed = (await (await get(VENUE)).json()).drops as Array<{
+        reportCount?: number;
+      }>;
+      expect(listed).toHaveLength(1);
+      expect(listed[0].reportCount).toBe(1);
+    } finally {
+      reportAuth.userId = null;
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts two verified accounts sharing one IP", async () => {
+    const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    const { drop } = await created.json();
+    const sharedIp = { "x-forwarded-for": "203.0.113.99" };
+
+    vi.useFakeTimers();
+    try {
+      reportAuth.userId = "user-one";
+      await reportAs(drop.id, sharedIp, "first-account");
+      vi.advanceTimersByTime(61_000);
+      reportAuth.userId = "user-two";
+      await reportAs(drop.id, sharedIp, "second-account");
+
+      expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+    } finally {
+      reportAuth.userId = null;
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("durable per-actor report uniqueness", () => {
@@ -806,8 +884,12 @@ describe("durable per-actor report uniqueness", () => {
     const created = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
     const { drop } = await created.json();
 
-    expect(reportPintDrop(drop.id, "spam", "hash-1")).toBe(true);
-    expect(reportPintDrop(drop.id, "spam", "hash-1")).toBe(true); // idempotent, still true
+    const firstIdentity: PintDropReportIdentity = {
+      primaryActorHash: "hash-1",
+      ipActorHash: "hash-1",
+    };
+    expect(reportPintDrop(drop.id, "spam", firstIdentity)).toBe(true);
+    expect(reportPintDrop(drop.id, "spam", firstIdentity)).toBe(true); // idempotent, still true
 
     // One counted report → still visible with reportCount 1.
     const listed = (await (await get(VENUE)).json()).drops as Array<{ reportCount?: number }>;
@@ -815,17 +897,63 @@ describe("durable per-actor report uniqueness", () => {
     expect(listed[0].reportCount).toBe(1);
 
     // A different actorHash is the second real report → hidden.
-    expect(reportPintDrop(drop.id, undefined, "hash-2")).toBe(true);
+    expect(
+      reportPintDrop(drop.id, undefined, {
+        primaryActorHash: "hash-2",
+        ipActorHash: "hash-2",
+      }),
+    ).toBe(true);
     expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
   });
 });
 
 describe("supabasePintDropStore.report — v2 RPC seam", () => {
+  function reportIdentity(
+    primaryActorHash: string,
+    ipActorHash = primaryActorHash,
+  ): PintDropReportIdentity {
+    return { primaryActorHash, ipActorHash };
+  }
+
+  function reportAdmin(rpc: ReturnType<typeof vi.fn>) {
+    const ledger = new Map<string, { actor_hash: string; details: string | null }>();
+    return {
+      rpc,
+      from: (table: string) =>
+        table === "pint_drop_reports"
+          ? {
+              select: () => ({
+                eq: () => ({
+                  in: async (_column: string, hashes: string[]) => ({
+                    data: hashes.flatMap((hash) => {
+                      const row = ledger.get(hash);
+                      return row ? [row] : [];
+                    }),
+                    error: null,
+                  }),
+                }),
+              }),
+              upsert: async (row: {
+                actor_hash: string;
+                details: string | null;
+              }) => {
+                if (!ledger.has(row.actor_hash)) ledger.set(row.actor_hash, row);
+                return { error: null };
+              },
+            }
+          : {},
+    };
+  }
+
   it("calls report_pint_drop_v2 with the actor hash", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: 1, error: null });
-    adminRef.client = { rpc };
+    adminRef.client = reportAdmin(rpc);
 
-    const ok = await supabasePintDropStore.report("drop-1", "spam", "hash-abc");
+    const ok = await supabasePintDropStore.report(
+      "drop-1",
+      "spam",
+      reportIdentity("hash-abc"),
+    );
     expect(ok).toBe(true);
     expect(rpc).toHaveBeenCalledTimes(1);
     expect(rpc).toHaveBeenCalledWith("report_pint_drop_v2", {
@@ -838,8 +966,14 @@ describe("supabasePintDropStore.report — v2 RPC seam", () => {
 
   it("maps a null v2 result (unknown id) to false → route 404", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
-    adminRef.client = { rpc };
-    expect(await supabasePintDropStore.report("nope", undefined, "hash-abc")).toBe(false);
+    adminRef.client = reportAdmin(rpc);
+    expect(
+      await supabasePintDropStore.report(
+        "nope",
+        undefined,
+        reportIdentity("hash-abc"),
+      ),
+    ).toBe(false);
   });
 
   it("falls back to report_pint_drop when the v2 RPC errors (migration 0017 not applied)", async () => {
@@ -852,9 +986,13 @@ describe("supabasePintDropStore.report — v2 RPC seam", () => {
           error: { message: "function report_pint_drop_v2 does not exist" },
         })
         .mockResolvedValueOnce({ data: 1, error: null });
-      adminRef.client = { rpc };
+      adminRef.client = reportAdmin(rpc);
 
-      const ok = await supabasePintDropStore.report("drop-1", "spam", "hash-abc");
+      const ok = await supabasePintDropStore.report(
+        "drop-1",
+        "spam",
+        reportIdentity("hash-abc"),
+      );
       expect(ok).toBe(true);
       expect(rpc).toHaveBeenCalledTimes(2);
       expect(rpc.mock.calls[0][0]).toBe("report_pint_drop_v2");
@@ -869,6 +1007,49 @@ describe("supabasePintDropStore.report — v2 RPC seam", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+
+  it("deduplicates both authentication-transition orders in the durable ledger", async () => {
+    const anonymous = reportIdentity("ip-hash");
+    const signedIn = reportIdentity("user-hash", "ip-hash");
+
+    const anonymousFirstRpc = vi.fn().mockResolvedValue({ data: 1, error: null });
+    adminRef.client = reportAdmin(anonymousFirstRpc);
+    expect(await supabasePintDropStore.report("drop-1", undefined, anonymous)).toBe(
+      true,
+    );
+    expect(await supabasePintDropStore.report("drop-1", undefined, signedIn)).toBe(
+      true,
+    );
+    expect(anonymousFirstRpc).toHaveBeenCalledTimes(1);
+
+    const signedFirstRpc = vi.fn().mockResolvedValue({ data: 1, error: null });
+    adminRef.client = reportAdmin(signedFirstRpc);
+    expect(await supabasePintDropStore.report("drop-1", undefined, signedIn)).toBe(
+      true,
+    );
+    expect(await supabasePintDropStore.report("drop-1", undefined, anonymous)).toBe(
+      true,
+    );
+    expect(signedFirstRpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts two verified accounts that share one IP", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: 1, error: null });
+    adminRef.client = reportAdmin(rpc);
+
+    await supabasePintDropStore.report(
+      "drop-1",
+      undefined,
+      reportIdentity("user-one", "ip-hash"),
+    );
+    await supabasePintDropStore.report(
+      "drop-1",
+      undefined,
+      reportIdentity("user-two", "ip-hash"),
+    );
+
+    expect(rpc).toHaveBeenCalledTimes(2);
   });
 });
 

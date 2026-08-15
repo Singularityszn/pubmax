@@ -497,23 +497,48 @@ function findDrop(id: string): PintDrop | undefined {
 // route); the drop leaves public reads only once this many reports accumulate.
 export const REPORT_HIDE_THRESHOLD = 2;
 
+export type PintDropReportIdentity = {
+  primaryActorHash: string;
+  ipActorHash: string;
+};
+
 // Per-actor report ledger (memory mirror of pint_drop_reports' unique
 // (pint_drop_id, actor_hash) — migrations 0006/0008/0017): drop id → the set of
 // actor hashes that already reported it. A same-actor duplicate is an idempotent
 // no-op, so one actor can never bump the counter twice across rate-limit windows.
-const reportedActorsByDrop = new Map<string, Set<string>>();
+const reportedActorsByDrop = new Map<
+  string,
+  Map<string, "primary" | "alias">
+>();
 
-export function reportPintDrop(id: string, reason?: string, actorHash?: string): boolean {
+export function reportPintDrop(
+  id: string,
+  reason: string | undefined,
+  identity: PintDropReportIdentity,
+): boolean {
   const hit = findDrop(id);
   if (!hit) return false;
-  if (actorHash) {
-    const seen = reportedActorsByDrop.get(id) ?? new Set<string>();
-    // Duplicate report by the same actor: idempotent no-op — the counter, the
-    // reason, and the status stay exactly as they are (matches the v2 RPC).
-    if (seen.has(actorHash)) return true;
-    seen.add(actorHash);
-    reportedActorsByDrop.set(id, seen);
+
+  const seen = reportedActorsByDrop.get(id) ?? new Map<string, "primary" | "alias">();
+  const isSignedIn = identity.primaryActorHash !== identity.ipActorHash;
+  if (seen.has(identity.primaryActorHash)) {
+    if (isSignedIn && !seen.has(identity.ipActorHash)) {
+      seen.set(identity.ipActorHash, "alias");
+      reportedActorsByDrop.set(id, seen);
+    }
+    return true;
   }
+  if (isSignedIn && seen.get(identity.ipActorHash) === "primary") {
+    seen.set(identity.primaryActorHash, "alias");
+    reportedActorsByDrop.set(id, seen);
+    return true;
+  }
+  seen.set(identity.primaryActorHash, "primary");
+  if (isSignedIn && !seen.has(identity.ipActorHash)) {
+    seen.set(identity.ipActorHash, "alias");
+  }
+  reportedActorsByDrop.set(id, seen);
+
   hit.reportedAt = new Date().toISOString();
   hit.reportCount = (hit.reportCount ?? 0) + 1;
   if (reason) hit.reportReason = reason;

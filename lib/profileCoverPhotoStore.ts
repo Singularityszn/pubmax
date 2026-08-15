@@ -34,7 +34,7 @@ import {
   type ProfileCoverPhotoFields,
 } from "@/lib/profileCovers";
 import { profileImageServePath, profileImageServingKey } from "@/lib/profileImageSlots";
-import { profileStore } from "@/lib/profileStore";
+import { profileImageState, profileStore } from "@/lib/profileStore";
 import {
   createFailSoftGuard,
   onMissingDurableWrite,
@@ -153,6 +153,19 @@ export async function publicCoverUrls(
   }
 }
 
+async function ownerCoverWriteState(
+  profileId: string,
+): Promise<"approved" | "hidden"> {
+  try {
+    const profile = await profileStore().getById(profileId);
+    return profile && profileImageState(profile, "cover").moderationState === "hidden"
+      ? "hidden"
+      : "approved";
+  } catch {
+    return "hidden";
+  }
+}
+
 // ── In-memory implementation ─────────────────────────────────────────────────
 // Resets on restart, which is right for dev, demo and test; production uses
 // Supabase.
@@ -164,13 +177,11 @@ function memoryRowsFor(profileId: string): ProfileCoverPhoto[] {
 
 export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
   async create(fields, now = Date.now()) {
-    const live = memoryRowsFor(fields.profileId).filter(
-      (row) => row.moderationState === "approved",
-    );
+    const held = memoryRowsFor(fields.profileId);
     const photo: ProfileCoverPhoto = {
       ...fields,
-      position: nextCoverPosition(live),
-      moderationState: "approved",
+      position: nextCoverPosition(held),
+      moderationState: await ownerCoverWriteState(fields.profileId),
       createdAt: new Date(now).toISOString(),
     };
     byId.set(photo.id, photo);
@@ -211,6 +222,10 @@ export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
   },
 
   async reorder(profileId, orderedIds) {
+    if ((await ownerCoverWriteState(profileId)) === "hidden") {
+      await this.moderateAllForProfile(profileId, "hidden");
+      return [];
+    }
     for (const { id, position } of coverPositionsFor(orderedIds)) {
       const row = byId.get(id);
       if (row && row.profileId === profileId) row.position = position;
@@ -320,6 +335,21 @@ function fromRow(row: Record<string, unknown>): ProfileCoverPhoto {
   };
 }
 
+async function listStoredProfileCovers(
+  profileId: string,
+): Promise<ProfileCoverPhoto[]> {
+  const { data, error } = await admin()
+    .from(TABLE)
+    .select("*")
+    .eq("profile_id", profileId)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(PROFILE_COVER_PHOTO_CAP);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => fromRow(row as Record<string, unknown>));
+}
+
 export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
   async create(fields, now = Date.now()) {
     return guard<ProfileCoverPhoto>({
@@ -332,11 +362,11 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         }),
       // No onError: a hard write failure THROWS so the route answers 503.
       run: async () => {
-        const held = await supabaseProfileCoverPhotoStore.listApproved(fields.profileId);
+        const held = await listStoredProfileCovers(fields.profileId);
         const photo: ProfileCoverPhoto = {
           ...fields,
           position: nextCoverPosition(held),
-          moderationState: "approved",
+          moderationState: await ownerCoverWriteState(fields.profileId),
           createdAt: new Date(now).toISOString(),
         };
         const { error } = await admin().from(TABLE).insert(toRow(photo));
@@ -460,6 +490,13 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         }),
       run: async () => {
         const held = await supabaseProfileCoverPhotoStore.listApproved(profileId);
+        if ((await ownerCoverWriteState(profileId)) === "hidden") {
+          await supabaseProfileCoverPhotoStore.moderateAllForProfile(
+            profileId,
+            "hidden",
+          );
+          return [];
+        }
         const byRowId = new Map(held.map((row) => [row.id, row]));
         // ONE statement, so the deferred (profile_id, position) uniqueness is
         // checked at commit rather than half way through a swap.

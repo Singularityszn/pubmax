@@ -18,7 +18,7 @@ import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
-import { pintDropReportActorHash } from "@/lib/pintDropReportActor.server";
+import { pintDropReportIdentity } from "@/lib/pintDropReportActor.server";
 import {
   isLimited,
   validatePintDrop,
@@ -219,14 +219,11 @@ export async function POST(request: Request): Promise<Response> {
     // (report_pint_drop_v2 + the pint_drop_reports unique (pint_drop_id,
     // actor_hash) pair; the in-memory store mirrors it): a same-actor repeat
     // that slips past this window (new window, limiter cold-start/outage) is an
-    // idempotent no-op in the store — the counter never moves twice for one
-    // actor, so REPORT_HIDE_THRESHOLD (2) still requires two DIFFERENT actors.
-    // That claim only holds because the counted identity is SERVER-DERIVED
-    // (`lib/pintDropReportActor.server.ts`): a verified account id, else the
-    // salted hash of IP alone. The client `actor` field decides
-    // NOTHING here — choosing it was how one person hid any drop with two
-    // requests — so the same server identity keys the per-actor window too.
-    const actorHash = await pintDropReportActorHash(request);
+    // idempotent no-op in the store. Signed-in reports also record their IP key,
+    // so one caller cannot count once before sign-in and once after it. The
+    // client `actor` field decides NOTHING here. The server-derived primary
+    // identity also keys the per-actor window.
+    const identity = await pintDropReportIdentity(request);
     // Per-actor-per-drop budget of 1: limit=1 means the first report passes and
     // any second within the window is rejected (isLimited returns true when the
     // window's hit count EXCEEDS the limit).
@@ -234,8 +231,8 @@ export async function POST(request: Request): Promise<Response> {
     if (
       (await isLimited(`report:${id}`, `report:${id}`)) ||
       (await isLimited(
-        `report:${id}:${actorHash}`,
-        `report:${id}:${actorHash}`,
+        `report:${id}:${identity.primaryActorHash}`,
+        `report:${id}:${identity.primaryActorHash}`,
         REPORT_PER_ACTOR_LIMIT,
       ))
     ) {
@@ -244,7 +241,9 @@ export async function POST(request: Request): Promise<Response> {
     const unavailable = productionStorageUnavailable();
     if (unavailable) return unavailable;
     try {
-      return (await pintDropsStore().report(id, readString(fields.reason), actorHash)) ? ok() : notFound();
+      return (await pintDropsStore().report(id, readString(fields.reason), identity))
+        ? ok()
+        : notFound();
     } catch (err) {
       log("error", "pint_drops.report_failed", {
         route: "POST /api/pint-drops",
