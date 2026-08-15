@@ -5,7 +5,6 @@ import {
   memoryProfileStore,
   __resetMemoryProfiles,
   profileImageState,
-  publicOwnedImageUrl,
   type ProfileRecord,
 } from "@/lib/profileStore";
 import { profileImageServingKey } from "@/lib/profileImageSlots";
@@ -220,7 +219,7 @@ describe("profileStore.softDeleteForCaller + getHandleByUserId", () => {
     expect(cleared.profile.avatarUrl).toBeUndefined();
   });
 
-  it("retains only the hidden cover hold through soft-delete", async () => {
+  it("soft-deletes a profile with a cover and clears its full image state", async () => {
     const profile = await memoryProfileStore.createOwned("ken", "user-abc");
     const firstGeneration = "11111111-1111-4111-8111-111111111111";
     await memoryProfileStore.setOwnedImage("ken", "cover", {
@@ -243,49 +242,10 @@ describe("profileStore.softDeleteForCaller + getHandleByUserId", () => {
     const deleted = await memoryProfileStore.softDeleteForCaller("ken", "user-abc");
     expect(deleted.status).toBe("deleted");
     if (deleted.status !== "deleted") throw new Error("Expected profile deletion.");
-    const held = profileImageState(deleted.profile, "cover");
-    expect(held.moderationState).toBe("hidden");
-    expect(held.objectKey).toBeUndefined();
-    expect(held.generation).toBeUndefined();
-    expect(held.reportActors).toBeUndefined();
-    expect(held.reportCount).toBeUndefined();
-    expect(held.reportedAt).toBeUndefined();
-    expect(held.reportReason).toBeUndefined();
-    expect(held.moderatedAt).toBeUndefined();
-    expect(held.moderatorNote).toBeUndefined();
-
-    const nextGeneration = "22222222-2222-4222-8222-222222222222";
-    expect(
-      await memoryProfileStore.setOwnedImage("ken", "cover", {
-        objectKey: profileImageServingKey("cover", profile.id, nextGeneration),
-        generation: nextGeneration,
-        moderationState: "approved",
-      }),
-    ).toBeNull();
-    expect(
-      profileImageState((await memoryProfileStore.getByHandle("ken"))!, "cover")
-        .moderationState,
-    ).toBe("hidden");
-  });
-
-  it("does not publish purged cover metadata when a moderator restores the hold", async () => {
-    const profile = await memoryProfileStore.createOwned("ken", "user-abc");
-    const generation = "33333333-3333-4333-8333-333333333333";
-    await memoryProfileStore.setOwnedImage("ken", "cover", {
-      objectKey: profileImageServingKey("cover", profile.id, generation),
-      generation,
-      moderationState: "approved",
-    });
-    await memoryProfileStore.moderateOwnedImage("ken", "cover", "hide");
-    await memoryProfileStore.softDeleteForCaller("ken", "user-abc");
-
+    expect(profileImageState(deleted.profile, "cover")).toEqual({});
     expect(await memoryProfileStore.moderateOwnedImage("ken", "cover", "restore")).toBe(
-      true,
+      false,
     );
-    const restored = await memoryProfileStore.getByHandle("ken");
-    expect(restored).not.toBeNull();
-    expect(profileImageState(restored!, "cover").moderationState).toBeUndefined();
-    expect(publicOwnedImageUrl(restored!, "cover")).toBeUndefined();
   });
 
   it("resolves a linked handle by user id", async () => {

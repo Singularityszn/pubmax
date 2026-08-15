@@ -58,6 +58,13 @@ export class ProfileCoverUploadBlockedError extends Error {
   }
 }
 
+export class ProfileCoverGuardUnavailableError extends Error {
+  constructor() {
+    super("Profile cover state is unavailable.");
+    this.name = "ProfileCoverGuardUnavailableError";
+  }
+}
+
 export class ProfileCoverCapReachedError extends Error {
   constructor() {
     super(profileCoverCapLine());
@@ -173,14 +180,14 @@ export async function publicCoverUrls(
 
 async function ownerCoverWriteState(
   profileId: string,
-): Promise<"approved" | "hidden"> {
+): Promise<"approved" | "hidden" | "unavailable"> {
   try {
     const profile = await profileStore().getById(profileId);
     return profile && profileOwnerImageWriteBlocked(profile, "cover")
       ? "hidden"
       : "approved";
   } catch {
-    return "hidden";
+    return "unavailable";
   }
 }
 
@@ -195,7 +202,11 @@ function memoryRowsFor(profileId: string): ProfileCoverPhoto[] {
 
 export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
   async create(fields, now = Date.now()) {
-    if ((await ownerCoverWriteState(fields.profileId)) === "hidden") {
+    const stateBefore = await ownerCoverWriteState(fields.profileId);
+    if (stateBefore === "unavailable") {
+      throw new ProfileCoverGuardUnavailableError();
+    }
+    if (stateBefore === "hidden") {
       throw new ProfileCoverUploadBlockedError();
     }
     const held = memoryRowsFor(fields.profileId);
@@ -209,7 +220,12 @@ export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
       createdAt: new Date(now).toISOString(),
     };
     byId.set(photo.id, photo);
-    if ((await ownerCoverWriteState(fields.profileId)) === "hidden") {
+    const stateAfter = await ownerCoverWriteState(fields.profileId);
+    if (stateAfter === "unavailable") {
+      byId.delete(photo.id);
+      throw new ProfileCoverGuardUnavailableError();
+    }
+    if (stateAfter === "hidden") {
       await this.moderateAllForProfile(fields.profileId, "hidden");
       byId.delete(photo.id);
       throw new ProfileCoverUploadBlockedError();
@@ -250,15 +266,31 @@ export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
   },
 
   async reorder(profileId, orderedIds) {
-    if ((await ownerCoverWriteState(profileId)) === "hidden") {
+    const stateBefore = await ownerCoverWriteState(profileId);
+    if (stateBefore === "unavailable") {
+      throw new ProfileCoverGuardUnavailableError();
+    }
+    if (stateBefore === "hidden") {
       await this.moderateAllForProfile(profileId, "hidden");
       return [];
     }
+    const held = memoryRowsFor(profileId).map((row) => ({
+      id: row.id,
+      position: row.position,
+    }));
     for (const { id, position } of coverPositionsFor(orderedIds)) {
       const row = byId.get(id);
       if (row && row.profileId === profileId) row.position = position;
     }
-    if ((await ownerCoverWriteState(profileId)) === "hidden") {
+    const stateAfter = await ownerCoverWriteState(profileId);
+    if (stateAfter === "unavailable") {
+      for (const { id, position } of held) {
+        const row = byId.get(id);
+        if (row && row.profileId === profileId) row.position = position;
+      }
+      throw new ProfileCoverGuardUnavailableError();
+    }
+    if (stateAfter === "hidden") {
       await this.moderateAllForProfile(profileId, "hidden");
       return [];
     }
@@ -394,7 +426,11 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         }),
       // No onError: a hard write failure THROWS so the route answers 503.
       run: async () => {
-        if ((await ownerCoverWriteState(fields.profileId)) === "hidden") {
+        const stateBefore = await ownerCoverWriteState(fields.profileId);
+        if (stateBefore === "unavailable") {
+          throw new ProfileCoverGuardUnavailableError();
+        }
+        if (stateBefore === "hidden") {
           throw new ProfileCoverUploadBlockedError();
         }
         const held = await listStoredProfileCovers(fields.profileId);
@@ -409,7 +445,12 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         };
         const { error } = await admin().from(TABLE).insert(toRow(photo));
         if (error) throw new Error(error.message);
-        if ((await ownerCoverWriteState(fields.profileId)) === "hidden") {
+        const stateAfter = await ownerCoverWriteState(fields.profileId);
+        if (stateAfter === "unavailable") {
+          await supabaseProfileCoverPhotoStore.remove(photo.id, fields.profileId);
+          throw new ProfileCoverGuardUnavailableError();
+        }
+        if (stateAfter === "hidden") {
           await supabaseProfileCoverPhotoStore.moderateAllForProfile(
             fields.profileId,
             "hidden",
@@ -535,7 +576,11 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         }),
       run: async () => {
         const held = await supabaseProfileCoverPhotoStore.listApproved(profileId);
-        if ((await ownerCoverWriteState(profileId)) === "hidden") {
+        const stateBefore = await ownerCoverWriteState(profileId);
+        if (stateBefore === "unavailable") {
+          throw new ProfileCoverGuardUnavailableError();
+        }
+        if (stateBefore === "hidden") {
           await supabaseProfileCoverPhotoStore.moderateAllForProfile(
             profileId,
             "hidden",
@@ -554,7 +599,15 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         if (rows.length === 0) return held;
         const { error } = await admin().from(TABLE).upsert(rows, { onConflict: "id" });
         if (error) throw new Error(error.message);
-        if ((await ownerCoverWriteState(profileId)) === "hidden") {
+        const stateAfter = await ownerCoverWriteState(profileId);
+        if (stateAfter === "unavailable") {
+          const { error: rollbackError } = await admin()
+            .from(TABLE)
+            .upsert(held.map(toRow), { onConflict: "id" });
+          if (rollbackError) throw new Error(rollbackError.message);
+          throw new ProfileCoverGuardUnavailableError();
+        }
+        if (stateAfter === "hidden") {
           await supabaseProfileCoverPhotoStore.moderateAllForProfile(
             profileId,
             "hidden",

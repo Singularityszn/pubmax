@@ -276,6 +276,21 @@ describe("adding a cover", () => {
     expect(await memoryProfileCoverPhotoStore.listHidden()).toEqual(hiddenBefore);
     expect(await profileCoverPhotoStore().countForProfile(profile!.id)).toBe(countBefore);
   });
+
+  it("answers a profile guard outage as a retryable store failure", async () => {
+    vi.spyOn(memoryProfileStore, "getById").mockRejectedValueOnce(
+      new Error("profile read unavailable"),
+    );
+
+    const response = await addCover(multipart(await wideImage()), params);
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body).toMatchObject({
+      code: "STORE_UNAVAILABLE",
+      retryable: true,
+    });
+  });
 });
 
 describe("the cap", () => {

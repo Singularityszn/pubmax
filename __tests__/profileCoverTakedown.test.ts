@@ -42,8 +42,10 @@ import {
   __resetProfileCoverPhotos,
   mirrorFirstCoverOntoProfile,
   memoryProfileCoverPhotoStore,
+  ProfileCoverGuardUnavailableError,
   ProfileCoverCapReachedError,
   ProfileCoverUploadBlockedError,
+  publicCoverUrls,
   supabaseProfileCoverPhotoStore,
 } from "@/lib/profileCoverPhotoStore";
 import { profileImageServingKey } from "@/lib/profileImageSlots";
@@ -200,6 +202,16 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
     expect(await memoryProfileCoverPhotoStore.listApproved(ownedProfileId)).toHaveLength(2);
   });
 
+  it("does not restore rotation URLs after soft-delete purges cover bytes", async () => {
+    await moderateProfileImageAcrossStores(HANDLE, "cover", "hide");
+    await memoryProfileStore.softDeleteForCaller(HANDLE, "user-alice");
+
+    expect(await moderateProfileImageAcrossStores(HANDLE, "cover", "restore")).toBe(
+      false,
+    );
+    expect(await publicCoverUrls(ownedProfileId)).toEqual([]);
+  });
+
   it("keeps both stores hidden when a takedown lands before a stale owner mirror", async () => {
     const staleApproved = await memoryProfileCoverPhotoStore.listApproved(ownedProfileId);
 
@@ -327,6 +339,156 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
 
     expect(insert).toHaveBeenCalledTimes(1);
     expect(rows).toEqual([]);
+  });
+
+  it("treats a profile guard outage before insert as unavailable", async () => {
+    const insert = vi.fn();
+    const moderate = vi.fn();
+    coverAdminRef.client = {
+      from(table: string) {
+        if (table === "profiles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                limit: async () => ({
+                  data: null,
+                  error: { message: "profile read unavailable" },
+                }),
+              }),
+            }),
+          };
+        }
+        return {
+          insert,
+          update: moderate,
+        };
+      },
+    };
+    supabaseConfigured.value = true;
+
+    await expect(
+      supabaseProfileCoverPhotoStore.create({
+        id: "88888888-8888-4888-8888-888888888886",
+        profileId: ownedProfileId,
+        generation: "99999999-9999-4999-8999-999999999996",
+        objectKey: profileImageServingKey(
+          "cover",
+          ownedProfileId,
+          "99999999-9999-4999-8999-999999999996",
+        ),
+      }),
+    ).rejects.toBeInstanceOf(ProfileCoverGuardUnavailableError);
+
+    expect(insert).not.toHaveBeenCalled();
+    expect(moderate).not.toHaveBeenCalled();
+  });
+
+  it("removes only the attempted upload when the guard fails after insert", async () => {
+    const existing = {
+      id: "88888888-8888-4888-8888-888888888885",
+      profile_id: ownedProfileId,
+      position: 1,
+      generation: FIRST_GENERATION,
+      object_key: profileImageServingKey(
+        "cover",
+        ownedProfileId,
+        FIRST_GENERATION,
+      ),
+      moderation_state: "approved",
+      report_count: 0,
+      report_actors: [],
+      created_at: "2026-08-01T00:00:00.000Z",
+    };
+    const rows: Array<Record<string, unknown>> = [{ ...existing }];
+    let profileReads = 0;
+    const moderate = vi.fn();
+
+    coverAdminRef.client = {
+      from(table: string) {
+        if (table === "profiles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                limit: async () => {
+                  profileReads += 1;
+                  return profileReads === 1
+                    ? {
+                        data: [
+                          {
+                            id: ownedProfileId,
+                            handle: HANDLE,
+                            user_id: "user-alice",
+                            cover_moderation_state: "approved",
+                            created_at: "2026-08-01T00:00:00.000Z",
+                            updated_at: "2026-08-01T00:00:00.000Z",
+                          },
+                        ],
+                        error: null,
+                      }
+                    : {
+                        data: null,
+                        error: { message: "profile read unavailable" },
+                      };
+                },
+              }),
+            }),
+          };
+        }
+        if (table !== "profile_cover_photos") throw new Error(`Unexpected ${table}`);
+        return {
+          select: () => {
+            const query = {
+              eq: () => query,
+              order: () => query,
+              limit: async () => ({
+                data: rows.map((row) => ({ ...row })),
+                error: null,
+              }),
+            };
+            return query;
+          },
+          insert: async (row: Record<string, unknown>) => {
+            rows.push({ ...row });
+            return { error: null };
+          },
+          update: moderate,
+          delete() {
+            let id = "";
+            let profileId = "";
+            const query = {
+              eq(column: string, value: string) {
+                if (column === "id") id = value;
+                if (column === "profile_id") profileId = value;
+                return query;
+              },
+              async select() {
+                const index = rows.findIndex(
+                  (row) => row.id === id && row.profile_id === profileId,
+                );
+                const removed = index >= 0 ? rows.splice(index, 1) : [];
+                return { data: removed, error: null };
+              },
+            };
+            return query;
+          },
+        };
+      },
+    };
+    supabaseConfigured.value = true;
+    const generation = "99999999-9999-4999-8999-999999999995";
+
+    await expect(
+      supabaseProfileCoverPhotoStore.create({
+        id: "88888888-8888-4888-8888-888888888884",
+        profileId: ownedProfileId,
+        generation,
+        objectKey: profileImageServingKey("cover", ownedProfileId, generation),
+      }),
+    ).rejects.toBeInstanceOf(ProfileCoverGuardUnavailableError);
+
+    expect(profileReads).toBe(2);
+    expect(moderate).not.toHaveBeenCalled();
+    expect(rows).toEqual([existing]);
   });
 
   it("does not let a stale durable reorder resurrect hidden rows", async () => {

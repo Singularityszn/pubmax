@@ -103,3 +103,58 @@ describe("reportOwnedImage — the append is atomic", () => {
     warn.mockRestore();
   });
 });
+
+describe("softDeleteForCaller — cover fields stay schema-valid", () => {
+  it("clears every constrained cover field in one durable update", async () => {
+    const stored = {
+      id: "44444444-4444-4444-8444-444444444444",
+      handle: "alice",
+      user_id: "user-alice",
+      cover_object_key:
+        "covers/44444444-4444-4444-8444-444444444444/55555555-5555-4555-8555-555555555555/cover.jpg",
+      cover_generation: "55555555-5555-4555-8555-555555555555",
+      cover_moderation_state: "hidden",
+      created_at: "2026-08-01T00:00:00.000Z",
+      updated_at: "2026-08-01T00:00:00.000Z",
+    };
+    let written: Record<string, unknown> | null = null;
+    supabase.from.mockImplementation(() => ({
+      update(patch: Record<string, unknown>) {
+        written = patch;
+        const query = {
+          eq: () => query,
+          or: () => query,
+          is: () => query,
+          select: () => query,
+          async limit() {
+            const validCoverTuple =
+              patch.cover_object_key === null &&
+              patch.cover_generation === null &&
+              patch.cover_moderation_state === null;
+            return validCoverTuple
+              ? { data: [{ ...stored, ...patch }], error: null }
+              : {
+                  data: null,
+                  error: { message: "profiles_cover_fields_consistent_check" },
+                };
+          },
+        };
+        return query;
+      },
+    }));
+
+    const result = await supabaseProfileStore.softDeleteForCaller(
+      "alice",
+      "user-alice",
+    );
+
+    expect(result.status).toBe("deleted");
+    expect(written).toMatchObject({
+      cover_object_key: null,
+      cover_generation: null,
+      cover_moderation_state: null,
+      cover_report_count: 0,
+      cover_report_actors: [],
+    });
+  });
+});
