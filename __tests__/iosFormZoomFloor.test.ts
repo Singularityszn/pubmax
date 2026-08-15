@@ -144,24 +144,83 @@ type ImportantControlConflict = {
   file: string;
   selector: string;
   value: string;
+  reason: string;
 };
 
 function selectorTargetsControl(selector: string): boolean {
   return /(^|[\s>+~,(])(?:input|textarea|select)(?=$|[\s>+~#.:\[,(])/i.test(selector);
 }
 
+type LowerBoundProof =
+  | { resolved: true; px: number }
+  | { resolved: false; reason: string };
+
+function lengthLowerBound(value: string): LowerBoundProof {
+  const normalized = value.trim();
+  if (/^[+-]?0(?:\.0+)?$/.test(normalized)) return { resolved: true, px: 0 };
+
+  const length = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))(px|rem|em|pt)$/i.exec(normalized);
+  if (length) {
+    const amount = Number(length[1]);
+    const unit = length[2].toLowerCase();
+    if (unit === "em") {
+      return { resolved: false, reason: `${normalized} depends on an unknown parent size` };
+    }
+    const multiplier = unit === "rem" ? FLOOR_PX : unit === "pt" ? 96 / 72 : 1;
+    return { resolved: true, px: amount * multiplier };
+  }
+
+  const max = /^max\((.*)\)$/i.exec(normalized);
+  if (max) {
+    const terms = splitOutsideParentheses(max[1], ",");
+    if (terms.length === 0) return { resolved: false, reason: "max() has no arguments" };
+    const proofs = terms.map(lengthLowerBound);
+    const safe = proofs.find((proof) => proof.resolved && proof.px >= FLOOR_PX);
+    if (safe?.resolved) return safe;
+    const unresolved = proofs.find((proof) => !proof.resolved);
+    if (unresolved && !unresolved.resolved) {
+      return {
+        resolved: false,
+        reason: `max() has no 16px floor; ${unresolved.reason}`,
+      };
+    }
+    return {
+      resolved: true,
+      px: Math.max(...proofs.flatMap((proof) => (proof.resolved ? [proof.px] : []))),
+    };
+  }
+
+  const clamp = /^clamp\((.*)\)$/i.exec(normalized);
+  if (clamp) {
+    const terms = splitOutsideParentheses(clamp[1], ",");
+    if (terms.length !== 3) {
+      return { resolved: false, reason: "clamp() must have three arguments" };
+    }
+    const minimum = lengthLowerBound(terms[0]);
+    if (!minimum.resolved) {
+      return { resolved: false, reason: `clamp() minimum is unresolved: ${minimum.reason}` };
+    }
+    return minimum;
+  }
+
+  return { resolved: false, reason: `${normalized || "empty value"} has no provable lower bound` };
+}
+
 function importantControlConflicts(css: string, file: string): ImportantControlConflict[] {
   return parseCssRules(css).flatMap((rule) => {
-    const declaration = rule.declarations.find(
-      (candidate) =>
-        candidate.property === "font-size" &&
-        candidate.important &&
-        (minimumPx(candidate.value) ?? FLOOR_PX) < FLOOR_PX,
-    );
-    if (!declaration) return [];
+    const fontSizes = rule.declarations.filter((candidate) => candidate.property === "font-size");
+    const important = fontSizes.filter((candidate) => candidate.important);
+    const declaration = (important.length > 0 ? important : fontSizes).at(-1);
+    if (!declaration?.important) return [];
+
+    const proof = lengthLowerBound(declaration.value);
+    if (proof.resolved && proof.px >= FLOOR_PX) return [];
+    const reason = proof.resolved
+      ? `lower bound ${Number(proof.px.toFixed(4))}px is below ${FLOOR_PX}px`
+      : `could not prove ${FLOOR_PX}px lower bound: ${proof.reason}`;
     return rule.selectors
       .filter(selectorTargetsControl)
-      .map((selector) => ({ file, selector, value: declaration.value }));
+      .map((selector) => ({ file, selector, value: declaration.value, reason }));
   });
 }
 
@@ -197,16 +256,37 @@ describe("iOS form-zoom floor", () => {
     expect(phoneReachableFloor(parseCssRules(css))).toBeDefined();
   });
 
-  it("rejects only important component declarations below the floor", () => {
-    const css = `
-      .fake-input { font-size: 11px !important; }
-      .field input { font-size: 15px; }
-      .field select { font-size: 15px !important; }
-      .field textarea { font-size: max(16px, 1em) !important; }
-    `;
-    expect(importantControlConflicts(css, "fixture.css")).toEqual([
-      { file: "fixture.css", selector: ".field select", value: "15px" },
-    ]);
+  it.each([
+    [".75rem !important", true],
+    ["+16px   !IMPORTANT", false],
+    ["16px !important", false],
+    ["max(16px, 1em) !important", false],
+    ["max(12px, 1em) !important", true],
+    ["clamp(14px, 2vw, 20px) !important", true],
+    ["var(--x) !important", true],
+    ["11pt !important", true],
+    ["12pt !important", false],
+    ["1em !important", true],
+    ["-16px !important", true],
+    ["0.9rem", false],
+  ])("evaluates control font-size %s", (declaration, refused) => {
+    const css = `.field input { font-size: ${declaration}; }`;
+    const conflicts = importantControlConflicts(css, "fixture.css");
+    expect(conflicts.length).toBe(refused ? 1 : 0);
+    if (refused) expect(conflicts[0]).toMatchObject({ reason: expect.any(String) });
+  });
+
+  it("uses the last important font-size declaration in a rule", () => {
+    const unsafe = `.field input {
+      font-size: 16px !important;
+      font-size: 15px !important;
+    }`;
+    const safe = `.field input {
+      font-size: 15px !important;
+      font-size: max(16px, 1em) !important;
+    }`;
+    expect(importantControlConflicts(unsafe, "unsafe.css")).toHaveLength(1);
+    expect(importantControlConflicts(safe, "safe.css")).toHaveLength(0);
   });
 
   it("keeps every form control on the shared important 16px floor", () => {
@@ -242,7 +322,10 @@ describe("iOS form-zoom floor", () => {
     expect(
       conflicts,
       conflicts
-        .map(({ file, selector, value }) => `${file}: ${selector} -> ${value} !important`)
+        .map(
+          ({ file, selector, value, reason }) =>
+            `${file}: ${selector} -> ${value} !important; ${reason}`,
+        )
         .join("\n"),
     ).toEqual([]);
   });
