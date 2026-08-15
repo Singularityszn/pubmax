@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
-import postcss from "postcss";
+import postcss, { type Container } from "postcss";
 import { describe, expect, it } from "vitest";
 
 // Mobile Safari owns form-focus zoom, so Chromium cannot supply computed-style
@@ -11,7 +11,10 @@ import { describe, expect, it } from "vitest";
 // below 16px. Nothing remains on a pending handoff list. This fence guards that
 // one rule and rejects any shipped component rule that can beat it. Sub-16px
 // non-important declarations remain valid because the shared important floor
-// overrides them.
+// overrides them. This is a static reader of shipped CSS, not a CSS engine: it
+// does not resolve custom properties, evaluate calc(), or model which rule wins
+// across files. It is conservative and refuses any important size it cannot
+// prove has a lower bound of at least 16px.
 const FLOOR_PX = 16;
 const PHONE_WIDTHS_PX = [360, 390, 430];
 const CONTROL_ELEMENTS = ["input", "textarea", "select"];
@@ -46,32 +49,59 @@ function splitOutsideParentheses(value: string, separator: string): string[] {
   return parts.filter(Boolean);
 }
 
+function resolveNestedSelectors(selectors: string[], parents: string[] | null): string[] {
+  if (!parents) return selectors;
+  return parents.flatMap((parent) =>
+    selectors.map((selector) =>
+      selector.includes("&") ? selector.replaceAll("&", parent) : `${parent} ${selector}`,
+    ),
+  );
+}
+
+function declarationsIn(container: Container): Declaration[] {
+  return (container.nodes ?? []).flatMap((node) =>
+    node.type === "decl"
+      ? [
+          {
+            property: node.prop.toLowerCase(),
+            value: node.value.trim(),
+            important: node.important,
+          },
+        ]
+      : [],
+  );
+}
+
 function parseCssRules(css: string): CssRule[] {
   const parsed: CssRule[] = [];
-  postcss.parse(css).walkRules((rule) => {
-    const conditions: string[] = [];
-    for (let parent = rule.parent; parent; parent = parent.parent) {
-      if (parent.type !== "atrule") continue;
-      conditions.unshift(
-        `@${parent.name}${parent.params ? ` ${parent.params}` : ""}`.replace(/\s+/g, " "),
-      );
+
+  function visit(
+    container: Container,
+    parentSelectors: string[] | null,
+    conditions: string[],
+  ): void {
+    for (const node of container.nodes ?? []) {
+      if (node.type === "atrule") {
+        const condition = `@${node.name}${node.params ? ` ${node.params}` : ""}`.replace(
+          /\s+/g,
+          " ",
+        );
+        const nestedConditions = [...conditions, condition];
+        const declarations = declarationsIn(node);
+        if (parentSelectors && declarations.length > 0) {
+          parsed.push({ selectors: parentSelectors, declarations, conditions: nestedConditions });
+        }
+        visit(node, parentSelectors, nestedConditions);
+        continue;
+      }
+      if (node.type !== "rule") continue;
+      const selectors = resolveNestedSelectors(node.selectors, parentSelectors);
+      parsed.push({ selectors, declarations: declarationsIn(node), conditions });
+      visit(node, selectors, conditions);
     }
-    parsed.push({
-      selectors: rule.selectors,
-      declarations: (rule.nodes ?? []).flatMap((node) =>
-        node.type === "decl"
-          ? [
-              {
-                property: node.prop.toLowerCase(),
-                value: node.value.trim(),
-                important: node.important,
-              },
-            ]
-          : [],
-      ),
-      conditions,
-    });
-  });
+  }
+
+  visit(postcss.parse(css), null, []);
   return parsed;
 }
 
@@ -307,14 +337,92 @@ function lengthLowerBound(value: string): LowerBoundProof {
   return { resolved: false, reason: `${normalized || "empty value"} has no provable lower bound` };
 }
 
+function splitOutsideWhitespace(value: string): string[] {
+  const tokens: string[] = [];
+  let token = "";
+  let depth = 0;
+  let quote = "";
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (quote) {
+      token += character;
+      if (character === "\\") {
+        index += 1;
+        token += value[index] ?? "";
+      } else if (character === quote) {
+        quote = "";
+      }
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      token += character;
+      continue;
+    }
+    if (character === "(") depth += 1;
+    else if (character === ")") depth -= 1;
+    if (/\s/.test(character) && depth === 0) {
+      if (token) tokens.push(token);
+      token = "";
+      continue;
+    }
+    token += character;
+  }
+  if (token) tokens.push(token);
+  return tokens;
+}
+
+const FONT_SIZE_KEYWORDS = new Set([
+  "xx-small",
+  "x-small",
+  "small",
+  "medium",
+  "large",
+  "x-large",
+  "xx-large",
+  "xxx-large",
+  "smaller",
+  "larger",
+  "inherit",
+  "initial",
+  "revert",
+  "revert-layer",
+  "unset",
+]);
+
+function couldBeFontSize(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return (
+    FONT_SIZE_KEYWORDS.has(normalized) ||
+    /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[a-z]+|%)$/i.test(normalized) ||
+    /^[a-z-]+\(/i.test(normalized)
+  );
+}
+
+function fontShorthandSize(value: string): LowerBoundProof {
+  for (const token of splitOutsideWhitespace(value)) {
+    const candidate = splitOutsideParentheses(token, "/")[0] ?? "";
+    if (couldBeFontSize(candidate)) return lengthLowerBound(candidate);
+  }
+  return {
+    resolved: false,
+    reason: `${value || "empty value"} has no extractable font-size component`,
+  };
+}
+
 function importantControlConflicts(css: string, file: string): ImportantControlConflict[] {
   return parseCssRules(css).flatMap((rule) => {
-    const fontSizes = rule.declarations.filter((candidate) => candidate.property === "font-size");
-    const important = fontSizes.filter((candidate) => candidate.important);
-    const declaration = (important.length > 0 ? important : fontSizes).at(-1);
+    const sizeDeclarations = rule.declarations.filter(
+      (candidate) => candidate.property === "font-size" || candidate.property === "font",
+    );
+    const important = sizeDeclarations.filter((candidate) => candidate.important);
+    const declaration = (important.length > 0 ? important : sizeDeclarations).at(-1);
     if (!declaration?.important) return [];
 
-    const proof = lengthLowerBound(declaration.value);
+    const proof =
+      declaration.property === "font"
+        ? fontShorthandSize(declaration.value)
+        : lengthLowerBound(declaration.value);
     if (proof.resolved && proof.px >= FLOOR_PX) return [];
     const reason = proof.resolved
       ? `lower bound ${Number(proof.px.toFixed(4))}px is below ${FLOOR_PX}px`
@@ -403,6 +511,25 @@ describe("iOS form-zoom floor", () => {
     }`;
     expect(importantControlConflicts(unsafe, "unsafe.css")).toHaveLength(1);
     expect(importantControlConflicts(safe, "safe.css")).toHaveLength(0);
+  });
+
+  it.each([
+    ["font: 12px system-ui !important;", true],
+    ["font: 16px/1.4 system-ui !important;", false],
+    ["font: var(--compact-font) !important;", true],
+    ["font-size: 16px !important; font: 12px system-ui !important;", true],
+    ["font: 12px system-ui !important; font-size: 16px !important;", false],
+  ])("evaluates effective size-setting declarations in %s", (declarations, refused) => {
+    const css = `.field input { ${declarations} }`;
+    expect(importantControlConflicts(css, "fixture.css")).toHaveLength(refused ? 1 : 0);
+  });
+
+  it.each([
+    ["input { &.compact { font-size: 12px !important; } }", true],
+    [".field { input { font-size: 12px !important; } }", true],
+    [".panel { &.compact { font-size: 12px !important; } }", false],
+  ])("resolves nested control selectors in %s", (css, refused) => {
+    expect(importantControlConflicts(css, "fixture.css")).toHaveLength(refused ? 1 : 0);
   });
 
   it("keeps every form control on the shared important 16px floor", () => {

@@ -15,9 +15,9 @@ import { expect, test } from "@playwright/test";
 // WHAT COUNTS AS A STANDALONE CONTROL, and why the line is drawn there: a link
 // flowing inside a sentence is exempt from the target-size rule by WCAG's own
 // inline exception, and /about is largely prose. So the sweep takes buttons,
-// selects, summaries, anything with an explicit button/tab role, and every
-// anchor the page has laid out as its OWN box (a computed display that is not
-// `inline`). That is the same distinction a thumb makes.
+// inputs, textareas, selects, summaries, anything with an explicit button/tab
+// role, and every anchor the page has laid out as its OWN box (a computed
+// display that is not `inline`). That is the same distinction a thumb makes.
 const WIDTHS = [360, 390, 430] as const;
 
 const ROUTES = ["/about", "/discover", "/pubs", "/social", "/login", "/messages"] as const;
@@ -28,6 +28,21 @@ const REQUIRED_TARGETS: Partial<Record<LaunchRoute, readonly string[]>> = {
   "/discover": [".discoverBrandChip", "a.leaderboardPub"],
   "/pubs": [".pubsJumpChip"],
   "/social": [".findLot__ghost"],
+};
+
+const REQUIRED_TEXT_FIELDS: Partial<Record<LaunchRoute, readonly string[]>> = {
+  "/login": [".authMagicLinkInput"],
+  "/social": [".findLot__field input"],
+  "/messages": [".composerInput"],
+};
+
+const ROUTE_ROOTS: Record<LaunchRoute, string> = {
+  "/about": "main#main.aboutPage",
+  "/discover": "main#main-content.socialPage .socialDiscoverBody",
+  "/pubs": "main#main.pubsShell",
+  "/social": "main#main-content.socialPage",
+  "/login": "main.loginPage",
+  "/messages": "main#main.messagesMainInbox",
 };
 
 const MIN_TAP_HEIGHT_PX = 44;
@@ -73,7 +88,17 @@ test.describe("phone controls on the launch surfaces", () => {
     test(`${route} fits and stays tappable at 360/390/430`, async ({ page }) => {
       for (const width of WIDTHS) {
         await page.setViewportSize({ width, height: 844 });
-        await page.goto(route, { waitUntil: "load" });
+        const response = await page.goto(route, { waitUntil: "load" });
+        expect(response, `${route} @${width}: navigation must return a response`).not.toBeNull();
+        if (!response) throw new Error(`${route} @${width}: navigation returned no response`);
+        expect(
+          response.ok(),
+          `${route} @${width}: final response was ${response.status()} at ${response.url()}`,
+        ).toBe(true);
+        await expect(
+          page.locator(`${ROUTE_ROOTS[route]}:visible`).first(),
+          `${route} @${width}: expected route root ${ROUTE_ROOTS[route]}`,
+        ).toBeVisible();
         // Several of these pages reveal a section only once it is near the
         // viewport (Discover's leaderboard is the loudest), and how much of a
         // page that is depends on the width — which is exactly how the first
@@ -87,26 +112,65 @@ test.describe("phone controls on the launch surfaces", () => {
             const doc = document.documentElement;
             const overflowPx = Math.max(0, Math.round(doc.scrollWidth - doc.clientWidth));
 
+            const isInvisible = (element: Element): boolean => {
+              const style = getComputedStyle(element);
+              return (
+                style.display === "none" ||
+                style.visibility === "hidden" ||
+                style.visibility === "collapse" ||
+                style.contentVisibility === "hidden" ||
+                Number(style.opacity) === 0
+              );
+            };
+
+            const union = (first: DOMRect, second: DOMRect): DOMRect => {
+              const left = Math.min(first.left, second.left);
+              const top = Math.min(first.top, second.top);
+              const right = Math.max(first.right, second.right);
+              const bottom = Math.max(first.bottom, second.bottom);
+              return DOMRect.fromRect({
+                x: left,
+                y: top,
+                width: right - left,
+                height: bottom - top,
+              });
+            };
+
+            const interactiveRect = (element: Element): DOMRect => {
+              const rect = element.getBoundingClientRect();
+              if (
+                element instanceof HTMLInputElement &&
+                (element.type === "checkbox" || element.type === "radio")
+              ) {
+                const label = element.labels?.[0];
+                // Label is where thumb lands, so checkbox and radio hit area includes it.
+                if (label && !isInvisible(label)) {
+                  const labelRect = label.getBoundingClientRect();
+                  if (labelRect.width > 0 && labelRect.height > 0) return union(rect, labelRect);
+                }
+              }
+              return rect;
+            };
+
             const required = requiredSelectors.map((requiredSelector) => ({
               selector: requiredSelector,
               sizes: Array.from(document.querySelectorAll(requiredSelector)).flatMap((element) => {
-                const style = getComputedStyle(element);
-                if (style.visibility === "hidden" || style.display === "none") return [];
-                const rect = element.getBoundingClientRect();
+                if (isInvisible(element)) return [];
+                const rect = interactiveRect(element);
                 if (rect.width === 0 || rect.height === 0) return [];
                 return [{ width: rect.width, height: rect.height }];
               }),
             }));
 
             const selector =
-              'button, select, summary, [role="button"], [role="tab"], a[href]';
+              'button, input:not([type="hidden"]), textarea, select, summary, [role="button"], [role="tab"], a[href]';
             const small: string[] = [];
             for (const element of Array.from(document.querySelectorAll(selector))) {
+              if (isInvisible(element)) continue;
               const style = getComputedStyle(element);
-              if (style.visibility === "hidden" || style.display === "none") continue;
               // A link in a sentence is not a control (WCAG inline exception).
               if (element.tagName === "A" && style.display === "inline") continue;
-              const rect = element.getBoundingClientRect();
+              const rect = interactiveRect(element);
               if (rect.width === 0 || rect.height === 0) continue;
               if (rect.height >= minHeight && rect.width >= minWidth) continue;
               const name =
@@ -119,7 +183,10 @@ test.describe("phone controls on the launch surfaces", () => {
           {
             minHeight: MIN_TAP_HEIGHT_PX,
             minWidth: MIN_TAP_WIDTH_PX,
-            requiredSelectors: REQUIRED_TARGETS[route] ?? [],
+            requiredSelectors: [
+              ...(REQUIRED_TARGETS[route] ?? []),
+              ...(REQUIRED_TEXT_FIELDS[route] ?? []),
+            ],
           },
         );
 

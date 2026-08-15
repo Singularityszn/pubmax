@@ -1204,4 +1204,10 @@
     align-items: center;
     min-height: 44px;
   }
+
+  a.tonightPub {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
 }
