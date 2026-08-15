@@ -222,6 +222,26 @@ export function shouldShowContributionClaimNudge({
   return isOwnProfile && identityResolved && !hasUser;
 }
 
+export function profileClaimOfferVisible({
+  isAnonymous,
+  isYouRoute,
+  canAdoptHandle,
+}: {
+  isAnonymous: boolean;
+  isYouRoute: boolean;
+  canAdoptHandle: boolean;
+}): boolean {
+  return isAnonymous && !isYouRoute && canAdoptHandle;
+}
+
+export function ProfileClaimOffer({ onClaim }: { onClaim: () => void }) {
+  return (
+    <button type="button" className="profileClaimBtn" onClick={onClaim}>
+      Claim this handle
+    </button>
+  );
+}
+
 export function YouSignedOutSurface({
   nightMemoriesInvite,
 }: {
@@ -726,10 +746,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       </button>
       <Link className="profilePalLink" href="/pal">Meet your Pub Pal</Link>
     </>
-  ) : isAnonymous && !isYouRoute && canAdoptHandle ? (
-    <button type="button" className="profileClaimBtn" onClick={claimHandle}>
-      Claim this handle
-    </button>
+  ) : profileClaimOfferVisible({ isAnonymous, isYouRoute, canAdoptHandle }) ? (
+    <ProfileClaimOffer onClaim={claimHandle} />
   ) : isYouRoute ? null : (
     <>
       <FollowButton

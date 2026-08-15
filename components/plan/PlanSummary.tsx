@@ -590,7 +590,7 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
           isHost={isHost}
           draftStops={draftStops.map((stop, index) => ({ venueId: stop.venueId, venueName: stop.venueName, position: index }))}
           routeRevision={routeRevision}
-          canPropose={!isHost && canSaveDraft}
+          canPropose={!anchoredPlan && !isHost && canSaveDraft}
           onProposalCreated={() => {
             clearPendingRoute(planId);
             setLocalAuthority(null);

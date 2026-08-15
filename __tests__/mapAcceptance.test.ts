@@ -182,6 +182,7 @@ describe("acceptMapVenue", () => {
   it.each([
     ["near" as const, { kind: "price" as const, observedAt: "2026-07-24T17:00:00.000Z" }],
     ["tonight" as const, { kind: "whats-on" as const, observedAt: "2026-07-24T16:00:00.000Z" }],
+    ["pal" as const, { kind: "directory" as const, observedAt: "2026-07-24T15:00:00.000Z" }],
   ])("preserves richer %s intent on a matching accepted arrival", (source, evidence) => {
     const startsAt = "2026-07-24T20:00:00.000Z";
     seedIntent(storage, {
@@ -505,6 +506,29 @@ describe("canonicalizeAcceptedArrivalSelection", () => {
       acceptedVenueId: "venue-canonical",
       acceptedAt: new Date(NOW).toISOString(),
       expiresAt: new Date(NOW + PLANNING_INTENT_TTL_MS).toISOString(),
+    });
+  });
+
+  it("leaves the accepted URL unchanged when intent persistence fails", () => {
+    const storage = memoryStorage();
+    seedIntent(storage, {
+      source: "near",
+      cityId: "london",
+      acceptedVenueId: "venue-alias",
+      acceptedArea: null,
+      startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    });
+    storage.setItem = () => { throw new DOMException("QuotaExceededError"); };
+
+    expect(canonicalizeAcceptedArrivalSelection({
+      pathname: "/map",
+      search: "?sel=venue-alias&accept=1&src=near",
+      requestedVenueId: "venue-alias",
+      canonicalVenueId: "venue-canonical",
+    }, { storage, now: NOW + 60_000 })).toBeNull();
+    expect(JSON.parse(storage.map.get(PLANNING_INTENT_STORAGE_KEY)!)).toMatchObject({
+      acceptedVenueId: "venue-alias",
     });
   });
 });

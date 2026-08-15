@@ -148,12 +148,22 @@ export function canonicalizeAcceptedArrivalSelection(input: {
   hash?: string;
   requestedVenueId: string;
   canonicalVenueId: string;
-}, options: PlanningIntentOptions = {}): string {
-  canonicalizePlanningIntentVenueId(
-    input.requestedVenueId,
-    input.canonicalVenueId,
-    options,
-  );
+}, options: PlanningIntentOptions = {}): string | null {
+  const acceptedSource = initialAcceptanceSource(input.search);
+  if (acceptedSource) {
+    const existing = readPlanningIntent(options);
+    if (
+      !existing
+      || existing.source !== acceptedSource
+      || existing.acceptedVenueId !== input.requestedVenueId
+    ) return null;
+    const intent = canonicalizePlanningIntentVenueId(
+      input.requestedVenueId,
+      input.canonicalVenueId,
+      options,
+    );
+    if (!intent || intent.source !== acceptedSource) return null;
+  }
   return refreshSelectionUrl(
     input.pathname,
     input.search,
@@ -240,10 +250,7 @@ export function acceptMapVenue(
     source: effectiveSource,
   });
 
-  if (
-    arrivalIntent &&
-    (arrivalIntent.source === "near" || arrivalIntent.source === "tonight")
-  ) {
+  if (arrivalIntent) {
     intentInput = planningIntentInput(arrivalIntent);
   }
 

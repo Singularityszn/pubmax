@@ -238,11 +238,20 @@ describe("selectionResolution", () => {
     )).toBe("/map?sel=venue-canonical&accept=1&src=near");
   });
 
-  it("cleans a sel the trail never took up", () => {
+  it("canonicalises a live alias while the trail is still at root", () => {
     expect(selectionResolution({
       requestedVenueId: "venue-merged",
       canonicalVenueId: "venue-canonical",
       currentVenueId: null,
+      liveSelectedVenueId: "venue-merged",
+    })).toEqual({ kind: "canonicalise", venueId: "venue-canonical" });
+  });
+
+  it("cleans an alias only after the trail moved elsewhere", () => {
+    expect(selectionResolution({
+      requestedVenueId: "venue-merged",
+      canonicalVenueId: "venue-canonical",
+      currentVenueId: "venue-other",
       liveSelectedVenueId: "venue-merged",
     })).toEqual({ kind: "clean" });
   });

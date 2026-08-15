@@ -1,6 +1,6 @@
 import type { CrewMemberDTO } from "@/lib/crew";
 import { cleanText } from "@/lib/textClean";
-import type { NightContext } from "@/lib/nightPlanning";
+import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { isPlanStopCount } from "@/lib/planStopCount";
 
 export const PLAN_TITLE_MAX = 80;
@@ -183,6 +183,7 @@ export type CreatePlanInput = {
   startTime?: unknown;
   creatorName?: unknown;
   stops?: unknown;
+  context?: unknown;
 };
 
 export type CleanPlanInput = {
@@ -190,6 +191,7 @@ export type CleanPlanInput = {
   startTime: string;
   creatorName: string;
   stops: Array<{ venueId: string; venueName: string }>;
+  context: NightContext | null;
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -213,10 +215,13 @@ export function cleanCreatePlan(input: CreatePlanInput): CleanPlanInput | null {
   });
   if (stops.some((stop) => !stop.venueId || !stop.venueName)) return null;
   if (new Set(stops.map((stop) => stop.venueId)).size !== stops.length) return null;
+  const context = input.context === undefined ? null : cleanNightContext(input.context);
+  if (input.context !== undefined && !context) return null;
   return {
     title: cleanText(input.title, PLAN_TITLE_MAX) || "Tonight's Plan",
     startTime: new Date(startMs).toISOString(),
     creatorName,
     stops,
+    context,
   };
 }

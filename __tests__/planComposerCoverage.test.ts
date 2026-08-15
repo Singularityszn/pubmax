@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   anchorConflictMessage,
   composerCreatePayload,
+  editedPlanStop,
   errorMessageFromBody,
   applyPlanStopCount,
   generatedPlanAnchorFromResponse,
@@ -56,10 +57,16 @@ describe("PlanComposer accepted city authority", () => {
       stops: [{ venueId: "manchester-pub", venueName: "The Manchester Pub" }],
       groundingProof: "signed-proof",
       planAnchor: { venueId: "manchester-pub", source: "near", outcome: "anchor-only" },
+      context: {
+        nightArea: "piccadilly-soho", daypart: "evening", partyType: "friends", groupSize: null,
+        stopCount: 3, budget: "value", budgetLimitPence: null, zeroProof: false,
+        wetherspoonsPreferred: false, atmosphere: [], foodNeeds: [], accessibility: [], transportConstraints: [],
+      },
     })).toMatchObject({
       cityId: "manchester",
       stops: [{ venueId: "manchester-pub", venueName: "The Manchester Pub" }],
       anchor: { venueId: "manchester-pub", source: "near", outcome: "anchor-only" },
+      context: expect.objectContaining({ nightArea: "piccadilly-soho" }),
     });
   });
 
@@ -67,6 +74,39 @@ describe("PlanComposer accepted city authority", () => {
     expect(planComposerVenueIndexPath("manchester")).toBe(
       "/data/cities/manchester/venues_slim.json",
     );
+  });
+});
+
+describe("PlanComposer accepted Stop 1 naming", () => {
+  const accepted = {
+    key: 1,
+    venueId: "venue-accepted",
+    venueName: "",
+    alternatives: [],
+  };
+
+  it("keeps accepted authority while the fallback name is typed", () => {
+    expect(editedPlanStop({
+      stop: accepted,
+      venueName: "The pub beside the station",
+      venues: [],
+      acceptedVenueId: "venue-accepted",
+    })).toEqual({
+      stop: { ...accepted, venueName: "The pub beside the station" },
+      preservesAcceptedAuthority: true,
+    });
+  });
+
+  it("drops accepted authority when a different indexed pub is selected", () => {
+    expect(editedPlanStop({
+      stop: accepted,
+      venueName: "Different Arms",
+      venues: [{ id: "venue-different", name: "Different Arms" }],
+      acceptedVenueId: "venue-accepted",
+    })).toMatchObject({
+      stop: { venueId: "venue-different" },
+      preservesAcceptedAuthority: false,
+    });
   });
 });
 

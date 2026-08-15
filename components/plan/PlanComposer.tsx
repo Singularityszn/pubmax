@@ -31,7 +31,7 @@ import {
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { isPlanStopCount, normalizePlanStopCount, PLAN_STOP_COUNTS, type PlanStopCount } from "@/lib/planStopCount";
-import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope } from "@/lib/planDraft";
+import { parsePlanDraft, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
 import {
   PLANNING_INTENT_SOURCES,
@@ -81,6 +81,28 @@ export type DraftStop = {
   reason?: string;
   alternatives: RouteAlternative[];
 };
+
+export function editedPlanStop(input: {
+  stop: DraftStop;
+  venueName: string;
+  venues: readonly PlanVenueOption[];
+  acceptedVenueId?: string | null;
+}): { stop: DraftStop; preservesAcceptedAuthority: boolean } {
+  const match = input.venues.find((venue) => venue.name.toLocaleLowerCase() === input.venueName.trim().toLocaleLowerCase());
+  const accepted = input.stop.key === 1
+    && Boolean(input.acceptedVenueId)
+    && input.stop.venueId === input.acceptedVenueId;
+  const preservesAcceptedAuthority = accepted && (!match || match.id === input.acceptedVenueId);
+  return {
+    stop: {
+      ...input.stop,
+      venueName: input.venueName,
+      venueId: preservesAcceptedAuthority ? input.stop.venueId : match?.id ?? "",
+      alternatives: [],
+    },
+    preservesAcceptedAuthority,
+  };
+}
 export const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 
 export type StoredRouteDraft = {
@@ -490,6 +512,7 @@ export function composerCreatePayload(input: {
   stops: ReadonlyArray<{ venueId: string; venueName: string }>;
   groundingProof?: string | null;
   planAnchor?: GeneratedPlanAnchor | null;
+  context?: NightContext | null;
 }): Record<string, unknown> {
   return {
     title: input.title,
@@ -499,6 +522,7 @@ export function composerCreatePayload(input: {
     stops: input.stops.map(({ venueId, venueName }) => ({ venueId, venueName })),
     ...(input.groundingProof ? { groundingProof: input.groundingProof } : {}),
     ...(input.planAnchor ? { anchor: input.planAnchor } : {}),
+    ...(input.context ? { context: input.context } : {}),
   };
 }
 
@@ -979,18 +1003,16 @@ function PlanComposerForm({
 
   useEffect(() => {
     if (!canPersist) return;
-    try {
-      sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
-        title,
-        creatorName,
-        startTime,
-        conciergeQuery,
-        stops,
-      }));
-    } catch {
-      // Storage can be unavailable in private mode; planning still works in-memory.
-    }
-  }, [canPersist, title, creatorName, startTime, conciergeQuery, stops]);
+    const acceptedAnchor = handoff?.acceptedAnchor;
+    writePlanDraftEnvelope({
+      title,
+      creatorName,
+      startTime,
+      conciergeQuery,
+      stops,
+      ...(acceptedAnchor && stops[0]?.venueId === acceptedAnchor.venueId ? { acceptedAnchor } : {}),
+    }, acceptedAnchor && stops[0]?.venueId === acceptedAnchor.venueId ? "planning-intent" : "manual", sessionStorage);
+  }, [canPersist, conciergeQuery, creatorName, handoff?.acceptedAnchor, startTime, stops, title]);
 
   useEffect(() => {
     if (!canPersist) return;
@@ -1117,10 +1139,11 @@ function PlanComposerForm({
   }
 
   function chooseVenue(key: number, venueName: string) {
-    const match = venues.find((venue) => venue.name.toLocaleLowerCase() === venueName.trim().toLocaleLowerCase());
-    setStops((current) => current.map((stop) => stop.key === key
-      ? { ...stop, venueName, venueId: match?.id ?? "", alternatives: [] }
-      : stop));
+    const selected = stops.find((stop) => stop.key === key);
+    if (!selected) return;
+    const edited = editedPlanStop({ stop: selected, venueName, venues, acceptedVenueId: handoff?.acceptedVenueId });
+    setStops((current) => current.map((stop) => stop.key === key ? edited.stop : stop));
+    if (edited.preservesAcceptedAuthority) return;
     // Manual edits are still canonicalized by POST /api/plans, but they no
     // longer carry provenance from the generated candidate set.
     setGroundingProof(null);
@@ -1293,6 +1316,7 @@ function PlanComposerForm({
         stops: completeStops,
         groundingProof,
         planAnchor,
+        context: nightContext,
       });
       const operationKey = createOperationKey ?? await persistentPlanMutationKey("create", createPayload);
       const response = await fetch("/api/plans", {
@@ -1346,7 +1370,7 @@ function PlanComposerForm({
             "content-type": "application/json",
             authorization: `Bearer ${body.memberToken}`,
           },
-          body: JSON.stringify({ status: "ready", ...(nightContext ? { context: nightContext } : {}) }),
+          body: JSON.stringify({ status: "ready" }),
         });
         if (!metadataResponse.ok) {
           discardBody(metadataResponse);
@@ -1356,6 +1380,7 @@ function PlanComposerForm({
       trackEvent("plan_saved", { stops: completeStops.length, grounded });
       trackMeaningfulCoreAction("plan_saved");
       try { sessionStorage.removeItem(PLAN_DRAFT_KEY); } catch { /* best effort */ }
+      try { sessionStorage.removeItem(PLAN_DRAFT_V2_KEY); } catch { /* best effort */ }
       try { localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY); } catch { /* best effort */ }
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);

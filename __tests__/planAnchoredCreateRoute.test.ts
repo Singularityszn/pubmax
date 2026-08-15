@@ -21,6 +21,7 @@ vi.mock("@/lib/concierge/venues.server", () => ({
 import { POST as CREATE } from "@/app/api/plans/route";
 import { PATCH } from "@/app/api/plans/[id]/route";
 import {
+  PLAN_GROUNDING_PROOF_TTL_MS,
   mintPlanGroundingProof,
   mintPlanGroundingProofV2,
 } from "@/lib/planGrounding.server";
@@ -60,15 +61,22 @@ describe("POST /api/plans — anchored lock", () => {
   afterEach(() => { __resetMemoryPlans(); });
 
   it("persists a one-Stop draft and emits plan_draft_saved, never plan_accepted", async () => {
+    const context = {
+      nightArea: "piccadilly-soho", daypart: "evening", partyType: "friends", groupSize: 2,
+      stopCount: 3, budget: "value", budgetLimitPence: null, zeroProof: false,
+      wetherspoonsPreferred: false, atmosphere: [], foodNeeds: [], accessibility: [], transportConstraints: [],
+    };
     const response = await create({
       stops: [{ venueId: "venue-a", venueName: "A" }],
       groundingProof: anchorOnlyProof(),
       anchor: ANCHOR,
+      context,
     });
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body.plan.plan).toMatchObject({ outcome: "anchor-only", routeReadyAt: null });
     expect(body.plan.stops).toHaveLength(1);
+    expect(body.plan.context).toEqual(context);
     expect(body.eventTokens.planDraftSaved).toEqual(expect.any(String));
     expect(body.eventTokens.planDraftSaved.length).toBeGreaterThan(0);
     expect(body.eventTokens.planAccepted).toBe("");
@@ -255,6 +263,30 @@ describe("POST /api/plans — anchored lock", () => {
     // its own terms rather than the route refusing it with a proof 422.
     expect(legacy.status).toBe(403);
     expect((await legacy.json()).code).toBe("PLAN_UPDATE_FORBIDDEN");
+  });
+
+  it("classifies an expired signed V1 proof as a legacy creation proof", async () => {
+    const { planId, memberToken } = await createDraft();
+    const stops = [
+      { venueId: "venue-a", venueName: "A" },
+      { venueId: "venue-b", venueName: "B" },
+      { venueId: "venue-c", venueName: "C" },
+    ];
+    const operationKey = "op-expired-v1-create";
+    const response = await patchUpgrade(planId, {
+      memberToken,
+      stops,
+      expectedRouteRevision: 1,
+      groundingProof: mintPlanGroundingProof(
+        stops.map((stop) => stop.venueId),
+        operationKey,
+        Date.now() - PLAN_GROUNDING_PROOF_TTL_MS - 1,
+      ),
+      operationKey,
+    });
+
+    expect(response.status).toBe(403);
+    expect((await response.json()).code).toBe("PLAN_UPDATE_FORBIDDEN");
   });
 
   it("still refuses a forged proof that is neither a real V1 nor a real V2", async () => {

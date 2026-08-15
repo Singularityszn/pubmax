@@ -420,6 +420,10 @@ const memoryStore: PlanCollaborationStore = {
     if (!isPlanId(planId) || !validKey(input.idempotencyKey) || !reason || !Number.isInteger(input.expectedRouteRevision) || input.expectedRouteRevision < 1 || !validStops(input.stops) || !Array.isArray(input.resolvedConstraintIds) || input.resolvedConstraintIds.length > 0) return { ok: false, error: "invalid" };
     const identity = await member(planId, token);
     if (!identity) return { ok: false, error: "forbidden" };
+    const planLookup = await planStateResult(planId);
+    if (!planLookup.ok) return { ok: false, error: "error" };
+    if (!planLookup.plan) return { ok: false, error: "not_found" };
+    if (planLookup.plan.plan.anchorVenueId) return { ok: false, error: "forbidden" };
     const idem = idempotencyKey(planId, identity.memberId, "proposal:create", input.idempotencyKey);
     const replay = memory.idempotency.get(idem) as { ok: true; proposal: PlanRouteProposal } | undefined;
     if (replay) return structuredClone(replay);
@@ -486,6 +490,12 @@ const memoryStore: PlanCollaborationStore = {
     if (!isPlanId(planId) || !validKey(key) || !["accepted", "rejected"].includes(decision)) return { ok: false, error: "invalid" };
     const identity = await member(planId, token, "host");
     if (!identity) return { ok: false, error: "forbidden" };
+    if (decision === "accepted") {
+      const planLookup = await planStateResult(planId);
+      if (!planLookup.ok) return { ok: false, error: "error" };
+      if (!planLookup.plan) return { ok: false, error: "not_found" };
+      if (planLookup.plan.plan.anchorVenueId) return { ok: false, error: "forbidden" };
+    }
     const idem = idempotencyKey(planId, identity.memberId, "proposal:decision", key);
     const replay = memory.idempotency.get(idem) as { ok: true; proposal: PlanRouteProposal } | undefined;
     if (replay) return structuredClone(replay);
@@ -704,6 +714,10 @@ const supabaseStore: PlanCollaborationStore = {
     if (!isPlanId(planId) || !validKey(input.idempotencyKey) || !reason || !Number.isInteger(input.expectedRouteRevision) || input.expectedRouteRevision < 1 || !validStops(input.stops) || input.resolvedConstraintIds.length > 0) return { ok: false, error: "invalid" };
     const identity = await member(planId, token);
     if (!identity) return { ok: false, error: "forbidden" };
+    const planLookup = await planStateResult(planId);
+    if (!planLookup.ok) return { ok: false, error: "error" };
+    if (!planLookup.plan) return { ok: false, error: "not_found" };
+    if (planLookup.plan.plan.anchorVenueId) return { ok: false, error: "forbidden" };
     const admin = requireSupabaseAdmin();
     const key = input.idempotencyKey.trim();
     const constraints = await admin.from(CONSTRAINTS).select("id,priority,resolved_at").eq("plan_id", planId);
@@ -775,6 +789,12 @@ const supabaseStore: PlanCollaborationStore = {
   async decideProposal(planId, token, proposalId, decision, key, apply, now = new Date()) {
     if (!isPlanId(planId) || !validKey(key) || !["accepted", "rejected"].includes(decision)) return { ok: false, error: "invalid" };
     if (!(await member(planId, token, "host"))) return { ok: false, error: "forbidden" };
+    if (decision === "accepted") {
+      const planLookup = await planStateResult(planId);
+      if (!planLookup.ok) return { ok: false, error: "error" };
+      if (!planLookup.plan) return { ok: false, error: "not_found" };
+      if (planLookup.plan.plan.anchorVenueId) return { ok: false, error: "forbidden" };
+    }
     const admin = requireSupabaseAdmin();
     const { data, error } = await admin.rpc("decide_plan_route_proposal_atomic", {
       p_plan_id: planId,

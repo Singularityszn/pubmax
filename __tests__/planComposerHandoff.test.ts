@@ -201,6 +201,35 @@ describe("resolveComposerHydration", () => {
     expect(hydration.conflicts.map((c) => c.code)).toContain("intent-preserved-existing");
   });
 
+  it("restores exact accepted authority from the winning Plan draft", () => {
+    const storage = memoryStorage();
+    writePlanDraftEnvelope(storedPlan({
+      stops: [{ key: 1, venueId: "venue-intent", venueName: "Accepted" }],
+      acceptedAnchor: {
+        venueId: "venue-intent",
+        source: "near",
+        cityId: "manchester",
+        acceptedArea: null,
+        startsAt: "2026-07-24T20:00:00.000Z",
+      },
+    }), "planning-intent", storage, NOW + 2_000);
+    const hydration = resolveComposerHydration({
+      planDraft: readPlanDraftEnvelope(storage, NOW + 2_000),
+      routeDraft: null,
+      intakeDraft: null,
+      planningIntent: intent(),
+      rememberedArea: null,
+    });
+    expect(hydration.acceptedAnchor).toEqual({
+      venueId: "venue-intent",
+      source: "near",
+      cityId: "manchester",
+      acceptedArea: null,
+      startsAt: "2026-07-24T20:00:00.000Z",
+    });
+    expect(hydration.showAcceptedSummary).toBe(true);
+  });
+
   it("preserves legacy Plan work ahead of intent", () => {
     const hydration = resolveComposerHydration({
       planDraft: legacyPlan(), routeDraft: null, intakeDraft: null,

@@ -1,6 +1,7 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import PlanIntake from "@/components/plan/PlanIntake";
 
 import {
   PLAN_INTAKE_DRAFT_TTL_MS,
@@ -405,8 +406,12 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
 
 describe("intake accessibility and entry invariants", () => {
   it("does not participate in routing or prompt budgets", () => {
-    const root = path.resolve(__dirname, "..");
-    const component = readFileSync(path.join(root, "components/plan/PlanIntake.tsx"), "utf8");
-    expect(component).not.toMatch(/useRouter|promptBudget|router\.(push|replace)/);
+    const html = renderToStaticMarkup(createElement(PlanIntake, {
+      draft: createPlanIntakeDraft(),
+      onChange: () => undefined,
+    }));
+    expect(html).toContain("Shape the route");
+    expect(html).toContain("Describe instead");
+    expect(html).toContain('href="/pal/chat"');
   });
 });

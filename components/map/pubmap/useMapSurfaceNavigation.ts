@@ -254,23 +254,26 @@ export function useMapSurfaceNavigation({
         liveSelectedVenueId: new URLSearchParams(search).get("sel"),
       });
       if (resolution.kind === "none") return;
-      if (resolution.kind === "canonicalise" && current?.id === "venue") {
-        const resolvedEntry = {
-          ...current,
-          state: { ...current.state, venueId: resolution.venueId },
-        };
-        const next = [...held.slice(0, -1), resolvedEntry] as SurfaceStack<MapSurfaceState>;
-        publishStack(next);
+      if (resolution.kind === "canonicalise") {
+        const canonicalUrl = canonicalizeAcceptedArrivalSelection({
+          pathname,
+          search,
+          hash,
+          requestedVenueId,
+          canonicalVenueId: resolution.venueId,
+        });
+        if (!canonicalUrl) return;
+        const next = current?.id === "venue"
+          ? [...held.slice(0, -1), {
+              ...current,
+              state: { ...current.state, venueId: resolution.venueId },
+            }] as SurfaceStack<MapSurfaceState>
+          : held;
+        if (next !== held) publishStack(next);
         window.history.replaceState(
           stampMapSurfaceHistory(window.history.state, next, resolution.venueId),
           "",
-          canonicalizeAcceptedArrivalSelection({
-            pathname,
-            search,
-            hash,
-            requestedVenueId,
-            canonicalVenueId: resolution.venueId,
-          }),
+          canonicalUrl,
         );
         return;
       }

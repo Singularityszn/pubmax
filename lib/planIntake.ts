@@ -10,8 +10,8 @@ import type {
   NightContext,
   NightAreaSlug,
 } from "@/lib/nightPlanning";
-import type { PlanningIntentArea, PlanningIntentSource } from "@/lib/planningIntent";
 import type { CityId } from "@/lib/cities";
+import type { PlanGenerationAnchor as PlanGenerationWireAnchor } from "@/lib/planGenerationRequest";
 import { isPlanStopCount, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 
@@ -658,16 +658,11 @@ export type PlanGenerationIntakeBody = {
   context?: Partial<NightContext>;
   cityId?: CityId;
   intake: PlanIntakeHandoff;
-  anchor?: PlanGenerationAnchor;
+  anchor?: PlanGenerationWireAnchor;
 };
 
-/** Exact accepted Venue anchor passed to grounded generation. */
-export type PlanGenerationAnchor = {
-  venueId: string;
-  source: PlanningIntentSource;
+export type PlanGenerationAnchorInput = PlanGenerationWireAnchor & {
   cityId?: CityId | null;
-  acceptedArea: PlanningIntentArea;
-  startsAt: string | null;
 };
 
 /** Remove values inherited from an earlier intake before applying its current answers. */
@@ -696,7 +691,7 @@ export function buildPlanGenerationIntakeBody(
   query: string,
   currentContext: NightContext | null,
   explicitContext: Partial<NightContext> = {},
-  anchor?: PlanGenerationAnchor | null,
+  anchor?: PlanGenerationAnchorInput | null,
 ): PlanGenerationIntakeBody {
   const cleanQuery = query.trim();
   const context = {

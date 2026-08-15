@@ -224,8 +224,13 @@ export function selectionResolution(input: {
   const canonical = input.canonicalVenueId.trim();
   if (!requested || !canonical) return { kind: "none" };
   if (requested === canonical) return { kind: "none" };
-  if (input.currentVenueId === requested) {
+  if (
+    input.currentVenueId === requested
+    || (input.currentVenueId === null && input.liveSelectedVenueId === requested)
+  ) {
     return { kind: "canonicalise", venueId: canonical };
   }
-  return input.liveSelectedVenueId === requested ? { kind: "clean" } : { kind: "none" };
+  return input.currentVenueId !== null && input.liveSelectedVenueId === requested
+    ? { kind: "clean" }
+    : { kind: "none" };
 }

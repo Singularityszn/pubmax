@@ -92,13 +92,16 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
   });
 
   const acceptedVenueId = result.acceptedVenueId.value;
-  const acceptedSource = result.acceptedVenueId.source === "planning-intent"
+  const draftAnchor = input.planDraft?.draft.acceptedAnchor?.venueId === acceptedVenueId
+    ? input.planDraft.draft.acceptedAnchor
+    : null;
+  const acceptedSource = draftAnchor?.source ?? (result.acceptedVenueId.source === "planning-intent"
     ? input.planningIntent?.source ?? null
     : result.acceptedVenueId.source === "route-v2" || result.acceptedVenueId.source === "route-legacy"
       ? result.routePreview?.value.anchorSource ?? null
-      : null;
+      : null);
   const acceptedAnchor = acceptedVenueId && acceptedSource
-    ? {
+    ? draftAnchor ?? {
         venueId: acceptedVenueId,
         source: acceptedSource,
         cityId: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
@@ -130,7 +133,7 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
     acceptedAnchor,
     area: result.area.value,
     // Accepted context is always visible for a real acceptance.
-    showAcceptedSummary: Boolean(acceptedVenueId) && isAcceptanceSource(result.acceptedVenueId.source),
+    showAcceptedSummary: Boolean(acceptedVenueId) && (Boolean(draftAnchor) || isAcceptanceSource(result.acceptedVenueId.source)),
     answeredArea: isAnswered(result.area.source),
     answeredDate: isAnswered(result.startsAt.source),
     conflicts: result.conflicts,

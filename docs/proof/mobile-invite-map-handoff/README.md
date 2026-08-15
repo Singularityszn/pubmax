@@ -4,7 +4,7 @@ Production-browser proof for the public Plan invite flow.
 
 | Proof | Viewport | Contract |
 | --- | ---: | --- |
-| `invite-before-rsvp-390-light.png` | 390 x 844 | No Map action before RSVP |
+| `invite-before-rsvp-390-light.png` | 390 x 844 | Superseded initial-state capture, not current acceptance evidence |
 | `invite-after-rsvp-320-light.png` | 320 x 844 | Confirmed RSVP and full-width Map action |
 | `invite-after-rsvp-390-light.png` | 390 x 844 | Confirmed RSVP and full-width Map action |
 | `invite-after-rsvp-430-light.png` | 430 x 844 | Confirmed RSVP and full-width Map action |
@@ -14,8 +14,8 @@ Production-browser proof for the public Plan invite flow.
 
 The [product spec](../../../specs/mobile-invite-rsvp-map-handoff.md) defines the
 handoff. The [Playwright spec](../../../e2e/mobile-invite-map-prompt.spec.ts)
-owns current browser assertions for server-confirmed visibility, failure
-posture, ordered Map routing, mobile geometry, focus order, and rendered
+owns current browser assertions for initial, returning, confirmed, and failed
+RSVP visibility, ordered Map routing, mobile geometry, focus order, and rendered
 contrast.
 
 Run clean validation with:

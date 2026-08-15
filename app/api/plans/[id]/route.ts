@@ -5,8 +5,8 @@ import { publicApiError } from "@/lib/apiError";
 import { isPlanId, PLANNED_NIGHT_STATUSES, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import { cleanNightContext } from "@/lib/nightPlanning";
 import {
+  readPlanGroundingClaims,
   verifyAnchoredPlanGroundingProofV2,
-  verifyPlanGroundingProof,
   type PlanGroundingRejectionV2,
 } from "@/lib/planGrounding.server";
 import { planMemberCapability } from "@/lib/planMemberCapability";
@@ -59,7 +59,7 @@ function checkAnchoredUpgrade(
   // V2 "your proof is malformed" 422 would refuse a save that main allowed.
   // Only OUR signature can reach this branch, so a forged or tampered proof
   // still falls through to the strict V2 verification below.
-  if (verifyPlanGroundingProof(groundingProof, routeVenueIds, operationKey)) {
+  if (readPlanGroundingClaims(groundingProof, routeVenueIds, operationKey)) {
     return { groundedUpgrade: false, upgradeAnchored: false };
   }
   const verdict = verifyAnchoredPlanGroundingProofV2(groundingProof, routeVenueIds, operationKey);

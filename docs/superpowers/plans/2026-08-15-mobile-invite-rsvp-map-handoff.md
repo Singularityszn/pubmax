@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use test-driven development and execute this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Show one ordered Map continuation only after a public invite guest completes a server-confirmed RSVP.
+**Goal:** Keep one ordered Map continuation available throughout an authorised public invite visit.
 
-**Architecture:** Keep RSVP completion state inside `PlanInviteRsvp`, because it owns the POST result. Pass the server-ordered Venue IDs from the invite page into that client island, move the existing `InviteMapLink` into the success branch, and reuse existing Crawl Route URL and analytics seams.
+**Architecture:** Pass server-ordered Venue IDs into `PlanInviteRsvp` and render `InviteMapLink` independently from the live RSVP result. Reuse existing Crawl Route URL and analytics seams.
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, CSS, Playwright, Vitest.
 
@@ -37,15 +37,15 @@
 
 - Consumes: `PlanInviteRsvp({ token, planId, initialRsvp, initialReactions, venueIds })`
 - Consumes: `InviteMapLink({ venueIds })`
-- Produces: visible `Open these stops on the map` native link after confirmed RSVP
+- Produces: visible `Open these stops on the map` native link for every valid invite route
 - Produces: existing `invite_map_opened` event on link click
 
 - [ ] **Step 1: Write failing public-browser tests**
 
 Create a 390x844 Playwright test that creates a real three-stop Plan and opens
-its public invite in an anonymous page. Before RSVP, assert no Map link. Submit
+its public invite in an anonymous page. Before RSVP, assert the Map link. Submit
 Going through the rendered form. After server-confirmed guest row appears,
-assert:
+assert that the same link remains:
 
 ```ts
 const handoff = page.getByRole("link", { name: "Open these stops on the map" });
@@ -59,8 +59,8 @@ await expect(handoff).toHaveAttribute(
 Assert target height is at least 44px, document width equals 390px, keyboard
 Tab reaches the link after the RSVP action, and click navigates to the ordered
 Map URL. Add a second test that intercepts the RSVP POST with 503 and asserts
-the inline error plus no handoff. Update the existing invite-loop test so it
-expects the Map link after, not before, the RSVP.
+the inline error plus the retained handoff. Update the existing invite-loop test
+so it expects the Map link before and after the RSVP.
 
 - [ ] **Step 2: Run RED proof**
 
@@ -72,30 +72,25 @@ PW_SKIP_WEBSERVER=1 PW_PORT=3101 \
   --project=chromium --workers=1 --retries=0
 ```
 
-Expected: failure because the current invite renders a pre-RSVP link with the
-old label and has no success-owned handoff.
+Expected: failure if any RSVP state hides the Map handoff.
 
-- [ ] **Step 3: Implement minimal success-owned state**
+- [ ] **Step 3: Implement RSVP-independent handoff**
 
-Add `venueIds: string[]` to `PlanInviteRsvp`. Add a local boolean that starts
-false and becomes true only inside the valid `data.summary` branch after
-`setRsvp(data.summary)`. Do not set it for non-OK responses, thrown requests, or
-missing summaries.
+Add `venueIds: string[]` to `PlanInviteRsvp`. Keep the RSVP result responsible
+for status and counts only. Do not use it to gate Map access.
 
 Render this after the form error lane and before reactions:
 
 ```tsx
-{rsvpCommitted && venueIds.some(Boolean) ? (
+{venueIds.some(Boolean) ? (
   <div className="inviteRsvp__mapPrompt">
-    <p className="inviteRsvp__status" role="status">RSVP saved.</p>
     <InviteMapLink venueIds={venueIds} />
   </div>
 ) : null}
 ```
 
-Pass ordered `stops.map((stop) => stop.venueId)` from the server page. Remove
-the server page's static `InviteMapLink`. Change the link copy to
-`Open these stops on the map`.
+Pass ordered `stops.map((stop) => stop.venueId)` from the server page. Keep one
+`InviteMapLink` owner. Change the link copy to `Open these stops on the map`.
 
 - [ ] **Step 4: Apply product-specific mobile styling**
 
@@ -113,7 +108,7 @@ blocks the next step.
 - [ ] **Step 6: Capture and inspect production screenshots**
 
 Build with a dedicated `NEXT_DIST_DIR` and 4GB Node heap. Capture 320px, 390px,
-and 430px success states. Inspect visual hierarchy, target sizes, overflow,
+and 430px initial and confirmed states. Inspect visual hierarchy, target sizes, overflow,
 focus ring, long Venue names, light mode, dark mode, and reduced motion.
 
 - [ ] **Step 7: Independent review and commit**
