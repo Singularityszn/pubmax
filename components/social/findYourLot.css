@@ -159,7 +159,9 @@
 
 /* Touch target floor (see app/discover/discover.css). This is the second
    action in the invite row, beside a real button, so it is a control rather
-   than a link in a sentence — and it painted 16px tall. Coarse pointers only. */
+   than a link in a sentence, and it painted 16px tall. Coarse pointers only.
+   The base rule also exists in app/social/social.css; collapse that older
+   duplication later, but keep this floor with its component owner. */
 @media (pointer: coarse) {
   .findLot__ghost {
     display: inline-flex;

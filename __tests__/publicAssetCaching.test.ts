@@ -70,18 +70,21 @@ function walk(dir: string, acc: string[] = []): string[] {
 const publicFiles = walk(PUBLIC_DIR);
 const filesOutsideData = publicFiles.filter((file) => !file.startsWith("/data/"));
 
-const CLASS_A_PREFIXES = ["/fonts/", "/landing/", "/night-signals/"];
+const LANDING_IMAGE_PATTERN = /\.(?:avif|webp|jpg)$/i;
+const CLASS_A_PREFIXES = ["/fonts/", "/night-signals/"];
 const CLASS_A_PROBES = [
   "/fonts/example.woff2",
-  "/landing/example.avif",
+  "/landing/hero-thames-1600.avif",
   "/night-signals/example.svg",
 ];
 const CLASS_A = filesOutsideData.filter((file) =>
-  CLASS_A_PREFIXES.some((prefix) => file.startsWith(prefix)),
+  CLASS_A_PREFIXES.some((prefix) => file.startsWith(prefix)) ||
+  (file.startsWith("/landing/") && LANDING_IMAGE_PATTERN.test(file)),
 );
 
 const CLASS_B = filesOutsideData.filter(
   (file) =>
+    (file.startsWith("/landing/") && !LANDING_IMAGE_PATTERN.test(file)) ||
     file.startsWith("/vendor/") ||
     file.startsWith("/store-assets/") ||
     file.startsWith("/brand/") ||
@@ -135,6 +138,16 @@ describe("public asset caching", () => {
 
   it("never marks an edited-in-place or crawler asset immutable", () => {
     for (const file of [...CLASS_B, ...CLASS_C, "/data/venues_slim.json"]) {
+      expect(cacheControlFor(file) ?? "", file).not.toContain("immutable");
+    }
+  });
+
+  it("keeps public text mutable while landing images stay immutable", () => {
+    expect(cacheControlFor("/landing/ATTRIBUTION.md")).toBe(EDITED_IN_PLACE_CACHE);
+    expect(cacheControlFor("/landing/hero-thames-1600.avif")).toBe(IMMUTABLE_CACHE);
+
+    const textFiles = publicFiles.filter((file) => /\.(?:md|txt)$/i.test(file));
+    for (const file of textFiles) {
       expect(cacheControlFor(file) ?? "", file).not.toContain("immutable");
     }
   });

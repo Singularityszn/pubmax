@@ -310,15 +310,11 @@ const nextConfig = {
           { key: "Cache-Control", value: UNHASHED_PUBLIC_ASSET_CACHE_CONTROL },
         ],
       },
-      // Class A: checked-in typefaces, the preloaded landing hero set and Night
-      // Signal art. These are replaced by adding a file, never by editing one
-      // in place or by writing it during a build.
-      cacheRule("/fonts/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
-      cacheRule("/landing/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
-      cacheRule("/night-signals/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
       // Class B: vendor workers and store exports are generated into fixed
       // paths. Icons, brand marks, boot scripts, manifest and datasets are also
-      // fixed URLs edited in place across deploys.
+      // fixed URLs edited in place across deploys. Landing non-images use this
+      // class by default because provenance text changes in place.
+      cacheRule("/landing/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/vendor/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/store-assets/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/:icon(icon-.*\\.png)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
@@ -331,6 +327,15 @@ const nextConfig = {
       cacheRule("/brand/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/:boot(theme-init\\.js|splash-init\\.js)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/manifest.webmanifest", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      // Class A: checked-in typefaces, landing images and Night Signal art are
+      // replaced by adding a file, never by editing one in place or by writing
+      // it during a build. These specific landing rules follow the Class B
+      // fallback so future non-image files cannot inherit immutable caching.
+      cacheRule("/fonts/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/landing/:image(.*\\.avif)", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/landing/:image(.*\\.webp)", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/landing/:image(.*\\.jpg)", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule("/night-signals/:path*", IMMUTABLE_PUBLIC_ASSET_CACHE_CONTROL),
       // Class C: llms.txt is edited in place and read by crawlers and agents.
       cacheRule("/llms.txt", SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL),
       // Declared AFTER the asset rules on purpose: a later matching rule wins,
