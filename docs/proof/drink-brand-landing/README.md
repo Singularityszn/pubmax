@@ -8,21 +8,17 @@ Browser proof for `/drink/guinness`.
 | `guinness-390-dark.png` | 390 × 844 | Mobile landing in dark theme |
 | `guinness-1440-light.png` | 1440 × 900 | Desktop landing in light theme |
 
-The Playwright journey also checks 320 × 844 and 430 × 932. It verifies the
-governed 347-venue count, 20 cheapest rows, first result, publisher state,
-hero price publisher, shared collection date, touch targets, page width, Map
-brand state, Back restoration, the explicit log picker, and the unknown-brand
-404. At 320, 390, and 430 pixels, every one of the 20 rank and price elements
-must be visible and horizontally inside the viewport. Focus proof covers the
-primary action, secondary action, Ledger row link, hero publisher link, and row
-publisher link; shared route CSS covers the remaining links of each repeated
-type. Light and dark proof also checks that the hero publisher link uses the
-active PUBMAXX ink token instead of browser link colours.
+These controlled images record mobile light and dark rendering plus desktop
+rendering. The [Playwright spec](../../../e2e/drink-brand-landing.spec.ts) owns
+current browser assertions and regenerates the artifacts.
 
 Run the proof with:
 
 ```bash
-npx playwright test e2e/drink-brand-landing.spec.ts --project=chromium --workers=1
+CI=1 NODE_OPTIONS=--max-old-space-size=4096 \
+  PW_PORT=35131 \
+  PW_NEXT_DIST_DIR=.next-drink-brand-proof \
+  npx playwright test e2e/drink-brand-landing.spec.ts --project=chromium --workers=1
 ```
 
 Screenshots are produced by the test. They use reduced motion, fixed viewport

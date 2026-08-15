@@ -27,7 +27,7 @@ Publish useful London brand-price pages from PUBMAXX Pint Price evidence. A sear
 ## Public Routes
 
 - Route family: `/drink/[slug]`.
-- Current eligible slugs: `guinness`, `neck-oil`, `estrella`, `peroni`, `amstel`, `madri`, `camden-hells`, and `birra-moretti`.
+- Current eligible slugs come from [`DRINK_BRANDS.beer`](../../lib/drinkBrands.ts), the [governed loader](../../lib/drinkBrandLanding.server.ts), and its [domain](../../__tests__/drinkBrandLanding.test.ts), [page](../../__tests__/drinkBrandLandingPage.test.ts), and [sitemap](../../__tests__/sitemap.test.ts) tests. Publication still requires the Data Boundary rule above.
 - Unsupported and below-floor brands return 404, use noindex metadata, stay out of static params, and stay out of sitemap.
 - Canonical URL: `/drink/{slug}`.
 - Map URL: `/map?drink=beer&brand={slug}`.
@@ -60,4 +60,4 @@ Publish useful London brand-price pages from PUBMAXX Pint Price evidence. A sear
 
 - Domain and page tests prove exact row binding, publisher binding, floor, stable sorting, 404, metadata, Map and contribution destinations, collection date, and JSON-LD.
 - Sitemap tests prove the exact governed route set.
-- Browser proof covers 320x844, 390x844 light and dark, 430x932, and 1440x900. It proves above-fold answer and actions, touch sizes, keyboard focus, no horizontal overflow, Map lens state, brand-preserving log flow, Back restoration, console errors, and unknown-brand 404.
+- [Browser proof](../proof/drink-brand-landing/README.md) records the controlled visual artifacts. The [Playwright spec](../../e2e/drink-brand-landing.spec.ts) owns current browser assertions.

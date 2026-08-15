@@ -92,6 +92,7 @@ Local keyless demos may leave it empty to keep labelled seed content visible.
 ## Deeper docs
 
 - **`teach.md`** — full repo tour: architecture, data model, map lifecycle, backend, trust boundaries, with `file:line` anchors.
+- **[`docs/specs/governed-drink-brand-landings.md`](docs/specs/governed-drink-brand-landings.md)** - publication, trust, and proof contract for brand Pint Price pages.
 - **[`docs/MOBILE_FLOW_SPEC.md`](docs/MOBILE_FLOW_SPEC.md)** - mobile transition, Back, and state-preservation principles.
 - **[`docs/MAP_URL_PARAMS.md`](docs/MAP_URL_PARAMS.md)** - map URL ownership, validation, and history rules.
 - **`docs/DEPLOYMENT.md`** — reproducible Vercel + Supabase + OpenRouter runbook.
