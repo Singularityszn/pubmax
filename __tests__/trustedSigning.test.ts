@@ -115,7 +115,10 @@ describe("externally trusted signing keys", () => {
     expect(
       keylessProjects.find((project) => project.name === "chromium-keyless")
         ?.testMatch,
-    ).toBe("**/price-contribution-entry.spec.ts");
+    ).toEqual([
+      "**/price-contribution-entry.spec.ts",
+      "**/ui-ux-battle-test-keyless.spec.ts",
+    ]);
 
     vi.stubEnv(
       "NEXT_PUBLIC_SUPABASE_URL",

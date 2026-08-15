@@ -134,7 +134,9 @@ describe("signed-out sign-in surface", () => {
 
     const html = renderToStaticMarkup(createElement(SignInButton));
 
-    expect(html).toBe("");
+    expect(html).toBe(
+      '<span hidden="" data-auth-configured="false" data-auth-resolved="false"></span>',
+    );
     expect(html).not.toContain('aria-label="Continue with Google"');
     expect(html).not.toContain("Continue with Apple");
     expect(html).not.toContain("Continue with email");
