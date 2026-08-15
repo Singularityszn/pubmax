@@ -82,6 +82,11 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page })
     .getByRole("button", { name: /^Make .+ Stop 1$/ });
   await expect(acceptStop1).toBeVisible({ timeout: 30_000 });
   await expect(acceptStop1).toHaveText("Make it Stop 1");
+  // The acceptance markers must survive the Venue detail load. Canonicalising
+  // the selected id is the SAME pub resolving its own name, never a switch to
+  // another one, so it may not quietly turn an accepted arrival into browsing.
+  await expect(page).toHaveURL(/[?&]accept=1(&|$)/);
+  await expect(page).toHaveURL(/[?&]src=near(&|$)/);
   await page.screenshot({
     path: "docs/proof/venue-acceptance/accepted-map-390-light.png",
   });

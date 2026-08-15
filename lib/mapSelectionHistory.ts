@@ -192,3 +192,40 @@ export function selectionTransition(input: {
   }
   return input.currentSentinelVenueId !== null ? { kind: "back" } : { kind: "strip" };
 }
+
+/** What a resolved Venue detail should do to the selection URL. */
+export type SelectionResolution =
+  /** Leave the URL alone. */
+  | { kind: "none" }
+  /** The SAME pub answered to a canonical id: rewrite `sel` to it. */
+  | { kind: "canonicalise"; venueId: string }
+  /** A `sel` that never landed in the trail: strip the selection params. */
+  | { kind: "clean" };
+
+/**
+ * Decide what a landed Venue detail owes the URL.
+ *
+ * The cleanup case exists for a `sel` the trail never took up. It must not
+ * catch a Venue that simply answered to its own id: an accepted arrival
+ * (`?sel=…&accept=1&src=near`) resolves its detail while the trail is still
+ * initialising, so the cleanup used to strip the acceptance markers seconds
+ * after arrival, and a reload then read the arrival as ordinary browsing.
+ * Nothing resolved is nothing to do.
+ */
+export function selectionResolution(input: {
+  requestedVenueId: string;
+  canonicalVenueId: string;
+  /** The trail's current Venue surface id, or null when it is not a Venue. */
+  currentVenueId: string | null;
+  /** `sel` as the URL carries it right now. */
+  liveSelectedVenueId: string | null;
+}): SelectionResolution {
+  const requested = input.requestedVenueId.trim();
+  const canonical = input.canonicalVenueId.trim();
+  if (!requested || !canonical) return { kind: "none" };
+  if (requested === canonical) return { kind: "none" };
+  if (input.currentVenueId === requested) {
+    return { kind: "canonicalise", venueId: canonical };
+  }
+  return input.liveSelectedVenueId === requested ? { kind: "clean" } : { kind: "none" };
+}

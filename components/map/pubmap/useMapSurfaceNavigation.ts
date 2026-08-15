@@ -19,6 +19,7 @@ import {
   cleanMapUrl,
   refreshSelectionUrl,
   searchHasSelection,
+  selectionResolution,
 } from "@/lib/mapSelectionHistory";
 import {
   ROOT_SURFACE_STACK,
@@ -245,22 +246,27 @@ export function useMapSurfaceNavigation({
       const held = stackRef.current;
       const current = currentSurface(held);
       const { pathname, search, hash } = window.location;
-      if (current?.id === "venue" && current.state?.venueId === requestedVenueId) {
-        if (requestedVenueId === canonicalVenueId) return;
+      const resolution = selectionResolution({
+        requestedVenueId,
+        canonicalVenueId,
+        currentVenueId: current?.id === "venue" ? current.state?.venueId ?? null : null,
+        liveSelectedVenueId: new URLSearchParams(search).get("sel"),
+      });
+      if (resolution.kind === "none") return;
+      if (resolution.kind === "canonicalise" && current?.id === "venue") {
         const resolvedEntry = {
           ...current,
-          state: { ...current.state, venueId: canonicalVenueId },
+          state: { ...current.state, venueId: resolution.venueId },
         };
         const next = [...held.slice(0, -1), resolvedEntry] as SurfaceStack<MapSurfaceState>;
         publishStack(next);
         window.history.replaceState(
-          stampMapSurfaceHistory(window.history.state, next, canonicalVenueId),
+          stampMapSurfaceHistory(window.history.state, next, resolution.venueId),
           "",
-          browseSelectionUrl(pathname, search, canonicalVenueId, hash),
+          browseSelectionUrl(pathname, search, resolution.venueId, hash),
         );
         return;
       }
-      if (new URLSearchParams(search).get("sel") !== requestedVenueId) return;
       window.history.replaceState(
         stampMapSurfaceHistory(window.history.state, held, selectedVenueId(held)),
         "",

@@ -9,6 +9,7 @@ import {
   PUBMAX_SELECTION_SENTINEL,
   refreshSelectionUrl,
   searchHasSelection,
+  selectionResolution,
   selectionSentinel,
   selectionSentinelVenueId,
   selectionTransition,
@@ -193,5 +194,70 @@ describe("selectionTransition", () => {
     expect(selectionTransition({ prev: "v1", next: "", currentSentinelVenueId: null })).toEqual({
       kind: "strip",
     });
+  });
+});
+
+describe("selectionResolution", () => {
+  // The regression: an accepted arrival (?sel=…&accept=1&src=near) resolves its
+  // Venue detail while the surface trail is still initialising, so the
+  // stale-sel cleanup fired on a Venue that had simply answered to its own id.
+  // It stripped the acceptance markers seconds after arrival, and the reload
+  // after that read a kept pub as ordinary browsing.
+  it("does nothing when the Venue answered to its own id", () => {
+    for (const currentVenueId of ["venue-a", null, "venue-other"]) {
+      expect(selectionResolution({
+        requestedVenueId: "venue-a",
+        canonicalVenueId: "venue-a",
+        currentVenueId,
+        liveSelectedVenueId: "venue-a",
+      })).toEqual({ kind: "none" });
+    }
+  });
+
+  it("canonicalises the selected Venue when its id really moved", () => {
+    expect(selectionResolution({
+      requestedVenueId: "venue-merged",
+      canonicalVenueId: "venue-canonical",
+      currentVenueId: "venue-merged",
+      liveSelectedVenueId: "venue-merged",
+    })).toEqual({ kind: "canonicalise", venueId: "venue-canonical" });
+  });
+
+  it("cleans a sel the trail never took up", () => {
+    expect(selectionResolution({
+      requestedVenueId: "venue-merged",
+      canonicalVenueId: "venue-canonical",
+      currentVenueId: null,
+      liveSelectedVenueId: "venue-merged",
+    })).toEqual({ kind: "clean" });
+  });
+
+  it("leaves a URL that has already moved on alone", () => {
+    expect(selectionResolution({
+      requestedVenueId: "venue-merged",
+      canonicalVenueId: "venue-canonical",
+      currentVenueId: null,
+      liveSelectedVenueId: "venue-somewhere-else",
+    })).toEqual({ kind: "none" });
+    expect(selectionResolution({
+      requestedVenueId: "",
+      canonicalVenueId: "venue-canonical",
+      currentVenueId: null,
+      liveSelectedVenueId: null,
+    })).toEqual({ kind: "none" });
+  });
+
+  it("keeps the acceptance markers on a URL it decides to leave alone", () => {
+    // The behavioural half: "none" means the arrival URL is untouched, so the
+    // markers verifiedAcceptedArrivalSource reads are still there.
+    const search = "?sel=venue-a&accept=1&src=near";
+    expect(selectionResolution({
+      requestedVenueId: "venue-a",
+      canonicalVenueId: "venue-a",
+      currentVenueId: null,
+      liveSelectedVenueId: "venue-a",
+    }).kind).toBe("none");
+    // For contrast, the cleanup really does take them.
+    expect(cleanMapUrl("/map", search)).toBe("/map");
   });
 });
