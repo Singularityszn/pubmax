@@ -7,7 +7,7 @@ import type { Venue, VenuePrice } from "@/lib/venues";
 export const DRINK_BRAND_LANDING_PUBLICATION_FLOOR = 20;
 export const DRINK_BRAND_LANDING_ROW_LIMIT = 20;
 
-type DrinkBrandLandingPublisher = NonNullable<
+export type DrinkBrandLandingPublisher = NonNullable<
   ReturnType<typeof namedLegacyPintPriceSource>
 >;
 
@@ -57,6 +57,14 @@ function validMatchingPriceRows(venue: Venue, brand: (typeof DRINK_BRANDS.beer)[
   );
 }
 
+/** Select the one exact, cheapest matching beer-brand row owned by a Venue. */
+export function selectDrinkBrandPriceForVenue(
+  venue: Venue,
+  brand: (typeof DRINK_BRANDS.beer)[number],
+): VenuePrice | null {
+  return validMatchingPriceRows(venue, brand).sort(comparePriceRows)[0] ?? null;
+}
+
 export function buildDrinkBrandLanding(
   slug: string,
   venues: readonly Venue[],
@@ -66,7 +74,7 @@ export function buildDrinkBrandLanding(
 
   const candidates = venues.flatMap((venue) => {
     if (!isPubVenueKind(venue.kind)) return [];
-    const selected = validMatchingPriceRows(venue, brand).sort(comparePriceRows)[0];
+    const selected = selectDrinkBrandPriceForVenue(venue, brand);
     if (!selected || typeof selected.price_gbp !== "number") return [];
     return [
       {
