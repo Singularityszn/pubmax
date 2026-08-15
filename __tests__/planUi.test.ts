@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { planViewModel, shareCopyForPlan, stopsFromAnswerCards, stopsFromConcierge } from "@/components/plan/planPresentation";
 import {
   parsePendingRoute,
+  canBeginPlanRouteEdit,
   planSummaryGenerationBody,
   planSummaryRouteUpdateBody,
   routeHasChanged,
@@ -126,6 +127,27 @@ describe("anchored Plan route editing", () => {
       groundingProof: "signed-v2",
       operationKey: "upgrade-op-01",
     });
+  });
+
+  it("hides anchored route editing from guests but keeps it for the host", () => {
+    expect(canBeginPlanRouteEdit({
+      hasMemberToken: true,
+      collaborationAuthorized: true,
+      isHost: false,
+      anchoredPlan: true,
+    })).toBe(false);
+    expect(canBeginPlanRouteEdit({
+      hasMemberToken: true,
+      collaborationAuthorized: true,
+      isHost: true,
+      anchoredPlan: true,
+    })).toBe(true);
+    expect(canBeginPlanRouteEdit({
+      hasMemberToken: true,
+      collaborationAuthorized: true,
+      isHost: false,
+      anchoredPlan: false,
+    })).toBe(true);
   });
 });
 

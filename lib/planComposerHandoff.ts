@@ -43,6 +43,7 @@ export type ComposerHydration = {
     cityId: CityId | null;
     acceptedArea: PlanningIntentArea;
     startsAt: string | null;
+    expiresAt: string | null;
   } | null;
   area: PlanningIntentArea;
   /** Show the accepted Venue/area/date summary before intake. */
@@ -113,6 +114,9 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
         startsAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
           ? input.planningIntent.startsAt
           : result.startsAt.value,
+        expiresAt: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
+          ? input.planningIntent.expiresAt
+          : null,
       }
     : null;
   const active = Boolean(

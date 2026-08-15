@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   anchorConflictMessage,
   composerCreatePayload,
+  composerRouteMutation,
+  createdPlanNeedsReadyTransition,
   editedPlanStop,
   errorMessageFromBody,
   applyPlanStopCount,
@@ -97,7 +99,7 @@ describe("PlanComposer accepted Stop 1 naming", () => {
     });
   });
 
-  it("drops accepted authority when a different indexed pub is selected", () => {
+  it("identifies a different indexed pub as an authority-changing edit", () => {
     expect(editedPlanStop({
       stop: accepted,
       venueName: "Different Arms",
@@ -107,6 +109,103 @@ describe("PlanComposer accepted Stop 1 naming", () => {
       stop: { venueId: "venue-different" },
       preservesAcceptedAuthority: false,
     });
+  });
+});
+
+describe("PlanComposer route mutation authority", () => {
+  const current = [
+    { key: 1, venueId: "accepted", venueName: "Accepted", alternatives: [] },
+    { key: 2, venueId: "second", venueName: "Second", alternatives: [] },
+    { key: 3, venueId: "third", venueName: "Third", alternatives: [] },
+  ];
+  const authority = {
+    groundingProof: "signed-proof",
+    createOperationKey: "operation-key",
+    planAnchor: { venueId: "accepted", source: "near", outcome: "route" } as const,
+    routeStale: false,
+  };
+
+  it.each([
+    ["edits Stop 2", current.map((stop, index) => index === 1 ? { ...stop, venueId: "replacement", venueName: "Replacement" } : stop)],
+    ["removes Stop 3", current.slice(0, 2)],
+    ["adds a Stop", [...current, { key: 4, venueId: "fourth", venueName: "Fourth", alternatives: [] }]],
+  ])("invalidates exact-route proof when it %s", (_label, nextStops) => {
+    expect(composerRouteMutation({
+      currentStops: current,
+      nextStops,
+      acceptedVenueId: "accepted",
+      ...authority,
+    })).toMatchObject({
+      accepted: true,
+      stops: nextStops,
+      groundingProof: null,
+      createOperationKey: null,
+      planAnchor: authority.planAnchor,
+      routeStale: true,
+    });
+  });
+
+  it("refuses a mutation that removes accepted Stop 1", () => {
+    expect(composerRouteMutation({
+      currentStops: current,
+      nextStops: current.slice(1),
+      acceptedVenueId: "accepted",
+      ...authority,
+    })).toMatchObject({
+      accepted: false,
+      stops: current,
+      groundingProof: "signed-proof",
+      planAnchor: authority.planAnchor,
+      routeStale: false,
+    });
+  });
+
+  it("keeps authority when only accepted Stop 1 display text changes", () => {
+    const nextStops = [{ ...current[0]!, venueName: "Resolved name" }, ...current.slice(1)];
+    expect(composerRouteMutation({
+      currentStops: current,
+      nextStops,
+      acceptedVenueId: "accepted",
+      ...authority,
+    })).toMatchObject({
+      accepted: true,
+      stops: nextStops,
+      groundingProof: "signed-proof",
+      createOperationKey: "operation-key",
+      routeStale: false,
+    });
+  });
+});
+
+describe("PlanComposer created Plan readiness", () => {
+  const plan = {
+    id: "11111111-1111-4111-8111-111111111111",
+    title: "Tonight",
+    startTime: "2026-08-15T19:00:00.000Z",
+    createdAt: "2026-08-15T12:00:00.000Z",
+    status: "draft" as const,
+    anchorVenueId: "accepted",
+    anchorSource: "near" as const,
+  };
+
+  it("keeps an anchor-only one-Stop Plan in draft", () => {
+    expect(createdPlanNeedsReadyTransition({
+      plan: { ...plan, outcome: "anchor-only", routeReadyAt: null },
+      stops: [{ venueId: "accepted", venueName: "Accepted", position: 0 }],
+      crew: [],
+    })).toBe(false);
+  });
+
+  it("marks only a grounded route with its readiness timestamp", () => {
+    expect(createdPlanNeedsReadyTransition({
+      plan: { ...plan, outcome: "route", routeReadyAt: "2026-08-15T12:00:00.000Z" },
+      stops: [
+        { venueId: "accepted", venueName: "Accepted", position: 0 },
+        { venueId: "second", venueName: "Second", position: 1 },
+        { venueId: "third", venueName: "Third", position: 2 },
+      ],
+      crew: [],
+    })).toBe(true);
   });
 });
 

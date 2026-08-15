@@ -10,7 +10,7 @@
 // venue-tied pint evidence, member/invite capability, or the user-entered title.
 
 import { NIGHT_AREAS } from "@/lib/nightAreas";
-import type { PlanState } from "@/lib/plan";
+import { planRouteReady as isGroundedPlanRouteReady, type PlanState } from "@/lib/plan";
 import { vibeChipById } from "@/lib/vibeChips";
 import type { VibeTally } from "@/lib/vibeTally";
 
@@ -59,15 +59,8 @@ function resolveAreaName(slug: string | null | undefined): string | null {
   return NIGHT_AREAS.find((candidate) => candidate.slug === slug)?.name ?? null;
 }
 
-/**
- * Server-derived readiness. Until S09 lands `routeReadyAt`, derive an honest
- * proxy from the Plan lifecycle: any non-draft, non-abandoned status means the
- * route has become usable. Legacy records without a status read as draft ⇒ not
- * ready, which is the safe under-claim.
- */
 export function planRouteReady(state: PlanState): boolean {
-  const status = state.plan.status;
-  return Boolean(status && status !== "draft" && status !== "abandoned");
+  return isGroundedPlanRouteReady(state.plan, state.stops.length);
 }
 
 /**

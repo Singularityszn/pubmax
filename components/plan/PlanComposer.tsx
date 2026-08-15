@@ -31,6 +31,7 @@ import {
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { isPlanStopCount, normalizePlanStopCount, PLAN_STOP_COUNTS, type PlanStopCount } from "@/lib/planStopCount";
+import { planRouteReady, type PlanState } from "@/lib/plan";
 import { parsePlanDraft, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
 import {
@@ -81,6 +82,47 @@ export type DraftStop = {
   reason?: string;
   alternatives: RouteAlternative[];
 };
+
+export type ComposerRouteMutation = {
+  accepted: boolean;
+  stops: DraftStop[];
+  groundingProof: string | null;
+  createOperationKey: string | null;
+  planAnchor: GeneratedPlanAnchor | null;
+  routeStale: boolean;
+};
+
+export function composerRouteMutation(input: {
+  currentStops: DraftStop[];
+  nextStops: DraftStop[];
+  acceptedVenueId?: string | null;
+  groundingProof: string | null;
+  createOperationKey: string | null;
+  planAnchor: GeneratedPlanAnchor | null;
+  routeStale: boolean;
+}): ComposerRouteMutation {
+  const anchorVenueId = input.planAnchor?.venueId ?? input.acceptedVenueId ?? null;
+  if (anchorVenueId && input.nextStops[0]?.venueId !== anchorVenueId) {
+    return {
+      accepted: false,
+      stops: input.currentStops,
+      groundingProof: input.groundingProof,
+      createOperationKey: input.createOperationKey,
+      planAnchor: input.planAnchor,
+      routeStale: input.routeStale,
+    };
+  }
+  const identityChanged = input.currentStops.length !== input.nextStops.length
+    || input.currentStops.some((stop, index) => stop.venueId !== input.nextStops[index]?.venueId);
+  return {
+    accepted: true,
+    stops: input.nextStops,
+    groundingProof: identityChanged ? null : input.groundingProof,
+    createOperationKey: identityChanged ? null : input.createOperationKey,
+    planAnchor: input.planAnchor,
+    routeStale: identityChanged || input.routeStale,
+  };
+}
 
 export function editedPlanStop(input: {
   stop: DraftStop;
@@ -209,6 +251,10 @@ export function planCreationConsumesPlanningIntent(
   stops: ReadonlyArray<{ venueId: string }>,
 ): boolean {
   return Boolean(intent && stops[0]?.venueId === intent.acceptedVenueId);
+}
+
+export function createdPlanNeedsReadyTransition(state: PlanState): boolean {
+  return planRouteReady(state.plan, state.stops.length);
 }
 
 function settleConsumedPlanningIntent(stops: ReadonlyArray<{ venueId: string }>): void {
@@ -935,6 +981,7 @@ function PlanComposerForm({
       || null
     : null;
   const acceptedCityId = handoff?.acceptedAnchor?.cityId ?? DEFAULT_CITY_ID;
+  const acceptedStop1VenueId = planAnchor?.venueId ?? handoff?.acceptedVenueId ?? null;
   const completeStopIds = completeStops.map((stop) => stop.venueId);
   const matchingAnchorOnlyPlan = isMatchingAnchorOnlyPlan({
     groundingProof,
@@ -1004,14 +1051,18 @@ function PlanComposerForm({
   useEffect(() => {
     if (!canPersist) return;
     const acceptedAnchor = handoff?.acceptedAnchor;
+    const persistedAcceptedAnchor = acceptedAnchor?.expiresAt
+      && stops[0]?.venueId === acceptedAnchor.venueId
+      ? { ...acceptedAnchor, expiresAt: acceptedAnchor.expiresAt }
+      : null;
     writePlanDraftEnvelope({
       title,
       creatorName,
       startTime,
       conciergeQuery,
       stops,
-      ...(acceptedAnchor && stops[0]?.venueId === acceptedAnchor.venueId ? { acceptedAnchor } : {}),
-    }, acceptedAnchor && stops[0]?.venueId === acceptedAnchor.venueId ? "planning-intent" : "manual", sessionStorage);
+      ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
+    }, persistedAcceptedAnchor ? "planning-intent" : "manual", sessionStorage);
   }, [canPersist, conciergeQuery, creatorName, handoff?.acceptedAnchor, startTime, stops, title]);
 
   useEffect(() => {
@@ -1138,18 +1189,37 @@ function PlanComposerForm({
     }
   }
 
+  function applyStopIdentityMutation(nextStops: DraftStop[], status: string): boolean {
+    const mutation = composerRouteMutation({
+      currentStops: stops,
+      nextStops,
+      acceptedVenueId: handoff?.acceptedVenueId,
+      groundingProof,
+      createOperationKey,
+      planAnchor,
+      routeStale,
+    });
+    if (!mutation.accepted) {
+      setRouteStatus("The accepted pub stays as Stop 1. Refresh the route to change the other stops.");
+      return false;
+    }
+    setStops(mutation.stops);
+    setGroundingProof(mutation.groundingProof);
+    setCreateOperationKey(mutation.createOperationKey);
+    setPlanAnchor(mutation.planAnchor);
+    setRouteStale(mutation.routeStale);
+    if (mutation.routeStale) setRouteStatus(status);
+    return true;
+  }
+
   function chooseVenue(key: number, venueName: string) {
     const selected = stops.find((stop) => stop.key === key);
     if (!selected) return;
     const edited = editedPlanStop({ stop: selected, venueName, venues, acceptedVenueId: handoff?.acceptedVenueId });
-    setStops((current) => current.map((stop) => stop.key === key ? edited.stop : stop));
-    if (edited.preservesAcceptedAuthority) return;
-    // Manual edits are still canonicalized by POST /api/plans, but they no
-    // longer carry provenance from the generated candidate set.
-    setGroundingProof(null);
-    setCreateOperationKey(null);
-    setPlanAnchor(null);
-    setRouteStatus("Stop edited in the route preview. Review it before locking.");
+    applyStopIdentityMutation(
+      stops.map((stop) => stop.key === key ? edited.stop : stop),
+      "Stop edited in the route preview. Refresh the route before locking.",
+    );
   }
 
   function updateNightContext(patch: Partial<NightContext>) {
@@ -1177,8 +1247,10 @@ function PlanComposerForm({
       setRouteStatus("No other pub we can vouch for near that stop yet.");
       return;
     }
-    setStops((existing) => existing.map((stop) => stop.key === key ? next : stop));
-    setRouteStatus(`Stop ${stops.findIndex((stop) => stop.key === key) + 1} swapped to ${next.venueName}.`);
+    applyStopIdentityMutation(
+      stops.map((stop) => stop.key === key ? next : stop),
+      `Stop ${stops.findIndex((stop) => stop.key === key) + 1} swapped to ${next.venueName}. Refresh the route before locking.`,
+    );
   }
 
   async function sortWithConcierge(queryOverride?: string, intakeOverride?: PlanIntakeDraft) {
@@ -1364,17 +1436,19 @@ function PlanComposerForm({
       if (body.memberToken) {
         const planId = body.plan.plan.id as string;
         writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: true, role: "host" });
-        const metadataResponse = await fetch(`/api/plans/${planId}`, {
-          method: "PATCH",
-          headers: {
-            "content-type": "application/json",
-            authorization: `Bearer ${body.memberToken}`,
-          },
-          body: JSON.stringify({ status: "ready" }),
-        });
-        if (!metadataResponse.ok) {
-          discardBody(metadataResponse);
-          throw new Error("The route was created, but its details could not be saved. Try again.");
+        if (createdPlanNeedsReadyTransition(body.plan as PlanState)) {
+          const metadataResponse = await fetch(`/api/plans/${planId}`, {
+            method: "PATCH",
+            headers: {
+              "content-type": "application/json",
+              authorization: `Bearer ${body.memberToken}`,
+            },
+            body: JSON.stringify({ status: "ready" }),
+          });
+          if (!metadataResponse.ok) {
+            discardBody(metadataResponse);
+            throw new Error("The route was created, but its details could not be saved. Try again.");
+          }
         }
       }
       trackEvent("plan_saved", { stops: completeStops.length, grounded });
@@ -1604,10 +1678,10 @@ function PlanComposerForm({
                 type="button"
                 onClick={() => swapStop(stop.key)}
                 disabled={Boolean(
-                  (index === 0 && planAnchor?.venueId === stop.venueId)
+                  (index === 0 && acceptedStop1VenueId === stop.venueId)
                   || stop.alternatives.length === 0
                 )}
-                aria-label={index === 0 && planAnchor?.venueId === stop.venueId
+                aria-label={index === 0 && acceptedStop1VenueId === stop.venueId
                   ? `${stop.venueName} is the accepted Stop 1`
                   : stop.alternatives.length > 0
                     ? `Swap stop ${index + 1}, currently ${stop.venueName}`
@@ -1616,7 +1690,18 @@ function PlanComposerForm({
                 Swap{stop.alternatives.length > 0 ? ` · ${stop.alternatives.length}` : ""}
               </button>
               {stops.length > 1 ? (
-                <button className="planComposer__remove" type="button" onClick={() => setStops((current) => current.filter((item) => item.key !== stop.key))} aria-label={`Remove stop ${index + 1}`}>Remove</button>
+                <button
+                  className="planComposer__remove"
+                  type="button"
+                  onClick={() => applyStopIdentityMutation(
+                    stops.filter((item) => item.key !== stop.key),
+                    `Stop ${index + 1} removed. Refresh the route before locking.`,
+                  )}
+                  disabled={index === 0 && acceptedStop1VenueId === stop.venueId}
+                  aria-label={index === 0 && acceptedStop1VenueId === stop.venueId
+                    ? `${stop.venueName} is the accepted Stop 1`
+                    : `Remove stop ${index + 1}`}
+                >Remove</button>
               ) : null}
             </div>
           </div>
@@ -1624,7 +1709,18 @@ function PlanComposerForm({
         <datalist id="plan-venue-options">
           {venues.map((venue) => <option key={venue.id} value={venue.name}>{venue.address}</option>)}
         </datalist>
-        <button className="planComposer__add" type="button" disabled={stops.length >= 6} onClick={() => setStops((current) => current.length >= 6 ? current : [...current, { key: Math.max(0, ...current.map((stop) => stop.key)) + 1, venueId: "", venueName: "", alternatives: [] }])}>Add another stop</button>
+        <button
+          className="planComposer__add"
+          type="button"
+          disabled={stops.length >= 6}
+          onClick={() => {
+            if (stops.length >= 6) return;
+            applyStopIdentityMutation(
+              [...stops, { key: Math.max(0, ...stops.map((stop) => stop.key)) + 1, venueId: "", venueName: "", alternatives: [] }],
+              "Stop added. Refresh the route before locking.",
+            );
+          }}
+        >Add another stop</button>
       </fieldset>
 
       {error ? <PlanComposerErrorNotice message={error} /> : null}

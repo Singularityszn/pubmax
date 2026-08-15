@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   parsePlanDraftEnvelope,
+  PLAN_DRAFT_KEY,
   readPlanDraftEnvelope,
   writePlanDraftEnvelope,
   type ParsedPlanDraft,
@@ -138,6 +139,7 @@ describe("resolveComposerHydration", () => {
       cityId: "london",
       acceptedArea: { kind: "night-patch", id: "soho" },
       startsAt: "2026-07-24T20:00:00.000Z",
+      expiresAt: intent()?.expiresAt,
     });
     expect(hydration.showAcceptedSummary).toBe(true);
     expect(hydration.answeredArea).toBe(true);
@@ -162,6 +164,7 @@ describe("resolveComposerHydration", () => {
       cityId: "london",
       acceptedArea: null,
       startsAt: null,
+      expiresAt: planningIntent?.expiresAt,
     });
   });
 
@@ -211,6 +214,7 @@ describe("resolveComposerHydration", () => {
         cityId: "manchester",
         acceptedArea: null,
         startsAt: "2026-07-24T20:00:00.000Z",
+        expiresAt: intent()!.expiresAt,
       },
     }), "planning-intent", storage, NOW + 2_000);
     const hydration = resolveComposerHydration({
@@ -226,8 +230,56 @@ describe("resolveComposerHydration", () => {
       cityId: "manchester",
       acceptedArea: null,
       startsAt: "2026-07-24T20:00:00.000Z",
+      expiresAt: intent()!.expiresAt,
     });
     expect(hydration.showAcceptedSummary).toBe(true);
+  });
+
+  it("keeps ordinary draft work but drops accepted authority at its own deadline", () => {
+    const storage = memoryStorage();
+    const accepted = intent()!;
+    writePlanDraftEnvelope(storedPlan({
+      title: "Keep this title",
+      stops: [{ key: 1, venueId: accepted.acceptedVenueId, venueName: "Accepted" }],
+      acceptedAnchor: {
+        venueId: accepted.acceptedVenueId,
+        source: accepted.source,
+        cityId: accepted.cityId,
+        acceptedArea: accepted.acceptedArea,
+        startsAt: accepted.startsAt,
+        expiresAt: accepted.expiresAt,
+      },
+    }), "planning-intent", storage, NOW);
+
+    const expiredAt = Date.parse(accepted.expiresAt);
+    const recovered = readPlanDraftEnvelope(storage, expiredAt);
+    expect(recovered?.draft.title).toBe("Keep this title");
+    expect(recovered?.draft.acceptedAnchor).toBeUndefined();
+    const legacy = parsePlanDraftEnvelope(null, storage.getItem(PLAN_DRAFT_KEY), expiredAt);
+    expect(legacy?.draft.title).toBe("Keep this title");
+    expect(legacy?.draft.acceptedAnchor).toBeUndefined();
+    const preExpiryFieldDraft = parsePlanDraftEnvelope(null, JSON.stringify({
+      ...storedPlan({ title: "Keep old draft work" }),
+      acceptedAnchor: {
+        venueId: accepted.acceptedVenueId,
+        source: accepted.source,
+        cityId: accepted.cityId,
+        acceptedArea: accepted.acceptedArea,
+        startsAt: accepted.startsAt,
+      },
+    }), expiredAt);
+    expect(preExpiryFieldDraft?.draft.title).toBe("Keep old draft work");
+    expect(preExpiryFieldDraft?.draft.acceptedAnchor).toBeUndefined();
+
+    const hydration = resolveComposerHydration({
+      planDraft: recovered,
+      routeDraft: null,
+      intakeDraft: null,
+      planningIntent: null,
+      rememberedArea: null,
+    });
+    expect(hydration.acceptedAnchor).toBeNull();
+    expect(hydration.showAcceptedSummary).toBe(false);
   });
 
   it("preserves legacy Plan work ahead of intent", () => {

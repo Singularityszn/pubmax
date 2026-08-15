@@ -240,7 +240,7 @@ export const supabasePlanStore: PlanStore = {
     const joinedAt = new Date().toISOString();
     try {
       const admin = requireSupabaseAdmin();
-      const { data, error } = await admin.rpc("create_plan_idempotent_atomic", {
+      const { data, error } = await admin.rpc("create_plan_with_context_idempotent_atomic", {
         p_id: id,
         p_title: clean.title,
         p_start_time: clean.startTime,
@@ -256,19 +256,11 @@ export const supabasePlanStore: PlanStore = {
         p_anchor_venue_id: anchor?.venueId ?? null,
         p_anchor_source: anchor?.source ?? null,
         p_outcome: anchor?.outcome ?? null,
+        p_context: clean.context,
       });
       if (error) throw new Error(error.message);
       if (data === "conflict") return { ok: false, error: "conflict" };
       if (data !== "created" && data !== "replayed") return { ok: false, error: "error" };
-      if (clean.context) {
-        const metadata = await admin.rpc("update_legacy_plan_status_context_atomic", {
-          p_plan_id: id,
-          p_token_hash: hashPlanMemberToken(memberToken),
-          p_status: null,
-          p_context: clean.context,
-        });
-        if (metadata.error || metadata.data !== "ok") return { ok: false, error: "error" };
-      }
       const plan = await this.get(id);
       return plan ? { ok: true, plan, memberToken, role: "host", created: data === "created" } : { ok: false, error: "error" };
     } catch (error) {

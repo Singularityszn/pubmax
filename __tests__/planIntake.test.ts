@@ -405,7 +405,7 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
 });
 
 describe("intake accessibility and entry invariants", () => {
-  it("does not participate in routing or prompt budgets", () => {
+  it("renders standalone entry controls without a router provider", () => {
     const html = renderToStaticMarkup(createElement(PlanIntake, {
       draft: createPlanIntakeDraft(),
       onChange: () => undefined,

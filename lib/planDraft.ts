@@ -31,6 +31,7 @@ export type StoredPlanDraft = {
     cityId: CityId | null;
     acceptedArea: PlanningIntentArea;
     startsAt: string | null;
+    expiresAt: string;
   };
 };
 
@@ -75,7 +76,8 @@ const DRAFT_KEYS = [
 ] as const;
 const DRAFT_KEYS_WITH_ANCHOR = [...DRAFT_KEYS, "acceptedAnchor"] as const;
 const STOP_KEYS = ["key", "venueId", "venueName"] as const;
-const ACCEPTED_ANCHOR_KEYS = ["venueId", "source", "cityId", "acceptedArea", "startsAt"] as const;
+const LEGACY_ACCEPTED_ANCHOR_KEYS = ["venueId", "source", "cityId", "acceptedArea", "startsAt"] as const;
+const ACCEPTED_ANCHOR_KEYS = ["venueId", "source", "cityId", "acceptedArea", "startsAt", "expiresAt"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -127,7 +129,17 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
   let acceptedAnchor: StoredPlanDraft["acceptedAnchor"];
   if (value.acceptedAnchor !== undefined) {
     const anchor = value.acceptedAnchor;
-    if (!isRecord(anchor) || !hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)) return null;
+    if (!isRecord(anchor)) return null;
+    if (hasExactKeys(anchor, LEGACY_ACCEPTED_ANCHOR_KEYS)) {
+      return {
+        title,
+        creatorName,
+        startTime,
+        conciergeQuery,
+        stops: stops as StoredPlanDraft["stops"],
+      };
+    }
+    if (!hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)) return null;
     const venueId = boundedText(anchor.venueId, 200);
     const source = typeof anchor.source === "string" && (PLANNING_INTENT_SOURCES as readonly string[]).includes(anchor.source)
       ? anchor.source as PlanningIntentSource
@@ -138,6 +150,7 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
         ? anchor.cityId as CityId
         : undefined;
     const startsAt = anchor.startsAt === null ? null : canonicalTimestamp(anchor.startsAt)?.value;
+    const expiresAt = canonicalTimestamp(anchor.expiresAt)?.value;
     const area = anchor.acceptedArea;
     const acceptedArea = area === null
       ? null
@@ -146,8 +159,8 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
           || (hasExactKeys(area, ["kind", "name"]) && area.kind === "borough" && typeof area.name === "string" && LONDON_BOROUGHS.includes(area.name)))
           ? area as PlanningIntentArea
           : undefined;
-    if (!venueId || !source || cityId === undefined || startsAt === undefined || acceptedArea === undefined) return null;
-    acceptedAnchor = { venueId, source, cityId, acceptedArea, startsAt };
+    if (!venueId || !source || cityId === undefined || startsAt === undefined || acceptedArea === undefined || !expiresAt) return null;
+    acceptedAnchor = { venueId, source, cityId, acceptedArea, startsAt, expiresAt };
   }
   return {
     title,
@@ -159,11 +172,23 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
   };
 }
 
+function withoutExpiredAcceptedAnchor(draft: StoredPlanDraft, now: number): StoredPlanDraft {
+  if (!draft.acceptedAnchor || now < Date.parse(draft.acceptedAnchor.expiresAt)) return draft;
+  return {
+    title: draft.title,
+    creatorName: draft.creatorName,
+    startTime: draft.startTime,
+    conciergeQuery: draft.conciergeQuery,
+    stops: draft.stops,
+  };
+}
+
 /** Parse the unversioned session draft without inventing storage metadata. */
-export function parsePlanDraft(raw: string | null): StoredPlanDraft | null {
-  if (!raw || byteLength(raw) > PLAN_DRAFT_MAX_RAW_BYTES) return null;
+export function parsePlanDraft(raw: string | null, now = Date.now()): StoredPlanDraft | null {
+  if (!raw || !Number.isFinite(now) || byteLength(raw) > PLAN_DRAFT_MAX_RAW_BYTES) return null;
   try {
-    return parseStoredPlanDraft(JSON.parse(raw), false);
+    const draft = parseStoredPlanDraft(JSON.parse(raw), false);
+    return draft ? withoutExpiredAcceptedAnchor(draft, now) : null;
   } catch {
     return null;
   }
@@ -184,7 +209,8 @@ export function parsePlanDraftV2(
     if (!savedAt || !expiresAt) return null;
     if (savedAt.time > now + PLAN_DRAFT_MAX_FUTURE_SKEW_MS) return null;
     if (expiresAt.time !== savedAt.time + PLAN_DRAFT_TTL_MS || now >= expiresAt.time) return null;
-    const draft = parseStoredPlanDraft(value.draft, true);
+    const parsedDraft = parseStoredPlanDraft(value.draft, true);
+    const draft = parsedDraft ? withoutExpiredAcceptedAnchor(parsedDraft, now) : null;
     if (!draft) return null;
     return {
       storageVersion: PLAN_DRAFT_STORAGE_VERSION,
@@ -207,7 +233,7 @@ export function parsePlanDraftEnvelope(
 ): ParsedPlanDraft | null {
   const v2 = parsePlanDraftV2(rawV2, now);
   if (v2) return v2;
-  const draft = parsePlanDraft(rawV1);
+  const draft = parsePlanDraft(rawV1, now);
   return draft
     ? {
         storageVersion: 1,
@@ -243,7 +269,8 @@ export function writePlanDraftEnvelope(
   storage: PlanDraftStorage | null,
   now = Date.now(),
 ): PlanDraftWriteResult {
-  const canonical = parseStoredPlanDraft(draft, false);
+  const parsedDraft = parseStoredPlanDraft(draft, false);
+  const canonical = parsedDraft ? withoutExpiredAcceptedAnchor(parsedDraft, now) : null;
   const savedAt = new Date(now);
   const expiresAt = new Date(now + PLAN_DRAFT_TTL_MS);
   if (

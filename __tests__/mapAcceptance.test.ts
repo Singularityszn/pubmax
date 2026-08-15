@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 
 import {
   acceptMapVenue,
@@ -8,6 +8,7 @@ import {
   invalidateAcceptedArrivalSource,
   isPlanningIntentSource,
   readAcceptedArrivalSource,
+  scheduleAcceptedArrivalExpiry,
 } from "@/lib/mapAcceptance";
 import {
   createPlanningIntent,
@@ -470,6 +471,41 @@ describe("readAcceptedArrivalSource", () => {
       now: NOW + PLANNING_INTENT_TTL_MS,
     })).toBeNull();
     expect(storage.reads).toBeGreaterThan(readsBeforeExpiry);
+  });
+
+  it("notifies an open Map at the accepted-arrival deadline", () => {
+    const storage = memoryStorage();
+    seedIntent(storage, {
+      source: "near",
+      cityId: "london",
+      acceptedVenueId: ACCEPTED_VENUE,
+      acceptedArea: null,
+      startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    });
+    const onExpire = vi.fn();
+    let scheduled: (() => void) | null = null;
+    let delay = -1;
+    const timer = 1 as unknown as ReturnType<typeof setTimeout>;
+    const clearTimeout = vi.fn();
+
+    const cancel = scheduleAcceptedArrivalExpiry(query, onExpire, {
+      storage,
+      now: NOW,
+      setTimeout: (callback, nextDelay) => {
+        scheduled = callback;
+        delay = nextDelay;
+        return timer;
+      },
+      clearTimeout,
+    });
+
+    expect(delay).toBe(PLANNING_INTENT_TTL_MS);
+    expect(scheduled).not.toBeNull();
+    (scheduled as unknown as () => void)();
+    expect(onExpire).toHaveBeenCalledOnce();
+    cancel();
+    expect(clearTimeout).toHaveBeenCalledWith(timer);
   });
 
   it("never cleans a rejected envelope away, because a render is a look", () => {

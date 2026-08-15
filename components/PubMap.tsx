@@ -378,6 +378,8 @@ import {
   acceptMapVenue,
   invalidateAcceptedArrivalSource,
   readAcceptedArrivalSource,
+  scheduleAcceptedArrivalExpiry,
+  type AcceptedArrivalInput,
 } from "@/lib/mapAcceptance";
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 
@@ -413,13 +415,22 @@ const ACCEPTED_ARRIVAL_EVENTS = [
   PLANNING_INTENT_CHANGED_EVENT,
 ] as const;
 
-function subscribeAcceptedArrival(onStoreChange: () => void): () => void {
+function subscribeAcceptedArrival(input: AcceptedArrivalInput, onStoreChange: () => void): () => void {
+  let cancelExpiry = () => undefined;
+  let scheduleExpiry = () => undefined;
   const notify = () => {
     invalidateAcceptedArrivalSource();
     onStoreChange();
+    scheduleExpiry();
+  };
+  scheduleExpiry = () => {
+    cancelExpiry();
+    cancelExpiry = scheduleAcceptedArrivalExpiry(input, notify);
   };
   for (const name of ACCEPTED_ARRIVAL_EVENTS) window.addEventListener(name, notify);
+  scheduleExpiry();
   return () => {
+    cancelExpiry();
     for (const name of ACCEPTED_ARRIVAL_EVENTS) window.removeEventListener(name, notify);
   };
 }
@@ -740,8 +751,16 @@ export default function PubMap({
     }),
     [acceptanceSelectedVenueId, cityId, reactiveAcceptanceSearch],
   );
+  const acceptedArrivalSubscription = useCallback(
+    (onStoreChange: () => void) => subscribeAcceptedArrival({
+      search: reactiveAcceptanceSearch,
+      selectedVenueId: acceptanceSelectedVenueId,
+      cityId,
+    }, onStoreChange),
+    [acceptanceSelectedVenueId, cityId, reactiveAcceptanceSearch],
+  );
   const acceptedArrivalSource = useSyncExternalStore(
-    subscribeAcceptedArrival,
+    acceptedArrivalSubscription,
     acceptedArrivalSnapshot,
     noAcceptedArrivalSource,
   );

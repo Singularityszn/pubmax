@@ -166,6 +166,17 @@ export function routeHasChanged(before: ReadonlyArray<{ venueId: string }>, afte
   return before.length !== after.length || before.some((stop, index) => stop.venueId !== after[index]?.venueId);
 }
 
+export function canBeginPlanRouteEdit(input: {
+  hasMemberToken: boolean;
+  collaborationAuthorized: boolean;
+  isHost: boolean;
+  anchoredPlan: boolean;
+}): boolean {
+  return input.hasMemberToken
+    && input.collaborationAuthorized
+    && (input.isHost || !input.anchoredPlan);
+}
+
 function validRouteDraft(stops: ReadonlyArray<EditableStop>): boolean {
   return isPlanStopCount(stops.length)
     && stops.every((stop) => stop.venueId.trim() && stop.venueName.trim())
@@ -346,6 +357,12 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
   const anchoredPlan = Boolean(state.plan.anchorVenueId && state.plan.anchorSource);
   const isHost = Boolean(memberToken && role === "host");
   const canCollaborate = Boolean(memberToken && collaborationAuthorized);
+  const canBeginEditing = canBeginPlanRouteEdit({
+    hasMemberToken: Boolean(memberToken),
+    collaborationAuthorized: canCollaborate,
+    isHost,
+    anchoredPlan,
+  });
   useEffect(() => {
     if (memberToken && role) setActivePlanRole(planId, role);
   }, [memberToken, planId, role]);
@@ -515,14 +532,14 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
         <p className="planPage__eyebrow">First pint · {view.startLabel}</p>
         <div className="planSummary__headingRow">
           <h2 id="plan-stops-title">The route</h2>
-          {memberToken && canCollaborate ? (
+          {canBeginEditing ? (
             <button type="button" className="planSummary__edit" onClick={() => void beginEditing()} aria-expanded={editing} disabled={loadingPreview}>
               {loadingPreview ? "Finding alternatives…" : editing ? "Editing" : isHost ? "Edit route" : "Propose swap"}
             </button>
           ) : null}
         </div>
       </div>
-      {memberToken && canCollaborate && (editing || pending) ? (
+      {canBeginEditing && (editing || pending) ? (
         <div className="planSummary__editor" aria-labelledby="plan-route-editor-title">
           <h3 id="plan-route-editor-title">Route preview</h3>
           <p>{anchoredPlan ? "Review the fresh route with Stop 1 kept." : "Swap a stop to make a private draft."} {isHost ? "Save only when it differs and still has three to six distinct stops." : "The route stays unchanged until the host accepts your proposal."}</p>

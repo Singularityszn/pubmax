@@ -87,10 +87,15 @@ export type MapAcceptanceResult = {
   telemetry: VenueAcceptedTelemetry | null;
 };
 
-type AcceptedArrivalInput = {
+export type AcceptedArrivalInput = {
   search: string;
   selectedVenueId: string;
   cityId: CityId;
+};
+
+export type AcceptedArrivalExpiryScheduler = {
+  setTimeout?: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>;
+  clearTimeout?: (timer: ReturnType<typeof setTimeout>) => void;
 };
 
 function planningIntentInput(intent: PlanningIntentV1): PlanningIntentInput {
@@ -222,6 +227,26 @@ export function readAcceptedArrivalSource(
   const expiresAt = intent ? Date.parse(intent.expiresAt) : null;
   acceptedArrivalCache = { key, value, expiresAt };
   return value;
+}
+
+export function scheduleAcceptedArrivalExpiry(
+  input: AcceptedArrivalInput,
+  onExpire: () => void,
+  options: Pick<PlanningIntentOptions, "storage" | "now"> & AcceptedArrivalExpiryScheduler = {},
+): () => void {
+  const now = typeof options.now === "function" ? options.now() : options.now ?? Date.now();
+  const intent = acceptedArrivalIntent(input, {
+    storage: options.storage,
+    now,
+    cleanupInvalid: false,
+  });
+  if (!intent) return () => undefined;
+  const expiresAt = Date.parse(intent.expiresAt);
+  if (!Number.isFinite(expiresAt)) return () => undefined;
+  const schedule = options.setTimeout ?? ((callback, delay) => globalThis.setTimeout(callback, delay));
+  const cancel = options.clearTimeout ?? ((timer) => globalThis.clearTimeout(timer));
+  const timer = schedule(onExpire, Math.max(0, expiresAt - now));
+  return () => cancel(timer);
 }
 
 /**
