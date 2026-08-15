@@ -1,7 +1,6 @@
-// Email-capture route — backs the LIGHTWEIGHT email path on the identity nudge
-// sheet (IdentityNudge). A signed-out user who declines full OAuth can leave
-// just an email to receive the weekly pint digest. This is the ONLY purpose the
-// address is captured for, stated at capture (GDPR-sane purpose limitation).
+// Dormant email-capture route. No current public surface calls it. A future
+// digest launch may use it only after confirmation and delivery work end to
+// end, with one stated purpose at capture.
 //
 //   POST { email, source? } → { ok: true, status, confirmed, confirmationSent }
 //

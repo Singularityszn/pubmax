@@ -1,6 +1,11 @@
 /* Identity nudge sheet. Inherits the shared auth-sheet look (auth.css) and only
    adds the provider-button stack + spacing specific to this prompt. */
 
+.identityNudgeBackdrop {
+  /* Blocking account prompt must cover and inert primary phone chrome. */
+  z-index: calc(var(--z-tabbar) + 1);
+}
+
 .identityNudgeProviders {
   display: flex;
   flex-direction: column;

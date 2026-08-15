@@ -50,17 +50,39 @@ test("Plan identity nudge keeps one sign-in email action on a 390px phone", asyn
   await page.goto("/plan");
   await expect(page.locator("#plan-composer")).toBeVisible();
 
-  // Clear the existing first-paint grace with one real touch-like interaction.
-  await page.mouse.click(20, 20);
+  const primaryNav = page.getByRole("navigation", { name: "Primary" });
+  const focusOrigin = primaryNav.getByRole("link", { name: "Map" });
+  await focusOrigin.focus();
+  await expect(focusOrigin).toBeFocused();
+
+  // Clear grace without navigating away from Plan. Focus origin lets the test
+  // prove modal teardown returns the keyboard user to the exact prior control.
+  await page.evaluate(() => {
+    window.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+  });
 
   const dialog = page.getByRole("dialog", { name: "Keep your nights" });
   await expect(dialog).toBeVisible();
+  await expect(dialog).toBeFocused();
+  await expect(primaryNav).toHaveAttribute("inert", "");
+  expect(await page.evaluate(() => {
+    const target = document.elementFromPoint(window.innerWidth / 2, window.innerHeight - 12);
+    return Boolean(target?.closest(".identityNudgeBackdrop"));
+  })).toBe(true);
 
   await expect(dialog.locator('input[type="email"]')).toHaveCount(1);
   await expect(dialog).toContainText("Continue with email");
   await expect(dialog).toContainText("Email me a link");
   await expect(dialog).not.toContainText(/weekly pint digest|Get the digest/iu);
   await expect(dialog.locator(".identityNudgeEmail")).toHaveCount(0);
+
+  const firstAction = dialog.locator('input[type="email"]');
+  const lastAction = dialog.getByRole("button", { name: "Not now" });
+  await lastAction.focus();
+  await page.keyboard.press("Tab");
+  await expect(firstAction).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(lastAction).toBeFocused();
 
   const actions = dialog.locator("button:visible");
   for (let index = 0; index < await actions.count(); index += 1) {
@@ -70,7 +92,7 @@ test("Plan identity nudge keeps one sign-in email action on a 390px phone", asyn
     expect(Math.round(box!.height), `identity action ${index + 1} height`).toBeGreaterThanOrEqual(44);
   }
 
-  await expect(dialog.getByRole("button", { name: "Not now" })).toBeVisible();
+  await expect(lastAction).toBeVisible();
   await expect.poll(() => page.evaluate(() => ({
     viewportWidth: window.innerWidth,
     scrollWidth: document.documentElement.scrollWidth,
@@ -86,8 +108,10 @@ test("Plan identity nudge keeps one sign-in email action on a 390px phone", asyn
     fullPage: false,
   });
 
-  await dialog.getByRole("button", { name: "Not now" }).click();
+  await lastAction.click();
   await expect(dialog).toHaveCount(0);
+  await expect(primaryNav).not.toHaveAttribute("inert", "");
+  await expect(focusOrigin).toBeFocused();
   expect(subscriberRequests).toEqual([]);
   expect(analyticsEvents).not.toContain("email_subscribed");
 });

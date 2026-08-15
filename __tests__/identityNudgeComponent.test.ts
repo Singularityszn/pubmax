@@ -6,6 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const authState = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
 }));
+const focusTrapState = vi.hoisted(() => ({
+  useFocusTrap: vi.fn(),
+}));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
@@ -44,6 +47,7 @@ vi.mock("@/lib/promptBudget", () => ({
 vi.mock("@/lib/useDismissOnEscape", () => ({
   useDismissOnEscape: vi.fn(),
 }));
+vi.mock("@/lib/useFocusTrap", () => focusTrapState);
 
 import IdentityNudge from "@/components/identity/IdentityNudge";
 
@@ -130,6 +134,10 @@ class TestElement extends TestNode {
   removeAttribute(name: string): void {
     this.attributes.delete(name);
   }
+
+  focus(): void {
+    this.ownerDocument!.activeElement = this;
+  }
 }
 
 class TestDocument extends TestNode {
@@ -171,6 +179,7 @@ let root: Root | null = null;
 let container: TestElement;
 let previousWindow: typeof globalThis.window | undefined;
 let previousDocument: typeof globalThis.document | undefined;
+let previousHTMLElement: typeof globalThis.HTMLElement | undefined;
 
 async function commitReactWork(work: () => void | Promise<void>): Promise<void> {
   if (typeof reactAct === "function") {
@@ -224,9 +233,11 @@ beforeEach(() => {
   document.defaultView = window;
   previousWindow = globalThis.window;
   previousDocument = globalThis.document;
+  previousHTMLElement = globalThis.HTMLElement;
   Object.assign(globalThis, {
     window,
     document,
+    HTMLElement: TestElement,
     IS_REACT_ACT_ENVIRONMENT: typeof reactAct === "function",
   });
   container = document.createElement("div");
@@ -241,6 +252,7 @@ afterEach(async () => {
   Object.assign(globalThis, {
     window: previousWindow,
     document: previousDocument,
+    HTMLElement: previousHTMLElement,
     IS_REACT_ACT_ENVIRONMENT: false,
   });
   vi.useRealTimers();
@@ -266,6 +278,11 @@ describe("IdentityNudge visibility", () => {
     await renderAfterGrace();
 
     expect(container.childNodes.length).toBeGreaterThan(0);
+    expect(focusTrapState.useFocusTrap).toHaveBeenLastCalledWith(
+      true,
+      expect.objectContaining({ current: expect.anything() }),
+      "strict-modal",
+    );
   });
 
   it("keeps one functional magic-link email action and no dormant digest capture", async () => {
