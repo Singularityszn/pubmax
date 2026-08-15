@@ -14,8 +14,8 @@ export const MAX_EMAIL_LENGTH = 254;
 /**
  * Deliberately strict, single-line address sanity check. Requires exactly one
  * non-space run, an `@`, another non-space run, a dot, and a TLD-ish run. This
- * is defence-in-depth, NOT a deliverability guarantee — the email provider is
- * the real validator.
+ * is defence-in-depth, not a deliverability guarantee. Only a later delivery
+ * attempt can prove the destination accepts mail.
  */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
