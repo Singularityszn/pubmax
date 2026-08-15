@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  canonicalizePlanningIntentVenueId,
   clearPlanningIntent,
   PLANNING_INTENT_CHANGED_EVENT,
   createPlanningIntent,
@@ -185,6 +186,24 @@ describe("PlanningIntent V1 parser", () => {
 });
 
 describe("PlanningIntent storage lifecycle", () => {
+  it("canonicalises a matching Venue id without renewing acceptance", () => {
+    const raw = validRaw();
+    const storage = memoryStorage(raw);
+
+    const canonical = canonicalizePlanningIntentVenueId(
+      "venue-abc123",
+      "venue-canonical",
+      { storage, now: NOW + 60_000 },
+    );
+
+    expect(canonical).toMatchObject({
+      acceptedVenueId: "venue-canonical",
+      acceptedAt: "2026-07-24T18:00:00.000Z",
+      expiresAt: "2026-07-24T20:00:00.000Z",
+    });
+    expect(readPlanningIntent({ storage, now: NOW + 60_000 })).toEqual(canonical);
+  });
+
   it("creates and writes a canonical two-hour envelope with an injectable clock", () => {
     const storage = memoryStorage();
     const clock = vi.fn(() => NOW);

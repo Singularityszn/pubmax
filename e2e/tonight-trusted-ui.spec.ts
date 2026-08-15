@@ -97,7 +97,21 @@ test.describe("Tonight trusted UI (flag off / shipped)", () => {
     await expect(page.getByTestId("tonight-list")).toBeVisible();
     await expect(accept).toBeVisible();
     const box = await accept.boundingBox();
-    expect(box?.height).toBeGreaterThanOrEqual(44);
+    expect(box?.height).toBeGreaterThanOrEqual(48);
+    const appearance = await accept.evaluate((button) => {
+      const probe = document.createElement("span");
+      probe.style.cssText = "position:fixed;background:var(--state-active-surface);border:1px solid var(--state-active-border);color:var(--state-active-ink)";
+      document.body.appendChild(probe);
+      const actual = getComputedStyle(button);
+      const expected = getComputedStyle(probe);
+      const result = {
+        actual: [actual.backgroundColor, actual.borderColor, actual.color],
+        expected: [expected.backgroundColor, expected.borderColor, expected.color],
+      };
+      probe.remove();
+      return result;
+    });
+    expect(appearance.actual).toEqual(appearance.expected);
     await accept.click();
     await expect(page).toHaveURL(/\/map\?[^#]*accept=1[^#]*src=tonight/);
     const stored = await page.evaluate(() => {

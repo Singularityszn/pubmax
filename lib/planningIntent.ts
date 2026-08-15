@@ -334,6 +334,30 @@ export function writePlanningIntent(
   }
 }
 
+export function canonicalizePlanningIntentVenueId(
+  previousVenueId: string,
+  canonicalVenueId: string,
+  options: PlanningIntentOptions = {},
+): PlanningIntentV1 | null {
+  const storage = selectedStorage(options);
+  if (!storage || !VENUE_ID_PATTERN.test(canonicalVenueId)) return null;
+  const now = currentTime(options.now);
+  const existing = readPlanningIntent({ ...options, storage, now });
+  if (!existing || existing.acceptedVenueId !== previousVenueId) return null;
+  const canonical = parsePlanningIntent(JSON.stringify({
+    ...existing,
+    acceptedVenueId: canonicalVenueId,
+  }), now);
+  if (!canonical) return null;
+  try {
+    storage.setItem(PLANNING_INTENT_STORAGE_KEY, JSON.stringify(canonical));
+    announcePlanningIntentChange();
+    return canonical;
+  } catch {
+    return null;
+  }
+}
+
 export function clearPlanningIntent(
   options: Pick<PlanningIntentOptions, "storage"> = {},
 ): void {

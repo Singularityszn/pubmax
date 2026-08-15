@@ -20,10 +20,12 @@ import type {
   PlanningIntentSource,
 } from "@/lib/planningIntent";
 import {
+  canonicalizePlanningIntentVenueId,
   PLANNING_INTENT_SOURCES,
   readPlanningIntent,
   writePlanningIntent,
 } from "@/lib/planningIntent";
+import { refreshSelectionUrl } from "@/lib/mapSelectionHistory";
 import type { VenueAcceptedTelemetry } from "@/lib/venueAcceptance";
 
 /** Valid PlanningIntent sources that a Map acceptance can legitimately carry. */
@@ -140,6 +142,26 @@ export function verifiedAcceptedArrivalSource(
   return acceptedArrivalIntent(input, options)?.source ?? null;
 }
 
+export function canonicalizeAcceptedArrivalSelection(input: {
+  pathname: string;
+  search: string;
+  hash?: string;
+  requestedVenueId: string;
+  canonicalVenueId: string;
+}, options: PlanningIntentOptions = {}): string {
+  canonicalizePlanningIntentVenueId(
+    input.requestedVenueId,
+    input.canonicalVenueId,
+    options,
+  );
+  return refreshSelectionUrl(
+    input.pathname,
+    input.search,
+    input.canonicalVenueId,
+    input.hash,
+  );
+}
+
 // `useSyncExternalStore` asks its snapshot on EVERY render, so an unmemoised
 // reader ran a localStorage read plus a JSON.parse per PubMap render. The cache
 // holds one answer per (revision, query) pair; the revision is bumped by the
@@ -149,6 +171,7 @@ let acceptedArrivalRevision = 0;
 let acceptedArrivalCache: {
   key: string;
   value: PlanningIntentSource | null;
+  expiresAt: number | null;
 } | null = null;
 
 /** Drop the memoised answer. The subscriber calls this before it notifies. */
@@ -169,18 +192,25 @@ export function readAcceptedArrivalSource(
   input: AcceptedArrivalInput,
   options: Pick<PlanningIntentOptions, "storage" | "now"> = {},
 ): PlanningIntentSource | null {
+  const now = typeof options.now === "function" ? options.now() : options.now ?? Date.now();
   const key = [
     acceptedArrivalRevision,
     input.cityId,
     input.selectedVenueId,
     input.search,
   ].join("|");
-  if (acceptedArrivalCache?.key === key) return acceptedArrivalCache.value;
-  const value = verifiedAcceptedArrivalSource(input, {
+  if (
+    acceptedArrivalCache?.key === key
+    && (acceptedArrivalCache.expiresAt === null || now < acceptedArrivalCache.expiresAt)
+  ) return acceptedArrivalCache.value;
+  const intent = acceptedArrivalIntent(input, {
     ...options,
+    now,
     cleanupInvalid: false,
   });
-  acceptedArrivalCache = { key, value };
+  const value = intent?.source ?? null;
+  const expiresAt = intent ? Date.parse(intent.expiresAt) : null;
+  acceptedArrivalCache = { key, value, expiresAt };
   return value;
 }
 

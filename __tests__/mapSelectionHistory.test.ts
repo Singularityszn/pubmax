@@ -223,6 +223,21 @@ describe("selectionResolution", () => {
     })).toEqual({ kind: "canonicalise", venueId: "venue-canonical" });
   });
 
+  it("preserves acceptance markers while replacing an alias with its canonical id", () => {
+    const resolution = selectionResolution({
+      requestedVenueId: "venue-merged",
+      canonicalVenueId: "venue-canonical",
+      currentVenueId: "venue-merged",
+      liveSelectedVenueId: "venue-merged",
+    });
+    expect(resolution).toEqual({ kind: "canonicalise", venueId: "venue-canonical" });
+    expect(refreshSelectionUrl(
+      "/map",
+      "?sel=venue-merged&accept=1&src=near",
+      "venue-canonical",
+    )).toBe("/map?sel=venue-canonical&accept=1&src=near");
+  });
+
   it("cleans a sel the trail never took up", () => {
     expect(selectionResolution({
       requestedVenueId: "venue-merged",

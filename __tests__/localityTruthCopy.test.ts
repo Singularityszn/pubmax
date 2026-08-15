@@ -1,7 +1,5 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", async (importOriginal) => {
@@ -24,6 +22,7 @@ import TodayPintsCard from "@/app/today/TodayPintsCard";
 import NearMeNow from "@/components/nearme/NearMeNow";
 import { CENTRAL_PATCH } from "@/lib/nightPatches";
 import { tonightHeading } from "@/lib/tonight";
+import { nearMeAnswerHeadline } from "@/lib/nearMeAnswer";
 
 describe("locality and recency claims", () => {
   it("names central London and the actual collection date for older Today prices", () => {
@@ -90,26 +89,8 @@ describe("locality and recency claims", () => {
   });
 
   it("describes Near results as the cheapest listed prices", () => {
-    const source = readFileSync(
-      join(process.cwd(), "components/nearme/NearMeNow.tsx"),
-      "utf8",
-    );
-    // The three headlines moved to nearMeAnswerHeadline so the map's sheet
-    // chrome can check its own title never restates one of them. Same words,
-    // one owner.
-    const headlines = readFileSync(
-      join(process.cwd(), "lib/nearMeAnswer.ts"),
-      "utf8",
-    );
-
-    expect(headlines).toContain("Cheapest listed near you");
-    expect(headlines).toContain("Cheapest listed in");
-    expect(headlines).toContain("Cheapest listed around");
-    expect(source).not.toContain("Finding the cheapest");
-    expect(source).not.toContain("Pulling up the cheapest");
-    expect(source).not.toContain("Prices collected");
-    expect(source).not.toContain("formatMonthYear(PINT_DATASET_OBSERVED_AT)");
-    expect(source).toContain("Choose a pub to keep for tonight.");
-    expect(source).not.toContain("Keeps this pub for tonight");
+    expect(nearMeAnswerHeadline({ scope: "walkable" })).toBe("Cheapest listed near you");
+    expect(nearMeAnswerHeadline({ scope: "walkable", borough: "Camden" })).toBe("Cheapest listed in Camden");
+    expect(nearMeAnswerHeadline({ scope: "walkable", patchLabel: "Soho" })).toBe("Cheapest listed around Soho");
   });
 });

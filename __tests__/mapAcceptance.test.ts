@@ -3,6 +3,7 @@ import { beforeEach, describe, it, expect } from "vitest";
 import {
   acceptMapVenue,
   buildMapAcceptanceIntentInput,
+  canonicalizeAcceptedArrivalSelection,
   initialAcceptanceSource,
   invalidateAcceptedArrivalSource,
   isPlanningIntentSource,
@@ -450,11 +451,60 @@ describe("readAcceptedArrivalSource", () => {
     expect(storage.reads).toBeGreaterThan(readsBeforeInvalidate);
   });
 
+  it("expires a cached accepted arrival at the intent deadline", () => {
+    const storage = memoryStorage();
+    seedIntent(storage, {
+      source: "near",
+      cityId: "london",
+      acceptedVenueId: ACCEPTED_VENUE,
+      acceptedArea: null,
+      startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    });
+
+    expect(readAcceptedArrivalSource(query, { storage, now: NOW })).toBe("near");
+    const readsBeforeExpiry = storage.reads;
+    expect(readAcceptedArrivalSource(query, {
+      storage,
+      now: NOW + PLANNING_INTENT_TTL_MS,
+    })).toBeNull();
+    expect(storage.reads).toBeGreaterThan(readsBeforeExpiry);
+  });
+
   it("never cleans a rejected envelope away, because a render is a look", () => {
     const storage = memoryStorage();
     storage.map.set(PLANNING_INTENT_STORAGE_KEY, "{not json");
 
     expect(readAcceptedArrivalSource(query, { storage, now: NOW })).toBeNull();
     expect(storage.map.has(PLANNING_INTENT_STORAGE_KEY)).toBe(true);
+  });
+});
+
+describe("canonicalizeAcceptedArrivalSelection", () => {
+  it("moves URL and intent authority together without renewing acceptance", () => {
+    const storage = memoryStorage();
+    seedIntent(storage, {
+      source: "near",
+      cityId: "london",
+      acceptedVenueId: "venue-alias",
+      acceptedArea: null,
+      startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    });
+
+    const url = canonicalizeAcceptedArrivalSelection({
+      pathname: "/map",
+      search: "?sel=venue-alias&accept=1&src=near",
+      requestedVenueId: "venue-alias",
+      canonicalVenueId: "venue-canonical",
+    }, { storage, now: NOW + 60_000 });
+
+    expect(url).toBe("/map?sel=venue-canonical&accept=1&src=near");
+    const raw = storage.map.get(PLANNING_INTENT_STORAGE_KEY);
+    expect(raw ? JSON.parse(raw) : null).toMatchObject({
+      acceptedVenueId: "venue-canonical",
+      acceptedAt: new Date(NOW).toISOString(),
+      expiresAt: new Date(NOW + PLANNING_INTENT_TTL_MS).toISOString(),
+    });
   });
 });

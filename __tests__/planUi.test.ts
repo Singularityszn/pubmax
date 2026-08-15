@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { planViewModel, shareCopyForPlan, stopsFromAnswerCards, stopsFromConcierge } from "@/components/plan/planPresentation";
-import { parsePendingRoute, routeHasChanged } from "@/components/plan/PlanSummary";
+import {
+  parsePendingRoute,
+  planSummaryGenerationBody,
+  planSummaryRouteUpdateBody,
+  routeHasChanged,
+} from "@/components/plan/PlanSummary";
 import type { PlanState } from "@/lib/plan";
 
 const state: PlanState = {
@@ -53,8 +58,74 @@ describe("routeHasChanged", () => {
 describe("pending route continuity", () => {
   it("accepts the v1 envelope and rejects unknown storage versions", () => {
     const stops = [{ venueId: "a", venueName: "A", position: 0, alternatives: [] }];
-    expect(parsePendingRoute(JSON.stringify({ version: 1, savedAt: "2026-07-16T20:00:00Z", expectedRouteRevision: 2, stops }))).toMatchObject({ expectedRouteRevision: 2, stops });
+    expect(parsePendingRoute(JSON.stringify({ version: 1, savedAt: "2026-07-16T20:00:00Z", expectedRouteRevision: 2, stops }))).toMatchObject({
+      expectedRouteRevision: 2,
+      stops,
+      groundingProof: null,
+      operationKey: null,
+    });
     expect(parsePendingRoute(JSON.stringify({ version: 2, expectedRouteRevision: 2, stops }))).toBeNull();
+  });
+});
+
+describe("anchored Plan route editing", () => {
+  const anchoredState: PlanState = {
+    plan: {
+      ...state.plan,
+      anchorVenueId: "venue-a",
+      anchorSource: "near",
+      outcome: "anchor-only",
+    },
+    stops: [{ venueId: "venue-a", venueName: "Anchor", position: 0 }],
+    crew: [],
+    context: {
+      nightArea: "piccadilly-soho",
+      daypart: "evening",
+      partyType: "friends",
+      groupSize: null,
+      stopCount: 3,
+      budget: "value",
+      budgetLimitPence: null,
+      zeroProof: false,
+      wetherspoonsPreferred: false,
+      atmosphere: [],
+      foodNeeds: [],
+      accessibility: [],
+      transportConstraints: [],
+    },
+  };
+
+  it("regenerates from the saved anchor and its city", () => {
+    expect(planSummaryGenerationBody(anchoredState)).toMatchObject({
+      cityId: "london",
+      anchor: {
+        venueId: "venue-a",
+        source: "near",
+        acceptedArea: null,
+        startsAt: state.plan.startTime,
+      },
+    });
+  });
+
+  it("submits returned V2 authority with anchored Stop 1", () => {
+    expect(planSummaryRouteUpdateBody({
+      stops: [
+        { venueId: "venue-a", venueName: "Anchor", position: 0 },
+        { venueId: "venue-b", venueName: "Second", position: 1 },
+        { venueId: "venue-c", venueName: "Third", position: 2 },
+      ],
+      expectedRouteRevision: 1,
+      authority: { groundingProof: "signed-v2", operationKey: "upgrade-op-01" },
+    })).toEqual({
+      stops: [
+        { venueId: "venue-a", venueName: "Anchor" },
+        { venueId: "venue-b", venueName: "Second" },
+        { venueId: "venue-c", venueName: "Third" },
+      ],
+      expectedRouteRevision: 1,
+      groundingProof: "signed-v2",
+      operationKey: "upgrade-op-01",
+    });
   });
 });
 

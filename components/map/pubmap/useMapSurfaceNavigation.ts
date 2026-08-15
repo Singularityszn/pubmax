@@ -29,6 +29,7 @@ import {
   type SurfaceStack,
 } from "@/lib/surfaceStack";
 import type { MapOverlay } from "@/lib/mobileShell";
+import { canonicalizeAcceptedArrivalSelection } from "@/lib/mapAcceptance";
 
 export type MapSurfaceId = MapOverlay | "venue-list";
 
@@ -263,7 +264,13 @@ export function useMapSurfaceNavigation({
         window.history.replaceState(
           stampMapSurfaceHistory(window.history.state, next, resolution.venueId),
           "",
-          browseSelectionUrl(pathname, search, resolution.venueId, hash),
+          canonicalizeAcceptedArrivalSelection({
+            pathname,
+            search,
+            hash,
+            requestedVenueId,
+            canonicalVenueId: resolution.venueId,
+          }),
         );
         return;
       }

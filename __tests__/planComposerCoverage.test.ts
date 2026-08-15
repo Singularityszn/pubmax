@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   anchorConflictMessage,
+  composerCreatePayload,
   errorMessageFromBody,
   applyPlanStopCount,
   generatedPlanAnchorFromResponse,
@@ -16,6 +17,7 @@ import {
   parsePlanRouteDraft,
   planAcceptanceTelemetry,
   planCreationConsumesPlanningIntent,
+  planComposerVenueIndexPath,
   planDraftSavedTelemetry,
   planGenerationFailureStatus,
   planLockValidationError,
@@ -41,6 +43,30 @@ describe("PlanComposer PlanningIntent settlement", () => {
     expect(planCreationConsumesPlanningIntent(null, [
       { venueId: "venue-accepted" },
     ])).toBe(false);
+  });
+});
+
+describe("PlanComposer accepted city authority", () => {
+  it("sends the accepted city when creating the Plan", () => {
+    expect(composerCreatePayload({
+      title: "Manchester night",
+      creatorName: "Karan",
+      startTime: "2026-07-24T20:00:00.000Z",
+      cityId: "manchester",
+      stops: [{ venueId: "manchester-pub", venueName: "The Manchester Pub" }],
+      groundingProof: "signed-proof",
+      planAnchor: { venueId: "manchester-pub", source: "near", outcome: "anchor-only" },
+    })).toMatchObject({
+      cityId: "manchester",
+      stops: [{ venueId: "manchester-pub", venueName: "The Manchester Pub" }],
+      anchor: { venueId: "manchester-pub", source: "near", outcome: "anchor-only" },
+    });
+  });
+
+  it("resolves accepted Venue names from the accepted city's index", () => {
+    expect(planComposerVenueIndexPath("manchester")).toBe(
+      "/data/cities/manchester/venues_slim.json",
+    );
   });
 });
 

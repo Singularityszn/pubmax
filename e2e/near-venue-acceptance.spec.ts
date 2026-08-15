@@ -47,10 +47,28 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page })
   // The patch answer resolves to real cards.
   const firstCard = page.locator(".nmnCard").first();
   await expect(firstCard).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cheapest listed around Soho" })).toBeVisible();
+  await expect(page.getByText("Finding the cheapest", { exact: false })).toHaveCount(0);
 
   const accept = page.locator(".nmnAccept").first();
   await expect(accept).toBeVisible();
   await expect(accept).toHaveText("Keep for tonight");
+  const appearance = await accept.evaluate((button) => {
+    const probe = document.createElement("span");
+    probe.style.cssText = "position:fixed;background:var(--state-active-surface);border:1px solid var(--state-active-border);color:var(--state-active-ink)";
+    document.body.appendChild(probe);
+    const actual = getComputedStyle(button);
+    const expected = getComputedStyle(probe);
+    const result = {
+      height: button.getBoundingClientRect().height,
+      actual: [actual.backgroundColor, actual.borderColor, actual.color],
+      expected: [expected.backgroundColor, expected.borderColor, expected.color],
+    };
+    probe.remove();
+    return result;
+  });
+  expect(appearance.height).toBeGreaterThanOrEqual(48);
+  expect(appearance.actual).toEqual(appearance.expected);
   await expect(page.locator(".nmnAcceptReceipt")).toHaveText(
     "Choose a pub to keep for tonight.",
   );

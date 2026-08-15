@@ -11,6 +11,7 @@ import type {
   NightAreaSlug,
 } from "@/lib/nightPlanning";
 import type { PlanningIntentArea, PlanningIntentSource } from "@/lib/planningIntent";
+import type { CityId } from "@/lib/cities";
 import { isPlanStopCount, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
 
@@ -655,6 +656,7 @@ export function planIntakeNightContextPatch(draft: PlanIntakeDraft): Partial<Nig
 export type PlanGenerationIntakeBody = {
   query?: string;
   context?: Partial<NightContext>;
+  cityId?: CityId;
   intake: PlanIntakeHandoff;
   anchor?: PlanGenerationAnchor;
 };
@@ -663,6 +665,7 @@ export type PlanGenerationIntakeBody = {
 export type PlanGenerationAnchor = {
   venueId: string;
   source: PlanningIntentSource;
+  cityId?: CityId | null;
   acceptedArea: PlanningIntentArea;
   startsAt: string | null;
 };
@@ -704,6 +707,7 @@ export function buildPlanGenerationIntakeBody(
   return {
     ...(cleanQuery ? { query: cleanQuery } : {}),
     ...(Object.keys(context).length > 0 ? { context } : {}),
+    ...(anchor?.cityId ? { cityId: anchor.cityId } : {}),
     intake: planIntakeHandoff(draft),
     ...(anchor ? {
       anchor: {

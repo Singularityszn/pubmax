@@ -367,6 +367,7 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
     const anchor = {
       venueId: "venue-intent",
       source: "near" as const,
+      cityId: "manchester" as const,
       acceptedArea: { kind: "night-patch" as const, id: "soho" as const },
       startsAt: "2026-07-24T20:00:00.000Z",
     };
@@ -378,7 +379,13 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
       anchor,
     );
 
-    expect(body.anchor).toEqual(anchor);
+    expect(body.cityId).toBe("manchester");
+    expect(body.anchor).toEqual({
+      venueId: anchor.venueId,
+      source: anchor.source,
+      acceptedArea: anchor.acceptedArea,
+      startsAt: anchor.startsAt,
+    });
     expect(Object.keys(body.anchor ?? {})).toEqual([
       "venueId", "source", "acceptedArea", "startsAt",
     ]);

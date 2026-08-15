@@ -29,6 +29,7 @@ import {
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
+import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { isPlanStopCount, normalizePlanStopCount, PLAN_STOP_COUNTS, type PlanStopCount } from "@/lib/planStopCount";
 import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope } from "@/lib/planDraft";
 import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
@@ -481,6 +482,30 @@ export function isMatchingAnchorOnlyPlan(input: {
   );
 }
 
+export function composerCreatePayload(input: {
+  title: string;
+  creatorName: string;
+  startTime: string;
+  cityId?: CityId | null;
+  stops: ReadonlyArray<{ venueId: string; venueName: string }>;
+  groundingProof?: string | null;
+  planAnchor?: GeneratedPlanAnchor | null;
+}): Record<string, unknown> {
+  return {
+    title: input.title,
+    creatorName: input.creatorName,
+    startTime: input.startTime,
+    ...(input.cityId ? { cityId: input.cityId } : {}),
+    stops: input.stops.map(({ venueId, venueName }) => ({ venueId, venueName })),
+    ...(input.groundingProof ? { groundingProof: input.groundingProof } : {}),
+    ...(input.planAnchor ? { anchor: input.planAnchor } : {}),
+  };
+}
+
+export function planComposerVenueIndexPath(cityId?: CityId | null): string {
+  return CITIES[cityId ?? DEFAULT_CITY_ID].slimVenuesPath;
+}
+
 export function planLockValidationError({
   title,
   creatorName,
@@ -885,6 +910,7 @@ function PlanComposerForm({
       || stops.find((stop) => stop.venueId === handoff.acceptedVenueId)?.venueName.trim()
       || null
     : null;
+  const acceptedCityId = handoff?.acceptedAnchor?.cityId ?? DEFAULT_CITY_ID;
   const completeStopIds = completeStops.map((stop) => stop.venueId);
   const matchingAnchorOnlyPlan = isMatchingAnchorOnlyPlan({
     groundingProof,
@@ -925,7 +951,7 @@ function PlanComposerForm({
 
   useEffect(() => {
     let active = true;
-    fetch("/data/venues_slim.json")
+    fetch(planComposerVenueIndexPath(acceptedCityId))
       .then((response) => response.json())
       .then((rows: unknown) => {
         if (!active) return;
@@ -945,7 +971,7 @@ function PlanComposerForm({
       })
       .catch(() => undefined);
     return () => { active = false; };
-  }, [handoff?.acceptedVenueId]);
+  }, [acceptedCityId, handoff?.acceptedVenueId]);
 
   useEffect(() => {
     if (recoveredDraft) trackEvent("draft_recovered", { kind: "plan", surface: "plan" });
@@ -1259,14 +1285,15 @@ function PlanComposerForm({
         new Date(),
       );
       if (!exactStartIso) throw new Error("Choose a valid future London start time.");
-      const createPayload = {
+      const createPayload = composerCreatePayload({
         title,
         creatorName,
         startTime: exactStartIso,
-        stops: completeStops.map(({ venueId, venueName }) => ({ venueId, venueName })),
-        ...(groundingProof ? { groundingProof } : {}),
-        ...(planAnchor ? { anchor: planAnchor } : {}),
-      };
+        cityId: handoff?.acceptedAnchor?.cityId,
+        stops: completeStops,
+        groundingProof,
+        planAnchor,
+      });
       const operationKey = createOperationKey ?? await persistentPlanMutationKey("create", createPayload);
       const response = await fetch("/api/plans", {
         method: "POST",

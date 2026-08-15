@@ -135,6 +135,7 @@ describe("resolveComposerHydration", () => {
     expect(hydration.acceptedAnchor).toEqual({
       venueId: "venue-intent",
       source: "near",
+      cityId: "london",
       acceptedArea: { kind: "night-patch", id: "soho" },
       startsAt: "2026-07-24T20:00:00.000Z",
     });
@@ -158,6 +159,7 @@ describe("resolveComposerHydration", () => {
     expect(hydration.acceptedAnchor).toEqual({
       venueId: "venue-intent",
       source: "near",
+      cityId: "london",
       acceptedArea: null,
       startsAt: null,
     });

@@ -10,7 +10,9 @@ const CARRIED = "Carried over from what you accepted";
 test("permanent path: a seeded acceptance surfaces as the carried-over panel", async ({ page, request }) => {
   const venues = (await (await request.get("/data/venues_slim.json")).json()) as Array<{ id: string; name: string }>;
   const venueId = venues[0]?.id;
+  const venueName = venues[0]?.name;
   expect(typeof venueId).toBe("string");
+  expect(typeof venueName).toBe("string");
 
   await page.addInitScript(
     ([id, key]) => {
@@ -37,5 +39,6 @@ test("permanent path: a seeded acceptance surfaces as the carried-over panel", a
   // The accepted context is consumed as an editable summary before intake.
   await expect(page.getByText(CARRIED)).toBeVisible();
   // The accepted Venue is carried into the summary (pre-answered, not re-asked).
-  await expect(page.locator("body")).toContainText(venueId as string);
+  await expect(page.locator("body")).toContainText(venueName as string);
+  await expect(page.locator("body")).not.toContainText(venueId as string);
 });

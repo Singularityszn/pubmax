@@ -12,6 +12,7 @@ import type {
   PlanningIntentSource,
   PlanningIntentV1,
 } from "@/lib/planningIntent";
+import type { CityId } from "@/lib/cities";
 import type { PlanTemplate } from "@/lib/planTemplates";
 import type { RememberedArea } from "@/lib/nightPatches";
 
@@ -39,6 +40,7 @@ export type ComposerHydration = {
   acceptedAnchor: {
     venueId: string;
     source: PlanningIntentSource;
+    cityId: CityId | null;
     acceptedArea: PlanningIntentArea;
     startsAt: string | null;
   } | null;
@@ -99,6 +101,9 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
     ? {
         venueId: acceptedVenueId,
         source: acceptedSource,
+        cityId: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
+          ? input.planningIntent.cityId
+          : null,
         acceptedArea: result.acceptedVenueId.source === "planning-intent" && input.planningIntent
           ? input.planningIntent.acceptedArea
           : result.area.value,
