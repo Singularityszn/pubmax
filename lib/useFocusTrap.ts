@@ -24,6 +24,34 @@ export function shouldEngageFocusTrap(input: {
 
 export type FocusTrapOutsidePolicy = "strict-modal" | "map-surface";
 
+const strictModalListeners = new Set<() => void>();
+let strictModalTrapCount = 0;
+
+export function subscribeStrictModalFocusTrap(listener: () => void): () => void {
+  strictModalListeners.add(listener);
+  return () => strictModalListeners.delete(listener);
+}
+
+export function readStrictModalFocusTrap(): boolean {
+  return strictModalTrapCount > 0;
+}
+
+export function serverStrictModalFocusTrap(): boolean {
+  return false;
+}
+
+function claimStrictModalFocusTrap(): () => void {
+  strictModalTrapCount += 1;
+  for (const listener of strictModalListeners) listener();
+  let active = true;
+  return () => {
+    if (!active) return;
+    active = false;
+    strictModalTrapCount -= 1;
+    for (const listener of strictModalListeners) listener();
+  };
+}
+
 /** Body-level siblings that may stay interactive only beside a map surface. */
 export function shouldInertOutsideSibling(
   node: HTMLElement,
@@ -84,6 +112,8 @@ export function useFocusTrap(
       }
       cursor = parent;
     }
+    const releaseStrictModal =
+      outsidePolicy === "strict-modal" ? claimStrictModalFocusTrap() : null;
 
     const onTab = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
@@ -108,6 +138,7 @@ export function useFocusTrap(
     return () => {
       container.removeEventListener("keydown", onTab);
       for (const item of inerted) item.node.inert = item.prev;
+      releaseStrictModal?.();
     };
   }, [active, containerRef, outsidePolicy]);
 }

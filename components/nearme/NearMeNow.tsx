@@ -227,6 +227,20 @@ export function shouldResolveInitialNearPatch(
   return Boolean(initialPatchId && initialPatchId !== activePatchId);
 }
 
+export function shouldStartNearAutoLocate(input: {
+  autoLocate: boolean;
+  alreadyStarted: boolean;
+  hasInitialLocation: boolean;
+  bootPatchId: string | null;
+}): boolean {
+  return (
+    input.autoLocate &&
+    !input.alreadyStarted &&
+    !input.hasInitialLocation &&
+    !input.bootPatchId
+  );
+}
+
 export default function NearMeNow({
   cityId = DEFAULT_CITY_ID,
   onSelectVenue,
@@ -262,6 +276,7 @@ export default function NearMeNow({
   const slimRef = useRef<PricedPoint[] | null>(venues ?? null);
   const loadingSlimRef = useRef<Promise<PricedPoint[]> | null>(null);
   const answerGenerationRef = useRef(0);
+  const autoLocateStartedRef = useRef(false);
   const [activeAnswerGeneration, setActiveAnswerGeneration] = useState(0);
   const lastTrackedAnswerRef = useRef(0);
   const [answerContext, setAnswerContext] = useState<{
@@ -459,6 +474,12 @@ export default function NearMeNow({
   }, [answerWithoutFix, beginAnswer, loadSlim]);
 
   useEffect(() => {
+    const startAutoLocate = shouldStartNearAutoLocate({
+      autoLocate,
+      alreadyStarted: autoLocateStartedRef.current,
+      hasInitialLocation: Boolean(initialLocation),
+      bootPatchId: bootPatch?.id ?? null,
+    });
     // Map mode: a location is already resolved — answer immediately, no prompt.
     if (initialLocation) {
       const generation = beginAnswer();
@@ -474,12 +495,15 @@ export default function NearMeNow({
       return;
     }
     // Shareable patch entry beats auto-locate so deep links stay honest.
-    if (bootPatch && shouldResolveInitialNearPatch(bootPatch.id, patch?.id)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      pickPatch(bootPatch, null);
+    if (bootPatch) {
+      if (shouldResolveInitialNearPatch(bootPatch.id, patch?.id)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        pickPatch(bootPatch, null);
+      }
       return;
     }
-    if (!autoLocate) return;
+    if (!startAutoLocate) return;
+    autoLocateStartedRef.current = true;
     // Kick off geolocation on mount. locate() sets "requesting" then resolves
     // asynchronously via the Geolocation API — an external-system sync, the
     // documented exception to the no-setState-in-effect guidance.

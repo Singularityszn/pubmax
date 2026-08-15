@@ -35,6 +35,7 @@ vi.mock("@/lib/accountBoundFetch", () => ({
 import AccountOnboarding, {
   AccountOnboardingLoadError,
 } from "@/components/identity/AccountOnboarding";
+import { readStrictModalFocusTrap } from "@/lib/useFocusTrap";
 
 class TestNode {
   nodeType: number;
@@ -273,6 +274,7 @@ describe("AccountOnboarding cold-open identity race", () => {
     expect(dialog).toBeDefined();
     expect(testDocument.activeElement).toBe(dialog);
     expect(sheetControl.inert).toBe(true);
+    expect(readStrictModalFocusTrap()).toBe(true);
 
     authState.current = {
       user: null,
@@ -284,6 +286,7 @@ describe("AccountOnboarding cold-open identity race", () => {
 
     expect(testDocument.activeElement).toBe(sheetControl);
     expect(sheetControl.inert).toBe(false);
+    expect(readStrictModalFocusTrap()).toBe(false);
   });
 
   it("does not read onboarding status without a live session", async () => {

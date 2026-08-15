@@ -131,14 +131,24 @@ describe("what the tab bar renders for each answer", () => {
   afterEach(() => {
     vi.resetModules();
     vi.doUnmock("@/lib/softKeyboard");
+    vi.doUnmock("@/lib/useFocusTrap");
   });
 
-  async function renderBar(keyboardOpen: boolean): Promise<string> {
+  async function renderBar(
+    keyboardOpen: boolean,
+    strictModalOpen = false,
+  ): Promise<string> {
     vi.doMock("@/lib/softKeyboard", async (importOriginal) => ({
       ...(await importOriginal<typeof import("@/lib/softKeyboard")>()),
       subscribeSoftKeyboard: () => () => {},
       readSoftKeyboardOpen: () => keyboardOpen,
       serverSoftKeyboardOpen: () => keyboardOpen,
+    }));
+    vi.doMock("@/lib/useFocusTrap", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@/lib/useFocusTrap")>()),
+      subscribeStrictModalFocusTrap: () => () => {},
+      readStrictModalFocusTrap: () => strictModalOpen,
+      serverStrictModalFocusTrap: () => strictModalOpen,
     }));
     vi.resetModules();
     const { default: MobileTabBar } = await import("@/components/nav/MobileTabBar");
@@ -168,6 +178,13 @@ describe("what the tab bar renders for each answer", () => {
     // It is hidden, not unmounted: the tabs come straight back on blur with no
     // re-render of the destination list.
     expect(markup).toContain("Tonight");
+  });
+
+  it("keeps the bar inert after a strict modal outlives the keyboard", async () => {
+    const markup = await renderBar(false, true);
+    expect(navTag(markup)).not.toContain("isKeyboardHidden");
+    expect(navTag(markup)).not.toContain("aria-hidden");
+    expect(navTag(markup)).toMatch(/\binert\b/);
   });
 });
 

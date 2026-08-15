@@ -1,8 +1,9 @@
 # Email digest capture: removed
 
-There is no email capture in PUBMAXX. The identity nudge has one email action,
-and it is functional magic-link sign-in. Nothing collects a second address and
-nothing promises a digest.
+There is no digest capture in PUBMAXX. The identity nudge has one email action,
+and it is functional magic-link sign-in. It does not collect a second address
+or promise a digest. The separate area-demand form may store an optional contact
+address for that named area.
 
 Captain decision, 2026-08-15: delete the path rather than leave it dormant. The
 capture surface had already gone (`specs/honest-identity-nudge-email-action.md`)
@@ -29,8 +30,9 @@ The address validation survives as `lib/emailAddress.ts`, because
   `public.email_subscribers` table. A migration is history, and no row is
   deleted, confirmed or mailed by this removal. The table is now unreferenced by
   the app; dropping it is a separate captain-applied migration.
-- The voice fence in `__tests__/voiceComplianceAudit.test.ts`, which still
-  refuses digest-capture copy anywhere in the product.
+- Rendered signed-out IdentityNudge coverage in
+  `__tests__/identityNudgeComponent.test.ts`, which refuses digest capture and
+  shows the functional sign-in action.
 
 ## If a digest is ever built
 

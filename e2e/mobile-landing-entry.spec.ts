@@ -113,7 +113,11 @@ test.describe("mobile landing entry", () => {
           getCurrentPosition: (
             _success: PositionCallback,
             error: PositionErrorCallback,
-          ) => error({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+          ) => {
+            (window as Window & { __nearLocateCalls?: number }).__nearLocateCalls =
+              ((window as Window & { __nearLocateCalls?: number }).__nearLocateCalls ?? 0) + 1;
+            error({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError);
+          },
         },
       });
     });
@@ -124,6 +128,12 @@ test.describe("mobile landing entry", () => {
     ).toBeVisible();
     await expect(page.getByText("Location's off, so here's central London. Not your patch?")).toBeVisible();
     await expect(page.locator(".nmnCard")).toHaveCount(5);
+    await expect(page).toHaveURL(/patch=central/);
+    expect(
+      await page.evaluate(
+        () => (window as Window & { __nearLocateCalls?: number }).__nearLocateCalls ?? 0,
+      ),
+    ).toBe(1);
   });
 
   test("keeps the first-run entry path primary and unclipped", async ({ page }, testInfo) => {

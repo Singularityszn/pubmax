@@ -27,6 +27,11 @@ import {
   serverSoftKeyboardOpen,
   subscribeSoftKeyboard,
 } from "@/lib/softKeyboard";
+import {
+  readStrictModalFocusTrap,
+  serverStrictModalFocusTrap,
+  subscribeStrictModalFocusTrap,
+} from "@/lib/useFocusTrap";
 import "./mobileNav.css";
 
 // Mobile-first bottom tab bar. Mounted on every non-root route and visible only
@@ -137,6 +142,11 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     readSoftKeyboardOpen,
     serverSoftKeyboardOpen,
   );
+  const strictModalOpen = useSyncExternalStore(
+    subscribeStrictModalFocusTrap,
+    readStrictModalFocusTrap,
+    serverStrictModalFocusTrap,
+  );
   // The Moment return path is the page the tap left, so it is the live route on
   // the server too. A constant server snapshot ("/") would send every
   // server-rendered Moment link home until hydration repaired it. Root does not
@@ -200,7 +210,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
       // that has slid off the bottom of the screen must not still be a tab stop
       // above the keyboard.
       aria-hidden={keyboardOpen || undefined}
-      inert={keyboardOpen || undefined}
+      inert={keyboardOpen || strictModalOpen || undefined}
     >
       {/* --tab-count feeds the count-driven layout model in mobileNav.css:
           column width and highlight geometry all derive from it (and from
