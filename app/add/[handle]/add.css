@@ -168,3 +168,53 @@
   font-size: 0.9rem;
   text-decoration: none;
 }
+
+/* The @handle under a display name, and the second door under the primary one.
+   Both stay 44px-tall targets at 360/390/430. */
+.confirmFollowMeta {
+  margin: -6px 0 0;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.confirmFollowSecondary {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid var(--line, var(--feed-border));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.confirmFollowSecondary:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.confirmFollowNext {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.confirmFollowNext li {
+  display: flex;
+}
+
+.confirmFollowNext .confirmFollowPrimary,
+.confirmFollowNext .confirmFollowSecondary {
+  flex: 1 1 auto;
+}

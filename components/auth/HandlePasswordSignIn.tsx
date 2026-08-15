@@ -14,6 +14,13 @@ import { trackEvent } from "@/lib/analytics";
 
 type HandlePasswordSignInProps = {
   disabled?: boolean;
+  /**
+   * Where to land once the session is live. This form signs in without
+   * navigating, so a page that was handed a `?from=` (a share link's
+   * /add/<handle>?auto=1, a nav hand-off) has to say so or the person is left
+   * looking at the sign-in page they just used. Null keeps the old behaviour.
+   */
+  redirectTo?: string | null;
 };
 
 /**
@@ -29,6 +36,7 @@ const NO_PASSWORD_GUIDANCE =
 
 export default function HandlePasswordSignIn({
   disabled = false,
+  redirectTo = null,
 }: HandlePasswordSignInProps): React.JSX.Element {
   const { configured } = useAuth();
   const [open, setOpen] = useState(false);
@@ -98,6 +106,13 @@ export default function HandlePasswordSignIn({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
+
+      // A full assignment rather than a router push: the destination may be a
+      // server-rendered surface that has to read the fresh session, and the
+      // auth events have already run against this document.
+      if (redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
+        window.location.assign(redirectTo);
+      }
     } catch {
       setError(
         navigator.onLine === false

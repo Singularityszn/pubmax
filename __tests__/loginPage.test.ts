@@ -99,7 +99,10 @@ describe("login page", () => {
     expect(page).toContain("Welcome back");
     expect(page).toContain("Email me a sign-in link");
     expect(page).toContain("Email me a sign-up link");
-    expect(page).toContain("arrivalDestination");
+    // `addLinkAwareDestination` IS `arrivalDestination`, plus the one case the
+    // add link needs: a sign-up finishes on the claim surface, and the link it
+    // came from rides through as that surface's `?returnTo=`.
+    expect(page).toContain("addLinkAwareDestination");
     expect(page).toContain("rememberChosenIntent");
     // Handle-and-password stays beside the link on the sign-in door.
     expect(page).toContain("HandlePasswordSignIn");
