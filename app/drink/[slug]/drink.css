@@ -77,11 +77,6 @@
   color: var(--accent-action);
 }
 
-.drinkBrandLanding__fromPublisher a:focus-visible {
-  outline: 3px solid var(--accent-action);
-  outline-offset: 3px;
-}
-
 .drinkBrandLanding__summary {
   max-width: 55ch;
   margin: 10px 0 0;
