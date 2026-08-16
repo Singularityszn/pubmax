@@ -100,7 +100,7 @@ test.describe("mobile bottom-tab navigation", () => {
     await page.goto("/map");
 
     await page.getByRole("button", { name: "Create" }).click();
-    await page.getByRole("menuitem", { name: "Post a moment" }).click();
+    await page.getByRole("link", { name: "Post a moment", exact: true }).click();
 
     await expect(page).toHaveURL(/\/moment\?returnTo=%2Fmap$/);
     await expect(page.getByRole("heading", { name: "Keep this one." })).toBeVisible();

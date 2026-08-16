@@ -17,6 +17,7 @@ import { shouldShowMobileTabBar } from "@/components/nav/MobileTabBar";
 import {
   CREATE_FAB_ACTIONS,
   createFabMenuVisible,
+  returnToFromLocation,
 } from "@/components/nav/createFabActions";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -28,10 +29,12 @@ import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import "./createFab.css";
 
-// The compose affordance. It reads useSearchParams so a Moment carries the
-// query of the route it was composed from, which puts it behind a Suspense
-// boundary of its own: this is mounted in the root layout, and `/` and `/map`
-// are prerendered documents that an unwrapped read would pull back to per-request.
+// The compose affordance. A Moment carries the route it was composed from,
+// including its query, and the router's own reading is the SSR-safe fallback
+// behind the live address bar (see returnToFromLocation). Reading useSearchParams
+// at all puts this behind a Suspense boundary of its own: it is mounted in the
+// root layout, and `/` and `/map` are prerendered documents that an unwrapped
+// read would pull back to per-request.
 export default function CreateFab() {
   return (
     <Suspense fallback={null}>
@@ -45,12 +48,16 @@ function CreateFabGate() {
   const searchParams = useSearchParams();
   const query = searchParams.toString();
   if (!shouldShowMobileTabBar(pathname)) return null;
-  return <CreateFabContent returnTo={`${pathname}${query ? `?${query}` : ""}`} />;
+  return <CreateFabContent routerReturnTo={`${pathname}${query ? `?${query}` : ""}`} />;
 }
 
-function CreateFabContent({ returnTo }: { returnTo: string }) {
+function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
   const menuId = useId();
   const [open, setOpen] = useState(false);
+  // Read when the sheet opens, not on every render: opening is the gesture that
+  // fixes which route the composer is leaving, and the address cannot move again
+  // while the sheet covers it.
+  const [returnTo, setReturnTo] = useState(routerReturnTo);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const keyboardOpen = useSyncExternalStore(
     subscribeSoftKeyboard,
@@ -99,11 +106,13 @@ function CreateFabContent({ returnTo }: { returnTo: string }) {
       inert={keyboardOpen || undefined}
     >
       {menuOpen ? (
-        <div className="createFabMenu" id={menuId} role="menu" aria-label="Create">
+        // Three ordinary links behind a disclosure, NOT an ARIA menu: role="menu"
+        // promises arrow-key roving and a focus move on open, and a promise the
+        // keyboard does not keep is worse than the plain shape.
+        <div className="createFabMenu" id={menuId} aria-label="Create">
           {CREATE_FAB_ACTIONS.map((item) => (
             <Link
               key={item.action}
-              role="menuitem"
               className="createFabRow"
               href={item.hrefFor(returnTo)}
               onClick={() => {
@@ -123,11 +132,21 @@ function CreateFabContent({ returnTo }: { returnTo: string }) {
         className="createFab"
         data-testid="create-fab"
         aria-label="Create"
-        aria-haspopup="menu"
         aria-expanded={menuOpen}
         aria-controls={menuOpen ? menuId : undefined}
         tabIndex={keyboardOpen ? -1 : undefined}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          const next = !open;
+          if (next) {
+            setReturnTo(
+              returnToFromLocation(
+                typeof window === "undefined" ? null : window.location,
+                routerReturnTo,
+              ),
+            );
+          }
+          setOpen(next);
+        }}
       >
         <Plus size={24} strokeWidth={2.25} aria-hidden="true" />
       </button>

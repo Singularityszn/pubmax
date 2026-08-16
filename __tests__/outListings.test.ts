@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   filterOutListings,
+  outCardObservedAt,
   outListingsEmptyLine,
   parseOutDayWindow,
   selectOutListings,
@@ -86,6 +87,41 @@ describe("out listings", () => {
       }),
     );
     expect(selectOutListings(rows, "tonight", now, 3)).toHaveLength(3);
+  });
+});
+
+// A card is one row. The per-kind map is a MAXIMUM across every row of that
+// kind, so printing it on a card dated a July artifact with whatever the
+// freshest row of the same kind was observed at.
+describe("what day one card may print", () => {
+  it("prints the row's own day, not the freshest day of its kind", () => {
+    const bundled = row({
+      id: "music-1",
+      kind: "music",
+      title: "Gig",
+      observedAt: "2026-07-18T09:00:00.000Z",
+    });
+    expect(outCardObservedAt(bundled, { music: "2026-08-16T11:00:00.000Z" })).toBe(
+      "2026-07-18T09:00:00.000Z",
+    );
+  });
+
+  it("falls back to the kind's day only when the row carries none", () => {
+    const undated = { kind: "quiz", observedAt: undefined } as const;
+    expect(outCardObservedAt(undated, { quiz: "2026-08-01T00:00:00.000Z" })).toBe(
+      "2026-08-01T00:00:00.000Z",
+    );
+    const unparseable = { kind: "quiz", observedAt: "not a date" } as const;
+    expect(outCardObservedAt(unparseable, { quiz: "2026-08-01T00:00:00.000Z" })).toBe(
+      "2026-08-01T00:00:00.000Z",
+    );
+  });
+
+  it("borrows nobody else's day when it cannot answer", () => {
+    expect(outCardObservedAt({ kind: "sport", observedAt: undefined }, {})).toBeNull();
+    expect(
+      outCardObservedAt({ kind: "sport", observedAt: undefined }, { music: "2026-08-16T11:00:00.000Z" }),
+    ).toBeNull();
   });
 });
 

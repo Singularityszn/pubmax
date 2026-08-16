@@ -17,6 +17,25 @@ export type CreateFabAction = {
   hrefFor: (returnTo: string) => string;
 };
 
+/**
+ * Where "back" is, read off the live address bar.
+ *
+ * `useSearchParams` is not the honest source here: the Map writes its whole
+ * selection into the URL with `history.pushState` / `replaceState`, which Next's
+ * router never hears, so a reader who tapped a pin and then composed would be
+ * sent back to a bare `/map`. PubMap reads `window.location` for exactly this
+ * reason. The router's value stays as the fallback because it is the only
+ * reading available before a window exists.
+ */
+export function returnToFromLocation(
+  location: { pathname?: string; search?: string } | null | undefined,
+  fallback: string,
+): string {
+  const pathname = location?.pathname;
+  if (!pathname || !pathname.startsWith("/")) return fallback;
+  return `${pathname}${location?.search ?? ""}`;
+}
+
 export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [
   { action: "moment", label: "Post a moment", hrefFor: (returnTo) => momentHref(returnTo) },
   { action: "price", label: "Log a price", hrefFor: () => "/map?log=1" },

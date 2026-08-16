@@ -22,7 +22,10 @@ test("legacy view-mode state cannot replace the current mobile navigation", asyn
     "aria-current",
     "page",
   );
-  await expect(nav.getByRole("button", { name: "Create" })).toBeVisible();
+  // The create action is a sibling of the bar, never inside it: compose is an
+  // action, and the bar holds destinations only.
+  await expect(page.getByRole("button", { name: "Create" })).toBeVisible();
+  await expect(nav.getByRole("button", { name: "Create" })).toHaveCount(0);
   await expect(page.getByRole("radio", { name: /ledger|lock-in/i })).toHaveCount(0);
 
   const destinations = await nav.locator("a[aria-current='page']").allTextContents();

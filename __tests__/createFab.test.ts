@@ -16,6 +16,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CREATE_FAB_ACTIONS,
   createFabMenuVisible,
+  returnToFromLocation,
 } from "@/components/nav/createFabActions";
 import { safeMomentReturnTo } from "@/components/nav/navigationModel";
 
@@ -60,6 +61,32 @@ describe("what the create action offers", () => {
     expect(createFabMenuVisible(true, false)).toBe(true);
     expect(createFabMenuVisible(true, true)).toBe(false);
     expect(createFabMenuVisible(false, false)).toBe(false);
+  });
+});
+
+// The Map writes its selection into the URL with history.pushState, which the
+// Next router never hears, so a returnTo taken from useSearchParams alone came
+// back a bare /map after a reader had tapped a pin.
+describe("where the composer is told to come back to", () => {
+  it("takes the live address bar over the router's reading", () => {
+    expect(
+      returnToFromLocation({ pathname: "/map", search: "?sel=venue-123" }, "/map"),
+    ).toBe("/map?sel=venue-123");
+  });
+
+  it("keeps a route with no query intact", () => {
+    expect(returnToFromLocation({ pathname: "/out", search: "" }, "/map")).toBe("/out");
+  });
+
+  it("falls back to the router's reading when there is no window to read", () => {
+    expect(returnToFromLocation(null, "/out?day=weekend")).toBe("/out?day=weekend");
+    expect(returnToFromLocation(undefined, "/out")).toBe("/out");
+    expect(returnToFromLocation({ pathname: "", search: "?a=1" }, "/out")).toBe("/out");
+    // Never an off-site or scheme-relative path, whatever the location said.
+    expect(returnToFromLocation({ pathname: "//evil.example", search: "" }, "/out")).toBe(
+      "//evil.example",
+    );
+    expect(safeMomentReturnTo("//evil.example")).toBe("/map");
   });
 });
 

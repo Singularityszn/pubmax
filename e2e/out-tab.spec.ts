@@ -16,6 +16,11 @@ function primaryNav(page: Page) {
   return page.getByRole("navigation", { name: "Primary" });
 }
 
+// Three ordinary links behind a disclosure, so they are found as links.
+function createRow(page: Page, name: string) {
+  return page.getByRole("link", { name, exact: true });
+}
+
 async function openCreateMenu(page: Page) {
   const create = page.getByTestId("create-fab");
   await expect(create).toBeVisible();
@@ -23,7 +28,7 @@ async function openCreateMenu(page: Page) {
   // proof that the control and its sheet are clear of the tab bar at every
   // phone width. A forced click would pass through whatever covered them.
   await create.click();
-  await expect(page.getByRole("menuitem", { name: "Post a moment" })).toBeVisible();
+  await expect(createRow(page, "Post a moment")).toBeVisible();
 }
 
 for (const width of WIDTHS) {
@@ -44,22 +49,22 @@ for (const width of WIDTHS) {
       await expect(page.getByRole("link", { name: /start one/i })).toHaveAttribute("href", "/plan");
 
       await openCreateMenu(page);
-      await page.getByRole("menuitem", { name: "Post a moment" }).click();
+      await createRow(page, "Post a moment").click();
       await page.waitForURL(/\/moment\?returnTo=/);
 
       await page.goto("/out");
       await openCreateMenu(page);
-      await page.getByRole("menuitem", { name: "Log a price" }).click();
+      await createRow(page, "Log a price").click();
       await page.waitForURL(/\/map\?log=1/, { timeout: 45_000 });
 
       await page.goto("/out");
       await openCreateMenu(page);
-      await page.getByRole("menuitem", { name: "Start a plan" }).click();
+      await createRow(page, "Start a plan").click();
       await page.waitForURL(/\/plan$/);
       // The action is mounted in the root layout, so a client-side navigation
       // leaves it mounted: a sheet nobody closed stays painted over wherever it
       // sent you.
-      await expect(page.getByRole("menuitem", { name: "Start a plan" })).toHaveCount(0);
+      await expect(createRow(page, "Start a plan")).toHaveCount(0);
     });
   });
 }

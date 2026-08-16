@@ -5,6 +5,7 @@
 import {
   filterTonight,
   type WhatsOnKind,
+  type WhatsOnKindObservedAt,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
 
@@ -23,6 +24,26 @@ export const OUT_LISTING_KINDS: readonly WhatsOnKind[] = ["music", "quiz", "spor
  * dropped.
  */
 export const OUT_LISTING_LIMIT = 60;
+
+/**
+ * The day ONE card may print.
+ *
+ * A card is one row, so it dates itself from that row's own `observedAt`. The
+ * per-kind map beside it is a MAXIMUM across every row of its kind, which is a
+ * LANE stamp: printed on a card it would date a July artifact with whatever the
+ * freshest row of the same kind was observed at. It is only the fallback, for a
+ * row that carries no usable day of its own, and when it cannot answer either
+ * the card says so rather than borrowing somebody else's day.
+ */
+export function outCardObservedAt(
+  row: { kind: WhatsOnKind; observedAt?: string | null },
+  kindObservedAt: WhatsOnKindObservedAt,
+): string | null {
+  if (typeof row.observedAt === "string" && Number.isFinite(Date.parse(row.observedAt))) {
+    return row.observedAt;
+  }
+  return kindObservedAt[row.kind] ?? null;
+}
 
 /** A read that could not answer is not an empty city. */
 export type OutListingsReadStatus = "ready" | "degraded";

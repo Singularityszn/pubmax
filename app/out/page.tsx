@@ -31,11 +31,17 @@ export default async function OutPage({
 }) {
   const params = searchParams ? await searchParams : {};
   const day = parseOutDayWindow(params.day);
-  // No `limit` here: the What's-On read slices in dataset order, so a cap spent
-  // there is spent on deal rows this page discards. Filter to the kinds and the
-  // window first, then cap what is left. Filtering on the server also settles
+  // Baseline-only, the rule /today already keeps: the live layer is a JSON-RPC
+  // POST to another host, retried once at a ten second timeout, and this is a
+  // primary tab budgeted at 150 ms of server render. The bundled artifacts are a
+  // static import, so a chip that comes back empty is a quiet window rather than
+  // a read that could not answer.
+  //
+  // No `limit` here either: the What's-On read slices in dataset order, so a cap
+  // spent there is spent on deal rows this page discards. Filter to the kinds and
+  // the window first, then cap what is left. Filtering on the server also settles
   // the window against ONE clock, so the list cannot change under hydration.
-  const listings = await loadWhatsOn();
+  const listings = await loadWhatsOn({}, { fetchLive: async () => [] });
   const rows = selectOutListings(listings.rows, day);
   return (
     <OutClient

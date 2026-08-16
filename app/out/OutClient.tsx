@@ -7,10 +7,12 @@ import SiteNav from "@/components/nav/SiteNav";
 import { trackEvent } from "@/lib/analytics";
 import {
   OUT_DAY_WINDOWS,
+  outCardObservedAt,
   outListingsEmptyLine,
   type OutDayWindow,
   type OutListingsReadStatus,
 } from "@/lib/outListings";
+import { handleRovingRadioKeyDown } from "@/lib/rovingRadioGroup";
 import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 import { EMPTY_KIND_OBSERVED_AT, type WhatsOnKindObservedAt, type WhatsOnRow } from "@/lib/whatsOn";
 
@@ -46,7 +48,12 @@ export default function OutClient({
 
       <header className="outHead">
         <h1 className="outTitle">Out</h1>
-        <div className="outDayChips" role="radiogroup" aria-label="When">
+        <div
+          className="outDayChips"
+          role="radiogroup"
+          aria-label="When"
+          onKeyDown={handleRovingRadioKeyDown}
+        >
           {OUT_DAY_WINDOWS.map((window) => {
             const selected = window === day;
             const href = window === "tonight" ? "/out" : `/out?day=${window}`;
@@ -92,14 +99,12 @@ export default function OutClient({
                 <p className="outCardKind">{WHATS_ON_KIND_META[row.kind].label}</p>
                 <h3 className="outCardTitle">{row.title}</h3>
                 <p className="outCardPlace">{row.placeName}</p>
-                {/* A card shows ONE kind, so it dates itself from that kind's
-                    own evidence. A live row's observedAt falls back to the
-                    request instant, which would print today's date with nobody
-                    having checked anything. */}
+                {/* A card is ONE row, so it prints that row's own day. The
+                    per-kind map is a lane stamp and is only the fallback. */}
                 <p className="outCardMeta">
                   {row.source.label}
                   <span aria-hidden="true"> · </span>
-                  {checkedLabel(kindObservedAt[row.kind] ?? null)}
+                  {checkedLabel(outCardObservedAt(row, kindObservedAt))}
                 </p>
               </li>
             ))}
