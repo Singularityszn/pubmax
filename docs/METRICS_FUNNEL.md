@@ -453,10 +453,14 @@ current surface emits either event.
 Activation is the elapsed time from `plan_generated` to the first verified
 `plan_accepted` with `stops = 3`, `grounded = true`, `routeReady = true` for the
 same pseudonymous identity. `plan_saved` and `plan_draft_saved` remain separate
-signals and never enter this grounded-Route activation measure. Direct/manual
-Plans do not emit `plan_accepted`; the legacy creation response keeps acceptance
-delivery suppressed until L09 installs the one-Stop-to-three-Stop lifecycle and
-its server-owned transition token. `grounded`, `anchored`, `routeReady`, and
+signals and never enter this grounded-Route activation measure. The anchored
+one-Stop-to-three-Stop lifecycle is permanent: an anchor-only creation emits
+`plan_draft_saved` and never `plan_accepted`, and the verified three-Stop route
+(creation, or the grounded upgrade on `PATCH /api/plans/:id`) carries the
+server-owned acceptance token. Direct/manual unanchored Plans still emit no
+`plan_accepted`: their creation response returns an empty
+`meaningfulCoreAction`, so the client condition fails closed.
+`grounded`, `anchored`, `routeReady`, and
 `source` on acceptance are server-owned: generation returns a two-hour HMAC
 proof covering its candidate Venue ids and one create idempotency operation.
 Plan creation verifies the exact accepted three-stop route against that proof

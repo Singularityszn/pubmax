@@ -235,9 +235,29 @@ type GeneratePlanRequest = {
   cityId?: string;              // default "london"; validated by parseCityId
   query?: string;              // free-text night description; parsed by inferNightContext
   context?: Partial<NightContext> | NightContext; // merged over inference; MUST resolve a nightArea
+  anchor?: {                    // the accepted pub, when the person kept one first
+    venueId: string;
+    source: PlanningIntentSource;   // "near" | "map-search" | "tonight" | "pal"
+    acceptedArea: PlanningIntentArea;
+    startsAt: string | null;
+  };
 };
 // At least one of `query` or `context` is required.
 ```
+
+### Accepted-pub anchor
+
+An `anchor` is always authoritative; a request without one keeps the generic,
+unanchored selection path. The anchored lane answers `200` with an `outcome`:
+
+| `outcome` | Meaning | Body shape |
+| --- | --- | --- |
+| `route` | The anchor is Stop 1 of a full grounded route | ordinary `stops` plus `anchored`, `anchorVenueId`, `anchorSource`, `groundingProof` |
+| `anchor-only` | The anchor stands, but too few companions ground a route | one Stop, `routeReady: false`, `reason: "ANCHOR_COMPANIONS_INSUFFICIENT"` |
+| `anchor-conflict` | The anchor itself cannot carry a route now | `stops: []`, `grounded: false`, plus `reason` and a reader-visible `message` |
+
+`anchor-conflict` is a `200` with no Stops, so a caller must branch on
+`outcome` before it treats an empty `stops` array as no match.
 
 Merge rule (`mergeContext`): a complete `cleanNightContext` wins; else a `cleanNightContextPatch` is layered over the inferred context; else the inferred context is used. `context.nightArea` must resolve — a `null` area is a `422`.
 
@@ -565,6 +585,7 @@ FSA hygiene and routed walking time are not asserted until a scheduled, permissi
 | Route | Method | Rate limit | Error envelope | Auth |
 | --- | --- | --- | --- | --- |
 | `/api/plans/generate` | POST | ✅ `plan-generate` (8/60s; hashed per client) | flat `PublicApiError` | keyless |
+| `/api/plans/anchor` | GET | ✅ `plan-anchor` (60/60s; hashed per client) | flat `PublicApiError` | keyless |
 | `/api/plans/:id` | PATCH | ❌ deferred | flat `PublicApiError` | member token |
 | `/api/plans/:id/actions` | POST | ❌ deferred | flat `PublicApiError` | Bearer member token; body fallback |
 | `/api/plans/:id/complete` | POST/GET | ❌ deferred | flat `PublicApiError` | member token (POST) / public (GET) |

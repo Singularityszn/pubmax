@@ -34,12 +34,12 @@ text, imagery, or exact layout.
 3. One next action owns the Map transition.
 4. Reuse `InviteMapLink`, `buildCrawlMapHref`, `venueMapUrl`, and
    `invite_map_opened`.
-6. Two or more valid Venue IDs open
+5. Two or more valid Venue IDs open
    `/map?mode=build&pubs=<ordered ids>`. One valid Venue ID opens its canonical
    selected-Venue Map URL. No valid IDs render no link.
-7. The success status is announced without moving focus. Link remains a native
+6. The success status is announced without moving focus. Link remains a native
    anchor with visible focus and a 44px target.
-8. Going and Maybe share the same next action. The action is independent of
+7. Going and Maybe share the same next action. The action is independent of
    RSVP choice and current-session history.
 
 ## Acceptance matrix
