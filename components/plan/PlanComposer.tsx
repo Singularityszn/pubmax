@@ -97,14 +97,14 @@ export type ComposerRouteMutation = {
 export function composerRouteMutation(input: {
   currentStops: DraftStop[];
   nextStops: DraftStop[];
-  acceptedVenueId?: string | null;
+  heldVenueId?: string | null;
   groundingProof: string | null;
   createOperationKey: string | null;
   planAnchor: GeneratedPlanAnchor | null;
   routeStale: boolean;
 }): ComposerRouteMutation {
-  const anchorVenueId = input.planAnchor?.venueId ?? input.acceptedVenueId ?? null;
-  if (anchorVenueId && input.nextStops[0]?.venueId !== anchorVenueId) {
+  const heldVenueId = input.heldVenueId ?? null;
+  if (heldVenueId && input.nextStops[0]?.venueId !== heldVenueId) {
     return {
       accepted: false,
       stops: input.currentStops,
@@ -130,13 +130,13 @@ export function editedPlanStop(input: {
   stop: DraftStop;
   venueName: string;
   venues: readonly PlanVenueOption[];
-  acceptedVenueId?: string | null;
+  heldVenueId?: string | null;
 }): { stop: DraftStop; preservesAcceptedAuthority: boolean } {
   const match = input.venues.find((venue) => venue.name.toLocaleLowerCase() === input.venueName.trim().toLocaleLowerCase());
   const accepted = input.stop.key === 1
-    && Boolean(input.acceptedVenueId)
-    && input.stop.venueId === input.acceptedVenueId;
-  const preservesAcceptedAuthority = accepted && (!match || match.id === input.acceptedVenueId);
+    && Boolean(input.heldVenueId)
+    && input.stop.venueId === input.heldVenueId;
+  const preservesAcceptedAuthority = accepted && (!match || match.id === input.heldVenueId);
   return {
     stop: {
       ...input.stop,
@@ -1035,7 +1035,6 @@ function PlanComposerForm({
   // rather than the live one, so releasing the pub neither refetches an index
   // nor re-asks the browser for a location.
   const acceptedCityId = hydratedHandoff?.acceptedAnchor?.cityId ?? DEFAULT_CITY_ID;
-  const acceptedStop1VenueId = planAnchor?.venueId ?? heldVenueId;
   const completeStopIds = completeStops.map((stop) => stop.venueId);
   const matchingAnchorOnlyPlan = isMatchingAnchorOnlyPlan({
     groundingProof,
@@ -1247,7 +1246,7 @@ function PlanComposerForm({
     const mutation = composerRouteMutation({
       currentStops: stops,
       nextStops,
-      acceptedVenueId: heldVenueId,
+      heldVenueId,
       groundingProof,
       createOperationKey,
       planAnchor,
@@ -1285,7 +1284,7 @@ function PlanComposerForm({
   function chooseVenue(key: number, venueName: string) {
     const selected = stops.find((stop) => stop.key === key);
     if (!selected) return;
-    const edited = editedPlanStop({ stop: selected, venueName, venues, acceptedVenueId: heldVenueId });
+    const edited = editedPlanStop({ stop: selected, venueName, venues, heldVenueId });
     applyStopIdentityMutation(
       stops.map((stop) => stop.key === key ? edited.stop : stop),
       "Stop edited in the route preview. Refresh the route before locking.",
@@ -1753,10 +1752,10 @@ function PlanComposerForm({
                 type="button"
                 onClick={() => swapStop(stop.key)}
                 disabled={Boolean(
-                  (index === 0 && acceptedStop1VenueId === stop.venueId)
+                  (index === 0 && heldVenueId === stop.venueId)
                   || stop.alternatives.length === 0
                 )}
-                aria-label={index === 0 && acceptedStop1VenueId === stop.venueId
+                aria-label={index === 0 && heldVenueId === stop.venueId
                   ? `${stop.venueName} is the accepted Stop 1`
                   : stop.alternatives.length > 0
                     ? `Swap stop ${index + 1}, currently ${stop.venueName}`
@@ -1772,8 +1771,8 @@ function PlanComposerForm({
                     stops.filter((item) => item.key !== stop.key),
                     `Stop ${index + 1} removed. Refresh the route before locking.`,
                   )}
-                  disabled={index === 0 && acceptedStop1VenueId === stop.venueId}
-                  aria-label={index === 0 && acceptedStop1VenueId === stop.venueId
+                  disabled={index === 0 && heldVenueId === stop.venueId}
+                  aria-label={index === 0 && heldVenueId === stop.venueId
                     ? `${stop.venueName} is the accepted Stop 1`
                     : `Remove stop ${index + 1}`}
                 >Remove</button>

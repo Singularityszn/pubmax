@@ -107,7 +107,7 @@ describe("PlanComposer accepted Stop 1 naming", () => {
       stop: accepted,
       venueName: "The pub beside the station",
       venues: [],
-      acceptedVenueId: "venue-accepted",
+      heldVenueId: "venue-accepted",
     })).toEqual({
       stop: { ...accepted, venueName: "The pub beside the station" },
       preservesAcceptedAuthority: true,
@@ -119,7 +119,7 @@ describe("PlanComposer accepted Stop 1 naming", () => {
       stop: accepted,
       venueName: "Different Arms",
       venues: [{ id: "venue-different", name: "Different Arms" }],
-      acceptedVenueId: "venue-accepted",
+      heldVenueId: "venue-accepted",
     })).toMatchObject({
       stop: { venueId: "venue-different" },
       preservesAcceptedAuthority: false,
@@ -148,7 +148,7 @@ describe("PlanComposer route mutation authority", () => {
     expect(composerRouteMutation({
       currentStops: current,
       nextStops,
-      acceptedVenueId: "accepted",
+      heldVenueId: "accepted",
       ...authority,
     })).toMatchObject({
       accepted: true,
@@ -164,7 +164,7 @@ describe("PlanComposer route mutation authority", () => {
     expect(composerRouteMutation({
       currentStops: current,
       nextStops: current.slice(1),
-      acceptedVenueId: "accepted",
+      heldVenueId: "accepted",
       ...authority,
     })).toMatchObject({
       accepted: false,
@@ -180,7 +180,7 @@ describe("PlanComposer route mutation authority", () => {
     expect(composerRouteMutation({
       currentStops: current,
       nextStops,
-      acceptedVenueId: "accepted",
+      heldVenueId: "accepted",
       ...authority,
     })).toMatchObject({
       accepted: true,
@@ -747,7 +747,7 @@ describe("what the composer holds as Stop 1", () => {
     return composerRouteMutation({
       currentStops: stops,
       nextStops: stops.slice(1),
-      acceptedVenueId: heldVenueId,
+      heldVenueId,
       ...authority,
     });
   }
@@ -774,7 +774,7 @@ describe("what the composer holds as Stop 1", () => {
       stop: stops[0]!,
       venueName: "Different Arms",
       venues: [{ id: "venue-different", name: "Different Arms" }],
-      acceptedVenueId: hydration.heldVenueId,
+      heldVenueId: hydration.heldVenueId,
     })).toMatchObject({
       stop: { venueId: "venue-different", venueName: "Different Arms" },
       preservesAcceptedAuthority: false,
@@ -821,6 +821,75 @@ describe("what the composer holds as Stop 1", () => {
     expect(removeStop1(released.heldVenueId)).toMatchObject({
       accepted: true,
       stops: stops.slice(1),
+    });
+  });
+
+  it("lets Stop 1 go when a recovered route anchor outlives the acceptance", () => {
+    // The regression this pins: the route draft carries no acceptance TTL, so a
+    // generated anchor came back hours later and locked Stop 1 for somebody
+    // whose acceptance had expired - with no panel on screen to explain it and
+    // no release control to undo it.
+    const recovered = parsePlanRouteDraft(JSON.stringify({
+      stops: stops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName, alternatives: [] })),
+      nightContext: null,
+      routeRevision: 1,
+      routeStale: false,
+      groundingProof: "signed-proof",
+      createOperationKey: "operation-key",
+      planAnchor: { venueId: "venue-first", source: "near", outcome: "route" },
+    }));
+    expect(recovered?.planAnchor?.venueId).toBe("venue-first");
+
+    const lapsed = resolveComposerHydration({
+      planDraft: null,
+      routeDraft: null,
+      intakeDraft: null,
+      planningIntent: null,
+      rememberedArea: null,
+    });
+    expect(lapsed.heldVenueId).toBeNull();
+    expect(lapsed.showAcceptedSummary).toBe(false);
+
+    const anchored = {
+      groundingProof: recovered?.groundingProof ?? null,
+      createOperationKey: recovered?.createOperationKey ?? null,
+      planAnchor: recovered?.planAnchor ?? null,
+      routeStale: false,
+    };
+
+    expect(composerRouteMutation({
+      currentStops: stops,
+      nextStops: stops.slice(1),
+      heldVenueId: lapsed.heldVenueId,
+      ...anchored,
+    })).toMatchObject({ accepted: true, stops: stops.slice(1) });
+
+    const swapped = [{ ...stops[0]!, venueId: "venue-other", venueName: "Other Arms" }, stops[1]!];
+    expect(composerRouteMutation({
+      currentStops: stops,
+      nextStops: swapped,
+      heldVenueId: lapsed.heldVenueId,
+      ...anchored,
+    })).toMatchObject({
+      accepted: true,
+      stops: swapped,
+      // An edited route may not keep the proof it was generated with, so the
+      // anchor still does its own job: this route cannot be locked until it is
+      // sorted again.
+      groundingProof: null,
+      createOperationKey: null,
+      routeStale: true,
+      planAnchor: anchored.planAnchor,
+    });
+
+    expect(editedPlanStop({
+      stop: stops[0]!,
+      venueName: "Other Arms",
+      venues: [{ id: "venue-other", name: "Other Arms" }],
+      heldVenueId: lapsed.heldVenueId,
+    })).toMatchObject({
+      stop: { venueId: "venue-other" },
+      preservesAcceptedAuthority: false,
     });
   });
 });
