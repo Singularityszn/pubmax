@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 
 import { hashPlanMemberToken } from "@/lib/planStore";
+import type { OutOpenPlan } from "@/lib/out";
+import { OPEN_PLAN_LIST_LIMIT } from "@/lib/openSocialCrew";
 import {
   isSocialCrewMutationCode,
   isSocialCrewRole,
@@ -45,7 +47,8 @@ export type SocialCrewRpcName =
 
 export type SocialCrewSnapshotRpcName =
   | "read_social_crew_snapshot"
-  | "read_social_crew_member_page";
+  | "read_social_crew_member_page"
+  | "list_open_social_crews";
 
 export type SocialCrewStoreDependencies = {
   rpc(name: SocialCrewRpcName, input: Record<string, unknown>): Promise<unknown>;
@@ -111,6 +114,12 @@ export type SocialCrewStore = {
     actor: SocialPostActor,
     input: SocialCrewListInput,
   ): Promise<SocialCrewListPageDTO>;
+  listOpen(input: {
+    from: string;
+    until: string;
+    city: string;
+    limit?: number;
+  }): Promise<OutOpenPlan[]>;
   create(actor: SocialPostActor, input: CreateInput): Promise<SocialCrewMutationResult>;
   invite(actor: SocialPostActor, input: InviteInput): Promise<SocialCrewMutationResult>;
   acceptInvitation(actor: SocialPostActor, input: InvitationActionInput): Promise<SocialCrewMutationResult>;
@@ -346,6 +355,40 @@ function parseListInput(input: SocialCrewListInput): {
   return { limit, cursor: input.cursor };
 }
 
+function unwrapOpenPlanRows(value: unknown): unknown[] | null {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === "object" && !Array.isArray(value) && "data" in value) {
+    const data = (value as { data: unknown }).data;
+    return Array.isArray(data) ? data : null;
+  }
+  return null;
+}
+
+function parseOpenPlanRow(value: unknown): OutOpenPlan | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  if (!isUuid(row.crewId)) return null;
+  if (typeof row.title !== "string" || !row.title.trim()) return null;
+  if (typeof row.startTime !== "string" || !row.startTime.trim()) return null;
+  if (typeof row.hostHandle !== "string" || !row.hostHandle.trim()) return null;
+  if (!Number.isInteger(row.memberCount) || Number(row.memberCount) < 0) return null;
+  if (row.stopVenueId !== null && typeof row.stopVenueId !== "string") return null;
+  if (row.stopVenueName !== null && typeof row.stopVenueName !== "string") return null;
+  return {
+    crewId: row.crewId,
+    title: row.title,
+    startTime: row.startTime,
+    stopVenueId: row.stopVenueId,
+    stopVenueName: row.stopVenueName,
+    hostHandle: row.hostHandle,
+    memberCount: Number(row.memberCount),
+    // The city and the map point are DERIVED from Stop 1 by the reader
+    // (lib/openSocialCrew.server). Plans store no city, so the RPC lists every
+    // upcoming open crew and answers no question about where it is.
+    meetingPoint: null,
+  };
+}
+
 const defaultDependencies: SocialCrewStoreDependencies = {
   async rpc(name, input) {
     const { data, error } = await requireSupabaseAdmin().rpc(name, input);
@@ -461,6 +504,37 @@ export function createSocialCrewStore(
       } catch {
         return unavailable();
       }
+    },
+
+    async listOpen(input) {
+      const from = typeof input.from === "string" ? input.from.trim() : "";
+      const until = typeof input.until === "string" ? input.until.trim() : "";
+      const city = typeof input.city === "string" ? input.city.trim() : "";
+      if (!from || !until || !city) return unavailable();
+      const limit = input.limit ?? OPEN_PLAN_LIST_LIMIT;
+      if (!Number.isInteger(limit) || limit < 1 || limit > OPEN_PLAN_LIST_LIMIT) {
+        return unavailable();
+      }
+      let snapshot: unknown;
+      try {
+        snapshot = await dependencies.snapshot("list_open_social_crews", {
+          p_from: from,
+          p_until: until,
+          p_city: city,
+          p_limit: limit,
+        });
+      } catch {
+        return unavailable();
+      }
+      const rows = unwrapOpenPlanRows(snapshot);
+      if (!rows) return unavailable();
+      const parsed: OutOpenPlan[] = [];
+      for (const row of rows) {
+        const plan = parseOpenPlanRow(row);
+        if (!plan) return unavailable();
+        parsed.push(plan);
+      }
+      return parsed.slice(0, OPEN_PLAN_LIST_LIMIT);
     },
 
     create(actor, input) {

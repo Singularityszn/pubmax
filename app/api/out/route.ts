@@ -1,18 +1,27 @@
 // GET /api/out?city=london&day=today|tomorrow|weekend
 //
-// Public Out listing. Bundled events file plus a request-time Ticketmaster /
-// Skiddle supplement. A missing key is not-configured. A configured provider
-// that fails is degraded and still returns the bundled rows. Never an empty
-// market claim.
+// Public Out listing. Events half is L2 (buildOutResponse: bundled file plus
+// Ticketmaster / Skiddle). Open plans come from list_open_social_crews with
+// city and time window in the RPC. A failed plans read is degraded, never an
+// empty market.
 
 import { publicApiError } from "@/lib/apiError";
+import {
+  boundOutOpenPlans,
+  outPlansWindow,
+  OUT_OPEN_PLAN_LIMIT,
+} from "@/lib/out";
+import { attachOpenPlanMeetingPoints } from "@/lib/openSocialCrew.server";
 import { buildOutResponse, parseOutQuery } from "@/lib/out/loadOut";
 import { outCacheControl } from "@/lib/out/outStatus";
 import { isOutLimited } from "@/lib/outRateLimit";
 import { withRouteTiming } from "@/lib/routeObservability";
+import { createSocialCrewStore } from "@/lib/socialCrewStore";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
+
+const store = createSocialCrewStore();
 
 export const GET = withRouteTiming("out", getHandler);
 
@@ -29,8 +38,30 @@ async function getHandler(request: Request): Promise<Response> {
     return publicApiError("Unknown city or day.", "INVALID_REQUEST", 400);
   }
 
-  const body = await buildOutResponse(query);
-  return Response.json(body, {
-    headers: { "cache-control": outCacheControl(body.status) },
+  const now = Date.now();
+  const body = await buildOutResponse(query, { now });
+  let status = body.status;
+  let openPlans = body.openPlans;
+
+  const window = outPlansWindow(query.day, now);
+  try {
+    const listed = await store.listOpen({
+      from: window.from,
+      until: window.until,
+      city: query.city,
+      limit: OUT_OPEN_PLAN_LIMIT,
+    });
+    const attached = await attachOpenPlanMeetingPoints(listed);
+    if (attached.status === "degraded" && status !== "degraded") {
+      status = "degraded";
+    }
+    openPlans = boundOutOpenPlans(attached.plans);
+  } catch {
+    if (status === "ready") status = "degraded";
+    openPlans = [];
+  }
+
+  return Response.json({ ...body, status, openPlans }, {
+    headers: { "cache-control": outCacheControl(status) },
   });
 }

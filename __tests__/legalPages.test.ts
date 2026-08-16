@@ -1,8 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it } from "vitest";
 
+import PrivacyPage from "@/app/privacy/page";
+import TermsPage from "@/app/terms/page";
 import { CONTACT_EMAIL } from "@/lib/siteContact";
 import {
   WEATHER_RECOMMENDATION_CONDITIONS,
@@ -20,8 +24,14 @@ function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
+function pageVisibleText(markup: string): string {
+  return markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 const privacy = read("app/privacy/page.tsx");
 const terms = read("app/terms/page.tsx");
+const privacyText = pageVisibleText(renderToStaticMarkup(createElement(PrivacyPage)));
+const termsText = pageVisibleText(renderToStaticMarkup(createElement(TermsPage)));
 const landing = read("components/landing/LandingPage.tsx");
 const sitemap = read("app/sitemap.ts");
 
@@ -179,6 +189,14 @@ describe("legal content pages", () => {
     }
     expect(privacy).toMatch(/owner[^]*active members who remain Mutual with the owner[^]*full roster[^]*Crew-bound Plan/i);
     expect(privacy).toMatch(/friends[^]*current Mutuals[^]*preview/i);
+    expect(privacyText).toMatch(
+      /While a plan is open, anyone can see its title, the pub or place it starts at, its start time, how many people are in it, and your handle as host/i,
+    );
+    expect(privacyText).toMatch(/Close the plan and it drops out of the public list/i);
+    expect(termsText).toMatch(
+      /While a plan is open, anyone can see its title, the pub or place it starts at, its start time, how many people are in it, and the host handle/i,
+    );
+    expect(termsText).toMatch(/Close the plan and it drops out of the public list/i);
     expect(privacy).toMatch(/private Crew[^]*owner[^]*active members who\s+remain Mutual with the owner/i);
     expect(privacy).toMatch(/invitation[^]*sender[^]*recipient[^]*expiry[^]*state/i);
     expect(privacy).toMatch(/Join Request[^]*requester[^]*owner and\s+cohosts/i);

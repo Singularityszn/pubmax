@@ -1,3 +1,4 @@
+import type { OutOpenPlan } from "@/lib/out";
 import type { OutSourceCredit } from "@/lib/out/attribution";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -36,7 +37,7 @@ export type OutStatus = "ready" | "degraded" | "not-configured";
 export type OutResponse = {
   status: OutStatus;
   events: WhatsOnRow[];
-  openPlans: [];
+  openPlans: OutOpenPlan[];
   attribution: OutSourceCredit[];
   observedAt: Record<string, string>;
   providers: OutProviderReport[];

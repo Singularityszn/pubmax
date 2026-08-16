@@ -2,9 +2,9 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { callerUserId } from "@/lib/authServer";
 import { parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
-import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { isLimited } from "@/lib/pintDrops";
 import { cleanPlanAnchor } from "@/lib/plan";
+import { planStopResolver } from "@/lib/planRoute";
 import { linkPlanMemberUser, linkPlanOwnerUser } from "@/lib/planCrewIdentity";
 import { planMemberIdentity, planRequestDigest, planStore } from "@/lib/planStore";
 import { profileStore } from "@/lib/profileStore";
@@ -59,13 +59,10 @@ export async function POST(request: Request): Promise<Response> {
   const cityId = rawCity ? parseCityId(rawCity) : DEFAULT_CITY_ID;
   if (!cityId) return publicApiError("Choose a listed city.", "CITY_INVALID", 400);
   const submittedStops = Array.isArray(body.stops) ? body.stops : [];
-  const venues = await loadConciergeVenues(cityId);
-  const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
-  const stops = submittedStops.map((raw) => {
-    const venueId = raw && typeof raw === "object" ? (raw as Record<string, unknown>).venueId : undefined;
-    const venue = typeof venueId === "string" ? venuesById.get(venueId) : undefined;
-    return venue ? { venueId: venue.id, venueName: venue.name } : null;
-  });
+  // One rule for what a Stop id may be, shared with route replacement: a listed
+  // venue, or a `place:<poi id>` meeting point. Free text resolves to nothing.
+  const resolveStop = await planStopResolver(cityId);
+  const stops = submittedStops.map((raw) => resolveStop(raw));
   if (stops.some((stop) => stop === null)) {
     return publicApiError("Choose listed venues.", "PLAN_VENUES_INVALID", 400);
   }

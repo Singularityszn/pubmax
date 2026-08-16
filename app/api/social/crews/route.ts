@@ -4,11 +4,16 @@ import {
   socialCrewErrorResponse,
   socialCrewExactKeys,
   socialCrewHostCapability,
+  socialCrewHouseError,
   socialCrewIdempotencyKey,
   socialCrewInvalidResponse,
   socialCrewMutation,
   socialCrewPrivateJson,
+  socialCrewUnavailableResponse,
 } from "@/lib/socialCrewHttp";
+import { isSocialCrewVisibility } from "@/lib/socialCrew";
+import { OPEN_PLAN_PLACE_REFUSED_LINE } from "@/lib/openSocialCrew";
+import { resolveOpenPlanMeetingPoint } from "@/lib/openSocialCrew.server";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { createSocialCrewStore } from "@/lib/socialCrewStore";
 
@@ -69,8 +74,21 @@ export async function POST(request: Request): Promise<Response> {
     return socialCrewInvalidResponse();
   }
   const { planId, visibility } = input.body;
-  if (typeof planId !== "string" || (visibility !== "private" && visibility !== "friends")) {
+  if (typeof planId !== "string" || !isSocialCrewVisibility(visibility)) {
     return socialCrewInvalidResponse();
+  }
+  if (visibility === "open") {
+    const meeting = await resolveOpenPlanMeetingPoint(planId);
+    if (meeting.ok === false && meeting.reason === "unavailable") {
+      return socialCrewUnavailableResponse();
+    }
+    if (!meeting.ok) {
+      return socialCrewHouseError(
+        OPEN_PLAN_PLACE_REFUSED_LINE,
+        "OPEN_PLAN_PLACE_REFUSED",
+        422,
+      );
+    }
   }
 
   return socialCrewMutation(() => store.create(authority.actor, {

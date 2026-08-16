@@ -242,6 +242,11 @@ export const ANALYTICS_EVENTS = {
   // handle, or coordinate. `state` is the derived now-read, not a stored trust.
   occupancy_reported: ["level", "surface"],
   occupancy_read: ["state"],
+  // Open plans (Out L3). placeKind is venue|place. decision is accept|decline.
+  // Never a crew id, handle, venue id, or coordinate.
+  open_plan_posted: ["placeKind"],
+  open_plan_join_requested: [],
+  open_plan_join_decided: ["decision"],
   // Out listing card. Closed source enum only - never an event id, venue id,
   // or coordinate.
   out_card_opened: ["source"],
@@ -465,6 +470,7 @@ const SAFE_STRING_VALUES = new Set([
   // Crowd occupancy: the three buttons, the four now-read states, the two
   // surfaces that may report. `degraded` and `pal` already sit above.
   "empty", "some-seats", "full", "fresh", "stale", "none", "venue-sheet",
+  "place", "accept", "decline",
   // Out card sources. Closed set; never a free-text publisher or venue name.
   "ticketmaster", "skiddle", "common",
   // Community-price funnel vocabulary: the drink taxonomy and the three
@@ -522,6 +528,8 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   plan_accepted: ["stops", "grounded", "anchored", "routeReady", "source"],
   crew_committed: ["source", "participants", "routeReady"],
   message_attach_selected: ["kind"],
+  open_plan_posted: ["placeKind"],
+  open_plan_join_decided: ["decision"],
   meaningful_core_action: ["action"],
   // The funnel is a ratio, so a step with no drink category would be an
   // uncountable event rather than a partial one - fail closed like the rest.
@@ -781,6 +789,20 @@ function isAllowedMessageAttachProp(
   return includesValue(["photos", "camera", "document"], value);
 }
 
+function isAllowedOpenPlanProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name === "open_plan_posted" && key === "placeKind") {
+    return includesValue(["venue", "place"], value);
+  }
+  if (name === "open_plan_join_decided" && key === "decision") {
+    return includesValue(["accept", "decline"], value);
+  }
+  return true;
+}
+
 export function isKnownEvent(name: string): name is AnalyticsEventName {
   return Object.prototype.hasOwnProperty.call(ANALYTICS_EVENTS, name);
 }
@@ -845,7 +867,8 @@ export function sanitizeEvent(
               && isAllowedPintIndexArrivalProp(name, key, value)
               && isAllowedInviteLoopProp(name, key, value)
               && isAllowedMessageAttachProp(name, key, value)
-              && isAllowedLandingCtaProp(name, key, value);
+              && isAllowedLandingCtaProp(name, key, value)
+              && isAllowedOpenPlanProp(name, key, value);
       if (valid) out[key] = value as string | number | boolean;
     }
   }

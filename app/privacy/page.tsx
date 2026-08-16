@@ -501,7 +501,7 @@ export default function PrivacyPage() {
         <h2 id="crews" className="legalH2">Social Crews</h2>
         <p className="legalBody">
           A Social Crew uses its linked Planned Night title as its name. We
-          store whether it is private or friends-only, its owner, and a roster
+          store whether it is private, friends-only, or open, its owner, and a roster
           with each member&rsquo;s account, role, join time and current state.
           The owner, and active members who remain Mutual with the owner, can
           read the full roster and Crew-bound Plan, including its stops, night
@@ -513,7 +513,10 @@ export default function PrivacyPage() {
           of the owner read a limited preview with the Planned Night title,
           phase, area, start time and their own Join Request state. That preview
           does not show the roster or Crew-bound Plan details. A block in either
-          direction closes the read.
+          direction closes the read. While a plan is open, anyone can see its
+          title, the pub or place it starts at, its start time, how many people
+          are in it, and the host handle. Close the plan and it drops out of
+          the public list.
         </p>
         <p className="legalBody">
           Each invitation records its sender member, recipient account, expiry

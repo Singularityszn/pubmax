@@ -77,7 +77,7 @@ dependencies return `503` and keep local product navigation usable.
 
 ```ts
 export type SocialCrewRole = "owner" | "cohost" | "member";
-export type SocialCrewVisibility = "private" | "friends";
+export type SocialCrewVisibility = "private" | "friends" | "open";
 export type SocialCrewPhase = "planning" | "live" | "ended";
 
 export type SocialCrewMemberDTO = {
@@ -102,6 +102,10 @@ export type SocialCrewPreviewDTO = {
   nightArea: string | null;
   startsAt: string;
   joinRequestState: "none" | "pending" | "declined";
+  hostHandle?: string;
+  stopVenueId?: string | null;
+  stopVenueName?: string | null;
+  memberCount?: number;
 };
 
 export type SocialCrewPageDTO = {
@@ -132,9 +136,9 @@ export type SocialCrewListPageDTO = {
 };
 ```
 
-Preview contains no Crew ID, Plan ID, route, exact Venue, member identity,
-member count, chat, Check-in, Safe Home, or protected identifier. Private Crew
-denial and unknown Crew both return `404`. Dependency failure returns `503`,
+Preview contains no Crew ID, Plan ID, full route, exact Venue, member identity,
+chat, Check-in, Safe Home, or protected identifier. Private Crew denial and
+unknown Crew both return `404`. Dependency failure returns `503`,
 never a fake empty response.
 
 Full Crew projection omits legacy `PlanState.crew`. Social members come only
@@ -142,8 +146,10 @@ from `SocialCrewMemberDTO`; old Plan guests are not projected as Social Crew
 members and their legacy Plan member IDs never enter the browser DTO.
 
 Crew collection is active-member-only and uses `SocialCrewListItemDTO`. Friend
-preview stays detail-only because it contains no Crew identifier. The list
-never returns full Plan, Stops, actions, members, or Join Request state.
+or open previews stay detail-only because they contain no Crew identifier. Open
+previews include host handle, start Venue/Place name, and member count.
+The list never returns full Plan, Stops, actions, members, or Join Request
+state.
 
 ## Slice graph
 

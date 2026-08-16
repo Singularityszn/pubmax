@@ -86,6 +86,31 @@ describe("sanitizeEvent", () => {
     expect(sanitizeEvent("message_attach_selected")).toBeNull();
   });
 
+  it("keeps open-plan events closed: place kind and decision only", () => {
+    expect(ANALYTICS_EVENTS.open_plan_posted).toEqual(["placeKind"]);
+    expect(ANALYTICS_EVENTS.open_plan_join_requested).toEqual([]);
+    expect(ANALYTICS_EVENTS.open_plan_join_decided).toEqual(["decision"]);
+    expect(sanitizeEvent("open_plan_posted", {
+      placeKind: "venue",
+      crewId: "secret",
+      handle: "@alice",
+    })).toEqual({ name: "open_plan_posted", props: { placeKind: "venue" } });
+    expect(sanitizeEvent("open_plan_posted", { placeKind: "place" })).toEqual({
+      name: "open_plan_posted",
+      props: { placeKind: "place" },
+    });
+    expect(sanitizeEvent("open_plan_posted", { placeKind: "event" })).toBeNull();
+    expect(sanitizeEvent("open_plan_join_requested", { crewId: "x" })).toEqual({
+      name: "open_plan_join_requested",
+      props: {},
+    });
+    expect(sanitizeEvent("open_plan_join_decided", { decision: "accept" })).toEqual({
+      name: "open_plan_join_decided",
+      props: { decision: "accept" },
+    });
+    expect(sanitizeEvent("open_plan_join_decided", { decision: "maybe" })).toBeNull();
+  });
+
   it("rejects unsafe values: emails, over-long strings, non-finite numbers", () => {
     expect(sanitizeEvent("event_chip_view", { kind: "a@b.com" })?.props).toEqual({});
     expect(sanitizeEvent("event_chip_view", { kind: "x".repeat(41) })?.props).toEqual({});

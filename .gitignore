@@ -4,6 +4,8 @@ node_modules/
 out/
 !app/out/
 !app/out/**
+!lib/out/
+!lib/out/**
 dist/
 .env*
 !.env.example

@@ -19,8 +19,9 @@ handle.
 receive actor authority from `requireVerifiedSocialActor()`. Mutations require a
 16 to 128 character idempotency key and a server-derived payload digest.
 
-`updateVisibility` is owner-only, accepts `private | friends` plus the expected
-`authorityRevision`, and increments only that authority revision. Crew title,
+`updateVisibility` is owner-only, accepts `private | friends | open` plus the
+expected `authorityRevision`, and increments only that authority revision.
+Crew title,
 phase, start time, Night Area, route revision, and Plan state are derived from
 the bound Planned Night and never copied into Crew storage.
 
