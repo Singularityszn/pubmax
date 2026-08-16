@@ -14,6 +14,20 @@ const ACTIONS = "plan_actions";
 const COMPLETIONS = "plan_completions";
 const PLAN_COMPLETION_SELECT = "id,plan_id,ending,terminal_venue_id,ending_selection,final_pint_drop_id,route_revision,route_snapshot,qualifying_arrival_action_id,qualifying_arrival_stop_position,qualifying_arrival_at,completed_at";
 
+/**
+ * Does this failure mean the database has no such function? PostgREST answers
+ * PGRST202 when a function is missing from its schema cache and PostgreSQL
+ * answers 42883 when the call itself finds no candidate. Either says the
+ * migration behind the call has not been applied on this database yet.
+ */
+export function isMissingDatabaseFunction(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  if (code === "PGRST202" || code === "42883") return true;
+  const message = (error as { message?: unknown }).message;
+  return typeof message === "string" && /could not find the function|does not exist/i.test(message);
+}
+
 export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "error";
 export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host"; created: boolean } | { ok: false; error: PlanWriteError };
 export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string; role: "guest"; collaborationAuthorized: boolean } | { ok: false; error: PlanWriteError };
@@ -240,7 +254,7 @@ export const supabasePlanStore: PlanStore = {
     const joinedAt = new Date().toISOString();
     try {
       const admin = requireSupabaseAdmin();
-      const { data, error } = await admin.rpc("create_plan_with_context_idempotent_atomic", {
+      const createArgs = {
         p_id: id,
         p_title: clean.title,
         p_start_time: clean.startTime,
@@ -256,8 +270,18 @@ export const supabasePlanStore: PlanStore = {
         p_anchor_venue_id: anchor?.venueId ?? null,
         p_anchor_source: anchor?.source ?? null,
         p_outcome: anchor?.outcome ?? null,
+      };
+      let { data, error } = await admin.rpc("create_plan_with_context_idempotent_atomic", {
+        ...createArgs,
         p_context: clean.context,
       });
+      if (error && isMissingDatabaseFunction(error)) {
+        // Migration 0106 has not been applied yet. Creating the Plan without
+        // its Night Context beats refusing every Plan creation on the site;
+        // the context is editable afterwards.
+        console.warn("[plans] create context RPC missing; creating without night context");
+        ({ data, error } = await admin.rpc("create_plan_idempotent_atomic", createArgs));
+      }
       if (error) throw new Error(error.message);
       if (data === "conflict") return { ok: false, error: "conflict" };
       if (data !== "created" && data !== "replayed") return { ok: false, error: "error" };

@@ -50,6 +50,19 @@ export function planRouteReady(plan: PlanDTO, stopCount: number): boolean {
   return plan.outcome === "route" && typeof plan.routeReadyAt === "string" && Boolean(plan.routeReadyAt) && isPlanStopCount(stopCount);
 }
 
+/**
+ * Does this Plan actually hold a Crawl Route? A grounded anchor-only draft
+ * holds one accepted pub and no route; every other Plan carrying a valid Plan
+ * stop count holds one, whether or not an anchor was ever involved. This is
+ * the honest question a lifecycle transition and a privacy preview ask —
+ * `planRouteReady` is the narrower question of whether the grounded lane
+ * stamped its immutable `routeReadyAt`.
+ */
+export function planHasRoute(plan: PlanDTO, stopCount: number): boolean {
+  if (plan.outcome === "anchor-only") return false;
+  return isPlanStopCount(stopCount);
+}
+
 /** Validate optional anchor metadata supplied on Plan creation. */
 export function cleanPlanAnchor(value: unknown): PlanAnchorMetadata | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;

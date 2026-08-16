@@ -10,7 +10,7 @@
 // venue-tied pint evidence, member/invite capability, or the user-entered title.
 
 import { NIGHT_AREAS } from "@/lib/nightAreas";
-import { planRouteReady as isGroundedPlanRouteReady, type PlanState } from "@/lib/plan";
+import { planHasRoute, type PlanState } from "@/lib/plan";
 import { vibeChipById } from "@/lib/vibeChips";
 import type { VibeTally } from "@/lib/vibeTally";
 
@@ -59,8 +59,14 @@ function resolveAreaName(slug: string | null | undefined): string | null {
   return NIGHT_AREAS.find((candidate) => candidate.slug === slug)?.name ?? null;
 }
 
+/**
+ * Server-derived readiness: the Plan really holds a route and has not been
+ * abandoned. An anchor-only draft holds one accepted pub, so it is never
+ * ready; an unanchored route is as ready as an anchored one.
+ */
 export function planRouteReady(state: PlanState): boolean {
-  return isGroundedPlanRouteReady(state.plan, state.stops.length);
+  if (state.plan.status === "abandoned") return false;
+  return planHasRoute(state.plan, state.stops.length);
 }
 
 /**

@@ -31,7 +31,7 @@ import {
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { isPlanStopCount, normalizePlanStopCount, PLAN_STOP_COUNTS, type PlanStopCount } from "@/lib/planStopCount";
-import { planRouteReady, type PlanState } from "@/lib/plan";
+import { planHasRoute, type PlanState } from "@/lib/plan";
 import { parsePlanDraft, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
 import {
@@ -253,8 +253,13 @@ export function planCreationConsumesPlanningIntent(
   return Boolean(intent && stops[0]?.venueId === intent.acceptedVenueId);
 }
 
+/**
+ * A created Plan leaves draft the moment it really holds a route. The
+ * describe-first journey carries no anchor at all, so its Stops are the only
+ * evidence there is; a one-Stop anchor-only draft stays a draft.
+ */
 export function createdPlanNeedsReadyTransition(state: PlanState): boolean {
-  return planRouteReady(state.plan, state.stops.length);
+  return (state.plan.status ?? "draft") === "draft" && planHasRoute(state.plan, state.stops.length);
 }
 
 function settleConsumedPlanningIntent(stops: ReadonlyArray<{ venueId: string }>): void {
@@ -607,7 +612,7 @@ export function planLockValidationError({
       })
     ) {
       return {
-        message: "Regenerate this accepted Venue before locking it in.",
+        message: "Sort this pub again before locking it in.",
         focus: null,
       };
     }

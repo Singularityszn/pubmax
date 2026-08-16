@@ -545,6 +545,20 @@ describe("canonicalizeAcceptedArrivalSelection", () => {
     });
   });
 
+  it("canonicalises an unverified accepted arrival as browsing, keeping no acceptance", () => {
+    const storage = memoryStorage();
+
+    const url = canonicalizeAcceptedArrivalSelection({
+      pathname: "/map",
+      search: "?sel=venue-alias&accept=1&src=near&pubs=all",
+      requestedVenueId: "venue-alias",
+      canonicalVenueId: "venue-canonical",
+    }, { storage, now: NOW + 60_000 });
+
+    expect(url).toBe("/map?sel=venue-canonical&pubs=all");
+    expect(storage.map.has(PLANNING_INTENT_STORAGE_KEY)).toBe(false);
+  });
+
   it("leaves the accepted URL unchanged when intent persistence fails", () => {
     const storage = memoryStorage();
     seedIntent(storage, {

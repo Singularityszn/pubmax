@@ -86,6 +86,12 @@ describe("planRouteReady", () => {
     expect(planRouteReady(planState())).toBe(true);
   });
 
+  it("is true for an unanchored route, which carries no anchor metadata at all", () => {
+    expect(planRouteReady(planState({
+      plan: { ...planState().plan, outcome: null, routeReadyAt: null, status: "draft" },
+    }))).toBe(true);
+  });
+
   it("is false for an anchor-only Plan even when status says ready", () => {
     expect(planRouteReady(planState({
       plan: { ...planState().plan, outcome: "anchor-only", routeReadyAt: null, status: "ready" },
@@ -93,10 +99,11 @@ describe("planRouteReady", () => {
     }))).toBe(false);
   });
 
-  it("is false without grounded outcome, timestamp, or a valid route stop count", () => {
-    expect(planRouteReady(planState({ plan: { ...planState().plan, outcome: null } }))).toBe(false);
-    expect(planRouteReady(planState({ plan: { ...planState().plan, routeReadyAt: null } }))).toBe(false);
+  it("is false without a valid route stop count, and false once abandoned", () => {
     expect(planRouteReady(planState({ stops: planState().stops.slice(0, 2) }))).toBe(false);
+    expect(planRouteReady(planState({
+      plan: { ...planState().plan, status: "abandoned" },
+    }))).toBe(false);
   });
 });
 

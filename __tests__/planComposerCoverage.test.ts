@@ -196,7 +196,7 @@ describe("PlanComposer created Plan readiness", () => {
     })).toBe(false);
   });
 
-  it("marks only a grounded route with its readiness timestamp", () => {
+  it("marks a grounded anchored route with its readiness timestamp", () => {
     expect(createdPlanNeedsReadyTransition({
       plan: { ...plan, outcome: "route", routeReadyAt: "2026-08-15T12:00:00.000Z" },
       stops: [
@@ -206,6 +206,40 @@ describe("PlanComposer created Plan readiness", () => {
       ],
       crew: [],
     })).toBe(true);
+  });
+
+  it("marks an unanchored three-Stop lock-in, which carries no anchor metadata", () => {
+    expect(createdPlanNeedsReadyTransition({
+      plan: {
+        id: plan.id,
+        title: plan.title,
+        startTime: plan.startTime,
+        createdAt: plan.createdAt,
+        status: "draft",
+        anchorVenueId: null,
+        anchorSource: null,
+        outcome: null,
+        routeReadyAt: null,
+      },
+      stops: [
+        { venueId: "first", venueName: "First", position: 0 },
+        { venueId: "second", venueName: "Second", position: 1 },
+        { venueId: "third", venueName: "Third", position: 2 },
+      ],
+      crew: [],
+    })).toBe(true);
+  });
+
+  it("asks for no transition when the created Plan already left draft", () => {
+    expect(createdPlanNeedsReadyTransition({
+      plan: { ...plan, status: "ready", outcome: null, routeReadyAt: null },
+      stops: [
+        { venueId: "first", venueName: "First", position: 0 },
+        { venueId: "second", venueName: "Second", position: 1 },
+        { venueId: "third", venueName: "Third", position: 2 },
+      ],
+      crew: [],
+    })).toBe(false);
   });
 });
 
@@ -393,21 +427,21 @@ describe("PlanComposer route preview seam", () => {
     };
 
     expect(planLockValidationError(generatedOneStop)).toEqual({
-      message: "Regenerate this accepted Venue before locking it in.",
+      message: "Sort this pub again before locking it in.",
       focus: null,
     });
     expect(planLockValidationError({
       ...generatedOneStop,
       planAnchor: { venueId: "venue-a", source: "near", outcome: "route" as const },
     })).toEqual({
-      message: "Regenerate this accepted Venue before locking it in.",
+      message: "Sort this pub again before locking it in.",
       focus: null,
     });
     expect(planLockValidationError({
       ...generatedOneStop,
       planAnchor: { venueId: "venue-b", source: "near", outcome: "anchor-only" as const },
     })).toEqual({
-      message: "Regenerate this accepted Venue before locking it in.",
+      message: "Sort this pub again before locking it in.",
       focus: null,
     });
     expect(planLockValidationError({

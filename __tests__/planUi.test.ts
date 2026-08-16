@@ -6,6 +6,7 @@ import {
   canBeginPlanRouteEdit,
   planSummaryGenerationBody,
   planSummaryRouteUpdateBody,
+  refreshedRouteRejection,
   routeHasChanged,
 } from "@/components/plan/PlanSummary";
 import type { PlanState } from "@/lib/plan";
@@ -148,6 +149,36 @@ describe("anchored Plan route editing", () => {
       isHost: false,
       anchoredPlan: false,
     })).toBe(true);
+  });
+});
+
+describe("refreshedRouteRejection", () => {
+  const route = [
+    { venueId: "venue-a", venueName: "Anchor", position: 0 },
+    { venueId: "venue-b", venueName: "Second", position: 1 },
+    { venueId: "venue-c", venueName: "Third", position: 2 },
+  ];
+
+  it("prints the server's own sentence for an anchor conflict answered with no Stops", () => {
+    expect(refreshedRouteRejection(
+      { outcome: "anchor-conflict", stops: [], message: "That pub is closed tonight." },
+      [],
+      3,
+    )).toBe("That pub is closed tonight.");
+  });
+
+  it("names the anchor conflict even when the server sent no sentence", () => {
+    expect(refreshedRouteRejection({ outcome: "anchor-conflict", stops: [] }, [], 3))
+      .toBe("We could not build a route from that pub right now. Try a different pub.");
+  });
+
+  it("falls back to the empty-route sentence for an ordinary short answer", () => {
+    expect(refreshedRouteRejection({ stops: [] }, [], 3))
+      .toBe("Couldn't get 3 good stops that time. Give it another go.");
+  });
+
+  it("rejects nothing when the refreshed route is usable", () => {
+    expect(refreshedRouteRejection({ stops: route }, route, 3)).toBeNull();
   });
 });
 

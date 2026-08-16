@@ -25,7 +25,7 @@ import {
   readPlanningIntent,
   writePlanningIntent,
 } from "@/lib/planningIntent";
-import { refreshSelectionUrl } from "@/lib/mapSelectionHistory";
+import { browseSelectionUrl, refreshSelectionUrl } from "@/lib/mapSelectionHistory";
 import type { VenueAcceptedTelemetry } from "@/lib/venueAcceptance";
 
 /** Valid PlanningIntent sources that a Map acceptance can legitimately carry. */
@@ -73,6 +73,11 @@ export function buildMapAcceptanceIntentInput(input: {
 }
 
 export type MapAcceptanceInput = {
+  /**
+   * What the calling surface believes this selection came from. Never
+   * authoritative here: only a live PlanningIntent for this exact Venue may
+   * name a source richer than "map-search".
+   */
   source: PlanningIntentSource;
   cityId: CityId;
   acceptedVenueId: string;
@@ -147,6 +152,16 @@ export function verifiedAcceptedArrivalSource(
   return acceptedArrivalIntent(input, options)?.source ?? null;
 }
 
+/**
+ * The URL a landed Venue detail owes a canonicalised selection, or null when
+ * the acceptance could not travel with it.
+ *
+ * Acceptance markers and the stored intent move together or not at all. When
+ * the markers name an acceptance nothing verifies — an expired or foreign
+ * intent — there is no acceptance to carry, so the selection is canonicalised
+ * as ordinary browsing rather than left on an id the Venue detail already
+ * resolved away from. That never upgrades an unverified acceptance.
+ */
 export function canonicalizeAcceptedArrivalSelection(input: {
   pathname: string;
   search: string;
@@ -161,7 +176,14 @@ export function canonicalizeAcceptedArrivalSelection(input: {
       !existing
       || existing.source !== acceptedSource
       || existing.acceptedVenueId !== input.requestedVenueId
-    ) return null;
+    ) {
+      return browseSelectionUrl(
+        input.pathname,
+        input.search,
+        input.canonicalVenueId,
+        input.hash,
+      );
+    }
     const intent = canonicalizePlanningIntentVenueId(
       input.requestedVenueId,
       input.canonicalVenueId,
@@ -268,11 +290,13 @@ export function acceptMapVenue(
     },
     options,
   );
-  const effectiveSource =
-    arrivalIntent?.source === input.source ? input.source : "map-search";
+  // A Map selection carries no acceptance authority of its own, whatever the
+  // caller believes about where it came from: only a live PlanningIntent for
+  // this exact Venue may name a richer source.
   let intentInput = buildMapAcceptanceIntentInput({
-    ...input,
-    source: effectiveSource,
+    source: "map-search",
+    cityId: input.cityId,
+    acceptedVenueId: input.acceptedVenueId,
   });
 
   if (arrivalIntent) {

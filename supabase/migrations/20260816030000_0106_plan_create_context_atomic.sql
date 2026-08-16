@@ -35,7 +35,10 @@ begin
     p_outcome
   );
 
-  if create_result not in ('created', 'replayed') or p_context is null then
+  -- A replay is not a second creation: the Plan already carries its context,
+  -- may since have been adopted by a Social crew, and may have had its context
+  -- edited. Only a genuine creation stamps one.
+  if create_result <> 'created' or p_context is null then
     return create_result;
   end if;
 

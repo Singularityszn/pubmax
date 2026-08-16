@@ -8,7 +8,7 @@ import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
 import InvitePrivacyPreview from "@/components/plan/InvitePrivacyPreview";
 import RoundStarter from "@/components/round/RoundStarter";
 import { planViewModel } from "@/components/plan/planPresentation";
-import { routeStopsFromGenerated } from "@/components/plan/PlanComposer";
+import { anchorConflictMessage, routeStopsFromGenerated } from "@/components/plan/PlanComposer";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot } from "@/lib/planSessionCapability";
 import { setActivePlanRole } from "@/lib/activePlan";
 import { buildInvitePrivacyPreview, type InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
@@ -181,6 +181,25 @@ function validRouteDraft(stops: ReadonlyArray<EditableStop>): boolean {
   return isPlanStopCount(stops.length)
     && stops.every((stop) => stop.venueId.trim() && stop.venueName.trim())
     && new Set(stops.map((stop) => stop.venueId)).size === stops.length;
+}
+
+/**
+ * Why a refreshed-route answer cannot be used, or null when it can be. An
+ * anchored refresh can answer HTTP 200 with no Stops and an anchor-conflict
+ * outcome, and only the server's own sentence names which check refused the
+ * kept pub, so it is read before the empty-route sentence.
+ */
+export function refreshedRouteRejection(
+  body: unknown,
+  generated: ReadonlyArray<EditableStop>,
+  requestedStopCount: number,
+): string | null {
+  const anchorConflict = anchorConflictMessage(body);
+  if (anchorConflict) return anchorConflict;
+  if (!validRouteDraft(generated)) {
+    return `Couldn't get ${requestedStopCount} good stops that time. Give it another go.`;
+  }
+  return null;
 }
 
 type RouteGenerationAuthority = {
@@ -414,7 +433,8 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
         position: index,
         alternatives: stop.alternatives,
       }));
-      if (!validRouteDraft(generated)) throw new Error(`Couldn't get ${requestedStopCount} good stops that time. Give it another go.`);
+      const rejection = refreshedRouteRejection(body, generated, requestedStopCount);
+      if (rejection) throw new Error(rejection);
       if (state.plan.anchorVenueId && generated[0]?.venueId !== state.plan.anchorVenueId) {
         throw new Error("The refreshed route did not keep Stop 1. Nothing changed.");
       }

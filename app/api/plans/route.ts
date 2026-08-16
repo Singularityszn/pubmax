@@ -80,10 +80,10 @@ export async function POST(request: Request): Promise<Response> {
   const anchorSupplied = Object.prototype.hasOwnProperty.call(body, "anchor");
   const anchor = cleanPlanAnchor(body.anchor);
   if (anchorSupplied && !anchor) {
-    return publicApiError("Include the accepted Venue and its source.", "PLAN_ANCHOR_INVALID", 422);
+    return publicApiError("Include the accepted pub and where it came from.", "PLAN_ANCHOR_INVALID", 422);
   }
   if (!anchor && readPlanGroundingClaimsV2(body.groundingProof)) {
-    return publicApiError("Include the accepted Venue for this grounded Route.", "PLAN_ANCHOR_REQUIRED", 422);
+    return publicApiError("Include the accepted pub for this route.", "PLAN_ANCHOR_REQUIRED", 422);
   }
   let anchorAnchored = false;
   if (anchor) {
@@ -96,10 +96,10 @@ export async function POST(request: Request): Promise<Response> {
       return publicApiError("That saved route does not match this plan.", "PLAN_ANCHOR_OUTCOME_MISMATCH", 422);
     }
     if (verdict.anchorVenueId !== anchor.venueId) {
-      return publicApiError("That saved Venue does not match this Plan.", "PLAN_ANCHOR_VENUE_MISMATCH", 422);
+      return publicApiError("That saved pub does not match this plan.", "PLAN_ANCHOR_VENUE_MISMATCH", 422);
     }
     if (verdict.anchorSource !== anchor.source) {
-      return publicApiError("That saved Venue source does not match this Plan.", "PLAN_ANCHOR_SOURCE_MISMATCH", 422);
+      return publicApiError("That pub came from somewhere else than this plan says.", "PLAN_ANCHOR_SOURCE_MISMATCH", 422);
     }
     anchorAnchored = verdict.anchored;
   }
