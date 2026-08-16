@@ -209,6 +209,37 @@ describe("resolveComposerHydration", () => {
     expect(hydration.conflicts.map((c) => c.code)).toContain("intent-preserved-existing");
   });
 
+  it("holds nothing for a recovered draft that nobody accepted", () => {
+    // The regression this pins: `acceptedVenueId` is also filled from a
+    // describe-first draft's OWN first stop, so reading it as "a pub somebody
+    // accepted" locked Stop 1 on an ordinary Plan the person had just routed.
+    const hydration = resolveComposerHydration({
+      planDraft: v2Plan(NOW), routeDraft: null, intakeDraft: null,
+      planningIntent: null, rememberedArea: null,
+    });
+
+    expect(hydration.active).toBe(true);
+    expect(hydration.acceptedVenueId).toBe("venue-a");
+    expect(hydration.heldVenueId).toBeNull();
+    expect(hydration.showAcceptedSummary).toBe(false);
+  });
+
+  it("holds the pub a real acceptance named", () => {
+    const fromIntent = resolveComposerHydration({
+      planDraft: null, routeDraft: null, intakeDraft: null,
+      planningIntent: intent(), rememberedArea: null,
+    });
+    expect(fromIntent.heldVenueId).toBe("venue-intent");
+    expect(fromIntent.showAcceptedSummary).toBe(true);
+
+    const fromRoute = resolveComposerHydration({
+      planDraft: null, routeDraft: routeDraft("route"), intakeDraft: null,
+      planningIntent: null, rememberedArea: null,
+    });
+    expect(fromRoute.heldVenueId).toBe("venue-a");
+    expect(fromRoute.showAcceptedSummary).toBe(true);
+  });
+
   it("restores exact accepted authority from the winning Plan draft", () => {
     const storage = memoryStorage();
     writePlanDraftEnvelope(storedPlan({
@@ -285,6 +316,8 @@ describe("resolveComposerHydration", () => {
     });
     expect(hydration.acceptedAnchor).toBeNull();
     expect(hydration.showAcceptedSummary).toBe(false);
+    // An acceptance that has lapsed may not outlive itself as a Stop 1 lock.
+    expect(hydration.heldVenueId).toBeNull();
   });
 
   it("preserves legacy Plan work ahead of intent", () => {

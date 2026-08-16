@@ -405,10 +405,14 @@
   color: var(--ink-soft);
 }
 
+/* The saved-RSVP live region stays mounted and empty until an answer lands, so
+   the spacing rides the link's own margin rather than a column gap the empty
+   region would still claim. Never `display: none` on it: a hidden region that
+   appears with its text is the insertion this shape exists to avoid. */
 .inviteRsvp__mapPrompt {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
 }
 
 .inviteRsvp__mapPrompt .invite__mapLink {
@@ -417,7 +421,7 @@
   justify-content: center;
   width: 100%;
   min-height: 44px;
-  margin-top: 0;
+  margin-top: 8px;
   padding: 10px 14px;
   border: 1px solid var(--ink-deep);
   border-radius: var(--radius-sm);

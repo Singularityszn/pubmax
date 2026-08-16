@@ -40,6 +40,17 @@ export type ComposerHydration = {
   creatorName: string | null;
   startsAt: string | null;
   acceptedVenueId: string | null;
+  /**
+   * The pub this composer is HOLDING as Stop 1, or null when it holds nothing.
+   *
+   * `acceptedVenueId` is not that question: arbitration also fills it from a
+   * recovered Plan draft's own first stop (`plan-v2` / `plan-legacy`), which is
+   * a pub the person routed to, never a pub they accepted. Everything that
+   * refuses an edit - the Stop 1 lock, the route mutation, the stop rename -
+   * reads THIS field, so a describe-first draft cannot silently lock its own
+   * first stop and an acceptance that has lapsed cannot outlive itself.
+   */
+  heldVenueId: string | null;
   /** Acceptance source when the accepted Venue came from a trusted handoff. */
   acceptedSource: PlanningIntentSource | null;
   /** Exact accepted anchor for generation, when its source is known. */
@@ -125,6 +136,10 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
           : null,
       }
     : null;
+  const heldVenueId = acceptedVenueId
+    && (Boolean(draftAnchor) || isAcceptanceSource(result.acceptedVenueId.source))
+    ? acceptedVenueId
+    : null;
   const active = Boolean(
     input.planDraft
     || input.routeDraft
@@ -139,11 +154,13 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
     creatorName: result.creatorName.source === "none" ? null : result.creatorName.value,
     startsAt: result.startsAt.value,
     acceptedVenueId,
+    heldVenueId,
     acceptedSource,
     acceptedAnchor,
     area: result.area.value,
-    // Accepted context is always visible for a real acceptance.
-    showAcceptedSummary: Boolean(acceptedVenueId) && (Boolean(draftAnchor) || isAcceptanceSource(result.acceptedVenueId.source)),
+    // Accepted context is visible for exactly the pub that is held, so the
+    // panel, its release control and the Stop 1 lock cannot disagree.
+    showAcceptedSummary: heldVenueId !== null,
     answeredArea: isAnswered(result.area.source),
     answeredDate: isAnswered(result.startsAt.source),
     conflicts: result.conflicts,

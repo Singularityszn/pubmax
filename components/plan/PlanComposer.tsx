@@ -794,7 +794,7 @@ export function AcceptedContextPanel({
   // UK base layer never reaches the slim index, so the id would have stood here
   // for good. A neutral label says the same true thing and reads as English.
   const venueName = acceptedVenueName ?? handoff.routePreview?.value.stops
-    .find((stop) => stop.venueId === handoff.acceptedVenueId)?.venueName
+    .find((stop) => stop.venueId === handoff.heldVenueId)?.venueName
     ?? UNRESOLVED_ACCEPTED_VENUE_LABEL;
   const whenLabel = londonServiceDateLabel(handoff.startsAt);
   return (
@@ -803,7 +803,7 @@ export function AcceptedContextPanel({
         <section className="planComposer__accepted" aria-label="Accepted plan context">
           <span className="planPage__eyebrow">Carried over from what you accepted</span>
           <dl className="planComposer__acceptedList">
-            {handoff.acceptedVenueId && (
+            {handoff.heldVenueId && (
               <div><dt>Venue</dt><dd>{venueName}</dd></div>
             )}
             {handoff.area && (
@@ -816,7 +816,7 @@ export function AcceptedContextPanel({
           <p className="planComposer__acceptedNote">
             You can change the area and the date below. Stop 1 stays this pub until you release it.
           </p>
-          {onRelease && handoff.acceptedVenueId ? (
+          {onRelease && handoff.heldVenueId ? (
             <button
               className="planComposer__acceptedRelease"
               type="button"
@@ -882,7 +882,7 @@ function initialComposerStops(
   if (recoveredRouteDraft?.stops.length) return recoveredRouteDraft.stops;
   if (recoveredPlanStops.length) return recoveredPlanStops;
   const provisional = seedProvisionalStop1({
-    acceptedVenueId: handoff?.acceptedVenueId,
+    acceptedVenueId: handoff?.heldVenueId,
     recoveredRouteStops: recoveredRouteDraft?.stops,
     recoveredPlanStops,
   });
@@ -943,6 +943,7 @@ function PlanComposerForm({
   // an acceptance in the same beat.
   const [acceptanceReleased, setAcceptanceReleased] = useState(false);
   const handoff = acceptanceReleased ? null : hydratedHandoff;
+  const heldVenueId = handoff?.heldVenueId ?? null;
   const draftFields = initialComposerDraftFields(handoff, recoveredDraft);
   const [title, setTitle] = useState(draftFields.title);
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
@@ -1020,13 +1021,13 @@ function PlanComposerForm({
   );
   const conciergeStatus = conciergeStatusText(sorting, unsupportedIntakePatch, conciergeNote);
   const composerVisible =
-    planIntake.completed || Boolean(recoveredDraft || recoveredRouteDraft || handoff?.acceptedVenueId);
+    planIntake.completed || Boolean(recoveredDraft || recoveredRouteDraft || heldVenueId);
   // An unresolved Stop 1 carries an empty name on purpose, and an empty string
   // is not nullish, so it must be dropped here or the summary prints a blank
   // row instead of falling through to the neutral label.
-  const acceptedVenueName = handoff?.acceptedVenueId
-    ? venues.find((venue) => venue.id === handoff.acceptedVenueId)?.name.trim()
-      || stops.find((stop) => stop.venueId === handoff.acceptedVenueId)?.venueName.trim()
+  const acceptedVenueName = heldVenueId
+    ? venues.find((venue) => venue.id === heldVenueId)?.name.trim()
+      || stops.find((stop) => stop.venueId === heldVenueId)?.venueName.trim()
       || null
     : null;
   // The Venue index this composer reads, and the area seed below, are both
@@ -1034,7 +1035,7 @@ function PlanComposerForm({
   // rather than the live one, so releasing the pub neither refetches an index
   // nor re-asks the browser for a location.
   const acceptedCityId = hydratedHandoff?.acceptedAnchor?.cityId ?? DEFAULT_CITY_ID;
-  const acceptedStop1VenueId = planAnchor?.venueId ?? handoff?.acceptedVenueId ?? null;
+  const acceptedStop1VenueId = planAnchor?.venueId ?? heldVenueId;
   const completeStopIds = completeStops.map((stop) => stop.venueId);
   const matchingAnchorOnlyPlan = isMatchingAnchorOnlyPlan({
     groundingProof,
@@ -1081,7 +1082,7 @@ function PlanComposerForm({
         if (!active) return;
         const nextVenues = planVenueOptions(rows);
         setVenues(nextVenues);
-        const acceptedVenueId = hydratedHandoff?.acceptedVenueId;
+        const acceptedVenueId = hydratedHandoff?.heldVenueId;
         if (!acceptedVenueId) return;
         const accepted = nextVenues.find((venue) => venue.id === acceptedVenueId);
         if (!accepted) return;
@@ -1095,7 +1096,7 @@ function PlanComposerForm({
       })
       .catch(() => undefined);
     return () => { active = false; };
-  }, [acceptedCityId, hydratedHandoff?.acceptedVenueId]);
+  }, [acceptedCityId, hydratedHandoff?.heldVenueId]);
 
   useEffect(() => {
     if (recoveredDraft) trackEvent("draft_recovered", { kind: "plan", surface: "plan" });
@@ -1246,7 +1247,7 @@ function PlanComposerForm({
     const mutation = composerRouteMutation({
       currentStops: stops,
       nextStops,
-      acceptedVenueId: handoff?.acceptedVenueId,
+      acceptedVenueId: heldVenueId,
       groundingProof,
       createOperationKey,
       planAnchor,
@@ -1284,7 +1285,7 @@ function PlanComposerForm({
   function chooseVenue(key: number, venueName: string) {
     const selected = stops.find((stop) => stop.key === key);
     if (!selected) return;
-    const edited = editedPlanStop({ stop: selected, venueName, venues, acceptedVenueId: handoff?.acceptedVenueId });
+    const edited = editedPlanStop({ stop: selected, venueName, venues, acceptedVenueId: heldVenueId });
     applyStopIdentityMutation(
       stops.map((stop) => stop.key === key ? edited.stop : stop),
       "Stop edited in the route preview. Refresh the route before locking.",

@@ -32,6 +32,8 @@ import { REACTION_KEYS, REACTION_META, type ReactionKey, type ReactionSummary } 
 // not the site-wide handle identity.
 const GUEST_NAME_STORAGE_KEY = "pubmax:inviteGuestName:v1";
 
+const RSVP_SAVED_LINE = "RSVP saved.";
+
 function readStoredGuestName(): string {
   if (typeof window === "undefined") return "";
   try {
@@ -79,19 +81,18 @@ export function InviteMapPrompt({
   // out that was always there, not the thing that unlocks it.
   //
   // The two reasons the line shows are one announcement apart. A save made in
-  // this visit is news, so the line is a live region and a screen-reader guest
-  // hears it without losing their place. A line restored from device memory on
-  // arrival is not news, so it stays silent.
-  const committed = committedThisVisit || rememberedFromDevice;
+  // this visit is news, so it lands as a text change inside a live region that
+  // was already mounted and empty - a region inserted together with its own
+  // first words is the shape screen readers that watch existing regions miss.
+  // A line restored from device memory on arrival is not news, so it is printed
+  // outside that region and says nothing. One line is visible either way.
   return (
     <div className="inviteRsvp__mapPrompt">
-      {committed ? (
-        <p
-          className="inviteRsvp__status"
-          role={committedThisVisit ? "status" : undefined}
-        >
-          RSVP saved.
-        </p>
+      <p className="inviteRsvp__status" role="status">
+        {committedThisVisit ? RSVP_SAVED_LINE : ""}
+      </p>
+      {!committedThisVisit && rememberedFromDevice ? (
+        <p className="inviteRsvp__status">{RSVP_SAVED_LINE}</p>
       ) : null}
       <InviteMapLink venueIds={venueIds} />
     </div>

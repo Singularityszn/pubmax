@@ -32,6 +32,19 @@ import {
 import { getNightArea } from "@/lib/nightAreas";
 import { createPlanIntakeDraft } from "@/lib/planIntake";
 import type { NightContext } from "@/lib/nightPlanning";
+import {
+  readPlanDraftEnvelope,
+  writePlanDraftEnvelope,
+} from "@/lib/planDraft";
+import {
+  releaseAcceptedPlanContext,
+  resolveComposerHydration,
+} from "@/lib/planComposerHandoff";
+import {
+  createPlanningIntent,
+  PLANNING_INTENT_STORAGE_KEY,
+  readPlanningIntent,
+} from "@/lib/planningIntent";
 
 describe("PlanComposer PlanningIntent settlement", () => {
   const intent = { acceptedVenueId: "venue-accepted" };
@@ -690,5 +703,124 @@ describe("PlanComposer anchor-conflict reporting", () => {
     expect(anchorConflictMessage({ stops: [], message: "Nothing matched." })).toBeNull();
     expect(anchorConflictMessage(null)).toBeNull();
     expect(anchorConflictMessage("anchor-conflict")).toBeNull();
+  });
+});
+
+describe("what the composer holds as Stop 1", () => {
+  const NOW = Date.parse("2026-07-24T12:00:00.000Z");
+
+  function memoryStorage(): Storage {
+    const values = new Map<string, string>();
+    return {
+      get length() { return values.size; },
+      clear: () => values.clear(),
+      getItem: (key) => values.get(key) ?? null,
+      key: (index) => [...values.keys()][index] ?? null,
+      removeItem: (key) => { values.delete(key); },
+      setItem: (key, value) => { values.set(key, String(value)); },
+    };
+  }
+
+  const stops = [
+    { key: 1, venueId: "venue-first", venueName: "First Arms", alternatives: [] },
+    { key: 2, venueId: "venue-second", venueName: "Second Arms", alternatives: [] },
+  ];
+  const authority = {
+    groundingProof: null,
+    createOperationKey: null,
+    planAnchor: null,
+    routeStale: false,
+  };
+
+  function describeFirstDraft(storage: Storage) {
+    writePlanDraftEnvelope({
+      title: "Tonight, sorted",
+      creatorName: "K",
+      startTime: "2026-07-24T18:00:00.000Z",
+      conciergeQuery: "Quiet pints in Soho",
+      stops: stops.map(({ key, venueId, venueName }) => ({ key, venueId, venueName })),
+    }, "manual", storage, NOW);
+    return readPlanDraftEnvelope(storage, NOW);
+  }
+
+  function removeStop1(heldVenueId: string | null) {
+    return composerRouteMutation({
+      currentStops: stops,
+      nextStops: stops.slice(1),
+      acceptedVenueId: heldVenueId,
+      ...authority,
+    });
+  }
+
+  it("lets a recovered describe-first draft edit its own Stop 1", () => {
+    // The regression this pins: a Plan the person merely routed came back with
+    // Stop 1 locked, refusing every swap, remove and rename with a sentence
+    // about an acceptance that never happened.
+    const planDraftStorage = memoryStorage();
+    const hydration = resolveComposerHydration({
+      planDraft: describeFirstDraft(planDraftStorage),
+      routeDraft: null,
+      intakeDraft: null,
+      planningIntent: null,
+      rememberedArea: null,
+    });
+
+    expect(hydration.heldVenueId).toBeNull();
+    expect(removeStop1(hydration.heldVenueId)).toMatchObject({
+      accepted: true,
+      stops: stops.slice(1),
+    });
+    expect(editedPlanStop({
+      stop: stops[0]!,
+      venueName: "Different Arms",
+      venues: [{ id: "venue-different", name: "Different Arms" }],
+      acceptedVenueId: hydration.heldVenueId,
+    })).toMatchObject({
+      stop: { venueId: "venue-different", venueName: "Different Arms" },
+      preservesAcceptedAuthority: false,
+    });
+  });
+
+  it("holds an accepted Stop 1 until the person releases it", () => {
+    const intentStorage = memoryStorage();
+    const planDraftStorage = memoryStorage();
+    const routeDraftStorage = memoryStorage();
+    intentStorage.setItem(PLANNING_INTENT_STORAGE_KEY, JSON.stringify(createPlanningIntent({
+      source: "near",
+      cityId: "london",
+      acceptedVenueId: "venue-first",
+      acceptedArea: { kind: "night-patch", id: "soho" },
+      startsAt: "2026-07-24T20:00:00.000Z",
+      displayEvidence: { kind: "directory", observedAt: null },
+    }, NOW)));
+
+    function hydrate() {
+      return resolveComposerHydration({
+        planDraft: readPlanDraftEnvelope(planDraftStorage, NOW),
+        routeDraft: null,
+        intakeDraft: null,
+        planningIntent: readPlanningIntent({ storage: intentStorage, now: NOW }),
+        rememberedArea: null,
+      });
+    }
+
+    const held = hydrate();
+    expect(held.heldVenueId).toBe("venue-first");
+    expect(held.showAcceptedSummary).toBe(true);
+    expect(removeStop1(held.heldVenueId)).toMatchObject({ accepted: false, stops });
+
+    releaseAcceptedPlanContext({
+      intent: intentStorage,
+      planDraft: planDraftStorage,
+      routeDraft: routeDraftStorage,
+    });
+
+    const released = hydrate();
+    expect(released.heldVenueId).toBeNull();
+    expect(released.showAcceptedSummary).toBe(false);
+    expect(removeStop1(released.heldVenueId)).toMatchObject({
+      accepted: true,
+      stops: stops.slice(1),
+    });
   });
 });

@@ -18,8 +18,18 @@ function memoryStorage(seed: Record<string, string> = {}) {
   };
 }
 
-function liveRegionCount(html: string): number {
-  return html.split('role="status"').length - 1;
+/**
+ * The text of every live region the prompt rendered, in order. The prompt's own
+ * markup is the contract here: what a screen reader announces is the text that
+ * appears INSIDE an already-mounted `role="status"` element, so the assertions
+ * below read those regions rather than counting attributes.
+ */
+function liveRegionTexts(html: string): string[] {
+  return [...html.matchAll(/<p[^>]*role="status"[^>]*>(.*?)<\/p>/g)].map((match) => match[1]);
+}
+
+function savedLineCount(html: string): number {
+  return html.split("RSVP saved.").length - 1;
 }
 
 describe("InviteMapPrompt", () => {
@@ -66,6 +76,21 @@ describe("InviteMapPrompt", () => {
     expect(html).not.toContain("RSVP saved.");
   });
 
+  it("holds one empty live region open before any answer lands", () => {
+    // The regression this pins: the saved line arrived as a NEW element that
+    // already carried its own first words, and a screen reader watching the
+    // regions it can see has nothing to watch until that insertion happens.
+    const html = renderToStaticMarkup(
+      createElement(InviteMapPrompt, {
+        committedThisVisit: false,
+        rememberedFromDevice: false,
+        venueIds: ["venue-1"],
+      }),
+    );
+
+    expect(liveRegionTexts(html)).toEqual([""]);
+  });
+
   it("announces the save exactly once when it lands in this visit", () => {
     // The regression this pins: the saved line carried no live region at all,
     // so a screen-reader guest got no confirmation that their RSVP landed.
@@ -77,8 +102,8 @@ describe("InviteMapPrompt", () => {
       }),
     );
 
-    expect(html).toContain("RSVP saved.");
-    expect(liveRegionCount(html)).toBe(1);
+    expect(liveRegionTexts(html)).toEqual(["RSVP saved."]);
+    expect(savedLineCount(html)).toBe(1);
   });
 
   it("stays silent when the saved line is restored from device memory", () => {
@@ -90,8 +115,10 @@ describe("InviteMapPrompt", () => {
       }),
     );
 
-    expect(html).toContain("RSVP saved.");
-    expect(liveRegionCount(html)).toBe(0);
+    // The line is read on the page, and the region stays empty: an arrival that
+    // prints what this device already answered is news about nothing.
+    expect(savedLineCount(html)).toBe(1);
+    expect(liveRegionTexts(html)).toEqual([""]);
   });
 
   it("announces once, not twice, when the remembered guest saves again", () => {
@@ -103,8 +130,8 @@ describe("InviteMapPrompt", () => {
       }),
     );
 
-    expect(html.split("RSVP saved.").length - 1).toBe(1);
-    expect(liveRegionCount(html)).toBe(1);
+    expect(savedLineCount(html)).toBe(1);
+    expect(liveRegionTexts(html)).toEqual(["RSVP saved."]);
   });
 });
 
