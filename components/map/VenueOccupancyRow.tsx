@@ -18,7 +18,10 @@ import {
   type OccupancyLevel,
 } from "@/lib/occupancy";
 
-import { useVenueOccupancy } from "@/components/map/useVenueOccupancy";
+import {
+  trackOccupancyRead,
+  useVenueOccupancy,
+} from "@/components/map/useVenueOccupancy";
 
 import "./venueOccupancy.css";
 
@@ -48,7 +51,7 @@ export default function VenueOccupancyRow({
 
   useEffect(() => {
     if (!reading || receiptLine) return;
-    trackReadOnce(venueId, reading.state);
+    trackOccupancyRead(venueId,reading.state);
   }, [venueId, reading, receiptLine]);
 
   // The receipt thanks the tap that made it; it may never stand in for the
@@ -64,7 +67,7 @@ export default function VenueOccupancyRow({
     const result = await report(level, auth);
     if (!result.ok) return;
     trackEvent("occupancy_reported", { level, surface });
-    trackReadOnce(venueId, result.reading.state);
+    trackOccupancyRead(venueId,result.reading.state);
     if (result.reading.now && result.reading.ageMinutes != null) {
       setReceipt({
         venueId,
@@ -85,9 +88,11 @@ export default function VenueOccupancyRow({
             ? "venueOccupancyReading venueOccupancyReading--empty"
             : "venueOccupancyReading"
         }
-        aria-live="polite"
       >
         {shown}
+      </p>
+      <p className="venueOccupancy__srOnly" role="status">
+        {receiptLine ?? ""}
       </p>
       {auth ? (
         <div className="venueOccupancyTaps" role="group" aria-label="Report how busy it is">
@@ -118,18 +123,3 @@ export default function VenueOccupancyRow({
   );
 }
 
-const readOnce = new Set<string>();
-
-function trackReadOnce(venueId: string, state: string) {
-  const key = `${venueId}:${state}`;
-  if (readOnce.has(key)) return;
-  readOnce.add(key);
-  if (
-    state === "fresh" ||
-    state === "stale" ||
-    state === "none" ||
-    state === "degraded"
-  ) {
-    trackEvent("occupancy_read", { state });
-  }
-}

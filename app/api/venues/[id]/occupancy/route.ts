@@ -4,13 +4,14 @@
 // POST is signed-in, rate-limited, and idempotent per account per pub per
 // 15 minutes. Trust is derived on read. The browser never touches the table.
 
-import { publicApiError } from "@/lib/apiError";
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
 import { occupancyNowFromReports, parseOccupancyLevel } from "@/lib/occupancy";
 import { occupancyStore } from "@/lib/occupancyStore";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { resolveWritableVenueId } from "@/lib/venueWriteTarget.server";
 
 assertServerEnv();
 
@@ -88,13 +89,20 @@ export async function POST(
     );
   }
 
+  // A report is stored under the venue's canonical id, or it is stored under a
+  // key no reader ever asks about.
+  const target = await resolveWritableVenueId(venueId);
+  if (!target.ok) {
+    return publicApiErrorFromStatus(target.error, target.status);
+  }
+
   try {
     const stored = await occupancyStore().report({
-      venueId,
+      venueId: target.venueId,
       level,
       reporterUserId: userId,
     });
-    const reading = await occupancyStore().readNow(venueId);
+    const reading = await occupancyStore().readNow(target.venueId);
     return jsonNoStore({
       now: reading.now,
       ageMinutes: reading.ageMinutes,

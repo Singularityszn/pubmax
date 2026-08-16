@@ -30,6 +30,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 }));
 
 vi.mock("@/components/map/useVenueOccupancy", () => ({
+  trackOccupancyRead: () => undefined,
   useVenueOccupancy: () => ({
     reading: occupancyState.reading,
     report: async () => ({ ok: false, error: "unused" }),
@@ -128,6 +129,23 @@ describe("occupancy venue surface", () => {
     const html = render();
     expect(html).toContain("Could not check how busy it is.");
     expect(html).not.toContain("No fresh reading");
+  });
+
+  it("never announces the ticking age, and keeps one live region for the receipt", () => {
+    signedIn();
+    occupancyState.reading = {
+      now: "some-seats",
+      ageMinutes: 12,
+      reportsLast90: 1,
+      degraded: false,
+      state: "fresh",
+    };
+
+    const html = render();
+    const readingTag = html.match(/<p[^>]*venueOccupancyReading[^>]*>/)?.[0] ?? "";
+    expect(readingTag).not.toContain("aria-live");
+    expect(html).toContain('role="status"');
+    expect(html.match(/role="status"/g)).toHaveLength(1);
   });
 
   it("names nobody and offers no door until identity resolves", () => {

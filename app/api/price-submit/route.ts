@@ -60,13 +60,15 @@ import {
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
-import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import {
   isUkBaseId,
   MAX_PROVISIONAL_BASE_VENUE_IDS,
 } from "@/lib/ukBasePubs";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import {
+  resolveWritableVenueId,
+  type VenueWriteTarget,
+} from "@/lib/venueWriteTarget.server";
 import { readString } from "@/lib/textClean";
 
 /**
@@ -86,37 +88,8 @@ import { readString } from "@/lib/textClean";
 const PROVISIONAL_BASE_READ_LIMIT = 120;
 const PROVISIONAL_BASE_READ_WINDOW_MS = 60_000;
 
-type VenueResolution =
-  | { ok: true; venueId: string }
-  | { ok: false; status: 400 | 503; error: string };
-
-async function resolvePubVenueId(venueId: string): Promise<VenueResolution> {
-  if (isUkBaseId(venueId)) {
-    const ukBaseIndex = await getUkBaseIdIndex();
-    if (ukBaseIndex.status === "unavailable") {
-      return {
-        ok: false,
-        status: 503,
-        error: "Venue list is unavailable right now, try again shortly.",
-      };
-    }
-    return ukBaseIndex.ids.has(venueId)
-      ? { ok: true, venueId }
-      : { ok: false, status: 400, error: "Pick a venue from the map." };
-  }
-
-  const venueLookup = await lookupCanonicalVenue(venueId);
-  if (venueLookup.status === "unavailable") {
-    return {
-      ok: false,
-      status: 503,
-      error: "Venue list is unavailable right now, try again shortly.",
-    };
-  }
-  if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
-    return { ok: false, status: 400, error: "Pick a venue from the map." };
-  }
-  return { ok: true, venueId: venueLookup.canonicalId };
+function resolvePubVenueId(venueId: string): Promise<VenueWriteTarget> {
+  return resolveWritableVenueId(venueId, { pubsOnly: true });
 }
 
 async function communityWriteIsLimited(

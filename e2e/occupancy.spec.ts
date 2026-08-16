@@ -161,14 +161,19 @@ test("a signed-in tap writes a receipt then an aged reading", async ({
   await expect(tap).toBeVisible();
   expect((await tap.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   await tap.click();
-  await expect(row.getByText("Thanks - Some seats, just now")).toBeVisible();
+  const reading = row.locator(".venueOccupancyReading");
+  await expect(reading).toHaveText("Thanks - Some seats, just now");
+  // Only the receipt is announced; the ticking age never is.
+  await expect(row.locator('[role="status"]')).toHaveText(
+    "Thanks - Some seats, just now",
+  );
 
   // The receipt gives way to the derived reading rather than freezing the row
   // on its own "just now" for the life of the sheet.
-  await expect(row.getByText("Some seats · just now")).toBeVisible({
+  await expect(reading).toHaveText("Some seats · just now", {
     timeout: 20_000,
   });
-  await expect(row.getByText("Thanks - Some seats, just now")).toHaveCount(0);
+  await expect(row.locator('[role="status"]')).toHaveText("");
 
   aged = true;
   await page.locator("#venueTab-story").click();

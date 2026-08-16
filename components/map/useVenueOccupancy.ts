@@ -1,7 +1,9 @@
 "use client";
 
 // One occupancy read for any surface. Desk mode can adopt this later.
-// The hook never caches: a now answer ages every minute.
+// A held answer ages every minute and is re-read the moment it leaves the
+// 90-minute window, so the surface never settles on a reading it derived
+// from an answer the server has already moved past.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -104,6 +106,33 @@ export async function postVenueOccupancy(
   }
 }
 
+const readsSeen = new Set<string>();
+
+/**
+ * ONE emission policy for `occupancy_read`, shared by every surface: at most
+ * one event per venue per state for the page session. The event carries no
+ * venue id, so a second policy on another surface would make the figure mean
+ * two different things at once.
+ */
+export function trackOccupancyRead(venueId: string, state: string): void {
+  if (
+    state !== "fresh" &&
+    state !== "stale" &&
+    state !== "none" &&
+    state !== "degraded"
+  ) {
+    return;
+  }
+  const key = `${venueId}:${state}`;
+  if (readsSeen.has(key)) return;
+  readsSeen.add(key);
+  trackEvent("occupancy_read", { state });
+}
+
+export function __resetOccupancyReadTracking(): void {
+  readsSeen.clear();
+}
+
 export async function confirmOccupancyProposal(
   input: { venueId: string; level: OccupancyLevel },
   auth: AccountAuthSnapshot | null,
@@ -122,7 +151,7 @@ export async function confirmOccupancyProposal(
   const result = await postVenueOccupancy(input.venueId, input.level, auth);
   if (!result.ok) return result;
   trackEvent("occupancy_reported", { level: input.level, surface });
-  trackEvent("occupancy_read", { state: result.reading.state });
+  trackOccupancyRead(input.venueId, result.reading.state);
   return result;
 }
 
@@ -172,14 +201,27 @@ export function useVenueOccupancy(venueId: string, active = true) {
   }, [clockMs, held, venueId]);
 
   // A held answer keeps ageing while the surface stays open, so the minute it
-  // prints stays true and the 90-minute rule still decides it. Once it stops
-  // claiming a level there is nothing left to age.
-  const ageing = reading?.now ?? null;
+  // prints stays true and the 90-minute rule still decides it.
+  const ageing = active && (reading?.now ?? null) !== null;
   useEffect(() => {
     if (!ageing) return;
     const timer = setInterval(() => setClockMs(Date.now()), OCCUPANCY_TICK_MS);
     return () => clearInterval(timer);
   }, [ageing]);
+
+  // Leaving the window is the one moment the held answer stops being able to
+  // answer at all. The server may hold a report from a minute ago, so the
+  // surface asks again rather than settling on a reading it derived itself.
+  const agedOut =
+    active &&
+    held !== null &&
+    held.venueId === venueId &&
+    held.answer.now !== null &&
+    reading?.now == null;
+  useEffect(() => {
+    if (!agedOut) return;
+    void reload();
+  }, [agedOut, reload]);
 
   const report = useCallback(
     async (level: OccupancyLevel, auth: AccountAuthSnapshot) => {
