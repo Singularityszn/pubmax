@@ -204,14 +204,16 @@
   min-width: 0;
 }
 
+/* The pub name is the whole reason the row exists, so it wraps rather than
+   ellipsing: a cut name is a cut fact, the same house rule the price caption
+   already follows. */
 .nmnCardName {
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 600;
   color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .nmnCardMeta {
@@ -279,8 +281,11 @@
   gap: var(--space-2);
 }
 
+/* The browse tap asks for enough room that a phone row cannot fit the Keep
+   action beside it: the button drops onto its own line and the name keeps the
+   full width. A wider row still seats both on one line. */
 .nmnCardRow .nmnCardBrowse {
-  flex: 1 1 12rem;
+  flex: 1 1 16rem;
   min-width: 0;
 }
 

@@ -69,6 +69,26 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page })
   });
   expect(appearance.height).toBeGreaterThanOrEqual(48);
   expect(appearance.actual).toEqual(appearance.expected);
+
+  // The permanent Keep action may not take the pub name's width. At 390px the
+  // button drops onto its own line and the name wraps, so every name renders
+  // whole rather than being ellipsed, and the row still does not scroll.
+  const nameFit = await page.evaluate(() =>
+    Array.from(document.querySelectorAll(".nmnCardRow .nmnCardName")).map((node) => {
+      const el = node as HTMLElement;
+      return {
+        text: el.textContent ?? "",
+        clipped: el.scrollWidth > el.clientWidth,
+      };
+    }),
+  );
+  expect(nameFit.length).toBeGreaterThan(0);
+  expect(nameFit.filter((name) => name.clipped)).toEqual([]);
+  const horizontalOverflow = await page.evaluate(() => {
+    const doc = document.documentElement;
+    return doc.scrollWidth - doc.clientWidth;
+  });
+  expect(horizontalOverflow).toBeLessThanOrEqual(0);
   await expect(page.locator(".nmnAcceptReceipt")).toHaveText(
     "Choose a pub to keep for tonight.",
   );
