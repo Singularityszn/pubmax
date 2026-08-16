@@ -47,12 +47,28 @@ const FIND_DESK_RE =
 const REPORT_OCCUPANCY_RE =
   /\b(it'?s (?:empty|full|rammed|packed|heaving)|report (?:the )?(?:crowd|occupancy)|no seats|some seats|log how busy)\b/i;
 
+/** "in X" at the end of an ask: a PLACE, never a pub. */
+function extractInPlace(query: string): string | null {
+  const match = query.match(/\bin\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i);
+  return match?.[1]?.trim() ?? null;
+}
+
+/**
+ * "near X" at the end of an ask: a CENTRE, which may be a pub or an area.
+ *
+ * The two are kept apart because the tools read them differently: an area word
+ * the pack cannot place answers nothing rather than landing on a pub that
+ * happens to share the name.
+ */
+function extractNearAnchorName(query: string): string | null {
+  const match = query.match(
+    /\b(?:near|nearby|around|round|close to|closest to)\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i,
+  );
+  return match?.[1]?.trim() ?? null;
+}
+
 function extractArea(query: string): string | null {
-  const inMatch = query.match(/\bin\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i);
-  if (inMatch?.[1]) return inMatch[1].trim();
-  const nearMatch = query.match(/\bnear\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i);
-  if (nearMatch?.[1]) return nearMatch[1].trim();
-  return null;
+  return extractInPlace(query) ?? extractNearAnchorName(query);
 }
 
 function stripIntentWords(query: string): string {
@@ -142,8 +158,14 @@ function venueDrinksClaim(text: string): ConciergeClaim | null {
 
 function cheapestNearClaim(text: string): ConciergeClaim | null {
   if (!CHEAPEST_NEAR_RE.test(text) || PLAN_RE.test(text)) return null;
-  const area = extractArea(text);
-  if (area) return { name: "cheapest_pint_near", args: { area } };
+  // "in Camden" is a place and only a place. "near The Lamb" is a centre, so it
+  // rides the anchor slot, where a named pub still resolves.
+  const place = extractInPlace(text);
+  if (place) return { name: "cheapest_pint_near", args: { area: place } };
+  const anchorName = extractNearAnchorName(text);
+  if (anchorName) {
+    return { name: "cheapest_pint_near", args: { venueName: anchorName } };
+  }
   if (!NEAR_ANCHOR_RE.test(text)) return null;
   const venueName = stripConciergeIntentWords(text);
   return {

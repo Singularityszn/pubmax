@@ -336,16 +336,13 @@ export const FIND_DESK_NO_SEAT_DATA =
 /**
  * Why a desk answer came back with nothing, kept as three separate findings.
  *
- * `none-filed-under-area` is the one that earns its own sentence: the places
- * list files a row under the area the pack names, so a word it does not carry
- * (a district rather than its borough) is a place we never looked in. Saying
- * "no seat data, and that goes for Angel too" there would be a claim about a
- * place rather than about our own list.
+ * `unknown-area` is the one that earns its own sentence: the places list files
+ * a row under the area the pack names, so a word it does not carry (a district
+ * rather than its borough) is a place we never looked in. Saying "no seat data,
+ * and that goes for Angel too" there would be a claim about a place we cannot
+ * place at all.
  */
-export type FindDeskEmptyReason =
-  | "unavailable"
-  | "none-anywhere"
-  | "none-filed-under-area";
+export type FindDeskEmptyReason = "unavailable" | "none-anywhere" | "unknown-area";
 
 export function findDeskEmptyLine(input: {
   area: string | null;
@@ -354,8 +351,8 @@ export function findDeskEmptyLine(input: {
   if (input.reason === "unavailable") {
     return "I couldn't read the places list just now, so I won't guess at a seat.";
   }
-  if (input.reason === "none-filed-under-area" && input.area) {
-    return `Nothing on my places list is filed under ${input.area}. Name a London borough and I'll look there.`;
+  if (input.reason === "unknown-area" && input.area) {
+    return `I don't know an area called ${input.area}, so I haven't looked there. Name a London borough and I'll try again.`;
   }
   return FIND_DESK_NO_SEAT_DATA;
 }

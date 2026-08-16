@@ -364,13 +364,14 @@ describe("find_desk policy", () => {
       FIND_DESK_NO_SEAT_DATA,
     );
 
-    const unfiled = findDeskEmptyLine({
+    const unknown = findDeskEmptyLine({
       area: "Angel",
-      reason: "none-filed-under-area",
+      reason: "unknown-area",
     });
-    expect(unfiled).toContain("Angel");
-    expect(unfiled).not.toContain("No seat data yet");
-    expect(unfiled).toContain("filed under");
+    expect(unknown).toContain("Angel");
+    expect(unknown).not.toContain("No seat data yet");
+    expect(unknown).toMatch(/don't know an area/i);
+    expect(unknown).toMatch(/haven't looked there/i);
 
     expect(
       findDeskEmptyLine({ area: "Angel", reason: "unavailable" }),

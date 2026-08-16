@@ -67,9 +67,9 @@ function limitOf(value: unknown, fallback: number, cap: number): number {
 /**
  * A named pub.
  *
- * `"strict"` drops the substring pass. It is what an AREA word falls back to:
- * a word offered as a place, matched loosely, lands on any pub holding those
- * letters, which is how "near me" once answered with a club in Bexleyheath.
+ * `"strict"` drops the substring pass, and it is what a ROUTED name gets: a
+ * word the drinker offered as a place, matched loosely, lands on any pub
+ * holding those letters, which is how "Camden" once answered "Camden Head".
  */
 function withoutLeadingArticle(value: string): string {
   return value.trim().toLowerCase().replace(/^the\s+/, "");
@@ -153,19 +153,18 @@ export async function toolCheapestPintNear(
   const venueNameArg = isDeicticPlaceWord(args.venueName)
     ? ""
     : str(args.venueName);
-  // A borough is the stronger reading of a place word, so it is tried first on
-  // BOTH slots: "round Soho" arrives as a venue name and means the area, and a
-  // loose pub match on it would answer about one pub in Soho instead. "near The
-  // Lamb" arrives as an area and falls through to the pub of that name, on an
-  // exact or prefix name only, never a substring.
+  // An AREA word is answered as an area or not at all. The pack files a pub
+  // under its borough, so a district it cannot place ("Angel") has no area to
+  // rank and must never become the pub of that name on the other side of the
+  // city. A named CENTRE still resolves to its pub, and a centre that names a
+  // borough is read as that borough.
   const areaFromArea = areaArg ? matchArea(venues, areaArg) : null;
   const areaFromVenueName =
     !areaFromArea && venueNameArg ? matchArea(venues, venueNameArg) : null;
   const area = areaFromArea ?? areaFromVenueName;
   const anchorVenue =
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
-    (areaFromVenueName ? null : matchVenue(venues, venueNameArg)) ??
-    (area ? null : matchVenue(venues, areaArg, "strict"));
+    (areaFromVenueName ? null : matchVenue(venues, venueNameArg));
 
   let anchor: CheapestNearAnchor | null = null;
   if (anchorVenue) {
@@ -348,10 +347,10 @@ export async function toolVenueDrinks(
     };
   }
 
-  const read = await readCommunityPricesWithStatus(venue.id);
+  const now = ctx.now ?? Date.now();
+  const read = await readCommunityPricesWithStatus(venue.id, now);
   const status = read.degraded ? "unavailable" : "ready";
   const rows = orderVenueDrinkPrices(read.prices, DEFAULT_DRINK_LANE);
-  const now = ctx.now ?? Date.now();
 
   const cards: AskCard[] = rows.map((row, index) => ({
     key: `${venue.id}:drink-${index}`,
@@ -439,7 +438,7 @@ export async function toolFindDesk(
         ? "unavailable"
         : read.venues.length === 0
           ? "none-anywhere"
-          : "none-filed-under-area";
+          : "unknown-area";
     return {
       ok: read.status === "ready",
       tool: "find_desk",
@@ -484,9 +483,16 @@ export async function toolReportOccupancy(
 ): Promise<AskToolResult> {
   const venues = await loadConciergeVenues(ctx.cityId);
   const venueId = str(args.venueId);
+  // A crowd report names the pub the drinker is standing in. "It's rammed in
+  // Camden" names a borough, so it resolves to no pub and the answer asks
+  // which one, rather than reading a report back at a pub down the road.
+  const venueNameArg = str(args.venueName);
+  const namesArea = venueNameArg
+    ? matchArea(venues, venueNameArg) !== null
+    : false;
   const venue =
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
-    matchVenue(venues, str(args.venueName));
+    (namesArea ? null : matchVenue(venues, venueNameArg, "strict"));
 
   const outcome = occupancyReportOutcome({
     venueId: venue?.id ?? "",
