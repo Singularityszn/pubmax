@@ -81,7 +81,8 @@ describe("PlanComposer rendered UI", () => {
     expect(html).toContain("The pub you kept");
     expect(html).toContain("soho");
     expect(html).toContain("Jul"); // London service-date label for the accepted start
-    expect(html).toContain("You can still change any of these below");
+    expect(html).toContain("You can change the area and the date below.");
+    expect(html).toContain("Stop 1 stays this pub until you release it.");
     // The same hydration marks area + date answered, which is what suppresses the
     // area/date intake steps (PlanIntake is seeded settled; untouched here per the hold).
     expect(handoff.answeredArea).toBe(true);
@@ -94,6 +95,26 @@ describe("PlanComposer rendered UI", () => {
     }));
     expect(named).toContain("The Accepted Arms");
     expect(named).not.toContain("The pub you kept");
+  });
+
+  it("renders the way out of a held acceptance beside the summary", () => {
+    // The regression this pins: Stop 1 could not be released at all, so the
+    // accepted pub was held for the whole PlanningIntent TTL.
+    const handoff = resolveComposerHydration({
+      planDraft: null, routeDraft: null, intakeDraft: null,
+      planningIntent: intent(), rememberedArea: null,
+    });
+    const html = renderToStaticMarkup(createElement(AcceptedContextPanel, {
+      handoff,
+      onRelease: () => undefined,
+    }));
+
+    expect(html).toContain("Release this pub");
+    expect(html).toContain("planComposer__acceptedRelease");
+
+    // A panel with no release offered says nothing about releasing.
+    const withoutRelease = renderToStaticMarkup(createElement(AcceptedContextPanel, { handoff }));
+    expect(withoutRelease).not.toContain("planComposer__acceptedRelease");
   });
 
   it("renders the 'kept existing Plan work' conflict note when a newer Plan draft beats a newer intent", () => {

@@ -134,7 +134,6 @@ describe("acceptMapVenue", () => {
   it("returns Plan destination and exact acceptance telemetry only after persistence", () => {
     const result = acceptMapVenue(
       {
-        source: "map-search",
         cityId: "london",
         acceptedVenueId: ACCEPTED_VENUE,
         search: "?sel=venue-abc",
@@ -167,7 +166,6 @@ describe("acceptMapVenue", () => {
   ])("returns no destination when it %s", (_label, options) => {
     const result = acceptMapVenue(
       {
-        source: "map-search",
         cityId: "london",
         acceptedVenueId: ACCEPTED_VENUE,
         search: "?sel=venue-abc",
@@ -199,7 +197,6 @@ describe("acceptMapVenue", () => {
 
     const result = acceptMapVenue(
       {
-        source,
         cityId: "london",
         acceptedVenueId: ACCEPTED_VENUE,
         search: `?sel=${ACCEPTED_VENUE}&accept=1&src=${source}`,
@@ -227,7 +224,7 @@ describe("acceptMapVenue", () => {
     expect(storage.reads).toBe(1);
   });
 
-  it("keeps trusted Near provenance when the UI source has not settled", () => {
+  it("keeps trusted Near provenance, which only the stored intent can name", () => {
     seedIntent(storage, {
       source: "near",
       cityId: "london",
@@ -242,7 +239,6 @@ describe("acceptMapVenue", () => {
 
     const result = acceptMapVenue(
       {
-        source: "map-search",
         cityId: "london",
         acceptedVenueId: ACCEPTED_VENUE,
         search: `?sel=${ACCEPTED_VENUE}&accept=1&src=near`,
@@ -281,7 +277,6 @@ describe("acceptMapVenue", () => {
 
     const result = acceptMapVenue(
       {
-        source: "map-search",
         cityId: "london",
         acceptedVenueId: ACCEPTED_VENUE,
         search: `?sel=${ACCEPTED_VENUE}`,
@@ -308,7 +303,6 @@ describe("acceptMapVenue", () => {
   it("downgrades a crafted accepted URL with no stored intent to Map search", () => {
     const result = acceptMapVenue(
       {
-        source: "near",
         cityId: "london",
         acceptedVenueId: ACCEPTED_VENUE,
         search: `?sel=${ACCEPTED_VENUE}&accept=1&src=near`,
@@ -347,7 +341,6 @@ describe("acceptMapVenue", () => {
 
     const result = acceptMapVenue(
       {
-        source: "near",
         cityId: "london",
         acceptedVenueId: ACCEPTED_VENUE,
         search: `?sel=${ACCEPTED_VENUE}&accept=1&src=near`,
@@ -379,7 +372,6 @@ describe("acceptMapVenue", () => {
 
     const result = acceptMapVenue(
       {
-        source: "near",
         cityId: "london",
         acceptedVenueId: ACCEPTED_VENUE,
         search: `?sel=${ACCEPTED_VENUE}&accept=1&src=near`,

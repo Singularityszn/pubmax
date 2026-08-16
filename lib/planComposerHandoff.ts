@@ -7,10 +7,14 @@ import {
 import type { ParsedPlanDraft } from "@/lib/planDraft";
 import type { ParsedPlanIntakeDraft } from "@/lib/planIntake";
 import type { ParsedPlanRouteDraft } from "@/lib/planRouteDraft";
-import type {
-  PlanningIntentArea,
-  PlanningIntentSource,
-  PlanningIntentV1,
+import { PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY } from "@/lib/planDraft";
+import { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planRouteDraft";
+import {
+  settlePlanningIntent,
+  type PlanningIntentArea,
+  type PlanningIntentSource,
+  type PlanningIntentStorage,
+  type PlanningIntentV1,
 } from "@/lib/planningIntent";
 import type { CityId } from "@/lib/cities";
 import type { PlanTemplate } from "@/lib/planTemplates";
@@ -22,7 +26,9 @@ import type { RememberedArea } from "@/lib/nightPatches";
  * context to show (so the composer never re-asks an already-answered area or
  * date), and keeps templates from silently overriding accepted geography. Every
  * function here is pure so the composer can compute hydration deterministically
- * across StrictMode double-invocation and duplicate tabs.
+ * across StrictMode double-invocation and duplicate tabs. The one exception is
+ * `releaseAcceptedPlanContext`: releasing a held acceptance is an act, not a
+ * derivation, so it writes.
  */
 
 export type ComposerHydration = {
@@ -144,6 +150,68 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
     routePreview: result.routePreview,
     routeProofPresent: result.routeProofPresent,
   };
+}
+
+export type AcceptedContextStorages = {
+  /** Where PlanningIntent lives. Defaults to this browser's own storage. */
+  intent?: PlanningIntentStorage | null;
+  /** The Plan draft envelope's storage (sessionStorage in the browser). */
+  planDraft?: Pick<Storage, "removeItem"> | null;
+  /** The route draft's storage (localStorage in the browser). */
+  routeDraft?: Pick<Storage, "removeItem"> | null;
+};
+
+function bestEffortRemove(
+  storage: Pick<Storage, "removeItem"> | null | undefined,
+  key: string,
+): void {
+  if (!storage) return;
+  try {
+    storage.removeItem(key);
+  } catch {
+    // A denied storage must never block the way out of an acceptance.
+  }
+}
+
+/**
+ * Drop every persisted Plan draft this composer hydrates from.
+ *
+ * Both drafts are written under TWO keys, a canonical V2 and its V1 rollback
+ * companion, and `readPlanDraftEnvelope` / `readPlanRouteDraftEnvelope` read
+ * the V2 first. So a caller that removes one key of a pair has not cleared the
+ * draft: the surviving half hydrates the same accepted Stop 1 back. One list,
+ * one caller-visible act.
+ */
+export function clearPersistedPlanDrafts(
+  storages: Pick<AcceptedContextStorages, "planDraft" | "routeDraft"> = {},
+): void {
+  bestEffortRemove(storages.planDraft, PLAN_DRAFT_KEY);
+  bestEffortRemove(storages.planDraft, PLAN_DRAFT_V2_KEY);
+  bestEffortRemove(storages.routeDraft, PLAN_ROUTE_DRAFT_KEY);
+  bestEffortRemove(storages.routeDraft, PLAN_ROUTE_DRAFT_V2_KEY);
+}
+
+/**
+ * Release a held acceptance, so the composer goes back to an ordinary empty
+ * route.
+ *
+ * An acceptance is deliberately hard to lose by accident: while it is held,
+ * Stop 1 stays the accepted pub and no edit may swap it out from under the
+ * grounding proof. That protection is only honest if the person can put the
+ * acceptance down on purpose, and the acceptance outlives any one surface -
+ * it is held in the PlanningIntent, in the Plan draft's accepted anchor and in
+ * the route draft's anchored proof at once. So all of them go together:
+ * dropping only the intent would let the next hydration re-seed the same
+ * Stop 1 from a draft, which is how "released" would come back a moment later.
+ */
+export function releaseAcceptedPlanContext(
+  storages: AcceptedContextStorages = {},
+): void {
+  settlePlanningIntent(
+    "dismissed",
+    storages.intent === undefined ? {} : { storage: storages.intent },
+  );
+  clearPersistedPlanDrafts(storages);
 }
 
 export type ProvisionalStopSeed = {

@@ -32,7 +32,7 @@ import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { isPlanStopCount, normalizePlanStopCount, PLAN_STOP_COUNTS, type PlanStopCount } from "@/lib/planStopCount";
 import { planHasRoute, type PlanState } from "@/lib/plan";
-import { parsePlanDraft, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
+import { parsePlanDraft, PLAN_DRAFT_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
 import {
   PLANNING_INTENT_SOURCES,
@@ -41,8 +41,10 @@ import {
   type PlanningIntentSource,
 } from "@/lib/planningIntent";
 import {
+  clearPersistedPlanDrafts,
   composerLockErrorFromResponse,
   londonServiceDateLabel,
+  releaseAcceptedPlanContext,
   resolveComposerHydration,
   seedProvisionalStop1,
   UNRESOLVED_ACCEPTED_VENUE_LABEL,
@@ -769,17 +771,24 @@ function conciergeStatusText(
 }
 
 /**
- * L11 accepted-context panel: an editable summary of the Venue, area, and date
- * the person already accepted, plus any arbitration conflicts we resolved in
- * their favour. Rendered only when the handoff is active; the underlying fields
- * stay editable below, so nothing is hidden or silently changed.
+ * L11 accepted-context panel: a summary of the Venue, area, and date the person
+ * already accepted, plus any arbitration conflicts we resolved in their favour.
+ * Rendered only when the handoff is active.
+ *
+ * The area and the date stay editable below, and the accepted pub does not:
+ * while the acceptance is held, Stop 1 IS that pub, because the grounding proof
+ * is about it. So the panel says exactly that, and carries the one way out.
+ * Without the release control the acceptance could not be put down for the
+ * whole PlanningIntent TTL, and the panel's own sentence said otherwise.
  */
 export function AcceptedContextPanel({
   handoff,
   acceptedVenueName = null,
+  onRelease,
 }: {
   handoff: ComposerHydration;
   acceptedVenueName?: string | null;
+  onRelease?: () => void;
 }) {
   // Never the raw id: it is our name for a row, and a pin promoted out of the
   // UK base layer never reaches the slim index, so the id would have stood here
@@ -804,7 +813,16 @@ export function AcceptedContextPanel({
               <div><dt>When</dt><dd>{whenLabel}</dd></div>
             )}
           </dl>
-          <p className="planComposer__acceptedNote">You can still change any of these below.</p>
+          <p className="planComposer__acceptedNote">
+            You can change the area and the date below. Stop 1 stays this pub until you release it.
+          </p>
+          {onRelease && handoff.acceptedVenueId ? (
+            <button
+              className="planComposer__acceptedRelease"
+              type="button"
+              onClick={onRelease}
+            >Release this pub</button>
+          ) : null}
         </section>
       )}
       {handoff.conflicts.length > 0 && (
@@ -904,7 +922,7 @@ function PlanComposerForm({
   recoveredRouteDraft,
   recoveredIntake,
   hasDurableIntakeDraft,
-  handoff,
+  handoff: hydratedHandoff,
   canPersist,
 }: {
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
@@ -919,6 +937,12 @@ function PlanComposerForm({
   const areaGroups = nightAreaSelectorGroups();
   const readyAreas = areaGroups[0]?.areas ?? [];
   const areasInProgress = areaGroups[1]?.areas ?? [];
+  // Releasing the accepted pub retires the whole handoff for this composer, so
+  // every reader of it below - the panel, the seeded Stop 1's protection, the
+  // anchored generation body and the draft the effects persist - stops holding
+  // an acceptance in the same beat.
+  const [acceptanceReleased, setAcceptanceReleased] = useState(false);
+  const handoff = acceptanceReleased ? null : hydratedHandoff;
   const draftFields = initialComposerDraftFields(handoff, recoveredDraft);
   const [title, setTitle] = useState(draftFields.title);
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
@@ -1005,7 +1029,11 @@ function PlanComposerForm({
       || stops.find((stop) => stop.venueId === handoff.acceptedVenueId)?.venueName.trim()
       || null
     : null;
-  const acceptedCityId = handoff?.acceptedAnchor?.cityId ?? DEFAULT_CITY_ID;
+  // The Venue index this composer reads, and the area seed below, are both
+  // arrival-time reads of what was hydrated. They stay on the hydrated handoff
+  // rather than the live one, so releasing the pub neither refetches an index
+  // nor re-asks the browser for a location.
+  const acceptedCityId = hydratedHandoff?.acceptedAnchor?.cityId ?? DEFAULT_CITY_ID;
   const acceptedStop1VenueId = planAnchor?.venueId ?? handoff?.acceptedVenueId ?? null;
   const completeStopIds = completeStops.map((stop) => stop.venueId);
   const matchingAnchorOnlyPlan = isMatchingAnchorOnlyPlan({
@@ -1053,7 +1081,7 @@ function PlanComposerForm({
         if (!active) return;
         const nextVenues = planVenueOptions(rows);
         setVenues(nextVenues);
-        const acceptedVenueId = handoff?.acceptedVenueId;
+        const acceptedVenueId = hydratedHandoff?.acceptedVenueId;
         if (!acceptedVenueId) return;
         const accepted = nextVenues.find((venue) => venue.id === acceptedVenueId);
         if (!accepted) return;
@@ -1067,7 +1095,7 @@ function PlanComposerForm({
       })
       .catch(() => undefined);
     return () => { active = false; };
-  }, [acceptedCityId, handoff?.acceptedVenueId]);
+  }, [acceptedCityId, hydratedHandoff?.acceptedVenueId]);
 
   useEffect(() => {
     if (recoveredDraft) trackEvent("draft_recovered", { kind: "plan", surface: "plan" });
@@ -1131,8 +1159,8 @@ function PlanComposerForm({
     }
     // L11: an accepted night-patch area answers the area step up front, so the
     // composer never re-asks a geography the person already accepted.
-    if (handoff?.area?.kind === "night-patch") {
-      seedArea(handoff.area.id);
+    if (hydratedHandoff?.area?.kind === "night-patch") {
+      seedArea(hydratedHandoff.area.id);
       return () => { cancelled = true; };
     }
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -1149,7 +1177,7 @@ function PlanComposerForm({
       { enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 10_000 },
     );
     return () => { cancelled = true; };
-  }, [hasDurableIntakeDraft, handoff]);
+  }, [hasDurableIntakeDraft, hydratedHandoff]);
 
   function updatePlanIntake(next: PlanIntakeDraft) {
     const reconciled = next.answers.stopCount === undefined
@@ -1235,6 +1263,22 @@ function PlanComposerForm({
     setRouteStale(mutation.routeStale);
     if (mutation.routeStale) setRouteStatus(status);
     return true;
+  }
+
+  function releaseAcceptance() {
+    releaseAcceptedPlanContext({
+      planDraft: canPersist ? sessionStorage : null,
+      routeDraft: canPersist ? localStorage : null,
+    });
+    setAcceptanceReleased(true);
+    setStops([]);
+    setPlanAnchor(null);
+    setGroundingProof(null);
+    setCreateOperationKey(null);
+    setRouteRevision(null);
+    setRouteStale(false);
+    setCultureOpener(null);
+    setRouteStatus("You released the pub. Make a plan again to build a route.");
   }
 
   function chooseVenue(key: number, venueName: string) {
@@ -1479,9 +1523,7 @@ function PlanComposerForm({
       }
       trackEvent("plan_saved", { stops: completeStops.length, grounded });
       trackMeaningfulCoreAction("plan_saved");
-      try { sessionStorage.removeItem(PLAN_DRAFT_KEY); } catch { /* best effort */ }
-      try { sessionStorage.removeItem(PLAN_DRAFT_V2_KEY); } catch { /* best effort */ }
-      try { localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY); } catch { /* best effort */ }
+      clearPersistedPlanDrafts({ planDraft: sessionStorage, routeDraft: localStorage });
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
       router.push(`/plan/${body.plan.plan.id}#share`);
@@ -1494,7 +1536,13 @@ function PlanComposerForm({
 
   return (
     <form id="plan-composer" className="planComposer" onSubmit={submit} noValidate>
-      {handoff && <AcceptedContextPanel handoff={handoff} acceptedVenueName={acceptedVenueName} />}
+      {handoff && (
+        <AcceptedContextPanel
+          handoff={handoff}
+          acceptedVenueName={acceptedVenueName}
+          onRelease={releaseAcceptance}
+        />
+      )}
       {!planIntake.completed && entryMode === "describe" ? (
         <PlanDescribeFirst
           initialQuery={askDraftQuery}

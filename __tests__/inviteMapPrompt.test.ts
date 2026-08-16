@@ -18,10 +18,18 @@ function memoryStorage(seed: Record<string, string> = {}) {
   };
 }
 
+function liveRegionCount(html: string): number {
+  return html.split('role="status"').length - 1;
+}
+
 describe("InviteMapPrompt", () => {
   it("announces a committed RSVP without inventing a map destination", () => {
     const html = renderToStaticMarkup(
-      createElement(InviteMapPrompt, { committed: true, venueIds: [" "] }),
+      createElement(InviteMapPrompt, {
+        committedThisVisit: true,
+        rememberedFromDevice: false,
+        venueIds: [" "],
+      }),
     );
 
     expect(html).toContain("RSVP saved.");
@@ -30,7 +38,11 @@ describe("InviteMapPrompt", () => {
 
   it("uses the canonical selected-Venue URL for one valid Crawl Stop", () => {
     const html = renderToStaticMarkup(
-      createElement(InviteMapPrompt, { committed: true, venueIds: [" venue-1 "] }),
+      createElement(InviteMapPrompt, {
+        committedThisVisit: true,
+        rememberedFromDevice: false,
+        venueIds: [" venue-1 "],
+      }),
     );
 
     expect(html).toContain('href="/map?sel=venue-1"');
@@ -42,7 +54,11 @@ describe("InviteMapPrompt", () => {
     // reloaded, returned the next day, answered on another device, or was
     // already Going before the deploy with no way to the stops at all.
     const html = renderToStaticMarkup(
-      createElement(InviteMapPrompt, { committed: false, venueIds: ["venue-1"] }),
+      createElement(InviteMapPrompt, {
+        committedThisVisit: false,
+        rememberedFromDevice: false,
+        venueIds: ["venue-1"],
+      }),
     );
 
     expect(html).toContain('href="/map?sel=venue-1"');
@@ -50,12 +66,45 @@ describe("InviteMapPrompt", () => {
     expect(html).not.toContain("RSVP saved.");
   });
 
-  it("keeps one live region on the page, not a second beside the form", () => {
+  it("announces the save exactly once when it lands in this visit", () => {
+    // The regression this pins: the saved line carried no live region at all,
+    // so a screen-reader guest got no confirmation that their RSVP landed.
     const html = renderToStaticMarkup(
-      createElement(InviteMapPrompt, { committed: true, venueIds: ["venue-1"] }),
+      createElement(InviteMapPrompt, {
+        committedThisVisit: true,
+        rememberedFromDevice: false,
+        venueIds: ["venue-1"],
+      }),
     );
 
-    expect(html).not.toContain('role="status"');
+    expect(html).toContain("RSVP saved.");
+    expect(liveRegionCount(html)).toBe(1);
+  });
+
+  it("stays silent when the saved line is restored from device memory", () => {
+    const html = renderToStaticMarkup(
+      createElement(InviteMapPrompt, {
+        committedThisVisit: false,
+        rememberedFromDevice: true,
+        venueIds: ["venue-1"],
+      }),
+    );
+
+    expect(html).toContain("RSVP saved.");
+    expect(liveRegionCount(html)).toBe(0);
+  });
+
+  it("announces once, not twice, when the remembered guest saves again", () => {
+    const html = renderToStaticMarkup(
+      createElement(InviteMapPrompt, {
+        committedThisVisit: true,
+        rememberedFromDevice: true,
+        venueIds: ["venue-1"],
+      }),
+    );
+
+    expect(html.split("RSVP saved.").length - 1).toBe(1);
+    expect(liveRegionCount(html)).toBe(1);
   });
 });
 

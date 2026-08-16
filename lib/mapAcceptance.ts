@@ -74,12 +74,6 @@ export function buildMapAcceptanceIntentInput(input: {
 }
 
 export type MapAcceptanceInput = {
-  /**
-   * What the calling surface believes this selection came from. Never
-   * authoritative here: only a live PlanningIntent for this exact Venue may
-   * name a source richer than "map-search".
-   */
-  source: PlanningIntentSource;
   cityId: CityId;
   acceptedVenueId: string;
   /** The frozen Map arrival search, used to recognise an accepted handoff. */
@@ -288,8 +282,10 @@ export function scheduleAcceptedArrivalExpiry(
  * Explicitly accept the selected Map Venue into the trusted handoff.
  *
  * A matching Near or Tonight arrival may carry a richer intent already written
- * by that surface. Every other Map selection gets the minimal directory input.
- * The final result is successful only when the chosen input persists.
+ * by that surface. Every other Map selection gets the minimal directory input
+ * under "map-search". The caller names no source of its own: a Map selection
+ * carries no acceptance authority, so only the verified stored intent may name
+ * a richer one. The final result is successful only when the input persists.
  */
 export function acceptMapVenue(
   input: MapAcceptanceInput,
@@ -303,9 +299,6 @@ export function acceptMapVenue(
     },
     options,
   );
-  // A Map selection carries no acceptance authority of its own, whatever the
-  // caller believes about where it came from: only a live PlanningIntent for
-  // this exact Venue may name a richer source.
   let intentInput = buildMapAcceptanceIntentInput({
     source: "map-search",
     cityId: input.cityId,

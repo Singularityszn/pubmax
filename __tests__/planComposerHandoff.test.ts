@@ -20,12 +20,17 @@ import {
   writePlanIntakeDraft,
   type ParsedPlanIntakeDraft,
 } from "@/lib/planIntake";
-import { createPlanningIntent } from "@/lib/planningIntent";
+import {
+  createPlanningIntent,
+  PLANNING_INTENT_STORAGE_KEY,
+  readPlanningIntent,
+} from "@/lib/planningIntent";
 import { PLAN_TEMPLATES } from "@/lib/planTemplates";
 import {
   applyTemplate,
   composerLockErrorFromResponse,
   londonServiceDateLabel,
+  releaseAcceptedPlanContext,
   seedProvisionalStop1,
   resolveComposerHydration,
   UNRESOLVED_ACCEPTED_VENUE_LABEL,
@@ -381,6 +386,89 @@ describe("provisional accepted Venue Stop 1 seed", () => {
       recoveredRouteStops: [],
       recoveredPlanStops: [{ venueId: "venue-plan", venueName: "Plan Stop" }],
     })).toBeNull();
+  });
+});
+
+describe("releasing a held acceptance", () => {
+  function heldAcceptance() {
+    const intentStorage = memoryStorage();
+    const planDraftStorage = memoryStorage();
+    const routeDraftStorage = memoryStorage();
+    const held = createPlanningIntent({
+      source: "near",
+      cityId: "london",
+      acceptedVenueId: "venue-a",
+      acceptedArea: { kind: "night-patch", id: "soho" },
+      startsAt: "2026-07-24T20:00:00.000Z",
+      displayEvidence: { kind: "directory", observedAt: null },
+    }, NOW);
+    intentStorage.setItem(PLANNING_INTENT_STORAGE_KEY, JSON.stringify(held));
+    writePlanDraftEnvelope(storedPlan({
+      acceptedAnchor: {
+        venueId: "venue-a",
+        source: "near",
+        cityId: "london",
+        acceptedArea: { kind: "night-patch", id: "soho" },
+        startsAt: "2026-07-24T20:00:00.000Z",
+        expiresAt: new Date(NOW + 60 * 60 * 1000).toISOString(),
+      },
+    }), "planning-intent", planDraftStorage, NOW);
+    writePlanRouteDraftEnvelope(
+      routeDraft("route").value,
+      "plan-generated",
+      routeDraftStorage,
+      NOW,
+    );
+    return { intentStorage, planDraftStorage, routeDraftStorage };
+  }
+
+  function hydrate(storages: ReturnType<typeof heldAcceptance>) {
+    return resolveComposerHydration({
+      planDraft: readPlanDraftEnvelope(storages.planDraftStorage, NOW),
+      routeDraft: readPlanRouteDraftEnvelope(storages.routeDraftStorage, NOW),
+      intakeDraft: null,
+      planningIntent: readPlanningIntent({ storage: storages.intentStorage, now: NOW }),
+      rememberedArea: null,
+    });
+  }
+
+  it("leaves nothing for the next hydration to re-seed as Stop 1", () => {
+    // The regression this pins: an accepted pub could not be put down for the
+    // whole PlanningIntent TTL, so every /plan visit re-seeded it as Stop 1.
+    // Dropping only the intent is not enough - the Plan draft's anchor and the
+    // route draft's anchored proof would each seed it again.
+    const storages = heldAcceptance();
+    const before = hydrate(storages);
+    expect(before.acceptedVenueId).toBe("venue-a");
+    expect(before.showAcceptedSummary).toBe(true);
+
+    releaseAcceptedPlanContext({
+      intent: storages.intentStorage,
+      planDraft: storages.planDraftStorage,
+      routeDraft: storages.routeDraftStorage,
+    });
+
+    const after = hydrate(storages);
+    expect(readPlanningIntent({ storage: storages.intentStorage, now: NOW })).toBeNull();
+    expect(after.acceptedVenueId).toBeNull();
+    expect(after.acceptedAnchor).toBeNull();
+    expect(after.showAcceptedSummary).toBe(false);
+    expect(after.routePreview).toBeNull();
+  });
+
+  it("still releases what it can when a storage is denied", () => {
+    const storages = heldAcceptance();
+    const denied = {
+      removeItem: () => { throw new Error("denied"); },
+    };
+
+    expect(() => releaseAcceptedPlanContext({
+      intent: storages.intentStorage,
+      planDraft: denied,
+      routeDraft: storages.routeDraftStorage,
+    })).not.toThrow();
+    expect(readPlanningIntent({ storage: storages.intentStorage, now: NOW })).toBeNull();
+    expect(readPlanRouteDraftEnvelope(storages.routeDraftStorage, NOW)).toBeNull();
   });
 });
 

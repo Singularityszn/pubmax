@@ -372,7 +372,6 @@ import {
 import {
   PLANNING_INTENT_CHANGED_EVENT,
   readPlanningIntent,
-  type PlanningIntentSource,
 } from "@/lib/planningIntent";
 import {
   acceptMapVenue,
@@ -1751,22 +1750,10 @@ export default function PubMap({
   // components/map/pubmap/useBuiltIdsPersistence.ts).
   useBuiltIdsPersistence(builtIds, BUILT_STORAGE_KEY);
 
-  // §4.8 typed acceptance source. Seeded from an `accept=1&src=` arrival, set to
-  // "map-search" when a search result is picked, and reset to null (browse) on
-  // an ordinary pin tap or generic `?sel=` selection. Consumed ONLY by an
-  // explicit Make it Stop 1 — opening details never writes intent.
-  const selectionOriginRef = useRef<PlanningIntentSource | null>(
-    acceptedArrivalSource,
-  );
-  useEffect(() => {
-    if (acceptedArrivalSource) selectionOriginRef.current = acceptedArrivalSource;
-  }, [acceptedArrivalSource]);
-
   const selectVenue = useCallback(
     (
       id: string,
       initialTab: TabKey = "overview",
-      origin: PlanningIntentSource | null = null,
     ) => {
       if (!id) return;
       setSelectionNotice(null);
@@ -1799,7 +1786,6 @@ export default function PubMap({
           preSheetFocusRef.current = active;
         }
       }
-      selectionOriginRef.current = origin;
       // Base pubs have no /api/venue record; prefetching one is a certain 404.
       if (!isUkBaseId(id)) prefetchVenue(id);
       setTonightLaneOpen(false);
@@ -1821,15 +1807,15 @@ export default function PubMap({
   );
 
   // §4.8 Make it Stop 1. Only a confirmed PlanningIntent write may emit
-  // acceptance telemetry or hand the person to Plan. A matching Near/Tonight
-  // arrival keeps its richer area and provenance envelope.
+  // acceptance telemetry or hand the person to Plan. The source is never the
+  // calling surface's belief about where the selection came from: acceptMapVenue
+  // reads it from the verified stored intent, so a matching Near/Tonight arrival
+  // keeps its richer area and provenance envelope and everything else is a
+  // plain map search.
   const acceptStop1 = useCallback(() => {
     const venue = selectedVenue;
     if (!venue) return;
-    const source: PlanningIntentSource =
-      acceptedArrivalSource ?? selectionOriginRef.current ?? "map-search";
     const result = acceptMapVenue({
-      source,
       cityId,
       acceptedVenueId: venue.id,
       search: currentSearch(),
@@ -1842,7 +1828,7 @@ export default function PubMap({
     trackEvent("venue_accepted", result.telemetry);
     trackEvent("planning_handoff_opened", { from: result.telemetry.source, to: "plan" });
     if (typeof window !== "undefined") window.location.assign(result.destination);
-  }, [acceptedArrivalSource, selectedVenue, cityId]);
+  }, [selectedVenue, cityId]);
 
   // The tapped UK base pub, held whole because it exists in no index this
   // component has: the map hands the record up with the tap. Selection itself
@@ -2754,7 +2740,7 @@ export default function PubMap({
         );
         return;
       }
-      selectVenue(id, "overview", "map-search");
+      selectVenue(id, "overview");
     },
     [cityId, selectVenue, trimmedMapQuery],
   );
@@ -2762,7 +2748,7 @@ export default function PubMap({
     (pub: UkBasePub) => {
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
       setSelectedBasePub(pub);
-      selectVenue(pub.id, "overview", "map-search");
+      selectVenue(pub.id, "overview");
     },
     [selectVenue, trimmedMapQuery],
   );

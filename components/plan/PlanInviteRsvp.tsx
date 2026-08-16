@@ -64,10 +64,12 @@ function writeStoredGuestName(name: string): void {
 }
 
 export function InviteMapPrompt({
-  committed,
+  committedThisVisit,
+  rememberedFromDevice,
   venueIds,
 }: {
-  committed: boolean;
+  committedThisVisit: boolean;
+  rememberedFromDevice: boolean;
   venueIds: string[];
 }) {
   // The map link is never gated on the RSVP. Gating it meant a guest who
@@ -76,12 +78,21 @@ export function InviteMapPrompt({
   // stops the invite is about. "RSVP saved." is emphasis laid on top of a way
   // out that was always there, not the thing that unlocks it.
   //
-  // It carries no live region of its own: the form below already owns one, and
-  // this line is also rendered on arrival for a returning guest, where an
-  // announcement would be news about nothing.
+  // The two reasons the line shows are one announcement apart. A save made in
+  // this visit is news, so the line is a live region and a screen-reader guest
+  // hears it without losing their place. A line restored from device memory on
+  // arrival is not news, so it stays silent.
+  const committed = committedThisVisit || rememberedFromDevice;
   return (
     <div className="inviteRsvp__mapPrompt">
-      {committed ? <p className="inviteRsvp__status">RSVP saved.</p> : null}
+      {committed ? (
+        <p
+          className="inviteRsvp__status"
+          role={committedThisVisit ? "status" : undefined}
+        >
+          RSVP saved.
+        </p>
+      ) : null}
       <InviteMapLink venueIds={venueIds} />
     </div>
   );
@@ -387,7 +398,11 @@ export default function PlanInviteRsvp({
         </p>
       ) : null}
 
-      <InviteMapPrompt committed={rsvpCommitted || rsvpRemembered} venueIds={venueIds} />
+      <InviteMapPrompt
+        committedThisVisit={rsvpCommitted}
+        rememberedFromDevice={rsvpRemembered}
+        venueIds={venueIds}
+      />
 
       <div className="inviteRsvp__reactions">
         {REACTION_KEYS.map((key) => {
