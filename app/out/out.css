@@ -90,70 +90,42 @@
   font-weight: 650;
 }
 
-/* An empty window is still a way onward, never a closed door. */
-.outEmptyBlock {
-  display: flex;
-  flex-direction: column;
+.outStatus {
+  margin: 0 0 12px;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+/* The card box is the LIST ITEM, not the link. The source credit is its own
+   link (a licence obligation for Skiddle), and an anchor inside an anchor is
+   invalid HTML the parser un-nests, so the two links are siblings inside one
+   bordered item. */
+.outList {
+  display: grid;
   gap: 12px;
-}
-
-.outEmptyWays {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.outEmptyWay {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--ink);
-  font-weight: 650;
-  font-size: 0.9rem;
-  text-decoration: none;
-}
-
-.outEmptyWay:hover,
-.outEmptyWay:focus-visible {
-  border-color: color-mix(in srgb, var(--brass) 42%, var(--line));
-}
-
-.outEmptyWay:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
-.outCardList {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.outCard {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px;
+.outList > li {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--panel-raised, var(--paper));
 }
 
-.outCardKind {
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  color: var(--ink-soft);
+.outCard {
+  display: grid;
+  gap: 8px;
+  color: inherit;
+  text-decoration: none;
 }
 
-.outCardTitle {
+.outCard h2 {
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.05rem;
@@ -161,10 +133,22 @@
   line-height: 1.25;
 }
 
-.outCardPlace,
 .outCardMeta {
   margin: 0;
   font-size: 0.85rem;
   line-height: 1.4;
   color: var(--ink-soft);
 }
+
+.outPrice {
+  margin: 0;
+  font-weight: 600;
+}
+
+.outSourceCredit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+}
+

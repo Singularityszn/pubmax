@@ -24,6 +24,7 @@ import {
   CalendarClock,
   Music,
   Tag,
+  Ticket,
   Tv,
   type LucideIcon,
 } from "lucide-react";
@@ -49,6 +50,7 @@ const KIND_ICON: Record<WhatsOnKind, LucideIcon> = {
   sport: Tv,
   deal: Tag,
   music: Music,
+  event: Ticket,
 };
 
 // Distinct kinds present at this venue tonight, in hero-priority order.

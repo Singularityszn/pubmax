@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties } from "react";
-import { CalendarClock, Music, Tag, Tv, type LucideIcon } from "lucide-react";
+import { CalendarClock, Music, Tag, Ticket, Tv, type LucideIcon } from "lucide-react";
 
 // Type-only import of the wire contract — the API and this component share one
 // source of truth (lib/planGetIn) so the shapes cannot drift. Erased at build,
@@ -31,6 +31,7 @@ const KIND_ICON: Record<WhatsOnKind, LucideIcon> = {
   sport: Tv,
   deal: Tag,
   music: Music,
+  event: Ticket,
 };
 
 const CONFIDENCE_LABEL: Record<StopEventChip["confidence"], string> = {

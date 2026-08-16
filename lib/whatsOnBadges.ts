@@ -13,7 +13,12 @@
 // priority for a venue with several rows: quiz > sport > deal > music.
 
 import { walkLabel, walkMinutes } from "@/lib/tonight";
-import { WHATS_ON_KINDS, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
+import {
+  WHATS_ON_KINDS,
+  whatsOnBarePriceGbp,
+  type WhatsOnKind,
+  type WhatsOnRow,
+} from "@/lib/whatsOn";
 
 export type WhatsOnKindMeta = {
   kind: WhatsOnKind;
@@ -38,6 +43,7 @@ export const WHATS_ON_KIND_META: Record<WhatsOnKind, WhatsOnKindMeta> = {
   },
   deal: { kind: "deal", label: "Deal", badgeLabel: "Deal on", timed: true, priority: 2 },
   music: { kind: "music", label: "Live music", badgeLabel: "Live music", timed: true, priority: 3 },
+  event: { kind: "event", label: "Event", badgeLabel: "On tonight", timed: true, priority: 4 },
 };
 
 /** Ordered kinds by hero priority — used for stable, priority-sorted output. */
@@ -193,7 +199,8 @@ export function laneCardsFromRows(
       confidence: row.confidence,
     };
     if (typeof row.venueId === "string" && row.venueId.length > 0) card.venueId = row.venueId;
-    if (typeof row.priceGbp === "number") card.priceGbp = row.priceGbp;
+    const barePrice = whatsOnBarePriceGbp(row);
+    if (barePrice !== null) card.priceGbp = barePrice;
     const walk = walkLabel(
       walkMinutes(near, {
         lat: typeof row.lat === "number" ? row.lat : Number.NaN,

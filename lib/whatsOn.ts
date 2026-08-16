@@ -8,8 +8,16 @@
 // no licence field (per the B1 row contract).
 
 import { type ThingsToDoResult } from "@/lib/citymcp/client";
+import {
+  eventIdentityKey,
+  isCalendarDate as isCalendarDateShape,
+  isHttpUrl as isHttpUrlShape,
+  isValidIso as isValidIsoShape,
+  isValidObservedAt as isValidObservedAtShape,
+  isValidWhatsOnRow as isValidWhatsOnRowShape,
+} from "@/lib/whatsOnRowShape.mjs";
 
-export const WHATS_ON_KINDS = ["sport", "quiz", "deal", "music"] as const;
+export const WHATS_ON_KINDS = ["sport", "quiz", "deal", "music", "event"] as const;
 export type WhatsOnKind = (typeof WHATS_ON_KINDS)[number];
 
 // "confirmed": venue/organiser directly confirms this row. "listed": a
@@ -33,6 +41,12 @@ export type WhatsOnRow = {
   kind: WhatsOnKind;
   /** Exact ISO start supplied by the listing source. Missing means unknown. */
   startsAt?: string;
+  /**
+   * London calendar date (YYYY-MM-DD) the listing STATES when it publishes no
+   * clock time. A date-only row is windowed against that evening's own
+   * 16:00-04:00 service window; nothing may invent a start time from it.
+   */
+  startsDate?: string;
   endsAt?: string; // ISO-8601
   /** Human-readable source wording when no exact instant was supplied. */
   timeEvidence?: string;
@@ -41,13 +55,58 @@ export type WhatsOnRow = {
   title: string;
   detail?: string;
   priceGbp?: number;
+  /** Ticketmaster / Skiddle listing image. Never a pub photo. */
+  imageUrl?: string;
+  /** Provider event id. Dedupes a refresh that sees the same listing twice. */
+  sourceId?: string;
+  /** Night-area slug from assignVenueToNightArea at build / serve. */
+  area?: string;
   source: WhatsOnSource;
   observedAt: string; // ISO-8601, never in the future
   confidence: WhatsOnConfidence;
 };
 
+// http(s) URL guard — a source must be a real, absolute link the UI can
+// attribute to.
+export function isHttpUrl(value: unknown): value is string {
+  return isHttpUrlShape(value);
+}
+
+// A parseable ISO timestamp (no future constraint — startsAt may be future).
+export function isValidIso(value: unknown): value is string {
+  return isValidIsoShape(value);
+}
+
+// A London calendar date, exactly YYYY-MM-DD, that names a real day. This is
+// what a listing carries when it publishes a DAY and no clock time.
+export function isCalendarDate(value: unknown): value is string {
+  return isCalendarDateShape(value);
+}
+
+// A valid ISO timestamp that is not in the future (you cannot have observed an
+// event that hasn't happened yet).
+export function isValidObservedAt(value: unknown, now: number): value is string {
+  return isValidObservedAtShape(value, now);
+}
+
 export function isWhatsOnKind(value: unknown): value is WhatsOnKind {
   return (WHATS_ON_KINDS as readonly string[]).includes(value as string);
+}
+
+/**
+ * The figure a NON-event What's-On surface may print, or null.
+ *
+ * A kind=event row's `priceGbp` is a TICKET price, and it belongs to the /out
+ * event card alone, worded "Tickets from £X" beside its source credit. Every
+ * other lane prints a bare "£23.50", which in this product reads as a drink
+ * price - and it loses even the "from" qualifier. So the rule lives here, at
+ * the one place every reader projects a row from, rather than being restated
+ * per surface: Tonight, the map lane, the Today pick, a plan chip and the Pub
+ * Pal DTO all ask this instead of reading `row.priceGbp`.
+ */
+export function whatsOnBarePriceGbp(row: Pick<WhatsOnRow, "kind" | "priceGbp">): number | null {
+  if (row.kind === "event") return null;
+  return typeof row.priceGbp === "number" && Number.isFinite(row.priceGbp) ? row.priceGbp : null;
 }
 
 /**
@@ -114,80 +173,13 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-// Optional field: absent (undefined) or null is fine; if present it must be a
-// non-empty string. Scraped payloads (e.g. quiz_london.json) use `null` for an
-// unresolved venueId, so null is treated as "absent".
-function isAbsentOr<T>(value: unknown, guard: (v: unknown) => v is T): boolean {
-  return value === undefined || value === null || guard(value);
-}
-
-// http(s) URL guard — a source must be a real, absolute link the UI can
-// attribute to.
-export function isHttpUrl(value: unknown): value is string {
-  if (!isNonEmptyString(value)) return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-// A parseable ISO timestamp (no future constraint — startsAt may be future).
-export function isValidIso(value: unknown): value is string {
-  return isNonEmptyString(value) && Number.isFinite(Date.parse(value));
-}
-
-// A valid ISO timestamp that is not in the future (you cannot have observed an
-// event that hasn't happened yet).
-export function isValidObservedAt(value: unknown, now: number): value is string {
-  if (!isNonEmptyString(value)) return false;
-  const ms = Date.parse(value);
-  return Number.isFinite(ms) && ms <= now;
-}
-
-function isValidSource(value: unknown): value is WhatsOnSource {
-  if (typeof value !== "object" || value === null) return false;
-  const s = value as Record<string, unknown>;
-  return isNonEmptyString(s.label) && isHttpUrl(s.url);
-}
-
 // Hand-rolled row guard — drop malformed rows rather than throw. `now` is
-// injectable for deterministic tests.
+// injectable for deterministic tests. The RULE itself lives in
+// lib/whatsOnRowShape.mjs, because scripts/validate-data.mjs and
+// scripts/refresh_whats_on.mjs cannot import TypeScript and used to keep two
+// hand-written mirrors of it that drifted the moment the shape widened.
 export function isValidWhatsOnRow(value: unknown, now: number = Date.now()): value is WhatsOnRow {
-  if (typeof value !== "object" || value === null) return false;
-  const row = value as Record<string, unknown>;
-
-  if (!isNonEmptyString(row.id)) return false;
-  if (!isNonEmptyString(row.placeName)) return false;
-  if (!isWhatsOnKind(row.kind)) return false;
-  const hasExactStart = isValidIso(row.startsAt);
-  const hasListedTime = isNonEmptyString(row.timeEvidence);
-  const hasListedWindow =
-    row.listedWindow === "tonight" ||
-    row.listedWindow === "tomorrow_night" ||
-    row.listedWindow === "this_weekend";
-  if (!hasExactStart && !hasListedTime && !hasListedWindow) return false;
-  if (!isNonEmptyString(row.title)) return false;
-  if (!isValidSource(row.source)) return false; // provenance non-negotiable
-  if (!isValidObservedAt(row.observedAt, now)) return false; // never future
-  if (!isWhatsOnConfidence(row.confidence)) return false;
-
-  if (!isAbsentOr(row.venueId, isNonEmptyString)) return false;
-  if (row.lat !== undefined && row.lat !== null && !isFiniteNumber(row.lat)) return false;
-  if (row.lng !== undefined && row.lng !== null && !isFiniteNumber(row.lng)) return false;
-  if (row.endsAt !== undefined && row.endsAt !== null) {
-    if (!hasExactStart || !isValidIso(row.endsAt)) return false;
-  }
-  if (!isAbsentOr(row.timeEvidence, isNonEmptyString)) return false;
-  if (row.listedWindow !== undefined && !hasListedWindow) {
-    return false;
-  }
-  if (!isAbsentOr(row.detail, isNonEmptyString)) return false;
-  if (row.priceGbp !== undefined && row.priceGbp !== null) {
-    if (!isFiniteNumber(row.priceGbp) || row.priceGbp < 0) return false;
-  }
-  return true;
+  return isValidWhatsOnRowShape(value, now);
 }
 
 // Data-derived event titles occasionally carry a typographic em or en dash
@@ -232,6 +224,7 @@ function normaliseRow(row: WhatsOnRow): WhatsOnRow {
   };
   if (isNonEmptyString(row.venueId)) out.venueId = row.venueId;
   if (isValidIso(row.startsAt)) out.startsAt = row.startsAt;
+  if (isCalendarDate(row.startsDate)) out.startsDate = row.startsDate;
   if (isFiniteNumber(row.lat)) out.lat = row.lat;
   if (isFiniteNumber(row.lng)) out.lng = row.lng;
   if (isValidIso(row.endsAt)) out.endsAt = row.endsAt;
@@ -245,18 +238,29 @@ function normaliseRow(row: WhatsOnRow): WhatsOnRow {
   }
   if (isNonEmptyString(row.detail)) out.detail = row.detail;
   if (isFiniteNumber(row.priceGbp)) out.priceGbp = row.priceGbp;
+  if (isHttpUrl(row.imageUrl)) out.imageUrl = row.imageUrl;
+  if (isNonEmptyString(row.sourceId)) out.sourceId = row.sourceId;
+  if (isNonEmptyString(row.area)) out.area = row.area;
   return out;
 }
 
-// Exact-start rows collide on place, kind, and start. Without an exact start,
-// listed-time wording is not enough to identify an event, so title and source
-// remain part of the identity.
+// A row that carries the PROVIDER'S OWN id is identified by it: two listings
+// with distinct sourceIds are two events, however alike their venue, kind and
+// start look. A multi-room venue really does run two shows at 20:00, and
+// comedy, theatre, club and BARPUB all land on the single kind "event", so
+// (place, kind, start) alone silently drops one of them.
+//
+// Exact-start rows with no id collide on place, kind, and start. Without an
+// exact start, listed-time wording is not enough to identify an event, so title
+// and source remain part of the identity.
 export function dedupeKey(row: WhatsOnRow): string {
+  const identity = eventIdentityKey(row);
+  if (identity) return identity;
   const place = isNonEmptyString(row.venueId) ? row.venueId : row.placeName.toLowerCase();
   const when =
     row.startsAt ??
     [
-      row.timeEvidence ?? row.listedWindow ?? "",
+      row.startsDate ?? row.timeEvidence ?? row.listedWindow ?? "",
       normaliseEventTitle(row.title).toLocaleLowerCase("en-GB"),
       row.source.url,
     ].join("|");
@@ -274,6 +278,14 @@ export function dedupeRows(rows: WhatsOnRow[]): WhatsOnRow[] {
     }
   }
   return Array.from(byKey.values());
+}
+
+// The instant a bundled What's-On artifact was written. Every reader dates that
+// file's rows by it (isValidObservedAt refuses a row observed after it), so the
+// ONE helper lives here rather than being copied per reader.
+export function bundledGeneratedAt(raw: unknown): number {
+  const at = Date.parse(String((raw as { generatedAt?: unknown })?.generatedAt ?? ""));
+  return Number.isFinite(at) ? at : Date.now();
 }
 
 // Parse a raw whats-on file body into clean WhatsOnRow[]. Accepts either a bare
@@ -425,6 +437,7 @@ const POINT_ROW_GRACE_MS: Record<WhatsOnKind, number> = {
   music: 3 * 60 * 60 * 1000,
   sport: 2.5 * 60 * 60 * 1000,
   deal: 0,
+  event: 3 * 60 * 60 * 1000,
 };
 
 /**
@@ -438,6 +451,45 @@ export type TonightServiceWindow = { startMs: number; endMs: number };
 export function tonightServiceWindow(now: number = Date.now()): TonightServiceWindow {
   const { start, end } = londonServiceDayBounds(now);
   return { startMs: Date.parse(start), endMs: Date.parse(end) };
+}
+
+/**
+ * The 16:00-04:00 evening window belonging to one stated London calendar date.
+ *
+ * A date-only row (`startsDate`, no `startsAt`) states a DAY and nothing more,
+ * so this is the whole interval it may claim. Never derive a clock time from a
+ * stated date: an invented start is a fact the listing does not carry.
+ */
+export function londonEveningWindowForDate(date: string): TonightServiceWindow | null {
+  if (!isCalendarDate(date)) return null;
+  const year = Number(date.slice(0, 4));
+  const month = Number(date.slice(5, 7));
+  const day = Number(date.slice(8, 10));
+  const next = new Date(Date.UTC(year, month - 1, day + 1));
+  return {
+    startMs: londonWallTimeToUtcMs(year, month, day, WINDOW_OPEN_HOUR),
+    endMs: londonWallTimeToUtcMs(
+      next.getUTCFullYear(),
+      next.getUTCMonth() + 1,
+      next.getUTCDate(),
+      SERVICE_DAY_ROLLBACK_HOUR,
+    ),
+  };
+}
+
+/**
+ * The interval a row occupies, in the one reading every window test shares: an
+ * exact-start row is [startsAt, rowEffectiveEnd], a date-only row is its stated
+ * evening, and a row with neither has no interval at all.
+ */
+export function rowStatedInterval(row: WhatsOnRow): TonightServiceWindow | null {
+  if (row.startsAt) {
+    const startMs = Date.parse(row.startsAt);
+    if (!Number.isFinite(startMs)) return null;
+    return { startMs, endMs: rowEffectiveEnd(row) };
+  }
+  if (row.startsDate) return londonEveningWindowForDate(row.startsDate);
+  return null;
 }
 
 // Is the row happening during tonight's evening window?
@@ -462,13 +514,12 @@ export function isOnTonight(
   // answer is identical, just resolved here.
   tonight: TonightServiceWindow = tonightServiceWindow(now),
 ): boolean {
-  if (!row.startsAt) return row.listedWindow === "tonight";
-  const startsAt = Date.parse(row.startsAt);
-  if (!Number.isFinite(startsAt)) return false;
-  const effectiveEnd = rowEffectiveEnd(row);
+  if (!row.startsAt && !row.startsDate) return row.listedWindow === "tonight";
+  const stated = rowStatedInterval(row);
+  if (!stated || !Number.isFinite(stated.startMs) || !Number.isFinite(stated.endMs)) return false;
   // Half-open window [startMs, endMs): the row must begin before the window
   // closes and still be running at or after it opens.
-  return startsAt < tonight.endMs && effectiveEnd >= tonight.startMs;
+  return stated.startMs < tonight.endMs && stated.endMs >= tonight.startMs;
 }
 
 export function filterTonight(rows: WhatsOnRow[], now: number = Date.now()): WhatsOnRow[] {
@@ -486,7 +537,12 @@ export function rowEffectiveEnd(row: WhatsOnRow): number {
   const startsAt = row.startsAt ? Date.parse(row.startsAt) : Number.NaN;
   const parsedEnd = row.endsAt ? Date.parse(row.endsAt) : NaN;
   if (Number.isFinite(parsedEnd)) return parsedEnd; // interval row: exact endsAt
-  if (!Number.isFinite(startsAt)) return startsAt; // unparseable start -> NaN
+  if (!Number.isFinite(startsAt)) {
+    // Date-only row: its stated evening closes at 04:00 the next morning, so it
+    // goes past-dated with that evening rather than never at all.
+    if (row.startsDate) return londonEveningWindowForDate(row.startsDate)?.endMs ?? Number.NaN;
+    return startsAt; // unparseable start -> NaN
+  }
   return startsAt + POINT_ROW_GRACE_MS[row.kind]; // point row: kind-aware grace
 }
 

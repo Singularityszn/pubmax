@@ -142,11 +142,14 @@ describe("tonight_now policy", () => {
     expect(split.later.map((r) => r.id)).toEqual(["upcoming"]);
   });
 
-  it("treats a row with no start as not running", () => {
+  it("treats a row with no start as DATE-ONLY, neither running nor still to start", () => {
+    // The source published a day and no clock time, so putting it in either
+    // timed bucket would claim something it withheld.
     const now = Date.parse("2026-08-15T20:30:00.000Z");
     const split = splitTonightRowsByNow([row({ id: "undated" })], now);
     expect(split.onNow).toHaveLength(0);
-    expect(split.later.map((r) => r.id)).toEqual(["undated"]);
+    expect(split.later).toHaveLength(0);
+    expect(split.dateOnly.map((r) => r.id)).toEqual(["undated"]);
   });
 
   it("says the crowd reading is not live, without denying visit reports", () => {
@@ -177,6 +180,14 @@ describe("tonight_now policy", () => {
     expect(tonightNowLine({ area: null, onNow: 2, later: 3, read: "ready" })).toBe(
       "2 on right now, 3 still to start tonight.",
     );
+    // A date-only listing is still to come, so the line may not say "nothing
+    // else listed tonight" and then count more listings in the next breath.
+    expect(
+      tonightNowLine({ area: null, onNow: 2, later: 0, dateOnly: 1, read: "ready" }),
+    ).toBe("2 on right now, nothing else with a stated start. 1 more listed tonight with no start time.");
+    expect(
+      tonightNowLine({ area: null, onNow: 0, later: 0, dateOnly: 2, read: "ready" }),
+    ).toBe("2 listed tonight with no start time.");
   });
 });
 

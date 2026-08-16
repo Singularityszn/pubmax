@@ -18,17 +18,21 @@ export type TonightGlanceCounts = {
   music: number;
   sport: number;
   deal: number;
+  event: number;
 };
 
 export function countTonightKinds(rows: readonly WhatsOnRow[]): TonightGlanceCounts {
-  const counts: TonightGlanceCounts = { quiz: 0, music: 0, sport: 0, deal: 0 };
-  for (const row of rows) counts[row.kind] += 1;
+  const counts: TonightGlanceCounts = { quiz: 0, music: 0, sport: 0, deal: 0, event: 0 };
+  for (const row of rows) {
+    if (row.kind in counts) counts[row.kind as keyof TonightGlanceCounts] += 1;
+  }
   return counts;
 }
 
 // Pub words, not taxonomy: quiz rows are quizzes, sport rows are matches on a
 // screen, music rows are gigs, deal rows are deals. Order is the evening's own
-// arc: quiz first, then the match, then the gig, then what it costs.
+// arc: quiz first, then the match, then the gig, then what it costs, then the
+// listed nights somebody else is selling tickets to.
 const KIND_WORDS: ReadonlyArray<{
   kind: keyof TonightGlanceCounts;
   one: string;
@@ -38,6 +42,7 @@ const KIND_WORDS: ReadonlyArray<{
   { kind: "sport", one: "match on", many: "matches on" },
   { kind: "music", one: "gig", many: "gigs" },
   { kind: "deal", one: "deal running", many: "deals running" },
+  { kind: "event", one: "listed night", many: "listed nights" },
 ];
 
 /**

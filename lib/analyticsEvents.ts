@@ -242,6 +242,9 @@ export const ANALYTICS_EVENTS = {
   // handle, or coordinate. `state` is the derived now-read, not a stored trust.
   occupancy_reported: ["level", "surface"],
   occupancy_read: ["state"],
+  // Out listing card. Closed source enum only - never an event id, venue id,
+  // or coordinate.
+  out_card_opened: ["source"],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
@@ -462,6 +465,8 @@ const SAFE_STRING_VALUES = new Set([
   // Crowd occupancy: the three buttons, the four now-read states, the two
   // surfaces that may report. `degraded` and `pal` already sit above.
   "empty", "some-seats", "full", "fresh", "stale", "none", "venue-sheet",
+  // Out card sources. Closed set; never a free-text publisher or venue name.
+  "ticketmaster", "skiddle", "common",
   // Community-price funnel vocabulary: the drink taxonomy and the three
   // failure buckets.
   ...PRICE_SUBMIT_CATEGORIES,

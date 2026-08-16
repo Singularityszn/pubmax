@@ -15,9 +15,13 @@ already splits this way; the harvest follows it.
 
 ## The rules
 
-- **First party only.** An operator's own page, or the venue's own site. Every
-  aggregator in the source table is currently refused, each on its own recorded
-  rule.
+- **First party is the default.** An operator's own page, or the venue's own
+  site. Every ticketing aggregator in the source table is refused, each on its
+  own recorded rule. A source that does not own what it publishes is read only
+  as a named exception that states what it may take: `common-social-posts` is
+  the one today (facts plus a link out, read by
+  `scripts/whatson/commonRefresh.mjs`), and the fence refuses any allowed
+  non-first-party source without a `nonFirstPartyException`.
 - **A page that does not state a thing yields no row.** A deal with a weekday
   and no window is a recorded drop, not an invented 11:30 to 23:00. Greene King
   emitting zero rows is the pipeline working.
@@ -77,7 +81,9 @@ The listings page itself is read main-content only, where the listings are.
 
 Add it to `HARVEST_SOURCES` with its access decision, the rule behind that
 decision, and the day the rule was checked. Nothing else takes a URL from a
-caller, so a source absent from that table is not harvested at all.
+caller, so a source absent from that table is not harvested at all. A source
+that publishes what somebody else owns also needs `nonFirstPartyException`,
+naming what the reader may take and what it may not.
 
 Check `robots.txt` before adding one, and treat an unreadable `robots.txt` as a
 refusal: several Mitchells & Butlers brands answer theirs with a challenge page,

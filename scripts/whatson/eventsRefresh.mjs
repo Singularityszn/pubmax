@@ -31,358 +31,168 @@
 // and it lights up with no code change. With no keys at all, main() is a pure
 // no-op that leaves the honest empty file untouched.
 //
-// KIND MAPPING (conservative, honest partial): our four kinds are
-// sport/quiz/deal/music. Only unambiguous classifications map — Ticketmaster
-// "Music"->music / "Sports"->sport; Skiddle "LIVE"/"FEST"->music, "SPORT"->
-// sport. Everything else (theatre, comedy, generic BARPUB, …) is DROPPED
-// rather than dishonestly forced into a kind it isn't.
+// KIND MAPPING: music and sport stay themselves. Comedy, theatre, club and
+// BARPUB map onto kind "event" so a real night is not dropped. A classification
+// we still cannot name (Film, DATE, …) is DROPPED and counted.
 //
 // VENUE MATCHING (W6): each normalised row is passed through the shared,
 // conservative resolveVenueId (exact grouping-key OR normalized-name +
 // postcode/proximity confirmation, null on ambiguity). Unmatched events are
 // STILL LISTED with their own venue name — they just don't carry a venueId.
 
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { resolveVenueId, loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
+import {
+  EVENT_REFRESH_CITIES,
+  SKIDDLE_EVENTCODE_KIND,
+  SKIDDLE_SOURCE,
+  TICKETMASTER_SOURCE,
+  cityGeo,
+  dedupeEventRowsBySourceId,
+  emptyEventDrops,
+  normaliseSkiddleEvents,
+  normaliseTicketmasterEvents,
+  skiddleLaneFenced,
+  summariseEventDrops,
+} from "../../lib/whatson/eventNormalise.mjs";
+import { loadCanonicalVenueIndex, resolveVenueId } from "./resolveVenueId.mjs";
+
+export {
+  EMPTY_EVENT_DROPS,
+  EVENT_REFRESH_CITIES,
+  SKIDDLE_BRAND_ASSET_PRESENT,
+  SKIDDLE_EVENTCODE_KIND,
+  SKIDDLE_SOURCE,
+  TICKETMASTER_SEGMENT_KIND,
+  TICKETMASTER_SOURCE,
+  cityGeo,
+  dedupeEventRowsBySourceId,
+  emptyEventDrops,
+  mapSkiddleEvent,
+  mapTicketmasterEvent,
+  normaliseSkiddleEvents,
+  normaliseTicketmasterEvents,
+  skiddleLaneFenced,
+  summariseEventDrops,
+  toIsoInstant,
+} from "../../lib/whatson/eventNormalise.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const OUT_PATH = join(ROOT, "public", "data", "whats_on", "events_london.json");
 
-// Greater-London centroid + radius for the Skiddle lat/lng search.
-const LONDON = { lat: 51.5074, lng: -0.1278, radiusMiles: 15 };
-// How far ahead to pull. The store re-windows to "tonight" and drops stale
-// rows, so a small forward horizon keeps the cached file short-lived (honouring
-// Ticketmaster's "reasonable period" caching term) while surviving a missed run.
-const FORWARD_HORIZON_MS = 2 * 24 * 60 * 60 * 1000;
-
-// ---------------------------------------------------------------------------
-// Source descriptors + attribution
-// ---------------------------------------------------------------------------
-
-// Ticketmaster: every row's source links back to the event's own TM page (the
-// deep-link-back the Discovery API terms require). See research doc §1 — the
-// exact "Powered by Ticketmaster" branding-guide string is unverified; the
-// "via Ticketmaster" label + deep link satisfies the attribution we can
-// confirm. Confirm the branding guide before public launch.
-export const TICKETMASTER_SOURCE = {
-  label: "Ticketmaster",
-  url: "https://www.ticketmaster.co.uk/",
-};
-
-// Skiddle: rows link back to the event's own skiddle.com page (their affiliate
-// / display expectation). See research doc §3 — commercial use requires written
-// approval; this provider is gated behind SKIDDLE_API_KEY.
-export const SKIDDLE_SOURCE = {
-  label: "Skiddle",
-  url: "https://www.skiddle.com/",
-};
-
-// Only unambiguous classifications map. Everything absent from these maps is
-// intentionally dropped (see KIND MAPPING above).
-export const TICKETMASTER_SEGMENT_KIND = {
-  Music: "music",
-  Sports: "sport",
-};
-
-export const SKIDDLE_EVENTCODE_KIND = {
-  LIVE: "music",
-  FEST: "music",
-  SPORT: "sport",
-};
-
-// ---------------------------------------------------------------------------
-// Time helpers (pure)
-// ---------------------------------------------------------------------------
-
-// Europe/London UTC offset (ms) at an absolute instant. +3600000 in BST, 0 in
-// GMT. Mirrors lib/whatsOn.ts londonOffsetMs but self-contained for the script.
-function londonOffsetMsAt(instantMs) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(instantMs));
-  const get = (t) => Number(parts.find((p) => p.type === t)?.value ?? "0");
-  const asIfUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
-  return asIfUtc - Math.floor(instantMs / 1000) * 1000;
-}
-
-// Turn a value into a clean absolute ISO string, or null. Accepts a
-// tz-qualified ISO (used as-is) OR a bare "YYYY-MM-DD HH:MM:SS" / "…THH:MM:SS"
-// wall-clock time, which is interpreted in Europe/London (what Skiddle and
-// Ticketmaster localDate/localTime return).
-export function toIsoInstant(value) {
-  if (typeof value !== "string" || value.trim().length === 0) return null;
-  const trimmed = value.trim();
-  // Already carries a timezone (Z or ±hh:mm) — trust it.
-  if (/[zZ]$/.test(trimmed) || /[+-]\d{2}:?\d{2}$/.test(trimmed)) {
-    const ms = Date.parse(trimmed);
-    return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
-  }
-  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/.exec(trimmed);
-  if (!m) return null;
-  const [, y, mo, d, h, mi, s] = m;
-  const asUtc = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s ?? 0));
-  if (!Number.isFinite(asUtc)) return null;
-  const offset = londonOffsetMsAt(asUtc);
-  return new Date(asUtc - offset).toISOString();
-}
-
-// FNV-1a stable id (matches the spine's stableId flavour in lib/whatsOn.ts).
-function stableId(prefix, input) {
-  let hash = 2166136261;
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `${prefix}-${(hash >>> 0).toString(36)}`;
-}
+/** Opt in to the Common crawl. See runEventsRefresh for why it is opt-in. */
+export const WITH_COMMON_FLAG = "--with-common";
 
 function nonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function httpUrl(value) {
-  if (!nonEmptyString(value)) return null;
-  try {
-    const u = new URL(value.trim());
-    return u.protocol === "http:" || u.protocol === "https:" ? value.trim() : null;
-  } catch {
-    return null;
-  }
-}
+// How far ahead to pull. The store re-windows to "tonight" and drops stale
+// rows, so a small forward horizon keeps the cached file short-lived (honouring
+// Ticketmaster's "reasonable period" caching term) while surviving a missed run.
+const FORWARD_HORIZON_MS = 2 * 24 * 60 * 60 * 1000;
 
-function finiteNum(value) {
-  if (value === null || value === undefined || value === "") return null;
-  const n = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(n) ? n : null;
-}
 
-// Parse a leading GBP amount out of a free-text price ("£10", "10.50", "Free").
-function parseGbp(value) {
-  if (typeof value === "number") return Number.isFinite(value) && value >= 0 ? value : null;
-  if (!nonEmptyString(value)) return null;
-  const m = /(\d+(?:\.\d+)?)/.exec(value.replace(/[,]/g, ""));
-  if (!m) return null;
-  const n = Number(m[1]);
-  return Number.isFinite(n) && n >= 0 ? n : null;
-}
-
-function attachVenue(row, venueMatch, venueIndex) {
-  if (!venueIndex) return row;
-  const resolved = resolveVenueId(venueMatch, venueIndex);
-  if (resolved) row.venueId = resolved;
-  return row;
-}
-
-// ---------------------------------------------------------------------------
-// Ticketmaster normalisation (pure)
-// ---------------------------------------------------------------------------
-
-// First mapping kind across an event's classifications, or undefined.
-function ticketmasterKind(classifications) {
-  for (const c of classifications) {
-    const seg = c?.segment?.name;
-    if (nonEmptyString(seg) && TICKETMASTER_SEGMENT_KIND[seg]) return TICKETMASTER_SEGMENT_KIND[seg];
-  }
-  return undefined;
-}
-
-// dates.start.dateTime (tz-qualified) or localDate+localTime (London wall).
-function ticketmasterStart(start) {
-  const fromDateTime = toIsoInstant(start?.dateTime);
-  if (fromDateTime) return fromDateTime;
-  if (nonEmptyString(start?.localDate) && nonEmptyString(start?.localTime)) {
-    return toIsoInstant(`${start.localDate} ${start.localTime}`);
-  }
-  return null;
-}
-
-// Map one Discovery API v2 event object to a WhatsOnRow, or null if it can't be
-// honestly represented (no mapping kind, no place name, no start, no link).
-export function mapTicketmasterEvent(event, { observedAt, venueIndex = null } = {}) {
-  if (!event || typeof event !== "object") return null;
-
-  const classifications = Array.isArray(event.classifications) ? event.classifications : [];
-  const kind = ticketmasterKind(classifications);
-  if (!kind) return null;
-
-  const venue = event._embedded?.venues?.[0];
-  const placeName = venue?.name;
-  if (!nonEmptyString(placeName)) return null;
-
-  const url = httpUrl(event.url);
-  if (!url) return null; // provenance non-negotiable
-
-  const title = nonEmptyString(event.name) ? event.name.trim() : null;
-  if (!title) return null;
-
-  const startsAt = ticketmasterStart(event.dates?.start);
-  if (!startsAt) return null; // can't window an event with no usable start
-
-  const row = {
-    id: stableId("events-tm", `${event.id ?? title}|${placeName}|${startsAt}`),
-    placeName: placeName.trim(),
-    kind,
-    startsAt,
-    title,
-    source: { ...TICKETMASTER_SOURCE, url },
-    observedAt,
-    confidence: "listed",
+export function providerLaneStatus(env = process.env) {
+  const present = (name) => {
+    const value = env?.[name];
+    return typeof value === "string" && value.trim().length > 0;
   };
-
-  const lat = finiteNum(venue?.location?.latitude);
-  const lng = finiteNum(venue?.location?.longitude);
-  if (lat !== null) row.lat = lat;
-  if (lng !== null) row.lng = lng;
-
-  const price = event.priceRanges?.find((p) => p?.currency === "GBP");
-  const gbp = parseGbp(price?.min);
-  if (gbp !== null) row.priceGbp = gbp;
-
-  const genre = classifications.find((c) => nonEmptyString(c?.genre?.name))?.genre?.name;
-  if (nonEmptyString(genre)) row.detail = genre.trim();
-
-  return attachVenue(row, {
-    name: placeName,
-    address: venue?.address?.line1 ?? "",
-    postcode: venue?.postalCode ?? "",
-    lat,
-    lng,
-  }, venueIndex);
-}
-
-export function normaliseTicketmasterEvents(payload, opts = {}) {
-  const events = payload?._embedded?.events;
-  if (!Array.isArray(events)) return [];
-  const rows = [];
-  for (const event of events) {
-    const row = mapTicketmasterEvent(event, opts);
-    if (row) rows.push(row);
-  }
-  return rows;
-}
-
-// ---------------------------------------------------------------------------
-// Skiddle normalisation (pure)
-// ---------------------------------------------------------------------------
-
-// Map one Skiddle Events-API result to a WhatsOnRow, or null.
-export function mapSkiddleEvent(event, { observedAt, venueIndex = null } = {}) {
-  if (!event || typeof event !== "object") return null;
-
-  const code = event.EventCode ?? event.eventcode;
-  const kind = nonEmptyString(code) ? SKIDDLE_EVENTCODE_KIND[code] : undefined;
-  if (!kind) return null;
-
-  const venue = event.venue ?? {};
-  const placeName = venue.name;
-  if (!nonEmptyString(placeName)) return null;
-
-  const url = httpUrl(event.link);
-  if (!url) return null; // provenance non-negotiable
-
-  const title = nonEmptyString(event.eventname) ? event.eventname.trim() : null;
-  if (!title) return null;
-
-  const startsAt =
-    toIsoInstant(event.startdate) ??
-    toIsoInstant(event.openingtimes?.doorsopen) ??
-    toIsoInstant(nonEmptyString(event.date) ? `${event.date} 20:00:00` : null);
-  if (!startsAt) return null;
-
-  const row = {
-    id: stableId("events-sk", `${event.id ?? title}|${placeName}|${startsAt}`),
-    placeName: placeName.trim(),
-    kind,
-    startsAt,
-    title,
-    source: { ...SKIDDLE_SOURCE, url },
-    observedAt,
-    confidence: "listed",
+  return {
+    ticketmaster: present("TICKETMASTER_API_KEY") ? "configured" : "not-configured",
+    skiddle: present("SKIDDLE_API_KEY") ? "configured" : "not-configured",
   };
-
-  const lat = finiteNum(venue.latitude);
-  const lng = finiteNum(venue.longitude);
-  if (lat !== null) row.lat = lat;
-  if (lng !== null) row.lng = lng;
-
-  const endsAt = toIsoInstant(event.enddate);
-  if (endsAt) row.endsAt = endsAt;
-
-  const gbp = parseGbp(event.entryprice);
-  if (gbp !== null) row.priceGbp = gbp;
-
-  if (nonEmptyString(event.genre)) row.detail = event.genre.trim();
-
-  return attachVenue(row, {
-    name: placeName,
-    address: venue.address ?? "",
-    postcode: venue.postcode ?? "",
-    lat,
-    lng,
-  }, venueIndex);
 }
 
-export function normaliseSkiddleEvents(payload, opts = {}) {
-  const results = payload?.results;
-  if (!Array.isArray(results)) return [];
-  const rows = [];
-  for (const event of results) {
-    const row = mapSkiddleEvent(event, opts);
-    if (row) rows.push(row);
-  }
-  return rows;
+export function eventsOutputPath(city = "london") {
+  return join(ROOT, "public", "data", "whats_on", `events_${city}.json`);
 }
 
+
 // ---------------------------------------------------------------------------
-// Fetchers (impure — only run from main(), never imported by tests)
+// Fetchers (impure — network only; fetchImpl is injectable for tests)
 // ---------------------------------------------------------------------------
 
-async function fetchTicketmaster(apiKey, { nowMs }) {
+async function fetchTicketmaster(apiKey, { nowMs, city = "london", fetchImpl = fetch }) {
+  const geo = cityGeo(city);
   const url = new URL("https://app.ticketmaster.com/discovery/v2/events.json");
   url.search = new URLSearchParams({
     apikey: apiKey,
     countryCode: "GB",
-    city: "London",
-    classificationName: "Music,Sports",
+    latlong: `${geo.lat},${geo.lng}`,
+    radius: String(geo.radiusMiles),
+    unit: "miles",
     startDateTime: new Date(nowMs).toISOString().replace(/\.\d{3}Z$/, "Z"),
     endDateTime: new Date(nowMs + FORWARD_HORIZON_MS).toISOString().replace(/\.\d{3}Z$/, "Z"),
     size: "100",
     sort: "date,asc",
   }).toString();
-  const res = await fetch(url, { headers: { accept: "application/json", "user-agent": "PUBMAXX-events/1" } });
-  if (!res.ok) throw new Error(`Ticketmaster Discovery API returned ${res.status}`);
+  const res = await fetchImpl(url, { headers: { accept: "application/json", "user-agent": "PUBMAXX-events/1" } });
+  if (!res.ok) {
+    await res.arrayBuffer();
+    throw new Error(`Ticketmaster Discovery API returned ${res.status}`);
+  }
   return res.json();
 }
 
-async function fetchSkiddle(apiKey, { nowMs }) {
+const SKIDDLE_FETCH_CODES = Object.keys(SKIDDLE_EVENTCODE_KIND).join(",");
+
+async function fetchSkiddle(apiKey, { nowMs, city = "london", fetchImpl = fetch }) {
+  const geo = cityGeo(city);
   const url = new URL("https://www.skiddle.com/api/v1/events/search/");
   const fmt = (ms) => new Date(ms).toISOString().slice(0, 10);
   url.search = new URLSearchParams({
     api_key: apiKey,
-    latitude: String(LONDON.lat),
-    longitude: String(LONDON.lng),
-    radius: String(LONDON.radiusMiles),
-    eventcode: "LIVE,FEST,SPORT",
+    latitude: String(geo.lat),
+    longitude: String(geo.lng),
+    radius: String(geo.radiusMiles),
+    eventcode: SKIDDLE_FETCH_CODES,
     minDate: fmt(nowMs),
     maxDate: fmt(nowMs + FORWARD_HORIZON_MS),
     order: "date",
     limit: "100",
     description: "1",
   }).toString();
-  const res = await fetch(url, { headers: { accept: "application/json", "user-agent": "PUBMAXX-events/1" } });
-  if (!res.ok) throw new Error(`Skiddle Events API returned ${res.status}`);
+  const res = await fetchImpl(url, { headers: { accept: "application/json", "user-agent": "PUBMAXX-events/1" } });
+  if (!res.ok) {
+    await res.arrayBuffer();
+    throw new Error(`Skiddle Events API returned ${res.status}`);
+  }
   return res.json();
+}
+
+/**
+ * The rows the held file already carries for a set of source labels.
+ *
+ * This is the CLOBBER GUARD, and it is per-provider: the file is overwritten
+ * whole, so a lane that is not in this run's answer - because it is keyless
+ * (Common, which has its own writer) or because its upstream failed - would be
+ * published as empty. Its own last-known rows carry across instead, each still
+ * carrying the observedAt it was really seen at.
+ */
+export function readExistingRowsForLabels(filePath, labels) {
+  if (!existsSync(filePath)) return [];
+  const wanted = new Set(labels.map((label) => String(label).toLowerCase()));
+  if (wanted.size === 0) return [];
+  try {
+    const raw = JSON.parse(readFileSync(filePath, "utf8"));
+    const rows = Array.isArray(raw?.rows) ? raw.rows : [];
+    return rows.filter((row) => wanted.has(String(row?.source?.label ?? "").toLowerCase()));
+  } catch {
+    return [];
+  }
+}
+
+export function readExistingCommonRows(filePath) {
+  return readExistingRowsForLabels(filePath, ["common"]);
+}
+
+export function parseEventsCityArg(argv = process.argv) {
+  const flagged = argv.find((arg) => arg.startsWith("--city="));
+  const city = flagged ? flagged.slice("--city=".length).trim().toLowerCase() : "london";
+  return EVENT_REFRESH_CITIES.includes(city) ? city : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -397,72 +207,167 @@ function serialiseFile(payload) {
   return payload.rows.length ? `${meta},\n  "rows": [\n${rowLines}\n  ]\n}\n` : `${meta},\n  "rows": []\n}\n`;
 }
 
-async function main() {
-  const nowMs = Date.now();
-  const observedAt = new Date(nowMs).toISOString();
-  const tmKey = process.env.TICKETMASTER_API_KEY;
-  const skKey = process.env.SKIDDLE_API_KEY;
+// The provider lane: fetch every CONFIGURED provider, normalise, and write the
+// city file. It answers one of four outcomes and never throws, so the caller
+// can run the keyless lanes whatever happened here.
+async function runProviderLane({
+  city,
+  outPath,
+  nowMs,
+  observedAt,
+  argv,
+  env,
+  fetchImpl,
+  loadVenueIndex,
+  log,
+  logError,
+}) {
+  const tmKey = env.TICKETMASTER_API_KEY;
+  const skKey = env.SKIDDLE_API_KEY;
+  const lanes = providerLaneStatus(env);
+  log(`eventsRefresh: city=${city} ticketmaster=${lanes.ticketmaster} skiddle=${lanes.skiddle}`);
 
   if (!nonEmptyString(tmKey) && !nonEmptyString(skKey)) {
-    console.log(
+    log(
       "eventsRefresh: no provider keys present (TICKETMASTER_API_KEY / SKIDDLE_API_KEY). " +
-        "Noop — leaving events_london.json untouched. Provision a key to activate.",
+        "Lanes stay not-configured. Leaving the events file untouched.",
     );
-    return;
+    return { status: "not-configured", wrote: false };
   }
 
-  const venueIndex = loadCanonicalVenueIndex();
+  const venueIndex = loadVenueIndex();
   const allRows = [];
   const providersRun = [];
+  // A lane that FAILED is recorded and the run carries on: the other lanes are
+  // independent and an operator is owed each one's own outcome. The failed
+  // lane's own held rows carry across the write further down, so a lane that
+  // answered still publishes and the quiet lane is not emptied by its
+  // neighbour's outage.
+  const providerFailures = [];
+  const dropped = emptyEventDrops();
+  const opts = { observedAt, venueIndex, resolveVenue: resolveVenueId };
+
+  const addDrops = (from) => {
+    dropped.noKind += from.noKind;
+    dropped.noPlace += from.noPlace;
+    dropped.noStart += from.noStart;
+    dropped.noUrl += from.noUrl;
+    dropped.noTitle += from.noTitle;
+    dropped.total += from.total;
+  };
 
   if (nonEmptyString(tmKey)) {
     try {
-      const payload = await fetchTicketmaster(tmKey, { nowMs });
-      const rows = normaliseTicketmasterEvents(payload, { observedAt, venueIndex });
-      allRows.push(...rows);
-      providersRun.push({ provider: "ticketmaster", rows: rows.length });
-      console.log(`eventsRefresh: Ticketmaster -> ${rows.length} rows`);
+      const payload = await fetchTicketmaster(tmKey, { nowMs, city, fetchImpl });
+      const result = normaliseTicketmasterEvents(payload, opts);
+      allRows.push(...result.rows);
+      addDrops(result.dropped);
+      providersRun.push({ provider: "ticketmaster", rows: result.rows.length });
+      log(
+        `eventsRefresh: Ticketmaster -> ${result.rows.length} rows, ${summariseEventDrops(result.dropped)}`,
+      );
     } catch (err) {
-      console.error(`eventsRefresh: Ticketmaster fetch failed (${err.message}) — skipping provider, not clobbering file.`);
-      process.exitCode = 1;
-      return;
+      logError(
+        `eventsRefresh: Ticketmaster fetch failed (${err.message}) - its held rows carry across instead. The other provider lanes still run.`,
+      );
+      providerFailures.push({
+        provider: "ticketmaster",
+        label: TICKETMASTER_SOURCE.label,
+        message: err.message,
+      });
     }
   }
 
-  if (nonEmptyString(skKey)) {
+  if (nonEmptyString(skKey) && skiddleLaneFenced()) {
+    log(
+      "eventsRefresh: Skiddle lane FENCED OFF - the official logo asset is absent and " +
+        "the credit obligation cannot be discharged, so no Skiddle row is fetched or written. " +
+        "This is not an empty market.",
+    );
+  } else if (nonEmptyString(skKey)) {
     try {
-      const payload = await fetchSkiddle(skKey, { nowMs });
-      const rows = normaliseSkiddleEvents(payload, { observedAt, venueIndex });
-      allRows.push(...rows);
-      providersRun.push({ provider: "skiddle", rows: rows.length });
-      console.log(`eventsRefresh: Skiddle -> ${rows.length} rows`);
+      const payload = await fetchSkiddle(skKey, { nowMs, city, fetchImpl });
+      const result = normaliseSkiddleEvents(payload, opts);
+      allRows.push(...result.rows);
+      addDrops(result.dropped);
+      providersRun.push({ provider: "skiddle", rows: result.rows.length });
+      log(
+        `eventsRefresh: Skiddle -> ${result.rows.length} rows, ${summariseEventDrops(result.dropped)}`,
+      );
     } catch (err) {
-      console.error(`eventsRefresh: Skiddle fetch failed (${err.message}) — skipping provider, not clobbering file.`);
-      process.exitCode = 1;
-      return;
+      logError(
+        `eventsRefresh: Skiddle fetch failed (${err.message}) - its held rows carry across instead.`,
+      );
+      providerFailures.push({
+        provider: "skiddle",
+        label: SKIDDLE_SOURCE.label,
+        message: err.message,
+      });
     }
+  } else {
+    log("eventsRefresh: Skiddle lane not-configured (no SKIDDLE_API_KEY).");
+  }
+
+  const failureReason = providerFailures
+    .map((failure) => `${failure.provider}: ${failure.message}`)
+    .join("; ");
+
+  // The clobber guard is PER PROVIDER. A failed lane keeps its own held rows
+  // (read back below) and the lanes that answered still publish, so one
+  // upstream outage never ages the whole file. With NO lane answering there is
+  // nothing to publish and nothing to compare, so the write is refused outright
+  // rather than rewriting the file with only what it already said.
+  if (providerFailures.length > 0 && providersRun.length === 0) {
+    logError(
+      `eventsRefresh: not writing ${outPath} - every configured provider lane failed ` +
+        `(${failureReason}).`,
+    );
+    return { status: "failed", wrote: false, reason: failureReason };
+  }
+
+  const carriedFailedRows = readExistingRowsForLabels(
+    outPath,
+    providerFailures.map((failure) => failure.label),
+  );
+  if (providerFailures.length > 0) {
+    log(
+      `eventsRefresh: carrying ${carriedFailedRows.length} held row(s) across for the failed lane(s) ` +
+        `(${failureReason}), so a lane that answered can still publish.`,
+    );
   }
 
   // Fail closed: a successful run that yields zero rows across every enabled
-  // provider is more likely an upstream hiccup than a genuinely empty city —
-  // refuse to clobber a good file unless --allow-empty is passed.
-  const allowEmpty = process.argv.includes("--allow-empty");
-  if (allRows.length === 0 && !allowEmpty) {
-    console.error(
-      "eventsRefresh: aborting — enabled provider(s) returned 0 mappable rows. " +
-        "Refusing to overwrite events_london.json. Pass --allow-empty to override.",
+  // provider is more likely an upstream hiccup than a genuinely empty city -
+  // refuse to clobber a good file unless --allow-empty is passed. The count is
+  // the rows THIS run fetched, taken BEFORE the held Common rows are merged: a
+  // single carried-over Common row would otherwise keep the list non-empty
+  // forever and let a quiet Ticketmaster window silently drop yesterday's
+  // provider rows.
+  if (allRows.length === 0 && !argv.includes("--allow-empty")) {
+    logError(
+      `eventsRefresh: aborting - enabled provider(s) returned 0 mappable rows. ` +
+        `Refusing to overwrite ${outPath}. Pass --allow-empty to override.`,
     );
-    process.exitCode = 1;
-    return;
+    return { status: "refused", wrote: false, reason: "0 mappable rows" };
   }
 
-  allRows.sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+  allRows.push(...carriedFailedRows);
 
-  const countBy = (provider) => allRows.filter((r) => r.source.label.toLowerCase().startsWith(provider)).length;
+  const commonRows = city === "london" ? readExistingCommonRows(outPath) : [];
+  allRows.push(...commonRows);
+
+  const deduped = dedupeEventRowsBySourceId(allRows);
+  // A Common row states a DATE and no clock time, so it sorts on that instead.
+  const whenOf = (row) => row.startsAt ?? row.startsDate ?? "";
+  deduped.sort((a, b) => whenOf(a).localeCompare(whenOf(b)) || a.id.localeCompare(b.id));
+
+  const countBy = (provider) =>
+    deduped.filter((r) => r.source.label.toLowerCase().startsWith(provider)).length;
   const payload = {
     generatedAt: observedAt,
     kind: "events",
-    region: "greater-london",
+    region: city === "london" ? "greater-london" : city,
+    city,
     sources: [
       {
         ...TICKETMASTER_SOURCE,
@@ -470,10 +375,10 @@ async function main() {
         provider: "ticketmaster",
         rowsEmitted: countBy("ticketmaster"),
         notes:
-          "Official Ticketmaster Discovery API v2 (GB market, London). Music->music, " +
-          "Sports->sport; other segments dropped. Each row deep-links back to its own " +
-          "ticketmaster.co.uk event page per the API terms; file is fully overwritten " +
-          "each run (transient cache only).",
+          "Official Ticketmaster Discovery API v2 (GB market, city bbox). Music->music, " +
+          "Sports->sport, Arts & Theatre/Comedy->event; other segments dropped and counted. " +
+          "Each row deep-links back to its own ticketmaster.co.uk event page per the API terms; " +
+          "file is fully overwritten each run (transient cache only).",
       },
       {
         ...SKIDDLE_SOURCE,
@@ -481,26 +386,172 @@ async function main() {
         provider: "skiddle",
         rowsEmitted: countBy("skiddle"),
         notes:
-          "Official Skiddle Events API (London lat/lng radius). LIVE/FEST->music, " +
-          "SPORT->sport; other codes dropped. Commercial use requires written approval " +
-          "from dev@skiddle.com; provider noop-skips without SKIDDLE_API_KEY.",
+          "Official Skiddle Events API (city lat/lng radius). LIVE/FEST->music, SPORT->sport, " +
+          "CLUB/COMEDY/THEATRE/BARPUB->event; other codes dropped and counted. Commercial use " +
+          "requires written approval from dev@skiddle.com; provider stays not-configured " +
+          "without SKIDDLE_API_KEY. Name + logo + event link are licence obligations.",
       },
     ],
-    rows: allRows,
+    rows: deduped,
   };
 
-  mkdirSync(dirname(OUT_PATH), { recursive: true });
-  writeFileSync(OUT_PATH, serialiseFile(payload));
-  console.log(
-    `eventsRefresh: wrote ${allRows.length} event rows -> ${OUT_PATH} ` +
-      `(${providersRun.map((p) => `${p.provider}:${p.rows}`).join(", ")})`,
+  mkdirSync(dirname(outPath), { recursive: true });
+  writeFileSync(outPath, serialiseFile(payload));
+  log(
+    `eventsRefresh: wrote ${deduped.length} event rows -> ${outPath} ` +
+      `(${providersRun.map((p) => `${p.provider}:${p.rows}`).join(", ") || "none"}; ` +
+      `common kept ${commonRows.length}; carried ${carriedFailedRows.length} from failed lane(s); ` +
+      `${summariseEventDrops(dropped)})`,
   );
+  const report = { status: "wrote", wrote: true, rows: deduped.length };
+  if (providerFailures.length > 0) {
+    report.failures = providerFailures.map((failure) => `${failure.provider}: ${failure.message}`);
+    report.reason = failureReason;
+  }
+  return report;
+}
 
-  if (!process.argv.includes("--open-pr")) return;
+async function defaultRunCommonLane(options) {
+  const { refreshCommonEvents } = await import("./commonRefresh.mjs");
+  return refreshCommonEvents(options);
+}
+
+/**
+ * One refresh run: the provider lane, then the KEYLESS Common lane, then the
+ * review PR.
+ *
+ * The two supply lanes are independent. The Common reader needs no provider key
+ * and depends on Ticketmaster for nothing, so a quiet upstream window - or the
+ * deliberate "0 mappable rows, refusing to clobber" refusal - must not stop it
+ * running. On a first run the file ships with zero rows, so keeping Common
+ * behind that refusal meant it could never seed itself at all.
+ *
+ * Every dependency is injectable so the run can be executed end to end in a
+ * test: this whole path used to be reachable only by spawning the CLI, which is
+ * why a module-level binding error in it went uncaught.
+ */
+export async function runEventsRefresh({
+  argv = process.argv,
+  env = process.env,
+  nowMs = Date.now(),
+  fetchImpl = fetch,
+  outPath: outPathOverride,
+  loadVenueIndex = loadCanonicalVenueIndex,
+  runCommonLane = defaultRunCommonLane,
+  openPr = defaultOpenPr,
+  validate = defaultValidate,
+  log = console.log,
+  logError = console.error,
+} = {}) {
+  const observedAt = new Date(nowMs).toISOString();
+  const city = parseEventsCityArg(argv);
+  if (!city) {
+    logError(`eventsRefresh: unknown city. Use one of ${EVENT_REFRESH_CITIES.join(", ")}.`);
+    return { ok: false, city: null, provider: { status: "skipped" }, common: { status: "skipped" } };
+  }
+  const outPath = outPathOverride ?? eventsOutputPath(city);
+
+  const provider = await runProviderLane({
+    city,
+    outPath,
+    nowMs,
+    observedAt,
+    argv,
+    env,
+    fetchImpl,
+    loadVenueIndex,
+    log,
+    logError,
+  });
+
+  // ONE owner of the Common crawl per run. It is a polite 1-req/s crawl of a
+  // third party's sitemap, so running it from here AND spawning
+  // commonRefresh.mjs beside us would spend the budget twice. The local
+  // scheduler owns it as its own independent lane and does NOT pass this flag;
+  // the workflow, which has only this one command, does.
+  let common = { status: "skipped" };
+  if (city === "london" && argv.includes(WITH_COMMON_FLAG)) {
+    try {
+      const report = await runCommonLane({ nowMs, outPath });
+      // The Common lane refuses its own write when a run that can see nothing
+      // would empty the rows the file already holds. That is a refusal, not a
+      // write, so nothing downstream may treat it as one.
+      common = report?.refused
+        ? { status: "refused", wrote: false, reason: report.refused }
+        : { status: "ran", wrote: true, rows: report?.rows?.length ?? 0 };
+    } catch (err) {
+      logError(`eventsRefresh: Common lane failed (${err.message}).`);
+      common = { status: "failed", reason: err.message };
+    }
+  }
+
+  // A provider FAILURE is always a failure. A deliberate REFUSAL (0 mappable
+  // rows, refusing to clobber a good file) is an ordinary quiet-upstream
+  // outcome, so it only reds the run when nothing else published - an operator
+  // reading a red job beside an open review PR cannot tell the two apart.
+  const providerFailed = provider.status === "failed" || (provider.failures?.length ?? 0) > 0;
+  const commonFailed = common.status === "failed";
+  const wrote = provider.wrote === true || common.wrote === true;
+  const refusedWithNothingPublished =
+    (provider.status === "refused" || common.status === "refused") && !wrote;
+
+  let validation = { status: "skipped" };
+  let published = { status: "skipped" };
+  if (argv.includes("--open-pr") && wrote) {
+    // Validate BEFORE anything is pushed. A refresh that produced a row the
+    // app's own gate rejects must be refused here, not left on a branch with a
+    // review PR already open against it. The two steps report SEPARATELY: a git
+    // or gh failure is not a data-gate refusal, and once the push has run
+    // "no branch pushed" would be false.
+    try {
+      validate();
+      validation = { status: "ran" };
+    } catch (err) {
+      logError(
+        `eventsRefresh: validate-data refused the refreshed file (${err.message}) - no branch pushed, no PR opened.`,
+      );
+      validation = { status: "failed", reason: err.message };
+    }
+    if (validation.status === "ran") {
+      try {
+        await openPr({ outPath, observedAt, nowMs, env, log });
+        published = { status: "ran" };
+      } catch (err) {
+        logError(
+          `eventsRefresh: the refreshed file passed validate-data, but publishing it failed (${err.message}).`,
+        );
+        published = { status: "failed", reason: err.message };
+      }
+    }
+  }
+
+  return {
+    ok:
+      !providerFailed &&
+      !refusedWithNothingPublished &&
+      !commonFailed &&
+      validation.status !== "failed" &&
+      published.status !== "failed",
+    city,
+    provider,
+    common,
+    validation,
+    published,
+  };
+}
+
+function defaultValidate() {
+  execFileSync(process.execPath, [join(ROOT, "scripts", "validate-data.mjs")], {
+    cwd: ROOT,
+    stdio: "inherit",
+  });
+}
+
+function defaultOpenPr({ outPath, observedAt, nowMs, env }) {
   const stamp = observedAt.slice(0, 10).replaceAll("-", "");
-  const branch = `whats-on-events/${stamp}-${process.env.GITHUB_RUN_ID?.replace(/\D/g, "") || nowMs}`;
+  const branch = `whats-on-events/${stamp}-${env.GITHUB_RUN_ID?.replace(/\D/g, "") || nowMs}`;
   execFileSync("git", ["checkout", "-b", branch], { cwd: ROOT, stdio: "inherit" });
-  execFileSync("git", ["add", OUT_PATH], { cwd: ROOT, stdio: "inherit" });
+  execFileSync("git", ["add", outPath], { cwd: ROOT, stdio: "inherit" });
   execFileSync("git", ["commit", "-m", `chore(whats-on): refresh events ${stamp}`], { cwd: ROOT, stdio: "inherit" });
   execFileSync("git", ["push", "-u", "origin", branch], { cwd: ROOT, stdio: "inherit" });
   execFileSync(
@@ -508,6 +559,11 @@ async function main() {
     ["pr", "create", "--title", `What's-On events ${stamp}`, "--body", "Scheduled official-API (Ticketmaster/Skiddle) events refresh for the Tonight page. Provenance links back to each source per its terms."],
     { cwd: ROOT, stdio: "inherit" },
   );
+}
+
+async function main() {
+  const result = await runEventsRefresh();
+  if (!result.ok) process.exitCode = 1;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) await main();

@@ -33,35 +33,45 @@ describe("countTonightKinds", () => {
       makeRow({ id: "d2", kind: "deal" }),
       makeRow({ id: "d3", kind: "deal" }),
     ];
-    expect(countTonightKinds(rows)).toEqual({ quiz: 2, music: 0, sport: 1, deal: 3 });
+    expect(countTonightKinds(rows)).toEqual({ quiz: 2, music: 0, sport: 1, deal: 3, event: 0 });
   });
 
   it("returns all zeros for no rows", () => {
-    expect(countTonightKinds([])).toEqual({ quiz: 0, music: 0, sport: 0, deal: 0 });
+    expect(countTonightKinds([])).toEqual({ quiz: 0, music: 0, sport: 0, deal: 0, event: 0 });
   });
 });
 
 describe("tonightGlanceLine", () => {
   it("names only non-zero kinds in evening order (quiz, match, gig, deal)", () => {
-    expect(tonightGlanceLine({ quiz: 12, music: 5, sport: 3, deal: 31 })).toBe(
+    expect(tonightGlanceLine({ quiz: 12, music: 5, sport: 3, deal: 31, event: 0 })).toBe(
       "On across London tonight: 12 pub quizzes, 3 matches on, 5 gigs, 31 deals running.",
     );
   });
 
   it("uses singular forms at exactly one", () => {
-    expect(tonightGlanceLine({ quiz: 1, music: 1, sport: 1, deal: 1 })).toBe(
-      "On across London tonight: 1 pub quiz, 1 match on, 1 gig, 1 deal running.",
+    expect(tonightGlanceLine({ quiz: 1, music: 1, sport: 1, deal: 1, event: 1 })).toBe(
+      "On across London tonight: 1 pub quiz, 1 match on, 1 gig, 1 deal running, 1 listed night.",
     );
   });
 
   it("skips zero kinds entirely", () => {
-    expect(tonightGlanceLine({ quiz: 0, music: 0, sport: 2, deal: 0 })).toBe(
+    expect(tonightGlanceLine({ quiz: 0, music: 0, sport: 2, deal: 0, event: 0 })).toBe(
       "On across London tonight: 2 matches on.",
     );
   });
 
   it("returns null when nothing is on (the quiet-night panel takes over)", () => {
-    expect(tonightGlanceLine({ quiz: 0, music: 0, sport: 0, deal: 0 })).toBeNull();
+    expect(tonightGlanceLine({ quiz: 0, music: 0, sport: 0, deal: 0, event: 0 })).toBeNull();
+  });
+
+  it("counts a night whose only listings are listed nights, rather than saying nothing", () => {
+    const rows = [
+      makeRow({ id: "e1", kind: "event" }),
+      makeRow({ id: "e2", kind: "event" }),
+    ];
+    const counts = countTonightKinds(rows);
+    expect(counts.event).toBe(2);
+    expect(tonightGlanceLine(counts)).toBe("On across London tonight: 2 listed nights.");
   });
 });
 
@@ -70,7 +80,7 @@ describe("glance voice", () => {
     const strings = [
       GLANCE_QUIET_LINE,
       GLANCE_QUIET_EXIT,
-      tonightGlanceLine({ quiz: 2, music: 1, sport: 1, deal: 4 }) ?? "",
+      tonightGlanceLine({ quiz: 2, music: 1, sport: 1, deal: 4, event: 2 }) ?? "",
     ];
     for (const line of strings) {
       expect(line.includes("—"), `em dash in "${line}"`).toBe(false);

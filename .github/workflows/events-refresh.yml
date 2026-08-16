@@ -7,17 +7,13 @@ name: What's-On events refresh
 # WhatsOnRow contract, matches venues conservatively, and opens a PR for human
 # review. It NEVER pushes to a protected branch and NEVER scrapes aggregators.
 #
-# DISABLED BY DEFAULT — the scheduled cron is intentionally commented out. This
-# is a safe no-op until the owner provisions provider keys:
-#   * TICKETMASTER_API_KEY — free, instant, from developer.ticketmaster.com.
-#   * SKIDDLE_API_KEY      — free key, BUT commercial use requires written
-#                            approval from dev@skiddle.com first (see research
-#                            doc §3). Keep this provider off until approved.
-# With no keys set the refresh script noop-skips every provider and touches
-# nothing. Add the secrets, then uncomment the schedule to activate.
+# Daily 04:00 UTC. GitHub Actions is currently DISABLED at the repo level
+# (captain decision pending). Keep this schedule so it fires the moment
+# Actions is switched on. TICKETMASTER_API_KEY is a repo secret; SKIDDLE_API_KEY
+# is not provisioned yet and the Skiddle lane stays not-configured.
 on:
-  # schedule:
-  #   - cron: "45 15 * * *"  # 15:45 UTC daily (afternoon, ahead of the evening)
+  schedule:
+    - cron: "0 4 * * *"
   workflow_dispatch:
 
 permissions:
@@ -44,14 +40,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Refresh events + open review PR
+      # The refresh VALIDATES the file it wrote before it branches, commits or
+      # opens the PR (runEventsRefresh runs validate-data itself, and refuses
+      # to publish when the gate rejects a row). So a bad refresh fails here
+      # with nothing pushed, rather than going red with the data already on the
+      # remote. `--with-common` makes this command the single owner of the
+      # polite Common crawl on this path; the local scheduler owns it as its
+      # own lane instead.
+      - name: Refresh events, validate, then open review PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
           SKIDDLE_API_KEY: ${{ secrets.SKIDDLE_API_KEY }}
-        run: npm run refresh:events -- --open-pr
-
-      - name: Validate bundled data
-        # Guard: the refresh must never ship data that fails the app's own
-        # validation (schema, attribution, future-observedAt).
-        run: npm run validate-data
+        run: npm run refresh:events -- --with-common --open-pr

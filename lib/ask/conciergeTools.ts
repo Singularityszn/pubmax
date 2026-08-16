@@ -168,6 +168,11 @@ export type TonightNowSplit = {
   onNow: WhatsOnRow[];
   /** Rows tonight that have not started yet. */
   later: WhatsOnRow[];
+  /**
+   * Rows whose listing states a DAY and no clock time. They are on tonight, but
+   * nothing may say whether they have started: the source did not publish it.
+   */
+  dateOnly: WhatsOnRow[];
 };
 
 /**
@@ -175,8 +180,9 @@ export type TonightNowSplit = {
  *
  * "On now" is read off the row's OWN window - its stated start and the same
  * effective end `isOnTonight` uses - so nothing here invents a duration. A row
- * with no parseable start cannot say whether it is running, so it falls to
- * `later`, which promises less.
+ * with no parseable start is DATE-ONLY: its listing published a day and no clock
+ * time, so it can be neither running nor still to start, and calling it either
+ * would be a claim about a time the source withheld.
  */
 export function splitTonightRowsByNow(
   rows: readonly WhatsOnRow[],
@@ -184,21 +190,21 @@ export function splitTonightRowsByNow(
 ): TonightNowSplit {
   const onNow: WhatsOnRow[] = [];
   const later: WhatsOnRow[] = [];
+  const dateOnly: WhatsOnRow[] = [];
   for (const row of rows) {
     const startsAt = row.startsAt ? Date.parse(row.startsAt) : Number.NaN;
+    if (!Number.isFinite(startsAt)) {
+      dateOnly.push(row);
+      continue;
+    }
     const endsAt = rowEffectiveEnd(row);
-    if (
-      Number.isFinite(startsAt) &&
-      Number.isFinite(endsAt) &&
-      startsAt <= now &&
-      endsAt >= now
-    ) {
+    if (Number.isFinite(endsAt) && startsAt <= now && endsAt >= now) {
       onNow.push(row);
     } else {
       later.push(row);
     }
   }
-  return { onNow, later };
+  return { onNow, later, dateOnly };
 }
 
 /**
@@ -216,24 +222,39 @@ export function tonightNowLine(input: {
   area?: string | null;
   onNow: number;
   later: number;
+  /** Rows listed for tonight whose source published no start time. */
+  dateOnly?: number;
   read: "ready" | "unavailable";
 }): string {
   if (input.read === "unavailable") {
     return "I couldn't read tonight's listings just now.";
   }
   const where = input.area ? ` in ${input.area}` : "";
-  if (input.onNow === 0 && input.later === 0) {
+  const dateOnly = input.dateOnly ?? 0;
+  if (input.onNow === 0 && input.later === 0 && dateOnly === 0) {
     return `Nothing sourced${where} for tonight.`;
+  }
+  // A date-only listing is counted on its own, because it can be neither
+  // running nor still to start.
+  if (input.onNow === 0 && input.later === 0) {
+    return `${dateOnly} listed${where} tonight with no start time.`;
   }
   const running =
     input.onNow > 0
       ? `${input.onNow} on right now${where}`
       : `Nothing running${where} this minute`;
+  // With date-only rows still to name, "nothing else listed tonight" would
+  // contradict the sentence after it. Nothing else has a STATED START; the
+  // listings without one are counted in their own clause.
   const ahead =
     input.later > 0
       ? `${input.later} still to start tonight`
-      : "nothing else listed tonight";
-  return `${running}, ${ahead}.`;
+      : dateOnly > 0
+        ? "nothing else with a stated start"
+        : "nothing else listed tonight";
+  const undated =
+    dateOnly > 0 ? ` ${dateOnly} more listed tonight with no start time.` : "";
+  return `${running}, ${ahead}.${undated}`;
 }
 
 // ---------------------------------------------------------------------------

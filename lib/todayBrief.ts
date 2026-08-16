@@ -31,7 +31,7 @@ import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { formatConditionDate, londonMonth } from "@/lib/tonightConditions";
 import type { Provenance } from "@/lib/curation";
 import { validateWeatherSnapshot } from "@/lib/weatherSnapshots";
-import type { WhatsOnConfidence, WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
+import { whatsOnBarePriceGbp, type WhatsOnConfidence, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 
 // A central district for the location-free morning glance. The brief is a
 // city-level weather read, so the card never claims this is "your area"; it just
@@ -223,6 +223,7 @@ const KIND_LABEL: Record<WhatsOnKind, string> = {
   quiz: "Quiz",
   deal: "Deal",
   music: "Live music",
+  event: "Event",
 };
 
 /** Reduce a row to the card DTO. A resolved venue deep-links to the map; a
@@ -247,7 +248,7 @@ export function toTonightPickDto(row: WhatsOnRow): TonightPickDto {
     sourceLabel: row.source.label,
     href,
     external,
-    priceGbp: typeof row.priceGbp === "number" ? row.priceGbp : null,
+    priceGbp: whatsOnBarePriceGbp(row),
     lat: typeof row.lat === "number" && Number.isFinite(row.lat) ? row.lat : null,
     lng: typeof row.lng === "number" && Number.isFinite(row.lng) ? row.lng : null,
   };
