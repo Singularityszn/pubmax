@@ -21,8 +21,10 @@ import { moderateProfileImage, profileStore } from "@/lib/profileStore";
 /**
  * Apply a moderator decision to an owned image, and for the cover apply the SAME
  * decision to every photo in that profile's rotation. Returns whether the image
- * itself moved or the rotation moved — rotation-only covers have no mirror row
- * but still earn a takedown on every rotation photograph.
+ * itself moved or the rotation moved: rotation-only covers have no mirror row
+ * but still earn a takedown on every rotation photograph. A rotation mirror that
+ * failed is logged and never turns a landed takedown into a refusal a moderator
+ * would retry.
  */
 export async function moderateProfileImageAcrossStores(
   handle: string,

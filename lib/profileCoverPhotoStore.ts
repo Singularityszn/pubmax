@@ -357,7 +357,10 @@ function admin() {
   return requireSupabaseAdmin();
 }
 
-/** Owner reorder upserts positions only — never replay moderation fields. */
+/**
+ * Owner reorder upserts positions only: never replay moderation fields, or a
+ * reorder would put a moderator-hidden cover back on the rotation.
+ */
 function toReorderRow(photo: Pick<ProfileCoverPhoto, "id" | "profileId" | "position">) {
   return {
     id: photo.id,
