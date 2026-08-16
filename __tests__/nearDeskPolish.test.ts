@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { evaluateOpenState } from "@/lib/busyness";
 import {
+  DESK_CHAINS,
   deskAmenityLines,
   deskChainKey,
   deskCollapsedChainsAttributes,
@@ -133,11 +134,73 @@ describe("deskChainKey", () => {
 
   it("leaves independent cafes on their own key", () => {
     expect(deskChainKey("Gallo Nero")).toBe("gallo nero");
-    expect(deskChainKey("La costa cafe")).toBe("la costa");
-    expect(deskChainKey("Abigails Café")).toBe("abigails");
+    expect(deskChainKey("La costa cafe")).toBe("la costa cafe");
+    expect(deskChainKey("Abigails Café")).toBe("abigails cafe");
     expect(deskChainKey("Petit Pret")).toBe("petit pret");
     expect(deskChainKey("Pretty Little Cupcakes")).toBe("pretty little cupcakes");
     expect(deskChainKey("Desk and Bean")).toBe("desk and bean");
+  });
+
+  it("keeps two independents apart when only a generic token separates them", () => {
+    const pairs: Array<[string, string]> = [
+      ["Cafe 26", "Café 54"],
+      ["Station 26", "Station Cafe"],
+      ["Sutton Cafe", "Sutton Green Café"],
+      ["The Café", "The Green Cafe"],
+      ["Cafe Express", "Cafe Terrace"],
+    ];
+    for (const [left, right] of pairs) {
+      expect(deskChainKey(left), `${left} vs ${right}`).not.toBe(deskChainKey(right));
+    }
+    expect(deskChainKey("Cafe 26")).toBe("cafe 26");
+    expect(deskChainKey("Café 54")).toBe("cafe 54");
+  });
+
+  it("collapses every listed chain onto its own key and nothing else", () => {
+    expect(DESK_CHAINS.map((chain) => chain.key)).toEqual([
+      "caffe nero",
+      "pret",
+      "costa",
+      "starbucks",
+      "gails",
+      "black sheep",
+      "wework",
+      "joe and the juice",
+      "leon",
+      "paul",
+      "blank street",
+      "grind",
+      "ole and steen",
+    ]);
+    for (const chain of DESK_CHAINS) {
+      for (const name of chain.names) {
+        expect(deskChainKey(name), name).toBe(chain.key);
+        expect(deskChainKey(`${name} Oxford Street`), name).toBe(chain.key);
+      }
+    }
+    expect(deskChainKey("Joe & The Juice")).toBe("joe and the juice");
+    expect(deskChainKey("Ole & Steen")).toBe("ole and steen");
+  });
+});
+
+describe("rankDeskNearMe independents", () => {
+  it("shows both independents that a generic-token strip used to merge", () => {
+    const answer = rankDeskNearMe(here.lat, here.lng, [
+      desk("cafe-26", 0.0004, { name: "Cafe 26", wifi: "yes" }),
+      desk("cafe-54", 0.0005, { name: "Café 54", wifi: "yes" }),
+      desk("station-26", 0.0006, { name: "Station 26", wifi: "yes" }),
+      desk("station-cafe", 0.0007, { name: "Station Cafe", wifi: "yes" }),
+      desk("nero-1", 0.0008, { name: "Caffè Nero", wifi: "yes" }),
+      desk("nero-2", 0.0009, { name: "Caffè Nero Oxford Street", wifi: "yes" }),
+    ]);
+    expect(answer.cards.map((card) => card.name)).toEqual([
+      "Cafe 26",
+      "Café 54",
+      "Station 26",
+      "Station Cafe",
+      "Caffè Nero",
+    ]);
+    expect(answer.collapsedChains).toEqual(["caffe nero"]);
   });
 });
 

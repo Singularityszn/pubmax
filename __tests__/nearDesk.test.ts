@@ -10,7 +10,6 @@ import {
   deskLaptopCaption,
   deskPatchQuery,
   deskPatchReasonLine,
-  deskSeatDataLine,
   deskWifiCaption,
   isDeskEligible,
   laptopFromOsm,
@@ -326,7 +325,6 @@ describe("rankDeskNearMe", () => {
 describe("desk copy", () => {
   it("keeps empty and amenity lines in house voice", () => {
     expect(deskEmptyLine()).toBe("No desks logged near here yet - add a spot");
-    expect(deskSeatDataLine()).toBe("No seat data yet");
     expect(deskWifiCaption("yes")).toBe("Wifi: yes");
     expect(deskWifiCaption("no")).toBe("Wifi: no");
     expect(deskWifiCaption("unknown")).toBe("Wifi: unknown");
@@ -343,7 +341,7 @@ describe("desk copy", () => {
     expect(deskLoadFailedLine()).toBe("Could not check desks near here.");
     for (const line of [
       deskEmptyLine(),
-      deskSeatDataLine(),
+      deskLoadFailedLine(),
       deskAnswerHeadline({ scope: "walkable" }),
     ]) {
       expect(line).not.toMatch(/[\u2014\u2013]/);
