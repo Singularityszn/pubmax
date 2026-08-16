@@ -55,6 +55,8 @@ export const ANALYTICS_EVENTS = {
   // required-field validation below rejects the whole event on mismatch.
   near_answer_ready: ["source", "resultBand"],
   near_venue_opened: ["source", "positionBand"],
+  near_mode_switched: ["mode"],
+  desk_answer_served: ["outcome"],
   venue_accepted: ["source", "hasArea", "hasDate", "hasProvenance"],
   planning_handoff_opened: ["from", "to"],
   planning_handoff_preserved: [
@@ -276,6 +278,8 @@ export type TrustedHandoffAnalyticsPropsByEvent = {
     source: NearAnswerSource;
     positionBand: "1" | "2-3" | "4+";
   };
+  near_mode_switched: { mode: "pint" | "desk" };
+  desk_answer_served: { outcome: "answer" | "thin" };
   venue_accepted: {
     source: AcceptanceSource;
     hasArea: boolean;
@@ -400,6 +404,7 @@ const SAFE_STRING_VALUES = new Set([
   "shared-plan", "plan-link", "crew-reinvite", "completed_plan", "plan-crew",
   "near", "map-search", "direct-plan", "mobile-route-preview",
   "location", "remembered-area", "picked-area", "default-area", "0", "1", "1-3", "2-3", "4+",
+  "pint", "desk", "answer", "thin",
   "live-location", "remembered-patch", "remembered-borough", "london-default", "other",
   "tonight-lane", "tonight-vibes", "landing-why",
   "whats-on-quiz", "whats-on-sport", "whats-on-deal", "whats-on-music",
@@ -464,6 +469,8 @@ function isAllowedDistrictEventProp(name: AnalyticsEventName, key: string, value
 const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   near_answer_ready: ["source", "resultBand"],
   near_venue_opened: ["source", "positionBand"],
+  near_mode_switched: ["mode"],
+  desk_answer_served: ["outcome"],
   venue_accepted: ["source", "hasArea", "hasDate", "hasProvenance"],
   planning_handoff_opened: ["from", "to"],
   planning_handoff_preserved: [
@@ -547,6 +554,10 @@ function isAllowedTrustedHandoffEventProp(
       return key === "source"
         ? includesValue(NEAR_ANSWER_SOURCES, value)
         : key === "positionBand" && includesValue(["1", "2-3", "4+"], value);
+    case "near_mode_switched":
+      return key === "mode" && includesValue(["pint", "desk"], value);
+    case "desk_answer_served":
+      return key === "outcome" && includesValue(["answer", "thin"], value);
     case "venue_accepted":
       return key === "source"
         ? includesValue(ACCEPTANCE_SOURCES, value)

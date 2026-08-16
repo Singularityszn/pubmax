@@ -349,6 +349,13 @@ ID, Venue name, coordinate, area, price, or free text leaves the device in
 these events. Consent gating and server-side validation remain the same as for
 every event in this document.
 
+Desk mode is a second question on the same page, not a second funnel.
+`near_mode_switched` fires only when the drinker taps Pint or Desk, with
+`mode` (`pint` | `desk`). `desk_answer_served` fires once for the latest
+completed desk answer (`outcome` `answer` | `thin`). A failed pack read
+emits nothing, because that is not a locality with no desks. Neither event
+carries a coordinate, handle, venue id, or area name.
+
 ## Registry additions
 
 All six new event names were added to `ANALYTICS_EVENTS` in

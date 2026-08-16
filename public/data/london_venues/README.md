@@ -50,13 +50,12 @@ published, because that is where the curated layer, the prices and the readers
 are. Widening it to the country needs the per-shard and whole-layer budgets
 re-measured, not raised.
 
-## No reader yet
+## Desk pack
 
-Nothing in the app fetches these shards today. The layer is published and
-kind-tagged so a work-spot surface can be built against real data; building that
-surface is a separate wave. A reader wave will also want a
-`NEXT_PUBLIC_…_GENERATION` build var, the way `uk_base` has one in
-`next.config.mjs`.
+The amenity-bearing sibling of these shards lives in
+[`public/data/london_desks/`](../london_desks/README.md), not here. Publishing
+this directory sweeps its own root of every `*.json` except `manifest.json`, so
+a file kept beside the shards would be deleted by the next rebuild.
 
 ## Attribution
 
