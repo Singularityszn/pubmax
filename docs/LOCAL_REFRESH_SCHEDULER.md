@@ -5,7 +5,7 @@ GitHub Actions cannot allocate a runner for this repository, and Vercel function
 The scheduler lives in `scripts/local-refresh/scheduler.mjs`. It renders two agents:
 
 - Monday at 07:30 local time: London pub prices, venue additions, and location fixes.
-- Daily at 15:45 local time: official-provider London events.
+- Daily at 15:45 local time: London events. This mode runs two independent lanes, the official-provider refresh (`scripts/whatson/eventsRefresh.mjs`) and the keyless Common reader (`scripts/whatson/commonRefresh.mjs`).
 
 launchd uses local calendar time. If the Mac sleeps through a calendar firing, launchd coalesces missed firings and starts the job after wake.
 
@@ -13,7 +13,9 @@ launchd uses local calendar time. If the Mac sleeps through a calendar firing, l
 
 Every run checks one-minute load and macOS memory pressure before doing work. Default load ceiling is 75% of logical CPU capacity with a floor of `4.0`; free memory floor is `25%`. A shared lock prevents price and event jobs overlapping. Existing acquisition scripts run one at a time.
 
-Secrets load at runtime from `~/karan-agent-workspace/data/keys.env`. Scheduler refuses any mode other than `0600`, never puts keys in a plist or command argument, and redacts loaded values from captured child-process output. Provider keys remain available to acquisition and validation commands, but are removed from every Git and `gh-axi` subprocess environment. Monday prices require `EXA_API_KEY`, `BROWSERBASE_API_KEY`, and `TAVILY_API_KEY`. Daily events require `TICKETMASTER_API_KEY` or a `SKIDDLE_API_KEY` whose commercial use has written approval. Current key inventory lacks both event-provider keys, so event job reports `TICKETMASTER_API_KEY` or approved `SKIDDLE_API_KEY` and leaves event data untouched.
+Secrets load at runtime from `~/karan-agent-workspace/data/keys.env`. Scheduler refuses any mode other than `0600`, never puts keys in a plist or command argument, and redacts loaded values from captured child-process output. Provider keys remain available to acquisition and validation commands, but are removed from every Git and `gh-axi` subprocess environment. Monday prices require `EXA_API_KEY`, `BROWSERBASE_API_KEY`, and `TAVILY_API_KEY`; a missing one refuses the whole mode.
+
+Events readiness is per LANE, not per mode. The provider lane needs `TICKETMASTER_API_KEY` or a `SKIDDLE_API_KEY` whose commercial use has written approval; without either, that lane alone is skipped and the log names it (`SKIPPED LANE`). The Common lane is keyless and still runs, so a machine holding no event-provider key still refreshes events. Each lane is independent: one lane failing is logged (`LANE FAILED`) and the other still runs, and the run fails only when every lane it started failed.
 
 Price acquisition chooses provider by work type in `scripts/lib/localRefreshProviders.mjs`:
 

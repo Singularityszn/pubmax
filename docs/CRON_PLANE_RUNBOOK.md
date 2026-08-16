@@ -5,10 +5,14 @@ Freshness jobs cover weather, the What's-On tonight window, permissible-source
 price retrieval, Night Signal candidates, and a rotating UK city pub-enrichment
 sweep. No job fabricates data or reports false success.
 
-> **GitHub Actions is retired.** Vercel owns server-safe scheduled work. File-producing
-> acquisition runs through the Mac's local launchd scheduler and review PRs; see
-> [`LOCAL_REFRESH_SCHEDULER.md`](./LOCAL_REFRESH_SCHEDULER.md). Do not add or suggest
-> a `.github/workflows/*` schedule because Actions cannot allocate a runner.
+> **Vercel owns server-safe scheduled work.** File-producing acquisition runs through
+> the Mac's local launchd scheduler and review PRs; see
+> [`LOCAL_REFRESH_SCHEDULER.md`](./LOCAL_REFRESH_SCHEDULER.md). One exception is
+> written down rather than assumed: `.github/workflows/events-refresh.yml` carries a
+> daily 04:00 UTC schedule for the What's-On events refresh, which validates its own
+> output and opens a review PR. GitHub Actions is disabled at the repo level today, so
+> that schedule fires nothing until the captain switches Actions on. Do not add another
+> `.github/workflows/*` schedule without that decision.
 
 ---
 
