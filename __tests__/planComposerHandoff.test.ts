@@ -465,33 +465,65 @@ describe("releasing a held acceptance", () => {
     });
   }
 
-  it("leaves nothing for the next hydration to re-seed as Stop 1", () => {
+  it("leaves nothing for the next hydration to hold as Stop 1", () => {
     // The regression this pins: an accepted pub could not be put down for the
-    // whole PlanningIntent TTL, so every /plan visit re-seeded it as Stop 1.
+    // whole PlanningIntent TTL, so every /plan visit held it as Stop 1.
     // Dropping only the intent is not enough - the Plan draft's anchor and the
-    // route draft's anchored proof would each seed it again.
+    // route draft's anchored identity would each hold it again.
     const storages = heldAcceptance();
     const before = hydrate(storages);
-    expect(before.acceptedVenueId).toBe("venue-a");
+    expect(before.heldVenueId).toBe("venue-a");
     expect(before.showAcceptedSummary).toBe(true);
 
     releaseAcceptedPlanContext({
       intent: storages.intentStorage,
       planDraft: storages.planDraftStorage,
       routeDraft: storages.routeDraftStorage,
+      now: NOW,
     });
 
     const after = hydrate(storages);
     expect(readPlanningIntent({ storage: storages.intentStorage, now: NOW })).toBeNull();
-    expect(after.acceptedVenueId).toBeNull();
+    expect(after.heldVenueId).toBeNull();
     expect(after.acceptedAnchor).toBeNull();
     expect(after.showAcceptedSummary).toBe(false);
-    expect(after.routePreview).toBeNull();
+  });
+
+  it("keeps the whole route, and its proof, through a release", () => {
+    // The regression this pins: releasing the hold threw the night away. It
+    // wiped both drafts, so Stops 2..N went with the pub that was held and
+    // there was nothing left to change one's mind about.
+    const storages = heldAcceptance();
+    const routeBefore = hydrate(storages).routePreview;
+    expect(routeBefore?.value.stops.map((stop) => stop.venueId)).toEqual([
+      "venue-a", "venue-b", "venue-c",
+    ]);
+
+    releaseAcceptedPlanContext({
+      intent: storages.intentStorage,
+      planDraft: storages.planDraftStorage,
+      routeDraft: storages.routeDraftStorage,
+      now: NOW,
+    });
+
+    const after = hydrate(storages);
+    expect(after.heldVenueId).toBeNull();
+    expect(after.routePreview?.value.stops.map((stop) => stop.venueId)).toEqual([
+      "venue-a", "venue-b", "venue-c",
+    ]);
+    expect(after.routePreview?.value.groundingProof).toBe(routeBefore?.value.groundingProof);
+    expect(after.routeProofPresent).toBe(true);
+    // The Plan draft keeps its own stops and loses only the acceptance.
+    const planDraft = readPlanDraftEnvelope(storages.planDraftStorage, NOW);
+    expect(planDraft?.draft.stops.map((stop) => stop.venueId)).toEqual(["venue-a"]);
+    expect(planDraft?.draft.acceptedAnchor).toBeUndefined();
   });
 
   it("still releases what it can when a storage is denied", () => {
     const storages = heldAcceptance();
     const denied = {
+      getItem: () => { throw new Error("denied"); },
+      setItem: () => { throw new Error("denied"); },
       removeItem: () => { throw new Error("denied"); },
     };
 
@@ -499,9 +531,10 @@ describe("releasing a held acceptance", () => {
       intent: storages.intentStorage,
       planDraft: denied,
       routeDraft: storages.routeDraftStorage,
+      now: NOW,
     })).not.toThrow();
     expect(readPlanningIntent({ storage: storages.intentStorage, now: NOW })).toBeNull();
-    expect(readPlanRouteDraftEnvelope(storages.routeDraftStorage, NOW)).toBeNull();
+    expect(readPlanRouteDraftEnvelope(storages.routeDraftStorage, NOW)?.value.anchorVenueId).toBeNull();
   });
 });
 

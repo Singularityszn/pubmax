@@ -814,7 +814,7 @@ export function AcceptedContextPanel({
             )}
           </dl>
           <p className="planComposer__acceptedNote">
-            You can change the area and the date below. Stop 1 stays this pub until you release it.
+            You can change the area and the date below. Stop 1 stays this pub until you release it. Releasing keeps every stop.
           </p>
           {onRelease && handoff.heldVenueId ? (
             <button
@@ -1021,7 +1021,9 @@ function PlanComposerForm({
   );
   const conciergeStatus = conciergeStatusText(sorting, unsupportedIntakePatch, conciergeNote);
   const composerVisible =
-    planIntake.completed || Boolean(recoveredDraft || recoveredRouteDraft || heldVenueId);
+    planIntake.completed
+    || stops.length > 0
+    || Boolean(recoveredDraft || recoveredRouteDraft || heldVenueId);
   // An unresolved Stop 1 carries an empty name on purpose, and an empty string
   // is not nullish, so it must be dropped here or the summary prints a blank
   // row instead of falling through to the neutral label.
@@ -1271,14 +1273,6 @@ function PlanComposerForm({
       routeDraft: canPersist ? localStorage : null,
     });
     setAcceptanceReleased(true);
-    setStops([]);
-    setPlanAnchor(null);
-    setGroundingProof(null);
-    setCreateOperationKey(null);
-    setRouteRevision(null);
-    setRouteStale(false);
-    setCultureOpener(null);
-    setRouteStatus("You released the pub. Make a plan again to build a route.");
   }
 
   function chooseVenue(key: number, venueName: string) {

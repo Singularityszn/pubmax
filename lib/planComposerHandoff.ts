@@ -4,11 +4,22 @@ import {
   type DraftArbitrationProvenance,
   type DraftArbitrationUrl,
 } from "@/lib/planDraftArbitration";
-import type { ParsedPlanDraft } from "@/lib/planDraft";
 import type { ParsedPlanIntakeDraft } from "@/lib/planIntake";
-import type { ParsedPlanRouteDraft } from "@/lib/planRouteDraft";
-import { PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY } from "@/lib/planDraft";
-import { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planRouteDraft";
+import {
+  PLAN_DRAFT_KEY,
+  PLAN_DRAFT_V2_KEY,
+  readPlanDraftEnvelope,
+  writePlanDraftEnvelope,
+  type ParsedPlanDraft,
+  type StoredPlanDraft,
+} from "@/lib/planDraft";
+import {
+  PLAN_ROUTE_DRAFT_KEY,
+  PLAN_ROUTE_DRAFT_V2_KEY,
+  readPlanRouteDraftEnvelope,
+  writePlanRouteDraftEnvelope,
+  type ParsedPlanRouteDraft,
+} from "@/lib/planRouteDraft";
 import {
   settlePlanningIntent,
   type PlanningIntentArea,
@@ -103,8 +114,6 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
     routeDraft: input.routeDraft,
     intakeDraft: input.intakeDraft,
     planningIntent: input.planningIntent,
-    // PlanningIntent is a permanent handoff path.
-    intentReadEnabled: true,
     rememberedArea: input.rememberedArea,
     lastAppliedOperationKey: input.lastAppliedOperationKey,
   });
@@ -169,13 +178,17 @@ export function resolveComposerHydration(input: ResolveComposerHydrationInput): 
   };
 }
 
+type DraftStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
 export type AcceptedContextStorages = {
   /** Where PlanningIntent lives. Defaults to this browser's own storage. */
   intent?: PlanningIntentStorage | null;
+  /** The instant the drafts are read against. Defaults to now. */
+  now?: number;
   /** The Plan draft envelope's storage (sessionStorage in the browser). */
-  planDraft?: Pick<Storage, "removeItem"> | null;
+  planDraft?: DraftStorage | null;
   /** The route draft's storage (localStorage in the browser). */
-  routeDraft?: Pick<Storage, "removeItem"> | null;
+  routeDraft?: DraftStorage | null;
 };
 
 function bestEffortRemove(
@@ -208,18 +221,61 @@ export function clearPersistedPlanDrafts(
   bestEffortRemove(storages.routeDraft, PLAN_ROUTE_DRAFT_V2_KEY);
 }
 
+function dropPlanDraftAcceptance(
+  storage: DraftStorage | null | undefined,
+  now: number,
+): void {
+  if (!storage) return;
+  try {
+    const existing = readPlanDraftEnvelope(storage, now);
+    if (!existing?.draft.acceptedAnchor) return;
+    const withoutAcceptance: StoredPlanDraft = { ...existing.draft };
+    delete withoutAcceptance.acceptedAnchor;
+    if (!writePlanDraftEnvelope(withoutAcceptance, "manual", storage, now).v2) {
+      bestEffortRemove(storage, PLAN_DRAFT_KEY);
+      bestEffortRemove(storage, PLAN_DRAFT_V2_KEY);
+    }
+  } catch {
+    // A denied storage must never block the way out of an acceptance.
+  }
+}
+
+function dropRouteDraftAcceptance(
+  storage: DraftStorage | null | undefined,
+  now: number,
+): void {
+  if (!storage) return;
+  try {
+    const existing = readPlanRouteDraftEnvelope(storage, now);
+    if (!existing?.value.anchorVenueId) return;
+    const written = writePlanRouteDraftEnvelope({
+      ...existing.value,
+      anchorVenueId: null,
+      anchorSource: null,
+      outcome: "unanchored",
+    }, "manual", storage, now);
+    if (!written.v2) {
+      bestEffortRemove(storage, PLAN_ROUTE_DRAFT_KEY);
+      bestEffortRemove(storage, PLAN_ROUTE_DRAFT_V2_KEY);
+    }
+  } catch {
+    // A denied storage must never block the way out of an acceptance.
+  }
+}
+
 /**
- * Release a held acceptance, so the composer goes back to an ordinary empty
- * route.
+ * Release a held acceptance: the pub stops being held, and the route stays.
  *
- * An acceptance is deliberately hard to lose by accident: while it is held,
- * Stop 1 stays the accepted pub and no edit may swap it out from under the
- * grounding proof. That protection is only honest if the person can put the
- * acceptance down on purpose, and the acceptance outlives any one surface -
- * it is held in the PlanningIntent, in the Plan draft's accepted anchor and in
- * the route draft's anchored proof at once. So all of them go together:
- * dropping only the intent would let the next hydration re-seed the same
- * Stop 1 from a draft, which is how "released" would come back a moment later.
+ * Releasing a HOLD is not discarding a ROUTE. Every Stop the person generated
+ * stays exactly where it is, Stop 1 included - that row simply becomes as
+ * editable as the others - and the grounding proof it was generated with is
+ * untouched, so a released night is still lockable.
+ *
+ * What goes is the acceptance itself, and it lives in three places at once:
+ * the PlanningIntent, the Plan draft's accepted anchor and the route draft's
+ * anchored identity. All three go together, because dropping only the intent
+ * would let the next hydration hold the same Stop 1 again, which is how
+ * "released" would come back a moment later.
  */
 export function releaseAcceptedPlanContext(
   storages: AcceptedContextStorages = {},
@@ -228,7 +284,9 @@ export function releaseAcceptedPlanContext(
     "dismissed",
     storages.intent === undefined ? {} : { storage: storages.intent },
   );
-  clearPersistedPlanDrafts(storages);
+  const now = storages.now ?? Date.now();
+  dropPlanDraftAcceptance(storages.planDraft, now);
+  dropRouteDraftAcceptance(storages.routeDraft, now);
 }
 
 export type ProvisionalStopSeed = {

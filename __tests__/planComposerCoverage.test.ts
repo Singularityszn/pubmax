@@ -813,6 +813,7 @@ describe("what the composer holds as Stop 1", () => {
       intent: intentStorage,
       planDraft: planDraftStorage,
       routeDraft: routeDraftStorage,
+      now: NOW,
     });
 
     const released = hydrate();

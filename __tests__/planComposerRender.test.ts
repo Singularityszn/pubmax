@@ -83,6 +83,7 @@ describe("PlanComposer rendered UI", () => {
     expect(html).toContain("Jul"); // London service-date label for the accepted start
     expect(html).toContain("You can change the area and the date below.");
     expect(html).toContain("Stop 1 stays this pub until you release it.");
+    expect(html).toContain("Releasing keeps every stop.");
     // The same hydration marks area + date answered, which is what suppresses the
     // area/date intake steps (PlanIntake is seeded settled; untouched here per the hold).
     expect(handoff.answeredArea).toBe(true);

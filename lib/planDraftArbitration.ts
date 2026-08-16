@@ -72,7 +72,6 @@ export type PlanDraftArbitrationInput = {
   routeDraft?: ParsedPlanRouteDraft | null;
   intakeDraft?: ParsedPlanIntakeDraft | null;
   planningIntent?: PlanningIntentV1 | null;
-  intentReadEnabled: boolean;
   rememberedArea?: RememberedArea | null;
   defaults?: DraftArbitrationDefaults;
   lastAppliedOperationKey?: string | null;
@@ -318,7 +317,7 @@ export function arbitratePlanDrafts(input: PlanDraftArbitrationInput): PlanDraft
     input.lastAppliedOperationKey,
     conflicts,
   );
-  const intent = input.intentReadEnabled ? input.planningIntent ?? null : null;
+  const intent = input.planningIntent ?? null;
   const selectedVenueId = populated(input.url?.selectedVenueId)
     ? input.url.selectedVenueId.trim()
     : null;
