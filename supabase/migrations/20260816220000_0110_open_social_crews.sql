@@ -430,7 +430,14 @@ as $$
   select case
     when not exists(select 1 from actor)
       or not exists(select 1 from authority) then null::jsonb
-    when exists(select 1 from viewer_member_authority) and (select state from relationship) is distinct from 'blocked'
+    when exists(select 1 from viewer_member_authority)
+      and (select state from relationship) is distinct from 'blocked'
+      and (
+        (select owner_account_id from authority)=(select account_id from actor)
+        or (select state from relationship)='mutual'
+        or (select visibility from authority)='open'
+        or (select visibility from authority)='private'
+      )
       then (select value from member_snapshot)
     when exists(select 1 from viewer_membership) then null::jsonb
     when (select visibility from authority)='friends'
@@ -511,28 +518,20 @@ as $$
       on owner_plan_member.id=owner_member.plan_member_id
       and owner_plan_member.plan_id=plan.id
       and owner_plan_member.social_account_id=crew.owner_account_id
-    where (
-      crew.owner_account_id=actor.account_id
-      or (
-        member.state='active'
-        and coalesce(
-          public.social_relationship_between_profiles(
-            actor.profile_id,owner_account.profile_id
-          ),'denied'
-        ) is distinct from 'blocked'
-      )
-      or public.social_relationship_between_profiles(
+    where coalesce(
+      public.social_relationship_between_profiles(
         actor.profile_id,owner_account.profile_id
-      )='mutual'
-      or (
-        crew.visibility='open'
-        and coalesce(
-          public.social_relationship_between_profiles(
-            actor.profile_id,owner_account.profile_id
-          ),'denied'
-        ) is distinct from 'blocked'
+      ),
+      'denied'
+    ) is distinct from 'blocked'
+      and (
+        crew.owner_account_id=actor.account_id
+        or public.social_relationship_between_profiles(
+          actor.profile_id,owner_account.profile_id
+        )='mutual'
+        or crew.visibility='open'
+        or crew.visibility='private'
       )
-    )
       and (p_cursor_joined_at is null
         or (member.joined_at,member.id)<(p_cursor_joined_at,p_cursor_member_id))
   ),
@@ -587,9 +586,40 @@ as $$
   from page;
 $$;
 
--- Upcoming open crews, newest window first. The reader now passes a city, so the
--- plan store can filter before the cap. Stop 1 still drives city from the
--- venue id shape, because plans store no explicit city.
+-- Stop 1 city filter mirrors lib/cityVenueIds.ts: listed venues carry a city
+-- prefix; London is the default unprefixed lane; place stops are London POIs.
+create or replace function public.open_plan_stop_matches_city(
+  p_venue_id text,
+  p_city text
+) returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select case
+    when p_venue_id is null then false
+    when p_city = 'london' then
+      p_venue_id like 'place:%'
+      or p_venue_id !~ '^venue-(mcr|liv|oxf|dur|glw|bri|cam|bat|lla)-'
+    when p_city = 'manchester' then p_venue_id ~ '^venue-mcr-'
+    when p_city = 'liverpool' then p_venue_id ~ '^venue-liv-'
+    when p_city = 'oxford' then p_venue_id ~ '^venue-oxf-'
+    when p_city = 'durham' then p_venue_id ~ '^venue-dur-'
+    when p_city = 'glasgow' then p_venue_id ~ '^venue-glw-'
+    when p_city = 'bristol' then p_venue_id ~ '^venue-bri-'
+    when p_city = 'cambridge' then p_venue_id ~ '^venue-cam-'
+    when p_city = 'bath' then p_venue_id ~ '^venue-bat-'
+    when p_city = 'llandudno' then p_venue_id ~ '^venue-lla-'
+    else false
+  end;
+$$;
+
+revoke all on function public.open_plan_stop_matches_city(text, text) from public, anon, authenticated;
+grant execute on function public.open_plan_stop_matches_city(text, text) to service_role;
+
+-- Upcoming open crews in one city and time window. City is derived from Stop 1
+-- through the venue-id prefix table above so the fifty-row cap applies after
+-- the city filter, not before it.
 create or replace function public.list_open_social_crews(
   p_from timestamptz,
   p_until timestamptz,
@@ -614,9 +644,9 @@ as $$
       'memberCount', (
         select count(*)::integer
         from public.social_crew_members member
-        join public.private_social_accounts account
-          on account.id = member.social_account_id
-          and account.ownership_state='active'
+        join public.private_social_accounts member_account
+          on member_account.id = member.social_account_id
+          and member_account.ownership_state = 'active'
         join public.plan_crew_members plan_member
           on plan_member.id = member.plan_member_id
           and plan_member.plan_id = plan.id
@@ -634,16 +664,8 @@ as $$
       on account.id = crew.owner_account_id
       and account.ownership_state = 'active'
     join public.profiles profile on profile.id = account.profile_id
-    left join lateral (
-      select
-        stop.venue_id,
-        stop.venue_name,
-        case
-          when stop.venue_id like 'place:%' then 'place'
-          when stop.venue_id ~ '^venue-[a-z]{3}-' then lower(substring(stop.venue_id from '^venue-([a-z]{3})-'))
-          when stop.venue_id like 'venue-%' then 'london'
-          else null
-        end as derived_city
+    join lateral (
+      select stop.venue_id, stop.venue_name
       from public.plan_stops stop
       where stop.plan_id = plan.id
       order by stop.position, stop.venue_id
@@ -653,10 +675,7 @@ as $$
       and plan.status not in ('completed','abandoned')
       and plan.start_time >= p_from
       and plan.start_time < p_until
-      and (
-        (stop.derived_city is not null and stop.derived_city = p_city)
-        or (stop.derived_city = 'place' and p_city = 'london')
-      )
+      and public.open_plan_stop_matches_city(stop.venue_id, p_city)
     order by plan.start_time, crew.id
     limit least(greatest(coalesce(p_limit, 50), 1), 50)
   ) listed;

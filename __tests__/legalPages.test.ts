@@ -1,18 +1,17 @@
-import { createElement } from "react";
-import type { ComponentType } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it } from "vitest";
 
+import PrivacyPage from "@/app/privacy/page";
+import TermsPage from "@/app/terms/page";
 import { CONTACT_EMAIL } from "@/lib/siteContact";
 import {
   WEATHER_RECOMMENDATION_CONDITIONS,
   weatherRecommendationConditionLabel,
 } from "@/lib/weatherRecommendations";
-import PrivacyPage from "@/app/privacy/page";
-import TermsPage from "@/app/terms/page";
 
 // The /privacy + /terms fence. These pages are the only surfaces where the site
 // makes promises about data ON THE RECORD, so the regressions that matter are
@@ -25,30 +24,14 @@ function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
-function legalPageText(page: ComponentType) {
-  const html = renderToStaticMarkup(createElement(page));
-  const entities = html
-    .replace(/&nbsp;/g, " ")
-    .replace(/&copy;/g, "(c)")
-    .replace(/&ldquo;/g, '"')
-    .replace(/&rdquo;/g, '"')
-    .replace(/&rsquo;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, "&");
-  return entities
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\u2018/g, "'")
-    .replace(/\u2019/g, "'")
-    .replace(/\u201C/g, '"')
-    .replace(/\u201D/g, '"')
-    .replace(/\s+/g, " ")
-    .trim();
+function pageVisibleText(markup: string): string {
+  return markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-const privacySource = read("app/privacy/page.tsx");
-const termsSource = read("app/terms/page.tsx");
-const privacy = legalPageText(PrivacyPage);
-const terms = legalPageText(TermsPage);
+const privacy = read("app/privacy/page.tsx");
+const terms = read("app/terms/page.tsx");
+const privacyText = pageVisibleText(renderToStaticMarkup(createElement(PrivacyPage)));
+const termsText = pageVisibleText(renderToStaticMarkup(createElement(TermsPage)));
 const landing = read("components/landing/LandingPage.tsx");
 const sitemap = read("app/sitemap.ts");
 
@@ -65,7 +48,7 @@ describe("legal content pages", () => {
   });
 
   it("quotes the one monitored contact address on both pages", () => {
-    for (const page of [privacySource, termsSource]) {
+    for (const page of [privacy, terms]) {
       expect(page).toMatch(/from "@\/lib\/siteContact"/);
       expect(page).toMatch(/\{CONTACT_EMAIL\}/);
       // The address itself never gets hardcoded into a page: swapping to a
@@ -121,7 +104,7 @@ describe("legal content pages", () => {
   });
 
   it("keeps analytics optional in the terms as well as the privacy notice", () => {
-    expect(terms).toMatch(/Browsing doesn't need an account or analytics/);
+    expect(terms).toMatch(/Browsing doesn&rsquo;t need an account or analytics/);
     expect(terms).toMatch(/Allow or No thanks/);
     expect(terms).toMatch(/same app either way/);
     expect(terms).toMatch(/persistent\s+device\s+identifier/i);
@@ -140,7 +123,7 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/Supabase sign-in/);
     expect(privacy).toMatch(/private product account/);
     expect(terms).toMatch(/both signed-in sessions/);
-    expect(terms).toMatch(/doesn't use your email or handle to join\s+them/);
+    expect(terms).toMatch(/doesn&rsquo;t use your email or handle to join\s+them/);
     expect(terms).toMatch(/do not run a separate hosted age check/i);
   });
 
@@ -206,16 +189,14 @@ describe("legal content pages", () => {
     }
     expect(privacy).toMatch(/owner[^]*active members who remain Mutual with the owner[^]*full roster[^]*Crew-bound Plan/i);
     expect(privacy).toMatch(/friends[^]*current Mutuals[^]*preview/i);
-    expect(privacy).toMatch(
-      /While a plan is open, anyone can see its\s+title, the pub or place it starts at, its start time, how many people\s+are in it, and your handle as host/i,
+    expect(privacyText).toMatch(
+      /While a plan is open, anyone can see its title, the pub or place it starts at, its start time, how many people are in it, and your handle as host/i,
     );
-    expect(privacy).toMatch(
-      /Close the plan and it drops out of\s+the public list/i,
+    expect(privacyText).toMatch(/Close the plan and it drops out of the public list/i);
+    expect(termsText).toMatch(
+      /While a plan is open, anyone can see its title, the pub or place it starts at, its start time, how many people are in it, and the host handle/i,
     );
-    expect(terms).toMatch(
-      /While a\s+plan is open, anyone can see its title, the pub or place it starts at,\s+its start time, how many people are in it, and the host handle/i,
-    );
-    expect(terms).toMatch(/Close\s+the plan and it drops out of the public list/i);
+    expect(termsText).toMatch(/Close the plan and it drops out of the public list/i);
     expect(privacy).toMatch(/private Crew[^]*owner[^]*active members who\s+remain Mutual with the owner/i);
     expect(privacy).toMatch(/invitation[^]*sender[^]*recipient[^]*expiry[^]*state/i);
     expect(privacy).toMatch(/Join Request[^]*requester[^]*owner and\s+cohosts/i);
@@ -228,7 +209,7 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/owner chooses whether[^]*private or friends/i);
     expect(terms).toMatch(/active members\s+who remain Mutual with the owner[^]*roster[^]*Crew-bound Plan/i);
     expect(terms).toMatch(/owner can\s+change roles[^]*owner or a cohost[^]*remove a non-owner/i);
-    expect(terms).toMatch(/leaving or removal[^]*doesn't erase/i);
+    expect(terms).toMatch(/leaving or removal[^]*doesn&rsquo;t erase/i);
   });
 
   it("discloses interrupted Social upload retention without widening local drafts", () => {
@@ -265,7 +246,7 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/delayed return/i);
     expect(privacy).not.toMatch(/referral attribution[^]*consent-only/);
     expect(privacy).toMatch(/one-way hash of the deleted account ID/);
-    expect(privacy).toMatch(/existing session can't recreate/);
+    expect(privacy).toMatch(/existing session can&rsquo;t recreate/);
   });
 
   it("discloses handle-free Plan public invite RSVPs and reactions", () => {
@@ -288,7 +269,7 @@ describe("legal content pages", () => {
     expect(privacy).not.toMatch(/without\s+rounding them first/);
     expect(privacy).toMatch(/rounds your\s+point to three decimal places/);
     expect(privacy).toMatch(/public StopPoint API/);
-    expect(privacy).toMatch(/pub's public map coordinates/i);
+    expect(privacy).toMatch(/pub(?:&rsquo;|’)s public map coordinates/);
     expect(privacy).not.toMatch(/does not\s+write them to our database/);
     expect(privacy).not.toMatch(/not sent to us or stored anywhere/);
   });
@@ -301,20 +282,17 @@ describe("legal content pages", () => {
     // added through an unrecognised code path. The backstop for that is the
     // AGENTS.md rule that any data-practice change must update the privacy
     // page in the same commit.
+    const thirdPartySection =
+      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+
     const coordinateRecipients = [
       { name: "Transport for London", host: "api.tfl.gov.uk", source: "lib/tflClient.server.ts" },
       { name: "CityMCP", host: "citymcp.com", source: "lib/citymcp/client.ts" },
       { name: "Google Maps", host: "google.com", source: "lib/venueJourney.ts" },
     ];
     for (const recipient of coordinateRecipients) {
-      expect(
-        privacy,
-        `Missing recipient name ${recipient.name}`,
-      ).toContain(recipient.name);
-      expect(
-        privacy,
-        `Missing recipient host ${recipient.host}`,
-      ).toContain(recipient.host);
+      expect(thirdPartySection, `Missing recipient name ${recipient.name}`).toContain(recipient.name);
+      expect(thirdPartySection, `Missing recipient host ${recipient.host}`).toContain(recipient.host);
       expect(read(recipient.source), `${recipient.source} no longer contacts ${recipient.host}`).toContain(
         recipient.host,
       );
@@ -325,10 +303,10 @@ describe("legal content pages", () => {
     // Mirrors lib/pushTokenStore.ts + lib/webPush.ts: registration posts the
     // serialized subscription to /api/push-tokens, the store keeps a durable
     // row, and deletion happens on provider-reported invalidation or request.
-    expect(privacy).toMatch(/PUBMAXX\s+stores\s+your\s+browser's\s+push\s+subscription/);
+    expect(privacy).toMatch(/PUBMAXX\s+stores\s+your\s+browser&rsquo;s\s+push\s+subscription/);
     expect(privacy).toMatch(/endpoint\s+plus\s+its\s+keys/);
     expect(privacy).toMatch(/until\s+the\s+push\s+service\s+reports\s+it\s+dead\s+or\s+you\s+ask\s+us\s+to\s+remove\s+it/);
-    expect(privacy).toMatch(/belongs\s+to\s+your\s+own\s+browser's\s+push\s+service/);
+    expect(privacy).toMatch(/belongs\s+to\s+your\s+own\s+browser&rsquo;s\s+push\s+service/);
     expect(privacy).toMatch(/stored\s+subscription\s+row\s+stays/);
     expect(privacy).toMatch(/Step Out weekly nudge is off by default/i);
     expect(privacy).toMatch(/at most one\s+place-bound push a week/i);
@@ -336,9 +314,9 @@ describe("legal content pages", () => {
   });
 
   it("describes remembered-area request use without claiming all state stays local", () => {
-    expect(privacy).toMatch(/public area's coarse centre/);
-    expect(privacy).toMatch(/The saved choice itself isn't\s+uploaded/);
-    expect(privacy).toMatch(/don't upload those stored values as a bundle/);
+    expect(privacy).toMatch(/public area&rsquo;s coarse centre/);
+    expect(privacy).toMatch(/The saved choice itself isn&rsquo;t\s+uploaded/);
+    expect(privacy).toMatch(/don&rsquo;t upload those stored values as a bundle/);
     expect(privacy).toMatch(/device night profile stays\s+on your device unless you sign in/);
     expect(privacy).not.toMatch(/These never leave your\s+device/);
   });
@@ -407,7 +385,7 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/door policy/);
     expect(privacy).toMatch(/people were eating/);
     expect(privacy).toMatch(/same stable private profile key/);
-    expect(privacy).toMatch(/Venue reports don't enter the public\s+contributor record/);
+    expect(privacy).toMatch(/Venue reports don&rsquo;t enter the public\s+contributor record/);
     expect(privacy).toMatch(/Community prices and venue reports:/);
   });
 
@@ -421,7 +399,7 @@ describe("legal content pages", () => {
       /server\s+derives both contribution\s+identifiers from the authenticated account/,
     );
     expect(privacy).toMatch(/Older rows that had no handle remain\s+anonymous/);
-    expect(privacy).toMatch(/hidden[\s\S]*don't count/i);
+    expect(privacy).toMatch(/hidden[\s\S]*don&rsquo;t count/i);
     expect(privacy).toMatch(
       /Visit Reports and Recommendations[\s\S]*existing public profile[\s\S]*remain visible[\s\S]*excluded/i,
     );
@@ -492,7 +470,7 @@ describe("legal content pages", () => {
 
   it("keeps existing tools open while making full Social 18+", () => {
     expect(terms).toMatch(
-      /map and existing contribution tools don't use age to block an\s+account/i,
+      /map and existing contribution tools don&rsquo;t use age to block an\s+account/i,
     );
     expect(terms).toMatch(/date of birth you gave at onboarding for the 18\+ gate/i);
     expect(terms).toMatch(/Pubs\s+decide who they serve/i);
@@ -520,6 +498,6 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/mark of honour/i);
     expect(terms).toMatch(/buys no feature, no\s+tier and no discount/i);
     expect(terms).toMatch(/cannot grant, any paid feature/i);
-    expect(terms).not.toMatch(/rewards? aren't active/i);
+    expect(terms).not.toMatch(/rewards? aren&rsquo;t active/i);
   });
 });

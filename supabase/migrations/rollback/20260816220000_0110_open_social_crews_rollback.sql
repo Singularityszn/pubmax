@@ -500,5 +500,6 @@ $$;
 
 drop function if exists public.list_open_social_crews(timestamptz, timestamptz, text, integer);
 drop function if exists public.list_open_social_crews(timestamptz, integer);
+drop function if exists public.open_plan_stop_matches_city(text, text);
 
 commit;

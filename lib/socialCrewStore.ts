@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 
 import { hashPlanMemberToken } from "@/lib/planStore";
-import { parseCityId } from "@/lib/cities";
 import type { OutOpenPlan } from "@/lib/out";
 import { OPEN_PLAN_LIST_LIMIT } from "@/lib/openSocialCrew";
 import {
@@ -511,10 +510,7 @@ export function createSocialCrewStore(
       const from = typeof input.from === "string" ? input.from.trim() : "";
       const until = typeof input.until === "string" ? input.until.trim() : "";
       const city = typeof input.city === "string" ? input.city.trim() : "";
-      const safeCity = parseCityId(city) ?? "london";
-      if (!from) return unavailable();
-      if (!until) return unavailable();
-      if (Date.parse(from) >= Date.parse(until)) return unavailable();
+      if (!from || !until || !city) return unavailable();
       const limit = input.limit ?? OPEN_PLAN_LIST_LIMIT;
       if (!Number.isInteger(limit) || limit < 1 || limit > OPEN_PLAN_LIST_LIMIT) {
         return unavailable();
@@ -524,7 +520,7 @@ export function createSocialCrewStore(
         snapshot = await dependencies.snapshot("list_open_social_crews", {
           p_from: from,
           p_until: until,
-          p_city: safeCity,
+          p_city: city,
           p_limit: limit,
         });
       } catch {

@@ -11,6 +11,9 @@ export const OUT_DAYS = ["today", "tomorrow", "weekend"] as const;
 export type OutDay = (typeof OUT_DAYS)[number];
 export type OutStatus = "ready" | "degraded";
 
+/** House sentence when the public Out read cannot finish. Never raw exception text. */
+export const OUT_UNAVAILABLE_ERROR = "Out could not load right now.";
+
 export type OutAttribution = {
   label: string;
   logoRequired: boolean;
@@ -58,10 +61,9 @@ export function parseOutCity(value: string | null): CityId {
 }
 
 /**
- * Inclusive lower bound for list_open_social_crews. Today starts at the
- * London service-day open. Tomorrow is the next service day. Weekend is
- * this Saturday when the week has not reached it, otherwise today's
- * service-day open so a Saturday reader still sees Saturday nights.
+ * Inclusive window for list_open_social_crews. Today starts at the London
+ * service-day open through 05:00 the next morning. Tomorrow is the next
+ * service day. Weekend is Fri 17:00 through Sun 05:00.
  */
 export type OutPlanWindow = { from: string; until: string };
 
@@ -206,7 +208,7 @@ function weekendWindow(now = Date.now()): OutPlanWindow {
  * tomorrow = next London day from 05:00 to 05:00 next day.
  * weekend = Fri 17:00 through Sun 05:00.
  */
-export function outPlansFromIso(day: OutDay, now: number = Date.now()): OutPlanWindow {
+export function outPlansWindow(day: OutDay, now: number = Date.now()): OutPlanWindow {
   const clock = londonClock(now);
   const serviceDate = clock.hour < 5
     ? subtractOneDay({ year: clock.year, month: clock.month, day: clock.day })
@@ -244,6 +246,11 @@ export function outPlansFromIso(day: OutDay, now: number = Date.now()): OutPlanW
       hour: 5,
     }),
   };
+}
+
+/** Lower bound only; prefer outPlansWindow for RPC reads. */
+export function outPlansFromIso(day: OutDay, now: number = Date.now()): string {
+  return outPlansWindow(day, now).from;
 }
 
 export function boundOutOpenPlans(rows: OutOpenPlan[]): OutOpenPlan[] {
