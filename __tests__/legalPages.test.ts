@@ -179,6 +179,10 @@ describe("legal content pages", () => {
     }
     expect(privacy).toMatch(/owner[^]*active members who remain Mutual with the owner[^]*full roster[^]*Crew-bound Plan/i);
     expect(privacy).toMatch(/friends[^]*current Mutuals[^]*preview/i);
+    expect(privacy).toMatch(
+      /open plan shows your handle and plan\s+title to anyone while it is open/i,
+    );
+    expect(privacy).toMatch(/You can close it/i);
     expect(privacy).toMatch(/private Crew[^]*owner[^]*active members who\s+remain Mutual with the owner/i);
     expect(privacy).toMatch(/invitation[^]*sender[^]*recipient[^]*expiry[^]*state/i);
     expect(privacy).toMatch(/Join Request[^]*requester[^]*owner and\s+cohosts/i);

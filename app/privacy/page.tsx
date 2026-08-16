@@ -513,7 +513,8 @@ export default function PrivacyPage() {
           of the owner read a limited preview with the Planned Night title,
           phase, area, start time and their own Join Request state. That preview
           does not show the roster or Crew-bound Plan details. A block in either
-          direction closes the read.
+          direction closes the read. An open plan shows your handle and plan
+          title to anyone while it is open. You can close it.
         </p>
         <p className="legalBody">
           Each invitation records its sender member, recipient account, expiry

@@ -136,7 +136,8 @@ export default function TermsPage() {
         <h2 id="crews" className="legalH2">Social Crews</h2>
         <p className="legalBody">
           A Social Crew takes its name from the linked Planned Night title. Its
-          owner chooses whether it is private or friends-only. Active members
+          owner chooses whether it is private or friends-only, or open. An open
+          plan shows the host handle and title while it is open. Active members
           who remain Mutual with the owner can read the roster and Crew-bound
           Plan. A private Crew stays with the owner and those active members.
           Friends visibility gives the owner&rsquo;s current Mutuals a limited

@@ -30,6 +30,7 @@ import {
   type SocialCrewListPageDTO,
   type SocialCrewMembershipState,
   type SocialCrewPlanDTO,
+  type SocialCrewPreviewDTO,
   type SocialCrewReadDTO,
   type SocialCrewRole,
 } from "@/lib/socialCrew";
@@ -51,7 +52,7 @@ export type RawSocialCrew = {
   planId: string;
   ownerAccountId: string;
   ownerProfileId: string;
-  visibility: "private" | "friends";
+  visibility: "private" | "friends" | "open";
   authorityRevision: number;
   joinRequestState: "none" | "pending" | "declined";
   members: RawSocialCrewMember[];
@@ -95,7 +96,7 @@ export type SocialCrewProjectionViewer = {
 export type RawSocialCrewReadSnapshot =
   | {
       kind: "member";
-      ownerRelationship: "self" | "mutual";
+      ownerRelationship: "self" | "mutual" | "not_mutual";
       crew: RawSocialCrew;
       plan: PlanState;
     }
@@ -107,6 +108,10 @@ export type RawSocialCrewReadSnapshot =
         nightArea: NightContext["nightArea"];
         startsAt: string;
         joinRequestState: "none" | "pending" | "declined";
+        hostHandle?: string;
+        stopVenueId?: string | null;
+        stopVenueName?: string | null;
+        memberCount?: number;
       };
     };
 
@@ -513,6 +518,16 @@ function projectSocialCrewAuthorityRead(
   const nightArea = planState.context?.nightArea ?? null;
 
   if (!actorMember) {
+    if (raw.visibility === "open" && viewer.ownerRelationship !== "blocked") {
+      return {
+        kind: "preview",
+        title: planState.plan.title,
+        phase,
+        nightArea,
+        startsAt: planState.plan.startTime,
+        joinRequestState: raw.joinRequestState,
+      };
+    }
     if (raw.visibility !== "friends" || viewer.ownerRelationship !== "mutual") {
       return null;
     }
@@ -527,9 +542,13 @@ function projectSocialCrewAuthorityRead(
   }
 
   const ownerIsViewer = actorMember.memberId === owner.memberId;
+  if (ownerIsViewer && viewer.ownerRelationship !== "self") {
+    return null;
+  }
   if (
-    (ownerIsViewer && viewer.ownerRelationship !== "self") ||
-    (!ownerIsViewer && viewer.ownerRelationship !== "mutual")
+    !ownerIsViewer &&
+    viewer.ownerRelationship !== "mutual" &&
+    !(raw.visibility === "open" && viewer.ownerRelationship !== "blocked")
   ) {
     return null;
   }
@@ -566,7 +585,7 @@ function projectPreviewSnapshot(value: unknown): SocialCrewReadDTO {
   ) {
     return unavailable("preview");
   }
-  return {
+  const preview: SocialCrewPreviewDTO = {
     kind: "preview",
     title: value.title,
     phase: socialCrewPhase(value.status),
@@ -574,6 +593,19 @@ function projectPreviewSnapshot(value: unknown): SocialCrewReadDTO {
     startsAt: canonicalDate(value.startsAt, "preview"),
     joinRequestState: value.joinRequestState,
   };
+  if (typeof value.hostHandle === "string" && value.hostHandle.trim()) {
+    preview.hostHandle = value.hostHandle;
+  }
+  if (value.stopVenueId === null || typeof value.stopVenueId === "string") {
+    preview.stopVenueId = value.stopVenueId;
+  }
+  if (value.stopVenueName === null || typeof value.stopVenueName === "string") {
+    preview.stopVenueName = value.stopVenueName;
+  }
+  if (Number.isInteger(value.memberCount) && Number(value.memberCount) >= 0) {
+    preview.memberCount = Number(value.memberCount);
+  }
+  return preview;
 }
 
 export function projectSocialCrewRead(
@@ -588,7 +620,8 @@ export function projectSocialCrewRead(
       !isRecord(rawInput.crew) ||
       !isRecord(rawInput.plan) ||
       (rawInput.ownerRelationship !== "self" &&
-        rawInput.ownerRelationship !== "mutual") ||
+        rawInput.ownerRelationship !== "mutual" &&
+        rawInput.ownerRelationship !== "not_mutual") ||
       !isRecord(viewer) ||
       "actor" in viewer
     ) {

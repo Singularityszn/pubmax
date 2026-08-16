@@ -4,12 +4,17 @@ import {
   socialCrewBody,
   socialCrewErrorResponse,
   socialCrewExactKeys,
+  socialCrewHouseError,
   socialCrewIdempotencyKey,
   socialCrewInvalidResponse,
   socialCrewMutation,
   socialCrewNotFoundResponse,
   socialCrewPrivateJson,
+  socialCrewUnavailableResponse,
 } from "@/lib/socialCrewHttp";
+import { isSocialCrewVisibility } from "@/lib/socialCrew";
+import { OPEN_PLAN_PLACE_REFUSED_LINE } from "@/lib/openSocialCrew";
+import { resolveOpenMeetingFromStops } from "@/lib/openSocialCrew.server";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { createSocialCrewStore } from "@/lib/socialCrewStore";
 
@@ -49,12 +54,31 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   }
   const { visibility, expectedAuthorityRevision } = input.body;
   if (
-    (visibility !== "private" && visibility !== "friends") ||
+    !isSocialCrewVisibility(visibility) ||
     !Number.isSafeInteger(expectedAuthorityRevision) ||
     Number(expectedAuthorityRevision) < 0 ||
     Number(expectedAuthorityRevision) > 2_147_483_647
   ) {
     return socialCrewInvalidResponse();
+  }
+  if (visibility === "open") {
+    try {
+      const crew = await store.read(crewId, authority.actor);
+      if (crew.kind !== "member") return socialCrewInvalidResponse();
+      const meeting = await resolveOpenMeetingFromStops(crew.plan.stops);
+      if (meeting.ok === false && meeting.reason === "unavailable") {
+        return socialCrewUnavailableResponse();
+      }
+      if (!meeting.ok) {
+        return socialCrewHouseError(
+          OPEN_PLAN_PLACE_REFUSED_LINE,
+          "OPEN_PLAN_PLACE_REFUSED",
+          422,
+        );
+      }
+    } catch (error) {
+      return socialCrewErrorResponse(error);
+    }
   }
 
   return socialCrewMutation(() => store.updateVisibility(authority.actor, {
