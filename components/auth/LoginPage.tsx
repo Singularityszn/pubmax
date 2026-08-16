@@ -16,7 +16,6 @@ import { trackEvent } from "@/lib/analytics";
 import {
   ARRIVAL_FROM_PARAM,
   ARRIVAL_INTENT_PARAM,
-  arrivalDestination,
   LOGIN_ADD_ACCOUNT_PARAM,
   rememberChosenIntent,
   type ArrivalIntent,
@@ -24,6 +23,7 @@ import {
 import type { DeviceAccountRecord } from "@/lib/deviceAccountSessions";
 import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
+import { addLinkAwareDestination } from "@/lib/addLink";
 
 import "@/app/auth/auth.css";
 import "./loginPage.css";
@@ -364,10 +364,24 @@ export default function LoginPage({
   }, [cancelAuthAttempt]);
 
   const door = DOORS[intent];
+  /**
+   * Where a completed sign-in lands. A SIGN-UP always finishes on the claim
+   * surface, so an add link (/add/<handle>?auto=1) has to ride WITH it: the
+   * claim surface and the onboarding sheet both hand a person back to their
+   * `?returnTo=` when they are done, which is how a stranger who followed a
+   * friend's share link ends up back on it with an account.
+   */
   const destination = useMemo(
-    () => arrivalDestination(intent, from, HANDLE_CLAIM_NEXT),
+    () => addLinkAwareDestination(intent, from, HANDLE_CLAIM_NEXT),
     [from, intent],
   );
+  /**
+   * The handle+password form signs in without navigating, so it needs telling
+   * where the person was going. Only an explicit `?from=` counts: a bare
+   * /login sign-in keeps showing its signed-in card, as it always has.
+   */
+  const passwordDestination = from ? destination : null;
+  const providerDestination = from ? destination : undefined;
 
   const chooseDoor = useCallback((next: ArrivalIntent) => {
     setIntent(next);
@@ -397,33 +411,39 @@ export default function LoginPage({
     trackEvent("sign_in_initiated", { provider: "google" });
     setBusy("google");
     setError(null);
-    const { error: signInError } = await signInWithGoogle();
+    const { error: signInError } = providerDestination
+      ? await signInWithGoogle(providerDestination)
+      : await signInWithGoogle();
     if (signInError) {
       setError(signInError);
       setBusy(null);
     }
-  }, [signInWithGoogle]);
+  }, [providerDestination, signInWithGoogle]);
 
   const onSignInApple = useCallback(async () => {
     trackEvent("sign_in_initiated", { provider: "apple" });
     setBusy("apple");
     setError(null);
-    const { error: signInError } = await signInWithApple();
+    const { error: signInError } = providerDestination
+      ? await signInWithApple(providerDestination)
+      : await signInWithApple();
     if (signInError) {
       setError(signInError);
       setBusy(null);
     }
-  }, [signInWithApple]);
+  }, [providerDestination, signInWithApple]);
 
   const onResume = useCallback(async () => {
     if (resumeStatus === "sending" || resumeStatus === "sent") return;
     trackEvent("sign_in_initiated", { provider: "email_resume" });
     setResumeStatus("sending");
     setResumeMessage("");
-    const result = await resumeSignIn();
+    const result = providerDestination
+      ? await resumeSignIn(providerDestination)
+      : await resumeSignIn();
     setResumeStatus(result.status);
     setResumeMessage(result.message);
-  }, [resumeSignIn, resumeStatus]);
+  }, [providerDestination, resumeSignIn, resumeStatus]);
 
   const onSignOut = useCallback(
     async (scope: SignOutScope) => {
@@ -525,7 +545,10 @@ export default function LoginPage({
                     submitLabel={door.emailCta}
                   />
                   {intent === "signin" ? (
-                    <HandlePasswordSignIn disabled={busy !== null} />
+                    <HandlePasswordSignIn
+                      disabled={busy !== null}
+                      redirectTo={passwordDestination}
+                    />
                   ) : null}
                 </>
               ) : null}

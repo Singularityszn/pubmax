@@ -217,6 +217,13 @@ export const ANALYTICS_EVENTS = {
   // registry exists to keep out, and even a coarse band narrows the same way.
   // The count of these events is the whole signal.
   founding_grant: [],
+  // The share-link add surface (/add/<handle>). Growth's own funnel: the link
+  // was opened, a door was taken, an add landed. `surface` and `outcome` are
+  // closed enums and nothing else rides here - never the handle on the link,
+  // which names one person on both ends of it.
+  add_link_viewed: ["surface"],
+  add_link_signup_started: ["surface", "outcome"],
+  add_link_added: ["surface", "outcome"],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
@@ -419,6 +426,8 @@ const SAFE_STRING_VALUES = new Set([
   "plan_accepted", "plan_saved", "plan_completed", "memory_reviewed", "story_published",
   // Wanted Wave A venue kinds (closed enum on wanted_created / wanted_fulfilled).
   "curated", "uk_base", "pending",
+  // Share-link add funnel: the one surface, the two doors, the three outcomes.
+  "add-link", "signin", "added", "failed", "unavailable",
   // Community-price funnel vocabulary: the drink taxonomy and the three
   // failure buckets.
   ...PRICE_SUBMIT_CATEGORIES,

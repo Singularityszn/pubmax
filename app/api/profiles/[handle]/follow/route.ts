@@ -70,9 +70,18 @@ export async function POST(
     // `followOnce` is the shared write (lib/followWrite.server.ts): a starter
     // pack follows a dozen accounts through the same call, so idempotence and
     // the new-follow notification cannot differ between one tap and twelve.
-    const following = unfollow
-      ? !(await s.unfollow(follower, target))
-      : (await followOnce(follower, target)) !== "self";
+    let following: boolean;
+    if (unfollow) {
+      following = !(await s.unfollow(follower, target));
+    } else {
+      const outcome = await followOnce(follower, target);
+      // A target that is gone is a REFUSAL, never the 503 below: telling
+      // somebody to retry a deleted account is a door that will never open.
+      if (outcome === "unavailable") {
+        return publicApiError("That account isn't here any more.", "PROFILE_NOT_FOUND", 404);
+      }
+      following = outcome !== "self";
+    }
     const counts = await s.counts(target);
     return jsonNoStore({ following, counts }, { status: 200 });
   } catch {

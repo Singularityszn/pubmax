@@ -279,6 +279,9 @@ export const STARTER_PACK_FOLLOW_OUTCOMES = [
   "followed",
   "already",
   "self",
+  // The member is gone (deleted). It is its own word, because rounding a
+  // permanent refusal into `failed` reads as a fault the drinker could retry.
+  "unavailable",
   "failed",
 ] as const;
 export type StarterPackFollowOutcome =
@@ -313,8 +316,12 @@ export function starterPackFollowSummary(
   const attempted = results.filter((result) => result.outcome !== "self");
   if (attempted.length === 0) return "Nobody here to follow yet.";
   const failed = attempted.filter((result) => result.outcome === "failed").length;
-  const joined = attempted.length - failed;
-  if (failed === 0) return `Following all ${attempted.length}.`;
-  if (joined === 0) return "That didn't go through. Try again.";
-  return `Following ${joined} of ${attempted.length}. ${failed} didn't go through.`;
+  const gone = attempted.filter((result) => result.outcome === "unavailable").length;
+  const joined = attempted.length - failed - gone;
+  if (failed === 0 && gone === 0) return `Following all ${attempted.length}.`;
+  if (joined === 0 && gone === 0) return "That didn't go through. Try again.";
+  const failedLine = failed === 0 ? "" : ` ${failed} didn't go through.`;
+  const goneLine =
+    gone === 0 ? "" : ` ${gone} ${gone === 1 ? "is" : "are"} no longer here.`;
+  return `Following ${joined} of ${attempted.length}.${failedLine}${goneLine}`;
 }

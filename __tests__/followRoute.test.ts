@@ -3,13 +3,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Pin the route to the process-memory backend even on Vercel, where production
 // Supabase env vars are present. This follows the house pattern for social route
 // tests: backend selection is at the @/lib/supabase seam, not NODE_ENV.
+const storeState = vi.hoisted(() => ({ durable: false }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return {
     ...actual,
-    isSupabaseConfigured: () => false,
+    isSupabaseConfigured: () => storeState.durable,
     requiresSupabaseStore: () => false,
   };
+});
+// The profile read stays on the process-memory backend whichever answer
+// `isSupabaseConfigured` gives, so a case can say "a durable store answered"
+// without swapping the store the test seeded.
+vi.mock("@/lib/profileStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/profileStore")>();
+  return { ...actual, profileStore: () => actual.memoryProfileStore };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
@@ -23,9 +31,15 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 });
 
 import { POST } from "@/app/api/profiles/[handle]/follow/route";
+import { followOnce } from "@/lib/followWrite.server";
 import { followStore, __resetMemoryFollows } from "@/lib/followStore";
 import { __resetMemoryNotifications } from "@/lib/notificationsStore";
-import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
+import { normalizeHandle } from "@/lib/profiles";
+import {
+  memoryProfileStore,
+  __resetMemoryProfiles,
+  __tombstoneMemoryProfile,
+} from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/profiles";
 
@@ -47,13 +61,55 @@ function asUser(userId: string): void {
   authState.userId = userId;
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  storeState.durable = false;
   authState.userId = null;
   __resetMemoryFollows();
   __resetMemoryNotifications();
   __resetMemoryProfiles();
+  await memoryProfileStore.createOwned("sam", "user-sam");
+});
+
+describe("shared follow write target guard", () => {
+  it("refuses a deleted target by name, without writing an edge", async () => {
+    __tombstoneMemoryProfile("sam");
+
+    await expect(followOnce("ken", "sam")).resolves.toBe("unavailable");
+    expect(await followStore().listFollowing("ken")).toEqual([]);
+  });
+
+  it("refuses a handle a DURABLE store came back with nothing for", async () => {
+    storeState.durable = true;
+    await expect(followOnce("ken", "missing")).resolves.toBe("unavailable");
+
+    storeState.durable = false;
+    expect(await followStore().listFollowing("ken")).toEqual([]);
+  });
+
+  it("still follows on a keyless build, where the store holds no profiles", async () => {
+    // The in-memory store a keyless build runs on has never seen this handle,
+    // and that silence is not evidence the account is gone.
+    await expect(followOnce("ken", "stranger")).resolves.toBe("followed");
+    expect(await followStore().listFollowing("ken")).toEqual(["stranger"]);
+  });
+
+  it("keeps a real store failure a failure, not a refusal", async () => {
+    const original = memoryProfileStore.getByHandle.bind(memoryProfileStore);
+    const failing = vi
+      .spyOn(memoryProfileStore, "getByHandle")
+      .mockImplementation(async (handle: string) => {
+        if (normalizeHandle(handle) === "sam") {
+          throw new Error("profile storage is unavailable");
+        }
+        return original(handle);
+      });
+
+    await expect(followOnce("ken", "sam")).rejects.toBeInstanceOf(Error);
+    expect(await followStore().listFollowing("ken")).toEqual([]);
+    failing.mockRestore();
+  });
 });
 
 describe("POST /api/profiles/[handle]/follow", () => {
@@ -65,6 +121,41 @@ describe("POST /api/profiles/[handle]/follow", () => {
       following: true,
       counts: { followers: 1, following: 0 },
     });
+  });
+
+  it("answers a deleted target as a refusal rather than a retryable outage", async () => {
+    __tombstoneMemoryProfile("sam");
+
+    const res = await follow("sam", { follower: "ken" });
+    expect(res.status).toBe(404);
+    expectNoStore(res);
+    expect(await res.json()).toEqual({
+      error: "That account isn't here any more.",
+      code: "PROFILE_NOT_FOUND",
+      retryable: false,
+    });
+    expect(await followStore().listFollowing("ken")).toEqual([]);
+  });
+
+  it("still answers a real store failure as a retryable outage", async () => {
+    const original = memoryProfileStore.getByHandle.bind(memoryProfileStore);
+    const failing = vi
+      .spyOn(memoryProfileStore, "getByHandle")
+      .mockImplementation(async (handle: string) => {
+        if (normalizeHandle(handle) === "sam") {
+          throw new Error("profile storage is unavailable");
+        }
+        return original(handle);
+      });
+
+    const res = await follow("sam", { follower: "ken" });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: "Follow storage is unavailable.",
+      code: "STORE_UNAVAILABLE",
+      retryable: true,
+    });
+    failing.mockRestore();
   });
 
   it("rejects self-follows with no-store headers", async () => {

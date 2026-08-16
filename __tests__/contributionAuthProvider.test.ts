@@ -18,6 +18,14 @@ const authAvailability = vi.hoisted(() => ({
   loadSupabase: vi.fn(async () => ({ google: false, apple: false })),
 }));
 
+const authRedirect = vi.hoisted(() => ({
+  begin: vi.fn(async () => ({
+    ok: true as const,
+    id: "attempt-id",
+    callbackUrl: "http://localhost/auth-callback",
+  })),
+}));
+
 vi.mock("@/components/identity/AccountOnboarding", () => ({
   default: () => null,
 }));
@@ -51,11 +59,7 @@ vi.mock("@/lib/authProviderAvailability", () => ({
 }));
 vi.mock("@/lib/authRedirect", () => ({
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT: "pubmax:auth-fragment-restored",
-  beginCanonicalAuthAttempt: vi.fn(async () => ({
-    ok: true,
-    id: "attempt-id",
-    callbackUrl: "http://localhost/auth-callback",
-  })),
+  beginCanonicalAuthAttempt: authRedirect.begin,
   cancelAuthAttempt: vi.fn(),
   defaultEmailAuthNext: () => "/u/you",
   releaseAuthAttempt: vi.fn(),
@@ -219,6 +223,7 @@ beforeEach(() => {
     result: { error: null },
   });
   authAvailability.loadSupabase.mockClear();
+  authRedirect.begin.mockClear();
   const document = new TestDocument();
   const window = {
     document,
@@ -346,6 +351,46 @@ describe("shared contribution auth invalidation", () => {
       provider: "google",
       options: { redirectTo: "http://localhost/auth-callback" },
     });
+  });
+
+  it("uses an explicit destination for OAuth and welcome-back email callbacks", async () => {
+    const container = globalThis.document.createElement("div");
+    root = createRoot(container);
+    const destination = "/add/karan?auto=1";
+
+    await commitReactWork(async () => {
+      root?.render(
+        createElement(
+          AuthProvider,
+          { clerkIntegrationConfigured: false },
+          createElement(Consumer, { name: "login" }),
+        ),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    authAvailability.guard.mockImplementationOnce(async (_provider, start) => ({
+      availability: { google: true, apple: false },
+      result: await start(),
+    }));
+
+    const auth = consumers.get("login")?.auth;
+    await auth?.signInWithGoogle(destination);
+    expect(authRedirect.begin).toHaveBeenLastCalledWith(
+      "http://localhost/map",
+      destination,
+      expect.any(Object),
+      expect.any(Function),
+    );
+
+    await auth?.resumeSignIn(destination);
+    expect(authRedirect.begin).toHaveBeenLastCalledWith(
+      "http://localhost/map",
+      destination,
+      expect.any(Object),
+      expect.any(Function),
+    );
   });
 
   it("keeps the Supabase path without a product session even when Clerk is configured", async () => {

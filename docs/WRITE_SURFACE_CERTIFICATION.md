@@ -1165,9 +1165,12 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   is emitted twice - `followOnce` (`lib/followWrite.server.ts`) is the one edge
   write both this route and the single follow go through.
 - **Honesty:** the reply carries a per-member outcome (`followed`, `already`,
-  `self`, `failed`) and a summary that names the number that did not go through.
-  One member's storage failure never fails the eleven beside it and is never
-  rounded up into a success. Membership itself is `lib/starterPacks.ts`: claimed,
+  `self`, `unavailable`, `failed`) and a summary that names the number that did
+  not go through. A member the write refused because they are gone is
+  `unavailable`, its own word, because rounding a permanent refusal into
+  `failed` reads as a fault the drinker could retry. One member's storage
+  failure never fails the eleven beside it and is never rounded up into a
+  success. Membership itself is `lib/starterPacks.ts`: claimed,
   live accounts placed by their own public location or holding a founding
   number, never a seeded or invented member.
 - **Scope:** a pack below the member floor answers the same 404 as an unknown

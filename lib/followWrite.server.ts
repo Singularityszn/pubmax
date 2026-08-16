@@ -17,18 +17,30 @@
 
 import { followStore, isSelfFollow } from "@/lib/followStore";
 import { emitNotification } from "@/lib/notificationsStore";
+import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
-export type FollowWriteResult = "followed" | "already" | "self";
+export type FollowWriteResult = "followed" | "already" | "self" | "unavailable";
 
 /**
  * Follow `target` as `follower`. Idempotent. A brand new edge notifies the
  * target, best-effort: `emitNotification` never throws and a failed
  * notification must never fail the follow.
+ *
+ * A REFUSAL AND AN OUTAGE ARE TWO FINDINGS. A target that is gone answers
+ * `unavailable`, which the caller reports as itself; a store that could not
+ * answer still throws, so it stays a retryable fault. And a read that could not
+ * answer is not evidence of absence: only a DURABLE store's silence proves the
+ * target does not exist, because the in-memory store a keyless build runs on
+ * holds no profiles at all. A tombstone is refused whichever store said so.
  */
 export async function followOnce(
   follower: string,
   target: string,
 ): Promise<FollowWriteResult> {
+  const targetProfile = await profileStore().getByHandle(target);
+  if (isProfileTombstoned(targetProfile)) return "unavailable";
+  if (!targetProfile && isSupabaseConfigured()) return "unavailable";
   if (isSelfFollow(follower, target)) return "self";
   const store = followStore();
   const already = await store.isFollowing(follower, target);

@@ -235,9 +235,9 @@ export type AuthContextValue = {
   /** Social providers enabled by the current Supabase Auth settings read. */
   socialProviders: SocialAuthProviderAvailability;
   /** Start the Google OAuth redirect. No-op (returns an error) when unconfigured. */
-  signInWithGoogle: () => Promise<{ error: string | null }>;
+  signInWithGoogle: (next?: string) => Promise<{ error: string | null }>;
   /** Start the Apple OAuth redirect. No-op when unconfigured. */
-  signInWithApple: () => Promise<{ error: string | null }>;
+  signInWithApple: (next?: string) => Promise<{ error: string | null }>;
   /** Send a passwordless email link with normalized, non-enumerating feedback. */
   signInWithEmail: (email: string, next?: string) => Promise<MagicLinkResult>;
   /** User cancelled an abandoned provider or magic-link attempt. */
@@ -260,7 +260,7 @@ export type AuthContextValue = {
    */
   welcomeBack: ResumeHint | null;
   /** One-tap re-auth: email a sign-in link to the saved address. */
-  resumeSignIn: () => Promise<MagicLinkResult>;
+  resumeSignIn: (next?: string) => Promise<MagicLinkResult>;
   /** Account-owned public handle, or null before onboarding or when signed out. */
   handle: string | null;
   /**
@@ -711,9 +711,9 @@ export function AuthProvider({
     };
   }, [configured, updateSession]);
 
-  const startSupabaseGoogleOAuth = useCallback(async (): Promise<{ error: string | null }> => {
+  const startSupabaseGoogleOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
-    const attempt = await prepareAuthCallback(window.location.href);
+    const attempt = await prepareAuthCallback(window.location.href, next);
     if ("navigationStarted" in attempt) return { error: null };
     if (!attempt.ok) return { error: attempt.message };
     const supabase = await ensureSupabaseBrowser().catch(() => null);
@@ -736,9 +736,9 @@ export function AuthProvider({
     }
   }, []);
 
-  const startSupabaseAppleOAuth = useCallback(async (): Promise<{ error: string | null }> => {
+  const startSupabaseAppleOAuth = useCallback(async (next?: string): Promise<{ error: string | null }> => {
     if (typeof window === "undefined") return { error: "Sign-in is unavailable on this page." };
-    const attempt = await prepareAuthCallback(window.location.href);
+    const attempt = await prepareAuthCallback(window.location.href, next);
     if ("navigationStarted" in attempt) return { error: null };
     if (!attempt.ok) return { error: attempt.message };
     const supabase = await ensureSupabaseBrowser().catch(() => null);
@@ -761,20 +761,20 @@ export function AuthProvider({
     }
   }, []);
 
-  const signInWithGoogle = useCallback(async (): Promise<{ error: string | null }> => {
+  const signInWithGoogle = useCallback(async (next?: string): Promise<{ error: string | null }> => {
     const guarded = await guardSocialAuthProvider(
       "google",
-      startSupabaseGoogleOAuth,
+      () => startSupabaseGoogleOAuth(next),
       loadSocialAuthProviders,
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
     return guarded.result;
   }, [startSupabaseGoogleOAuth]);
 
-  const signInWithApple = useCallback(async (): Promise<{ error: string | null }> => {
+  const signInWithApple = useCallback(async (next?: string): Promise<{ error: string | null }> => {
     const guarded = await guardSocialAuthProvider(
       "apple",
-      startSupabaseAppleOAuth,
+      () => startSupabaseAppleOAuth(next),
       loadSocialAuthProviders,
     );
     setSocialProviders(guarded.availability ?? NO_SOCIAL_AUTH_PROVIDERS);
@@ -883,13 +883,13 @@ export function AuthProvider({
     });
   }, [canonicalIdentityState.status, configured, loading, session]);
 
-  const resumeSignIn = useCallback(async (): Promise<MagicLinkResult> => {
+  const resumeSignIn = useCallback(async (next?: string): Promise<MagicLinkResult> => {
     if (typeof window === "undefined") {
       return { status: "error", message: "Sign-in is unavailable on this page." };
     }
     const attempt = await prepareAuthCallback(
       window.location.href,
-      defaultEmailAuthNext(window.location.href),
+      next ?? defaultEmailAuthNext(window.location.href),
     );
     if ("navigationStarted" in attempt) {
       return { status: "error", message: "Continue sign-in on pubmaxxing.com." };

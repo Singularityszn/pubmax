@@ -1,8 +1,22 @@
-import { createElement } from "react";
+import { createElement, type FunctionComponent } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const authActions = vi.hoisted(() => ({
+  google: vi.fn(async () => ({ error: null })),
+  apple: vi.fn(async () => ({ error: null })),
+  email: vi.fn(async () => ({ status: "sent" as const, message: "link sent" })),
+  resume: vi.fn(async () => ({ status: "sent" as const, message: "link sent" })),
+}));
+
+const loginEntries = vi.hoisted(() => ({
+  google: null as null | (() => void | Promise<void>),
+  apple: null as null | (() => void | Promise<void>),
+  email: null as null | ((email: string) => Promise<unknown>),
+  passwordDestination: undefined as string | null | undefined,
+}));
 
 vi.mock("next/link", () => ({
   default: ({
@@ -26,29 +40,63 @@ vi.mock("@/components/auth/AuthProvider", () => ({
     loading: false,
     configured: true,
     clerkIntegrationConfigured: false,
-    socialProviders: { google: true, apple: false },
-    signInWithGoogle: vi.fn(async () => ({ error: null })),
-    signInWithApple: vi.fn(async () => ({ error: null })),
-    signInWithEmail: vi.fn(async () => ({
-      status: "sent",
-      message: "link sent",
-    })),
+    socialProviders: { google: true, apple: true },
+    signInWithGoogle: authActions.google,
+    signInWithApple: authActions.apple,
+    signInWithEmail: authActions.email,
     cancelAuthAttempt: vi.fn(),
     signOut: vi.fn(async () => undefined),
+    welcomeBack: null,
+    resumeSignIn: authActions.resume,
   }),
 }));
 
 vi.mock("@/components/auth/MagicLinkForm", () => ({
-  default: () =>
-    createElement("form", { className: "authMagicLink" }, "email form"),
+  default: ({ signInWithEmail }: { signInWithEmail: (email: string) => Promise<unknown> }) => {
+    loginEntries.email = signInWithEmail;
+    return createElement("form", { className: "authMagicLink" }, "email form");
+  },
 }));
 
 vi.mock("@/components/auth/SocialSignInButtons", () => ({
-  default: () =>
-    createElement("div", { className: "authProviders" }, "social"),
+  default: ({
+    onGoogle,
+    onApple,
+  }: {
+    onGoogle: () => void | Promise<void>;
+    onApple: () => void | Promise<void>;
+  }) => {
+    loginEntries.google = onGoogle;
+    loginEntries.apple = onApple;
+    return createElement("div", { className: "authProviders" }, "social");
+  },
+}));
+
+vi.mock("@/components/auth/HandlePasswordSignIn", () => ({
+  default: ({ redirectTo }: { redirectTo?: string | null }) => {
+    loginEntries.passwordDestination = redirectTo;
+    return createElement("div", { className: "authHandlePassword" }, "password");
+  },
 }));
 
 import LoginPage from "@/components/auth/LoginPage";
+
+// The page declares every prop optional with a `= {}` default, so React's own
+// inference reads it as taking none. This names the props it really accepts.
+const LoginPageWithProps = LoginPage as FunctionComponent<
+  NonNullable<Parameters<typeof LoginPage>[0]>
+>;
+
+beforeEach(() => {
+  authActions.google.mockClear();
+  authActions.apple.mockClear();
+  authActions.email.mockClear();
+  authActions.resume.mockClear();
+  loginEntries.google = null;
+  loginEntries.apple = null;
+  loginEntries.email = null;
+  loginEntries.passwordDestination = undefined;
+});
 
 describe("login page", () => {
   it("ships a dedicated /login route and /signin alias", () => {
@@ -99,10 +147,39 @@ describe("login page", () => {
     expect(page).toContain("Welcome back");
     expect(page).toContain("Email me a sign-in link");
     expect(page).toContain("Email me a sign-up link");
-    expect(page).toContain("arrivalDestination");
     expect(page).toContain("rememberChosenIntent");
     // Handle-and-password stays beside the link on the sign-in door.
     expect(page).toContain("HandlePasswordSignIn");
+  });
+
+  it("hands the add-link destination to every visible sign-in action", async () => {
+    const destination = "/add/karan?auto=1";
+    renderToStaticMarkup(
+      createElement(LoginPageWithProps, {
+        initialIntent: "signin",
+        from: destination,
+      }),
+    );
+
+    await loginEntries.google?.();
+    await loginEntries.apple?.();
+    await loginEntries.email?.("person@example.test");
+
+    expect(authActions.google).toHaveBeenCalledWith(destination);
+    expect(authActions.apple).toHaveBeenCalledWith(destination);
+    expect(authActions.email).toHaveBeenCalledWith("person@example.test", destination);
+    expect(loginEntries.passwordDestination).toBe(destination);
+  });
+
+  it("keeps bare login OAuth calls unchanged", async () => {
+    renderToStaticMarkup(createElement(LoginPage));
+
+    await loginEntries.google?.();
+    await loginEntries.apple?.();
+
+    expect(authActions.google).toHaveBeenCalledWith();
+    expect(authActions.apple).toHaveBeenCalledWith();
+    expect(loginEntries.passwordDestination).toBeNull();
   });
 
   it("styles the page as a full dvh composition with 44px+ taps", () => {
