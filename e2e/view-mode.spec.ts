@@ -15,19 +15,19 @@ test("legacy view-mode state cannot replace the current mobile navigation", asyn
   await page.goto("/feed");
 
   const nav = page.getByRole("navigation", { name: "Primary" });
-  for (const label of ["Map", "Tonight", "Moment", "Stories", "You"]) {
+  for (const label of ["Now", "Map", "Out", "Social", "You"]) {
     await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
-  await expect(nav.getByRole("link", { name: "Stories", exact: true })).toHaveAttribute(
+  await expect(nav.getByRole("link", { name: "Social", exact: true })).toHaveAttribute(
     "aria-current",
     "page",
   );
-  await expect(nav.getByRole("link", { name: "Moment", exact: true })).not.toHaveAttribute(
-    "aria-current",
-    "page",
-  );
+  // The create action is a sibling of the bar, never inside it: compose is an
+  // action, and the bar holds destinations only.
+  await expect(page.getByRole("button", { name: "Create" })).toBeVisible();
+  await expect(nav.getByRole("button", { name: "Create" })).toHaveCount(0);
   await expect(page.getByRole("radio", { name: /ledger|lock-in/i })).toHaveCount(0);
 
   const destinations = await nav.locator("a[aria-current='page']").allTextContents();
-  expect(destinations.map((label) => label.trim())).toEqual(["Stories"]);
+  expect(destinations.map((label) => label.trim())).toEqual(["Social"]);
 });

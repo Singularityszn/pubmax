@@ -8,9 +8,9 @@ actions around that model. Do not copy the current tab roster here.
 ## 1. Primary navigation
 
 The shared navigation model is authoritative for durable destinations, display
-labels, and active-path matching. The social feed destination is **Stories** at
-`/feed`; Discover and Crawls are supporting content matched to that destination,
-not alternate names for it.
+labels, and active-path matching. Read the roster and the match sets there;
+`/feed`, `/stories`, `/discover`, `/drinks` and `/crawls` are supporting content
+matched to one social destination, not alternate names for it.
 
 Reachability rule: every content surface must be reachable in ≤2 taps from a tab.
 

@@ -100,6 +100,9 @@ export const ANALYTICS_EVENTS = {
   // Wave A
   tonight_screen_view: [],
   tonight_filter_select: ["kind"],
+  out_screen_view: [],
+  out_filter_select: ["kind"],
+  create_fab_action: ["action"],
   // Vibe layer (docs/VIBE_LAYER_SPEC_2026-07-19.md): which mood chip was
   // pressed. The vibe id only — never free text, never location.
   tonight_vibe_select: ["vibe"],
@@ -244,6 +247,9 @@ export const ANALYTICS_EVENTS = {
   open_plan_posted: ["placeKind"],
   open_plan_join_requested: [],
   open_plan_join_decided: ["decision"],
+  // Out listing card. Closed source enum only - never an event id, venue id,
+  // or coordinate.
+  out_card_opened: ["source"],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
@@ -426,7 +432,8 @@ const CONTRIBUTION_GATE_STEPS = [
 
 const SAFE_STRING_VALUES = new Set([
   // fixed product surfaces and provenance
-  "landing", "home", "map", "tonight", "plan", "you", "pal", "borough", "city", "crawl", "recap",
+  "landing", "home", "map", "tonight", "tomorrow", "weekend", "plan", "you", "pal", "borough", "city", "crawl", "recap",
+  "moment", "price",
   "shared-plan", "plan-link", "crew-reinvite", "completed_plan", "plan-crew",
   "near", "map-search", "direct-plan", "mobile-route-preview",
   "location", "remembered-area", "picked-area", "default-area", "0", "1", "1-3", "2-3", "4+",
@@ -464,6 +471,8 @@ const SAFE_STRING_VALUES = new Set([
   // surfaces that may report. `degraded` and `pal` already sit above.
   "empty", "some-seats", "full", "fresh", "stale", "none", "venue-sheet",
   "place", "accept", "decline",
+  // Out card sources. Closed set; never a free-text publisher or venue name.
+  "ticketmaster", "skiddle", "common",
   // Community-price funnel vocabulary: the drink taxonomy and the three
   // failure buckets.
   ...PRICE_SUBMIT_CATEGORIES,

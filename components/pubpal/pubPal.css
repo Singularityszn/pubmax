@@ -142,9 +142,11 @@
 .palSummon {
   position: fixed;
   right: 18px;
-  bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  /* Lower berth of the right-edge floating stack (mobileNav.css owns both
+     numbers, so the create action above can be derived from them). */
+  bottom: var(--pal-summon-bottom);
   z-index: 545;
-  min-height: 52px;
+  min-height: var(--pal-summon-h);
   padding: 7px 12px 7px 8px;
   display: flex;
   align-items: center;

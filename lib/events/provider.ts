@@ -19,6 +19,18 @@ export type EventsProviderContext = {
   now: number;
   /** Optional fetch override (tests). */
   fetchImpl?: typeof fetch;
+  /**
+   * City id the ask is about. Absent means London. A provider that can aim at a
+   * point resolves the centre from the shared city table, so turning a city on
+   * is data rather than code.
+   */
+  city?: string;
+  /**
+   * The window the CALLER will keep. Absent means tonight's service window. A
+   * provider that can ask its upstream for a window uses this, so a request for
+   * tomorrow does not spend an upstream call on rows the caller then discards.
+   */
+  window?: { startMs: number; endMs: number };
 };
 
 export type EventsProvider = {

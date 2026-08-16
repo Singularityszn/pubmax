@@ -43,11 +43,10 @@ describe("activation chrome CSS", () => {
     expect(followButton).toMatch(/color:\s*var\(--color-on-accent\);/);
   });
 
-  it("keeps the primary mobile planning action clear of the bottom dock", () => {
-    expect(mobileMapShellCss).toMatch(
-      /\.mobilePlanActivation\s*{[\s\S]*?min-height:\s*48px;[\s\S]*?bottom:\s*calc\(var\(--mobile-map-dock-clearance\) \+ 10px\);/,
-    );
-  });
+  // The plan pill's height and its clearance above the bottom dock moved into
+  // the floating stack's published tokens (components/nav/mobileNav.css), so
+  // there is no literal left here to match. Both are measured against the
+  // RENDERED boxes at 320/390/430 by e2e/mobile-map-chrome-fit.spec.ts.
 
   it("keeps the plan-activation pill on the quiet neutral idiom (accent diet #395 R3)", () => {
     // The pill's resting state must NOT be a filled accent — "Near me" is the

@@ -16,7 +16,14 @@ import {
   preferredCityMapHref,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
-import { PRIMARY_NAV_ITEMS, momentHref, navPathMatches } from "@/components/nav/navigationModel";
+import {
+  PRIMARY_NAV_ITEMS,
+  momentHref,
+  navPathMatches,
+  nowTabHref,
+  serverNowTabHref,
+  subscribeNowTabHref,
+} from "@/components/nav/navigationModel";
 
 import "./siteNav.css";
 import "./siteNavMoment.css";
@@ -26,7 +33,7 @@ import "./siteNavMoment.css";
 // drifts page-to-page.
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
-// (MobileTabBar: Map/Tonight/Moment/Social/You). Repeating the full link list up
+// (MobileTabBar: Now/Map/Out/Social/You). Repeating the full link list up
 // top there caused the old `.appNav` pill to overflow the viewport (Admin +
 // theme toggle clipped off-screen) on /map. So on mobile this renders a COMPACT
 // bar — just the wordmark + theme toggle + sign-in — and hides the full link
@@ -39,10 +46,12 @@ import "./siteNavMoment.css";
 
 type NavKey =
   | "home"
+  | "now"
   | "today"
   | "map"
   | "pubs"
   | "drop"
+  | "out"
   | "tonight"
   | "historic"
   | "feed"
@@ -63,18 +72,10 @@ type NavLink = {
 // Consumer nav only. Staff moderation lives at /admin (URL + token) and is
 // intentionally absent from every public nav so demos never look like an
 // admin console.
-// The /today morning brief (Lane A). Added here rather than in the shared
-// PRIMARY_NAV_ITEMS model so the primary-nav contract test stays intact; it
-// leads the desktop link list as the "before you go" home surface.
-const TODAY_LINK: NavLink = { key: "today", href: "/today", label: "Today", match: ["/today"] };
-
-const LINKS: NavLink[] = [
-  TODAY_LINK,
-  ...PRIMARY_NAV_ITEMS.map((item) => ({
-    ...item,
-    key: (item.key === "you" ? "profile" : item.key) as NavKey,
-  })),
-];
+const LINKS: NavLink[] = PRIMARY_NAV_ITEMS.map((item) => ({
+  ...item,
+  key: (item.key === "you" ? "profile" : item.key) as NavKey,
+}));
 
 function matchesPath(pathname: string, link: NavLink): boolean {
   return navPathMatches(pathname, link.match);
@@ -82,6 +83,7 @@ function matchesPath(pathname: string, link: NavLink): boolean {
 
 function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
   if (active === "feed" || active === "discover" || active === "crawls") return "social";
+  if (active === "today" || active === "tonight") return "now";
   // Borough pages are data/discovery, not Social. There is no primary tab for
   // them, so they light nothing on the desktop nav rather than wrongly lighting
   // Social (the mobile tab bar already excludes /borough from its match set).
@@ -109,8 +111,16 @@ export default function SiteNav({
     preferredCityMapHref,
     () => "/map",
   );
+  // Constant server snapshot, then the clock after mount — a prerendered,
+  // CDN-held document must not hydrate against a Now href that has since moved.
+  const nowHref = useSyncExternalStore(
+    subscribeNowTabHref,
+    nowTabHref,
+    serverNowTabHref,
+  );
   const links = LINKS.map((link) => {
     if (link.key === "map") return { ...link, href: mapHref };
+    if (link.key === "now") return { ...link, href: nowHref };
     return link;
   });
 

@@ -209,11 +209,11 @@ describe("mobile chrome fit at 390px", () => {
     const fab = mobileMapCss.match(/\.mobileMapLocateFab\s*{([^}]*)}/)?.[1] ?? "";
     expect(fab, ".mobileMapLocateFab rule present").not.toBe("");
     expect(fab, "a locate FAB is round").toMatch(/border-radius:\s*50%/);
-    const fabSize = Number(fab.match(/width:\s*(\d+)px/)?.[1]);
-    expect(fabSize, "the FAB keeps the tap floor").toBeGreaterThanOrEqual(44);
-    expect(fabSize, "and stays inside the published lane").toBeLessThanOrEqual(
-      cornerInset + cornerBtn + cornerGap,
-    );
+    // Its SIZE is published with the floating stack (mobileNav.css), because the
+    // create action above has to clear this control's own top edge. A number
+    // read back out of that declaration proves nothing, so the tap floor and the
+    // lane fit are measured against the rendered box at 320/390/430 in
+    // e2e/mobile-map-chrome-fit.spec.ts.
 
     const chipCount = (arcChipsTsx.match(/\bkind:\s*"/g) ?? []).length;
     expect(chipCount, "chips declared in TonightArcChips").toBe(5);
@@ -388,3 +388,9 @@ describe("mobile tap-target floors", () => {
     );
   });
 });
+
+// The create action's own geometry - 56px square, its menu rows at the 44px tap
+// floor, the whole stack clear of the tab bar it parks above - is measured
+// against the RENDERED boxes in e2e/mobile-map-chrome-fit.spec.ts at 320, 390
+// and 430. Restating those declarations here would prove only that the text is
+// present, which a dead rule or a behaviour-preserving rename both defeat.

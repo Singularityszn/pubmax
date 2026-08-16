@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
 import { canonicalObservationsPayload } from "../lib/pintIndexCanonical.mjs";
+import { whatsOnRowProblems } from "../lib/whatsOnRowShape.mjs";
 import {
   displayUkPlaceName,
   isPublishableUkPlaceName,
@@ -82,8 +83,6 @@ const POSTCODE_COORDINATE_DECISION_INPUTS = [
 ];
 const DRINK_PRICE_UPDATES_DIR = join(DATA_DIR, "drink_price_updates");
 const WHATS_ON_DIR = join(DATA_DIR, "whats_on");
-const WHATS_ON_KINDS = new Set(["sport", "quiz", "deal", "music"]);
-const WHATS_ON_CONFIDENCES = new Set(["confirmed", "listed", "derived"]);
 const DRINK_CATEGORIES = new Set([
   "beer",
   "wine",
@@ -2508,59 +2507,11 @@ function validateOneWhatsOnFile(fileName) {
   const now = Date.now();
   const errors = [];
   rows.forEach((row, i) => {
-    const where = `row ${i}`;
-    const fail = (msg) => errors.push(`${where}: ${msg}`);
-    if (typeof row !== "object" || row === null) {
-      fail("not an object");
-      return;
-    }
-    if (typeof row.id !== "string" || row.id.length === 0)
-      fail("missing/empty id");
-    if (typeof row.placeName !== "string" || row.placeName.length === 0)
-      fail("missing/empty placeName");
-    if (typeof row.kind !== "string" || !WHATS_ON_KINDS.has(row.kind))
-      fail(`invalid kind "${row.kind}"`);
-    if (
-      typeof row.startsAt !== "string" ||
-      !Number.isFinite(Date.parse(row.startsAt))
-    ) {
-      fail("startsAt is not a valid ISO timestamp");
-    }
-    if (typeof row.title !== "string" || row.title.length === 0)
-      fail("missing/empty title");
-    const source = row.source;
-    if (typeof source !== "object" || source === null) {
-      fail("missing source");
-    } else {
-      if (typeof source.label !== "string" || source.label.length === 0)
-        fail("missing/empty source.label");
-      if (!isHttpUrl(source.url))
-        fail(`source.url "${source.url}" is not an absolute http(s) URL`);
-    }
-    if (typeof row.observedAt !== "string" || row.observedAt.length === 0) {
-      fail("missing/empty observedAt");
-    } else {
-      const ms = Date.parse(row.observedAt);
-      if (!Number.isFinite(ms))
-        fail(`observedAt "${row.observedAt}" is not a valid ISO timestamp`);
-      else if (ms > now)
-        fail(`observedAt "${row.observedAt}" is in the future`);
-    }
-    if (
-      typeof row.confidence !== "string" ||
-      !WHATS_ON_CONFIDENCES.has(row.confidence)
-    ) {
-      fail(`invalid confidence "${row.confidence}"`);
-    }
-    if (row.priceGbp !== undefined && row.priceGbp !== null) {
-      if (
-        typeof row.priceGbp !== "number" ||
-        !Number.isFinite(row.priceGbp) ||
-        row.priceGbp < 0
-      ) {
-        fail(`priceGbp must be a finite number >= 0`);
-      }
-    }
+    // ONE implementation of the row shape (lib/whatsOnRowShape.mjs), shared
+    // with the app spine and scripts/refresh_whats_on.mjs. A hand-kept mirror
+    // here is what let a date-only row be valid to the app and a hard failure
+    // to this gate.
+    for (const problem of whatsOnRowProblems(row, now)) errors.push(`row ${i}: ${problem}`);
   });
 
   const ok = errors.length === 0;

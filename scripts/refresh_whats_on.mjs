@@ -1,6 +1,7 @@
 // Scheduled What's-On refresh scaffold (Task B1). Reads sibling scraper outputs
 // from scripts/whatson/*.json (sport + quiz agents write rows to the B1 row
-// contract), validates every candidate with a JS mirror of isValidWhatsOnRow,
+// contract), validates every candidate with the SHARED row shape
+// (lib/whatsOnRowShape.mjs, the same one lib/whatsOn.ts and validate-data use),
 // drops + counts bad rows, and writes a versioned file + latest.json envelope.
 // With --open-pr it opens a review PR via `gh` (never pushes to main). NO
 // GitHub workflow file (Actions billing-dead).
@@ -15,57 +16,12 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+import { isValidWhatsOnRow } from "../lib/whatsOnRowShape.mjs";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const IN_DIR = join(ROOT, "scripts", "whatson");
 const OUT_DIR = join(ROOT, "public", "data", "whats_on");
-
-const WHATS_ON_KINDS = new Set(["sport", "quiz", "deal", "music"]);
-const WHATS_ON_CONFIDENCES = new Set(["confirmed", "listed", "derived"]);
-
-function isNonEmptyString(v) {
-  return typeof v === "string" && v.length > 0;
-}
-function isFiniteNumber(v) {
-  return typeof v === "number" && Number.isFinite(v);
-}
-function isHttpUrl(v) {
-  if (!isNonEmptyString(v)) return false;
-  try {
-    const u = new URL(v);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-function isValidIso(v) {
-  return isNonEmptyString(v) && Number.isFinite(Date.parse(v));
-}
-
-// Mirror of lib/whatsOn.ts isValidWhatsOnRow.
-function isValidWhatsOnRow(row, now) {
-  if (typeof row !== "object" || row === null) return false;
-  if (!isNonEmptyString(row.id)) return false;
-  if (!isNonEmptyString(row.placeName)) return false;
-  if (!isNonEmptyString(row.kind) || !WHATS_ON_KINDS.has(row.kind)) return false;
-  if (!isValidIso(row.startsAt)) return false;
-  if (!isNonEmptyString(row.title)) return false;
-  const s = row.source;
-  if (typeof s !== "object" || s === null) return false;
-  if (!isNonEmptyString(s.label) || !isHttpUrl(s.url)) return false;
-  if (!isNonEmptyString(row.observedAt)) return false;
-  const ms = Date.parse(row.observedAt);
-  if (!Number.isFinite(ms) || ms > now) return false;
-  if (!isNonEmptyString(row.confidence) || !WHATS_ON_CONFIDENCES.has(row.confidence)) return false;
-  if (row.venueId !== undefined && row.venueId !== null && !isNonEmptyString(row.venueId)) return false;
-  if (row.lat !== undefined && row.lat !== null && !isFiniteNumber(row.lat)) return false;
-  if (row.lng !== undefined && row.lng !== null && !isFiniteNumber(row.lng)) return false;
-  if (row.endsAt !== undefined && row.endsAt !== null && !isValidIso(row.endsAt)) return false;
-  if (row.priceGbp !== undefined && row.priceGbp !== null) {
-    if (!isFiniteNumber(row.priceGbp) || row.priceGbp < 0) return false;
-  }
-  return true;
-}
 
 function loadCandidateRows() {
   if (!existsSync(IN_DIR)) {

@@ -132,12 +132,20 @@ describe("finding 2.1 — map chrome holds no coral fills", () => {
     );
   });
 
-  it("the Moment circle and its glow are no longer coral", () => {
-    for (const body of rules(navCss, ".mobileTabPrimary .mobileTabIcon")) {
-      expect(body).not.toMatch(accentPattern);
+  it("the active glyph is the tab bar's ONLY coral mark", () => {
+    // The Moment circle and its glow used to be the second one. Compose left
+    // the row entirely for the floating create action, so the budget is now a
+    // count rather than a per-selector exemption: any new coral in this
+    // stylesheet is a second mark in the same eight-degree band.
+    const coralRules: string[] = [];
+    for (const match of navCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selector = match[1]!.trim();
+      // A focus ring is an affordance, not a resting mark, and the rules()
+      // helper above already treats an outline that way.
+      if (selector.includes(":focus-visible")) continue;
+      if (accentPattern.test(match[2]!)) coralRules.push(selector);
     }
-    const glow = /@keyframes mobileTabDropGlow\s*\{[\s\S]*?\n\}/.exec(navCss)?.[0] ?? "";
-    expect(glow).not.toMatch(accentPattern);
+    expect(coralRules).toEqual([".mobileTab.isActive .mobileTabIcon"]);
   });
 });
 

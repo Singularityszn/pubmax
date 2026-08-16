@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Map, CirclePlus, UserRound, Images, CalendarClock, Sunrise } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Map, UserRound, Images, CalendarClock, DoorOpen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import {
   preferredCityMapHref,
@@ -11,15 +11,13 @@ import {
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { whenBackgroundWarmupAllowed } from "@/lib/backgroundWarmup";
 import { warmNavRoute, warmPrimaryTabRoutes } from "@/lib/mapWarmup";
-import { markPubmaxTiming } from "@/lib/performanceMarks";
 import {
-  MOMENT_NAV_ACTION,
   PRIMARY_NAV_ITEMS,
-  TOUR_TARGET_TAB_KEY,
-  momentHref,
   navPathMatches,
+  nowTabHref,
+  serverNowTabHref,
+  subscribeNowTabHref,
   type PrimaryNavKey,
-  type TourSpotlightTarget,
 } from "@/components/nav/navigationModel";
 import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import {
@@ -39,70 +37,45 @@ import "./mobileNav.css";
 // Find my pint owns entry. On desktop it is display:none, leaving existing
 // desktop navs untouched.
 //
-// Moment is the emphasized centre action and opens the private-first camera
-// composer. Pint Drop remains an explicit action inside Moment and the map.
+// Five destinations. Compose lives on the floating + action, never in this row.
 //
 // Path active-state is pure (usePathname). Mount-time prefetch of destination
 // tabs is the only effect — it must not set state (react-hooks/set-state-in-effect).
 
 type Tab = {
-  key: PrimaryNavKey | "today" | typeof MOMENT_NAV_ACTION.key;
+  key: PrimaryNavKey;
   href: string;
   label: string;
   Icon: typeof Map;
   /** Path prefixes that should mark this tab active (defaults to href). */
   match?: string[];
-  /** The emphasized centre action. */
-  primary?: boolean;
 };
 
 const warmedTabs = new Set<string>();
 
-// The /today morning brief (Lane A). Added here rather than in the shared
-// PRIMARY_NAV_ITEMS model so the primary-nav contract test stays intact; it
-// leads the tab row as the "before you go" home surface.
-const TODAY_TAB: Omit<Tab, "Icon" | "primary"> = {
-  key: "today",
-  href: "/today",
-  label: "Today",
-  match: ["/today"],
-};
-
-// Map follows the preferred city (null → /map); every other route is canonical.
-// Exported for the six-tab contract test (order + destinations are load-bearing).
-export function buildTabs(mapHref: string, pathname: string, youHref = "/u/you"): Tab[] {
-  const icons = { today: Sunrise, map: Map, tonight: CalendarClock, moment: CirclePlus, social: Images, you: UserRound };
-  const primary = PRIMARY_NAV_ITEMS.map((item) => ({
+// Map follows the preferred city (null → /map). Now follows London wall clock.
+// Exported for the five-tab contract test (order + destinations are load-bearing).
+export function buildTabs(
+  mapHref: string,
+  youHref = "/u/you",
+  nowHref: "/today" | "/tonight" = "/today",
+): Tab[] {
+  const icons = { now: CalendarClock, map: Map, out: DoorOpen, social: Images, you: UserRound };
+  return PRIMARY_NAV_ITEMS.map((item) => ({
     ...item,
-    href: item.key === "map" ? mapHref : item.key === "you" ? youHref : item.href,
+    href:
+      item.key === "now"
+        ? nowHref
+        : item.key === "map"
+          ? mapHref
+          : item.key === "you"
+            ? youHref
+            : item.href,
     Icon: icons[item.key],
   }));
-  // Today, Map | Moment (centre) | Tonight, Social, You.
-  const destinations = [{ ...TODAY_TAB, Icon: icons.today }, ...primary];
-  return [
-    ...destinations.slice(0, 2),
-    { ...MOMENT_NAV_ACTION, href: momentHref(pathname), match: [], Icon: icons.moment, primary: true },
-    ...destinations.slice(2),
-  ];
-}
-
-// Resolve a first-run tour spotlight target ("map" | "drop" | "social") to
-// its live column in the tab row, so the tour ring is positioned from the REAL
-// tab geometry and moves with it if the row grows or reorders. Args are
-// irrelevant to the order/count, so the canonical /map pair is fine. Exported
-// for the tour and its geometry regression test.
-export function tourSpotlightColumn(target: TourSpotlightTarget): { index: number; total: number } {
-  const tabs = buildTabs("/map", "/map");
-  return {
-    index: tabs.findIndex((tab) => tab.key === TOUR_TARGET_TAB_KEY[target]),
-    total: tabs.length,
-  };
 }
 
 function isActive(pathname: string, tab: Tab): boolean {
-  // The primary Moment action is intentionally not painted as a persistent
-  // active tab; its raised shape communicates creation rather than location.
-  if (tab.primary) return false;
   return navPathMatches(pathname, tab.match ?? [tab.href]);
 }
 
@@ -123,7 +96,6 @@ export default function MobileTabBar() {
 }
 
 function MobileTabBarContent({ pathname }: { pathname: string }) {
-  const searchParams = useSearchParams();
   const router = useRouter();
   // Preference may be null → /map. useSyncExternalStore: SSR/hydration stay on
   // /map, then re-read after mount (and when CitySwitcher writes).
@@ -131,6 +103,14 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     subscribePreferredCity,
     preferredCityMapHref,
     () => "/map",
+  );
+  // Now flips at 17:00 London. The SERVER snapshot is a constant, not a clock
+  // read: a prerendered document held by the CDN would otherwise hydrate against
+  // an href the browser had already moved past. See navigationModel.
+  const nowHref = useSyncExternalStore(
+    subscribeNowTabHref,
+    nowTabHref,
+    serverNowTabHref,
   );
   // You tab: when identity is known, point straight at /u/<handle> instead of
   // the /u/you sentinel (which client-redirects after mount and doubles the
@@ -153,15 +133,9 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     readStrictModalFocusTrap,
     serverStrictModalFocusTrap,
   );
-  // The Moment return path is the page the tap left, so it is the live route on
-  // the server too. A constant server snapshot ("/") would send every
-  // server-rendered Moment link home until hydration repaired it. Root does not
-  // mount this bar (shouldShowMobileTabBar), so no rendered document ever
-  // compares a live pathname with the root one.
-  const returnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`;
   const tabs = useMemo(
-    () => buildTabs(mapHref, returnTo, youHref),
-    [mapHref, returnTo, youHref],
+    () => buildTabs(mapHref, youHref, nowHref),
+    [mapHref, youHref, nowHref],
   );
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the tabs own) hides it via CSS rather than pinning it to a
@@ -174,8 +148,8 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     [router],
   );
 
-  // Background warmup of every OTHER durable tab destination (Today / Map /
-  // Tonight / Social / You). Extends the landing map-warmup pattern so a cold
+  // Background warmup of every OTHER durable tab destination (Now / Map /
+  // Out / Social / You). Extends the landing map-warmup pattern so a cold
   // thumb-tap does not wait on first-fetch of the target route bundle. No
   // setState.
   //
@@ -195,17 +169,9 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     });
   }, [router, tabs, pathname]);
 
-  const markDropTap = useCallback((primary?: boolean) => {
-    if (primary) markPubmaxTiming("pubmax:drop-tap");
+  const onPrimaryTabNavigate = useCallback(() => {
+    requestMobileSheetDismiss();
   }, []);
-
-  const onPrimaryTabNavigate = useCallback(
-    (primary?: boolean) => {
-      requestMobileSheetDismiss();
-      markDropTap(primary);
-    },
-    [markDropTap],
-  );
 
   return (
     <nav
@@ -248,28 +214,24 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
               <Link
                 href={tab.href}
                 // The bar sits in the viewport on every page, so Next's
-                // automatic prefetch fires for all six destinations while the
+                // automatic prefetch fires for all five tab destinations while the
                 // current page is still painting. This component already owns a
                 // better-timed warm for exactly those routes: gated behind the
                 // foreground paint below, and on pointer/hover/focus intent
                 // above. Leaving the automatic one on top only duplicates it at
                 // the worst moment.
                 prefetch={false}
-                className={
-                  "mobileTab pressable" +
-                  (tab.primary ? " mobileTabPrimary" : "") +
-                  (active ? " isActive" : "")
-                }
+                className={"mobileTab pressable" + (active ? " isActive" : "")}
                 aria-current={active ? "page" : undefined}
                 onPointerDown={() => warmTab(tab.href)}
-                onClick={() => onPrimaryTabNavigate(tab.primary)}
+                onClick={onPrimaryTabNavigate}
                 onMouseEnter={() => warmTab(tab.href)}
                 onFocus={() => warmTab(tab.href)}
                 onTouchStart={() => warmTab(tab.href)}
               >
                 <span className="mobileTabIcon" aria-hidden="true">
                   <Icon
-                    size={tab.primary ? 16 : 15}
+                    size={15}
                     strokeWidth={active ? 2.25 : 1.75}
                     fill="none"
                   />

@@ -27,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 
+import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
 import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
@@ -69,7 +70,7 @@ import {
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 import type { QuietPintModule } from "@/lib/quietPint";
 import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
-import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
+import { whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import {
   checkedLabel,
   laneKindFacets,
@@ -334,6 +335,7 @@ export default function TonightClient({
 
       <div className="tonightDesktopGrid">
       <header className="tonightHead">
+        <NowSegment current="tonight" />
         <div className="tonightEyebrowRow">
           <p className="tonightEyebrow">Tonight in London</p>
           <TonightShareButton />
@@ -527,6 +529,7 @@ export default function TonightClient({
                   ? walkLabel(walkMinutes(origin, { lat: row.lat, lng: row.lng }))
                   : null;
               const KindIcon = row.kind === "sport" ? Tv : CalendarClock;
+              const barePrice = whatsOnBarePriceGbp(row);
               // A deal carries an exact window and a listing date, so it says
               // when it closes and how old the listing is. Both read off the row.
               const dealEnds = row.kind === "deal" ? dealEndsCaption(row) : null;
@@ -539,9 +542,9 @@ export default function TonightClient({
                       <KindIcon size={12} aria-hidden="true" />
                       {meta.label}
                     </span>
-                    {typeof row.priceGbp === "number" ? (
+                    {barePrice !== null ? (
                       <span className="tonightRowPrice">
-                        £{row.priceGbp.toFixed(2)}
+                        £{barePrice.toFixed(2)}
                       </span>
                     ) : null}
                   </div>

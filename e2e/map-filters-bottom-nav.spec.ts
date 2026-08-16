@@ -21,11 +21,11 @@ test.describe("map filters sheet and bottom navigation", () => {
     const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
     await expect(sheet).toBeVisible();
 
-    const today = primaryNav(page).getByRole("link", { name: "Today", exact: true });
-    await expect(today).toBeVisible();
-    await today.click({ force: false });
+    const now = primaryNav(page).getByRole("link", { name: "Now", exact: true });
+    await expect(now).toBeVisible();
+    await now.click({ force: false });
 
-    await expect(page).toHaveURL(/\/today$/);
+    await expect(page).toHaveURL(/\/(today|tonight)$/);
     await expect(sheet).toHaveCount(0);
   });
 

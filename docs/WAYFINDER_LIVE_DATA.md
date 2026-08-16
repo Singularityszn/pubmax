@@ -30,7 +30,7 @@ page, official API, open data) supports.
 | **Weather** | Open-Meteo (keyless) | Vercel `refresh-weather` cron to durable weather store | Every 6 h | none | Every 6 h | 48 h |
 | **Night signals** | Staged candidate claims, offline-reviewed | Vercel candidate cron; manual approved publish to `night_signals/latest.json` | Candidate sweep daily; reviewed feed advances only on human publish | `EXA_API_KEY` arms candidate ingestion; **human review always** | Human-gated episodic | untracked |
 | **What's-On — baseline** (sport/quiz/deals/music) | Hand-verified first-party rows in `scripts/whatson/*.json` | Vercel slim revalidation + CityMCP blend at request time; full ingest stays manual | Daily slim window; episodic baseline | none | Daily served-window revalidation | 48 h (envelope) |
-| **What's-On — events** (Ticketmaster/Skiddle) | Official discovery APIs | `events-refresh.yml` on `feat/event-sources` — **cron commented out** | **None on main** (branch, keyless-off) | `TICKETMASTER_API_KEY` and/or `SKIDDLE_API_KEY` (Skiddle needs written commercial approval) | Daily 15:45 UTC once keyed | 48 h |
+| **What's-On — events** (Ticketmaster/Skiddle/Common) | Official discovery APIs, plus the Common sitemap reader (facts + link out) | `events-refresh.yml` on `main` (daily 04:00 UTC, validates before it opens the review PR) and the local launchd events job; `/api/out` also supplements the bundled file live per request | Scheduled but **held**: GitHub Actions is disabled at the repo level, so the local scheduler is the only path running today | `TICKETMASTER_API_KEY` and/or `SKIDDLE_API_KEY` (Skiddle also stays fenced off until we hold its logo); the Common lane is keyless | Daily 04:00 UTC once Actions is on | 48 h |
 | **Pint prices (core dataset)** | Collected July 2026 snapshot | Manual `export:data → canonicalize:venues → build:slim` | Episodic (bundled static) | none | Re-collection cadence (manual) | 90 d |
 | **Price updates (cheapest pint)** | First-party / open sources allowlist | Manual reviewed publish to `price_updates/latest.json`; the weekly Vercel `refresh-prices` cron only retrieves and stamps the separate `price_update_retrieval` feed | **Weekly Mon 07:00 UTC** retrieval; parser stub makes the current run a logged no-op that stamps nothing, and the served file only advances on a reviewed publish | none to run; needs a per-source parser | Weekly retrieval, publish-bound serving | 14 d (served file) |
 | **Drink price updates** | Wetherspoons first-party (allowlist) | `Drink price refresh` workflow → `refresh:drink-prices` → PR | **Weekly Mon 07:30 UTC** — pipeline real but **emits 0 rows** (no per-drink web prices; prices live only in the Order-&-Pay app backend) | none to run; source has no permissible per-drink prices | Weekly | 14 d |
@@ -71,8 +71,8 @@ sets a secret. Exact env var → mechanism mapping:
 | Env var / secret | Where it's set | What it arms | Effect when **absent** (today's reality) |
 |---|---|---|---|
 | `EXA_API_KEY` | Vercel env | Night-signal candidate ingestion (scheduled) | Candidate sweep skips without changing reviewed snapshot; nothing in interactive path breaks |
-| `TICKETMASTER_API_KEY` | GH Actions secret (branch `feat/event-sources`) | What's-On **events** vertical (Ticketmaster Discovery) | Provider skipped; contributes 0 rows |
-| `SKIDDLE_API_KEY` | GH Actions secret (branch `feat/event-sources`) | What's-On events (Skiddle) — **also needs written commercial approval from dev@skiddle.com** | Provider noop-skipped |
+| `TICKETMASTER_API_KEY` | Read from the GH Actions secret by the refresh, from the Vercel env by `/api/out`, and from the local key file by the launchd job | What's-On **events** vertical (Ticketmaster Discovery), in the refresh and in the `/api/out` live supplement | Lane reports `not-configured`; contributes 0 rows, and a reader is never told the market is empty |
+| `SKIDDLE_API_KEY` | Same three readers; **not provisioned anywhere yet** | What's-On events (Skiddle) — **also needs written commercial approval from dev@skiddle.com**, and the lane stays fenced off until we hold the Skiddle logo the licence requires | Lane reports `not-configured` |
 | `FIRECRAWL_API_KEY` | Local `.env` / CI secret | Menu scraping (food prices), Wetherspoons directory refresh, research | Those harvest scripts can't fetch; bundled data unaffected |
 | `EXA_API_KEY` + `FIRECRAWL_API_KEY` | Local environment; future GitHub Actions secrets | Governed restaurant/attraction discovery plus source-page JSON-LD transport (`ingest:night-out-places`) | Script halts before write and reports `OWNER ACTION`; the committed honest-empty feed remains untouched |
 | `TFL_APP_KEY` | Vercel env | Higher TfL rate limits | Every TfL surface (last-train, nearby buses) works fully keyless; only limits are lower |
@@ -82,8 +82,9 @@ sets a secret. Exact env var → mechanism mapping:
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Vercel env (required in prod) | Pint Drops persistence, moderation, durable rate limiting | Pint Drop writes 503; in-memory demo store locally |
 
 Vercel schedules are owned by `vercel.json` and run on production deployments.
-Provider-gated jobs activate when their Vercel secret exists. Branch-only events
-automation remains separate and is not a production schedule.
+Provider-gated jobs activate when their Vercel secret exists. The events refresh
+is a GitHub Actions workflow that opens a review PR, not a production schedule:
+it commits nothing to `main` on its own.
 
 **Not present on main today** (contrary to a common assumption): there is **no
 `RESEND` digest workflow** and **no `APNs` push-sender** wired in this repo.
@@ -107,9 +108,13 @@ Honest accounting of what will **not** get fresher on its own:
    **no per-drink web prices**; prices live only in native Order-&-Pay backend.
    Scheduled retrieval produces zero rows until a permissible parser lands.
    **Gap: real first-party price parsers.**
-3. **What's-On events are branch-only + key-off.** `feat/event-sources` has the
-   full Ticketmaster/Skiddle pipeline, but it isn't merged and the cron is
-   commented out. **Gap: merge + provider keys (+ Skiddle approval).**
+3. **What's-On events run, but two of the three lanes are held.** The pipeline is
+   on `main` and the workflow carries a daily schedule, so the remaining gaps are
+   owner actions: switch GitHub Actions on at the repo level, and clear Skiddle
+   (written commercial approval plus the logo its credit requires). Ticketmaster
+   is keyed, and the Common lane needs no key, so the local scheduler runs it
+   whatever the provider keys say.
+   **Gap: Actions enabled + Skiddle approval and brand asset.**
 4. **Food prices, late-food evidence, night-out places, venue presence, all-drinks seed → manual,
    episodic.** No workflow. Refreshed by running the harvest/import script by
    hand. The restaurant/attraction feed is budgeted at 30 days per accepted row

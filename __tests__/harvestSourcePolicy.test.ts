@@ -13,6 +13,11 @@ import {
   isHarvestableOperatorUrl,
 } from "@/lib/harvest/sourcePolicy";
 import { createHarvestReporter, countDrops, harvestShortfallLines, summariseHarvestRun } from "@/lib/harvest/runReport";
+import {
+  COMMON_FETCH_GAP_MS,
+  COMMON_SITEMAP_URL,
+  COMMON_SOURCE,
+} from "../scripts/whatson/commonRefresh.mjs";
 
 describe("every source is a decision with evidence", () => {
   it("gives every source a unique id and an http(s) provenance url", () => {
@@ -39,14 +44,25 @@ describe("every source is a decision with evidence", () => {
     }
   });
 
-  it("refuses every aggregator, and allows only first-party operator pages", () => {
+  it("allows a source that owns nothing it publishes only as a named exception", () => {
     for (const source of HARVEST_SOURCES) {
-      if (source.firstParty) continue;
-      expect(source.access.allowed).toBe(false);
+      if (source.firstParty || !source.access.allowed) continue;
+      expect(source.nonFirstPartyException?.length ?? 0).toBeGreaterThan(20);
     }
     for (const source of allowedHarvestSources("chain-deals")) {
       expect(source.firstParty).toBe(true);
     }
+  });
+
+  it("binds the Common reader to its own register entry", () => {
+    // The register is the permission, so the crawler may not read a host, or at
+    // a rate, the table does not carry. Both halves are the running values.
+    const common = harvestSource("common-social-posts");
+    expect(common?.access.allowed).toBe(true);
+    expect(common?.url).toBe(COMMON_SITEMAP_URL);
+    expect(common?.label).toBe(COMMON_SOURCE.label);
+    expect((common?.crawlDelaySeconds ?? 0) * 1000).toBeLessThanOrEqual(COMMON_FETCH_GAP_MS);
+    expect(isHarvestableOperatorUrl(COMMON_SITEMAP_URL)).toBe(true);
   });
 
   it("keeps Skiddle refused on its own commercial terms, not on robots", () => {

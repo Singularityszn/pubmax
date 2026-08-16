@@ -124,7 +124,7 @@ Severity: **P0** blocks “first-class desktop” claim · **P1** core journey q
 | IA-2 | **Stories** bucket absorbs `/feed`, `/discover`, `/crawls` — OK for active state, weak for discovering crawls/historic from top nav | P1 | `navigationModel.ts` match set |
 | IA-3 | Vocabulary must stay unified (no desktop “Drinks” vs mobile “Discover” regressions) | P1 | `MOBILE_FLOW_SPEC` open violations historically; current model uses Stories |
 | IA-4 | Mid-width **641–900**: full desktop links, no tab bar, **⌘K control hidden** — discoverability valley | P1 | `siteNav.css` |
-| IA-5 | Tour / onboarding spotlight geometry is **tab-bar anchored** — weaker desktop first-run path | P2 | `FirstRunTour` + `tourSpotlightColumn` |
+| IA-5 | First-run tour has no spotlight at all — it is one card, so no surface is pointed at on either size | P2 | `FirstRunTour` (the tab-column spotlight seam was never rendered and is now removed) |
 
 ### 4.2 Map & planner chrome
 

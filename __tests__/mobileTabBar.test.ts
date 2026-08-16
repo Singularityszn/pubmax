@@ -1,19 +1,14 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildTabs,
-  shouldShowMobileTabBar,
-  tourSpotlightColumn,
-} from "@/components/nav/MobileTabBar";
-import { TOUR_TARGET_TAB_KEY, navPathMatches } from "@/components/nav/navigationModel";
+import { buildTabs, shouldShowMobileTabBar } from "@/components/nav/MobileTabBar";
+import { navPathMatches } from "@/components/nav/navigationModel";
 
-// Six-tab contract for the mobile bar (owner-locked journey order). The shared
-// PRIMARY_NAV_ITEMS model stays four destinations by its own contract test;
-// Today and Moment are injected by the bar, so THIS test locks what a thumb
-// actually meets: order, destinations, and the centre action.
+// Five-tab contract for the mobile bar. Moment is a floating + action, never
+// a destination, so it is not in this row. Today and Tonight share the Now
+// tab; the URL is the truth.
 
 function activeLabel(pathname: string, mapHref = "/map"): string | undefined {
-  const tabs = buildTabs(mapHref, pathname);
-  return tabs.find((tab) => !tab.primary && navPathMatches(pathname, tab.match ?? [tab.href]))?.label;
+  const tabs = buildTabs(mapHref);
+  return tabs.find((tab) => navPathMatches(pathname, tab.match ?? [tab.href]))?.label;
 }
 
 describe("mobile tab bar contract", () => {
@@ -22,90 +17,52 @@ describe("mobile tab bar contract", () => {
     expect(shouldShowMobileTabBar("/near")).toBe(true);
     expect(shouldShowMobileTabBar("/map")).toBe(true);
     expect(shouldShowMobileTabBar("/plan")).toBe(true);
+    expect(shouldShowMobileTabBar("/out")).toBe(true);
     expect(shouldShowMobileTabBar("/area/clapham/drink/guinness")).toBe(true);
   });
 
-  it("renders exactly six tabs in the journey order", () => {
-    const tabs = buildTabs("/map", "/tonight");
+  it("renders exactly five tabs in the journey order", () => {
+    const tabs = buildTabs("/map");
     expect(tabs.map((tab) => tab.label)).toEqual([
-      "Today",
+      "Now",
       "Map",
-      "Moment",
-      "Tonight",
+      "Out",
       "Social",
       "You",
     ]);
   });
 
   it("routes every tab to its owned destination", () => {
-    const tabs = buildTabs("/map/london", "/tonight");
+    const tabs = buildTabs("/map/london", "/u/you", "/tonight");
     const byLabel = Object.fromEntries(tabs.map((tab) => [tab.label, tab]));
-    expect(byLabel.Today.href).toBe("/today");
-    // Map follows the preferred city.
+    expect(byLabel.Now.href).toBe("/tonight");
+    expect(byLabel.Now.match).toEqual(["/today", "/tonight"]);
     expect(byLabel.Map.href).toBe("/map/london");
-    expect(byLabel.Moment.href).toBe("/moment?returnTo=%2Ftonight");
-    expect(byLabel.Tonight.href).toBe("/tonight");
+    expect(byLabel.Out.href).toBe("/out");
     expect(byLabel.Social.href).toBe("/social");
     expect(byLabel.You.href).toBe("/u/you");
   });
 
   it("points You at the device handle when known (skips /u/you sentinel hop)", () => {
-    const tabs = buildTabs("/map", "/today", "/u/karan");
+    const tabs = buildTabs("/map", "/u/karan");
     const you = tabs.find((tab) => tab.label === "You");
     expect(you?.href).toBe("/u/karan");
-    // Match stays /u so the tab still lights on the resolved profile.
     expect(you?.match).toEqual(["/u"]);
   });
 
-  it("marks only Moment as the raised centre action, in the centre slot", () => {
-    const tabs = buildTabs("/map", "/map");
-    expect(tabs.filter((tab) => tab.primary).map((tab) => tab.label)).toEqual(["Moment"]);
-    expect(tabs[2].label).toBe("Moment");
+  it("keeps Moment out of the tab row", () => {
+    const tabs = buildTabs("/map");
+    expect(tabs.some((tab) => tab.label === "Moment")).toBe(false);
+    expect(tabs.some((tab) => tab.href.startsWith("/moment"))).toBe(false);
+    expect(tabs.map((tab) => tab.key)).not.toContain("moment");
   });
 
-  it("marks Social active on its canonical route and retired aliases", () => {
+  it("marks Now active on both /today and /tonight", () => {
+    expect(activeLabel("/today")).toBe("Now");
+    expect(activeLabel("/tonight")).toBe("Now");
+    expect(activeLabel("/out")).toBe("Out");
     expect(activeLabel("/social")).toBe("Social");
     expect(activeLabel("/feed")).toBe("Social");
-    expect(activeLabel("/stories")).toBe("Social");
-    expect(activeLabel("/discover")).toBe("Social");
-    expect(activeLabel("/drinks")).toBe("Social");
-    expect(activeLabel("/crawls")).toBe("Social");
-    // Moment is a compose action, never a persistent location.
     expect(activeLabel("/moment")).toBeUndefined();
-  });
-});
-
-// The first-run tour spotlight rings are positioned from the LIVE tab geometry
-// (tourSpotlightColumn → buildTabs), so the ring can never drift off its tab.
-// Lock the exact columns each tour target resolves to. A future 7th tab or a
-// reorder that shifts Map, Moment, or Social out of these slots fails
-// here, forcing the tour copy + geometry to be reconsidered in lockstep.
-describe("first-run tour spotlight geometry", () => {
-  const tabs = buildTabs("/map", "/map");
-
-  it("maps each tour target to the tab key it names", () => {
-    expect(TOUR_TARGET_TAB_KEY).toEqual({ map: "map", drop: "moment", social: "social" });
-  });
-
-  it("anchors 'map' to the Map column", () => {
-    const { index, total } = tourSpotlightColumn("map");
-    expect(total).toBe(6);
-    expect(index).toBe(1);
-    expect(tabs[index]!.label).toBe("Map");
-  });
-
-  it("anchors 'drop' to the Moment centre column", () => {
-    const { index, total } = tourSpotlightColumn("drop");
-    expect(total).toBe(6);
-    expect(index).toBe(2);
-    expect(tabs[index]!.label).toBe("Moment");
-    expect(tabs[index]!.primary).toBe(true);
-  });
-
-  it("anchors 'social' to the Social column", () => {
-    const { index, total } = tourSpotlightColumn("social");
-    expect(total).toBe(6);
-    expect(index).toBe(4);
-    expect(tabs[index]!.label).toBe("Social");
   });
 });

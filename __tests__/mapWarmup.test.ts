@@ -241,12 +241,12 @@ describe("warmNavRoute / warmPrimaryTabRoutes", () => {
     const prefetch = vi.fn();
     warmPrimaryTabRoutes(
       { prefetch },
-      ["/today", "/map", "/moment?returnTo=%2Ftoday", "/tonight", "/social", "/u/you"],
+      ["/today", "/map", "/out", "/social", "/u/you"],
       seen,
     );
     expect(prefetch).toHaveBeenCalledWith("/today");
     expect(prefetch).toHaveBeenCalledWith("/map");
-    expect(prefetch).toHaveBeenCalledWith("/tonight");
+    expect(prefetch).toHaveBeenCalledWith("/out");
     expect(prefetch).toHaveBeenCalledWith("/social");
     expect(prefetch).toHaveBeenCalledWith("/u/you");
     expect(prefetch.mock.calls.every(([href]) => !String(href).startsWith("/moment"))).toBe(true);
@@ -261,13 +261,13 @@ describe("warmNavRoute / warmPrimaryTabRoutes", () => {
     const prefetch = vi.fn();
     warmPrimaryTabRoutes(
       { prefetch },
-      ["/today", "/map", "/tonight", "/social", "/u/you"],
+      ["/today", "/map", "/out", "/social", "/u/you"],
       seen,
       "/map",
     );
     expect(prefetch).not.toHaveBeenCalledWith("/map");
     expect(prefetch).toHaveBeenCalledWith("/today");
-    expect(prefetch).toHaveBeenCalledWith("/tonight");
+    expect(prefetch).toHaveBeenCalledWith("/out");
   });
 
   it("matches the current route by path, ignoring its query string", async () => {

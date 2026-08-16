@@ -33,6 +33,7 @@ import {
 
 import { useEffect, useState } from "react";
 
+import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
 import {
   buildDayGreeting,
@@ -366,6 +367,7 @@ export default function TodayClient({
       <SiteNav active="today" />
 
       <header className="todayHead" data-testid="today-greeting">
+        <NowSegment current="day" />
         <p className="todayEyebrow">{shownGreeting.salutation}</p>
         <h1 className="todayTitle" data-weather-aware={shownGreeting.weatherAware}>
           {shownGreeting.headline}

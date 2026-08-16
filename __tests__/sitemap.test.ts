@@ -162,6 +162,14 @@ describe("sitemap()", () => {
     }
   });
 
+  it("advertises no /out page, because it duplicates /tonight's claim", () => {
+    // /out lists the same baseline What's-On rows /tonight already publishes for
+    // the same city, so it ships noindex (app/out/page.tsx) until L2 and L4 give
+    // it content of its own. A sitemap entry would vouch for the duplicate.
+    expect(urls).not.toContain(`${SITE}/out`);
+    expect(urls).toContain(`${SITE}/tonight`);
+  });
+
   it("advertises no token / UGC / auth surface", () => {
     for (const url of urls) {
       for (const bad of FORBIDDEN_SUBSTRINGS) {

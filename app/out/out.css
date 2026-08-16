@@ -1,0 +1,154 @@
+/* Out tab shell (L1). Role tokens only. Tab-bar clearance belongs to
+   mobileNav.css. No em dashes. */
+
+.outPage {
+  /* The shell floor every sibling route keeps: body paints the party gradient,
+     so a short page ends its gradient box mid-viewport and leaves a hard seam
+     below it. */
+  min-height: 100dvh;
+  min-height: 100svh;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) var(--page-gutter)
+    calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 24px);
+  color: var(--ink);
+}
+
+.outHead {
+  margin: 4px 0 22px;
+}
+
+.outTitle {
+  margin: 0 0 14px;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 6.4vw, 2.1rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+}
+
+.outDayChips {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill, 999px);
+  background: var(--panel-raised, var(--paper));
+  box-sizing: border-box;
+}
+
+.outDayChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill, 999px);
+  color: var(--ink-soft);
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.outDayChip[aria-current="page"] {
+  background: var(--brass);
+  color: var(--color-on-accent, var(--paper));
+}
+
+.outDayChip:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.outSectionTitle {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.outPlans,
+.outListings {
+  margin: 0 0 22px;
+}
+
+.outEmpty {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.outEmptyLink {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.outStatus {
+  margin: 0 0 12px;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+/* The card box is the LIST ITEM, not the link. The source credit is its own
+   link (a licence obligation for Skiddle), and an anchor inside an anchor is
+   invalid HTML the parser un-nests, so the two links are siblings inside one
+   bordered item. */
+.outList {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.outList > li {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel-raised, var(--paper));
+}
+
+.outCard {
+  display: grid;
+  gap: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.outCard h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.outCardMeta {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.outPrice {
+  margin: 0;
+  font-weight: 600;
+}
+
+.outSourceCredit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+}
+

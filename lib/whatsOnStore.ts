@@ -6,6 +6,7 @@
 import { haversineKm } from "@/lib/haversine";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
+  bundledGeneratedAt,
   dedupeKey,
   filterByKind,
   filterNotPast,
@@ -35,11 +36,9 @@ const BASELINE_DATASETS: unknown[] = [
 
 // Parse a bundled file with `now` fixed to the file's own generatedAt, so a row
 // whose observedAt equals generatedAt is never rejected as "future" (mirrors the
-// drink-updates pattern).
-function generatedAtOf(raw: unknown): number {
-  const at = Date.parse(String((raw as { generatedAt?: unknown })?.generatedAt ?? ""));
-  return Number.isFinite(at) ? at : Date.now();
-}
+// drink-updates pattern). The helper itself is shared (lib/whatsOn.ts) because
+// /api/out reads the same files the same way.
+const generatedAtOf = bundledGeneratedAt;
 
 function canonicalPastIso(value: unknown, now: number): string | null {
   if (typeof value !== "string") return null;

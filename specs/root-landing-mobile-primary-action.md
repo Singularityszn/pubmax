@@ -11,7 +11,8 @@ navigation after a user enters Near, Map, Plan, or any other product route.
 
 - Exact pathname `/` renders no `MobileTabBar` DOM.
 - Root query strings do not change that decision.
-- Every non-root pathname keeps existing six-tab app navigation.
+- Every non-root pathname keeps the app tab navigation the shared navigation
+  model owns (`components/nav/navigationModel.ts`).
 - `Find my pint` stays the only button-shaped hero action and keeps
   `/near?locate=1` as its destination.
 - Existing Map and Plan text links, copy, analytics, and hero layout stay
@@ -41,7 +42,7 @@ navigation after a user enters Near, Map, Plan, or any other product route.
 ## Verification
 
 - Unit: `/` and root query state hide the bar; `/near`, `/map`, `/plan`, and
-  governed public routes keep it; existing six-tab order stays fixed.
+  governed public routes keep it; the model's tab order stays fixed.
 - Browser: root has no Primary app navigation or tab-bar body allowance at
   320, 390, and 430 pixels. Hero action remains at least 44 by 44 pixels, stays
   visible, and creates no overflow.

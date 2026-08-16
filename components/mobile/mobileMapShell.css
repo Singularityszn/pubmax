@@ -17,7 +17,9 @@
        height is the bar's own bottom edge. Every surface that used to clear a
        three-row stack reads this instead of a hand-copied 118px. */
     --mobile-map-chrome-h: calc(var(--mobile-map-top) + var(--mobile-map-bar-h));
-    --mobile-map-dock-clearance: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 12px);
+    /* The floating stack's own base (mobileNav.css owns it), so the map's
+       bottom band and the create action above it cannot drift apart. */
+    --mobile-map-dock-clearance: var(--float-stack-base);
     /* The map-edge controls (TfL at the top, Near me at the thumb) are fixed
        to the right map edge. Publish their footprint as a LANE so any
        full-width overlay in the same band stops short of it instead of
@@ -391,7 +393,9 @@
     position: fixed;
     right: var(--mobile-map-corner-inset);
     top: calc(var(--mobile-map-chrome-h) + 12px);
-    bottom: calc(var(--mobile-map-dock-clearance) + 72px);
+    /* Stack member: mobileNav.css publishes this berth and the Near me FAB's
+       height, so the create action can sit clear of it. */
+    bottom: var(--map-corner-bottom);
     z-index: var(--z-map-toolbar);
     display: flex;
     flex-direction: column;
@@ -412,8 +416,8 @@
     align-self: flex-end;
     display: grid;
     place-items: center;
-    width: 52px;
-    height: 52px;
+    width: var(--map-corner-locate-size);
+    height: var(--map-corner-locate-size);
     border: 1px solid var(--ink-soft);
     border-radius: 50%;
     background: var(--color-surface-raised);
@@ -426,7 +430,7 @@
      map-edge column steps above it rather than putting a 52px FAB on top of a
      consent choice. Same offset the OSM credit already uses. */
   body:has(.analyticsConsentPrompt) .mobileMapUtilityCorner {
-    bottom: calc(var(--mobile-map-dock-clearance) + 200px);
+    bottom: var(--map-corner-bottom-consent);
   }
 
   .mobileMapLocateFab[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); }
@@ -540,8 +544,9 @@
     z-index: var(--z-map-toolbar);
     min-width: 0;
     max-width: none;
-    min-height: 48px;
-    bottom: calc(var(--mobile-map-dock-clearance) + 10px);
+    /* Stack member: mobileNav.css publishes this height and berth. */
+    min-height: var(--plan-activation-h);
+    bottom: var(--plan-activation-bottom);
     display: inline-flex;
     align-items: center;
     justify-content: center;

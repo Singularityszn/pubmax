@@ -165,7 +165,7 @@ describe("what the tab bar renders for each answer", () => {
     expect(navTag(markup)).not.toContain("isKeyboardHidden");
     expect(navTag(markup)).not.toContain("aria-hidden");
     expect(navTag(markup)).not.toMatch(/\binert\b/);
-    expect(markup).toContain("Tonight");
+    expect(markup).toContain("Now");
   });
 
   it("hides the bar - and takes it out of the tab order - while the keyboard is up", async () => {
@@ -177,7 +177,7 @@ describe("what the tab bar renders for each answer", () => {
     expect(navTag(markup)).toMatch(/\binert\b/);
     // It is hidden, not unmounted: the tabs come straight back on blur with no
     // re-render of the destination list.
-    expect(markup).toContain("Tonight");
+    expect(markup).toContain("Now");
   });
 
   it("keeps the bar inert after a strict modal outlives the keyboard", async () => {
