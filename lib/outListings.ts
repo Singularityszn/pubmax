@@ -1,8 +1,8 @@
-// Out L1 listing policy. The page composes existing What's-On rows (music,
-// quiz, sport) into Tonight / Tomorrow / Weekend chips. No new API. Deals stay
-// on Tonight: they have their own honesty lane and are not events.
+// Out L1 listing policy. The page composes existing What's-On rows into
+// Tonight / Tomorrow / Weekend chips. No new API.
 
 import {
+  WHATS_ON_KINDS,
   filterTonight,
   type WhatsOnKind,
   type WhatsOnKindObservedAt,
@@ -12,7 +12,20 @@ import {
 export const OUT_DAY_WINDOWS = ["tonight", "tomorrow", "weekend"] as const;
 export type OutDayWindow = (typeof OUT_DAY_WINDOWS)[number];
 
-export const OUT_LISTING_KINDS: readonly WhatsOnKind[] = ["music", "quiz", "sport"];
+/**
+ * What /out lists: everything the What's-On vocabulary holds EXCEPT deals.
+ *
+ * Stated as the one exclusion rather than as a list of three, so a kind added
+ * to the shared taxonomy later - the L2 events lane is the next one - reaches
+ * this page the day it lands instead of being silently dropped by an allow-list
+ * nobody remembered to widen. A deal is not an event: it has its own honesty
+ * lane (lib/dealsHonesty.ts) and stays on Tonight.
+ */
+export const OUT_EXCLUDED_LISTING_KIND: WhatsOnKind = "deal";
+
+export const OUT_LISTING_KINDS: readonly WhatsOnKind[] = WHATS_ON_KINDS.filter(
+  (kind) => kind !== OUT_EXCLUDED_LISTING_KIND,
+);
 
 /**
  * How many cards one chip prints.
@@ -48,10 +61,27 @@ export function outCardObservedAt(
 /** A read that could not answer is not an empty city. */
 export type OutListingsReadStatus = "ready" | "degraded";
 
-export function outListingsEmptyLine(status: OutListingsReadStatus): string {
+const WINDOW_NOUN: Record<OutDayWindow, string> = {
+  tonight: "tonight",
+  tomorrow: "tomorrow",
+  weekend: "the weekend",
+};
+
+/**
+ * The one sentence an empty chip prints.
+ *
+ * Two findings, two sentences: a window nobody has listed anything for is
+ * quiet, and a read that could not run says so instead. The window names ITSELF,
+ * because "nothing listed for tonight" over the Weekend chip is a claim about
+ * the wrong day. Ways onward are the caller's, and they ride under both.
+ */
+export function outListingsEmptyLine(
+  status: OutListingsReadStatus,
+  window: OutDayWindow = "tonight",
+): string {
   return status === "degraded"
-    ? "We could not check the listings just now. Refresh to try again, or start a plan of your own."
-    : "No sourced listings for this window yet.";
+    ? "We could not check the listings just now. Refresh to try again."
+    : `Nothing listed for ${WINDOW_NOUN[window]} yet.`;
 }
 
 export function isOutDayWindow(value: unknown): value is OutDayWindow {

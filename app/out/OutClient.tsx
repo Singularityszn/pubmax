@@ -54,20 +54,20 @@ export default function OutClient({
           aria-label="When"
           onKeyDown={handleRovingRadioKeyDown}
         >
-          {OUT_DAY_WINDOWS.map((window) => {
-            const selected = window === day;
-            const href = window === "tonight" ? "/out" : `/out?day=${window}`;
+          {OUT_DAY_WINDOWS.map((windowKey) => {
+            const selected = windowKey === day;
+            const href = windowKey === "tonight" ? "/out" : `/out?day=${windowKey}`;
             return (
               <Link
-                key={window}
+                key={windowKey}
                 href={href}
                 role="radio"
                 className="outDayChip"
                 aria-checked={selected}
                 tabIndex={selected ? 0 : -1}
-                onClick={() => trackEvent("out_filter_select", { kind: window })}
+                onClick={() => trackEvent("out_filter_select", { kind: windowKey })}
               >
-                {DAY_LABEL[window]}
+                {DAY_LABEL[windowKey]}
               </Link>
             );
           })}
@@ -91,7 +91,17 @@ export default function OutClient({
           {DAY_LABEL[day]}
         </h2>
         {listings.length === 0 ? (
-          <p className="outEmpty">{outListingsEmptyLine(readStatus)}</p>
+          <div className="outEmptyBlock">
+            <p className="outEmpty">{outListingsEmptyLine(readStatus, day)}</p>
+            <div className="outEmptyWays">
+              <Link href="/plan" className="outEmptyWay">
+                Start an open plan
+              </Link>
+              <Link href="/map" className="outEmptyWay">
+                See the map
+              </Link>
+            </div>
+          </div>
         ) : (
           <ul className="outCardList">
             {listings.map((row) => (

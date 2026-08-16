@@ -113,7 +113,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = false }: P
               value={areaSlug}
               onChange={(e) => setAreaSlug(e.target.value)}
             >
-              <option value="">Where are you out?</option>
+              <option value="">Where are you?</option>
               {areas.map((area) => (
                 <option key={area.slug} value={area.slug}>
                   {area.name}

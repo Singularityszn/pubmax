@@ -2,6 +2,11 @@
    mobileNav.css. No em dashes. */
 
 .outPage {
+  /* The shell floor every sibling route keeps: body paints the party gradient,
+     so a short page ends its gradient box mid-viewport and leaves a hard seam
+     below it. */
+  min-height: 100dvh;
+  min-height: 100svh;
   max-width: var(--content-max);
   margin: 0 auto;
   padding: calc(12px + env(safe-area-inset-top, 0px)) var(--page-gutter)
@@ -83,6 +88,42 @@
 .outEmptyLink {
   color: var(--ink);
   font-weight: 650;
+}
+
+/* An empty window is still a way onward, never a closed door. */
+.outEmptyBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.outEmptyWays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.outEmptyWay {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  font-weight: 650;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.outEmptyWay:hover,
+.outEmptyWay:focus-visible {
+  border-color: color-mix(in srgb, var(--brass) 42%, var(--line));
+}
+
+.outEmptyWay:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }
 
 .outCardList {

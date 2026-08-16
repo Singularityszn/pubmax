@@ -333,6 +333,7 @@
   --z-night-card: 640;       /* nightCard fixed sheet — above map chrome, below planning drawer (650) and tab bar (700) */
   --z-nav: 650;              /* planning-open drawer lift */
   --z-tabbar: 1350;          /* mobile bottom tab bar (above map sheets, below modals) */
+  --z-float-action: 1290;    /* floating create action — BELOW the map sheet portal (1300), so an open sheet is never painted over */
   --z-modal: 1200;           /* siteNav floating rails, full-screen overlays */
   --z-overlay-top: 1300;     /* map onboarding — topmost transient overlay */
   --z-splash: 1400;          /* aperture splash - pre-paint full-viewport takeover, above everything */

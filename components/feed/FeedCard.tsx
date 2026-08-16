@@ -598,7 +598,7 @@ function CheckInCard({
           </p>
           {note ? <p className="feedCheckInNote">{note}</p> : null}
           <span className="feedCheckInMeta">
-            <span className="feedCheckInTag" aria-hidden="true">We&rsquo;re out</span>
+            <span className="feedCheckInTag" aria-hidden="true">I&rsquo;m here</span>
             {ago ? <time dateTime={createdAt}>{ago}</time> : null}
           </span>
         </div>

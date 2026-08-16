@@ -11,6 +11,13 @@
    hides behind it; hoisting the magic number here keeps the two in lockstep. */
 :root {
   --tabbar-h: 64px;
+  /* The floating stack on the right edge. Every fixed control that parks above
+     the tab bar derives its offset from these, so two of them cannot drift into
+     each other: the Pub Pal pill takes the lower berth, the create action sits
+     one gap above whatever is below it. */
+  --float-stack-gap: 12px;
+  --pal-summon-h: 52px;
+  --pal-summon-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
 }
 
 /* Instant primary-tab loading shell (App Router loading.tsx). Paper/ink only —

@@ -538,3 +538,100 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
     .toBe(tappedPinId);
   await page.waitForTimeout(1_200);
 });
+
+// The right-edge floating stack: one column, never an overlap.
+//
+// The create action, the Pub Pal pill and the map-edge locate FAB are three
+// independently-positioned fixed controls in the same corner. The create action
+// arrived last and, at the tab bar's own layer with the tab bar's own offset, it
+// painted over roughly 50px of the pill on /map and /plan. What holds them apart
+// is a shared set of custom properties, so the proof has to be the RENDERED
+// geometry rather than the declarations.
+const FLOATING_RIGHT_EDGE = [
+  { name: "create action", selector: ".createFab" },
+  { name: "Pub Pal pill", selector: ".palSummon" },
+  { name: "locate FAB", selector: ".mobileMapLocateFab" },
+  { name: "TfL control", selector: ".mobileMapTflButton" },
+] as const;
+
+function overlaps(a: Rect, b: Rect): boolean {
+  return (
+    a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+  );
+}
+
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px right-edge floating controls never overlap`, async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      const now = "2026-01-01T00:00:00.000Z";
+      window.localStorage.setItem(
+        "pubmax_pub_pal_v1",
+        JSON.stringify({
+          id: "pal-e2e",
+          ownerId: "owner-e2e",
+          name: "Ada",
+          adultAttestedAt: now,
+          appearance: {},
+          personality: {},
+          voice: {},
+          muted: false,
+          hidden: false,
+          proposalPreferences: {},
+          masteryPoints: 0,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
+    });
+    await openPhoneMap(page, viewport);
+    // The pill is stored-pal gated and mounts after a microtask.
+    await expect(page.locator(".palSummon")).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".createFab")).toBeVisible();
+
+    const boxes: Array<{ name: string; rect: Rect }> = [];
+    for (const control of FLOATING_RIGHT_EDGE) {
+      const locator = page.locator(control.selector);
+      if ((await locator.count()) === 0) continue;
+      if (!(await locator.first().isVisible())) continue;
+      const rect = await locator.first().boundingBox();
+      if (!rect) continue;
+      boxes.push({
+        name: control.name,
+        rect: {
+          top: rect.y,
+          right: rect.x + rect.width,
+          bottom: rect.y + rect.height,
+          left: rect.x,
+          width: rect.width,
+          height: rect.height,
+        },
+      });
+    }
+    // Both members of the stack this change introduced must be in the sample,
+    // or the test would pass by measuring nothing.
+    expect(boxes.map((box) => box.name)).toEqual(
+      expect.arrayContaining(["create action", "Pub Pal pill"]),
+    );
+
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        expect(
+          overlaps(boxes[i]!.rect, boxes[j]!.rect),
+          `${boxes[i]!.name} overlaps ${boxes[j]!.name}: ${JSON.stringify([boxes[i]!.rect, boxes[j]!.rect])}`,
+        ).toBe(false);
+      }
+    }
+
+    // And every one of them stays clear of the tab bar it parks above.
+    const bar = await page.locator(".mobileTabBar").boundingBox();
+    expect(bar).not.toBeNull();
+    for (const box of boxes) {
+      expect(
+        box.rect.bottom,
+        `${box.name} sits above the tab bar`,
+      ).toBeLessThanOrEqual(Math.round(bar!.y) + 1);
+    }
+  });
+}

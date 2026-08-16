@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  OUT_DAY_WINDOWS,
+  OUT_LISTING_KINDS,
   filterOutListings,
   outCardObservedAt,
   outListingsEmptyLine,
   parseOutDayWindow,
   selectOutListings,
 } from "@/lib/outListings";
-import type { WhatsOnRow } from "@/lib/whatsOn";
+import { WHATS_ON_KINDS, type WhatsOnRow } from "@/lib/whatsOn";
 
 function row(partial: Partial<WhatsOnRow> & Pick<WhatsOnRow, "id" | "kind" | "title">): WhatsOnRow {
   return {
@@ -130,16 +132,40 @@ describe("out listings empty line", () => {
   // findings, and one sentence for both tells a reader the city is quiet when
   // the truth is that we never looked.
   it("separates a quiet window from a read that could not answer", () => {
-    const quiet = outListingsEmptyLine("ready");
-    const degraded = outListingsEmptyLine("degraded");
+    const quiet = outListingsEmptyLine("ready", "tonight");
+    const degraded = outListingsEmptyLine("degraded", "tonight");
     expect(quiet).not.toBe(degraded);
-    expect(quiet).toMatch(/no sourced listings/i);
+    expect(quiet).toMatch(/nothing listed for tonight yet/i);
     expect(degraded).toMatch(/could not check/i);
-    // Never a closed door: the way onward rides with the refusal.
-    expect(degraded).toMatch(/plan/i);
     for (const line of [quiet, degraded]) {
       expect(line).not.toMatch(/—/);
       expect(line).not.toMatch(/!/);
     }
+  });
+
+  it("names the window it is actually about", () => {
+    // "Nothing listed for tonight" over the Weekend chip is a claim about the
+    // wrong day.
+    expect(outListingsEmptyLine("ready", "tomorrow")).toMatch(/tomorrow/i);
+    expect(outListingsEmptyLine("ready", "weekend")).toMatch(/the weekend/i);
+    expect(outListingsEmptyLine("ready", "weekend")).not.toMatch(/tonight/i);
+  });
+
+  it("says the same thing about a failed read whatever the window", () => {
+    const lines = OUT_DAY_WINDOWS.map((window) => outListingsEmptyLine("degraded", window));
+    expect(new Set(lines).size).toBe(1);
+  });
+});
+
+describe("which kinds reach the Out tab", () => {
+  // Stated as one exclusion, so a kind added to the shared What's-On taxonomy
+  // later reaches this page instead of being dropped by an allow-list nobody
+  // widened.
+  it("takes every What's-On kind except deals", () => {
+    expect([...OUT_LISTING_KINDS].sort()).toEqual(
+      WHATS_ON_KINDS.filter((kind) => kind !== "deal").sort(),
+    );
+    expect(OUT_LISTING_KINDS).not.toContain("deal");
+    expect(OUT_LISTING_KINDS.length).toBe(WHATS_ON_KINDS.length - 1);
   });
 });
