@@ -84,13 +84,18 @@ function matchVenue(
 ): ConciergeVenue | null {
   const text = needle.trim().toLowerCase();
   if (!text) return null;
-  // A place-shaped word the pack cannot place must never land on a name-alike
-  // pub. "Angel" is Islington, not The Angel in Hillingdon.
-  if (isPlaceShapedWord(needle)) return null;
   const bare = withoutLeadingArticle(text);
-  return (
+  // An EXACT name, article or not, is the pub they named: the router strips
+  // "the" before this, so "The Angel" arrives as "Angel" and must still find
+  // The Angel.
+  const exact =
     venues.find((v) => v.name.toLowerCase() === text) ??
-    venues.find((v) => withoutLeadingArticle(v.name) === bare) ??
+    venues.find((v) => withoutLeadingArticle(v.name) === bare);
+  if (exact) return exact;
+  // Past an exact name, a place-shaped word may never land on a name-alike pub:
+  // "Angel" is Islington, not The Angel Hillingdon on a prefix.
+  if (isPlaceShapedWord(needle)) return null;
+  return (
     venues.find((v) => withoutLeadingArticle(v.name).startsWith(bare)) ??
     (mode === "loose"
       ? (venues.find((v) => v.name.toLowerCase().includes(text)) ?? null)

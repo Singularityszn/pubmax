@@ -145,6 +145,15 @@ export default function ConfirmFollow({
     : "/u/you";
   const name = (targetName ?? "").trim();
 
+  // One door marker per target, on the device rather than the tab, so the
+  // magic-link tab a sign-up finishes in still counts as this journey's return.
+  const takeDoor = () =>
+    markAddLinkDoorTaken(
+      typeof window === "undefined" ? null : window.localStorage,
+      Date.now(),
+      target,
+    );
+
   const addToLot = (adder: string) => {
     if (!accountId) return Promise.resolve();
     return performAdd(target, adder, accountId, setFollowResults);
@@ -158,7 +167,7 @@ export default function ConfirmFollow({
   // The add on arrival. The server write is idempotent (lib/followWrite.server),
   // so a repeat costs nothing; the ref keeps each account from asking twice.
   useEffect(() => {
-    const storage = typeof window === "undefined" ? null : window.sessionStorage;
+    const storage = typeof window === "undefined" ? null : window.localStorage;
     const now = Date.now();
     if (
       !viewerHandle ||
@@ -170,12 +179,12 @@ export default function ConfirmFollow({
         viewerHandle,
         target,
         attemptedAccountIds: attemptedAccountIds.current,
-        doorTaken: peekAddLinkDoorTaken(storage, now),
+        doorTaken: peekAddLinkDoorTaken(storage, now, target),
       })
     ) {
       return;
     }
-    consumeAddLinkDoorTaken(storage, now);
+    consumeAddLinkDoorTaken(storage, now, target);
     attemptedAccountIds.current.add(accountId);
     void performAdd(target, viewerHandle, accountId, setFollowResults);
   }, [accountId, auto, identityResolved, target, viewerHandle]);
@@ -304,10 +313,7 @@ export default function ConfirmFollow({
           className="confirmFollowPrimary"
           href={doors.createHref}
           onClick={() => {
-            markAddLinkDoorTaken(
-              typeof window === "undefined" ? null : window.sessionStorage,
-              Date.now(),
-            );
+            takeDoor();
             trackEvent("add_link_signup_started", {
               surface: ADD_LINK_SURFACE,
               outcome: "create",
@@ -320,10 +326,7 @@ export default function ConfirmFollow({
           className="confirmFollowSecondary"
           href={doors.signInHref}
           onClick={() => {
-            markAddLinkDoorTaken(
-              typeof window === "undefined" ? null : window.sessionStorage,
-              Date.now(),
-            );
+            takeDoor();
             trackEvent("add_link_signup_started", {
               surface: ADD_LINK_SURFACE,
               outcome: "signin",
@@ -349,12 +352,7 @@ export default function ConfirmFollow({
         <Link
           className="confirmFollowPrimary"
           href={claimHref}
-          onClick={() =>
-            markAddLinkDoorTaken(
-              typeof window === "undefined" ? null : window.sessionStorage,
-              Date.now(),
-            )
-          }
+          onClick={takeDoor}
         >
           {ADD_LINK_COPY.handleCta}
         </Link>

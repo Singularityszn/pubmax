@@ -18,7 +18,9 @@ const RETURN_TO = "%2Fadd%2Fkaran%3Fauto%3D1";
 const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-00000000000e";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
 const VIEWER_HANDLE = "addlinkproof";
-const ADD_LINK_DOOR_MARKER_KEY = "pubmax:add-link-door:v1";
+// One marker per target handle, on the DEVICE: a magic link finishes the
+// sign-up in a fresh tab, so a per-tab marker would never survive the journey.
+const ADD_LINK_DOOR_MARKER_KEY = `pubmax:add-link-door:v1:${TARGET}`;
 
 async function seedSignedInSession(page: Page, options?: { doorTaken?: boolean }): Promise<void> {
   await page.addInitScript(
@@ -43,7 +45,7 @@ async function seedSignedInSession(page: Page, options?: { doorTaken?: boolean }
         }),
       );
       if (doorTaken) {
-        window.sessionStorage.setItem(doorKey, JSON.stringify({ at: Date.now() }));
+        window.localStorage.setItem(doorKey, JSON.stringify({ at: Date.now() }));
       }
     },
     {

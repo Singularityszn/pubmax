@@ -77,10 +77,15 @@ export function decideProfileWrite(
  * Unlinked, non-reserved handles keep the demo path. Linked handles require the
  * matching signed-in owner. Fail-closed on store errors so an outage cannot open
  * a linked handle to anonymous writes.
+ *
+ * A route that already verified the bearer passes `verifiedUserId` so the JWT
+ * is checked once per request rather than once per gate. Omitting it keeps the
+ * old behaviour; passing `null` states the caller is anonymous.
  */
 export async function gateHandleAction(
   request: Request,
   handle: string,
+  verifiedUserId?: string | null,
 ): Promise<HandleActionGate> {
   const key = normalizeHandle(handle);
   if (!key) {
@@ -91,7 +96,8 @@ export async function gateHandleAction(
     };
   }
 
-  const caller = await callerUserId(request);
+  const caller =
+    verifiedUserId === undefined ? await callerUserId(request) : verifiedUserId;
 
   try {
     const store = profileStore();

@@ -25,12 +25,4 @@ describe("avatar render fan-out (representative surfaces)", () => {
     expect(handleAvatar).toContain('setFailedUrl(avatarUrl ?? null)');
     expect(handleAvatar).toContain("{initial}");
   });
-
-  it("honours size on the initials fallback, not only on the image", () => {
-    const source = read("components/profile/HandleAvatar.tsx");
-    const initials = source.slice(source.indexOf("return ("));
-    const span = initials.slice(initials.lastIndexOf("<span"));
-    expect(span).toMatch(/width:\s*size/);
-    expect(span).toMatch(/height:\s*size/);
-  });
 });

@@ -42,8 +42,14 @@ export async function POST(
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
+  // ONE bearer verification for the whole write. `resolveMessageHandle` and
+  // `gateHandleAction` each ask for the caller themselves, so resolving it here
+  // and handing it down is what keeps a signed-in follow to a single round trip
+  // instead of three.
+  const caller = await callerUserId(request);
+
   // JWT-linked handle wins over a self-asserted body.follower when signed in.
-  const follower = await resolveMessageHandle(request, readString(body.follower));
+  const follower = await resolveMessageHandle(request, readString(body.follower), caller);
   if (!follower) {
     return publicApiError("Choose a handle in your account first.", "INVALID_REQUEST", 400);
   }
@@ -53,11 +59,11 @@ export async function POST(
 
   // An add link needs an ACCOUNT. The body may name a handle, but a write
   // without a bearer is how an unlinked handle used to follow anybody.
-  if (!(await callerUserId(request))) {
+  if (!caller) {
     return publicApiError("Sign in to follow them.", "UNAUTHENTICATED", 401);
   }
 
-  const ownership = await gateHandleAction(request, follower);
+  const ownership = await gateHandleAction(request, follower, caller);
   if (!ownership.allowed) {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }

@@ -50,18 +50,12 @@ export default function HandleAvatar({
     );
   }
 
+  // `size` is the IMAGE's box and nothing else. The initials fallback wears the
+  // consumer's own class, so its stylesheet owns the circle - an inline width
+  // here would beat every one of them, including the profile hero's responsive
+  // clamp and the feed row's 36px.
   return (
-    <span
-      className={className}
-      aria-hidden="true"
-      style={{
-        width: size,
-        height: size,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
+    <span className={className} aria-hidden="true">
       {initial}
     </span>
   );

@@ -196,7 +196,11 @@ function memoryStorage() {
 
 function mountEnvironment(): ReturnType<typeof memoryStorage> {
   const document = new TestDocument();
+  // The door marker is DEVICE-scoped: a magic link lands in a fresh tab, where a
+  // sessionStorage marker would already be gone. The two stores are kept apart
+  // here so the surface cannot pass by reading the wrong one.
   const sessionStorage = memoryStorage();
+  const localStorage = memoryStorage();
   const window = {
     document,
     addEventListener: () => {},
@@ -205,6 +209,7 @@ function mountEnvironment(): ReturnType<typeof memoryStorage> {
     setTimeout,
     clearTimeout,
     sessionStorage,
+    localStorage,
     location: { href: "http://localhost/add/karan?auto=1", origin: "http://localhost" },
     HTMLElement: TestElement,
     HTMLIFrameElement: class {},
@@ -220,7 +225,7 @@ function mountEnvironment(): ReturnType<typeof memoryStorage> {
   });
   container = document.createElement("div");
   root = createRoot(container as unknown as Element);
-  return sessionStorage;
+  return localStorage;
 }
 
 beforeEach(() => {
@@ -325,7 +330,7 @@ describe("ConfirmFollow", () => {
 
   it("does not show the previous account receipt after an account switch", async () => {
     const storage = mountEnvironment();
-    markAddLinkDoorTaken(storage, Date.now());
+    markAddLinkDoorTaken(storage, Date.now(), "karan");
     auth.user = { id: "account-a" };
     viewer.handle = "viewer-a";
 
@@ -380,6 +385,22 @@ describe("ConfirmFollow", () => {
     expect(container?.textContent).not.toContain("is in your lot.");
   });
 
+  it("does not auto-add on a door taken for a different friend", async () => {
+    const storage = mountEnvironment();
+    markAddLinkDoorTaken(storage, Date.now(), "someoneelse");
+    auth.user = { id: "account-a" };
+    viewer.handle = "viewer-a";
+
+    await commitReactWork(async () => {
+      root?.render(createElement(ConfirmFollow, { targetHandle: "karan", auto: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(followAction.request).not.toHaveBeenCalled();
+    expect(container?.textContent).toContain("Add @karan");
+  });
+
   it("shows a deleted target as a refusal, with no receipt and no retry", async () => {
     followAction.request.mockResolvedValue(
       new Response(
@@ -392,7 +413,7 @@ describe("ConfirmFollow", () => {
       ),
     );
     const storage = mountEnvironment();
-    markAddLinkDoorTaken(storage, Date.now());
+    markAddLinkDoorTaken(storage, Date.now(), "karan");
     auth.user = { id: "account-a" };
     viewer.handle = "viewer-a";
 

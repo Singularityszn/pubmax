@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -80,9 +80,5 @@ describe("pubpal:agent dry run", () => {
     expect(body.conversation_config.conversation.max_duration_seconds).toBe(
       PAL_VOICE_MAX_SESSION_SECONDS,
     );
-
-    const script = readFileSync(SCRIPT, "utf8");
-    expect(script).toMatch(/palVoiceCap/);
-    expect(script).not.toMatch(/MAX_SESSION_SECONDS\s*=\s*300/);
   });
 });

@@ -30,13 +30,19 @@ function profileStore(): ProfileStore {
  *
  * Use this on every private write before `gateHandleAction` so a signed-in
  * user cannot POST as a different unlinked handle while their JWT is present.
+ *
+ * A route that already verified the bearer passes `verifiedUserId` so the JWT
+ * is checked once per request rather than once per gate. Omitting it keeps the
+ * old behaviour; passing `null` states the caller is anonymous.
  */
 export async function resolveMessageHandle(
   request: Request,
   assertedHandle: string | null | undefined,
+  verifiedUserId?: string | null,
 ): Promise<string> {
   const asserted = normalizeHandle(assertedHandle ?? "");
-  const userId = await callerUserId(request);
+  const userId =
+    verifiedUserId === undefined ? await callerUserId(request) : verifiedUserId;
   if (!userId) return asserted;
 
   try {

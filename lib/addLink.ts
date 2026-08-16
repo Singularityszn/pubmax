@@ -96,23 +96,36 @@ export function addLinkAwareDestination(
  */
 export type AddLinkStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
-const DOOR_MARKER_KEY = "pubmax:add-link-door:v1";
+const DOOR_MARKER_PREFIX = "pubmax:add-link-door:v1:";
 
 /**
- * How long a taken door still counts as this tab's own return. Same bound as
- * the arrival intent: long enough for an inbox hop, short enough that a
- * leftover marker cannot auto-follow tomorrow.
+ * How long a taken door still counts as this device's own return.
+ *
+ * The marker lives in localStorage, not sessionStorage, because a magic link
+ * opens in a FRESH TAB from the email client: a per-tab marker is absent by the
+ * time the person lands back, so the one journey the add link exists for would
+ * never auto-add. It is keyed by the TARGET handle, so a door taken to add one
+ * friend can never perform an add for somebody else's crafted `?auto=1`, and it
+ * is one-shot plus TTL-bounded, so a leftover marker cannot auto-follow
+ * tomorrow.
  */
 export const ADD_LINK_DOOR_TTL_MS = 30 * 60_000;
 
-/** Record that this tab took a sign-in or create-account door. */
+function doorMarkerKey(target: string): string | null {
+  const handle = normalizeHandle(target);
+  return handle ? `${DOOR_MARKER_PREFIX}${handle}` : null;
+}
+
+/** Record that this device took a sign-in or create-account door for `target`. */
 export function markAddLinkDoorTaken(
   storage: AddLinkStorage | null,
   now: number,
+  target: string,
 ): void {
-  if (!storage) return;
+  const key = doorMarkerKey(target);
+  if (!storage || !key) return;
   try {
-    storage.setItem(DOOR_MARKER_KEY, JSON.stringify({ at: now }));
+    storage.setItem(key, JSON.stringify({ at: now }));
   } catch {
     // Storage blocked: the person can still tap Add on the way back.
   }
@@ -125,11 +138,13 @@ export function markAddLinkDoorTaken(
 export function peekAddLinkDoorTaken(
   storage: AddLinkStorage | null,
   now: number,
+  target: string,
 ): boolean {
-  if (!storage) return false;
+  const key = doorMarkerKey(target);
+  if (!storage || !key) return false;
   let raw: string | null;
   try {
-    raw = storage.getItem(DOOR_MARKER_KEY);
+    raw = storage.getItem(key);
   } catch {
     return false;
   }
@@ -138,21 +153,25 @@ export function peekAddLinkDoorTaken(
   try {
     marker = JSON.parse(raw);
   } catch {
-    clearAddLinkDoorTaken(storage);
+    clearAddLinkDoorTaken(storage, target);
     return false;
   }
   const at = (marker as { at?: unknown } | null)?.at;
   if (typeof at !== "number" || now - at >= ADD_LINK_DOOR_TTL_MS) {
-    clearAddLinkDoorTaken(storage);
+    clearAddLinkDoorTaken(storage, target);
     return false;
   }
   return true;
 }
 
-export function clearAddLinkDoorTaken(storage: AddLinkStorage | null): void {
-  if (!storage) return;
+export function clearAddLinkDoorTaken(
+  storage: AddLinkStorage | null,
+  target: string,
+): void {
+  const key = doorMarkerKey(target);
+  if (!storage || !key) return;
   try {
-    storage.removeItem(DOOR_MARKER_KEY);
+    storage.removeItem(key);
   } catch {
     // The TTL bounds an unreadable marker anyway.
   }
@@ -162,9 +181,10 @@ export function clearAddLinkDoorTaken(storage: AddLinkStorage | null): void {
 export function consumeAddLinkDoorTaken(
   storage: AddLinkStorage | null,
   now: number,
+  target: string,
 ): boolean {
-  const live = peekAddLinkDoorTaken(storage, now);
-  if (live) clearAddLinkDoorTaken(storage);
+  const live = peekAddLinkDoorTaken(storage, now, target);
+  if (live) clearAddLinkDoorTaken(storage, target);
   return live;
 }
 
@@ -175,7 +195,10 @@ export function shouldAutoAdd(input: {
   viewerHandle: string | null;
   target: string;
   attemptedAccountIds: ReadonlySet<string>;
-  /** This tab took a door. A crafted third-party ?auto=1 never has this. */
+  /**
+   * This device took a door for THIS target. A crafted third-party ?auto=1
+   * never has this.
+   */
   doorTaken?: boolean;
 }): boolean {
   if (
