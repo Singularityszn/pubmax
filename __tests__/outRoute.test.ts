@@ -75,7 +75,7 @@ describe("parseOutQuery", () => {
 });
 
 describe("buildOutResponse", () => {
-  it("stays ready with bundled rows when a live lane is not configured", async () => {
+  it("cannot answer ready when no live lane was asked, and never as an empty market", async () => {
     const body = await buildOutResponse(
       { city: "london", day: "today" },
       {
@@ -95,7 +95,9 @@ describe("buildOutResponse", () => {
         ],
       },
     );
-    expect(body.status).toBe("ready");
+    // A missing key is not-configured, never an empty-market claim - so the
+    // body says so rather than passing an unasked question off as ready.
+    expect(body.status).toBe("not-configured");
     expect(body.events).toHaveLength(1);
     expect(body.openPlans).toEqual([]);
     expect(body.providers).toEqual(
@@ -103,6 +105,47 @@ describe("buildOutResponse", () => {
         expect.objectContaining({ name: "skiddle", configured: false, rows: 0 }),
       ]),
     );
+    // And the reader is told the listings are off, not that the city is quiet.
+    expect(outStatusLines({ body, failed: false })).toEqual([
+      "Listings are not switched on yet.",
+    ]);
+    expect(outStatusLines({ body: { ...body, events: [] }, failed: false })).not.toContain(
+      "No listings for this day yet.",
+    );
+  });
+
+  it("keeps ready when a lane really was asked and answered", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [eventRow()],
+        liveProviders: [
+          { name: "ticketmaster", isConfigured: () => true, fetchTonight: async () => [] },
+          { name: "skiddle", isConfigured: () => false, fetchTonight: async () => [] },
+        ],
+      },
+    );
+    expect(body.status).toBe("ready");
+  });
+
+  it("keeps degraded ahead of not-configured when one lane failed", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => {
+          throw new Error("events file unreadable");
+        },
+        liveProviders: [
+          { name: "skiddle", isConfigured: () => false, fetchTonight: async () => [] },
+        ],
+      },
+    );
+    expect(body.status).toBe("degraded");
+    expect(outStatusLines({ body, failed: false })).toEqual([
+      "Some listings could not be checked.",
+    ]);
   });
 
   it("is degraded when a configured provider fails, and still returns bundled rows", async () => {
@@ -342,7 +385,7 @@ describe("GET /api/out", () => {
       "public, s-maxage=300, stale-while-revalidate=900",
     );
     const body = await res.json();
-    expect(body.status === "ready" || body.status === "degraded").toBe(true);
+    expect(["ready", "degraded", "not-configured"]).toContain(body.status);
     expect(Array.isArray(body.events)).toBe(true);
     expect(body.openPlans).toEqual([]);
   });

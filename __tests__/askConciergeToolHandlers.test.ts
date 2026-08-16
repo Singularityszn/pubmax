@@ -23,7 +23,9 @@ vi.mock("@/lib/communityPriceStore", () => ({
 
 // A tiny stand-in for the tonight window: rows are kept only when their own
 // start sits inside the twelve hours around the clock the CALLER handed in, so
-// a handler that leaves `now` out of the read answers about another day.
+// a handler that leaves `now` out of the read answers about another day. A
+// DATE-ONLY row states a day and no clock time, and the real store windows it
+// by that day, so it is kept when its stated date is the caller's own.
 vi.mock("@/lib/whatsOnStore", () => ({
   loadWhatsOn: vi.fn(async (_params: unknown, deps: { now?: number } = {}) => {
     if (state.whatsOnThrows) throw new Error("down");
@@ -31,6 +33,9 @@ vi.mock("@/lib/whatsOnStore", () => ({
     return {
       ...state.whatsOn,
       rows: state.whatsOn.rows.filter((row) => {
+        if (!row.startsAt && row.startsDate) {
+          return row.startsDate === new Date(now).toISOString().slice(0, 10);
+        }
         const startsAt = row.startsAt ? Date.parse(row.startsAt) : Number.NaN;
         return (
           Number.isFinite(startsAt) && Math.abs(startsAt - now) <= 12 * 3_600_000
@@ -284,6 +289,38 @@ describe("tonight_now", () => {
     expect(byKey.get("ticketed")?.price).toBeNull();
     expect(byKey.get("priced-deal")?.price).toBe(4.5);
     expect(JSON.stringify(result.cards)).not.toContain("23.5");
+  });
+
+  it("never says a date-only listing has or has not started", async () => {
+    // Common (and a bare-date Skiddle listing) publishes a DAY and no clock
+    // time. Calling it "still to start tonight" is a claim about a start the
+    // source withheld, so the card carries the source's own line instead.
+    state.whatsOn = {
+      rows: [
+        {
+          id: "date-only",
+          placeName: "Camberwell",
+          kind: "event",
+          title: "Sunday roast club",
+          startsDate: "2026-08-15",
+          timeEvidence: "Date listed, start time not published",
+          source: { label: "common", url: "https://www.common-social.com/post/abc" },
+          observedAt: "2026-08-15T09:00:00.000Z",
+          confidence: "listed",
+        },
+      ],
+      kindObservedAt: {},
+    };
+    const result = await runAskTool("tonight_now", {}, ctx());
+    expect(result.cards).toHaveLength(1);
+    expect(result.cards[0]?.note).toBe("Date listed, start time not published");
+    expect(result.cards[0]?.note).not.toContain("start tonight");
+    expect(result.cards[0]?.note).not.toContain("right now");
+    // The summary counts it on its own, so it inflates neither running nor
+    // still-to-start, and the answer is not "nothing sourced" either.
+    expect(result.answerHint).toContain("1 listed tonight with no start time");
+    expect(result.answerHint).not.toContain("still to start");
+    expect(result.answerHint).not.toContain("Nothing sourced");
   });
 
   it("reads the window and the split off the same clock", async () => {

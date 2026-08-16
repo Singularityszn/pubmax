@@ -416,28 +416,46 @@ export async function runEventsRefresh({
   const wrote = provider.wrote === true || common.status === "ran";
 
   let validation = { status: "skipped" };
+  let published = { status: "skipped" };
   if (argv.includes("--open-pr") && wrote) {
     // Validate BEFORE anything is pushed. A refresh that produced a row the
     // app's own gate rejects must be refused here, not left on a branch with a
-    // review PR already open against it.
+    // review PR already open against it. The two steps report SEPARATELY: a git
+    // or gh failure is not a data-gate refusal, and once the push has run
+    // "no branch pushed" would be false.
     try {
       validate();
       validation = { status: "ran" };
-      await openPr({ outPath, observedAt, nowMs, env, log });
     } catch (err) {
       logError(
         `eventsRefresh: validate-data refused the refreshed file (${err.message}) - no branch pushed, no PR opened.`,
       );
       validation = { status: "failed", reason: err.message };
     }
+    if (validation.status === "ran") {
+      try {
+        await openPr({ outPath, observedAt, nowMs, env, log });
+        published = { status: "ran" };
+      } catch (err) {
+        logError(
+          `eventsRefresh: the refreshed file passed validate-data, but publishing it failed (${err.message}).`,
+        );
+        published = { status: "failed", reason: err.message };
+      }
+    }
   }
 
   return {
-    ok: !laneFailed && !commonFailed && validation.status !== "failed",
+    ok:
+      !laneFailed &&
+      !commonFailed &&
+      validation.status !== "failed" &&
+      published.status !== "failed",
     city,
     provider,
     common,
     validation,
+    published,
   };
 }
 

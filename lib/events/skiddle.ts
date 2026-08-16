@@ -6,9 +6,9 @@
 import {
   SKIDDLE_EVENTCODE_KIND,
   normaliseSkiddleEvents,
+  skiddleLaneFenced,
 } from "@/lib/whatson/eventNormalise.mjs";
 import { createLiveEventsProvider, type LiveEventsProvider } from "@/lib/events/liveProvider";
-import { skiddleLaneFenced } from "@/lib/out/attribution";
 
 const SKIDDLE_FETCH_CODES = Object.keys(SKIDDLE_EVENTCODE_KIND).join(",");
 
@@ -20,7 +20,7 @@ export function createSkiddleProvider(): LiveEventsProvider {
     envVar: "SKIDDLE_API_KEY",
     // The licence obligation, not the key, is what holds this lane shut today:
     // Skiddle's own logo asset is absent, so a Skiddle row may not be served
-    // however configured the lane becomes. See lib/out/attribution.ts.
+    // however configured the lane becomes. See lib/whatson/eventNormalise.mjs.
     available: () => !skiddleLaneFenced(),
     upstreamLabel: "Skiddle Events API",
     buildUrl: ({ key, geo, window }) => {

@@ -14,6 +14,7 @@ import {
   type OutProviderReport,
   type OutQuery,
   type OutResponse,
+  type OutStatus,
 } from "@/lib/out/types";
 import {
   bundledGeneratedAt,
@@ -213,7 +214,7 @@ export async function buildOutResponse(
     createSkiddleProvider(),
   ];
 
-  let status: "ready" | "degraded" = "ready";
+  let status: OutStatus = "ready";
   let reason: string | undefined;
   let baseline: WhatsOnRow[] = [];
   try {
@@ -272,6 +273,13 @@ export async function buildOutResponse(
     .slice(0, MAX_OUT_EVENTS);
 
   reports.sort((left, right) => left.name.localeCompare(right.name));
+
+  // Every live lane held shut - no key, or a licence fence - means nothing was
+  // asked. That is weaker than a lane that failed, and it is NOT a quiet city,
+  // so it may never reach the reader as a ready answer.
+  const askedNothing =
+    reports.length > 0 && reports.every((report) => report.status === "not-configured");
+  if (status === "ready" && askedNothing) status = "not-configured";
 
   const body: OutResponse = {
     status,

@@ -273,14 +273,20 @@ export async function toolTonightNow(
     );
     const scoped = area ? filterRowsByArea(rows, area) : rows;
     const split = splitTonightRowsByNow(scoped, now);
-    const cards: AskCard[] = [...split.onNow, ...split.later]
+    const cards: AskCard[] = [...split.onNow, ...split.later, ...split.dateOnly]
       .slice(0, 6)
       .map((row, index) => ({
         key: row.id || `now-${index}`,
         venueId: row.venueId ?? "",
         title: row.title,
         place: row.placeName,
-        note: split.onNow.includes(row) ? "On right now" : "Still to start tonight",
+        // A date-only listing gets its own source-stated line. Saying "still to
+        // start" would be a claim about a start time the source withheld.
+        note: split.dateOnly.includes(row)
+          ? (row.timeEvidence ?? "")
+          : split.onNow.includes(row)
+            ? "On right now"
+            : "Still to start tonight",
         price: whatsOnBarePriceGbp(row),
         provenance: {
           label: row.source?.label || "What's On",
@@ -292,6 +298,7 @@ export async function toolTonightNow(
       area,
       onNow: split.onNow.length,
       later: split.later.length,
+      dateOnly: split.dateOnly.length,
       read: "ready",
     });
     return {
@@ -301,6 +308,7 @@ export async function toolTonightNow(
         area,
         onNow: split.onNow.length,
         later: split.later.length,
+        dateOnly: split.dateOnly.length,
         kindObservedAt,
       },
       provenance: cards

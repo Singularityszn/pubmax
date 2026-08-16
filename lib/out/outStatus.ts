@@ -4,6 +4,7 @@ export const OUT_READ_FAILED_LINE = "Could not check listings.";
 export const OUT_DEGRADED_LINE = "Some listings could not be checked.";
 export const OUT_EMPTY_LINE = "No listings for this day yet.";
 export const OUT_PENDING_LINE = "Checking listings...";
+export const OUT_NOT_CONFIGURED_LINE = "Listings are not switched on yet.";
 
 /**
  * What the surface may show for the day currently on screen.
@@ -51,6 +52,12 @@ export function outStatusLines(input: {
   }
   if (body.status === "degraded") {
     lines.push(body.reason ?? OUT_DEGRADED_LINE);
+    return lines;
+  }
+  // A lane nobody asked is not a city with nothing on. Say the listings are off
+  // rather than wording an unasked question as an empty market.
+  if (body.status === "not-configured") {
+    lines.push(body.reason ?? OUT_NOT_CONFIGURED_LINE);
     return lines;
   }
   if (!input.failed && body.events.length === 0) lines.push(OUT_EMPTY_LINE);

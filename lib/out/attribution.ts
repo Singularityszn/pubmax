@@ -13,10 +13,12 @@ const SKIDDLE_HOME = "https://www.skiddle.com/";
 const TICKETMASTER_HOME = "https://www.ticketmaster.co.uk/";
 const COMMON_HOME = "https://www.common-social.com/";
 
-// The fence is owned by lib/whatson/eventNormalise.mjs, which the build-time
-// refresh CLI reads too - a second copy here would let the read seam and the
-// write seam disagree about whether the lane is shut.
-export { SKIDDLE_BRAND_ASSET_PRESENT, skiddleLaneFenced } from "@/lib/whatson/eventNormalise.mjs";
+// The Skiddle fence lives in lib/whatson/eventNormalise.mjs, which both supply
+// lanes read. It is deliberately NOT re-exported here: this module is reached
+// from app/out/OutClient.tsx ("use client"), and a re-export is not shaken out
+// of a module the bundler treats as side-effectful, so it would drag the whole
+// normaliser and the city bounds into the browser bundle for a symbol no
+// client reads.
 
 export function outCardSource(label: string): OutCardSource {
   const normalised = label.trim().toLowerCase();

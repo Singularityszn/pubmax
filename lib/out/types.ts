@@ -26,8 +26,15 @@ export type OutProviderReport = {
   status: OutProviderStatus;
 };
 
+/**
+ * A lane that was never ASKED cannot produce a ready answer, and a missing key
+ * is never an empty-market claim - so "not-configured" is a body status of its
+ * own, weaker than degraded (which means we looked and could not see).
+ */
+export type OutStatus = "ready" | "degraded" | "not-configured";
+
 export type OutResponse = {
-  status: "ready" | "degraded";
+  status: OutStatus;
   events: WhatsOnRow[];
   openPlans: [];
   attribution: OutSourceCredit[];

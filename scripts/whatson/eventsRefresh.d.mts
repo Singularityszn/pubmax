@@ -81,4 +81,6 @@ export declare function runEventsRefresh(opts?: {
   provider: EventsLaneReport;
   common: EventsLaneReport;
   validation: EventsLaneReport;
+  /** Branch, commit, push and PR. Reports separately from validation. */
+  published: EventsLaneReport;
 }>;

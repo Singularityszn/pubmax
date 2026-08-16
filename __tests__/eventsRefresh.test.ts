@@ -584,6 +584,31 @@ describe("the review PR is refused when the gate rejects the refreshed file", ()
     expect(result.ok).toBe(false);
   });
 
+  it("blames the publish step, not the data gate, when git or gh fails", async () => {
+    const result = await keyedRun({
+      validate: () => {},
+      openPr: () => {
+        throw new Error("gh pr create: not authenticated");
+      },
+    });
+    // The gate passed; only publishing failed, and the report says so.
+    expect(result.validation.status).toBe("ran");
+    expect(result.published.status).toBe("failed");
+    expect(result.published.reason).toContain("gh pr create");
+    expect(result.ok).toBe(false);
+  });
+
+  it("reports the publish step as skipped when the gate refused first", async () => {
+    const result = await keyedRun({
+      validate: () => {
+        throw new Error("row 0: startsAt is not a valid ISO timestamp");
+      },
+      openPr: () => {},
+    });
+    expect(result.validation.status).toBe("failed");
+    expect(result.published.status).toBe("skipped");
+  });
+
   it("opens the PR only after validation passed", async () => {
     const order: string[] = [];
     const result = await keyedRun({
@@ -592,6 +617,7 @@ describe("the review PR is refused when the gate rejects the refreshed file", ()
     });
     expect(order).toEqual(["validate", "openPr"]);
     expect(result.validation.status).toBe("ran");
+    expect(result.published.status).toBe("ran");
     expect(result.ok).toBe(true);
   });
 });
