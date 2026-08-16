@@ -50,6 +50,7 @@ import {
 } from "@/lib/tonight";
 import {
   acceptTonightVenue,
+  tonightAcceptanceFamilyKey,
   type TonightAcceptanceError,
 } from "@/lib/tonightAcceptance";
 import { TonightRowAccept } from "@/app/tonight/TonightRowAccept";
@@ -205,7 +206,7 @@ export default function TonightClient({
   // the Venue off via the accept deep link. Storage failure stays on Tonight,
   // reports the error, and emits nothing.
   const acceptVenue = useCallback(
-    (venueId: string) => {
+    (venueId: string, familyKey: string) => {
       const result = acceptTonightVenue({
         venueId,
         area: remembered,
@@ -215,7 +216,7 @@ export default function TonightClient({
         fallbackCityId: "london",
       });
       if (!result.accepted || !result.telemetry) {
-        setAcceptanceError({ venueId, message: VENUE_ACCEPTANCE_STORAGE_ERROR });
+        setAcceptanceError({ venueId, familyKey, message: VENUE_ACCEPTANCE_STORAGE_ERROR });
         return;
       }
       setAcceptanceError(null);
@@ -616,6 +617,7 @@ export default function TonightClient({
                   {typeof row.venueId === "string" && row.venueId.length > 0 ? (
                     <TonightRowAccept
                       venueId={row.venueId}
+                      familyKey={tonightAcceptanceFamilyKey(row)}
                       placeName={row.placeName}
                       className="tonightRowAccept"
                       label="Keep this venue"
@@ -680,6 +682,7 @@ export default function TonightClient({
                               {typeof alt.venueId === "string" && alt.venueId.length > 0 ? (
                                 <TonightRowAccept
                                   venueId={alt.venueId}
+                                  familyKey={tonightAcceptanceFamilyKey(alt)}
                                   placeName={alt.placeName}
                                   className="tonightRowMoreAccept"
                                   label="Keep"

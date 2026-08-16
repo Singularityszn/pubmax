@@ -484,18 +484,23 @@ describe("PlanComposer route preview seam", () => {
     );
   });
 
-  it("maps the intake-conflict 422 to a reader sentence", () => {
+  it("maps the intake-conflict 422 from the flat publicApiError body", () => {
     expect(errorMessageFromBody({
-      error: {
-        code: "PLAN_INTAKE_MALFORMED",
-        message: PLAN_INTAKE_CONFLICT_SERVER,
-      },
+      error: PLAN_INTAKE_CONFLICT_SERVER,
+      code: "PLAN_INTAKE_MALFORMED",
+      retryable: false,
     }, "fallback")).toBe(PLAN_INTAKE_CONFLICT_READER);
     expect(planGenerationFailureStatus(PLAN_INTAKE_CONFLICT_SERVER, true)).toBe(
       PLAN_INTAKE_CONFLICT_READER,
     );
     expect(planGenerationFailureStatus(PLAN_INTAKE_CONFLICT_READER, true)).toBe(
       PLAN_INTAKE_CONFLICT_READER,
+    );
+    expect(planGenerationFailureStatus(PLAN_INTAKE_CONFLICT_SERVER, false)).toBe(
+      PLAN_INTAKE_CONFLICT_SERVER,
+    );
+    expect(planGenerationFailureStatus(PLAN_INTAKE_CONFLICT_READER, false)).toBe(
+      PLAN_INTAKE_CONFLICT_SERVER,
     );
   });
 

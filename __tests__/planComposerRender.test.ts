@@ -192,9 +192,9 @@ describe("PlanComposer rendered UI", () => {
       .not.toBe(acceptedStop1RemoveLabel("The Coach & Horses"));
   });
 
-  it("hides describe-first whenever the full composer is on the page", () => {
+  it("hides describe-first only while a pub is held", () => {
     expect(planComposerShowsDescribeFirst({
-      composerVisible: true,
+      heldVenueId: "venue-kept",
       completed: false,
       entryMode: "describe",
     })).toBe(false);
@@ -204,18 +204,18 @@ describe("PlanComposer rendered UI", () => {
       entryMode: "describe",
     })).toBe(false);
     expect(planComposerShowsDescribeFirst({
-      composerVisible: false,
+      heldVenueId: null,
       completed: false,
       entryMode: "describe",
     })).toBe(true);
   });
 
-  it("still hides describe-first after the held pub is released", () => {
+  it("restores describe-first after the held pub is released, even if a route draft is still on the page", () => {
     expect(planComposerShowsDescribeFirst({
-      composerVisible: true,
+      heldVenueId: null,
       completed: false,
       entryMode: "describe",
-    })).toBe(false);
+    })).toBe(true);
     expect(planComposerShowsIntake({
       heldVenueId: null,
       completed: false,
@@ -236,13 +236,22 @@ describe("PlanComposer rendered UI", () => {
     })).toBe(true);
   });
 
-  it("states the release in one sentence and names the pub", () => {
-    expect(releasedAcceptanceStatus("The Coach & Horses")).toBe(
-      "Released The Coach & Horses - the plan is no longer anchored.",
-    );
-    expect(releasedAcceptanceStatus(null)).toBe(
-      "Released this pub - the plan is no longer anchored.",
-    );
-    expect(releasedAcceptanceStatus("The Coach & Horses")).not.toMatch(/refresh/i);
+  it("states the release without claiming the route is gone", () => {
+    expect(releasedAcceptanceStatus({
+      venueName: "The Coach & Horses",
+      routeStale: false,
+    })).toBe("Released The Coach & Horses. Stop 1 is yours to change.");
+    expect(releasedAcceptanceStatus({
+      venueName: null,
+      routeStale: false,
+    })).toBe("Released this pub. Stop 1 is yours to change.");
+  });
+
+  it("keeps a stale-route reason instead of overwriting it on release", () => {
+    expect(releasedAcceptanceStatus({
+      venueName: "The Coach & Horses",
+      routeStale: true,
+      staleStatus: "Route needs refreshing after that context change.",
+    })).toBe("Route needs refreshing after that context change.");
   });
 });

@@ -11,6 +11,7 @@ import {
 
 export function TonightRowAccept({
   venueId,
+  familyKey,
   placeName,
   className,
   label,
@@ -18,20 +19,21 @@ export function TonightRowAccept({
   onAccept,
 }: {
   venueId: string;
+  familyKey: string;
   placeName: string;
   className: string;
   label: string;
   acceptanceError: TonightAcceptanceError | null;
-  onAccept: (venueId: string) => void;
+  onAccept: (venueId: string, familyKey: string) => void;
 }) {
-  const message = tonightRowAcceptanceError(acceptanceError, venueId);
+  const message = tonightRowAcceptanceError(acceptanceError, venueId, familyKey);
   return (
     <>
       <button
         type="button"
         className={`${className} pressable`}
         aria-label={`Keep ${placeName} for tonight`}
-        onClick={() => onAccept(venueId)}
+        onClick={() => onAccept(venueId, familyKey)}
       >
         {label}
       </button>

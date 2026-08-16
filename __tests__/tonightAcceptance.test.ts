@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -143,22 +145,29 @@ describe("acceptTonightVenue", () => {
 
 describe("tonightRowAcceptanceError", () => {
   it("answers only the row whose Keep failed", () => {
-    const error = { venueId: "venue-failed", message: "Couldn’t keep this pub on this device. Try again." };
-    expect(tonightRowAcceptanceError(error, "venue-failed")).toBe(error.message);
-    expect(tonightRowAcceptanceError(error, "venue-other")).toBeNull();
-    expect(tonightRowAcceptanceError(null, "venue-failed")).toBeNull();
+    const error = {
+      venueId: "venue-failed",
+      familyKey: "quiz|Quiz Night|Chain Co",
+      message: "Couldn’t keep this pub on this device. Try again.",
+    };
+    expect(tonightRowAcceptanceError(error, "venue-failed", "quiz|Quiz Night|Chain Co")).toBe(error.message);
+    expect(tonightRowAcceptanceError(error, "venue-failed", "deal|Curry Club|Chain Co")).toBeNull();
+    expect(tonightRowAcceptanceError(error, "venue-other", "quiz|Quiz Night|Chain Co")).toBeNull();
+    expect(tonightRowAcceptanceError(null, "venue-failed", "quiz|Quiz Night|Chain Co")).toBeNull();
   });
 });
 
 describe("TonightRowAccept", () => {
   const failure = {
     venueId: "venue-failed",
+    familyKey: "quiz|Quiz Night|Chain Co",
     message: "Couldn’t keep this pub on this device. Try again.",
   };
 
-  function render(venueId: string) {
+  function render(venueId: string, familyKey = "quiz|Quiz Night|Chain Co") {
     return renderToStaticMarkup(createElement(TonightRowAccept, {
       venueId,
+      familyKey,
       placeName: "The Dove",
       className: "tonightRowAccept",
       label: "Keep this venue",
@@ -179,5 +188,18 @@ describe("TonightRowAccept", () => {
     const html = render("venue-other");
     expect(html).toContain('aria-label="Keep The Dove for tonight"');
     expect(html).not.toContain('role="alert"');
+  });
+
+  it("says nothing on a different offer family at the same pub", () => {
+    const html = render("venue-failed", "deal|Curry Club|Chain Co");
+    expect(html).not.toContain('role="alert"');
+  });
+});
+
+describe("tonightAcceptanceError inset", () => {
+  it("uses the same 16px horizontal inset as the Keep button", () => {
+    const css = readFileSync(join(process.cwd(), "app/tonight/tonight.css"), "utf8");
+    const block = css.match(/\.tonightAcceptanceError\s*\{[^}]+\}/);
+    expect(block?.[0]).toMatch(/margin:\s*0 16px 16px/);
   });
 });

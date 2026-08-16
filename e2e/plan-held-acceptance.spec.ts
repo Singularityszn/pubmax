@@ -77,17 +77,20 @@ test("held pub shows one describe box, names the area, and release un-anchors wh
 
   await page.getByRole("button", { name: "Release this pub" }).click();
   await expect(page.locator("#plan-route-status")).toHaveText(
-    "Released The Coach & Horses - the plan is no longer anchored.",
+    "Released The Coach & Horses. Stop 1 is yours to change.",
   );
   await expect(page.locator("#plan-route-status")).toBeFocused();
-  await expect(page.getByRole("textbox", { name: "Describe the outing" })).toHaveCount(1);
+  await expect(page.getByRole("textbox", { name: "Describe the outing" })).toHaveCount(2);
 
   await expect.poll(async () => {
     const raw = await page.evaluate((routeKey) => localStorage.getItem(routeKey), ROUTE_DRAFT_KEY);
-    if (!raw) return "missing";
+    if (!raw) return null;
     const parsed = JSON.parse(raw) as { planAnchor?: unknown; groundingProof?: unknown };
-    return parsed.planAnchor ?? parsed.groundingProof ?? null;
-  }).toBeNull();
+    return {
+      planAnchor: parsed.planAnchor ?? null,
+      groundingProof: parsed.groundingProof ?? null,
+    };
+  }).toEqual({ planAnchor: null, groundingProof: "signed-proof" });
 
   await page.getByLabel("Your name").fill("Karan");
   await page.getByLabel("First pint").fill("2026-08-17T20:00");
@@ -120,8 +123,8 @@ test("Keep on Near then Make it Stop 1 shows one describe box and names the area
 
   await page.getByRole("button", { name: "Release this pub" }).click();
   await expect(page.locator("#plan-route-status")).toContainText(
-    "the plan is no longer anchored.",
+    "Stop 1 is yours to change.",
   );
   await expect(page.locator("#plan-route-status")).toBeFocused();
-  await expect(page.getByRole("textbox", { name: "Describe the outing" })).toHaveCount(1);
+  await expect(page.getByRole("textbox", { name: "Describe the outing" })).toHaveCount(2);
 });

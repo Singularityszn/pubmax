@@ -512,9 +512,17 @@ export const PLAN_INTAKE_CONFLICT_SERVER =
   "Plan intake skipped steps conflict with supplied answers.";
 export const PLAN_INTAKE_CONFLICT_READER =
   "The earlier route is still here - start again or keep it";
-export function releasedAcceptanceStatus(venueName: string | null): string {
-  const pub = venueName?.trim() || "this pub";
-  return `Released ${pub} - the plan is no longer anchored.`;
+export function releasedAcceptanceStatus(input: {
+  venueName: string | null;
+  routeStale: boolean;
+  staleStatus?: string | null;
+}): string {
+  if (input.routeStale) {
+    const stale = input.staleStatus?.trim();
+    return stale || "The route needs refreshing before it can be locked.";
+  }
+  const pub = input.venueName?.trim() || "this pub";
+  return `Released ${pub}. Stop 1 is yours to change.`;
 }
 
 export function errorMessageFromBody(body: unknown, fallback: string): string {
@@ -570,7 +578,7 @@ export function planGenerationFailureStatus(
     message === PLAN_INTAKE_CONFLICT_SERVER
     || message === PLAN_INTAKE_CONFLICT_READER
   ) {
-    return PLAN_INTAKE_CONFLICT_READER;
+    return hasPreviousRoute ? PLAN_INTAKE_CONFLICT_READER : PLAN_INTAKE_CONFLICT_SERVER;
   }
   return hasPreviousRoute ? `The previous route is still here. ${message}` : message;
 }
@@ -591,11 +599,11 @@ export function acceptedStop1RemoveLabel(venueName: string): string {
 }
 
 export function planComposerShowsDescribeFirst(input: {
-  composerVisible: boolean;
+  heldVenueId: string | null;
   completed: boolean;
   entryMode: "describe" | "wizard";
 }): boolean {
-  return !input.composerVisible && !input.completed && input.entryMode === "describe";
+  return !input.heldVenueId && !input.completed && input.entryMode === "describe";
 }
 
 export function planComposerShowsIntake(input: {
@@ -1337,10 +1345,12 @@ function PlanComposerForm({
       routeDraft: canPersist ? localStorage : null,
     });
     setPlanAnchor(null);
-    setGroundingProof(null);
     setAcceptanceReleased(true);
-    setRouteStale(false);
-    setRouteStatus(releasedAcceptanceStatus(acceptedVenueName));
+    setRouteStatus(releasedAcceptanceStatus({
+      venueName: acceptedVenueName,
+      routeStale,
+      staleStatus: routeStatus,
+    }));
   }
 
   function chooseVenue(key: number, venueName: string) {
@@ -1606,7 +1616,7 @@ function PlanComposerForm({
         />
       )}
       {planComposerShowsDescribeFirst({
-        composerVisible,
+        heldVenueId,
         completed: planIntake.completed,
         entryMode,
       }) ? (

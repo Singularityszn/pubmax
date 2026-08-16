@@ -482,7 +482,7 @@
 }
 
 .tonightAcceptanceError {
-  margin: 0 0 12px;
+  margin: 0 16px 16px;
   color: var(--color-negative, var(--brick));
   font-size: 0.86rem;
   font-weight: 700;
