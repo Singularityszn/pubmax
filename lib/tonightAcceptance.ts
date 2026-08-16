@@ -1,5 +1,5 @@
 // The Tonight acceptance seam (DAG L15). The Tonight-surface counterpart to the
-// Near seam (lib/venueAcceptance): an explicit "Use this Venue" turns a browsed
+// Near seam (lib/venueAcceptance): an explicit "Keep this venue" turns a browsed
 // listing into an EXPLICIT acceptance the trusted handoff can rely on — a strict
 // PlanningIntent envelope (source "tonight", what's-on evidence) plus the accept
 // deep link and the exact venue_accepted telemetry.
@@ -8,11 +8,12 @@
 // suite exercises every branch without a DOM. The component only wires the click
 // to it and emits the returned telemetry.
 //
-// Trust rules (§3.2, §4.8): only an explicit "Use this Venue" reaches here (a tap
-// to open a listing never does); the source is fixed "tonight", never guessed;
-// and acceptance requires the envelope to persist — on any storage failure the
-// person still lands on the Venue, but as a browse selection (`?sel=`), never a
-// claimed-but-unrecorded acceptance.
+// Trust rules (§3.2, §4.8): only an explicit "Keep this venue" reaches here (a
+// tap to open a listing never does); the source is fixed "tonight", never
+// guessed; and acceptance requires the envelope to persist — on any storage
+// failure nothing is accepted and no telemetry is emitted, and TonightClient
+// stays on Tonight reporting VENUE_ACCEPTANCE_STORAGE_ERROR rather than
+// navigating, so a claimed-but-unrecorded acceptance cannot exist.
 
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { type CityId } from "@/lib/cities";

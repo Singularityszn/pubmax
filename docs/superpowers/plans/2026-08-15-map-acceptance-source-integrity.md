@@ -10,6 +10,14 @@
 
 **Spec:** `docs/superpowers/plans/2026-08-14-permanent-venue-acceptance.md`
 
+> **Superseded within the same branch.** Task 2 below created
+> `__tests__/pubMapAcceptancePurity.test.ts`, a source-regex test that asserted
+> call shapes rather than behaviour. Branch review called it vacuous and the
+> later memoised reader broke it, so it was deleted and replaced by real
+> memoisation cases in `__tests__/mapAcceptance.test.ts`. The external-store
+> snapshot contract this plan describes still holds; only the named test file is
+> gone, so every command below that names it will not run as written.
+
 ## Global Constraints
 
 - A URL source is trusted only when `accept=1`, `src`, selected Venue, city, and live PlanningIntent all match.

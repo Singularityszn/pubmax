@@ -32,7 +32,7 @@ text, imagery, or exact layout.
 2. A reload, later return, cross-device RSVP, HTTP error, or network error must
    not remove the Map handoff from an authorised invite.
 3. One next action owns the Map transition.
-5. Reuse `InviteMapLink`, `buildCrawlMapHref`, `venueMapUrl`, and
+4. Reuse `InviteMapLink`, `buildCrawlMapHref`, `venueMapUrl`, and
    `invite_map_opened`.
 6. Two or more valid Venue IDs open
    `/map?mode=build&pubs=<ordered ids>`. One valid Venue ID opens its canonical
