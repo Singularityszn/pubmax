@@ -1,24 +1,25 @@
 // GET /api/out?city=london&day=today|tomorrow|weekend
 //
 // Public Out read. Events half is L2 (loadWhatsOn as the current supply).
-// Open plans come from list_open_social_crews, narrowed to the asked-for city
-// by resolving each plan's Stop 1 (lib/openSocialCrew.server) - plans store no
-// city of their own. A failed plans read is degraded, never an empty market,
-// and a degraded answer is never handed to the CDN.
+// Open plans come from list_open_social_crews with city and time window in the
+// RPC so the fifty-row cap applies after the city filter. A failed plans read
+// is degraded, never an empty market, and a degraded answer is never handed to
+// the CDN.
 
 import { publicApiError } from "@/lib/apiError";
 import {
   boundOutEvents,
   boundOutOpenPlans,
-  outPlansFromIso,
+  outPlansWindow,
   parseOutCity,
   parseOutDay,
   OUT_EVENT_LIMIT,
   OUT_OPEN_PLAN_LIMIT,
+  OUT_UNAVAILABLE_ERROR,
   type OutResponse,
   type OutStatus,
 } from "@/lib/out";
-import { openPlansInCity } from "@/lib/openSocialCrew.server";
+import { attachOpenPlanMeetingPoints } from "@/lib/openSocialCrew.server";
 import { isOutLimited } from "@/lib/outRateLimit";
 import { createSocialCrewStore } from "@/lib/socialCrewStore";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
@@ -65,17 +66,20 @@ export async function GET(request: Request): Promise<Response> {
   const city = parseOutCity(params.get("city"));
   const day = parseOutDay(params.get("day"));
   const now = Date.now();
+  const window = outPlansWindow(day, now);
 
   let status: OutStatus = "ready";
   let openPlans: OutResponse["openPlans"] = [];
   try {
     const listed = await store.listOpen({
-      from: outPlansFromIso(day, now),
+      from: window.from,
+      until: window.until,
+      city,
       limit: OUT_OPEN_PLAN_LIMIT,
     });
-    const inCity = await openPlansInCity(listed, city);
-    if (inCity.status === "degraded") status = "degraded";
-    openPlans = boundOutOpenPlans(inCity.plans);
+    const attached = await attachOpenPlanMeetingPoints(listed);
+    if (attached.status === "degraded") status = "degraded";
+    openPlans = boundOutOpenPlans(attached.plans);
   } catch {
     status = "degraded";
     openPlans = [];
@@ -90,9 +94,8 @@ export async function GET(request: Request): Promise<Response> {
       attribution: [],
       kindObservedAt: events.kindObservedAt,
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "out request failed";
-    return publicApiError(message, "out_unavailable", 200, {
+  } catch {
+    return publicApiError(OUT_UNAVAILABLE_ERROR, "out_unavailable", 200, {
       retryable: true,
       compatibilityFields: { ...DEGRADED_FIELDS, openPlans },
     });

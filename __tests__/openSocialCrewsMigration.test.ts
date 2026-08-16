@@ -255,6 +255,20 @@ function listedCrewIds(accountId: string, profileId: string): string[] {
   return page ? page.items.map((item) => item.crewId) : [];
 }
 
+function listOpenCrews(
+  fromExpr = "now() - interval '1 hour'",
+  untilExpr = "now() + interval '7 days'",
+  city = "london",
+  limit = 50,
+): unknown {
+  return jsonValue(
+    requireDatabase().sql(
+      `set role service_role;
+       select public.list_open_social_crews(${fromExpr}, ${untilExpr}, '${city}', ${limit})`,
+    ),
+  );
+}
+
 function acceptIntoOpenCrew(accountId: string): void {
   const requested = requestJoin(accountId, OPEN_CREW);
   requireDatabase().sql(`select public.decide_social_crew_join_request_atomic(
@@ -519,14 +533,30 @@ describe("0110 applied to PostgreSQL", () => {
     expect(snapshot(STRANGER_ACCOUNT, STRANGER_PROFILE, OPEN_CREW)).toBeNull();
   });
 
+  it("lets an accepted member keep reading after the host closes to private", () => {
+    const db = requireDatabase();
+    acceptIntoOpenCrew(STRANGER_ACCOUNT);
+    const revision = Number(
+      db.sql(`select authority_revision from public.social_crews where id='${OPEN_CREW}'`),
+    );
+    expect(
+      json(
+        db.sql(`select public.update_social_crew_visibility_atomic(
+          '${HOST_ACCOUNT}','${OPEN_CREW}','private',${revision},'${writeKey("close-member")}','${DIGEST}'
+        )`),
+      ),
+    ).toMatchObject({ ok: true, code: "updated" });
+    expect(snapshot(STRANGER_ACCOUNT, STRANGER_PROFILE, OPEN_CREW)).not.toBeNull();
+    expect(listedCrewIds(STRANGER_ACCOUNT, STRANGER_PROFILE)).toContain(OPEN_CREW);
+    expect(requestJoin(STRANGER_ACCOUNT, OPEN_CREW)).toEqual({
+      ok: false,
+      code: "not_found",
+    });
+  });
+
   it("lists open crews for the service role only", () => {
     const db = requireDatabase();
-    const listed = jsonValue(
-      db.sql(
-        `set role service_role;
-         select public.list_open_social_crews(now() - interval '1 hour', 50)`,
-      ),
-    ) as Array<Record<string, unknown>>;
+    const listed = listOpenCrews() as Array<Record<string, unknown>>;
     expect(listed).toHaveLength(1);
     expect(listed[0]).toMatchObject({
       crewId: OPEN_CREW,
@@ -539,45 +569,21 @@ describe("0110 applied to PostgreSQL", () => {
     // The friends crew is not a market listing, and a closed one leaves it.
     expect(JSON.stringify(listed)).not.toContain(FRIENDS_CREW);
     db.sql(`update public.social_crews set visibility='private' where id='${OPEN_CREW}'`);
-    expect(
-      jsonValue(
-        db.sql(
-          `set role service_role;
-           select public.list_open_social_crews(now() - interval '1 hour', 50)`,
-        ),
-      ),
-    ).toEqual([]);
+    expect(listOpenCrews()).toEqual([]);
 
     for (const role of ["anon", "authenticated"]) {
       expect(
         db.expectRefusal(
           `set role ${role};
-           select public.list_open_social_crews(now() - interval '1 hour', 50)`,
+           select public.list_open_social_crews(now() - interval '1 hour', now() + interval '7 days', 'london', 50)`,
         ),
       ).toMatch(/permission denied/i);
     }
   });
 
-  it("lists a plan from its start time forward and honours the limit", () => {
-    const db = requireDatabase();
-    expect(
-      jsonValue(
-        db.sql(
-          `set role service_role;
-           select public.list_open_social_crews(now() + interval '2 days', 50)`,
-        ),
-      ),
-    ).toEqual([]);
-    expect(
-      (
-        jsonValue(
-          db.sql(
-            `set role service_role;
-             select public.list_open_social_crews(now() - interval '1 hour', 1)`,
-          ),
-        ) as unknown[]
-      ).length,
-    ).toBe(1);
+  it("lists a plan inside its window and honours the limit", () => {
+    expect(listOpenCrews("now() + interval '2 days'", "now() + interval '3 days'")).toEqual([]);
+    expect((listOpenCrews("now() - interval '1 hour'", "now() + interval '7 days'", "london", 1) as unknown[]).length).toBe(1);
   });
 });
 
@@ -618,7 +624,7 @@ describe("0110 rolled back", () => {
     expect(
       db.expectRefusal(
         `set role service_role;
-         select public.list_open_social_crews(now() - interval '1 hour', 50)`,
+         select public.list_open_social_crews(now() - interval '1 hour', now() + interval '7 days', 'london', 50)`,
       ),
     ).toMatch(/does not exist/i);
   });

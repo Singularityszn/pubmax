@@ -53,7 +53,11 @@ vi.mock("@/lib/planStore", () => ({
 }));
 
 import { GET } from "@/app/api/out/route";
-import { OUT_OPEN_PLAN_LIMIT, type OutOpenPlan } from "@/lib/out";
+import {
+  OUT_OPEN_PLAN_LIMIT,
+  OUT_UNAVAILABLE_ERROR,
+  type OutOpenPlan,
+} from "@/lib/out";
 
 function openPlan(overrides: Partial<OutOpenPlan> = {}): OutOpenPlan {
   return {
@@ -101,9 +105,10 @@ describe("GET /api/out openPlans", () => {
       lng: -0.1,
     });
     expect(Array.isArray(body.events)).toBe(true);
-    // The listing RPC answers no city question; the reader derives it.
     expect(store.listOpen).toHaveBeenCalledWith({
       from: expect.any(String),
+      until: expect.any(String),
+      city: "london",
       limit: OUT_OPEN_PLAN_LIMIT,
     });
   });
@@ -132,6 +137,16 @@ describe("GET /api/out openPlans", () => {
     expect(response.status).toBe(429);
     expect(store.listOpen).not.toHaveBeenCalled();
   });
+
+  it("answers the house error sentence when events fail, never raw exception text", async () => {
+    whatsOn.loadWhatsOn.mockRejectedValue(new Error("secret upstream detail"));
+    const response = await GET(new Request("http://localhost/api/out?day=today"));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.error).toBe(OUT_UNAVAILABLE_ERROR);
+    expect(body.error).not.toContain("secret upstream detail");
+    expect(body.status).toBe("degraded");
+  });
 });
 
 describe("GET /api/out city", () => {
@@ -143,16 +158,22 @@ describe("GET /api/out city", () => {
   });
 
   beforeEach(() => {
-    store.listOpen.mockResolvedValue([openPlan(), manchesterPlan]);
+    store.listOpen.mockImplementation(async (input: { city: string }) => {
+      if (input.city === "manchester") return [manchesterPlan];
+      return [openPlan()];
+    });
   });
 
-  it("lists a plan under the city its Stop 1 is in", async () => {
+  it("asks the RPC for the requested city", async () => {
     const london = await (
       await GET(new Request("http://localhost/api/out?city=london"))
     ).json();
     expect(london.openPlans.map((plan: OutOpenPlan) => plan.crewId)).toEqual([
       openPlan().crewId,
     ]);
+    expect(store.listOpen).toHaveBeenCalledWith(
+      expect.objectContaining({ city: "london" }),
+    );
 
     const manchester = await (
       await GET(new Request("http://localhost/api/out?city=manchester"))
@@ -161,9 +182,12 @@ describe("GET /api/out city", () => {
     expect(manchester.openPlans.map((plan: OutOpenPlan) => plan.crewId)).toEqual([
       manchesterPlan.crewId,
     ]);
+    expect(store.listOpen).toHaveBeenCalledWith(
+      expect.objectContaining({ city: "manchester" }),
+    );
   });
 
-  it("never attributes an unresolvable Stop 1 to the default city", async () => {
+  it("drops a row whose Stop 1 cannot be resolved for the meeting point", async () => {
     store.listOpen.mockResolvedValue([
       openPlan({ stopVenueId: "venue-gone-from-the-index" }),
       openPlan({ crewId: "50000000-0000-4000-8000-000000000003", stopVenueId: null }),
