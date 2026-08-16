@@ -55,7 +55,7 @@
   text-decoration: none;
 }
 
-.outDayChip[aria-checked="true"] {
+.outDayChip[aria-current="page"] {
   background: var(--brass);
   color: var(--color-on-accent, var(--paper));
 }
@@ -167,9 +167,4 @@
   font-size: 0.85rem;
   line-height: 1.4;
   color: var(--ink-soft);
-}
-
-.outCredit {
-  min-height: 0;
-  margin: 0;
 }

@@ -13,13 +13,11 @@ import { whenBackgroundWarmupAllowed } from "@/lib/backgroundWarmup";
 import { warmNavRoute, warmPrimaryTabRoutes } from "@/lib/mapWarmup";
 import {
   PRIMARY_NAV_ITEMS,
-  TOUR_TARGET_TAB_KEY,
   navPathMatches,
   nowTabHref,
   serverNowTabHref,
   subscribeNowTabHref,
   type PrimaryNavKey,
-  type TourSpotlightTarget,
 } from "@/components/nav/navigationModel";
 import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import {
@@ -75,19 +73,6 @@ export function buildTabs(
             : item.href,
     Icon: icons[item.key],
   }));
-}
-
-// Resolve a first-run tour spotlight target ("map" | "drop" | "social") to
-// its live column in the tab row, so the tour ring is positioned from the REAL
-// tab geometry and moves with it if the row grows or reorders. Args are
-// irrelevant to the order/count, so the canonical /map is fine. Exported
-// for the tour and its geometry regression test.
-export function tourSpotlightColumn(target: TourSpotlightTarget): { index: number; total: number } {
-  const tabs = buildTabs("/map");
-  return {
-    index: tabs.findIndex((tab) => tab.key === TOUR_TARGET_TAB_KEY[target]),
-    total: tabs.length,
-  };
 }
 
 function isActive(pathname: string, tab: Tab): boolean {

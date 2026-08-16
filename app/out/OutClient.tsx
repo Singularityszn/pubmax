@@ -7,12 +7,14 @@ import SiteNav from "@/components/nav/SiteNav";
 import { trackEvent } from "@/lib/analytics";
 import {
   OUT_DAY_WINDOWS,
+  OUT_OPEN_PLANS_PLACEHOLDER_LINE,
+  OUT_OPEN_PLANS_WAY_LABEL,
   outCardObservedAt,
   outListingsEmptyLine,
   type OutDayWindow,
   type OutListingsReadStatus,
 } from "@/lib/outListings";
-import { handleRovingRadioKeyDown } from "@/lib/rovingRadioGroup";
+import { handleSegmentLinkKeyDown } from "@/lib/segmentLinkKeys";
 import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 import { EMPTY_KIND_OBSERVED_AT, type WhatsOnKindObservedAt, type WhatsOnRow } from "@/lib/whatsOn";
 
@@ -48,12 +50,11 @@ export default function OutClient({
 
       <header className="outHead">
         <h1 className="outTitle">Out</h1>
-        <div
-          className="outDayChips"
-          role="radiogroup"
-          aria-label="When"
-          onKeyDown={handleRovingRadioKeyDown}
-        >
+        {/* Three destinations, so three LINKS with aria-current - never a
+            radiogroup, which would replace the link role and promise a Space
+            key an anchor does not answer. lib/segmentLinkKeys.ts adds Space so
+            both keys really work. */}
+        <nav className="outDayChips" aria-label="When">
           {OUT_DAY_WINDOWS.map((windowKey) => {
             const selected = windowKey === day;
             const href = windowKey === "tonight" ? "/out" : `/out?day=${windowKey}`;
@@ -61,27 +62,31 @@ export default function OutClient({
               <Link
                 key={windowKey}
                 href={href}
-                role="radio"
                 className="outDayChip"
-                aria-checked={selected}
-                tabIndex={selected ? 0 : -1}
+                aria-current={selected ? "page" : undefined}
+                onKeyDown={handleSegmentLinkKeyDown}
                 onClick={() => trackEvent("out_filter_select", { kind: windowKey })}
               >
                 {DAY_LABEL[windowKey]}
               </Link>
             );
           })}
-        </div>
+        </nav>
       </header>
 
       <section className="outPlans" aria-labelledby="out-plans-heading">
         <h2 id="out-plans-heading" className="outSectionTitle">
           Open plans
         </h2>
+        {/* NOTHING here reads the viewer's plans yet, so this section may not
+            say they have none: an absence claimed by a read that never ran is
+            the same defect as calling a city priceless under a failed lookup.
+            It says where open plans WILL appear, and offers the way to make
+            one. L3 wires the real read, tri-state like every other. */}
         <p className="outEmpty">
-          No open plans yet -{" "}
+          {OUT_OPEN_PLANS_PLACEHOLDER_LINE}{" "}
           <Link href="/plan" className="outEmptyLink">
-            start one
+            {OUT_OPEN_PLANS_WAY_LABEL}
           </Link>
         </p>
       </section>
@@ -121,8 +126,6 @@ export default function OutClient({
           </ul>
         )}
       </section>
-
-      <p className="outCredit" data-out-credit="" />
     </main>
   );
 }

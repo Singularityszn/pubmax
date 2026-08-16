@@ -43,9 +43,23 @@ describe("activation chrome CSS", () => {
     expect(followButton).toMatch(/color:\s*var\(--color-on-accent\);/);
   });
 
+  // The pill's height and berth moved into the floating stack's published
+  // tokens (components/nav/mobileNav.css), so the create action above it can
+  // clear its own top edge without restating a number. The RENDERED clearance
+  // is measured at 320/390/430 by e2e/mobile-map-chrome-fit.spec.ts; this only
+  // holds the two published values the map shell now defers to.
   it("keeps the primary mobile planning action clear of the bottom dock", () => {
     expect(mobileMapShellCss).toMatch(
-      /\.mobilePlanActivation\s*{[\s\S]*?min-height:\s*48px;[\s\S]*?bottom:\s*calc\(var\(--mobile-map-dock-clearance\) \+ 10px\);/,
+      /\.mobilePlanActivation\s*{[\s\S]*?min-height:\s*var\(--plan-activation-h\);[\s\S]*?bottom:\s*var\(--plan-activation-bottom\);/,
+    );
+    const stack = readFileSync(
+      join(process.cwd(), "components/nav/mobileNav.css"),
+      "utf8",
+    );
+    expect(stack).toMatch(/--plan-activation-h:\s*48px;/);
+    expect(stack).toMatch(/--plan-activation-bottom:\s*calc\(var\(--float-stack-base\) \+ 10px\);/);
+    expect(stack).toMatch(
+      /--float-stack-base:\s*calc\(\s*var\(--tabbar-h\) \+ env\(safe-area-inset-bottom, 0px\) \+ var\(--float-stack-gap\)/,
     );
   });
 

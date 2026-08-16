@@ -243,7 +243,10 @@ test("mobile keeps Now as a root tab over live today and tonight", async ({
   await expect(primaryNav.getByRole("link", { name: "Now", exact: true })).toBeVisible();
   await primaryNav.getByRole("link", { name: "Now", exact: true }).click();
   await expect(page).toHaveURL(/\/(today|tonight)$/);
-  await page.getByRole("radio", { name: "Tonight", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Now" })
+    .getByRole("link", { name: "Tonight", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/tonight$/);
   await expect(page.getByTestId("tonight-screen")).toBeVisible();
 });

@@ -2,45 +2,41 @@
 
 import Link from "next/link";
 
-import { handleRovingRadioKeyDown } from "@/lib/rovingRadioGroup";
+import { handleSegmentLinkKeyDown } from "@/lib/segmentLinkKeys";
 
 import "./nowSegment.css";
 
 type NowBeat = "day" | "tonight";
 
 /**
- * Day | Tonight switch at the head of /today and /tonight. Links, not local
- * state: the URL is the truth and nothing is remembered.
+ * Day | Tonight switch at the head of /today and /tonight.
  *
- * Roving focus is the other half of the radiogroup contract - the unselected
- * option is out of the tab order, so the arrow keys are its only way in.
+ * Two LINKS, not local state and not a radiogroup: the URL is the truth,
+ * nothing is remembered, and each option is a destination a reader may open in
+ * a new tab. So they keep the link role and say which one they are on with
+ * `aria-current="page"`. Enter is the anchor's own activation key, and
+ * lib/segmentLinkKeys.ts adds Space, because a control shaped like a segmented
+ * switch is pressed with either.
  */
 export default function NowSegment({ current }: { current: NowBeat }) {
   return (
-    <div
-      className="nowSegment"
-      role="radiogroup"
-      aria-label="Now"
-      onKeyDown={handleRovingRadioKeyDown}
-    >
+    <nav className="nowSegment" aria-label="Now">
       <Link
         href="/today"
-        role="radio"
         className="nowSegmentOpt"
-        aria-checked={current === "day"}
-        tabIndex={current === "day" ? 0 : -1}
+        aria-current={current === "day" ? "page" : undefined}
+        onKeyDown={handleSegmentLinkKeyDown}
       >
         Day
       </Link>
       <Link
         href="/tonight"
-        role="radio"
         className="nowSegmentOpt"
-        aria-checked={current === "tonight"}
-        tabIndex={current === "tonight" ? 0 : -1}
+        aria-current={current === "tonight" ? "page" : undefined}
+        onKeyDown={handleSegmentLinkKeyDown}
       >
         Tonight
       </Link>
-    </div>
+    </nav>
   );
 }

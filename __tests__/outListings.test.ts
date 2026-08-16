@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   OUT_DAY_WINDOWS,
   OUT_LISTING_KINDS,
+  OUT_OPEN_PLANS_PLACEHOLDER_LINE,
+  OUT_OPEN_PLANS_WAY_LABEL,
   filterOutListings,
   outCardObservedAt,
   outListingsEmptyLine,
@@ -154,6 +156,32 @@ describe("out listings empty line", () => {
   it("says the same thing about a failed read whatever the window", () => {
     const lines = OUT_DAY_WINDOWS.map((window) => outListingsEmptyLine("degraded", window));
     expect(new Set(lines).size).toBe(1);
+  });
+});
+
+// Nothing on /out reads the viewer's plans yet, so the section may not claim
+// they have none: a signed-in drinker holding an open Soft Plan was told on the
+// new primary tab that they had none, which is the shape of calling a city
+// priceless under a read that never ran.
+describe("what Open plans may say before it reads anything", () => {
+  it("claims no absence", () => {
+    const line = `${OUT_OPEN_PLANS_PLACEHOLDER_LINE} ${OUT_OPEN_PLANS_WAY_LABEL}`;
+    expect(line).not.toMatch(/\bno\b/i);
+    expect(line).not.toMatch(/\bnone\b/i);
+    expect(line).not.toMatch(/\bnothing\b/i);
+    expect(line).not.toMatch(/\byet\b/i);
+    expect(line).not.toMatch(/\bempty\b/i);
+  });
+
+  it("still offers the way to make one", () => {
+    expect(OUT_OPEN_PLANS_WAY_LABEL).toMatch(/plan/i);
+  });
+
+  it("keeps the house voice", () => {
+    for (const line of [OUT_OPEN_PLANS_PLACEHOLDER_LINE, OUT_OPEN_PLANS_WAY_LABEL]) {
+      expect(line).not.toMatch(/—/);
+      expect(line).not.toMatch(/!/);
+    }
   });
 });
 

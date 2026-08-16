@@ -193,14 +193,6 @@
   outline-offset: 2px;
 }
 
-/* — Spotlight toward the real bottom tab bar. Mobile only; the tab bar is
-     display:none above 640px, so the hint is hidden there too. We never touch
-     the nav components — the ring is a fixed overlay positioned from the LIVE
-     tab geometry the tab bar itself renders. */
-.tourSpotlight {
-  display: none;
-}
-
 @media (max-width: 640px) {
   /* Keep Westminster and the map's orientation layer visible on first open.
      The modal stays modal, but becomes a compact dock above the real bottom
@@ -254,46 +246,6 @@
     margin: var(--space-3) 0;
   }
 
-  .tourSpotlight {
-    position: fixed;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
-    /* Anchor to the REAL centered tab pill (mobileNav.css: .mobileTabList is
-       max-width 420px, margin:0 auto), never a raw viewport % — otherwise the
-       ring drifts off its tab on wide phones. --tour-col / --tour-cols are
-       written by FirstRunTour from the live tab array (tourSpotlightColumn),
-       so the ring tracks the real column and follows any tab add/reorder. The
-       pill is centred in the viewport, so its column centres sit at
-       50% + (col + 0.5 - cols/2) * columnWidth. */
-    --tour-track: min(420px, 100vw - 24px);
-    --tour-col-w: calc(var(--tour-track) / var(--tour-cols, 6));
-    left: calc(
-      50% + (var(--tour-col, 0) + 0.5 - var(--tour-cols, 6) / 2) * var(--tour-col-w)
-    );
-    width: 64px;
-    height: 64px;
-    margin-left: -32px;
-    display: grid;
-    place-items: center;
-    border-radius: var(--radius-pill);
-    /* Warm glow ring keyed to the accent. */
-    background: radial-gradient(
-      circle,
-      color-mix(in srgb, var(--brass) 30%, transparent) 0%,
-      transparent 68%
-    );
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brass) 40%, transparent);
-    pointer-events: none;
-  }
-
-  .tourSpotlightArrow {
-    position: absolute;
-    top: -12px;
-    width: 0;
-    height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 7px solid color-mix(in srgb, var(--brass) 78%, transparent);
-  }
 }
 
 /* Give the card a touch more room on narrow phones. */
@@ -326,10 +278,6 @@
   }
   .tourStep[data-dir="-1"] {
     animation: tourStepInLeft var(--duration-base) var(--ease-out-strong) both;
-  }
-
-  .tourSpotlight {
-    animation: tourGlow var(--duration-ambient) var(--ease-out) infinite;
   }
 }
 
@@ -392,18 +340,6 @@
   to {
     opacity: 1;
     transform: translateX(0);
-  }
-}
-
-@keyframes tourGlow {
-  0%,
-  100% {
-    opacity: 0.65;
-    transform: scale(0.94);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.04);
   }
 }
 

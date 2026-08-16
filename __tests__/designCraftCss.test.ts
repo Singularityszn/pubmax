@@ -8,7 +8,6 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 const globalCss = read("app/globals.css");
 const themeCss = read("app/theme.css");
 const mobileCss = read("components/mobile/mobileMapShell.css");
-const mobileNavCss = read("components/nav/mobileNav.css");
 const createFabCss = read("components/nav/createFab.css");
 const landingCss = read("components/landing/landing.css");
 const venueCss = read("components/map/venueSheet.css");
@@ -230,7 +229,6 @@ describe("pointer-down feedback", () => {
     );
     // The emphasized compose action left the tab row for the floating create
     // control, and it still owns its own press, so it still says so by name.
-    expect(mobileNavCss).not.toMatch(/\.mobileTabPrimary/);
     expect(createFabCss).toMatch(
       /\.createFab:active\s*{[^}]*--shared-press-scale:\s*1/,
     );

@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildTabs,
-  shouldShowMobileTabBar,
-  tourSpotlightColumn,
-} from "@/components/nav/MobileTabBar";
-import { TOUR_TARGET_TAB_KEY, navPathMatches } from "@/components/nav/navigationModel";
+import { buildTabs, shouldShowMobileTabBar } from "@/components/nav/MobileTabBar";
+import { navPathMatches } from "@/components/nav/navigationModel";
 
 // Five-tab contract for the mobile bar. Moment is a floating + action, never
 // a destination, so it is not in this row. Today and Tonight share the Now
@@ -68,34 +64,5 @@ describe("mobile tab bar contract", () => {
     expect(activeLabel("/social")).toBe("Social");
     expect(activeLabel("/feed")).toBe("Social");
     expect(activeLabel("/moment")).toBeUndefined();
-  });
-
-});
-
-describe("first-run tour spotlight geometry", () => {
-  const tabs = buildTabs("/map");
-
-  it("maps each tour target to the key it names", () => {
-    expect(TOUR_TARGET_TAB_KEY).toEqual({ map: "map", drop: "create-fab", social: "social" });
-  });
-
-  it("anchors 'map' to the Map column", () => {
-    const { index, total } = tourSpotlightColumn("map");
-    expect(total).toBe(5);
-    expect(index).toBe(1);
-    expect(tabs[index]!.label).toBe("Map");
-  });
-
-  it("anchors 'drop' at the floating create action, not a tab column", () => {
-    const { index, total } = tourSpotlightColumn("drop");
-    expect(total).toBe(5);
-    expect(index).toBe(-1);
-  });
-
-  it("anchors 'social' to the Social column", () => {
-    const { index, total } = tourSpotlightColumn("social");
-    expect(total).toBe(5);
-    expect(index).toBe(3);
-    expect(tabs[index]!.label).toBe("Social");
   });
 });

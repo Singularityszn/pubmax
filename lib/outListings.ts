@@ -66,6 +66,21 @@ export function outCardObservedAt(
   return kindObservedAt[row.kind] ?? null;
 }
 
+/**
+ * What the Open plans section may say while NOTHING reads the viewer's plans.
+ *
+ * A surface may claim absence only once its OWN read has answered. Nothing on
+ * /out asks for open plans yet, so "No open plans yet" was a statement about a
+ * question nobody put - a signed-in drinker holding an open Soft Plan was told
+ * on the new primary tab that they had none. The section says where open plans
+ * WILL appear instead, and keeps the way to make one.
+ *
+ * Kept beside the listings copy so the L3 read replaces one named line rather
+ * than hunting a sentence typed into a component.
+ */
+export const OUT_OPEN_PLANS_PLACEHOLDER_LINE = "Open plans arrive here.";
+export const OUT_OPEN_PLANS_WAY_LABEL = "Start a plan";
+
 /** A read that could not answer is not an empty city. */
 export type OutListingsReadStatus = "ready" | "degraded";
 

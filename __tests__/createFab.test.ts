@@ -8,8 +8,6 @@
 // `pointer-events: none` on the wrapper does not reach a child that says `auto`.
 
 import { createElement } from "react";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -19,11 +17,6 @@ import {
   returnToFromLocation,
 } from "@/components/nav/createFabActions";
 import { safeMomentReturnTo } from "@/components/nav/navigationModel";
-
-const createFabCss = readFileSync(
-  join(process.cwd(), "components/nav/createFab.css"),
-  "utf8",
-);
 
 describe("what the create action offers", () => {
   it("offers exactly the three compose rows, in order", () => {
@@ -173,30 +166,9 @@ describe("what the create action renders for each keyboard answer", () => {
   });
 });
 
-describe("the shipped CSS actually withdraws it", () => {
-  // Owned CSS contract, the sibling of the tab bar's own in
-  // __tests__/softKeyboardTabBar.test.ts: this state is a rendered geometry that
-  // no node-environment render can observe.
-  it("cancels the children's pointer-events opt-in in every hidden state", () => {
-    const hiddenChildren = createFabCss.match(
-      /\.createFabRoot\.isKeyboardHidden :is\(\.createFab, \.createFabMenu\)\s*{([^}]*)}/,
-    )?.[1];
-    expect(hiddenChildren, "hidden-state child rule present").toBeTruthy();
-    expect(hiddenChildren).toMatch(/pointer-events:\s*none/);
-    expect(createFabCss).toMatch(
-      /body:has\(\.appShell\.detail-open\) \.createFabRoot :is\(\.createFab, \.createFabMenu\)/,
-    );
-  });
-
-  it("slides it out and then makes it invisible, on the tab bar's own rule", () => {
-    const rule =
-      createFabCss.match(
-        /\.createFabRoot\.isKeyboardHidden\s*{([^}]*)}/,
-      )?.[1] ?? "";
-    expect(rule).toMatch(/transform:\s*translateY\(110%\)/);
-    expect(rule).toMatch(/opacity:\s*0/);
-    expect(rule).toMatch(/visibility:\s*hidden/);
-    // Delayed by the slide's own duration, so the exit is still seen.
-    expect(rule).toMatch(/visibility 0s linear var\(--duration-base\)/);
-  });
-});
+// What the hidden state COSTS a reader - the control off screen, untappable,
+// and its box no longer owning the point it used to sit on - is rendered
+// geometry, and a regex over createFab.css proves none of it: matching text can
+// be dead, and a rename that preserves the behaviour would fail it. That half is
+// measured in a real browser by
+// e2e/mobile-map-chrome-fit.spec.ts ("the create action leaves the screen ...").

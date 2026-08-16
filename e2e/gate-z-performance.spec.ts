@@ -60,7 +60,10 @@ test("Gate Z mobile lab budgets stay inside the release targets", async ({ page 
 
   await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Now", exact: true }).click();
   await expect(page).toHaveURL(/\/(today|tonight)$/);
-  await page.getByRole("radio", { name: "Tonight", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Now" })
+    .getByRole("link", { name: "Tonight", exact: true })
+    .click();
   await expect(page.getByTestId("tonight-screen")).toBeVisible();
   const mapLink = page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Map", exact: true });
   await page.waitForTimeout(500);

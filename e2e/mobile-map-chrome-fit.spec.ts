@@ -668,6 +668,15 @@ for (const viewport of VIEWPORTS) {
         `${box.name} sits above the tab bar`,
       ).toBeLessThanOrEqual(Math.round(bar!.y) + 1);
     }
+
+    // The plan pill's own published height and berth, measured rather than
+    // read off a declaration (mobileNav.css --plan-activation-h / -bottom).
+    const plan = boxes.find((box) => box.name === "plan activation")!;
+    expect(plan.rect.height, "the plan pill keeps its 48px").toBeGreaterThanOrEqual(48);
+    expect(
+      Math.round(bar!.y) - Math.round(plan.rect.bottom),
+      "the plan pill keeps a real gap above the tab bar",
+    ).toBeGreaterThanOrEqual(10);
   });
 }
 
@@ -740,5 +749,108 @@ for (const viewport of VIEWPORTS) {
     const createBox = await create.boundingBox();
     expect(createBox, "the create action has a box").not.toBeNull();
     expect(createBox!.width, "the create action keeps its 56px").toBe(56);
+  });
+}
+
+// The create action's own geometry, and what the hidden state COSTS a reader.
+//
+// Both used to be regexes over createFab.css. A declaration that matches proves
+// nothing: the rule can be dead, overridden, or renamed without moving a pixel.
+// So this measures the rendered boxes, and drives the hidden state through the
+// one class the component emits for it (proved by __tests__/createFab.test.ts).
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px the create action is measured, and leaves the screen when hidden`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    });
+
+    const response = await page.goto("/out");
+    expect(response?.status()).toBe(200);
+
+    const create = page.getByTestId("create-fab");
+    await expect(create).toBeVisible();
+    const box = await create.boundingBox();
+    expect(box, "the create action has a box").not.toBeNull();
+    expect(box!.width, "56px square").toBe(56);
+    expect(box!.height, "56px square").toBe(56);
+    expect(box!.x + box!.width, "inside the viewport").toBeLessThanOrEqual(viewport.width);
+
+    const bar = await page.locator(".mobileTabBar").boundingBox();
+    expect(bar, "the tab bar has a box").not.toBeNull();
+    expect(
+      box!.y + box!.height,
+      "the create action parks above the tab bar",
+    ).toBeLessThanOrEqual(Math.round(bar!.y) + 1);
+
+    // Every row of its sheet keeps the tap floor.
+    await create.click();
+    for (const label of ["Post a moment", "Log a price", "Start a plan"]) {
+      const row = page.getByRole("link", { name: label, exact: true });
+      await expect(row).toBeVisible();
+      const rowBox = await row.boundingBox();
+      expect(rowBox, `${label} has a box`).not.toBeNull();
+      expect(rowBox!.height, `${label} keeps the tap floor`).toBeGreaterThanOrEqual(44);
+    }
+    await page.keyboard.press("Escape");
+
+    const centre = { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
+    const before = await page.evaluate((point) => {
+      const fab = document.querySelector<HTMLElement>(".createFab")!;
+      const style = getComputedStyle(fab);
+      return {
+        pointerEvents: style.pointerEvents,
+        visibility: style.visibility,
+        top: fab.getBoundingClientRect().top,
+        ownsItsCentre: !!document
+          .elementFromPoint(point.x, point.y)
+          ?.closest(".createFabRoot"),
+      };
+    }, centre);
+    expect(before.pointerEvents, "live, it takes taps").not.toBe("none");
+    expect(before.visibility, "live, it is painted").toBe("visible");
+    expect(before.ownsItsCentre, "live, it owns its own centre").toBe(true);
+
+    // The soft keyboard is the OS's, not the page's, so no browser test can
+    // raise it. What the component does about it is add this class
+    // (components/nav/CreateFab.tsx); what the CSS owes is everything below.
+    // Reduced motion is emulated above, so the withdrawal is not mid-transition.
+    const hidden = await page.evaluate((point) => {
+      const root = document.querySelector<HTMLElement>(".createFabRoot")!;
+      root.classList.add("isKeyboardHidden");
+      const fab = document.querySelector<HTMLElement>(".createFab")!;
+      const style = getComputedStyle(fab);
+      const rect = fab.getBoundingClientRect();
+      const centreHit = document.elementFromPoint(point.x, point.y);
+      const ownHit = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      return {
+        pointerEvents: style.pointerEvents,
+        visibility: style.visibility,
+        top: rect.top,
+        centreOwned: !!centreHit?.closest(".createFabRoot"),
+        ownBoxOwned: !!ownHit?.closest(".createFabRoot"),
+      };
+    }, centre);
+    expect(hidden.pointerEvents, "hidden, it takes no taps").toBe("none");
+    expect(hidden.visibility, "hidden, it is not painted").toBe("hidden");
+    expect(hidden.top, "hidden, it slid down out of its berth").toBeGreaterThan(
+      before.top,
+    );
+    expect(
+      hidden.centreOwned,
+      "hidden, its old centre belongs to whatever is under it",
+    ).toBe(false);
+    expect(
+      hidden.ownBoxOwned,
+      "hidden, it takes no tap anywhere its box still overlaps",
+    ).toBe(false);
   });
 }

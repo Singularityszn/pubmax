@@ -395,32 +395,10 @@ describe("mobile tap-target floors", () => {
       /@media \(max-width: 640px\)[\s\S]*?\.mapSoftRetry\s*{[^}]*bottom:\s*calc\(var\(--mobile-tab-clearance\) \+ 10px\)/,
     );
   });
-
-  it("keeps the create FAB above the tab bar and at the tap floor", () => {
-    const css = read("components/nav/createFab.css");
-    const fab = css.match(/\.createFab\s*{([^}]*)}/)?.[1] ?? "";
-    expect(fab, ".createFab rule present").not.toBe("");
-    expect(fab).toMatch(/width:\s*56px/);
-    expect(fab).toMatch(/height:\s*56px/);
-    expect(fab).toMatch(/min-width:\s*56px/);
-    expect(fab).toMatch(/min-height:\s*56px/);
-    // The FAB sits above the reserved tab-bar lane, never on top of it. The
-    // offset belongs to the fixed root: the button inside it is statically
-    // positioned, so a `bottom` declared on the button itself does nothing and
-    // would pass this check while the real rule was gone.
-    const root = css.match(/\.createFabRoot\s*{([^}]*position:\s*fixed[^}]*)}/)?.[1] ?? "";
-    expect(root, "fixed .createFabRoot rule present").not.toBe("");
-    expect(root).toMatch(
-      /bottom:\s*calc\(\s*var\(--tabbar-h\)\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)/,
-    );
-    expect(root).not.toMatch(/bottom:\s*0/);
-    expect(fab).not.toMatch(/bottom:/);
-    const row = css.match(/\.createFabRow\s*{([^}]*)}/)?.[1] ?? "";
-    expect(row, ".createFabRow rule present").not.toBe("");
-    expect(row).toMatch(/min-height:\s*44px/);
-    expect(css).toMatch(/\.createFab:active\s*{[^}]*scale\(0\.97\)/);
-    expect(css).toMatch(
-      /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.createFab:active\s*{[^}]*scale\(1\)/,
-    );
-  });
 });
+
+// The create action's own geometry - 56px square, its menu rows at the 44px tap
+// floor, the whole stack clear of the tab bar it parks above - is measured
+// against the RENDERED boxes in e2e/mobile-map-chrome-fit.spec.ts at 320, 390
+// and 430. Restating those declarations here would prove only that the text is
+// present, which a dead rule or a behaviour-preserving rename both defeat.
