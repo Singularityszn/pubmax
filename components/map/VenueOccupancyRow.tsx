@@ -51,7 +51,7 @@ export default function VenueOccupancyRow({
 
   useEffect(() => {
     if (!reading || receiptLine) return;
-    trackOccupancyRead(venueId,reading.state);
+    trackOccupancyRead(venueId, reading.state);
   }, [venueId, reading, receiptLine]);
 
   // The receipt thanks the tap that made it; it may never stand in for the
@@ -67,7 +67,7 @@ export default function VenueOccupancyRow({
     const result = await report(level, auth);
     if (!result.ok) return;
     trackEvent("occupancy_reported", { level, surface });
-    trackOccupancyRead(venueId,result.reading.state);
+    trackOccupancyRead(venueId, result.reading.state);
     if (result.reading.now && result.reading.ageMinutes != null) {
       setReceipt({
         venueId,

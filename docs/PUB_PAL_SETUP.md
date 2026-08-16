@@ -107,8 +107,8 @@ a metered minute (`lib/palVoiceMetering.ts`).
 
 Do not gate the concierge tools behind any of this. `cheapest_pint_near`,
 `tonight_now`, `venue_drinks`, `find_desk` and `report_occupancy` all answer
-keylessly from lanes we already hold, and two of them are honest about holding
-nothing yet:
+keylessly from lanes we already hold. One of them is honest about holding
+nothing yet, and one writes only on a confirm:
 
 - **`find_desk`** answers only from cafe, co-working and library rows. The
   London pack carries none of those today, so it says "No seat data yet" rather

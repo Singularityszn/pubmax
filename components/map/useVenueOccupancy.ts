@@ -220,6 +220,9 @@ export function useVenueOccupancy(venueId: string, active = true) {
     reading?.now == null;
   useEffect(() => {
     if (!agedOut) return;
+    // reload holds its answer only after a network round trip, so nothing is
+    // set synchronously in this effect body.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async refetch
     void reload();
   }, [agedOut, reload]);
 
