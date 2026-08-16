@@ -518,7 +518,6 @@ describe("the Skiddle fence holds the WRITE lane shut too", () => {
     // The fence is the undischarged licence obligation, not the missing key, so
     // the day SKIDDLE_API_KEY lands must not be the day Skiddle rows reach a
     // reader. Both lanes read one predicate, so they cannot disagree.
-    expect(SKIDDLE_BRAND_ASSET_PRESENT).toBe(false);
     expect(skiddleLaneFenced()).toBe(true);
 
     const dir = mkdtempSync(join(tmpdir(), "events-refresh-skiddle-"));

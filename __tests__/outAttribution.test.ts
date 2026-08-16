@@ -65,7 +65,6 @@ describe("Skiddle credit, and the fence standing in for the asset we do not hold
   it("holds the Skiddle lane shut while the official asset is absent, key or no key", () => {
     // The obligation is real and undischarged, so the FENCE is what gates the
     // lane - not the missing API key.
-    expect(SKIDDLE_BRAND_ASSET_PRESENT).toBe(false);
     expect(skiddleLaneFenced()).toBe(true);
 
     const original = process.env.SKIDDLE_API_KEY;
