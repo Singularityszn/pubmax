@@ -81,7 +81,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = false }: P
       <SiteNav active="feed" />
 
       <header className="feedHeader">
-        <p className="feedEyebrow">Out tonight</p>
+        <p className="feedEyebrow">Tonight</p>
         <h1 className="feedTitle">I&rsquo;m here</h1>
         <p className="feedLede">
           Tell your lot you&rsquo;re here tonight. Area only, no exact spot. Friends

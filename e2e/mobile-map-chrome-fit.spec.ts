@@ -670,3 +670,75 @@ for (const viewport of VIEWPORTS) {
     }
   });
 }
+
+// The DEFAULT berth, which no map case can reach.
+//
+// Every case above opens /map with a stored Pub Pal, so the create action is
+// always measured at one of the map berths. The berth every OTHER phone route
+// uses - the bare one, above the tab bar - was never rendered anywhere in the
+// suite, and the one fixed control that shares it is mounted in the root layout
+// for any reader who has not answered the analytics question. Both specs that
+// could have caught that seeded the answer away, so the collision was excluded
+// by construction: an opaque 56px circle sat on the card's Allow / No thanks
+// column and took its taps.
+//
+// The assertion is hit-testing rather than geometry, because what the reader
+// needs is not clearance, it is that pressing Allow records Allow.
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px consent choices stay reachable in the default berth`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      // Consent is deliberately UNDECIDED, and no other prompt holds the
+      // session budget, so the card is the one on screen.
+      window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+      window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
+    });
+
+    const response = await page.goto("/out");
+    expect(response?.status()).toBe(200);
+
+    const prompt = page.locator(".analyticsConsentPrompt");
+    // Present, or this case would pass by measuring nothing.
+    await expect(prompt).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".mobileTabBar")).toBeVisible();
+    // And the map members really are absent, so this IS the default berth.
+    await expect(page.locator(".palSummon")).toHaveCount(0);
+    await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);
+    await expect(page.locator(".mobileMapUtilityCorner")).toHaveCount(0);
+
+    for (const label of ["Allow", "No thanks"]) {
+      const button = prompt.getByRole("button", { name: label, exact: true });
+      await expect(button).toBeVisible();
+      const box = await button.boundingBox();
+      expect(box, `${label} has a box`).not.toBeNull();
+      expect(box!.height, `${label} keeps the tap floor`).toBeGreaterThanOrEqual(44);
+      const owner = await page.evaluate(
+        ({ x, y }) => {
+          const hit = document.elementFromPoint(x, y);
+          if (!hit) return "nothing";
+          if (hit.closest(".analyticsConsentPrompt")) return "prompt";
+          if (hit.closest(".createFabRoot")) return "create action";
+          return hit.className || hit.tagName;
+        },
+        { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 },
+      );
+      expect(owner, `${label} receives its own tap`).toBe("prompt");
+    }
+
+    // Pressing it records the choice rather than opening the create sheet.
+    await prompt.getByRole("button", { name: "No thanks", exact: true }).click();
+    await expect(prompt).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Post a moment", exact: true })).toHaveCount(0);
+    // With the question answered, compose comes back at the default berth.
+    const create = page.getByTestId("create-fab");
+    await expect(create).toBeVisible();
+    const createBox = await create.boundingBox();
+    expect(createBox, "the create action has a box").not.toBeNull();
+    expect(createBox!.width, "the create action keeps its 56px").toBe(56);
+  });
+}

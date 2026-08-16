@@ -44,7 +44,8 @@
   /* Member: the map-edge corner column. Its box spans most of the viewport, but
      what sits in this band is the Near me FAB parked at the column's own bottom
      (justify-content: space-between). The consent variant is the lifted berth
-     the column takes while the analytics disclosure owns the lane. */
+     the column takes while the analytics disclosure owns the lane; the create
+     action does not stack above that card at all, it stands down (createFab.css). */
   --map-corner-locate-size: 52px;
   --map-corner-bottom: calc(var(--float-stack-base) + 72px);
   --map-corner-bottom-consent: calc(var(--float-stack-base) + 200px);
@@ -56,9 +57,6 @@
   );
   --float-stack-top-map-corner: calc(
     var(--map-corner-bottom) + var(--map-corner-locate-size)
-  );
-  --float-stack-top-map-corner-consent: calc(
-    var(--map-corner-bottom-consent) + var(--map-corner-locate-size)
   );
 }
 

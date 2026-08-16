@@ -57,12 +57,6 @@
     bottom: calc(var(--float-stack-top-map-corner) + var(--float-stack-gap));
   }
 
-  body:has(.analyticsConsentPrompt):has(.mobileMapUtilityCorner) .createFabRoot {
-    bottom: calc(
-      var(--float-stack-top-map-corner-consent) + var(--float-stack-gap)
-    );
-  }
-
   /* The root is a fixed, mostly empty box, so it must not eat taps around the
      control; the control and its sheet opt back in. A hidden state has to turn
      that opt-in OFF by name - an ancestor's `pointer-events: none` does not
@@ -73,6 +67,14 @@
     pointer-events: auto;
   }
 
+  /* The analytics consent card is the one member this control does not stack
+     above: it is full-width, its height is content-driven (its text wraps to
+     three or four lines at 320px), and its Allow / No thanks column is exactly
+     where this control parks. A berth derived from a height nobody publishes
+     would be a guess, and the guess that matters here decides whether somebody
+     can answer a privacy question. So compose stands down until the card is
+     answered - it is one tap and one time, and it is the card's own lane. */
+  body:has(.analyticsConsentPrompt) .createFabRoot,
   body:has(.appShell.detail-open) .createFabRoot,
   body:has(.appShell.planning-open) .createFabRoot,
   .createFabRoot.isKeyboardHidden {
@@ -87,6 +89,7 @@
       visibility 0s linear var(--duration-base);
   }
 
+  body:has(.analyticsConsentPrompt) .createFabRoot :is(.createFab, .createFabMenu),
   body:has(.appShell.detail-open) .createFabRoot :is(.createFab, .createFabMenu),
   body:has(.appShell.planning-open) .createFabRoot :is(.createFab, .createFabMenu),
   .createFabRoot.isKeyboardHidden :is(.createFab, .createFabMenu) {
@@ -171,6 +174,7 @@
   .createFabRoot,
   .createFab,
   .createFabRoot.isKeyboardHidden,
+  body:has(.analyticsConsentPrompt) .createFabRoot,
   body:has(.appShell.detail-open) .createFabRoot,
   body:has(.appShell.planning-open) .createFabRoot {
     transition: none;
