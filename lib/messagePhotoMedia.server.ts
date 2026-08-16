@@ -1,3 +1,5 @@
+import "server-only";
+
 // The bytes half of a message photo: the same journey an owned profile image
 // and a pub wall photo take, pointed at a conversation-scoped key.
 //

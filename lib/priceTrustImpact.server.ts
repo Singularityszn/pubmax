@@ -1,3 +1,5 @@
+import "server-only";
+
 // Price trust impact: create first-cluster unlocks and read the owner's card.
 //
 // Trust itself lives in lib/communityPrice.ts. This module only reacts when a

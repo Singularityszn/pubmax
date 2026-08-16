@@ -13,7 +13,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
-import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import { groupVenuePrices, type Venue, type VenuePrice, formatGbp } from "@/lib/venues";
 
 import "./barTab.css";
 
@@ -61,10 +61,6 @@ async function getVenue(id: string): Promise<Venue | null> {
 
 function pintDropStoreFor() {
   return isSupabaseConfigured() ? supabasePintDropStore : memoryPintDropStore;
-}
-
-function formatGbp(price: number): string {
-  return `£${price.toFixed(2)}`;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

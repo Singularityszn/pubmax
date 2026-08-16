@@ -8,6 +8,7 @@ import {
 import { isMapLensDrinkCategory } from "@/lib/drinks";
 import { parseDrinkSubtypeParam } from "@/lib/drinkSubtypes";
 import { parseZoneParam } from "@/lib/zones";
+import { clamp } from "@/lib/mathClamp";
 
 // Alt crawl styles (issue #31): a light "what kind of night" label that rides
 // alongside the scoring crawlStyle without touching it. It only shapes copy —
@@ -89,10 +90,6 @@ const CROSS_STYLES = new Set<CrawlStyle>([
 const MAX_PRICE = { min: 4, max: NO_PINT_PRICE_CAP };
 const STOPS = { min: 4, max: 7 };
 const WINDOW = { min: 15, max: 30 };
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
 
 function parseNum(raw: string | null, min: number, max: number): number | undefined {
   if (raw === null) return undefined;

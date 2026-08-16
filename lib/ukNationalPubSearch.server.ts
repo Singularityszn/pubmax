@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-side national UK pub name search over the generated compact index.
 // Phones never download the country-wide pack; this module opens the file once
 // per instance and answers GET /api/map-search.

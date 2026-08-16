@@ -1,3 +1,5 @@
+import "server-only";
+
 // Name search over the CURATED venue index, in one place.
 //
 // It was written inside `lib/wantedResolve.server.ts` and is now shared, because

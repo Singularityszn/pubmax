@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Check, Copy, MapPin, Flag } from "lucide-react";
 import { Suspense, useEffect, useMemo, useState } from "react";
-
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
 import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
 import { bandById } from "@/lib/storyBands";
 import { getRoutePack, routePacks } from "@/lib/routePacks";
+import { formatGbp } from "@/lib/formatGbp";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";
@@ -29,10 +29,6 @@ import "./crawls.css";
 function startLandmarkName(crawl: CuratedCrawl): string | undefined {
   if (!crawl.startLandmarkId) return undefined;
   return landmarks.find((lm) => lm.id === crawl.startLandmarkId)?.name;
-}
-
-function formatGbp(value: number): string {
-  return `£${value.toFixed(2)}`;
 }
 
 // Turn a camelCase CrawlStyle ("writerTrail") into a human badge label

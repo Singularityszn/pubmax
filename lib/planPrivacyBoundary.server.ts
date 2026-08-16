@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-only by construction: it imports planStore and lazily the
 // `server-only` flag reader, so it can never end up in a client bundle.
 

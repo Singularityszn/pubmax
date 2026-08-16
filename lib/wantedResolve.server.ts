@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-side Wanted paste resolve: curated venue index + national UK base
 // search. Never fetches Instagram/TikTok. Ambiguous matches stay as candidates
 // for the drinker to confirm — never auto-confirm a priced pin.

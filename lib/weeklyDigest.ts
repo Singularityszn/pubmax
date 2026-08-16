@@ -17,6 +17,7 @@
 //     attribute, exactly as the in-app surfaces attribute them.
 
 import { DAY_MS } from "@/lib/dayMs";
+import { formatGbp } from "@/lib/formatGbp";
 
 /** Days in the digest window, ending at `now`. */
 export const DEFAULT_WINDOW_DAYS = 7;
@@ -164,10 +165,7 @@ export function pickGuardianTip(
   return tips[((weekIndex % tips.length) + tips.length) % tips.length];
 }
 
-/** GBP formatter for prices, e.g. 5.4 → "£5.40". */
-export function formatGbp(price: number): string {
-  return `£${price.toFixed(2)}`;
-}
+export { formatGbp } from "@/lib/formatGbp";
 
 // ── Generator ─────────────────────────────────────────────────────────────────
 

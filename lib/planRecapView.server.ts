@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server assembly for a completed Plan's recap (DAG L10, §4.10). One place that
 // turns a completion record into the full RecapView — route venue names, the
 // final logged pint, ending/guardian — so both the recap page's member client

@@ -1,3 +1,5 @@
+import "server-only";
+
 // Batched Step Out weekly send. Skips users with nothing owed and users inside
 // the per-subscription frequency window. Counts only — never logs tokens.
 

@@ -1,3 +1,5 @@
+import "server-only";
+
 // ONE follow write, so a second caller cannot follow somebody differently.
 //
 // `/api/profiles/[handle]/follow` writes one edge and a starter pack writes a

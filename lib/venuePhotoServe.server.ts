@@ -1,3 +1,5 @@
+import "server-only";
+
 // Public read of one approved wall photo, byte-for-byte out of the private
 // bucket. A photo that is pending, flagged into review, hidden by a moderator,
 // or whose author has left is a 404 - never a stale serve.

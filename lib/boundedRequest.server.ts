@@ -1,3 +1,5 @@
+import "server-only";
+
 export class RequestBodyTooLargeError extends Error {}
 
 export async function boundedBody(request: Request, maxBytes: number): Promise<Uint8Array> {

@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { NightSignalClaim } from "@/lib/nightSignalClaims";
 import { canAffectRoute } from "@/lib/nightSignalClaims";

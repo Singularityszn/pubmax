@@ -10,6 +10,7 @@
 
 import { randomUUID } from "crypto";
 
+import { HANDLE_MAX, normalizeHandle as normalizeHandleCore } from "@/lib/handleNormalize";
 import type { CityId } from "@/lib/cities";
 import { venueIdMatchesCity } from "@/lib/cityVenueIds";
 import type { Provenance } from "@/lib/curation";
@@ -96,7 +97,6 @@ export function cleanVibeTags(value: unknown): VibeTag[] {
 // Trust boundary. Never lazy here: the client is untrusted. Strip anything that
 // could be HTML/script, cap lengths, and clamp the price to a sane pub range.
 const MAX_NOTE = 500;
-const MAX_HANDLE = 40;
 const MAX_DRINK = 60;
 const MAX_ERA = 40;
 const MAX_PRICE = 20; // a £40 "pint" is a typo or abuse, not a data point.
@@ -131,7 +131,7 @@ export function validatePintDrop(input: unknown): ValidationResult {
   const venueId = clean(raw.venueId, 64);
   if (!venueId) return { ok: false, error: "Choose a venue." };
 
-  const handle = normalizeViewerHandle(clean(raw.handle, MAX_HANDLE));
+  const handle = normalizeViewerHandle(clean(raw.handle, HANDLE_MAX));
   if (!handle) return { ok: false, error: "Add a contributor handle." };
 
   const note = clean(raw.passedDownNote, MAX_NOTE);
@@ -378,8 +378,7 @@ export function visibilityOf(drop: Pick<PintDrop, "visibility">): Visibility {
  * as `normalizeViewerHandle` for the route that builds a ViewerContext.
  */
 export function normalizeViewerHandle(raw: string | null | undefined): string {
-  if (typeof raw !== "string") return "";
-  return raw.toLowerCase().replace(/^@+/, "").replace(/[^a-z0-9_]/g, "").slice(0, MAX_HANDLE);
+  return normalizeHandleCore(raw);
 }
 
 /** Is the viewer the author of this drop? (Self always sees own drops, in every

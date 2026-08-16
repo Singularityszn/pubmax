@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-safe permissible-source price collection for scheduled refreshes.
 //
 // Source-specific fetchers AND the allowlist filter are shared with

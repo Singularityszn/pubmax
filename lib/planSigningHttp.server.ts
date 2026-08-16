@@ -1,3 +1,5 @@
+import "server-only";
+
 import { publicApiError } from "@/lib/apiError";
 import { isTrustedSigningKeyUnavailableError, trustedSigningKey } from "@/lib/trustedSigningKey.server";
 

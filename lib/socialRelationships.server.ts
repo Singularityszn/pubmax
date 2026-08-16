@@ -1,3 +1,5 @@
+import "server-only";
+
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
 export type SocialRelationshipState =

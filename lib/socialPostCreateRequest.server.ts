@@ -1,3 +1,5 @@
+import "server-only";
+
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { isMissingTableSchema } from "@/lib/storeBackend";
 

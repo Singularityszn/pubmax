@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server helper: seed-borough corroborated beer counts for Pint Index status.
 // Never invents a zero when the community-price read failed.
 

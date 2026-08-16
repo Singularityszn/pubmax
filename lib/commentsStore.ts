@@ -19,6 +19,7 @@
 
 import { admin, selectStore } from "@/lib/storeBackend";
 import { cleanText } from "@/lib/textClean";
+import { HANDLE_MAX } from "@/lib/handleNormalize";
 
 // The only shape a reader ever sees. Deliberately minimal: no actor_hash, no
 // status, no raw DB columns. `parentId` (issue #37) is the ONE structural field
@@ -88,7 +89,6 @@ export type CommentsStore = {
 // anything that could be inline HTML, drop control chars, collapse whitespace,
 // cap length — the same trust boundary every write path uses.
 export const MAX_BODY = 500;
-export const MAX_HANDLE = 40;
 // Public reads are hard-capped so one busy drop can't return an unbounded thread.
 export const MAX_COMMENTS = 100;
 
@@ -102,7 +102,7 @@ export type CleanResult =
  * empty body (or one that cleans down to empty, e.g. only "<>") is rejected.
  */
 export function cleanComment(handle: unknown, body: unknown): CleanResult {
-  const cleanHandle = cleanText(handle, MAX_HANDLE);
+  const cleanHandle = cleanText(handle, HANDLE_MAX);
   if (!cleanHandle) return { ok: false, error: "Add a handle." };
   const cleanBody = cleanText(body, MAX_BODY);
   if (!cleanBody) return { ok: false, error: "Comment can't be empty." };

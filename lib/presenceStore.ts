@@ -14,6 +14,7 @@
 // fail-soft: an outage yields [] so the "Live tonight" strip degrades to nothing
 // rather than a broken band.
 
+import { HANDLE_MAX } from "@/lib/handleNormalize";
 import { ambientPresenceRows } from "@/lib/ambientPresence";
 import { requireSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
@@ -25,7 +26,6 @@ export { PRESENCE_TTL_MS, type PresenceDTO, type PresenceInput } from "@/lib/pre
 // How many rows one presence read returns — the strip is a glance, not a list.
 const MAX_PRESENCE = 40;
 
-const MAX_HANDLE = 40;
 const MAX_VENUE_ID = 64;
 
 const TABLE = "pub_presence";
@@ -82,7 +82,7 @@ function memoryKey(actorHash: string, venueId: string): string {
 }
 
 function memoryMark(input: PresenceInput, now: number): void {
-  const handle = clean(input.handle, MAX_HANDLE);
+  const handle = clean(input.handle, HANDLE_MAX);
   const venueId = clean(input.venueId, MAX_VENUE_ID);
   if (!handle || !venueId || !input.actorHash) return;
   // UPSERT on (actor_hash, venue_id): the same key overwrites, so re-marking is
@@ -140,7 +140,7 @@ export const memoryPresenceStore: PresenceStore = {
 
 export const supabasePresenceStore: PresenceStore = {
   async mark(input, now = Date.now()) {
-    const handle = clean(input.handle, MAX_HANDLE);
+    const handle = clean(input.handle, HANDLE_MAX);
     const venueId = clean(input.venueId, MAX_VENUE_ID);
     if (!handle || !venueId || !input.actorHash) return;
     try {

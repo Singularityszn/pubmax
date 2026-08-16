@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, it, expect } from "vitest";
@@ -7,6 +7,7 @@ import {
   computeBadges,
   deriveProfileFromDrops,
   formatCheapestPint,
+  HANDLE_MAX,
   LOCAL_LEGEND_THRESHOLD,
   NO_CHEAPEST_PINT,
   normalizeHandle,
@@ -368,5 +369,67 @@ describe("an absent cheapest pint says so in words", () => {
       expect(source, `${grid} must not print a bare dash for an absent price`)
         .not.toMatch(/["'`]\s*[–—]\s*["'`]/);
     }
+  });
+});
+
+function listSourceFiles(...roots: string[]): string[] {
+  const out: string[] = [];
+  for (const root of roots) {
+    const abs = join(process.cwd(), root);
+    for (const entry of readdirSync(abs)) {
+      const path = join(abs, entry);
+      const stat = statSync(path);
+      if (stat.isDirectory()) {
+        out.push(...listSourceFiles(join(root, entry)));
+        continue;
+      }
+      if (/\.(ts|tsx)$/.test(entry) && !entry.endsWith(".test.ts") && !entry.endsWith(".test.tsx")) {
+        out.push(join(root, entry));
+      }
+    }
+  }
+  return out;
+}
+
+describe("one handle normaliser (#1043 L6)", () => {
+  it("HANDLE_MAX matches migration 0029 CHECK", () => {
+    expect(HANDLE_MAX).toBe(30);
+    const migration = readFileSync(
+      join(process.cwd(), "supabase/migrations/20260715134000_0029_identity_and_social_connections.sql"),
+      "utf8",
+    );
+    expect(migration).toMatch(/char_length\(handle\) between 1 and 30/);
+  });
+
+  it("only handleNormalize declares HANDLE_MAX or MAX_HANDLE", () => {
+    const offenders: string[] = [];
+    for (const file of listSourceFiles("app", "components", "lib")) {
+      if (file === "lib/handleNormalize.ts") continue;
+      const source = readFileSync(join(process.cwd(), file), "utf8");
+      if (/(?:export\s+)?const\s+(MAX_HANDLE|HANDLE_MAX)\b/.test(source)) offenders.push(file);
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("formatGbp and numeric clamp helpers (#1043 L7)", () => {
+  it("declares formatGbp only in lib/formatGbp.ts", () => {
+    const offenders: string[] = [];
+    for (const file of listSourceFiles("app", "components", "lib")) {
+      if (file === "lib/formatGbp.ts") continue;
+      const source = readFileSync(join(process.cwd(), file), "utf8");
+      if (/function formatGbp\b/.test(source)) offenders.push(file);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("declares numeric clamp only in lib/mathClamp.ts", () => {
+    const offenders: string[] = [];
+    for (const file of listSourceFiles("lib")) {
+      if (file === "lib/mathClamp.ts") continue;
+      const source = readFileSync(join(process.cwd(), file), "utf8");
+      if (/function clamp\s*\(\s*value:\s*number/.test(source)) offenders.push(file);
+    }
+    expect(offenders).toEqual([]);
   });
 });

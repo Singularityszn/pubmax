@@ -1,3 +1,5 @@
+import "server-only";
+
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { SocialPostDTO } from "@/lib/socialPosts";

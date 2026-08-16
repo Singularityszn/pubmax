@@ -1,3 +1,5 @@
+import "server-only";
+
 // The bytes half of a pub photo wall: the same journey an owned profile image
 // takes, pointed at a venue-scoped key instead of a profile-scoped one.
 //

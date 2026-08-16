@@ -1,3 +1,5 @@
+import "server-only";
+
 // The bounded harvest batch a scheduled run performs, shared with the CLI.
 //
 // WHAT A CRON CAN HONESTLY DO HERE. A Vercel function has a read-only file

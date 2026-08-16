@@ -1,6 +1,8 @@
 // Test-environment isolation.
 
-import { afterEach, beforeEach } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 
 // vitest.config.ts creates this once per run and test.env distributes the same
 // value to every worker. Some security tests intentionally delete or replace

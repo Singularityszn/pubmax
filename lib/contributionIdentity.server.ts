@@ -1,3 +1,5 @@
+import "server-only";
+
 import { verifyCallerAuth } from "@/lib/authServer";
 import { identityHandleStore } from "@/lib/identityHandleStore";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";

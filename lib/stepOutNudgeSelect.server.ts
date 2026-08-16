@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-only selection of an owed Step Out payload for one account.
 // Priority: Wanted near the night-area patch → open Soft Plan → sourced deal.
 // Skip when nothing is owed. Coarse area centre only — never precise location.

@@ -1,3 +1,5 @@
+import "server-only";
+
 // Public read of one approved owned image, byte-for-byte out of the private
 // bucket. Shared by /api/avatar/[profileId]/[generation] and
 // /api/cover/[profileId]/[generation]: an unclaimed, tombstoned, pending,

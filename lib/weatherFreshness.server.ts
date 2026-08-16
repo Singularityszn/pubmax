@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-side read-through freshness for weather surfaces that must never show
 // stale readings, regardless of cron cadence or whether migration 0047 has
 // landed. The cron plane pre-warms the durable store every 6h; this module is

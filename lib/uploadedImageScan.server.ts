@@ -1,3 +1,5 @@
+import "server-only";
+
 // ONE scan policy for every owned-image surface: the avatar, the cover, a pub
 // wall photo and a photo sent in a message all ask this module the same
 // question about the same bytes.

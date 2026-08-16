@@ -317,6 +317,8 @@ export function formatPrice(value: number | null): string {
   return typeof value === "number" ? `£${value.toFixed(2)}` : "No price";
 }
 
+export { formatGbp } from "@/lib/formatGbp";
+
 function normaliseVenueKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }

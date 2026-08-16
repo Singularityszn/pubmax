@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server handlers for the five Pub Pal V0.1 concierge tools (ADR 0014, R-015).
 //
 // Every handler is a thin call into a lane that already exists - the listed

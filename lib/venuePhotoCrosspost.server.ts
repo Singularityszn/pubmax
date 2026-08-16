@@ -1,3 +1,5 @@
+import "server-only";
+
 // "Also share to your feed", and the honest answer to it.
 //
 // A crosspost is a SECOND write to a different product with its own gate. The

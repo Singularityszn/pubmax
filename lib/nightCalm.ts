@@ -15,6 +15,8 @@
 // per-area/per-month cache live in lib/nightCalmSource.ts so this stays trivially
 // testable and free of I/O.
 
+import { clamp } from "@/lib/mathClamp";
+
 export const NIGHT_CALM_VERSION = 1 as const;
 
 /**
@@ -63,10 +65,6 @@ export type NightCalmAggregate = {
 
 /** A single street-level crime row, pared to only the field we read. */
 export type PoliceCrime = { category: string };
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
 
 function pad2(value: number): string {
   return String(value).padStart(2, "0");

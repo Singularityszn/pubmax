@@ -1,3 +1,5 @@
+import "server-only";
+
 // Reading ONE message photo, byte-for-byte out of the private bucket.
 //
 // This is the one place in the tree where owned-image bytes are NOT public. A

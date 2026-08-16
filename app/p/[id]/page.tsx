@@ -11,6 +11,7 @@ import { displayHandle } from "@/lib/handleDisplay";
 import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
 import { buildPintDropShareText } from "@/lib/shareArtifacts";
 import { type ViewerContext } from "@/lib/pintDrops";
+import { formatGbp } from "@/lib/formatGbp";
 
 import "./permalink.css";
 
@@ -46,9 +47,9 @@ async function resolveViewer(
   return resolveViewerContextFromRequest(request, queryViewer);
 }
 
-function formatGbp(value: number | null): string | null {
+function formatDropPrice(value: number | null): string | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? `£${value.toFixed(2)}`
+    ? formatGbp(value)
     : null;
 }
 
@@ -73,7 +74,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     };
   }
 
-  const price = formatGbp(drop.priceGbp);
+  const price = formatDropPrice(drop.priceGbp);
   const priceBit = price ? `, ${price}` : "";
   const title = `${displayHandle(drop.handle)}'s pint at ${drop.venueName}${priceBit}`;
   const description =
@@ -136,7 +137,7 @@ export default async function PintDropPermalink({ params, searchParams }: PagePr
 
 // ── The collectible pint memory card ─────────────────────────────────────────
 function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?: string }) {
-  const price = formatGbp(drop.priceGbp);
+  const price = formatDropPrice(drop.priceGbp);
   const date = formatDate(drop.createdAt);
   const headline = drop.drink || "A pint worth remembering";
   const hasPhoto = Boolean(drop.pintPhotoUrl || drop.venuePhotoUrl);

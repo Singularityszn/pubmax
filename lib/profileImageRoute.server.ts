@@ -1,3 +1,5 @@
+import "server-only";
+
 // The owner's upload/remove handlers for one profile image slot.
 //
 // The face and the backdrop take the SAME journey — own the handle, stay inside
