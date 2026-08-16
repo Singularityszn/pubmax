@@ -40,10 +40,15 @@ test.describe("near desk mode", () => {
     await expect(deskOption).toHaveAttribute("aria-checked", "true");
     await expect(page).toHaveURL(/mode=desk/);
     await expect(page.getByRole("heading", { name: /Somewhere to sit around Soho/ })).toBeVisible();
-    await expect(page.getByText("Wifi:", { exact: false }).first()).toBeVisible();
-    await expect(page.getByText("Laptops:", { exact: false }).first()).toBeVisible();
-    await expect(page.getByText("Hours:", { exact: false }).first()).toBeVisible();
-    await expect(page.getByText("No seat data yet").first()).toBeVisible();
+    await expect(page.locator(".ndnHero .ndnHeroName")).toBeVisible();
+    await expect(page.locator(".ndnHero .ndnFacts li").first()).toBeVisible();
+    await expect(
+      page
+        .getByText(/^(Open until |Open all day|Opens |Closed today|Hours unknown)/)
+        .first(),
+    ).toBeVisible();
+    await expect(page.getByText("Laptops: not known")).toHaveCount(0);
+    await expect(page.getByText("No seat data yet")).toHaveCount(0);
     await expect(page.getByText(/^Checked /).first()).toBeVisible();
     await expect(
       page.getByRole("link", { name: "OpenStreetMap contributors" }),
@@ -77,7 +82,7 @@ test.describe("near desk mode", () => {
     mkdirSync(SHOTS_DIR, { recursive: true });
     await prepareReturningVisitor(page);
     await page.goto("/near?mode=desk&patch=soho");
-    await expect(page.getByText("Wifi:", { exact: false }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Somewhere to sit around Soho/ })).toBeVisible();
 
     await page.emulateMedia({ colorScheme: "light" });
     await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));

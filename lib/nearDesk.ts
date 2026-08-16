@@ -1,4 +1,9 @@
-import { evaluateOpenState, type WeeklyOpeningHours } from "@/lib/busyness";
+import {
+  localClock,
+  openStateAtClock,
+  type LocalClock,
+  type WeeklyOpeningHours,
+} from "@/lib/busyness";
 import { haversineKm } from "@/lib/haversine";
 import {
   walkMinutesFromKm,
@@ -25,6 +30,16 @@ export const DESK_MODE_KINDS = [
 ] as const satisfies readonly VenueKind[];
 
 export const DESK_MAX_ANSWERS = 5;
+
+/**
+ * ONE clock for a desk card. The rank key (`openNow`) and the human hours line
+ * are two readings of the same door, so they may not read two zones: a viewer
+ * whose device sat west of London used to be told `Open until 22:00` about a
+ * venue the same card had already ranked as shut. Every desk in the pack is in
+ * London, so London is what both answer from unless a caller names one zone
+ * for both.
+ */
+export const DESK_TIME_ZONE = "Europe/London";
 
 /**
  * The walkable ring a desk card is bucketed into before anything else is
@@ -66,16 +81,14 @@ export type DeskCard = {
   name: string;
   kind: VenueKind;
   kindLabel: string;
-  address: string;
   distanceKm?: number;
   walkMinutes?: number;
   wifi: WifiState;
   laptop: LaptopState;
   openNow: boolean | "unknown";
-  wifiCaption: string;
-  laptopCaption: string;
+  amenityLines: string[];
   hoursCaption: string;
-  seatDataLine: string;
+  hoursRaw: string | null;
   checkedCaption: string;
   source: "osm";
 };
@@ -85,10 +98,12 @@ export type DeskAnswer = {
   cards: DeskCard[];
   scope: NearMeScope;
   radiusKm: number;
+  collapsedChains: string[];
 };
 
 export type RankDeskOptions = {
   now?: Date;
+  timeZone?: string;
   observedAt?: string | null;
   walkableRadiusKm?: number;
   widenedRadiusKm?: number;
@@ -176,13 +191,156 @@ export function deskLaptopCaption(laptop: LaptopState): string {
   return laptop === "allowed" ? "Laptops: allowed" : "Laptops: not known";
 }
 
-export function deskHoursCaption(raw: string | null | undefined): string {
-  const hours = typeof raw === "string" ? raw.trim() : "";
-  return hours ? `Hours: ${hours}` : "Hours: unknown";
+export function deskAmenityLines(wifi: WifiState, laptop: LaptopState): string[] {
+  const lines: string[] = [];
+  if (wifi !== "unknown") lines.push(deskWifiCaption(wifi));
+  if (laptop === "allowed") lines.push(deskLaptopCaption(laptop));
+  return lines.length > 0 ? lines : ["No amenity data yet"];
 }
 
-export function deskSeatDataLine(): string {
-  return "No seat data yet";
+function clockMinutes(value: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function formatClockMinutes(minutes: number): string {
+  const wrapped = ((minutes % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hour = Math.floor(wrapped / 60);
+  const minute = wrapped % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+/**
+ * The sentence for a window the reader is inside right now. `24:00` is not a
+ * clock anybody reads, and the pack holds both shapes of it: a `24/7` row parses
+ * to `00:00-24:00` every day, and seventy more rows close on midnight.
+ */
+function openWindowCaption(opens: number, adjustedClose: number): string {
+  if (opens === 0 && adjustedClose === 24 * 60) return "Open all day";
+  if (adjustedClose % (24 * 60) === 0) return "Open until midnight";
+  return `Open until ${formatClockMinutes(adjustedClose)}`;
+}
+
+/**
+ * The hours line for a clock and the open-now answer already read from it.
+ *
+ * The card's rank key and its sentence are the same reading, so the caller
+ * hands both in rather than asking the same zone a second time.
+ */
+function hoursCaptionFromClock(
+  hours: WeeklyOpeningHours | null | undefined,
+  clock: LocalClock,
+  open: boolean | "unknown",
+): string {
+  if (!hours) return "Hours unknown";
+  const windows = hours[clock.weekday];
+  if (!windows || windows.length === 0) return "Closed today";
+
+  if (open === true) {
+    for (const window of windows) {
+      const opens = clockMinutes(window.opens);
+      const closes = clockMinutes(window.closes);
+      if (opens === null || closes === null) continue;
+      const adjustedClose = closes <= opens ? closes + 24 * 60 : closes;
+      const adjustedNow = clock.minutes < opens && adjustedClose >= 24 * 60
+        ? clock.minutes + 24 * 60
+        : clock.minutes;
+      if (adjustedNow >= opens && adjustedNow < adjustedClose) {
+        return openWindowCaption(opens, adjustedClose);
+      }
+    }
+  }
+
+  const laterOpen = windows
+    .map((window) => clockMinutes(window.opens))
+    .filter((opens): opens is number => opens !== null && opens > clock.minutes)
+    .sort((a, b) => a - b)[0];
+  return laterOpen === undefined ? "Closed today" : `Opens ${formatClockMinutes(laterOpen)}`;
+}
+
+/**
+ * One line for the desk card: open until, opens later today, closed today,
+ * or hours unknown. Same clock as the card's own `openNow` rank key. Raw OSM
+ * syntax stays off this line.
+ */
+export function deskHoursCaption(
+  hours: WeeklyOpeningHours | null | undefined,
+  now: Date = new Date(),
+  timeZone: string = DESK_TIME_ZONE,
+): string {
+  if (!hours) return "Hours unknown";
+  const clock = localClock(now, timeZone || DESK_TIME_ZONE);
+  return hoursCaptionFromClock(hours, clock, openStateAtClock(clock, hours));
+}
+
+/**
+ * The closed set of chains a desk answer may collapse, and the folded names
+ * each one answers to.
+ *
+ * Only a name ON this table loses its branch and street tokens. Stripping a
+ * trailing generic token from EVERY name is what made `Cafe 26` and `Café 54`
+ * one key, and one of two independent cafes 386 metres apart then never
+ * reached the short list. An independent is never suppressed, so an unlisted
+ * name keeps its whole folded self.
+ */
+export const DESK_CHAINS: ReadonlyArray<{ key: string; names: readonly string[] }> = [
+  { key: "caffe nero", names: ["caffe nero", "cafe nero", "nero"] },
+  { key: "pret", names: ["pret a manger", "pret"] },
+  { key: "costa", names: ["costa coffee", "costa"] },
+  { key: "starbucks", names: ["starbucks"] },
+  { key: "gails", names: ["gails bakery", "gails"] },
+  { key: "black sheep", names: ["black sheep coffee", "black sheep"] },
+  { key: "wework", names: ["wework"] },
+  { key: "joe and the juice", names: ["joe and the juice", "joe the juice"] },
+  { key: "leon", names: ["leon"] },
+  { key: "paul", names: ["paul"] },
+  { key: "blank street", names: ["blank street coffee", "blank street"] },
+  { key: "grind", names: ["grind"] },
+  { key: "ole and steen", names: ["ole and steen", "ole steen"] },
+];
+
+function foldVenueName(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * One deterministic key per venue. Accents and punctuation fall away; a name
+ * that opens with a listed chain answers to that chain, whatever branch or
+ * street follows it, and every other name keeps its folded self.
+ */
+export function deskChainKey(name: string): string {
+  const folded = foldVenueName(name);
+  if (!folded) return folded;
+  for (const chain of DESK_CHAINS) {
+    for (const chainName of chain.names) {
+      if (folded === chainName || folded.startsWith(`${chainName} `)) return chain.key;
+    }
+  }
+  return folded;
+}
+
+export const DESK_COLLAPSED_CHAINS_ATTRIBUTE = "data-desk-collapsed-chains";
+
+/**
+ * The development-only attribute naming which chains a diverse answer put
+ * aside. Nothing ships to a reader: production answers no attribute at all,
+ * and neither does an answer that collapsed nothing.
+ */
+export function deskCollapsedChainsAttributes(
+  collapsedChains: readonly string[] | null | undefined,
+  env: string | undefined = process.env.NODE_ENV,
+): Record<string, string> {
+  if (env !== "development") return {};
+  if (!collapsedChains || collapsedChains.length === 0) return {};
+  return { [DESK_COLLAPSED_CHAINS_ATTRIBUTE]: collapsedChains.join(",") };
 }
 
 export function deskEmptyLine(): string {
@@ -314,7 +472,7 @@ function applyWindows(
   windows: { opens: string; closes: string }[],
 ): void {
   for (const day of days) {
-    hours[day] = [...(hours[day] ?? []), ...windows];
+    hours[day] = [...windows];
   }
 }
 
@@ -323,10 +481,9 @@ function applyWindows(
  * windows become weekly hours. Anything else stays unknown rather than a
  * guessed door.
  *
- * A day no rule mentions is CLOSED in OSM, not unknown, so a parsed string
- * fills its silent days with an empty window list. Leaving them absent made
- * `evaluateOpenState` answer "unknown" for a weekday-only cafe on a Sunday,
- * which ranked it above a venue that had stated `Su off`.
+ * Later rules OVERRIDE earlier ones for the same day. OSM writes
+ * `Mo-Su 08:00-22:00; Su 10:00-18:00` to narrow Sunday, not to union both
+ * windows. A day no rule mentions is CLOSED, not unknown.
  */
 export function parseOsmOpeningHours(
   raw: string | null | undefined,
@@ -385,44 +542,91 @@ function openRank(state: boolean | "unknown"): number {
   return 2;
 }
 
+/**
+ * A pool entry with the two things ranking asks about: how far it is, and
+ * whether its door is open on the answer's one clock. The wordy half of a card
+ * is a projection, so it is built for the five venues that were picked rather
+ * than for the thousand that were measured.
+ */
+type RankedDesk = {
+  point: DeskPoint;
+  km: number;
+  openNow: boolean | "unknown";
+  chainKey: string;
+};
+
 function toCard(
-  point: DeskPoint,
-  km: number | undefined,
-  now: Date,
+  entry: RankedDesk,
+  clock: LocalClock,
   observedAt: string | null | undefined,
 ): DeskCard {
-  const openNow = evaluateOpenState({
-    now,
-    timeZone: "Europe/London",
-    openingHours: point.openingHours ?? undefined,
-  });
+  const { point, km } = entry;
   return {
     id: point.id,
     name: point.name,
     kind: point.kind,
     kindLabel: deskKindLabel(point.kind),
-    address: point.address ?? "",
     ...(typeof km === "number"
       ? { distanceKm: km, walkMinutes: walkMinutesFromKm(km) }
       : {}),
     wifi: point.wifi,
     laptop: point.laptop,
-    openNow,
-    wifiCaption: deskWifiCaption(point.wifi),
-    laptopCaption: deskLaptopCaption(point.laptop),
-    hoursCaption: deskHoursCaption(point.hoursRaw),
-    seatDataLine: deskSeatDataLine(),
+    openNow: entry.openNow,
+    amenityLines: deskAmenityLines(point.wifi, point.laptop),
+    hoursCaption: hoursCaptionFromClock(point.openingHours, clock, entry.openNow),
+    hoursRaw: point.hoursRaw ?? null,
     checkedCaption: deskCheckedCaption(observedAt),
     source: "osm",
   };
 }
 
-function byDeskRank(a: { card: DeskCard; km: number }, b: { card: DeskCard; km: number }): number {
+/**
+ * Whether the answer bothers to name the chains it put aside. Only the
+ * development debug attribute reads that list, so a reader's phone never
+ * spends the pass building it.
+ */
+function collapsedChainsWanted(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
+
+function pickDiverseDesks(
+  ranked: RankedDesk[],
+  max: number,
+): { picked: RankedDesk[]; collapsedChains: string[] } {
+  const first: RankedDesk[] = [];
+  const extras: RankedDesk[] = [];
+  const seen = new Set<string>();
+  for (const entry of ranked) {
+    if (!seen.has(entry.chainKey)) {
+      seen.add(entry.chainKey);
+      first.push(entry);
+    } else {
+      extras.push(entry);
+    }
+  }
+  const picked = first.slice(0, max);
+  if (picked.length < max) {
+    for (const entry of extras) {
+      picked.push(entry);
+      if (picked.length >= max) break;
+    }
+  }
+  if (!collapsedChainsWanted()) return { picked, collapsedChains: [] };
+  const shown = new Set(picked.map((entry) => entry.point.id));
+  const collapsed = new Set<string>();
+  for (const entry of extras) {
+    if (!shown.has(entry.point.id)) collapsed.add(entry.chainKey);
+  }
+  return { picked, collapsedChains: [...collapsed].sort() };
+}
+
+function byDeskRank(a: RankedDesk, b: RankedDesk): number {
   const ring = deskDistanceRing(a.km) - deskDistanceRing(b.km);
   if (ring !== 0) return ring;
-  const amenity = amenityScore(b.card.wifi, b.card.laptop) - amenityScore(a.card.wifi, a.card.laptop);
+  const amenity = amenityScore(b.point.wifi, b.point.laptop)
+    - amenityScore(a.point.wifi, a.point.laptop);
   if (amenity !== 0) return amenity;
-  const open = openRank(a.card.openNow) - openRank(b.card.openNow);
+  const open = openRank(a.openNow) - openRank(b.openNow);
   if (open !== 0) return open;
   return a.km - b.km;
 }
@@ -455,22 +659,26 @@ export function rankDeskNearMe(
     ? walkable
     : measured.filter((entry) => entry.km <= wideRadius);
   if (pool.length === 0) {
-    return { hero: null, cards: [], scope: "none", radiusKm: wideRadius };
+    return { hero: null, cards: [], scope: "none", radiusKm: wideRadius, collapsedChains: [] };
   }
 
+  const clock = localClock(now, options.timeZone || DESK_TIME_ZONE);
   const ranked = pool
     .map((entry) => ({
+      point: entry.point,
       km: entry.km,
-      card: toCard(entry.point, entry.km, now, options.observedAt),
+      openNow: openStateAtClock(clock, entry.point.openingHours ?? undefined),
+      chainKey: deskChainKey(entry.point.name),
     }))
-    .sort(byDeskRank)
-    .slice(0, max)
-    .map((entry) => entry.card);
+    .sort(byDeskRank);
+  const { picked, collapsedChains } = pickDiverseDesks(ranked, max);
+  const cards = picked.map((entry) => toCard(entry, clock, options.observedAt));
 
   return {
-    hero: ranked[0] ?? null,
-    cards: ranked,
+    hero: cards[0] ?? null,
+    cards,
     scope: walkable.length > 0 ? "walkable" : "widened",
     radiusKm: walkable.length > 0 ? walkRadius : wideRadius,
+    collapsedChains,
   };
 }

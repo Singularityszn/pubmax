@@ -23,7 +23,7 @@ export type BusynessEstimate = {
   explanation: string;
 };
 
-type LocalClock = { weekday: number; minutes: number };
+export type LocalClock = { weekday: number; minutes: number };
 
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 const WEEKDAY_NAMES = [
@@ -58,7 +58,12 @@ function groupSizeWords(groupSize: number): string {
   return `${word ?? groupSize} of you`;
 }
 
-function localClock(now: Date, timeZone: string): LocalClock {
+/**
+ * The weekday and minute a zone is on. Building a formatter is the expensive
+ * part of every open-now question, so a caller ranking a whole pool reads this
+ * ONCE and asks `openStateAtClock` per venue.
+ */
+export function localClock(now: Date, timeZone: string): LocalClock {
   const formatter = new Intl.DateTimeFormat("en-GB", {
     timeZone,
     weekday: "short",
@@ -83,7 +88,10 @@ function parseClock(value: string): number | null {
   return hour * 60 + minute;
 }
 
-function openingState(clock: LocalClock, hours?: WeeklyOpeningHours): boolean | "unknown" {
+export function openStateAtClock(
+  clock: LocalClock,
+  hours?: WeeklyOpeningHours,
+): boolean | "unknown" {
   if (!hours) return "unknown";
   const windows = hours[clock.weekday];
   if (!windows) return "unknown";
@@ -112,7 +120,7 @@ export function evaluateOpenState(input: {
 }): boolean | "unknown" {
   const now = input.now ?? new Date();
   const timeZone = input.timeZone ?? "Europe/London";
-  return openingState(localClock(now, timeZone), input.openingHours);
+  return openStateAtClock(localClock(now, timeZone), input.openingHours);
 }
 
 function typicalLevel(weekday: number, minutes: number): BusynessLevel {
@@ -150,7 +158,7 @@ export function estimateBusyness(input: {
   const latest = freshReports.sort(
     (a, b) => Date.parse(b.reportedAt) - Date.parse(a.reportedAt),
   )[0];
-  const isOpen = openingState(clock, input.openingHours);
+  const isOpen = openStateAtClock(clock, input.openingHours);
 
   if (latest) {
     return {

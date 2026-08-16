@@ -10,7 +10,6 @@ import {
   deskLaptopCaption,
   deskPatchQuery,
   deskPatchReasonLine,
-  deskSeatDataLine,
   deskWifiCaption,
   isDeskEligible,
   laptopFromOsm,
@@ -279,7 +278,7 @@ describe("rankDeskNearMe", () => {
       "Near Wifi",
       "Near Unknown",
     ]);
-    expect(answer.cards.every((card) => card.wifiCaption && card.laptopCaption)).toBe(true);
+    expect(answer.cards.every((card) => card.amenityLines.length > 0)).toBe(true);
     expect(answer.cards[0]?.openNow).toBe(true);
     expect(answer.cards.find((card) => card.name === "Near Closed")?.openNow).toBe(false);
   });
@@ -313,10 +312,11 @@ describe("rankDeskNearMe", () => {
       }),
     ], { observedAt: "2026-08-16T04:01:27.583Z" });
     const card = answer.hero;
-    expect(card?.wifiCaption).toBe("Wifi: yes");
-    expect(card?.laptopCaption).toBe("Laptops: allowed");
-    expect(card?.hoursCaption).toBe("Hours: Mo-Fr 08:00-17:00");
-    expect(card?.seatDataLine).toBe("No seat data yet");
+    expect(card?.amenityLines).toEqual(["Wifi: yes", "Laptops: allowed"]);
+    expect(card?.hoursCaption).toMatch(
+      /^(Open until |Open all day|Opens |Closed today|Hours unknown)/,
+    );
+    expect(card?.hoursRaw).toBe("Mo-Fr 08:00-17:00");
     expect(card?.source).toBe("osm");
     expect(card?.checkedCaption).toMatch(/^Checked /);
   });
@@ -325,14 +325,12 @@ describe("rankDeskNearMe", () => {
 describe("desk copy", () => {
   it("keeps empty and amenity lines in house voice", () => {
     expect(deskEmptyLine()).toBe("No desks logged near here yet - add a spot");
-    expect(deskSeatDataLine()).toBe("No seat data yet");
     expect(deskWifiCaption("yes")).toBe("Wifi: yes");
     expect(deskWifiCaption("no")).toBe("Wifi: no");
     expect(deskWifiCaption("unknown")).toBe("Wifi: unknown");
     expect(deskLaptopCaption("allowed")).toBe("Laptops: allowed");
     expect(deskLaptopCaption("unknown")).toBe("Laptops: not known");
-    expect(deskHoursCaption("Mo-Fr 08:00-17:00")).toBe("Hours: Mo-Fr 08:00-17:00");
-    expect(deskHoursCaption(null)).toBe("Hours: unknown");
+    expect(deskHoursCaption(null)).toBe("Hours unknown");
     expect(deskCheckedCaption("2026-08-16T04:01:27.583Z")).toBe("Checked 16 Aug");
     expect(deskCheckedCaption(null)).toBe("No date on this yet");
     expect(deskAnswerHeadline({ scope: "walkable" })).toBe("Somewhere to sit near you");
@@ -343,7 +341,7 @@ describe("desk copy", () => {
     expect(deskLoadFailedLine()).toBe("Could not check desks near here.");
     for (const line of [
       deskEmptyLine(),
-      deskSeatDataLine(),
+      deskLoadFailedLine(),
       deskAnswerHeadline({ scope: "walkable" }),
     ]) {
       expect(line).not.toMatch(/[\u2014\u2013]/);

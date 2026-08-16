@@ -7,11 +7,13 @@ import { LocateFixed, RotateCw } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 import {
   deskAnswerHeadline,
+  deskCollapsedChainsAttributes,
   deskEmptyLine,
   deskLoadFailedLine,
   deskPatchQuery,
   deskPatchReasonLine,
   rankDeskNearMe,
+  DESK_TIME_ZONE,
   type DeskAnswer,
   type DeskCard,
   type DeskPatchReason,
@@ -47,11 +49,17 @@ function DeskFacts({ card, hero }: { card: DeskCard; hero?: boolean }) {
   return (
     <>
       <ul className="ndnFacts">
-        <li>{card.wifiCaption}</li>
-        <li>{card.laptopCaption}</li>
+        {card.amenityLines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
         <li>{card.hoursCaption}</li>
-        <li>{card.seatDataLine}</li>
       </ul>
+      {card.hoursRaw ? (
+        <details className="ndnHoursMore">
+          <summary>Full hours</summary>
+          <p className="ndnHoursRaw">{card.hoursRaw}</p>
+        </details>
+      ) : null}
       <p className={hero ? "ndnChecked" : "ndnCardFact"}>{card.checkedCaption}</p>
     </>
   );
@@ -65,7 +73,6 @@ function DeskHero({ card }: { card: DeskCard }) {
     <article className="ndnHero">
       <p className="ndnKind">{card.kindLabel}</p>
       <h3 className="ndnHeroName">{card.name}</h3>
-      {card.address ? <p className="ndnCardFact">{card.address}</p> : null}
       {walk ? <p className="ndnCardFact">{walk}</p> : null}
       <DeskFacts card={card} hero />
     </article>
@@ -82,7 +89,6 @@ function DeskCardList({ cards }: { cards: DeskCard[] }) {
           <article className="ndnCard">
             <p className="ndnKind">{card.kindLabel}</p>
             <p className="ndnCardName">{card.name}</p>
-            {card.address ? <p className="ndnCardFact">{card.address}</p> : null}
             {typeof card.walkMinutes === "number" ? (
               <p className="ndnCardFact">{card.walkMinutes} min walk</p>
             ) : null}
@@ -166,11 +172,13 @@ export default function NearDeskNow({
           cards: [],
           scope: "none",
           radiusKm: 0,
+          collapsedChains: [],
         }, next, reason);
         return;
       }
       const ranked = rankDeskNearMe(next.lat, next.lng, loaded.venues, {
         observedAt: loaded.observedAt,
+        timeZone: DESK_TIME_ZONE,
       });
       applyAnswer(generation, loaded, ranked, next, reason);
       writeRememberedArea({ kind: "patch", id: next.id });
@@ -212,6 +220,7 @@ export default function NearDeskNow({
               cards: [],
               scope: "none",
               radiusKm: 0,
+              collapsedChains: [],
             }, null, null);
             return;
           }
@@ -219,7 +228,7 @@ export default function NearDeskNow({
             position.coords.latitude,
             position.coords.longitude,
             loaded.venues,
-            { observedAt: loaded.observedAt },
+            { observedAt: loaded.observedAt, timeZone: DESK_TIME_ZONE },
           );
           applyAnswer(generation, loaded, ranked, null, null);
         });
@@ -261,7 +270,11 @@ export default function NearDeskNow({
   const patchMessage = deskPatchReasonLine(areaLabel, patchReason);
 
   return (
-    <section className="nmn" aria-label="Find a desk nearby">
+    <section
+      className="nmn"
+      aria-label="Find a desk nearby"
+      {...deskCollapsedChainsAttributes(answer?.collapsedChains)}
+    >
       {state === "idle" ? (
         <div className="nmnIntro">
           <h1 className="nmnLede">{deskIntroLede()}</h1>
