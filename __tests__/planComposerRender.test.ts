@@ -6,8 +6,13 @@ vi.mock("server-only", () => ({}));
 
 import {
   AcceptedContextPanel,
+  PLAN_INTAKE_CONFLICT_NO_ROUTE,
+  PLAN_INTAKE_CONFLICT_READER,
+  PLAN_INTAKE_CONFLICT_SERVER,
   PlanComposerErrorNotice,
   acceptedPlanAreaLabel,
+  errorMessageFromBody,
+  planGenerationFailureStatus,
   acceptedStop1RemoveLabel,
   acceptedStop1SwapLabel,
   planComposerShowsDescribeFirst,
@@ -154,6 +159,40 @@ describe("PlanComposer rendered UI", () => {
     const html409 = renderToStaticMarkup(createElement(PlanComposerErrorNotice, { message: copy409 as string }));
     expect(html409).toContain('role="alert"');
     expect(html409).toMatch(/already locked/i);
+  });
+
+  it("never claims an earlier route in the error notice when no route is on screen", () => {
+    // Repro: a fresh /plan, POST /api/plans/generate answers 422
+    // PLAN_INTAKE_MALFORMED and no stop rows are rendered. The notice used to
+    // take errorMessageFromBody straight, so it told the reader the earlier
+    // route was still here when there was none.
+    const body = {
+      error: {
+        code: "PLAN_INTAKE_MALFORMED",
+        message: PLAN_INTAKE_CONFLICT_SERVER,
+      },
+    };
+    const thrown = errorMessageFromBody(body, "PUBMAXX could not sort this one.");
+
+    const noRoute = planGenerationFailureStatus(thrown, false);
+    const noRouteHtml = renderToStaticMarkup(
+      createElement(PlanComposerErrorNotice, { message: noRoute }),
+    );
+    expect(noRouteHtml).toContain('role="alert"');
+    expect(noRouteHtml).toContain(PLAN_INTAKE_CONFLICT_NO_ROUTE);
+    expect(noRouteHtml).not.toMatch(/earlier route|previous route/i);
+    // The server plumbing string never reaches a reader either.
+    expect(noRouteHtml).not.toContain("intake");
+
+    const withRoute = planGenerationFailureStatus(thrown, true);
+    const withRouteHtml = renderToStaticMarkup(
+      createElement(PlanComposerErrorNotice, { message: withRoute }),
+    );
+    expect(withRouteHtml).toContain(PLAN_INTAKE_CONFLICT_READER);
+
+    // One sentence, both surfaces: the notice prints exactly what
+    // #plan-route-status prints, so the two can never contradict each other.
+    expect(noRoute).not.toBe(withRoute);
   });
 
   it("prints the night area name, never the slug", () => {

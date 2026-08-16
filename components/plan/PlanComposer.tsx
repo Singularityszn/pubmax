@@ -1474,9 +1474,13 @@ function PlanComposerForm({
       }
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "The concierge could not sort this one.";
-      setError(message);
+      // planGenerationFailureStatus is the ONE owner of this sentence, so the
+      // error notice cannot tell a reader with no route on screen that "the
+      // earlier route is still here".
+      const failureStatus = planGenerationFailureStatus(message, stops.length > 0);
+      setError(failureStatus);
       setRouteStale(true);
-      setRouteStatus(planGenerationFailureStatus(message, stops.length > 0));
+      setRouteStatus(failureStatus);
     } finally {
       setSorting(false);
     }
