@@ -11,7 +11,14 @@ import { mergeCommunityPriceSignals } from "@/components/map/communityPriceSigna
 import type { CommunityPrice } from "@/lib/communityPrice";
 import { trustedDrinkLensPrices } from "@/lib/mapExperienceLens";
 import { rankBoroughCheapest } from "@/lib/nearMeAnswer";
-import { OUT_CARD_SOURCES, outCardSource, outSourceAttribution } from "@/lib/out/attribution";
+import { createSkiddleProvider } from "@/lib/events/skiddle";
+import {
+  OUT_CARD_SOURCES,
+  SKIDDLE_BRAND_ASSET_PRESENT,
+  outCardSource,
+  outSourceAttribution,
+  skiddleLaneFenced,
+} from "@/lib/out/attribution";
 import type { Venue } from "@/lib/venues";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { summariseWhatsOnByVenue } from "@/lib/whatsOnBadges";
@@ -32,7 +39,7 @@ function eventRow(overrides: Partial<WhatsOnRow> = {}): WhatsOnRow {
   };
 }
 
-describe("Skiddle name and logo credit", () => {
+describe("Skiddle credit, and the fence standing in for the asset we do not hold", () => {
   it("requires a logo whenever a Skiddle row is in the answer", () => {
     const attribution = outSourceAttribution([eventRow()]);
     expect(attribution).toEqual([
@@ -44,14 +51,33 @@ describe("Skiddle name and logo credit", () => {
     ]);
   });
 
-  it("renders the Skiddle name and logo whenever a Skiddle row is on screen", () => {
-    const html = renderToStaticMarkup(
-      SourceCredit({ source: eventRow().source }),
-    );
-    expect(html).toMatch(/Skiddle/);
-    expect(html).toMatch(/<img|svg/i);
-    expect(html).toMatch(/skiddle/i);
-    expect(html).toMatch(/https:\/\/www\.skiddle\.com\/whats-on\/e\/1/);
+  it("renders the Skiddle name and the event link whenever a Skiddle row is on screen", () => {
+    const html = renderToStaticMarkup(SourceCredit({ source: eventRow().source }));
+    expect(html).toContain("Skiddle");
+    expect(html).toContain("https://www.skiddle.com/whats-on/e/1");
+  });
+
+  it("draws no mark at all, rather than an imitation of somebody else's wordmark", () => {
+    const html = renderToStaticMarkup(SourceCredit({ source: eventRow().source }));
+    expect(html).not.toMatch(/<svg|<img|<canvas/i);
+    // The name is text a reader can select, not a drawn lookalike.
+    expect(html).toMatch(/<span>Skiddle<\/span>/);
+  });
+
+  it("holds the Skiddle lane shut while the official asset is absent, key or no key", () => {
+    // The obligation is real and undischarged, so the FENCE is what gates the
+    // lane - not the missing API key.
+    expect(SKIDDLE_BRAND_ASSET_PRESENT).toBe(false);
+    expect(skiddleLaneFenced()).toBe(true);
+
+    const original = process.env.SKIDDLE_API_KEY;
+    process.env.SKIDDLE_API_KEY = "a-real-key";
+    try {
+      expect(createSkiddleProvider().isConfigured()).toBe(false);
+    } finally {
+      if (original === undefined) delete process.env.SKIDDLE_API_KEY;
+      else process.env.SKIDDLE_API_KEY = original;
+    }
   });
 
   it("does not require the Skiddle logo for a Ticketmaster-only list", () => {

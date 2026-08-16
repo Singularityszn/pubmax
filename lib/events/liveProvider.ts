@@ -9,6 +9,7 @@
 
 import { cityGeo } from "@/lib/whatson/eventNormalise.mjs";
 import type { EventsProvider, EventsProviderContext } from "@/lib/events/provider";
+import { log } from "@/lib/log";
 import { londonServiceDayBounds, type WhatsOnRow } from "@/lib/whatsOn";
 
 const REQUEST_TIMEOUT_MS = 8_000;
@@ -18,15 +19,32 @@ export type LiveProviderWindow = { startIso: string; endIso: string };
 
 export type LiveProviderGeo = { lat: number; lng: number; radiusMiles: number };
 
+export type EventDropCounts = {
+  noKind: number;
+  noPlace: number;
+  noStart: number;
+  noUrl: number;
+  noTitle: number;
+  total: number;
+};
+
 export type LiveProviderDescriptor = {
   /** Attribution / report name. Also the log tag. */
   name: string;
   /** Env var holding this provider's key. Read at CALL time, never logged. */
   envVar: string;
+  /**
+   * A lane can be off for a reason that has nothing to do with its key - an
+   * undischarged licence obligation, say. Absent means "the key decides".
+   */
+  available?: () => boolean;
   /** Human label for the thrown error on a non-2xx answer. */
   upstreamLabel: string;
   buildUrl(input: { key: string; geo: LiveProviderGeo; window: LiveProviderWindow }): URL;
-  normalise(payload: unknown, opts: { observedAt: string }): { rows: WhatsOnRow[] };
+  normalise(
+    payload: unknown,
+    opts: { observedAt: string },
+  ): { rows: WhatsOnRow[]; dropped?: EventDropCounts };
 };
 
 type CacheEntry = { at: number; key: string; rows: WhatsOnRow[] };
@@ -85,16 +103,33 @@ export function createLiveEventsProvider(
       throw new Error(`${descriptor.upstreamLabel} returned ${res.status}`);
     }
     const payload = await res.json();
-    const { rows } = descriptor.normalise(payload, {
+    const { rows, dropped } = descriptor.normalise(payload, {
       observedAt: new Date(ctx.now).toISOString(),
     });
+    // A row the mapper cannot name is DROPPED, and a drop is never silent - the
+    // build-time lane already says so in its own log, and this is the lane that
+    // actually serves readers.
+    if (dropped && dropped.total > 0) {
+      log("warn", "out.provider_drops", {
+        provider: descriptor.name,
+        city,
+        total: dropped.total,
+        noKind: dropped.noKind,
+        noPlace: dropped.noPlace,
+        noStart: dropped.noStart,
+        noUrl: dropped.noUrl,
+        noTitle: dropped.noTitle,
+      });
+    }
     cache = { at: ctx.now, key: cacheKey, rows };
     return rows;
   }
 
   return {
     name: descriptor.name,
-    isConfigured: () => readKey(descriptor.envVar) !== undefined,
+    isConfigured: () =>
+      (descriptor.available ? descriptor.available() : true) &&
+      readKey(descriptor.envVar) !== undefined,
     fetchTonight,
     reset: () => {
       cache = null;

@@ -16,6 +16,7 @@ import {
   normaliseTicketmasterEvents,
   providerLaneStatus,
   runEventsRefresh,
+  WITH_COMMON_FLAG,
   summariseEventDrops,
 } from "../scripts/whatson/eventsRefresh.mjs";
 import { commandsForMode } from "../scripts/local-refresh/scheduler.mjs";
@@ -293,7 +294,7 @@ describe("runEventsRefresh end to end", () => {
     const outPath = temporaryOutPath();
     const commonCalls: unknown[] = [];
     const result = await runEventsRefresh({
-      argv: ["node", "eventsRefresh.mjs"],
+      argv: ["node", "eventsRefresh.mjs", "--with-common"],
       env: { TICKETMASTER_API_KEY: "test-key" },
       nowMs: NOW_MS,
       fetchImpl: (async () => ticketmasterResponse()) as unknown as typeof fetch,
@@ -326,7 +327,7 @@ describe("runEventsRefresh end to end", () => {
     const outPath = temporaryOutPath();
     let commonRan = false;
     const result = await runEventsRefresh({
-      argv: ["node", "eventsRefresh.mjs"],
+      argv: ["node", "eventsRefresh.mjs", "--with-common"],
       env: { TICKETMASTER_API_KEY: "test-key" },
       nowMs: NOW_MS,
       fetchImpl: (async () => new Response("upstream down", { status: 503 })) as unknown as typeof fetch,
@@ -351,7 +352,7 @@ describe("runEventsRefresh end to end", () => {
     const outPath = temporaryOutPath();
     let commonRan = false;
     const result = await runEventsRefresh({
-      argv: ["node", "eventsRefresh.mjs"],
+      argv: ["node", "eventsRefresh.mjs", "--with-common"],
       env: { TICKETMASTER_API_KEY: "test-key" },
       nowMs: NOW_MS,
       fetchImpl: (async () =>
@@ -376,7 +377,7 @@ describe("runEventsRefresh end to end", () => {
     let fetched = 0;
     let commonRan = false;
     const result = await runEventsRefresh({
-      argv: ["node", "eventsRefresh.mjs"],
+      argv: ["node", "eventsRefresh.mjs", "--with-common"],
       env: {},
       nowMs: NOW_MS,
       fetchImpl: (async () => {
@@ -402,7 +403,7 @@ describe("runEventsRefresh end to end", () => {
   it("resolves a venueId only when the CLI injects a venue index", async () => {
     const outPath = temporaryOutPath();
     await runEventsRefresh({
-      argv: ["node", "eventsRefresh.mjs"],
+      argv: ["node", "eventsRefresh.mjs", "--with-common"],
       env: { TICKETMASTER_API_KEY: "test-key" },
       nowMs: NOW_MS,
       fetchImpl: (async () => ticketmasterResponse()) as unknown as typeof fetch,
@@ -415,5 +416,128 @@ describe("runEventsRefresh end to end", () => {
     const written = JSON.parse(readFileSync(outPath, "utf8"));
     expect(written.rows[0].venueId).toBeUndefined();
     expect(written.rows[0].placeName).toEqual(expect.any(String));
+  });
+});
+
+describe("exactly one owner of the Common crawl per run", () => {
+  const NOW_MS = Date.parse("2026-08-16T09:00:00.000Z");
+
+  function outPath() {
+    const dir = mkdtempSync(join(tmpdir(), "events-refresh-owner-"));
+    temporaryDirs.push(dir);
+    return join(dir, "events_london.json");
+  }
+
+  it("does NOT crawl from the events lane the scheduler spawns", async () => {
+    // The scheduler runs commonRefresh.mjs as its own independent lane, so the
+    // events lane it spawns beside it must not crawl too - that is a polite
+    // 1-req/s crawl of a third party's sitemap, and spending the budget twice
+    // per run is what this flag exists to stop.
+    const schedulerLanes = commandsForMode("events", false);
+    const eventsLane = schedulerLanes.find((command) =>
+      command.args[0].endsWith("eventsRefresh.mjs"),
+    );
+    const commonLanes = schedulerLanes.filter((command) =>
+      command.args[0].endsWith("commonRefresh.mjs"),
+    );
+    expect(eventsLane).toBeDefined();
+    expect(eventsLane?.args).not.toContain(WITH_COMMON_FLAG);
+    expect(commonLanes).toHaveLength(1);
+
+    let crawls = 0;
+    await runEventsRefresh({
+      argv: ["node", ...(eventsLane?.args.slice(1) ?? [])],
+      env: { TICKETMASTER_API_KEY: "test-key" },
+      nowMs: NOW_MS,
+      fetchImpl: (async () =>
+        new Response(JSON.stringify({ _embedded: { events: [tmTheatre] } }), {
+          status: 200,
+        })) as unknown as typeof fetch,
+      outPath: outPath(),
+      loadVenueIndex: () => null,
+      runCommonLane: async () => {
+        crawls += 1;
+        return { rows: [] };
+      },
+      log: () => {},
+      logError: () => {},
+    });
+    // One scheduled events run: the events lane crawls zero times, the
+    // scheduler's own Common lane crawls once. One crawl in total.
+    expect(crawls).toBe(0);
+  });
+
+  it("DOES crawl on the workflow path, which has only this one command", async () => {
+    let crawls = 0;
+    await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs", WITH_COMMON_FLAG],
+      env: {},
+      nowMs: NOW_MS,
+      fetchImpl: (async () => new Response("{}", { status: 200 })) as unknown as typeof fetch,
+      outPath: outPath(),
+      loadVenueIndex: () => null,
+      runCommonLane: async () => {
+        crawls += 1;
+        return { rows: [] };
+      },
+      log: () => {},
+      logError: () => {},
+    });
+    expect(crawls).toBe(1);
+  });
+});
+
+describe("the review PR is refused when the gate rejects the refreshed file", () => {
+  const NOW_MS = Date.parse("2026-08-16T09:00:00.000Z");
+
+  function outPath() {
+    const dir = mkdtempSync(join(tmpdir(), "events-refresh-validate-"));
+    temporaryDirs.push(dir);
+    return join(dir, "events_london.json");
+  }
+
+  function keyedRun(overrides: Record<string, unknown>) {
+    return runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs", WITH_COMMON_FLAG, "--open-pr"],
+      env: { TICKETMASTER_API_KEY: "test-key" },
+      nowMs: NOW_MS,
+      fetchImpl: (async () =>
+        new Response(JSON.stringify({ _embedded: { events: [tmTheatre] } }), {
+          status: 200,
+        })) as unknown as typeof fetch,
+      outPath: outPath(),
+      loadVenueIndex: () => null,
+      runCommonLane: async () => ({ rows: [] }),
+      log: () => {},
+      logError: () => {},
+      ...overrides,
+    });
+  }
+
+  it("validates before it branches, and opens no PR when validation refuses", async () => {
+    const order: string[] = [];
+    const result = await keyedRun({
+      validate: () => {
+        order.push("validate");
+        throw new Error("row 0: startsAt is not a valid ISO timestamp");
+      },
+      openPr: () => {
+        order.push("openPr");
+      },
+    });
+    expect(order).toEqual(["validate"]);
+    expect(result.validation.status).toBe("failed");
+    expect(result.ok).toBe(false);
+  });
+
+  it("opens the PR only after validation passed", async () => {
+    const order: string[] = [];
+    const result = await keyedRun({
+      validate: () => order.push("validate"),
+      openPr: () => order.push("openPr"),
+    });
+    expect(order).toEqual(["validate", "openPr"]);
+    expect(result.validation.status).toBe("ran");
+    expect(result.ok).toBe(true);
   });
 });

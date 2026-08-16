@@ -79,6 +79,9 @@ export {
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
+/** Opt in to the Common crawl. See runEventsRefresh for why it is opt-in. */
+export const WITH_COMMON_FLAG = "--with-common";
+
 function nonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
@@ -358,6 +361,7 @@ export async function runEventsRefresh({
   loadVenueIndex = loadCanonicalVenueIndex,
   runCommonLane = defaultRunCommonLane,
   openPr = defaultOpenPr,
+  validate = defaultValidate,
   log = console.log,
   logError = console.error,
 } = {}) {
@@ -382,8 +386,13 @@ export async function runEventsRefresh({
     logError,
   });
 
+  // ONE owner of the Common crawl per run. It is a polite 1-req/s crawl of a
+  // third party's sitemap, so running it from here AND spawning
+  // commonRefresh.mjs beside us would spend the budget twice. The local
+  // scheduler owns it as its own independent lane and does NOT pass this flag;
+  // the workflow, which has only this one command, does.
   let common = { status: "skipped" };
-  if (city === "london") {
+  if (city === "london" && argv.includes(WITH_COMMON_FLAG)) {
     try {
       const report = await runCommonLane({ nowMs, outPath });
       common = { status: "ran", rows: report?.rows?.length ?? 0 };
@@ -397,11 +406,37 @@ export async function runEventsRefresh({
   const commonFailed = common.status === "failed";
   const wrote = provider.wrote === true || common.status === "ran";
 
+  let validation = { status: "skipped" };
   if (argv.includes("--open-pr") && wrote) {
-    await openPr({ outPath, observedAt, nowMs, env, log });
+    // Validate BEFORE anything is pushed. A refresh that produced a row the
+    // app's own gate rejects must be refused here, not left on a branch with a
+    // review PR already open against it.
+    try {
+      validate();
+      validation = { status: "ran" };
+      await openPr({ outPath, observedAt, nowMs, env, log });
+    } catch (err) {
+      logError(
+        `eventsRefresh: validate-data refused the refreshed file (${err.message}) - no branch pushed, no PR opened.`,
+      );
+      validation = { status: "failed", reason: err.message };
+    }
   }
 
-  return { ok: !laneFailed && !commonFailed, city, provider, common };
+  return {
+    ok: !laneFailed && !commonFailed && validation.status !== "failed",
+    city,
+    provider,
+    common,
+    validation,
+  };
+}
+
+function defaultValidate() {
+  execFileSync(process.execPath, [join(ROOT, "scripts", "validate-data.mjs")], {
+    cwd: ROOT,
+    stdio: "inherit",
+  });
 }
 
 function defaultOpenPr({ outPath, observedAt, nowMs, env }) {

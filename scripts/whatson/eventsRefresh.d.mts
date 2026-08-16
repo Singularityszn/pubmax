@@ -43,6 +43,9 @@ export declare function readExistingCommonRows(
 ): import("../../lib/whatson/eventNormalise.d.mts").WhatsOnEventRow[];
 export declare function parseEventsCityArg(argv?: string[]): string | null;
 
+/** Opt in to the Common crawl, so exactly one owner runs it per run. */
+export declare const WITH_COMMON_FLAG: string;
+
 export type EventsLaneReport = {
   status: "wrote" | "refused" | "failed" | "not-configured" | "skipped" | "ran";
   wrote?: boolean;
@@ -66,6 +69,8 @@ export declare function runEventsRefresh(opts?: {
     nowMs: number;
     env: Record<string, string | undefined>;
   }) => void | Promise<void>;
+  /** Runs before openPr; a throw refuses the PR. */
+  validate?: () => void;
   log?: (message: string) => void;
   logError?: (message: string) => void;
 }): Promise<{
@@ -73,4 +78,5 @@ export declare function runEventsRefresh(opts?: {
   city: string | null;
   provider: EventsLaneReport;
   common: EventsLaneReport;
+  validation: EventsLaneReport;
 }>;

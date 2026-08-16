@@ -369,6 +369,21 @@ describe("outStatusLines", () => {
     ]);
   });
 
+  it("says it is checking while the pressed day has no answer yet", () => {
+    // Never day chips over a blank area, and never worded as an empty market.
+    expect(outStatusLines({ body: null, failed: false, pending: true })).toEqual([
+      "Checking listings...",
+    ]);
+    // A failed read owns the line instead; pending never doubles it up.
+    expect(outStatusLines({ body: null, failed: true, pending: true })).toEqual([
+      "Could not check listings.",
+    ]);
+    // Once an answer lands the pending line is gone.
+    expect(
+      outStatusLines({ body: { status: "ready", events: [] }, failed: false, pending: false }),
+    ).toEqual(["No listings for this day yet."]);
+  });
+
   it("says the city is quiet only when the read actually answered", () => {
     expect(outStatusLines({ body: { status: "ready", events: [] }, failed: false })).toEqual([
       "No listings for this day yet.",

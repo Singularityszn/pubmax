@@ -13,6 +13,26 @@ const SKIDDLE_HOME = "https://www.skiddle.com/";
 const TICKETMASTER_HOME = "https://www.ticketmaster.co.uk/";
 const COMMON_HOME = "https://www.common-social.com/";
 
+/**
+ * Skiddle's licence asks for the name, the LOGO and a link to the event's own
+ * skiddle.com page whenever one of their rows is on screen. We hold the name
+ * and the link; the official logo asset is ABSENT and pending from the captain,
+ * and drawing a lookalike would satisfy no licence while imitating another
+ * company's wordmark.
+ *
+ * So this is the fence, not the missing API key: while the asset is absent the
+ * Skiddle lane is off, and no Skiddle row can reach a reader with an
+ * obligation we cannot discharge. Set this true in the same change that adds
+ * the supplied asset, and the lane returns to being gated on SKIDDLE_API_KEY
+ * alone.
+ */
+export const SKIDDLE_BRAND_ASSET_PRESENT = false;
+
+/** True while a Skiddle row may not be served at all. */
+export function skiddleLaneFenced(): boolean {
+  return !SKIDDLE_BRAND_ASSET_PRESENT;
+}
+
 export function outCardSource(label: string): OutCardSource {
   const normalised = label.trim().toLowerCase();
   if (normalised === "ticketmaster") return "ticketmaster";

@@ -42,8 +42,10 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
     body: null,
     failed: false,
   });
-  const body = answer.day === apiDay ? answer.body : null;
-  const failed = answer.day === apiDay && answer.failed;
+  const answered = answer.day === apiDay;
+  const body = answered ? answer.body : null;
+  const failed = answered && answer.failed;
+  const pending = !answered;
 
   useEffect(() => {
     trackEvent("out_screen_view");
@@ -124,7 +126,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
         <h2 id="out-listings-heading" className="outSectionTitle">
           {DAY_LABEL[day]}
         </h2>
-        {outStatusLines({ body, failed }).map((line) => (
+        {outStatusLines({ body, failed, pending }).map((line) => (
           <p className="outStatus" key={line}>
             {line}
           </p>
