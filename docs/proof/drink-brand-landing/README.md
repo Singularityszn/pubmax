@@ -3,7 +3,8 @@
 Browser proof for `/drink/guinness`.
 
 The brand-by-area page (`e2e/drink-brand-area-landing.spec.ts`) asserts its own
-rendered geometry in both themes and keeps no tracked images.
+rendered geometry at 320, 390, 430 and 1440 in both themes. It tracks no images
+either; its refresh lane is at the end of this file.
 
 No tracked images. Codex captured three (`guinness-390-light.png`,
 `guinness-390-dark.png`, `guinness-1440-light.png`) before the map arrival,
@@ -17,7 +18,9 @@ validation writes fresh screenshots under Playwright's untracked
 `test-results` output. Refreshing the tracked set is the command below, and it
 needs a machine that can hold a production build.
 
-| Proof | Viewport | Contract |
+A refresh writes these three files here:
+
+| File | Viewport | Contract |
 | --- | ---: | --- |
 | `guinness-390-light.png` | 390 × 844 | Mobile landing in light theme |
 | `guinness-390-dark.png` | 390 × 844 | Mobile landing in dark theme |
@@ -46,3 +49,20 @@ CI=1 NODE_OPTIONS=--max-old-space-size=4096 \
 Both commands use reduced motion, fixed viewport dimensions, and a fresh
 keyless browser state. Review every tracked PNG diff before committing a proof
 refresh.
+
+## Brand-by-area proof
+
+The brand-by-area spec has the same two lanes under its own switch, and a
+refresh writes into `docs/proof/drink-brand-area-landing`. That directory holds
+no images today, for the reason above.
+
+```bash
+CI=1 NODE_OPTIONS=--max-old-space-size=4096 \
+  PUBMAX_UPDATE_DRINK_BRAND_AREA_PROOF=1 \
+  PW_PORT=35132 \
+  PW_NEXT_DIST_DIR=.next-drink-brand-area-proof \
+  npx playwright test e2e/drink-brand-area-landing.spec.ts --project=chromium --workers=1
+```
+
+Drop `PUBMAX_UPDATE_DRINK_BRAND_AREA_PROOF` to validate without writing tracked
+files. It captures `victoria-guinness-{320,390,430,1440}-{light,dark}.png`.
