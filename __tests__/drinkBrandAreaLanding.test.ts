@@ -227,6 +227,46 @@ describe("governed drink brand by Night Area landings", () => {
     ).toHaveLength(DRINK_BRAND_AREA_PUBLICATION_FLOOR);
   });
 
+  it("still requires the gate version and completeness predicates after dropping expiry", () => {
+    const area = getNightArea("clapham");
+    const venues = enoughVenues(area, DRINK_BRAND_AREA_PUBLICATION_FLOOR);
+
+    const wrongVersion: NightArea = {
+      ...area,
+      gate: {
+        ...area.gate,
+        version: 0 as NightArea["gate"]["version"],
+      },
+    };
+    const incompleteReasons: NightArea = {
+      ...area,
+      routeReadyReasons: area.routeReadyReasons.slice(0, 1),
+    };
+    const incompleteGate: NightArea = {
+      ...area,
+      gate: { ...area.gate, checks: [] },
+    };
+
+    expect(nightAreaPublishesPrices(area)).toBe(true);
+    expect(nightAreaPublishesPrices(wrongVersion)).toBe(false);
+    expect(nightAreaPublishesPrices(incompleteReasons)).toBe(false);
+    expect(nightAreaPublishesPrices(incompleteGate)).toBe(false);
+    expect(
+      buildDrinkBrandAreaLanding(wrongVersion.slug, "guinness", venues, [wrongVersion]),
+    ).toBeNull();
+    expect(
+      buildDrinkBrandAreaLanding(
+        incompleteReasons.slug,
+        "guinness",
+        venues,
+        [incompleteReasons],
+      ),
+    ).toBeNull();
+    expect(
+      buildDrinkBrandAreaLanding(incompleteGate.slug, "guinness", venues, [incompleteGate]),
+    ).toBeNull();
+  });
+
   it("requires ten unique matching pubs for the publication floor", () => {
     const area = getNightArea("clapham");
     const nineUnique = enoughVenues(

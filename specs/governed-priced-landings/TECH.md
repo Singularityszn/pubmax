@@ -81,9 +81,9 @@ nearest ancestor's while the page declares `twitter: summary_large_image`.
 `isNightAreaRouteReady` expires with the area's `reviewExpiresAt`, and every
 route-ready area shares one date. That gate governs PLANNING a crawl: unchecked
 transport and opening hours must stop a route. A priced list is not a route, so
-the landing family reads `nightAreaPublishesPrices` instead, which drops the
-expiry. Letting the review lapse would otherwise 404 URLs already in the
-sitemap and deindex them.
+the landing family reads `nightAreaPublishesPrices` instead, which keeps the
+gate version and completeness predicates and drops only the expiry. Letting the
+review lapse would otherwise 404 URLs already in the sitemap and deindex them.
 
 `__tests__/nightAreaReviewRenewal.test.ts` is the alarm: it fails 30 days ahead
 of the window and names the file and fields to move forward.

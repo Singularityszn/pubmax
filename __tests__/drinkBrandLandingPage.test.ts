@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -50,6 +52,7 @@ import {
   loadDrinkBrandLanding,
   loadDrinkBrandLandings,
 } from "@/lib/drinkBrandLanding.server";
+import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { DRINK_BRANDS } from "@/lib/drinkBrands";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import type { DrinkBrandLanding } from "@/lib/drinkBrandLanding";
@@ -87,8 +90,10 @@ describe("governed drink brand landing page", () => {
 
     expect(html).toContain("Cheapest Guinness pints in London");
     expect(html).toContain("From £3.09");
-    // ?brand= alone: beer is the resting lane, so ?drink=beer would select a
-    // lens. The log destination names the venue the composer opens for.
+    // ?brand= alone: decodeDrinkLens already fills the category from the brand,
+    // and PubMap excludes beer from the selected lens, so ?drink=beer would
+    // not select a lens. The log destination names the venue the composer opens
+    // for.
     expect(html).toContain('href="/map?brand=guinness"');
     const logHref = html.match(
       /href="\/map\?sel=([^"&]+)&amp;brand=guinness&amp;log=1"/,
@@ -119,6 +124,17 @@ describe("governed drink brand landing page", () => {
     expect(html).toContain("Pint Prices");
     expect(html).toContain("href=\"https://www.pint-prices.com/pub/");
     expect(html.match(/href="\/ledger\//g)).toHaveLength(20);
+
+    const areaLandings = await loadDrinkBrandAreaLandings();
+    const guinnessAreas = areaLandings.filter((pair) => pair.brandSlug === "guinness");
+    expect(guinnessAreas.length).toBeGreaterThan(0);
+    for (const pair of guinnessAreas) {
+      expect(html).toContain(
+        `href="/area/${pair.areaSlug}/drink/guinness"`,
+      );
+      expect(html).toContain(`>${pair.areaName.replaceAll("&", "&amp;")}</a>`);
+    }
+    expect(html).not.toMatch(/href="\/area\/[^"/]+"/);
   });
 
   it("keeps missing publisher provenance explicit without inventing a source link", () => {
@@ -250,6 +266,54 @@ describe("governed drink brand landing page", () => {
       }),
     );
     expect(withFailedRead).not.toContain("sel=");
+  });
+
+  it("prints publishing sibling areas only as brand-by-area links", () => {
+    const model: DrinkBrandLanding = {
+      slug: "guinness",
+      brandLabel: "Guinness",
+      collectedAt: "2026-07-03T12:00:00.000Z",
+      totalPricedVenues: 20,
+      rows: [
+        {
+          rank: 1,
+          venueId: "venue-1",
+          venueName: "Test pub",
+          borough: "Camden",
+          pintName: "GUINNESS",
+          priceGbp: 3.09,
+          publisher: null,
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(DrinkBrandLandingContent, {
+        landing: model,
+        mapSelectableVenueIds: new Set(["venue-1"]),
+        areaPages: [
+          { href: "/area/clapham/drink/guinness", label: "Clapham" },
+          { href: "/area/victoria/drink/guinness", label: "Victoria" },
+        ],
+      }),
+    );
+
+    expect(html).toContain("By area");
+    expect(html).toContain('href="/area/clapham/drink/guinness"');
+    expect(html).toContain('href="/area/victoria/drink/guinness"');
+    expect(html).toContain(">Guinness</span>");
+    expect(html).not.toContain(">GUINNESS</span>");
+    expect(html).not.toContain('href="/area/clapham"');
+  });
+
+  it("does not hang a separator after the borough and centres a wrapping hero CTA", () => {
+    const css = readFileSync(
+      path.join(process.cwd(), "components/drinks/drinkBrandDirectory.css"),
+      "utf8",
+    );
+
+    expect(css).not.toMatch(/__borough::after[\s\S]*content:\s*" ·"/);
+    expect(css).toMatch(/__primary\s*\{[^}]*text-align:\s*center/);
   });
 
   it("binds metadata to the canonical route and leaves unknown brands noindex", async () => {

@@ -10,15 +10,18 @@ import {
   pricedLandingMapArrivalRow,
   pricedLandingMapHref,
   type MapSelectableVenueIds,
+  type PricedLandingBrandAreaLink,
 } from "@/lib/pricedLanding";
 import { formatPrice } from "@/lib/venues";
 
 export default function DrinkBrandLandingContent({
   landing,
   mapSelectableVenueIds,
+  areaPages = [],
 }: {
   landing: DrinkBrandLanding;
   mapSelectableVenueIds: MapSelectableVenueIds;
+  areaPages?: readonly PricedLandingBrandAreaLink[];
 }) {
   const firstRow = landing.rows[0];
   const lowestPrice = formatPrice(firstRow.priceGbp);
@@ -85,6 +88,22 @@ export default function DrinkBrandLandingContent({
         </div>
         <PricedLandingRows rows={landing.rows} />
       </section>
+
+      {areaPages.length > 0 ? (
+        <nav
+          className="drinkBrandDirectory__areas"
+          aria-label={`${landing.brandLabel} in other areas`}
+        >
+          <h2>By area</h2>
+          <ul>
+            {areaPages.map((page) => (
+              <li key={page.href}>
+                <Link href={page.href}>{page.label}</Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
     </div>
   );
 }

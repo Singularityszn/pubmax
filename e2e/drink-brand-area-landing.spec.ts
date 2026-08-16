@@ -246,7 +246,8 @@ async function expectDesktopRowGeometry(page: Page, rows: Locator): Promise<void
 
 // Never ?q=<area name>: `q` is a free-text VENUE filter, so an area name
 // narrows the map to whatever pubs happen to carry those words. The arrival is
-// a pub. `?brand=` alone, because beer is the lane the map rests in.
+// a pub. `?brand=` alone: decodeDrinkLens fills the category from the brand,
+// and PubMap excludes beer from the selected lens.
 function expectedMapHref(venueId: string): string {
   const params = new URLSearchParams({ sel: venueId, brand: BRAND_SLUG });
   return `/map?${params.toString()}`;
@@ -293,6 +294,9 @@ async function assertLandingContract(
     expectedMapHref(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId),
   );
   await expectTouchTarget(primaryAction, `${viewportName}px ${theme} primary action`);
+  await expect
+    .poll(async () => primaryAction.evaluate((node) => getComputedStyle(node).textAlign))
+    .toBe("center");
   await expectVisibleFocus(primaryAction, `${viewportName}px ${theme} primary action`);
   await expectVisibleFocus(
     heroPublisher.getByRole("link", {

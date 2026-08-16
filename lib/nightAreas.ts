@@ -226,17 +226,22 @@ function hasCompleteRouteReadyReasons(reasons: readonly RouteReadyGateCode[]): b
   return REQUIRED_GATE_CODES.every((code) => seen.has(code));
 }
 
+export function nightAreaHasRouteReadyProof(area: NightArea): boolean {
+  return (
+    area.coverageStatus === "route_ready" &&
+    area.missingEvidence.length === 0 &&
+    area.gate.version === ROUTE_READY_GATE_VERSION &&
+    area.gate.passed &&
+    hasCompleteRouteReadyReasons(area.routeReadyReasons) &&
+    Boolean(area.lastReviewedAt) &&
+    hasCompleteRouteReadyGate(area.gate)
+  );
+}
+
 export function isNightAreaRouteReady(area: NightArea, now = new Date()): boolean {
-  if (
-    area.coverageStatus !== "route_ready" ||
-    area.missingEvidence.length > 0 ||
-    area.gate.version !== ROUTE_READY_GATE_VERSION ||
-    !area.gate.passed ||
-    !hasCompleteRouteReadyReasons(area.routeReadyReasons) ||
-    !area.lastReviewedAt ||
-    !area.reviewExpiresAt ||
-    !hasCompleteRouteReadyGate(area.gate)
-  ) return false;
+  if (!nightAreaHasRouteReadyProof(area) || !area.lastReviewedAt || !area.reviewExpiresAt) {
+    return false;
+  }
   const reviewedAt = Date.parse(area.lastReviewedAt);
   const expiresAt = Date.parse(area.reviewExpiresAt);
   if (

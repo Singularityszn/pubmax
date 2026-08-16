@@ -43,9 +43,9 @@ brand-by-area page's parent crumb is the brand's own London page.
 
 ## Where the page sends a reader
 
-- `/drink/{brand}` primary: `/map?brand={brand}`. Beer is the lane the map rests
-  in, so `?drink=beer` would select a lens and swap the pint bands; a matched
-  brand already implies its category.
+- `/drink/{brand}` primary: `/map?brand={brand}`. `decodeDrinkLens` already
+  fills the category from the brand, and `PubMap` excludes beer from the
+  selected lens, so `?drink=beer` would not select a lens.
 - `/drink/{brand}` secondary: `/map?sel={venueId}&brand={brand}&log=1`, because
   `log=1` arms the composer for a RESOLVED venue and has nothing to open without
   one.
@@ -62,12 +62,14 @@ brand-by-area page's parent crumb is the brand's own London page.
   itself never moves for a link.
 - The WORDS follow that same decision. The brand-by-area arrival says "Open the
   cheapest {area} pint on the map" only while it names a pub, and says "Find
-  {brand} in {area} on the map" when it does not, because a label promising a
-  pint the link cannot open is the same broken promise as an unresolvable
-  `sel`. One decision answers both (`pricedLandingAreaMapCta`), so the two
+  {brand} on the map" when it does not, because a brand-only href is London, not
+  the area. One decision answers both (`pricedLandingAreaMapCta`), so the two
   cannot drift.
 - Each row: its own `/ledger/{venueId}`, and on the brand-by-area page its own
-  `Log this price` arrival.
+  log arrival (`pricedLandingLogCta`). "Log this price" only while the href
+  names that pub; otherwise "Log a {brand} pint price".
+- `/drink/{brand}` lists the published `/area/{slug}/drink/{brand}` siblings
+  for that brand, so the pair family is not sitemap-only.
 
 ## Surface
 

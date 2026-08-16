@@ -13,7 +13,11 @@ import {
 } from "@/lib/drinkBrandLanding";
 import {
   PRICED_LANDING_ROW_LIMIT,
+  formatPricedLandingPintName,
   formatPricedLandingPublisherStatus,
+  pricedLandingAreaMapCta,
+  pricedLandingBrandAreaLinks,
+  pricedLandingLogCta,
   pricedLandingMapArrivalRow,
   pricedLandingMapHref,
   type PricedLandingRow,
@@ -366,6 +370,77 @@ describe("priced landing map arrivals", () => {
     expect(
       pricedLandingMapHref({ brandSlug: "a&b", venueId: "venue x", log: true }),
     ).toBe("/map?sel=venue+x&brand=a%26b&log=1");
+  });
+
+  it("pairs the area arrival words with the link the map will actually open", () => {
+    const first = rows[0]!;
+
+    expect(
+      pricedLandingAreaMapCta({
+        brandSlug: "guinness",
+        brandLabel: "Guinness",
+        areaName: "Clapham",
+        row: first,
+        selectable: new Set([first.venueId]),
+      }),
+    ).toEqual({
+      href: "/map?sel=outer-1&brand=guinness",
+      label: "Open the cheapest Clapham pint on the map",
+    });
+    expect(
+      pricedLandingAreaMapCta({
+        brandSlug: "guinness",
+        brandLabel: "Guinness",
+        areaName: "Clapham",
+        row: first,
+        selectable: new Set<string>(),
+      }),
+    ).toEqual({
+      href: "/map?brand=guinness",
+      label: "Find Guinness on the map",
+    });
+  });
+
+  it("pairs Log this price with a named pub, and a generic log when sel drops", () => {
+    expect(
+      pricedLandingLogCta({
+        brandSlug: "guinness",
+        brandLabel: "Guinness",
+        venueId: "core-1",
+      }),
+    ).toEqual({
+      href: "/map?sel=core-1&brand=guinness&log=1",
+      label: "Log this price",
+    });
+    expect(
+      pricedLandingLogCta({
+        brandSlug: "guinness",
+        brandLabel: "Guinness",
+        venueId: null,
+      }),
+    ).toEqual({
+      href: "/map?brand=guinness&log=1",
+      label: "Log a Guinness pint price",
+    });
+  });
+
+  it("lists only this brand's published area pages, in the order they arrived", () => {
+    expect(
+      pricedLandingBrandAreaLinks("guinness", [
+        { brandSlug: "guinness", areaSlug: "clapham", areaName: "Clapham" },
+        { brandSlug: "amstel", areaSlug: "clapham", areaName: "Clapham" },
+        { brandSlug: "guinness", areaSlug: "victoria", areaName: "Victoria" },
+      ]),
+    ).toEqual([
+      { href: "/area/clapham/drink/guinness", label: "Clapham" },
+      { href: "/area/victoria/drink/guinness", label: "Victoria" },
+    ]);
+  });
+
+  it("title-cases an all-caps drink tag and leaves mixed case and short acronyms", () => {
+    expect(formatPricedLandingPintName("GUINNESS")).toBe("Guinness");
+    expect(formatPricedLandingPintName("Guinness Draught")).toBe("Guinness Draught");
+    expect(formatPricedLandingPintName("IPA")).toBe("IPA");
   });
 
   it("reads the map's eager shard so eligibility is never a hardcoded list", async () => {

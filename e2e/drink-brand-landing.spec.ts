@@ -173,8 +173,9 @@ async function assertLandingContract(page: Page): Promise<void> {
     name: `Log a ${BRAND} pint price`,
     exact: true,
   });
-  // ?brand= alone. Beer is the lane the map rests in, so ?drink=beer would
-  // select a lens and swap the pint bands. `log=1` names the venue it arms.
+  // ?brand= alone. decodeDrinkLens already fills the category from the brand,
+  // and PubMap excludes beer from the selected lens, so ?drink=beer would not
+  // select a lens. `log=1` names the venue it arms.
   await expect(primaryAction).toHaveAttribute("href", "/map?brand=guinness");
   await expect(secondaryAction).toHaveAttribute(
     "href",
@@ -188,6 +189,15 @@ async function assertLandingContract(page: Page): Promise<void> {
     secondaryAction,
     "Log pint price action",
   );
+  await expect
+    .poll(async () => primaryAction.evaluate((node) => getComputedStyle(node).textAlign))
+    .toBe("center");
+
+  const areaNav = page.getByRole("navigation", { name: `${BRAND} in other areas` });
+  await expect(areaNav).toBeVisible();
+  const areaLinks = areaNav.getByRole("link");
+  expect(await areaLinks.count()).toBeGreaterThan(0);
+  await expect(areaLinks.first()).toHaveAttribute("href", /\/area\/[^/]+\/drink\/guinness$/);
 
   const rows = page.locator(".drinkBrandDirectory__row");
   await expect(rows).toHaveCount(20);
