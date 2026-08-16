@@ -30,6 +30,10 @@ const OPEN_MAP_RE =
 // cheapest-first and its headline says so, so a dearest ask belongs to the
 // price tools below rather than being answered backwards.
 const CHEAPEST_NEAR_RE = /\b(cheapest|cheap(?:est)? pint)\b/i;
+// A cheapest ask is about an AREA or about what is AROUND a pub. "at The Lamb"
+// names one pub as the subject, which is the price tool's question, so the
+// cheapest branch only claims an ask that carries one of these.
+const NEAR_ANCHOR_RE = /\b(near|nearby|nearest|around|round|close to|closest to)\b/i;
 // Every alternative names the LISTINGS question. A bare "right now" is a time
 // qualifier a drinker hangs on any ask, so it is not one of them.
 const TONIGHT_NOW_RE =
@@ -83,6 +87,22 @@ function stripConciergeIntentWords(query: string): string {
 }
 
 /**
+ * The args for a cheapest ask, or null when this is not one.
+ *
+ * Null covers two asks that belong elsewhere: a cheap CRAWL is still a crawl,
+ * and "cheapest pint at The Lamb" names one pub as its subject, which the price
+ * tool answers about that pub rather than about its neighbours.
+ */
+function cheapestNearArgs(text: string): Record<string, unknown> | null {
+  if (!CHEAPEST_NEAR_RE.test(text) || PLAN_RE.test(text)) return null;
+  const area = extractArea(text);
+  if (area) return { area };
+  if (!NEAR_ANCHOR_RE.test(text)) return null;
+  const venueName = stripConciergeIntentWords(text);
+  return venueName ? { venueName } : {};
+}
+
+/**
  * Choose tools for a free-text ask. Order matters: specialised intents beat the
  * default venue search. Cap at two tools so the keyless path stays snappy.
  */
@@ -133,14 +153,9 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
     return calls;
   }
 
-  // A cheap CRAWL is still a crawl, so the plan intent keeps it.
-  if (CHEAPEST_NEAR_RE.test(text) && !PLAN_RE.test(text)) {
-    const area = extractArea(text);
-    const venueName = area ? "" : stripConciergeIntentWords(text);
-    push(
-      "cheapest_pint_near",
-      area ? { area } : venueName ? { venueName } : {},
-    );
+  const cheapestArgs = cheapestNearArgs(text);
+  if (cheapestArgs) {
+    push("cheapest_pint_near", cheapestArgs);
     return calls;
   }
 

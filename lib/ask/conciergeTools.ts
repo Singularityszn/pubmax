@@ -13,6 +13,7 @@
 //   3. A write is a proposal (ADR 0006). `report_occupancy` writes nothing at
 //      all today, because the crowd store (master plan R-011) is not built.
 
+import { drivesMap, type CommunityPrice } from "@/lib/communityPrice";
 import { isMapLensDrinkCategory } from "@/lib/drinks";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -235,22 +236,59 @@ export function venueDrinksAnswerLine(input: {
     : counted;
 }
 
+/** The three fields a drink row's standing is read from. */
+export type VenueDrinkRowPrice = Pick<
+  CommunityPrice,
+  "priceGbp" | "corroborations" | "submittedAt" | "mapCandidate"
+>;
+
+/**
+ * Whether THIS figure is the one the map would paint.
+ *
+ * Two gates, both needed. `MAP_LENS_DRINK_CATEGORIES` drops "other", so an
+ * "other" price never paints whatever agrees with it. And the sheet row is
+ * freshest-wins while the map follows the best-corroborated in-window cluster,
+ * so a fresher row can be corroborated and still not be the figure on the pin.
+ */
+export function venueDrinkRowReachesMap(input: {
+  category: DrinkCategory;
+  price: VenueDrinkRowPrice;
+  now: number;
+}): boolean {
+  if (!isMapLensDrinkCategory(input.category)) return false;
+  const candidate = input.price.mapCandidate ?? input.price;
+  if (
+    Math.round(candidate.priceGbp * 100) !==
+    Math.round(input.price.priceGbp * 100)
+  ) {
+    return false;
+  }
+  return drivesMap(candidate, input.now);
+}
+
 /**
  * One drink row's note: its own tag, its own day, and what it counts toward.
  *
- * Corroboration and map reach are two questions. `MAP_LENS_DRINK_CATEGORIES`
- * drops "other", so a corroborated "other" price never paints a pin: it keeps
- * the corroboration fact and loses the map promise.
+ * Corroboration and map reach are two questions, so the note answers them
+ * separately: the row keeps the fact that people agreed on it, and only the
+ * figure the map would actually paint claims the map.
  */
 export function venueDrinkRowNote(input: {
   label: string;
   day: string;
   category: DrinkCategory;
-  corroborated: boolean;
+  price: VenueDrinkRowPrice;
+  now: number;
 }): string {
-  const standing = !input.corroborated
+  const corroborated = drivesMap(input.price, input.now);
+  const reaches = venueDrinkRowReachesMap({
+    category: input.category,
+    price: input.price,
+    now: input.now,
+  });
+  const standing = !corroborated
     ? "one report so far, so it stays on this pub's page"
-    : isMapLensDrinkCategory(input.category)
+    : reaches
       ? "two people agree, so it reaches the map"
       : "two people agree, and it stays on this pub's page";
   return `${input.label} · logged ${input.day} · ${standing}`;

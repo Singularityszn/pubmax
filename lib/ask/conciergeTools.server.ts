@@ -247,7 +247,7 @@ export async function toolTonightNow(
   try {
     const { rows, kindObservedAt } = await loadWhatsOn(
       { window: "tonight" },
-      {},
+      { now },
     );
     const scoped = area ? filterRowsByArea(rows, area) : rows;
     const split = splitTonightRowsByNow(scoped, now);
@@ -344,7 +344,8 @@ export async function toolVenueDrinks(
       label: row.label,
       day: communityStampLabel(row.price.submittedAt, now),
       category: row.category,
-      corroborated: drivesMap(row.price as CommunityPrice, now),
+      price: row.price,
+      now,
     }),
     price: row.price.priceGbp,
     provenance: PEOPLE_LOGGED,

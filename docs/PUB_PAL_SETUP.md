@@ -60,13 +60,13 @@ It sets four things and nothing else:
 1. **Custom LLM** pointed at `<base-url>/api/pub-pal/llm`, with the shared
    secret. That route runs the same grounded Night OS Ask path the text surface
    runs, so the voice cannot answer from the provider's own model.
-2. **Zero retention** — no audio recording, no transcript, no PII kept. ADR 0006
+2. **Zero retention**: no audio recording, no transcript, no PII kept. ADR 0006
    is explicit that raw audio and transcripts are never memory.
 3. **The three voices**, when their ids are set. The agent-level voice is the
    default; each session then overrides it with the caller's own Pal voice from
    `lib/palVoiceOverrides.ts`, so ember, velvet and signal all sound right off
    one agent.
-4. **The house prompt** — speak what the tools return, never invent a price or
+4. **The house prompt**: speak what the tools return, never invent a price or
    an hour, propose but never apply, and switch to plain speech on get-home
    topics.
 
@@ -117,6 +117,6 @@ nothing yet:
 
 ## Related
 
-- `docs/adr/0006-pub-pal-user-owned-digital-companion.md` — what a Pal may do
-- `docs/adr/0014-night-os-ask-agent.md` — the tool allowlist
-- `docs/VOICE.md` — how every line above had to read
+- `docs/adr/0006-pub-pal-user-owned-digital-companion.md` - what a Pal may do
+- `docs/adr/0014-night-os-ask-agent.md` - the tool allowlist
+- `docs/VOICE.md` - how every line above had to read

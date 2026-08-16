@@ -20,6 +20,7 @@ import {
   splitTonightRowsByNow,
   tonightNowLine,
   venueDrinkRowNote,
+  venueDrinkRowReachesMap,
   venueDrinksAnswerLine,
   venueDrinksEmptyLine,
 } from "@/lib/ask/conciergeTools";
@@ -168,6 +169,9 @@ describe("tonight_now policy", () => {
   });
 });
 
+const DRINK_NOW = Date.parse("2026-08-15T20:30:00.000Z");
+const DAY = 86_400_000;
+
 describe("venue_drinks policy", () => {
   it("separates an unlogged pub from a read that failed", () => {
     expect(venueDrinksEmptyLine("The Lamb", "ready")).toContain("No drink prices logged");
@@ -196,7 +200,8 @@ describe("venue_drinks policy", () => {
         label: "Beer",
         day: "12 Aug",
         category: "beer",
-        corroborated: true,
+        price: { priceGbp: 5.4, corroborations: 2, submittedAt: DRINK_NOW - DAY },
+        now: DRINK_NOW,
       }),
     ).toContain("reaches the map");
     expect(
@@ -204,7 +209,8 @@ describe("venue_drinks policy", () => {
         label: "Wine",
         day: "12 Aug",
         category: "wine",
-        corroborated: false,
+        price: { priceGbp: 8, corroborations: 1, submittedAt: DRINK_NOW - DAY },
+        now: DRINK_NOW,
       }),
     ).toContain("stays on this pub's page");
   });
@@ -214,11 +220,68 @@ describe("venue_drinks policy", () => {
       label: "Other",
       day: "12 Aug",
       category: "other",
-      corroborated: true,
+      price: { priceGbp: 5.4, corroborations: 2, submittedAt: DRINK_NOW - DAY },
+      now: DRINK_NOW,
     });
     expect(note).toContain("two people agree");
     expect(note).not.toContain("map");
     expect(note).toContain("stays on this pub's page");
+  });
+
+  it("gives the map promise to the candidate figure, not the freshest row", () => {
+    const fresherSmallerCluster = {
+      priceGbp: 9,
+      corroborations: 2,
+      submittedAt: DRINK_NOW - DAY,
+      mapCandidate: {
+        priceGbp: 4.2,
+        corroborations: 3,
+        submittedAt: DRINK_NOW - 4 * DAY,
+      },
+    };
+    expect(
+      venueDrinkRowReachesMap({
+        category: "beer",
+        price: fresherSmallerCluster,
+        now: DRINK_NOW,
+      }),
+    ).toBe(false);
+    const note = venueDrinkRowNote({
+      label: "Beer",
+      day: "14 Aug",
+      category: "beer",
+      price: fresherSmallerCluster,
+      now: DRINK_NOW,
+    });
+    expect(note).toContain("two people agree");
+    expect(note).not.toContain("reaches the map");
+
+    const candidateRow = {
+      priceGbp: 4.2,
+      corroborations: 3,
+      submittedAt: DRINK_NOW - 4 * DAY,
+      mapCandidate: {
+        priceGbp: 4.2,
+        corroborations: 3,
+        submittedAt: DRINK_NOW - 4 * DAY,
+      },
+    };
+    expect(
+      venueDrinkRowReachesMap({
+        category: "beer",
+        price: candidateRow,
+        now: DRINK_NOW,
+      }),
+    ).toBe(true);
+    expect(
+      venueDrinkRowNote({
+        label: "Beer",
+        day: "11 Aug",
+        category: "beer",
+        price: candidateRow,
+        now: DRINK_NOW,
+      }),
+    ).toContain("reaches the map");
   });
 });
 

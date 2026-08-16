@@ -37,7 +37,7 @@ describe("routeAskDeterministically", () => {
   });
 });
 
-describe("routeAskDeterministically — Pub Pal V0.1 concierge tools", () => {
+describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
   it("routes a cheapest-pint ask to cheapest_pint_near with the area", () => {
     const calls = routeAskDeterministically("Cheapest pint in Camden");
     expect(calls).toEqual([
@@ -105,6 +105,26 @@ describe("routeAskDeterministically — Pub Pal V0.1 concierge tools", () => {
     );
     expect(calls.some((c) => c.name === "tonight_now")).toBe(false);
     expect(calls.some((c) => c.name === "venue_prices")).toBe(true);
+  });
+
+  it("leaves an at-this-pub price ask with venue_prices", () => {
+    for (const query of [
+      "cheapest pint at The Lamb",
+      "what's the cheapest pint at The Lamb",
+    ]) {
+      const calls = routeAskDeterministically(query);
+      expect(calls.some((c) => c.name === "cheapest_pint_near")).toBe(false);
+      expect(calls.some((c) => c.name === "venue_prices")).toBe(true);
+    }
+  });
+
+  it("keeps an area or a near anchor on cheapest_pint_near", () => {
+    expect(routeAskDeterministically("cheapest pint in Camden")[0]?.name).toBe(
+      "cheapest_pint_near",
+    );
+    expect(
+      routeAskDeterministically("cheapest pint near The Lamb")[0]?.name,
+    ).toBe("cheapest_pint_near");
   });
 
   it("does not answer a dearest ask with the cheapest list", () => {

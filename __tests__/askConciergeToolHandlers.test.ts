@@ -21,10 +21,22 @@ vi.mock("@/lib/communityPriceStore", () => ({
   readCommunityPricesWithStatus: vi.fn(async () => state.prices),
 }));
 
+// A tiny stand-in for the tonight window: rows are kept only when their own
+// start sits inside the twelve hours around the clock the CALLER handed in, so
+// a handler that leaves `now` out of the read answers about another day.
 vi.mock("@/lib/whatsOnStore", () => ({
-  loadWhatsOn: vi.fn(async () => {
+  loadWhatsOn: vi.fn(async (_params: unknown, deps: { now?: number } = {}) => {
     if (state.whatsOnThrows) throw new Error("down");
-    return state.whatsOn;
+    const now = deps.now ?? Date.now();
+    return {
+      ...state.whatsOn,
+      rows: state.whatsOn.rows.filter((row) => {
+        const startsAt = row.startsAt ? Date.parse(row.startsAt) : Number.NaN;
+        return (
+          Number.isFinite(startsAt) && Math.abs(startsAt - now) <= 12 * 3_600_000
+        );
+      }),
+    };
   }),
 }));
 
@@ -201,6 +213,35 @@ describe("tonight_now", () => {
     expect(result.answerHint).toContain("1 still to start tonight");
     expect(result.answerHint).toContain("No live crowd reading yet");
     expect(result.cards[0]?.note).toBe("On right now");
+  });
+
+  it("reads the window and the split off the same clock", async () => {
+    state.whatsOn = {
+      rows: [
+        {
+          id: "running",
+          placeName: "The Lamb",
+          kind: "quiz",
+          title: "Quiz night",
+          startsAt: "2026-08-15T20:00:00.000Z",
+          endsAt: "2026-08-15T22:00:00.000Z",
+          source: { label: "Venue site", url: "https://example.com" },
+          observedAt: "2026-08-15T09:00:00.000Z",
+          confidence: "listed",
+        },
+      ],
+      kindObservedAt: {},
+    };
+    const tonight = await runAskTool("tonight_now", {}, ctx());
+    expect(tonight.answerHint).toContain("1 on right now");
+
+    const anotherDay = await runAskTool(
+      "tonight_now",
+      {},
+      ctx({ now: NOW + 3 * 86_400_000 }),
+    );
+    expect(anotherDay.cards).toHaveLength(0);
+    expect(anotherDay.answerHint).toContain("Nothing sourced");
   });
 
   it("degrades rather than reading a failed listing load as a quiet city", async () => {
