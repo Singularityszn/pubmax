@@ -20,11 +20,12 @@ type VoiceTokenResponse = {
 
 async function releaseVoiceSession(durationSeconds: number): Promise<void> {
   try {
-    await authedActionFetch("/api/pub-pal/voice-token", {
+    const response = await authedActionFetch("/api/pub-pal/voice-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "release", durationSeconds }),
     });
+    discardBody(response);
   } catch {
     // Best effort: a failed release must not block ending the local session.
   }

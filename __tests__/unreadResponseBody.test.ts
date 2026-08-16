@@ -37,7 +37,7 @@ const ROOT = join(__dirname, "..");
 
 /** A browser fetch under any of the names this tree calls it by. */
 const RESPONSE_BINDING =
-  /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*await\s+[^;]*?\b(?:authedFetch|accountBoundFetch|fetch)\s*\(/g;
+  /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*await\s+[^;]*?\b(?:authedFetch|authedActionFetch|accountBoundFetch|fetch)\s*\(/g;
 
 function walk(dir: string, out: string[] = []): string[] {
   if (!existsSync(dir)) return out;
