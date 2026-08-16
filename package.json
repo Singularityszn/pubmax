@@ -47,6 +47,7 @@
     "fetch:wikidata-notable-pubs": "node scripts/fetch_wikidata_notable_pubs.mjs",
     "prepare:maplibre-worker": "node scripts/copy_maplibre_worker.mjs",
     "build:heritage-listings": "node scripts/build_heritage_listings.mjs",
+    "pubpal:agent": "node scripts/pubpal/create-elevenlabs-agent.mjs",
     "gen:brand-assets": "node scripts/gen-brand-assets.mjs",
     "refresh:prices": "node scripts/refresh_prices.mjs",
     "refresh:drink-prices": "node scripts/refresh_drink_prices.mjs",

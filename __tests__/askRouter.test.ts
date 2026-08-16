@@ -37,6 +37,57 @@ describe("routeAskDeterministically", () => {
   });
 });
 
+describe("routeAskDeterministically — Pub Pal V0.1 concierge tools", () => {
+  it("routes a cheapest-pint ask to cheapest_pint_near with the area", () => {
+    const calls = routeAskDeterministically("Cheapest pint in Camden");
+    expect(calls).toEqual([
+      { name: "cheapest_pint_near", args: { area: "Camden" } },
+    ]);
+  });
+
+  it("keeps a cheap CRAWL on propose_plan", () => {
+    const calls = routeAskDeterministically("Plan a cheapest crawl in Soho");
+    expect(calls.some((c) => c.name === "cheapest_pint_near")).toBe(false);
+    expect(calls.some((c) => c.name === "propose_plan")).toBe(true);
+  });
+
+  it("routes a right-now ask to tonight_now", () => {
+    const calls = routeAskDeterministically("What is on right now in Shoreditch");
+    expect(calls).toEqual([{ name: "tonight_now", args: { area: "Shoreditch" } }]);
+  });
+
+  it("leaves a tube ask with city_status even though it says right now", () => {
+    const calls = routeAskDeterministically("Any tube delays right now?");
+    expect(calls.some((c) => c.name === "tonight_now")).toBe(false);
+    expect(calls.some((c) => c.name === "city_status")).toBe(true);
+  });
+
+  it("routes a work ask to find_desk", () => {
+    const calls = routeAskDeterministically(
+      "Somewhere to work with wifi in Angel",
+    );
+    expect(calls).toEqual([{ name: "find_desk", args: { area: "Angel" } }]);
+  });
+
+  it("routes a drinks-list ask to venue_drinks", () => {
+    const calls = routeAskDeterministically("What's on tap at The Lamb");
+    expect(calls[0]?.name).toBe("venue_drinks");
+    expect(String(calls[0]?.args.venueName)).toContain("Lamb");
+  });
+
+  it("routes a crowd report to report_occupancy and answers alone", () => {
+    const calls = routeAskDeterministically("It's rammed in The Lamb");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.name).toBe("report_occupancy");
+    expect(String(calls[0]?.args.venueName)).toContain("Lamb");
+  });
+
+  it("still defaults an ordinary mood ask to search_venues", () => {
+    const calls = routeAskDeterministically("Quiet-ish near Bank, 4 of us");
+    expect(calls[0]?.name).toBe("search_venues");
+  });
+});
+
 describe("Ask tool allowlist", () => {
   it("pins the ADR 0014 allowlist", () => {
     expect(ASK_TOOL_NAMES).toEqual([
@@ -49,6 +100,11 @@ describe("Ask tool allowlist", () => {
       "area_buzz",
       "propose_plan",
       "propose_map_action",
+      "cheapest_pint_near",
+      "tonight_now",
+      "venue_drinks",
+      "find_desk",
+      "report_occupancy",
     ]);
     expect(isAskToolName("search_venues")).toBe(true);
     expect(isAskToolName("web_search")).toBe(false);

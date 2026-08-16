@@ -23,6 +23,19 @@ const AREA_BUZZ_RE =
   /\b(buzz|what'?s (it )?like in|things to do in|average pint in)\b/i;
 const OPEN_MAP_RE =
   /\b(open|show|fly to|take me to)\b/i;
+// Pub Pal V0.1 wave (R-015). Each intent is narrower than the generic price or
+// venue ask above it, so each is tested before the ones it would otherwise
+// fall into.
+const CHEAPEST_NEAR_RE =
+  /\b(cheapest|cheap(?:est)? pint|dearest|best value)\b/i;
+const TONIGHT_NOW_RE =
+  /\b(on right now|right now|on now|happening now|what'?s on now|busy right now|how busy)\b/i;
+const VENUE_DRINKS_RE =
+  /\b(what do they (?:pour|serve)|drinks? list|drink prices?|what'?s on tap|price of a (?:wine|cocktail|spirit))\b/i;
+const FIND_DESK_RE =
+  /\b(work from|sit and work|laptop|wi-?fi|desk|co-?working|somewhere to work|plug socket)\b/i;
+const REPORT_OCCUPANCY_RE =
+  /\b(it'?s (?:empty|full|rammed|packed|heaving|quiet)|report (?:the )?(?:crowd|occupancy)|no seats|some seats|log how busy)\b/i;
 
 function extractArea(query: string): string | null {
   const inMatch = query.match(/\bin\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i);
@@ -45,6 +58,25 @@ function stripIntentWords(query: string): string {
 }
 
 /**
+ * The venue phrase left in a V0.1 concierge ask.
+ *
+ * Separate from `stripIntentWords` on purpose: these intents carry their own
+ * vocabulary plus the place prepositions ("near", "at", "round"), and widening
+ * the shared stripper would change what the heritage, price and journey tools
+ * are handed.
+ */
+function stripConciergeIntentWords(query: string): string {
+  return stripIntentWords(query)
+    .replace(CHEAPEST_NEAR_RE, " ")
+    .replace(VENUE_DRINKS_RE, " ")
+    .replace(FIND_DESK_RE, " ")
+    .replace(REPORT_OCCUPANCY_RE, " ")
+    .replace(/\b(near|in|at|round|by|here|it'?s)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
  * Choose tools for a free-text ask. Order matters: specialised intents beat the
  * default venue search. Cap at two tools so the keyless path stays snappy.
  */
@@ -59,8 +91,49 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
     calls.push({ name, args });
   };
 
+  // The V0.1 concierge intents are each NARROWER than the generic ask they
+  // would otherwise fall into, so they are tested first and answer alone.
+  if (REPORT_OCCUPANCY_RE.test(text)) {
+    const venueName = stripConciergeIntentWords(text);
+    push("report_occupancy", {
+      level: text,
+      ...(venueName ? { venueName } : {}),
+    });
+    return calls;
+  }
+
+  if (FIND_DESK_RE.test(text)) {
+    const area = extractArea(text);
+    push("find_desk", area ? { area } : {});
+    return calls;
+  }
+
+  // "Right now" belongs to the city when the ask is about tube or weather.
+  if (TONIGHT_NOW_RE.test(text) && !CITY_STATUS_RE.test(text)) {
+    const area = extractArea(text);
+    push("tonight_now", area ? { area } : {});
+    return calls;
+  }
+
+  if (VENUE_DRINKS_RE.test(text)) {
+    const venueName = stripConciergeIntentWords(text);
+    push("venue_drinks", venueName ? { venueName } : { query: text });
+    return calls;
+  }
+
   if (detectWhatsOnIntent(text)) {
     push("whats_on", { query: text });
+    return calls;
+  }
+
+  // A cheap CRAWL is still a crawl, so the plan intent keeps it.
+  if (CHEAPEST_NEAR_RE.test(text) && !PLAN_RE.test(text)) {
+    const area = extractArea(text);
+    const venueName = area ? "" : stripConciergeIntentWords(text);
+    push(
+      "cheapest_pint_near",
+      area ? { area } : venueName ? { venueName } : {},
+    );
     return calls;
   }
 

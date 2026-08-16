@@ -1,0 +1,121 @@
+# Pub Pal setup: text now, voice when you switch it on
+
+Pub Pal answers in writing with no keys at all. Voice is one optional add-on
+the captain switches on with four environment values and one script run.
+
+Nothing here changes what the Pal may SAY. Text and voice run the same grounded
+tool registry (ADR 0014) and the same propose-then-confirm rule (ADR 0006).
+
+---
+
+## What works with no keys
+
+| Surface | Keyless | Notes |
+|---|---|---|
+| `/pal/chat` text ask | Yes | Deterministic router picks one or two tools and answers from our own rows |
+| Map Ask | Yes | Same `/api/ask` path |
+| Concierge tools (prices, tonight, drinks, desk, crowd) | Yes | Every one of them reads a lane we already hold |
+| Model-written prose | No | Needs `OPENROUTER_API_KEY`; without it the house templates answer |
+| Voice | No | Needs the four ElevenLabs values below |
+
+With voice off, `/pal` says so in the Pal's own words and offers the writing
+door. It never shows a Start button that would fail on the tap.
+
+---
+
+## The four values
+
+Put these on the deployment (Vercel: Project → Settings → Environment
+Variables → Production, Preview). All four are server-only.
+
+| Key | What it is |
+|---|---|
+| `ELEVENLABS_API_KEY` | Account key. Never reaches the browser: `/api/pub-pal/voice-token` mints a short-lived signed session URL instead |
+| `ELEVENLABS_PUB_PAL_AGENT_ID` | The agent the script below creates |
+| `ELEVENLABS_LLM_SHARED_SECRET` | The secret ElevenLabs presents to `/api/pub-pal/llm`. Generate with `openssl rand -hex 32` |
+| `ELEVENLABS_VOICE_EMBER` / `_VELVET` / `_SIGNAL` | The three curated voice ids. Optional per slot: an unset slot falls back to the agent default |
+
+`.env.example` carries the same names with empty values.
+
+---
+
+## Creating the agent
+
+```bash
+# Local dry run: prints exactly what would be written, calls nothing.
+npm run pubpal:agent -- --dry-run --base-url https://pubmaxxing.com
+
+# Real run: creates the agent, or updates the one already there.
+npm run pubpal:agent -- --base-url https://pubmaxxing.com
+```
+
+The script reads `.env.local` and `.env`, so a local run needs no exported
+shell variables. It is idempotent: with `ELEVENLABS_PUB_PAL_AGENT_ID` set it
+patches that agent, and without one it looks for an agent named
+`PUBMAXX Pub Pal` before creating a new one. Re-running never leaves two.
+
+It sets four things and nothing else:
+
+1. **Custom LLM** pointed at `<base-url>/api/pub-pal/llm`, with the shared
+   secret. That route runs the same grounded Night OS Ask path the text surface
+   runs, so the voice cannot answer from the provider's own model.
+2. **Zero retention** — no audio recording, no transcript, no PII kept. ADR 0006
+   is explicit that raw audio and transcripts are never memory.
+3. **The three voices**, when their ids are set. The agent-level voice is the
+   default; each session then overrides it with the caller's own Pal voice from
+   `lib/palVoiceOverrides.ts`, so ember, velvet and signal all sound right off
+   one agent.
+4. **The house prompt** — speak what the tools return, never invent a price or
+   an hour, propose but never apply, and switch to plain speech on get-home
+   topics.
+
+On a first create the script prints the agent id. Put it on the deployment as
+`ELEVENLABS_PUB_PAL_AGENT_ID` and redeploy.
+
+---
+
+## Checking it
+
+```bash
+# Should answer {"available":true} once the two keys are set.
+curl -s https://pubmaxxing.com/api/pub-pal/voice-token | jq .
+
+# Should answer 401 without the shared secret, never 200.
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -X POST https://pubmaxxing.com/api/pub-pal/llm \
+  -H 'content-type: application/json' \
+  -d '{"messages":[{"role":"user","content":"cheapest pint in Camden"}]}'
+```
+
+Then open `/pal`, create a Pal, and press Start voice chat. The status line
+reads "Pal is listening" once the socket is up.
+
+`GET /api/pub-pal/voice-token` answers one boolean about this deployment's own
+configuration and reads no account, which is the whole reason the Pal can
+explain itself before the tap. `POST` still needs a signed-in caller and spends
+a metered minute (`lib/palVoiceMetering.ts`).
+
+---
+
+## What does not need a key
+
+Do not gate the concierge tools behind any of this. `cheapest_pint_near`,
+`tonight_now`, `venue_drinks`, `find_desk` and `report_occupancy` all answer
+keylessly from lanes we already hold, and two of them are honest about holding
+nothing yet:
+
+- **`find_desk`** answers only from cafe, co-working and library rows. The
+  London pack carries none of those today, so it says "No seat data yet" rather
+  than offering a pub as a desk.
+- **`report_occupancy`** takes a crowd report, repeats it back, and says plainly
+  that it has nowhere to land. The crowd store is master plan R-011 and is not
+  built. Nothing is written, and no confirm button is offered for a write that
+  cannot happen.
+
+---
+
+## Related
+
+- `docs/adr/0006-pub-pal-user-owned-digital-companion.md` — what a Pal may do
+- `docs/adr/0014-night-os-ask-agent.md` — the tool allowlist
+- `docs/VOICE.md` — how every line above had to read

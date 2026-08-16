@@ -21,7 +21,12 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
 
 1. **Tool allowlist only** — `search_venues`, `whats_on`, `venue_heritage`,
    `venue_prices`, `city_status`, `journey`, `area_buzz`, `propose_plan`,
-   `propose_map_action`. No open web browse (`PAL_WEB_GROUNDING` stays off).
+   `propose_map_action`, plus the V0.1 concierge wave (master plan R-015):
+   `cheapest_pint_near`, `tonight_now`, `venue_drinks`, `find_desk`,
+   `report_occupancy`. No open web browse (`PAL_WEB_GROUNDING` stays off).
+   The list is pinned by `__tests__/askRouter.test.ts`; the V0.1 five keep
+   their policy and their words in `lib/ask/conciergeTools.ts` and their
+   handlers in `lib/ask/conciergeTools.server.ts`.
 2. **Grounded answers** — every card and figure carries provenance; tools never
    invent pint prices. Uncorroborated community rows may appear on the pub’s
    own sheet language only; map-authority claims require corroboration.
@@ -47,3 +52,13 @@ and Pal chat use `/api/ask`.
 - A later ChatGPT App / MCP export can reuse the same tool handlers; shipping
   an external listing is out of this decision.
 - Tests pin allowlist, keyless routing, proposal-not-mutate, and voice fences.
+- `report_occupancy` writes nothing at all in V0.1: the crowd store (master
+  plan R-011) is not built, so the tool takes the report, says plainly it has
+  nowhere to land, and offers no confirm. Inventing a schema here, or
+  borrowing the visit-report or community-price lane, would make one lane
+  mean two things. `occupancyStoreState()` is the one place that changes when
+  R-011 lands.
+- `find_desk` answers only from the widened `cafe` / `coworking` / `library`
+  rows, which the London pack does not carry yet, so it says "no seat data
+  yet" rather than offering a pub as a desk. Pub behaviour is untouched:
+  `lib/ask/deskVenues.server.ts` never reads a pub row.

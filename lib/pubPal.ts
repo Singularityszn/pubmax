@@ -369,3 +369,46 @@ export const PAL_UNLOCKS: PalUnlock[] = [
   { id: "gin-glass", pointsRequired: 90, category: "material", label: "Gin crystal" },
   { id: "victorian-lore", pointsRequired: 140, category: "lore", label: "Victorian London chapter" },
 ];
+
+export type PalMasteryProgress = {
+  /** The next item this Pal earns, or null once it has them all. */
+  next: PalUnlock | null;
+  pointsToNext: number;
+  /** 0 to 1 across the gap between the last item earned and the next. */
+  fraction: number;
+  line: string;
+};
+
+/**
+ * Where this Pal stands on its mastery track.
+ *
+ * The track buys COSMETICS and nothing else (ADR 0006): no unlock here changes
+ * a recommendation, and none of them is earned by drinking more. The progress
+ * is measured from the LAST item earned rather than from zero, so a Pal near
+ * the top of the track does not read as almost finished for three levels.
+ */
+export function palMasteryProgress(masteryPoints: number): PalMasteryProgress {
+  const points = Number.isFinite(masteryPoints) ? Math.max(0, masteryPoints) : 0;
+  const ordered = [...PAL_UNLOCKS].sort((a, b) => a.pointsRequired - b.pointsRequired);
+  const next = ordered.find((unlock) => points < unlock.pointsRequired) ?? null;
+  if (!next) {
+    return {
+      next: null,
+      pointsToNext: 0,
+      fraction: 1,
+      line: "Every mastery item earned.",
+    };
+  }
+  const earnedFloor = ordered
+    .filter((unlock) => points >= unlock.pointsRequired)
+    .reduce((highest, unlock) => Math.max(highest, unlock.pointsRequired), 0);
+  const span = next.pointsRequired - earnedFloor;
+  const fraction = span > 0 ? Math.min(1, (points - earnedFloor) / span) : 0;
+  const pointsToNext = next.pointsRequired - points;
+  return {
+    next,
+    pointsToNext,
+    fraction,
+    line: `${pointsToNext} ${pointsToNext === 1 ? "point" : "points"} to the ${next.label}.`,
+  };
+}

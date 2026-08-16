@@ -275,6 +275,9 @@
 .palUnlockSummary ul { margin: .8rem 0 0; padding: 0; display: grid; gap: .45rem; list-style: none; }
 .palUnlockSummary li { display: flex; justify-content: space-between; color: var(--pal-soft); font-size: .78rem; opacity: .55; }
 .palUnlockSummary li.isUnlocked { color: var(--pal-paper); opacity: 1; }
+.palMasteryNext { margin-top: .45rem; color: var(--pal-soft); font-size: .78rem; line-height: 1.4; }
+.palMasteryTrack { margin-top: .55rem; height: .35rem; border-radius: 999px; background: color-mix(in srgb, var(--pal-line) 70%, transparent); overflow: hidden; }
+.palMasteryTrack span { display: block; height: 100%; border-radius: inherit; background: var(--pal-accent); }
 .palMemoryControls { width: min(84rem, 100%); margin: 4rem auto 0; padding-top: 3rem; border-top: 1px solid var(--pal-line); display: grid; gap: 1.2rem; }
 .palMemoryControls__header { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
 .palMemoryControls__header h2 { margin-top: .25rem; font-size: clamp(2rem, 4vw, 3.7rem); line-height: 1; }
@@ -303,6 +306,8 @@
 .palVoiceActions label { padding-left: .85rem; }
 .palVoiceActions input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: inherit; }
 .palVoiceActions label button { width: 2.8rem; align-self: stretch; border: 0; display: grid; place-items: center; background: transparent; color: inherit; cursor: pointer; }
+/* Voice off: one honest line plus the writing door, at the same 44px floor. */
+.palVoiceWriteLink { min-height: 2.9rem; padding: 0 .85rem; border: 1px solid var(--pal-line); border-radius: .75rem; display: flex; align-items: center; justify-content: center; gap: .5rem; background: var(--panel-raised); color: var(--pal-paper); text-decoration: none; }
 
 .palLoading { position: absolute; inset: calc(4.75rem + env(safe-area-inset-top)) clamp(1rem, 4vw, 4.5rem) calc(6rem + env(safe-area-inset-bottom)); display: grid; place-items: center; color: var(--pal-soft); }
 

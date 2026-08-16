@@ -18,6 +18,7 @@ import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
 import { rankNearMe } from "@/lib/nearMeAnswer";
 import { CENTRAL_PATCH, readRememberedArea, resolveNightPatch } from "@/lib/nightPatches";
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
+import { palRecall, type PalRecall } from "@/lib/palRecall";
 import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
 import { writePlanningIntent } from "@/lib/planningIntent";
 import { createPalChatSession } from "@/lib/palChatClient";
@@ -45,6 +46,8 @@ type Entry =
       answer: PalAnswer;
       locality: PalLocality | null;
       proposals: AskProposal[];
+      /** In-thread recall only (lib/palRecall). Never a durable memory. */
+      recall: PalRecall | null;
     }
   | { kind: "error"; id: string; message: string };
 
@@ -176,6 +179,8 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sessionRef = useRef<ReturnType<typeof createPalChatSession> | null>(null);
   const counterRef = useRef(0);
+  // Every ask this thread has carried, oldest first. In-thread only.
+  const priorAsksRef = useRef<string[]>([]);
 
   const nextId = useCallback(() => {
     counterRef.current += 1;
@@ -193,6 +198,10 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
       const text = raw.trim();
       if (!text || pending) return;
       sessionRef.current ??= createPalChatSession();
+      // Read the recall BEFORE this ask joins the transcript, so the Pal never
+      // recalls the question it is answering.
+      const recall = palRecall(priorAsksRef.current, text);
+      priorAsksRef.current = [...priorAsksRef.current, text].slice(-12);
       setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
       setQuery("");
       setPending(true);
@@ -216,7 +225,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
           : [];
       setEntries((prev) => [
         ...prev,
-        { kind: "answer", id: nextId(), answer: result, locality, proposals },
+        { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
       ]);
     },
     [nextId, pending, palHandoff],
@@ -387,7 +396,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                 </div>
               );
             }
-            const { answer, locality, proposals } = entry;
+            const { answer, locality, proposals, recall } = entry;
             return (
               <div key={entry.id} className="palChatRow palChatRow--pal">
                 <p
@@ -397,6 +406,11 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                 >
                   {answer.message}
                 </p>
+                {recall ? (
+                  <p className="palChatRecall" role="note">
+                    {recall.line}
+                  </p>
+                ) : null}
                 {palHandoff && locality ? (
                   <p className="palChatLocality" role="note">
                     {palLocalityLine(locality)}
