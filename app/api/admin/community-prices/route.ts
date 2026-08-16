@@ -29,6 +29,7 @@ import {
   listCommunityPricesForReview,
   moderateCommunityPrice,
 } from "@/lib/communityPriceStore";
+import { syncTrustAfterPriceHidden } from "@/lib/priceTrustImpact.server";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -73,6 +74,9 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const ok = await moderateCommunityPrice(id, action === "hide", readString(body.note));
     if (!ok) return publicApiError("Report not found.", "NOT_FOUND", 404);
+    if (action === "hide") {
+      await syncTrustAfterPriceHidden(id);
+    }
     return jsonNoStore({ ok: true }, { status: 200 });
   } catch {
     return publicApiError("Moderation is unavailable right now.", "UNAVAILABLE", 503, { retryable: true });

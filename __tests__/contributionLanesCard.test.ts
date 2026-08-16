@@ -85,5 +85,47 @@ describe("ContributionLanesCard", () => {
     expect(html).toContain('id="contribution-impact"');
     expect(html).toContain("Your contributor record");
     expect(html).not.toMatch(/\b\d+ prices?\b/);
+    expect(html).not.toContain("observations logged");
+  });
+
+  it("renders the three price-trust measures as separate counts", () => {
+    const html = renderToStaticMarkup(
+      createElement(ContributionLanesCardContent, {
+        state: {
+          kind: "ready",
+          stats: { status: "ready", handle: "night_owl", prices: 2 },
+        },
+        impact: {
+          kind: "ready",
+          stats: {
+            status: "ready",
+            observationsLogged: 2,
+            pricesTrustedNow: 1,
+            lifetimeTrustUnlocks: 1,
+          },
+        },
+      }),
+    );
+
+    expect(html).toContain("data-testid=\"price-trust-impact\"");
+    expect(html).toContain("observations logged");
+    expect(html).toContain("price trusted now");
+    expect(html).toContain("lifetime trust unlock");
+  });
+
+  it("does not print zeros when price-trust impact is degraded", () => {
+    const html = renderToStaticMarkup(
+      createElement(ContributionLanesCardContent, {
+        state: {
+          kind: "ready",
+          stats: { status: "ready", handle: "night_owl", prices: 1 },
+        },
+        impact: { kind: "degraded" },
+      }),
+    );
+
+    expect(html).toContain("price trust record right now.");
+    expect(html).not.toContain("observations logged");
+    expect(html).not.toContain("data-testid=\"price-trust-impact\"");
   });
 });

@@ -24,7 +24,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "15 August 2026";
+const LAST_UPDATED = "16 August 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -299,6 +299,17 @@ export default function PrivacyPage() {
           A crowd occupancy report is linked to your signed-in account. We
           store the pub, the level you tapped, the time, and your account id.
           It is deleted with the account.
+        </p>
+
+        <h3 className="legalH3">Price trust milestones</h3>
+        <p className="legalBody">
+          When two independent logs first make a drink price trusted at a pub,
+          we store an account-linked milestone and credit the accounts in that
+          first cluster. A later agreeing log does not earn a second credit. A
+          moderator hide writes an append-only audit reversal and removes the
+          visible credit. If the remaining logs still qualify, we write one
+          replacement milestone. Your personal credit is deleted with the
+          account.
         </p>
 
         <h3 className="legalH3">Community price submissions</h3>
@@ -747,6 +758,12 @@ export default function PrivacyPage() {
           <li>
             <strong>Crowd occupancy reports:</strong>{" "}linked to your account
             and deleted with it.
+          </li>
+          <li>
+            <strong>Price trust milestones:</strong>{" "}your personal credit is
+            linked to your account and deleted with it. Append-only audit
+            reversals stay with the pub&rsquo;s milestone record and do not
+            name you.
           </li>
           <li>
             <strong>Community prices and venue reports:</strong>{" "}the report

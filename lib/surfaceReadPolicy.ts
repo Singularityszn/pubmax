@@ -47,6 +47,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/map/useCrawlJourneys.ts", fetchCount: 1, reason: "crawl journey reads are live route interaction" },
   { path: "components/map/usePintDrops.ts", fetchCount: 3, reason: "map Pint Drop reads and writes use the map feed lane" },
   { path: "components/map/useVenueJourney.ts", fetchCount: 1, reason: "venue journey is location and route interaction" },
+  { path: "components/map/useVenueOccupancy.ts", fetchCount: 1, reason: "occupancy now-read is fail-soft and must never cache as an empty pub" },
   { path: "components/messages/MessageVenuePicker.tsx", fetchCount: 1, reason: "message composer typeahead must not cache partial queries" },
   { path: "components/night/NightCalmLine.tsx", fetchCount: 1, reason: "night calm is an optional live signal" },
   { path: "components/night/NightModeCard.tsx", fetchCount: 8, reason: "night plan state, venue data, and actions are no-store interactive flows" },
@@ -103,6 +104,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "lib/priceUpdatesLoader.ts", fetchCount: 1, reason: "price update pack is additive map data with its own loader" },
   { path: "lib/pintIndexLeagueLoader.ts", fetchCount: 1, reason: "Pint Index league data is an additive static loader" },
   { path: "lib/wetherspoonsDirectory.ts", fetchCount: 1, reason: "directory data is static optional map content" },
+  { path: "lib/nearDeskVenues.ts", fetchCount: 1, reason: "desk pack loading is owned by the Desk mode data lifecycle" },
   { path: "lib/deviceAccountSwitch.ts", fetchCount: 1, reason: "account switching is auth transport and identity must never be cached" },
   { path: "lib/warmVenueDetail.ts", fetchCount: 1, reason: "venue detail prefetch warms interaction state" },
 ] as const satisfies readonly SurfaceReadExemption[];

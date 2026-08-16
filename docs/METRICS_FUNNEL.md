@@ -227,8 +227,10 @@ whether the write-back made the figure trusted.
   `trusted`, or `needs_check`.
 - `mission_newly_trusted` — same props. Fires only when that write-back is
   corroborated, in window, and the category may colour the map.
+- `mission_impact_opened` — `{ surface }`. Fires when the personal
+  contributions card is shown. `surface` is `profile`.
 
-`surface` is `near` or `map`. `reason` is `provisional`, `stale`, or
+`surface` is `near`, `map`, or `profile`. `reason` is `provisional`, `stale`, or
 `missing`. `category` is the closed drink taxonomy and is omitted on a missing
 mission. No venue id, handle, price, or coordinate ever rides along. The
 required keys, and the validator that closes each vocabulary, are under
@@ -407,7 +409,7 @@ price_impact_opened: [],
 contribution_gate: ["step"],
 ```
 
-The price evidence missions (§5b) added five more, with their own scoped
+The price evidence missions (§5b) added six more, with their own scoped
 validator (`isAllowedMissionProp`) so `surface`, `reason`, `category` and
 `outcome` each keep their own closed set:
 
@@ -417,11 +419,13 @@ mission_opened: ["surface", "reason", "category"],
 mission_dismissed: ["surface", "reason", "category"],
 mission_submitted: ["surface", "reason", "category", "outcome"],
 mission_newly_trusted: ["surface", "reason", "category", "outcome"],
+mission_impact_opened: ["surface"],
 ```
 
-All five are also in `TRUSTED_HANDOFF_REQUIRED_KEYS`: `surface` and `reason`
+The first five are also in `TRUSTED_HANDOFF_REQUIRED_KEYS`: `surface` and `reason`
 on every one, plus `outcome` on the two submit events. `category` is optional,
-because a missing mission names no drink.
+because a missing mission names no drink. `mission_impact_opened` requires
+`surface` only.
 
 The press-arrival funnel added three more, with the same treatment
 (`isAllowedPintIndexArrivalProp`) so `surface`, `visit` and `area` each keep

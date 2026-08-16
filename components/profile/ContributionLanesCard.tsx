@@ -1,7 +1,10 @@
 "use client";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { authedActionFetch } from "@/lib/authedFetch";
+import { trackEvent } from "@/lib/analytics";
+import { discardBody } from "@/lib/responseBody";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import "./yourContributionsCard.css";
@@ -29,6 +32,13 @@ export type ContributionLaneStats = {
   total?: number;
 };
 
+export type PriceTrustImpactStats = {
+  status: "ready" | "degraded";
+  observationsLogged?: number;
+  pricesTrustedNow?: number;
+  lifetimeTrustUnlocks?: number;
+};
+
 type State =
   | { kind: "loading" }
   | { kind: "error" }
@@ -36,11 +46,21 @@ type State =
 
 export type ContributionLanesCardState = State;
 
+type ImpactState =
+  | { kind: "loading" }
+  | { kind: "degraded" }
+  | { kind: "ready"; stats: PriceTrustImpactStats };
+
 type ContentProps = {
   state: ContributionLanesCardState;
+  impact?: ImpactState;
 };
 
-export function ContributionLanesCardContent({ state }: ContentProps) {
+function measureLabel(count: number, one: string, many: string): string {
+  return count === 1 ? one : many;
+}
+
+export function ContributionLanesCardContent({ state, impact }: ContentProps) {
   if (state.kind === "loading") {
     return (
       <section
@@ -110,6 +130,46 @@ export function ContributionLanesCardContent({ state }: ContentProps) {
         </div>
       )}
 
+      {impact?.kind === "ready" && impact.stats.status === "ready" ? (
+        <div className="contribTotals" data-testid="price-trust-impact">
+          <div className="contribStat">
+            <span className="contribStatValue">{impact.stats.observationsLogged ?? 0}</span>
+            <span className="contribStatLabel">
+              {measureLabel(
+                impact.stats.observationsLogged ?? 0,
+                "observation logged",
+                "observations logged",
+              )}
+            </span>
+          </div>
+          <div className="contribStat">
+            <span className="contribStatValue">{impact.stats.pricesTrustedNow ?? 0}</span>
+            <span className="contribStatLabel">
+              {measureLabel(
+                impact.stats.pricesTrustedNow ?? 0,
+                "price trusted now",
+                "prices trusted now",
+              )}
+            </span>
+          </div>
+          <div className="contribStat">
+            <span className="contribStatValue">{impact.stats.lifetimeTrustUnlocks ?? 0}</span>
+            <span className="contribStatLabel">
+              {measureLabel(
+                impact.stats.lifetimeTrustUnlocks ?? 0,
+                "lifetime trust unlock",
+                "lifetime trust unlocks",
+              )}
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      {impact?.kind === "degraded" ||
+      (impact?.kind === "ready" && impact.stats.status === "degraded") ? (
+        <p className="contribMuted">Couldn&apos;t load your price trust record right now.</p>
+      ) : null}
+
       <Link className="contribRecordLink" href="/contributors">
         See the contributor record
       </Link>
@@ -119,6 +179,8 @@ export function ContributionLanesCardContent({ state }: ContentProps) {
 
 export default function ContributionLanesCard({ handle }: Props) {
   const [state, setState] = useState<State>({ kind: "loading" });
+  const [impact, setImpact] = useState<ImpactState>({ kind: "loading" });
+  const trackedImpact = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || window.location.hash !== "#contribution-impact") {
@@ -153,5 +215,44 @@ export default function ContributionLanesCard({ handle }: Props) {
     return () => controller.abort();
   }, [handle]);
 
-  return <ContributionLanesCardContent state={state} />;
+  useEffect(() => {
+    if (!handle) return;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await authedActionFetch("/api/price-impact", {
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          discardBody(res);
+          if (!controller.signal.aborted) setImpact({ kind: "degraded" });
+          return;
+        }
+        const body = (await res.json()) as PriceTrustImpactStats;
+        if (controller.signal.aborted) return;
+        if (body.status === "degraded") {
+          setImpact({ kind: "degraded" });
+          return;
+        }
+        if (body.status !== "ready") {
+          setImpact({ kind: "degraded" });
+          return;
+        }
+        setImpact({ kind: "ready", stats: body });
+      } catch (err) {
+        if ((err as { name?: string }).name === "AbortError") return;
+        if (!controller.signal.aborted) setImpact({ kind: "degraded" });
+      }
+    })();
+    return () => controller.abort();
+  }, [handle]);
+
+  useEffect(() => {
+    if (trackedImpact.current) return;
+    if (state.kind === "loading") return;
+    trackedImpact.current = true;
+    trackEvent("mission_impact_opened", { surface: "profile" });
+  }, [state.kind]);
+
+  return <ContributionLanesCardContent state={state} impact={impact} />;
 }

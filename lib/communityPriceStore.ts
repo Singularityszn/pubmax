@@ -2056,6 +2056,190 @@ export function listCommunityPricesForReview(
   return communityPriceStore().listForReview(limit);
 }
 
+export type CommunityPriceObservation = {
+  id: string;
+  venueId: string;
+  drinkCategory: DrinkCategory;
+  priceGbp: number;
+  submittedAt: number;
+  actor: string | null;
+  hidden: boolean;
+};
+
+function observationFromStored(row: StoredPrice): CommunityPriceObservation | null {
+  if (!row.id || !isDrinkCategory(row.drinkCategory)) return null;
+  return {
+    id: row.id,
+    venueId: row.venueId,
+    drinkCategory: row.drinkCategory,
+    priceGbp: row.priceGbp,
+    submittedAt: row.submittedAt,
+    actor: row.actor,
+    hidden: row.hidden,
+  };
+}
+
+function memoryObservations(): CommunityPriceObservation[] {
+  const out: CommunityPriceObservation[] = [];
+  for (const rows of venues.values()) {
+    for (const row of rows) {
+      const observation = observationFromStored(row);
+      if (observation) out.push(observation);
+    }
+  }
+  return out;
+}
+
+async function durablePriceRows(filter: {
+  venueId?: string;
+  drinkCategory?: DrinkCategory;
+  actor?: string;
+  id?: string;
+}): Promise<StoredPrice[]> {
+  let query = admin()
+    .from("community_prices")
+    .select(
+      "id, venue_id, drink_category, price_pennies, submitted_at, actor, hidden_at",
+    )
+    .not("drink_category", "is", null)
+    .limit(VENUE_SCAN_ROWS);
+  if (filter.venueId) query = query.eq("venue_id", filter.venueId);
+  if (filter.drinkCategory) query = query.eq("drink_category", filter.drinkCategory);
+  if (filter.actor) query = query.eq("actor", filter.actor);
+  if (filter.id) query = query.eq("id", filter.id);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  if (!Array.isArray(data)) return [];
+  const out: StoredPrice[] = [];
+  for (const raw of data) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const venueId = cleanVenueId((raw as { venue_id?: unknown }).venue_id);
+    if (!venueId) continue;
+    out.push(...rowsToPrices([raw], venueId));
+  }
+  return out;
+}
+
+const observationReader = {
+  async listForVenueCategory(
+    venueId: string,
+    drinkCategory: DrinkCategory,
+  ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+    const key = cleanVenueId(venueId);
+    if (!key || !isDrinkCategory(drinkCategory)) {
+      return { observations: [], degraded: false };
+    }
+    const rows = (venues.get(key) ?? [])
+      .map(observationFromStored)
+      .filter((row): row is CommunityPriceObservation => row !== null)
+      .filter((row) => row.drinkCategory === drinkCategory);
+    return { observations: rows, degraded: false };
+  },
+  async listForActor(
+    actor: string,
+  ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+    if (!actor) return { observations: [], degraded: false };
+    return {
+      observations: memoryObservations().filter((row) => row.actor === actor),
+      degraded: false,
+    };
+  },
+  async findById(
+    id: string,
+  ): Promise<{ observation: CommunityPriceObservation | null; degraded: boolean }> {
+    if (!id) return { observation: null, degraded: false };
+    return {
+      observation: memoryObservations().find((row) => row.id === id) ?? null,
+      degraded: false,
+    };
+  },
+};
+
+const observationGuard = createFailSoftGuard({
+  tag: "community-price-observations",
+  tables: "community_prices",
+  migrationHint: "apply migration 0054",
+});
+
+const durableObservationReader = {
+  async listForVenueCategory(
+    venueId: string,
+    drinkCategory: DrinkCategory,
+  ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+    const key = cleanVenueId(venueId);
+    if (!key || !isDrinkCategory(drinkCategory)) {
+      return { observations: [], degraded: false };
+    }
+    return observationGuard.guard({
+      context: "listForVenueCategory",
+      onSchemaMiss: () => observationReader.listForVenueCategory(key, drinkCategory),
+      message: "observation list failed",
+      onError: () => ({ observations: [], degraded: true }),
+      run: async () => ({
+        observations: (await durablePriceRows({ venueId: key, drinkCategory }))
+          .map(observationFromStored)
+          .filter((row): row is CommunityPriceObservation => row !== null),
+        degraded: false,
+      }),
+    });
+  },
+  async listForActor(
+    actor: string,
+  ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+    if (!actor) return { observations: [], degraded: false };
+    return observationGuard.guard({
+      context: "listForActor",
+      onSchemaMiss: () => observationReader.listForActor(actor),
+      message: "actor observation list failed",
+      onError: () => ({ observations: [], degraded: true }),
+      run: async () => ({
+        observations: (await durablePriceRows({ actor }))
+          .map(observationFromStored)
+          .filter((row): row is CommunityPriceObservation => row !== null),
+        degraded: false,
+      }),
+    });
+  },
+  async findById(
+    id: string,
+  ): Promise<{ observation: CommunityPriceObservation | null; degraded: boolean }> {
+    if (!id) return { observation: null, degraded: false };
+    return observationGuard.guard({
+      context: "findById",
+      onSchemaMiss: () => observationReader.findById(id),
+      message: "observation lookup failed",
+      onError: () => ({ observation: null, degraded: true }),
+      run: async () => {
+        const [row] = await durablePriceRows({ id });
+        return { observation: row ? observationFromStored(row) : null, degraded: false };
+      },
+    });
+  },
+};
+
+function observations(): typeof observationReader {
+  return selectStore(observationReader, durableObservationReader);
+}
+
+export function listCommunityPriceObservations(
+  venueId: string,
+  drinkCategory: DrinkCategory,
+): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+  return observations().listForVenueCategory(venueId, drinkCategory);
+}
+
+export function listCommunityPriceObservationsForActor(
+  actor: string,
+): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+  return observations().listForActor(actor);
+}
+
+export function findCommunityPriceObservation(
+  id: string,
+): Promise<{ observation: CommunityPriceObservation | null; degraded: boolean }> {
+  return observations().findById(id);
+}
+
 /** Test-only: clear the in-memory observations between cases. */
 export function __resetCommunityPrices(): void {
   venues.clear();

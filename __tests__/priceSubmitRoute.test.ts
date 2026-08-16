@@ -99,6 +99,8 @@ import {
   memoryCommunityPriceStore,
   readCommunityPrices,
 } from "@/lib/communityPriceStore";
+import { __resetMemoryPriceTrustEvents } from "@/lib/priceTrustEventStore";
+import { readPriceTrustImpact } from "@/lib/priceTrustImpact.server";
 import { COMMUNITY_PRICE_MAX_GBP } from "@/lib/communityPrice";
 import {
   __resetMemoryIdentityHandles,
@@ -194,6 +196,7 @@ beforeEach(async () => {
   readBackState.statusOverride = null;
   authState.userId = null;
   __resetCommunityPrices();
+  __resetMemoryPriceTrustEvents();
   __resetMemoryIdentityHandles();
   __resetMemoryProfiles();
   __resetMemoryPrivateIdentities();
@@ -915,6 +918,31 @@ describe("POST /api/price-submit corroboration", () => {
     // The response is the submitter's own figure, now backed by two accounts.
     expect(price?.priceGbp).toBe(4.5);
     expect(price?.corroborations).toBe(2);
+    expect(await readPriceTrustImpact("user-two_a")).toEqual({
+      status: "ready",
+      observationsLogged: 1,
+      pricesTrustedNow: 1,
+      lifetimeTrustUnlocks: 1,
+    });
+    expect(await readPriceTrustImpact("user-two_b")).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+  });
+
+  it("does not credit a third agreeing report with a new unlock", async () => {
+    const venueId = await realVenueId(6);
+    await submitAs("late_a", { venueId, drinkCategory: "beer", priceGbp: 4.2 });
+    await submitAs("late_b", { venueId, drinkCategory: "beer", priceGbp: 4.2 });
+    await submitAs("late_c", { venueId, drinkCategory: "beer", priceGbp: 4.3 });
+    expect(await readPriceTrustImpact("user-late_c")).toEqual({
+      status: "ready",
+      observationsLogged: 1,
+      pricesTrustedNow: 0,
+      lifetimeTrustUnlocks: 0,
+    });
+    expect(await readPriceTrustImpact("user-late_a")).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
   });
 
   it("keeps one voice when the same account logs again", async () => {

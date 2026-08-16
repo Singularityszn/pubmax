@@ -1,0 +1,180 @@
+// Price trust impact: create first-cluster unlocks and read the owner's card.
+//
+// Trust itself lives in lib/communityPrice.ts. This module only reacts when a
+// write-back or a hide changes that answer, and it never invents a second
+// threshold. Fail-soft: a price write still lands if this sync cannot.
+
+import {
+  findCommunityPriceObservation,
+  listCommunityPriceObservations,
+  listCommunityPriceObservationsForActor,
+  type CommunityPriceObservation,
+} from "@/lib/communityPriceStore";
+import type { DrinkCategory } from "@/lib/drinks";
+import { profileStore } from "@/lib/profileStore";
+import { priceTrustEventStore } from "@/lib/priceTrustEventStore";
+import {
+  categoryIsTrusted,
+  firstQualifyingCluster,
+  profileIdFromActor,
+  reversalFingerprint,
+  trustEventFingerprint,
+  type TrustObservation,
+} from "@/lib/priceTrustEvents";
+
+export type PriceTrustImpactReady = {
+  status: "ready";
+  observationsLogged: number;
+  pricesTrustedNow: number;
+  lifetimeTrustUnlocks: number;
+};
+
+export type PriceTrustImpact =
+  | PriceTrustImpactReady
+  | { status: "degraded" };
+
+const STORE_TAG = "price-trust-events";
+
+function asTrustObservations(
+  rows: readonly CommunityPriceObservation[],
+): TrustObservation[] {
+  return rows.map((row) => ({
+    id: row.id,
+    venueId: row.venueId,
+    drinkCategory: row.drinkCategory,
+    priceGbp: row.priceGbp,
+    submittedAt: row.submittedAt,
+    actor: row.actor,
+    hidden: row.hidden,
+  }));
+}
+
+async function userIdsForActors(actors: readonly string[]): Promise<string[]> {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const actor of actors) {
+    const profileId = profileIdFromActor(actor);
+    if (!profileId) continue;
+    const profile = await profileStore().getById(profileId);
+    const userId = profile?.userId?.trim();
+    if (!userId || seen.has(userId)) continue;
+    seen.add(userId);
+    ids.push(userId);
+  }
+  return ids;
+}
+
+async function recordFirstCluster(
+  venueId: string,
+  category: DrinkCategory,
+  observations: readonly TrustObservation[],
+  now: number,
+): Promise<void> {
+  const cluster = firstQualifyingCluster(observations, now);
+  if (!cluster) return;
+  const userIds = await userIdsForActors(cluster.actors);
+  if (cluster.actors.length > 0 && userIds.length === 0) return;
+  await priceTrustEventStore().recordUnlock({
+    fingerprint: trustEventFingerprint(venueId, category, cluster.observationIds),
+    venueId,
+    category,
+    observationIds: cluster.observationIds,
+    userIds,
+    now,
+  });
+}
+
+export async function syncTrustAfterPriceWrite(
+  venueId: string,
+  category: DrinkCategory,
+  now: number = Date.now(),
+): Promise<void> {
+  try {
+    const listed = await listCommunityPriceObservations(venueId, category);
+    if (listed.degraded) return;
+    const observations = asTrustObservations(listed.observations);
+    if (!categoryIsTrusted(observations, now)) return;
+    const live = await priceTrustEventStore().liveEventsFor(venueId, category);
+    if (live.degraded || live.events.length > 0) return;
+    await recordFirstCluster(venueId, category, observations, now);
+  } catch (error) {
+    console.warn(`${STORE_TAG} sync after write failed`, error);
+  }
+}
+
+export async function syncTrustAfterPriceHidden(
+  observationId: string,
+  now: number = Date.now(),
+): Promise<void> {
+  try {
+    const found = await findCommunityPriceObservation(observationId);
+    if (found.degraded || !found.observation) return;
+    const { venueId, drinkCategory } = found.observation;
+    const covering = await priceTrustEventStore().liveEventsCovering(observationId);
+    if (covering.degraded) return;
+    for (const event of covering.events) {
+      await priceTrustEventStore().recordUnlock({
+        fingerprint: reversalFingerprint(event.evidenceFingerprint),
+        venueId: event.venueId,
+        category: event.category,
+        observationIds: [],
+        userIds: [],
+        reversalOf: event.id,
+        now,
+      });
+    }
+    const listed = await listCommunityPriceObservations(venueId, drinkCategory);
+    if (listed.degraded) return;
+    const observations = asTrustObservations(listed.observations);
+    if (!categoryIsTrusted(observations, now)) return;
+    const live = await priceTrustEventStore().liveEventsFor(venueId, drinkCategory);
+    if (live.degraded || live.events.length > 0) return;
+    await recordFirstCluster(venueId, drinkCategory, observations, now);
+  } catch (error) {
+    console.warn(`${STORE_TAG} sync after hide failed`, error);
+  }
+}
+
+export async function readPriceTrustImpact(
+  userId: string,
+): Promise<PriceTrustImpact> {
+  try {
+    const key = userId.trim();
+    if (!key) return { status: "degraded" };
+    const profile = await profileStore().getByUserId(key);
+    const actor = profile ? `profile:${profile.id}` : "";
+    const listed = actor
+      ? await listCommunityPriceObservationsForActor(actor)
+      : { observations: [], degraded: false };
+    if (listed.degraded) return { status: "degraded" };
+    const impact = await priceTrustEventStore().readVisibleImpact(key);
+    if (impact.degraded) return { status: "degraded" };
+
+    const pairs = new Map<string, { venueId: string; category: DrinkCategory }>();
+    for (const event of impact.events) {
+      if (event.reversalOf) continue;
+      pairs.set(`${event.venueId}\0${event.category}`, {
+        venueId: event.venueId,
+        category: event.category,
+      });
+    }
+    let pricesTrustedNow = 0;
+    for (const pair of pairs.values()) {
+      const rows = await listCommunityPriceObservations(pair.venueId, pair.category);
+      if (rows.degraded) return { status: "degraded" };
+      if (categoryIsTrusted(asTrustObservations(rows.observations))) {
+        pricesTrustedNow += 1;
+      }
+    }
+
+    return {
+      status: "ready",
+      observationsLogged: listed.observations.length,
+      pricesTrustedNow,
+      lifetimeTrustUnlocks: impact.lifetimeTrustUnlocks,
+    };
+  } catch (error) {
+    console.warn(`${STORE_TAG} impact read failed`, error);
+    return { status: "degraded" };
+  }
+}
