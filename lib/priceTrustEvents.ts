@@ -9,9 +9,11 @@ import { createHash } from "node:crypto";
 
 import {
   agreesWithinTolerance,
+  bestCorroboratedRow,
   COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
   isCorroborated,
   isWithinMaxAge,
+  submitterBucket,
 } from "@/lib/communityPrice";
 import type { DrinkCategory } from "@/lib/drinks";
 
@@ -30,46 +32,8 @@ export type QualifyingCluster = {
   actors: string[];
 };
 
-function submitterBucket(actor: string | null): string {
-  return actor === null ? "anon:*" : `a:${actor}`;
-}
-
 function visibleRows(rows: readonly TrustObservation[]): TrustObservation[] {
   return rows.filter((row) => !row.hidden && row.id);
-}
-
-function countCorroborations(
-  rows: readonly TrustObservation[],
-  reference: TrustObservation,
-): number {
-  const submitters = new Set<string>();
-  for (const row of rows) {
-    if (row.drinkCategory !== reference.drinkCategory) continue;
-    if (!agreesWithinTolerance(reference.priceGbp, row.priceGbp)) continue;
-    submitters.add(submitterBucket(row.actor));
-  }
-  return submitters.size;
-}
-
-function bestCorroboratedCandidate(
-  rows: readonly TrustObservation[],
-  now: number,
-): TrustObservation | null {
-  let best: TrustObservation | null = null;
-  let bestCount = 0;
-  for (const row of rows) {
-    if (!isWithinMaxAge(row, now)) continue;
-    const count = countCorroborations(rows, row);
-    if (
-      !best ||
-      count > bestCount ||
-      (count === bestCount && row.submittedAt >= best.submittedAt)
-    ) {
-      best = row;
-      bestCount = count;
-    }
-  }
-  return best;
 }
 
 /**
@@ -81,10 +45,13 @@ export function firstQualifyingCluster(
   now: number = Date.now(),
 ): QualifyingCluster | null {
   const rows = visibleRows(observations);
-  const candidate = bestCorroboratedCandidate(rows, now);
-  if (!candidate) return null;
-  const corroborations = countCorroborations(rows, candidate);
-  if (!isCorroborated({ corroborations }) || !isWithinMaxAge(candidate, now)) {
+  const best = bestCorroboratedRow(rows, now);
+  if (!best) return null;
+  const candidate = best.row;
+  if (
+    !isCorroborated({ corroborations: best.corroborations }) ||
+    !isWithinMaxAge(candidate, now)
+  ) {
     return null;
   }
 

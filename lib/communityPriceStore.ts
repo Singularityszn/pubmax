@@ -46,11 +46,14 @@ import { randomUUID } from "node:crypto";
 
 import {
   agreesWithinTolerance,
+  bestCorroboratedRow,
+  countCorroborations,
   COMMUNITY_PRICE_MAX_AGE_MS,
   isCorroborated,
   isWithinMaxAge,
   marksMapProvisionally,
   roundToPennies,
+  submitterBucket,
   type CommunityPrice,
   type CommunityPriceInput,
   type CommunityPriceMapCandidate,
@@ -392,22 +395,6 @@ function toPrice(
   };
 }
 
-/**
- * The bucket a row counts as ONE submitter under. An attributed row is its own
- * contributor. Legacy or imported rows without an actor all share a single
- * bucket: we cannot prove two of them came from different people, and the whole
- * point of the threshold is INDEPENDENCE, so the honest reading is "at most one
- * unattributed voice". Note this is stricter than the durable table's unique
- * constraint, which lets NULL-actor rows stack - deliberately: storage keeps
- * every observation, while the trust count refuses to assume they are
- * different drinkers.
- */
-function submitterBucket(actor: string | null): string {
-  // The "anon:" sentinel cannot be produced by the "a:" branch, so a crafted
-  // actor token can never impersonate the unattributed bucket or vice versa.
-  return actor === null ? "anon:*" : `a:${actor}`;
-}
-
 function normalizeSignal(
   input: CommunityVenueSignalWrite,
 ): CommunityVenueSignalInput | null {
@@ -548,55 +535,22 @@ function contributorCountsFromRows(
 }
 
 /**
- * How many INDEPENDENT submitters back `reference`, counting whoever logged it.
- * Only rows for the same drink category that agree within the shared tolerance
- * count; a contributor who reported a different figure is not corroborating this
- * one, it is contradicting it.
- */
-function countCorroborations(rows: StoredPrice[], reference: StoredPrice): number {
-  const submitters = new Set<string>();
-  for (const row of rows) {
-    if (row.drinkCategory !== reference.drinkCategory) continue;
-    if (!agreesWithinTolerance(reference.priceGbp, row.priceGbp)) continue;
-    submitters.add(submitterBucket(row.actor));
-  }
-  return submitters.size;
-}
-
-/**
- * The category's MAP candidate: the agreement cluster with the most
- * independent submitters, restricted to rows still inside the age window, ties
- * broken by freshness. Every row anchors its own cluster (the set of rows
- * agreeing with it within the shared tolerance), which mirrors exactly how
- * `corroborations` is counted for the sheet row - one definition of agreement,
- * two questions asked of it. This is what stops a lone fresh disagreement
- * un-painting an already-corroborated figure: the sheet row stays freshest-
- * wins, but the map follows the best-backed in-window figure until a
- * contradiction itself reaches the threshold. Null when the category has no
- * in-window row at all.
+ * The category's MAP candidate, over the one cluster owner in
+ * lib/communityPrice.ts: the sheet row stays freshest-wins while the map
+ * follows the best-backed in-window figure until a contradiction itself reaches
+ * the threshold. Null when the category has no in-window row at all.
  */
 function bestCorroboratedCandidate(
   categoryRows: StoredPrice[],
   now: number,
 ): CommunityPriceMapCandidate | null {
-  let best: StoredPrice | null = null;
-  let bestCount = 0;
-  for (const row of categoryRows) {
-    if (!isWithinMaxAge(row, now)) continue;
-    const count = countCorroborations(categoryRows, row);
-    // `>=` on the freshness tie for the same reason as the freshest-wins
-    // reduction below: a same-millisecond tie prefers the later row in the scan.
-    if (
-      !best ||
-      count > bestCount ||
-      (count === bestCount && row.submittedAt >= best.submittedAt)
-    ) {
-      best = row;
-      bestCount = count;
-    }
-  }
+  const best = bestCorroboratedRow(categoryRows, now);
   if (!best) return null;
-  return { priceGbp: best.priceGbp, submittedAt: best.submittedAt, corroborations: bestCount };
+  return {
+    priceGbp: best.row.priceGbp,
+    submittedAt: best.row.submittedAt,
+    corroborations: best.corroborations,
+  };
 }
 
 /**
@@ -2115,19 +2069,13 @@ function storedPricesFromRows(rows: readonly unknown[]): StoredPrice[] {
   return out;
 }
 
-async function durablePriceRows(filter: {
-  venueId?: string;
-  drinkCategory?: DrinkCategory;
-  id?: string;
-}): Promise<StoredPrice[]> {
-  let query = admin()
+async function durablePriceRowById(id: string): Promise<StoredPrice[]> {
+  const query = admin()
     .from("community_prices")
     .select(OBSERVATION_COLUMNS)
     .not("drink_category", "is", null)
-    .limit(VENUE_SCAN_ROWS);
-  if (filter.venueId) query = query.eq("venue_id", filter.venueId);
-  if (filter.drinkCategory) query = query.eq("drink_category", filter.drinkCategory);
-  if (filter.id) query = query.eq("id", filter.id);
+    .eq("id", id)
+    .limit(1);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   if (!Array.isArray(data)) return [];
@@ -2135,7 +2083,7 @@ async function durablePriceRows(filter: {
 }
 
 function pairKey(venueId: string, drinkCategory: DrinkCategory): string {
-  return `${venueId} ${drinkCategory}`;
+  return `${venueId}\u0000${drinkCategory}`;
 }
 
 function wantedPairs(
@@ -2177,7 +2125,7 @@ async function durablePairPriceRows(
       .select(OBSERVATION_COLUMNS)
       .in("venue_id", venueIds)
       .in("drink_category", categories)
-      .order("submitted_at", { ascending: false })
+      .order("submitted_at", { ascending: true })
       .order("id", { ascending: true })
       .range(offset, pageEnd - 1);
     if (error) throw new Error(error.message);
@@ -2227,7 +2175,8 @@ const observationReader = {
   async countForActor(actor: string): Promise<{ count: number; degraded: boolean }> {
     if (!actor) return { count: 0, degraded: false };
     return {
-      count: memoryObservations().filter((row) => row.actor === actor).length,
+      count: memoryObservations().filter((row) => row.actor === actor && !row.hidden)
+        .length,
       degraded: false,
     };
   },
@@ -2257,18 +2206,9 @@ const durableObservationReader = {
     if (!key || !isDrinkCategory(drinkCategory)) {
       return { observations: [], degraded: false };
     }
-    return observationGuard.guard({
-      context: "listForVenueCategory",
-      onSchemaMiss: () => observationReader.listForVenueCategory(key, drinkCategory),
-      message: "observation list failed",
-      onError: () => ({ observations: [], degraded: true }),
-      run: async () => ({
-        observations: (await durablePriceRows({ venueId: key, drinkCategory }))
-          .map(observationFromStored)
-          .filter((row): row is CommunityPriceObservation => row !== null),
-        degraded: false,
-      }),
-    });
+    return durableObservationReader.listForPairs([
+      { venueId: key, drinkCategory },
+    ]);
   },
   async listForPairs(
     pairs: readonly CommunityPriceObservationPair[],
@@ -2306,6 +2246,7 @@ const durableObservationReader = {
           .from("community_prices")
           .select("id", { count: "exact", head: true })
           .not("drink_category", "is", null)
+          .is("hidden_at", null)
           .eq("actor", actor);
         if (error) throw new Error(error.message);
         if (typeof count !== "number" || !Number.isFinite(count)) {
@@ -2325,7 +2266,7 @@ const durableObservationReader = {
       message: "observation lookup failed",
       onError: () => ({ observation: null, degraded: true }),
       run: async () => {
-        const [row] = await durablePriceRows({ id });
+        const [row] = await durablePriceRowById(id);
         return { observation: row ? observationFromStored(row) : null, degraded: false };
       },
     });
@@ -2355,9 +2296,10 @@ export function listCommunityPriceObservationsForPairs(
 }
 
 /**
- * How many prices this actor has logged, hidden rows included. A count query,
- * never the length of a capped row page: a contributor past the scan window is
- * owed their real total or a degraded answer, never a silent 200.
+ * How many live prices this actor has logged, all time. A count query, never
+ * the length of a capped row page: a contributor past the scan window is owed
+ * their real total or a degraded answer, never a silent 200. A hidden row is
+ * out, the same rule every other public price read follows.
  */
 export function countCommunityPriceObservationsForActor(
   actor: string,

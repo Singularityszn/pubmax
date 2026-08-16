@@ -161,7 +161,7 @@ describe("syncTrustAfterPriceHidden", () => {
 
     expect(await readPriceTrustImpact(USER_A)).toEqual({
       status: "ready",
-      observationsLogged: 1,
+      observationsLogged: 0,
       pricesTrustedNow: 0,
       lifetimeTrustUnlocks: 0,
     });
@@ -178,6 +178,35 @@ describe("syncTrustAfterPriceHidden", () => {
       lifetimeTrustUnlocks: 1,
     });
     expect((await priceTrustEventStore().liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
+  });
+
+  it("names the trust event whose reversal write failed instead of moving on", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const profileC = await onboard(USER_C, "cara_pint");
+    const hiddenId = await logPrice("alice_pint", profileA, 4.2, NOW - 4_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 3_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 3_000);
+    await logPrice("cara_pint", profileC, 4.2, NOW - 500);
+
+    const covering = await priceTrustEventStore().liveEventsCovering(hiddenId);
+    expect(covering.events).toHaveLength(1);
+    const standingEventId = covering.events[0].id;
+
+    const store = priceTrustEventStore();
+    const recordUnlock = vi
+      .spyOn(store, "recordUnlock")
+      .mockResolvedValue({ event: null, created: false, failed: true as const });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const { moderateCommunityPrice } = await import("@/lib/communityPriceStore");
+    expect(await moderateCommunityPrice(hiddenId, true, "menu mismatch")).toBe(true);
+    await syncTrustAfterPriceHidden(hiddenId, NOW);
+
+    expect(recordUnlock).toHaveBeenCalledTimes(1);
+    expect(
+      warn.mock.calls.some((call) => String(call[0]).includes(standingEventId)),
+    ).toBe(true);
   });
 });
 

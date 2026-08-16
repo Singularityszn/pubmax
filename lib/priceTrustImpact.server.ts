@@ -118,7 +118,7 @@ export async function syncTrustAfterPriceHidden(
     const covering = await priceTrustEventStore().liveEventsCovering(observationId);
     if (covering.degraded) return;
     for (const event of covering.events) {
-      await priceTrustEventStore().recordUnlock({
+      const written = await priceTrustEventStore().recordUnlock({
         fingerprint: reversalFingerprint(event.evidenceFingerprint),
         venueId: event.venueId,
         category: event.category,
@@ -127,6 +127,12 @@ export async function syncTrustAfterPriceHidden(
         reversalOf: event.id,
         now,
       });
+      if (written.failed || !written.event) {
+        console.warn(
+          `${STORE_TAG} reversal write failed; credit still visible for trust event ${event.id}`,
+        );
+        return;
+      }
     }
     const listed = await listCommunityPriceObservations(venueId, drinkCategory);
     if (listed.degraded) return;

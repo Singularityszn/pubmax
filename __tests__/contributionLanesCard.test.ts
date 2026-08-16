@@ -42,24 +42,39 @@ describe("ContributionLanesCard", () => {
       }),
     );
 
-    expect(html).toContain('class="contribStatValue">1</span>');
-    expect(html).toContain('class="contribStatLabel">price</span>');
-    expect(html).not.toContain("No visit reports or recommendations yet");
+    expect(html).toContain('class="contribStatLabel">visit reports</span>');
+    expect(html).not.toContain("No prices, visit reports, or recommendations yet");
   });
 
-  it("uses singular and plural grammar for price records", () => {
-    const render = (prices: number) =>
-      renderToStaticMarkup(
-        createElement(ContributionLanesCardContent, {
-          state: {
-            kind: "ready",
-            stats: { status: "ready", handle: "night_owl", prices },
+  it("counts prices once, through the price-trust measures alone", () => {
+    const html = renderToStaticMarkup(
+      createElement(ContributionLanesCardContent, {
+        state: {
+          kind: "ready",
+          stats: {
+            status: "ready",
+            handle: "night_owl",
+            prices: 12,
+            reviews: 0,
+            recommendations: 0,
           },
-        }),
-      );
+        },
+        impact: {
+          kind: "ready",
+          stats: {
+            status: "ready",
+            observationsLogged: 16,
+            pricesTrustedNow: 2,
+            lifetimeTrustUnlocks: 2,
+          },
+        },
+      }),
+    );
 
-    expect(render(1)).toContain('class="contribStatLabel">price</span>');
-    expect(render(2)).toContain('class="contribStatLabel">prices</span>');
+    expect(html).not.toContain('class="contribStatLabel">prices</span>');
+    expect(html).not.toContain(">12<");
+    expect(html).toContain("observations logged");
+    expect(html).toContain(">16<");
   });
 
   it("keeps degraded stats honest without showing zero counts", () => {

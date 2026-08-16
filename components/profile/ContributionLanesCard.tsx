@@ -9,14 +9,19 @@ import Link from "next/link";
 
 import "./yourContributionsCard.css";
 
-// The wider record on the You page: prices, visit reports, and
-// recommendations, side by side, for a fresh owner who has only ever seen
-// pint drops (YourContributionsCard). Reads GET /api/profiles/[handle]/lane-stats
-// - a narrow projection of public_contributor_leaderboard(), never the raw
-// tables - so this card can never show a back-dated count. "Visit Reports"
-// matches the term the public contributor record already uses
+// The wider record on the You page: visit reports and recommendations beside
+// the price-trust measures, for a fresh owner who has only ever seen pint drops
+// (YourContributionsCard). Reads GET /api/profiles/[handle]/lane-stats - a
+// narrow projection of public_contributor_leaderboard(), never the raw tables -
+// so this card can never show a back-dated count. "Visit Reports" matches the
+// term the public contributor record already uses
 // (components/contributors/ContributorRecord.tsx); this card never says
 // "reviews".
+//
+// ONE number per idea: how many prices this account logged is
+// `observationsLogged` from GET /api/price-impact alone. The lane-stats price
+// figure is derived differently (handle-keyed, post-claim), so printing both
+// put two counts of the same thing side by side.
 
 type Props = {
   /** The owner's handle (already known - this only renders on your own profile). */
@@ -109,12 +114,6 @@ export function ContributionLanesCardContent({ state, impact }: ContentProps) {
         </p>
       ) : (
         <div className="contribTotals">
-          <div className="contribStat">
-            <span className="contribStatValue">{prices}</span>
-            <span className="contribStatLabel">
-              {prices === 1 ? "price" : "prices"}
-            </span>
-          </div>
           <div className="contribStat">
             <span className="contribStatValue">{reviews}</span>
             <span className="contribStatLabel">

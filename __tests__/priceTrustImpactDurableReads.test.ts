@@ -17,6 +17,7 @@ type QueryState = {
   eq: [string, unknown][];
   inFilters: [string, unknown[]][];
   notNull: string[];
+  isNull: string[];
   limit: number | null;
   range: [number, number] | null;
 };
@@ -28,6 +29,9 @@ let failReads = false;
 function matches(row: Row, state: QueryState): boolean {
   for (const column of state.notNull) {
     if ((row as unknown as Record<string, unknown>)[column] == null) return false;
+  }
+  for (const column of state.isNull) {
+    if ((row as unknown as Record<string, unknown>)[column] != null) return false;
   }
   for (const [column, value] of state.eq) {
     if ((row as unknown as Record<string, unknown>)[column] !== value) return false;
@@ -67,6 +71,7 @@ function makeQuery(name: string) {
     eq: [],
     inFilters: [],
     notNull: [],
+    isNull: [],
     limit: null,
     range: null,
   };
@@ -78,6 +83,10 @@ function makeQuery(name: string) {
     },
     not(column: string, operator: string, _value: unknown) {
       if (operator === "is") state.notNull.push(column);
+      return query;
+    },
+    is(column: string, value: unknown) {
+      if (value === null) state.isNull.push(column);
       return query;
     },
     eq(column: string, value: unknown) {
@@ -116,6 +125,7 @@ vi.mock("@/lib/supabase", () => ({
 
 import {
   countCommunityPriceObservationsForActor,
+  listCommunityPriceObservations,
   listCommunityPriceObservationsForPairs,
 } from "@/lib/communityPriceStore";
 
@@ -151,13 +161,13 @@ describe("countCommunityPriceObservationsForActor", () => {
     expect(requests.at(-1)).toMatchObject({ head: true, exactCount: true });
   });
 
-  it("counts a hidden row the contributor still logged", async () => {
+  it("leaves a hidden row and another contributor's row out", async () => {
     table.push(price(0));
     table.push(price(1, { hidden_at: "2026-08-16T19:00:00.000Z" }));
     table.push(price(2, { actor: "profile:someone-else" }));
 
     await expect(countCommunityPriceObservationsForActor(ACTOR)).resolves.toEqual({
-      count: 2,
+      count: 1,
       degraded: false,
     });
   });
@@ -168,6 +178,24 @@ describe("countCommunityPriceObservationsForActor", () => {
       count: 0,
       degraded: true,
     });
+  });
+});
+
+describe("listCommunityPriceObservations", () => {
+  it("reads every row behind a trust decision, past the old venue scan cap", async () => {
+    for (let index = 0; index < 250; index += 1) table.push(price(index));
+
+    const result = await listCommunityPriceObservations("venue-one", "beer");
+
+    expect(result.degraded).toBe(false);
+    expect(result.observations).toHaveLength(250);
+  });
+
+  it("reports a failed venue read as degraded", async () => {
+    failReads = true;
+    await expect(
+      listCommunityPriceObservations("venue-one", "beer"),
+    ).resolves.toEqual({ observations: [], degraded: true });
   });
 });
 

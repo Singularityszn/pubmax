@@ -58,6 +58,11 @@ alter table public.price_trust_events
 create index if not exists price_trust_events_venue_category_idx
   on public.price_trust_events (venue_id, category, created_at desc);
 
+-- A moderator hide asks which events carry one observation id, so the array
+-- membership read is indexed rather than scanning every event.
+create index if not exists price_trust_events_observation_ids_idx
+  on public.price_trust_events using gin (observation_ids);
+
 create index if not exists price_trust_events_reversal_of_idx
   on public.price_trust_events (reversal_of)
   where reversal_of is not null;
