@@ -45,7 +45,7 @@ async function seedSignedInSession(page: Page): Promise<void> {
 
 async function installContributorBoundary(
   page: Page,
-  options: { failWrite?: boolean } = {},
+  options: { failWrite?: boolean; missionCategory?: string } = {},
 ): Promise<{
   submitted: Array<{ venueId: string; drinkCategory: string; priceGbp: number; corroborations: number }>;
 }> {
@@ -95,7 +95,7 @@ async function installContributorBoundary(
         mission: {
           venueId,
           reason: "provisional",
-          drinkCategory: "beer",
+          drinkCategory: options.missionCategory ?? "beer",
           observedAt: Date.now() - 3_600_000,
         },
       }),
@@ -235,6 +235,24 @@ test("map venue sheet shows the mission and prints the write-back receipt", asyn
     "Another independent check is still needed.",
   );
   expect(errors).toEqual([]);
+});
+
+test("the map sheet locks the mission's own drink, not the lane's", async ({ page }) => {
+  const boundary = await installContributorBoundary(page, { missionCategory: "wine" });
+  await page.goto(`/map?sel=${SEED_VENUE_ID}`);
+  const sheet = await openVenueSheet(page);
+  const slot = sheet.locator(".pemSlot");
+  await expect(slot).toBeVisible();
+  await expect(slot.locator(".pemHeading")).toContainText(
+    `Check the wine price at ${SEED_VENUE_NAME}`,
+  );
+  const submit = sheet.locator(".venuePriceSubmit");
+  await expect(submit.locator(".vpsubLockedDrink")).toHaveText("Wine");
+  await submit.getByRole("textbox").fill("6.80");
+  await submit.getByRole("button", { name: "Log it" }).click();
+  await expect(submit.getByRole("status")).toBeVisible();
+  expect(boundary.submitted).toHaveLength(1);
+  expect(boundary.submitted[0]?.drinkCategory).toBe("wine");
 });
 
 for (const viewport of VIEWPORTS) {

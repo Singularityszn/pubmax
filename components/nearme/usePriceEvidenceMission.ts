@@ -16,36 +16,23 @@ import {
   startPriceEvidenceMissionRequest,
   type PriceEvidenceMissionRead,
 } from "@/lib/priceEvidenceMissionClient";
-import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
+import {
+  missionAnalyticsProps,
+  type PriceEvidenceMission,
+} from "@/lib/priceEvidenceMissions";
 
-export type PriceEvidenceMissionView =
+type PriceEvidenceMissionView =
   | { status: "idle" }
   | { status: "loading" }
   | PriceEvidenceMissionRead;
-
-export function missionAnalyticsProps(
-  surface: MissionSurface,
-  mission: PriceEvidenceMission,
-  extra?: Record<string, string>,
-): Record<string, string> {
-  const props: Record<string, string> = {
-    surface,
-    reason: mission.reason,
-    ...extra,
-  };
-  if (mission.drinkCategory) props.category = mission.drinkCategory;
-  return props;
-}
 
 export function usePriceEvidenceMission(input: {
   venueIds: readonly string[];
   enabled: boolean;
   surface: MissionSurface;
 }): {
-  view: PriceEvidenceMissionView;
   mission: PriceEvidenceMission | null;
   dismiss: (mission: PriceEvidenceMission) => void;
-  dismissedKeys: ReadonlySet<string>;
 } {
   const { user, identityResolved } = useAuth();
   const signedIn = Boolean(identityResolved && user);
@@ -133,6 +120,6 @@ export function usePriceEvidenceMission(input: {
     [input.surface],
   );
 
-  return { view, mission, dismiss, dismissedKeys: dismissed };
+  return { mission, dismiss };
 }
 

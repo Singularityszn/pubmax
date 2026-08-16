@@ -9,6 +9,8 @@ import { isMapLensDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import {
   MAX_PRICE_EVIDENCE_MISSION_VENUE_IDS,
   PRICE_EVIDENCE_MISSION_REASONS,
+  missionHeading,
+  missionNamedCategory,
   missionReceiptFromReadback,
   parsePriceEvidenceMissionVenueIds,
   rankPriceEvidenceMission,
@@ -263,12 +265,62 @@ describe("missionReceiptFromReadback", () => {
   });
 
   it("never infers trust from the client mission reason", () => {
-    const receipt = missionReceiptFromReadback({
-      price: row("venue-live", "beer"),
-      now: NOW,
-      missionReason: "provisional",
-    });
-    expect(receipt.outcome).toBe("needs_check");
+    const uncorroborated = row("venue-live", "beer", { corroborations: 1 });
+    const corroborated = row("venue-live", "beer", { corroborations: 2 });
+    expect(missionReceiptFromReadback({ price: uncorroborated, now: NOW }).outcome)
+      .toBe("needs_check");
+    expect(missionReceiptFromReadback({ price: corroborated, now: NOW }).outcome)
+      .toBe("trusted");
+  });
+});
+
+describe("missionHeading", () => {
+  it("names the drink a provisional or stale mission is about", () => {
+    expect(
+      missionHeading({ reason: "provisional", venueName: "The Crown", drinkCategory: "wine" }),
+    ).toBe("Check the wine price at The Crown");
+    expect(
+      missionHeading({ reason: "stale", venueName: "The Crown", drinkCategory: "soft-drink" }),
+    ).toBe("The soft drink price at The Crown is out of date");
+  });
+
+  it("never prints the catch-all category as a drink noun", () => {
+    expect(
+      missionHeading({ reason: "provisional", venueName: "The Crown", drinkCategory: "other" }),
+    ).toBe("Check the price at The Crown");
+    expect(
+      missionHeading({ reason: "stale", venueName: "The Crown", drinkCategory: "other" }),
+    ).toBe("The price at The Crown is out of date");
+  });
+
+  it("asks for any price when nothing is logged", () => {
+    expect(
+      missionHeading({ reason: "missing", venueName: "The Crown" }),
+    ).toBe("Log a price at The Crown");
+  });
+
+  it("prints a heading for every submittable category", () => {
+    for (const category of SUBMITTABLE_DRINK_CATEGORIES) {
+      const heading = missionHeading({
+        reason: "provisional",
+        venueName: "The Crown",
+        drinkCategory: category,
+      });
+      expect(heading.startsWith("Check the ")).toBe(true);
+      expect(heading.endsWith("price at The Crown")).toBe(true);
+    }
+  });
+});
+
+describe("missionNamedCategory", () => {
+  it("names the locked drink for a provisional or stale mission", () => {
+    expect(missionNamedCategory({ reason: "provisional", drinkCategory: "wine" })).toBe("wine");
+    expect(missionNamedCategory({ reason: "stale", drinkCategory: "other" })).toBe("other");
+  });
+
+  it("leaves the choice open when nothing is logged", () => {
+    expect(missionNamedCategory({ reason: "missing", drinkCategory: "wine" })).toBeNull();
+    expect(missionNamedCategory({ reason: "provisional" })).toBeNull();
   });
 });
 

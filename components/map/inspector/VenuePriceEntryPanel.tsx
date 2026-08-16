@@ -6,7 +6,6 @@ import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import VenuePriceSubmit from "@/components/map/VenuePriceSubmit";
 import { trackEvent } from "@/lib/analytics";
-import { missionAnalyticsProps } from "@/components/nearme/usePriceEvidenceMission";
 import {
   DEFAULT_SUBMIT_CATEGORY,
   type CommunityPriceMapReach,
@@ -16,7 +15,7 @@ import type { DrinkCategory } from "@/lib/drinks";
 
 import type { VenuePriceSubmitMission } from "@/components/map/VenuePriceSubmit";
 import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
-import { missionHeading } from "@/lib/priceEvidenceMissions";
+import { missionAnalyticsProps, missionHeading } from "@/lib/priceEvidenceMissions";
 
 import VenuePriceSignInGate from "./VenuePriceSignInGate";
 import "../venuePriceSubmit.css";

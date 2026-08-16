@@ -7,9 +7,8 @@ import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { trackEvent } from "@/lib/analytics";
 import type { MissionSurface } from "@/lib/analyticsEvents";
 import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
-import { missionHeading } from "@/lib/priceEvidenceMissions";
+import { missionAnalyticsProps, missionHeading } from "@/lib/priceEvidenceMissions";
 
-import { missionAnalyticsProps } from "./usePriceEvidenceMission";
 import "./priceEvidenceMission.css";
 
 export type PriceEvidenceMissionSlotProps = {

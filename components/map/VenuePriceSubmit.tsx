@@ -28,11 +28,12 @@ import { trackEvent } from "@/lib/analytics";
 import PriceContributionImpact from "@/components/map/PriceContributionImpact";
 import type { MissionSurface } from "@/lib/analyticsEvents";
 import {
+  missionAnalyticsProps,
+  missionNamedCategory,
   missionReceiptFromReadback,
   type MissionReceipt,
   type PriceEvidenceMissionReason,
 } from "@/lib/priceEvidenceMissions";
-import { missionAnalyticsProps } from "@/components/nearme/usePriceEvidenceMission";
 
 export type VenuePriceSubmitMission = {
   reason: PriceEvidenceMissionReason;
@@ -120,16 +121,18 @@ export default function VenuePriceSubmit({
 }: VenuePriceSubmitProps) {
   const titleId = `vpsubTitle-${venueId}`;
   const priceInputRef = useRef<HTMLInputElement>(null);
-  const missionLocksCategory =
-    mission !== null && mission.reason !== "missing" && Boolean(mission.drinkCategory);
-  const openingCategory =
-    missionLocksCategory && mission.drinkCategory
-      ? mission.drinkCategory
-      : laneCategory;
+  // A mission's own drink outranks anything held here. The sheet mounts this
+  // form before its mission read answers, so a locked drink read off state set
+  // at mount would name the lane while the heading named the mission.
+  const missionCategory = mission ? missionNamedCategory(mission) : null;
+  const missionLocksCategory = missionCategory !== null;
   // The lane is the opening choice, not a lock: the reader can still tap any
   // other drink. Keyed per venue by the parent, so switching pubs re-opens on
   // the lane rather than on whatever the last pub was left showing.
-  const [category, setCategory] = useState<DrinkCategory>(openingCategory);
+  const [chosenCategory, setCategory] = useState<DrinkCategory>(
+    missionCategory ?? laneCategory,
+  );
+  const category = missionCategory ?? chosenCategory;
   const categories = useMemo(
     () =>
       mission
@@ -244,7 +247,6 @@ export default function VenuePriceSubmit({
         : undefined;
       if (mission && missionReceipt) {
         const analytics = missionAnalyticsProps(mission.surface, {
-          venueId,
           reason: mission.reason,
           drinkCategory: category,
         }, { outcome: missionReceipt.outcome });

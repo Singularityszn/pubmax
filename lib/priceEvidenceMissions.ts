@@ -12,6 +12,8 @@ import {
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import { isMapLensDrinkCategory, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
+import { drinkLensPriceNoun } from "@/lib/mapExperienceLens";
+import type { MissionSurface } from "@/lib/analyticsEvents";
 
 export const PRICE_EVIDENCE_MISSION_REASONS = [
   "provisional",
@@ -176,9 +178,7 @@ export function toPriceEvidenceMissionDto(
 export function missionReceiptFromReadback(input: {
   price: CommunityPrice | null;
   now?: number;
-  missionReason?: PriceEvidenceMissionReason;
 }): MissionReceipt {
-  void input.missionReason;
   const now = input.now ?? Date.now();
   const price = input.price;
   if (!price) {
@@ -199,6 +199,29 @@ export function missionReceiptFromReadback(input: {
   return { outcome: "logged", line: "Logged." };
 }
 
+/**
+ * The one drink a mission is about, or null when the contributor may choose.
+ * The heading and the composer's locked drink both read this, so a mission can
+ * never name one drink and submit another.
+ */
+export function missionNamedCategory(mission: {
+  reason: PriceEvidenceMissionReason;
+  drinkCategory?: DrinkCategory;
+}): DrinkCategory | null {
+  if (mission.reason === "missing") return null;
+  if (!mission.drinkCategory || !isDrinkCategory(mission.drinkCategory)) return null;
+  return mission.drinkCategory;
+}
+
+/**
+ * `other` is the honest catch-all, so it names no drink: a heading over it
+ * drops the noun rather than printing the category word as one.
+ */
+function missionDrinkNoun(category: DrinkCategory | null): string {
+  if (!category || category === "other") return "";
+  return `${drinkLensPriceNoun(category)} `;
+}
+
 export function missionHeading(input: {
   reason: PriceEvidenceMissionReason;
   venueName: string;
@@ -206,11 +229,25 @@ export function missionHeading(input: {
 }): string {
   const name = input.venueName.trim() || "this pub";
   if (input.reason === "missing") return `Log a price at ${name}`;
-  const drink = input.drinkCategory
-    ? input.drinkCategory === "alcohol-free"
-      ? "alcohol-free"
-      : input.drinkCategory.replace("-", " ")
-    : "drink";
-  if (input.reason === "stale") return `The ${drink} price at ${name} is out of date`;
-  return `Check the ${drink} price at ${name}`;
+  const drink = missionDrinkNoun(missionNamedCategory(input));
+  if (input.reason === "stale") return `The ${drink}price at ${name} is out of date`;
+  return `Check the ${drink}price at ${name}`;
+}
+
+/**
+ * The closed analytics shape every mission surface sends: surface, reason, an
+ * optional category and an optional outcome. No venue, handle or free text.
+ */
+export function missionAnalyticsProps(
+  surface: MissionSurface,
+  mission: { reason: PriceEvidenceMissionReason; drinkCategory?: DrinkCategory },
+  extra?: Record<string, string>,
+): Record<string, string> {
+  const props: Record<string, string> = {
+    surface,
+    reason: mission.reason,
+    ...extra,
+  };
+  if (mission.drinkCategory) props.category = mission.drinkCategory;
+  return props;
 }
