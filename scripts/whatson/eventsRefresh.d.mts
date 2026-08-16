@@ -64,6 +64,11 @@ export declare function providerLaneStatus(env?: Record<string, string | undefin
   skiddle: "configured" | "not-configured";
 };
 export declare function eventsOutputPath(city?: string): string;
+export declare function cityGeo(city?: string): {
+  lat: number;
+  lng: number;
+  radiusMiles: number;
+};
 export declare function dedupeEventRowsBySourceId(rows: WhatsOnEventRow[]): WhatsOnEventRow[];
 export declare function readExistingCommonRows(filePath: string): WhatsOnEventRow[];
 export declare function parseEventsCityArg(argv?: string[]): string | null;

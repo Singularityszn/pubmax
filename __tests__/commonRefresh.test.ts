@@ -1,15 +1,23 @@
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
+  COMMON_SITEMAP_URL,
   COMMON_SOURCE,
+  COMMON_TIME_EVIDENCE,
   COMMON_USER_AGENT,
+  commonStartsDate,
   isStaleCommonDate,
   parseCommonOgPrefix,
   parseCommonPostHtml,
   parseCommonSitemap,
+  refreshCommonEvents,
   toCommonEventRow,
 } from "../scripts/whatson/commonRefresh.mjs";
-import { isValidWhatsOnRow } from "@/lib/whatsOn";
+import { isValidWhatsOnRow, parseWhatsOnRows } from "@/lib/whatsOn";
 
 const TODAY = "2026-08-16";
 const NOW = Date.parse("2026-08-16T10:00:00.000Z");
@@ -77,6 +85,124 @@ describe("common post HTML", () => {
       todayLondon: TODAY,
     });
     expect(row).toBeNull();
+  });
+});
+
+describe("a stated date is never a stated time", () => {
+  it("carries the date and says the start time is not published", () => {
+    const row = toCommonEventRow({
+      url: "https://www.common-social.com/post/abc",
+      parsed: { title: "Sunday roast club", placeName: "Camberwell", dateText: "20 Aug" },
+      observedAt: "2026-08-16T10:00:00.000Z",
+      todayLondon: TODAY,
+    });
+    expect(row).not.toBeNull();
+    expect(row?.startsDate).toBe("2026-08-20");
+    expect((row as unknown as { startsAt?: string })?.startsAt).toBeUndefined();
+    expect(row?.timeEvidence).toBe(COMMON_TIME_EVIDENCE);
+    expect(JSON.stringify(row)).not.toContain("20:00");
+    expect(isValidWhatsOnRow(row as unknown, NOW)).toBe(true);
+  });
+
+  it("rolls the year forward for a day-month far behind today", () => {
+    // Read in December, "5 Jan" is next month, not eleven months ago.
+    expect(commonStartsDate("5 Jan", "2026-12-20")).toBe("2027-01-05");
+    expect(isStaleCommonDate("5 Jan", "2026-12-20")).toBe(false);
+    // A day-month just behind today is genuinely past, and still stale.
+    expect(commonStartsDate("15 Dec", "2026-12-20")).toBe("2026-12-15");
+    expect(isStaleCommonDate("15 Dec", "2026-12-20")).toBe(true);
+  });
+});
+
+describe("refreshCommonEvents", () => {
+  const NOW_MS = Date.parse("2026-08-16T10:00:00.000Z");
+
+  function post(url: string) {
+    return `<meta property="og:title" content="Night at ${url.slice(-3)}" />
+      <meta property="og:description" content="Camberwell · 20 Aug - never stored" />`;
+  }
+
+  function makeFetch(urls: string[], seen: string[]) {
+    const sitemap = `<urlset>${urls
+      .map((url) => `<url><loc>${url}</loc></url>`)
+      .join("")}</urlset>`;
+    return async (target: string | URL) => {
+      const href = String(target);
+      if (href === COMMON_SITEMAP_URL) {
+        return new Response(sitemap, { status: 200 });
+      }
+      seen.push(href);
+      return new Response(post(href), { status: 200 });
+    };
+  }
+
+  it("stamps its own generatedAt so the rows it just wrote still validate", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "common-refresh-"));
+    const outPath = join(dir, "events_london.json");
+    writeFileSync(
+      outPath,
+      JSON.stringify({
+        generatedAt: "2026-07-18T00:00:00.000Z",
+        kind: "events",
+        region: "greater-london",
+        sources: [],
+        rows: [],
+      }),
+    );
+    const seen: string[] = [];
+    await refreshCommonEvents({
+      nowMs: NOW_MS,
+      fetchImpl: makeFetch(["https://www.common-social.com/post/one"], seen) as typeof fetch,
+      outPath,
+      gapMs: 0,
+    });
+    const written = JSON.parse(readFileSync(outPath, "utf8"));
+    expect(written.generatedAt).toBe(new Date(NOW_MS).toISOString());
+    // The file's own stamp is what every reader dates its rows by, so the rows
+    // this run wrote must survive that read.
+    const parsed = parseWhatsOnRows(written, Date.parse(written.generatedAt));
+    expect(parsed.map((row) => row.source.label)).toEqual(["common"]);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("reuses a post it already holds and caps the rest, reporting both", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "common-refresh-"));
+    const outPath = join(dir, "events_london.json");
+    const held = toCommonEventRow({
+      url: "https://www.common-social.com/post/one",
+      parsed: { title: "Held", placeName: "Camberwell", dateText: "20 Aug" },
+      observedAt: "2026-08-15T10:00:00.000Z",
+      todayLondon: TODAY,
+    });
+    writeFileSync(
+      outPath,
+      JSON.stringify({
+        generatedAt: "2026-08-15T10:00:00.000Z",
+        kind: "events",
+        region: "greater-london",
+        sources: [],
+        rows: [held],
+      }),
+    );
+    const urls = [
+      "https://www.common-social.com/post/one",
+      "https://www.common-social.com/post/two",
+      "https://www.common-social.com/post/thr",
+    ];
+    const seen: string[] = [];
+    const report = await refreshCommonEvents({
+      nowMs: NOW_MS,
+      fetchImpl: makeFetch(urls, seen) as typeof fetch,
+      outPath,
+      gapMs: 0,
+      maxFetches: 1,
+    });
+    expect(seen).toEqual(["https://www.common-social.com/post/two"]);
+    expect(report.reusedHeld).toBe(1);
+    expect(report.fetched).toBe(1);
+    expect(report.skippedOverBudget).toBe(1);
+    expect(report.rows).toHaveLength(2);
+    rmSync(dir, { recursive: true, force: true });
   });
 });
 

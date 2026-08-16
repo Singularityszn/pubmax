@@ -4,6 +4,8 @@ import { GET } from "@/app/api/out/route";
 import {
   MAX_OUT_EVENTS,
   buildOutResponse,
+  isOutCityCovered,
+  outDayWindow,
   parseOutQuery,
 } from "@/lib/out/loadOut";
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -120,7 +122,95 @@ describe("buildOutResponse", () => {
     expect(body.status).toBe("degraded");
     expect(body.events).toHaveLength(1);
     expect(body.events[0].title).toBe("A Night at the Playhouse");
-    expect(body.providers[0].error).toMatch(/503/);
+    // The public body says the lane is degraded and nothing about the upstream.
+    expect(body.providers[0]).toEqual({
+      name: "ticketmaster",
+      configured: true,
+      rows: 0,
+      status: "degraded",
+    });
+    expect(JSON.stringify(body)).not.toContain("503");
+  });
+
+  it("answers an uncovered city with an honest reason and never another city's rows", async () => {
+    const body = await buildOutResponse(
+      { city: "bristol", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [eventRow()],
+        liveProviders: [
+          {
+            name: "ticketmaster",
+            isConfigured: () => true,
+            fetchTonight: async () => [eventRow({ id: "live-1", sourceId: "live-1" })],
+          },
+        ],
+      },
+    );
+    expect(body.status).toBe("degraded");
+    expect(body.events).toEqual([]);
+    expect(body.reason).toBe("Out does not cover Bristol yet.");
+    expect(isOutCityCovered("london")).toBe(true);
+    expect(isOutCityCovered("bristol")).toBe(false);
+  });
+
+  it("asks a live provider for the window it will keep, and the city it was asked about", async () => {
+    const asked: { city?: string; window?: { startMs: number; endMs: number } }[] = [];
+    await buildOutResponse(
+      { city: "london", day: "tomorrow" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [
+          {
+            name: "ticketmaster",
+            isConfigured: () => true,
+            fetchTonight: async (ctx) => {
+              asked.push({ city: ctx.city, window: ctx.window });
+              return [];
+            },
+          },
+        ],
+      },
+    );
+    const tomorrow = outDayWindow("tomorrow", FIXTURE_NOW.getTime());
+    expect(asked).toEqual([{ city: "london", window: tomorrow }]);
+  });
+
+  it("keeps Sunday night inside the weekend window in the small hours", () => {
+    // Sunday 02:00 London still belongs to SATURDAY's service evening. Reading
+    // the weekday off `now` instead put Friday a day early and cut Sunday out.
+    const sundaySmallHours = Date.parse("2026-08-16T01:00:00.000Z"); // Sun 02:00 BST
+    const weekend = outDayWindow("weekend", sundaySmallHours);
+    const sundayEvening = Date.parse("2026-08-16T20:00:00.000Z");
+    expect(sundayEvening).toBeGreaterThanOrEqual(weekend.startMs);
+    expect(sundayEvening).toBeLessThan(weekend.endMs);
+  });
+
+  it("windows a date-only row against its own stated evening", async () => {
+    const dateOnly: WhatsOnRow = {
+      id: "events-cm-1",
+      placeName: "Camberwell",
+      kind: "event",
+      startsDate: "2026-08-16",
+      timeEvidence: "Date listed, start time not published",
+      title: "Sunday roast club",
+      source: { label: "common", url: "https://www.common-social.com/post/abc" },
+      observedAt: "2026-08-16T09:00:00.000Z",
+      confidence: "listed",
+    };
+    const today = await buildOutResponse(
+      { city: "london", day: "today" },
+      { now: FIXTURE_NOW.getTime(), loadBaseline: () => [dateOnly], liveProviders: [] },
+    );
+    expect(today.events.map((row) => row.id)).toEqual(["events-cm-1"]);
+    expect(today.events[0].startsAt).toBeUndefined();
+
+    const tomorrow = await buildOutResponse(
+      { city: "london", day: "tomorrow" },
+      { now: FIXTURE_NOW.getTime(), loadBaseline: () => [dateOnly], liveProviders: [] },
+    );
+    expect(tomorrow.events).toEqual([]);
   });
 
   it("never treats a failed baseline read as an empty market", async () => {

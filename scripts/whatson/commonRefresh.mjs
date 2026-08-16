@@ -13,7 +13,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { eventsOutputPath, toIsoInstant } from "./eventsRefresh.mjs";
+import { eventsOutputPath } from "./eventsRefresh.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -25,6 +25,11 @@ export const COMMON_SOURCE = {
 export const COMMON_USER_AGENT =
   "PUBMAXX/1 (+https://pubmaxxing.com; contact karanszdy@gmail.com)";
 export const COMMON_FETCH_GAP_MS = 1000;
+// The sitemap grows with the site's whole history and every fetch costs a
+// polite second, so a run that re-read all of it would grow without limit. A
+// post we already hold a live row for is not re-read, and the remainder is
+// capped per run. Both counts are reported: a skip is a finding, never silence.
+export const COMMON_MAX_FETCHES_PER_RUN = 60;
 
 const MONTHS = {
   jan: 0,
@@ -107,26 +112,43 @@ export function parseCommonSitemap(xml) {
   return [...new Set(locs)];
 }
 
-function parseDayMonth(dateText, year) {
+// A Common post states a day and a month and no year. Resolving it against
+// today's year alone turns "5 Jan", read in December, into a day eleven months
+// PAST, and a real upcoming night is dropped as stale. A day-month more than a
+// season behind today therefore belongs to next year.
+const YEAR_ROLLOVER_GRACE_DAYS = 120;
+
+function parseDayMonth(dateText, todayLondon) {
   const match = /^(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.exec(
-    dateText.trim(),
+    String(dateText ?? "").trim(),
   );
   if (!match) return null;
   const month = MONTHS[match[2].slice(0, 3).toLowerCase()];
   const day = Number(match[1]);
   if (month === undefined || !Number.isFinite(day)) return null;
+
+  const year = Number(todayLondon.slice(0, 4));
+  const todayMs = Date.UTC(
+    year,
+    Number(todayLondon.slice(5, 7)) - 1,
+    Number(todayLondon.slice(8, 10)),
+  );
+  const thisYearMs = Date.UTC(year, month, day);
+  if (todayMs - thisYearMs > YEAR_ROLLOVER_GRACE_DAYS * 24 * 60 * 60 * 1000) {
+    return { year: year + 1, month, day };
+  }
   return { year, month, day };
 }
 
 export function isStaleCommonDate(dateText, todayLondon) {
-  const [yearText, monthText, dayText] = todayLondon.split("-");
-  const year = Number(yearText);
-  const month = Number(monthText);
-  const day = Number(dayText);
-  const parsed = parseDayMonth(dateText, year);
+  const parsed = parseDayMonth(dateText, todayLondon);
   if (!parsed) return true;
   const dateMs = Date.UTC(parsed.year, parsed.month, parsed.day);
-  const todayMs = Date.UTC(year, month - 1, day);
+  const todayMs = Date.UTC(
+    Number(todayLondon.slice(0, 4)),
+    Number(todayLondon.slice(5, 7)) - 1,
+    Number(todayLondon.slice(8, 10)),
+  );
   return dateMs < todayMs;
 }
 
@@ -134,13 +156,18 @@ function pad2(value) {
   return String(value).padStart(2, "0");
 }
 
-function startsAtFromDateText(dateText, todayLondon) {
-  const year = Number(todayLondon.slice(0, 4));
-  const parsed = parseDayMonth(dateText, year);
+// The DATE the post states, and nothing more. Common publishes no clock time,
+// so no clock time is written down: a row carries `startsDate` plus a
+// timeEvidence line saying the start is not published, and every surface
+// windows it against that evening's own service window. An invented 20:00 is
+// the exact shape the harvest rule forbids.
+export function commonStartsDate(dateText, todayLondon) {
+  const parsed = parseDayMonth(dateText, todayLondon);
   if (!parsed) return null;
-  const wall = `${parsed.year}-${pad2(parsed.month + 1)}-${pad2(parsed.day)} 20:00:00`;
-  return toIsoInstant(wall);
+  return `${parsed.year}-${pad2(parsed.month + 1)}-${pad2(parsed.day)}`;
 }
+
+export const COMMON_TIME_EVIDENCE = "Date listed, start time not published";
 
 function sourceIdFromUrl(url) {
   try {
@@ -155,13 +182,14 @@ function sourceIdFromUrl(url) {
 export function toCommonEventRow({ url, parsed, observedAt, todayLondon }) {
   if (!parsed || !nonEmptyString(url) || !nonEmptyString(parsed.title)) return null;
   if (isStaleCommonDate(parsed.dateText, todayLondon)) return null;
-  const startsAt = startsAtFromDateText(parsed.dateText, todayLondon);
-  if (!startsAt) return null;
+  const startsDate = commonStartsDate(parsed.dateText, todayLondon);
+  if (!startsDate) return null;
   return {
     id: stableId("events-cm", url),
     placeName: parsed.placeName,
     kind: "event",
-    startsAt,
+    startsDate,
+    timeEvidence: COMMON_TIME_EVIDENCE,
     title: parsed.title,
     source: { label: COMMON_SOURCE.label, url },
     observedAt,
@@ -214,19 +242,62 @@ export async function refreshCommonEvents({
   fetchImpl = fetch,
   outPath = eventsOutputPath("london"),
   gapMs = COMMON_FETCH_GAP_MS,
+  maxFetches = COMMON_MAX_FETCHES_PER_RUN,
 } = {}) {
   const observedAt = new Date(nowMs).toISOString();
   const todayLondon = londonToday(nowMs);
+
+  let existing = {
+    generatedAt: observedAt,
+    kind: "events",
+    region: "greater-london",
+    sources: [],
+    rows: [],
+  };
+  if (existsSync(outPath)) {
+    try {
+      existing = JSON.parse(readFileSync(outPath, "utf8"));
+    } catch {
+      // keep the empty shell
+    }
+  }
+  const existingRows = Array.isArray(existing.rows) ? existing.rows : [];
+  const kept = existingRows.filter((row) => row?.source?.label?.toLowerCase() !== "common");
+  // A post we already hold a still-upcoming row for is not re-read: the OG
+  // prefix cannot change the day it already stated, and re-reading it is the
+  // whole of the unbounded cost.
+  const heldByUrl = new Map();
+  for (const row of existingRows) {
+    if (row?.source?.label?.toLowerCase() !== "common") continue;
+    if (!nonEmptyString(row?.source?.url)) continue;
+    if (!nonEmptyString(row?.startsDate)) continue;
+    if (row.startsDate < todayLondon) continue;
+    heldByUrl.set(row.source.url, row);
+  }
+
   const sitemap = await fetchText(COMMON_SITEMAP_URL, fetchImpl);
   const posts = parseCommonSitemap(sitemap);
   const rows = [];
   let droppedStale = 0;
   let droppedUnparseable = 0;
   let droppedFetch = 0;
+  let reusedHeld = 0;
+  let skippedOverBudget = 0;
+  let fetched = 0;
 
-  for (let i = 0; i < posts.length; i += 1) {
-    if (i > 0 && gapMs > 0) await sleep(gapMs);
-    const url = posts[i];
+  for (const url of posts) {
+    const held = heldByUrl.get(url);
+    if (held) {
+      rows.push(held);
+      reusedHeld += 1;
+      continue;
+    }
+    if (fetched >= maxFetches) {
+      skippedOverBudget += 1;
+      continue;
+    }
+    if (fetched > 0 && gapMs > 0) await sleep(gapMs);
+    fetched += 1;
     try {
       const html = await fetchText(url, fetchImpl);
       const parsed = parseCommonPostHtml(html);
@@ -245,17 +316,6 @@ export async function refreshCommonEvents({
     }
   }
 
-  let existing = { generatedAt: observedAt, kind: "events", region: "greater-london", sources: [], rows: [] };
-  if (existsSync(outPath)) {
-    try {
-      existing = JSON.parse(readFileSync(outPath, "utf8"));
-    } catch {
-      // keep the empty shell
-    }
-  }
-  const kept = (Array.isArray(existing.rows) ? existing.rows : []).filter(
-    (row) => row?.source?.label?.toLowerCase() !== "common",
-  );
   const merged = [...kept, ...rows];
   const sources = Array.isArray(existing.sources) ? existing.sources.filter((s) => s?.provider !== "common") : [];
   sources.push({
@@ -268,7 +328,10 @@ export async function refreshCommonEvents({
   });
   const payload = {
     ...existing,
-    generatedAt: existing.generatedAt ?? observedAt,
+    // This run REGENERATES the file, so it stamps its own generatedAt. Keeping
+    // the previous stamp while writing rows observed later makes every reader
+    // (which dates the file by generatedAt) refuse those rows as future.
+    generatedAt: observedAt,
     kind: existing.kind ?? "events",
     region: existing.region ?? "greater-london",
     sources,
@@ -278,9 +341,19 @@ export async function refreshCommonEvents({
   writeFileSync(outPath, serialiseFile(payload));
   console.log(
     `commonRefresh: wrote ${rows.length} common rows into ${outPath} ` +
-      `(kept ${kept.length} other; dropped stale=${droppedStale} unparseable=${droppedUnparseable} fetch=${droppedFetch})`,
+      `(kept ${kept.length} other; fetched ${fetched} reused ${reusedHeld} ` +
+      `skipped-over-budget ${skippedOverBudget}; ` +
+      `dropped stale=${droppedStale} unparseable=${droppedUnparseable} fetch=${droppedFetch})`,
   );
-  return { rows, droppedStale, droppedUnparseable, droppedFetch };
+  return {
+    rows,
+    droppedStale,
+    droppedUnparseable,
+    droppedFetch,
+    reusedHeld,
+    skippedOverBudget,
+    fetched,
+  };
 }
 
 async function main() {

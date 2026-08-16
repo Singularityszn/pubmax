@@ -6,8 +6,8 @@
 // market claim.
 
 import { publicApiError } from "@/lib/apiError";
-import { isEventsLiveLimited } from "@/lib/eventsLiveRateLimit";
 import { buildOutResponse, parseOutQuery } from "@/lib/out/loadOut";
+import { isOutLimited } from "@/lib/outRateLimit";
 import { withRouteTiming } from "@/lib/routeObservability";
 
 export const runtime = "nodejs";
@@ -18,7 +18,7 @@ const CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=900";
 export const GET = withRouteTiming("out", getHandler);
 
 async function getHandler(request: Request): Promise<Response> {
-  if (await isEventsLiveLimited(request)) {
+  if (await isOutLimited(request)) {
     return publicApiError("Too many requests, slow down.", "rate_limited", 429, {
       retryable: true,
     });

@@ -1,79 +1,45 @@
 // Request-time Ticketmaster Discovery seam for /api/out.
 // Reads TICKETMASTER_API_KEY at call time. Never logs the key.
+// Everything shared with the Skiddle lane lives in lib/events/liveProvider.ts.
 
 import { normaliseTicketmasterEvents } from "../../scripts/whatson/eventsRefresh.mjs";
-import type { EventsProvider, EventsProviderContext } from "@/lib/events/provider";
-import { londonServiceDayBounds, type WhatsOnRow } from "@/lib/whatsOn";
-
-const REQUEST_TIMEOUT_MS = 8_000;
-const CACHE_TTL_MS = 5 * 60 * 1000;
-
-function readKey(): string | undefined {
-  const value = process.env.TICKETMASTER_API_KEY;
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
-}
-
-type CacheEntry = { at: number; windowStart: string; rows: WhatsOnRow[] };
-let cache: CacheEntry | null = null;
-
-export function resetTicketmasterCache(): void {
-  cache = null;
-}
-
-export function isTicketmasterConfigured(): boolean {
-  return readKey() !== undefined;
-}
+import { createLiveEventsProvider, type LiveEventsProvider } from "@/lib/events/liveProvider";
 
 function toTmInstant(iso: string): string {
   return iso.replace(/\.\d{3}Z$/, "Z");
 }
 
-export async function fetchTicketmasterTonightRows(
-  ctx: EventsProviderContext,
-): Promise<WhatsOnRow[]> {
-  const key = readKey();
-  if (!key) return [];
+let provider: LiveEventsProvider | null = null;
 
-  const { start, end } = londonServiceDayBounds(ctx.now);
-  if (cache && cache.windowStart === start && ctx.now - cache.at < CACHE_TTL_MS) {
-    return cache.rows;
-  }
-
-  const fetchImpl = ctx.fetchImpl ?? fetch;
-  const url = new URL("https://app.ticketmaster.com/discovery/v2/events.json");
-  url.search = new URLSearchParams({
-    apikey: key,
-    countryCode: "GB",
-    latlong: "51.5074,-0.1278",
-    radius: "30",
-    unit: "miles",
-    startDateTime: toTmInstant(start),
-    endDateTime: toTmInstant(end),
-    size: "100",
-    sort: "date,asc",
-  }).toString();
-
-  const res = await fetchImpl(url, {
-    headers: { accept: "application/json", "user-agent": "PUBMAXX-out/1" },
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-  if (!res.ok) {
-    await res.arrayBuffer();
-    throw new Error(`Ticketmaster Discovery API returned ${res.status}`);
-  }
-  const payload = await res.json();
-  const observedAt = new Date(ctx.now).toISOString();
-  const { rows } = normaliseTicketmasterEvents(payload, { observedAt });
-  cache = { at: ctx.now, windowStart: start, rows };
-  return rows;
-}
-
-export function createTicketmasterProvider(): EventsProvider {
-  return {
+export function createTicketmasterProvider(): LiveEventsProvider {
+  provider ??= createLiveEventsProvider({
     name: "ticketmaster",
-    isConfigured: () => isTicketmasterConfigured(),
-    fetchTonight: (ctx) => fetchTicketmasterTonightRows(ctx),
-  };
+    envVar: "TICKETMASTER_API_KEY",
+    upstreamLabel: "Ticketmaster Discovery API",
+    buildUrl: ({ key, geo, window }) => {
+      const url = new URL("https://app.ticketmaster.com/discovery/v2/events.json");
+      url.search = new URLSearchParams({
+        apikey: key,
+        countryCode: "GB",
+        latlong: `${geo.lat},${geo.lng}`,
+        radius: String(geo.radiusMiles),
+        unit: "miles",
+        startDateTime: toTmInstant(window.startIso),
+        endDateTime: toTmInstant(window.endIso),
+        size: "100",
+        sort: "date,asc",
+      }).toString();
+      return url;
+    },
+    normalise: (payload, opts) => normaliseTicketmasterEvents(payload, opts),
+  });
+  return provider;
 }
 
+export function isTicketmasterConfigured(): boolean {
+  return createTicketmasterProvider().isConfigured();
+}
 
+export function resetTicketmasterCache(): void {
+  createTicketmasterProvider().reset();
+}

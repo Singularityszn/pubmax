@@ -256,7 +256,10 @@ function attachVenue(row, venueMatch, venueIndex) {
 // Ticketmaster normalisation (pure)
 // ---------------------------------------------------------------------------
 
-function cityGeo(city = "london") {
+// The point + radius a provider aims at for one city, derived from the shared
+// bounds table so the build-time refresh and the request-time /api/out seams
+// cannot aim at two different centres. Turning a city on is data, not code.
+export function cityGeo(city = "london") {
   const bounds = CITY_BOUNDS[city];
   if (!bounds) return { ...LONDON };
   const lat = (bounds.latMin + bounds.latMax) / 2;
@@ -651,7 +654,9 @@ async function main() {
   }
 
   const deduped = dedupeEventRowsBySourceId(allRows);
-  deduped.sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+  // A Common row states a DATE and no clock time, so it sorts on that instead.
+  const whenOf = (row) => row.startsAt ?? row.startsDate ?? "";
+  deduped.sort((a, b) => whenOf(a).localeCompare(whenOf(b)) || a.id.localeCompare(b.id));
 
   const countBy = (provider) =>
     deduped.filter((r) => r.source.label.toLowerCase().startsWith(provider)).length;

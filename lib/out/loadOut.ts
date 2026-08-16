@@ -1,25 +1,34 @@
 import rawEventsLondon from "../../public/data/whats_on/events_london.json";
 import { EVENT_REFRESH_CITIES } from "../../scripts/whatson/eventsRefresh.mjs";
-import type { EventsProvider, EventsProviderReport } from "@/lib/events/provider";
+import { CITIES, type CityId } from "@/lib/cities";
+import type { EventsProvider } from "@/lib/events/provider";
 import { createSkiddleProvider } from "@/lib/events/skiddle";
 import { createTicketmasterProvider } from "@/lib/events/ticketmaster";
+import { log } from "@/lib/log";
 import { fillEventArea } from "@/lib/out/eventArea";
 import { outSourceAttribution } from "@/lib/out/attribution";
-import { OUT_DAYS, type OutDay, type OutQuery, type OutResponse } from "@/lib/out/types";
 import {
-  dedupeRows,
+  MAX_OUT_EVENTS,
+  OUT_DAYS,
+  type OutDay,
+  type OutProviderReport,
+  type OutQuery,
+  type OutResponse,
+} from "@/lib/out/types";
+import {
+  bundledGeneratedAt,
   londonServiceDayBounds,
+  dedupeRows,
   parseWhatsOnRows,
-  rowEffectiveEnd,
+  rowStatedInterval,
   tonightServiceWindow,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
 
-export const MAX_OUT_EVENTS = 100;
 export const OUT_CITIES = EVENT_REFRESH_CITIES;
 export type OutCity = (typeof OUT_CITIES)[number];
 export type { OutDay, OutQuery, OutResponse } from "@/lib/out/types";
-export { OUT_DAYS } from "@/lib/out/types";
+export { MAX_OUT_EVENTS, OUT_DAYS } from "@/lib/out/types";
 
 export type OutLiveProvider = Pick<EventsProvider, "name" | "isConfigured" | "fetchTonight">;
 
@@ -27,6 +36,15 @@ export type BuildOutResponseOpts = {
   now?: number;
   loadBaseline?: (city: OutCity) => WhatsOnRow[];
   liveProviders?: OutLiveProvider[];
+};
+
+// A city is COVERED when a bundled events file for it ships. The param is open
+// to every refresh city so turning one on is data (run the refresh, commit the
+// file, add it here), but until that file exists the answer is an honest
+// "not covered yet" with zero rows. It may never be another city's listings:
+// serving London under a Bristol query is worse than saying nothing.
+const BUNDLED_EVENT_FILES: Partial<Record<OutCity, unknown>> = {
+  london: rawEventsLondon,
 };
 
 function isOutCity(value: string): value is OutCity {
@@ -37,6 +55,18 @@ function isOutDay(value: string): value is OutDay {
   return (OUT_DAYS as readonly string[]).includes(value);
 }
 
+export function isOutCityCovered(city: OutCity): boolean {
+  return BUNDLED_EVENT_FILES[city] !== undefined;
+}
+
+function cityDisplayName(city: OutCity): string {
+  return CITIES[city as CityId]?.displayName ?? city;
+}
+
+export function outCityNotCoveredReason(city: OutCity): string {
+  return `Out does not cover ${cityDisplayName(city)} yet.`;
+}
+
 export function parseOutQuery(params: URLSearchParams): OutQuery | null {
   const cityRaw = (params.get("city") ?? "london").trim().toLowerCase();
   const dayRaw = (params.get("day") ?? "today").trim().toLowerCase();
@@ -44,14 +74,33 @@ export function parseOutQuery(params: URLSearchParams): OutQuery | null {
   return { city: cityRaw, day: dayRaw };
 }
 
-function generatedAtOf(raw: unknown): number {
-  const at = Date.parse(String((raw as { generatedAt?: unknown })?.generatedAt ?? ""));
-  return Number.isFinite(at) ? at : Date.now();
+export function loadBundledOutEvents(city: OutCity): WhatsOnRow[] {
+  const raw = BUNDLED_EVENT_FILES[city];
+  if (raw === undefined) return [];
+  return parseWhatsOnRows(raw, bundledGeneratedAt(raw));
 }
 
-export function loadBundledOutEvents(city: OutCity): WhatsOnRow[] {
-  if (city !== "london") return [];
-  return parseWhatsOnRows(rawEventsLondon, generatedAtOf(rawEventsLondon));
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Which weekday the SERVICE day belongs to. Reading the weekday off `now`
+// instead mixes two day origins: at Sunday 02:00 London the service day is
+// still Saturday's evening, so `now` says Sun and the weekend window landed a
+// day early - with Sunday night outside `day=weekend` entirely.
+function serviceDayWeekdayIndex(serviceDayStartMs: number): number {
+  const weekday = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "short",
+  }).format(new Date(serviceDayStartMs));
+  const index: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+  return index[weekday] ?? 1;
 }
 
 export function outDayWindow(day: OutDay, now: number): { startMs: number; endMs: number } {
@@ -61,50 +110,25 @@ export function outDayWindow(day: OutDay, now: number): { startMs: number; endMs
     return tonightServiceWindow(Date.parse(today.end) + 1);
   }
   const today = tonightServiceWindow(now);
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    weekday: "short",
-    hour: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(now));
-  const weekday = parts.find((part) => part.type === "weekday")?.value ?? "";
-  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? "0");
-  const weekdayIndex: Record<string, number> = {
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6,
-    Sun: 0,
-  };
-  const current = weekdayIndex[weekday] ?? 1;
-  const inThisWeekend =
-    current === 6 || current === 0 || (current === 5 && hour >= 16) || (current === 1 && hour < 4);
-  const daysUntilFriday = inThisWeekend
-    ? current === 6
-      ? -1
-      : current === 0
-        ? -2
-        : current === 1
-          ? -3
-          : 0
-    : (5 - current + 7) % 7;
-  const fridayStart = today.startMs + daysUntilFriday * 24 * 60 * 60 * 1000;
-  return { startMs: fridayStart, endMs: fridayStart + 3 * 24 * 60 * 60 * 1000 };
+  const current = serviceDayWeekdayIndex(today.startMs);
+  // Friday, Saturday and Sunday evenings are THIS weekend; anything else looks
+  // forward to the next Friday.
+  const daysUntilFriday =
+    current === 5 ? 0 : current === 6 ? -1 : current === 0 ? -2 : (5 - current + 7) % 7;
+  const fridayStart = today.startMs + daysUntilFriday * DAY_MS;
+  return { startMs: fridayStart, endMs: fridayStart + 3 * DAY_MS };
 }
 
 function rowOverlapsWindow(row: WhatsOnRow, window: { startMs: number; endMs: number }): boolean {
-  if (!row.startsAt) {
-    if (row.listedWindow === "tonight") return true;
-    if (row.listedWindow === "tomorrow_night") return true;
-    if (row.listedWindow === "this_weekend") return true;
-    return false;
+  const stated = rowStatedInterval(row);
+  if (stated) {
+    if (!Number.isFinite(stated.startMs) || !Number.isFinite(stated.endMs)) return false;
+    return stated.startMs < window.endMs && stated.endMs > window.startMs;
   }
-  const start = Date.parse(row.startsAt);
-  if (!Number.isFinite(start)) return false;
-  const end = rowEffectiveEnd(row);
-  return start < window.endMs && end > window.startMs;
+  if (row.listedWindow === "tonight") return true;
+  if (row.listedWindow === "tomorrow_night") return true;
+  if (row.listedWindow === "this_weekend") return true;
+  return false;
 }
 
 function observedAtBySource(rows: readonly WhatsOnRow[]): Record<string, string> {
@@ -119,11 +143,26 @@ function observedAtBySource(rows: readonly WhatsOnRow[]): Record<string, string>
   return out;
 }
 
+function notCoveredResponse(city: OutCity): OutResponse {
+  return {
+    status: "degraded",
+    events: [],
+    openPlans: [],
+    attribution: [],
+    observedAt: {},
+    providers: [],
+    reason: outCityNotCoveredReason(city),
+  };
+}
+
 export async function buildOutResponse(
   query: OutQuery,
   opts: BuildOutResponseOpts = {},
 ): Promise<OutResponse> {
   const now = opts.now ?? Date.now();
+  const city = query.city as OutCity;
+  if (!isOutCityCovered(city)) return notCoveredResponse(city);
+
   const loadBaseline = opts.loadBaseline ?? loadBundledOutEvents;
   const liveProviders = opts.liveProviders ?? [
     createTicketmasterProvider(),
@@ -131,49 +170,66 @@ export async function buildOutResponse(
   ];
 
   let status: "ready" | "degraded" = "ready";
+  let reason: string | undefined;
   let baseline: WhatsOnRow[] = [];
   try {
-    baseline = loadBaseline(query.city);
+    baseline = loadBaseline(city);
   } catch {
     status = "degraded";
+    reason = "Some listings could not be checked.";
     baseline = [];
   }
 
-  const reports: EventsProviderReport[] = [];
+  const window = outDayWindow(query.day, now);
+
+  const reports: OutProviderReport[] = [];
   const liveRows: WhatsOnRow[] = [];
   for (const provider of liveProviders) {
     if (!provider.isConfigured()) {
-      reports.push({ name: provider.name, configured: false, rows: 0 });
+      reports.push({
+        name: provider.name,
+        configured: false,
+        rows: 0,
+        status: "not-configured",
+      });
       continue;
     }
     try {
-      const rows = await provider.fetchTonight({ now });
+      // The provider is asked for the window this answer will KEEP, so a
+      // tomorrow or weekend request never spends an upstream call on rows the
+      // filter below would discard.
+      const rows = await provider.fetchTonight({ now, city, window });
       liveRows.push(...rows);
-      reports.push({ name: provider.name, configured: true, rows: rows.length });
+      reports.push({ name: provider.name, configured: true, rows: rows.length, status: "ready" });
     } catch (err) {
       status = "degraded";
-      reports.push({
-        name: provider.name,
-        configured: true,
-        rows: 0,
+      reason = "Some listings could not be checked.";
+      // The upstream message is a server-side diagnostic. The public body says
+      // only that this lane is degraded.
+      log("warn", "out.provider_failed", {
+        provider: provider.name,
+        city,
+        day: query.day,
         error: err instanceof Error ? err.message : "provider failed",
       });
+      reports.push({ name: provider.name, configured: true, rows: 0, status: "degraded" });
     }
   }
 
-  const window = outDayWindow(query.day, now);
   const merged = dedupeRows([...baseline, ...liveRows])
     .filter((row) => rowOverlapsWindow(row, window))
     .map(fillEventArea)
     .sort(
       (left, right) =>
-        (left.startsAt ?? "").localeCompare(right.startsAt ?? "") || left.id.localeCompare(right.id),
+        (left.startsAt ?? left.startsDate ?? "").localeCompare(
+          right.startsAt ?? right.startsDate ?? "",
+        ) || left.id.localeCompare(right.id),
     )
     .slice(0, MAX_OUT_EVENTS);
 
   reports.sort((left, right) => left.name.localeCompare(right.name));
 
-  return {
+  const body: OutResponse = {
     status,
     events: merged,
     openPlans: [],
@@ -181,4 +237,6 @@ export async function buildOutResponse(
     observedAt: observedAtBySource(merged),
     providers: reports,
   };
+  if (reason) body.reason = reason;
+  return body;
 }

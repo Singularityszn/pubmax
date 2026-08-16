@@ -277,23 +277,39 @@ export function assignVenueToNightArea(
 
   const assigned = !validVenuePoint(venue)
     ? null
-    : areas
-        .map((area) => ({
-          area,
-          distanceKm: haversineKm(
-            [venue.longitude, venue.latitude],
-            [area.centre.lng, area.centre.lat],
-          ),
-        }))
-        .filter(({ area, distanceKm }) => distanceKm <= area.radiusKm)
-        .sort(
-          (left, right) =>
-            left.distanceKm - right.distanceKm ||
-            left.area.slug.localeCompare(right.area.slug),
-        )[0]?.area ?? null;
+    : nightAreaForPoint(venue.longitude, venue.latitude, areas);
 
   cached.set(venue.id, assigned);
   return assigned;
+}
+
+/**
+ * The nearest containing area for one point, memo-free.
+ *
+ * `assignVenueToNightArea` keys its memo on a venue id, which is right for the
+ * curated index (a bounded, stable set) and wrong for anything with an
+ * EPHEMERAL id - a provider event id would leave one permanent entry per
+ * listing the process has ever served. Callers holding a point rather than a
+ * catalogued venue ask here.
+ */
+export function nightAreaForPoint(
+  longitude: number,
+  latitude: number,
+  areas: readonly NightArea[] = NIGHT_AREAS,
+): NightArea | null {
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
+  return (
+    areas
+      .map((area) => ({
+        area,
+        distanceKm: haversineKm([longitude, latitude], [area.centre.lng, area.centre.lat]),
+      }))
+      .filter(({ area, distanceKm }) => distanceKm <= area.radiusKm)
+      .sort(
+        (left, right) =>
+          left.distanceKm - right.distanceKm || left.area.slug.localeCompare(right.area.slug),
+      )[0]?.area ?? null
+  );
 }
 
 /**

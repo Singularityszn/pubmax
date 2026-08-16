@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
-import { SourceCredit } from "@/components/out/SourceCredit";
+import { OutCard } from "@/components/out/OutCard";
 import { trackEvent } from "@/lib/analytics";
 import { outCardSource } from "@/lib/out/attribution";
 import {
@@ -30,22 +30,6 @@ function outWindowToApiDay(window: OutDayWindow): OutDay {
   return window === "tonight" ? "today" : window;
 }
 
-function ticketFromLine(row: WhatsOnRow): string | null {
-  if (typeof row.priceGbp !== "number") return null;
-  return `from \u00a3${row.priceGbp % 1 === 0 ? row.priceGbp.toFixed(0) : row.priceGbp.toFixed(2)}`;
-}
-
-function formatWhen(row: WhatsOnRow): string {
-  if (!row.startsAt) return row.timeEvidence ?? "";
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(new Date(row.startsAt));
-}
-
 export default function OutClient({ day }: { day: OutDayWindow }) {
   const apiDay = outWindowToApiDay(day);
   const [body, setBody] = useState<OutResponse | null>(null);
@@ -58,18 +42,29 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const res = await fetch(`/api/out?city=london&day=${apiDay}`);
-      if (cancelled) return;
-      if (!res.ok) {
-        discardBody(res);
+      try {
+        const res = await fetch(`/api/out?city=london&day=${apiDay}`);
+        if (cancelled) {
+          discardBody(res);
+          return;
+        }
+        if (!res.ok) {
+          discardBody(res);
+          setFailed(true);
+          setBody(null);
+          return;
+        }
+        const json = (await res.json()) as OutResponse;
+        if (cancelled) return;
+        setFailed(false);
+        setBody(json);
+      } catch {
+        // Offline, DNS, abort: the reader is owed the same honest line as a
+        // refused read, never day chips over an empty page with no status.
+        if (cancelled) return;
         setFailed(true);
         setBody(null);
-        return;
       }
-      const json = (await res.json()) as OutResponse;
-      if (cancelled) return;
-      setFailed(false);
-      setBody(json);
     })();
     return () => {
       cancelled = true;
@@ -124,34 +119,15 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
         </h2>
         {failed ? <p className="outStatus">Could not check listings.</p> : null}
         {body?.status === "degraded" ? (
-          <p className="outStatus">Some listings could not be checked.</p>
+          <p className="outStatus">{body.reason ?? "Some listings could not be checked."}</p>
         ) : null}
         {body && body.events.length === 0 && !failed ? (
           <p className="outStatus">No listings for this day yet.</p>
         ) : null}
         <ul className="outList">
-          {(body?.events ?? []).map((row) => {
-            const from = ticketFromLine(row);
-            return (
-              <li key={row.id}>
-                <a
-                  className="outCard"
-                  href={row.source.url}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  onClick={() => onOpen(row)}
-                >
-                  <h2>{row.title}</h2>
-                  <p className="outCardMeta">
-                    {row.placeName}
-                    {row.startsAt ? ` · ${formatWhen(row)}` : ""}
-                  </p>
-                  {from ? <p className="outPrice">{from}</p> : null}
-                </a>
-                <SourceCredit source={row.source} />
-              </li>
-            );
-          })}
+          {(body?.events ?? []).map((row) => (
+            <OutCard key={row.id} row={row} onOpen={() => onOpen(row)} />
+          ))}
         </ul>
       </section>
     </main>

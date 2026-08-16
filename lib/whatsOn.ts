@@ -33,6 +33,12 @@ export type WhatsOnRow = {
   kind: WhatsOnKind;
   /** Exact ISO start supplied by the listing source. Missing means unknown. */
   startsAt?: string;
+  /**
+   * London calendar date (YYYY-MM-DD) the listing STATES when it publishes no
+   * clock time. A date-only row is windowed against that evening's own
+   * 16:00-04:00 service window; nothing may invent a start time from it.
+   */
+  startsDate?: string;
   endsAt?: string; // ISO-8601
   /** Human-readable source wording when no exact instant was supplied. */
   timeEvidence?: string;
@@ -144,6 +150,24 @@ export function isValidIso(value: unknown): value is string {
   return isNonEmptyString(value) && Number.isFinite(Date.parse(value));
 }
 
+// A London calendar date, exactly YYYY-MM-DD, that names a real day. This is
+// what a listing carries when it publishes a DAY and no clock time.
+export function isCalendarDate(value: unknown): value is string {
+  if (!isNonEmptyString(value)) return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  return (
+    probe.getUTCFullYear() === year &&
+    probe.getUTCMonth() === month - 1 &&
+    probe.getUTCDate() === day
+  );
+}
+
 // A valid ISO timestamp that is not in the future (you cannot have observed an
 // event that hasn't happened yet).
 export function isValidObservedAt(value: unknown, now: number): value is string {
@@ -168,12 +192,13 @@ export function isValidWhatsOnRow(value: unknown, now: number = Date.now()): val
   if (!isNonEmptyString(row.placeName)) return false;
   if (!isWhatsOnKind(row.kind)) return false;
   const hasExactStart = isValidIso(row.startsAt);
+  const hasStatedDate = isCalendarDate(row.startsDate);
   const hasListedTime = isNonEmptyString(row.timeEvidence);
   const hasListedWindow =
     row.listedWindow === "tonight" ||
     row.listedWindow === "tomorrow_night" ||
     row.listedWindow === "this_weekend";
-  if (!hasExactStart && !hasListedTime && !hasListedWindow) return false;
+  if (!hasExactStart && !hasStatedDate && !hasListedTime && !hasListedWindow) return false;
   if (!isNonEmptyString(row.title)) return false;
   if (!isValidSource(row.source)) return false; // provenance non-negotiable
   if (!isValidObservedAt(row.observedAt, now)) return false; // never future
@@ -187,6 +212,7 @@ function optionalsValid(
   hasListedWindow: boolean,
 ): boolean {
   if (!isAbsentOr(row.venueId, isNonEmptyString)) return false;
+  if (!isAbsentOr(row.startsDate, isCalendarDate)) return false;
   if (row.lat !== undefined && row.lat !== null && !isFiniteNumber(row.lat)) return false;
   if (row.lng !== undefined && row.lng !== null && !isFiniteNumber(row.lng)) return false;
   if (row.endsAt !== undefined && row.endsAt !== null) {
@@ -246,6 +272,7 @@ function normaliseRow(row: WhatsOnRow): WhatsOnRow {
   };
   if (isNonEmptyString(row.venueId)) out.venueId = row.venueId;
   if (isValidIso(row.startsAt)) out.startsAt = row.startsAt;
+  if (isCalendarDate(row.startsDate)) out.startsDate = row.startsDate;
   if (isFiniteNumber(row.lat)) out.lat = row.lat;
   if (isFiniteNumber(row.lng)) out.lng = row.lng;
   if (isValidIso(row.endsAt)) out.endsAt = row.endsAt;
@@ -273,7 +300,7 @@ export function dedupeKey(row: WhatsOnRow): string {
   const when =
     row.startsAt ??
     [
-      row.timeEvidence ?? row.listedWindow ?? "",
+      row.startsDate ?? row.timeEvidence ?? row.listedWindow ?? "",
       normaliseEventTitle(row.title).toLocaleLowerCase("en-GB"),
       row.source.url,
     ].join("|");
@@ -291,6 +318,14 @@ export function dedupeRows(rows: WhatsOnRow[]): WhatsOnRow[] {
     }
   }
   return Array.from(byKey.values());
+}
+
+// The instant a bundled What's-On artifact was written. Every reader dates that
+// file's rows by it (isValidObservedAt refuses a row observed after it), so the
+// ONE helper lives here rather than being copied per reader.
+export function bundledGeneratedAt(raw: unknown): number {
+  const at = Date.parse(String((raw as { generatedAt?: unknown })?.generatedAt ?? ""));
+  return Number.isFinite(at) ? at : Date.now();
 }
 
 // Parse a raw whats-on file body into clean WhatsOnRow[]. Accepts either a bare
@@ -458,6 +493,45 @@ export function tonightServiceWindow(now: number = Date.now()): TonightServiceWi
   return { startMs: Date.parse(start), endMs: Date.parse(end) };
 }
 
+/**
+ * The 16:00-04:00 evening window belonging to one stated London calendar date.
+ *
+ * A date-only row (`startsDate`, no `startsAt`) states a DAY and nothing more,
+ * so this is the whole interval it may claim. Never derive a clock time from a
+ * stated date: an invented start is a fact the listing does not carry.
+ */
+export function londonEveningWindowForDate(date: string): TonightServiceWindow | null {
+  if (!isCalendarDate(date)) return null;
+  const year = Number(date.slice(0, 4));
+  const month = Number(date.slice(5, 7));
+  const day = Number(date.slice(8, 10));
+  const next = new Date(Date.UTC(year, month - 1, day + 1));
+  return {
+    startMs: londonWallTimeToUtcMs(year, month, day, WINDOW_OPEN_HOUR),
+    endMs: londonWallTimeToUtcMs(
+      next.getUTCFullYear(),
+      next.getUTCMonth() + 1,
+      next.getUTCDate(),
+      SERVICE_DAY_ROLLBACK_HOUR,
+    ),
+  };
+}
+
+/**
+ * The interval a row occupies, in the one reading every window test shares: an
+ * exact-start row is [startsAt, rowEffectiveEnd], a date-only row is its stated
+ * evening, and a row with neither has no interval at all.
+ */
+export function rowStatedInterval(row: WhatsOnRow): TonightServiceWindow | null {
+  if (row.startsAt) {
+    const startMs = Date.parse(row.startsAt);
+    if (!Number.isFinite(startMs)) return null;
+    return { startMs, endMs: rowEffectiveEnd(row) };
+  }
+  if (row.startsDate) return londonEveningWindowForDate(row.startsDate);
+  return null;
+}
+
 // Is the row happening during tonight's evening window?
 //
 // Overlap, not start-containment. The original test asked only whether
@@ -480,13 +554,12 @@ export function isOnTonight(
   // answer is identical, just resolved here.
   tonight: TonightServiceWindow = tonightServiceWindow(now),
 ): boolean {
-  if (!row.startsAt) return row.listedWindow === "tonight";
-  const startsAt = Date.parse(row.startsAt);
-  if (!Number.isFinite(startsAt)) return false;
-  const effectiveEnd = rowEffectiveEnd(row);
+  if (!row.startsAt && !row.startsDate) return row.listedWindow === "tonight";
+  const stated = rowStatedInterval(row);
+  if (!stated || !Number.isFinite(stated.startMs) || !Number.isFinite(stated.endMs)) return false;
   // Half-open window [startMs, endMs): the row must begin before the window
   // closes and still be running at or after it opens.
-  return startsAt < tonight.endMs && effectiveEnd >= tonight.startMs;
+  return stated.startMs < tonight.endMs && stated.endMs >= tonight.startMs;
 }
 
 export function filterTonight(rows: WhatsOnRow[], now: number = Date.now()): WhatsOnRow[] {
@@ -504,7 +577,12 @@ export function rowEffectiveEnd(row: WhatsOnRow): number {
   const startsAt = row.startsAt ? Date.parse(row.startsAt) : Number.NaN;
   const parsedEnd = row.endsAt ? Date.parse(row.endsAt) : NaN;
   if (Number.isFinite(parsedEnd)) return parsedEnd; // interval row: exact endsAt
-  if (!Number.isFinite(startsAt)) return startsAt; // unparseable start -> NaN
+  if (!Number.isFinite(startsAt)) {
+    // Date-only row: its stated evening closes at 04:00 the next morning, so it
+    // goes past-dated with that evening rather than never at all.
+    if (row.startsDate) return londonEveningWindowForDate(row.startsDate)?.endMs ?? Number.NaN;
+    return startsAt; // unparseable start -> NaN
+  }
   return startsAt + POINT_ROW_GRACE_MS[row.kind]; // point row: kind-aware grace
 }
 
