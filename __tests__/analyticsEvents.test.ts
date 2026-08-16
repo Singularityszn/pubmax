@@ -679,4 +679,32 @@ describe("invite loop events", () => {
       props: {},
     });
   });
+
+  it("registers occupancy events with closed level and state props only", () => {
+    expect(ANALYTICS_EVENTS.occupancy_reported).toEqual(["level", "surface"]);
+    expect(ANALYTICS_EVENTS.occupancy_read).toEqual(["state"]);
+    expect(
+      sanitizeEvent("occupancy_reported", {
+        level: "some-seats",
+        surface: "venue-sheet",
+        venueId: "venue-1",
+        handle: "karan",
+      }),
+    ).toEqual({
+      name: "occupancy_reported",
+      props: { level: "some-seats", surface: "venue-sheet" },
+    });
+    expect(
+      sanitizeEvent("occupancy_read", { state: "degraded", venueId: "x" }),
+    ).toEqual({
+      name: "occupancy_read",
+      props: { state: "degraded" },
+    });
+    expect(
+      sanitizeEvent("occupancy_reported", { level: "rammed", surface: "pal" }),
+    ).toEqual({
+      name: "occupancy_reported",
+      props: { surface: "pal" },
+    });
+  });
 });

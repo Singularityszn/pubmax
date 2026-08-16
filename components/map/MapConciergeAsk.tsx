@@ -7,6 +7,8 @@
 import { useCallback, useRef, useState } from "react";
 import { MessageCircleQuestion, MapPin, Sparkles, X } from "lucide-react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
+import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import {
   createAskSession,
@@ -14,6 +16,7 @@ import {
   type AskCard,
 } from "@/lib/conciergeAskClient";
 import type { AskProposal } from "@/lib/ask/types";
+import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 
@@ -47,9 +50,12 @@ export default function MapConciergeAsk({
   onSelectVenue,
   onFlyTo,
 }: MapConciergeAskProps) {
+  const { user, session } = useAuth();
+  const auth = captureAccountAuth(user?.id ?? null, session);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [state, setState] = useState<AskState>({ status: "idle" });
+  const [proposalError, setProposalError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const expand = useCallback(() => {
@@ -70,6 +76,7 @@ export default function MapConciergeAsk({
       const text = raw.trim();
       if (!text) return;
       sessionRef.current ??= createAskSession();
+      setProposalError(null);
       setState({ status: "loading" });
       trackEvent("concierge_ask");
       const result = await sessionRef.current(text, cityId);
@@ -128,9 +135,31 @@ export default function MapConciergeAsk({
           createdAt: new Date().toISOString(),
         });
         window.location.assign("/plan");
+        return;
+      }
+      if (proposal.kind === "report_occupancy") {
+        setProposalError(null);
+        void (async () => {
+          const result = await confirmOccupancyProposal(
+            { venueId: proposal.venueId, level: proposal.level },
+            auth,
+            "pal",
+          );
+          if (!result.ok && result.needsSignIn) {
+            window.location.assign("/login?mode=signin&from=/map");
+            return;
+          }
+          if (!result.ok) {
+            // A refused report keeps its chip, so the reader can try again and
+            // is never left believing an unsaved report landed.
+            setProposalError(result.error);
+            return;
+          }
+          dismissProposal(proposal.id);
+        })();
       }
     },
-    [dismissProposal, onFlyTo, onSelectVenue],
+    [auth, dismissProposal, onFlyTo, onSelectVenue],
   );
 
   if (!open) {
@@ -224,6 +253,11 @@ export default function MapConciergeAsk({
             {state.responseStatus === "degraded" ? (
               <p className="mapConciergeAskMsg mapConciergeAskMsg--degraded">
                 Some live city facts could not be checked just now.
+              </p>
+            ) : null}
+            {proposalError ? (
+              <p className="mapConciergeAskMsg mapConciergeAskMsg--error">
+                {proposalError}
               </p>
             ) : null}
             {state.proposals.length > 0 ? (

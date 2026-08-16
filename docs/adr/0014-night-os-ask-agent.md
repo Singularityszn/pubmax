@@ -52,12 +52,12 @@ and Pal chat use `/api/ask`.
 - A later ChatGPT App / MCP export can reuse the same tool handlers; shipping
   an external listing is out of this decision.
 - Tests pin allowlist, keyless routing, proposal-not-mutate, and voice fences.
-- `report_occupancy` writes nothing at all in V0.1: the crowd store (master
-  plan R-011) is not built, so the tool takes the report, says plainly it has
-  nowhere to land, and offers no confirm. Inventing a schema here, or
-  borrowing the visit-report or community-price lane, would make one lane
-  mean two things. `occupancyStoreState()` is the one place that changes when
-  R-011 lands.
+- `report_occupancy` is confirm-gated (ADR 0006). The tool proposes a crowd
+  report; the client POSTs `/api/venues/[id]/occupancy` on confirm. The store
+  is master plan R-011 (`lib/occupancy.ts`, `lib/occupancyStore.ts`).
+  `occupancyStoreState()` stays the one switch that can roll the confirm back
+  to `"unbuilt"`. Inventing a second schema, or borrowing the visit-report or
+  community-price lane, would make one lane mean two things.
 - `find_desk` answers only from the widened `cafe` / `coworking` / `library`
   rows, which the London pack does not carry yet, so it says "no seat data
   yet" rather than offering a pub as a desk. Pub behaviour is untouched:

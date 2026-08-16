@@ -390,7 +390,7 @@ describe("find_desk", () => {
 });
 
 describe("report_occupancy", () => {
-  it("writes nothing and offers no confirm while the crowd store is unbuilt", async () => {
+  it("proposes a crowd report and writes nothing until confirm", async () => {
     state.venues = [venue({ id: "v1", name: "The Lamb" })];
     const result = await runAskTool(
       "report_occupancy",
@@ -398,9 +398,13 @@ describe("report_occupancy", () => {
       ctx(),
     );
     expect(result.ok).toBe(true);
-    expect(result.proposals).toHaveLength(0);
-    expect(result.answerHint).toContain("Full at The Lamb");
-    expect(result.answerHint).toContain("nowhere to land");
+    expect(result.proposals).toHaveLength(1);
+    expect(result.proposals[0]).toMatchObject({
+      kind: "report_occupancy",
+      venueId: "v1",
+      level: "full",
+    });
+    expect(result.answerHint).toContain("Nothing is saved until you confirm.");
   });
 
   it("asks which pub before taking a report", async () => {
@@ -424,7 +428,7 @@ describe("report_occupancy", () => {
 
     const [pubCall] = routeAskDeterministically("It's rammed in The Lamb");
     const pubResult = await runAskTool("report_occupancy", pubCall.args, ctx());
-    expect(pubResult.answerHint).toContain("Full at The Lamb");
+    expect(pubResult.answerHint).toContain("Log The Lamb as full");
   });
 
   it("asks for the level when the words carry none", async () => {

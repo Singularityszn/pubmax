@@ -10,14 +10,27 @@
 //      figure, never invents a venue, and never widens a trust gate.
 //   2. A read that could not run is NOT an empty city. Every empty line below
 //      separates "nobody has logged this" from "we could not look".
-//   3. A write is a proposal (ADR 0006). `report_occupancy` writes nothing at
-//      all today, because the crowd store (master plan R-011) is not built.
+//   3. A write is a proposal (ADR 0006). `report_occupancy` proposes a crowd
+//      report and writes nothing until the reader confirms.
 
 import { drivesMap, paintsMap, type CommunityPrice } from "@/lib/communityPrice";
 import { isMapLensDrinkCategory } from "@/lib/drinks";
 import type { DrinkCategory } from "@/lib/drinks";
+import {
+  OCCUPANCY_LEVEL_LABELS,
+  OCCUPANCY_LEVELS,
+  parseOccupancyLevel,
+  type OccupancyLevel,
+} from "@/lib/occupancy";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { rowEffectiveEnd } from "@/lib/whatsOn";
+
+export {
+  OCCUPANCY_LEVEL_LABELS,
+  OCCUPANCY_LEVELS,
+  parseOccupancyLevel,
+};
+export type { OccupancyLevel };
 
 // ---------------------------------------------------------------------------
 // cheapest_pint_near
@@ -375,45 +388,17 @@ export function findDeskRowNote(input: {
 // report_occupancy
 // ---------------------------------------------------------------------------
 
-/** The closed set a person may report. Master plan R-011's three buttons. */
-export const OCCUPANCY_LEVELS = ["empty", "some-seats", "full"] as const;
-
-export type OccupancyLevel = (typeof OCCUPANCY_LEVELS)[number];
-
-export const OCCUPANCY_LEVEL_LABELS: Record<OccupancyLevel, string> = {
-  empty: "Empty",
-  "some-seats": "Some seats",
-  full: "Full",
-};
-
-export function parseOccupancyLevel(value: unknown): OccupancyLevel | null {
-  if (typeof value !== "string") return null;
-  const needle = value.trim().toLowerCase().replace(/[\s_]+/g, "-");
-  if ((OCCUPANCY_LEVELS as readonly string[]).includes(needle)) {
-    return needle as OccupancyLevel;
-  }
-  // The negatives are read BEFORE the bare "seats" alternative below, or
-  // "no seats" (which the router itself triggers on) reads as some seats.
-  if (/\bno-(?:seats?|room|space|tables?)\b/.test(needle)) return "full";
-  if (/\b(rammed|packed|heaving)\b/.test(needle)) return "full";
-  if (/\b(quiet|dead|empty)\b/.test(needle)) return "empty";
-  if (/\b(seats|room|space)\b/.test(needle)) return "some-seats";
-  return null;
-}
-
 /**
  * Whether a crowd report has anywhere to land.
  *
- * `"unbuilt"` is the state this wave ships in: master plan R-011 owns the
- * table, and inventing a schema for it here - or quietly borrowing the visit
- * report or community price lane, which mean different things - would be worse
- * than saying nothing lands. The predicate exists so that when R-011 arrives
- * only this answer changes.
+ * `"ready"` is the R-011 store. `"unbuilt"` remains so a rollback of the
+ * store can still refuse a confirm button rather than look like it logged
+ * something.
  */
 export type OccupancyStoreState = "unbuilt" | "ready";
 
 export function occupancyStoreState(): OccupancyStoreState {
-  return "unbuilt";
+  return "ready";
 }
 
 export type OccupancyReportOutcome =
@@ -561,7 +546,7 @@ export const CONCIERGE_TOOL_DEFINITIONS = [
     function: {
       name: "report_occupancy" as const,
       description:
-        "Take a crowd report for a pub (empty, some seats, full). Writes nothing: there is no crowd store yet, so the report is read back and told plainly that it has nowhere to land.",
+        "Take a crowd report for a pub (empty, some seats, full). Writes nothing until the reader confirms.",
       parameters: {
         type: "object",
         properties: {

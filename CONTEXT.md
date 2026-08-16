@@ -90,6 +90,10 @@ _Avoid_: History, beauty
 A short, contributor-attributed account anchored to a dated venue visit. It records only what the contributor observed, such as crowd, noise, seating, bar wait, and one brief note. It is never a star rating, aggregate verdict, or verified venue fact.
 _Avoid_: Review, rating, score, check-in, verified fact
 
+**Occupancy**:
+A now reading of seats at a pub (Empty / Some seats / Full). Same three-point scale as Visit Report busyness (quiet / steady / rammed) in the present tense. Only a report under 90 minutes old may answer now.
+_Avoid_: Rating, live count, capacity, queue length
+
 **Beer Quality**:
 The user's judgement of how good a specific beer or pint was during a venue visit.
 _Avoid_: Taste, drink score

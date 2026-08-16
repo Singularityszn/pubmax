@@ -45,6 +45,13 @@ export type AskProposal =
       lat: number;
       lng: number;
       place?: string;
+    }
+  | {
+      id: string;
+      kind: "report_occupancy";
+      label: string;
+      venueId: string;
+      level: "empty" | "some-seats" | "full";
     };
 
 export type AskTurn = {

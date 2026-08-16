@@ -401,17 +401,16 @@ describe("report_occupancy policy", () => {
     expect(parseOccupancyLevel(7)).toBeNull();
   });
 
-  it("ships with no crowd store, so nothing is written or promised", () => {
-    expect(occupancyStoreState()).toBe("unbuilt");
+  it("ships with a crowd store, so a valid report becomes a confirm-gated proposal", () => {
+    expect(occupancyStoreState()).toBe("ready");
     const outcome = occupancyReportOutcome({
       venueId: "v1",
       venueName: "The Lamb",
       level: "full",
-      store: "unbuilt",
+      store: occupancyStoreState(),
     });
-    expect(outcome.status).toBe("store-unbuilt");
-    expect(outcome.line).toContain("nowhere to land");
-    expect(outcome.line).toContain("haven't saved it");
+    expect(outcome.status).toBe("proposed");
+    expect(outcome.line).toContain("Nothing is saved until you confirm.");
   });
 
   it("becomes a confirm-gated proposal the moment a store exists", () => {

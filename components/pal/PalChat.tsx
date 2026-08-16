@@ -11,8 +11,12 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import Link from "next/link";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
+import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import type { AskProposal } from "@/lib/ask/types";
+import { occupancyReceiptLine } from "@/lib/occupancy";
+import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
 import { rankNearMe } from "@/lib/nearMeAnswer";
@@ -172,6 +176,8 @@ export function AnswerCard({
 }
 
 export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }) {
+  const { user, session } = useAuth();
+  const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
@@ -231,7 +237,19 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
     [nextId, pending, palHandoff],
   );
 
-  const confirmProposal = useCallback((proposal: AskProposal) => {
+  const dismissProposal = useCallback((entryId: string, proposalId: string) => {
+    setEntries((prev) =>
+      prev.map((entry) => {
+        if (entry.kind !== "answer" || entry.id !== entryId) return entry;
+        return {
+          ...entry,
+          proposals: entry.proposals.filter((p) => p.id !== proposalId),
+        };
+      }),
+    );
+  }, []);
+
+  const confirmProposal = useCallback((proposal: AskProposal, entryId?: string) => {
     trackEvent("concierge_result_tap");
     if (proposal.kind === "open_venue") {
       window.location.assign(
@@ -256,20 +274,47 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
         createdAt: new Date().toISOString(),
       });
       window.location.assign("/plan");
+      return;
     }
-  }, []);
-
-  const dismissProposal = useCallback((entryId: string, proposalId: string) => {
-    setEntries((prev) =>
-      prev.map((entry) => {
-        if (entry.kind !== "answer" || entry.id !== entryId) return entry;
-        return {
-          ...entry,
-          proposals: entry.proposals.filter((p) => p.id !== proposalId),
-        };
-      }),
-    );
-  }, []);
+    if (proposal.kind === "report_occupancy") {
+      void (async () => {
+        const result = await confirmOccupancyProposal(
+          { venueId: proposal.venueId, level: proposal.level },
+          auth,
+          "pal",
+        );
+        if (!result.ok && result.needsSignIn) {
+          window.location.assign("/login?mode=signin&from=/pal/chat");
+          return;
+        }
+        if (!result.ok) {
+          setEntries((prev) => [
+            ...prev,
+            { kind: "error", id: nextId(), message: result.error },
+          ]);
+          return;
+        }
+        const level = result.reading.now ?? proposal.level;
+        const age = result.reading.ageMinutes ?? 0;
+        setEntries((prev) => [
+          ...prev,
+          {
+            kind: "answer",
+            id: nextId(),
+            answer: {
+              status: "answered",
+              message: occupancyReceiptLine(level, age),
+              cards: [],
+            },
+            locality: null,
+            proposals: [],
+            recall: null,
+          },
+        ]);
+        if (entryId) dismissProposal(entryId, proposal.id);
+      })();
+    }
+  }, [auth, dismissProposal, nextId]);
 
   const onSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -423,7 +468,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                         <button
                           type="button"
                           className="palChatProposalConfirm pressable"
-                          onClick={() => confirmProposal(proposal)}
+                          onClick={() => confirmProposal(proposal, entry.id)}
                         >
                           {proposal.label}
                         </button>

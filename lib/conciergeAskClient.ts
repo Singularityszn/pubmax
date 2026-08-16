@@ -111,6 +111,22 @@ function asProposals(raw: unknown): AskProposal[] {
         lng: record.lng,
         ...(typeof record.place === "string" ? { place: record.place } : {}),
       });
+      continue;
+    }
+    if (
+      record.kind === "report_occupancy" &&
+      str(record.venueId) &&
+      (record.level === "empty" ||
+        record.level === "some-seats" ||
+        record.level === "full")
+    ) {
+      out.push({
+        id: id || `occupancy:${record.venueId}:${record.level}`,
+        kind: "report_occupancy",
+        label,
+        venueId: str(record.venueId),
+        level: record.level,
+      });
     }
   }
   return out;
