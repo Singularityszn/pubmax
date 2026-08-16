@@ -175,6 +175,7 @@ export const ANALYTICS_EVENTS = {
   mission_dismissed: ["surface", "reason", "category"],
   mission_submitted: ["surface", "reason", "category", "outcome"],
   mission_newly_trusted: ["surface", "reason", "category", "outcome"],
+  mission_impact_opened: ["surface"],
   // Press-arrival funnel (the London Pint Index). Three questions, and these
   // events exist to answer exactly those: how many ARRIVED on the Index or one
   // of its dated editions (pint_index_viewed, once per page view), how many
@@ -365,7 +366,7 @@ export const PRICE_SUBMIT_CATEGORIES = completeDrinkTaxonomy([
 export const PRICE_SUBMIT_FAILURE_REASONS = ["invalid", "rejected", "offline"] as const;
 export type PriceSubmitFailureReason = (typeof PRICE_SUBMIT_FAILURE_REASONS)[number];
 
-export const MISSION_SURFACES = ["near", "map"] as const;
+export const MISSION_SURFACES = ["near", "map", "profile"] as const;
 export type MissionSurface = (typeof MISSION_SURFACES)[number];
 
 export const MISSION_REASONS = ["provisional", "stale", "missing"] as const;
@@ -524,6 +525,7 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   mission_dismissed: ["surface", "reason"],
   mission_submitted: ["surface", "reason", "outcome"],
   mission_newly_trusted: ["surface", "reason", "outcome"],
+  mission_impact_opened: ["surface"],
   // An arrival with no surface, or a tap with no area, is an uncountable step
   // in a funnel whose whole value is the ratio between its steps.
   pint_index_viewed: ["surface", "visit"],

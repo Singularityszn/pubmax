@@ -42,24 +42,39 @@ describe("ContributionLanesCard", () => {
       }),
     );
 
-    expect(html).toContain('class="contribStatValue">1</span>');
-    expect(html).toContain('class="contribStatLabel">price</span>');
-    expect(html).not.toContain("No visit reports or recommendations yet");
+    expect(html).toContain('class="contribStatLabel">visit reports</span>');
+    expect(html).not.toContain("No prices, visit reports, or recommendations yet");
   });
 
-  it("uses singular and plural grammar for price records", () => {
-    const render = (prices: number) =>
-      renderToStaticMarkup(
-        createElement(ContributionLanesCardContent, {
-          state: {
-            kind: "ready",
-            stats: { status: "ready", handle: "night_owl", prices },
+  it("counts prices once, through the price-trust measures alone", () => {
+    const html = renderToStaticMarkup(
+      createElement(ContributionLanesCardContent, {
+        state: {
+          kind: "ready",
+          stats: {
+            status: "ready",
+            handle: "night_owl",
+            prices: 12,
+            reviews: 0,
+            recommendations: 0,
           },
-        }),
-      );
+        },
+        impact: {
+          kind: "ready",
+          stats: {
+            status: "ready",
+            observationsLogged: 16,
+            pricesTrustedNow: 2,
+            lifetimeTrustUnlocks: 2,
+          },
+        },
+      }),
+    );
 
-    expect(render(1)).toContain('class="contribStatLabel">price</span>');
-    expect(render(2)).toContain('class="contribStatLabel">prices</span>');
+    expect(html).not.toContain('class="contribStatLabel">prices</span>');
+    expect(html).not.toContain(">12<");
+    expect(html).toContain("observations logged");
+    expect(html).toContain(">16<");
   });
 
   it("keeps degraded stats honest without showing zero counts", () => {
@@ -85,5 +100,47 @@ describe("ContributionLanesCard", () => {
     expect(html).toContain('id="contribution-impact"');
     expect(html).toContain("Your contributor record");
     expect(html).not.toMatch(/\b\d+ prices?\b/);
+    expect(html).not.toContain("observations logged");
+  });
+
+  it("renders the three price-trust measures as separate counts", () => {
+    const html = renderToStaticMarkup(
+      createElement(ContributionLanesCardContent, {
+        state: {
+          kind: "ready",
+          stats: { status: "ready", handle: "night_owl", prices: 2 },
+        },
+        impact: {
+          kind: "ready",
+          stats: {
+            status: "ready",
+            observationsLogged: 2,
+            pricesTrustedNow: 1,
+            lifetimeTrustUnlocks: 1,
+          },
+        },
+      }),
+    );
+
+    expect(html).toContain("data-testid=\"price-trust-impact\"");
+    expect(html).toContain("observations logged");
+    expect(html).toContain("price trusted now");
+    expect(html).toContain("lifetime trust unlock");
+  });
+
+  it("does not print zeros when price-trust impact is degraded", () => {
+    const html = renderToStaticMarkup(
+      createElement(ContributionLanesCardContent, {
+        state: {
+          kind: "ready",
+          stats: { status: "ready", handle: "night_owl", prices: 1 },
+        },
+        impact: { kind: "degraded" },
+      }),
+    );
+
+    expect(html).toContain("price trust record right now.");
+    expect(html).not.toContain("observations logged");
+    expect(html).not.toContain("data-testid=\"price-trust-impact\"");
   });
 });

@@ -63,6 +63,7 @@ describe("what the store may hold", () => {
     expect(SURFACE_CACHE_DENIED_PREFIXES).toContain("/api/auth");
     expect(SURFACE_CACHE_DENIED_PREFIXES).toContain("/api/identity");
     expect(SURFACE_CACHE_DENIED_PREFIXES).toContain("/api/admin");
+    expect(SURFACE_CACHE_DENIED_PREFIXES).toContain("/api/price-impact");
   });
 });
 

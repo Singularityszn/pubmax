@@ -287,6 +287,89 @@ export function isWithinMaxAge(
 }
 
 /**
+ * The minimum a row needs before this module can ask whether two reports agree
+ * and which cluster is best backed. Every price-shaped row the store, the map
+ * and the trust ledger hold is one of these.
+ */
+export type CommunityPriceAgreementRow = {
+  drinkCategory: DrinkCategory;
+  priceGbp: number;
+  submittedAt: number;
+  actor: string | null;
+};
+
+/**
+ * The bucket a row counts as ONE submitter under. An attributed row is its own
+ * contributor. Legacy or imported rows without an actor all share a single
+ * bucket: we cannot prove two of them came from different people, and the whole
+ * point of the threshold is INDEPENDENCE, so the honest reading is "at most one
+ * unattributed voice". Note this is stricter than the durable table's unique
+ * constraint, which lets NULL-actor rows stack - deliberately: storage keeps
+ * every observation, while the trust count refuses to assume they are
+ * different drinkers.
+ */
+export function submitterBucket(actor: string | null): string {
+  // The "anon:" sentinel cannot be produced by the "a:" branch, so a crafted
+  // actor token can never impersonate the unattributed bucket or vice versa.
+  return actor === null ? "anon:*" : `a:${actor}`;
+}
+
+/**
+ * How many INDEPENDENT submitters back `reference`, counting whoever logged it.
+ * Only rows for the same drink category that agree within the shared tolerance
+ * count; a contributor who reported a different figure is not corroborating this
+ * one, it is contradicting it.
+ */
+export function countCorroborations(
+  rows: readonly CommunityPriceAgreementRow[],
+  reference: CommunityPriceAgreementRow,
+): number {
+  const submitters = new Set<string>();
+  for (const row of rows) {
+    if (row.drinkCategory !== reference.drinkCategory) continue;
+    if (!agreesWithinTolerance(reference.priceGbp, row.priceGbp)) continue;
+    submitters.add(submitterBucket(row.actor));
+  }
+  return submitters.size;
+}
+
+/**
+ * The agreement cluster with the most independent submitters, restricted to
+ * rows still inside the age window, ties broken by freshness. Every row anchors
+ * its own cluster (the set of rows agreeing with it within the shared
+ * tolerance), which mirrors exactly how `corroborations` is counted for the
+ * sheet row - one definition of agreement, every question asked of it here.
+ * This is what stops a lone fresh disagreement un-painting an already-
+ * corroborated figure. Null when the set has no in-window row at all.
+ *
+ * ONE owner on purpose: the map candidate, the corroboration roll-up and the
+ * credited trust cluster all read this, so a change to the tie rule or the age
+ * handling can never credit a cluster the map refuses to paint.
+ */
+export function bestCorroboratedRow<T extends CommunityPriceAgreementRow>(
+  rows: readonly T[],
+  now: number = Date.now(),
+): { row: T; corroborations: number } | null {
+  let best: T | null = null;
+  let bestCount = 0;
+  for (const row of rows) {
+    if (!isWithinMaxAge(row, now)) continue;
+    const count = countCorroborations(rows, row);
+    // `>=` on the freshness tie for the same reason the freshest-wins reduction
+    // uses it: a same-millisecond tie prefers the later row in the scan.
+    if (
+      !best ||
+      count > bestCount ||
+      (count === bestCount && row.submittedAt >= best.submittedAt)
+    ) {
+      best = row;
+      bestCount = count;
+    }
+  }
+  return best ? { row: best, corroborations: bestCount } : null;
+}
+
+/**
  * THE gate. A community price drives the map - pin colour, list rows, cheapest
  * buckets - only when it is both corroborated and inside the age window. The
  * pub's own sheet deliberately does NOT consult this: it shows every submission,

@@ -59,6 +59,7 @@ import {
   submitCommunityPrice,
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
+import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
 import { isLimited } from "@/lib/pintDrops";
 import {
   isUkBaseId,
@@ -224,6 +225,7 @@ export async function POST(request: Request): Promise<Response> {
   if (failed || !price) {
     return publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true });
   }
+  await syncTrustAfterPriceWrite(submission.venueId, price.drinkCategory);
   // Read the venue back so the response carries this figure's authoritative
   // `corroborations` - the number that decides whether the submitter's tap
   // moves a pin or only lands on the pub's sheet. The client cannot derive it

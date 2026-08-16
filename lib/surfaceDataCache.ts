@@ -41,6 +41,7 @@ export const SURFACE_CACHE_DENIED_PREFIXES = [
   "/api/auth",
   "/api/identity",
   "/api/admin",
+  "/api/price-impact",
 ] as const;
 
 /** The default a caller gets when it has no sharper opinion: five minutes. */

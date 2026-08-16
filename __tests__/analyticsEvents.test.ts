@@ -500,6 +500,8 @@ describe("price evidence mission events", () => {
     expect(isKnownEvent("mission_dismissed")).toBe(true);
     expect(isKnownEvent("mission_submitted")).toBe(true);
     expect(isKnownEvent("mission_newly_trusted")).toBe(true);
+    expect(isKnownEvent("mission_impact_opened")).toBe(true);
+    expect(ANALYTICS_EVENTS.mission_impact_opened).toEqual(["surface"]);
   });
 
   it("keeps surface, reason, category, and outcome only", () => {
@@ -549,6 +551,20 @@ describe("price evidence mission events", () => {
       outcome: "won",
     })).toBeNull();
     expect(sanitizeEvent("mission_submitted", { surface: "near", reason: "missing" })).toBeNull();
+  });
+
+  it("records impact opened with surface only", () => {
+    expect(sanitizeEvent("mission_impact_opened", {
+      surface: "profile",
+      venueId: "venue-secret",
+      handle: "night_owl",
+      priceGbp: 4.2,
+    })).toEqual({
+      name: "mission_impact_opened",
+      props: { surface: "profile" },
+    });
+    expect(sanitizeEvent("mission_impact_opened", {})).toBeNull();
+    expect(sanitizeEvent("mission_impact_opened", { surface: "feed" })).toBeNull();
   });
 });
 

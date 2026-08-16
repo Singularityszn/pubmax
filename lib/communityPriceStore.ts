@@ -46,11 +46,14 @@ import { randomUUID } from "node:crypto";
 
 import {
   agreesWithinTolerance,
+  bestCorroboratedRow,
+  countCorroborations,
   COMMUNITY_PRICE_MAX_AGE_MS,
   isCorroborated,
   isWithinMaxAge,
   marksMapProvisionally,
   roundToPennies,
+  submitterBucket,
   type CommunityPrice,
   type CommunityPriceInput,
   type CommunityPriceMapCandidate,
@@ -392,22 +395,6 @@ function toPrice(
   };
 }
 
-/**
- * The bucket a row counts as ONE submitter under. An attributed row is its own
- * contributor. Legacy or imported rows without an actor all share a single
- * bucket: we cannot prove two of them came from different people, and the whole
- * point of the threshold is INDEPENDENCE, so the honest reading is "at most one
- * unattributed voice". Note this is stricter than the durable table's unique
- * constraint, which lets NULL-actor rows stack - deliberately: storage keeps
- * every observation, while the trust count refuses to assume they are
- * different drinkers.
- */
-function submitterBucket(actor: string | null): string {
-  // The "anon:" sentinel cannot be produced by the "a:" branch, so a crafted
-  // actor token can never impersonate the unattributed bucket or vice versa.
-  return actor === null ? "anon:*" : `a:${actor}`;
-}
-
 function normalizeSignal(
   input: CommunityVenueSignalWrite,
 ): CommunityVenueSignalInput | null {
@@ -548,55 +535,22 @@ function contributorCountsFromRows(
 }
 
 /**
- * How many INDEPENDENT submitters back `reference`, counting whoever logged it.
- * Only rows for the same drink category that agree within the shared tolerance
- * count; a contributor who reported a different figure is not corroborating this
- * one, it is contradicting it.
- */
-function countCorroborations(rows: StoredPrice[], reference: StoredPrice): number {
-  const submitters = new Set<string>();
-  for (const row of rows) {
-    if (row.drinkCategory !== reference.drinkCategory) continue;
-    if (!agreesWithinTolerance(reference.priceGbp, row.priceGbp)) continue;
-    submitters.add(submitterBucket(row.actor));
-  }
-  return submitters.size;
-}
-
-/**
- * The category's MAP candidate: the agreement cluster with the most
- * independent submitters, restricted to rows still inside the age window, ties
- * broken by freshness. Every row anchors its own cluster (the set of rows
- * agreeing with it within the shared tolerance), which mirrors exactly how
- * `corroborations` is counted for the sheet row - one definition of agreement,
- * two questions asked of it. This is what stops a lone fresh disagreement
- * un-painting an already-corroborated figure: the sheet row stays freshest-
- * wins, but the map follows the best-backed in-window figure until a
- * contradiction itself reaches the threshold. Null when the category has no
- * in-window row at all.
+ * The category's MAP candidate, over the one cluster owner in
+ * lib/communityPrice.ts: the sheet row stays freshest-wins while the map
+ * follows the best-backed in-window figure until a contradiction itself reaches
+ * the threshold. Null when the category has no in-window row at all.
  */
 function bestCorroboratedCandidate(
   categoryRows: StoredPrice[],
   now: number,
 ): CommunityPriceMapCandidate | null {
-  let best: StoredPrice | null = null;
-  let bestCount = 0;
-  for (const row of categoryRows) {
-    if (!isWithinMaxAge(row, now)) continue;
-    const count = countCorroborations(categoryRows, row);
-    // `>=` on the freshness tie for the same reason as the freshest-wins
-    // reduction below: a same-millisecond tie prefers the later row in the scan.
-    if (
-      !best ||
-      count > bestCount ||
-      (count === bestCount && row.submittedAt >= best.submittedAt)
-    ) {
-      best = row;
-      bestCount = count;
-    }
-  }
+  const best = bestCorroboratedRow(categoryRows, now);
   if (!best) return null;
-  return { priceGbp: best.priceGbp, submittedAt: best.submittedAt, corroborations: bestCount };
+  return {
+    priceGbp: best.row.priceGbp,
+    submittedAt: best.row.submittedAt,
+    corroborations: best.corroborations,
+  };
 }
 
 /**
@@ -2054,6 +2008,309 @@ export function listCommunityPricesForReview(
   limit?: number,
 ): Promise<ModeratorCommunityPrice[]> {
   return communityPriceStore().listForReview(limit);
+}
+
+export type CommunityPriceObservation = {
+  id: string;
+  venueId: string;
+  drinkCategory: DrinkCategory;
+  priceGbp: number;
+  submittedAt: number;
+  actor: string | null;
+  hidden: boolean;
+};
+
+export type CommunityPriceObservationPair = {
+  venueId: string;
+  drinkCategory: DrinkCategory;
+};
+
+// Cap the batched (venue, category) scan. Past this the answer would be a
+// short list presented as a whole one, so the read degrades instead: a count
+// that silently drops an unlock is worse than one that says it could not look.
+const OBSERVATION_PAIR_SCAN_PAIRS = 50;
+const OBSERVATION_PAIR_SCAN_ROWS = OBSERVATION_PAIR_SCAN_PAIRS * VENUE_SCAN_ROWS;
+
+function observationFromStored(row: StoredPrice): CommunityPriceObservation | null {
+  if (!row.id || !isDrinkCategory(row.drinkCategory)) return null;
+  return {
+    id: row.id,
+    venueId: row.venueId,
+    drinkCategory: row.drinkCategory,
+    priceGbp: row.priceGbp,
+    submittedAt: row.submittedAt,
+    actor: row.actor,
+    hidden: row.hidden,
+  };
+}
+
+function memoryObservations(): CommunityPriceObservation[] {
+  const out: CommunityPriceObservation[] = [];
+  for (const rows of venues.values()) {
+    for (const row of rows) {
+      const observation = observationFromStored(row);
+      if (observation) out.push(observation);
+    }
+  }
+  return out;
+}
+
+const OBSERVATION_COLUMNS =
+  "id, venue_id, drink_category, price_pennies, submitted_at, actor, hidden_at";
+
+function storedPricesFromRows(rows: readonly unknown[]): StoredPrice[] {
+  const out: StoredPrice[] = [];
+  for (const raw of rows) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const venueId = cleanVenueId((raw as { venue_id?: unknown }).venue_id);
+    if (!venueId) continue;
+    out.push(...rowsToPrices([raw], venueId));
+  }
+  return out;
+}
+
+async function durablePriceRowById(id: string): Promise<StoredPrice[]> {
+  const query = admin()
+    .from("community_prices")
+    .select(OBSERVATION_COLUMNS)
+    .not("drink_category", "is", null)
+    .eq("id", id)
+    .limit(1);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  if (!Array.isArray(data)) return [];
+  return storedPricesFromRows(data);
+}
+
+function pairKey(venueId: string, drinkCategory: DrinkCategory): string {
+  return `${venueId}\u0000${drinkCategory}`;
+}
+
+function wantedPairs(
+  pairs: readonly CommunityPriceObservationPair[],
+): Map<string, CommunityPriceObservationPair> {
+  const wanted = new Map<string, CommunityPriceObservationPair>();
+  for (const pair of pairs) {
+    const venueId = cleanVenueId(pair.venueId);
+    if (!venueId || !isDrinkCategory(pair.drinkCategory)) continue;
+    wanted.set(pairKey(venueId, pair.drinkCategory), {
+      venueId,
+      drinkCategory: pair.drinkCategory,
+    });
+  }
+  return wanted;
+}
+
+/**
+ * One paged scan for every wanted (venue, category), rather than one round trip
+ * per pair. Returns null when the scan filled its cap, because a truncated page
+ * cannot answer whether a pair is still trusted.
+ */
+async function durablePairPriceRows(
+  wanted: Map<string, CommunityPriceObservationPair>,
+): Promise<StoredPrice[] | null> {
+  const venueIds = [...new Set([...wanted.values()].map((pair) => pair.venueId))];
+  const categories = [
+    ...new Set([...wanted.values()].map((pair) => pair.drinkCategory)),
+  ];
+  const scanned: unknown[] = [];
+  let complete = false;
+  for (let offset = 0; offset < OBSERVATION_PAIR_SCAN_ROWS; ) {
+    const pageEnd = Math.min(
+      offset + CORROBORATION_SCAN_PAGE,
+      OBSERVATION_PAIR_SCAN_ROWS,
+    );
+    const { data, error } = await admin()
+      .from("community_prices")
+      .select(OBSERVATION_COLUMNS)
+      .in("venue_id", venueIds)
+      .in("drink_category", categories)
+      .order("submitted_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(offset, pageEnd - 1);
+    if (error) throw new Error(error.message);
+    const page = Array.isArray(data) ? data : [];
+    scanned.push(...page);
+    if (page.length < pageEnd - offset) {
+      complete = true;
+      break;
+    }
+    offset = pageEnd;
+  }
+  if (!complete) return null;
+  return storedPricesFromRows(scanned);
+}
+
+const observationReader = {
+  async listForVenueCategory(
+    venueId: string,
+    drinkCategory: DrinkCategory,
+  ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+    const key = cleanVenueId(venueId);
+    if (!key || !isDrinkCategory(drinkCategory)) {
+      return { observations: [], degraded: false };
+    }
+    const rows = (venues.get(key) ?? [])
+      .map(observationFromStored)
+      .filter((row): row is CommunityPriceObservation => row !== null)
+      .filter((row) => row.drinkCategory === drinkCategory);
+    return { observations: rows, degraded: false };
+  },
+  async listForPairs(
+    pairs: readonly CommunityPriceObservationPair[],
+  ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+    const wanted = wantedPairs(pairs);
+    if (wanted.size === 0) return { observations: [], degraded: false };
+    const out: CommunityPriceObservation[] = [];
+    for (const pair of wanted.values()) {
+      for (const row of venues.get(pair.venueId) ?? []) {
+        const observation = observationFromStored(row);
+        if (!observation) continue;
+        if (observation.drinkCategory !== pair.drinkCategory) continue;
+        out.push(observation);
+      }
+    }
+    return { observations: out, degraded: false };
+  },
+  async countForActor(actor: string): Promise<{ count: number; degraded: boolean }> {
+    if (!actor) return { count: 0, degraded: false };
+    return {
+      count: memoryObservations().filter((row) => row.actor === actor && !row.hidden)
+        .length,
+      degraded: false,
+    };
+  },
+  async findById(
+    id: string,
+  ): Promise<{ observation: CommunityPriceObservation | null; degraded: boolean }> {
+    if (!id) return { observation: null, degraded: false };
+    return {
+      observation: memoryObservations().find((row) => row.id === id) ?? null,
+      degraded: false,
+    };
+  },
+};
+
+const observationGuard = createFailSoftGuard({
+  tag: "community-price-observations",
+  tables: "community_prices",
+  migrationHint: "apply migration 0054",
+});
+
+const durableObservationReader = {
+  async listForVenueCategory(
+    venueId: string,
+    drinkCategory: DrinkCategory,
+  ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+    const key = cleanVenueId(venueId);
+    if (!key || !isDrinkCategory(drinkCategory)) {
+      return { observations: [], degraded: false };
+    }
+    return durableObservationReader.listForPairs([
+      { venueId: key, drinkCategory },
+    ]);
+  },
+  async listForPairs(
+    pairs: readonly CommunityPriceObservationPair[],
+  ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+    const wanted = wantedPairs(pairs);
+    if (wanted.size === 0) return { observations: [], degraded: false };
+    if (wanted.size > OBSERVATION_PAIR_SCAN_PAIRS) {
+      return { observations: [], degraded: true };
+    }
+    return observationGuard.guard({
+      context: "listForPairs",
+      onSchemaMiss: () => observationReader.listForPairs([...wanted.values()]),
+      message: "pair observation list failed",
+      onError: () => ({ observations: [], degraded: true }),
+      run: async () => {
+        const rows = await durablePairPriceRows(wanted);
+        if (!rows) return { observations: [], degraded: true };
+        const observations = rows
+          .map(observationFromStored)
+          .filter((row): row is CommunityPriceObservation => row !== null)
+          .filter((row) => wanted.has(pairKey(row.venueId, row.drinkCategory)));
+        return { observations, degraded: false };
+      },
+    });
+  },
+  async countForActor(actor: string): Promise<{ count: number; degraded: boolean }> {
+    if (!actor) return { count: 0, degraded: false };
+    return observationGuard.guard({
+      context: "countForActor",
+      onSchemaMiss: () => observationReader.countForActor(actor),
+      message: "actor observation count failed",
+      onError: () => ({ count: 0, degraded: true }),
+      run: async () => {
+        const { count, error } = await admin()
+          .from("community_prices")
+          .select("id", { count: "exact", head: true })
+          .not("drink_category", "is", null)
+          .is("hidden_at", null)
+          .eq("actor", actor);
+        if (error) throw new Error(error.message);
+        if (typeof count !== "number" || !Number.isFinite(count)) {
+          return { count: 0, degraded: true };
+        }
+        return { count, degraded: false };
+      },
+    });
+  },
+  async findById(
+    id: string,
+  ): Promise<{ observation: CommunityPriceObservation | null; degraded: boolean }> {
+    if (!id) return { observation: null, degraded: false };
+    return observationGuard.guard({
+      context: "findById",
+      onSchemaMiss: () => observationReader.findById(id),
+      message: "observation lookup failed",
+      onError: () => ({ observation: null, degraded: true }),
+      run: async () => {
+        const [row] = await durablePriceRowById(id);
+        return { observation: row ? observationFromStored(row) : null, degraded: false };
+      },
+    });
+  },
+};
+
+function observations(): typeof observationReader {
+  return selectStore(observationReader, durableObservationReader);
+}
+
+export function listCommunityPriceObservations(
+  venueId: string,
+  drinkCategory: DrinkCategory,
+): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+  return observations().listForVenueCategory(venueId, drinkCategory);
+}
+
+/**
+ * Every observation for the wanted (venue, category) pairs in one bounded read.
+ * `degraded` covers both a failed scan and a pair set past the cap, so a caller
+ * never mistakes a short list for the whole one.
+ */
+export function listCommunityPriceObservationsForPairs(
+  pairs: readonly CommunityPriceObservationPair[],
+): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
+  return observations().listForPairs(pairs);
+}
+
+/**
+ * How many live prices this actor has logged, all time. A count query, never
+ * the length of a capped row page: a contributor past the scan window is owed
+ * their real total or a degraded answer, never a silent 200. A hidden row is
+ * out, the same rule every other public price read follows.
+ */
+export function countCommunityPriceObservationsForActor(
+  actor: string,
+): Promise<{ count: number; degraded: boolean }> {
+  return observations().countForActor(actor);
+}
+
+export function findCommunityPriceObservation(
+  id: string,
+): Promise<{ observation: CommunityPriceObservation | null; degraded: boolean }> {
+  return observations().findById(id);
 }
 
 /** Test-only: clear the in-memory observations between cases. */

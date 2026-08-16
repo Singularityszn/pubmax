@@ -352,6 +352,14 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/deleted with the account/);
   });
 
+  it("discloses price trust milestones and audit reversals as account-linked", () => {
+    expect(privacy).toMatch(/Price trust milestones/);
+    expect(privacy).toMatch(/account-linked milestone/);
+    expect(privacy).toMatch(/audit reversal/);
+    expect(privacy).toMatch(/personal credit is deleted with the\s+account/);
+    expect(privacy).toMatch(/Append-only audit\s+reversals stay with the pub/);
+  });
+
   it("discloses community venue reports and their contributor count", () => {
     expect(privacy).toMatch(/Community venue reports/);
     expect(privacy).toMatch(/rough or\s+posh/);

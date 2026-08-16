@@ -42,6 +42,7 @@ import {
   submitCommunityPrice,
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
+import { __resetMemoryPriceTrustEvents } from "@/lib/priceTrustEventStore";
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -84,6 +85,7 @@ describe("community price moderation (memory backend)", () => {
 
   afterEach(() => {
     __resetCommunityPrices();
+    __resetMemoryPriceTrustEvents();
     if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
     else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
     if (ORIGINAL_SUPABASE_SERVICE_ROLE_KEY === undefined) {
