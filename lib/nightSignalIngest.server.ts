@@ -1,3 +1,5 @@
+import "server-only";
+
 // Serverless-safe Night Signal candidate ingestion — the EXA sweep half of
 // scripts/ingest_night_signal_candidates.mjs, callable from a Vercel cron.
 //

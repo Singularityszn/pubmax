@@ -1,3 +1,5 @@
+import "server-only";
+
 // A cover takedown crosses TWO stores, and this module is the one place that
 // knows it. `profiles.cover_*` is the back-compat mirror the admin console
 // writes; `profile_cover_photos` is the five-photo rotation the serve route also

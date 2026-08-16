@@ -1,3 +1,5 @@
+import "server-only";
+
 // The ONE resolver every community write runs its venue id through before a
 // row is stored.
 //

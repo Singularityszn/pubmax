@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-only allowlist of image hosts the /api/image-proxy may fetch (U4).
 //
 // The proxy exists because scraped-pub photos live on ~160 pub-website hosts —

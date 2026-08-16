@@ -1,3 +1,5 @@
+import "server-only";
+
 // The owner's add / remove / reorder handlers for the cover ROTATION, plus the
 // reader flag lane for one cover.
 //

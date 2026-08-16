@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-side resolution of a `/map?place=…` arrival against the shipped UK
 // place index.
 //

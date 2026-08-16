@@ -1,6 +1,7 @@
 import { buildVenueClaims, type ClaimDrop, type Provenance, type VenueClaim } from "@/lib/curation";
 import { displayHandle, handleOnly } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
+import { formatGbp } from "@/lib/venues";
 
 // The Ledger (issue #25, PRD_FOR_FABLE.md § "The Spill"): a large-text,
 // voice-friendly logbook rendering of a venue's Pint Drops — "the story of
@@ -37,12 +38,6 @@ export type LedgerEntry = {
   provenance: Provenance;
 };
 
-function formatGbp(value: number | null): string | null {
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? `£${value.toFixed(2)}`
-    : null;
-}
-
 // en-GB long date for the ruled logbook line, e.g. "3 June 2024". Returns null
 // for an unparseable/missing timestamp rather than throwing — the entry still
 // renders, just without a date.
@@ -60,7 +55,10 @@ export function formatLedgerDate(iso: string): string | null {
 // memory reads like a diary entry); a priced-but-noteless drop falls back to
 // "Logged <drink> at <price>" so the ledger never renders an empty entry.
 export function toLedgerEntry(drop: LedgerSourceDrop): LedgerEntry {
-  const priceLabel = formatGbp(drop.priceGbp);
+  const priceLabel =
+    typeof drop.priceGbp === "number" && Number.isFinite(drop.priceGbp) && drop.priceGbp > 0
+      ? formatGbp(drop.priceGbp)
+      : null;
   const headline = drop.drink || "A pint logged";
   const note =
     drop.passedDownNote ||

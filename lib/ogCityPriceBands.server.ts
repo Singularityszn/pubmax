@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-only reader for the /map OG share card's wave composition. Turns one
 // city's real, map-authoritative pint prices into cheap/middle/dear band
 // counts — never a decorative distribution. A pub's band starts from its

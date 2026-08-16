@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-only store-first reader for the weather snapshot. Kept OUT of the pure
 // lib/weatherSnapshots.ts on purpose: that module is imported by the deliberately
 // fetch-free lib/todayBrief.ts and by app/api/plans/generate (another lane's

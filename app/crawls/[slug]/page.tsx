@@ -8,6 +8,7 @@ import ShareBar from "@/components/share/ShareBar";
 import { computeChaosScore } from "@/lib/chaosScore";
 import { getCrawlStoryBySlug, type DurableStory } from "@/lib/crawlStoryStore";
 import { buildCrawlShareText } from "@/lib/shareArtifacts";
+import { formatGbp } from "@/lib/venues";
 
 import "./story.css";
 
@@ -20,10 +21,6 @@ import "./story.css";
 // Next 16 dynamic route params are async — `params` is a Promise we await.
 
 type PageProps = { params: Promise<{ slug: string }> };
-
-function formatGbp(value: number): string {
-  return `£${value.toFixed(2)}`;
-}
 
 // Plan the crawl back onto the map from its stop venue ids — same share-URL
 // format seedCrawlState reads (mode=build&pubs=id1,id2). Stops missing a venue

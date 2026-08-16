@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server side of the Culture Crawl waypoint: the ambient POI layer, read once
 // on the plan generation path.
 //

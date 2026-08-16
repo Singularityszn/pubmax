@@ -1,3 +1,5 @@
+import "server-only";
+
 // Reading the accounts a starter pack is made of.
 //
 // The policy lives in `lib/starterPacks.ts` and stays pure; this is the one

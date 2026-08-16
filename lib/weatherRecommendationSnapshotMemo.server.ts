@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { WeatherSnapshot } from "@/lib/weatherSnapshots";
 import { loadWeatherSnapshot } from "@/lib/weatherSnapshots.server";
 

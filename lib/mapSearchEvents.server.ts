@@ -1,3 +1,5 @@
+import "server-only";
+
 // Optional durable map-search telemetry. Never stores the raw query string —
 // only intent + length + hit counts. Fail-soft when Supabase is off.
 

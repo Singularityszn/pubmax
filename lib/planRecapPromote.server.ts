@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createNightMemoryFromPlanRecap } from "@/lib/nightMemoryStore";
 import type { NightMemory, NightMoment } from "@/lib/nightMemory";
 import type { PendingPlanRecap } from "@/lib/planRecap";

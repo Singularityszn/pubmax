@@ -1,3 +1,5 @@
+import "server-only";
+
 type StableCacheEntry<T> = {
   expiresAt: number;
   promise: Promise<T>;

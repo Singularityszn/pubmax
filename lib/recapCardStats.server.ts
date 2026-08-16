@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { RecapCardStats } from "@/lib/recapCard";
 
 // Server-only by the `.server.ts` convention used across lib/ (e.g.

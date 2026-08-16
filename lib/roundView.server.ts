@@ -1,3 +1,5 @@
+import "server-only";
+
 import { callerUserId } from "@/lib/authServer";
 import { identityHandleStore } from "@/lib/identityHandleStore";
 import type { RoundState, RoundViewState } from "@/lib/rounds";

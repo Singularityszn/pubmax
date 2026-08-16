@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { haversineKm } from "@/lib/haversine";
 import { getLateFoodForArea, normalizeLateFoodArea } from "@/lib/lateFood";

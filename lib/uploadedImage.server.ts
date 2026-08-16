@@ -1,3 +1,5 @@
+import "server-only";
+
 // ONE journey from "a person chose a file" to "bytes we are willing to store".
 //
 // Chain C (the pint-drop `uploadPhoto` order, kept exactly): declared type ->

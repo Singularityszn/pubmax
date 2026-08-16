@@ -1,3 +1,5 @@
+import "server-only";
+
 // Quiet Wanted fulfilment when a drinker lands at a saved place.
 // Called from presence / check-in (venue-tagged) and optional plan arrival.
 // Never throws into the caller path — fulfilment is best-effort beside the

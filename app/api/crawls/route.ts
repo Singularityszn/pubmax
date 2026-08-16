@@ -19,6 +19,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { emitNotification } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
+import { HANDLE_MAX } from "@/lib/handleNormalize";
 import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -33,7 +34,6 @@ const MAX_SUMMARY = 280;
 const MAX_NOTE = 160;
 const MAX_VENUE_ID = 80;
 const MAX_STOPS = 12;
-const MAX_HANDLE = 40;
 
 function readString(value: unknown, cap: number): string {
   if (typeof value !== "string") return "";
@@ -130,7 +130,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // Author attribution (story 35): optional — an anonymous save leaves it unset.
   // When present, JWT-linked handle wins over a self-asserted body handle.
-  const assertedAuthor = readString(body.authorHandle ?? body.handle, MAX_HANDLE);
+  const assertedAuthor = readString(body.authorHandle ?? body.handle, HANDLE_MAX);
   let authorHandle = "";
   if (assertedAuthor) {
     authorHandle = await resolveMessageHandle(request, assertedAuthor);
@@ -191,7 +191,7 @@ export async function GET(request: Request): Promise<Response> {
   // resolves to 0, never an error, so the passport degrades to a clean zero.
   const author = params.get("author");
   if (author !== null) {
-    const handle = normalizeHandle(readString(author, MAX_HANDLE));
+    const handle = normalizeHandle(readString(author, HANDLE_MAX));
     // `crawls` rides beside the count so a profile can list what it counts. The
     // count stays exactly where it was, so every existing reader is untouched.
     const [count, crawls] = handle

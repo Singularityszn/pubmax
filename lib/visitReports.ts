@@ -16,6 +16,7 @@
 // Duty of care: every field describes a visit, never the drinker. No streaks,
 // points, public star score, or claim that one account is a verified venue fact.
 
+import { normalizeHandle } from "@/lib/handleNormalize";
 import { londonDayKey } from "@/lib/pintContributions";
 import { presentableDescription } from "@/lib/slopFilter";
 import { DAY_MS } from "@/lib/dayMs";
@@ -58,7 +59,6 @@ export const MAX_VISIT_NOTE = 140;
 export const MAX_VISIT_AGE_DAYS = 90;
 
 const MAX_VENUE_ID = 64;
-const MAX_HANDLE = 40;
 
 /**
  * The visit-report id in the shared interruptive-prompt vocabulary
@@ -129,16 +129,7 @@ function clean(value: unknown, cap: number): string {
     .slice(0, cap);
 }
 
-/**
- * Normalise a handle for identity + author matching, without importing the
- * profiles module (this stays browser-safe + dependency-light). Mirrors
- * lib/profiles.normalizeHandle and lib/pintDrops.normalizeViewerHandle:
- * lowercase, strip leading @s, keep [a-z0-9_], cap length.
- */
-export function normalizeHandle(raw: unknown): string {
-  if (typeof raw !== "string") return "";
-  return raw.toLowerCase().replace(/^@+/, "").replace(/[^a-z0-9_]/g, "").slice(0, MAX_HANDLE);
-}
+export { normalizeHandle } from "@/lib/handleNormalize";
 
 function coerce<T extends string>(value: unknown, allowed: readonly T[]): T | null {
   if (typeof value !== "string") return null;

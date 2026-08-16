@@ -1,3 +1,5 @@
+import "server-only";
+
 import { getVercelOidcTokenSync } from "@vercel/oidc";
 import { gateway, generateText } from "ai";
 

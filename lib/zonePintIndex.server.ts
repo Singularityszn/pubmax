@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-only: compute the Zone pint index from the slim venue index.
 //
 // The slim index (public/data/venues_slim.json) already carries each venue's

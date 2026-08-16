@@ -9,6 +9,8 @@
 // itself, so it stays a pure function with zero I/O and is trivially unit
 // testable.
 
+import { clamp } from "@/lib/mathClamp";
+
 // A frozen band table doubles as the rubric and the "oneLiner" copy. Ordered
 // low → high; `computeChaosScore` picks the last band whose `min` the score
 // clears. Exported so a UI can render the same rubric as a legend if wanted.
@@ -54,10 +56,6 @@ export type ChaosScoreResult = {
 };
 
 const CHAOS_VIBE_TAGS: ReadonlySet<string> = new Set(["chaotic", "last train", "date night"]);
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
 
 // Stops: 0 stops contributes nothing; each stop is worth 6 points, capped at
 // 30 (i.e. a 5-stop crawl already maxes this component out).

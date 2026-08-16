@@ -1,3 +1,5 @@
+import "server-only";
+
 import { randomBytes } from "node:crypto";
 
 import { isDeployedProduction } from "@/lib/deploymentEnv";

@@ -1,3 +1,5 @@
+import "server-only";
+
 // Shared server-side client for TfL Unified API reads.
 //
 // Both Last Pint and nearby buses use this one guarded path so host validation,

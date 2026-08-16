@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-only: join enrichment overlay + dataset into ScrapedPub[].
 // Import from Server Components / route handlers only — uses node:fs.
 

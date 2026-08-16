@@ -1,3 +1,5 @@
+import "server-only";
+
 // Resolving the pub a message points at, on the READ path.
 //
 // A message stores a venue id and nothing else, so this is where a card gets its

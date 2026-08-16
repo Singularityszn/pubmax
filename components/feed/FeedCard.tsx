@@ -23,6 +23,7 @@ import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { relativeTime } from "@/lib/relativeTime";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import { formatGbp } from "@/lib/venues";
 
 // For .cheersGatePrompt — the claim-a-handle failure prompt style (U2), now
 // rendered beside the reaction row.
@@ -36,9 +37,6 @@ import "./cheersButton.css";
 import "@/app/feed/feed.css";
 
 // Pub-native reactions — chip labels/emoji live in lib/reactions.ts REACTION_META.
-function formatGbp(price: number): string {
-  return `£${price.toFixed(2)}`;
-}
 
 // One reaction chip — pulled out of FeedCard (taste fix, feed card slim) so
 // the row's per-key branching lives here instead of inflating FeedCard's own
