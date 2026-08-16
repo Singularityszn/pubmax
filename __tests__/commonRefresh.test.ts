@@ -106,13 +106,44 @@ describe("a stated date is never a stated time", () => {
     expect(isValidWhatsOnRow(row as unknown, NOW)).toBe(true);
   });
 
-  it("rolls the year forward for a day-month far behind today", () => {
-    // Read in December, "5 Jan" is next month, not eleven months ago.
-    expect(commonStartsDate("5 Jan", "2026-12-20")).toBe("2027-01-05");
-    expect(isStaleCommonDate("5 Jan", "2026-12-20")).toBe(false);
+  it("resolves the year against the post's own publication day", () => {
+    // Published 18 December, "5 Jan" is a fortnight ahead of the post itself.
+    expect(commonStartsDate("5 Jan", "2026-12-20", "2026-12-18")).toBe("2027-01-05");
+    expect(isStaleCommonDate("5 Jan", "2026-12-20", "2026-12-18")).toBe(false);
+    // Published 2 January, "1 Jan" is the day before the post, and is past.
+    expect(commonStartsDate("1 Jan", "2026-12-20", "2026-01-02")).toBe("2026-01-01");
+    expect(isStaleCommonDate("1 Jan", "2026-12-20", "2026-01-02")).toBe(true);
     // A day-month just behind today is genuinely past, and still stale.
-    expect(commonStartsDate("15 Dec", "2026-12-20")).toBe("2026-12-15");
-    expect(isStaleCommonDate("15 Dec", "2026-12-20")).toBe(true);
+    expect(commonStartsDate("15 Dec", "2026-12-20", "2026-12-01")).toBe("2026-12-15");
+    expect(isStaleCommonDate("15 Dec", "2026-12-20", "2026-12-01")).toBe(true);
+  });
+
+  it("never resurrects an old post as a night a year away", () => {
+    // The sitemap carries the site's whole history, so the budget reaches
+    // posts from months ago. Anchoring the year on TODAY rolled every one of
+    // them into next year and wrote a listing nobody scheduled.
+    expect(commonStartsDate("1 Jan", "2026-08-16", "2026-01-01")).toBe("2026-01-01");
+    expect(isStaleCommonDate("1 Jan", "2026-08-16", "2026-01-01")).toBe(true);
+    expect(commonStartsDate("1 Mar", "2026-08-16", "2026-02-28")).toBe("2026-03-01");
+    expect(isStaleCommonDate("1 Mar", "2026-08-16", "2026-02-28")).toBe(true);
+    expect(
+      toCommonEventRow({
+        url: "https://www.common-social.com/post/january",
+        parsed: { title: "New year session", placeName: "Peckham", dateText: "1 Jan" },
+        observedAt: "2026-08-16T10:00:00.000Z",
+        todayLondon: TODAY,
+        publishedOn: "2026-01-01",
+      }),
+    ).toBeNull();
+  });
+
+  it("reads an undated post as this year, and drops it when that is past", () => {
+    // No lastmod is no anchor, and a guess that resurrects a listing is worse
+    // than one we decline to date.
+    expect(commonStartsDate("5 Jan", "2026-08-16")).toBe("2026-01-05");
+    expect(isStaleCommonDate("5 Jan", "2026-08-16")).toBe(true);
+    expect(commonStartsDate("20 Aug", "2026-08-16")).toBe("2026-08-20");
+    expect(isStaleCommonDate("20 Aug", "2026-08-16")).toBe(false);
   });
 });
 
@@ -137,6 +168,38 @@ describe("refreshCommonEvents", () => {
       return new Response(post(href), { status: 200 });
     };
   }
+
+  it("drops a historical post rather than writing it out as next year's night", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "common-refresh-"));
+    const outPath = join(dir, "events_london.json");
+    const old = "https://www.common-social.com/post/january";
+    const upcoming = "https://www.common-social.com/post/august";
+    const sitemap =
+      `<urlset>` +
+      `<url><loc>${old}</loc><lastmod>2025-12-20</lastmod></url>` +
+      `<url><loc>${upcoming}</loc><lastmod>2026-08-10</lastmod></url>` +
+      `</urlset>`;
+    const fetchImpl = (async (target: string | URL) => {
+      const href = String(target);
+      if (href === COMMON_SITEMAP_URL) return new Response(sitemap, { status: 200 });
+      const dateText = href === old ? "5 Jan" : "20 Aug";
+      return new Response(
+        `<meta property="og:title" content="A night" />` +
+          `<meta property="og:description" content="Camberwell \u00b7 ${dateText} - never stored" />`,
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const report = await refreshCommonEvents({ nowMs: NOW_MS, fetchImpl, outPath, gapMs: 0 });
+
+    // "5 Jan" on a post published in December 2025 is January 2026, which is
+    // past; only the genuinely upcoming night is written.
+    expect(report.rows.map((row) => row.startsDate)).toEqual(["2026-08-20"]);
+    expect(report.droppedStale).toBe(1);
+    const written = JSON.parse(readFileSync(outPath, "utf8"));
+    expect(JSON.stringify(written)).not.toContain("2027-01-05");
+    rmSync(dir, { recursive: true, force: true });
+  });
 
   it("stamps its own generatedAt so the rows it just wrote still validate", async () => {
     const dir = mkdtempSync(join(tmpdir(), "common-refresh-"));

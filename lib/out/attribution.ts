@@ -28,17 +28,37 @@ export function outCardSource(label: string): OutCardSource {
   return "venue";
 }
 
+// How a publisher is SPELLED, in one place. A row carries the label its own
+// lane wrote down ("common"), and matching stays case-insensitive through
+// outCardSource, so nothing depends on the spelling - but a reader sees these
+// three names side by side and one of them may not arrive in lower case.
+// A venue's own listing keeps its own name, which is not ours to restyle.
+const SOURCE_DISPLAY_LABELS: Record<Exclude<OutCardSource, "venue">, string> = {
+  ticketmaster: "Ticketmaster",
+  skiddle: "Skiddle",
+  common: "Common",
+};
+
+export function outSourceDisplayLabel(label: string): string {
+  const key = outCardSource(label);
+  return key === "venue" ? label : SOURCE_DISPLAY_LABELS[key];
+}
+
 export function outSourceAttribution(rows: readonly WhatsOnRow[]): OutSourceCredit[] {
   const seen = new Map<OutCardSource, OutSourceCredit>();
   for (const row of rows) {
     const key = outCardSource(row.source.label);
     if (seen.has(key)) continue;
     if (key === "skiddle") {
-      seen.set(key, { label: "Skiddle", logoRequired: true, url: SKIDDLE_HOME });
+      seen.set(key, { label: SOURCE_DISPLAY_LABELS.skiddle, logoRequired: true, url: SKIDDLE_HOME });
     } else if (key === "ticketmaster") {
-      seen.set(key, { label: "Ticketmaster", logoRequired: false, url: TICKETMASTER_HOME });
+      seen.set(key, {
+        label: SOURCE_DISPLAY_LABELS.ticketmaster,
+        logoRequired: false,
+        url: TICKETMASTER_HOME,
+      });
     } else if (key === "common") {
-      seen.set(key, { label: "common", logoRequired: false, url: COMMON_HOME });
+      seen.set(key, { label: SOURCE_DISPLAY_LABELS.common, logoRequired: false, url: COMMON_HOME });
     }
   }
   return [...seen.values()];

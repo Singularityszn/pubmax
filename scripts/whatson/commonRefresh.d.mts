@@ -15,8 +15,16 @@ export declare function parseCommonSitemap(xml: string): string[];
 export type CommonSitemapEntry = { url: string; lastmod: number | null };
 export declare function parseCommonSitemapEntries(xml: string): CommonSitemapEntry[];
 export declare function commonCrawlOrder(entries: readonly CommonSitemapEntry[]): string[];
-export declare function isStaleCommonDate(dateText: string, todayLondon: string): boolean;
-export declare function commonStartsDate(dateText: string, todayLondon: string): string | null;
+export declare function isStaleCommonDate(
+  dateText: string,
+  todayLondon: string,
+  publishedOn?: string | null,
+): boolean;
+export declare function commonStartsDate(
+  dateText: string,
+  todayLondon: string,
+  publishedOn?: string | null,
+): string | null;
 
 export type CommonEventRow = {
   id: string;
@@ -37,6 +45,9 @@ export declare function toCommonEventRow(args: {
   parsed: CommonParsedPost;
   observedAt: string;
   todayLondon: string;
+  /** The post's own publication day (sitemap lastmod), which resolves the year
+   *  the stated day-month belongs to. Absent means "this year, drop if past". */
+  publishedOn?: string | null;
 }): CommonEventRow | null;
 
 export declare function refreshCommonEvents(opts?: {

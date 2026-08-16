@@ -149,13 +149,33 @@ export function commonCrawlOrder(entries) {
   return [...dated, ...undated].map((held) => held.entry.url);
 }
 
-// A Common post states a day and a month and no year. Resolving it against
-// today's year alone turns "5 Jan", read in December, into a day eleven months
-// PAST, and a real upcoming night is dropped as stale. A day-month more than a
-// season behind today therefore belongs to next year.
+// A Common post states a day and a month and no year, so the year is resolved
+// against the POST'S OWN publication day - the sitemap's `lastmod` - and never
+// against today. A post published on 18 December stating "5 Jan" means the
+// January a fortnight ahead of ITSELF; one published on 2 January stating
+// "1 Jan" means the day before itself, and is past. Anchoring on today instead
+// rolled every post older than the grace window into next year, so the site's
+// whole history came back as nights nobody scheduled.
+//
+// With no stated lastmod there is no anchor but today, and then the day-month
+// is read as this year and dropped when it is past: a guess that resurrects a
+// listing is worse than a listing we decline to date.
 const YEAR_ROLLOVER_GRACE_DAYS = 120;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-function parseDayMonth(dateText, todayLondon) {
+function isCalendarDay(value) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function calendarDayMs(value) {
+  return Date.UTC(
+    Number(value.slice(0, 4)),
+    Number(value.slice(5, 7)) - 1,
+    Number(value.slice(8, 10)),
+  );
+}
+
+function parseDayMonth(dateText, todayLondon, publishedOn = null) {
   const match = /^(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.exec(
     String(dateText ?? "").trim(),
   );
@@ -164,21 +184,18 @@ function parseDayMonth(dateText, todayLondon) {
   const day = Number(match[1]);
   if (month === undefined || !Number.isFinite(day)) return null;
 
-  const year = Number(todayLondon.slice(0, 4));
-  const todayMs = Date.UTC(
-    year,
-    Number(todayLondon.slice(5, 7)) - 1,
-    Number(todayLondon.slice(8, 10)),
-  );
-  const thisYearMs = Date.UTC(year, month, day);
-  if (todayMs - thisYearMs > YEAR_ROLLOVER_GRACE_DAYS * 24 * 60 * 60 * 1000) {
+  const anchored = isCalendarDay(publishedOn);
+  const anchor = anchored ? publishedOn : todayLondon;
+  const year = Number(anchor.slice(0, 4));
+  const sameYearMs = Date.UTC(year, month, day);
+  if (anchored && calendarDayMs(anchor) - sameYearMs > YEAR_ROLLOVER_GRACE_DAYS * DAY_MS) {
     return { year: year + 1, month, day };
   }
   return { year, month, day };
 }
 
-export function isStaleCommonDate(dateText, todayLondon) {
-  const parsed = parseDayMonth(dateText, todayLondon);
+export function isStaleCommonDate(dateText, todayLondon, publishedOn = null) {
+  const parsed = parseDayMonth(dateText, todayLondon, publishedOn);
   if (!parsed) return true;
   const dateMs = Date.UTC(parsed.year, parsed.month, parsed.day);
   const todayMs = Date.UTC(
@@ -198,8 +215,8 @@ function pad2(value) {
 // timeEvidence line saying the start is not published, and every surface
 // windows it against that evening's own service window. An invented 20:00 is
 // the exact shape the harvest rule forbids.
-export function commonStartsDate(dateText, todayLondon) {
-  const parsed = parseDayMonth(dateText, todayLondon);
+export function commonStartsDate(dateText, todayLondon, publishedOn = null) {
+  const parsed = parseDayMonth(dateText, todayLondon, publishedOn);
   if (!parsed) return null;
   return `${parsed.year}-${pad2(parsed.month + 1)}-${pad2(parsed.day)}`;
 }
@@ -216,10 +233,10 @@ function sourceIdFromUrl(url) {
   }
 }
 
-export function toCommonEventRow({ url, parsed, observedAt, todayLondon }) {
+export function toCommonEventRow({ url, parsed, observedAt, todayLondon, publishedOn = null }) {
   if (!parsed || !nonEmptyString(url) || !nonEmptyString(parsed.title)) return null;
-  if (isStaleCommonDate(parsed.dateText, todayLondon)) return null;
-  const startsDate = commonStartsDate(parsed.dateText, todayLondon);
+  if (isStaleCommonDate(parsed.dateText, todayLondon, publishedOn)) return null;
+  const startsDate = commonStartsDate(parsed.dateText, todayLondon, publishedOn);
   if (!startsDate) return null;
   return {
     id: stableId("events-cm", url),
@@ -313,7 +330,12 @@ export async function refreshCommonEvents({
   }
 
   const sitemap = await fetchText(COMMON_SITEMAP_URL, fetchImpl);
-  const posts = commonCrawlOrder(parseCommonSitemapEntries(sitemap));
+  const entries = parseCommonSitemapEntries(sitemap);
+  const publishedByUrl = new Map();
+  for (const entry of entries) {
+    if (typeof entry.lastmod === "number") publishedByUrl.set(entry.url, londonToday(entry.lastmod));
+  }
+  const posts = commonCrawlOrder(entries);
   const rows = [];
   let droppedStale = 0;
   let droppedUnparseable = 0;
@@ -342,7 +364,13 @@ export async function refreshCommonEvents({
         droppedUnparseable += 1;
         continue;
       }
-      const row = toCommonEventRow({ url, parsed, observedAt, todayLondon });
+      const row = toCommonEventRow({
+        url,
+        parsed,
+        observedAt,
+        todayLondon,
+        publishedOn: publishedByUrl.get(url) ?? null,
+      });
       if (!row) {
         droppedStale += 1;
         continue;

@@ -78,6 +78,21 @@ describe("Skiddle credit, and the fence standing in for the asset we do not hold
     }
   });
 
+  it("spells every publisher the same way on the card and in the attribution", () => {
+    const commonSource = { label: "common", url: "https://www.common-social.com/post/abc" };
+    // A row carries the label its own lane wrote down; a reader sees the
+    // publisher's name, beside two others that are already capitalised.
+    expect(renderToStaticMarkup(SourceCredit({ source: commonSource }))).toMatch(
+      /<span>Common<\/span>/,
+    );
+    expect(outSourceAttribution([eventRow({ source: commonSource })])).toEqual([
+      { label: "Common", logoRequired: false, url: "https://www.common-social.com/" },
+    ]);
+    // A venue's own listing keeps its own name, which is not ours to restyle.
+    const venueSource = { label: "The Ivy House", url: "https://theivyhousenunhead.com/" };
+    expect(renderToStaticMarkup(SourceCredit({ source: venueSource }))).toContain("The Ivy House");
+  });
+
   it("does not require the Skiddle logo for a Ticketmaster-only list", () => {
     const attribution = outSourceAttribution([
       eventRow({

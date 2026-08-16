@@ -6,9 +6,36 @@
 // Each case below drives the REAL projection a surface uses, so a lane that
 // started reading row.priceGbp directly again would fail here.
 
-import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
 
+const tonightRows: WhatsOnRow[] = [];
+
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+vi.mock("@/components/map/useWhatsOnTonight", () => ({
+  useWhatsOnTonight: () => ({
+    rows: tonightRows,
+    asOf: "2026-08-16T09:00:00.000Z",
+    sourceObservedAt: "2026-08-16T09:00:00.000Z",
+    sourceFreshnessKind: "listed",
+    kindObservedAt: {},
+    status: "ready",
+    retry: () => {},
+  }),
+}));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("@/app/tonight/TonightConditionsStrip", () => ({ default: () => null }));
+vi.mock("@/app/tonight/TonightGetHomeStrip", () => ({ default: () => null }));
+vi.mock("@/app/tonight/TonightShareButton", () => ({ default: () => null }));
+vi.mock("@/components/desktop/AreaNewsRail", () => ({ default: () => null }));
+vi.mock("@/components/discovery/DealsTonightLane", () => ({ default: () => null }));
+vi.mock("@/components/discovery/MusicTonightLane", () => ({ default: () => null }));
+
+import TonightClient from "@/app/tonight/TonightClient";
 import { ticketFromLine } from "@/components/out/OutCard";
+import { stopEventChips } from "@/lib/planWhatsOn";
+import { TRUSTED_HANDOFF_FLAGS_OFF } from "@/lib/trustedHandoffFlags";
 import { toTonightPickDto } from "@/lib/todayBrief";
 import { laneCardsFromRows } from "@/lib/whatsOnBadges";
 import { whatsOnBarePriceGbp, type WhatsOnRow } from "@/lib/whatsOn";
@@ -82,5 +109,39 @@ describe("the out card is the one place a ticket price prints", () => {
     expect(ticketFromLine(row({ priceGbp: 12 }))).toBe("Tickets from £12");
     expect(ticketFromLine(dealRow())).toBeNull();
     expect(ticketFromLine(row({ priceGbp: undefined }))).toBeNull();
+  });
+});
+
+describe("the plan stop chip", () => {
+  it("labels an event stop without its ticket price, and a deal stop with its figure", () => {
+    const planStart = "2026-08-16T18:30:00.000Z";
+    const now = Date.parse("2026-08-16T18:00:00.000Z");
+    const eventChip = stopEventChips([row()], ["venue-1"], planStart, now).get("venue-1");
+    expect(eventChip).toBeDefined();
+    expect(eventChip?.kind).toBe("event");
+    expect(eventChip?.label).not.toContain("£");
+    const dealChip = stopEventChips([dealRow()], ["venue-1"], planStart, now).get("venue-1");
+    expect(dealChip?.label).toContain("£23.50");
+  });
+});
+
+describe("the Tonight page renders no bare ticket price", () => {
+  function renderTonight(rows: WhatsOnRow[]) {
+    tonightRows.length = 0;
+    tonightRows.push(...rows);
+    return renderToStaticMarkup(
+      createElement(TonightClient, { flags: TRUSTED_HANDOFF_FLAGS_OFF, quietPint: null }),
+    );
+  }
+
+  it("prints a deal's figure and no figure at all for an event", () => {
+    const withDeal = renderTonight([dealRow()]);
+    expect(withDeal).toContain("Two for one burgers");
+    expect(withDeal).toContain("£23.50");
+
+    const withEvent = renderTonight([row()]);
+    expect(withEvent).toContain("A Night at the Playhouse");
+    expect(withEvent).not.toContain("£23.50");
+    expect(withEvent).not.toContain("tonightRowPrice");
   });
 });
