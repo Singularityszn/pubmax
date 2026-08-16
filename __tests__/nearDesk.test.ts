@@ -8,6 +8,7 @@ import {
   deskLoadFailedLine,
   deskHoursCaption,
   deskLaptopCaption,
+  deskPatchReasonLine,
   deskSeatDataLine,
   deskWifiCaption,
   isDeskEligible,
@@ -16,6 +17,7 @@ import {
   parseNearModeParam,
   rankDeskNearMe,
   resolveNearMode,
+  shouldSwitchNearMode,
   wifiFromOsm,
   type DeskPoint,
 } from "@/lib/nearDesk";
@@ -67,6 +69,25 @@ describe("resolveNearMode", () => {
     expect(parseNearModeParam("pint")).toBe("pint");
     expect(parseNearModeParam("DESK")).toBe(null);
     expect(parseNearModeParam("work")).toBe(null);
+  });
+
+  it("refuses to call a tap on the live mode a switch", () => {
+    expect(shouldSwitchNearMode("pint", "desk")).toBe(true);
+    expect(shouldSwitchNearMode("desk", "pint")).toBe(true);
+    expect(shouldSwitchNearMode("pint", "pint")).toBe(false);
+    expect(shouldSwitchNearMode("desk", "desk")).toBe(false);
+  });
+});
+
+describe("deskPatchReasonLine", () => {
+  it("explains a fallback area and stays silent about a chosen one", () => {
+    expect(deskPatchReasonLine("Camden", "denied")).toBe("Location's off, so here's Camden.");
+    expect(deskPatchReasonLine("Camden", "unavailable")).toBe(
+      "No location on this device, so here's Camden.",
+    );
+    expect(deskPatchReasonLine("Camden", null)).toBeNull();
+    expect(deskPatchReasonLine(null, "denied")).toBeNull();
+    expect(deskPatchReasonLine("  ", "denied")).toBeNull();
   });
 });
 

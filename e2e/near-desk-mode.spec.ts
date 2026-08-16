@@ -51,7 +51,7 @@ test.describe("near desk mode", () => {
   test("deep-links desk mode and names a thin locality honestly", async ({ page }) => {
     const errors = watchErrors(page);
     await prepareReturningVisitor(page);
-    await page.route("**/data/london_venues/desks.json", async (route) => {
+    await page.route("**/data/london_desks/desks.json", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",

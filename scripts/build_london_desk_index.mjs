@@ -4,6 +4,10 @@
 // opening_hours for cafe / coworking / library / hotel_lounge plus pubs that
 // state wifi.
 //
+// It publishes to its OWN directory. The shard publisher sweeps the shard
+// directory's root of every *.json that is not manifest.json, so a desk pack
+// written beside the shards is deleted by the next build:london-venues.
+//
 // Run: node scripts/build_london_desk_index.mjs   (`npm run build:london-desks`)
 //
 // OSM data is © OpenStreetMap contributors, ODbL 1.0.
@@ -18,7 +22,9 @@ import { inGreaterLondon } from "./build_london_venue_shards.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
-const OUT_PATH = path.join(ROOT, "public", "data", "london_venues", "desks.json");
+export const DESK_PACK_DIR_NAME = "london_desks";
+export const DESK_PACK_FILE_NAME = "desks.json";
+const OUT_PATH = path.join(ROOT, "public", "data", DESK_PACK_DIR_NAME, DESK_PACK_FILE_NAME);
 const DESK_PACK_VERSION = 1;
 const DESK_KINDS = new Set(["cafe", "coworking", "library", "hotel_lounge"]);
 const BUDGET_BYTES = 2.5 * 1024 * 1024;

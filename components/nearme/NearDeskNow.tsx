@@ -9,9 +9,11 @@ import {
   deskAnswerHeadline,
   deskEmptyLine,
   deskLoadFailedLine,
+  deskPatchReasonLine,
   rankDeskNearMe,
   type DeskAnswer,
   type DeskCard,
+  type DeskPatchReason,
 } from "@/lib/nearDesk";
 import { loadDeskVenues, type DeskVenueLoad } from "@/lib/nearDeskVenues";
 import {
@@ -31,7 +33,7 @@ import "./nearMeNow.css";
 import "./nearDeskNow.css";
 
 type LocateState = "idle" | "requesting" | "ready" | "denied" | "unavailable";
-type PatchReason = "denied" | "unavailable" | null;
+type PatchReason = DeskPatchReason | null;
 
 const GEO_OPTS: PositionOptions = { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 };
 
@@ -137,7 +139,7 @@ export default function NearDeskNow({
     setPackStatus(loaded.status);
     setAnswer(next);
     setPatch(nextPatch);
-    if (reason !== null) setPatchReason(reason);
+    setPatchReason(reason);
     setState("ready");
     if (lastTrackedAnswerRef.current !== generation && loaded.status === "ready") {
       lastTrackedAnswerRef.current = generation;
@@ -257,11 +259,7 @@ export default function NearDeskNow({
   const headline = answer && answer.scope !== "none"
     ? deskAnswerHeadline({ scope: answer.scope, patchLabel: areaLabel })
     : null;
-  const patchMessage = areaLabel && patchReason
-    ? patchReason === "denied"
-      ? `Location's off, so here's ${areaLabel}.`
-      : `No location on this device, so here's ${areaLabel}.`
-    : null;
+  const patchMessage = deskPatchReasonLine(areaLabel, patchReason);
 
   return (
     <section className="nmn" aria-label="Find a desk nearby">

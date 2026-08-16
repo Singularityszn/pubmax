@@ -52,16 +52,10 @@ re-measured, not raised.
 
 ## Desk pack
 
-`desks.json` is the amenity-bearing sibling of these shards, cut by
-`npm run build:london-desks` from the same UK OSM packs. The shards keep name,
-address, position and kind only; desk mode needs wifi, laptop and
-`opening_hours`, so those tags live here and nowhere on the shard rows.
-
-A row is a tuple:
-`[osmRef, name, address, lat, lng, kind, internetAccess, laptop, hours]`.
-Eligible kinds are cafe, coworking, library and hotel_lounge, plus a pub only
-when OSM states wifi. The covering `observedAt` is the oldest pack `fetchedAt`.
-`/near?mode=desk` is the reader (`lib/nearDeskVenues.ts`).
+The amenity-bearing sibling of these shards lives in
+[`public/data/london_desks/`](../london_desks/README.md), not here. Publishing
+this directory sweeps its own root of every `*.json` except `manifest.json`, so
+a file kept beside the shards would be deleted by the next rebuild.
 
 ## Attribution
 

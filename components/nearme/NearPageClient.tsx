@@ -15,6 +15,7 @@ import {
   NEAR_MODE_QUERY,
   parseNearModeParam,
   resolveNearMode,
+  shouldSwitchNearMode,
   type NearMode,
 } from "@/lib/nearDesk";
 import {
@@ -66,10 +67,14 @@ function NearPageBody() {
   );
   const modeParam = searchParams.get(NEAR_MODE_QUERY);
   const explicitMode = parseNearModeParam(modeParam);
-  const mode: NearMode | null = explicitMode
-    ?? (modeResolved ? resolveNearMode(null, rememberedMode) : null);
+  // Pint is what an unresolved device answers, so the default /near still
+  // server-renders the pint surface and the switch above it. A remembered
+  // Desk swaps in once the browser answers.
+  const mode: NearMode = explicitMode
+    ?? (modeResolved ? resolveNearMode(null, rememberedMode) : "pint");
 
   const setMode = useCallback((next: NearMode) => {
+    if (!shouldSwitchNearMode(mode, next)) return;
     writeRememberedNearMode(next);
     trackEvent("near_mode_switched", { mode: next });
     if (!pathname) return;
@@ -83,7 +88,7 @@ function NearPageBody() {
     } catch {
       // URL sync is best-effort — the remembered mode still stands.
     }
-  }, [pathname, router]);
+  }, [mode, pathname, router]);
 
   // Mount-only: a fresh /near load without src=poster must not inherit a stale
   // poster session from an earlier scan in the same tab.
@@ -105,9 +110,7 @@ function NearPageBody() {
         {/* Physical QR arrival (PLG Wave 2): one honest orientation line when
             the drinker scanned a bar poster into /near?src=poster. */}
         <PosterLandingNote src={searchParams.get("src")} />
-        {mode ? (
-          <NearModeSwitch value={mode} onChange={setMode} />
-        ) : null}
+        <NearModeSwitch value={mode} onChange={setMode} />
         {/* Idle-first on /near so patch chips are reachable without granting
             location. Shareable ?patch= deep links answer immediately. */}
         {mode === "desk" ? (
@@ -116,7 +119,7 @@ function NearPageBody() {
             initialPatchId={initialPatchId}
             syncPatchToUrl
           />
-        ) : mode === "pint" ? (
+        ) : (
           <NearMeNow
             cityId={cityId}
             autoLocate={preferredCityResolved && autoLocate}
@@ -125,8 +128,6 @@ function NearPageBody() {
             allowVenueAcceptance
             showPriceTrust
           />
-        ) : (
-          <div className="nmn" aria-busy="true" />
         )}
       </main>
     </div>

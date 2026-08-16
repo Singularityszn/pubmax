@@ -1,10 +1,15 @@
 /**
- * Reader for the London desk pack (`public/data/london_venues/desks.json`).
+ * Reader for the London desk pack (`public/data/london_desks/desks.json`).
  *
  * The kind-tagged shards carry name, address, position and kind only. Desk
  * mode needs the OSM amenity tags those shards strip, so this pack is cut
  * from the same UK venue packs with wifi, laptop and hours retained. It is
  * a PARSER and a FETCH, not a ranker: ranking lives in `lib/nearDesk.ts`.
+ *
+ * The pack has its OWN directory rather than sitting beside the shards it is
+ * cut from. `publishStagedDirectory` sweeps the shard directory's root and
+ * deletes every `*.json` there that is not `manifest.json`, so the next
+ * `npm run build:london-venues` would have taken the desk pack with it.
  *
  * A failed read is not an empty city. The loader reports `failed` rather
  * than `ready` with zero rows, so the surface cannot say no desks exist
@@ -24,7 +29,7 @@ import {
 import { londonVenueIdFor } from "@/lib/londonVenueShards";
 import { isVenueKind, type VenueKind } from "@/lib/venues";
 
-export const DESK_PACK_PATH = "/data/london_venues/desks.json";
+export const DESK_PACK_PATH = "/data/london_desks/desks.json";
 export const DESK_PACK_VERSION = 1;
 
 export type DeskPackJson = {

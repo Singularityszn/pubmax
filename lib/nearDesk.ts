@@ -120,6 +120,15 @@ export function resolveNearMode(
     ?? "pint";
 }
 
+/**
+ * Whether tapping `next` is a SWITCH. Tapping the live pill, or an arrow key
+ * that lands back on it, moves nobody, so it may not spend a URL write or
+ * count as a `near_mode_switched`.
+ */
+export function shouldSwitchNearMode(current: NearMode, next: NearMode): boolean {
+  return current !== next;
+}
+
 export function wifiFromOsm(value: string | null | undefined): WifiState {
   const token = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (token === "yes" || token === "wlan" || token === "wired" || token === "terminal") {
@@ -167,6 +176,29 @@ export function deskEmptyLine(): string {
 
 export function deskLoadFailedLine(): string {
   return "Could not check desks near here.";
+}
+
+/** Why a desk answer is about an area rather than about the reader. */
+export type DeskPatchReason = "denied" | "unavailable";
+
+/**
+ * The one line that says why an area answered instead of the reader's own
+ * position, or nothing when nothing is owed.
+ *
+ * A reason with no area names nothing, and a chosen area with no reason owes
+ * no explanation: the drinker picked it. Both are `null` rather than a
+ * sentence, because a stale "Location's off" over a located answer is a claim
+ * about the device that stopped being true.
+ */
+export function deskPatchReasonLine(
+  areaLabel: string | null | undefined,
+  reason: DeskPatchReason | null,
+): string | null {
+  const label = typeof areaLabel === "string" ? areaLabel.trim() : "";
+  if (!label || !reason) return null;
+  return reason === "denied"
+    ? `Location's off, so here's ${label}.`
+    : `No location on this device, so here's ${label}.`;
 }
 
 export function deskCheckedCaption(observedAt: string | null | undefined): string {
