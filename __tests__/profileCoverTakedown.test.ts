@@ -626,7 +626,156 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
 
     expect(profileReads).toBe(2);
     expect(upserts).toHaveLength(1);
+    expect(upserts[0]!.every((row) => !("moderation_state" in row))).toBe(true);
     expect(rows.every((row) => row.moderation_state === "hidden")).toBe(true);
+  });
+
+  it("owner reorder cannot restore a moderator-hidden cover", async () => {
+    const profile = {
+      id: ownedProfileId,
+      handle: HANDLE,
+      user_id: "user-alice",
+      cover_object_key: profileImageServingKey(
+        "cover",
+        ownedProfileId,
+        FIRST_GENERATION,
+      ),
+      cover_generation: FIRST_GENERATION,
+      cover_moderation_state: "approved",
+      created_at: "2026-08-01T00:00:00.000Z",
+      updated_at: "2026-08-01T00:00:00.000Z",
+    };
+    const rows = [
+      {
+        id: "88888888-8888-4888-8888-888888888870",
+        profile_id: ownedProfileId,
+        position: 1,
+        generation: FIRST_GENERATION,
+        object_key: profileImageServingKey(
+          "cover",
+          ownedProfileId,
+          FIRST_GENERATION,
+        ),
+        moderation_state: "hidden",
+        report_count: 0,
+        report_actors: [],
+        created_at: "2026-08-01T00:00:00.000Z",
+      },
+      {
+        id: "88888888-8888-4888-8888-888888888871",
+        profile_id: ownedProfileId,
+        position: 2,
+        generation: SECOND_GENERATION,
+        object_key: profileImageServingKey(
+          "cover",
+          ownedProfileId,
+          SECOND_GENERATION,
+        ),
+        moderation_state: "hidden",
+        report_count: 0,
+        report_actors: [],
+        created_at: "2026-08-01T00:00:00.000Z",
+      },
+    ];
+    const upserts: Array<Array<Record<string, unknown>>> = [];
+
+    coverAdminRef.client = {
+      from(table: string) {
+        if (table === "profiles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                limit: async () => ({ data: [{ ...profile }], error: null }),
+              }),
+            }),
+          };
+        }
+        if (table !== "profile_cover_photos") throw new Error(`Unexpected ${table}`);
+        return {
+          select: () => {
+            let moderationState: string | null = null;
+            const builder = {
+              eq(column: string, value: string) {
+                if (column === "moderation_state") moderationState = value;
+                if (column === "profile_id") return builder;
+                return builder;
+              },
+              order() {
+                return builder;
+              },
+              async limit() {
+                return {
+                  data: rows
+                    .filter(
+                      (row) =>
+                        row.profile_id === ownedProfileId &&
+                        (!moderationState || row.moderation_state === moderationState),
+                    )
+                    .map((row) => ({ ...row })),
+                  error: null,
+                };
+              },
+            };
+            return builder;
+          },
+          update(patch: { moderation_state?: string }) {
+            return {
+              eq: () => ({
+                select: async () => {
+                  for (const row of rows) {
+                    if (patch.moderation_state) {
+                      row.moderation_state = patch.moderation_state;
+                    }
+                  }
+                  return { data: rows.map(({ id }) => ({ id })), error: null };
+                },
+              }),
+            };
+          },
+          async upsert(nextRows: Array<Record<string, unknown>>) {
+            upserts.push(nextRows.map((row) => ({ ...row })));
+            for (const next of nextRows) {
+              const current = rows.find((row) => row.id === next.id);
+              if (current) Object.assign(current, next);
+            }
+            return { error: null };
+          },
+        };
+      },
+    };
+    supabaseConfigured.value = true;
+
+    const result = await supabaseProfileCoverPhotoStore.reorder(
+      ownedProfileId,
+      [rows[1].id, rows[0].id],
+    );
+
+    expect(result).toEqual([]);
+    expect(upserts).toHaveLength(0);
+    expect(rows.every((row) => row.moderation_state === "hidden")).toBe(true);
+  });
+
+  it("mirrors hide onto rotation when the profile has no cover mirror image", async () => {
+    __resetProfileCoverPhotos();
+    const profile = __seedMemoryOwnedProfile(HANDLE, "user-alice");
+    ownedProfileId = profile.id;
+    for (const [index, generation] of [FIRST_GENERATION, SECOND_GENERATION].entries()) {
+      await memoryProfileCoverPhotoStore.create({
+        id: `88888888-8888-4888-8888-88888888888${index}`,
+        profileId: ownedProfileId,
+        generation,
+        objectKey: profileImageServingKey("cover", ownedProfileId, generation),
+      });
+    }
+
+    expect(await moderateProfileImageAcrossStores(HANDLE, "cover", "hide")).toBe(true);
+    expect(await memoryProfileCoverPhotoStore.listApproved(ownedProfileId)).toEqual([]);
+    expect(
+      await memoryProfileCoverPhotoStore.approvedObjectKey(
+        ownedProfileId,
+        SECOND_GENERATION,
+      ),
+    ).toBeNull();
   });
 
   it("leaves the rotation alone for the face", async () => {

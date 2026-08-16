@@ -284,6 +284,7 @@ export const memoryProfileCoverPhotoStore: ProfileCoverPhotoStore = {
     }
     const stateAfter = await ownerCoverWriteState(profileId);
     if (stateAfter === "unavailable") {
+      await this.moderateAllForProfile(profileId, "hidden");
       for (const { id, position } of held) {
         const row = byId.get(id);
         if (row && row.profileId === profileId) row.position = position;
@@ -354,6 +355,18 @@ const { guard, isSchemaMiss, resetWarnings } = createFailSoftGuard({
 
 function admin() {
   return requireSupabaseAdmin();
+}
+
+/**
+ * Owner reorder upserts positions only: never replay moderation fields, or a
+ * reorder would put a moderator-hidden cover back on the rotation.
+ */
+function toReorderRow(photo: Pick<ProfileCoverPhoto, "id" | "profileId" | "position">) {
+  return {
+    id: photo.id,
+    profile_id: photo.profileId,
+    position: photo.position,
+  };
 }
 
 function toRow(photo: ProfileCoverPhoto) {
@@ -593,14 +606,18 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
         const rows = coverPositionsFor(orderedIds)
           .map(({ id, position }) => {
             const row = byRowId.get(id);
-            return row ? toRow({ ...row, position }) : null;
+            return row ? toReorderRow({ id: row.id, profileId: row.profileId, position }) : null;
           })
-          .filter((row): row is ReturnType<typeof toRow> => row !== null);
+          .filter((row): row is ReturnType<typeof toReorderRow> => row !== null);
         if (rows.length === 0) return held;
         const { error } = await admin().from(TABLE).upsert(rows, { onConflict: "id" });
         if (error) throw new Error(error.message);
         const stateAfter = await ownerCoverWriteState(profileId);
         if (stateAfter === "unavailable") {
+          await supabaseProfileCoverPhotoStore.moderateAllForProfile(
+            profileId,
+            "hidden",
+          );
           throw new ProfileCoverGuardUnavailableError();
         }
         if (stateAfter === "hidden") {
