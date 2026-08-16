@@ -119,6 +119,37 @@ function agentBody(llmUrl, secret) {
   return { body, voices };
 }
 
+/**
+ * A copy of the agent body with the Custom LLM secret held back.
+ *
+ * The dry run is the documented pre-flight, so its output lands in terminal
+ * scrollback and in any CI log. The secret is what guards /api/pub-pal/llm, so
+ * only its length is printed. The real request still carries the true value.
+ */
+function redactSecret(body) {
+  const apiKey = body?.conversation_config?.agent?.prompt?.custom_llm?.api_key;
+  if (!apiKey || typeof apiKey.secret !== "string") return body;
+  return {
+    ...body,
+    conversation_config: {
+      ...body.conversation_config,
+      agent: {
+        ...body.conversation_config.agent,
+        prompt: {
+          ...body.conversation_config.agent.prompt,
+          custom_llm: {
+            ...body.conversation_config.agent.prompt.custom_llm,
+            api_key: {
+              ...apiKey,
+              secret: `[redacted, ${apiKey.secret.length} characters]`,
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
 async function call(method, url, apiKey, body) {
   const response = await fetch(url, {
     method,
@@ -161,8 +192,12 @@ async function main() {
   const { body, voices } = agentBody(llmUrl, secret);
 
   if (dryRun) {
-    console.log("Dry run. This is the agent that would be written:\n");
-    console.log(JSON.stringify({ ...body, custom_llm_url: llmUrl }, null, 2));
+    console.log(
+      "Dry run. This is the agent that would be written, with the shared secret held back:\n",
+    );
+    console.log(
+      JSON.stringify({ ...redactSecret(body), custom_llm_url: llmUrl }, null, 2),
+    );
     console.log("\nVoices resolved:", voices);
     return;
   }

@@ -32,6 +32,8 @@ vi.mock("@/lib/ask/deskVenues.server", () => ({
   loadDeskVenues: vi.fn(async () => state.desk),
 }));
 
+import { CHEAPEST_NEAR_NO_ANCHOR } from "@/lib/ask/conciergeTools";
+import { routeAskDeterministically } from "@/lib/ask/router";
 import { runAskTool } from "@/lib/ask/tools";
 import type { AskToolContext } from "@/lib/ask/toolContract";
 
@@ -116,6 +118,46 @@ describe("cheapest_pint_near", () => {
     expect(result.cards).toHaveLength(0);
   });
 
+  it("refuses a positional pronoun rather than landing on a pub that spells it", async () => {
+    state.venues = [
+      venue({ id: "bex", name: "Bexleyheath Working Mens Club", cheapestPrice: 3 }),
+      venue({ id: "us", name: "The Custom House", cheapestPrice: 4 }),
+    ];
+    for (const query of ["cheapest pint near me", "cheapest pint near us"]) {
+      const [call] = routeAskDeterministically(query);
+      expect(call?.name).toBe("cheapest_pint_near");
+      const result = await runAskTool("cheapest_pint_near", call.args, ctx({ query }));
+      expect(result.ok).toBe(false);
+      expect(result.cards).toHaveLength(0);
+      expect(result.answerHint).toBe(CHEAPEST_NEAR_NO_ANCHOR);
+    }
+  });
+
+  it("still resolves a real area word arriving the same way", async () => {
+    state.venues = [
+      venue({ id: "a", name: "The Crown", area: "Camden", cheapestPrice: 6 }),
+      venue({ id: "b", name: "The Ship", area: "Camden", cheapestPrice: 4.2 }),
+    ];
+    const [call] = routeAskDeterministically("cheapest pint near Camden");
+    const result = await runAskTool("cheapest_pint_near", call.args, ctx());
+    expect(result.ok).toBe(true);
+    expect(result.cards.map((card) => card.venueId)).toEqual(["b", "a"]);
+  });
+
+  it("takes an area word as a pub only on an exact or prefix name", async () => {
+    state.venues = [
+      venue({ id: "lamb", name: "The Lamb", cheapestPrice: 4 }),
+      venue({ id: "near", name: "The Crown", lat: 51.5005, cheapestPrice: 4.5 }),
+    ];
+    const exact = await runAskTool("cheapest_pint_near", { area: "The Lamb" }, ctx());
+    expect(exact.ok).toBe(true);
+    expect(exact.cards.map((card) => card.venueId)).toEqual(["near"]);
+
+    const substring = await runAskTool("cheapest_pint_near", { area: "Lamb" }, ctx());
+    expect(substring.ok).toBe(false);
+    expect(substring.answerHint).toBe(CHEAPEST_NEAR_NO_ANCHOR);
+  });
+
   it("degrades honestly when the listed index could not be read", async () => {
     state.venues = [];
     const result = await runAskTool("cheapest_pint_near", { area: "Camden" }, ctx());
@@ -157,7 +199,7 @@ describe("tonight_now", () => {
     expect(result.ok).toBe(true);
     expect(result.answerHint).toContain("1 on right now");
     expect(result.answerHint).toContain("1 still to start tonight");
-    expect(result.answerHint).toContain("can't tell you what's quiet");
+    expect(result.answerHint).toContain("No live crowd reading yet");
     expect(result.cards[0]?.note).toBe("On right now");
   });
 

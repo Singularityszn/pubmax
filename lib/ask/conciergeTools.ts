@@ -13,6 +13,8 @@
 //   3. A write is a proposal (ADR 0006). `report_occupancy` writes nothing at
 //      all today, because the crowd store (master plan R-011) is not built.
 
+import { isMapLensDrinkCategory } from "@/lib/drinks";
+import type { DrinkCategory } from "@/lib/drinks";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { rowEffectiveEnd } from "@/lib/whatsOn";
 
@@ -43,6 +45,49 @@ export function cheapestNearHeadline(
 /** The line when the anchor itself could not be resolved. */
 export const CHEAPEST_NEAR_NO_ANCHOR =
   "Name a listed pub or a London area and I'll find the cheapest pints round it.";
+
+/**
+ * Words that mean "where I am". They may never resolve to an anchor.
+ *
+ * "cheapest pint near me" arrives here as the area word "me", and a pub-name
+ * match would happily land on any pub whose name holds those letters. The tool
+ * refuses the reader's own position by design, so a word that only names it
+ * must be refused too rather than guessed at.
+ */
+const DEICTIC_PLACE_WORDS: readonly string[] = [
+  "me",
+  "us",
+  "myself",
+  "ourselves",
+  "mine",
+  "ours",
+  "here",
+  "over here",
+  "round here",
+  "around here",
+  "this area",
+  "this place",
+  "where i am",
+  "where we are",
+  "where im at",
+  "current location",
+  "my location",
+  "my position",
+];
+
+export function isDeicticPlaceWord(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const needle = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!needle) return false;
+  if (DEICTIC_PLACE_WORDS.includes(needle)) return true;
+  // "my area", "my place", "my end", "my local": first person, no named place.
+  return /^my\s+\S/.test(needle);
+}
 
 /**
  * The empty line, split three ways. A read that failed may never be worded as
@@ -114,14 +159,15 @@ export function splitTonightRowsByNow(
 }
 
 /**
- * What we hold about how busy a pub is right now: nothing.
+ * What we hold about how busy a pub is right now: nothing live.
  *
- * The crowd report (master plan R-011) is not built, so a "quiet or rammed"
- * answer would be a guess dressed as a reading. Named once here so the tool,
- * the docs and the test all say the same thing.
+ * A live crowd reading is master plan R-011's, and it is not built. What people
+ * do log is a Visit Report, dated the day of the visit and good for up to
+ * `MAX_VISIT_AGE_DAYS`, so it can never answer "how busy is it this minute".
+ * Named once here so the tool, the docs and the test all say the same thing.
  */
-export const CROWD_REPORTS_NOT_ON_RECORD =
-  "Nobody can log how busy a pub is yet, so I can't tell you what's quiet.";
+export const CROWD_READING_NOT_LIVE =
+  "No live crowd reading yet, so what people log is a visit report, dated the day they went.";
 
 export function tonightNowLine(input: {
   area?: string | null;
@@ -161,15 +207,24 @@ export function venueDrinksEmptyLine(
   return `No drink prices logged at ${venueName} yet. Log one at the bar and it shows on that pub's page straight away.`;
 }
 
-/** One drink row's note: its own tag, its own day, and what it counts toward. */
+/**
+ * One drink row's note: its own tag, its own day, and what it counts toward.
+ *
+ * Corroboration and map reach are two questions. `MAP_LENS_DRINK_CATEGORIES`
+ * drops "other", so a corroborated "other" price never paints a pin: it keeps
+ * the corroboration fact and loses the map promise.
+ */
 export function venueDrinkRowNote(input: {
   label: string;
   day: string;
+  category: DrinkCategory;
   corroborated: boolean;
 }): string {
-  const standing = input.corroborated
-    ? "two people agree, so it reaches the map"
-    : "one report so far, so it stays on this pub's page";
+  const standing = !input.corroborated
+    ? "one report so far, so it stays on this pub's page"
+    : isMapLensDrinkCategory(input.category)
+      ? "two people agree, so it reaches the map"
+      : "two people agree, and it stays on this pub's page";
   return `${input.label} · logged ${input.day} · ${standing}`;
 }
 
@@ -261,7 +316,10 @@ export function parseOccupancyLevel(value: unknown): OccupancyLevel | null {
   if ((OCCUPANCY_LEVELS as readonly string[]).includes(needle)) {
     return needle as OccupancyLevel;
   }
-  if (/\b(rammed|packed|heaving|no seats)\b/.test(needle)) return "full";
+  // The negatives are read BEFORE the bare "seats" alternative below, or
+  // "no seats" (which the router itself triggers on) reads as some seats.
+  if (/\bno-(?:seats?|room|space|tables?)\b/.test(needle)) return "full";
+  if (/\b(rammed|packed|heaving)\b/.test(needle)) return "full";
   if (/\b(quiet|dead|empty)\b/.test(needle)) return "empty";
   if (/\b(seats|room|space)\b/.test(needle)) return "some-seats";
   return null;

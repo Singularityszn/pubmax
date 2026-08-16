@@ -42,7 +42,8 @@ Variables → Production, Preview). All four are server-only.
 ## Creating the agent
 
 ```bash
-# Local dry run: prints exactly what would be written, calls nothing.
+# Local dry run: prints what would be written, holds the shared secret back,
+# and calls nothing.
 npm run pubpal:agent -- --dry-run --base-url https://pubmaxxing.com
 
 # Real run: creates the agent, or updates the one already there.

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CHEAPEST_NEAR_NO_ANCHOR,
-  CROWD_REPORTS_NOT_ON_RECORD,
+  CROWD_READING_NOT_LIVE,
   FIND_DESK_NO_SEAT_DATA,
   OCCUPANCY_LEVELS,
   WORK_FRIENDLY_VENUE_KINDS,
@@ -12,6 +12,7 @@ import {
   CONCIERGE_TOOL_DEFINITIONS,
   findDeskEmptyLine,
   findDeskRowNote,
+  isDeicticPlaceWord,
   isWorkFriendlyVenueKind,
   occupancyReportOutcome,
   occupancyStoreState,
@@ -81,6 +82,26 @@ describe("cheapest_pint_near policy", () => {
     expect(CHEAPEST_NEAR_NO_ANCHOR).not.toMatch(/location|your position/i);
   });
 
+  it("refuses a word that only means where the reader is", () => {
+    for (const word of [
+      "me",
+      "us",
+      " Me ",
+      "here",
+      "round here",
+      "mine",
+      "my area",
+      "my place",
+      "where I am",
+    ]) {
+      expect(isDeicticPlaceWord(word)).toBe(true);
+    }
+    for (const word of ["Camden", "The Lamb", "Mile End", "Marylebone", ""]) {
+      expect(isDeicticPlaceWord(word)).toBe(false);
+    }
+    expect(isDeicticPlaceWord(undefined)).toBe(false);
+  });
+
   it("drops the walk when there is no distance to quote", () => {
     expect(cheapestNearRowNote({ area: "Camden", walkMinutes: 7 })).toBe(
       "Camden · 7 min walk",
@@ -114,8 +135,11 @@ describe("tonight_now policy", () => {
     expect(split.later.map((r) => r.id)).toEqual(["undated"]);
   });
 
-  it("says plainly that no crowd report exists", () => {
-    expect(CROWD_REPORTS_NOT_ON_RECORD).toMatch(/can't tell you what's quiet/);
+  it("says the crowd reading is not live, without denying visit reports", () => {
+    expect(CROWD_READING_NOT_LIVE).toBe(
+      "No live crowd reading yet, so what people log is a visit report, dated the day they went.",
+    );
+    expect(CROWD_READING_NOT_LIVE).not.toMatch(/nobody can log/i);
   });
 
   it("separates a quiet city from a read that failed", () => {
@@ -139,11 +163,33 @@ describe("venue_drinks policy", () => {
 
   it("says how far a figure reaches, per row", () => {
     expect(
-      venueDrinkRowNote({ label: "Beer", day: "12 Aug", corroborated: true }),
+      venueDrinkRowNote({
+        label: "Beer",
+        day: "12 Aug",
+        category: "beer",
+        corroborated: true,
+      }),
     ).toContain("reaches the map");
     expect(
-      venueDrinkRowNote({ label: "Wine", day: "12 Aug", corroborated: false }),
+      venueDrinkRowNote({
+        label: "Wine",
+        day: "12 Aug",
+        category: "wine",
+        corroborated: false,
+      }),
     ).toContain("stays on this pub's page");
+  });
+
+  it("promises no map reach to a category the map has no lens for", () => {
+    const note = venueDrinkRowNote({
+      label: "Other",
+      day: "12 Aug",
+      category: "other",
+      corroborated: true,
+    });
+    expect(note).toContain("two people agree");
+    expect(note).not.toContain("map");
+    expect(note).toContain("stays on this pub's page");
   });
 });
 
@@ -179,6 +225,8 @@ describe("report_occupancy policy", () => {
     expect(parseOccupancyLevel("Full")).toBe("full");
     expect(parseOccupancyLevel("some seats")).toBe("some-seats");
     expect(parseOccupancyLevel("it's rammed")).toBe("full");
+    expect(parseOccupancyLevel("No seats in The Lamb")).toBe("full");
+    expect(parseOccupancyLevel("no room at all")).toBe("full");
     expect(parseOccupancyLevel("dead in here")).toBe("empty");
     expect(parseOccupancyLevel("mustard")).toBeNull();
     expect(parseOccupancyLevel(7)).toBeNull();

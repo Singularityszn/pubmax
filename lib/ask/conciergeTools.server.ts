@@ -7,12 +7,13 @@
 
 import {
   CHEAPEST_NEAR_NO_ANCHOR,
-  CROWD_REPORTS_NOT_ON_RECORD,
+  CROWD_READING_NOT_LIVE,
   cheapestNearEmptyLine,
   cheapestNearHeadline,
   cheapestNearRowNote,
   findDeskEmptyLine,
   findDeskRowNote,
+  isDeicticPlaceWord,
   occupancyReportOutcome,
   occupancyStoreState,
   splitTonightRowsByNow,
@@ -62,17 +63,26 @@ function limitOf(value: unknown, fallback: number, cap: number): number {
   return Math.min(cap, Math.max(1, Math.floor(raw)));
 }
 
+/**
+ * A named pub.
+ *
+ * `"strict"` drops the substring pass. It is what an AREA word falls back to:
+ * a word offered as a place, matched loosely, lands on any pub holding those
+ * letters, which is how "near me" once answered with a club in Bexleyheath.
+ */
 function matchVenue(
   venues: readonly ConciergeVenue[],
   needle: string,
+  mode: "loose" | "strict" = "loose",
 ): ConciergeVenue | null {
   const text = needle.trim().toLowerCase();
   if (!text) return null;
   return (
     venues.find((v) => v.name.toLowerCase() === text) ??
     venues.find((v) => v.name.toLowerCase().startsWith(text)) ??
-    venues.find((v) => v.name.toLowerCase().includes(text)) ??
-    null
+    (mode === "loose"
+      ? (venues.find((v) => v.name.toLowerCase().includes(text)) ?? null)
+      : null)
   );
 }
 
@@ -130,15 +140,21 @@ export async function toolCheapestPintNear(
   }
 
   const venueId = str(args.venueId);
-  const areaArg = str(args.area);
+  // "near me" is not a place. A word that only names the reader's own position
+  // is refused here, because this tool answers from a pub or an area alone.
+  const areaArg = isDeicticPlaceWord(args.area) ? "" : str(args.area);
+  const venueNameArg = isDeicticPlaceWord(args.venueName)
+    ? ""
+    : str(args.venueName);
   // A borough is the stronger reading of an area word, so it is tried first.
   // "near The Lamb" arrives here as an area too, and falls through to the pub
-  // of that name rather than answering nothing.
+  // of that name rather than answering nothing - but on an exact or prefix
+  // name only, never a substring.
   const area = areaArg ? matchArea(venues, areaArg) : null;
   const anchorVenue =
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
-    matchVenue(venues, str(args.venueName)) ??
-    (area ? null : matchVenue(venues, areaArg));
+    matchVenue(venues, venueNameArg) ??
+    (area ? null : matchVenue(venues, areaArg, "strict"));
 
   let anchor: CheapestNearAnchor | null = null;
   if (anchorVenue) {
@@ -272,7 +288,7 @@ export async function toolTonightNow(
         .filter((card) => card.venueId)
         .slice(0, 3)
         .map((card) => openProposal(card.venueId, card.title)),
-      answerHint: `${line} ${CROWD_REPORTS_NOT_ON_RECORD}`,
+      answerHint: `${line} ${CROWD_READING_NOT_LIVE}`,
     };
   } catch {
     return {
@@ -326,6 +342,7 @@ export async function toolVenueDrinks(
     note: venueDrinkRowNote({
       label: row.label,
       day: communityStampLabel(row.price.submittedAt, now),
+      category: row.category,
       corroborated: drivesMap(row.price as CommunityPrice, now),
     }),
     price: row.price.priceGbp,
