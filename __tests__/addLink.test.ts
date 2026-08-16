@@ -13,8 +13,10 @@ import {
   addLinkReturnTo,
   parseAddLinkAuto,
   shouldAutoAdd,
+  type AddLinkAddOutcome,
+  type AddLinkDoorOutcome,
 } from "@/lib/addLink";
-import { ANALYTICS_EVENTS } from "@/lib/analyticsEvents";
+import { ANALYTICS_EVENTS, sanitizeEvent } from "@/lib/analyticsEvents";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import { inviteReturnToFromUrl } from "@/lib/inviteReturnTo";
 
@@ -158,5 +160,39 @@ describe("what the add surface says and reports", () => {
     expect(ANALYTICS_EVENTS.add_link_signup_started).toEqual(["surface", "outcome"]);
     expect(ANALYTICS_EVENTS.add_link_added).toEqual(["surface", "outcome"]);
     expect(ADD_LINK_SURFACE).toBe("add-link");
+  });
+
+  it("carries every outcome the surface reports through the rail", () => {
+    // A dropped `outcome` reads in the funnel as an event that lost its prop,
+    // so the refusal has to survive `sanitizeEvent` beside the other two.
+    const outcomes: AddLinkAddOutcome[] = ["added", "failed", "unavailable"];
+    for (const outcome of outcomes) {
+      expect(
+        sanitizeEvent("add_link_added", { surface: ADD_LINK_SURFACE, outcome }),
+      ).toEqual({ name: "add_link_added", props: { surface: ADD_LINK_SURFACE, outcome } });
+    }
+
+    const doors: AddLinkDoorOutcome[] = ["create", "signin"];
+    for (const outcome of doors) {
+      expect(
+        sanitizeEvent("add_link_signup_started", { surface: ADD_LINK_SURFACE, outcome }),
+      ).toEqual({
+        name: "add_link_signup_started",
+        props: { surface: ADD_LINK_SURFACE, outcome },
+      });
+    }
+  });
+
+  it("still drops a handle, whatever the outcome says", () => {
+    expect(
+      sanitizeEvent("add_link_added", {
+        surface: ADD_LINK_SURFACE,
+        outcome: "added",
+        handle: "karan",
+      }),
+    ).toEqual({
+      name: "add_link_added",
+      props: { surface: ADD_LINK_SURFACE, outcome: "added" },
+    });
   });
 });

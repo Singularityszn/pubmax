@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, type FunctionComponent } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -81,6 +81,12 @@ vi.mock("@/components/auth/HandlePasswordSignIn", () => ({
 
 import LoginPage from "@/components/auth/LoginPage";
 
+// The page declares every prop optional with a `= {}` default, so React's own
+// inference reads it as taking none. This names the props it really accepts.
+const LoginPageWithProps = LoginPage as FunctionComponent<
+  NonNullable<Parameters<typeof LoginPage>[0]>
+>;
+
 beforeEach(() => {
   authActions.google.mockClear();
   authActions.apple.mockClear();
@@ -149,7 +155,7 @@ describe("login page", () => {
   it("hands the add-link destination to every visible sign-in action", async () => {
     const destination = "/add/karan?auto=1";
     renderToStaticMarkup(
-      createElement(LoginPage, {
+      createElement(LoginPageWithProps, {
         initialIntent: "signin",
         from: destination,
       }),

@@ -426,8 +426,8 @@ const SAFE_STRING_VALUES = new Set([
   "plan_accepted", "plan_saved", "plan_completed", "memory_reviewed", "story_published",
   // Wanted Wave A venue kinds (closed enum on wanted_created / wanted_fulfilled).
   "curated", "uk_base", "pending",
-  // Share-link add funnel: the one surface, the two doors, the two outcomes.
-  "add-link", "signin", "added", "failed",
+  // Share-link add funnel: the one surface, the two doors, the three outcomes.
+  "add-link", "signin", "added", "failed", "unavailable",
   // Community-price funnel vocabulary: the drink taxonomy and the three
   // failure buckets.
   ...PRICE_SUBMIT_CATEGORIES,

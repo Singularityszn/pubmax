@@ -59,11 +59,19 @@ function avatarInitial(handle: string): string {
   return clean ? clean.slice(0, 1).toUpperCase() : "?";
 }
 
-/** The state a member is IN after the tap, which is what a reader wants to know. */
-function outcomeLabel(outcome: StarterPackFollowOutcome): string {
-  if (outcome === "self") return "You";
-  if (outcome === "failed") return "Didn't go through";
-  return "Following";
+/**
+ * The state a member is IN after the tap, which is what a reader wants to know,
+ * plus whether that state is a problem. A member the write REFUSED is neither a
+ * follow that happened nor a fault the drinker can retry, so it says so.
+ */
+export function starterPackOutcomeChip(outcome: StarterPackFollowOutcome): {
+  label: string;
+  problem: boolean;
+} {
+  if (outcome === "self") return { label: "You", problem: false };
+  if (outcome === "failed") return { label: "Didn't go through", problem: true };
+  if (outcome === "unavailable") return { label: "No longer here", problem: true };
+  return { label: "Following", problem: false };
 }
 
 export default function StarterPacks({ compact = false }: { compact?: boolean }) {
@@ -230,12 +238,12 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
                       </Link>
                       <span
                         className={
-                          result.outcome === "failed"
+                          starterPackOutcomeChip(result.outcome).problem
                             ? "starterPacks__outcome starterPacks__outcome--problem"
                             : "starterPacks__outcome"
                         }
                       >
-                        {outcomeLabel(result.outcome)}
+                        {starterPackOutcomeChip(result.outcome).label}
                       </span>
                     </li>
                   ))}

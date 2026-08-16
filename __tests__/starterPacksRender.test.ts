@@ -15,7 +15,9 @@ import { describe, expect, it, vi } from "vitest";
 import { isSocialFriendsLaunchEnabled } from "@/lib/socialLaunch";
 import {
   STARTER_PACK_FOLLOW_FLOOR,
+  STARTER_PACK_FOLLOW_OUTCOMES,
   starterPacksSurfaceVisible,
+  type StarterPackFollowOutcome,
 } from "@/lib/starterPacks";
 
 vi.mock("@/lib/authedFetch", () => ({
@@ -124,6 +126,40 @@ describe("the friends-launch flag", () => {
     expect(isSocialFriendsLaunchEnabled("1")).toBe(true);
     const example = readFileSync(join(process.cwd(), ".env.example"), "utf8");
     expect(example).toMatch(/^PUBMAX_SOCIAL_FRIENDS_LAUNCH=\s*$/m);
+  });
+});
+
+describe("what a member's chip says after the tap", () => {
+  async function chip(outcome: StarterPackFollowOutcome) {
+    const { starterPackOutcomeChip } = await import(
+      "@/components/social/StarterPacks"
+    );
+    return starterPackOutcomeChip(outcome);
+  }
+
+  it("never reads a refused member as a follow that happened", async () => {
+    // The write refuses a member who is gone (lib/followWrite.server.ts), and
+    // that outcome reaching the chip unhandled printed "Following".
+    expect(await chip("unavailable")).toEqual({
+      label: "No longer here",
+      problem: true,
+    });
+  });
+
+  it("keeps a live member's chip unchanged, and a fault its own word", async () => {
+    expect(await chip("followed")).toEqual({ label: "Following", problem: false });
+    expect(await chip("already")).toEqual({ label: "Following", problem: false });
+    expect(await chip("self")).toEqual({ label: "You", problem: false });
+    expect(await chip("failed")).toEqual({
+      label: "Didn't go through",
+      problem: true,
+    });
+  });
+
+  it("says something about every outcome the write can answer", async () => {
+    for (const outcome of STARTER_PACK_FOLLOW_OUTCOMES) {
+      expect((await chip(outcome)).label.length).toBeGreaterThan(0);
+    }
   });
 });
 

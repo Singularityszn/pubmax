@@ -121,7 +121,7 @@ export function shouldAutoAdd(input: {
  * and how the add went. Both sets are in the registry's own closed value list.
  */
 export type AddLinkDoorOutcome = "create" | "signin";
-export type AddLinkAddOutcome = "added" | "failed";
+export type AddLinkAddOutcome = "added" | "failed" | "unavailable";
 
 export const ADD_LINK_SURFACE = "add-link";
 
