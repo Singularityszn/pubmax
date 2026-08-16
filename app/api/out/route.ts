@@ -69,8 +69,10 @@ export async function GET(request: Request): Promise<Response> {
   let status: OutStatus = "ready";
   let openPlans: OutResponse["openPlans"] = [];
   try {
+    const window = outPlansFromIso(day, now);
     const listed = await store.listOpen({
-      from: outPlansFromIso(day, now),
+      city,
+      ...window,
       limit: OUT_OPEN_PLAN_LIMIT,
     });
     const inCity = await openPlansInCity(listed, city);
@@ -91,8 +93,12 @@ export async function GET(request: Request): Promise<Response> {
       kindObservedAt: events.kindObservedAt,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "out request failed";
-    return publicApiError(message, "out_unavailable", 200, {
+    if (error instanceof Error) {
+      console.error("GET /api/out failed while loading whatsOn:", error.message, error.stack);
+    } else {
+      console.error("GET /api/out failed while loading whatsOn:", error);
+    }
+    return publicApiError("This service is temporarily unavailable.", "OUT_UNAVAILABLE", 200, {
       retryable: true,
       compatibilityFields: { ...DEGRADED_FIELDS, openPlans },
     });

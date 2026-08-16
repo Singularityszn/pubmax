@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { hashPlanMemberToken } from "@/lib/planStore";
+import { parseCityId } from "@/lib/cities";
 import type { OutOpenPlan } from "@/lib/out";
 import { OPEN_PLAN_LIST_LIMIT } from "@/lib/openSocialCrew";
 import {
@@ -114,7 +115,12 @@ export type SocialCrewStore = {
     actor: SocialPostActor,
     input: SocialCrewListInput,
   ): Promise<SocialCrewListPageDTO>;
-  listOpen(input: { from: string; limit?: number }): Promise<OutOpenPlan[]>;
+  listOpen(input: {
+    from: string;
+    until: string;
+    city: string;
+    limit?: number;
+  }): Promise<OutOpenPlan[]>;
   create(actor: SocialPostActor, input: CreateInput): Promise<SocialCrewMutationResult>;
   invite(actor: SocialPostActor, input: InviteInput): Promise<SocialCrewMutationResult>;
   acceptInvitation(actor: SocialPostActor, input: InvitationActionInput): Promise<SocialCrewMutationResult>;
@@ -503,7 +509,12 @@ export function createSocialCrewStore(
 
     async listOpen(input) {
       const from = typeof input.from === "string" ? input.from.trim() : "";
+      const until = typeof input.until === "string" ? input.until.trim() : "";
+      const city = typeof input.city === "string" ? input.city.trim() : "";
+      const safeCity = parseCityId(city) ?? "london";
       if (!from) return unavailable();
+      if (!until) return unavailable();
+      if (Date.parse(from) >= Date.parse(until)) return unavailable();
       const limit = input.limit ?? OPEN_PLAN_LIST_LIMIT;
       if (!Number.isInteger(limit) || limit < 1 || limit > OPEN_PLAN_LIST_LIMIT) {
         return unavailable();
@@ -512,6 +523,8 @@ export function createSocialCrewStore(
       try {
         snapshot = await dependencies.snapshot("list_open_social_crews", {
           p_from: from,
+          p_until: until,
+          p_city: safeCity,
           p_limit: limit,
         });
       } catch {

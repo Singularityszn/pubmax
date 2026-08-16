@@ -524,7 +524,7 @@ describe("0110 applied to PostgreSQL", () => {
     const listed = jsonValue(
       db.sql(
         `set role service_role;
-         select public.list_open_social_crews(now() - interval '1 hour', 50)`,
+         select public.list_open_social_crews(now() - interval '1 hour', now() + interval '1 day', 'london', 50)`,
       ),
     ) as Array<Record<string, unknown>>;
     expect(listed).toHaveLength(1);
@@ -543,7 +543,7 @@ describe("0110 applied to PostgreSQL", () => {
       jsonValue(
         db.sql(
           `set role service_role;
-           select public.list_open_social_crews(now() - interval '1 hour', 50)`,
+           select public.list_open_social_crews(now() - interval '1 hour', now() + interval '1 day', 'london', 50)`,
         ),
       ),
     ).toEqual([]);
@@ -552,7 +552,7 @@ describe("0110 applied to PostgreSQL", () => {
       expect(
         db.expectRefusal(
           `set role ${role};
-           select public.list_open_social_crews(now() - interval '1 hour', 50)`,
+           select public.list_open_social_crews(now() - interval '1 hour', now() + interval '1 day', 'london', 50)`,
         ),
       ).toMatch(/permission denied/i);
     }
@@ -564,7 +564,7 @@ describe("0110 applied to PostgreSQL", () => {
       jsonValue(
         db.sql(
           `set role service_role;
-           select public.list_open_social_crews(now() + interval '2 days', 50)`,
+           select public.list_open_social_crews(now() + interval '2 days', now() + interval '3 days', 'london', 50)`,
         ),
       ),
     ).toEqual([]);
@@ -573,7 +573,7 @@ describe("0110 applied to PostgreSQL", () => {
         jsonValue(
           db.sql(
             `set role service_role;
-             select public.list_open_social_crews(now() - interval '1 hour', 1)`,
+             select public.list_open_social_crews(now() - interval '1 hour', now() + interval '1 day', 'london', 1)`,
           ),
         ) as unknown[]
       ).length,
@@ -618,7 +618,7 @@ describe("0110 rolled back", () => {
     expect(
       db.expectRefusal(
         `set role service_role;
-         select public.list_open_social_crews(now() - interval '1 hour', 50)`,
+         select public.list_open_social_crews(now() - interval '1 hour', now() + interval '1 day', 'london', 50)`,
       ),
     ).toMatch(/does not exist/i);
   });

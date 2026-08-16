@@ -103,7 +103,9 @@ describe("GET /api/out openPlans", () => {
     expect(Array.isArray(body.events)).toBe(true);
     // The listing RPC answers no city question; the reader derives it.
     expect(store.listOpen).toHaveBeenCalledWith({
+      city: "london",
       from: expect.any(String),
+      until: expect.any(String),
       limit: OUT_OPEN_PLAN_LIMIT,
     });
   });

@@ -8,6 +8,7 @@ import type { OutOpenPlan, OutOpenPlanMeetingPoint } from "@/lib/out";
 import type { PlanStopDTO } from "@/lib/plan";
 import { planStateResult } from "@/lib/planStore";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import type { Poi } from "@/lib/pois";
 
 /**
  * A resolved meeting point plus the city it puts the plan in. Plans store no
@@ -22,6 +23,20 @@ export type OpenMeetingPointResolution =
   | { ok: true; meetingPoint: OpenMeetingPoint }
   | { ok: false; reason: "refused" | "unavailable" };
 
+const placePoiIndexByCity = new Map<CityId, Map<string, Poi>>();
+
+function placePoiIndex(cityId: CityId): Map<string, Poi> {
+  let byId = placePoiIndexByCity.get(cityId);
+  if (!byId) {
+    byId = new Map<string, Poi>();
+    for (const poi of cultureWaypointPois(cityId)) {
+      byId.set(poi.id, poi);
+    }
+    placePoiIndexByCity.set(cityId, byId);
+  }
+  return byId;
+}
+
 /**
  * A read that could NOT run is `unavailable`, never `refused`: a host must not
  * be told a listed pub is not listed because a slim pack failed to load.
@@ -33,9 +48,7 @@ export async function resolveOpenMeetingPoint(
   if (classified.kind === "refused") return { ok: false, reason: "refused" };
   if (classified.kind === "place") {
     for (const city of listEnabledCities()) {
-      const poi = cultureWaypointPois(city.id).find(
-        (candidate) => candidate.id === classified.placeId,
-      );
+      const poi = placePoiIndex(city.id).get(classified.placeId);
       if (!poi) continue;
       return {
         ok: true,
