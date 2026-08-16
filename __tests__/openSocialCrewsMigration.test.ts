@@ -179,6 +179,9 @@ const BLOCKED_ACCOUNT = "cccccccc-cccc-4ccc-8ccc-cccccccccc03";
 const MATE_USER = "dddddddd-dddd-4ddd-8ddd-dddddddddd01";
 const MATE_PROFILE = "dddddddd-dddd-4ddd-8ddd-dddddddddd02";
 const MATE_ACCOUNT = "dddddddd-dddd-4ddd-8ddd-dddddddddd03";
+const ALLY_USER = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeee01";
+const ALLY_PROFILE = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeee02";
+const ALLY_ACCOUNT = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeee03";
 
 const OPEN_PLAN = "11111111-0000-4000-8000-000000000001";
 const OPEN_CREW = "11111111-0000-4000-8000-000000000002";
@@ -188,6 +191,10 @@ const FRIENDS_PLAN = "22222222-0000-4000-8000-000000000001";
 const FRIENDS_CREW = "22222222-0000-4000-8000-000000000002";
 const FRIENDS_HOST_PLAN_MEMBER = "22222222-0000-4000-8000-000000000003";
 const FRIENDS_HOST_MEMBER = "22222222-0000-4000-8000-000000000004";
+const FRIENDS_ALLY_PLAN_MEMBER = "22222222-0000-4000-8000-000000000005";
+const FRIENDS_ALLY_MEMBER = "22222222-0000-4000-8000-000000000006";
+const FRIENDS_STRANGER_PLAN_MEMBER = "22222222-0000-4000-8000-000000000007";
+const FRIENDS_STRANGER_MEMBER = "22222222-0000-4000-8000-000000000008";
 const DIGEST = "a".repeat(64);
 
 let database: Database | null = null;
@@ -236,6 +243,26 @@ function snapshot(accountId: string, profileId: string, crew: string): unknown {
   );
 }
 
+/** The crews an account sees in its own list, through read_social_crew_member_page. */
+function listedCrewIds(accountId: string, profileId: string): string[] {
+  const page = jsonValue(
+    requireDatabase().sql(
+      `select coalesce(public.read_social_crew_member_page(
+        '${accountId}','${profileId}',null,null,50
+      ),'null'::jsonb)`,
+    ),
+  ) as { items: Array<{ crewId: string }> } | null;
+  return page ? page.items.map((item) => item.crewId) : [];
+}
+
+function acceptIntoOpenCrew(accountId: string): void {
+  const requested = requestJoin(accountId, OPEN_CREW);
+  requireDatabase().sql(`select public.decide_social_crew_join_request_atomic(
+    '${HOST_ACCOUNT}','${OPEN_CREW}','${String(requested.request_id)}','accepted',
+    '${writeKey("decide")}','${DIGEST}'
+  )`);
+}
+
 function seed(db: Database): void {
   db.sql(`
     delete from public.social_crew_join_requests;
@@ -248,7 +275,8 @@ function seed(db: Database): void {
     delete from public.follows;
 
     insert into public.follows(follower_id,followee_id) values
-      ('${HOST_PROFILE}','${MATE_PROFILE}'),('${MATE_PROFILE}','${HOST_PROFILE}');
+      ('${HOST_PROFILE}','${MATE_PROFILE}'),('${MATE_PROFILE}','${HOST_PROFILE}'),
+      ('${HOST_PROFILE}','${ALLY_PROFILE}'),('${ALLY_PROFILE}','${HOST_PROFILE}');
     insert into public.social_blocks(blocker_profile_id,blocked_profile_id)
       values('${HOST_PROFILE}','${BLOCKED_PROFILE}');
 
@@ -265,13 +293,19 @@ function seed(db: Database): void {
       ('${OPEN_HOST_PLAN_MEMBER}','${OPEN_PLAN}','Host',md5('open-host')||md5('open-host-2'),'in',
         '${HOST_USER}',now(),now(),true,'${HOST_ACCOUNT}'),
       ('${FRIENDS_HOST_PLAN_MEMBER}','${FRIENDS_PLAN}','Host',md5('friends-host')||md5('friends-host-2'),'in',
-        '${HOST_USER}',now(),now(),true,'${HOST_ACCOUNT}');
+        '${HOST_USER}',now(),now(),true,'${HOST_ACCOUNT}'),
+      ('${FRIENDS_ALLY_PLAN_MEMBER}','${FRIENDS_PLAN}','Ally',md5('friends-ally')||md5('friends-ally-2'),'in',
+        '${ALLY_USER}',now(),now(),true,'${ALLY_ACCOUNT}'),
+      ('${FRIENDS_STRANGER_PLAN_MEMBER}','${FRIENDS_PLAN}','Stranger',md5('friends-str')||md5('friends-str-2'),'in',
+        '${STRANGER_USER}',now(),now(),true,'${STRANGER_ACCOUNT}');
     insert into public.social_crews(id,plan_id,owner_account_id,visibility) values
       ('${OPEN_CREW}','${OPEN_PLAN}','${HOST_ACCOUNT}','${seedVisibility}'),
       ('${FRIENDS_CREW}','${FRIENDS_PLAN}','${HOST_ACCOUNT}','friends');
     insert into public.social_crew_members(id,crew_id,social_account_id,plan_member_id,role,state) values
       ('${OPEN_HOST_MEMBER}','${OPEN_CREW}','${HOST_ACCOUNT}','${OPEN_HOST_PLAN_MEMBER}','owner','active'),
-      ('${FRIENDS_HOST_MEMBER}','${FRIENDS_CREW}','${HOST_ACCOUNT}','${FRIENDS_HOST_PLAN_MEMBER}','owner','active');
+      ('${FRIENDS_HOST_MEMBER}','${FRIENDS_CREW}','${HOST_ACCOUNT}','${FRIENDS_HOST_PLAN_MEMBER}','owner','active'),
+      ('${FRIENDS_ALLY_MEMBER}','${FRIENDS_CREW}','${ALLY_ACCOUNT}','${FRIENDS_ALLY_PLAN_MEMBER}','member','active'),
+      ('${FRIENDS_STRANGER_MEMBER}','${FRIENDS_CREW}','${STRANGER_ACCOUNT}','${FRIENDS_STRANGER_PLAN_MEMBER}','member','active');
   `);
 }
 
@@ -295,19 +329,21 @@ beforeAll(async () => {
   for (const migration of PREREQUISITES) database.apply(migration);
   database.sql(`
     insert into auth.users(id) values
-      ('${HOST_USER}'),('${STRANGER_USER}'),('${BLOCKED_USER}'),('${MATE_USER}');
+      ('${HOST_USER}'),('${STRANGER_USER}'),('${BLOCKED_USER}'),('${MATE_USER}'),('${ALLY_USER}');
     insert into public.profiles(id,user_id,handle) values
       ('${HOST_PROFILE}','${HOST_USER}','host'),
       ('${STRANGER_PROFILE}','${STRANGER_USER}','stranger'),
       ('${BLOCKED_PROFILE}','${BLOCKED_USER}','blocked'),
-      ('${MATE_PROFILE}','${MATE_USER}','mate');
+      ('${MATE_PROFILE}','${MATE_USER}','mate'),
+      ('${ALLY_PROFILE}','${ALLY_USER}','ally');
     insert into public.private_social_accounts(
       id,clerk_user_id,supabase_user_id,profile_id,ownership_state
     ) values
       ('${HOST_ACCOUNT}','clerk-host','${HOST_USER}','${HOST_PROFILE}','active'),
       ('${STRANGER_ACCOUNT}','clerk-stranger','${STRANGER_USER}','${STRANGER_PROFILE}','active'),
       ('${BLOCKED_ACCOUNT}','clerk-blocked','${BLOCKED_USER}','${BLOCKED_PROFILE}','active'),
-      ('${MATE_ACCOUNT}','clerk-mate','${MATE_USER}','${MATE_PROFILE}','active');
+      ('${MATE_ACCOUNT}','clerk-mate','${MATE_USER}','${MATE_PROFILE}','active'),
+      ('${ALLY_ACCOUNT}','clerk-ally','${ALLY_USER}','${ALLY_PROFILE}','active');
   `);
   database.apply(FORWARD);
 }, 300_000);
@@ -425,6 +461,38 @@ describe("0110 applied to PostgreSQL", () => {
     };
     expect(read.kind).toBe("member");
     expect(read.crew.members).toHaveLength(2);
+  });
+
+  it("shows an accepted stranger the open crew in their own list", () => {
+    const db = requireDatabase();
+    // A pending requester is not a member and sees nothing.
+    requestJoin(STRANGER_ACCOUNT, OPEN_CREW);
+    expect(listedCrewIds(STRANGER_ACCOUNT, STRANGER_PROFILE)).not.toContain(OPEN_CREW);
+
+    db.sql(`delete from public.social_crew_join_requests
+      where crew_id='${OPEN_CREW}' and requester_account_id='${STRANGER_ACCOUNT}'`);
+    acceptIntoOpenCrew(STRANGER_ACCOUNT);
+    expect(listedCrewIds(STRANGER_ACCOUNT, STRANGER_PROFILE)).toContain(OPEN_CREW);
+
+    // A member who left keeps nothing.
+    db.sql(`update public.social_crew_members set state='left',ended_at=now()
+      where crew_id='${OPEN_CREW}' and social_account_id='${STRANGER_ACCOUNT}'`);
+    expect(listedCrewIds(STRANGER_ACCOUNT, STRANGER_PROFILE)).not.toContain(OPEN_CREW);
+
+    // A block takes the listing away from an active member too.
+    db.sql(`update public.social_crew_members set state='active',ended_at=null
+      where crew_id='${OPEN_CREW}' and social_account_id='${STRANGER_ACCOUNT}';
+      insert into public.social_blocks(blocker_profile_id,blocked_profile_id)
+        values('${HOST_PROFILE}','${STRANGER_PROFILE}')`);
+    expect(listedCrewIds(STRANGER_ACCOUNT, STRANGER_PROFILE)).not.toContain(OPEN_CREW);
+  });
+
+  it("keeps a crew that is not open on the mutual rule in the same list", () => {
+    expect(listedCrewIds(ALLY_ACCOUNT, ALLY_PROFILE)).toContain(FRIENDS_CREW);
+    expect(listedCrewIds(STRANGER_ACCOUNT, STRANGER_PROFILE)).not.toContain(FRIENDS_CREW);
+    expect(listedCrewIds(HOST_ACCOUNT, HOST_PROFILE)).toEqual(
+      expect.arrayContaining([OPEN_CREW, FRIENDS_CREW]),
+    );
   });
 
   it("lets the host close an open crew back to private", () => {
@@ -553,5 +621,18 @@ describe("0110 rolled back", () => {
          select public.list_open_social_crews(now() - interval '1 hour', 50)`,
       ),
     ).toMatch(/does not exist/i);
+  });
+
+  it("returns the crew list to owner-or-mutual authority", () => {
+    const db = requireDatabase();
+    db.sql(`insert into public.plan_crew_members(
+        id,plan_id,name,token_hash,status,user_id,joined_at,updated_at,can_collaborate,social_account_id
+      ) values('33333333-0000-4000-8000-000000000001','${OPEN_PLAN}','Stranger',
+        md5('rb-str')||md5('rb-str-2'),'in','${STRANGER_USER}',now(),now(),true,'${STRANGER_ACCOUNT}');
+      insert into public.social_crew_members(id,crew_id,social_account_id,plan_member_id,role,state)
+        values('33333333-0000-4000-8000-000000000002','${OPEN_CREW}','${STRANGER_ACCOUNT}',
+          '33333333-0000-4000-8000-000000000001','member','active')`);
+    expect(listedCrewIds(STRANGER_ACCOUNT, STRANGER_PROFILE)).not.toContain(OPEN_CREW);
+    expect(listedCrewIds(ALLY_ACCOUNT, ALLY_PROFILE)).toContain(FRIENDS_CREW);
   });
 });

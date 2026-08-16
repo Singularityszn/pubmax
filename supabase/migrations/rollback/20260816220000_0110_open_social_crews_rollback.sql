@@ -375,6 +375,129 @@ as $$
   end;
 $$;
 
+create or replace function public.read_social_crew_member_page(
+  p_viewer_account_id uuid,
+  p_viewer_profile_id uuid,
+  p_cursor_joined_at timestamptz,
+  p_cursor_member_id uuid,
+  p_limit integer
+) returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with valid_input as (
+    select p_limit as page_limit
+    where p_limit between 1 and 50
+      and ((p_cursor_joined_at is null and p_cursor_member_id is null)
+        or (p_cursor_joined_at is not null and p_cursor_member_id is not null))
+  ),
+  actor as (
+    select account.id as account_id, profile.id as profile_id
+    from valid_input
+    join public.private_social_accounts account
+      on account.id=p_viewer_account_id
+      and account.profile_id=p_viewer_profile_id
+      and account.ownership_state='active'
+    join public.profiles profile on profile.id=account.profile_id
+  ),
+  authorised as (
+    select
+      crew.id as crew_id,
+      plan.title,
+      plan.status,
+      plan.night_context->'nightArea' as night_area,
+      plan.start_time,
+      member.id as member_id,
+      member.social_account_id as account_id,
+      actor.profile_id,
+      member.role,
+      member.state,
+      member.joined_at
+    from actor
+    join public.social_crew_members member
+      on member.social_account_id=actor.account_id and member.state='active'
+    join public.social_crews crew on crew.id=member.crew_id
+    join public.plans plan
+      on plan.id=crew.plan_id
+      and plan.social_owner_account_id=crew.owner_account_id
+    join public.plan_crew_members plan_member
+      on plan_member.id=member.plan_member_id
+      and plan_member.plan_id=plan.id
+      and plan_member.social_account_id=actor.account_id
+    join public.private_social_accounts owner_account
+      on owner_account.id=crew.owner_account_id and owner_account.ownership_state='active'
+    join public.profiles owner_profile on owner_profile.id=owner_account.profile_id
+    join public.social_crew_members owner_member
+      on owner_member.crew_id=crew.id
+      and owner_member.social_account_id=crew.owner_account_id
+      and owner_member.role='owner'
+      and owner_member.state='active'
+    join public.plan_crew_members owner_plan_member
+      on owner_plan_member.id=owner_member.plan_member_id
+      and owner_plan_member.plan_id=plan.id
+      and owner_plan_member.social_account_id=crew.owner_account_id
+    where (
+      crew.owner_account_id=actor.account_id
+      or public.social_relationship_between_profiles(
+        actor.profile_id,owner_account.profile_id
+      )='mutual'
+    )
+      and (p_cursor_joined_at is null
+        or (member.joined_at,member.id)<(p_cursor_joined_at,p_cursor_member_id))
+  ),
+  bounded as (
+    select authorised.*
+    from authorised
+    order by joined_at desc,member_id desc
+    limit (select page_limit+1 from valid_input)
+  ),
+  positioned as (
+    select bounded.*,
+      row_number() over(order by joined_at desc,member_id desc) as row_number
+    from bounded
+  ),
+  page as (
+    select
+      count(*) as bounded_count,
+      coalesce(jsonb_agg(
+        jsonb_build_object(
+          'crewId',crew_id,
+          'title',title,
+          'status',status,
+          'nightArea',night_area,
+          'startsAt',to_char(start_time at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+          'memberId',member_id,
+          'accountId',account_id,
+          'profileId',profile_id,
+          'role',role,
+          'state',state,
+          'joinedAt',to_char(joined_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+        ) order by joined_at desc,member_id desc
+      ) filter(where row_number<=(select page_limit from valid_input)),'[]'::jsonb) as items
+    from positioned
+  ),
+  last_returned as (
+    select joined_at,member_id
+    from positioned
+    where row_number=(select page_limit from valid_input)
+  )
+  select case when not exists(select 1 from actor) then null::jsonb else
+    jsonb_build_object(
+      'items',page.items,
+      'hasMore',page.bounded_count>(select page_limit from valid_input),
+      'cursorPosition',case
+        when page.bounded_count>(select page_limit from valid_input) then (
+          select jsonb_build_object(
+            'joinedAt',to_char(last_returned.joined_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+            'memberId',last_returned.member_id
+          ) from last_returned
+        ) else null end
+    ) end
+  from page;
+$$;
+
 drop function if exists public.list_open_social_crews(timestamptz, integer);
 
 commit;
