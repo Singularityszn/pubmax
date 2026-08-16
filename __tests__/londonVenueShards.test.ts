@@ -20,7 +20,12 @@ import {
   parseLondonVenueShard,
   parseLondonVenueShardForEntry,
 } from "@/lib/londonVenueShards";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import {
+  defaultVenueKindVisibility,
+  filterVenuesByKind,
+  isPubVenueKind,
+} from "@/lib/venueKindFilters";
+import type { Venue } from "@/lib/venues";
 
 const CELL = "51.50_-0.25";
 
@@ -246,5 +251,66 @@ describe("the layer stays out of every pub system", () => {
         (venue) => venue.name,
       ),
     ).toEqual(["Reading Room"]);
+  });
+});
+
+// The layer as a reader actually receives it: every shipped shard, decoded by
+// the real decoder, against the counts artifact the same run wrote. Both files
+// are generated public output of one build, so a rebuild that quietly loses a
+// cell, merges two cells onto one id, or drops a kind shows up here as a census
+// that no longer matches. A 12-shard sample above cannot see any of that.
+describe("the shipped London layer", () => {
+  const publicRoot = path.join(__dirname, "..", "public");
+
+  function decodeWholeLayer() {
+    const manifest = parseLondonVenueManifest(
+      JSON.parse(readFileSync(publishedManifestPath, "utf8")),
+    );
+    expect(manifest).not.toBeNull();
+    const venues = [];
+    for (const entry of manifest!.shards) {
+      const body = JSON.parse(
+        readFileSync(path.join(publicRoot, entry.url.slice(1)), "utf8"),
+      );
+      const decoded = parseLondonVenueShardForEntry(body, entry);
+      expect(decoded, `shard ${entry.id} was refused by its own decoder`).not.toBeNull();
+      venues.push(...decoded!);
+    }
+    return venues;
+  }
+
+  it("decodes every shard into the census the extraction recorded", () => {
+    const venues = decodeWholeLayer();
+    const census: Record<string, number> = {};
+    for (const venue of venues) census[venue.kind] = (census[venue.kind] ?? 0) + 1;
+
+    const counts = JSON.parse(
+      readFileSync(
+        path.join(__dirname, "..", "data", "osm", "uk", "venue_counts.json"),
+        "utf8",
+      ),
+    ) as { london: { total: number; byKind: Record<string, number> } };
+
+    expect(census).toEqual(counts.london.byKind);
+    expect(venues.length).toBe(counts.london.total);
+    // Ids are unique across the whole layer: a cell id formatted to too few
+    // decimals used to collapse cells onto one another and merge their rows.
+    expect(new Set(venues.map((venue) => venue.id)).size).toBe(venues.length);
+  });
+
+  it("offers the curated map filter its pub kinds and nothing else", () => {
+    const venues = decodeWholeLayer();
+    const shown = filterVenuesByKind(
+      venues as unknown as Venue[],
+      defaultVenueKindVisibility(),
+    );
+    const shownKinds = new Set(shown.map((venue) => venue.kind));
+    expect([...shownKinds].sort()).toEqual(["bar", "food", "pub", "restaurant"]);
+    // Every kind the OSM widening added stays out of the curated view, and
+    // nothing but a pub answers the pub predicate.
+    for (const venue of venues) {
+      if (isPubVenueKind(venue.kind)) expect(venue.kind).toBe("pub");
+    }
+    expect(shown.length).toBeLessThan(venues.length);
   });
 });
