@@ -209,6 +209,31 @@ same corroboration + age rules the map uses (`lib/communityPrice.ts`), so it
 can never claim a figure the map would refuse. `truncated` marks the bounded
 scan's cap; `degraded` marks an unavailable store rather than a real zero.
 
+## 5b. Price evidence missions
+
+One useful Community Price task at a time for a signed-in Pubmaxxer. The
+events answer whether a ranked mission was seen, opened, skipped, logged, and
+whether the write-back made the figure trusted.
+
+**Events:**
+- `mission_viewed` — `{ surface, reason, category? }`. Fires once per ranked
+  mission shown on `/near` or inside the selected Map venue sheet.
+- `mission_opened` — `{ surface, reason, category? }`. `/near` fires on the
+  Log it tap. The Map sheet fires when the mission composer is already the
+  open surface.
+- `mission_dismissed` — `{ surface, reason, category? }`. Session-only skip.
+- `mission_submitted` — `{ surface, reason, category?, outcome }`. Fires after
+  the authoritative `/api/price-submit` write-back. `outcome` is `logged`,
+  `trusted`, or `needs_check`.
+- `mission_newly_trusted` — same props. Fires only when that write-back is
+  corroborated, in window, and the category may colour the map.
+
+`surface` is `near` or `map`. `reason` is `provisional`, `stale`, or
+`missing`. `category` is the closed drink taxonomy and is omitted on a missing
+mission. No venue id, handle, price, or coordinate ever rides along. The
+required keys, and the validator that closes each vocabulary, are under
+[Registry additions](#registry-additions).
+
 ## 6. Press arrival (the London Pint Index)
 
 One press hit is meant to convert above 2% to a second session. That claim is
@@ -381,6 +406,22 @@ price_submit_failed: ["category", "reason"],
 price_impact_opened: [],
 contribution_gate: ["step"],
 ```
+
+The price evidence missions (§5b) added five more, with their own scoped
+validator (`isAllowedMissionProp`) so `surface`, `reason`, `category` and
+`outcome` each keep their own closed set:
+
+```ts
+mission_viewed: ["surface", "reason", "category"],
+mission_opened: ["surface", "reason", "category"],
+mission_dismissed: ["surface", "reason", "category"],
+mission_submitted: ["surface", "reason", "category", "outcome"],
+mission_newly_trusted: ["surface", "reason", "category", "outcome"],
+```
+
+All five are also in `TRUSTED_HANDOFF_REQUIRED_KEYS`: `surface` and `reason`
+on every one, plus `outcome` on the two submit events. `category` is optional,
+because a missing mission names no drink.
 
 The press-arrival funnel added three more, with the same treatment
 (`isAllowedPintIndexArrivalProp`) so `surface`, `visit` and `area` each keep

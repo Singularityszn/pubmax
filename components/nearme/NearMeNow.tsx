@@ -54,6 +54,7 @@ import {
   useNearPriceTrust,
   type NearPriceTrustView,
 } from "@/components/nearme/useNearPriceTrust";
+import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMission";
 
 import "./nearMeNow.css";
 
@@ -162,6 +163,9 @@ function AnswerCards({
     <>
       {accept && receipt && cards.length > 0 ? (
         <p className="nmnAcceptReceipt">{receipt}</p>
+      ) : null}
+      {accept && cards.length > 0 ? (
+        <NearPriceEvidenceMission cards={cards} enabled />
       ) : null}
       <NearMeCardList
         cards={cards}

@@ -62,7 +62,7 @@ export type CommunitySubmissionFailure = {
 };
 
 export type CommunityPriceSubmitResult =
-  | { ok: true; attribution: CommunityPriceAttribution }
+  | { ok: true; attribution: CommunityPriceAttribution; price: CommunityPrice | null }
   // `reason` is the coarse funnel bucket for the failure - the analytics enum,
   // not a second copy of the sentence. `error` stays the human sentence and is
   // never sent anywhere.
@@ -1012,6 +1012,7 @@ export function useCommunityPrices(): CommunityPricesState {
         return {
           ok: true,
           attribution: readCommunityPriceAttribution(data?.attribution),
+          price: stored ?? null,
         };
       } catch {
         rollback();

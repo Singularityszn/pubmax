@@ -13,8 +13,13 @@ import {
 import { DEFAULT_DRINK_LANE } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
 
+import type { VenuePriceSubmitMission } from "@/components/map/VenuePriceSubmit";
+import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
+import { missionAnalyticsProps, missionHeading } from "@/lib/priceEvidenceMissions";
+
 import VenuePriceSignInGate from "./VenuePriceSignInGate";
 import "../venuePriceSubmit.css";
+import "@/components/nearme/priceEvidenceMission.css";
 
 type VenuePriceEntryPanelProps = {
   venueId: string;
@@ -31,6 +36,8 @@ type VenuePriceEntryPanelProps = {
   includeSignals?: boolean;
   /** The drink the map is under. The composer opens on it. */
   laneCategory?: DrinkCategory;
+  mission?: PriceEvidenceMission | null;
+  onDismissMission?: (mission: PriceEvidenceMission) => void;
 };
 
 /**
@@ -52,13 +59,23 @@ export default function VenuePriceEntryPanel({
   focusRequest = 0,
   includeSignals = true,
   laneCategory = DEFAULT_DRINK_LANE,
+  mission = null,
+  onDismissMission,
 }: VenuePriceEntryPanelProps) {
   const viewedVenueId = useRef<string | null>(null);
+  const openedMissionKey = useRef<string | null>(null);
   useEffect(() => {
     if (viewedVenueId.current === venueId) return;
     viewedVenueId.current = venueId;
     trackEvent("price_submit_viewed", { category: DEFAULT_SUBMIT_CATEGORY });
   }, [venueId]);
+  useEffect(() => {
+    if (!mission || !canSubmitPrice) return;
+    const key = `${mission.venueId}:${mission.reason}:${mission.drinkCategory ?? ""}`;
+    if (openedMissionKey.current === key) return;
+    openedMissionKey.current = key;
+    trackEvent("mission_opened", missionAnalyticsProps("map", mission));
+  }, [canSubmitPrice, mission]);
 
   const loadVenue = communityPrices.loadVenue;
   useEffect(() => {
@@ -76,6 +93,15 @@ export default function VenuePriceEntryPanel({
       mapReach={mapReach}
       focusRequest={focusRequest}
       laneCategory={laneCategory}
+      mission={
+        mission
+          ? ({
+              reason: mission.reason,
+              drinkCategory: mission.drinkCategory,
+              surface: "map",
+            } satisfies VenuePriceSubmitMission)
+          : null
+      }
     />
   ) : showSignInGate ? (
     <VenuePriceSignInGate
@@ -86,6 +112,30 @@ export default function VenuePriceEntryPanel({
 
   return (
     <div className="venuePriceEntryPanel">
+      {mission && canSubmitPrice ? (
+        <div className="pemSlot pemSlotSheet">
+          <div className="pemHead">
+            <h3 className="pemHeading">
+              {missionHeading({
+                reason: mission.reason,
+                venueName,
+                drinkCategory: mission.drinkCategory,
+              })}
+            </h3>
+            {onDismissMission ? (
+              <div className="pemActions">
+                <button
+                  type="button"
+                  className="pemSkip"
+                  onClick={() => onDismissMission(mission)}
+                >
+                  Not now
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       {priceEntry}
       {includeSignals ? (
         <VenueCommunitySignals
