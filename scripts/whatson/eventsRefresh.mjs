@@ -279,12 +279,13 @@ async function runProviderLane({
     log("eventsRefresh: Skiddle lane not-configured (no SKIDDLE_API_KEY).");
   }
 
-  const commonRows = city === "london" ? readExistingCommonRows(outPath) : [];
-  allRows.push(...commonRows);
-
   // Fail closed: a successful run that yields zero rows across every enabled
   // provider is more likely an upstream hiccup than a genuinely empty city -
-  // refuse to clobber a good file unless --allow-empty is passed.
+  // refuse to clobber a good file unless --allow-empty is passed. The count is
+  // the rows THIS run fetched, taken BEFORE the held Common rows are merged: a
+  // single carried-over Common row would otherwise keep the list non-empty
+  // forever and let a quiet Ticketmaster window silently drop yesterday's
+  // provider rows.
   if (allRows.length === 0 && !argv.includes("--allow-empty")) {
     logError(
       `eventsRefresh: aborting - enabled provider(s) returned 0 mappable rows. ` +
@@ -292,6 +293,9 @@ async function runProviderLane({
     );
     return { status: "refused", wrote: false, reason: "0 mappable rows" };
   }
+
+  const commonRows = city === "london" ? readExistingCommonRows(outPath) : [];
+  allRows.push(...commonRows);
 
   const deduped = dedupeEventRowsBySourceId(allRows);
   // A Common row states a DATE and no clock time, so it sorts on that instead.
@@ -411,9 +415,14 @@ export async function runEventsRefresh({
     }
   }
 
-  const laneFailed = provider.status === "failed" || provider.status === "refused";
+  // A provider FAILURE is always a failure. A deliberate REFUSAL (0 mappable
+  // rows, refusing to clobber a good file) is an ordinary quiet-upstream
+  // outcome, so it only reds the run when nothing else published - an operator
+  // reading a red job beside an open review PR cannot tell the two apart.
+  const providerFailed = provider.status === "failed";
   const commonFailed = common.status === "failed";
   const wrote = provider.wrote === true || common.status === "ran";
+  const refusedWithNothingPublished = provider.status === "refused" && !wrote;
 
   let validation = { status: "skipped" };
   let published = { status: "skipped" };
@@ -447,7 +456,8 @@ export async function runEventsRefresh({
 
   return {
     ok:
-      !laneFailed &&
+      !providerFailed &&
+      !refusedWithNothingPublished &&
       !commonFailed &&
       validation.status !== "failed" &&
       published.status !== "failed",

@@ -275,11 +275,13 @@ export async function buildOutResponse(
   reports.sort((left, right) => left.name.localeCompare(right.name));
 
   // Every live lane held shut - no key, or a licence fence - means nothing was
-  // asked. That is weaker than a lane that failed, and it is NOT a quiet city,
-  // so it may never reach the reader as a ready answer.
+  // asked, and an unasked question may not read as a quiet city. It only
+  // reaches the reader as `not-configured` when the answer is EMPTY: with
+  // bundled rows on screen the listings plainly ARE on, and saying otherwise
+  // over visible cards contradicts them.
   const askedNothing =
     reports.length > 0 && reports.every((report) => report.status === "not-configured");
-  if (status === "ready" && askedNothing) status = "not-configured";
+  if (status === "ready" && askedNothing && merged.length === 0) status = "not-configured";
 
   const body: OutResponse = {
     status,

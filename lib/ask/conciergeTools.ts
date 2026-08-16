@@ -236,10 +236,6 @@ export function tonightNowLine(input: {
   }
   // A date-only listing is counted on its own, because it can be neither
   // running nor still to start.
-  const undated =
-    dateOnly > 0
-      ? ` ${dateOnly} more listed tonight with no start time.`
-      : "";
   if (input.onNow === 0 && input.later === 0) {
     return `${dateOnly} listed${where} tonight with no start time.`;
   }
@@ -247,10 +243,17 @@ export function tonightNowLine(input: {
     input.onNow > 0
       ? `${input.onNow} on right now${where}`
       : `Nothing running${where} this minute`;
+  // With date-only rows still to name, "nothing else listed tonight" would
+  // contradict the sentence after it. Nothing else has a STATED START; the
+  // listings without one are counted in their own clause.
   const ahead =
     input.later > 0
       ? `${input.later} still to start tonight`
-      : "nothing else listed tonight";
+      : dateOnly > 0
+        ? "nothing else with a stated start"
+        : "nothing else listed tonight";
+  const undated =
+    dateOnly > 0 ? ` ${dateOnly} more listed tonight with no start time.` : "";
   return `${running}, ${ahead}.${undated}`;
 }
 

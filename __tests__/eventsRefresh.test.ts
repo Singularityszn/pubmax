@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -372,6 +372,96 @@ describe("runEventsRefresh end to end", () => {
     expect(result.provider.status).toBe("refused");
     expect(existsSync(outPath)).toBe(false);
     expect(commonRan).toBe(true);
+  });
+
+  it("still refuses to clobber when held Common rows are the only rows left", async () => {
+    // The guard counts the rows THIS run fetched. Held Common rows are merged
+    // afterwards, so one carried-over listing can never keep the count non-zero
+    // and let a quiet Ticketmaster window quietly drop yesterday's provider rows.
+    const outPath = temporaryOutPath();
+    const held = {
+      generatedAt: "2026-08-15T09:00:00.000Z",
+      kind: "events",
+      region: "greater-london",
+      city: "london",
+      sources: [],
+      rows: [
+        {
+          id: "events-common-1",
+          placeName: "The Ivy House",
+          kind: "event",
+          startsDate: "2026-08-16",
+          timeEvidence: DATE_ONLY_TIME_EVIDENCE,
+          title: "Sunday session",
+          source: { label: "Common", url: "https://common.example/e/1" },
+          observedAt: "2026-08-15T09:00:00.000Z",
+          confidence: "listed",
+          sourceId: "common-1",
+        },
+        {
+          id: "events-tm-9",
+          placeName: "Soho Theatre",
+          kind: "event",
+          startsAt: "2026-08-16T19:00:00.000Z",
+          title: "Yesterday's provider row",
+          source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/9" },
+          observedAt: "2026-08-15T09:00:00.000Z",
+          confidence: "listed",
+          sourceId: "9",
+        },
+      ],
+    };
+    writeFileSync(outPath, JSON.stringify(held, null, 2));
+
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs"],
+      env: { TICKETMASTER_API_KEY: "test-key" },
+      nowMs: NOW_MS,
+      fetchImpl: (async () =>
+        new Response(JSON.stringify({ _embedded: { events: [] } }), {
+          status: 200,
+        })) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      runCommonLane: async () => ({ rows: [] }),
+      log: () => {},
+      logError: () => {},
+    });
+
+    expect(result.provider.status).toBe("refused");
+    const onDisk = JSON.parse(readFileSync(outPath, "utf8"));
+    expect(onDisk.generatedAt).toBe("2026-08-15T09:00:00.000Z");
+    expect(onDisk.rows.map((row: { id: string }) => row.id)).toEqual([
+      "events-common-1",
+      "events-tm-9",
+    ]);
+  });
+
+  it("keeps the run green when a refusal sits beside a lane that did publish", async () => {
+    // A quiet upstream window is an ordinary outcome. An operator reading a red
+    // job beside an open review PR cannot tell that from a real failure.
+    const outPath = temporaryOutPath();
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs", WITH_COMMON_FLAG, "--open-pr"],
+      env: { TICKETMASTER_API_KEY: "test-key" },
+      nowMs: NOW_MS,
+      fetchImpl: (async () =>
+        new Response(JSON.stringify({ _embedded: { events: [] } }), {
+          status: 200,
+        })) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      runCommonLane: async () => ({ rows: [] }),
+      validate: () => {},
+      openPr: () => {},
+      log: () => {},
+      logError: () => {},
+    });
+
+    expect(result.provider.status).toBe("refused");
+    expect(result.common.status).toBe("ran");
+    expect(result.published.status).toBe("ran");
+    expect(result.ok).toBe(true);
   });
 
   it("runs the Common lane with no provider key at all, spending no upstream call", async () => {

@@ -180,6 +180,14 @@ describe("tonight_now policy", () => {
     expect(tonightNowLine({ area: null, onNow: 2, later: 3, read: "ready" })).toBe(
       "2 on right now, 3 still to start tonight.",
     );
+    // A date-only listing is still to come, so the line may not say "nothing
+    // else listed tonight" and then count more listings in the next breath.
+    expect(
+      tonightNowLine({ area: null, onNow: 2, later: 0, dateOnly: 1, read: "ready" }),
+    ).toBe("2 on right now, nothing else with a stated start. 1 more listed tonight with no start time.");
+    expect(
+      tonightNowLine({ area: null, onNow: 0, later: 0, dateOnly: 2, read: "ready" }),
+    ).toBe("2 listed tonight with no start time.");
   });
 });
 

@@ -75,43 +75,40 @@ describe("parseOutQuery", () => {
 });
 
 describe("buildOutResponse", () => {
-  it("cannot answer ready when no live lane was asked, and never as an empty market", async () => {
+  const noLiveLane = () => [
+    { name: "ticketmaster", isConfigured: () => false, fetchTonight: async () => [] },
+    { name: "skiddle", isConfigured: () => false, fetchTonight: async () => [] },
+  ];
+
+  it("says the listings are off when no lane was asked AND nothing is on screen", async () => {
     const body = await buildOutResponse(
       { city: "london", day: "today" },
-      {
-        now: FIXTURE_NOW.getTime(),
-        loadBaseline: () => [eventRow()],
-        liveProviders: [
-          {
-            name: "ticketmaster",
-            isConfigured: () => false,
-            fetchTonight: async () => [],
-          },
-          {
-            name: "skiddle",
-            isConfigured: () => false,
-            fetchTonight: async () => [],
-          },
-        ],
-      },
+      { now: FIXTURE_NOW.getTime(), loadBaseline: () => [], liveProviders: noLiveLane() },
     );
-    // A missing key is not-configured, never an empty-market claim - so the
-    // body says so rather than passing an unasked question off as ready.
+    // A missing key is not-configured, never an empty-market claim.
     expect(body.status).toBe("not-configured");
-    expect(body.events).toHaveLength(1);
+    expect(body.events).toEqual([]);
     expect(body.openPlans).toEqual([]);
     expect(body.providers).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "skiddle", configured: false, rows: 0 }),
       ]),
     );
-    // And the reader is told the listings are off, not that the city is quiet.
     expect(outStatusLines({ body, failed: false })).toEqual([
       "Listings are not switched on yet.",
     ]);
-    expect(outStatusLines({ body: { ...body, events: [] }, failed: false })).not.toContain(
-      "No listings for this day yet.",
+  });
+
+  it("stays ready over bundled rows, so no line contradicts the cards on screen", async () => {
+    // The keyless Common lane alone fills the bundled file. Those listings ARE
+    // on, so saying otherwise above them would contradict what a reader sees.
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      { now: FIXTURE_NOW.getTime(), loadBaseline: () => [eventRow()], liveProviders: noLiveLane() },
     );
+    expect(body.status).toBe("ready");
+    expect(body.events).toHaveLength(1);
+    expect(outStatusLines({ body, failed: false })).toEqual([]);
   });
 
   it("keeps ready when a lane really was asked and answered", async () => {
