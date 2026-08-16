@@ -3,13 +3,14 @@
 // One occupancy read for any surface. Desk mode can adopt this later.
 // The hook never caches: a now answer ages every minute.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { accountBoundFetch, type AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import {
+  occupancyAnswerAfter,
   occupancyNowFromReports,
   parseOccupancyLevel,
   type OccupancyLevel,
@@ -125,27 +126,60 @@ export async function confirmOccupancyProposal(
   return result;
 }
 
+type HeldReading = {
+  venueId: string;
+  answer: VenueOccupancyReading;
+  atMs: number;
+};
+
+const OCCUPANCY_TICK_MS = 60_000;
+
 export function useVenueOccupancy(venueId: string, active = true) {
-  const [reading, setReading] = useState<VenueOccupancyReading | null>(null);
+  const [held, setHeld] = useState<HeldReading | null>(null);
+  const [clockMs, setClockMs] = useState(() => Date.now());
   const [reporting, setReporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const hold = useCallback(
+    (answer: VenueOccupancyReading) => {
+      const atMs = Date.now();
+      setHeld({ venueId, answer, atMs });
+      setClockMs(atMs);
+    },
+    [venueId],
+  );
+
   const reload = useCallback(async () => {
     const next = await fetchVenueOccupancy(venueId);
-    setReading(next);
+    hold(next);
     return next;
-  }, [venueId]);
+  }, [hold, venueId]);
 
   useEffect(() => {
     if (!active || !venueId) return;
     let cancelled = false;
     void fetchVenueOccupancy(venueId).then((next) => {
-      if (!cancelled) setReading(next);
+      if (!cancelled) hold(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [active, venueId]);
+  }, [active, hold, venueId]);
+
+  const reading = useMemo(() => {
+    if (!held || held.venueId !== venueId) return null;
+    return occupancyAnswerAfter(held.answer, clockMs - held.atMs);
+  }, [clockMs, held, venueId]);
+
+  // A held answer keeps ageing while the surface stays open, so the minute it
+  // prints stays true and the 90-minute rule still decides it. Once it stops
+  // claiming a level there is nothing left to age.
+  const ageing = reading?.now ?? null;
+  useEffect(() => {
+    if (!ageing) return;
+    const timer = setInterval(() => setClockMs(Date.now()), OCCUPANCY_TICK_MS);
+    return () => clearInterval(timer);
+  }, [ageing]);
 
   const report = useCallback(
     async (level: OccupancyLevel, auth: AccountAuthSnapshot) => {
@@ -157,10 +191,10 @@ export function useVenueOccupancy(venueId: string, active = true) {
         setError(result.error);
         return result;
       }
-      setReading(result.reading);
+      hold(result.reading);
       return result;
     },
-    [venueId],
+    [hold, venueId],
   );
 
   return { reading, report, reporting, error, reload };

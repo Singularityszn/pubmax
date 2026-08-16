@@ -163,6 +163,13 @@ test("a signed-in tap writes a receipt then an aged reading", async ({
   await tap.click();
   await expect(row.getByText("Thanks - Some seats, just now")).toBeVisible();
 
+  // The receipt gives way to the derived reading rather than freezing the row
+  // on its own "just now" for the life of the sheet.
+  await expect(row.getByText("Some seats · just now")).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(row.getByText("Thanks - Some seats, just now")).toHaveCount(0);
+
   aged = true;
   await page.locator("#venueTab-story").click();
   await expect(page.locator("#venuePanel-story")).toBeVisible();

@@ -55,6 +55,7 @@ export default function MapConciergeAsk({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [state, setState] = useState<AskState>({ status: "idle" });
+  const [proposalError, setProposalError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const expand = useCallback(() => {
@@ -75,6 +76,7 @@ export default function MapConciergeAsk({
       const text = raw.trim();
       if (!text) return;
       sessionRef.current ??= createAskSession();
+      setProposalError(null);
       setState({ status: "loading" });
       trackEvent("concierge_ask");
       const result = await sessionRef.current(text, cityId);
@@ -136,6 +138,7 @@ export default function MapConciergeAsk({
         return;
       }
       if (proposal.kind === "report_occupancy") {
+        setProposalError(null);
         void (async () => {
           const result = await confirmOccupancyProposal(
             { venueId: proposal.venueId, level: proposal.level },
@@ -144,6 +147,12 @@ export default function MapConciergeAsk({
           );
           if (!result.ok && result.needsSignIn) {
             window.location.assign("/login?mode=signin&from=/map");
+            return;
+          }
+          if (!result.ok) {
+            // A refused report keeps its chip, so the reader can try again and
+            // is never left believing an unsaved report landed.
+            setProposalError(result.error);
             return;
           }
           dismissProposal(proposal.id);
@@ -244,6 +253,11 @@ export default function MapConciergeAsk({
             {state.responseStatus === "degraded" ? (
               <p className="mapConciergeAskMsg mapConciergeAskMsg--degraded">
                 Some live city facts could not be checked just now.
+              </p>
+            ) : null}
+            {proposalError ? (
+              <p className="mapConciergeAskMsg mapConciergeAskMsg--error">
+                {proposalError}
               </p>
             ) : null}
             {state.proposals.length > 0 ? (

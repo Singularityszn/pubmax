@@ -7,6 +7,7 @@
 
 import { randomUUID } from "crypto";
 
+import { isDeployedProduction } from "@/lib/deploymentEnv";
 import {
   admin,
   createDualBackendStore,
@@ -125,8 +126,10 @@ function fromRow(row: OccupancyRow): OccupancyStoredReport | null {
   const reportedAt =
     typeof row.reported_at === "string" ? row.reported_at : "";
   const reporterUserId = cleanUserId(row.reporter_user_id);
-  const source: OccupancySource =
-    row.source === OCCUPANCY_SOURCE ? OCCUPANCY_SOURCE : OCCUPANCY_SOURCE;
+  // The table CHECKs source = 'crowd'; anything else is a row this layer does
+  // not speak for, so it is dropped rather than relabelled.
+  if (row.source !== OCCUPANCY_SOURCE) return null;
+  const source: OccupancySource = OCCUPANCY_SOURCE;
   if (!id || !venueId || !level || !reportedAt || !reporterUserId) return null;
   return { id, venueId, level, reportedAt, reporterUserId, source };
 }
@@ -207,7 +210,15 @@ export const supabaseOccupancyStore: OccupancyStore = {
     }
     return guard.guard({
       context: "readNow",
-      onSchemaMiss: () => memoryOccupancyStore.readNow(id, now),
+      // A read that could not run is degraded, never "no reports". Outside a
+      // deployed production instance the memory store is the real backend
+      // while the migration is being prepared.
+      onSchemaMiss: () =>
+        isDeployedProduction()
+          ? Promise.resolve(
+              occupancyNowFromReports([], now ?? Date.now(), { degraded: true }),
+            )
+          : memoryOccupancyStore.readNow(id, now),
       onError: () => occupancyNowFromReports([], now ?? Date.now(), { degraded: true }),
       message: "occupancy read failed",
       run: async () => {

@@ -8,6 +8,7 @@ import {
   OCCUPANCY_RETAKE_WINDOW_MS,
   occupancyAgeLabel,
   occupancyAgeMinutes,
+  occupancyAnswerAfter,
   occupancyFromBusyness,
   occupancyLevelFromSql,
   occupancyLevelToSql,
@@ -115,5 +116,54 @@ describe("occupancy 90-minute now rule", () => {
     expect(occupancyReceiptLine("some-seats", 0)).toBe(
       "Thanks - Some seats, just now",
     );
+  });
+
+  it("keeps ageing a held answer and drops it past 90 minutes", () => {
+    const justReported = occupancyNowFromReports(
+      [report("some-seats", NOW)],
+      NOW,
+    );
+    expect(occupancyReadingLine(justReported)).toBe("Some seats · just now");
+
+    const held12 = occupancyAnswerAfter(justReported, 12 * 60 * 1000);
+    expect(held12.now).toBe("some-seats");
+    expect(held12.ageMinutes).toBe(12);
+    expect(occupancyReadingLine(held12)).toBe("Some seats · 12 min ago");
+
+    const atWindow = occupancyAnswerAfter(justReported, OCCUPANCY_FRESH_WINDOW_MS);
+    expect(atWindow.now).toBe("some-seats");
+    expect(occupancyReadState(atWindow)).toBe("fresh");
+
+    const pastWindow = occupancyAnswerAfter(
+      justReported,
+      OCCUPANCY_FRESH_WINDOW_MS + 60_000,
+    );
+    expect(pastWindow.now).toBeNull();
+    expect(pastWindow.ageMinutes).toBeNull();
+    expect(pastWindow.reportsLast90).toBe(0);
+    expect(occupancyReadState(pastWindow)).toBe("stale");
+    expect(occupancyReadingLine(pastWindow)).toBe("No fresh reading");
+  });
+
+  it("ages an answer already read as 80 minutes old out of the window", () => {
+    const nearlyStale = occupancyNowFromReports(
+      [report("full", NOW - 80 * 60 * 1000)],
+      NOW,
+    );
+    expect(nearlyStale.ageMinutes).toBe(80);
+    expect(occupancyAnswerAfter(nearlyStale, 9 * 60 * 1000).now).toBe("full");
+    expect(occupancyAnswerAfter(nearlyStale, 11 * 60 * 1000).now).toBeNull();
+  });
+
+  it("never ages a degraded or empty answer into a claim", () => {
+    const failed = occupancyNowFromReports([], NOW, { degraded: true });
+    expect(occupancyAnswerAfter(failed, 30 * 60 * 1000)).toEqual(failed);
+
+    const none = occupancyNowFromReports([], NOW);
+    expect(occupancyAnswerAfter(none, 30 * 60 * 1000)).toEqual(none);
+
+    const fresh = occupancyNowFromReports([report("empty", NOW)], NOW);
+    expect(occupancyAnswerAfter(fresh, -5 * 60 * 1000).ageMinutes).toBe(0);
+    expect(occupancyAnswerAfter(fresh, Number.NaN).ageMinutes).toBe(0);
   });
 });

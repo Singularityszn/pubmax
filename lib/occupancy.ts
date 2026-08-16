@@ -29,6 +29,13 @@ export const OCCUPANCY_FRESH_WINDOW_MS = 90 * 60 * 1000;
 /** A re-tap by the same account at the same pub updates, not stacks. */
 export const OCCUPANCY_RETAKE_WINDOW_MS = 15 * 60 * 1000;
 
+/**
+ * How long a receipt may stand in for the reading. A receipt says "just now"
+ * about the tap that made it, so it has to give way to the derived reading
+ * rather than freeze a surface on an age that stops being true.
+ */
+export const OCCUPANCY_RECEIPT_HOLD_MS = 5 * 1000;
+
 export const OCCUPANCY_SOURCE = "crowd" as const;
 export type OccupancySource = typeof OCCUPANCY_SOURCE;
 
@@ -169,6 +176,32 @@ export function occupancyNowFromReports(
     degraded: false,
     state: hadOlder ? "stale" : "none",
   };
+}
+
+/**
+ * Age a held answer forward by the time since it was read. A surface may hold
+ * one for as long as a sheet stays open, and the 90-minute rule is derived on
+ * READ, so the held answer keeps being re-derived: past the window it stops
+ * claiming a level and reads as stale.
+ */
+export function occupancyAnswerAfter(
+  answer: OccupancyNowAnswer,
+  elapsedMs: number,
+): OccupancyNowAnswer {
+  if (!answer.now || answer.ageMinutes == null) return answer;
+  const elapsed =
+    Number.isFinite(elapsedMs) && elapsedMs > 0 ? elapsedMs : 0;
+  const agedMs = answer.ageMinutes * 60_000 + elapsed;
+  if (agedMs > OCCUPANCY_FRESH_WINDOW_MS) {
+    return {
+      now: null,
+      ageMinutes: null,
+      reportsLast90: 0,
+      degraded: false,
+      state: "stale",
+    };
+  }
+  return { ...answer, ageMinutes: Math.floor(agedMs / 60_000) };
 }
 
 export function occupancyReadState(

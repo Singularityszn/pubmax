@@ -1,16 +1,24 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import VenueOccupancyRow from "@/components/map/VenueOccupancyRow";
+import type { OccupancyNowAnswer } from "@/lib/occupancy";
 
 const authState = vi.hoisted(() => ({
   user: null as { id: string } | null,
   session: null as { access_token: string; user: { id: string } } | null,
   identityResolved: true,
+}));
+
+const occupancyState = vi.hoisted(() => ({
+  reading: {
+    now: null,
+    ageMinutes: null,
+    reportsLast90: 0,
+    degraded: false,
+    state: "none",
+  } as OccupancyNowAnswer | null,
 }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
@@ -23,13 +31,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 
 vi.mock("@/components/map/useVenueOccupancy", () => ({
   useVenueOccupancy: () => ({
-    reading: {
-      now: null,
-      ageMinutes: null,
-      reportsLast90: 0,
-      degraded: false,
-      state: "none",
-    },
+    reading: occupancyState.reading,
     report: async () => ({ ok: false, error: "unused" }),
     reporting: false,
     error: null,
@@ -38,21 +40,35 @@ vi.mock("@/components/map/useVenueOccupancy", () => ({
   confirmOccupancyProposal: async () => ({ ok: false, error: "unused" }),
 }));
 
-function source(relative: string): string {
-  return readFileSync(path.join(process.cwd(), relative), "utf8");
+function signedIn(): void {
+  authState.user = { id: "user-a" };
+  authState.session = { access_token: "token", user: { id: "user-a" } };
 }
+
+function render(): string {
+  return renderToStaticMarkup(
+    createElement(VenueOccupancyRow, { venueId: "venue-1" }),
+  );
+}
+
+beforeEach(() => {
+  authState.user = null;
+  authState.session = null;
+  authState.identityResolved = true;
+  occupancyState.reading = {
+    now: null,
+    ageMinutes: null,
+    reportsLast90: 0,
+    degraded: false,
+    state: "none",
+  };
+});
 
 describe("occupancy venue surface", () => {
   it("asks one question and offers the three now buttons", () => {
-    authState.user = { id: "user-a" };
-    authState.session = {
-      access_token: "token",
-      user: { id: "user-a" },
-    };
+    signedIn();
 
-    const html = renderToStaticMarkup(
-      createElement(VenueOccupancyRow, { venueId: "venue-1" }),
-    );
+    const html = render();
 
     expect(html).toContain("How busy is it right now?");
     expect(html).toContain("Empty");
@@ -64,12 +80,7 @@ describe("occupancy venue surface", () => {
   });
 
   it("asks a signed-out visitor to sign in and still shows the reading", () => {
-    authState.user = null;
-    authState.session = null;
-
-    const html = renderToStaticMarkup(
-      createElement(VenueOccupancyRow, { venueId: "venue-1" }),
-    );
+    const html = render();
 
     expect(html).toContain("How busy is it right now?");
     expect(html).toContain("No fresh reading");
@@ -77,18 +88,54 @@ describe("occupancy venue surface", () => {
     expect(html).not.toContain(">Empty<");
   });
 
-  it("mounts one row on the venue overview and keeps 44px taps", () => {
-    const overview = source("components/map/inspector/VenueOverviewTab.tsx");
-    const css = source("components/map/venueOccupancy.css");
-    const pal = source("components/pal/PalChat.tsx");
-    const client = source("lib/conciergeAskClient.ts");
+  it("prints a fresh reading with its age, and greys an empty one", () => {
+    signedIn();
+    occupancyState.reading = {
+      now: "some-seats",
+      ageMinutes: 12,
+      reportsLast90: 1,
+      degraded: false,
+      state: "fresh",
+    };
 
-    expect(overview).toContain("VenueOccupancyRow");
-    expect(overview).toContain('active={tab === "overview"}');
-    expect(css).toContain("min-height: 44px");
-    expect(css).toContain("font-size: 16px");
-    expect(pal).toContain("confirmOccupancyProposal");
-    expect(pal).toContain('kind === "report_occupancy"');
-    expect(client).toContain('record.kind === "report_occupancy"');
+    const dated = render();
+    expect(dated).toContain("Some seats · 12 min ago");
+    expect(dated).not.toContain("venueOccupancyReading--empty");
+
+    occupancyState.reading = {
+      now: null,
+      ageMinutes: null,
+      reportsLast90: 0,
+      degraded: false,
+      state: "stale",
+    };
+
+    const aged = render();
+    expect(aged).toContain("No fresh reading");
+    expect(aged).toContain("venueOccupancyReading--empty");
+  });
+
+  it("says a failed read could not be checked, never that nobody reported", () => {
+    signedIn();
+    occupancyState.reading = {
+      now: null,
+      ageMinutes: null,
+      reportsLast90: 0,
+      degraded: true,
+      state: "degraded",
+    };
+
+    const html = render();
+    expect(html).toContain("Could not check how busy it is.");
+    expect(html).not.toContain("No fresh reading");
+  });
+
+  it("names nobody and offers no door until identity resolves", () => {
+    authState.identityResolved = false;
+
+    const html = render();
+    expect(html).toContain("How busy is it right now?");
+    expect(html).not.toContain("Sign in to report");
+    expect(html).not.toContain(">Empty<");
   });
 });

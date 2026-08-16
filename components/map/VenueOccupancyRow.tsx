@@ -12,6 +12,7 @@ import { trackEvent } from "@/lib/analytics";
 import {
   OCCUPANCY_LEVELS,
   OCCUPANCY_LEVEL_LABELS,
+  OCCUPANCY_RECEIPT_HOLD_MS,
   occupancyReadingLine,
   occupancyReceiptLine,
   type OccupancyLevel,
@@ -50,12 +51,20 @@ export default function VenueOccupancyRow({
     trackReadOnce(venueId, reading.state);
   }, [venueId, reading, receiptLine]);
 
+  // The receipt thanks the tap that made it; it may never stand in for the
+  // reading once its own "just now" stops being true.
+  useEffect(() => {
+    if (!receipt) return;
+    const timer = setTimeout(() => setReceipt(null), OCCUPANCY_RECEIPT_HOLD_MS);
+    return () => clearTimeout(timer);
+  }, [receipt]);
+
   async function onTap(level: OccupancyLevel) {
     if (!auth) return;
     const result = await report(level, auth);
     if (!result.ok) return;
     trackEvent("occupancy_reported", { level, surface });
-    trackEvent("occupancy_read", { state: result.reading.state });
+    trackReadOnce(venueId, result.reading.state);
     if (result.reading.now && result.reading.ageMinutes != null) {
       setReceipt({
         venueId,

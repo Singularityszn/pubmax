@@ -3,8 +3,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OCCUPANCY_RETAKE_WINDOW_MS } from "@/lib/occupancy";
 import {
   __resetMemoryOccupancyReports,
+  memoryOccupancyStore,
   occupancyStore,
+  supabaseOccupancyStore,
 } from "@/lib/occupancyStore";
+
+// The durable table is absent: exactly the window between a code deploy and
+// migration 0107 being applied.
+vi.mock("@/lib/supabase", () => ({
+  isSupabaseConfigured: () => false,
+  requireSupabaseAdmin: () => {
+    throw new Error(
+      "Could not find the table 'public.venue_occupancy_reports' in the schema cache",
+    );
+  },
+}));
 
 const NOW = Date.parse("2026-08-16T18:00:00.000Z");
 
@@ -16,6 +29,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
+  delete process.env.VERCEL_ENV;
 });
 
 describe("occupancyStore", () => {
@@ -87,5 +102,36 @@ describe("occupancyStore", () => {
     expect(reading.now).toBeNull();
     expect(reading.state).toBe("stale");
     expect(reading.reportsLast90).toBe(0);
+  });
+});
+
+describe("occupancy read before the durable table exists", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  });
+
+  it("answers degraded in deployed production, never as no reports", async () => {
+    process.env.VERCEL_ENV = "production";
+
+    const reading = await supabaseOccupancyStore.readNow("venue-1");
+
+    expect(reading.degraded).toBe(true);
+    expect(reading.state).toBe("degraded");
+    expect(reading.now).toBeNull();
+  });
+
+  it("keeps the memory backend outside a deployed production instance", async () => {
+    process.env.VERCEL_ENV = "preview";
+    await memoryOccupancyStore.report({
+      venueId: "venue-1",
+      level: "full",
+      reporterUserId: "user-a",
+    });
+
+    const reading = await supabaseOccupancyStore.readNow("venue-1");
+
+    expect(reading.degraded).toBe(false);
+    expect(reading.state).toBe("fresh");
+    expect(reading.now).toBe("full");
   });
 });
