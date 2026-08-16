@@ -628,7 +628,10 @@ export function planIntakeHandoff(draft: PlanIntakeDraft): PlanIntakeHandoff {
       ? { tier: draft.answers.budget, limitPence: draft.answers.budgetLimitPence }
       : null,
     accessibilityNeeds: [...draft.answers.accessibilityNeeds],
-    skipped: [...draft.skippedSteps],
+    // A held acceptance seeds the area behind the wizard, so the step can be
+    // both skipped and answered. The generator refuses that pair outright
+    // (PLAN_INTAKE_MALFORMED), so the answer wins and the skip goes.
+    skipped: draft.skippedSteps.filter((step) => !(step === "area" && draft.answers.area)),
   };
 }
 

@@ -489,7 +489,7 @@ describe("releasing a held acceptance", () => {
     expect(after.showAcceptedSummary).toBe(false);
   });
 
-  it("keeps the whole route, and its proof, through a release", () => {
+  it("keeps the whole route through a release, and drops the anchored proof with it", () => {
     // The regression this pins: releasing the hold threw the night away. It
     // wiped both drafts, so Stops 2..N went with the pub that was held and
     // there was nothing left to change one's mind about.
@@ -511,8 +511,14 @@ describe("releasing a held acceptance", () => {
     expect(after.routePreview?.value.stops.map((stop) => stop.venueId)).toEqual([
       "venue-a", "venue-b", "venue-c",
     ]);
-    expect(after.routePreview?.value.groundingProof).toBe(routeBefore?.value.groundingProof);
-    expect(after.routeProofPresent).toBe(true);
+    // The proof leaves with the anchor: POST /api/plans refuses a V2 proof
+    // that names no anchor (PLAN_ANCHOR_REQUIRED), so a kept proof would make
+    // a released night unlockable.
+    expect(routeBefore?.value.groundingProof).toBeTruthy();
+    expect(after.routePreview?.value.groundingProof).toBeNull();
+    expect(after.routePreview?.value.anchorVenueId).toBeNull();
+    expect(after.routePreview?.value.outcome).toBe("unanchored");
+    expect(after.routeProofPresent).toBe(false);
     // The Plan draft keeps its own stops and loses only the acceptance.
     const planDraft = readPlanDraftEnvelope(storages.planDraftStorage, NOW);
     expect(planDraft?.draft.stops.map((stop) => stop.venueId)).toEqual(["venue-a"]);

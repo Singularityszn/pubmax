@@ -48,7 +48,12 @@ import {
   walkLabel,
   walkMinutes,
 } from "@/lib/tonight";
-import { acceptTonightVenue } from "@/lib/tonightAcceptance";
+import {
+  acceptTonightVenue,
+  tonightAcceptanceFamilyKey,
+  type TonightAcceptanceError,
+} from "@/lib/tonightAcceptance";
+import { TonightRowAccept } from "@/app/tonight/TonightRowAccept";
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { VibeChipButton, VibeChipLink, VibeChips } from "@/components/vibe/VibeChips";
@@ -167,7 +172,7 @@ export default function TonightClient({
   // browser-only and the first paint must match SSR.
   const [remembered, setRemembered] = useState<RememberedArea | null>(null);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
-  const [acceptanceError, setAcceptanceError] = useState("");
+  const [acceptanceError, setAcceptanceError] = useState<TonightAcceptanceError | null>(null);
   // The location card is a quiet, collapsed row until tapped — it must not be
   // the first thing on the page. Once a position is shared it stays open so the
   // last-train strip has somewhere to live.
@@ -201,7 +206,7 @@ export default function TonightClient({
   // the Venue off via the accept deep link. Storage failure stays on Tonight,
   // reports the error, and emits nothing.
   const acceptVenue = useCallback(
-    (venueId: string) => {
+    (venueId: string, familyKey: string) => {
       const result = acceptTonightVenue({
         venueId,
         area: remembered,
@@ -211,10 +216,10 @@ export default function TonightClient({
         fallbackCityId: "london",
       });
       if (!result.accepted || !result.telemetry) {
-        setAcceptanceError(VENUE_ACCEPTANCE_STORAGE_ERROR);
+        setAcceptanceError({ venueId, familyKey, message: VENUE_ACCEPTANCE_STORAGE_ERROR });
         return;
       }
-      setAcceptanceError("");
+      setAcceptanceError(null);
       trackEvent("venue_accepted", result.telemetry);
       router.push(result.href);
     },
@@ -511,9 +516,6 @@ export default function TonightClient({
             </div>
           ) : null}
 
-          {acceptanceError ? (
-            <p className="tonightAcceptanceError" role="alert">{acceptanceError}</p>
-          ) : null}
           <ul id="tonight-list" className="tonightList" data-testid="tonight-list">
             {grouped.map((group) => {
               const row = group.row;
@@ -613,14 +615,15 @@ export default function TonightClient({
                   )}
                   {/* Explicit acceptance stays distinct from the browse tap. */}
                   {typeof row.venueId === "string" && row.venueId.length > 0 ? (
-                    <button
-                      type="button"
-                      className="tonightRowAccept pressable"
-                      aria-label={`Keep ${row.placeName} for tonight`}
-                      onClick={() => acceptVenue(row.venueId as string)}
-                    >
-                      Keep this venue
-                    </button>
+                    <TonightRowAccept
+                      venueId={row.venueId}
+                      familyKey={tonightAcceptanceFamilyKey(row)}
+                      placeName={row.placeName}
+                      className="tonightRowAccept"
+                      label="Keep this venue"
+                      acceptanceError={acceptanceError}
+                      onAccept={acceptVenue}
+                    />
                   ) : null}
                   {group.venueCount > 1 ? (
                     <details className="tonightRowMore">
@@ -677,14 +680,15 @@ export default function TonightClient({
                                 </span>
                               )}
                               {typeof alt.venueId === "string" && alt.venueId.length > 0 ? (
-                                <button
-                                  type="button"
-                                  className="tonightRowMoreAccept pressable"
-                                  aria-label={`Keep ${alt.placeName} for tonight`}
-                                  onClick={() => acceptVenue(alt.venueId as string)}
-                                >
-                                  Keep
-                                </button>
+                                <TonightRowAccept
+                                  venueId={alt.venueId}
+                                  familyKey={tonightAcceptanceFamilyKey(alt)}
+                                  placeName={alt.placeName}
+                                  className="tonightRowMoreAccept"
+                                  label="Keep"
+                                  acceptanceError={acceptanceError}
+                                  onAccept={acceptVenue}
+                                />
                               ) : null}
                             </li>
                           );

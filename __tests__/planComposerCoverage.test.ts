@@ -24,6 +24,9 @@ import {
   planComposerVenueIndexPath,
   planDraftSavedTelemetry,
   planGenerationFailureStatus,
+  PLAN_INTAKE_CONFLICT_NO_ROUTE,
+  PLAN_INTAKE_CONFLICT_READER,
+  PLAN_INTAKE_CONFLICT_SERVER,
   planLockValidationError,
   routeStopsFromGenerated,
   serverPlanCreationAttribution,
@@ -91,6 +94,24 @@ describe("PlanComposer accepted city authority", () => {
     expect(planComposerVenueIndexPath("manchester")).toBe(
       "/data/cities/manchester/venues_slim.json",
     );
+  });
+
+  it("keeps the accepted city and drops the anchor after a held pub is released", () => {
+    expect(composerCreatePayload({
+      title: "Manchester night",
+      creatorName: "Karan",
+      startTime: "2026-07-24T20:00:00.000Z",
+      cityId: "manchester",
+      stops: [{ venueId: "manchester-pub", venueName: "The Manchester Pub" }],
+      groundingProof: null,
+      planAnchor: null,
+    })).toEqual({
+      title: "Manchester night",
+      creatorName: "Karan",
+      startTime: "2026-07-24T20:00:00.000Z",
+      cityId: "manchester",
+      stops: [{ venueId: "manchester-pub", venueName: "The Manchester Pub" }],
+    });
   });
 });
 
@@ -462,6 +483,36 @@ describe("PlanComposer route preview seam", () => {
     expect(planGenerationFailureStatus("Could not sort this one.", true)).toBe(
       "The previous route is still here. Could not sort this one.",
     );
+  });
+
+  it("maps the intake-conflict 422 from the flat publicApiError body", () => {
+    expect(errorMessageFromBody({
+      error: PLAN_INTAKE_CONFLICT_SERVER,
+      code: "PLAN_INTAKE_MALFORMED",
+      retryable: false,
+    }, "fallback")).toBe(PLAN_INTAKE_CONFLICT_READER);
+    expect(planGenerationFailureStatus(PLAN_INTAKE_CONFLICT_SERVER, true)).toBe(
+      PLAN_INTAKE_CONFLICT_READER,
+    );
+    expect(planGenerationFailureStatus(PLAN_INTAKE_CONFLICT_READER, true)).toBe(
+      PLAN_INTAKE_CONFLICT_READER,
+    );
+    expect(planGenerationFailureStatus(PLAN_INTAKE_CONFLICT_SERVER, false)).toBe(
+      PLAN_INTAKE_CONFLICT_NO_ROUTE,
+    );
+    expect(planGenerationFailureStatus(PLAN_INTAKE_CONFLICT_READER, false)).toBe(
+      PLAN_INTAKE_CONFLICT_NO_ROUTE,
+    );
+  });
+
+  it("never prints the generator's own conflict sentence to a reader", () => {
+    for (const hasPreviousRoute of [true, false]) {
+      for (const message of [PLAN_INTAKE_CONFLICT_SERVER, PLAN_INTAKE_CONFLICT_READER]) {
+        expect(planGenerationFailureStatus(message, hasPreviousRoute))
+          .not.toBe(PLAN_INTAKE_CONFLICT_SERVER);
+      }
+    }
+    expect(PLAN_INTAKE_CONFLICT_NO_ROUTE).not.toContain("intake");
   });
 
   it("uses house error copy when Lock it in is missing only a name", () => {
@@ -894,3 +945,4 @@ describe("what the composer holds as Stop 1", () => {
     });
   });
 });
+

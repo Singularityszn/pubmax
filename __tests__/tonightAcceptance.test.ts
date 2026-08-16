@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
@@ -7,7 +11,8 @@ import {
   parsePlanningIntent,
   type PlanningIntentStorage,
 } from "@/lib/planningIntent";
-import { acceptTonightVenue } from "@/lib/tonightAcceptance";
+import { acceptTonightVenue, tonightRowAcceptanceError } from "@/lib/tonightAcceptance";
+import { TonightRowAccept } from "@/app/tonight/TonightRowAccept";
 
 // The Tonight acceptance seam is pure — inject storage + clock and read the
 // result. Source is fixed "tonight", evidence is "what's-on", browsing is never
@@ -133,5 +138,58 @@ describe("acceptTonightVenue", () => {
     expect(result.accepted).toBe(false);
     expect(result.href).not.toContain("accept=1");
     expect(result.telemetry).toBeNull();
+  });
+});
+
+describe("tonightRowAcceptanceError", () => {
+  it("answers only the row whose Keep failed", () => {
+    const error = {
+      venueId: "venue-failed",
+      familyKey: "quiz|Quiz Night|Chain Co",
+      message: "Couldn’t keep this pub on this device. Try again.",
+    };
+    expect(tonightRowAcceptanceError(error, "venue-failed", "quiz|Quiz Night|Chain Co")).toBe(error.message);
+    expect(tonightRowAcceptanceError(error, "venue-failed", "deal|Curry Club|Chain Co")).toBeNull();
+    expect(tonightRowAcceptanceError(error, "venue-other", "quiz|Quiz Night|Chain Co")).toBeNull();
+    expect(tonightRowAcceptanceError(null, "venue-failed", "quiz|Quiz Night|Chain Co")).toBeNull();
+  });
+});
+
+describe("TonightRowAccept", () => {
+  const failure = {
+    venueId: "venue-failed",
+    familyKey: "quiz|Quiz Night|Chain Co",
+    message: "Couldn’t keep this pub on this device. Try again.",
+  };
+
+  function render(venueId: string, familyKey = "quiz|Quiz Night|Chain Co") {
+    return renderToStaticMarkup(createElement(TonightRowAccept, {
+      venueId,
+      familyKey,
+      placeName: "The Dove",
+      className: "tonightRowAccept",
+      label: "Keep this venue",
+      acceptanceError: failure,
+      onAccept: () => {},
+    }));
+  }
+
+  it("renders the failure alert beside the Keep button of the row that failed", () => {
+    const html = render("venue-failed");
+    expect(html).toContain('aria-label="Keep The Dove for tonight"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Couldn’t keep this pub on this device.");
+    expect(html.indexOf('role="alert"')).toBeGreaterThan(html.indexOf("</button>"));
+  });
+
+  it("says nothing in a row that did not fail", () => {
+    const html = render("venue-other");
+    expect(html).toContain('aria-label="Keep The Dove for tonight"');
+    expect(html).not.toContain('role="alert"');
+  });
+
+  it("says nothing on a different offer family at the same pub", () => {
+    const html = render("venue-failed", "deal|Curry Club|Chain Co");
+    expect(html).not.toContain('role="alert"');
   });
 });

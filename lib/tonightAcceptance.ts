@@ -58,6 +58,32 @@ export type TonightAcceptanceInput = {
   fallbackCityId: CityId;
 };
 
+export type TonightAcceptanceError = {
+  venueId: string;
+  familyKey: string;
+  message: string;
+};
+
+export function tonightAcceptanceFamilyKey(row: {
+  kind?: string | null;
+  title?: string | null;
+  source?: { label?: string | null } | null;
+}): string {
+  return `${row.kind ?? ""}|${row.title ?? ""}|${row.source?.label ?? ""}`;
+}
+
+export function tonightRowAcceptanceError(
+  error: TonightAcceptanceError | null,
+  venueId: string,
+  familyKey: string,
+): string | null {
+  return error
+    && error.venueId === venueId
+    && error.familyKey === familyKey
+    ? error.message
+    : null;
+}
+
 /**
  * Explicitly accept a Tonight Venue into the trusted handoff. Writes one strict
  * PlanningIntent (source "tonight"), then reports where to navigate and what to

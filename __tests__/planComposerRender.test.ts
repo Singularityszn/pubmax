@@ -4,7 +4,21 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { AcceptedContextPanel, PlanComposerErrorNotice } from "@/components/plan/PlanComposer";
+import {
+  AcceptedContextPanel,
+  PLAN_INTAKE_CONFLICT_NO_ROUTE,
+  PLAN_INTAKE_CONFLICT_READER,
+  PLAN_INTAKE_CONFLICT_SERVER,
+  PlanComposerErrorNotice,
+  acceptedPlanAreaLabel,
+  errorMessageFromBody,
+  planGenerationFailureStatus,
+  acceptedStop1RemoveLabel,
+  acceptedStop1SwapLabel,
+  planComposerShowsDescribeFirst,
+  planComposerShowsIntake,
+  releasedAcceptanceStatus,
+} from "@/components/plan/PlanComposer";
 import {
   readPlanDraftEnvelope,
   writePlanDraftEnvelope,
@@ -79,7 +93,8 @@ describe("PlanComposer rendered UI", () => {
     expect(html).toContain("Carried over from what you accepted");
     expect(html).not.toContain("venue-intent");
     expect(html).toContain("The pub you kept");
-    expect(html).toContain("soho");
+    expect(html).toContain("Piccadilly &amp; Soho");
+    expect(html).not.toContain(">soho<");
     expect(html).toContain("Jul"); // London service-date label for the accepted start
     expect(html).toContain("You can change the area and the date below.");
     expect(html).toContain("Stop 1 stays this pub until you release it.");
@@ -144,5 +159,138 @@ describe("PlanComposer rendered UI", () => {
     const html409 = renderToStaticMarkup(createElement(PlanComposerErrorNotice, { message: copy409 as string }));
     expect(html409).toContain('role="alert"');
     expect(html409).toMatch(/already locked/i);
+  });
+
+  it("never claims an earlier route in the error notice when no route is on screen", () => {
+    // Repro: a fresh /plan, POST /api/plans/generate answers 422
+    // PLAN_INTAKE_MALFORMED and no stop rows are rendered. The notice used to
+    // take errorMessageFromBody straight, so it told the reader the earlier
+    // route was still here when there was none.
+    const body = {
+      error: {
+        code: "PLAN_INTAKE_MALFORMED",
+        message: PLAN_INTAKE_CONFLICT_SERVER,
+      },
+    };
+    const thrown = errorMessageFromBody(body, "PUBMAXX could not sort this one.");
+
+    const noRoute = planGenerationFailureStatus(thrown, false);
+    const noRouteHtml = renderToStaticMarkup(
+      createElement(PlanComposerErrorNotice, { message: noRoute }),
+    );
+    expect(noRouteHtml).toContain('role="alert"');
+    expect(noRouteHtml).toContain(PLAN_INTAKE_CONFLICT_NO_ROUTE);
+    expect(noRouteHtml).not.toMatch(/earlier route|previous route/i);
+    // The server plumbing string never reaches a reader either.
+    expect(noRouteHtml).not.toContain("intake");
+
+    const withRoute = planGenerationFailureStatus(thrown, true);
+    const withRouteHtml = renderToStaticMarkup(
+      createElement(PlanComposerErrorNotice, { message: withRoute }),
+    );
+    expect(withRouteHtml).toContain(PLAN_INTAKE_CONFLICT_READER);
+
+    // One sentence, both surfaces: the notice prints exactly what
+    // #plan-route-status prints, so the two can never contradict each other.
+    expect(noRoute).not.toBe(withRoute);
+  });
+
+  it("prints the night area name, never the slug", () => {
+    expect(acceptedPlanAreaLabel({ kind: "night-patch", id: "clapham" })).toBe("Clapham");
+    expect(acceptedPlanAreaLabel({ kind: "night-patch", id: "soho" })).toBe("Piccadilly & Soho");
+    expect(acceptedPlanAreaLabel({ kind: "borough", name: "Camden" })).toBe("Camden");
+    // Hackney has no generator area on purpose, so its own patch label answers
+    // rather than the raw slug.
+    expect(acceptedPlanAreaLabel({ kind: "night-patch", id: "hackney" })).toBe("Hackney");
+
+    const clapham = resolveComposerHydration({
+      planDraft: null, routeDraft: null, intakeDraft: null,
+      planningIntent: createPlanningIntent({
+        source: "near",
+        cityId: "london",
+        acceptedVenueId: "venue-intent",
+        acceptedArea: { kind: "night-patch", id: "clapham" },
+        startsAt: "2026-07-24T20:00:00.000Z",
+        displayEvidence: { kind: "directory", observedAt: null },
+      }, NOW),
+      rememberedArea: null,
+    });
+    const html = renderToStaticMarkup(createElement(AcceptedContextPanel, { handoff: clapham }));
+    expect(html).toContain("Clapham");
+    expect(html).not.toContain(">clapham<");
+  });
+
+  it("names the two disabled Stop 1 actions apart", () => {
+    expect(acceptedStop1SwapLabel("The Coach & Horses")).toBe(
+      "The Coach & Horses is the accepted Stop 1. Swap is not available.",
+    );
+    expect(acceptedStop1RemoveLabel("The Coach & Horses")).toBe(
+      "The Coach & Horses is the accepted Stop 1. Remove is not available.",
+    );
+    expect(acceptedStop1SwapLabel("The Coach & Horses"))
+      .not.toBe(acceptedStop1RemoveLabel("The Coach & Horses"));
+  });
+
+  it("hides describe-first only while a pub is held", () => {
+    expect(planComposerShowsDescribeFirst({
+      heldVenueId: "venue-kept",
+      completed: false,
+      entryMode: "describe",
+    })).toBe(false);
+    expect(planComposerShowsIntake({
+      heldVenueId: "venue-kept",
+      completed: false,
+      entryMode: "describe",
+    })).toBe(false);
+    expect(planComposerShowsDescribeFirst({
+      heldVenueId: null,
+      completed: false,
+      entryMode: "describe",
+    })).toBe(true);
+  });
+
+  it("restores describe-first after the held pub is released, even if a route draft is still on the page", () => {
+    expect(planComposerShowsDescribeFirst({
+      heldVenueId: null,
+      completed: false,
+      entryMode: "describe",
+    })).toBe(true);
+    expect(planComposerShowsIntake({
+      heldVenueId: null,
+      completed: false,
+      entryMode: "describe",
+    })).toBe(false);
+  });
+
+  it("keeps the unfinished wizard for a returning visitor", () => {
+    expect(planComposerShowsIntake({
+      heldVenueId: null,
+      completed: false,
+      entryMode: "wizard",
+    })).toBe(true);
+    expect(planComposerShowsIntake({
+      heldVenueId: null,
+      completed: true,
+      entryMode: "describe",
+    })).toBe(true);
+  });
+
+  it("states the release without claiming the route is gone", () => {
+    expect(releasedAcceptanceStatus({
+      venueName: "The Coach & Horses",
+      routeStale: false,
+    })).toBe("Released The Coach & Horses. Stop 1 is yours to change.");
+    expect(releasedAcceptanceStatus({
+      venueName: null,
+      routeStale: false,
+    })).toBe("Released this pub. Stop 1 is yours to change.");
+  });
+
+  it("keeps a stale-route reason instead of overwriting it on release", () => {
+    expect(releasedAcceptanceStatus({
+      venueName: "The Coach & Horses",
+      routeStale: true,
+      staleStatus: "Route needs refreshing after that context change.",
+    })).toBe("Route needs refreshing after that context change.");
   });
 });
