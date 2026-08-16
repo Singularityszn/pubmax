@@ -2,10 +2,13 @@
 //
 // Every guard the single follow answers to answers here first, in the same
 // order and through the same seams: the social freeze, the JWT-linked actor
-// (`resolveMessageHandle`), the ownership gate (`gateHandleAction`), and ONE
-// rate-limit spend for the whole pack rather than one per member, because the
-// drinker made one decision. The write itself is `followOnce`, the shared edge
-// write, so a pack cannot follow somebody differently from the profile button.
+// (`resolveMessageHandle`), the account law (a follow needs a bearer, so an
+// anonymous write is 401 whatever handle the body names), the ownership gate
+// (`gateHandleAction`), and ONE rate-limit spend for the whole pack rather than
+// one per member, because the drinker made one decision. The write itself is
+// `followOnce`, the shared edge write, so a pack cannot follow somebody
+// differently from the profile button - and it cannot be followed by somebody
+// the profile button would have refused.
 //
 // It is IDEMPOTENT because a follow edge is: the second tap answers 200 with
 // every member reported `already`, which is the truth rather than a failure.
@@ -19,6 +22,7 @@
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { callerUserId } from "@/lib/authServer";
 import { followOnce } from "@/lib/followWrite.server";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
@@ -77,12 +81,23 @@ export async function POST(
     }
   }
 
-  const follower = await resolveMessageHandle(request, readString(body.follower));
+  // ONE bearer verification for the whole write, handed down to both gates so a
+  // signed-in pack follow stays a single round trip.
+  const caller = await callerUserId(request);
+
+  const follower = await resolveMessageHandle(request, readString(body.follower), caller);
   if (!follower) {
     return publicApiError("Choose a handle in your account first.", "INVALID_REQUEST", 400);
   }
 
-  const ownership = await gateHandleAction(request, follower);
+  // A follow needs an ACCOUNT, on this lane as on the profile Follow button:
+  // the body may name a handle, but an unlinked handle plus no bearer is how an
+  // anonymous browser used to write a dozen edges at once.
+  if (!caller) {
+    return publicApiError("Sign in to follow them.", "UNAUTHENTICATED", 401);
+  }
+
+  const ownership = await gateHandleAction(request, follower, caller);
   if (!ownership.allowed) {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }

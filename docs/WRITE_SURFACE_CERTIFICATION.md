@@ -473,9 +473,9 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
 - **Auth stance:** the author is the self-asserted handle resolved through
   `resolveMessageHandle` (JWT-linked handle wins when signed in) and gated by
   `gateHandleAction` — the same demo identity boundary as a pint drop, on both
-  POST and DELETE. A profile follow no longer shares it:
-  `POST /api/profiles/[handle]/follow` refuses a caller with no bearer
-  (401 `UNAUTHENTICATED`), because an add link needs an account.
+  POST and DELETE. A follow no longer shares it: both follow lanes refuse a
+  caller with no bearer (401 `UNAUTHENTICATED`), because an add link needs an
+  account.
 - **DELETE stance:** deliberately skips `socialFreezeResponse()` — turning off is
   safety-reducing, so a solo-operator emergency freeze of social writes must
   never block it. It hard-deletes every check-in the caller authored
@@ -1155,12 +1155,13 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
 ### `app/api/starter-packs/[slug]/follow` - follow a whole starter pack (route 90)
 
 - **Route / method:** `POST app/api/starter-packs/[slug]/follow/route.ts`.
-- **Actor (boundary):** the same seam as the single follow. `resolveMessageHandle`
-  prefers the JWT-linked handle over anything in the body, and `gateHandleAction`
-  refuses a caller acting as a handle an account owns. An unlinked demo handle
-  still writes here. The single profile Follow button no longer admits one:
-  `POST /api/profiles/[handle]/follow` refuses a caller with no bearer
-  (401 `UNAUTHENTICATED`), so the two lanes now differ on anonymous writes.
+- **Actor (boundary):** the same seam as the single follow, and the same law.
+  `resolveMessageHandle` prefers the JWT-linked handle over anything in the
+  body, a caller with no bearer is refused (401 `UNAUTHENTICATED`) whatever
+  handle the body names, and `gateHandleAction` then refuses a signed-in caller
+  acting as a handle another account owns. Both follow lanes state one rule: a
+  follow needs an account, so an unlinked handle plus no bearer writes no edge
+  here and none through `POST /api/profiles/[handle]/follow`.
 - **Rate limit (boundary):** ONE per-actor plus hashed-IP `isLimited` spend for
   the whole pack, not one per member, because the drinker made one decision. The
   budget is deliberately small (6 per minute): a pack follow is a considered act.
