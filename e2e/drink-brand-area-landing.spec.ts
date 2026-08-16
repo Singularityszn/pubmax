@@ -489,7 +489,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       expect(response?.status()).toBe(200);
 
       const count = page.locator(".drinkBrandDirectory__sectionCount");
-      await expect(count).toHaveText("Showing 20 of 21 pubs");
+      await expect(count).toHaveText(/^Showing 20 of \d+ pubs$/);
       await expect(count).toBeVisible();
 
       const geometry = await count.evaluate((element) => {

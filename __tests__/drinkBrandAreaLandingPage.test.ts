@@ -203,13 +203,43 @@ describe("governed drink brand by Night Area landing page", () => {
     );
 
     // The heading names the cheapest pint here, so the arrival is that pub or
-    // no pub: it never silently becomes a different one.
+    // no pub: it never silently becomes a different one, and with no pub the
+    // words stop promising one.
     expect(html).toContain('href="/map?brand=guinness"');
+    expect(html).toContain("Find Guinness in Clapham on the map");
+    expect(html).not.toContain("Open the cheapest Clapham pint on the map");
     expect(html).toContain('href="/map?brand=guinness&amp;log=1"');
     expect(html).toContain(
       'href="/map?sel=venue-core&amp;brand=guinness&amp;log=1"',
     );
     expect(html).not.toContain("sel=venue-outer");
+
+    const withResolvableFirstRow = renderToStaticMarkup(
+      createElement(DrinkBrandAreaLandingContent, {
+        landing,
+        mapSelectableVenueIds: new Set(["venue-outer", "venue-core"]),
+      }),
+    );
+
+    expect(withResolvableFirstRow).toContain(
+      'href="/map?sel=venue-outer&amp;brand=guinness"',
+    );
+    expect(withResolvableFirstRow).toContain(
+      "Open the cheapest Clapham pint on the map",
+    );
+    expect(withResolvableFirstRow).not.toContain(
+      "Find Guinness in Clapham on the map",
+    );
+
+    const withFailedRead = renderToStaticMarkup(
+      createElement(DrinkBrandAreaLandingContent, {
+        landing,
+        mapSelectableVenueIds: null,
+      }),
+    );
+
+    expect(withFailedRead).not.toContain("sel=");
+    expect(withFailedRead).toContain("Find Guinness in Clapham on the map");
   });
 
   it("shows the full eligible pub count when the printed rows are capped", () => {

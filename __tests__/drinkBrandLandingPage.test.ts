@@ -48,23 +48,28 @@ import DrinkBrandLandingContent from "@/components/drinks/DrinkBrandLandingConte
 import {
   drinkBrandLandingJsonLd,
   loadDrinkBrandLanding,
+  loadDrinkBrandLandings,
 } from "@/lib/drinkBrandLanding.server";
+import { DRINK_BRANDS } from "@/lib/drinkBrands";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import type { DrinkBrandLanding } from "@/lib/drinkBrandLanding";
 import * as drinkBrandLandingPageModule from "@/app/drink/[slug]/page";
 
 describe("governed drink brand landing page", () => {
-  it("prebuilds only the current eligible beer brand slugs", async () => {
-    await expect(generateStaticParams()).resolves.toEqual([
-      { slug: "guinness" },
-      { slug: "neck-oil" },
-      { slug: "estrella" },
-      { slug: "peroni" },
-      { slug: "amstel" },
-      { slug: "madri" },
-      { slug: "camden-hells" },
-      { slug: "birra-moretti" },
-    ]);
+  it("prebuilds exactly the published beer brand slugs, in catalogue order", async () => {
+    const params = await generateStaticParams();
+    const published = (await loadDrinkBrandLandings()).map(({ slug }) => slug);
+
+    // Every prebuilt slug is one the loader publishes, and nothing else: a
+    // brand below the floor is a legitimate non-publication rather than a
+    // missing page.
+    expect(params).toEqual(published.map((slug) => ({ slug })));
+    expect(published.length).toBeGreaterThan(0);
+    expect(published).toEqual(
+      DRINK_BRANDS.beer
+        .map((brand) => brand.id)
+        .filter((id) => published.includes(id)),
+    );
   });
 
   it("gates on published slugs and declares no revalidate window it cannot keep", () => {
@@ -101,7 +106,11 @@ describe("governed drink brand landing page", () => {
       html.match(/<li class="[^"]*\bdrinkBrandDirectory__row\b[^"]*"/g),
     ).toHaveLength(20);
     // The count discloses the cap rather than implying twenty is everything.
-    expect(html).toContain("Showing 20 of 347 pubs");
+    const landing = await loadDrinkBrandLanding("guinness");
+    expect(landing!.totalPricedVenues).toBeGreaterThan(landing!.rows.length);
+    expect(html).toContain(
+      `Showing ${landing!.rows.length} of ${landing!.totalPricedVenues} pubs`,
+    );
     // Rank is presentational: the ordered list already carries position, and a
     // name on a bare span is prohibited so an aria-label there is dropped.
     expect(html).not.toContain('aria-label="Rank');

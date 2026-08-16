@@ -6,6 +6,7 @@ import PricedLandingRows, {
 } from "@/components/drinks/PricedLandingRows";
 import type { DrinkBrandAreaLanding } from "@/lib/drinkBrandAreaLanding";
 import {
+  pricedLandingAreaMapCta,
   pricedLandingCountLabel,
   pricedLandingMapArrivalRow,
   pricedLandingMapHref,
@@ -32,6 +33,13 @@ export default function DrinkBrandAreaLandingContent({
   // map cannot open would make it unreachable.
   const selectableVenueId = (row: PricedLandingRow): string | undefined =>
     pricedLandingMapArrivalRow([row], mapSelectableVenueIds)?.venueId;
+  const arrival = pricedLandingAreaMapCta({
+    brandSlug: landing.brandSlug,
+    brandLabel: landing.brandLabel,
+    areaName: landing.areaName,
+    row: firstRow,
+    selectable: mapSelectableVenueIds,
+  });
 
   return (
     <div className="drinkBrandDirectory">
@@ -59,14 +67,8 @@ export default function DrinkBrandAreaLandingContent({
           {formatPricedLandingCollectedDate(landing.collectedAt)}.
         </p>
         <div className="drinkBrandDirectory__actions">
-          <Link
-            className="drinkBrandDirectory__primary"
-            href={pricedLandingMapHref({
-              brandSlug: landing.brandSlug,
-              venueId: selectableVenueId(firstRow),
-            })}
-          >
-            Open the cheapest {landing.areaName} pint on the map
+          <Link className="drinkBrandDirectory__primary" href={arrival.href}>
+            {arrival.label}
           </Link>
         </div>
       </header>

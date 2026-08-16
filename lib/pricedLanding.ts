@@ -134,6 +134,33 @@ export function pricedLandingMapHref(input: {
   return `/map?${params.toString()}`;
 }
 
+export type PricedLandingMapCta = { href: string; label: string };
+
+/**
+ * The brand-by-area arrival: ONE decision answers both the destination and the
+ * words. When the map can open the row, the link says so and names the pint it
+ * opens; when it cannot, the link carries the brand and the area alone and the
+ * words stop promising a pub. A second predicate deciding "did we get a pub"
+ * is exactly how a label comes to describe a link it no longer matches.
+ */
+export function pricedLandingAreaMapCta(input: {
+  brandSlug: string;
+  brandLabel: string;
+  areaName: string;
+  row: PricedLandingRow;
+  selectable: MapSelectableVenueIds;
+}): PricedLandingMapCta {
+  const venueId =
+    pricedLandingMapArrivalRow([input.row], input.selectable)?.venueId ?? null;
+
+  return {
+    href: pricedLandingMapHref({ brandSlug: input.brandSlug, venueId }),
+    label: venueId
+      ? `Open the cheapest ${input.areaName} pint on the map`
+      : `Find ${input.brandLabel} in ${input.areaName} on the map`,
+  };
+}
+
 /** Publisher disclosure copy. `docs/VOICE.md` governs both sentences. */
 export function formatPricedLandingPublisherStatus(
   publisher: PricedLandingPublisher | null,

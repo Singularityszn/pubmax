@@ -60,6 +60,12 @@ brand-by-area page's parent crumb is the brand's own London page.
   pub, and with an eligibility read that could not answer, the link carries the
   brand alone rather than naming a pub the map would discard. The ranked list
   itself never moves for a link.
+- The WORDS follow that same decision. The brand-by-area arrival says "Open the
+  cheapest {area} pint on the map" only while it names a pub, and says "Find
+  {brand} in {area} on the map" when it does not, because a label promising a
+  pint the link cannot open is the same broken promise as an unresolvable
+  `sel`. One decision answers both (`pricedLandingAreaMapCta`), so the two
+  cannot drift.
 - Each row: its own `/ledger/{venueId}`, and on the brand-by-area page its own
   `Log this price` arrival.
 

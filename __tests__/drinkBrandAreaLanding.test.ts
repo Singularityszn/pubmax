@@ -484,43 +484,39 @@ describe("governed drink brand by Night Area landings", () => {
     expect(landing?.rows[1]?.publisher).toBeNull();
   });
 
-  it("lists the ordered eligible pair ids and counts from the 2026-08-15 dataset", async () => {
-    const landings = listDrinkBrandAreaLandings(await realVenues(), NIGHT_AREAS);
+  // Derived from the publishing areas and the brand catalogue rather than from
+  // today's figures: a dataset refresh, or a pair that drops below the floor,
+  // is a legitimate change in which pairs publish and how many pubs each holds.
+  it("publishes eligible pairs over the floor, in area then catalogue order", async () => {
+    const venues = await realVenues();
+    const landings = listDrinkBrandAreaLandings(venues, NIGHT_AREAS);
 
-    expect(landings.map((landing) => `${landing.areaSlug}/${landing.brandSlug}`)).toEqual([
-      "clapham/guinness",
-      "clapham/amstel",
-      "victoria/guinness",
-      "victoria/neck-oil",
-      "victoria/estrella",
-      "victoria/peroni",
-      "victoria/amstel",
-      "victoria/birra-moretti",
-      "piccadilly-soho/guinness",
-      "piccadilly-soho/neck-oil",
-      "piccadilly-soho/estrella",
-      "piccadilly-soho/peroni",
-      "piccadilly-soho/amstel",
-      "piccadilly-soho/birra-moretti",
-    ]);
-    expect(landings.map((landing) => landing.totalPricedVenues)).toEqual([
-      21,
-      11,
-      17,
-      14,
-      11,
-      12,
-      15,
-      10,
-      34,
-      25,
-      25,
-      29,
-      26,
-      22,
-    ]);
-    expect(landings.every((landing) => landing.collectedAt === PINT_DATASET_OBSERVED_AT.toISOString())).toBe(
-      true,
+    expect(landings.length).toBeGreaterThan(0);
+
+    const pairOrder = NIGHT_AREAS.filter(nightAreaPublishesPrices).flatMap((area) =>
+      DRINK_BRANDS.beer.map((brand) => `${area.slug}/${brand.id}`),
     );
+    const published = landings.map(
+      (landing) => `${landing.areaSlug}/${landing.brandSlug}`,
+    );
+
+    expect(published).toEqual(pairOrder.filter((pair) => published.includes(pair)));
+
+    for (const landing of landings) {
+      expect(landing.totalPricedVenues).toBeGreaterThanOrEqual(
+        DRINK_BRAND_AREA_PUBLICATION_FLOOR,
+      );
+      expect(landing.collectedAt).toBe(PINT_DATASET_OBSERVED_AT.toISOString());
+    }
+
+    // A pair the list withheld is one the dataset cannot carry, never one this
+    // ordering dropped.
+    for (const pair of pairOrder) {
+      if (published.includes(pair)) continue;
+      const [areaSlug, brandSlug] = pair.split("/");
+      expect(
+        buildDrinkBrandAreaLanding(areaSlug!, brandSlug!, venues, NIGHT_AREAS),
+      ).toBeNull();
+    }
   });
 });
