@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { safeAuthNext } from "@/lib/authRedirect";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { persistSessionForResume } from "@/lib/authSessionResumeClient";
@@ -33,6 +34,21 @@ type HandlePasswordSignInProps = {
  */
 const NO_PASSWORD_GUIDANCE =
   "No password yet? Sign in with your email link and create one from your profile.";
+
+/**
+ * Land the fresh session on the destination the page was handed, through the
+ * one boundary every other auth entry point already uses. `safeAuthNext`
+ * re-parses the value as a URL, so a shape the browser would resolve off-site
+ * (a tab or newline hidden inside `/\t/evil.example`) comes back as "/" rather
+ * than sending somebody who just typed a password to a stranger's page.
+ */
+export function navigateAfterHandlePasswordSignIn(
+  redirectTo: string | null | undefined,
+  location: Pick<Location, "origin" | "assign">,
+): void {
+  if (!redirectTo) return;
+  location.assign(safeAuthNext(redirectTo, location.origin));
+}
 
 export default function HandlePasswordSignIn({
   disabled = false,
@@ -110,14 +126,7 @@ export default function HandlePasswordSignIn({
       // A full assignment rather than a router push: the destination may be a
       // server-rendered surface that has to read the fresh session, and the
       // auth events have already run against this document.
-      if (
-        redirectTo &&
-        redirectTo.startsWith("/") &&
-        !redirectTo.startsWith("//") &&
-        !redirectTo.includes("\\")
-      ) {
-        window.location.assign(redirectTo);
-      }
+      navigateAfterHandlePasswordSignIn(redirectTo, window.location);
     } catch {
       setError(
         navigator.onLine === false
