@@ -91,6 +91,13 @@
   color: var(--ink);
 }
 
+.vpsubLockedDrink {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
 /* ── Drink category ───────────────────────────────────────────────────────── */
 /* The five categories do not fit one 390px row, so the row WRAPS - same rule
    the quick-price chips below already use, so the card reads as one chip

@@ -166,6 +166,13 @@ export const ANALYTICS_EVENTS = {
   price_submit_failed: ["category", "reason"],
   price_impact_opened: [],
   contribution_gate: ["step"],
+  // Price evidence missions. Surface, reason, optional category, and
+  // submit outcome only. No venue, handle, price, or coordinates.
+  mission_viewed: ["surface", "reason", "category"],
+  mission_opened: ["surface", "reason", "category"],
+  mission_dismissed: ["surface", "reason", "category"],
+  mission_submitted: ["surface", "reason", "category", "outcome"],
+  mission_newly_trusted: ["surface", "reason", "category", "outcome"],
   // Press-arrival funnel (the London Pint Index). Three questions, and these
   // events exist to answer exactly those: how many ARRIVED on the Index or one
   // of its dated editions (pint_index_viewed, once per page view), how many
@@ -350,6 +357,15 @@ export const PRICE_SUBMIT_CATEGORIES = completeDrinkTaxonomy([
 export const PRICE_SUBMIT_FAILURE_REASONS = ["invalid", "rejected", "offline"] as const;
 export type PriceSubmitFailureReason = (typeof PRICE_SUBMIT_FAILURE_REASONS)[number];
 
+export const MISSION_SURFACES = ["near", "map"] as const;
+export type MissionSurface = (typeof MISSION_SURFACES)[number];
+
+export const MISSION_REASONS = ["provisional", "stale", "missing"] as const;
+export type MissionReason = (typeof MISSION_REASONS)[number];
+
+export const MISSION_OUTCOMES = ["logged", "trusted", "needs_check"] as const;
+export type MissionOutcome = (typeof MISSION_OUTCOMES)[number];
+
 /**
  * Which Pint Index page the arrival happened on: the live index, or one of its
  * dated monthly editions. Kept apart because a press link to a frozen edition
@@ -433,6 +449,9 @@ const SAFE_STRING_VALUES = new Set([
   // failure buckets.
   ...PRICE_SUBMIT_CATEGORIES,
   ...PRICE_SUBMIT_FAILURE_REASONS,
+  ...MISSION_SURFACES,
+  ...MISSION_REASONS,
+  ...MISSION_OUTCOMES,
   ...CONTRIBUTION_GATE_STEPS,
   // Press-arrival vocabulary: the two Pint Index surfaces, the two visit
   // kinds, and the London borough codes an arrival tap may name.
@@ -486,6 +505,11 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   price_submitted: ["category"],
   price_submit_failed: ["category", "reason"],
   contribution_gate: ["step"],
+  mission_viewed: ["surface", "reason"],
+  mission_opened: ["surface", "reason"],
+  mission_dismissed: ["surface", "reason"],
+  mission_submitted: ["surface", "reason", "outcome"],
+  mission_newly_trusted: ["surface", "reason", "outcome"],
   // An arrival with no surface, or a tap with no area, is an uncountable step
   // in a funnel whose whole value is the ratio between its steps.
   pint_index_viewed: ["surface", "visit"],
@@ -659,6 +683,19 @@ function isAllowedPriceFunnelProp(
   return true;
 }
 
+function isAllowedMissionProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (!name.startsWith("mission_")) return true;
+  if (key === "surface") return includesValue(MISSION_SURFACES, value);
+  if (key === "reason") return includesValue(MISSION_REASONS, value);
+  if (key === "category") return includesValue(PRICE_SUBMIT_CATEGORIES, value);
+  if (key === "outcome") return includesValue(MISSION_OUTCOMES, value);
+  return true;
+}
+
 function isAllowedContributionGateProp(
   name: AnalyticsEventName,
   key: string,
@@ -774,6 +811,7 @@ export function sanitizeEvent(
               && isAllowedTrustedHandoffEventProp(name, key, value)
               && isAllowedVitalProp(name, key, value)
               && isAllowedPriceFunnelProp(name, key, value)
+              && isAllowedMissionProp(name, key, value)
               && isAllowedContributionGateProp(name, key, value)
               && isAllowedPintIndexArrivalProp(name, key, value)
               && isAllowedInviteLoopProp(name, key, value)

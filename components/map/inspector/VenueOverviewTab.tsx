@@ -23,7 +23,7 @@ import SaveForNightButton from "@/components/wanted/SaveForNightButton";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
 import VenueDrinkPrices from "@/components/map/VenueDrinkPrices";
-import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
+import VenueSheetPriceEntry from "./VenueSheetPriceEntry";
 import VenueCommunitySignals from "@/components/map/VenueCommunitySignals";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
 import VenueAreaPriceCompare from "@/components/map/VenueAreaPriceCompare";
@@ -543,12 +543,13 @@ export default function VenueOverviewTab({
           Pubs only — a Pint Drop at a bar or late-food venue would
           feed a non-pint figure into the pint record. */}
       {isPubVenue(venue) ? (
-        <VenuePriceEntryPanel
+        <VenueSheetPriceEntry
           // Keyed by venue so the chosen drink, the typed price and the receipt
           // never leak across pubs - this instance persists between selections.
           key={venue.id}
           venueId={venue.id}
           venueName={venue.name}
+          isPub
           communityPrices={communityPrices}
           canSubmitPrice={priceEntryAllowed}
           showSignInGate={priceSignInRequested}

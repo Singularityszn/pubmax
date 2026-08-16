@@ -493,6 +493,65 @@ describe("community-price funnel events", () => {
   });
 });
 
+describe("price evidence mission events", () => {
+  it("registers the closed mission funnel", () => {
+    expect(isKnownEvent("mission_viewed")).toBe(true);
+    expect(isKnownEvent("mission_opened")).toBe(true);
+    expect(isKnownEvent("mission_dismissed")).toBe(true);
+    expect(isKnownEvent("mission_submitted")).toBe(true);
+    expect(isKnownEvent("mission_newly_trusted")).toBe(true);
+  });
+
+  it("keeps surface, reason, category, and outcome only", () => {
+    expect(sanitizeEvent("mission_viewed", {
+      surface: "near",
+      reason: "provisional",
+      category: "beer",
+      venueId: "venue-secret",
+      handle: "night_owl",
+      priceGbp: 4.2,
+    })).toEqual({
+      name: "mission_viewed",
+      props: { surface: "near", reason: "provisional", category: "beer" },
+    });
+    expect(sanitizeEvent("mission_submitted", {
+      surface: "map",
+      reason: "stale",
+      category: "wine",
+      outcome: "needs_check",
+    })).toEqual({
+      name: "mission_submitted",
+      props: {
+        surface: "map",
+        reason: "stale",
+        category: "wine",
+        outcome: "needs_check",
+      },
+    });
+  });
+
+  it("allows a missing mission to omit category", () => {
+    expect(sanitizeEvent("mission_dismissed", {
+      surface: "near",
+      reason: "missing",
+    })).toEqual({
+      name: "mission_dismissed",
+      props: { surface: "near", reason: "missing" },
+    });
+  });
+
+  it("fails closed on an unknown surface, reason, or outcome", () => {
+    expect(sanitizeEvent("mission_viewed", { surface: "feed", reason: "provisional" })).toBeNull();
+    expect(sanitizeEvent("mission_opened", { surface: "near", reason: "urgent" })).toBeNull();
+    expect(sanitizeEvent("mission_submitted", {
+      surface: "near",
+      reason: "missing",
+      outcome: "won",
+    })).toBeNull();
+    expect(sanitizeEvent("mission_submitted", { surface: "near", reason: "missing" })).toBeNull();
+  });
+});
+
 describe("invite loop events", () => {
   it("registers all six invite-loop events", () => {
     expect(isKnownEvent("plan_invite_link_copied")).toBe(true);

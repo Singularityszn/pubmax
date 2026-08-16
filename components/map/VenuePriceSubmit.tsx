@@ -10,6 +10,7 @@ import {
   paintsMap,
   COMMUNITY_PRICE_MAX_GBP,
   DEFAULT_SUBMIT_CATEGORY,
+  SUBMITTABLE_DRINK_CATEGORIES,
   submitCategoryLabel,
   validateCommunityPrice,
   type CommunityPrice,
@@ -25,6 +26,19 @@ import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
 import PriceContributionImpact from "@/components/map/PriceContributionImpact";
+import type { MissionSurface } from "@/lib/analyticsEvents";
+import {
+  missionReceiptFromReadback,
+  type MissionReceipt,
+  type PriceEvidenceMissionReason,
+} from "@/lib/priceEvidenceMissions";
+import { missionAnalyticsProps } from "@/components/nearme/usePriceEvidenceMission";
+
+export type VenuePriceSubmitMission = {
+  reason: PriceEvidenceMissionReason;
+  drinkCategory?: DrinkCategory;
+  surface: MissionSurface;
+};
 
 // The word-of-mouth moment: you're standing in the pub, you tap what you're
 // drinking, you type what it cost, and the map restamps under your thumb.
@@ -74,6 +88,12 @@ type VenuePriceSubmitProps = {
    * rum, vodka), because a lane you cannot see is a lane you cannot log.
    */
   laneCategory?: DrinkCategory;
+  /**
+   * A ranked evidence mission. Locks the known category, leaves the price
+   * blank, and hides one-tap agreement chips. Receipts come from the
+   * authoritative write-back, never from this client reason.
+   */
+  mission?: VenuePriceSubmitMission | null;
 };
 
 /**
@@ -96,16 +116,26 @@ export default function VenuePriceSubmit({
   mapReach = "paint",
   focusRequest = 0,
   laneCategory = DEFAULT_SUBMIT_CATEGORY,
+  mission = null,
 }: VenuePriceSubmitProps) {
   const titleId = `vpsubTitle-${venueId}`;
   const priceInputRef = useRef<HTMLInputElement>(null);
+  const missionLocksCategory =
+    mission !== null && mission.reason !== "missing" && Boolean(mission.drinkCategory);
+  const openingCategory =
+    missionLocksCategory && mission.drinkCategory
+      ? mission.drinkCategory
+      : laneCategory;
   // The lane is the opening choice, not a lock: the reader can still tap any
   // other drink. Keyed per venue by the parent, so switching pubs re-opens on
   // the lane rather than on whatever the last pub was left showing.
-  const [category, setCategory] = useState<DrinkCategory>(laneCategory);
+  const [category, setCategory] = useState<DrinkCategory>(openingCategory);
   const categories = useMemo(
-    () => submitCategoriesForLane(laneCategory),
-    [laneCategory],
+    () =>
+      mission
+        ? SUBMITTABLE_DRINK_CATEGORIES
+        : submitCategoriesForLane(laneCategory),
+    [laneCategory, mission],
   );
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +145,7 @@ export default function VenuePriceSubmit({
   const [logged, setLogged] = useState<{
     category: DrinkCategory;
     attribution: CommunityPriceAttribution;
+    missionReceipt?: MissionReceipt;
   } | null>(null);
   const { requestContribution, contributionGateDialog } =
     useContributionGate();
@@ -126,11 +157,12 @@ export default function VenuePriceSubmit({
   // only a CHANGE of lane moves the choice.
   const laneSeenRef = useRef<DrinkCategory>(laneCategory);
   useEffect(() => {
+    if (missionLocksCategory) return;
     if (laneSeenRef.current === laneCategory) return;
     laneSeenRef.current = laneCategory;
     setCategory(laneCategory);
     setError(null);
-  }, [laneCategory]);
+  }, [laneCategory, missionLocksCategory]);
 
   useEffect(() => {
     if (focusRequest <= 0) return;
@@ -207,7 +239,25 @@ export default function VenuePriceSubmit({
         return;
       }
       trackEvent("price_submitted", { category });
-      setLogged({ category, attribution: result.attribution });
+      const missionReceipt = mission
+        ? missionReceiptFromReadback({ price: result.price })
+        : undefined;
+      if (mission && missionReceipt) {
+        const analytics = missionAnalyticsProps(mission.surface, {
+          venueId,
+          reason: mission.reason,
+          drinkCategory: category,
+        }, { outcome: missionReceipt.outcome });
+        trackEvent("mission_submitted", analytics);
+        if (missionReceipt.outcome === "trusted") {
+          trackEvent("mission_newly_trusted", analytics);
+        }
+      }
+      setLogged({
+        category,
+        attribution: result.attribution,
+        missionReceipt,
+      });
       setPrice("");
     });
   }
@@ -225,29 +275,33 @@ export default function VenuePriceSubmit({
         </h3>
       </div>
 
-      <div
-        className="vpsubCats"
-        role="radiogroup"
-        aria-label={`What are you drinking at ${venueName}?`}
-      >
-        {categories.map((option) => (
-          <button
-            key={option}
-            type="button"
-            role="radio"
-            aria-checked={category === option}
-            className={category === option ? "vpsubCat vpsubCatOn" : "vpsubCat"}
-            onClick={() => {
-              // The receipt belongs to the drink it was logged for, so
-              // switching categories shows that category's own record.
-              setCategory(option);
-              setError(null);
-            }}
-          >
-            {submitCategoryLabel(option)}
-          </button>
-        ))}
-      </div>
+      {missionLocksCategory ? (
+        <p className="vpsubLockedDrink">{submitCategoryLabel(category)}</p>
+      ) : (
+        <div
+          className="vpsubCats"
+          role="radiogroup"
+          aria-label={`What are you drinking at ${venueName}?`}
+        >
+          {categories.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={category === option}
+              className={category === option ? "vpsubCat vpsubCatOn" : "vpsubCat"}
+              onClick={() => {
+                // The receipt belongs to the drink it was logged for, so
+                // switching categories shows that category's own record.
+                setCategory(option);
+                setError(null);
+              }}
+            >
+              {submitCategoryLabel(option)}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="vpsubEntry">
         <div className="vpsubField">
@@ -294,21 +348,23 @@ export default function VenuePriceSubmit({
         </button>
       </div>
 
-      <div className="vpsubQuick" aria-label="Common prices">
-        {quickPrices.map((value) => (
-          <button
-            key={value}
-            type="button"
-            className="vpsubQuickChip"
-            onClick={() => {
-              setPrice(formatPriceGbp(value));
-              setError(null);
-            }}
-          >
-            {formatPrice(value)}
-          </button>
-        ))}
-      </div>
+      {mission ? null : (
+        <div className="vpsubQuick" aria-label="Common prices">
+          {quickPrices.map((value) => (
+            <button
+              key={value}
+              type="button"
+              className="vpsubQuickChip"
+              onClick={() => {
+                setPrice(formatPriceGbp(value));
+                setError(null);
+              }}
+            >
+              {formatPrice(value)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {visibleError ? (
         <p id="vpsubError" className="vpsubError" role="alert">
@@ -316,7 +372,7 @@ export default function VenuePriceSubmit({
         </p>
       ) : null}
 
-      {logged?.category === category && stamped ? (
+      {logged?.category === category && (logged.missionReceipt || stamped) ? (
         // The receipt. Same figure and day label the venue card now carries -
         // one vocabulary, one moment. What it must NOT do is overclaim: a lone
         // report does not set the pin's price, and saying "on the map" for it
@@ -326,22 +382,26 @@ export default function VenuePriceSubmit({
         //   painting  - this figure IS the pin's price ("On the map");
         //   marked    - the pin now wears the provisional dot, price unchanged;
         //   page only - a non-pint drink, or an aged-out figure: no map at all.
+        // A mission receipt is the write-back standing, never the client reason.
         <div className="vpsubStampBlock">
           <p className="vpsubStamp" role="status">
             <Check size={14} aria-hidden="true" className="vpsubStampTick" />
-            <strong className="vpsubStampPrice">{formatPrice(stamped.priceGbp)}</strong>
-            {/* The provenance word ("community") is already on the dated row in
-                the price block above, so the receipt only has to say where the
-                tap landed, and when. */}
-            <span className="vpsubStampMeta">
-              {stampStanding} · {formatPriceDay(stamped.submittedAt)}
-            </span>
+            {logged.missionReceipt ? (
+              <strong className="vpsubStampPrice">{logged.missionReceipt.line}</strong>
+            ) : stamped ? (
+              <>
+                <strong className="vpsubStampPrice">{formatPrice(stamped.priceGbp)}</strong>
+                <span className="vpsubStampMeta">
+                  {stampStanding} · {formatPriceDay(stamped.submittedAt)}
+                </span>
+              </>
+            ) : null}
           </p>
           <PriceContributionImpact attribution={logged.attribution} />
           {/* Close the loop in-session: the mark the map just gained, named and
               coloured exactly as the map draws it, so the submitter can look up
               and find their own dot rather than take our word for it. */}
-          {markedProvisionally ? (
+          {!logged.missionReceipt && markedProvisionally ? (
             <p className="vpsubStampHint">
               <i className="vpsubStampDot" aria-hidden="true" />
               Its pin now carries this dot.{" "}
