@@ -72,9 +72,11 @@ export type DeskCard = {
   wifi: WifiState;
   laptop: LaptopState;
   openNow: boolean | "unknown";
+  amenityLines: string[];
   wifiCaption: string;
   laptopCaption: string;
   hoursCaption: string;
+  hoursRaw: string | null;
   seatDataLine: string;
   checkedCaption: string;
   source: "osm";
@@ -85,10 +87,12 @@ export type DeskAnswer = {
   cards: DeskCard[];
   scope: NearMeScope;
   radiusKm: number;
+  collapsedChains: string[];
 };
 
 export type RankDeskOptions = {
   now?: Date;
+  timeZone?: string;
   observedAt?: string | null;
   walkableRadiusKm?: number;
   widenedRadiusKm?: number;
@@ -176,9 +180,156 @@ export function deskLaptopCaption(laptop: LaptopState): string {
   return laptop === "allowed" ? "Laptops: allowed" : "Laptops: not known";
 }
 
-export function deskHoursCaption(raw: string | null | undefined): string {
-  const hours = typeof raw === "string" ? raw.trim() : "";
-  return hours ? `Hours: ${hours}` : "Hours: unknown";
+export function deskAmenityLines(wifi: WifiState, laptop: LaptopState): string[] {
+  const lines: string[] = [];
+  if (wifi !== "unknown") lines.push(deskWifiCaption(wifi));
+  if (laptop === "allowed") lines.push(deskLaptopCaption(laptop));
+  return lines.length > 0 ? lines : ["No amenity data yet"];
+}
+
+const WEEKDAY_TOKENS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+
+function deskLocalClock(now: Date, timeZone: string): { weekday: number; minutes: number } {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const weekdayName = parts.find((part) => part.type === "weekday")?.value.toLowerCase() ?? "mon";
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? 0);
+  const weekday = WEEKDAY_TOKENS.findIndex((day) => weekdayName.startsWith(day));
+  return { weekday: weekday < 0 ? 1 : weekday, minutes: hour * 60 + minute };
+}
+
+function clockMinutes(value: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function formatClockMinutes(minutes: number): string {
+  if (minutes === 24 * 60) return "24:00";
+  const wrapped = ((minutes % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hour = Math.floor(wrapped / 60);
+  const minute = wrapped % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+/**
+ * One line for the desk card: open until, opens later today, closed today,
+ * or hours unknown. Viewer's clock. Raw OSM syntax stays off this line.
+ */
+export function deskHoursCaption(
+  hours: WeeklyOpeningHours | null | undefined,
+  now: Date = new Date(),
+  timeZone?: string,
+): string {
+  if (!hours) return "Hours unknown";
+  const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const clock = deskLocalClock(now, zone);
+  const windows = hours[clock.weekday];
+  if (!windows || windows.length === 0) return "Closed today";
+
+  const open = evaluateOpenState({ now, timeZone: zone, openingHours: hours });
+  if (open === true) {
+    for (const window of windows) {
+      const opens = clockMinutes(window.opens);
+      const closes = clockMinutes(window.closes);
+      if (opens === null || closes === null) continue;
+      const adjustedClose = closes <= opens ? closes + 24 * 60 : closes;
+      const adjustedNow = clock.minutes < opens && adjustedClose >= 24 * 60
+        ? clock.minutes + 24 * 60
+        : clock.minutes;
+      if (adjustedNow >= opens && adjustedNow < adjustedClose) {
+        return `Open until ${formatClockMinutes(adjustedClose)}`;
+      }
+    }
+    return "Hours unknown";
+  }
+
+  const laterOpen = windows
+    .map((window) => clockMinutes(window.opens))
+    .filter((opens): opens is number => opens !== null && opens > clock.minutes)
+    .sort((a, b) => a - b)[0];
+  return laterOpen === undefined ? "Closed today" : `Opens ${formatClockMinutes(laterOpen)}`;
+}
+
+const CHAIN_SUFFIX_TOKENS = new Set([
+  "express",
+  "coffee",
+  "bakery",
+  "cafe",
+  "shop",
+  "store",
+  "bar",
+  "kiosk",
+  "branch",
+  "reserve",
+  "street",
+  "st",
+  "road",
+  "rd",
+  "lane",
+  "ln",
+  "avenue",
+  "ave",
+  "square",
+  "sq",
+  "place",
+  "pl",
+  "court",
+  "ct",
+  "terrace",
+  "ter",
+  "walk",
+  "row",
+  "hill",
+  "gate",
+  "mews",
+  "yard",
+  "wharf",
+  "quay",
+  "park",
+  "green",
+  "circus",
+]);
+
+const CHAIN_ALIASES: ReadonlyArray<readonly [string, string]> = [
+  ["caffe nero", "caffe nero"],
+  ["cafe nero", "caffe nero"],
+  ["nero", "caffe nero"],
+  ["pret a manger", "pret"],
+  ["pret", "pret"],
+  ["costa", "costa"],
+  ["starbucks", "starbucks"],
+  ["gails", "gails"],
+  ["black sheep", "black sheep"],
+  ["wework", "wework"],
+];
+
+/**
+ * One deterministic key per chain. Accents and punctuation fall away, then
+ * branch and street tokens, then a closed alias table. Independents keep
+ * their own folded name, so two different cafes never share a key.
+ */
+export function deskChainKey(name: string): string {
+  const folded = name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/['’]/g, "");
+  const words = folded.replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+  while (
+    words.length > 1
+    && (CHAIN_SUFFIX_TOKENS.has(words[words.length - 1] ?? "")
+      || /^\d+$/.test(words[words.length - 1] ?? ""))
+  ) {
+    words.pop();
+  }
+  const key = words.join(" ");
+  for (const [prefix, alias] of CHAIN_ALIASES) {
+    if (key === prefix || key.startsWith(`${prefix} `)) return alias;
+  }
+  return key;
 }
 
 export function deskSeatDataLine(): string {
@@ -314,7 +465,7 @@ function applyWindows(
   windows: { opens: string; closes: string }[],
 ): void {
   for (const day of days) {
-    hours[day] = [...(hours[day] ?? []), ...windows];
+    hours[day] = [...windows];
   }
 }
 
@@ -323,10 +474,9 @@ function applyWindows(
  * windows become weekly hours. Anything else stays unknown rather than a
  * guessed door.
  *
- * A day no rule mentions is CLOSED in OSM, not unknown, so a parsed string
- * fills its silent days with an empty window list. Leaving them absent made
- * `evaluateOpenState` answer "unknown" for a weekday-only cafe on a Sunday,
- * which ranked it above a venue that had stated `Su off`.
+ * Later rules OVERRIDE earlier ones for the same day. OSM writes
+ * `Mo-Su 08:00-22:00; Su 10:00-18:00` to narrow Sunday, not to union both
+ * windows. A day no rule mentions is CLOSED, not unknown.
  */
 export function parseOsmOpeningHours(
   raw: string | null | undefined,
@@ -390,6 +540,7 @@ function toCard(
   km: number | undefined,
   now: Date,
   observedAt: string | null | undefined,
+  timeZone?: string,
 ): DeskCard {
   const openNow = evaluateOpenState({
     now,
@@ -408,12 +559,51 @@ function toCard(
     wifi: point.wifi,
     laptop: point.laptop,
     openNow,
+    amenityLines: deskAmenityLines(point.wifi, point.laptop),
     wifiCaption: deskWifiCaption(point.wifi),
     laptopCaption: deskLaptopCaption(point.laptop),
-    hoursCaption: deskHoursCaption(point.hoursRaw),
+    hoursCaption: deskHoursCaption(point.openingHours, now, timeZone),
+    hoursRaw: point.hoursRaw ?? null,
     seatDataLine: deskSeatDataLine(),
     checkedCaption: deskCheckedCaption(observedAt),
     source: "osm",
+  };
+}
+
+function pickDiverseDeskCards(
+  ranked: { card: DeskCard; km: number }[],
+  max: number,
+): { cards: DeskCard[]; collapsedChains: string[] } {
+  const first: { card: DeskCard; km: number }[] = [];
+  const extras: { card: DeskCard; km: number }[] = [];
+  const seen = new Set<string>();
+  const extraKeys = new Set<string>();
+  for (const entry of ranked) {
+    const key = deskChainKey(entry.card.name);
+    if (!seen.has(key)) {
+      seen.add(key);
+      first.push(entry);
+    } else {
+      extraKeys.add(key);
+      extras.push(entry);
+    }
+  }
+  const picked = first.slice(0, max);
+  if (picked.length < max) {
+    for (const entry of extras) {
+      picked.push(entry);
+      if (picked.length >= max) break;
+    }
+  }
+  const shown = new Set(picked.map((entry) => entry.card.id));
+  const collapsedChains = [...extraKeys]
+    .filter((key) => ranked.some((entry) => (
+      deskChainKey(entry.card.name) === key && !shown.has(entry.card.id)
+    )))
+    .sort();
+  return {
+    cards: picked.map((entry) => entry.card),
+    collapsedChains,
   };
 }
 
@@ -455,22 +645,22 @@ export function rankDeskNearMe(
     ? walkable
     : measured.filter((entry) => entry.km <= wideRadius);
   if (pool.length === 0) {
-    return { hero: null, cards: [], scope: "none", radiusKm: wideRadius };
+    return { hero: null, cards: [], scope: "none", radiusKm: wideRadius, collapsedChains: [] };
   }
 
   const ranked = pool
     .map((entry) => ({
       km: entry.km,
-      card: toCard(entry.point, entry.km, now, options.observedAt),
+      card: toCard(entry.point, entry.km, now, options.observedAt, options.timeZone),
     }))
-    .sort(byDeskRank)
-    .slice(0, max)
-    .map((entry) => entry.card);
+    .sort(byDeskRank);
+  const { cards, collapsedChains } = pickDiverseDeskCards(ranked, max);
 
   return {
-    hero: ranked[0] ?? null,
-    cards: ranked,
+    hero: cards[0] ?? null,
+    cards,
     scope: walkable.length > 0 ? "walkable" : "widened",
     radiusKm: walkable.length > 0 ? walkRadius : wideRadius,
+    collapsedChains,
   };
 }

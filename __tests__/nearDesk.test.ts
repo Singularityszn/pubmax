@@ -315,8 +315,9 @@ describe("rankDeskNearMe", () => {
     const card = answer.hero;
     expect(card?.wifiCaption).toBe("Wifi: yes");
     expect(card?.laptopCaption).toBe("Laptops: allowed");
-    expect(card?.hoursCaption).toBe("Hours: Mo-Fr 08:00-17:00");
-    expect(card?.seatDataLine).toBe("No seat data yet");
+    expect(card?.amenityLines).toEqual(["Wifi: yes", "Laptops: allowed"]);
+    expect(card?.hoursCaption).toMatch(/^(Open until |Opens |Closed today|Hours unknown)/);
+    expect(card?.hoursRaw).toBe("Mo-Fr 08:00-17:00");
     expect(card?.source).toBe("osm");
     expect(card?.checkedCaption).toMatch(/^Checked /);
   });
@@ -331,8 +332,7 @@ describe("desk copy", () => {
     expect(deskWifiCaption("unknown")).toBe("Wifi: unknown");
     expect(deskLaptopCaption("allowed")).toBe("Laptops: allowed");
     expect(deskLaptopCaption("unknown")).toBe("Laptops: not known");
-    expect(deskHoursCaption("Mo-Fr 08:00-17:00")).toBe("Hours: Mo-Fr 08:00-17:00");
-    expect(deskHoursCaption(null)).toBe("Hours: unknown");
+    expect(deskHoursCaption(null)).toBe("Hours unknown");
     expect(deskCheckedCaption("2026-08-16T04:01:27.583Z")).toBe("Checked 16 Aug");
     expect(deskCheckedCaption(null)).toBe("No date on this yet");
     expect(deskAnswerHeadline({ scope: "walkable" })).toBe("Somewhere to sit near you");

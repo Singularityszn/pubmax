@@ -49,6 +49,35 @@
   font-size: 0.78rem;
 }
 
+.ndnHoursMore {
+  margin: 0;
+}
+
+.ndnHoursMore > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.ndnHoursMore > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ndnHoursRaw {
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ndnCard {
   display: flex;
   flex-direction: column;
