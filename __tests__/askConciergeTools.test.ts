@@ -13,6 +13,7 @@ import {
   findDeskEmptyLine,
   findDeskRowNote,
   isDeicticPlaceWord,
+  isPlaceShapedWord,
   isWorkFriendlyVenueKind,
   occupancyReportOutcome,
   occupancyStoreState,
@@ -104,6 +105,15 @@ describe("cheapest_pint_near policy", () => {
       expect(isDeicticPlaceWord(word)).toBe(false);
     }
     expect(isDeicticPlaceWord(undefined)).toBe(false);
+  });
+
+  it("treats a London area or district word as a place, never a pub name", () => {
+    for (const word of ["Angel", "Mayfair", "Clapham", "Camden", "Soho"]) {
+      expect(isPlaceShapedWord(word)).toBe(true);
+    }
+    for (const word of ["The Lamb", "Ye Olde Swiss Cottage", ""]) {
+      expect(isPlaceShapedWord(word)).toBe(false);
+    }
   });
 
   it("drops the walk when there is no distance to quote", () => {

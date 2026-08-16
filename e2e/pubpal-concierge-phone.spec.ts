@@ -73,6 +73,19 @@ test.describe("Pub Pal concierge at 390px", () => {
     });
   }
 
+  test("a cheapest-pint ask with tonight still names the area", async ({ page }) => {
+    await page.goto("/pal/chat");
+    await askOnPhone(page, "Cheapest pint in Camden tonight");
+
+    const answer = page.locator(".palChatRow--pal").last();
+    await expect(answer.locator(".palChatBubble").first()).toContainText(
+      /Cheapest listed pints in Camden/i,
+    );
+    await expect(answer.locator(".palChatBubble").first()).not.toContainText(
+      "Name a listed pub or a London area",
+    );
+  });
+
   test("find_desk says there is no seat data rather than offering a pub", async ({
     page,
   }) => {

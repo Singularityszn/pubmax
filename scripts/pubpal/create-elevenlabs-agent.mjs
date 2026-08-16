@@ -26,9 +26,11 @@ import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
+import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
+
 const API = "https://api.elevenlabs.io/v1/convai";
 const AGENT_NAME = "PUBMAXX Pub Pal";
-const MAX_SESSION_SECONDS = 300;
+const MAX_SESSION_SECONDS = PAL_VOICE_MAX_SESSION_SECONDS;
 
 function loadDotEnv() {
   for (const file of [".env.local", ".env"]) {

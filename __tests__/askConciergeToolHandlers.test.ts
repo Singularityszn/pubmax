@@ -44,7 +44,7 @@ vi.mock("@/lib/ask/deskVenues.server", () => ({
   loadDeskVenues: vi.fn(async () => state.desk),
 }));
 
-import { CHEAPEST_NEAR_NO_ANCHOR } from "@/lib/ask/conciergeTools";
+import { CHEAPEST_NEAR_NO_ANCHOR, VENUE_DRINKS_NO_VENUE } from "@/lib/ask/conciergeTools";
 import { routeAskDeterministically } from "@/lib/ask/router";
 import { runAskTool } from "@/lib/ask/tools";
 import type { AskToolContext } from "@/lib/ask/toolContract";
@@ -412,6 +412,53 @@ describe("report_occupancy", () => {
     const result = await runAskTool("report_occupancy", { level: "full" }, ctx());
     expect(result.ok).toBe(false);
     expect(result.answerHint).toContain("Name the pub");
+  });
+
+  it("refuses a place word that would only land on a pub by prefix", async () => {
+    // Each of these SHARES its first word with a London place. A district word
+    // may not become the pub on the other side of the city.
+    state.venues = [
+      venue({ id: "angel", name: "The Angel Hillingdon", area: "Hillingdon" }),
+      venue({ id: "mayfair", name: "The Mayfair Tavern", area: "Wandsworth" }),
+      venue({ id: "clapham", name: "The Clapham North", area: "Lambeth" }),
+    ];
+
+    const occ = await runAskTool(
+      "report_occupancy",
+      { venueName: "Angel", level: "it's rammed" },
+      ctx(),
+    );
+    expect(occ.answerHint).toContain("Name the pub");
+    expect(occ.answerHint).not.toContain("The Angel Hillingdon");
+
+    const drinks = await runAskTool("venue_drinks", { venueName: "Mayfair" }, ctx());
+    expect(drinks.answerHint).toBe(VENUE_DRINKS_NO_VENUE);
+
+    const clapham = await runAskTool(
+      "report_occupancy",
+      { venueName: "Clapham", level: "it's rammed" },
+      ctx(),
+    );
+    expect(clapham.answerHint).not.toContain("The Clapham North");
+    expect(clapham.answerHint).toContain("Name the pub");
+  });
+
+  it("still answers a pub whose whole name is a place word", async () => {
+    // The router strips "the" before a tool sees the name, so "The Angel"
+    // arrives as "Angel". An EXACT name, article or not, is the pub they named.
+    state.venues = [
+      venue({ id: "angel", name: "The Angel", area: "Islington" }),
+      venue({ id: "lamb", name: "The Lamb", area: "Camden" }),
+    ];
+
+    const [call] = routeAskDeterministically("It's rammed at The Angel");
+    expect(call?.name).toBe("report_occupancy");
+    const occ = await runAskTool("report_occupancy", call.args, ctx());
+    expect(occ.answerHint).toContain("Log The Angel as full");
+
+    const drinks = await runAskTool("venue_drinks", { venueName: "Angel" }, ctx());
+    expect(drinks.answerHint).not.toBe(VENUE_DRINKS_NO_VENUE);
+    expect(drinks.answerHint).toContain("The Angel");
   });
 
   it("takes a report for the pub named, never a borough's name-alike", async () => {

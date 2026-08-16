@@ -216,6 +216,17 @@ export function areaLabel(area: string): string {
   return BOROUGH_SLUG_TO_NAME.get(area) ?? area;
 }
 
+/** A neighbourhood or borough word from the area join table, as a reader would type it. */
+export function isAreaNewsPlaceLabel(value: string): boolean {
+  const needle = value.trim().toLowerCase();
+  if (!needle) return false;
+  if (needle in AREA_INDEX) return true;
+  if (BOROUGH_SLUG_TO_NAME.has(needle) || BOROUGH_SLUG_TO_NAME.has(slugifyBorough(needle))) {
+    return true;
+  }
+  return Object.values(AREA_INDEX).some((meta) => meta.label.toLowerCase() === needle);
+}
+
 // Newest first; a stable id tiebreak keeps the order deterministic when two
 // facts share a date.
 function byRecency(a: AreaNewsEntry, b: AreaNewsEntry): number {

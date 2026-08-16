@@ -319,9 +319,12 @@ export function starterPackFollowSummary(
   const gone = attempted.filter((result) => result.outcome === "unavailable").length;
   const joined = attempted.length - failed - gone;
   if (failed === 0 && gone === 0) return `Following all ${attempted.length}.`;
-  if (joined === 0 && gone === 0) return "That didn't go through. Try again.";
-  const failedLine = failed === 0 ? "" : ` ${failed} didn't go through.`;
+  const failedLine = failed === 0 ? "" : `${failed} didn't go through.`;
   const goneLine =
-    gone === 0 ? "" : ` ${gone} ${gone === 1 ? "is" : "are"} no longer here.`;
-  return `Following ${joined} of ${attempted.length}.${failedLine}${goneLine}`;
+    gone === 0 ? "" : `${gone} ${gone === 1 ? "is" : "are"} no longer here.`;
+  if (joined === 0) {
+    if (gone === 0) return "That didn't go through. Try again.";
+    return [failedLine, goneLine].filter(Boolean).join(" ");
+  }
+  return `Following ${joined} of ${attempted.length}.${failedLine ? ` ${failedLine}` : ""}${goneLine ? ` ${goneLine}` : ""}`;
 }

@@ -11,6 +11,9 @@ import {
   addLinkNextSteps,
   addLinkReceiptTitle,
   addLinkReturnTo,
+  ADD_LINK_DOOR_TTL_MS,
+  consumeAddLinkDoorTaken,
+  markAddLinkDoorTaken,
   parseAddLinkAuto,
   shouldAutoAdd,
   type AddLinkAddOutcome,
@@ -87,7 +90,12 @@ describe("the add on arrival happens once", () => {
   };
 
   it("adds when the viewer has landed back with an account", () => {
-    expect(shouldAutoAdd(base)).toBe(true);
+    expect(shouldAutoAdd({ ...base, doorTaken: true })).toBe(true);
+  });
+
+  it("refuses a crafted auto=1 that never took a door in this tab", () => {
+    expect(shouldAutoAdd({ ...base, doorTaken: false })).toBe(false);
+    expect(shouldAutoAdd(base)).toBe(false);
   });
 
   it("never runs twice", () => {
@@ -101,10 +109,11 @@ describe("the add on arrival happens once", () => {
 
   it("keeps the attempt guard scoped to its account", () => {
     const attemptedAccountIds = new Set(["account-a"]);
-    expect(shouldAutoAdd({ ...base, attemptedAccountIds })).toBe(false);
+    expect(shouldAutoAdd({ ...base, doorTaken: true, attemptedAccountIds })).toBe(false);
     expect(
       shouldAutoAdd({
         ...base,
+        doorTaken: true,
         accountId: "account-b",
         attemptedAccountIds,
       }),
@@ -194,5 +203,48 @@ describe("what the add surface says and reports", () => {
       name: "add_link_added",
       props: { surface: ADD_LINK_SURFACE, outcome: "added" },
     });
+  });
+});
+
+describe("the add-link door marker", () => {
+  function memoryStorage() {
+    const values = new Map<string, string>();
+    return {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        values.set(key, value);
+      },
+      removeItem: (key: string) => {
+        values.delete(key);
+      },
+    };
+  }
+
+  it("is one-shot: a door writes it, the add consumes it, a stranger cannot reuse it", () => {
+    const storage = memoryStorage();
+    const now = 1_000;
+    expect(consumeAddLinkDoorTaken(storage, now, "karan")).toBe(false);
+    markAddLinkDoorTaken(storage, now, "karan");
+    expect(consumeAddLinkDoorTaken(storage, now + 1_000, "karan")).toBe(true);
+    expect(consumeAddLinkDoorTaken(storage, now + 2_000, "karan")).toBe(false);
+  });
+
+  it("counts only for the handle the door was taken for", () => {
+    const storage = memoryStorage();
+    const now = 1_000;
+    markAddLinkDoorTaken(storage, now, "karan");
+
+    // A crafted /add/<anyone>?auto=1 on the same device took no door of its own.
+    expect(consumeAddLinkDoorTaken(storage, now, "stranger")).toBe(false);
+    expect(consumeAddLinkDoorTaken(storage, now, "@Karan")).toBe(true);
+  });
+
+  it("goes stale, so a leftover marker cannot auto-follow tomorrow", () => {
+    const storage = memoryStorage();
+    markAddLinkDoorTaken(storage, 1_000, "karan");
+
+    expect(consumeAddLinkDoorTaken(storage, 1_000 + ADD_LINK_DOOR_TTL_MS, "karan")).toBe(
+      false,
+    );
   });
 });

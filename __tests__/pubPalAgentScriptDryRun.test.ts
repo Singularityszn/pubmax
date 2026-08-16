@@ -67,4 +67,18 @@ describe("pubpal:agent dry run", () => {
     );
     expect(body.platform_settings.privacy.retention_days).toBe(0);
   });
+
+  it("writes the product voice cap, not a longer provider window", async () => {
+    const printed = dryRun().stdout.split("\nVoices resolved:")[0] ?? "";
+    const start = printed.indexOf("{");
+    const end = printed.lastIndexOf("}");
+    const body = JSON.parse(printed.slice(start, end + 1)) as {
+      conversation_config: { conversation: { max_duration_seconds: number } };
+    };
+    const { PAL_VOICE_MAX_SESSION_SECONDS } = await import("@/lib/palVoiceMetering");
+    expect(PAL_VOICE_MAX_SESSION_SECONDS).toBe(180);
+    expect(body.conversation_config.conversation.max_duration_seconds).toBe(
+      PAL_VOICE_MAX_SESSION_SECONDS,
+    );
+  });
 });

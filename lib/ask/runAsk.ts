@@ -1,6 +1,9 @@
 // Orchestrate one Night OS Ask turn: deterministic tools and optional model loop.
 
-import { routeAskDeterministically } from "@/lib/ask/router";
+import {
+  refineRoutedAskQuery,
+  routeAskDeterministically,
+} from "@/lib/ask/router";
 import { runAskModelLoop } from "@/lib/ask/modelLoop";
 import {
   resolveAskCityId,
@@ -191,11 +194,8 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
   if (toolResults.length === 0) {
     // Incorporate last user refinement phrases into the routed query when the
     // current ask is short ("cheaper", "closer to the Tube").
-    let routedQuery = query;
     const priorUser = [...turns].reverse().find((t) => t.role === "user");
-    if (priorUser && query.split(/\s+/).length <= 4) {
-      routedQuery = `${priorUser.content} - ${query}`;
-    }
+    const routedQuery = refineRoutedAskQuery(query, priorUser?.content);
     const routed = routeAskDeterministically(routedQuery);
     for (const call of routed) {
       toolResults.push(

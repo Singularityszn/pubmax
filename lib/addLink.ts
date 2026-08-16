@@ -94,6 +94,100 @@ export function addLinkAwareDestination(
  * else here - an unresolved session answers nothing, and a viewer with no
  * handle has nothing to add anybody with.
  */
+export type AddLinkStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+const DOOR_MARKER_PREFIX = "pubmax:add-link-door:v1:";
+
+/**
+ * How long a taken door still counts as this device's own return.
+ *
+ * The marker lives in localStorage, not sessionStorage, because a magic link
+ * opens in a FRESH TAB from the email client: a per-tab marker is absent by the
+ * time the person lands back, so the one journey the add link exists for would
+ * never auto-add. It is keyed by the TARGET handle, so a door taken to add one
+ * friend can never perform an add for somebody else's crafted `?auto=1`, and it
+ * is one-shot plus TTL-bounded, so a leftover marker cannot auto-follow
+ * tomorrow.
+ */
+export const ADD_LINK_DOOR_TTL_MS = 30 * 60_000;
+
+function doorMarkerKey(target: string): string | null {
+  const handle = normalizeHandle(target);
+  return handle ? `${DOOR_MARKER_PREFIX}${handle}` : null;
+}
+
+/** Record that this device took a sign-in or create-account door for `target`. */
+export function markAddLinkDoorTaken(
+  storage: AddLinkStorage | null,
+  now: number,
+  target: string,
+): void {
+  const key = doorMarkerKey(target);
+  if (!storage || !key) return;
+  try {
+    storage.setItem(key, JSON.stringify({ at: now }));
+  } catch {
+    // Storage blocked: the person can still tap Add on the way back.
+  }
+}
+
+/**
+ * Peek at a live door marker without consuming it. The add effect may run
+ * before identity resolves, so the caller clears it only when the add starts.
+ */
+export function peekAddLinkDoorTaken(
+  storage: AddLinkStorage | null,
+  now: number,
+  target: string,
+): boolean {
+  const key = doorMarkerKey(target);
+  if (!storage || !key) return false;
+  let raw: string | null;
+  try {
+    raw = storage.getItem(key);
+  } catch {
+    return false;
+  }
+  if (!raw) return false;
+  let marker: unknown;
+  try {
+    marker = JSON.parse(raw);
+  } catch {
+    clearAddLinkDoorTaken(storage, target);
+    return false;
+  }
+  const at = (marker as { at?: unknown } | null)?.at;
+  if (typeof at !== "number" || now - at >= ADD_LINK_DOOR_TTL_MS) {
+    clearAddLinkDoorTaken(storage, target);
+    return false;
+  }
+  return true;
+}
+
+export function clearAddLinkDoorTaken(
+  storage: AddLinkStorage | null,
+  target: string,
+): void {
+  const key = doorMarkerKey(target);
+  if (!storage || !key) return;
+  try {
+    storage.removeItem(key);
+  } catch {
+    // The TTL bounds an unreadable marker anyway.
+  }
+}
+
+/** Consume a live door marker. One-shot, so a crafted ?auto=1 cannot reuse it. */
+export function consumeAddLinkDoorTaken(
+  storage: AddLinkStorage | null,
+  now: number,
+  target: string,
+): boolean {
+  const live = peekAddLinkDoorTaken(storage, now, target);
+  if (live) clearAddLinkDoorTaken(storage, target);
+  return live;
+}
+
 export function shouldAutoAdd(input: {
   auto: boolean;
   accountId: string | null;
@@ -101,9 +195,15 @@ export function shouldAutoAdd(input: {
   viewerHandle: string | null;
   target: string;
   attemptedAccountIds: ReadonlySet<string>;
+  /**
+   * This device took a door for THIS target. A crafted third-party ?auto=1
+   * never has this.
+   */
+  doorTaken?: boolean;
 }): boolean {
   if (
     !input.auto ||
+    !input.doorTaken ||
     !input.accountId ||
     input.attemptedAccountIds.has(input.accountId) ||
     !input.identityResolved

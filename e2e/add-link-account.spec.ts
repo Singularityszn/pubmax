@@ -18,10 +18,13 @@ const RETURN_TO = "%2Fadd%2Fkaran%3Fauto%3D1";
 const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-00000000000e";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
 const VIEWER_HANDLE = "addlinkproof";
+// One marker per target handle, on the DEVICE: a magic link finishes the
+// sign-up in a fresh tab, so a per-tab marker would never survive the journey.
+const ADD_LINK_DOOR_MARKER_KEY = `pubmax:add-link-door:v1:${TARGET}`;
 
-async function seedSignedInSession(page: Page): Promise<void> {
+async function seedSignedInSession(page: Page, options?: { doorTaken?: boolean }): Promise<void> {
   await page.addInitScript(
-    ({ authStorageKey, userId }) => {
+    ({ authStorageKey, userId, doorTaken, doorKey }) => {
       window.localStorage.setItem(
         authStorageKey,
         JSON.stringify({
@@ -41,8 +44,16 @@ async function seedSignedInSession(page: Page): Promise<void> {
           },
         }),
       );
+      if (doorTaken) {
+        window.localStorage.setItem(doorKey, JSON.stringify({ at: Date.now() }));
+      }
     },
-    { authStorageKey: E2E_AUTH_STORAGE_KEY, userId: E2E_AUTH_USER_ID },
+    {
+      authStorageKey: E2E_AUTH_STORAGE_KEY,
+      userId: E2E_AUTH_USER_ID,
+      doorTaken: options?.doorTaken === true,
+      doorKey: ADD_LINK_DOOR_MARKER_KEY,
+    },
   );
 }
 
@@ -68,6 +79,24 @@ test("a stranger meets one way in, and it carries the add link", async ({ page }
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(1);
+
+  const avatar = page.locator(".confirmFollowAvatar");
+  await expect(avatar).toBeVisible();
+  const avatarBox = await avatar.boundingBox();
+  expect(avatarBox?.width ?? 0).toBeGreaterThanOrEqual(56);
+  expect(avatarBox?.height ?? 0).toBeGreaterThanOrEqual(56);
+  const avatarChrome = await avatar.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return { radius: style.borderRadius, width: style.width, height: style.height };
+  });
+  expect(avatarChrome.width).toBe("56px");
+  expect(avatarChrome.height).toBe("56px");
+  expect(avatarChrome.radius === "50%" || avatarChrome.radius === "28px").toBe(true);
+
+  const paddingLeft = await create.evaluate((node) => getComputedStyle(node).paddingLeft);
+  const paddingRight = await create.evaluate((node) => getComputedStyle(node).paddingRight);
+  expect(paddingLeft).toBe("18px");
+  expect(paddingRight).toBe("18px");
 });
 
 test("the sign-up door opens the account form with the add link still on it", async ({
@@ -90,7 +119,7 @@ test("the sign-up door opens the account form with the add link still on it", as
 test("landing back with an account adds them once and shows the receipt", async ({
   page,
 }) => {
-  await seedSignedInSession(page);
+  await seedSignedInSession(page, { doorTaken: true });
 
   let follows = 0;
   // The non-routable auth boundary, answered the way the identity specs answer it.
@@ -141,4 +170,46 @@ test("landing back with an account adds them once and shows the receipt", async 
   // ONCE. A second write would be idempotent on the server, but this surface
   // must not ask for it twice.
   expect(follows).toBe(1);
+});
+
+test("a crafted auto=1 with no door taken does not add them", async ({ page }) => {
+  await seedSignedInSession(page);
+
+  let follows = 0;
+  await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({
+        id: E2E_AUTH_USER_ID,
+        aud: "authenticated",
+        role: "authenticated",
+        email: "add-link-e2e@example.test",
+      }),
+    });
+  });
+  await page.route("**/api/identity/handle/current", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ handle: VIEWER_HANDLE, hasPassword: true }),
+    });
+  });
+  await page.route(`**/api/profiles/${TARGET}/follow`, async (route) => {
+    follows += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ following: true, counts: { followers: 1, following: 0 } }),
+    });
+  });
+
+  await page.goto(`/add/${TARGET}?auto=1`);
+
+  await expect(page.getByRole("button", { name: `Add ${TARGET_NAME}` })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: `${TARGET_NAME} is in your lot.` }),
+  ).toHaveCount(0);
+  expect(follows).toBe(0);
 });

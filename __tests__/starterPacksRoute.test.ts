@@ -4,10 +4,11 @@
 // What is pinned here is what a drinker is entitled to believe. The read
 // answers about real accounts and about THIS viewer's follow count, tri-state,
 // so a surface can tell "follows nobody" from "could not check". The write
-// proves who is acting before it touches the follow graph, spends ONE rate
-// limit for the whole pack, is idempotent because a follow edge is, and reports
-// a member that failed as a member that failed rather than rounding the tap up
-// into a success.
+// needs an ACCOUNT (the same 401 the profile Follow button answers), proves who
+// is acting before it touches the follow graph, spends ONE rate limit for the
+// whole pack, is idempotent because a follow edge is, and reports a member that
+// failed as a member that failed rather than rounding the tap up into a
+// success.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -97,6 +98,10 @@ function packBySlug(body: PackBody, slug: string) {
   return body.packs.find((pack) => pack.slug === slug);
 }
 
+function asUser(userId: string): void {
+  authState.userId = userId;
+}
+
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -181,7 +186,19 @@ describe("POST /api/starter-packs/[slug]/follow", () => {
     await joinCamden("cal");
   });
 
+  it("refuses an anonymous pack follow even under an unlinked handle", async () => {
+    const res = await followPack("camden", { follower: "anythingunclaimed" });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({
+      error: "Sign in to follow them.",
+      code: "UNAUTHENTICATED",
+      retryable: false,
+    });
+    expect(await followStore().listFollowing("anythingunclaimed")).toEqual([]);
+  });
+
   it("follows every member of the pack in one action", async () => {
+    asUser("user-zed");
     const res = await followPack("camden", { follower: "zed" });
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("no-store");
@@ -197,6 +214,7 @@ describe("POST /api/starter-packs/[slug]/follow", () => {
   });
 
   it("is idempotent: a second tap reports already following, not a new edge", async () => {
+    asUser("user-zed");
     await followPack("camden", { follower: "zed" });
     const res = await followPack("camden", { follower: "zed" });
     expect(res.status).toBe(200);
@@ -225,6 +243,7 @@ describe("POST /api/starter-packs/[slug]/follow", () => {
 
   it("reports one member's failure as one member's failure", async () => {
     followFault.handle = "bex";
+    asUser("user-zed");
     const res = await followPack("camden", { follower: "zed" });
     expect(res.status).toBe(200);
     const body = (await res.json()) as FollowBody;
@@ -239,6 +258,7 @@ describe("POST /api/starter-packs/[slug]/follow", () => {
   });
 
   it("refuses a slug no pack owns", async () => {
+    asUser("user-zed");
     const res = await followPack("shoreditch", { follower: "zed" });
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
@@ -249,6 +269,7 @@ describe("POST /api/starter-packs/[slug]/follow", () => {
   });
 
   it("refuses a pack too thin to show with the same answer, so the refusal tells nothing", async () => {
+    asUser("user-zed");
     const res = await followPack("hackney", { follower: "zed" });
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
@@ -271,9 +292,23 @@ describe("POST /api/starter-packs/[slug]/follow", () => {
   it("refuses an anonymous caller claiming a handle an account owns", async () => {
     await memoryProfileStore.createOwned("owned", "user-owned");
     const res = await followPack("camden", { follower: "owned" });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({
+      error: "Sign in to follow them.",
+      code: "UNAUTHENTICATED",
+      retryable: false,
+    });
+    expect(await followStore().listFollowing("owned")).toEqual([]);
+  });
+
+  it("refuses a signed-in caller acting as a handle another account owns", async () => {
+    await memoryProfileStore.createOwned("owned", "user-owned");
+    asUser("user-mallory");
+    const res = await followPack("camden", { follower: "owned" });
     expect(res.status).toBe(403);
     const body = (await res.json()) as { code: string };
     expect(body.code).toBe("FORBIDDEN");
+    expect(await followStore().listFollowing("owned")).toEqual([]);
   });
 
   it("acts as the signed-in handle, ignoring a spoofed follower in the body", async () => {
@@ -287,6 +322,7 @@ describe("POST /api/starter-packs/[slug]/follow", () => {
   });
 
   it("spends one rate limit per action, and stops a burst of them", async () => {
+    asUser("user-burst");
     for (let attempt = 0; attempt < 6; attempt += 1) {
       const res = await followPack("camden", { follower: "burst" });
       expect(res.status).toBe(200);

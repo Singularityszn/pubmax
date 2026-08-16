@@ -101,6 +101,20 @@ describe("POST /api/ask", () => {
     expect(body.answer).toMatch(/unavailable|could not|couldn't/i);
   });
 
+  it("does not let a prior desk ask steal a cheapest-pint follow-up", async () => {
+    const result = await runAsk({
+      query: "Cheapest pint in Camden",
+      cityId: "london",
+      skipModel: true,
+      turns: [
+        { role: "user", content: "Somewhere to work with wifi in Angel" },
+        { role: "assistant", content: "No seat data yet." },
+      ],
+    });
+    expect(result.toolsUsed).not.toContain("find_desk");
+    expect(result.toolsUsed).toContain("cheapest_pint_near");
+  });
+
   it("accepts in-thread turns for refinement without durable memory writes", async () => {
     const first = await runAsk({
       query: "Quiet near Bank for 4",
