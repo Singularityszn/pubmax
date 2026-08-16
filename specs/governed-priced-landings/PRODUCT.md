@@ -77,6 +77,8 @@ brand-by-area page's parent crumb is the brand's own London page.
   and the collection date, all above the fold at 320, 390 and 430 CSS pixels.
 - One cheapest-first list. The rank is presentational: the ordered list already
   carries position, and a name on a bare span is dropped by assistive tech.
+- A row prints its own drink tag, title-cased when the dataset shouted it. The
+  known all-caps beer tokens (IPA, NEIPA and the rest) keep their capitals.
 - Every action is at least 44 by 44 CSS pixels and shows visible focus.
 - No horizontal page scroll. Light and dark use existing tokens.
 - Bottom padding carries `env(safe-area-inset-bottom)`, so phone navigation

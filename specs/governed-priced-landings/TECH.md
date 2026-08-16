@@ -13,6 +13,14 @@ any rule is how two pages come to answer one question two ways:
   so the route, `generateStaticParams` and the sitemap cannot disagree.
 - `formatPricedLandingPublisherStatus` and `pricedLandingCountLabel` - the two
   sentences these pages print about provenance and coverage.
+- `formatPricedLandingPintName` - the ONE display rule for a shouted dataset
+  drink tag, so one page cannot print `GUINNESS` while the other prints
+  `Guinness`.
+- `pricedLandingAreaMapCta` and `pricedLandingLogCta` - one decision each
+  answers the href AND the label, so a CTA's words cannot describe a link it no
+  longer carries.
+- `pricedLandingBrandAreaLinks` - the brand page's links to its own published
+  pair pages.
 - `assignVenueToNightArea` - memoised per area catalogue. Unmemoised it ran once
   per venue per (area x brand) pair, roughly 1.5M haversines for one
   `/sitemap.xml` request.
@@ -29,7 +37,10 @@ names, because ~24 unstyled aliases were a half-finished share.
 
 Per-family modules stay thin: `lib/drinkBrandLanding.ts` owns brand matching and
 `lib/drinkBrandAreaLanding.ts` owns area assignment, each returning candidates
-into the shared publication decision.
+into the shared publication decision. The brand page needs only its OWN pairs,
+so it asks `listDrinkBrandAreaLandingsForBrand`; building every brand's pairs to
+discard all but one sweeps the priced-venue list once per brand on every request
+to a dynamic route.
 
 ## Dataset read
 
