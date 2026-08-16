@@ -242,6 +242,16 @@ describe("venue_drinks", () => {
     expect(result.degraded).toBe(true);
     expect(result.answerHint).toContain("couldn't read what people have logged");
   });
+
+  it("still names the failed read when a listed pint is on record", async () => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+    state.prices = { prices: [], degraded: true };
+    const result = await runAskTool("venue_drinks", { venueId: "v1" }, ctx());
+    expect(result.degraded).toBe(true);
+    expect(result.answerHint).toContain("couldn't read what people have logged");
+    expect(result.cards.map((card) => card.price)).toEqual([5]);
+    expect(result.cards[0]?.provenance?.label).toBe("On record");
+  });
 });
 
 describe("find_desk", () => {
@@ -251,7 +261,21 @@ describe("find_desk", () => {
     expect(result.ok).toBe(true);
     expect(result.cards).toHaveLength(0);
     expect(result.answerHint).toContain("No seat data yet");
+    expect(result.answerHint).not.toContain("Angel");
+  });
+
+  it("never asserts absence in an area the places list does not name", async () => {
+    state.desk = {
+      status: "ready",
+      venues: [
+        { id: "c1", name: "Bean Counter", area: "Islington", lat: 51.53, lng: -0.1, kind: "cafe" },
+      ],
+    };
+    const result = await runAskTool("find_desk", { area: "Angel" }, ctx());
+    expect(result.cards).toHaveLength(0);
+    expect(result.answerHint).not.toContain("No seat data yet");
     expect(result.answerHint).toContain("Angel");
+    expect(result.answerHint).toContain("filed under");
   });
 
   it("answers from work-friendly rows and still admits the missing facts", async () => {

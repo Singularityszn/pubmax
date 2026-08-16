@@ -197,14 +197,42 @@ export function tonightNowLine(input: {
 // venue_drinks
 // ---------------------------------------------------------------------------
 
+/**
+ * The one sentence for a people-logged read that could not run.
+ *
+ * Both paths say it: the pub with nothing else to print, and the pub whose
+ * listed pint is still on record. A listed figure is real, and it may never
+ * stand in for the read that failed.
+ */
+export function venueDrinksUnavailableLine(venueName: string): string {
+  return `I couldn't read what people have logged at ${venueName}.`;
+}
+
 export function venueDrinksEmptyLine(
   venueName: string,
   read: "ready" | "unavailable",
 ): string {
   if (read === "unavailable") {
-    return `I couldn't read what people have logged at ${venueName}.`;
+    return venueDrinksUnavailableLine(venueName);
   }
   return `No drink prices logged at ${venueName} yet. Log one at the bar and it shows on that pub's page straight away.`;
+}
+
+/** What the reader is told once the cards are counted. */
+export function venueDrinksAnswerLine(input: {
+  venueName: string;
+  figures: number;
+  read: "ready" | "unavailable";
+}): string {
+  if (input.figures === 0) {
+    return venueDrinksEmptyLine(input.venueName, input.read);
+  }
+  const counted = `${input.venueName}: ${input.figures} drink ${
+    input.figures === 1 ? "figure" : "figures"
+  } on record.`;
+  return input.read === "unavailable"
+    ? `${venueDrinksUnavailableLine(input.venueName)} ${counted}`
+    : counted;
 }
 
 /**
@@ -270,15 +298,31 @@ export function isWorkFriendlyVenueKind(
 export const FIND_DESK_NO_SEAT_DATA =
   "No seat data yet. Nobody has logged a desk-friendly seat, a plug or wifi anywhere, so I won't point you at one.";
 
-export function findDeskEmptyLine(
-  area: string | null,
-  read: "ready" | "unavailable",
-): string {
-  if (read === "unavailable") {
+/**
+ * Why a desk answer came back with nothing, kept as three separate findings.
+ *
+ * `none-filed-under-area` is the one that earns its own sentence: the places
+ * list files a row under the area the pack names, so a word it does not carry
+ * (a district rather than its borough) is a place we never looked in. Saying
+ * "no seat data, and that goes for Angel too" there would be a claim about a
+ * place rather than about our own list.
+ */
+export type FindDeskEmptyReason =
+  | "unavailable"
+  | "none-anywhere"
+  | "none-filed-under-area";
+
+export function findDeskEmptyLine(input: {
+  area: string | null;
+  reason: FindDeskEmptyReason;
+}): string {
+  if (input.reason === "unavailable") {
     return "I couldn't read the places list just now, so I won't guess at a seat.";
   }
-  if (!area) return FIND_DESK_NO_SEAT_DATA;
-  return `${FIND_DESK_NO_SEAT_DATA} That goes for ${area} too.`;
+  if (input.reason === "none-filed-under-area" && input.area) {
+    return `Nothing on my places list is filed under ${input.area}. Name a London borough and I'll look there.`;
+  }
+  return FIND_DESK_NO_SEAT_DATA;
 }
 
 /** A found row's note. Says what is on record and, plainly, what is not. */
@@ -426,7 +470,7 @@ export const CONCIERGE_TOOL_DEFINITIONS = [
     function: {
       name: "cheapest_pint_near" as const,
       description:
-        "Cheapest listed pints around a named pub or a London area. Never takes the reader's own position, and never invents a figure.",
+        "Cheapest listed pints around a named pub or a London area. Never takes the reader's own position, refuses a word that only means where they are, and never invents a figure.",
       parameters: {
         type: "object",
         properties: {
@@ -443,7 +487,7 @@ export const CONCIERGE_TOOL_DEFINITIONS = [
     function: {
       name: "tonight_now" as const,
       description:
-        "Sourced listings running right now versus later tonight. Says plainly that no crowd report exists.",
+        "Sourced listings running right now versus later tonight. There is no live crowd reading, and what people log is a visit report dated the day they went, so never say how busy a pub is now.",
       parameters: {
         type: "object",
         properties: { area: { type: "string" } },
@@ -455,7 +499,7 @@ export const CONCIERGE_TOOL_DEFINITIONS = [
     function: {
       name: "venue_drinks" as const,
       description:
-        "Every drink people have logged at one listed pub, each with its own tag, figure and day.",
+        "Every drink people have logged at one listed pub, each with its own tag, figure and day, plus the listed pint when that pub carries one. A corroborated price reaches the map only where the map has a lens for that drink.",
       parameters: {
         type: "object",
         properties: {
@@ -485,7 +529,7 @@ export const CONCIERGE_TOOL_DEFINITIONS = [
     function: {
       name: "report_occupancy" as const,
       description:
-        "Take a crowd report for a pub (empty, some seats, full). Writes nothing: the reader confirms, and today there is no crowd store to write to.",
+        "Take a crowd report for a pub (empty, some seats, full). Writes nothing: there is no crowd store yet, so the report is read back and told plainly that it has nowhere to land.",
       parameters: {
         type: "object",
         properties: {

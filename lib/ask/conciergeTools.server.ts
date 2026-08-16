@@ -20,8 +20,9 @@ import {
   tonightNowLine,
   VENUE_DRINKS_NO_VENUE,
   venueDrinkRowNote,
-  venueDrinksEmptyLine,
+  venueDrinksAnswerLine,
   type CheapestNearAnchor,
+  type FindDeskEmptyReason,
 } from "@/lib/ask/conciergeTools";
 import { loadDeskVenues } from "@/lib/ask/deskVenues.server";
 import type {
@@ -87,7 +88,7 @@ function matchVenue(
 }
 
 function matchArea(
-  venues: readonly ConciergeVenue[],
+  venues: readonly { area: string }[],
   needle: string,
 ): string | null {
   const text = needle.trim().toLowerCase();
@@ -361,10 +362,11 @@ export async function toolVenueDrinks(
     });
   }
 
-  const answerHint =
-    cards.length > 0
-      ? `${venue.name}: ${cards.length} drink ${cards.length === 1 ? "figure" : "figures"} on record.`
-      : venueDrinksEmptyLine(venue.name, status);
+  const answerHint = venueDrinksAnswerLine({
+    venueName: venue.name,
+    figures: cards.length,
+    read: status,
+  });
 
   return {
     ok: true,
@@ -401,11 +403,23 @@ export async function toolFindDesk(
   const limit = limitOf(args.limit, 4, 6);
   const read = await loadDeskVenues(ctx.cityId);
 
-  const matched = read.venues.filter((venue) =>
-    area ? venue.area.trim().toLowerCase() === area.trim().toLowerCase() : true,
-  );
+  // The area word is resolved against the places list's OWN area values, the
+  // same seam `cheapest_pint_near` uses, so the two tools agree on what an area
+  // word means and no pub row is read to answer a desk ask.
+  const resolvedArea = area ? matchArea(read.venues, area) : null;
+  const matched = resolvedArea
+    ? read.venues.filter((venue) => venue.area === resolvedArea)
+    : area
+      ? []
+      : read.venues;
 
   if (matched.length === 0) {
+    const reason: FindDeskEmptyReason =
+      read.status === "unavailable"
+        ? "unavailable"
+        : read.venues.length === 0
+          ? "none-anywhere"
+          : "none-filed-under-area";
     return {
       ok: read.status === "ready",
       tool: "find_desk",
@@ -413,7 +427,7 @@ export async function toolFindDesk(
       provenance: read.status === "ready" ? [DIRECTORY] : [],
       cards: [],
       proposals: [],
-      answerHint: findDeskEmptyLine(area, read.status),
+      answerHint: findDeskEmptyLine({ area, reason }),
       ...(read.status === "unavailable" ? { degraded: true } : {}),
     };
   }
@@ -438,7 +452,7 @@ export async function toolFindDesk(
     proposals: cards
       .slice(0, 3)
       .map((card) => openProposal(card.venueId, card.title)),
-    answerHint: `${places.length} place${places.length === 1 ? "" : "s"} to sit and work${area ? ` in ${area}` : ""}. No seat or wifi report on any of them yet.`,
+    answerHint: `${places.length} place${places.length === 1 ? "" : "s"} to sit and work${resolvedArea ? ` in ${resolvedArea}` : ""}. No seat or wifi report on any of them yet.`,
   };
 }
 

@@ -20,8 +20,10 @@ import {
   splitTonightRowsByNow,
   tonightNowLine,
   venueDrinkRowNote,
+  venueDrinksAnswerLine,
   venueDrinksEmptyLine,
 } from "@/lib/ask/conciergeTools";
+import { askToolDefinitions } from "@/lib/ask/tools";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 function row(overrides: Partial<WhatsOnRow>): WhatsOnRow {
@@ -142,6 +144,17 @@ describe("tonight_now policy", () => {
     expect(CROWD_READING_NOT_LIVE).not.toMatch(/nobody can log/i);
   });
 
+  it("ships the model the same crowd fact the answer carries", () => {
+    const shipped = askToolDefinitions().find(
+      (tool) => tool.function.name === "tonight_now",
+    );
+    expect(shipped).toBeDefined();
+    const description = shipped?.function.description ?? "";
+    expect(description).not.toMatch(/no crowd report exists/i);
+    expect(description).toMatch(/no live crowd reading/i);
+    expect(description).toMatch(/visit report/i);
+  });
+
   it("separates a quiet city from a read that failed", () => {
     expect(tonightNowLine({ area: "Soho", onNow: 0, later: 0, read: "ready" })).toBe(
       "Nothing sourced in Soho for tonight.",
@@ -159,6 +172,22 @@ describe("venue_drinks policy", () => {
   it("separates an unlogged pub from a read that failed", () => {
     expect(venueDrinksEmptyLine("The Lamb", "ready")).toContain("No drink prices logged");
     expect(venueDrinksEmptyLine("The Lamb", "unavailable")).toContain("couldn't read");
+  });
+
+  it("names a failed read even when a figure is still on record", () => {
+    expect(
+      venueDrinksAnswerLine({ venueName: "The Lamb", figures: 2, read: "ready" }),
+    ).toBe("The Lamb: 2 drink figures on record.");
+    const degraded = venueDrinksAnswerLine({
+      venueName: "The Lamb",
+      figures: 1,
+      read: "unavailable",
+    });
+    expect(degraded).toContain("couldn't read what people have logged");
+    expect(degraded).toContain("1 drink figure on record");
+    expect(
+      venueDrinksAnswerLine({ venueName: "The Lamb", figures: 0, read: "unavailable" }),
+    ).toBe(venueDrinksEmptyLine("The Lamb", "unavailable"));
   });
 
   it("says how far a figure reaches, per row", () => {
@@ -202,11 +231,26 @@ describe("find_desk policy", () => {
     expect(isWorkFriendlyVenueKind(undefined)).toBe(false);
   });
 
-  it("says no seat data yet rather than offering a pub", () => {
+  it("keeps three empty findings apart", () => {
     expect(FIND_DESK_NO_SEAT_DATA).toContain("No seat data yet");
-    expect(findDeskEmptyLine(null, "ready")).toBe(FIND_DESK_NO_SEAT_DATA);
-    expect(findDeskEmptyLine("Angel", "ready")).toContain("Angel");
-    expect(findDeskEmptyLine("Angel", "unavailable")).toContain("couldn't read");
+    expect(findDeskEmptyLine({ area: null, reason: "none-anywhere" })).toBe(
+      FIND_DESK_NO_SEAT_DATA,
+    );
+    expect(findDeskEmptyLine({ area: "Angel", reason: "none-anywhere" })).toBe(
+      FIND_DESK_NO_SEAT_DATA,
+    );
+
+    const unfiled = findDeskEmptyLine({
+      area: "Angel",
+      reason: "none-filed-under-area",
+    });
+    expect(unfiled).toContain("Angel");
+    expect(unfiled).not.toContain("No seat data yet");
+    expect(unfiled).toContain("filed under");
+
+    expect(
+      findDeskEmptyLine({ area: "Angel", reason: "unavailable" }),
+    ).toContain("couldn't read");
   });
 
   it("admits what is missing on a row it did find", () => {

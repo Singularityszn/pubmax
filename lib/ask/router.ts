@@ -26,16 +26,22 @@ const OPEN_MAP_RE =
 // Pub Pal V0.1 wave (R-015). Each intent is narrower than the generic price or
 // venue ask above it, so each is tested before the ones it would otherwise
 // fall into.
-const CHEAPEST_NEAR_RE =
-  /\b(cheapest|cheap(?:est)? pint|dearest|best value)\b/i;
+// "dearest" and "best value" are deliberately absent: this tool ranks
+// cheapest-first and its headline says so, so a dearest ask belongs to the
+// price tools below rather than being answered backwards.
+const CHEAPEST_NEAR_RE = /\b(cheapest|cheap(?:est)? pint)\b/i;
+// Every alternative names the LISTINGS question. A bare "right now" is a time
+// qualifier a drinker hangs on any ask, so it is not one of them.
 const TONIGHT_NOW_RE =
-  /\b(on right now|right now|on now|happening now|what'?s on now|busy right now|how busy)\b/i;
+  /\b(on right now|on now|happening now|what'?s on now|busy right now|how busy)\b/i;
 const VENUE_DRINKS_RE =
   /\b(what do they (?:pour|serve)|drinks? list|drink prices?|what'?s on tap|price of a (?:wine|cocktail|spirit))\b/i;
 const FIND_DESK_RE =
   /\b(work from|sit and work|laptop|wi-?fi|desk|co-?working|somewhere to work|plug socket)\b/i;
+// "it's quiet" is missing on purpose: quiet is how a drinker asks for a pub,
+// so it stays with the venue search rather than becoming a reporting form.
 const REPORT_OCCUPANCY_RE =
-  /\b(it'?s (?:empty|full|rammed|packed|heaving|quiet)|report (?:the )?(?:crowd|occupancy)|no seats|some seats|log how busy)\b/i;
+  /\b(it'?s (?:empty|full|rammed|packed|heaving)|report (?:the )?(?:crowd|occupancy)|no seats|some seats|log how busy)\b/i;
 
 function extractArea(query: string): string | null {
   const inMatch = query.match(/\bin\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i);
@@ -108,7 +114,8 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
     return calls;
   }
 
-  // "Right now" belongs to the city when the ask is about tube or weather.
+  // "How busy" and "busy right now" still overlap a tube or weather ask, so
+  // the city keeps those.
   if (TONIGHT_NOW_RE.test(text) && !CITY_STATUS_RE.test(text)) {
     const area = extractArea(text);
     push("tonight_now", area ? { area } : {});

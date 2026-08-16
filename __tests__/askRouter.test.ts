@@ -86,6 +86,32 @@ describe("routeAskDeterministically — Pub Pal V0.1 concierge tools", () => {
     const calls = routeAskDeterministically("Quiet-ish near Bank, 4 of us");
     expect(calls[0]?.name).toBe("search_venues");
   });
+
+  it("leaves a quiet-pub ask with the venue search", () => {
+    const calls = routeAskDeterministically("Somewhere it's quiet in Soho");
+    expect(calls.some((c) => c.name === "report_occupancy")).toBe(false);
+    expect(calls[0]?.name).toBe("search_venues");
+  });
+
+  it("keeps a plan ask on propose_plan when it says right now", () => {
+    const calls = routeAskDeterministically("Plan a crawl right now");
+    expect(calls.some((c) => c.name === "tonight_now")).toBe(false);
+    expect(calls.some((c) => c.name === "propose_plan")).toBe(true);
+  });
+
+  it("keeps a price ask on venue_prices when it says right now", () => {
+    const calls = routeAskDeterministically(
+      "how much is a pint right now at The Lamb",
+    );
+    expect(calls.some((c) => c.name === "tonight_now")).toBe(false);
+    expect(calls.some((c) => c.name === "venue_prices")).toBe(true);
+  });
+
+  it("does not answer a dearest ask with the cheapest list", () => {
+    const calls = routeAskDeterministically("dearest pint in Soho");
+    expect(calls.some((c) => c.name === "cheapest_pint_near")).toBe(false);
+    expect(calls.some((c) => c.name === "venue_prices")).toBe(true);
+  });
 });
 
 describe("Ask tool allowlist", () => {
