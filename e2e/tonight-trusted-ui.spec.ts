@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { expect, test, type Page, type Request } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
 
 // Tonight grouping remains rollout-controlled. Explicit Venue acceptance is a
 // permanent action and is proved in this default project.
@@ -54,6 +54,21 @@ async function openTonight(page: Page, viewport = { width: 390, height: 844 }) {
   await expect(page.getByTestId("tonight-list")).toBeVisible();
 }
 
+// A Tonight row settles in with a scaled entrance (tonight.css `tonightRowIn`),
+// so a rendered box measured while it runs is the row's animated box, not the
+// laid-out one. The 48px touch target is a claim about the settled control, so
+// let the row's animations finish before measuring anything inside it.
+async function settleRowEntrance(target: Locator): Promise<void> {
+  await target.evaluate(async (node) => {
+    const row = node.closest(".tonightRow") ?? node;
+    await Promise.all(
+      row.getAnimations({ subtree: true }).map((animation) =>
+        animation.finished.catch(() => undefined),
+      ),
+    );
+  });
+}
+
 async function captureAnalytics(page: Page): Promise<unknown[]> {
   const payloads: unknown[] = [];
   await page.route("**/api/events", async (route) => {
@@ -96,6 +111,7 @@ test.describe("Tonight trusted UI (flag off / shipped)", () => {
     await page.goBack();
     await expect(page.getByTestId("tonight-list")).toBeVisible();
     await expect(accept).toBeVisible();
+    await settleRowEntrance(accept);
     const box = await accept.boundingBox();
     expect(box?.height).toBeGreaterThanOrEqual(48);
     const appearance = await accept.evaluate((button) => {
