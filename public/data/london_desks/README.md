@@ -25,8 +25,10 @@ laptop and `opening_hours`, so those tags live here and nowhere on a shard row.
 Eligible kinds are cafe, coworking, library and hotel_lounge, plus a pub only
 when OSM states wifi. The covering `observedAt` is the oldest pack `fetchedAt`.
 
-Nothing here is a price source, and nothing here states occupancy: a card says
-what OSM stated and "No seat data yet" for what it did not.
+Nothing here is a price source, and nothing here states occupancy. A card prints
+only the amenities OSM stated, and "No amenity data yet" when it stated none.
+The `hours` string is read into one plain line for the day the reader is on, and
+the raw OSM syntax stays behind "Full hours".
 
 `/near?mode=desk` is the reader (`lib/nearDeskVenues.ts`).
 
