@@ -37,6 +37,7 @@ type VenuePriceEntryPanelProps = {
   /** The drink the map is under. The composer opens on it. */
   laneCategory?: DrinkCategory;
   mission?: PriceEvidenceMission | null;
+  missionPending?: boolean;
   onDismissMission?: (mission: PriceEvidenceMission) => void;
 };
 
@@ -60,6 +61,7 @@ export default function VenuePriceEntryPanel({
   includeSignals = true,
   laneCategory = DEFAULT_DRINK_LANE,
   mission = null,
+  missionPending = false,
   onDismissMission,
 }: VenuePriceEntryPanelProps) {
   const viewedVenueId = useRef<string | null>(null);
@@ -102,6 +104,7 @@ export default function VenuePriceEntryPanel({
             } satisfies VenuePriceSubmitMission)
           : null
       }
+      missionPending={missionPending}
     />
   ) : showSignInGate ? (
     <VenuePriceSignInGate

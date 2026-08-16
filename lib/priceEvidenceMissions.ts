@@ -214,6 +214,33 @@ export function missionNamedCategory(mission: {
 }
 
 /**
+ * A price belongs to the drink that was on screen when the figure was entered.
+ *
+ * The composer mounts before its mission read answers, so a mission landing a
+ * second later would otherwise re-label a figure already typed: £5.20 entered
+ * under Beer would be submitted as a Wine price. Entering a figure therefore
+ * HOLDS the visible drink, and only the drinker may change it - by clearing
+ * the field, or by choosing another drink.
+ */
+export function holdSubmitCategory(input: {
+  held: DrinkCategory | null;
+  nextPrice: string;
+  visible: DrinkCategory;
+}): DrinkCategory | null {
+  if (input.nextPrice.trim() === "") return null;
+  return input.held ?? input.visible;
+}
+
+/** The drink a tap submits under: the held one first, then the mission's, then the chosen. */
+export function effectiveSubmitCategory(input: {
+  held: DrinkCategory | null;
+  mission: DrinkCategory | null;
+  chosen: DrinkCategory;
+}): DrinkCategory {
+  return input.held ?? input.mission ?? input.chosen;
+}
+
+/**
  * `other` is the honest catch-all, so it names no drink: a heading over it
  * drops the noun rather than printing the category word as one.
  */

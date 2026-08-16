@@ -45,7 +45,11 @@ async function seedSignedInSession(page: Page): Promise<void> {
 
 async function installContributorBoundary(
   page: Page,
-  options: { failWrite?: boolean; missionCategory?: string } = {},
+  options: {
+    failWrite?: boolean;
+    missionCategory?: string;
+    missionReason?: "missing" | "provisional" | "stale";
+  } = {},
 ): Promise<{
   submitted: Array<{ venueId: string; drinkCategory: string; priceGbp: number; corroborations: number }>;
 }> {
@@ -92,12 +96,15 @@ async function installContributorBoundary(
       contentType: "application/json",
       body: JSON.stringify({
         status: "ready",
-        mission: {
-          venueId,
-          reason: "provisional",
-          drinkCategory: options.missionCategory ?? "beer",
-          observedAt: Date.now() - 3_600_000,
-        },
+        mission:
+          options.missionReason === "missing"
+            ? { venueId, reason: "missing" }
+            : {
+                venueId,
+                reason: options.missionReason ?? "provisional",
+                drinkCategory: options.missionCategory ?? "beer",
+                observedAt: Date.now() - 3_600_000,
+              },
       }),
     });
   });
@@ -235,6 +242,19 @@ test("map venue sheet shows the mission and prints the write-back receipt", asyn
     "Another independent check is still needed.",
   );
   expect(errors).toEqual([]);
+});
+
+test("map sheet keeps one-tap prices when the mission is missing", async ({
+  page,
+}) => {
+  await installContributorBoundary(page, { missionReason: "missing" });
+  const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
+  expect(response?.status()).toBe(200);
+  const sheet = await openVenueSheet(page);
+  const submit = sheet.locator(".venuePriceSubmit");
+  await expect(submit).toBeVisible();
+  await expect(submit.locator(".vpsubQuick")).toBeVisible();
+  await expect(submit.getByRole("radiogroup")).toBeVisible();
 });
 
 test("the map sheet locks the mission's own drink, not the lane's", async ({ page }) => {

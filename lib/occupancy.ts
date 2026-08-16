@@ -95,15 +95,19 @@ export type OccupancyReport = {
   reportedAt: string;
   reporterUserId: string;
   source: OccupancySource;
+  id?: string;
+  hiddenAt?: string | null;
 };
 
 export type OccupancyNowAnswer = {
   now: OccupancyLevel | null;
   ageMinutes: number | null;
-  reportsLast90: number;
+  reportersLast90: number;
   degraded: boolean;
   /** Derived on read. Older rows feed the forecast later; they never paint now. */
   state: OccupancyReadState;
+  /** The freshest visible report. Absent when nobody has a now reading. */
+  id: string | null;
 };
 
 export type OccupancyReadState = "fresh" | "stale" | "none" | "degraded";
@@ -129,6 +133,50 @@ export function occupancyReceiptLine(
   return `Thanks - ${OCCUPANCY_LEVEL_LABELS[level]}, ${occupancyAgeLabel(ageMinutes)}`;
 }
 
+/**
+ * The receipt for a tap that landed. A degraded read-back must still thank
+ * the level that was written, or a successful insert reads as a failed one.
+ */
+export function occupancyWriteReceiptLine(
+  requested: OccupancyLevel,
+  reading: OccupancyNowAnswer,
+): string {
+  return occupancyReceiptLine(
+    reading.now ?? requested,
+    reading.ageMinutes ?? 0,
+  );
+}
+
+/** Sign-in from the occupancy row lands back on this pub's map sheet. */
+export function occupancySignInHref(venueId: string): string {
+  return `/login?mode=signin&from=${encodeURIComponent(`/map?sel=${venueId}`)}`;
+}
+
+/**
+ * How many PEOPLE are behind the reading, never how many rows. The retake
+ * merge spans 15 minutes inside a 90-minute window, so one drinker tapping
+ * every quarter of an hour holds several rows and would otherwise read as
+ * corroboration nobody gave.
+ */
+export function occupancyReportersCaption(count: number): string | null {
+  if (count <= 0) return null;
+  return count === 1 ? "1 person" : `${count} people`;
+}
+
+/** Distinct accounts behind a set of readings. An unattributed row counts once. */
+function distinctReporters(
+  rows: readonly { reporterUserId?: string }[],
+): number {
+  const named = new Set<string>();
+  let unattributed = 0;
+  for (const row of rows) {
+    const id = typeof row.reporterUserId === "string" ? row.reporterUserId.trim() : "";
+    if (id) named.add(id);
+    else unattributed = 1;
+  }
+  return named.size + unattributed;
+}
+
 export function occupancyNowFromReports(
   reports: readonly OccupancyReport[],
   nowMs: number,
@@ -138,12 +186,14 @@ export function occupancyNowFromReports(
     return {
       now: null,
       ageMinutes: null,
-      reportsLast90: 0,
+      reportersLast90: 0,
       degraded: true,
       state: "degraded",
+      id: null,
     };
   }
   const dated = reports
+    .filter((row) => !row.hiddenAt)
     .map((row) => {
       const reportedAtMs = Date.parse(row.reportedAt);
       return { row, reportedAtMs };
@@ -163,18 +213,20 @@ export function occupancyNowFromReports(
     return {
       now: newest.row.level,
       ageMinutes: occupancyAgeMinutes(newest.reportedAtMs, nowMs),
-      reportsLast90: fresh.length,
+      reportersLast90: distinctReporters(fresh.map(({ row }) => row)),
       degraded: false,
       state: "fresh",
+      id: newest.row.id ?? null,
     };
   }
   const hadOlder = dated.some(({ reportedAtMs }) => nowMs - reportedAtMs > OCCUPANCY_FRESH_WINDOW_MS);
   return {
     now: null,
     ageMinutes: null,
-    reportsLast90: 0,
+    reportersLast90: 0,
     degraded: false,
     state: hadOlder ? "stale" : "none",
+    id: null,
   };
 }
 
@@ -196,9 +248,10 @@ export function occupancyAnswerAfter(
     return {
       now: null,
       ageMinutes: null,
-      reportsLast90: 0,
+      reportersLast90: 0,
       degraded: false,
       state: "stale",
+      id: null,
     };
   }
   return { ...answer, ageMinutes: Math.floor(agedMs / 60_000) };
@@ -213,7 +266,9 @@ export function occupancyReadState(
 export function occupancyReadingLine(answer: OccupancyNowAnswer): string {
   if (answer.degraded) return "Could not check how busy it is.";
   if (!answer.now || answer.ageMinutes == null) return "No fresh reading";
-  return `${OCCUPANCY_LEVEL_LABELS[answer.now]} · ${occupancyAgeLabel(answer.ageMinutes)}`;
+  const count = occupancyReportersCaption(answer.reportersLast90);
+  const base = `${OCCUPANCY_LEVEL_LABELS[answer.now]} · ${occupancyAgeLabel(answer.ageMinutes)}`;
+  return count ? `${base} · ${count}` : base;
 }
 
 /**

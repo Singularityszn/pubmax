@@ -13,6 +13,7 @@ import {
 import {
   buildPriceEvidenceMissionUrl,
   dismissedVenueIds,
+  readPriceEvidenceMissionWithDeadline,
   startPriceEvidenceMissionRequest,
   type PriceEvidenceMissionRead,
 } from "@/lib/priceEvidenceMissionClient";
@@ -32,6 +33,7 @@ export function usePriceEvidenceMission(input: {
   surface: MissionSurface;
 }): {
   mission: PriceEvidenceMission | null;
+  status: PriceEvidenceMissionView["status"];
   dismiss: (mission: PriceEvidenceMission) => void;
 } {
   const { user, identityResolved } = useAuth();
@@ -70,22 +72,23 @@ export function usePriceEvidenceMission(input: {
       requestUrl,
       authedActionFetch,
     );
-    void request.promise
-      .then((body) => {
-        if (generation !== generationRef.current) return;
-        setResolved({ requestUrl, view: body });
-      })
-      .catch((error: unknown) => {
-        if (request.signal.aborted) return;
-        if (generation === generationRef.current) {
-          setResolved({
-            requestUrl,
-            view: { status: "degraded", mission: null },
-          });
-        }
-        void error;
+    // The deadline may only degrade a read that is still in flight, so the
+    // race settles exactly once and a mission that landed stays put.
+    const read = readPriceEvidenceMissionWithDeadline(request);
+    void read.settled.then((outcome) => {
+      if (outcome.outcome === "abandoned") return;
+      if (generation !== generationRef.current) return;
+      setResolved({
+        requestUrl,
+        view:
+          outcome.outcome === "read"
+            ? outcome.read
+            : { status: "degraded", mission: null },
       });
-    return () => request.abort();
+    });
+    return () => {
+      read.cancel();
+    };
   }, [enabled, requestUrl]);
 
   const view: PriceEvidenceMissionView = !enabled
@@ -120,6 +123,6 @@ export function usePriceEvidenceMission(input: {
     [input.surface],
   );
 
-  return { mission, dismiss };
+  return { mission, status: view.status, dismiss };
 }
 

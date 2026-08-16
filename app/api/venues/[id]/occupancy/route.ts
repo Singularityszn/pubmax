@@ -4,6 +4,7 @@
 // POST is signed-in, rate-limited, and idempotent per account per pub per
 // 15 minutes. Trust is derived on read. The browser never touches the table.
 
+import { isModerator } from "@/lib/adminAuth";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
@@ -11,6 +12,9 @@ import { occupancyNowFromReports, parseOccupancyLevel } from "@/lib/occupancy";
 import { occupancyStore } from "@/lib/occupancyStore";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { clientIp, hashActor, hashIp } from "@/lib/supabase";
+import { readString } from "@/lib/textClean";
+import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { resolveWritableVenueId } from "@/lib/venueWriteTarget.server";
 
 assertServerEnv();
@@ -31,22 +35,25 @@ export async function GET(
     return publicApiError("Choose a venue.", "INVALID_REQUEST", 400);
   }
   try {
-    const reading = await occupancyStore().readNow(venueId);
+    const canonicalId = await resolveCanonicalVenueId(venueId);
+    const reading = await occupancyStore().readNow(canonicalId);
     return jsonNoStore({
       now: reading.now,
       ageMinutes: reading.ageMinutes,
-      reportsLast90: reading.reportsLast90,
+      reportersLast90: reading.reportersLast90,
       degraded: reading.degraded,
       state: reading.state,
+      id: reading.id,
     });
   } catch {
     const failed = occupancyNowFromReports([], Date.now(), { degraded: true });
     return jsonNoStore({
       now: failed.now,
       ageMinutes: failed.ageMinutes,
-      reportsLast90: failed.reportsLast90,
+      reportersLast90: failed.reportersLast90,
       degraded: true,
       state: "degraded",
+      id: failed.id,
     });
   }
 }
@@ -61,6 +68,66 @@ export async function POST(
     return publicApiError("Choose a venue.", "INVALID_REQUEST", 400);
   }
 
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
+
+  const action = readString(body.action);
+  if (action === "report") {
+    const id = readString(body.id);
+    if (!id) return publicApiError("Crowd reading not found.", "NOT_FOUND", 404);
+    const actorHash = hashActor(`occupancy:${hashIp(clientIp(request))}`);
+    if (
+      (await isLimited(`occupancy-report:${id}`, `occupancy-report:${id}`)) ||
+      (await isLimited(
+        `occupancy-report:${id}:${actorHash}`,
+        `occupancy-report:${id}:${actorHash}`,
+        1,
+      ))
+    ) {
+      return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, {
+        retryable: true,
+      });
+    }
+    try {
+      const done = await occupancyStore().flag(id, readString(body.reason), actorHash);
+      return done
+        ? jsonNoStore({ ok: true }, { status: 200 })
+        : publicApiError("Crowd reading not found.", "NOT_FOUND", 404);
+    } catch {
+      return publicApiError(
+        "We could not save that just now. Try again.",
+        "UNAVAILABLE",
+        503,
+        { retryable: true },
+      );
+    }
+  }
+
+  if (action === "hide" || action === "restore") {
+    if (!isModerator(request)) {
+      return publicApiError("Not authorised.", "FORBIDDEN", 403);
+    }
+    const id = readString(body.id);
+    if (!id) return publicApiError("Crowd reading not found.", "NOT_FOUND", 404);
+    try {
+      const done = await occupancyStore().moderate(id, action === "hide");
+      return done
+        ? jsonNoStore({ ok: true }, { status: 200 })
+        : publicApiError("Crowd reading not found.", "NOT_FOUND", 404);
+    } catch {
+      return publicApiError(
+        "We could not save that just now. Try again.",
+        "UNAVAILABLE",
+        503,
+        { retryable: true },
+      );
+    }
+  }
+
   const userId = await callerUserId(request);
   if (!userId) {
     return publicApiError("Sign in to report how busy it is.", "UNAUTHENTICATED", 401);
@@ -71,13 +138,6 @@ export async function POST(
     return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, {
       retryable: true,
     });
-  }
-
-  let body: Record<string, unknown>;
-  try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
-    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const level = parseOccupancyLevel(body.level);
@@ -106,9 +166,10 @@ export async function POST(
     return jsonNoStore({
       now: reading.now,
       ageMinutes: reading.ageMinutes,
-      reportsLast90: reading.reportsLast90,
+      reportersLast90: reading.reportersLast90,
       degraded: reading.degraded,
       state: reading.state,
+      id: reading.id ?? stored.id,
       level: stored.level,
     });
   } catch {

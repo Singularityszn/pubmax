@@ -98,6 +98,13 @@
   color: var(--ink);
 }
 
+.vpsubHeldDrink {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--ink-soft, var(--ink));
+}
+
 /* ── Drink category ───────────────────────────────────────────────────────── */
 /* The five categories do not fit one 390px row, so the row WRAPS - same rule
    the quick-price chips below already use, so the card reads as one chip

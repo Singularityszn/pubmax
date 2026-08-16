@@ -300,6 +300,15 @@ export default function PrivacyPage() {
           store the pub, the level you tapped, the time, and your account id.
           It is deleted with the account.
         </p>
+        <p className="legalBody">
+          Any reader can flag a crowd occupancy report. We store the report the
+          flag is about, a salted hash of the reader&rsquo;s IP address and,
+          when one is sent, a short written reason. We never store the raw
+          address. Flags join a private review queue and never hide a reading on
+          their own. A named staff member must hide or restore it. Hiding stops
+          the reading being shown and never deletes the row. Flags leave with
+          the report they are about.
+        </p>
 
         <h3 className="legalH3">Price trust milestones</h3>
         <p className="legalBody">

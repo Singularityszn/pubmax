@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { addLinkAwareDestination } from "@/lib/addLink";
+import { ARRIVAL_FROM_PARAM } from "@/lib/arrivalWelcome";
 import { BUSYNESS_VALUES } from "@/lib/visitReports";
 import {
   OCCUPANCY_FRESH_WINDOW_MS,
@@ -16,7 +18,9 @@ import {
   occupancyReadState,
   occupancyReadingLine,
   occupancyReceiptLine,
+  occupancySignInHref,
   occupancyToBusyness,
+  occupancyWriteReceiptLine,
   parseOccupancyLevel,
 } from "@/lib/occupancy";
 
@@ -26,6 +30,7 @@ function report(
   level: (typeof OCCUPANCY_LEVELS)[number],
   reportedAtMs: number,
   reporterUserId = "user-a",
+  extra?: { hiddenAt?: string; id?: string },
 ) {
   return {
     venueId: "venue-1",
@@ -33,6 +38,7 @@ function report(
     reportedAt: new Date(reportedAtMs).toISOString(),
     reporterUserId,
     source: "crowd" as const,
+    ...extra,
   };
 }
 
@@ -83,10 +89,10 @@ describe("occupancy 90-minute now rule", () => {
     );
     expect(fresh.now).toBe("empty");
     expect(fresh.ageMinutes).toBe(12);
-    expect(fresh.reportsLast90).toBe(1);
+    expect(fresh.reportersLast90).toBe(1);
     expect(fresh.degraded).toBe(false);
     expect(occupancyReadState(fresh)).toBe("fresh");
-    expect(occupancyReadingLine(fresh)).toBe("Empty · 12 min ago");
+    expect(occupancyReadingLine(fresh)).toBe("Empty · 12 min ago · 1 person");
 
     const stale = occupancyNowFromReports(
       [report("full", NOW - 91 * 60 * 1000)],
@@ -94,7 +100,7 @@ describe("occupancy 90-minute now rule", () => {
     );
     expect(stale.now).toBeNull();
     expect(stale.ageMinutes).toBeNull();
-    expect(stale.reportsLast90).toBe(0);
+    expect(stale.reportersLast90).toBe(0);
     expect(occupancyReadState(stale)).toBe("stale");
     expect(occupancyReadingLine(stale)).toBe("No fresh reading");
 
@@ -118,17 +124,99 @@ describe("occupancy 90-minute now rule", () => {
     );
   });
 
+  it("prints how many drinkers said so, and never a count of zero", () => {
+    const one = occupancyNowFromReports(
+      [report("some-seats", NOW - 12 * 60 * 1000)],
+      NOW,
+    );
+    expect(occupancyReadingLine(one)).toBe("Some seats · 12 min ago · 1 person");
+
+    const three = occupancyNowFromReports(
+      [
+        report("full", NOW - 2 * 60 * 1000, "user-a"),
+        report("full", NOW - 8 * 60 * 1000, "user-b"),
+        report("some-seats", NOW - 20 * 60 * 1000, "user-c"),
+      ],
+      NOW,
+    );
+    expect(three.reportersLast90).toBe(3);
+    expect(occupancyReadingLine(three)).toBe("Full · 2 min ago · 3 people");
+  });
+
+  it("counts one drinker's retakes once, never as corroboration", () => {
+    // The retake merge spans 15 minutes inside a 90-minute window, so one
+    // person tapping every quarter of an hour holds six rows.
+    const alone = occupancyNowFromReports(
+      [0, 15, 30, 45, 60, 75].map((minutes) =>
+        report("full", NOW - minutes * 60 * 1000, "user-a"),
+      ),
+      NOW,
+    );
+    expect(alone.reportersLast90).toBe(1);
+    expect(occupancyReadingLine(alone)).toBe("Full · just now · 1 person");
+
+    const twoOfThem = occupancyNowFromReports(
+      [
+        report("full", NOW - 1 * 60 * 1000, "user-a"),
+        report("full", NOW - 16 * 60 * 1000, "user-a"),
+        report("full", NOW - 31 * 60 * 1000, "user-a"),
+        report("full", NOW - 4 * 60 * 1000, "user-b"),
+      ],
+      NOW,
+    );
+    expect(twoOfThem.reportersLast90).toBe(2);
+    expect(occupancyReadingLine(twoOfThem)).toBe("Full · 1 min ago · 2 people");
+  });
+
+  it("carries the pub back through the sign-in door", () => {
+    expect(occupancySignInHref("venue-16pnwmm")).toBe(
+      "/login?mode=signin&from=%2Fmap%3Fsel%3Dvenue-16pnwmm",
+    );
+  });
+
+  it("lands a completed sign-in back on that pub's map sheet", () => {
+    // The whole loop: the row's own href, read the way /login reads its query,
+    // then answered by the destination rule the page asks. A `sel` that leaked
+    // out as a login query, or an account-page landing, both fail here.
+    const url = new URL(
+      occupancySignInHref("venue-16pnwmm"),
+      "https://pubmaxxing.com",
+    );
+    expect(url.pathname).toBe("/login");
+    expect(url.searchParams.get("sel")).toBeNull();
+    const from = url.searchParams.get(ARRIVAL_FROM_PARAM);
+    expect(from).toBe("/map?sel=venue-16pnwmm");
+    expect(addLinkAwareDestination("signin", from, "/u/you")).toBe(
+      "/map?sel=venue-16pnwmm",
+    );
+  });
+
+  it("thanks the tap even when the read-back cannot name a now reading", () => {
+    const degraded = occupancyNowFromReports([], NOW, { degraded: true });
+    expect(occupancyWriteReceiptLine("full", degraded)).toBe(
+      "Thanks - Full, just now",
+    );
+    const named = occupancyNowFromReports([report("some-seats", NOW)], NOW);
+    expect(occupancyWriteReceiptLine("full", named)).toBe(
+      "Thanks - Some seats, just now",
+    );
+  });
+
   it("keeps ageing a held answer and drops it past 90 minutes", () => {
     const justReported = occupancyNowFromReports(
       [report("some-seats", NOW)],
       NOW,
     );
-    expect(occupancyReadingLine(justReported)).toBe("Some seats · just now");
+    expect(occupancyReadingLine(justReported)).toBe(
+      "Some seats · just now · 1 person",
+    );
 
     const held12 = occupancyAnswerAfter(justReported, 12 * 60 * 1000);
     expect(held12.now).toBe("some-seats");
     expect(held12.ageMinutes).toBe(12);
-    expect(occupancyReadingLine(held12)).toBe("Some seats · 12 min ago");
+    expect(occupancyReadingLine(held12)).toBe(
+      "Some seats · 12 min ago · 1 person",
+    );
 
     const atWindow = occupancyAnswerAfter(justReported, OCCUPANCY_FRESH_WINDOW_MS);
     expect(atWindow.now).toBe("some-seats");
@@ -140,7 +228,7 @@ describe("occupancy 90-minute now rule", () => {
     );
     expect(pastWindow.now).toBeNull();
     expect(pastWindow.ageMinutes).toBeNull();
-    expect(pastWindow.reportsLast90).toBe(0);
+    expect(pastWindow.reportersLast90).toBe(0);
     expect(occupancyReadState(pastWindow)).toBe("stale");
     expect(occupancyReadingLine(pastWindow)).toBe("No fresh reading");
   });
@@ -165,5 +253,21 @@ describe("occupancy 90-minute now rule", () => {
     const fresh = occupancyNowFromReports([report("empty", NOW)], NOW);
     expect(occupancyAnswerAfter(fresh, -5 * 60 * 1000).ageMinutes).toBe(0);
     expect(occupancyAnswerAfter(fresh, Number.NaN).ageMinutes).toBe(0);
+  });
+
+  it("never paints a hidden report as the pub's now reading", () => {
+    const hidden = occupancyNowFromReports(
+      [
+        report("full", NOW - 2 * 60 * 1000, "user-a", {
+          hiddenAt: new Date(NOW).toISOString(),
+          id: "hidden-1",
+        }),
+        report("some-seats", NOW - 8 * 60 * 1000, "user-b", { id: "open-1" }),
+      ],
+      NOW,
+    );
+    expect(hidden.now).toBe("some-seats");
+    expect(hidden.reportersLast90).toBe(1);
+    expect(hidden.id).toBe("open-1");
   });
 });
