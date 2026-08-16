@@ -94,6 +94,7 @@ describe("what the create action renders for each keyboard answer", () => {
   afterEach(() => {
     vi.resetModules();
     vi.doUnmock("@/lib/softKeyboard");
+    vi.doUnmock("@/lib/useFocusTrap");
     vi.doUnmock("next/navigation");
   });
 
@@ -101,6 +102,7 @@ describe("what the create action renders for each keyboard answer", () => {
     keyboardOpen: boolean,
     pathname = "/out",
     search = "",
+    strictModalOpen = false,
   ): Promise<string> {
     vi.doMock("next/navigation", () => ({
       usePathname: () => pathname,
@@ -119,6 +121,12 @@ describe("what the create action renders for each keyboard answer", () => {
       subscribeSoftKeyboard: () => () => {},
       readSoftKeyboardOpen: () => keyboardOpen,
       serverSoftKeyboardOpen: () => keyboardOpen,
+    }));
+    vi.doMock("@/lib/useFocusTrap", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@/lib/useFocusTrap")>()),
+      subscribeStrictModalFocusTrap: () => () => {},
+      readStrictModalFocusTrap: () => strictModalOpen,
+      serverStrictModalFocusTrap: () => strictModalOpen,
     }));
     vi.resetModules();
     const { default: CreateFab } = await import("@/components/nav/CreateFab");
@@ -154,6 +162,14 @@ describe("what the create action renders for each keyboard answer", () => {
 
   it("stays off the exact landing pathname, where Find my pint owns entry", async () => {
     expect(await renderFab(false, "/")).not.toContain("createFabRoot");
+  });
+
+  it("keeps the control inert after a strict modal outlives the keyboard", async () => {
+    const markup = await renderFab(false, "/out", "", true);
+    expect(rootTag(markup)).not.toContain("isKeyboardHidden");
+    expect(rootTag(markup)).not.toContain("aria-hidden");
+    expect(rootTag(markup)).toMatch(/\binert\b/);
+    expect(buttonTag(markup)).toMatch(/tabindex="-1"/i);
   });
 });
 

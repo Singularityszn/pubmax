@@ -25,6 +25,11 @@ import {
   serverSoftKeyboardOpen,
   subscribeSoftKeyboard,
 } from "@/lib/softKeyboard";
+import {
+  readStrictModalFocusTrap,
+  serverStrictModalFocusTrap,
+  subscribeStrictModalFocusTrap,
+} from "@/lib/useFocusTrap";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import "./createFab.css";
@@ -64,6 +69,12 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
     readSoftKeyboardOpen,
     serverSoftKeyboardOpen,
   );
+  const strictModalOpen = useSyncExternalStore(
+    subscribeStrictModalFocusTrap,
+    readStrictModalFocusTrap,
+    serverStrictModalFocusTrap,
+  );
+  const chromeWithdrawn = keyboardOpen || strictModalOpen;
 
   const close = useCallback(() => setOpen(false), []);
   useDismissOnEscape(open, close);
@@ -103,7 +114,7 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
       // pair for the same reason: a control that has slid off the bottom of the
       // screen must not still be a tab stop above the keyboard.
       aria-hidden={keyboardOpen || undefined}
-      inert={keyboardOpen || undefined}
+      inert={chromeWithdrawn || undefined}
     >
       {menuOpen ? (
         // Three ordinary links behind a disclosure, NOT an ARIA menu: role="menu"
@@ -134,7 +145,7 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
         aria-label="Create"
         aria-expanded={menuOpen}
         aria-controls={menuOpen ? menuId : undefined}
-        tabIndex={keyboardOpen ? -1 : undefined}
+        tabIndex={chromeWithdrawn ? -1 : undefined}
         onClick={() => {
           const next = !open;
           if (next) {

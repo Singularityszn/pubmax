@@ -229,7 +229,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
               <Link
                 href={tab.href}
                 // The bar sits in the viewport on every page, so Next's
-                // automatic prefetch fires for all six destinations while the
+                // automatic prefetch fires for all five tab destinations while the
                 // current page is still painting. This component already owns a
                 // better-timed warm for exactly those routes: gated behind the
                 // foreground paint below, and on pointer/hover/focus intent
