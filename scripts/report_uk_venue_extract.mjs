@@ -34,6 +34,25 @@ async function main() {
   const counts = JSON.parse(await readFile(path.join(UK_DIR, "venue_counts.json"), "utf8"));
 
   const runDate = String(manifest.generatedAt ?? "").slice(0, 10) || "unknown";
+
+  // The London publish is optional in this report: the packs can exist before
+  // the shards are cut, and a report that invented a shard count would be worse
+  // than one that stays quiet about it.
+  let londonManifest = null;
+  let londonShards = 0;
+  let londonBytes = 0;
+  const londonDir = path.join(ROOT, "public", "data", "london_venues");
+  try {
+    londonManifest = JSON.parse(await readFile(path.join(londonDir, "manifest.json"), "utf8"));
+    londonShards = Array.isArray(londonManifest.shards) ? londonManifest.shards.length : 0;
+    londonBytes = await sizeOf(path.join(londonDir, "manifest.json"));
+    const generation = String(londonManifest.urlPrefix ?? "").split("/").filter(Boolean).pop();
+    for (const shard of londonManifest.shards ?? []) {
+      londonBytes += await sizeOf(path.join(londonDir, "packs", generation, `${shard.id}.json`));
+    }
+  } catch {
+    londonManifest = null;
+  }
   const outPath = path.join(ROOT, "docs", "data", `uk-osm-extract-${runDate}.md`);
 
   const packSizes = [];
@@ -125,6 +144,55 @@ async function main() {
         ? "**Over budget - do not commit without a decision on where these packs live.**"
         : "Within budget."
     }`,
+    "",
+    ...(londonManifest
+      ? [
+          "## The London publish",
+          "",
+          `\`public/data/london_venues/\`, cut by \`npm run build:london-venues\`. ${londonShards} shards`,
+          `on a ${londonManifest.grid?.latStep}° × ${londonManifest.grid?.lonStep}° grid, ${formatMb(londonBytes)} in total.`,
+          "",
+          "That grid is FINER than the pub layer's 0.25°, because the same cell that",
+          "holds a few hundred pubs holds a few thousand pubs-plus-cafes-plus-libraries",
+          "and came to 278 KB against a 150 KB per-viewport budget. The budget is a",
+          "promise about one fetch, so the grid is what gives.",
+          "",
+          "| Kind | Shipped |",
+          "| --- | --- |",
+          ...Object.entries(londonManifest.countsByKind ?? {})
+            .sort()
+            .map(([kind, n]) => `| ${kind} | ${n} |`),
+          "",
+          "No UI reads these shards yet. The layer is published and kind-tagged so a",
+          "work-spot surface can be built against real data; `lib/londonVenueShards.ts`",
+          "is the decoder and `isPubVenueKind` answers false for every non-pub kind in",
+          "it, so nothing here can reach a price band, a pin figure, a cheapest bucket",
+          "or the Pint Index.",
+          "",
+        ]
+      : []),
+    "## Enrichment freshness",
+    "",
+    "Read off the code, not off a run anybody watched.",
+    "",
+    "- `vercel.json` schedules `/api/cron/enrich-city-pubs` at `15 3 * * *`, so a",
+    "  03:15 UTC run on the day of this extraction was scheduled and the",
+    "  2026-08-15 23:27 deployment was live in time for it.",
+    "- It would NOT have touched a London pub. `CITY_ROTATION` in",
+    "  `lib/tavilyPubEnrichment.server.ts` held manchester, birmingham, edinburgh,",
+    "  glasgow, leeds and bristol, and the epoch-day index for 2026-08-16 selects",
+    "  **bristol**. London was absent from the rotation entirely, so no London pub",
+    "  had ever reached this seam.",
+    "- London now leads that rotation, and `selectCityPubs` sorts a pub the curated",
+    "  layer already owns (`curatedRef`) behind one nobody has looked at. The",
+    "  candidate source is unchanged: the UK OSM pub pack, filtered to pubs that",
+    "  state a website and are not a chain the harvesters already cover.",
+    "- The Exa query cap (`SEARCH_CRON_QUERY_CAP`, 25) and the Tavily fallback in",
+    "  `createSearchProvider` are untouched.",
+    "",
+    "Still open: these packs carry no entry in `data/freshness_registry.json`, so",
+    "the freshness spine cannot report them stale or unmeasurable. Wiring them in is",
+    "its own change, because it moves file tracing and audit behaviour with it.",
     "",
     "## Busiest chunks",
     "",

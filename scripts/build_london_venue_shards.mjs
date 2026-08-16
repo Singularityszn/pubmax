@@ -29,7 +29,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
-import { UK_BASE_GRID, cellBbox, cellIndexFor, cellKey } from "./lib/ukBaseGrid.mjs";
+import { cellBbox, cellIndexFor, cellKey } from "./lib/ukBaseGrid.mjs";
 import { UK_VENUE_GROUPS } from "./lib/ukOsmVenueSeed.mjs";
 import { GREATER_LONDON_BBOX } from "./fetch_uk_osm_venues.mjs";
 
@@ -40,6 +40,23 @@ export const LONDON_VENUE_DIR_NAME = "london_venues";
 export const LONDON_VENUE_SHARD_VERSION = 1;
 
 const OUT_DIR = path.join(ROOT, "public", "data", LONDON_VENUE_DIR_NAME);
+
+// A FINER grid than the pub layer's 0.25°. That layer's cell holds a few hundred
+// pubs; the same cell over central London holds a few thousand
+// pubs-plus-cafes-plus-libraries, and one came to 278 KB against a 150 KB
+// per-viewport budget. The budget is a promise about one fetch, so the grid is
+// what gives - splitting it is exactly what the guard asks for.
+//
+// 0.025° and not 0.0625°: a cell id carries as many decimals as its own step
+// needs (`cellKeyDecimals`), and a step whose decimals the id cannot hold would
+// collapse several cells onto one name and MERGE their rows. The origin matches
+// the pub grid, so both layers' cell edges still line up.
+export const LONDON_VENUE_GRID = {
+  originLat: 49.75,
+  originLon: -8.75,
+  latStep: 0.025,
+  lonStep: 0.025,
+};
 
 // The same ceilings the pub layer is held to, and for the same reasons: a cell
 // is one viewport-triggered fetch, and a whole-layer ceiling means a refresh
@@ -140,8 +157,8 @@ async function main() {
       if (seen.has(venue.osmId)) continue;
       seen.add(venue.osmId);
       byKind[venue.kind] = (byKind[venue.kind] ?? 0) + 1;
-      const { latIndex, lonIndex } = cellIndexFor(venue.lat, venue.lng);
-      const key = cellKey(latIndex, lonIndex);
+      const { latIndex, lonIndex } = cellIndexFor(venue.lat, venue.lng, LONDON_VENUE_GRID);
+      const key = cellKey(latIndex, lonIndex, LONDON_VENUE_GRID);
       let cell = cells.get(key);
       if (!cell) {
         cell = { latIndex, lonIndex, rows: [] };
@@ -191,14 +208,14 @@ async function main() {
         id: key,
         core: false,
         count: cell.rows.length,
-        bbox: cellBbox(cell.latIndex, cell.lonIndex),
+        bbox: cellBbox(cell.latIndex, cell.lonIndex, LONDON_VENUE_GRID),
       });
     }
 
     const manifestBody = JSON.stringify({
       version: LONDON_VENUE_SHARD_VERSION,
       urlPrefix: `/data/${LONDON_VENUE_DIR_NAME}/`,
-      grid: UK_BASE_GRID,
+      grid: LONDON_VENUE_GRID,
       bbox: GREATER_LONDON_BBOX,
       source: "OpenStreetMap Overpass",
       license: "ODbL",

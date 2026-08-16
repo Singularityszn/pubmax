@@ -9,6 +9,12 @@ never feed the curated venue index.
 Prices are **not** taken from OSM. Everything in these packs is venue presence
 and metadata; pint prices come from community submissions and curated datasets.
 
+The WIDER extraction - bars, cafes, coworking desks, libraries and the rest of
+the places a drinker or a laptop could sit in - lives beside this one in
+[`VENUES.md`](VENUES.md). It is a separate taxonomy, separate packs and a
+separate London publish; this pack stays `amenity=pub` alone, because the base
+map layer and every reader of it draw a pub.
+
 ## Layout
 
 ```
