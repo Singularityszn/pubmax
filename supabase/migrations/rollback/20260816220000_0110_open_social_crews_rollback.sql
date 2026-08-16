@@ -375,6 +375,6 @@ as $$
   end;
 $$;
 
-drop function if exists public.list_open_social_crews(text, timestamptz, integer);
+drop function if exists public.list_open_social_crews(timestamptz, integer);
 
 commit;

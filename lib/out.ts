@@ -1,7 +1,10 @@
 import { parseCityId, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { londonServiceDayBounds } from "@/lib/whatsOn";
 import type { WhatsOnKindObservedAt, WhatsOnRow } from "@/lib/whatsOn";
-import { OPEN_PLAN_LIST_LIMIT } from "@/lib/openSocialCrew";
+import {
+  OPEN_PLAN_LIST_LIMIT,
+  type OpenPlanPlaceKind,
+} from "@/lib/openSocialCrew";
 
 export const OUT_EVENT_LIMIT = 100;
 export const OUT_OPEN_PLAN_LIMIT = OPEN_PLAN_LIST_LIMIT;
@@ -14,6 +17,18 @@ export type OutAttribution = {
   logoRequired: boolean;
 };
 
+/**
+ * The resolved Stop 1 a card renders: the place name plus its map point. It is
+ * filled from the venue index or the ambient POI layer on the read, never
+ * stored, so a renamed pub or a moved dot cannot go stale inside a plan.
+ */
+export type OutOpenPlanMeetingPoint = {
+  kind: OpenPlanPlaceKind;
+  name: string;
+  lat: number;
+  lng: number;
+};
+
 export type OutOpenPlan = {
   crewId: string;
   title: string;
@@ -22,6 +37,8 @@ export type OutOpenPlan = {
   stopVenueName: string | null;
   hostHandle: string;
   memberCount: number;
+  /** Absent until the city read resolves Stop 1; a listed plan always has one. */
+  meetingPoint: OutOpenPlanMeetingPoint | null;
 };
 
 export type OutResponse = {
