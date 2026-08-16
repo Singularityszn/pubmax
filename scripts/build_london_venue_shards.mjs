@@ -130,6 +130,26 @@ function formatBytes(bytes) {
     : `${(bytes / 1024).toFixed(1)} KB`;
 }
 
+/**
+ * One line covering several kinds takes the OLDEST of the kinds it covers, and
+ * goes undated entirely when it cannot date one of them: this layer's stamp
+ * covers the drink, food and work packs at once, and a per-lane rebuild is a
+ * supported flow, so borrowing the freshest pack's day would date weeks-old
+ * cafe and library rows as today. The opposite rule - a PAGE stamp taking the
+ * freshest evidence it holds - is not this one.
+ */
+export function coveringFetchedAt(stamps) {
+  if (stamps.length === 0) return null;
+  let oldest = null;
+  for (const stamp of stamps) {
+    if (typeof stamp !== "string") return null;
+    const ms = Date.parse(stamp);
+    if (!Number.isFinite(ms)) return null;
+    if (oldest === null || ms < oldest.ms) oldest = { ms, stamp };
+  }
+  return oldest.stamp;
+}
+
 function median(values) {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -142,7 +162,7 @@ async function main() {
   const cells = new Map();
   const byKind = {};
   const seen = new Set();
-  let fetchedAt = null;
+  const packStamps = [];
   let dropped = 0;
   let read = 0;
 
@@ -156,7 +176,7 @@ async function main() {
         `${path.relative(ROOT, packPath)} is missing - build it with \`npm run fetch:uk-venues\`.`,
       );
     }
-    if (!fetchedAt && typeof pack.fetchedAt === "string") fetchedAt = pack.fetchedAt;
+    packStamps.push(pack?.fetchedAt);
     for (const venue of Array.isArray(pack?.venues) ? pack.venues : []) {
       if (!inGreaterLondon(Number(venue?.lat), Number(venue?.lng))) continue;
       read += 1;
@@ -182,6 +202,14 @@ async function main() {
 
   if (seen.size === 0) {
     throw new Error("No London venues in the packs - refresh them with `npm run fetch:uk-venues`.");
+  }
+
+  const fetchedAt = coveringFetchedAt(packStamps);
+  if (fetchedAt === null) {
+    console.warn(
+      "One of the venue packs carries no usable fetchedAt, so the layer publishes undated rather than " +
+        "borrowing another pack's day.",
+    );
   }
 
   await mkdir(path.dirname(OUT_DIR), { recursive: true });
