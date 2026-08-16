@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { routeAskDeterministically } from "@/lib/ask/router";
+import { refineRoutedAskQuery, routeAskDeterministically } from "@/lib/ask/router";
 import { ASK_TOOL_NAMES, isAskToolName } from "@/lib/ask/types";
 
 describe("routeAskDeterministically", () => {
@@ -43,6 +43,33 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     expect(calls).toEqual([
       { name: "cheapest_pint_near", args: { area: "Camden" } },
     ]);
+  });
+
+  it("strips a trailing tonight from a cheapest area ask", () => {
+    expect(routeAskDeterministically("Cheapest pint in Camden tonight")).toEqual([
+      { name: "cheapest_pint_near", args: { area: "Camden" } },
+    ]);
+  });
+
+  it("strips a trailing tonight from a now-ask so the area stays a place", () => {
+    expect(routeAskDeterministically("What is on right now in Soho tonight")).toEqual([
+      { name: "tonight_now", args: { area: "Soho" } },
+    ]);
+  });
+
+  it("does not hand a pub or pint ask to find_desk", () => {
+    expect(routeAskDeterministically("pub with wifi in Soho")[0]?.name).not.toBe(
+      "find_desk",
+    );
+  });
+
+  it("keeps a short pint follow-up on the current ask, not the prior desk turn", () => {
+    expect(
+      refineRoutedAskQuery(
+        "Cheapest pint in Camden",
+        "Somewhere to work with wifi in Angel",
+      ),
+    ).toBe("Cheapest pint in Camden");
   });
 
   it("keeps a cheap CRAWL on propose_plan", () => {

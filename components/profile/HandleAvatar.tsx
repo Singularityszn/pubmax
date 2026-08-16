@@ -51,7 +51,17 @@ export default function HandleAvatar({
   }
 
   return (
-    <span className={className} aria-hidden="true">
+    <span
+      className={className}
+      aria-hidden="true"
+      style={{
+        width: size,
+        height: size,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
       {initial}
     </span>
   );

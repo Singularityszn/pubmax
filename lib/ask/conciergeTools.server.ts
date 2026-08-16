@@ -14,6 +14,7 @@ import {
   findDeskEmptyLine,
   findDeskRowNote,
   isDeicticPlaceWord,
+  isPlaceShapedWord,
   OCCUPANCY_LEVEL_LABELS,
   occupancyReportOutcome,
   occupancyStoreState,
@@ -83,6 +84,9 @@ function matchVenue(
 ): ConciergeVenue | null {
   const text = needle.trim().toLowerCase();
   if (!text) return null;
+  // A place-shaped word the pack cannot place must never land on a name-alike
+  // pub. "Angel" is Islington, not The Angel in Hillingdon.
+  if (isPlaceShapedWord(needle)) return null;
   const bare = withoutLeadingArticle(text);
   return (
     venues.find((v) => v.name.toLowerCase() === text) ??

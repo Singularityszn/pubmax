@@ -13,7 +13,10 @@
 //   3. A write is a proposal (ADR 0006). `report_occupancy` proposes a crowd
 //      report and writes nothing until the reader confirms.
 
+import { isAreaNewsPlaceLabel } from "@/lib/areaNews";
+import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { drivesMap, paintsMap, type CommunityPrice } from "@/lib/communityPrice";
+import { NIGHT_AREAS } from "@/lib/nightAreas";
 import { isMapLensDrinkCategory } from "@/lib/drinks";
 import type { DrinkCategory } from "@/lib/drinks";
 import {
@@ -101,6 +104,32 @@ export function isDeicticPlaceWord(value: unknown): boolean {
   if (DEICTIC_PLACE_WORDS.includes(needle)) return true;
   // "my area", "my place", "my end", "my local": first person, no named place.
   return /^my\s+\S/.test(needle);
+}
+
+function nightAreaPlaceWords(): string[] {
+  const words: string[] = [];
+  for (const area of NIGHT_AREAS) {
+    words.push(area.name, ...area.aliases);
+    for (const part of area.name.split(/\s*[&,]\s*/)) {
+      if (part.trim()) words.push(part);
+    }
+  }
+  return words;
+}
+
+/**
+ * A word that names a London place the pack already knows: a night area, a
+ * borough, or a neighbourhood from the area join table. A leading "the"
+ * means they named a pub, not a place.
+ */
+export function isPlaceShapedWord(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const text = value.trim().toLowerCase();
+  if (!text || /^the\s+/.test(text)) return false;
+  if (isDeicticPlaceWord(text)) return true;
+  if (isAreaNewsPlaceLabel(text)) return true;
+  if (LONDON_BOROUGHS.some((borough) => borough.toLowerCase() === text)) return true;
+  return nightAreaPlaceWords().some((word) => word.toLowerCase() === text);
 }
 
 /**

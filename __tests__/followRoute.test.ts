@@ -113,7 +113,20 @@ describe("shared follow write target guard", () => {
 });
 
 describe("POST /api/profiles/[handle]/follow", () => {
+  it("refuses an anonymous follow even under an unlinked handle", async () => {
+    const res = await follow("sam", { follower: "anythingunclaimed" });
+    expect(res.status).toBe(401);
+    expectNoStore(res);
+    expect(await res.json()).toEqual({
+      error: "Sign in to follow them.",
+      code: "UNAUTHENTICATED",
+      retryable: false,
+    });
+    expect(await followStore().isFollowing("anythingunclaimed", "sam")).toBe(false);
+  });
+
   it("follows another handle and marks the personalized response no-store", async () => {
+    asUser("user-ken");
     const res = await follow("sam", { follower: "ken" });
     expect(res.status).toBe(200);
     expectNoStore(res);
@@ -124,6 +137,7 @@ describe("POST /api/profiles/[handle]/follow", () => {
   });
 
   it("answers a deleted target as a refusal rather than a retryable outage", async () => {
+    asUser("user-ken");
     __tombstoneMemoryProfile("sam");
 
     const res = await follow("sam", { follower: "ken" });
@@ -148,6 +162,7 @@ describe("POST /api/profiles/[handle]/follow", () => {
         return original(handle);
       });
 
+    asUser("user-ken");
     const res = await follow("sam", { follower: "ken" });
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({
@@ -209,7 +224,12 @@ describe("follow actor — the founder's cross-account report", () => {
     await memoryProfileStore.createOwned("bea", "user-b");
 
     const res = await follow("alfie", { follower: "bea" });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({
+      error: "Sign in to follow them.",
+      code: "UNAUTHENTICATED",
+      retryable: false,
+    });
     expect(await followStore().isFollowing("bea", "alfie")).toBe(false);
   });
 

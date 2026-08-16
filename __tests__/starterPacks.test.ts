@@ -285,6 +285,12 @@ describe("what a follow-all is allowed to claim", () => {
     );
   });
 
+  it("does not print Following 0 of N when every member is gone", () => {
+    expect(starterPackFollowSummary(results("unavailable", "unavailable"))).toBe(
+      "2 are no longer here.",
+    );
+  });
+
   it("does not count the viewer's own handle as somebody they followed", () => {
     expect(starterPackFollowSummary(results("self", "followed"))).toBe(
       "Following all 1.",

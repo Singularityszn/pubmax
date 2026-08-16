@@ -41,6 +41,7 @@ vi.mock("@/lib/authedFetch", () => ({
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
 import ConfirmFollow from "@/components/social/ConfirmFollow";
+import { markAddLinkDoorTaken } from "@/lib/addLink";
 
 function render(props: Record<string, unknown> = {}): string {
   return renderToStaticMarkup(
@@ -180,8 +181,22 @@ async function commitReactWork(work: () => void | Promise<void>): Promise<void> 
   await pending;
 }
 
-function mountEnvironment(): void {
+function memoryStorage() {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+    removeItem: (key: string) => {
+      values.delete(key);
+    },
+  };
+}
+
+function mountEnvironment(): ReturnType<typeof memoryStorage> {
   const document = new TestDocument();
+  const sessionStorage = memoryStorage();
   const window = {
     document,
     addEventListener: () => {},
@@ -189,6 +204,7 @@ function mountEnvironment(): void {
     dispatchEvent: () => true,
     setTimeout,
     clearTimeout,
+    sessionStorage,
     location: { href: "http://localhost/add/karan?auto=1", origin: "http://localhost" },
     HTMLElement: TestElement,
     HTMLIFrameElement: class {},
@@ -204,6 +220,7 @@ function mountEnvironment(): void {
   });
   container = document.createElement("div");
   root = createRoot(container as unknown as Element);
+  return sessionStorage;
 }
 
 beforeEach(() => {
@@ -307,7 +324,8 @@ describe("ConfirmFollow", () => {
   });
 
   it("does not show the previous account receipt after an account switch", async () => {
-    mountEnvironment();
+    const storage = mountEnvironment();
+    markAddLinkDoorTaken(storage, Date.now());
     auth.user = { id: "account-a" };
     viewer.handle = "viewer-a";
 
@@ -338,8 +356,28 @@ describe("ConfirmFollow", () => {
       await Promise.resolve();
     });
     await vi.waitFor(() => {
-      expect(followAction.request).toHaveBeenCalledTimes(2);
+      expect(container?.textContent).toContain("Add @karan");
     });
+    // The door marker is one-shot. A second account on the same tab cannot
+    // inherit the first account's return and auto-follow.
+    expect(followAction.request).toHaveBeenCalledTimes(1);
+    expect(container?.textContent).not.toContain("@karan is in your lot.");
+  });
+
+  it("does not auto-add a crafted auto=1 that never took a door", async () => {
+    mountEnvironment();
+    auth.user = { id: "account-a" };
+    viewer.handle = "viewer-a";
+
+    await commitReactWork(async () => {
+      root?.render(createElement(ConfirmFollow, { targetHandle: "karan", auto: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(followAction.request).not.toHaveBeenCalled();
+    expect(container?.textContent).toContain("Add @karan");
+    expect(container?.textContent).not.toContain("is in your lot.");
   });
 
   it("shows a deleted target as a refusal, with no receipt and no retry", async () => {
@@ -353,7 +391,8 @@ describe("ConfirmFollow", () => {
         { status: 404, headers: { "content-type": "application/json" } },
       ),
     );
-    mountEnvironment();
+    const storage = mountEnvironment();
+    markAddLinkDoorTaken(storage, Date.now());
     auth.user = { id: "account-a" };
     viewer.handle = "viewer-a";
 

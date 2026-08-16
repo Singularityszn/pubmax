@@ -47,10 +47,28 @@ const FIND_DESK_RE =
 const REPORT_OCCUPANCY_RE =
   /\b(it'?s (?:empty|full|rammed|packed|heaving)|report (?:the )?(?:crowd|occupancy)|no seats|some seats|log how busy)\b/i;
 
+/**
+ * Time and group words a drinker hangs on the end of an ask. They are not
+ * part of a place name, so a `$` capture that keeps "Camden tonight" cannot
+ * place Camden at all.
+ */
+const TRAILING_QUALIFIER_RE =
+  /\s+(?:tonight|now|later|today|this evening|this afternoon|this morning|this weekend|with mates|for (?:two|a few|\d+))\s*$/i;
+
+function stripTrailingQualifiers(phrase: string): string {
+  let current = phrase.trim();
+  for (;;) {
+    const next = current.replace(TRAILING_QUALIFIER_RE, "").trim();
+    if (next === current) return current;
+    current = next;
+  }
+}
+
 /** "in X" at the end of an ask: a PLACE, never a pub. */
 function extractInPlace(query: string): string | null {
   const match = query.match(/\bin\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i);
-  return match?.[1]?.trim() ?? null;
+  const place = match?.[1] ? stripTrailingQualifiers(match[1]) : "";
+  return place || null;
 }
 
 /**
@@ -64,11 +82,30 @@ function extractNearAnchorName(query: string): string | null {
   const match = query.match(
     /\b(?:near|nearby|around|round|close to|closest to)\s+([A-Za-z][A-Za-z\s'-]{1,40})$/i,
   );
-  return match?.[1]?.trim() ?? null;
+  const place = match?.[1] ? stripTrailingQualifiers(match[1]) : "";
+  return place || null;
 }
 
 function extractArea(query: string): string | null {
   return extractInPlace(query) ?? extractNearAnchorName(query);
+}
+
+/**
+ * A short follow-up borrows the prior turn's PLACE only. The current ask's
+ * own claim wins, so a pint ask after a wifi ask cannot be swallowed by
+ * find_desk matching the earlier sentence.
+ */
+export function refineRoutedAskQuery(
+  query: string,
+  priorUserContent: string | null | undefined,
+): string {
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  if (!priorUserContent || words.length === 0 || words.length > 4) return query;
+  const current = routeAskDeterministically(query);
+  if (current.some((call) => call.name !== "search_venues")) return query;
+  const priorPlace = extractArea(priorUserContent);
+  if (priorPlace) return `${query} in ${priorPlace}`;
+  return `${priorUserContent} - ${query}`;
 }
 
 function stripIntentWords(query: string): string {
@@ -130,6 +167,10 @@ function reportOccupancyClaim(text: string): ConciergeClaim | null {
 
 function findDeskClaim(text: string): ConciergeClaim | null {
   if (!FIND_DESK_RE.test(text)) return null;
+  // A pub or pint ask that happens to mention wifi is still a pub ask.
+  if (PRICE_RE.test(text) || CHEAPEST_NEAR_RE.test(text) || /\bpubs?\b/i.test(text)) {
+    return null;
+  }
   const area = extractArea(text);
   return { name: "find_desk", args: area ? { area } : {} };
 }

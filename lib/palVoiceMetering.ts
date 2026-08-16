@@ -1,8 +1,9 @@
+import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceCap.mjs";
+
+export { PAL_VOICE_MAX_SESSION_SECONDS };
+
 /** Monthly voice allowance in whole minutes (keyless and Supabase). */
 export const PAL_VOICE_MONTHLY_MINUTES = 30;
-
-/** Hard cap on one live voice session. Client timer and agent prompt both honour it. */
-export const PAL_VOICE_MAX_SESSION_SECONDS = 180;
 
 export type PalVoiceMeterState = {
   month: string;

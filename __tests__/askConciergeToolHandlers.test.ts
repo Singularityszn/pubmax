@@ -44,7 +44,7 @@ vi.mock("@/lib/ask/deskVenues.server", () => ({
   loadDeskVenues: vi.fn(async () => state.desk),
 }));
 
-import { CHEAPEST_NEAR_NO_ANCHOR } from "@/lib/ask/conciergeTools";
+import { CHEAPEST_NEAR_NO_ANCHOR, VENUE_DRINKS_NO_VENUE } from "@/lib/ask/conciergeTools";
 import { routeAskDeterministically } from "@/lib/ask/router";
 import { runAskTool } from "@/lib/ask/tools";
 import type { AskToolContext } from "@/lib/ask/toolContract";
@@ -412,6 +412,33 @@ describe("report_occupancy", () => {
     const result = await runAskTool("report_occupancy", { level: "full" }, ctx());
     expect(result.ok).toBe(false);
     expect(result.answerHint).toContain("Name the pub");
+  });
+
+  it("refuses a place-shaped word as a pub on occupancy and drinks", async () => {
+    state.venues = [
+      venue({ id: "angel", name: "The Angel", area: "Hillingdon" }),
+      venue({ id: "mayfair", name: "The Mayfair Tavern", area: "Wandsworth" }),
+      venue({ id: "clapham", name: "The Clapham North", area: "Lambeth" }),
+    ];
+
+    const occ = await runAskTool(
+      "report_occupancy",
+      { venueName: "Angel", level: "it's rammed" },
+      ctx(),
+    );
+    expect(occ.answerHint).toContain("Name the pub");
+    expect(occ.answerHint).not.toContain("The Angel");
+
+    const drinks = await runAskTool("venue_drinks", { venueName: "Mayfair" }, ctx());
+    expect(drinks.answerHint).toBe(VENUE_DRINKS_NO_VENUE);
+
+    const clapham = await runAskTool(
+      "report_occupancy",
+      { venueName: "Clapham", level: "it's rammed" },
+      ctx(),
+    );
+    expect(clapham.answerHint).not.toContain("The Clapham North");
+    expect(clapham.answerHint).toContain("Name the pub");
   });
 
   it("takes a report for the pub named, never a borough's name-alike", async () => {

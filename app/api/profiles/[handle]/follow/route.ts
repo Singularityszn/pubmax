@@ -1,11 +1,13 @@
-// Follow / unfollow the profile at /u/[handle]. The follower is the self-asserted
-// handle the client sends in the body (its localStorage `pubmax_handle`) — the
-// same demo identity that authors a pint drop. Writes go through the service role
-// (follows has no anon INSERT policy); the response echoes the new follow state
-// and the target's fresh counts so the button + header update in one round trip.
+// Follow / unfollow the profile at /u/[handle]. A follow needs a bearer whose
+// account owns the follower handle. The body may name a handle, but an
+// anonymous write is refused: an add link needs an ACCOUNT, and that law
+// lives here as well as on the add-link surface. Writes go through the
+// service role; the response echoes the new follow state and the target's
+// fresh counts so the button + header update in one round trip.
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { callerUserId } from "@/lib/authServer";
 import { followOnce } from "@/lib/followWrite.server";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
@@ -47,6 +49,12 @@ export async function POST(
   }
   if (isSelfFollow(follower, target)) {
     return publicApiError("You can't follow yourself.", "INVALID_REQUEST", 400);
+  }
+
+  // An add link needs an ACCOUNT. The body may name a handle, but a write
+  // without a bearer is how an unlinked handle used to follow anybody.
+  if (!(await callerUserId(request))) {
+    return publicApiError("Sign in to follow them.", "UNAUTHENTICATED", 401);
   }
 
   const ownership = await gateHandleAction(request, follower);

@@ -94,6 +94,80 @@ export function addLinkAwareDestination(
  * else here - an unresolved session answers nothing, and a viewer with no
  * handle has nothing to add anybody with.
  */
+export type AddLinkStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+const DOOR_MARKER_KEY = "pubmax:add-link-door:v1";
+
+/**
+ * How long a taken door still counts as this tab's own return. Same bound as
+ * the arrival intent: long enough for an inbox hop, short enough that a
+ * leftover marker cannot auto-follow tomorrow.
+ */
+export const ADD_LINK_DOOR_TTL_MS = 30 * 60_000;
+
+/** Record that this tab took a sign-in or create-account door. */
+export function markAddLinkDoorTaken(
+  storage: AddLinkStorage | null,
+  now: number,
+): void {
+  if (!storage) return;
+  try {
+    storage.setItem(DOOR_MARKER_KEY, JSON.stringify({ at: now }));
+  } catch {
+    // Storage blocked: the person can still tap Add on the way back.
+  }
+}
+
+/**
+ * Peek at a live door marker without consuming it. The add effect may run
+ * before identity resolves, so the caller clears it only when the add starts.
+ */
+export function peekAddLinkDoorTaken(
+  storage: AddLinkStorage | null,
+  now: number,
+): boolean {
+  if (!storage) return false;
+  let raw: string | null;
+  try {
+    raw = storage.getItem(DOOR_MARKER_KEY);
+  } catch {
+    return false;
+  }
+  if (!raw) return false;
+  let marker: unknown;
+  try {
+    marker = JSON.parse(raw);
+  } catch {
+    clearAddLinkDoorTaken(storage);
+    return false;
+  }
+  const at = (marker as { at?: unknown } | null)?.at;
+  if (typeof at !== "number" || now - at >= ADD_LINK_DOOR_TTL_MS) {
+    clearAddLinkDoorTaken(storage);
+    return false;
+  }
+  return true;
+}
+
+export function clearAddLinkDoorTaken(storage: AddLinkStorage | null): void {
+  if (!storage) return;
+  try {
+    storage.removeItem(DOOR_MARKER_KEY);
+  } catch {
+    // The TTL bounds an unreadable marker anyway.
+  }
+}
+
+/** Consume a live door marker. One-shot, so a crafted ?auto=1 cannot reuse it. */
+export function consumeAddLinkDoorTaken(
+  storage: AddLinkStorage | null,
+  now: number,
+): boolean {
+  const live = peekAddLinkDoorTaken(storage, now);
+  if (live) clearAddLinkDoorTaken(storage);
+  return live;
+}
+
 export function shouldAutoAdd(input: {
   auto: boolean;
   accountId: string | null;
@@ -101,9 +175,12 @@ export function shouldAutoAdd(input: {
   viewerHandle: string | null;
   target: string;
   attemptedAccountIds: ReadonlySet<string>;
+  /** This tab took a door. A crafted third-party ?auto=1 never has this. */
+  doorTaken?: boolean;
 }): boolean {
   if (
     !input.auto ||
+    !input.doorTaken ||
     !input.accountId ||
     input.attemptedAccountIds.has(input.accountId) ||
     !input.identityResolved
