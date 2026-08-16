@@ -3,6 +3,7 @@ import Link from "next/link";
 import PriceBadge from "@/components/PriceBadge";
 import { formatObservedDate } from "@/lib/dataFreshness";
 import {
+  formatPricedLandingPintName,
   formatPricedLandingPublisherStatus,
   type PricedLandingRow,
 } from "@/lib/pricedLanding";
@@ -83,7 +84,9 @@ export default function PricedLandingRows({
                 {row.venueName}
               </Link>
               <span className="drinkBrandDirectory__borough">{row.borough}</span>
-              <span className="drinkBrandDirectory__pint">{row.pintName}</span>
+              <span className="drinkBrandDirectory__pint">
+                {formatPricedLandingPintName(row.pintName)}
+              </span>
               <PricedLandingPublisher
                 className="drinkBrandDirectory__publisher"
                 row={row}

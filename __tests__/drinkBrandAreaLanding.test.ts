@@ -6,6 +6,7 @@ import {
   DRINK_BRAND_AREA_PUBLICATION_FLOOR,
   buildDrinkBrandAreaLanding,
   listDrinkBrandAreaLandings,
+  listDrinkBrandAreaLandingsForBrand,
   type DrinkBrandAreaLanding,
 } from "@/lib/drinkBrandAreaLanding";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
@@ -225,6 +226,46 @@ describe("governed drink brand by Night Area landings", () => {
         [lapsed],
       )?.rows,
     ).toHaveLength(DRINK_BRAND_AREA_PUBLICATION_FLOOR);
+  });
+
+  it("still requires the gate version and completeness predicates after dropping expiry", () => {
+    const area = getNightArea("clapham");
+    const venues = enoughVenues(area, DRINK_BRAND_AREA_PUBLICATION_FLOOR);
+
+    const wrongVersion: NightArea = {
+      ...area,
+      gate: {
+        ...area.gate,
+        version: 0 as NightArea["gate"]["version"],
+      },
+    };
+    const incompleteReasons: NightArea = {
+      ...area,
+      routeReadyReasons: area.routeReadyReasons.slice(0, 1),
+    };
+    const incompleteGate: NightArea = {
+      ...area,
+      gate: { ...area.gate, checks: [] },
+    };
+
+    expect(nightAreaPublishesPrices(area)).toBe(true);
+    expect(nightAreaPublishesPrices(wrongVersion)).toBe(false);
+    expect(nightAreaPublishesPrices(incompleteReasons)).toBe(false);
+    expect(nightAreaPublishesPrices(incompleteGate)).toBe(false);
+    expect(
+      buildDrinkBrandAreaLanding(wrongVersion.slug, "guinness", venues, [wrongVersion]),
+    ).toBeNull();
+    expect(
+      buildDrinkBrandAreaLanding(
+        incompleteReasons.slug,
+        "guinness",
+        venues,
+        [incompleteReasons],
+      ),
+    ).toBeNull();
+    expect(
+      buildDrinkBrandAreaLanding(incompleteGate.slug, "guinness", venues, [incompleteGate]),
+    ).toBeNull();
   });
 
   it("requires ten unique matching pubs for the publication floor", () => {
@@ -482,6 +523,25 @@ describe("governed drink brand by Night Area landings", () => {
       },
     });
     expect(landing?.rows[1]?.publisher).toBeNull();
+  });
+
+  // The brand page needs its OWN pairs, so it asks for them rather than
+  // building every brand's and discarding the rest on every request.
+  it("answers one brand's pairs exactly as the whole list filtered to it", async () => {
+    const venues = await realVenues();
+    const everyPair = listDrinkBrandAreaLandings(venues, NIGHT_AREAS);
+
+    for (const brand of DRINK_BRANDS.beer) {
+      expect(listDrinkBrandAreaLandingsForBrand(brand.id, venues, NIGHT_AREAS)).toEqual(
+        everyPair.filter((landing) => landing.brandSlug === brand.id),
+      );
+    }
+    expect(
+      listDrinkBrandAreaLandingsForBrand("not-a-brand", venues, NIGHT_AREAS),
+    ).toEqual([]);
+    expect(
+      listDrinkBrandAreaLandingsForBrand("guinness", venues, NIGHT_AREAS).length,
+    ).toBeGreaterThan(0);
   });
 
   // Derived from the publishing areas and the brand catalogue rather than from

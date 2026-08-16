@@ -1,6 +1,6 @@
 import { haversineKm } from "@/lib/haversine";
 import { namedLegacyPintPriceSource } from "@/lib/drinks";
-import { NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
+import { NIGHT_AREAS, nightAreaHasRouteReadyProof, type NightArea } from "@/lib/nightAreas";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 import type { Venue } from "@/lib/venues";
 
@@ -119,8 +119,9 @@ export function pricedLandingMapArrivalRow(
  * The ONE map destination a priced landing page may link to. A pub is named
  * only when the map can resolve it; otherwise the link carries the brand alone,
  * because a `sel` the map drops is a promise the arrival cannot keep. No
- * `?drink=beer`: beer is the lane the map rests in, and a matched brand already
- * implies its category (docs/MAP_URL_PARAMS.md).
+ * `?drink=beer`: `decodeDrinkLens` already fills the category from the brand
+ * (`lib/crawlUrl.ts`), and `PubMap` excludes beer from the selected lens, so
+ * the query would not select a lens.
  */
 export function pricedLandingMapHref(input: {
   brandSlug: string;
@@ -157,8 +158,79 @@ export function pricedLandingAreaMapCta(input: {
     href: pricedLandingMapHref({ brandSlug: input.brandSlug, venueId }),
     label: venueId
       ? `Open the cheapest ${input.areaName} pint on the map`
-      : `Find ${input.brandLabel} in ${input.areaName} on the map`,
+      : `Find ${input.brandLabel} on the map`,
   };
+}
+
+/**
+ * The log arrival: ONE decision answers both the destination and the words, on
+ * both surfaces that offer it. A ROW may say "this price" only while its own
+ * pub is named, because a brand-only href opens the map's own picker instead. A
+ * HERO is about the brand rather than about one row, so it names the brand
+ * whichever href it gets, and that sentence stays true either way.
+ */
+export function pricedLandingLogCta(input: {
+  brandSlug: string;
+  brandLabel: string;
+  venueId?: string | null;
+  surface?: "row" | "hero";
+}): PricedLandingMapCta {
+  const venueId = input.venueId || null;
+  const brandWording = `Log a ${input.brandLabel} pint price`;
+  return {
+    href: pricedLandingMapHref({
+      brandSlug: input.brandSlug,
+      venueId,
+      log: true,
+    }),
+    label:
+      input.surface === "hero" || !venueId ? brandWording : "Log this price",
+  };
+}
+
+export type PricedLandingBrandAreaLink = { href: string; label: string };
+
+/** The brand page's inbound links to published `/area/{slug}/drink/{brand}` pairs. */
+export function pricedLandingBrandAreaLinks(
+  brandSlug: string,
+  pairs: readonly { brandSlug: string; areaSlug: string; areaName: string }[],
+): PricedLandingBrandAreaLink[] {
+  return pairs
+    .filter((pair) => pair.brandSlug === brandSlug)
+    .map((pair) => ({
+      href: `/area/${encodeURIComponent(pair.areaSlug)}/drink/${encodeURIComponent(brandSlug)}`,
+      label: pair.areaName,
+    }));
+}
+
+/**
+ * The tokens a shouted drink tag is allowed to keep in capitals. It is an
+ * EXPLICIT list rather than a length rule: "NECK OIL" and "IPA" are both two
+ * short words, and only one of them is an acronym, so a rule counting letters
+ * printed "Neck OIL" - a half-shout worse than the untouched tag. Anything
+ * absent here title-cases, however short.
+ */
+const PRICED_LANDING_CAPITALISED_DRINK_TOKENS = new Set([
+  "IPA",
+  "APA",
+  "DIPA",
+  "NEIPA",
+  "ESB",
+  "XPA",
+]);
+
+/**
+ * A drink tag is title-cased when the dataset shouted it; the known all-caps
+ * beer tokens stay. The word pattern is Unicode, because an accented shout
+ * ("GOLDBRAÜ") split on the accent under an ASCII class and came back out
+ * half-shouted.
+ */
+export function formatPricedLandingPintName(name: string): string {
+  return name.replace(/\p{L}[\p{L}\p{N}'’.-]*/gu, (word) => {
+    if (word !== word.toUpperCase()) return word;
+    if (PRICED_LANDING_CAPITALISED_DRINK_TOKENS.has(word)) return word;
+    return `${word.charAt(0)}${word.slice(1).toLowerCase()}`;
+  });
 }
 
 /** Publisher disclosure copy. `docs/VOICE.md` governs both sentences. */
@@ -227,21 +299,17 @@ export function assignVenueToNightArea(
 /**
  * Whether an area may carry an INDEXED price page.
  *
- * Deliberately narrower than `isNightAreaRouteReady`, which also expires with
- * the area's route review (`reviewExpiresAt`). Route readiness governs PLANNING
- * a crawl: unchecked transport and opening hours must stop a route. A priced
- * list is not a route. It carries its own collection date, so letting a review
+ * Keeps the gate version and completeness predicates from
+ * `isNightAreaRouteReady` and drops only the review-expiry clauses
+ * (`reviewExpiresAt` and the dated window). Route readiness governs PLANNING a
+ * crawl: unchecked transport and opening hours must stop a route. A priced list
+ * is not a route. It carries its own collection date, so letting a review
  * window lapse would 404 URLs already in the sitemap and deindex them, which is
  * a worse answer than a price list somebody last reviewed a while ago. The
  * renewal alarm lives in `__tests__/nightAreaReviewRenewal.test.ts`.
  */
 export function nightAreaPublishesPrices(area: NightArea): boolean {
-  return (
-    area.coverageStatus === "route_ready" &&
-    area.missingEvidence.length === 0 &&
-    area.gate.passed &&
-    Boolean(area.lastReviewedAt)
-  );
+  return nightAreaHasRouteReadyProof(area);
 }
 
 export type PricedLandingJsonLdNode = {

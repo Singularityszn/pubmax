@@ -10,8 +10,12 @@ import {
   loadDrinkBrandLanding,
   loadDrinkBrandLandings,
 } from "@/lib/drinkBrandLanding.server";
+import { loadDrinkBrandAreaLandingsForBrand } from "@/lib/drinkBrandAreaLanding.server";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
-import { formatPricedLandingPublisherStatus } from "@/lib/pricedLanding";
+import {
+  formatPricedLandingPublisherStatus,
+  pricedLandingBrandAreaLinks,
+} from "@/lib/pricedLanding";
 import { formatPrice } from "@/lib/venues";
 
 import "@/components/drinks/drinkBrandDirectory.css";
@@ -69,9 +73,10 @@ export default async function DrinkBrandLandingPage({ params }: PageProps) {
   const landing = await loadDrinkBrandLanding(slug);
   if (!landing) notFound();
 
-  const [nonce, mapSelectableVenueIds] = await Promise.all([
+  const [nonce, mapSelectableVenueIds, areaLandings] = await Promise.all([
     headers().then((store) => store.get("x-nonce") ?? undefined),
     loadMapSelectableVenueIds(),
+    loadDrinkBrandAreaLandingsForBrand(landing.slug),
   ]);
 
   return (
@@ -81,6 +86,7 @@ export default async function DrinkBrandLandingPage({ params }: PageProps) {
       <DrinkBrandLandingContent
         landing={landing}
         mapSelectableVenueIds={mapSelectableVenueIds}
+        areaPages={pricedLandingBrandAreaLinks(landing.slug, areaLandings)}
       />
     </main>
   );

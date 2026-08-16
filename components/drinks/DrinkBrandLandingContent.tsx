@@ -7,18 +7,22 @@ import PricedLandingRows, {
 import type { DrinkBrandLanding } from "@/lib/drinkBrandLanding";
 import {
   pricedLandingCountLabel,
+  pricedLandingLogCta,
   pricedLandingMapArrivalRow,
   pricedLandingMapHref,
   type MapSelectableVenueIds,
+  type PricedLandingBrandAreaLink,
 } from "@/lib/pricedLanding";
 import { formatPrice } from "@/lib/venues";
 
 export default function DrinkBrandLandingContent({
   landing,
   mapSelectableVenueIds,
+  areaPages = [],
 }: {
   landing: DrinkBrandLanding;
   mapSelectableVenueIds: MapSelectableVenueIds;
+  areaPages?: readonly PricedLandingBrandAreaLink[];
 }) {
   const firstRow = landing.rows[0];
   const lowestPrice = formatPrice(firstRow.priceGbp);
@@ -31,10 +35,11 @@ export default function DrinkBrandLandingContent({
     mapSelectableVenueIds,
   );
   const mapHref = pricedLandingMapHref({ brandSlug: landing.slug });
-  const contributionHref = pricedLandingMapHref({
+  const contribution = pricedLandingLogCta({
     brandSlug: landing.slug,
+    brandLabel: landing.brandLabel,
     venueId: contributionRow?.venueId,
-    log: true,
+    surface: "hero",
   });
 
   return (
@@ -66,9 +71,9 @@ export default function DrinkBrandLandingContent({
           </Link>
           <Link
             className="drinkBrandDirectory__secondary"
-            href={contributionHref}
+            href={contribution.href}
           >
-            Log a {landing.brandLabel} pint price
+            {contribution.label}
           </Link>
         </nav>
       </header>
@@ -85,6 +90,22 @@ export default function DrinkBrandLandingContent({
         </div>
         <PricedLandingRows rows={landing.rows} />
       </section>
+
+      {areaPages.length > 0 ? (
+        <nav
+          className="drinkBrandDirectory__areas"
+          aria-label={`${landing.brandLabel} in other areas`}
+        >
+          <h2>By area</h2>
+          <ul>
+            {areaPages.map((page) => (
+              <li key={page.href}>
+                <Link href={page.href}>{page.label}</Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
     </div>
   );
 }

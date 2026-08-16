@@ -13,6 +13,14 @@ any rule is how two pages come to answer one question two ways:
   so the route, `generateStaticParams` and the sitemap cannot disagree.
 - `formatPricedLandingPublisherStatus` and `pricedLandingCountLabel` - the two
   sentences these pages print about provenance and coverage.
+- `formatPricedLandingPintName` - the ONE display rule for a shouted dataset
+  drink tag, so one page cannot print `GUINNESS` while the other prints
+  `Guinness`.
+- `pricedLandingAreaMapCta` and `pricedLandingLogCta` - one decision each
+  answers the href AND the label, so a CTA's words cannot describe a link it no
+  longer carries.
+- `pricedLandingBrandAreaLinks` - the brand page's links to its own published
+  pair pages.
 - `assignVenueToNightArea` - memoised per area catalogue. Unmemoised it ran once
   per venue per (area x brand) pair, roughly 1.5M haversines for one
   `/sitemap.xml` request.
@@ -29,7 +37,10 @@ names, because ~24 unstyled aliases were a half-finished share.
 
 Per-family modules stay thin: `lib/drinkBrandLanding.ts` owns brand matching and
 `lib/drinkBrandAreaLanding.ts` owns area assignment, each returning candidates
-into the shared publication decision.
+into the shared publication decision. The brand page needs only its OWN pairs,
+so it asks `listDrinkBrandAreaLandingsForBrand`; building every brand's pairs to
+discard all but one sweeps the priced-venue list once per brand on every request
+to a dynamic route.
 
 ## Dataset read
 
@@ -81,9 +92,9 @@ nearest ancestor's while the page declares `twitter: summary_large_image`.
 `isNightAreaRouteReady` expires with the area's `reviewExpiresAt`, and every
 route-ready area shares one date. That gate governs PLANNING a crawl: unchecked
 transport and opening hours must stop a route. A priced list is not a route, so
-the landing family reads `nightAreaPublishesPrices` instead, which drops the
-expiry. Letting the review lapse would otherwise 404 URLs already in the
-sitemap and deindex them.
+the landing family reads `nightAreaPublishesPrices` instead, which keeps the
+gate version and completeness predicates and drops only the expiry. Letting the
+review lapse would otherwise 404 URLs already in the sitemap and deindex them.
 
 `__tests__/nightAreaReviewRenewal.test.ts` is the alarm: it fails 30 days ahead
 of the window and names the file and fields to move forward.

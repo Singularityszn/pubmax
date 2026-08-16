@@ -65,14 +65,38 @@ export function buildDrinkBrandAreaLanding(
   };
 }
 
+function areaBrandLanding(
+  area: NightArea,
+  brandSlug: string,
+  venues: readonly Venue[],
+  areas: readonly NightArea[],
+): DrinkBrandAreaLanding[] {
+  const landing = buildDrinkBrandAreaLanding(area.slug, brandSlug, venues, areas);
+  return landing ? [landing] : [];
+}
+
+/**
+ * The publishing pairs for ONE brand, in area order.
+ *
+ * The brand page lists its own sibling areas, and building every brand's pairs
+ * to discard all but one sweeps the whole priced-venue list once per brand on
+ * every request to a dynamic route.
+ */
+export function listDrinkBrandAreaLandingsForBrand(
+  brandSlug: string,
+  venues: readonly Venue[],
+  areas: readonly NightArea[] = NIGHT_AREAS,
+): DrinkBrandAreaLanding[] {
+  return areas.flatMap((area) => areaBrandLanding(area, brandSlug, venues, areas));
+}
+
 export function listDrinkBrandAreaLandings(
   venues: readonly Venue[],
   areas: readonly NightArea[] = NIGHT_AREAS,
 ): DrinkBrandAreaLanding[] {
   return areas.flatMap((area) =>
-    DRINK_BRANDS.beer.flatMap((brand) => {
-      const landing = buildDrinkBrandAreaLanding(area.slug, brand.id, venues, areas);
-      return landing ? [landing] : [];
-    }),
+    DRINK_BRANDS.beer.flatMap((brand) =>
+      areaBrandLanding(area, brand.id, venues, areas),
+    ),
   );
 }

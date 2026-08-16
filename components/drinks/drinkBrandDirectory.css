@@ -117,6 +117,8 @@
   background: var(--accent-action);
   color: var(--color-on-accent);
   font-weight: 800;
+  text-align: center;
+  text-wrap: balance;
   text-decoration: none;
 }
 
@@ -261,10 +263,6 @@
   overflow-wrap: anywhere;
 }
 
-.drinkBrandDirectory__borough::after {
-  content: " ·";
-}
-
 .drinkBrandDirectory__publisher a {
   display: inline-flex;
   align-items: center;
@@ -286,6 +284,40 @@
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.drinkBrandDirectory__areas {
+  margin-top: 28px;
+}
+
+.drinkBrandDirectory__areas h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  letter-spacing: var(--tracking-tight);
+}
+
+.drinkBrandDirectory__areas ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drinkBrandDirectory__areas a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-weight: 750;
+  text-underline-offset: 4px;
+  touch-action: manipulation;
+}
+
+.drinkBrandDirectory__areas a:hover {
+  color: var(--accent-action);
 }
 
 .drinkBrandDirectory a:focus-visible {

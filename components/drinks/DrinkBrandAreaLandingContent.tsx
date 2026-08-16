@@ -8,8 +8,8 @@ import type { DrinkBrandAreaLanding } from "@/lib/drinkBrandAreaLanding";
 import {
   pricedLandingAreaMapCta,
   pricedLandingCountLabel,
+  pricedLandingLogCta,
   pricedLandingMapArrivalRow,
-  pricedLandingMapHref,
   type MapSelectableVenueIds,
   type PricedLandingRow,
 } from "@/lib/pricedLanding";
@@ -19,7 +19,8 @@ import { formatPrice } from "@/lib/venues";
 // filter (lib/venues.ts matchesVenueQuery), so an area name matches whatever
 // pubs happen to carry it and "Piccadilly & Soho" matches none. A pub is named
 // only while the map can resolve it, through the same seam the London brand
-// page uses.
+// page uses. No `?drink=beer`: decodeDrinkLens already fills the category from
+// the brand, and PubMap excludes beer from the selected lens.
 export default function DrinkBrandAreaLandingContent({
   landing,
   mapSelectableVenueIds,
@@ -85,14 +86,13 @@ export default function DrinkBrandAreaLandingContent({
         </div>
         <PricedLandingRows
           rows={landing.rows}
-          rowAction={(row) => ({
-            href: pricedLandingMapHref({
+          rowAction={(row) =>
+            pricedLandingLogCta({
               brandSlug: landing.brandSlug,
+              brandLabel: landing.brandLabel,
               venueId: selectableVenueId(row),
-              log: true,
-            }),
-            label: "Log this price",
-          })}
+            })
+          }
         />
       </section>
     </div>

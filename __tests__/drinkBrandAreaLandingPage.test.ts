@@ -179,7 +179,7 @@ describe("governed drink brand by Night Area landing page", () => {
           venueId: "venue-outer",
           venueName: "Outer pub",
           borough: "Lambeth",
-          pintName: "Guinness Draught",
+          pintName: "GUINNESS",
           priceGbp: 4.5,
           publisher: null,
         },
@@ -206,12 +206,17 @@ describe("governed drink brand by Night Area landing page", () => {
     // no pub: it never silently becomes a different one, and with no pub the
     // words stop promising one.
     expect(html).toContain('href="/map?brand=guinness"');
-    expect(html).toContain("Find Guinness in Clapham on the map");
+    expect(html).toContain("Find Guinness on the map");
+    expect(html).not.toContain("Find Guinness in Clapham on the map");
     expect(html).not.toContain("Open the cheapest Clapham pint on the map");
     expect(html).toContain('href="/map?brand=guinness&amp;log=1"');
     expect(html).toContain(
       'href="/map?sel=venue-core&amp;brand=guinness&amp;log=1"',
     );
+    expect(html).toContain("Log a Guinness pint price");
+    expect(html).toContain("Log this price");
+    expect(html).toContain(">Guinness</span>");
+    expect(html).not.toContain(">GUINNESS</span>");
     expect(html).not.toContain("sel=venue-outer");
 
     const withResolvableFirstRow = renderToStaticMarkup(
@@ -228,7 +233,7 @@ describe("governed drink brand by Night Area landing page", () => {
       "Open the cheapest Clapham pint on the map",
     );
     expect(withResolvableFirstRow).not.toContain(
-      "Find Guinness in Clapham on the map",
+      "Find Guinness on the map",
     );
 
     const withFailedRead = renderToStaticMarkup(
@@ -239,7 +244,9 @@ describe("governed drink brand by Night Area landing page", () => {
     );
 
     expect(withFailedRead).not.toContain("sel=");
-    expect(withFailedRead).toContain("Find Guinness in Clapham on the map");
+    expect(withFailedRead).toContain("Find Guinness on the map");
+    expect(withFailedRead).toContain("Log a Guinness pint price");
+    expect(withFailedRead).not.toContain("Log this price");
   });
 
   it("shows the full eligible pub count when the printed rows are capped", () => {
