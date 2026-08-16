@@ -243,6 +243,22 @@ for (const viewport of VIEWPORTS) {
       "map-edge controls share one right edge",
     ).toBe(Math.round(layout.utility.right));
 
+    // Near me's own size is published with the floating stack, so what it owes
+    // is measured here rather than read back out of that declaration: the tap
+    // floor, a square box its 50% radius can round, and a footprint the map
+    // edge holds whole.
+    expect(layout.locate.width, "Near me keeps the tap floor").toBeGreaterThanOrEqual(44);
+    expect(layout.locate.height, "Near me keeps the tap floor").toBeGreaterThanOrEqual(44);
+    expect(
+      Math.round(layout.locate.width),
+      "Near me is square, so its 50% radius reads as a circle",
+    ).toBe(Math.round(layout.locate.height));
+    expect(layout.locate.left, "Near me stays inside the viewport").toBeGreaterThan(0);
+    expect(
+      layout.locate.right,
+      "Near me stays inside the viewport",
+    ).toBeLessThanOrEqual(viewport.width);
+
     // Below 361px the wordmark leaves the bar on purpose, so the place name
     // keeps a readable column (components/mobile/mobileMapShell.css). It is the
     // one control the bar drops, and it must be dropped OUTRIGHT: a hidden
