@@ -13,7 +13,7 @@
 //   3. A write is a proposal (ADR 0006). `report_occupancy` writes nothing at
 //      all today, because the crowd store (master plan R-011) is not built.
 
-import { drivesMap, type CommunityPrice } from "@/lib/communityPrice";
+import { drivesMap, paintsMap, type CommunityPrice } from "@/lib/communityPrice";
 import { isMapLensDrinkCategory } from "@/lib/drinks";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -236,61 +236,58 @@ export function venueDrinksAnswerLine(input: {
     : counted;
 }
 
-/** The three fields a drink row's standing is read from. */
-export type VenueDrinkRowPrice = Pick<
-  CommunityPrice,
-  "priceGbp" | "corroborations" | "submittedAt" | "mapCandidate"
->;
-
 /**
  * Whether THIS figure is the one the map would paint.
  *
- * Two gates, both needed. `MAP_LENS_DRINK_CATEGORIES` drops "other", so an
- * "other" price never paints whatever agrees with it. And the sheet row is
- * freshest-wins while the map follows the best-corroborated in-window cluster,
- * so a fresher row can be corroborated and still not be the figure on the pin.
+ * The decision is `paintsMap`'s, not a copy of it: that predicate already knows
+ * the row must BE the map candidate, that the candidate must pass both trust
+ * gates, and that a newer Pint Drop outranks it on the pin. The lens-category
+ * gate rides on top, because "other" never paints whatever agrees with it.
+ *
+ * `pintDropAt` is REQUIRED and tri-state. `undefined` means the caller could
+ * not read the Pint Drop lane, and a claim we cannot check is one we do not
+ * make, so it answers false rather than guessing the pin.
  */
 export function venueDrinkRowReachesMap(input: {
   category: DrinkCategory;
-  price: VenueDrinkRowPrice;
+  price: CommunityPrice;
+  pintDropAt: number | null | undefined;
   now: number;
 }): boolean {
   if (!isMapLensDrinkCategory(input.category)) return false;
-  const candidate = input.price.mapCandidate ?? input.price;
-  if (
-    Math.round(candidate.priceGbp * 100) !==
-    Math.round(input.price.priceGbp * 100)
-  ) {
-    return false;
-  }
-  return drivesMap(candidate, input.now);
+  if (input.pintDropAt === undefined) return false;
+  return paintsMap(input.price, input.pintDropAt, input.now);
 }
 
 /**
  * One drink row's note: its own tag, its own day, and what it counts toward.
  *
  * Corroboration and map reach are two questions, so the note answers them
- * separately: the row keeps the fact that people agreed on it, and only the
- * figure the map would actually paint claims the map.
+ * separately. Only a figure we have CHECKED against the pin claims the pin; a
+ * corroborated figure we cannot check says that people agree and stops there,
+ * and a category the map has no lens for says plainly where it stays.
  */
 export function venueDrinkRowNote(input: {
   label: string;
   day: string;
   category: DrinkCategory;
-  price: VenueDrinkRowPrice;
+  price: CommunityPrice;
+  pintDropAt: number | null | undefined;
   now: number;
 }): string {
   const corroborated = drivesMap(input.price, input.now);
-  const reaches = venueDrinkRowReachesMap({
-    category: input.category,
-    price: input.price,
-    now: input.now,
-  });
   const standing = !corroborated
     ? "one report so far, so it stays on this pub's page"
-    : reaches
+    : venueDrinkRowReachesMap({
+          category: input.category,
+          price: input.price,
+          pintDropAt: input.pintDropAt,
+          now: input.now,
+        })
       ? "two people agree, so it reaches the map"
-      : "two people agree, and it stays on this pub's page";
+      : isMapLensDrinkCategory(input.category)
+        ? "two people agree on this figure"
+        : "two people agree, and it stays on this pub's page";
   return `${input.label} · logged ${input.day} · ${standing}`;
 }
 

@@ -25,6 +25,7 @@ import {
   venueDrinksEmptyLine,
 } from "@/lib/ask/conciergeTools";
 import { askToolDefinitions } from "@/lib/ask/tools";
+import type { CommunityPrice } from "@/lib/communityPrice";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 function row(overrides: Partial<WhatsOnRow>): WhatsOnRow {
@@ -172,6 +173,18 @@ describe("tonight_now policy", () => {
 const DRINK_NOW = Date.parse("2026-08-15T20:30:00.000Z");
 const DAY = 86_400_000;
 
+function price(overrides: Partial<CommunityPrice> = {}): CommunityPrice {
+  return {
+    venueId: "v1",
+    drinkCategory: "beer",
+    priceGbp: 5.4,
+    submittedAt: DRINK_NOW - DAY,
+    source: "community",
+    corroborations: 2,
+    ...overrides,
+  } as CommunityPrice;
+}
+
 describe("venue_drinks policy", () => {
   it("separates an unlogged pub from a read that failed", () => {
     expect(venueDrinksEmptyLine("The Lamb", "ready")).toContain("No drink prices logged");
@@ -200,7 +213,8 @@ describe("venue_drinks policy", () => {
         label: "Beer",
         day: "12 Aug",
         category: "beer",
-        price: { priceGbp: 5.4, corroborations: 2, submittedAt: DRINK_NOW - DAY },
+        price: price({ priceGbp: 5.4, corroborations: 2 }),
+        pintDropAt: null,
         now: DRINK_NOW,
       }),
     ).toContain("reaches the map");
@@ -209,7 +223,8 @@ describe("venue_drinks policy", () => {
         label: "Wine",
         day: "12 Aug",
         category: "wine",
-        price: { priceGbp: 8, corroborations: 1, submittedAt: DRINK_NOW - DAY },
+        price: price({ drinkCategory: "wine", priceGbp: 8, corroborations: 1 }),
+        pintDropAt: null,
         now: DRINK_NOW,
       }),
     ).toContain("stays on this pub's page");
@@ -220,7 +235,8 @@ describe("venue_drinks policy", () => {
       label: "Other",
       day: "12 Aug",
       category: "other",
-      price: { priceGbp: 5.4, corroborations: 2, submittedAt: DRINK_NOW - DAY },
+      price: price({ drinkCategory: "other", priceGbp: 5.4, corroborations: 2 }),
+      pintDropAt: null,
       now: DRINK_NOW,
     });
     expect(note).toContain("two people agree");
@@ -229,7 +245,7 @@ describe("venue_drinks policy", () => {
   });
 
   it("gives the map promise to the candidate figure, not the freshest row", () => {
-    const fresherSmallerCluster = {
+    const fresherSmallerCluster = price({
       priceGbp: 9,
       corroborations: 2,
       submittedAt: DRINK_NOW - DAY,
@@ -238,11 +254,12 @@ describe("venue_drinks policy", () => {
         corroborations: 3,
         submittedAt: DRINK_NOW - 4 * DAY,
       },
-    };
+    });
     expect(
       venueDrinkRowReachesMap({
         category: "beer",
         price: fresherSmallerCluster,
+        pintDropAt: null,
         now: DRINK_NOW,
       }),
     ).toBe(false);
@@ -251,12 +268,13 @@ describe("venue_drinks policy", () => {
       day: "14 Aug",
       category: "beer",
       price: fresherSmallerCluster,
+      pintDropAt: null,
       now: DRINK_NOW,
     });
     expect(note).toContain("two people agree");
     expect(note).not.toContain("reaches the map");
 
-    const candidateRow = {
+    const candidateRow = price({
       priceGbp: 4.2,
       corroborations: 3,
       submittedAt: DRINK_NOW - 4 * DAY,
@@ -265,11 +283,12 @@ describe("venue_drinks policy", () => {
         corroborations: 3,
         submittedAt: DRINK_NOW - 4 * DAY,
       },
-    };
+    });
     expect(
       venueDrinkRowReachesMap({
         category: "beer",
         price: candidateRow,
+        pintDropAt: null,
         now: DRINK_NOW,
       }),
     ).toBe(true);
@@ -279,9 +298,51 @@ describe("venue_drinks policy", () => {
         day: "11 Aug",
         category: "beer",
         price: candidateRow,
+        pintDropAt: null,
         now: DRINK_NOW,
       }),
     ).toContain("reaches the map");
+  });
+
+  it("gives up the map promise to a newer Pint Drop, and to an unknown one", () => {
+    const row = price({ priceGbp: 4.2, corroborations: 3, submittedAt: DRINK_NOW - 4 * DAY });
+    expect(
+      venueDrinkRowReachesMap({
+        category: "beer",
+        price: row,
+        pintDropAt: DRINK_NOW - 2 * DAY,
+        now: DRINK_NOW,
+      }),
+    ).toBe(false);
+    expect(
+      venueDrinkRowNote({
+        label: "Beer",
+        day: "11 Aug",
+        category: "beer",
+        price: row,
+        pintDropAt: DRINK_NOW - 2 * DAY,
+        now: DRINK_NOW,
+      }),
+    ).not.toContain("reaches the map");
+
+    expect(
+      venueDrinkRowReachesMap({
+        category: "beer",
+        price: row,
+        pintDropAt: undefined,
+        now: DRINK_NOW,
+      }),
+    ).toBe(false);
+    const unchecked = venueDrinkRowNote({
+      label: "Beer",
+      day: "11 Aug",
+      category: "beer",
+      price: row,
+      pintDropAt: undefined,
+      now: DRINK_NOW,
+    });
+    expect(unchecked).toContain("two people agree on this figure");
+    expect(unchecked).not.toContain("map");
   });
 });
 

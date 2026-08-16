@@ -158,16 +158,33 @@ describe("cheapest_pint_near", () => {
 
   it("takes an area word as a pub only on an exact or prefix name", async () => {
     state.venues = [
-      venue({ id: "lamb", name: "The Lamb", cheapestPrice: 4 }),
-      venue({ id: "near", name: "The Crown", lat: 51.5005, cheapestPrice: 4.5 }),
+      venue({ id: "lamb", name: "The Lamb", area: "Camden", cheapestPrice: 4 }),
+      venue({ id: "near", name: "The Crown", area: "Camden", lat: 51.5005, cheapestPrice: 4.5 }),
+      venue({ id: "lion", name: "Golden Lion (Soho)", area: "Westminster", cheapestPrice: 6 }),
     ];
-    const exact = await runAskTool("cheapest_pint_near", { area: "The Lamb" }, ctx());
-    expect(exact.ok).toBe(true);
-    expect(exact.cards.map((card) => card.venueId)).toEqual(["near"]);
+    for (const word of ["The Lamb", "Lamb"]) {
+      const named = await runAskTool("cheapest_pint_near", { area: word }, ctx());
+      expect(named.ok).toBe(true);
+      expect(named.answerHint).toContain("near The Lamb");
+      expect(named.cards.map((card) => card.venueId)).toContain("near");
+      expect(named.cards.map((card) => card.venueId)).not.toContain("lamb");
+    }
 
-    const substring = await runAskTool("cheapest_pint_near", { area: "Lamb" }, ctx());
+    const substring = await runAskTool("cheapest_pint_near", { area: "Soho" }, ctx());
     expect(substring.ok).toBe(false);
     expect(substring.answerHint).toBe(CHEAPEST_NEAR_NO_ANCHOR);
+  });
+
+  it("reads a place word in the venue slot as the area it names", async () => {
+    state.venues = [
+      venue({ id: "a", name: "The Crown", area: "Soho", cheapestPrice: 6 }),
+      venue({ id: "b", name: "Golden Lion (Soho)", area: "Soho", cheapestPrice: 4.2 }),
+      venue({ id: "c", name: "The Anchor", area: "Hackney", cheapestPrice: 3 }),
+    ];
+    const result = await runAskTool("cheapest_pint_near", { venueName: "Soho" }, ctx());
+    expect(result.ok).toBe(true);
+    expect(result.answerHint).toContain("Cheapest listed pints in Soho");
+    expect(result.cards.map((card) => card.venueId)).toEqual(["b", "a"]);
   });
 
   it("degrades honestly when the listed index could not be read", async () => {
@@ -264,9 +281,27 @@ describe("venue_drinks", () => {
     };
     const result = await runAskTool("venue_drinks", { venueId: "v1" }, ctx());
     expect(result.cards.map((card) => card.price)).toEqual([5.4, 8, 5]);
-    expect(result.cards[0]?.note).toContain("reaches the map");
+    // This lane reads no Pint Drop, so a corroborated figure states the
+    // agreement and never claims the pin.
+    expect(result.cards[0]?.note).toContain("two people agree on this figure");
+    expect(result.cards[0]?.note).not.toContain("map");
     expect(result.cards[1]?.note).toContain("stays on this pub's page");
     expect(result.cards[2]?.provenance?.label).toBe("On record");
+  });
+
+  it("resolves a routed short pub name but never a borough", async () => {
+    state.venues = [
+      venue({ id: "lamb", name: "The Lamb", area: "Camden", cheapestPrice: 4 }),
+      venue({ id: "head", name: "Camden Head", area: "Camden", cheapestPrice: 5 }),
+    ];
+    const named = await runAskTool("venue_drinks", { venueName: "Lamb" }, ctx());
+    expect(named.ok).toBe(true);
+    expect(named.data).toMatchObject({ venueId: "lamb" });
+
+    const areaWord = await runAskTool("venue_drinks", { venueName: "Camden" }, ctx());
+    expect(areaWord.ok).toBe(false);
+    expect(areaWord.answerHint).toContain("Name a listed pub");
+    expect(areaWord.cards).toHaveLength(0);
   });
 
   it("says nobody has logged one rather than inventing a figure", async () => {

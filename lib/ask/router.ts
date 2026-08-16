@@ -87,19 +87,82 @@ function stripConciergeIntentWords(query: string): string {
 }
 
 /**
- * The args for a cheapest ask, or null when this is not one.
+ * A V0.1 concierge tool claiming one ask, or null when it may not.
  *
- * Null covers two asks that belong elsewhere: a cheap CRAWL is still a crawl,
- * and "cheapest pint at The Lamb" names one pub as its subject, which the price
- * tool answers about that pub rather than about its neighbours.
+ * TWO rules govern every entry below, and they are what stop a new trigger
+ * quietly taking an ask off a shipped tool.
+ *
+ *   1. A tool claims only when its OWN precondition holds. cheapest_pint_near
+ *      needs an area or a near-style anchor; venue_drinks needs ONE named pub,
+ *      never a place phrase; tonight_now is a now-question with no kind in it.
+ *      A tool that cannot resolve what it needs falls through rather than
+ *      answering with a guess.
+ *   2. Where a more specific shipped intent matches the same words, the shipped
+ *      tool keeps the ask. A named What's-On KIND is that intent: whats_on
+ *      filters by it and no V0.1 tool does.
  */
-function cheapestNearArgs(text: string): Record<string, unknown> | null {
+type ConciergeClaim = { name: AskToolName; args: Record<string, unknown> };
+
+function reportOccupancyClaim(text: string): ConciergeClaim | null {
+  if (!REPORT_OCCUPANCY_RE.test(text)) return null;
+  const venueName = stripConciergeIntentWords(text);
+  return {
+    name: "report_occupancy",
+    args: { level: text, ...(venueName ? { venueName } : {}) },
+  };
+}
+
+function findDeskClaim(text: string): ConciergeClaim | null {
+  if (!FIND_DESK_RE.test(text)) return null;
+  const area = extractArea(text);
+  return { name: "find_desk", args: area ? { area } : {} };
+}
+
+function tonightNowClaim(
+  text: string,
+  whatsOnKind: string | undefined,
+): ConciergeClaim | null {
+  if (!TONIGHT_NOW_RE.test(text)) return null;
+  // "How busy" and "busy right now" still overlap a tube or weather ask, so
+  // the city keeps those; a named kind belongs to whats_on.
+  if (CITY_STATUS_RE.test(text) || whatsOnKind) return null;
+  const area = extractArea(text);
+  return { name: "tonight_now", args: area ? { area } : {} };
+}
+
+function venueDrinksClaim(text: string): ConciergeClaim | null {
+  if (!VENUE_DRINKS_RE.test(text)) return null;
+  // "drink prices in Camden" names a PLACE. This tool reads one pub, so a
+  // place phrase leaves it to the tools that answer about an area.
+  if (extractArea(text)) return null;
+  const venueName = stripConciergeIntentWords(text);
+  if (!venueName) return null;
+  return { name: "venue_drinks", args: { venueName } };
+}
+
+function cheapestNearClaim(text: string): ConciergeClaim | null {
   if (!CHEAPEST_NEAR_RE.test(text) || PLAN_RE.test(text)) return null;
   const area = extractArea(text);
-  if (area) return { area };
+  if (area) return { name: "cheapest_pint_near", args: { area } };
   if (!NEAR_ANCHOR_RE.test(text)) return null;
   const venueName = stripConciergeIntentWords(text);
-  return venueName ? { venueName } : {};
+  return {
+    name: "cheapest_pint_near",
+    args: venueName ? { venueName } : {},
+  };
+}
+
+function conciergeClaim(
+  text: string,
+  whatsOn: ReturnType<typeof detectWhatsOnIntent>,
+): ConciergeClaim | null {
+  return (
+    reportOccupancyClaim(text) ??
+    findDeskClaim(text) ??
+    tonightNowClaim(text, whatsOn?.kind) ??
+    venueDrinksClaim(text) ??
+    (whatsOn ? null : cheapestNearClaim(text))
+  );
 }
 
 /**
@@ -118,44 +181,17 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   };
 
   // The V0.1 concierge intents are each NARROWER than the generic ask they
-  // would otherwise fall into, so they are tested first and answer alone.
-  if (REPORT_OCCUPANCY_RE.test(text)) {
-    const venueName = stripConciergeIntentWords(text);
-    push("report_occupancy", {
-      level: text,
-      ...(venueName ? { venueName } : {}),
-    });
+  // would otherwise fall into, so a satisfied one answers alone. One that
+  // cannot meet its own precondition falls through to the tools below.
+  const whatsOn = detectWhatsOnIntent(text);
+  const claim = conciergeClaim(text, whatsOn);
+  if (claim) {
+    push(claim.name, claim.args);
     return calls;
   }
 
-  if (FIND_DESK_RE.test(text)) {
-    const area = extractArea(text);
-    push("find_desk", area ? { area } : {});
-    return calls;
-  }
-
-  // "How busy" and "busy right now" still overlap a tube or weather ask, so
-  // the city keeps those.
-  if (TONIGHT_NOW_RE.test(text) && !CITY_STATUS_RE.test(text)) {
-    const area = extractArea(text);
-    push("tonight_now", area ? { area } : {});
-    return calls;
-  }
-
-  if (VENUE_DRINKS_RE.test(text)) {
-    const venueName = stripConciergeIntentWords(text);
-    push("venue_drinks", venueName ? { venueName } : { query: text });
-    return calls;
-  }
-
-  if (detectWhatsOnIntent(text)) {
+  if (whatsOn) {
     push("whats_on", { query: text });
-    return calls;
-  }
-
-  const cheapestArgs = cheapestNearArgs(text);
-  if (cheapestArgs) {
-    push("cheapest_pint_near", cheapestArgs);
     return calls;
   }
 

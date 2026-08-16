@@ -127,11 +127,47 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     ).toBe("cheapest_pint_near");
   });
 
+  it("leaves a kind-named now ask with whats_on", () => {
+    const calls = routeAskDeterministically("Any live music on right now in Dalston");
+    expect(calls.some((c) => c.name === "tonight_now")).toBe(false);
+    expect(calls[0]?.name).toBe("whats_on");
+  });
+
+  it("does not hand an area word to venue_drinks as a pub", () => {
+    const calls = routeAskDeterministically("drink prices in Camden");
+    expect(calls.some((c) => c.name === "venue_drinks")).toBe(false);
+    expect(calls[0]?.name).toBe("search_venues");
+  });
+
   it("does not answer a dearest ask with the cheapest list", () => {
     const calls = routeAskDeterministically("dearest pint in Soho");
     expect(calls.some((c) => c.name === "cheapest_pint_near")).toBe(false);
     expect(calls.some((c) => c.name === "venue_prices")).toBe(true);
   });
+});
+
+describe("shipped tools keep their own asks", () => {
+  // One sweep, so a new concierge trigger cannot quietly take an ask off a
+  // tool that answered it before the V0.1 wave existed.
+  const SHIPPED: Array<[string, string]> = [
+    ["Quiz tonight in Soho", "whats_on"],
+    ["Any live music on right now in Dalston", "whats_on"],
+    ["how much is a pint at The Lamb", "venue_prices"],
+    ["cheapest pint at The Lamb", "venue_prices"],
+    ["Plan a crawl in Soho for 4", "propose_plan"],
+    ["Plan a crawl right now", "propose_plan"],
+    ["Tell me the history of The Lamb", "venue_heritage"],
+    ["Quiet-ish near Bank, 4 of us", "search_venues"],
+    ["drink prices in Camden", "search_venues"],
+    ["Any tube delays right now?", "city_status"],
+  ];
+
+  for (const [query, tool] of SHIPPED) {
+    it(`keeps "${query}" on ${tool}`, () => {
+      const calls = routeAskDeterministically(query);
+      expect(calls.map((c) => c.name)).toContain(tool);
+    });
+  }
 });
 
 describe("Ask tool allowlist", () => {

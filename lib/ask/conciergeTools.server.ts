@@ -71,6 +71,10 @@ function limitOf(value: unknown, fallback: number, cap: number): number {
  * a word offered as a place, matched loosely, lands on any pub holding those
  * letters, which is how "near me" once answered with a club in Bexleyheath.
  */
+function withoutLeadingArticle(value: string): string {
+  return value.trim().toLowerCase().replace(/^the\s+/, "");
+}
+
 function matchVenue(
   venues: readonly ConciergeVenue[],
   needle: string,
@@ -78,9 +82,11 @@ function matchVenue(
 ): ConciergeVenue | null {
   const text = needle.trim().toLowerCase();
   if (!text) return null;
+  const bare = withoutLeadingArticle(text);
   return (
     venues.find((v) => v.name.toLowerCase() === text) ??
-    venues.find((v) => v.name.toLowerCase().startsWith(text)) ??
+    venues.find((v) => withoutLeadingArticle(v.name) === bare) ??
+    venues.find((v) => withoutLeadingArticle(v.name).startsWith(bare)) ??
     (mode === "loose"
       ? (venues.find((v) => v.name.toLowerCase().includes(text)) ?? null)
       : null)
@@ -147,14 +153,18 @@ export async function toolCheapestPintNear(
   const venueNameArg = isDeicticPlaceWord(args.venueName)
     ? ""
     : str(args.venueName);
-  // A borough is the stronger reading of an area word, so it is tried first.
-  // "near The Lamb" arrives here as an area too, and falls through to the pub
-  // of that name rather than answering nothing - but on an exact or prefix
-  // name only, never a substring.
-  const area = areaArg ? matchArea(venues, areaArg) : null;
+  // A borough is the stronger reading of a place word, so it is tried first on
+  // BOTH slots: "round Soho" arrives as a venue name and means the area, and a
+  // loose pub match on it would answer about one pub in Soho instead. "near The
+  // Lamb" arrives as an area and falls through to the pub of that name, on an
+  // exact or prefix name only, never a substring.
+  const areaFromArea = areaArg ? matchArea(venues, areaArg) : null;
+  const areaFromVenueName =
+    !areaFromArea && venueNameArg ? matchArea(venues, venueNameArg) : null;
+  const area = areaFromArea ?? areaFromVenueName;
   const anchorVenue =
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
-    matchVenue(venues, venueNameArg) ??
+    (areaFromVenueName ? null : matchVenue(venues, venueNameArg)) ??
     (area ? null : matchVenue(venues, areaArg, "strict"));
 
   let anchor: CheapestNearAnchor | null = null;
@@ -313,10 +323,18 @@ export async function toolVenueDrinks(
 ): Promise<AskToolResult> {
   const venues = await loadConciergeVenues(ctx.cityId);
   const venueId = str(args.venueId);
+  // This tool reads ONE pub. A routed name is matched on an exact or prefix
+  // name only, and a word that names a borough is refused outright, because a
+  // substring pass turns "Camden" into "Camden Head" and answers about a pub
+  // the drinker never asked about.
+  const venueNameArg = str(args.venueName);
+  const namesArea = venueNameArg
+    ? matchArea(venues, venueNameArg) !== null
+    : false;
   const venue =
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
-    matchVenue(venues, str(args.venueName)) ??
-    matchVenue(venues, ctx.query);
+    (namesArea ? null : matchVenue(venues, venueNameArg, "strict")) ??
+    (venueNameArg ? null : matchVenue(venues, ctx.query, "strict"));
 
   if (!venue) {
     return {
@@ -345,6 +363,7 @@ export async function toolVenueDrinks(
       day: communityStampLabel(row.price.submittedAt, now),
       category: row.category,
       price: row.price,
+      pintDropAt: undefined,
       now,
     }),
     price: row.price.priceGbp,
