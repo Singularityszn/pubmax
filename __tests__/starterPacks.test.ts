@@ -270,6 +270,15 @@ describe("what a follow-all is allowed to claim", () => {
     );
   });
 
+  it("names a member who is gone rather than calling it a failure", () => {
+    expect(
+      starterPackFollowSummary(results("followed", "unavailable", "followed")),
+    ).toBe("Following 2 of 3. 1 is no longer here.");
+    expect(
+      starterPackFollowSummary(results("followed", "unavailable", "failed", "unavailable")),
+    ).toBe("Following 1 of 4. 1 didn't go through. 2 are no longer here.");
+  });
+
   it("says so plainly when none of it went through", () => {
     expect(starterPackFollowSummary(results("failed", "failed"))).toBe(
       "That didn't go through. Try again.",

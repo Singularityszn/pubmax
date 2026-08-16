@@ -46,7 +46,9 @@ import { normalizeHandle } from "@/lib/profiles";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 
-type FollowState = "idle" | "working" | "done" | "error";
+// `gone` is a REFUSAL and `error` is a fault: the target is not there any more,
+// so the add button leaves with it rather than inviting a retry that cannot land.
+type FollowState = "idle" | "working" | "done" | "error" | "gone";
 type FollowResult = {
   state: FollowState;
   error: string;
@@ -81,6 +83,14 @@ async function performAdd(
       body: JSON.stringify({ follower: adder }),
     });
     const data = await res.json().catch(() => null);
+    if (res.status === 404) {
+      setAccountFollowResult(setResults, accountId, {
+        state: "gone",
+        error: errorMessageFrom(data, ADD_LINK_COPY.targetGone),
+      });
+      trackEvent("add_link_added", { surface: ADD_LINK_SURFACE, outcome: "unavailable" });
+      return;
+    }
     if (!res.ok) throw new Error(errorMessageFrom(data, "Could not add them."));
     setAccountFollowResult(setResults, accountId, { state: "done", error: "" });
     trackEvent("add_link_added", { surface: ADD_LINK_SURFACE, outcome: "added" });
@@ -270,7 +280,7 @@ export default function ConfirmFollow({
   }
 
   const errorLine =
-    state === "error" && error ? (
+    (state === "error" || state === "gone") && error ? (
       <p className="confirmFollowError" role="alert">
         {error}
       </p>
@@ -334,18 +344,22 @@ export default function ConfirmFollow({
   return (
     <section className="confirmFollow" aria-label={`Add ${displayHandle(target)}`}>
       {card}
-      <p className="confirmFollowBody">
-        {state === "working" ? ADD_LINK_COPY.adding : ADD_LINK_COPY.signedIn}
-      </p>
+      {state === "gone" ? null : (
+        <p className="confirmFollowBody">
+          {state === "working" ? ADD_LINK_COPY.adding : ADD_LINK_COPY.signedIn}
+        </p>
+      )}
       {errorLine}
-      <button
-        type="button"
-        className="confirmFollowPrimary"
-        disabled={state === "working"}
-        onClick={() => void addToLot(viewerHandle)}
-      >
-        {state === "working" ? "Adding." : `Add ${displayHandle(target)}`}
-      </button>
+      {state === "gone" ? null : (
+        <button
+          type="button"
+          className="confirmFollowPrimary"
+          disabled={state === "working"}
+          onClick={() => void addToLot(viewerHandle)}
+        >
+          {state === "working" ? "Adding." : `Add ${displayHandle(target)}`}
+        </button>
+      )}
       <Link className="confirmFollowGhost" href="/social">
         Not now
       </Link>

@@ -138,6 +138,12 @@ export const ADD_LINK_COPY = {
   adding: "Adding them to your lot.",
   /** The session has not answered yet, so nobody is offered a door. */
   checking: "Checking your session.",
+  /**
+   * The target is gone. A REFUSAL, not a fault: the server says so in its own
+   * envelope and this is the line when it said nothing readable, so the surface
+   * never invites a retry that cannot land.
+   */
+  targetGone: "That account isn't here any more.",
   secondaryCta: "I have an account, sign in",
   handleNeeded: "Choose a handle, and they go into your lot.",
   handleCta: "Choose a handle to add them",

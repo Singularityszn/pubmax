@@ -341,4 +341,34 @@ describe("ConfirmFollow", () => {
       expect(followAction.request).toHaveBeenCalledTimes(2);
     });
   });
+
+  it("shows a deleted target as a refusal, with no receipt and no retry", async () => {
+    followAction.request.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "That account isn't here any more.",
+          code: "PROFILE_NOT_FOUND",
+          retryable: false,
+        }),
+        { status: 404, headers: { "content-type": "application/json" } },
+      ),
+    );
+    mountEnvironment();
+    auth.user = { id: "account-a" };
+    viewer.handle = "viewer-a";
+
+    await commitReactWork(async () => {
+      root?.render(createElement(ConfirmFollow, { targetHandle: "karan", auto: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await vi.waitFor(() => {
+      expect(container?.textContent).toContain("That account isn't here any more.");
+    });
+    expect(container?.textContent).not.toContain("is in your lot.");
+    expect(container?.textContent).not.toContain("A lot is mutual.");
+    // The card still asks "Add @karan?"; the BUTTON that would retry is gone.
+    expect(container?.textContent ?? "").not.toMatch(/Add @karan(?!\?)/);
+  });
 });

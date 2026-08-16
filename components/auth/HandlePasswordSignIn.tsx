@@ -110,7 +110,12 @@ export default function HandlePasswordSignIn({
       // A full assignment rather than a router push: the destination may be a
       // server-rendered surface that has to read the fresh session, and the
       // auth events have already run against this document.
-      if (redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
+      if (
+        redirectTo &&
+        redirectTo.startsWith("/") &&
+        !redirectTo.startsWith("//") &&
+        !redirectTo.includes("\\")
+      ) {
         window.location.assign(redirectTo);
       }
     } catch {
