@@ -415,7 +415,10 @@ const ACCEPTED_ARRIVAL_EVENTS = [
   PLANNING_INTENT_CHANGED_EVENT,
 ] as const;
 
-function subscribeAcceptedArrival(input: AcceptedArrivalInput, onStoreChange: () => void): () => void {
+function subscribeAcceptedArrival(
+  query: () => AcceptedArrivalInput,
+  onStoreChange: () => void,
+): () => void {
   let cancelExpiry: () => void = () => {};
   let scheduleExpiry: () => void = () => {};
   const notify = () => {
@@ -425,7 +428,7 @@ function subscribeAcceptedArrival(input: AcceptedArrivalInput, onStoreChange: ()
   };
   scheduleExpiry = () => {
     cancelExpiry();
-    cancelExpiry = scheduleAcceptedArrivalExpiry(input, notify);
+    cancelExpiry = scheduleAcceptedArrivalExpiry(query(), notify);
   };
   for (const name of ACCEPTED_ARRIVAL_EVENTS) window.addEventListener(name, notify);
   scheduleExpiry();
@@ -742,22 +745,27 @@ export default function PubMap({
     seed.selectedVenueId || restoredMobileSession?.selectedVenueId || "",
   );
   const reactiveAcceptanceSearch = searchParams?.toString() ?? "";
-  const acceptanceSelectedVenueId = searchParams?.get("sel") ?? seed.selectedVenueId;
-  const acceptedArrivalSnapshot = useCallback(
-    () => readAcceptedArrivalSource({
-      search: reactiveAcceptanceSearch,
-      selectedVenueId: acceptanceSelectedVenueId,
+  // Canonicalising an alias `sel` moves the URL with history.replaceState,
+  // which useSearchParams never hears, so the live location is the only honest
+  // reading of which Venue this arrival is about. The router's own params stay
+  // in the dependency list because a client navigation is the other way this
+  // answer changes, and they are the SSR-safe reading before a window exists.
+  const acceptanceQuery = useCallback((): AcceptedArrivalInput => {
+    const routerSearch = reactiveAcceptanceSearch ? `?${reactiveAcceptanceSearch}` : "";
+    const search = typeof window === "undefined" ? routerSearch : window.location.search;
+    return {
+      search,
+      selectedVenueId: new URLSearchParams(search).get("sel") ?? seed.selectedVenueId,
       cityId,
-    }),
-    [acceptanceSelectedVenueId, cityId, reactiveAcceptanceSearch],
+    };
+  }, [cityId, reactiveAcceptanceSearch, seed.selectedVenueId]);
+  const acceptedArrivalSnapshot = useCallback(
+    () => readAcceptedArrivalSource(acceptanceQuery()),
+    [acceptanceQuery],
   );
   const acceptedArrivalSubscription = useCallback(
-    (onStoreChange: () => void) => subscribeAcceptedArrival({
-      search: reactiveAcceptanceSearch,
-      selectedVenueId: acceptanceSelectedVenueId,
-      cityId,
-    }, onStoreChange),
-    [acceptanceSelectedVenueId, cityId, reactiveAcceptanceSearch],
+    (onStoreChange: () => void) => subscribeAcceptedArrival(acceptanceQuery, onStoreChange),
+    [acceptanceQuery],
   );
   const acceptedArrivalSource = useSyncExternalStore(
     acceptedArrivalSubscription,
@@ -3288,7 +3296,8 @@ export default function PubMap({
     const selectedLensPrice =
       activeLensPrices?.get(selectedVenue.id) ?? null;
     const showsAcceptedArrivalReceipt =
-      acceptedArrivalSource !== null && selectedVenue.id === selParam;
+      acceptedArrivalSource !== null
+      && selectedVenue.id === acceptanceQuery().selectedVenueId;
 
     return (
       <>

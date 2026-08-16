@@ -29,7 +29,7 @@ import {
   type SurfaceStack,
 } from "@/lib/surfaceStack";
 import type { MapOverlay } from "@/lib/mobileShell";
-import { canonicalizeAcceptedArrivalSelection } from "@/lib/mapAcceptance";
+import { announceAcceptedArrivalUrlChange, canonicalizeAcceptedArrivalSelection } from "@/lib/mapAcceptance";
 
 export type MapSurfaceId = MapOverlay | "venue-list";
 
@@ -275,6 +275,7 @@ export function useMapSurfaceNavigation({
           "",
           canonicalUrl,
         );
+        announceAcceptedArrivalUrlChange();
         return;
       }
       window.history.replaceState(

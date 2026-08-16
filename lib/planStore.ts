@@ -25,7 +25,7 @@ export function isMissingDatabaseFunction(error: unknown): boolean {
   const code = (error as { code?: unknown }).code;
   if (code === "PGRST202" || code === "42883") return true;
   const message = (error as { message?: unknown }).message;
-  return typeof message === "string" && /could not find the function|does not exist/i.test(message);
+  return typeof message === "string" && /could not find the function/i.test(message);
 }
 
 export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "error";
@@ -277,8 +277,11 @@ export const supabasePlanStore: PlanStore = {
       });
       if (error && isMissingDatabaseFunction(error)) {
         // Migration 0106 has not been applied yet. Creating the Plan without
-        // its Night Context beats refusing every Plan creation on the site;
-        // the context is editable afterwards.
+        // its Night Context beats refusing every Plan creation on the site,
+        // and the composer writes the context it holds straight afterwards
+        // through PATCH /api/plans/[id] once it sees the created Plan came
+        // back without one. Only a missing FUNCTION may take this path: a
+        // genuine write failure must stay a refusal.
         console.warn("[plans] create context RPC missing; creating without night context");
         ({ data, error } = await admin.rpc("create_plan_idempotent_atomic", createArgs));
       }

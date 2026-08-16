@@ -4,6 +4,7 @@ import {
   anchorConflictMessage,
   composerCreatePayload,
   composerRouteMutation,
+  createdPlanMetadataPatch,
   createdPlanNeedsReadyTransition,
   editedPlanStop,
   errorMessageFromBody,
@@ -30,6 +31,7 @@ import {
 } from "@/components/plan/PlanComposer";
 import { getNightArea } from "@/lib/nightAreas";
 import { createPlanIntakeDraft } from "@/lib/planIntake";
+import type { NightContext } from "@/lib/nightPlanning";
 
 describe("PlanComposer PlanningIntent settlement", () => {
   const intent = { acceptedVenueId: "venue-accepted" };
@@ -240,6 +242,76 @@ describe("PlanComposer created Plan readiness", () => {
       ],
       crew: [],
     })).toBe(false);
+  });
+});
+
+describe("PlanComposer created Plan metadata write", () => {
+  const context: NightContext = {
+    nightArea: "piccadilly-soho",
+    daypart: "evening",
+    partyType: "friends",
+    groupSize: 3,
+    stopCount: 3,
+    budget: "value",
+    budgetLimitPence: null,
+    zeroProof: false,
+    wetherspoonsPreferred: false,
+    atmosphere: [],
+    foodNeeds: [],
+    accessibility: [],
+    transportConstraints: [],
+  };
+  const routeStops = [
+    { venueId: "first", venueName: "First", position: 0 },
+    { venueId: "second", venueName: "Second", position: 1 },
+    { venueId: "third", venueName: "Third", position: 2 },
+  ];
+  const plan = {
+    id: "11111111-1111-4111-8111-111111111111",
+    title: "Tonight",
+    startTime: "2026-08-15T19:00:00.000Z",
+    createdAt: "2026-08-15T12:00:00.000Z",
+    status: "draft" as const,
+    outcome: null,
+    routeReadyAt: null,
+  };
+
+  it("writes the Night Context a create came back without, beside the ready transition", () => {
+    expect(createdPlanMetadataPatch(
+      { plan, stops: routeStops, crew: [], context: null },
+      context,
+    )).toEqual({ status: "ready", context });
+  });
+
+  it("writes the Night Context even when the Plan needs no ready transition", () => {
+    expect(createdPlanMetadataPatch(
+      {
+        plan: { ...plan, outcome: "anchor-only" },
+        stops: [{ venueId: "accepted", venueName: "Accepted", position: 0 }],
+        crew: [],
+        context: null,
+      },
+      context,
+    )).toEqual({ context });
+  });
+
+  it("asks for nothing when the create stored the context and the Plan holds a route", () => {
+    expect(createdPlanMetadataPatch(
+      { plan: { ...plan, status: "ready" }, stops: routeStops, crew: [], context },
+      context,
+    )).toBeNull();
+  });
+
+  it("asks for nothing when there is no context to write and no transition owed", () => {
+    expect(createdPlanMetadataPatch(
+      {
+        plan: { ...plan, outcome: "anchor-only" },
+        stops: [{ venueId: "accepted", venueName: "Accepted", position: 0 }],
+        crew: [],
+        context: null,
+      },
+      null,
+    )).toBeNull();
   });
 });
 

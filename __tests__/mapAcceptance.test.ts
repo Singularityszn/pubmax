@@ -2,6 +2,7 @@ import { beforeEach, describe, it, expect, vi } from "vitest";
 
 import {
   acceptMapVenue,
+  announceAcceptedArrivalUrlChange,
   buildMapAcceptanceIntentInput,
   canonicalizeAcceptedArrivalSelection,
   initialAcceptanceSource,
@@ -13,6 +14,7 @@ import {
 import {
   createPlanningIntent,
   parsePlanningIntent,
+  PLANNING_INTENT_CHANGED_EVENT,
   PLANNING_INTENT_TTL_MS,
   PLANNING_INTENT_STORAGE_KEY,
   type PlanningIntentStorage,
@@ -543,6 +545,56 @@ describe("canonicalizeAcceptedArrivalSelection", () => {
       acceptedAt: new Date(NOW).toISOString(),
       expiresAt: new Date(NOW + PLANNING_INTENT_TTL_MS).toISOString(),
     });
+  });
+
+  it("answers for the canonical sel it moved to, and no longer for the stale one", () => {
+    const storage = memoryStorage();
+    seedIntent(storage, {
+      source: "near",
+      cityId: "london",
+      acceptedVenueId: "venue-alias",
+      acceptedArea: null,
+      startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    });
+
+    const url = canonicalizeAcceptedArrivalSelection({
+      pathname: "/map",
+      search: "?sel=venue-alias&accept=1&src=near",
+      requestedVenueId: "venue-alias",
+      canonicalVenueId: "venue-canonical",
+    }, { storage, now: NOW + 60_000 });
+    expect(url).toBe("/map?sel=venue-canonical&accept=1&src=near");
+
+    invalidateAcceptedArrivalSource();
+    expect(readAcceptedArrivalSource({
+      search: "?sel=venue-canonical&accept=1&src=near",
+      selectedVenueId: "venue-canonical",
+      cityId: "london",
+    }, { storage, now: NOW + 60_000 })).toBe("near");
+
+    invalidateAcceptedArrivalSource();
+    expect(readAcceptedArrivalSource({
+      search: "?sel=venue-alias&accept=1&src=near",
+      selectedVenueId: "venue-alias",
+      cityId: "london",
+    }, { storage, now: NOW + 60_000 })).toBeNull();
+  });
+
+  it("announces the URL move on the channel the accepted-arrival lane listens to", () => {
+    const dispatched: string[] = [];
+    vi.stubGlobal("window", {
+      dispatchEvent: (event: Event) => {
+        dispatched.push(event.type);
+        return true;
+      },
+    });
+    try {
+      announceAcceptedArrivalUrlChange();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(dispatched).toEqual([PLANNING_INTENT_CHANGED_EVENT]);
   });
 
   it("canonicalises an unverified accepted arrival as browsing, keeping no acceptance", () => {

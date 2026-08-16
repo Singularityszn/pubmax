@@ -262,6 +262,26 @@ export function createdPlanNeedsReadyTransition(state: PlanState): boolean {
   return (state.plan.status ?? "draft") === "draft" && planHasRoute(state.plan, state.stops.length);
 }
 
+/**
+ * What a just-created Plan still owes its own record, or null when it owes
+ * nothing. Creation can come back without the Night Context it was given (the
+ * store's context-free fallback while migration 0106 is unapplied), and this
+ * is the only place that ever writes one, so a Plan that came back without it
+ * gets it here rather than losing it for good.
+ */
+export function createdPlanMetadataPatch(
+  state: PlanState,
+  nightContext: NightContext | null,
+): { status?: "ready"; context?: NightContext } | null {
+  const needsReady = createdPlanNeedsReadyTransition(state);
+  const needsContext = Boolean(nightContext) && !state.context;
+  if (!needsReady && !needsContext) return null;
+  return {
+    ...(needsReady ? { status: "ready" as const } : {}),
+    ...(nightContext ? { context: nightContext } : {}),
+  };
+}
+
 function settleConsumedPlanningIntent(stops: ReadonlyArray<{ venueId: string }>): void {
   if (planCreationConsumesPlanningIntent(readPlanningIntent(), stops)) {
     settlePlanningIntent("plan-created");
@@ -1441,14 +1461,15 @@ function PlanComposerForm({
       if (body.memberToken) {
         const planId = body.plan.plan.id as string;
         writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: true, role: "host" });
-        if (createdPlanNeedsReadyTransition(body.plan as PlanState)) {
+        const metadataPatch = createdPlanMetadataPatch(body.plan as PlanState, nightContext);
+        if (metadataPatch) {
           const metadataResponse = await fetch(`/api/plans/${planId}`, {
             method: "PATCH",
             headers: {
               "content-type": "application/json",
               authorization: `Bearer ${body.memberToken}`,
             },
-            body: JSON.stringify({ status: "ready" }),
+            body: JSON.stringify(metadataPatch),
           });
           if (!metadataResponse.ok) {
             discardBody(metadataResponse);

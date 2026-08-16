@@ -21,6 +21,7 @@ import type {
 } from "@/lib/planningIntent";
 import {
   canonicalizePlanningIntentVenueId,
+  PLANNING_INTENT_CHANGED_EVENT,
   PLANNING_INTENT_SOURCES,
   readPlanningIntent,
   writePlanningIntent,
@@ -215,6 +216,18 @@ let acceptedArrivalCache: {
 export function invalidateAcceptedArrivalSource(): void {
   acceptedArrivalRevision += 1;
   acceptedArrivalCache = null;
+}
+
+/**
+ * An accepted arrival's answer is half URL and half stored intent, so moving
+ * the URL in place has to announce itself the same way a storage write does.
+ * `history.replaceState` raises no event of its own and Next's own search-param
+ * readers never hear it, so a canonicalised `sel` would otherwise be read
+ * against the previous id until something else happened to notify.
+ */
+export function announceAcceptedArrivalUrlChange(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(PLANNING_INTENT_CHANGED_EVENT));
 }
 
 /**
