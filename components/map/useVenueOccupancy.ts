@@ -36,9 +36,9 @@ function parseReading(body: unknown): VenueOccupancyReading {
     typeof row.ageMinutes === "number" && Number.isFinite(row.ageMinutes)
       ? Math.max(0, Math.floor(row.ageMinutes))
       : null;
-  const reportsLast90 =
-    typeof row.reportsLast90 === "number" && Number.isFinite(row.reportsLast90)
-      ? Math.max(0, Math.floor(row.reportsLast90))
+  const reportersLast90 =
+    typeof row.reportersLast90 === "number" && Number.isFinite(row.reportersLast90)
+      ? Math.max(0, Math.floor(row.reportersLast90))
       : 0;
   const state =
     row.state === "fresh" ||
@@ -53,7 +53,7 @@ function parseReading(body: unknown): VenueOccupancyReading {
   return {
     now: now && ageMinutes != null ? now : null,
     ageMinutes: now ? ageMinutes : null,
-    reportsLast90,
+    reportersLast90,
     degraded: false,
     state,
     id,

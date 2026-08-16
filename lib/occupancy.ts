@@ -102,7 +102,7 @@ export type OccupancyReport = {
 export type OccupancyNowAnswer = {
   now: OccupancyLevel | null;
   ageMinutes: number | null;
-  reportsLast90: number;
+  reportersLast90: number;
   degraded: boolean;
   /** Derived on read. Older rows feed the forecast later; they never paint now. */
   state: OccupancyReadState;
@@ -152,9 +152,29 @@ export function occupancySignInHref(venueId: string): string {
   return `/login?mode=signin&from=${encodeURIComponent(`/map?sel=${venueId}`)}`;
 }
 
-export function occupancyReportsCaption(count: number): string | null {
+/**
+ * How many PEOPLE are behind the reading, never how many rows. The retake
+ * merge spans 15 minutes inside a 90-minute window, so one drinker tapping
+ * every quarter of an hour holds several rows and would otherwise read as
+ * corroboration nobody gave.
+ */
+export function occupancyReportersCaption(count: number): string | null {
   if (count <= 0) return null;
-  return count === 1 ? "1 report" : `${count} reports`;
+  return count === 1 ? "1 person" : `${count} people`;
+}
+
+/** Distinct accounts behind a set of readings. An unattributed row counts once. */
+function distinctReporters(
+  rows: readonly { reporterUserId?: string }[],
+): number {
+  const named = new Set<string>();
+  let unattributed = 0;
+  for (const row of rows) {
+    const id = typeof row.reporterUserId === "string" ? row.reporterUserId.trim() : "";
+    if (id) named.add(id);
+    else unattributed = 1;
+  }
+  return named.size + unattributed;
 }
 
 export function occupancyNowFromReports(
@@ -166,7 +186,7 @@ export function occupancyNowFromReports(
     return {
       now: null,
       ageMinutes: null,
-      reportsLast90: 0,
+      reportersLast90: 0,
       degraded: true,
       state: "degraded",
       id: null,
@@ -193,7 +213,7 @@ export function occupancyNowFromReports(
     return {
       now: newest.row.level,
       ageMinutes: occupancyAgeMinutes(newest.reportedAtMs, nowMs),
-      reportsLast90: fresh.length,
+      reportersLast90: distinctReporters(fresh.map(({ row }) => row)),
       degraded: false,
       state: "fresh",
       id: newest.row.id ?? null,
@@ -203,7 +223,7 @@ export function occupancyNowFromReports(
   return {
     now: null,
     ageMinutes: null,
-    reportsLast90: 0,
+    reportersLast90: 0,
     degraded: false,
     state: hadOlder ? "stale" : "none",
     id: null,
@@ -228,7 +248,7 @@ export function occupancyAnswerAfter(
     return {
       now: null,
       ageMinutes: null,
-      reportsLast90: 0,
+      reportersLast90: 0,
       degraded: false,
       state: "stale",
       id: null,
@@ -246,7 +266,7 @@ export function occupancyReadState(
 export function occupancyReadingLine(answer: OccupancyNowAnswer): string {
   if (answer.degraded) return "Could not check how busy it is.";
   if (!answer.now || answer.ageMinutes == null) return "No fresh reading";
-  const count = occupancyReportsCaption(answer.reportsLast90);
+  const count = occupancyReportersCaption(answer.reportersLast90);
   const base = `${OCCUPANCY_LEVEL_LABELS[answer.now]} · ${occupancyAgeLabel(answer.ageMinutes)}`;
   return count ? `${base} · ${count}` : base;
 }

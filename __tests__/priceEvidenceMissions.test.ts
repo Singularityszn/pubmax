@@ -9,6 +9,8 @@ import { isMapLensDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import {
   MAX_PRICE_EVIDENCE_MISSION_VENUE_IDS,
   PRICE_EVIDENCE_MISSION_REASONS,
+  effectiveSubmitCategory,
+  holdSubmitCategory,
   missionHeading,
   missionNamedCategory,
   missionReceiptFromReadback,
@@ -331,5 +333,69 @@ describe("PRICE_EVIDENCE_MISSION_REASONS", () => {
       "stale",
       "missing",
     ]);
+  });
+});
+
+describe("the drink a typed price is submitted under", () => {
+  it("holds the visible drink from the first keystroke", () => {
+    expect(
+      holdSubmitCategory({ held: null, nextPrice: "", visible: "beer" }),
+    ).toBeNull();
+    expect(
+      holdSubmitCategory({ held: null, nextPrice: "5", visible: "beer" }),
+    ).toBe("beer");
+    // Still the drink of the FIRST keystroke, not of the latest one.
+    expect(
+      holdSubmitCategory({ held: "beer", nextPrice: "5.20", visible: "wine" }),
+    ).toBe("beer");
+  });
+
+  it("lets go when the field is cleared", () => {
+    expect(
+      holdSubmitCategory({ held: "beer", nextPrice: "", visible: "wine" }),
+    ).toBeNull();
+    expect(
+      holdSubmitCategory({ held: "beer", nextPrice: "   ", visible: "wine" }),
+    ).toBeNull();
+  });
+
+  it("refuses a mission that arrives after typing began", () => {
+    // The reported race: the sheet mounts on the beer lane with the mission
+    // read still in flight, the drinker types 5.20, and the mission then
+    // answers "wine". The figure stays a beer price.
+    const beforeTyping = effectiveSubmitCategory({
+      held: null,
+      mission: null,
+      chosen: "beer",
+    });
+    expect(beforeTyping).toBe("beer");
+
+    const held = holdSubmitCategory({
+      held: null,
+      nextPrice: "5.20",
+      visible: beforeTyping,
+    });
+    expect(
+      effectiveSubmitCategory({ held, mission: "wine", chosen: "beer" }),
+    ).toBe("beer");
+
+    // Once the field is empty again, the mission's own drink leads.
+    const released = holdSubmitCategory({ held, nextPrice: "", visible: "beer" });
+    expect(
+      effectiveSubmitCategory({ held: released, mission: "wine", chosen: "beer" }),
+    ).toBe("wine");
+  });
+
+  it("takes the mission's drink when it was there before any typing", () => {
+    const visible = effectiveSubmitCategory({
+      held: null,
+      mission: "wine",
+      chosen: "beer",
+    });
+    expect(visible).toBe("wine");
+    const held = holdSubmitCategory({ held: null, nextPrice: "7", visible });
+    expect(
+      effectiveSubmitCategory({ held, mission: "wine", chosen: "beer" }),
+    ).toBe("wine");
   });
 });

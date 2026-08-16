@@ -40,7 +40,7 @@ export async function GET(
     return jsonNoStore({
       now: reading.now,
       ageMinutes: reading.ageMinutes,
-      reportsLast90: reading.reportsLast90,
+      reportersLast90: reading.reportersLast90,
       degraded: reading.degraded,
       state: reading.state,
       id: reading.id,
@@ -50,7 +50,7 @@ export async function GET(
     return jsonNoStore({
       now: failed.now,
       ageMinutes: failed.ageMinutes,
-      reportsLast90: failed.reportsLast90,
+      reportersLast90: failed.reportersLast90,
       degraded: true,
       state: "degraded",
       id: failed.id,
@@ -166,7 +166,7 @@ export async function POST(
     return jsonNoStore({
       now: reading.now,
       ageMinutes: reading.ageMinutes,
-      reportsLast90: reading.reportsLast90,
+      reportersLast90: reading.reportersLast90,
       degraded: reading.degraded,
       state: reading.state,
       id: reading.id ?? stored.id,

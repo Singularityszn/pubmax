@@ -37,7 +37,7 @@ create index if not exists venue_occupancy_reports_review_idx
 create table if not exists public.venue_occupancy_flags (
   id uuid primary key default gen_random_uuid(),
   occupancy_report_id uuid not null references public.venue_occupancy_reports (id) on delete cascade,
-  actor_hash text,
+  actor_hash text not null,
   reason text,
   created_at timestamptz not null default now(),
   unique (occupancy_report_id, actor_hash)
@@ -45,6 +45,8 @@ create table if not exists public.venue_occupancy_flags (
 
 comment on table public.venue_occupancy_flags is
   'Per-actor occupancy flags. Service-role only. Reporting never hides.';
+comment on column public.venue_occupancy_flags.actor_hash is
+  'Never null: NULLs do not conflict, so a nullable actor would insert a fresh row per flag and inflate the distinct count. An unattributed flag takes the anonymous sentinel.';
 
 alter table public.venue_occupancy_flags enable row level security;
 
@@ -82,7 +84,7 @@ begin
   end if;
 
   insert into public.venue_occupancy_flags (occupancy_report_id, actor_hash, reason)
-  values (p_id, nullif(p_actor_hash, ''), nullif(p_reason, ''))
+  values (p_id, coalesce(nullif(trim(p_actor_hash), ''), 'anonymous'), nullif(p_reason, ''))
   on conflict (occupancy_report_id, actor_hash) do nothing;
   v_inserted := found;
 

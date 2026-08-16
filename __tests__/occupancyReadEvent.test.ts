@@ -22,7 +22,7 @@ vi.mock("@/lib/accountBoundFetch", () => ({
           JSON.stringify({
             now: "full",
             ageMinutes: 0,
-            reportsLast90: 1,
+            reportersLast90: 1,
             degraded: false,
             state: postState.state,
             level: "full",

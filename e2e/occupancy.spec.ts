@@ -65,7 +65,7 @@ test("a signed-out visitor sees the reading and the sign-in door", async ({
       body: JSON.stringify({
         now: "some-seats",
         ageMinutes: 12,
-        reportsLast90: 1,
+        reportersLast90: 1,
         degraded: false,
         state: "fresh",
       }),
@@ -80,7 +80,7 @@ test("a signed-out visitor sees the reading and the sign-in door", async ({
   const row = sheet.locator(".venueOccupancy");
   await expect(row).toBeVisible();
   await expect(row.getByText("How busy is it right now?")).toBeVisible();
-  await expect(row.getByText("Some seats · 12 min ago · 1 report")).toBeVisible();
+  await expect(row.getByText("Some seats · 12 min ago · 1 person")).toBeVisible();
   const signIn = row.getByRole("link", { name: "Sign in to report" });
   await expect(signIn).toBeVisible();
   await expect(signIn).toHaveAttribute(
@@ -128,7 +128,7 @@ test("a signed-in tap writes a receipt then an aged reading", async ({
         body: JSON.stringify({
           now: "some-seats",
           ageMinutes: 0,
-          reportsLast90: 1,
+          reportersLast90: 1,
           degraded: false,
           state: "fresh",
           level: "some-seats",
@@ -144,14 +144,14 @@ test("a signed-in tap writes a receipt then an aged reading", async ({
           ? {
               now: "some-seats",
               ageMinutes: 12,
-              reportsLast90: 1,
+              reportersLast90: 1,
               degraded: false,
               state: "fresh",
             }
           : {
               now: null,
               ageMinutes: null,
-              reportsLast90: 0,
+              reportersLast90: 0,
               degraded: false,
               state: "none",
             },
@@ -181,7 +181,7 @@ test("a signed-in tap writes a receipt then an aged reading", async ({
 
   // The receipt gives way to the derived reading rather than freezing the row
   // on its own "just now" for the life of the sheet.
-  await expect(reading).toHaveText("Some seats · just now · 1 report", {
+  await expect(reading).toHaveText("Some seats · just now · 1 person", {
     timeout: 20_000,
   });
   await expect(row.locator('[role="status"]')).toHaveText("");
@@ -190,5 +190,5 @@ test("a signed-in tap writes a receipt then an aged reading", async ({
   await page.locator("#venueTab-story").click();
   await expect(page.locator("#venuePanel-story")).toBeVisible();
   await page.locator("#venueTab-overview").click();
-  await expect(row.getByText("Some seats · 12 min ago · 1 report")).toBeVisible();
+  await expect(row.getByText("Some seats · 12 min ago · 1 person")).toBeVisible();
 });

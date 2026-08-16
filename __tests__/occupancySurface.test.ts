@@ -15,7 +15,7 @@ const occupancyState = vi.hoisted(() => ({
   reading: {
     now: null,
     ageMinutes: null,
-    reportsLast90: 0,
+    reportersLast90: 0,
     degraded: false,
     state: "none",
     id: null,
@@ -61,7 +61,7 @@ beforeEach(() => {
   occupancyState.reading = {
     now: null,
     ageMinutes: null,
-    reportsLast90: 0,
+    reportersLast90: 0,
     degraded: false,
     state: "none",
     id: null,
@@ -98,14 +98,14 @@ describe("occupancy venue surface", () => {
     occupancyState.reading = {
       now: "some-seats",
       ageMinutes: 12,
-      reportsLast90: 1,
+      reportersLast90: 1,
       degraded: false,
       state: "fresh",
       id: "occ-1",
     };
 
     const dated = render();
-    expect(dated).toContain("Some seats · 12 min ago · 1 report");
+    expect(dated).toContain("Some seats · 12 min ago · 1 person");
     expect(dated).not.toContain("venueOccupancyReading--empty");
     expect(dated).not.toContain("aria-pressed");
     expect(dated).toContain("Report this crowd reading");
@@ -113,7 +113,7 @@ describe("occupancy venue surface", () => {
     occupancyState.reading = {
       now: null,
       ageMinutes: null,
-      reportsLast90: 0,
+      reportersLast90: 0,
       degraded: false,
       state: "stale",
       id: null,
@@ -129,7 +129,7 @@ describe("occupancy venue surface", () => {
     occupancyState.reading = {
       now: null,
       ageMinutes: null,
-      reportsLast90: 0,
+      reportersLast90: 0,
       degraded: true,
       state: "degraded",
       id: null,
@@ -145,7 +145,7 @@ describe("occupancy venue surface", () => {
     occupancyState.reading = {
       now: "some-seats",
       ageMinutes: 12,
-      reportsLast90: 1,
+      reportersLast90: 1,
       degraded: false,
       state: "fresh",
       id: "occ-1",

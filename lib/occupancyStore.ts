@@ -12,7 +12,9 @@ import {
   admin,
   createDualBackendStore,
   createFailSoftGuard,
+  isMissingTableSchema,
   onMissingDurableWrite,
+  runStoreOp,
 } from "@/lib/storeBackend";
 import {
   OCCUPANCY_SOURCE,
@@ -89,6 +91,18 @@ function findMemoryRow(id: string): OccupancyStoredReport | undefined {
   return memoryReports.find((row) => row.id === id);
 }
 
+/**
+ * report_count is a count of DISTINCT reporters. Two flags nobody can tell
+ * apart are one reporter, so an unattributed flag takes one sentinel rather
+ * than a fresh identity, and the count can never be inflated by omission.
+ */
+export const ANONYMOUS_OCCUPANCY_FLAG_ACTOR = "anonymous";
+
+function flagActor(actorHash: string | undefined): string {
+  const cleaned = typeof actorHash === "string" ? actorHash.trim() : "";
+  return cleaned === "" ? ANONYMOUS_OCCUPANCY_FLAG_ACTOR : cleaned;
+}
+
 export const memoryOccupancyStore: OccupancyStore = {
   async report(input) {
     const venueId = cleanVenueId(input.venueId);
@@ -126,11 +140,9 @@ export const memoryOccupancyStore: OccupancyStore = {
   async flag(id, reason, actorHash) {
     const row = findMemoryRow(id);
     if (!row) return false;
-    const reporter = actorHash && actorHash !== "" ? actorHash : null;
-    if (reporter) {
-      if (row.reporters.has(reporter)) return true;
-      row.reporters.add(reporter);
-    }
+    const reporter = flagActor(actorHash);
+    if (row.reporters.has(reporter)) return true;
+    row.reporters.add(reporter);
     row.reportCount += 1;
     const cleaned = cleanReason(reason);
     if (cleaned) row.reportReason = cleaned;
@@ -163,8 +175,64 @@ type OccupancyRow = {
   report_reason?: unknown;
 };
 
-const OCCUPANCY_SELECT =
-  "id, venue_id, reported_at, level, reporter_user_id, source, hidden_at, report_count, report_reason";
+// 0107's columns alone. Every read has to answer from these, because the code
+// may be live before the captain applies 0109 and a crowd reading that worked
+// on 0107 may not go dark waiting for a moderation lane.
+const BASE_SELECT = "id, venue_id, reported_at, level, reporter_user_id, source";
+const MODERATION_SELECT = `${BASE_SELECT}, hidden_at, report_count, report_reason`;
+
+// Whether this deployment has seen 0109. It starts optimistic and only ever
+// falls once, on the database's own answer, so the probe costs one query.
+let moderationColumnsPresent = true;
+
+/**
+ * PostgREST answers an unknown column with 42703, which is NOT a missing-table
+ * schema miss: the table is there, one column is not.
+ */
+function isUndefinedColumn(error: unknown): boolean {
+  const candidate = error as { code?: unknown; message?: unknown } | null;
+  if (candidate?.code === "42703") return true;
+  return (
+    typeof candidate?.message === "string" &&
+    /column .* does not exist/i.test(candidate.message)
+  );
+}
+
+/**
+ * Run a query with the moderation columns, and once on the base columns if the
+ * database says it has never seen them.
+ */
+async function withOccupancyColumns<T>(
+  run: (select: string, moderated: boolean) => Promise<T>,
+): Promise<T> {
+  if (!moderationColumnsPresent) return run(BASE_SELECT, false);
+  try {
+    return await run(MODERATION_SELECT, true);
+  } catch (error) {
+    if (!isUndefinedColumn(error)) throw error;
+    moderationColumnsPresent = false;
+    return run(BASE_SELECT, false);
+  }
+}
+
+function throwPostgrest(error: { message: string } | null): never {
+  throw Object.assign(new Error(error?.message ?? "occupancy query failed"), error ?? {});
+}
+
+/**
+ * The moderation lane is absent when the table is missing OR when 0109 has not
+ * been applied to it. Both mean "no durable moderation here yet", so both take
+ * the store's schema-miss policy rather than answering 503 at a reader.
+ */
+function missingOccupancyModeration(error: unknown): boolean {
+  if (isUndefinedColumn(error)) return true;
+  const message =
+    error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  return (
+    isMissingTableSchema(error, TABLE) ||
+    /report_occupancy_report/.test(message)
+  );
+}
 
 function fromRow(row: OccupancyRow): OccupancyStoredReport | null {
   const id = typeof row.id === "string" ? row.id : "";
@@ -223,52 +291,54 @@ export const supabaseOccupancyStore: OccupancyStore = {
               now: nowMs,
             }),
         }),
-      run: async () => {
-        const since = new Date(nowMs - 15 * 60 * 1000).toISOString();
-        const { data: openRows, error: openError } = await admin()
-          .from(TABLE)
-          .select(OCCUPANCY_SELECT)
-          .eq("venue_id", venueId)
-          .eq("reporter_user_id", reporterUserId)
-          .is("hidden_at", null)
-          .gte("reported_at", since)
-          .order("reported_at", { ascending: false })
-          .limit(1);
-        if (openError) throw new Error(openError.message);
-        const open = fromRow((openRows ?? [])[0] ?? {});
-        if (open && !open.hiddenAt && occupancyRetakeOpen(open.reportedAt, nowMs)) {
+      run: () =>
+        withOccupancyColumns(async (select, moderated) => {
+          const since = new Date(nowMs - 15 * 60 * 1000).toISOString();
+          let openQuery = admin()
+            .from(TABLE)
+            .select(select)
+            .eq("venue_id", venueId)
+            .eq("reporter_user_id", reporterUserId);
+          if (moderated) openQuery = openQuery.is("hidden_at", null);
+          const { data: openRows, error: openError } = await openQuery
+            .gte("reported_at", since)
+            .order("reported_at", { ascending: false })
+            .limit(1);
+          if (openError) throwPostgrest(openError);
+          const open = fromRow(((openRows ?? [])[0] ?? {}) as OccupancyRow);
+          if (open && !open.hiddenAt && occupancyRetakeOpen(open.reportedAt, nowMs)) {
+            const { data, error } = await admin()
+              .from(TABLE)
+              .update({
+                level: occupancyLevelToSql(input.level),
+                reported_at: new Date(nowMs).toISOString(),
+              })
+              .eq("id", open.id)
+              .select(select)
+              .limit(1);
+            if (error) throwPostgrest(error);
+            const updated = fromRow(((data ?? [])[0] ?? {}) as OccupancyRow);
+            if (!updated) throw new Error("The occupancy report did not persist.");
+            return updated;
+          }
+          const row = stamp({ ...input, venueId, reporterUserId }, nowMs);
           const { data, error } = await admin()
             .from(TABLE)
-            .update({
-              level: occupancyLevelToSql(input.level),
-              reported_at: new Date(nowMs).toISOString(),
+            .insert({
+              id: row.id,
+              venue_id: row.venueId,
+              reported_at: row.reportedAt,
+              level: occupancyLevelToSql(row.level),
+              reporter_user_id: row.reporterUserId,
+              source: row.source,
             })
-            .eq("id", open.id)
-            .select(OCCUPANCY_SELECT)
+            .select(select)
             .limit(1);
-          if (error) throw new Error(error.message);
-          const updated = fromRow((data ?? [])[0] ?? {});
-          if (!updated) throw new Error("The occupancy report did not persist.");
-          return updated;
-        }
-        const row = stamp({ ...input, venueId, reporterUserId }, nowMs);
-        const { data, error } = await admin()
-          .from(TABLE)
-          .insert({
-            id: row.id,
-            venue_id: row.venueId,
-            reported_at: row.reportedAt,
-            level: occupancyLevelToSql(row.level),
-            reporter_user_id: row.reporterUserId,
-            source: row.source,
-          })
-          .select(OCCUPANCY_SELECT)
-          .limit(1);
-        if (error) throw new Error(error.message);
-        const stored = fromRow((data ?? [])[0] ?? {});
-        if (!stored) throw new Error("The occupancy report did not persist.");
-        return stored;
-      },
+          if (error) throwPostgrest(error);
+          const stored = fromRow(((data ?? [])[0] ?? {}) as OccupancyRow);
+          if (!stored) throw new Error("The occupancy report did not persist.");
+          return stored;
+        }),
     });
   },
 
@@ -290,27 +360,31 @@ export const supabaseOccupancyStore: OccupancyStore = {
           : memoryOccupancyStore.readNow(id, now),
       onError: () => occupancyNowFromReports([], now ?? Date.now(), { degraded: true }),
       message: "occupancy read failed",
-      run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .select(OCCUPANCY_SELECT)
-          .eq("venue_id", id)
-          .order("reported_at", { ascending: false })
-          .limit(200);
-        if (error) throw new Error(error.message);
-        const reports = (data ?? [])
-          .map((row) => fromRow(row as OccupancyRow))
-          .filter((row): row is OccupancyStoredReport => row !== null);
-        return occupancyNowFromReports(reports, now ?? Date.now());
-      },
+      run: () =>
+        withOccupancyColumns(async (select, moderated) => {
+          // The row cap is a window over rows a reader may actually see, so a
+          // hidden row may never spend one of the 200.
+          let query = admin().from(TABLE).select(select).eq("venue_id", id);
+          if (moderated) query = query.is("hidden_at", null);
+          const { data, error } = await query
+            .order("reported_at", { ascending: false })
+            .limit(200);
+          if (error) throwPostgrest(error);
+          const reports = (data ?? [])
+            .map((row) => fromRow(row as OccupancyRow))
+            .filter((row): row is OccupancyStoredReport => row !== null);
+          return occupancyNowFromReports(reports, now ?? Date.now());
+        }),
     });
   },
 
   async flag(id, reason, actorHash) {
     const reportId = typeof id === "string" ? id.trim() : "";
     if (!reportId) return false;
-    return guard.guard({
+    return runStoreOp({
       context: "flag",
+      isSchemaMiss: missingOccupancyModeration,
+      warnSchemaMiss: guard.warn,
       onSchemaMiss: () => memoryOccupancyStore.flag(reportId, reason, actorHash),
       run: async () => {
         const { data, error } = await admin().rpc("report_occupancy_report", {
@@ -318,7 +392,7 @@ export const supabaseOccupancyStore: OccupancyStore = {
           p_actor_hash: actorHash ?? "",
           p_reason: cleanReason(reason),
         });
-        if (error) throw new Error(error.message);
+        if (error) throwPostgrest(error);
         return data === true;
       },
     });
@@ -327,8 +401,10 @@ export const supabaseOccupancyStore: OccupancyStore = {
   async moderate(id, hidden) {
     const reportId = typeof id === "string" ? id.trim() : "";
     if (!reportId) return false;
-    return guard.guard({
+    return runStoreOp({
       context: "moderate",
+      isSchemaMiss: missingOccupancyModeration,
+      warnSchemaMiss: guard.warn,
       onSchemaMiss: () => memoryOccupancyStore.moderate(reportId, hidden),
       run: async () => {
         const { data, error } = await admin()
@@ -337,7 +413,7 @@ export const supabaseOccupancyStore: OccupancyStore = {
           .eq("id", reportId)
           .select("id")
           .limit(1);
-        if (error) throw new Error(error.message);
+        if (error) throwPostgrest(error);
         return Boolean(data?.[0]);
       },
     });
@@ -351,5 +427,6 @@ export const occupancyStore = createDualBackendStore(
 
 export function __resetMemoryOccupancyReports(): void {
   memoryReports.length = 0;
+  moderationColumnsPresent = true;
   guard.resetWarnings();
 }

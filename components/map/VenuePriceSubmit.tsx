@@ -27,6 +27,8 @@ import { trackEvent } from "@/lib/analytics";
 import PriceContributionImpact from "@/components/map/PriceContributionImpact";
 import type { MissionSurface } from "@/lib/analyticsEvents";
 import {
+  effectiveSubmitCategory,
+  holdSubmitCategory,
   missionAnalyticsProps,
   missionNamedCategory,
   missionReceiptFromReadback,
@@ -138,13 +140,31 @@ export default function VenuePriceSubmit({
   const [chosenCategory, setCategory] = useState<DrinkCategory>(
     missionCategory ?? laneCategory,
   );
-  const category = missionCategory ?? chosenCategory;
+  // The drink the figure on screen was entered under. A mission arriving after
+  // typing began may rename the heading, never this.
+  const [heldCategory, setHeldCategory] = useState<DrinkCategory | null>(null);
+  const category = effectiveSubmitCategory({
+    held: heldCategory,
+    mission: missionCategory,
+    chosen: chosenCategory,
+  });
+  const missionAsksAnother =
+    missionCategory !== null && missionCategory !== category;
   const categories = useMemo(
     () => submitCategoriesForLane(laneCategory),
     [laneCategory],
   );
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  function enterPrice(next: string) {
+    setPrice(next);
+    setHeldCategory((held) =>
+      holdSubmitCategory({ held, nextPrice: next, visible: category }),
+    );
+    setError(null);
+  }
+
   // Which drink this viewer just logged, so the receipt celebrates THEIR tap.
   // The dated community price itself is shown in the price block above by
   // VenueOverviewTab for every reader, submitter or not.
@@ -167,6 +187,7 @@ export default function VenuePriceSubmit({
     if (laneSeenRef.current === laneCategory) return;
     laneSeenRef.current = laneCategory;
     setCategory(laneCategory);
+    setHeldCategory((held) => (held === null ? null : laneCategory));
     setError(null);
   }, [laneCategory, missionLocksCategory]);
 
@@ -264,6 +285,7 @@ export default function VenuePriceSubmit({
         missionReceipt,
       });
       setPrice("");
+      setHeldCategory(null);
     });
   }
 
@@ -281,7 +303,14 @@ export default function VenuePriceSubmit({
       </div>
 
       {missionLocksCategory ? (
-        <p className="vpsubLockedDrink">{submitCategoryLabel(category)}</p>
+        <>
+          <p className="vpsubLockedDrink">{submitCategoryLabel(category)}</p>
+          {missionAsksAnother ? (
+            <p className="vpsubHeldDrink">
+              {`Clear the price to log ${drinkLaneNoun(missionCategory)} instead.`}
+            </p>
+          ) : null}
+        </>
       ) : (
         <div
           className="vpsubCats"
@@ -299,6 +328,7 @@ export default function VenuePriceSubmit({
                 // The receipt belongs to the drink it was logged for, so
                 // switching categories shows that category's own record.
                 setCategory(option);
+                setHeldCategory((held) => (held === null ? null : option));
                 setError(null);
               }}
             >
@@ -332,8 +362,7 @@ export default function VenuePriceSubmit({
             onChange={(event) => {
               // Keep the field to what a price can be as you type - digits and
               // one separator - so the keypad can't produce an unparseable value.
-              setPrice(event.target.value.replace(/[^\d.,]/g, ""));
-              setError(null);
+              enterPrice(event.target.value.replace(/[^\d.,]/g, ""));
             }}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
@@ -361,8 +390,7 @@ export default function VenuePriceSubmit({
               type="button"
               className="vpsubQuickChip"
               onClick={() => {
-                setPrice(formatPriceGbp(value));
-                setError(null);
+                enterPrice(formatPriceGbp(value));
               }}
             >
               {formatPrice(value)}

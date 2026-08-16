@@ -87,10 +87,10 @@ describe("occupancy 90-minute now rule", () => {
     );
     expect(fresh.now).toBe("empty");
     expect(fresh.ageMinutes).toBe(12);
-    expect(fresh.reportsLast90).toBe(1);
+    expect(fresh.reportersLast90).toBe(1);
     expect(fresh.degraded).toBe(false);
     expect(occupancyReadState(fresh)).toBe("fresh");
-    expect(occupancyReadingLine(fresh)).toBe("Empty · 12 min ago · 1 report");
+    expect(occupancyReadingLine(fresh)).toBe("Empty · 12 min ago · 1 person");
 
     const stale = occupancyNowFromReports(
       [report("full", NOW - 91 * 60 * 1000)],
@@ -98,7 +98,7 @@ describe("occupancy 90-minute now rule", () => {
     );
     expect(stale.now).toBeNull();
     expect(stale.ageMinutes).toBeNull();
-    expect(stale.reportsLast90).toBe(0);
+    expect(stale.reportersLast90).toBe(0);
     expect(occupancyReadState(stale)).toBe("stale");
     expect(occupancyReadingLine(stale)).toBe("No fresh reading");
 
@@ -127,7 +127,7 @@ describe("occupancy 90-minute now rule", () => {
       [report("some-seats", NOW - 12 * 60 * 1000)],
       NOW,
     );
-    expect(occupancyReadingLine(one)).toBe("Some seats · 12 min ago · 1 report");
+    expect(occupancyReadingLine(one)).toBe("Some seats · 12 min ago · 1 person");
 
     const three = occupancyNowFromReports(
       [
@@ -137,8 +137,33 @@ describe("occupancy 90-minute now rule", () => {
       ],
       NOW,
     );
-    expect(three.reportsLast90).toBe(3);
-    expect(occupancyReadingLine(three)).toBe("Full · 2 min ago · 3 reports");
+    expect(three.reportersLast90).toBe(3);
+    expect(occupancyReadingLine(three)).toBe("Full · 2 min ago · 3 people");
+  });
+
+  it("counts one drinker's retakes once, never as corroboration", () => {
+    // The retake merge spans 15 minutes inside a 90-minute window, so one
+    // person tapping every quarter of an hour holds six rows.
+    const alone = occupancyNowFromReports(
+      [0, 15, 30, 45, 60, 75].map((minutes) =>
+        report("full", NOW - minutes * 60 * 1000, "user-a"),
+      ),
+      NOW,
+    );
+    expect(alone.reportersLast90).toBe(1);
+    expect(occupancyReadingLine(alone)).toBe("Full · just now · 1 person");
+
+    const twoOfThem = occupancyNowFromReports(
+      [
+        report("full", NOW - 1 * 60 * 1000, "user-a"),
+        report("full", NOW - 16 * 60 * 1000, "user-a"),
+        report("full", NOW - 31 * 60 * 1000, "user-a"),
+        report("full", NOW - 4 * 60 * 1000, "user-b"),
+      ],
+      NOW,
+    );
+    expect(twoOfThem.reportersLast90).toBe(2);
+    expect(occupancyReadingLine(twoOfThem)).toBe("Full · 1 min ago · 2 people");
   });
 
   it("carries the pub back through the sign-in door", () => {
@@ -164,14 +189,14 @@ describe("occupancy 90-minute now rule", () => {
       NOW,
     );
     expect(occupancyReadingLine(justReported)).toBe(
-      "Some seats · just now · 1 report",
+      "Some seats · just now · 1 person",
     );
 
     const held12 = occupancyAnswerAfter(justReported, 12 * 60 * 1000);
     expect(held12.now).toBe("some-seats");
     expect(held12.ageMinutes).toBe(12);
     expect(occupancyReadingLine(held12)).toBe(
-      "Some seats · 12 min ago · 1 report",
+      "Some seats · 12 min ago · 1 person",
     );
 
     const atWindow = occupancyAnswerAfter(justReported, OCCUPANCY_FRESH_WINDOW_MS);
@@ -184,7 +209,7 @@ describe("occupancy 90-minute now rule", () => {
     );
     expect(pastWindow.now).toBeNull();
     expect(pastWindow.ageMinutes).toBeNull();
-    expect(pastWindow.reportsLast90).toBe(0);
+    expect(pastWindow.reportersLast90).toBe(0);
     expect(occupancyReadState(pastWindow)).toBe("stale");
     expect(occupancyReadingLine(pastWindow)).toBe("No fresh reading");
   });
@@ -223,7 +248,7 @@ describe("occupancy 90-minute now rule", () => {
       NOW,
     );
     expect(hidden.now).toBe("some-seats");
-    expect(hidden.reportsLast90).toBe(1);
+    expect(hidden.reportersLast90).toBe(1);
     expect(hidden.id).toBe("open-1");
   });
 });

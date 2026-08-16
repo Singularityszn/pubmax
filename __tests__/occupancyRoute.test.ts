@@ -113,7 +113,7 @@ describe("GET /api/venues/[id]/occupancy", () => {
     expect(await response.json()).toMatchObject({
       now: null,
       ageMinutes: null,
-      reportsLast90: 0,
+      reportersLast90: 0,
       degraded: false,
       state: "none",
     });
@@ -150,7 +150,7 @@ describe("POST /api/venues/[id]/occupancy", () => {
     expect(await response.json()).toMatchObject({
       now: "some-seats",
       ageMinutes: 0,
-      reportsLast90: 1,
+      reportersLast90: 1,
       degraded: false,
       state: "fresh",
       level: "some-seats",
@@ -164,7 +164,7 @@ describe("POST /api/venues/[id]/occupancy", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       now: "full",
-      reportsLast90: 1,
+      reportersLast90: 1,
     });
   });
 
@@ -196,13 +196,13 @@ describe("POST /api/venues/[id]/occupancy", () => {
     const canonical = await GET(getRequest(), params(VENUE));
     expect(await canonical.json()).toMatchObject({
       now: "full",
-      reportsLast90: 1,
+      reportersLast90: 1,
     });
 
     const viaAlias = await GET(getRequest(), params("legacy-occupancy-pub"));
     expect(await viaAlias.json()).toMatchObject({
       now: "full",
-      reportsLast90: 1,
+      reportersLast90: 1,
     });
   });
 
@@ -249,7 +249,7 @@ describe("occupancy reader flag and moderator hide", () => {
     const stillUp = await GET(getRequest(), params(VENUE));
     expect(await stillUp.json()).toMatchObject({
       now: "full",
-      reportsLast90: 1,
+      reportersLast90: 1,
     });
   });
 
@@ -274,7 +274,7 @@ describe("occupancy reader flag and moderator hide", () => {
     const gone = await GET(getRequest(), params(VENUE));
     expect(await gone.json()).toMatchObject({
       now: null,
-      reportsLast90: 0,
+      reportersLast90: 0,
     });
 
     const restored = await POST(
@@ -283,6 +283,6 @@ describe("occupancy reader flag and moderator hide", () => {
     );
     expect(restored.status).toBe(200);
     const back = await GET(getRequest(), params(VENUE));
-    expect(await back.json()).toMatchObject({ now: "full", reportsLast90: 1 });
+    expect(await back.json()).toMatchObject({ now: "full", reportersLast90: 1 });
   });
 });

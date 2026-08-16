@@ -346,6 +346,51 @@ describe("0109 applied to PostgreSQL", () => {
     ).toBe("1");
   });
 
+  it("counts an unattributed flag once, because two of them are one reporter", () => {
+    const db = requireSession();
+    db.sql(`set role service_role; ${insertStaleReport()};`);
+
+    // A nullable actor_hash would never conflict, so each unattributed flag
+    // would insert a fresh ledger row and inflate the distinct count.
+    expect(db.sql(`set role service_role; ${flag("")};`)).toBe("t");
+    expect(db.sql(`set role service_role; ${flag("   ")};`)).toBe("t");
+
+    expect(
+      db.sql(
+        `set role service_role;
+         select report_count from public.venue_occupancy_reports where id = '${REPORT_ID}'`,
+      ),
+    ).toBe("1");
+    expect(
+      db.sql(
+        `set role service_role;
+         select count(*), max(actor_hash) from public.venue_occupancy_flags`,
+      ),
+    ).toBe("1|anonymous");
+
+    // A named reporter is still their own distinct flag.
+    expect(db.sql(`set role service_role; ${flag("actor-a")};`)).toBe("t");
+    expect(
+      db.sql(
+        `set role service_role;
+         select report_count from public.venue_occupancy_reports where id = '${REPORT_ID}'`,
+      ),
+    ).toBe("2");
+  });
+
+  it("refuses a flag row with no actor at all", () => {
+    const db = requireSession();
+    db.sql(`set role service_role; ${insertStaleReport()};`);
+
+    expect(
+      db.expectRefusal(
+        `set role service_role;
+         insert into public.venue_occupancy_flags (occupancy_report_id, actor_hash)
+         values ('${REPORT_ID}', null)`,
+      ),
+    ).toMatch(/null value in column "actor_hash"/);
+  });
+
   it("answers null for a reading that is not there, so the route can 404", () => {
     const db = requireSession();
     expect(

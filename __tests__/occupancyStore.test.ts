@@ -48,7 +48,7 @@ describe("occupancyStore", () => {
     expect(reading.degraded).toBe(false);
     expect(reading.now).toBe("some-seats");
     expect(reading.ageMinutes).toBe(0);
-    expect(reading.reportsLast90).toBe(1);
+    expect(reading.reportersLast90).toBe(1);
     expect(reading.state).toBe("fresh");
   });
 
@@ -67,26 +67,47 @@ describe("occupancyStore", () => {
     expect(updated.level).toBe("full");
 
     const reading = await occupancyStore().readNow("venue-1");
-    expect(reading.reportsLast90).toBe(1);
+    expect(reading.reportersLast90).toBe(1);
     expect(reading.now).toBe("full");
   });
 
   it("keeps an older row once the retake window closes", async () => {
-    await occupancyStore().report({
+    const first = await occupancyStore().report({
       venueId: "venue-1",
       level: "empty",
       reporterUserId: "user-a",
     });
     vi.setSystemTime(NOW + OCCUPANCY_RETAKE_WINDOW_MS + 1_000);
-    await occupancyStore().report({
+    const second = await occupancyStore().report({
       venueId: "venue-1",
       level: "full",
       reporterUserId: "user-a",
     });
 
+    // Two rows, because the retake window closed between them.
+    expect(second.id).not.toBe(first.id);
+
     const reading = await occupancyStore().readNow("venue-1");
-    expect(reading.reportsLast90).toBe(2);
     expect(reading.now).toBe("full");
+    expect(reading.id).toBe(second.id);
+    // Still one drinker: rows are not corroboration.
+    expect(reading.reportersLast90).toBe(1);
+  });
+
+  it("counts two accounts as two people", async () => {
+    await occupancyStore().report({
+      venueId: "venue-1",
+      level: "full",
+      reporterUserId: "user-a",
+    });
+    await occupancyStore().report({
+      venueId: "venue-1",
+      level: "full",
+      reporterUserId: "user-b",
+    });
+
+    const reading = await occupancyStore().readNow("venue-1");
+    expect(reading.reportersLast90).toBe(2);
   });
 
   it("drops a reading past 90 minutes and still answers, never as a failed empty", async () => {
@@ -101,7 +122,7 @@ describe("occupancyStore", () => {
     expect(reading.degraded).toBe(false);
     expect(reading.now).toBeNull();
     expect(reading.state).toBe("stale");
-    expect(reading.reportsLast90).toBe(0);
+    expect(reading.reportersLast90).toBe(0);
   });
 
   it("drops a hidden report from the now reading and keeps the row", async () => {
@@ -117,13 +138,13 @@ describe("occupancyStore", () => {
 
     const reading = await occupancyStore().readNow("venue-1");
     expect(reading.now).toBeNull();
-    expect(reading.reportsLast90).toBe(0);
+    expect(reading.reportersLast90).toBe(0);
     expect(reading.state).toBe("none");
 
     expect(await occupancyStore().moderate(stored.id, false)).toBe(true);
     const restored = await occupancyStore().readNow("venue-1");
     expect(restored.now).toBe("full");
-    expect(restored.reportsLast90).toBe(1);
+    expect(restored.reportersLast90).toBe(1);
   });
 
   it("never retakes a hidden row, so a hide is not laundered into the next report", async () => {
@@ -148,7 +169,7 @@ describe("occupancyStore", () => {
 
     const reading = await occupancyStore().readNow("venue-1");
     expect(reading.now).toBe("empty");
-    expect(reading.reportsLast90).toBe(1);
+    expect(reading.reportersLast90).toBe(1);
     expect(reading.id).toBe(fresh.id);
   });
 });
