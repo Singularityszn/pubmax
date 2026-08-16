@@ -327,17 +327,17 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
         const events = (data ?? [])
           .map((row) => fromEventRow(row as EventRow))
           .filter((row): row is PriceTrustEvent => row !== null);
+        const ids = events.map((event) => event.id);
+        if (ids.length === 0) return { events, degraded: false };
+        const reversals = await admin()
+          .from(EVENTS_TABLE)
+          .select("reversal_of")
+          .in("reversal_of", ids);
+        if (reversals.error) throw new Error(reversals.error.message);
         const reversed = new Set(
-          (
-            await admin()
-              .from(EVENTS_TABLE)
-              .select("reversal_of")
-              .in(
-                "reversal_of",
-                events.map((event) => event.id),
-              )
-          ).data?.map((row) => String((row as { reversal_of?: unknown }).reversal_of)) ??
-            [],
+          (reversals.data ?? []).map((row) =>
+            String((row as { reversal_of?: unknown }).reversal_of),
+          ),
         );
         return {
           events: events.filter((event) => !reversed.has(event.id)),

@@ -2066,6 +2066,17 @@ export type CommunityPriceObservation = {
   hidden: boolean;
 };
 
+export type CommunityPriceObservationPair = {
+  venueId: string;
+  drinkCategory: DrinkCategory;
+};
+
+// Cap the batched (venue, category) scan. Past this the answer would be a
+// short list presented as a whole one, so the read degrades instead: a count
+// that silently drops an unlock is worse than one that says it could not look.
+const OBSERVATION_PAIR_SCAN_PAIRS = 50;
+const OBSERVATION_PAIR_SCAN_ROWS = OBSERVATION_PAIR_SCAN_PAIRS * VENUE_SCAN_ROWS;
+
 function observationFromStored(row: StoredPrice): CommunityPriceObservation | null {
   if (!row.id || !isDrinkCategory(row.drinkCategory)) return null;
   return {
@@ -2090,34 +2101,96 @@ function memoryObservations(): CommunityPriceObservation[] {
   return out;
 }
 
-async function durablePriceRows(filter: {
-  venueId?: string;
-  drinkCategory?: DrinkCategory;
-  actor?: string;
-  id?: string;
-}): Promise<StoredPrice[]> {
-  let query = admin()
-    .from("community_prices")
-    .select(
-      "id, venue_id, drink_category, price_pennies, submitted_at, actor, hidden_at",
-    )
-    .not("drink_category", "is", null)
-    .limit(VENUE_SCAN_ROWS);
-  if (filter.venueId) query = query.eq("venue_id", filter.venueId);
-  if (filter.drinkCategory) query = query.eq("drink_category", filter.drinkCategory);
-  if (filter.actor) query = query.eq("actor", filter.actor);
-  if (filter.id) query = query.eq("id", filter.id);
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  if (!Array.isArray(data)) return [];
+const OBSERVATION_COLUMNS =
+  "id, venue_id, drink_category, price_pennies, submitted_at, actor, hidden_at";
+
+function storedPricesFromRows(rows: readonly unknown[]): StoredPrice[] {
   const out: StoredPrice[] = [];
-  for (const raw of data) {
+  for (const raw of rows) {
     if (typeof raw !== "object" || raw === null) continue;
     const venueId = cleanVenueId((raw as { venue_id?: unknown }).venue_id);
     if (!venueId) continue;
     out.push(...rowsToPrices([raw], venueId));
   }
   return out;
+}
+
+async function durablePriceRows(filter: {
+  venueId?: string;
+  drinkCategory?: DrinkCategory;
+  id?: string;
+}): Promise<StoredPrice[]> {
+  let query = admin()
+    .from("community_prices")
+    .select(OBSERVATION_COLUMNS)
+    .not("drink_category", "is", null)
+    .limit(VENUE_SCAN_ROWS);
+  if (filter.venueId) query = query.eq("venue_id", filter.venueId);
+  if (filter.drinkCategory) query = query.eq("drink_category", filter.drinkCategory);
+  if (filter.id) query = query.eq("id", filter.id);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  if (!Array.isArray(data)) return [];
+  return storedPricesFromRows(data);
+}
+
+function pairKey(venueId: string, drinkCategory: DrinkCategory): string {
+  return `${venueId} ${drinkCategory}`;
+}
+
+function wantedPairs(
+  pairs: readonly CommunityPriceObservationPair[],
+): Map<string, CommunityPriceObservationPair> {
+  const wanted = new Map<string, CommunityPriceObservationPair>();
+  for (const pair of pairs) {
+    const venueId = cleanVenueId(pair.venueId);
+    if (!venueId || !isDrinkCategory(pair.drinkCategory)) continue;
+    wanted.set(pairKey(venueId, pair.drinkCategory), {
+      venueId,
+      drinkCategory: pair.drinkCategory,
+    });
+  }
+  return wanted;
+}
+
+/**
+ * One paged scan for every wanted (venue, category), rather than one round trip
+ * per pair. Returns null when the scan filled its cap, because a truncated page
+ * cannot answer whether a pair is still trusted.
+ */
+async function durablePairPriceRows(
+  wanted: Map<string, CommunityPriceObservationPair>,
+): Promise<StoredPrice[] | null> {
+  const venueIds = [...new Set([...wanted.values()].map((pair) => pair.venueId))];
+  const categories = [
+    ...new Set([...wanted.values()].map((pair) => pair.drinkCategory)),
+  ];
+  const scanned: unknown[] = [];
+  let complete = false;
+  for (let offset = 0; offset < OBSERVATION_PAIR_SCAN_ROWS; ) {
+    const pageEnd = Math.min(
+      offset + CORROBORATION_SCAN_PAGE,
+      OBSERVATION_PAIR_SCAN_ROWS,
+    );
+    const { data, error } = await admin()
+      .from("community_prices")
+      .select(OBSERVATION_COLUMNS)
+      .in("venue_id", venueIds)
+      .in("drink_category", categories)
+      .order("submitted_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(offset, pageEnd - 1);
+    if (error) throw new Error(error.message);
+    const page = Array.isArray(data) ? data : [];
+    scanned.push(...page);
+    if (page.length < pageEnd - offset) {
+      complete = true;
+      break;
+    }
+    offset = pageEnd;
+  }
+  if (!complete) return null;
+  return storedPricesFromRows(scanned);
 }
 
 const observationReader = {
@@ -2135,12 +2208,26 @@ const observationReader = {
       .filter((row) => row.drinkCategory === drinkCategory);
     return { observations: rows, degraded: false };
   },
-  async listForActor(
-    actor: string,
+  async listForPairs(
+    pairs: readonly CommunityPriceObservationPair[],
   ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
-    if (!actor) return { observations: [], degraded: false };
+    const wanted = wantedPairs(pairs);
+    if (wanted.size === 0) return { observations: [], degraded: false };
+    const out: CommunityPriceObservation[] = [];
+    for (const pair of wanted.values()) {
+      for (const row of venues.get(pair.venueId) ?? []) {
+        const observation = observationFromStored(row);
+        if (!observation) continue;
+        if (observation.drinkCategory !== pair.drinkCategory) continue;
+        out.push(observation);
+      }
+    }
+    return { observations: out, degraded: false };
+  },
+  async countForActor(actor: string): Promise<{ count: number; degraded: boolean }> {
+    if (!actor) return { count: 0, degraded: false };
     return {
-      observations: memoryObservations().filter((row) => row.actor === actor),
+      count: memoryObservations().filter((row) => row.actor === actor).length,
       degraded: false,
     };
   },
@@ -2183,21 +2270,49 @@ const durableObservationReader = {
       }),
     });
   },
-  async listForActor(
-    actor: string,
+  async listForPairs(
+    pairs: readonly CommunityPriceObservationPair[],
   ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
-    if (!actor) return { observations: [], degraded: false };
+    const wanted = wantedPairs(pairs);
+    if (wanted.size === 0) return { observations: [], degraded: false };
+    if (wanted.size > OBSERVATION_PAIR_SCAN_PAIRS) {
+      return { observations: [], degraded: true };
+    }
     return observationGuard.guard({
-      context: "listForActor",
-      onSchemaMiss: () => observationReader.listForActor(actor),
-      message: "actor observation list failed",
+      context: "listForPairs",
+      onSchemaMiss: () => observationReader.listForPairs([...wanted.values()]),
+      message: "pair observation list failed",
       onError: () => ({ observations: [], degraded: true }),
-      run: async () => ({
-        observations: (await durablePriceRows({ actor }))
+      run: async () => {
+        const rows = await durablePairPriceRows(wanted);
+        if (!rows) return { observations: [], degraded: true };
+        const observations = rows
           .map(observationFromStored)
-          .filter((row): row is CommunityPriceObservation => row !== null),
-        degraded: false,
-      }),
+          .filter((row): row is CommunityPriceObservation => row !== null)
+          .filter((row) => wanted.has(pairKey(row.venueId, row.drinkCategory)));
+        return { observations, degraded: false };
+      },
+    });
+  },
+  async countForActor(actor: string): Promise<{ count: number; degraded: boolean }> {
+    if (!actor) return { count: 0, degraded: false };
+    return observationGuard.guard({
+      context: "countForActor",
+      onSchemaMiss: () => observationReader.countForActor(actor),
+      message: "actor observation count failed",
+      onError: () => ({ count: 0, degraded: true }),
+      run: async () => {
+        const { count, error } = await admin()
+          .from("community_prices")
+          .select("id", { count: "exact", head: true })
+          .not("drink_category", "is", null)
+          .eq("actor", actor);
+        if (error) throw new Error(error.message);
+        if (typeof count !== "number" || !Number.isFinite(count)) {
+          return { count: 0, degraded: true };
+        }
+        return { count, degraded: false };
+      },
     });
   },
   async findById(
@@ -2228,10 +2343,26 @@ export function listCommunityPriceObservations(
   return observations().listForVenueCategory(venueId, drinkCategory);
 }
 
-export function listCommunityPriceObservationsForActor(
-  actor: string,
+/**
+ * Every observation for the wanted (venue, category) pairs in one bounded read.
+ * `degraded` covers both a failed scan and a pair set past the cap, so a caller
+ * never mistakes a short list for the whole one.
+ */
+export function listCommunityPriceObservationsForPairs(
+  pairs: readonly CommunityPriceObservationPair[],
 ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
-  return observations().listForActor(actor);
+  return observations().listForPairs(pairs);
+}
+
+/**
+ * How many prices this actor has logged, hidden rows included. A count query,
+ * never the length of a capped row page: a contributor past the scan window is
+ * owed their real total or a degraded answer, never a silent 200.
+ */
+export function countCommunityPriceObservationsForActor(
+  actor: string,
+): Promise<{ count: number; degraded: boolean }> {
+  return observations().countForActor(actor);
 }
 
 export function findCommunityPriceObservation(

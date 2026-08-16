@@ -5,9 +5,10 @@
 // threshold. Fail-soft: a price write still lands if this sync cannot.
 
 import {
+  countCommunityPriceObservationsForActor,
   findCommunityPriceObservation,
   listCommunityPriceObservations,
-  listCommunityPriceObservationsForActor,
+  listCommunityPriceObservationsForPairs,
   type CommunityPriceObservation,
 } from "@/lib/communityPriceStore";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -34,6 +35,10 @@ export type PriceTrustImpact =
   | { status: "degraded" };
 
 const STORE_TAG = "price-trust-events";
+
+function pairKey(venueId: string, category: DrinkCategory): string {
+  return `${venueId}\0${category}`;
+}
 
 function asTrustObservations(
   rows: readonly CommunityPriceObservation[],
@@ -143,33 +148,43 @@ export async function readPriceTrustImpact(
     if (!key) return { status: "degraded" };
     const profile = await profileStore().getByUserId(key);
     const actor = profile ? `profile:${profile.id}` : "";
-    const listed = actor
-      ? await listCommunityPriceObservationsForActor(actor)
-      : { observations: [], degraded: false };
-    if (listed.degraded) return { status: "degraded" };
+    const logged = actor
+      ? await countCommunityPriceObservationsForActor(actor)
+      : { count: 0, degraded: false };
+    if (logged.degraded) return { status: "degraded" };
     const impact = await priceTrustEventStore().readVisibleImpact(key);
     if (impact.degraded) return { status: "degraded" };
 
     const pairs = new Map<string, { venueId: string; category: DrinkCategory }>();
     for (const event of impact.events) {
       if (event.reversalOf) continue;
-      pairs.set(`${event.venueId}\0${event.category}`, {
+      pairs.set(pairKey(event.venueId, event.category), {
         venueId: event.venueId,
         category: event.category,
       });
     }
+    const rows = await listCommunityPriceObservationsForPairs(
+      [...pairs.values()].map((pair) => ({
+        venueId: pair.venueId,
+        drinkCategory: pair.category,
+      })),
+    );
+    if (rows.degraded) return { status: "degraded" };
+    const byPair = new Map<string, TrustObservation[]>();
+    for (const observation of asTrustObservations(rows.observations)) {
+      const pair = pairKey(observation.venueId, observation.drinkCategory);
+      const held = byPair.get(pair);
+      if (held) held.push(observation);
+      else byPair.set(pair, [observation]);
+    }
     let pricesTrustedNow = 0;
-    for (const pair of pairs.values()) {
-      const rows = await listCommunityPriceObservations(pair.venueId, pair.category);
-      if (rows.degraded) return { status: "degraded" };
-      if (categoryIsTrusted(asTrustObservations(rows.observations))) {
-        pricesTrustedNow += 1;
-      }
+    for (const pair of pairs.keys()) {
+      if (categoryIsTrusted(byPair.get(pair) ?? [])) pricesTrustedNow += 1;
     }
 
     return {
       status: "ready",
-      observationsLogged: listed.observations.length,
+      observationsLogged: logged.count,
       pricesTrustedNow,
       lifetimeTrustUnlocks: impact.lifetimeTrustUnlocks,
     };
