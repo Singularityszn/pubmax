@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 138 mutating handlers across 111 route files.** Each exported
+> **Inventory: 139 mutating handlers across 113 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -148,6 +148,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/starter-packs/[slug]/follow`
 - `POST app/api/venue-operators/claim`
 - `POST app/api/venue-photos`
+- `POST app/api/venues/[id]/occupancy`
 - `POST app/api/visit-reports`
 - `POST app/api/wanted`
 - `POST app/api/wanted/resolve`
@@ -1183,6 +1184,46 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   (`GET app/api/starter-packs`) is personalised and `no-store`, and returns the
   viewer's follow count tri-state so a failed count is never read as "follows
   nobody".
+
+### `app/api/venues/[id]/occupancy` - crowd occupancy readings (route 91)
+
+- **Route / method:** `POST app/api/venues/[id]/occupancy/route.ts` writes one
+  now reading of seats for a venue. The same POST accepts a public `report`
+  action and moderator-only `hide` and `restore` actions for one reading. Its
+  `GET` is public, read-only, and not counted.
+- **Validation:** `parseOccupancyLevel` (`lib/occupancy.ts`) takes one of the
+  three closed levels (empty / some seats / full); anything else is refused.
+  The venue id is trimmed to a storage-key-sized segment.
+- **Identity (boundary):** a reading requires `callerUserId`, and the stored
+  `reporter_user_id` is the authenticated account. The browser sends no actor.
+  Writes are idempotent per account per pub per 15 minutes, and the printed
+  corroboration figure counts DISTINCT accounts rather than rows, so one
+  drinker's retakes never read as agreement nobody gave.
+- **Rate limit (boundary):** a reading spends a per-account durable `isLimited`
+  budget. A reader flag spends its own per-target and per-actor budgets, with
+  the actor derived from the request origin (`hashActor` over `hashIp`), never
+  from the body.
+- **Write target:** `resolveWritableVenueId` (`lib/venueWriteTarget.server.ts`)
+  is the one resolver every community write shares, so an alias cannot split
+  one pub's readings across two keys. The public GET canonicalises through
+  `resolveCanonicalVenueId` alone, because the writable resolver would refuse
+  an unknown id on a read that is allowed to answer "no reports".
+- **Moderation (boundary):** the same shape community prices and pub photo
+  walls already use. `report` records a per-actor-deduped flag through
+  `report_occupancy_report` (migration 0109) and never hides; `hide` and
+  `restore` require `isModerator`. Hiding is reversible and keeps the row and
+  its flag provenance, and a hidden reading leaves the now answer, the printed
+  age and the reporter count together. `venue_occupancy_flags.actor_hash` is
+  NOT NULL with an `anonymous` sentinel, because NULLs never conflict and every
+  unattributed flag would otherwise insert a fresh row and inflate the count.
+  The flag stamp is `flagged_at`; `reported_at` stays the observation time, so
+  a complaint can never promote a stale reading into the live now window.
+- **Deploy order:** either order is safe. The store asks for 0109's columns and
+  drops to 0107's for the life of the process on a PostgREST 42703 (the table
+  is there, the column is not), rather than degrading every venue sheet.
+- **Read honesty:** the read carries its own state (`fresh`, `stale`, `none`,
+  `degraded`), so a failed lookup is never worded as a pub nobody has reported.
+  A write that landed still thanks the tap when the read-back degrades.
 
 The structural scan, live atomic-limiter check, and deployment configuration must
 all remain green. A future route added without a reviewed boundary fails the closed

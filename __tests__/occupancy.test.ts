@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { addLinkAwareDestination } from "@/lib/addLink";
+import { ARRIVAL_FROM_PARAM } from "@/lib/arrivalWelcome";
 import { BUSYNESS_VALUES } from "@/lib/visitReports";
 import {
   OCCUPANCY_FRESH_WINDOW_MS,
@@ -169,6 +171,23 @@ describe("occupancy 90-minute now rule", () => {
   it("carries the pub back through the sign-in door", () => {
     expect(occupancySignInHref("venue-16pnwmm")).toBe(
       "/login?mode=signin&from=%2Fmap%3Fsel%3Dvenue-16pnwmm",
+    );
+  });
+
+  it("lands a completed sign-in back on that pub's map sheet", () => {
+    // The whole loop: the row's own href, read the way /login reads its query,
+    // then answered by the destination rule the page asks. A `sel` that leaked
+    // out as a login query, or an account-page landing, both fail here.
+    const url = new URL(
+      occupancySignInHref("venue-16pnwmm"),
+      "https://pubmaxxing.com",
+    );
+    expect(url.pathname).toBe("/login");
+    expect(url.searchParams.get("sel")).toBeNull();
+    const from = url.searchParams.get(ARRIVAL_FROM_PARAM);
+    expect(from).toBe("/map?sel=venue-16pnwmm");
+    expect(addLinkAwareDestination("signin", from, "/u/you")).toBe(
+      "/map?sel=venue-16pnwmm",
     );
   });
 

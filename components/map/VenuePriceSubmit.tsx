@@ -222,10 +222,14 @@ export default function VenuePriceSubmit({
     () => mergePriceChips(QUICK_ADD_PRICES_GBP, baselinePriceGbp).slice(0, 3),
     [baselinePriceGbp],
   );
-  const priceValidation = useMemo(
-    () => validateCommunityPrice({ venueId, drinkCategory: category, priceGbp: price }),
-    [category, price, venueId],
-  );
+  // Left to the React Compiler rather than a manual useMemo: `category` is
+  // derived per render by `effectiveSubmitCategory`, which the compiler cannot
+  // accept as a hand-written dependency.
+  const priceValidation = validateCommunityPrice({
+    venueId,
+    drinkCategory: category,
+    priceGbp: price,
+  });
   const validationError =
     price.trim() !== "" && !priceValidation.ok ? priceValidation.error : null;
   const visibleError = error ?? validationError;
