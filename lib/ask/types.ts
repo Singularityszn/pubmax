@@ -74,6 +74,13 @@ export const ASK_TOOL_NAMES = [
   "area_buzz",
   "propose_plan",
   "propose_map_action",
+  // Pub Pal V0.1 concierge wave (master plan R-015). Same laws as the rest of
+  // the allowlist: grounded, provenance on every card, and nothing writes.
+  "cheapest_pint_near",
+  "tonight_now",
+  "venue_drinks",
+  "find_desk",
+  "report_occupancy",
 ] as const;
 
 export type AskToolName = (typeof ASK_TOOL_NAMES)[number];

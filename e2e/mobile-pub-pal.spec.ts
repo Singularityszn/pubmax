@@ -14,7 +14,7 @@ test("route-first Pal chooser shows all six companions and restores its five-ste
   await page.reload();
   await page.getByRole("button", { name: /Meet your Pub Pal/ }).click();
   await expect(page.getByRole("heading", { name: "The grown-up bit first." })).toBeVisible();
-  await page.getByRole("checkbox", { name: /I confirm I am 18 or over/ }).check();
+  await page.getByRole("checkbox", { name: /18 or over/ }).check();
   await page.getByRole("button", { name: /Continue/ }).click();
   await expect(page.getByRole("heading", { name: "Who finds you?" })).toBeVisible();
 

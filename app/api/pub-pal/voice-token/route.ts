@@ -163,6 +163,20 @@ async function handleRelease(
   return jsonNoStore({ released: true, remainingMinutes });
 }
 
+/**
+ * Whether the captain has switched voice on for this deployment.
+ *
+ * The credential itself never leaves the server; this is the one bit the
+ * browser needs so the Pal can SAY that voice is not switched on, in house
+ * voice, instead of leaving a Start button that answers 503 on the tap.
+ */
+export function palVoiceConfigured(): boolean {
+  return Boolean(
+    process.env.ELEVENLABS_API_KEY?.trim() &&
+      process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim(),
+  );
+}
+
 async function handleIssueToken(userId: string): Promise<Response> {
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim();
@@ -264,6 +278,21 @@ async function handleIssueToken(userId: string): Promise<Response> {
       await releaseVoiceReservation(admin, userId, usageMonth, meter, 0);
     }
   }
+}
+
+/**
+ * Voice availability, so the browser can explain itself before the tap.
+ *
+ * Reads no account and allocates nothing, so it needs no session: it answers
+ * one boolean about this deployment's own configuration.
+ */
+export async function GET(): Promise<Response> {
+  return jsonNoStore({
+    available: palVoiceConfigured(),
+    maxSessionSeconds: PAL_VOICE_MAX_SESSION_SECONDS,
+    retention: "zero",
+    mutationPolicy: "propose_then_confirm",
+  });
 }
 
 export async function POST(request: Request): Promise<Response> {

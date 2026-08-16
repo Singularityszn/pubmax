@@ -42,7 +42,7 @@ for (const scenario of [
     await expect(page.locator(".palPortraitCore")).toHaveCSS("animation-name", "none");
     expect(await page.evaluate(() => document.body.scrollWidth)).toBe(viewport.width);
 
-    await page.getByRole("checkbox", { name: /I confirm I am 18 or over/ }).check();
+    await page.getByRole("checkbox", { name: /18 or over/ }).check();
     await page.getByRole("button", { name: /Continue/ }).click();
     await page.getByRole("button", { name: /^Black Cat/ }).click();
     await expect(page.getByRole("button", { name: /^Black Cat/ })).toHaveAttribute("aria-pressed", "true");

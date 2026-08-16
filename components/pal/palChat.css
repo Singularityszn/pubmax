@@ -496,6 +496,15 @@
   font: 500 0.82rem/1.35 var(--font-body);
 }
 
+/* In-thread recall: quieter than the answer it sits under, because it is the
+   Pal noticing something rather than telling you something. */
+.palChatRecall {
+  margin: 0.25rem 0 0.5rem;
+  color: var(--ink-soft);
+  font: 500 0.8rem/1.35 var(--font-body);
+  opacity: 0.85;
+}
+
 .palChatCardAccept {
   display: inline-block;
   margin-top: 0.5rem;
@@ -520,19 +529,31 @@
   gap: 0.5rem;
 }
 
+/* Confirm and Dismiss are one decision, so they stay on one row. A long pub
+   name wraps inside its own button rather than pushing Dismiss to a line of
+   its own, which at 390px read as two unrelated controls. */
 .palChatProposal {
   display: flex;
-  flex-wrap: wrap;
   gap: 0.5rem;
-  align-items: center;
+  align-items: stretch;
 }
 
 .palChatProposalConfirm,
 .palChatProposalDismiss {
   min-height: 44px;
-  padding: 0 0.85rem;
+  padding: 0.6rem 0.85rem;
   border-radius: 0.65rem;
-  font: 700 0.82rem/1 var(--font-body);
+  font: 700 0.82rem/1.25 var(--font-body);
+}
+
+.palChatProposalConfirm {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+.palChatProposalDismiss {
+  flex: 0 0 auto;
 }
 
 .palChatProposalConfirm {

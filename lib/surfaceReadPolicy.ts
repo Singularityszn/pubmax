@@ -68,6 +68,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/plan/RecapDetail.tsx", fetchCount: 1, reason: "recap detail is a private mutable surface" },
   { path: "components/plan/TonightAgentPanel.tsx", fetchCount: 1, reason: "agent generation is a user action" },
   { path: "components/profile/OutTonightBoard.tsx", fetchCount: 1, reason: "presence is live and account-scoped" },
+  { path: "components/pubpal/PubPalVoice.tsx", fetchCount: 1, reason: "voice availability is a per-deployment configuration probe, not a painted surface read" },
   { path: "components/profile/OutTonightCrewLine.tsx", fetchCount: 1, reason: "presence is live and account-scoped" },
   { path: "components/profile/OutTonightToggle.tsx", fetchCount: 1, reason: "presence read and toggle are live account actions" },
   { path: "components/profile/SavedListDetail.tsx", fetchCount: 1, reason: "saved-list detail is private viewer context with mutation-sensitive state" },

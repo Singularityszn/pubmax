@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanPalDraft, compatiblePalSpecies, DEFAULT_PAL_DRAFT, hasPalRouteActivation, markPalRouteActivation, migrateLegacyPalOnboardingDraft, PAL_ANIMATION_STATES, PAL_ONBOARDING_DRAFT_KEY, PAL_ONBOARDING_SPECIES, PAL_ROUTE_ACTIVATION_KEY, PAL_SPECIES, PAL_UNLOCKS, PAL_VISUAL_MANIFEST, SIGNAL_FAMILIES, palOnboardingDraftKey, readPalOnboardingDraft, writePalOnboardingDraft } from "@/lib/pubPal";
+import { cleanPalDraft, compatiblePalSpecies, DEFAULT_PAL_DRAFT, hasPalRouteActivation, markPalRouteActivation, migrateLegacyPalOnboardingDraft, PAL_ANIMATION_STATES, PAL_ONBOARDING_DRAFT_KEY, PAL_ONBOARDING_SPECIES, PAL_ROUTE_ACTIVATION_KEY, PAL_SPECIES, PAL_UNLOCKS, PAL_VISUAL_MANIFEST, palMasteryProgress, SIGNAL_FAMILIES, palOnboardingDraftKey, readPalOnboardingDraft, writePalOnboardingDraft } from "@/lib/pubPal";
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -80,5 +80,37 @@ describe("Pub Pal domain", () => {
     expect(migrateLegacyPalOnboardingDraft("user-1")).toMatchObject({ step: 0, draft: { name: "Nova", adultConfirmed: false }, privacy: { proposeMemories: false } });
     expect(window.localStorage.getItem(PAL_ONBOARDING_DRAFT_KEY)).toBeNull();
     expect(readPalOnboardingDraft("user-1")).toMatchObject({ step: 0, draft: { adultConfirmed: false } });
+  });
+});
+
+describe("palMasteryProgress", () => {
+  it("measures the gap from the last item earned, not from zero", () => {
+    const early = palMasteryProgress(0);
+    expect(early.next?.id).toBe("signal-ring");
+    expect(early.pointsToNext).toBe(40);
+    expect(early.fraction).toBe(0);
+
+    const midway = palMasteryProgress(65);
+    expect(midway.next?.id).toBe("gin-glass");
+    expect(midway.pointsToNext).toBe(25);
+    expect(midway.fraction).toBeCloseTo(0.5, 5);
+  });
+
+  it("names the next item without saying anything is locked", () => {
+    expect(palMasteryProgress(0).line).toBe("40 points to the Signal ring.");
+    expect(palMasteryProgress(39).line).toBe("1 point to the Signal ring.");
+    expect(palMasteryProgress(0).line).not.toMatch(/unlock/i);
+  });
+
+  it("stops promising a next item once every one is earned", () => {
+    const done = palMasteryProgress(200);
+    expect(done.next).toBeNull();
+    expect(done.fraction).toBe(1);
+    expect(done.line).toBe("Every mastery item earned.");
+  });
+
+  it("treats a nonsense point total as zero rather than throwing", () => {
+    expect(palMasteryProgress(Number.NaN).pointsToNext).toBe(40);
+    expect(palMasteryProgress(-10).pointsToNext).toBe(40);
   });
 });

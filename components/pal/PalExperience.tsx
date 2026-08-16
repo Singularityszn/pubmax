@@ -28,6 +28,7 @@ import {
   hasPalRouteActivation,
   migrateLegacyPalOnboardingDraft,
   PAL_UNLOCKS,
+  palMasteryProgress,
   PAL_ONBOARDING_SPECIES,
   PAL_VOICES,
   SIGNAL_FAMILIES,
@@ -656,6 +657,7 @@ export default function PalExperience() {
   if (mode === "home" && pal && user && pal.ownerId === user.id) {
     const visiblePalState: PalAnimationState = pal.muted ? "sleeping" : palAnimationState;
     const proposalPreferences = pal.proposalPreferences ?? { memories: false, routes: true };
+    const mastery = palMasteryProgress(pal.masteryPoints);
     return (
       <main id="main" className="palExperience palHome">
         <div className="palTopbar">
@@ -700,6 +702,8 @@ export default function PalExperience() {
             </button>
             <div className="palUnlockSummary" aria-label="Pub Pal progression">
               <strong>{pal.masteryPoints} mastery points</strong>
+              <p className="palMasteryNext">{mastery.line}</p>
+              <div className="palMasteryTrack" aria-hidden="true"><span style={{ width: `${Math.round(mastery.fraction * 100)}%` }} /></div>
               <ul>{PAL_UNLOCKS.map((unlock) => <li key={unlock.id} className={pal.masteryPoints >= unlock.pointsRequired ? "isUnlocked" : ""}>{unlock.label}<span>{unlock.pointsRequired}</span></li>)}</ul>
             </div>
             <button className="palDanger" type="button" disabled={controlSaving || saving} onClick={() => void removePal()}>

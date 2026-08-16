@@ -33,32 +33,29 @@ import {
   isAskToolName,
   type AskCard,
   type AskProposal,
-  type AskSource,
   type AskToolName,
 } from "@/lib/ask/types";
+import { CONCIERGE_TOOL_DEFINITIONS } from "@/lib/ask/conciergeTools";
+import {
+  toolCheapestPintNear,
+  toolFindDesk,
+  toolReportOccupancy,
+  toolTonightNow,
+  toolVenueDrinks,
+} from "@/lib/ask/conciergeTools.server";
+import type {
+  AskProvenance,
+  AskToolArgs,
+  AskToolContext,
+  AskToolResult,
+} from "@/lib/ask/toolContract";
 
-export type AskProvenance = AskSource;
-
-export type AskToolResult = {
-  ok: boolean;
-  tool: AskToolName;
-  data: unknown;
-  provenance: AskProvenance[];
-  cards: AskCard[];
-  proposals: AskProposal[];
-  answerHint: string;
-  degraded?: boolean;
-};
-
-export type AskToolArgs = Record<string, unknown>;
-
-export type AskToolContext = {
-  cityId: CityId;
-  query: string;
-  /** Skip paid intent assist inside search_venues / propose_plan. */
-  skipModel?: boolean;
-  fetchImpl?: typeof fetch;
-};
+export type {
+  AskProvenance,
+  AskToolArgs,
+  AskToolContext,
+  AskToolResult,
+} from "@/lib/ask/toolContract";
 
 function str(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -833,6 +830,13 @@ const HANDLERS: Record<
   area_buzz: toolAreaBuzz,
   propose_plan: toolProposePlan,
   propose_map_action: toolProposeMapAction,
+  // Pub Pal V0.1 concierge wave (R-015). Handlers live beside their policy in
+  // lib/ask/conciergeTools*, the same delegation shape as socialCrewActor.
+  cheapest_pint_near: toolCheapestPintNear,
+  tonight_now: toolTonightNow,
+  venue_drinks: toolVenueDrinks,
+  find_desk: toolFindDesk,
+  report_occupancy: toolReportOccupancy,
 };
 
 /** OpenAI/OpenRouter tool schema for the allowlisted Night OS tools. */
@@ -969,6 +973,7 @@ export function askToolDefinitions(): Array<{
         },
       },
     },
+    ...CONCIERGE_TOOL_DEFINITIONS,
   ];
 }
 

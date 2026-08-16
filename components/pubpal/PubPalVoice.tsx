@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { ConversationProvider, useConversationControls, useConversationMode, useConversationStatus } from "@elevenlabs/react";
 import { Mic, MicOff, Send } from "lucide-react";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { PalAnimationState } from "@/lib/pubPal";
 import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
@@ -163,7 +165,92 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   );
 }
 
+// Voice is switched on per deployment by the captain's ElevenLabs keys (see
+// docs/PUB_PAL_SETUP.md). Until they are set, the Pal SAYS so in its own voice
+// and points at the writing door - a Start button that answers 503 on the tap
+// reads as a broken feature rather than one nobody has turned on. Availability
+// is TRI-STATE: while the answer is still coming the control renders neither
+// claim, because "voice is off" is a statement we must have checked.
+export type PalVoiceAvailability = "asking" | "available" | "unavailable";
+
+export const PAL_VOICE_UNAVAILABLE_LINE =
+  "Voice is not switched on here yet. Ask me in writing and you get the same grounded answers.";
+
+/**
+ * Read the probe's answer.
+ *
+ * Anything short of an explicit `available: true` is treated as off. That is
+ * the safe half here and only here: the two states differ by which door the
+ * Pal offers, and offering the writing door when voice was in fact available
+ * costs a tap, while offering a Start button that answers 503 reads as broken.
+ */
+export function palVoiceAvailabilityFrom(
+  ok: boolean,
+  body: unknown,
+): PalVoiceAvailability {
+  if (!ok) return "unavailable";
+  const available =
+    body && typeof body === "object" && !Array.isArray(body)
+      ? (body as { available?: unknown }).available
+      : undefined;
+  return available === true ? "available" : "unavailable";
+}
+
+/** The voice-off card: one honest line and the door that does work. */
+export function PalVoiceOffline() {
+  return (
+    <div className="palVoice palVoice--offline">
+      <div className="palVoiceStatus" role="status">
+        {PAL_VOICE_UNAVAILABLE_LINE}
+      </div>
+      <div className="palVoiceActions">
+        <Link className="palVoiceWriteLink" href="/pal/chat">
+          <Send size={17} aria-hidden="true" /> Ask in writing
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function useVoiceAvailability(): PalVoiceAvailability {
+  const [state, setState] = useState<PalVoiceAvailability>("asking");
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch("/api/pub-pal/voice-token", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          discardBody(response);
+          setState("unavailable");
+          return;
+        }
+        const body: unknown = await response.json().catch(() => ({}));
+        setState(palVoiceAvailabilityFrom(true, body));
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setState("unavailable");
+      });
+    return () => controller.abort();
+  }, []);
+  return state;
+}
+
 export default function PubPalVoice({ onStateChange }: { onStateChange?: (state: PalAnimationState) => void }) {
+  const availability = useVoiceAvailability();
+
+  // Tri-state: while the probe is out the control claims neither, because
+  // "voice is off" is a statement we must have checked.
+  if (availability === "asking") {
+    return (
+      <div className="palVoice">
+        <div className="palVoiceStatus" role="status">
+          Checking whether voice is on
+        </div>
+      </div>
+    );
+  }
+
+  if (availability === "unavailable") return <PalVoiceOffline />;
+
   return (
     <ConversationProvider>
       <VoiceControls onStateChange={onStateChange} />
