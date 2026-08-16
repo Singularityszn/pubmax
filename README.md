@@ -15,6 +15,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **Crawl planner** — Suggest mode (greedy nearest-good-neighbour route) or Build mode (tap to add stops); story filters by price, amenities, water, heritage.
 - **Curated routes** — named "generational" Featured crawls loaded as ordered stops.
 - **Pubs near me** - `/near` compares listed Pint Prices nearby, cheapest first. Each result shows its recorded publisher status, while one shared date tells you when the Venue Dataset was collected. Location stays on the device, and a denied or unavailable location falls back to a remembered or default area.
+- **Cheapest pints of one beer** - `/drink/{brand}` lists the cheapest listed pints of a named beer in London, and `/area/{area}/drink/{brand}` asks the same question inside one Night Area. Every figure comes from the price row that owns it, each row shows its own publisher status, and one shared date says when the Venue Dataset was collected. A combination without enough priced pubs is a 404 rather than a thin page. Nothing here is a community submission and nothing here moves the map, the cheapest-pint buckets or the Pint Index.
 - **Shareable URLs** — the whole crawl state round-trips through the URL; "Copy link" shares it.
 - **Rounds** - a shared beer mat for the buying rotation: whose turn is up, who bought last, what each round cost, and an immutable night diary. A map route or member-only active Plan can start one with its title and ordered stops already queued. Anyone with the code can add diary lines; only lines from a signed-in account with a claimed handle can enter the community-price lane, where the usual corroboration gate still applies. No balances, IOUs, or settling up.
 - **Pint Drops** — community photos + the price you paid + a passed-down note, moderated.
@@ -92,6 +93,7 @@ Local keyless demos may leave it empty to keep labelled seed content visible.
 ## Deeper docs
 
 - **`teach.md`** — full repo tour: architecture, data model, map lifecycle, backend, trust boundaries, with `file:line` anchors.
+- **[`specs/governed-priced-landings/PRODUCT.md`](specs/governed-priced-landings/PRODUCT.md)** - what the `/drink` and brand-by-area price pages may claim, and why `/area/{slug}` is held.
 - **`docs/DEPLOYMENT.md`** — reproducible Vercel + Supabase + OpenRouter runbook.
 - **[`docs/CRON_PLANE_RUNBOOK.md`](docs/CRON_PLANE_RUNBOOK.md)** - scheduler, auth, failure posture, and honest freshness boundaries.
 - **[`docs/LOCAL_REFRESH_SCHEDULER.md`](docs/LOCAL_REFRESH_SCHEDULER.md)** - local launchd acquisition, resource gates, logs, and review-PR operation.

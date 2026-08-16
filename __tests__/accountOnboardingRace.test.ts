@@ -79,7 +79,11 @@ class TestNode {
   }
 
   get isConnected(): boolean {
-    if (this === this.ownerDocument?.body || this === this.ownerDocument?.documentElement) {
+    // The roots are widened to TestNode because `this` is the polymorphic
+    // this-type, which TypeScript reads as having no overlap with TestElement.
+    const bodyRoot: TestNode | undefined = this.ownerDocument?.body;
+    const documentRoot: TestNode | undefined = this.ownerDocument?.documentElement;
+    if (this === bodyRoot || this === documentRoot) {
       return true;
     }
     return this.parentNode?.isConnected ?? false;

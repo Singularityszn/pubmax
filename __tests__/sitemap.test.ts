@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -8,6 +10,8 @@ import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { loadPintIndexArchive } from "@/lib/pintIndexSnapshot.server";
+import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
+import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
 
@@ -55,6 +59,8 @@ type ExpectedCounts = {
   historic: number;
   venues: number;
   editions: number;
+  drinkBrands: number;
+  drinkBrandAreas: number;
   total: number;
 };
 
@@ -72,6 +78,10 @@ async function expectedCounts(): Promise<ExpectedCounts> {
   const historic = (await loadHistoricPubs()).length;
   // One URL per dated Pint Index edition actually published.
   const editions = (await loadPintIndexArchive()).length;
+  // Governed landing pages come from the SAME loaders the routes render, so a
+  // page the sitemap advertises is a page that exists.
+  const drinkBrands = (await loadDrinkBrandLandings()).length;
+  const drinkBrandAreas = (await loadDrinkBrandAreaLandings()).length;
   const counts = {
     cities,
     boroughs,
@@ -79,6 +89,8 @@ async function expectedCounts(): Promise<ExpectedCounts> {
     historic,
     venues: venues.length,
     editions,
+    drinkBrands,
+    drinkBrandAreas,
   };
   return {
     ...counts,
@@ -89,7 +101,9 @@ async function expectedCounts(): Promise<ExpectedCounts> {
       counts.landmarks +
       counts.historic +
       counts.venues +
-      counts.editions,
+      counts.editions +
+      counts.drinkBrands +
+      counts.drinkBrandAreas,
   };
 }
 
@@ -129,10 +143,23 @@ describe("sitemap()", () => {
     expect(familyCount("/landmark/")).toBe(expected.landmarks);
     expect(familyCount("/historic/")).toBe(expected.historic);
     expect(familyCount("/ledger/")).toBe(expected.venues);
+    expect(familyCount("/drink/")).toBe(expected.drinkBrands);
+    expect(familyCount("/area/")).toBe(expected.drinkBrandAreas);
+    expect(expected.drinkBrands).toBeGreaterThan(0);
+    expect(expected.drinkBrandAreas).toBeGreaterThan(0);
     // Sanity floors so a "0 expected" (dataset wipe) can't make the test pass.
     expect(expected.boroughs).toBeGreaterThan(0);
     expect(expected.historic).toBeGreaterThan(0);
     expect(expected.venues).toBeGreaterThan(0);
+  });
+
+  it("advertises no /area/{slug} page, because that family is held", () => {
+    // The brand-by-area pages live UNDER /area/{slug}, but the area page itself
+    // duplicates /borough/{slug} and is not published. Advertising one would be
+    // advertising a 404.
+    for (const url of urls.filter((candidate) => candidate.includes("/area/"))) {
+      expect(url).toMatch(/\/area\/[^/]+\/drink\/[^/]+$/);
+    }
   });
 
   it("advertises no token / UGC / auth surface", () => {

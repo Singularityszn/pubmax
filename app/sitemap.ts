@@ -4,8 +4,13 @@ import { listEnabledCities } from "@/lib/cities";
 import { listBoroughs } from "@/lib/boroughs";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
-import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import { loadPintPriceLandingVenuesOrThrow } from "@/lib/pintPriceLandingDataset.server";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintIndexSnapshot.server";
+import { loadDrinkBrandLandings } from "@/lib/drinkBrandLanding.server";
+import {
+  drinkBrandAreaLandingRoute,
+  loadDrinkBrandAreaLandings,
+} from "@/lib/drinkBrandAreaLanding.server";
 
 // Wave S1.2 dynamic sitemap. Enumerates every token-free, crawlable surface so
 // search + AI crawlers discover the whole graph (the map-first UI otherwise hides
@@ -16,6 +21,8 @@ import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintInd
 //     /choose-city, /crawls
 //   - /map/{city} for every enabled non-London city (London is /map)
 //   - /borough/{slug} for every borough present in the price dataset
+//   - /drink/{slug} and /area/{slug}/drink/{brand} for every governed drink
+//     landing above its publication floor (the same loaders the routes render)
 //   - /landmark/{id} for every curated landmark
 //   - /historic/{slug} for every cited historic pub (static, self-canonical SEO
 //     pages, the heritage moat)
@@ -39,39 +46,15 @@ import { loadPintIndexArchive, loadPublicPintIndexSnapshot } from "@/lib/pintInd
 
 const SITE_URL = "https://pubmaxxing.com";
 
-// Read the grouped venue set from the bundled dataset (same read path the
-// borough/ledger pages use). Deliberately FAILS LOUD: a read/parse/grouping
-// failure — or an unexpectedly empty dataset — throws, aborting sitemap
-// generation. This is intentional (CodeRabbit S1 review): a silently shrunken
-// sitemap is a deindexing hazard. If we published a 200 that dropped every
-// borough/venue/historic URL, Google would treat those pages as removed. A
-// thrown error instead surfaces as a 500 for /sitemap.xml, and crawlers keep
-// the last-known-good sitemap rather than acting on a truncated one. The path
-// is a fixed literal under public/data — no request-derived input, so the
-// static-fs-path lint note here is a false positive.
-async function loadVenues(): Promise<Venue[]> {
-  const { promises: fs } = await import("fs");
-  const path = await import("path");
-  const file = path.join(
-    process.cwd(),
-    "public",
-    "data",
-    "pint_prices_app_dataset.json",
-  );
-  const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
-  if (!Array.isArray(rows) || rows.length === 0) {
-    throw new Error(
-      "sitemap: pint price dataset is empty or malformed — refusing to publish a truncated sitemap",
-    );
-  }
-  const venues = groupVenuePrices(rows);
-  if (venues.length === 0) {
-    throw new Error(
-      "sitemap: grouped venue set is empty — refusing to publish a truncated sitemap",
-    );
-  }
-  return venues;
-}
+// The grouped venue set comes from the shared per-instance index (the read path
+// every priced surface uses). The sitemap's own wrapper FAILS LOUD: a
+// read/parse/grouping failure - or an unexpectedly empty dataset - throws,
+// aborting sitemap generation. This is intentional (CodeRabbit S1 review): a
+// silently shrunken sitemap is a deindexing hazard. If we published a 200 that
+// dropped every borough/venue/historic URL, Google would treat those pages as
+// removed. A thrown error instead surfaces as a 500 for /sitemap.xml, and
+// crawlers keep the last-known-good sitemap rather than acting on a truncated
+// one.
 
 // mtime of a public/data file as a Date, or `fallback` when it can't be read.
 async function dataFileModified(name: string, fallback: Date): Promise<Date> {
@@ -87,15 +70,25 @@ async function dataFileModified(name: string, fallback: Date): Promise<Date> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const [venues, historicPubs, pricesModified, historicModified, pintIndexSnapshot, pintIndexEditions] =
-    await Promise.all([
-      loadVenues(),
-      loadHistoricPubs(),
-      dataFileModified("pint_prices_app_dataset.json", now),
-      dataFileModified("historic_pubs.json", now),
-      loadPublicPintIndexSnapshot(),
-      loadPintIndexArchive(),
-    ]);
+  const [
+    venues,
+    historicPubs,
+    pricesModified,
+    historicModified,
+    pintIndexSnapshot,
+    pintIndexEditions,
+    drinkBrandLandings,
+    drinkBrandAreaLandings,
+  ] = await Promise.all([
+    loadPintPriceLandingVenuesOrThrow(),
+    loadHistoricPubs(),
+    dataFileModified("pint_prices_app_dataset.json", now),
+    dataFileModified("historic_pubs.json", now),
+    loadPublicPintIndexSnapshot(),
+    loadPintIndexArchive(),
+    loadDrinkBrandLandings(),
+    loadDrinkBrandAreaLandings(),
+  ]);
   const pintIndexPublished = pintIndexSnapshot
     ? new Date(pintIndexSnapshot.generatedAt)
     : new Date("2026-07-16T00:00:00.000Z");
@@ -103,7 +96,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // loadHistoricPubs() swallows read errors to [] (shared lib contract). The
   // historic index is always non-empty in practice (346 cited pubs), so an
   // empty result here means the data source failed — fail loud rather than
-  // publish a sitemap missing every /historic/{slug} page (see loadVenues).
+  // publish a sitemap missing every /historic/{slug} page.
   if (historicPubs.length === 0) {
     throw new Error(
       "sitemap: historic pub dataset is empty — refusing to publish a truncated sitemap",
@@ -164,6 +157,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: pricesModified,
       changeFrequency: "weekly",
       priority: 0.7,
+    });
+  }
+
+  // Governed drink brand pages. Eligibility and route order come from the same
+  // loader the route and generateStaticParams use, so the three cannot disagree
+  // about which pages exist.
+  for (const landing of drinkBrandLandings) {
+    entries.push({
+      url: `${SITE_URL}/drink/${encodeURIComponent(landing.slug)}`,
+      lastModified: pricesModified,
+      changeFrequency: "weekly",
+      priority: 0.75,
+    });
+  }
+
+  // Governed brand-by-area pages. Same rule, same loader. The parent
+  // /area/{slug} family is HELD (it duplicates /borough/{slug}), so no area
+  // page is published or advertised here.
+  for (const landing of drinkBrandAreaLandings) {
+    entries.push({
+      url: `${SITE_URL}${drinkBrandAreaLandingRoute(landing)}`,
+      lastModified: pricesModified,
+      changeFrequency: "weekly",
+      priority: 0.75,
     });
   }
 
