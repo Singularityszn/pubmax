@@ -317,10 +317,7 @@ export function formatPrice(value: number | null): string {
   return typeof value === "number" ? `£${value.toFixed(2)}` : "No price";
 }
 
-/** GBP formatter for prices, e.g. 5.4 → "£5.40". */
-export function formatGbp(value: number): string {
-  return `£${value.toFixed(2)}`;
-}
+export { formatGbp } from "@/lib/formatGbp";
 
 function normaliseVenueKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");

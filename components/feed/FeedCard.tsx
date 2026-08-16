@@ -23,7 +23,7 @@ import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { relativeTime } from "@/lib/relativeTime";
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import { formatGbp } from "@/lib/venues";
+import { formatGbp } from "@/lib/formatGbp";
 
 // For .cheersGatePrompt — the claim-a-handle failure prompt style (U2), now
 // rendered beside the reaction row.

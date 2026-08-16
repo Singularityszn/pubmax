@@ -17,7 +17,7 @@
 //     attribute, exactly as the in-app surfaces attribute them.
 
 import { DAY_MS } from "@/lib/dayMs";
-import { formatGbp } from "@/lib/venues";
+import { formatGbp } from "@/lib/formatGbp";
 
 /** Days in the digest window, ending at `now`. */
 export const DEFAULT_WINDOW_DAYS = 7;
@@ -165,7 +165,7 @@ export function pickGuardianTip(
   return tips[((weekIndex % tips.length) + tips.length) % tips.length];
 }
 
-export { formatGbp } from "@/lib/venues";
+export { formatGbp } from "@/lib/formatGbp";
 
 // ── Generator ─────────────────────────────────────────────────────────────────
 

@@ -42,14 +42,16 @@ async function citySlimVenues(cityPackSegment: string): Promise<SlimVenueRow[]> 
   if (cached) return cached;
   try {
     const file = path.join(
-      process.cwd(),
+      /* turbopackIgnore: true */ process.cwd(),
       "public",
       "data",
       "cities",
       cityPackSegment,
       "venues_slim.json",
     );
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as SlimVenueRow[];
+    const rows = JSON.parse(
+      await fs.readFile(/* turbopackIgnore: true */ file, "utf8"),
+    ) as SlimVenueRow[];
     const next = Array.isArray(rows) ? rows : [];
     slimCache.set(cityPackSegment, next);
     return next;

@@ -9,7 +9,7 @@ import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/cur
 import { landmarks } from "@/lib/landmarks";
 import { bandById } from "@/lib/storyBands";
 import { getRoutePack, routePacks } from "@/lib/routePacks";
-import { formatGbp } from "@/lib/venues";
+import { formatGbp } from "@/lib/formatGbp";
 import { loadSlimVenues, type SlimVenue } from "@/lib/venuesSlim";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";

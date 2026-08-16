@@ -11,7 +11,7 @@ import { displayHandle } from "@/lib/handleDisplay";
 import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
 import { buildPintDropShareText } from "@/lib/shareArtifacts";
 import { type ViewerContext } from "@/lib/pintDrops";
-import { formatGbp } from "@/lib/venues";
+import { formatGbp } from "@/lib/formatGbp";
 
 import "./permalink.css";
 

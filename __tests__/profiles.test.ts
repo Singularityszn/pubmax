@@ -62,6 +62,7 @@ describe("normalizeHandle", () => {
   it("is total: null/undefined/non-strings yield an empty string", () => {
     expect(normalizeHandle(null)).toBe("");
     expect(normalizeHandle(undefined)).toBe("");
+    // @ts-expect-error — guarding a non-string caller
     expect(normalizeHandle(42)).toBe("");
   });
 });
@@ -412,10 +413,10 @@ describe("one handle normaliser (#1043 L6)", () => {
 });
 
 describe("formatGbp and numeric clamp helpers (#1043 L7)", () => {
-  it("declares formatGbp only in lib/venues.ts", () => {
+  it("declares formatGbp only in lib/formatGbp.ts", () => {
     const offenders: string[] = [];
     for (const file of listSourceFiles("app", "components", "lib")) {
-      if (file === "lib/venues.ts") continue;
+      if (file === "lib/formatGbp.ts") continue;
       const source = readFileSync(join(process.cwd(), file), "utf8");
       if (/function formatGbp\b/.test(source)) offenders.push(file);
     }

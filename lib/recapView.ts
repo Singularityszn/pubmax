@@ -16,7 +16,7 @@ import type { LastPintDecisionKind } from "@/lib/tfl";
 import { hasPublicationConsent, type MomentConsent, type NightMoment, type PublicNightStory } from "@/lib/nightMemory";
 import type { PintDrop } from "@/lib/pintDropShared";
 import type { CrawlEnding, EndingSelection } from "@/lib/plan";
-import { formatGbp } from "@/lib/venues";
+import { formatGbp } from "@/lib/formatGbp";
 
 export type RecapRouteStop = {
   position: number;
@@ -69,7 +69,7 @@ export type RecapView = {
   stats: RecapStats;
 };
 
-export { formatGbp } from "@/lib/venues";
+export { formatGbp } from "@/lib/formatGbp";
 
 function trimmed(value: string | null | undefined): string | null {
   const text = typeof value === "string" ? value.trim() : "";

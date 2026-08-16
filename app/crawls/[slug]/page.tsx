@@ -8,7 +8,7 @@ import ShareBar from "@/components/share/ShareBar";
 import { computeChaosScore } from "@/lib/chaosScore";
 import { getCrawlStoryBySlug, type DurableStory } from "@/lib/crawlStoryStore";
 import { buildCrawlShareText } from "@/lib/shareArtifacts";
-import { formatGbp } from "@/lib/venues";
+import { formatGbp } from "@/lib/formatGbp";
 
 import "./story.css";
 

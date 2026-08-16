@@ -1,7 +1,7 @@
 import { buildVenueClaims, type ClaimDrop, type Provenance, type VenueClaim } from "@/lib/curation";
 import { displayHandle, handleOnly } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
-import { formatGbp } from "@/lib/venues";
+import { formatGbp } from "@/lib/formatGbp";
 
 // The Ledger (issue #25, PRD_FOR_FABLE.md § "The Spill"): a large-text,
 // voice-friendly logbook rendering of a venue's Pint Drops — "the story of

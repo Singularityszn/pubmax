@@ -6,7 +6,7 @@
 // simple stats from the drops. Everything here is pure and backend-free so it
 // unit-tests without a DOM, a network, or a database.
 
-import { normalizeHandle } from "@/lib/handleNormalize";
+import { normalizeHandle as normalizeHandleCore } from "@/lib/handleNormalize";
 
 // A profile drop is the public Pint Drop DTO shape, kept loose so this module
 // never depends on the store's internal types. Only the fields the profile
@@ -237,7 +237,15 @@ export type Badge = {
   earned: boolean;
 };
 
-export { HANDLE_MAX, normalizeHandle } from "@/lib/handleNormalize";
+export { HANDLE_MAX } from "@/lib/handleNormalize";
+
+/**
+ * The public identity normaliser. The leaf is runtime-total (`unknown`), while
+ * this re-export keeps the narrower argument type every caller was written
+ * against, so a wrong value is still a compile error here.
+ */
+export const normalizeHandle: (raw: string | null | undefined) => string =
+  normalizeHandleCore;
 
 /**
  * Initials for a handle-backed surface. Never leaks withheld handles.
