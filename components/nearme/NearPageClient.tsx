@@ -1,18 +1,32 @@
 "use client";
 
-import { Suspense, useEffect, useSyncExternalStore } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useSyncExternalStore } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import SiteNav from "@/components/nav/SiteNav";
+import { trackEvent } from "@/lib/analytics";
 import {
   clearPosterLandingSession,
   isPosterLandingSrc,
 } from "@/lib/posterLanding";
 import { readPreferredCity, subscribePreferredCity } from "@/lib/cityPreference";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
+import {
+  NEAR_MODE_QUERY,
+  parseNearModeParam,
+  resolveNearMode,
+  type NearMode,
+} from "@/lib/nearDesk";
+import {
+  readRememberedNearMode,
+  subscribeRememberedNearMode,
+  writeRememberedNearMode,
+} from "@/lib/nearModePreference";
 import { resolveNightPatch } from "@/lib/nightPatches";
 
+import NearDeskNow from "./NearDeskNow";
 import NearMeNow from "./NearMeNow";
+import NearModeSwitch from "./NearModeSwitch";
 import PosterLandingNote from "./PosterLandingNote";
 import "./nearPage.css";
 
@@ -35,9 +49,41 @@ function NearPageBody() {
   );
   const cityId = preferredCity ?? DEFAULT_CITY_ID;
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const patchParam = searchParams.get("patch");
   const initialPatchId = resolveNightPatch(patchParam)?.id ?? null;
   const autoLocate = resolveNearAutoLocate(searchParams);
+  const rememberedMode = useSyncExternalStore(
+    subscribeRememberedNearMode,
+    readRememberedNearMode,
+    () => null,
+  );
+  const modeResolved = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const modeParam = searchParams.get(NEAR_MODE_QUERY);
+  const explicitMode = parseNearModeParam(modeParam);
+  const mode: NearMode | null = explicitMode
+    ?? (modeResolved ? resolveNearMode(null, rememberedMode) : null);
+
+  const setMode = useCallback((next: NearMode) => {
+    writeRememberedNearMode(next);
+    trackEvent("near_mode_switched", { mode: next });
+    if (!pathname) return;
+    try {
+      const params = new URLSearchParams(
+        typeof window !== "undefined" ? window.location.search : "",
+      );
+      params.set(NEAR_MODE_QUERY, next);
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    } catch {
+      // URL sync is best-effort — the remembered mode still stands.
+    }
+  }, [pathname, router]);
 
   // Mount-only: a fresh /near load without src=poster must not inherit a stale
   // poster session from an earlier scan in the same tab.
@@ -59,16 +105,29 @@ function NearPageBody() {
         {/* Physical QR arrival (PLG Wave 2): one honest orientation line when
             the drinker scanned a bar poster into /near?src=poster. */}
         <PosterLandingNote src={searchParams.get("src")} />
+        {mode ? (
+          <NearModeSwitch value={mode} onChange={setMode} />
+        ) : null}
         {/* Idle-first on /near so patch chips are reachable without granting
             location. Shareable ?patch= deep links answer immediately. */}
-        <NearMeNow
-          cityId={cityId}
-          autoLocate={preferredCityResolved && autoLocate}
-          initialPatchId={initialPatchId}
-          syncPatchToUrl
-          allowVenueAcceptance
-          showPriceTrust
-        />
+        {mode === "desk" ? (
+          <NearDeskNow
+            autoLocate={preferredCityResolved && autoLocate}
+            initialPatchId={initialPatchId}
+            syncPatchToUrl
+          />
+        ) : mode === "pint" ? (
+          <NearMeNow
+            cityId={cityId}
+            autoLocate={preferredCityResolved && autoLocate}
+            initialPatchId={initialPatchId}
+            syncPatchToUrl
+            allowVenueAcceptance
+            showPriceTrust
+          />
+        ) : (
+          <div className="nmn" aria-busy="true" />
+        )}
       </main>
     </div>
   );

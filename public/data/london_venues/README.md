@@ -50,13 +50,18 @@ published, because that is where the curated layer, the prices and the readers
 are. Widening it to the country needs the per-shard and whole-layer budgets
 re-measured, not raised.
 
-## No reader yet
+## Desk pack
 
-Nothing in the app fetches these shards today. The layer is published and
-kind-tagged so a work-spot surface can be built against real data; building that
-surface is a separate wave. A reader wave will also want a
-`NEXT_PUBLIC_…_GENERATION` build var, the way `uk_base` has one in
-`next.config.mjs`.
+`desks.json` is the amenity-bearing sibling of these shards, cut by
+`npm run build:london-desks` from the same UK OSM packs. The shards keep name,
+address, position and kind only; desk mode needs wifi, laptop and
+`opening_hours`, so those tags live here and nowhere on the shard rows.
+
+A row is a tuple:
+`[osmRef, name, address, lat, lng, kind, internetAccess, laptop, hours]`.
+Eligible kinds are cafe, coworking, library and hotel_lounge, plus a pub only
+when OSM states wifi. The covering `observedAt` is the oldest pack `fetchedAt`.
+`/near?mode=desk` is the reader (`lib/nearDeskVenues.ts`).
 
 ## Attribution
 

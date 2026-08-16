@@ -1,0 +1,93 @@
+import { mkdirSync } from "node:fs";
+import path from "node:path";
+import { expect, test, type Page } from "@playwright/test";
+
+test.setTimeout(90_000);
+
+const SHOTS_DIR = "docs/screenshots/near-desk-mode";
+
+function watchErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  return errors;
+}
+
+async function prepareReturningVisitor(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+}
+
+test.describe("near desk mode", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("switches Pint to Desk and serves an honest Soho answer", async ({ page }) => {
+    const errors = watchErrors(page);
+    await prepareReturningVisitor(page);
+    const response = await page.goto("/near?patch=soho");
+    expect(response?.status()).toBe(200);
+
+    const modeSwitch = page.getByRole("tablist", { name: "Near mode" });
+    await expect(modeSwitch).toBeVisible();
+    const pintTab = page.getByRole("tab", { name: "Pint" });
+    const deskTab = page.getByRole("tab", { name: "Desk" });
+    await expect(pintTab).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator("section.nmn")).toBeVisible();
+    await expect(page.locator(".nmnCard").first()).toBeVisible();
+
+    await deskTab.click();
+    await expect(deskTab).toHaveAttribute("aria-selected", "true");
+    await expect(page).toHaveURL(/mode=desk/);
+    await expect(page.getByRole("heading", { name: /Somewhere to sit around Soho/ })).toBeVisible();
+    await expect(page.getByText("Wifi:", { exact: false }).first()).toBeVisible();
+    await expect(page.getByText("Laptops:", { exact: false }).first()).toBeVisible();
+    await expect(page.getByText("Hours:", { exact: false }).first()).toBeVisible();
+    await expect(page.getByText("No seat data yet").first()).toBeVisible();
+    await expect(page.getByText(/^Checked /).first()).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test("deep-links desk mode and names a thin locality honestly", async ({ page }) => {
+    const errors = watchErrors(page);
+    await prepareReturningVisitor(page);
+    await page.route("**/data/london_venues/desks.json", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          version: 1,
+          source: "osm",
+          observedAt: "2026-08-16T04:01:27.583Z",
+          venues: [],
+        }),
+      });
+    });
+    const response = await page.goto("/near?mode=desk&patch=soho");
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("tab", { name: "Desk" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByText("No desks logged near here yet - add a spot")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test("captures light and dark desk answers at 390", async ({ page }) => {
+    mkdirSync(SHOTS_DIR, { recursive: true });
+    await prepareReturningVisitor(page);
+    await page.goto("/near?mode=desk&patch=soho");
+    await expect(page.getByText("Wifi:", { exact: false }).first()).toBeVisible();
+
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
+    await page.screenshot({
+      path: path.join(SHOTS_DIR, "desk-soho-390-light.png"),
+      fullPage: true,
+    });
+
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+    await page.screenshot({
+      path: path.join(SHOTS_DIR, "desk-soho-390-dark.png"),
+      fullPage: true,
+    });
+  });
+});
