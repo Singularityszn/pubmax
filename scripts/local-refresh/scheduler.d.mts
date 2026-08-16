@@ -28,7 +28,12 @@ export function baseRefForRun(dryRun: boolean): "HEAD" | "origin/main";
 export function commandsForMode(
   mode: "prices" | "events",
   dryRun: boolean,
-): Array<{ executable: string; args: string[] }>;
+): Array<{
+  executable: string;
+  args: string[];
+  /** A lane whose non-zero exit must not stop the others. */
+  independent?: boolean;
+}>;
 
 export function resourceRefusal(input: {
   load1: number;

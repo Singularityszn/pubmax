@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { DATE_ONLY_TIME_EVIDENCE } from "../../lib/whatson/eventNormalise.mjs";
 import { eventsOutputPath } from "./eventsRefresh.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -94,22 +95,58 @@ export function parseCommonPostHtml(html) {
 }
 
 export function parseCommonSitemap(xml) {
+  return parseCommonSitemapEntries(xml).map((entry) => entry.url);
+}
+
+/** Every /post/* entry in DOCUMENT order, with its stated lastmod when the
+ *  sitemap carries one. */
+export function parseCommonSitemapEntries(xml) {
   if (!nonEmptyString(xml)) return [];
-  const locs = [];
-  const re = /<loc>\s*([^<]+)\s*<\/loc>/gi;
-  let match;
-  while ((match = re.exec(xml))) {
-    const loc = match[1].trim();
+  const entries = [];
+  const seen = new Set();
+  const blockRe = /<url\b[\s\S]*?<\/url>/gi;
+  const blocks = String(xml).match(blockRe) ?? [String(xml)];
+  for (const block of blocks) {
+    const loc = /<loc>\s*([^<]+?)\s*<\/loc>/i.exec(block)?.[1]?.trim();
+    if (!nonEmptyString(loc)) continue;
     try {
       const url = new URL(loc);
-      if (url.hostname === "www.common-social.com" && url.pathname.startsWith("/post/")) {
-        locs.push(url.toString());
-      }
+      if (url.hostname !== "www.common-social.com") continue;
+      if (!url.pathname.startsWith("/post/")) continue;
+      const href = url.toString();
+      if (seen.has(href)) continue;
+      seen.add(href);
+      const lastmodText = /<lastmod>\s*([^<]+?)\s*<\/lastmod>/i.exec(block)?.[1]?.trim();
+      const lastmod = lastmodText && Number.isFinite(Date.parse(lastmodText))
+        ? Date.parse(lastmodText)
+        : null;
+      entries.push({ url: href, lastmod });
     } catch {
       // skip a malformed loc
     }
   }
-  return [...new Set(locs)];
+  return entries;
+}
+
+/**
+ * The order the crawl budget is spent in: freshest published post first.
+ *
+ * A sitemap grows with the site's whole history, and the budget is finite, so
+ * spending it in document order re-reads the same oldest, long-past posts every
+ * run and never reaches an upcoming night. `lastmod` decides when the sitemap
+ * states one; an undated entry goes last, in REVERSE document order, because a
+ * sitemap that appends is newest at the end.
+ */
+export function commonCrawlOrder(entries) {
+  const dated = [];
+  const undated = [];
+  entries.forEach((entry, index) => {
+    if (typeof entry.lastmod === "number") dated.push({ entry, index });
+    else undated.push({ entry, index });
+  });
+  dated.sort((left, right) => right.entry.lastmod - left.entry.lastmod || left.index - right.index);
+  undated.reverse();
+  return [...dated, ...undated].map((held) => held.entry.url);
 }
 
 // A Common post states a day and a month and no year. Resolving it against
@@ -167,7 +204,7 @@ export function commonStartsDate(dateText, todayLondon) {
   return `${parsed.year}-${pad2(parsed.month + 1)}-${pad2(parsed.day)}`;
 }
 
-export const COMMON_TIME_EVIDENCE = "Date listed, start time not published";
+export const COMMON_TIME_EVIDENCE = DATE_ONLY_TIME_EVIDENCE;
 
 function sourceIdFromUrl(url) {
   try {
@@ -276,7 +313,7 @@ export async function refreshCommonEvents({
   }
 
   const sitemap = await fetchText(COMMON_SITEMAP_URL, fetchImpl);
-  const posts = parseCommonSitemap(sitemap);
+  const posts = commonCrawlOrder(parseCommonSitemapEntries(sitemap));
   const rows = [];
   let droppedStale = 0;
   let droppedUnparseable = 0;

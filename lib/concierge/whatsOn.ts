@@ -11,6 +11,7 @@
 
 import {
   WHATS_ON_KINDS,
+  whatsOnBarePriceGbp,
   type WhatsOnKind,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
@@ -176,7 +177,8 @@ function toDto(row: WhatsOnRow): WhatsOnListingDto {
   if (row.endsAt) dto.endsAt = row.endsAt;
   if (row.timeEvidence) dto.timeEvidence = row.timeEvidence;
   if (row.detail) dto.detail = row.detail;
-  if (typeof row.priceGbp === "number") dto.priceGbp = row.priceGbp;
+  const barePrice = whatsOnBarePriceGbp(row);
+  if (barePrice !== null) dto.priceGbp = barePrice;
   return dto;
 }
 

@@ -2,7 +2,7 @@
 // Reads TICKETMASTER_API_KEY at call time. Never logs the key.
 // Everything shared with the Skiddle lane lives in lib/events/liveProvider.ts.
 
-import { normaliseTicketmasterEvents } from "../../scripts/whatson/eventsRefresh.mjs";
+import { normaliseTicketmasterEvents } from "@/lib/whatson/eventNormalise.mjs";
 import { createLiveEventsProvider, type LiveEventsProvider } from "@/lib/events/liveProvider";
 
 function toTmInstant(iso: string): string {

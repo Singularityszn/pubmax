@@ -6,7 +6,7 @@
 import {
   SKIDDLE_EVENTCODE_KIND,
   normaliseSkiddleEvents,
-} from "../../scripts/whatson/eventsRefresh.mjs";
+} from "@/lib/whatson/eventNormalise.mjs";
 import { createLiveEventsProvider, type LiveEventsProvider } from "@/lib/events/liveProvider";
 
 const SKIDDLE_FETCH_CODES = Object.keys(SKIDDLE_EVENTCODE_KIND).join(",");

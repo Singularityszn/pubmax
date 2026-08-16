@@ -19,7 +19,7 @@ export const GET = withRouteTiming("out", getHandler);
 
 async function getHandler(request: Request): Promise<Response> {
   if (await isOutLimited(request)) {
-    return publicApiError("Too many requests, slow down.", "rate_limited", 429, {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
       retryable: true,
     });
   }

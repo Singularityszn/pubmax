@@ -10,8 +10,10 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
  * closes the outer one - so the credit may never be nested inside the card link.
  */
 export function ticketFromLine(row: WhatsOnRow): string | null {
-  if (typeof row.priceGbp !== "number") return null;
-  return `from £${row.priceGbp % 1 === 0 ? row.priceGbp.toFixed(0) : row.priceGbp.toFixed(2)}`;
+  if (row.kind !== "event") return null;
+  if (typeof row.priceGbp !== "number" || !Number.isFinite(row.priceGbp)) return null;
+  const amount = row.priceGbp % 1 === 0 ? row.priceGbp.toFixed(0) : row.priceGbp.toFixed(2);
+  return `Tickets from £${amount}`;
 }
 
 /**

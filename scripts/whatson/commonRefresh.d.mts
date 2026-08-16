@@ -11,6 +11,10 @@ export type CommonParsedPost = { title: string; placeName: string; dateText: str
 export declare function parseCommonOgPrefix(text: string): CommonOgPrefix | null;
 export declare function parseCommonPostHtml(html: string): CommonParsedPost | null;
 export declare function parseCommonSitemap(xml: string): string[];
+
+export type CommonSitemapEntry = { url: string; lastmod: number | null };
+export declare function parseCommonSitemapEntries(xml: string): CommonSitemapEntry[];
+export declare function commonCrawlOrder(entries: readonly CommonSitemapEntry[]): string[];
 export declare function isStaleCommonDate(dateText: string, todayLondon: string): boolean;
 export declare function commonStartsDate(dateText: string, todayLondon: string): string | null;
 

@@ -11,6 +11,7 @@ import {
   isOnTonight,
   londonServiceDayBounds,
   tonightServiceWindow,
+  whatsOnBarePriceGbp,
   type WhatsOnConfidence,
   type WhatsOnKind,
   type WhatsOnRow,
@@ -59,7 +60,8 @@ export function isEventRelevantToPlanStart(row: WhatsOnRow, planStartMs: number)
 function chipLabel(row: WhatsOnRow, timeLabel: string | null): string {
   const parts = [WHATS_ON_KIND_META[row.kind].badgeLabel];
   if (timeLabel) parts.push(timeLabel);
-  if (typeof row.priceGbp === "number") parts.push(`£${row.priceGbp.toFixed(2)}`);
+  const barePrice = whatsOnBarePriceGbp(row);
+  if (barePrice !== null) parts.push(`£${barePrice.toFixed(2)}`);
   return parts.join(" · ");
 }
 

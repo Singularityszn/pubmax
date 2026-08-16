@@ -8,6 +8,13 @@
 // no licence field (per the B1 row contract).
 
 import { type ThingsToDoResult } from "@/lib/citymcp/client";
+import {
+  isCalendarDate as isCalendarDateShape,
+  isHttpUrl as isHttpUrlShape,
+  isValidIso as isValidIsoShape,
+  isValidObservedAt as isValidObservedAtShape,
+  isValidWhatsOnRow as isValidWhatsOnRowShape,
+} from "@/lib/whatsOnRowShape.mjs";
 
 export const WHATS_ON_KINDS = ["sport", "quiz", "deal", "music", "event"] as const;
 export type WhatsOnKind = (typeof WHATS_ON_KINDS)[number];
@@ -58,8 +65,47 @@ export type WhatsOnRow = {
   confidence: WhatsOnConfidence;
 };
 
+// http(s) URL guard — a source must be a real, absolute link the UI can
+// attribute to.
+export function isHttpUrl(value: unknown): value is string {
+  return isHttpUrlShape(value);
+}
+
+// A parseable ISO timestamp (no future constraint — startsAt may be future).
+export function isValidIso(value: unknown): value is string {
+  return isValidIsoShape(value);
+}
+
+// A London calendar date, exactly YYYY-MM-DD, that names a real day. This is
+// what a listing carries when it publishes a DAY and no clock time.
+export function isCalendarDate(value: unknown): value is string {
+  return isCalendarDateShape(value);
+}
+
+// A valid ISO timestamp that is not in the future (you cannot have observed an
+// event that hasn't happened yet).
+export function isValidObservedAt(value: unknown, now: number): value is string {
+  return isValidObservedAtShape(value, now);
+}
+
 export function isWhatsOnKind(value: unknown): value is WhatsOnKind {
   return (WHATS_ON_KINDS as readonly string[]).includes(value as string);
+}
+
+/**
+ * The figure a NON-event What's-On surface may print, or null.
+ *
+ * A kind=event row's `priceGbp` is a TICKET price, and it belongs to the /out
+ * event card alone, worded "Tickets from £X" beside its source credit. Every
+ * other lane prints a bare "£23.50", which in this product reads as a drink
+ * price - and it loses even the "from" qualifier. So the rule lives here, at
+ * the one place every reader projects a row from, rather than being restated
+ * per surface: Tonight, the map lane, the Today pick, a plan chip and the Pub
+ * Pal DTO all ask this instead of reading `row.priceGbp`.
+ */
+export function whatsOnBarePriceGbp(row: Pick<WhatsOnRow, "kind" | "priceGbp">): number | null {
+  if (row.kind === "event") return null;
+  return typeof row.priceGbp === "number" && Number.isFinite(row.priceGbp) ? row.priceGbp : null;
 }
 
 /**
@@ -126,108 +172,13 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-// Optional field: absent (undefined) or null is fine; if present it must be a
-// non-empty string. Scraped payloads (e.g. quiz_london.json) use `null` for an
-// unresolved venueId, so null is treated as "absent".
-function isAbsentOr<T>(value: unknown, guard: (v: unknown) => v is T): boolean {
-  return value === undefined || value === null || guard(value);
-}
-
-// http(s) URL guard — a source must be a real, absolute link the UI can
-// attribute to.
-export function isHttpUrl(value: unknown): value is string {
-  if (!isNonEmptyString(value)) return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-// A parseable ISO timestamp (no future constraint — startsAt may be future).
-export function isValidIso(value: unknown): value is string {
-  return isNonEmptyString(value) && Number.isFinite(Date.parse(value));
-}
-
-// A London calendar date, exactly YYYY-MM-DD, that names a real day. This is
-// what a listing carries when it publishes a DAY and no clock time.
-export function isCalendarDate(value: unknown): value is string {
-  if (!isNonEmptyString(value)) return false;
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
-  const probe = new Date(Date.UTC(year, month - 1, day));
-  return (
-    probe.getUTCFullYear() === year &&
-    probe.getUTCMonth() === month - 1 &&
-    probe.getUTCDate() === day
-  );
-}
-
-// A valid ISO timestamp that is not in the future (you cannot have observed an
-// event that hasn't happened yet).
-export function isValidObservedAt(value: unknown, now: number): value is string {
-  if (!isNonEmptyString(value)) return false;
-  const ms = Date.parse(value);
-  return Number.isFinite(ms) && ms <= now;
-}
-
-function isValidSource(value: unknown): value is WhatsOnSource {
-  if (typeof value !== "object" || value === null) return false;
-  const s = value as Record<string, unknown>;
-  return isNonEmptyString(s.label) && isHttpUrl(s.url);
-}
-
 // Hand-rolled row guard — drop malformed rows rather than throw. `now` is
-// injectable for deterministic tests.
+// injectable for deterministic tests. The RULE itself lives in
+// lib/whatsOnRowShape.mjs, because scripts/validate-data.mjs and
+// scripts/refresh_whats_on.mjs cannot import TypeScript and used to keep two
+// hand-written mirrors of it that drifted the moment the shape widened.
 export function isValidWhatsOnRow(value: unknown, now: number = Date.now()): value is WhatsOnRow {
-  if (typeof value !== "object" || value === null) return false;
-  const row = value as Record<string, unknown>;
-
-  if (!isNonEmptyString(row.id)) return false;
-  if (!isNonEmptyString(row.placeName)) return false;
-  if (!isWhatsOnKind(row.kind)) return false;
-  const hasExactStart = isValidIso(row.startsAt);
-  const hasStatedDate = isCalendarDate(row.startsDate);
-  const hasListedTime = isNonEmptyString(row.timeEvidence);
-  const hasListedWindow =
-    row.listedWindow === "tonight" ||
-    row.listedWindow === "tomorrow_night" ||
-    row.listedWindow === "this_weekend";
-  if (!hasExactStart && !hasStatedDate && !hasListedTime && !hasListedWindow) return false;
-  if (!isNonEmptyString(row.title)) return false;
-  if (!isValidSource(row.source)) return false; // provenance non-negotiable
-  if (!isValidObservedAt(row.observedAt, now)) return false; // never future
-  if (!isWhatsOnConfidence(row.confidence)) return false;
-  return optionalsValid(row, hasExactStart, hasListedWindow);
-}
-
-function optionalsValid(
-  row: Record<string, unknown>,
-  hasExactStart: boolean,
-  hasListedWindow: boolean,
-): boolean {
-  if (!isAbsentOr(row.venueId, isNonEmptyString)) return false;
-  if (!isAbsentOr(row.startsDate, isCalendarDate)) return false;
-  if (row.lat !== undefined && row.lat !== null && !isFiniteNumber(row.lat)) return false;
-  if (row.lng !== undefined && row.lng !== null && !isFiniteNumber(row.lng)) return false;
-  if (row.endsAt !== undefined && row.endsAt !== null) {
-    if (!hasExactStart || !isValidIso(row.endsAt)) return false;
-  }
-  if (!isAbsentOr(row.timeEvidence, isNonEmptyString)) return false;
-  if (row.listedWindow !== undefined && !hasListedWindow) return false;
-  if (!isAbsentOr(row.detail, isNonEmptyString)) return false;
-  if (row.priceGbp !== undefined && row.priceGbp !== null) {
-    if (!isFiniteNumber(row.priceGbp) || row.priceGbp < 0) return false;
-  }
-  if (!isAbsentOr(row.imageUrl, isHttpUrl)) return false;
-  if (!isAbsentOr(row.sourceId, isNonEmptyString)) return false;
-  if (!isAbsentOr(row.area, isNonEmptyString)) return false;
-  return true;
+  return isValidWhatsOnRowShape(value, now);
 }
 
 // Data-derived event titles occasionally carry a typographic em or en dash

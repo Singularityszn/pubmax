@@ -8,6 +8,7 @@ import {
   outDayWindow,
   parseOutQuery,
 } from "@/lib/out/loadOut";
+import { outStatusLines } from "@/lib/out/outStatus";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const FIXTURE_NOW = new Date("2026-08-16T17:00:00.000Z");
@@ -260,6 +261,52 @@ describe("buildOutResponse", () => {
   });
 });
 
+describe("the two lanes fold onto one listing", () => {
+  it("shows a Ticketmaster event once, keeping the bundled row's venue match", async () => {
+    const bundled = eventRow({
+      id: "events-tm-bundled",
+      venueId: "venue-soho-theatre",
+      sourceId: "tm-1",
+      observedAt: "2026-08-16T06:00:00.000Z",
+    });
+    // Same listing off the live seam: no venue index, so no venueId, and the
+    // place name alone gives dedupeRows a different key.
+    const live = eventRow({
+      id: "events-tm-live",
+      sourceId: "tm-1",
+      observedAt: "2026-08-16T16:00:00.000Z",
+    });
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [bundled],
+        liveProviders: [
+          { name: "ticketmaster", isConfigured: () => true, fetchTonight: async () => [live] },
+        ],
+      },
+    );
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0].observedAt).toBe("2026-08-16T16:00:00.000Z");
+    expect(body.events[0].venueId).toBe("venue-soho-theatre");
+  });
+
+  it("leaves two genuinely different listings alone", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [
+          eventRow({ id: "a", sourceId: "tm-1" }),
+          eventRow({ id: "b", sourceId: "tm-2", placeName: "Another Room" }),
+        ],
+        liveProviders: [],
+      },
+    );
+    expect(body.events).toHaveLength(2);
+  });
+});
+
 describe("GET /api/out", () => {
   it("sets the edge cache header on a 200", async () => {
     const res = await GET(new Request("http://localhost/api/out?city=london&day=today"));
@@ -280,5 +327,29 @@ describe("GET /api/out", () => {
     expect(body.error).toEqual(expect.any(String));
     expect(body.code).toEqual(expect.any(String));
     expect(typeof body.retryable).toBe("boolean");
+  });
+});
+
+describe("outStatusLines", () => {
+  it("never words a degraded answer as an empty market", () => {
+    expect(
+      outStatusLines({
+        body: { status: "degraded", events: [], reason: "Out does not cover Bristol yet." },
+        failed: false,
+      }),
+    ).toEqual(["Out does not cover Bristol yet."]);
+    expect(outStatusLines({ body: { status: "degraded", events: [] }, failed: false })).toEqual([
+      "Some listings could not be checked.",
+    ]);
+  });
+
+  it("says the city is quiet only when the read actually answered", () => {
+    expect(outStatusLines({ body: { status: "ready", events: [] }, failed: false })).toEqual([
+      "No listings for this day yet.",
+    ]);
+    expect(outStatusLines({ body: null, failed: true })).toEqual(["Could not check listings."]);
+    expect(
+      outStatusLines({ body: { status: "ready", events: [eventRow()] }, failed: false }),
+    ).toEqual([]);
   });
 });

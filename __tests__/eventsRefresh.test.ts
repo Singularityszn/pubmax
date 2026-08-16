@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { DATE_ONLY_TIME_EVIDENCE } from "@/lib/whatson/eventNormalise.mjs";
 import {
   EVENT_REFRESH_CITIES,
   SKIDDLE_EVENTCODE_KIND,
@@ -102,6 +103,47 @@ describe("Ticketmaster / Skiddle kind mapping", () => {
       source: { label: "Skiddle", url: "https://www.skiddle.com/whats-on/e/901" },
     });
     expect(isValidWhatsOnRow(club as unknown, now)).toBe(true);
+  });
+
+  it("carries a Skiddle bare date as a DATE, never an invented 20:00 start", () => {
+    const bareDate = mapSkiddleEvent(
+      {
+        id: 902,
+        eventname: "Sunday session",
+        EventCode: "BARPUB",
+        link: "https://www.skiddle.com/whats-on/e/902",
+        date: "2026-08-16",
+        enddate: "2026-08-16 23:00:00",
+        venue: { name: "The Dublin Castle" },
+      },
+      { observedAt },
+    );
+    expect(bareDate?.startsAt).toBeUndefined();
+    expect(bareDate?.startsDate).toBe("2026-08-16");
+    expect(bareDate?.timeEvidence).toBe(DATE_ONLY_TIME_EVIDENCE);
+    // An endsAt without an exact start is not an interval, so it is dropped
+    // rather than pairing a real close with a start nobody published.
+    expect(bareDate?.endsAt).toBeUndefined();
+    expect(JSON.stringify(bareDate)).not.toContain("20:00");
+    expect(isValidWhatsOnRow(bareDate as unknown, now)).toBe(true);
+  });
+
+  it("keeps the exact clock when Skiddle really states one", () => {
+    const timed = mapSkiddleEvent(
+      {
+        id: 903,
+        eventname: "Doors at eight",
+        EventCode: "CLUB",
+        link: "https://www.skiddle.com/whats-on/e/903",
+        date: "2026-08-16",
+        openingtimes: { doorsopen: "2026-08-16 20:00:00" },
+        venue: { name: "A Basement" },
+      },
+      { observedAt },
+    );
+    expect(timed?.startsDate).toBeUndefined();
+    expect(timed?.timeEvidence).toBeUndefined();
+    expect(timed?.startsAt).toBe("2026-08-16T19:00:00.000Z");
   });
 
   it("still maps Music to music and LIVE to music", () => {
@@ -208,10 +250,15 @@ describe("local scheduler events mode", () => {
     vi.restoreAllMocks();
   });
 
-  it("runs the official refresh then the Common reader", () => {
-    expect(commandsForMode("events", false).map((command) => command.args)).toEqual([
+  it("runs the official refresh then the Common reader, as INDEPENDENT lanes", () => {
+    const commands = commandsForMode("events", false);
+    expect(commands.map((command) => command.args)).toEqual([
       ["scripts/whatson/eventsRefresh.mjs"],
       ["scripts/whatson/commonRefresh.mjs"],
     ]);
+    // eventsRefresh exits non-zero on ordinary outcomes (an upstream 5xx, or
+    // its deliberate "0 mappable rows, refusing to clobber" refusal). Common
+    // depends on Ticketmaster for nothing, so it must still run.
+    expect(commands.every((command) => command.independent === true)).toBe(true);
   });
 });

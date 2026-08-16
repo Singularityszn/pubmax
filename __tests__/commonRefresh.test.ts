@@ -9,11 +9,13 @@ import {
   COMMON_SOURCE,
   COMMON_TIME_EVIDENCE,
   COMMON_USER_AGENT,
+  commonCrawlOrder,
   commonStartsDate,
   isStaleCommonDate,
   parseCommonOgPrefix,
   parseCommonPostHtml,
   parseCommonSitemap,
+  parseCommonSitemapEntries,
   refreshCommonEvents,
   toCommonEventRow,
 } from "../scripts/whatson/commonRefresh.mjs";
@@ -197,7 +199,9 @@ describe("refreshCommonEvents", () => {
       gapMs: 0,
       maxFetches: 1,
     });
-    expect(seen).toEqual(["https://www.common-social.com/post/two"]);
+    // Undated sitemap: the budget walks from the end, so the newest untouched
+    // post is read and the one already held is not re-fetched.
+    expect(seen).toEqual(["https://www.common-social.com/post/thr"]);
     expect(report.reusedHeld).toBe(1);
     expect(report.fetched).toBe(1);
     expect(report.skippedOverBudget).toBe(1);
@@ -225,5 +229,71 @@ describe("sitemap + UA", () => {
     expect(COMMON_USER_AGENT).toMatch(/PUBMAXX/);
     expect(COMMON_USER_AGENT).toMatch(/karanszdy@gmail\.com/);
     expect(COMMON_SOURCE.label).toBe("common");
+  });
+});
+
+describe("the crawl budget advances", () => {
+  it("spends the budget on the freshest published posts, not the oldest", () => {
+    const xml = `<?xml version="1.0"?>
+      <urlset>
+        <url><loc>https://www.common-social.com/post/ancient</loc><lastmod>2024-01-01</lastmod></url>
+        <url><loc>https://www.common-social.com/post/recent</loc><lastmod>2026-08-14</lastmod></url>
+        <url><loc>https://www.common-social.com/post/newest</loc><lastmod>2026-08-15</lastmod></url>
+      </urlset>`;
+    const entries = parseCommonSitemapEntries(xml);
+    expect(entries).toHaveLength(3);
+    expect(commonCrawlOrder(entries)).toEqual([
+      "https://www.common-social.com/post/newest",
+      "https://www.common-social.com/post/recent",
+      "https://www.common-social.com/post/ancient",
+    ]);
+  });
+
+  it("walks an undated sitemap from the end, where a growing sitemap appends", () => {
+    const xml = `<urlset>
+      <url><loc>https://www.common-social.com/post/one</loc></url>
+      <url><loc>https://www.common-social.com/post/two</loc></url>
+      <url><loc>https://www.common-social.com/post/three</loc></url>
+    </urlset>`;
+    expect(commonCrawlOrder(parseCommonSitemapEntries(xml))).toEqual([
+      "https://www.common-social.com/post/three",
+      "https://www.common-social.com/post/two",
+      "https://www.common-social.com/post/one",
+    ]);
+  });
+
+  it("reaches an upcoming post that a document-order crawl would never fetch", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "common-refresh-"));
+    const outPath = join(dir, "events_london.json");
+    const nowMs = Date.parse("2026-08-16T10:00:00.000Z");
+    const stale = "https://www.common-social.com/post/stale";
+    const upcoming = "https://www.common-social.com/post/upcoming";
+    const xml = `<urlset>
+      <url><loc>${stale}</loc><lastmod>2024-01-01</lastmod></url>
+      <url><loc>${upcoming}</loc><lastmod>2026-08-15</lastmod></url>
+    </urlset>`;
+    const seen: string[] = [];
+    const fetchImpl = async (target: string | URL) => {
+      const href = String(target);
+      if (href === COMMON_SITEMAP_URL) return new Response(xml, { status: 200 });
+      seen.push(href);
+      const when = href === stale ? "1 Jan" : "20 Aug";
+      return new Response(
+        `<meta property="og:title" content="A night" />
+         <meta property="og:description" content="Camberwell · ${when} - never stored" />`,
+        { status: 200 },
+      );
+    };
+    const report = await refreshCommonEvents({
+      nowMs,
+      fetchImpl: fetchImpl as typeof fetch,
+      outPath,
+      gapMs: 0,
+      maxFetches: 1,
+    });
+    expect(seen).toEqual([upcoming]);
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0].startsDate).toBe("2026-08-20");
+    rmSync(dir, { recursive: true, force: true });
   });
 });

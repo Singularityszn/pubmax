@@ -1,5 +1,5 @@
 import rawEventsLondon from "../../public/data/whats_on/events_london.json";
-import { EVENT_REFRESH_CITIES } from "../../scripts/whatson/eventsRefresh.mjs";
+import { EVENT_REFRESH_CITIES } from "@/lib/whatson/eventNormalise.mjs";
 import { CITIES, type CityId } from "@/lib/cities";
 import type { EventsProvider } from "@/lib/events/provider";
 import { createSkiddleProvider } from "@/lib/events/skiddle";
@@ -131,6 +131,40 @@ function rowOverlapsWindow(row: WhatsOnRow, window: { startMs: number; endMs: nu
   return false;
 }
 
+/**
+ * Fold the two lanes onto ONE row per provider listing.
+ *
+ * The bundled row was venue-matched by the refresh script and the request-time
+ * row was not, so `dedupeRows` - which keys on `venueId ?? placeName` - reads a
+ * single Ticketmaster event as two and /out shows it twice. The provider's own
+ * id is the same on both, so it decides here first; a row with no sourceId is
+ * left for the spine's own key.
+ *
+ * The freshest observation wins, but the venueId is INHERITED either way: the
+ * live lane carries no venue index, so taking its row whole would strip the
+ * match the bundled row already made.
+ */
+function foldBySourceId(rows: readonly WhatsOnRow[]): WhatsOnRow[] {
+  const byKey = new Map<string, WhatsOnRow>();
+  const noSourceId: WhatsOnRow[] = [];
+  for (const row of rows) {
+    if (!row.sourceId) {
+      noSourceId.push(row);
+      continue;
+    }
+    const key = `${row.source.label.toLowerCase()}|${row.sourceId}`;
+    const held = byKey.get(key);
+    if (!held) {
+      byKey.set(key, row);
+      continue;
+    }
+    const winner = Date.parse(row.observedAt) >= Date.parse(held.observedAt) ? row : held;
+    const venueId = winner.venueId ?? held.venueId ?? row.venueId;
+    byKey.set(key, venueId && !winner.venueId ? { ...winner, venueId } : winner);
+  }
+  return [...byKey.values(), ...noSourceId];
+}
+
 function observedAtBySource(rows: readonly WhatsOnRow[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (const row of rows) {
@@ -216,7 +250,7 @@ export async function buildOutResponse(
     }
   }
 
-  const merged = dedupeRows([...baseline, ...liveRows])
+  const merged = dedupeRows(foldBySourceId([...baseline, ...liveRows]))
     .filter((row) => rowOverlapsWindow(row, window))
     .map(fillEventArea)
     .sort(

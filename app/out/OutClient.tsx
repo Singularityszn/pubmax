@@ -13,6 +13,7 @@ import {
   OUT_OPEN_PLANS_WAY_LABEL,
   type OutDayWindow,
 } from "@/lib/outListings";
+import { outStatusLines } from "@/lib/out/outStatus";
 import type { OutDay, OutResponse } from "@/lib/out/types";
 import { discardBody } from "@/lib/responseBody";
 import { handleSegmentLinkKeyDown } from "@/lib/segmentLinkKeys";
@@ -117,13 +118,11 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
         <h2 id="out-listings-heading" className="outSectionTitle">
           {DAY_LABEL[day]}
         </h2>
-        {failed ? <p className="outStatus">Could not check listings.</p> : null}
-        {body?.status === "degraded" ? (
-          <p className="outStatus">{body.reason ?? "Some listings could not be checked."}</p>
-        ) : null}
-        {body && body.events.length === 0 && !failed ? (
-          <p className="outStatus">No listings for this day yet.</p>
-        ) : null}
+        {outStatusLines({ body, failed }).map((line) => (
+          <p className="outStatus" key={line}>
+            {line}
+          </p>
+        ))}
         <ul className="outList">
           {(body?.events ?? []).map((row) => (
             <OutCard key={row.id} row={row} onOpen={() => onOpen(row)} />

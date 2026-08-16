@@ -8,6 +8,7 @@ import { SourceCredit } from "@/components/out/SourceCredit";
 import { priceBucket, pubsToGeoJSON } from "@/components/map/canvas/geojson";
 import type { VenueSignal } from "@/components/map/canvas/types";
 import { mergeCommunityPriceSignals } from "@/components/map/communityPriceSignals";
+import type { CommunityPrice } from "@/lib/communityPrice";
 import { trustedDrinkLensPrices } from "@/lib/mapExperienceLens";
 import { rankBoroughCheapest } from "@/lib/nearMeAnswer";
 import { OUT_CARD_SOURCES, outCardSource, outSourceAttribution } from "@/lib/out/attribution";
@@ -176,19 +177,35 @@ describe("event ticket price stays off price lanes", () => {
     expect(props.priceLabel).toBeUndefined();
   });
 
-  it("leaves the venue out of a cheapest bucket and out of every merged signal", () => {
+  it("only a community price reaches a merged signal, so the ticketed pub stays unpriced", () => {
     const row = ticketedEventRow();
-    const signals = new Map<string, VenueSignal>();
+    const signals = new Map<string, VenueSignal>([
+      [TICKETED_VENUE_ID, { hasPintDrops: false, latestContributorPrice: null } as VenueSignal],
+      ["venue-logged", { hasPintDrops: false, latestContributorPrice: null } as VenueSignal],
+    ]);
+    const now = Date.parse("2026-08-16T18:00:00.000Z");
+    // A real, corroborated, in-window community pint on the OTHER pub. The
+    // merge admits that one and has no way to hear about a ticket price.
+    const community = new Map<string, CommunityPrice>([
+      [
+        "venue-logged",
+        {
+          venueId: "venue-logged",
+          drinkCategory: "beer",
+          priceGbp: 5.2,
+          submittedAt: now - 60_000,
+          source: "community",
+          corroborations: 2,
+        },
+      ],
+    ]);
+    const merged = mergeCommunityPriceSignals(signals, community, now);
+    expect(merged.get("venue-logged")?.latestContributorPrice).toBe(5.2);
+    expect(merged.get(TICKETED_VENUE_ID)?.latestContributorPrice).toBeNull();
+    expect(JSON.stringify([...merged.values()])).not.toContain(String(row.priceGbp));
 
-    // The community-price merge and the drink lens both read the community
-    // price store. Nothing there knows about listings, so the venue stays
-    // unpriced on both lanes.
-    expect(mergeCommunityPriceSignals(signals, new Map())).toBe(signals);
-    expect(mergeCommunityPriceSignals(signals, new Map()).get(TICKETED_VENUE_ID)).toBeUndefined();
-    expect(trustedDrinkLensPrices(new Map(), "beer").get(TICKETED_VENUE_ID)).toBeUndefined();
-
-    // Cheapest-first ranking qualifies on cheapestPrice alone, so a pub whose
-    // only figure is a ticket price never enters a cheapest bucket.
+    // Cheapest-first ranking qualifies on the venue's own cheapestPrice, which
+    // the merge above left null for the ticketed pub.
     const cheapest = rankBoroughCheapest(
       [
         {
@@ -197,20 +214,21 @@ describe("event ticket price stays off price lanes", () => {
           borough: "Southwark",
           lat: 51.5,
           lng: -0.1,
-          cheapestPrice: null,
+          cheapestPrice: merged.get(TICKETED_VENUE_ID)?.latestContributorPrice ?? null,
         },
         {
-          id: "venue-priced",
-          name: "The Priced Arms",
+          id: "venue-logged",
+          name: "The Logged Arms",
           borough: "Southwark",
           lat: 51.5,
           lng: -0.1,
-          cheapestPrice: 5.2,
+          cheapestPrice: merged.get("venue-logged")?.latestContributorPrice ?? null,
         },
       ],
       "Southwark",
     );
-    expect(cheapest.map((card) => card.id)).toEqual(["venue-priced"]);
+    expect(cheapest.map((card) => card.id)).toEqual(["venue-logged"]);
+    expect(trustedDrinkLensPrices(new Map(), "beer").get(TICKETED_VENUE_ID)).toBeUndefined();
   });
 
   it("names the closed card-source set without ids or coords", () => {

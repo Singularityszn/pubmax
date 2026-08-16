@@ -7,7 +7,7 @@
 // and two copies of it drift. Anything a caller may vary is a field on the
 // descriptor; anything that is policy lives here.
 
-import { cityGeo } from "../../scripts/whatson/eventsRefresh.mjs";
+import { cityGeo } from "@/lib/whatson/eventNormalise.mjs";
 import type { EventsProvider, EventsProviderContext } from "@/lib/events/provider";
 import { londonServiceDayBounds, type WhatsOnRow } from "@/lib/whatsOn";
 

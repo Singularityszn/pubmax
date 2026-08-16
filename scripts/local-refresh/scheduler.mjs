@@ -204,9 +204,22 @@ export function captureRefreshSnapshot(root) {
 
 export function commandsForMode(mode, dryRun) {
   if (mode === "events") {
+    // Two INDEPENDENT lanes. eventsRefresh exits non-zero on ordinary outcomes
+    // (an upstream 5xx, or its deliberate "0 mappable rows, refusing to
+    // clobber" refusal), and Common depends on Ticketmaster for nothing, so a
+    // quiet provider window must not stop the Common lane from running - which
+    // on a first run would mean Common could never seed itself at all.
     return [
-      { executable: process.execPath, args: ["scripts/whatson/eventsRefresh.mjs"] },
-      { executable: process.execPath, args: ["scripts/whatson/commonRefresh.mjs"] },
+      {
+        executable: process.execPath,
+        args: ["scripts/whatson/eventsRefresh.mjs"],
+        independent: true,
+      },
+      {
+        executable: process.execPath,
+        args: ["scripts/whatson/commonRefresh.mjs"],
+        independent: true,
+      },
     ];
   }
   if (mode !== "prices") throw new Error(`Unknown refresh mode: ${mode}`);
@@ -687,8 +700,25 @@ export async function runScheduledRefresh({
     log(`Prepared disposable worktree from ${baseRef}.`);
 
     const before = captureRefreshSnapshot(worktree);
-    for (const command of commandsForMode(mode, dryRun)) {
-      await runChild({ ...command, cwd: worktree, environment: childEnvironment, log });
+    const commands = commandsForMode(mode, dryRun);
+    let independentRun = 0;
+    let independentFailed = 0;
+    for (const command of commands) {
+      const { independent = false, ...child } = command;
+      if (!independent) {
+        await runChild({ ...child, cwd: worktree, environment: childEnvironment, log });
+        continue;
+      }
+      independentRun += 1;
+      try {
+        await runChild({ ...child, cwd: worktree, environment: childEnvironment, log });
+      } catch (error) {
+        independentFailed += 1;
+        log(`LANE FAILED (independent): ${error.message}`);
+      }
+    }
+    if (independentRun > 0 && independentFailed === independentRun) {
+      throw new Error(`Every ${mode} lane failed; nothing was refreshed.`);
     }
     await validatePreparedData({ worktree, environment: childEnvironment, log });
     const after = captureRefreshSnapshot(worktree);

@@ -241,8 +241,16 @@ describe("local refresh scraper sequence", () => {
 
   it("uses the existing official-provider event refresher", () => {
     expect(commandsForMode("events", false)).toEqual([
-      { executable: process.execPath, args: ["scripts/whatson/eventsRefresh.mjs"] },
-      { executable: process.execPath, args: ["scripts/whatson/commonRefresh.mjs"] },
+      {
+        executable: process.execPath,
+        args: ["scripts/whatson/eventsRefresh.mjs"],
+        independent: true,
+      },
+      {
+        executable: process.execPath,
+        args: ["scripts/whatson/commonRefresh.mjs"],
+        independent: true,
+      },
     ]);
   });
 });
