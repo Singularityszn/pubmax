@@ -85,6 +85,7 @@ export const CREW_ROLE_LABEL: Record<SocialCrewRole, string> = {
 export const CREW_VISIBILITY_LABEL: Record<SocialCrewVisibility, string> = {
   private: "Invite only",
   friends: "Your lot can ask to join",
+  open: "Anyone can ask to join",
 };
 
 /** Only a host or co-host may invite, set a role, or remove somebody. */
@@ -230,6 +231,14 @@ export function parseCrewRead(value: unknown): SocialCrewReadDTO | null {
       nightArea: value.nightArea as string | null,
       startsAt: value.startsAt,
       joinRequestState: value.joinRequestState,
+      ...(typeof value.hostHandle === "string" ? { hostHandle: value.hostHandle } : {}),
+      ...(value.stopVenueId === null || typeof value.stopVenueId === "string"
+        ? { stopVenueId: value.stopVenueId }
+        : {}),
+      ...(value.stopVenueName === null || typeof value.stopVenueName === "string"
+        ? { stopVenueName: value.stopVenueName }
+        : {}),
+      ...(Number.isInteger(value.memberCount) ? { memberCount: Number(value.memberCount) } : {}),
     };
   }
   if (value.kind !== "member") return null;

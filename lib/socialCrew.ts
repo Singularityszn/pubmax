@@ -10,7 +10,7 @@ import type { NightContext } from "@/lib/nightPlanning";
 export const SOCIAL_CREW_ROLES = ["owner", "cohost", "member"] as const;
 export type SocialCrewRole = (typeof SOCIAL_CREW_ROLES)[number];
 
-export const SOCIAL_CREW_VISIBILITIES = ["private", "friends"] as const;
+export const SOCIAL_CREW_VISIBILITIES = ["private", "friends", "open"] as const;
 export type SocialCrewVisibility = (typeof SOCIAL_CREW_VISIBILITIES)[number];
 
 export type SocialCrewPhase = "planning" | "live" | "ended";
@@ -51,6 +51,10 @@ export type SocialCrewPreviewDTO = {
   nightArea: string | null;
   startsAt: string;
   joinRequestState: "none" | "pending" | "declined";
+  hostHandle?: string;
+  stopVenueId?: string | null;
+  stopVenueName?: string | null;
+  memberCount?: number;
 };
 
 export type SocialCrewPageDTO = {

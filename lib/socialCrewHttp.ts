@@ -29,6 +29,16 @@ export function socialCrewInvalidResponse(): Response {
   return publicApiError("Social Crew request is not valid.", "INVALID_SOCIAL_CREW_REQUEST", 422, { headers: { "Cache-Control": "private, no-store" } });
 }
 
+export function socialCrewHouseError(
+  message: string,
+  code: string,
+  status: 403 | 422,
+): Response {
+  return publicApiError(message, code, status, {
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}
+
 export function socialCrewNotFoundResponse(): Response {
   return publicApiError("Social Crew not found.", "SOCIAL_CREW_NOT_FOUND", 404, { headers: { "Cache-Control": "private, no-store" } });
 }
