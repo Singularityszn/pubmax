@@ -180,9 +180,15 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/owner[^]*active members who remain Mutual with the owner[^]*full roster[^]*Crew-bound Plan/i);
     expect(privacy).toMatch(/friends[^]*current Mutuals[^]*preview/i);
     expect(privacy).toMatch(
-      /open plan shows your handle and plan\s+title to anyone while it is open/i,
+      /While a plan is open, anyone can see its\s+title, the pub or place it starts at, its start time, how many people\s+are in it, and your handle as host/i,
     );
-    expect(privacy).toMatch(/You can close it/i);
+    expect(privacy).toMatch(
+      /Close the plan and it drops out of\s+the public list/i,
+    );
+    expect(terms).toMatch(
+      /While a\s+plan is open, anyone can see its title, the pub or place it starts at,\s+its start time, how many people are in it, and the host handle/i,
+    );
+    expect(terms).toMatch(/Close\s+the plan and it drops out of the public list/i);
     expect(privacy).toMatch(/private Crew[^]*owner[^]*active members who\s+remain Mutual with the owner/i);
     expect(privacy).toMatch(/invitation[^]*sender[^]*recipient[^]*expiry[^]*state/i);
     expect(privacy).toMatch(/Join Request[^]*requester[^]*owner and\s+cohosts/i);
