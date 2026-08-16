@@ -23,4 +23,12 @@ describe("Tonight soft plan handoff", () => {
       expect(source).toContain("{chip.label}");
     }
   });
+
+  it("renders an acceptance failure in the row that failed, not above the list", () => {
+    const aboveList = source.indexOf("{acceptanceError ?");
+    const list = source.indexOf('id="tonight-list"');
+    expect(aboveList).toBe(-1);
+    expect(source).toContain("tonightRowAcceptanceError");
+    expect(source.indexOf("tonightRowAcceptanceError(acceptanceError")).toBeGreaterThan(list);
+  });
 });

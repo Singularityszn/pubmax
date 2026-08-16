@@ -628,7 +628,7 @@ export function planIntakeHandoff(draft: PlanIntakeDraft): PlanIntakeHandoff {
       ? { tier: draft.answers.budget, limitPence: draft.answers.budgetLimitPence }
       : null,
     accessibilityNeeds: [...draft.answers.accessibilityNeeds],
-    skipped: [...draft.skippedSteps],
+    skipped: draft.skippedSteps.filter((step) => !(step === "area" && draft.answers.area)),
   };
 }
 

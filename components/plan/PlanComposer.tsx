@@ -16,7 +16,7 @@ import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX } from "@/lib/crew";
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
-import { isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
+import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
 import { nearestNightPatch } from "@/lib/nearestNightPatch";
 import {
   readRememberedArea,
@@ -38,6 +38,7 @@ import {
   PLANNING_INTENT_SOURCES,
   readPlanningIntent,
   settlePlanningIntent,
+  type PlanningIntentArea,
   type PlanningIntentSource,
 } from "@/lib/planningIntent";
 import {
@@ -63,6 +64,7 @@ import {
   createPlanIntakeDraft,
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
+  nightAreaForPlanIntakePatch,
   planIntakeHandoff,
   planIntakeNightContextPatch,
   readPlanIntakeDraft,
@@ -506,13 +508,20 @@ export function nightAreaMapHref(area: NightArea): string {
   return `/map?q=${encodeURIComponent(area.name)}`;
 }
 
+export const PLAN_INTAKE_CONFLICT_SERVER =
+  "Plan intake skipped steps conflict with supplied answers.";
+export const PLAN_INTAKE_CONFLICT_READER =
+  "The earlier route is still here - start again or keep it";
+export const RELEASED_ACCEPTANCE_STATUS =
+  "You released this pub. Every stop stays. Stop 1 is yours to change.";
+
 export function errorMessageFromBody(body: unknown, fallback: string): string {
   // Concierge / plan generate scarcity must stay the server's sentence. Never
   // replace a grounded 422 with a softer invented route or a generic shrug.
   if (!body || typeof body !== "object") return errorMessageFrom(body, fallback);
   const error = (body as { error?: unknown }).error;
   if (error && typeof error === "object") {
-    const structuredError = error as { code?: unknown };
+    const structuredError = error as { code?: unknown; message?: unknown };
     if (
       structuredError.code === "NIGHT_AREA_ROUTE_NOT_READY" ||
       structuredError.code === "DISTRICT_ROUTE_NOT_READY"
@@ -526,8 +535,15 @@ export function errorMessageFromBody(body: unknown, fallback: string): string {
       const areaName = area?.name ?? "This area";
       return `${areaName} is not ready for route planning yet. We're still checking this area before planning a crawl. Choose another area to continue.`;
     }
+    if (
+      structuredError.code === "PLAN_INTAKE_MALFORMED"
+      && structuredError.message === PLAN_INTAKE_CONFLICT_SERVER
+    ) {
+      return PLAN_INTAKE_CONFLICT_READER;
+    }
   }
-  return errorMessageFrom(body, fallback);
+  const raw = errorMessageFrom(body, fallback);
+  return raw === PLAN_INTAKE_CONFLICT_SERVER ? PLAN_INTAKE_CONFLICT_READER : raw;
 }
 
 /**
@@ -548,7 +564,51 @@ export function planGenerationFailureStatus(
   message: string,
   hasPreviousRoute: boolean,
 ): string {
+  if (
+    message === PLAN_INTAKE_CONFLICT_SERVER
+    || message === PLAN_INTAKE_CONFLICT_READER
+  ) {
+    return PLAN_INTAKE_CONFLICT_READER;
+  }
   return hasPreviousRoute ? `The previous route is still here. ${message}` : message;
+}
+
+export function acceptedPlanAreaLabel(area: Exclude<PlanningIntentArea, null>): string {
+  if (area.kind === "borough") return area.name;
+  const slug = nightAreaForPlanIntakePatch(area.id);
+  return slug ? getNightArea(slug).name : area.id;
+}
+
+export function acceptedStop1SwapLabel(venueName: string): string {
+  return `${venueName} is the accepted Stop 1. Swap is not available.`;
+}
+
+export function acceptedStop1RemoveLabel(venueName: string): string {
+  return `${venueName} is the accepted Stop 1. Remove is not available.`;
+}
+
+export function planComposerShowsDescribeFirst(input: {
+  heldVenueId: string | null;
+  completed: boolean;
+  entryMode: "describe" | "wizard";
+}): boolean {
+  return !input.heldVenueId && !input.completed && input.entryMode === "describe";
+}
+
+export function planComposerShowsIntake(input: {
+  heldVenueId: string | null;
+  completed: boolean;
+  entryMode: "describe" | "wizard";
+}): boolean {
+  if (input.heldVenueId && !input.completed) return false;
+  return !planComposerShowsDescribeFirst(input);
+}
+
+export function focusPlanRouteStatus(root: ParentNode | Document = document): void {
+  const status = root.querySelector("#plan-route-status");
+  if (!(status instanceof HTMLElement)) return;
+  status.tabIndex = -1;
+  status.focus();
 }
 
 export type PlanLockValidationInput = {
@@ -807,7 +867,7 @@ export function AcceptedContextPanel({
               <div><dt>Venue</dt><dd>{venueName}</dd></div>
             )}
             {handoff.area && (
-              <div><dt>Area</dt><dd>{handoff.area.kind === "borough" ? handoff.area.name : handoff.area.id}</dd></div>
+              <div><dt>Area</dt><dd>{acceptedPlanAreaLabel(handoff.area)}</dd></div>
             )}
             {whenLabel && (
               <div><dt>When</dt><dd>{whenLabel}</dd></div>
@@ -1268,11 +1328,15 @@ function PlanComposerForm({
   }
 
   function releaseAcceptance() {
+    focusPlanRouteStatus();
     releaseAcceptedPlanContext({
       planDraft: canPersist ? sessionStorage : null,
       routeDraft: canPersist ? localStorage : null,
     });
+    setPlanAnchor(null);
+    setGroundingProof(null);
     setAcceptanceReleased(true);
+    setRouteStatus(RELEASED_ACCEPTANCE_STATUS);
   }
 
   function chooseVenue(key: number, venueName: string) {
@@ -1447,7 +1511,7 @@ function PlanComposerForm({
         title,
         creatorName,
         startTime: exactStartIso,
-        cityId: handoff?.acceptedAnchor?.cityId,
+        cityId: acceptedCityId,
         stops: completeStops,
         groundingProof,
         planAnchor,
@@ -1463,7 +1527,7 @@ function PlanComposerForm({
       if (!response.ok || !body?.plan?.plan?.id) {
         // Surface anchored-lock failures honestly: 422 for invalid or expired
         // proof, and 409 for replay conflict.
-        const mapped = handoff ? composerLockErrorFromResponse(response.status) : null;
+        const mapped = hydratedHandoff ? composerLockErrorFromResponse(response.status) : null;
         throw new Error(mapped || errorMessageFrom(body, "The plan could not be created."));
       }
       const attribution = serverPlanCreationAttribution(body);
@@ -1537,18 +1601,26 @@ function PlanComposerForm({
           onRelease={releaseAcceptance}
         />
       )}
-      {!planIntake.completed && entryMode === "describe" ? (
+      {planComposerShowsDescribeFirst({
+        heldVenueId,
+        completed: planIntake.completed,
+        entryMode,
+      }) ? (
         <PlanDescribeFirst
           initialQuery={askDraftQuery}
           onSubmit={submitFromEntry}
           onGuideMeInstead={() => setEntryMode("wizard")}
         />
-      ) : (
+      ) : planComposerShowsIntake({
+        heldVenueId,
+        completed: planIntake.completed,
+        entryMode,
+      }) ? (
         <PlanIntake
           draft={planIntake}
           onChange={updatePlanIntake}
         />
-      )}
+      ) : null}
       {composerVisible ? (
         <>
       <section className="planComposer__concierge" aria-labelledby="plan-concierge-title" aria-busy={sorting}>
@@ -1728,7 +1800,7 @@ function PlanComposerForm({
 
       <fieldset className="planComposer__stops">
         <legend>The crawl <span className="planComposer__previewLabel">{routeRevision === null ? "Preview" : `Preview · revision ${routeRevision}`}</span></legend>
-        <p id="plan-route-status" className="planComposer__routeStatus" role="status" aria-live="polite">
+        <p id="plan-route-status" className="planComposer__routeStatus" role="status" aria-live="polite" tabIndex={-1}>
           {routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
         </p>
         <PlanCultureOpener opener={cultureOpener} />
@@ -1750,7 +1822,7 @@ function PlanComposerForm({
                   || stop.alternatives.length === 0
                 )}
                 aria-label={index === 0 && heldVenueId === stop.venueId
-                  ? `${stop.venueName} is the accepted Stop 1`
+                  ? acceptedStop1SwapLabel(stop.venueName)
                   : stop.alternatives.length > 0
                     ? `Swap stop ${index + 1}, currently ${stop.venueName}`
                     : `No alternatives for stop ${index + 1}`}
@@ -1767,7 +1839,7 @@ function PlanComposerForm({
                   )}
                   disabled={index === 0 && heldVenueId === stop.venueId}
                   aria-label={index === 0 && heldVenueId === stop.venueId
-                    ? `${stop.venueName} is the accepted Stop 1`
+                    ? acceptedStop1RemoveLabel(stop.venueName)
                     : `Remove stop ${index + 1}`}
                 >Remove</button>
               ) : null}

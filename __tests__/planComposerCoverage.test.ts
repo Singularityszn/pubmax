@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -24,6 +26,8 @@ import {
   planComposerVenueIndexPath,
   planDraftSavedTelemetry,
   planGenerationFailureStatus,
+  PLAN_INTAKE_CONFLICT_READER,
+  PLAN_INTAKE_CONFLICT_SERVER,
   planLockValidationError,
   routeStopsFromGenerated,
   serverPlanCreationAttribution,
@@ -91,6 +95,24 @@ describe("PlanComposer accepted city authority", () => {
     expect(planComposerVenueIndexPath("manchester")).toBe(
       "/data/cities/manchester/venues_slim.json",
     );
+  });
+
+  it("keeps the accepted city and drops the anchor after a held pub is released", () => {
+    expect(composerCreatePayload({
+      title: "Manchester night",
+      creatorName: "Karan",
+      startTime: "2026-07-24T20:00:00.000Z",
+      cityId: "manchester",
+      stops: [{ venueId: "manchester-pub", venueName: "The Manchester Pub" }],
+      groundingProof: null,
+      planAnchor: null,
+    })).toEqual({
+      title: "Manchester night",
+      creatorName: "Karan",
+      startTime: "2026-07-24T20:00:00.000Z",
+      cityId: "manchester",
+      stops: [{ venueId: "manchester-pub", venueName: "The Manchester Pub" }],
+    });
   });
 });
 
@@ -461,6 +483,21 @@ describe("PlanComposer route preview seam", () => {
   it("names the retained route when a refresh fails", () => {
     expect(planGenerationFailureStatus("Could not sort this one.", true)).toBe(
       "The previous route is still here. Could not sort this one.",
+    );
+  });
+
+  it("maps the intake-conflict 422 to a reader sentence", () => {
+    expect(errorMessageFromBody({
+      error: {
+        code: "PLAN_INTAKE_MALFORMED",
+        message: PLAN_INTAKE_CONFLICT_SERVER,
+      },
+    }, "fallback")).toBe(PLAN_INTAKE_CONFLICT_READER);
+    expect(planGenerationFailureStatus(PLAN_INTAKE_CONFLICT_SERVER, true)).toBe(
+      PLAN_INTAKE_CONFLICT_READER,
+    );
+    expect(planGenerationFailureStatus(PLAN_INTAKE_CONFLICT_READER, true)).toBe(
+      PLAN_INTAKE_CONFLICT_READER,
     );
   });
 
@@ -892,5 +929,26 @@ describe("what the composer holds as Stop 1", () => {
       stop: { venueId: "venue-other" },
       preservesAcceptedAuthority: false,
     });
+  });
+});
+
+describe("PlanComposer held-acceptance source fences", () => {
+  const source = readFileSync(join(process.cwd(), "components/plan/PlanComposer.tsx"), "utf8");
+
+  it("creates with the accepted city that survives release", () => {
+    expect(source).toContain("cityId: acceptedCityId");
+    expect(source).toContain("hydratedHandoff ? composerLockErrorFromResponse");
+  });
+
+  it("drops the held anchor and writes a route-status line on release", () => {
+    expect(source).toContain("setPlanAnchor(null)");
+    expect(source).toContain("setGroundingProof(null)");
+    expect(source).toContain("RELEASED_ACCEPTANCE_STATUS");
+    expect(source).toContain("focusPlanRouteStatus");
+  });
+
+  it("does not mount describe-first beside a held composer", () => {
+    expect(source).toContain("planComposerShowsDescribeFirst");
+    expect(source).toContain("planComposerShowsIntake");
   });
 });

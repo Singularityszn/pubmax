@@ -511,8 +511,9 @@ describe("releasing a held acceptance", () => {
     expect(after.routePreview?.value.stops.map((stop) => stop.venueId)).toEqual([
       "venue-a", "venue-b", "venue-c",
     ]);
-    expect(after.routePreview?.value.groundingProof).toBe(routeBefore?.value.groundingProof);
-    expect(after.routeProofPresent).toBe(true);
+    expect(after.routePreview?.value.groundingProof).toBeNull();
+    expect(after.routePreview?.value.outcome).toBe("unanchored");
+    expect(after.routeProofPresent).toBe(false);
     // The Plan draft keeps its own stops and loses only the acceptance.
     const planDraft = readPlanDraftEnvelope(storages.planDraftStorage, NOW);
     expect(planDraft?.draft.stops.map((stop) => stop.venueId)).toEqual(["venue-a"]);

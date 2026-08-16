@@ -48,7 +48,7 @@ import {
   walkLabel,
   walkMinutes,
 } from "@/lib/tonight";
-import { acceptTonightVenue } from "@/lib/tonightAcceptance";
+import { acceptTonightVenue, tonightRowAcceptanceError } from "@/lib/tonightAcceptance";
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { VibeChipButton, VibeChipLink, VibeChips } from "@/components/vibe/VibeChips";
@@ -167,7 +167,7 @@ export default function TonightClient({
   // browser-only and the first paint must match SSR.
   const [remembered, setRemembered] = useState<RememberedArea | null>(null);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
-  const [acceptanceError, setAcceptanceError] = useState("");
+  const [acceptanceError, setAcceptanceError] = useState<{ venueId: string; message: string } | null>(null);
   // The location card is a quiet, collapsed row until tapped — it must not be
   // the first thing on the page. Once a position is shared it stays open so the
   // last-train strip has somewhere to live.
@@ -211,10 +211,10 @@ export default function TonightClient({
         fallbackCityId: "london",
       });
       if (!result.accepted || !result.telemetry) {
-        setAcceptanceError(VENUE_ACCEPTANCE_STORAGE_ERROR);
+        setAcceptanceError({ venueId, message: VENUE_ACCEPTANCE_STORAGE_ERROR });
         return;
       }
-      setAcceptanceError("");
+      setAcceptanceError(null);
       trackEvent("venue_accepted", result.telemetry);
       router.push(result.href);
     },
@@ -511,9 +511,6 @@ export default function TonightClient({
             </div>
           ) : null}
 
-          {acceptanceError ? (
-            <p className="tonightAcceptanceError" role="alert">{acceptanceError}</p>
-          ) : null}
           <ul id="tonight-list" className="tonightList" data-testid="tonight-list">
             {grouped.map((group) => {
               const row = group.row;
@@ -613,6 +610,7 @@ export default function TonightClient({
                   )}
                   {/* Explicit acceptance stays distinct from the browse tap. */}
                   {typeof row.venueId === "string" && row.venueId.length > 0 ? (
+                    <>
                     <button
                       type="button"
                       className="tonightRowAccept pressable"
@@ -621,6 +619,12 @@ export default function TonightClient({
                     >
                       Keep this venue
                     </button>
+                    {tonightRowAcceptanceError(acceptanceError, row.venueId) ? (
+                      <p className="tonightAcceptanceError" role="alert">
+                        {tonightRowAcceptanceError(acceptanceError, row.venueId)}
+                      </p>
+                    ) : null}
+                    </>
                   ) : null}
                   {group.venueCount > 1 ? (
                     <details className="tonightRowMore">
@@ -677,6 +681,7 @@ export default function TonightClient({
                                 </span>
                               )}
                               {typeof alt.venueId === "string" && alt.venueId.length > 0 ? (
+                                <>
                                 <button
                                   type="button"
                                   className="tonightRowMoreAccept pressable"
@@ -685,6 +690,12 @@ export default function TonightClient({
                                 >
                                   Keep
                                 </button>
+                                {tonightRowAcceptanceError(acceptanceError, alt.venueId) ? (
+                                  <p className="tonightAcceptanceError" role="alert">
+                                    {tonightRowAcceptanceError(acceptanceError, alt.venueId)}
+                                  </p>
+                                ) : null}
+                                </>
                               ) : null}
                             </li>
                           );

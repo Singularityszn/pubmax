@@ -397,6 +397,19 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
     expect(body).not.toHaveProperty("anchor");
   });
 
+  it("drops a seeded area from skipped so describe-first after Keep is consistent", () => {
+    const seeded = createPlanIntakeDraft({ kind: "patch", id: "clapham" });
+    const conflicting: PlanIntakeDraft = {
+      ...seeded,
+      skippedSteps: ["area", "time-window", "group-size", "budget", "accessibility"],
+      settledSteps: [...PLAN_INTAKE_STEPS],
+      completed: true,
+    };
+    const body = buildPlanGenerationIntakeBody(conflicting, "quiet in Clapham", null);
+    expect(body.intake.area).toEqual({ kind: "night-patch", id: "clapham" });
+    expect(body.intake.skipped).not.toContain("area");
+  });
+
   it("does not silently coerce Hackney into a different generation area", () => {
     const draft = createPlanIntakeDraft({ kind: "patch", id: "hackney" });
     expect(planIntakeHandoff(draft).area).toEqual({ kind: "night-patch", id: "hackney" });

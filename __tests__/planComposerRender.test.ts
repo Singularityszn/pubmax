@@ -4,7 +4,15 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { AcceptedContextPanel, PlanComposerErrorNotice } from "@/components/plan/PlanComposer";
+import {
+  AcceptedContextPanel,
+  PlanComposerErrorNotice,
+  acceptedPlanAreaLabel,
+  acceptedStop1RemoveLabel,
+  acceptedStop1SwapLabel,
+  planComposerShowsDescribeFirst,
+  planComposerShowsIntake,
+} from "@/components/plan/PlanComposer";
 import {
   readPlanDraftEnvelope,
   writePlanDraftEnvelope,
@@ -79,7 +87,8 @@ describe("PlanComposer rendered UI", () => {
     expect(html).toContain("Carried over from what you accepted");
     expect(html).not.toContain("venue-intent");
     expect(html).toContain("The pub you kept");
-    expect(html).toContain("soho");
+    expect(html).toContain("Piccadilly &amp; Soho");
+    expect(html).not.toContain(">soho<");
     expect(html).toContain("Jul"); // London service-date label for the accepted start
     expect(html).toContain("You can change the area and the date below.");
     expect(html).toContain("Stop 1 stays this pub until you release it.");
@@ -144,5 +153,56 @@ describe("PlanComposer rendered UI", () => {
     const html409 = renderToStaticMarkup(createElement(PlanComposerErrorNotice, { message: copy409 as string }));
     expect(html409).toContain('role="alert"');
     expect(html409).toMatch(/already locked/i);
+  });
+
+  it("prints the night area name, never the slug", () => {
+    expect(acceptedPlanAreaLabel({ kind: "night-patch", id: "clapham" })).toBe("Clapham");
+    expect(acceptedPlanAreaLabel({ kind: "night-patch", id: "soho" })).toBe("Piccadilly & Soho");
+    expect(acceptedPlanAreaLabel({ kind: "borough", name: "Camden" })).toBe("Camden");
+
+    const clapham = resolveComposerHydration({
+      planDraft: null, routeDraft: null, intakeDraft: null,
+      planningIntent: createPlanningIntent({
+        source: "near",
+        cityId: "london",
+        acceptedVenueId: "venue-intent",
+        acceptedArea: { kind: "night-patch", id: "clapham" },
+        startsAt: "2026-07-24T20:00:00.000Z",
+        displayEvidence: { kind: "directory", observedAt: null },
+      }, NOW),
+      rememberedArea: null,
+    });
+    const html = renderToStaticMarkup(createElement(AcceptedContextPanel, { handoff: clapham }));
+    expect(html).toContain("Clapham");
+    expect(html).not.toContain(">clapham<");
+  });
+
+  it("names the two disabled Stop 1 actions apart", () => {
+    expect(acceptedStop1SwapLabel("The Coach & Horses")).toBe(
+      "The Coach & Horses is the accepted Stop 1. Swap is not available.",
+    );
+    expect(acceptedStop1RemoveLabel("The Coach & Horses")).toBe(
+      "The Coach & Horses is the accepted Stop 1. Remove is not available.",
+    );
+    expect(acceptedStop1SwapLabel("The Coach & Horses"))
+      .not.toBe(acceptedStop1RemoveLabel("The Coach & Horses"));
+  });
+
+  it("hides describe-first when a held pub already shows the composer", () => {
+    expect(planComposerShowsDescribeFirst({
+      heldVenueId: "venue-kept",
+      completed: false,
+      entryMode: "describe",
+    })).toBe(false);
+    expect(planComposerShowsIntake({
+      heldVenueId: "venue-kept",
+      completed: false,
+      entryMode: "describe",
+    })).toBe(false);
+    expect(planComposerShowsDescribeFirst({
+      heldVenueId: null,
+      completed: false,
+      entryMode: "describe",
+    })).toBe(true);
   });
 });

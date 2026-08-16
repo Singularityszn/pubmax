@@ -253,6 +253,7 @@ function dropRouteDraftAcceptance(
       anchorVenueId: null,
       anchorSource: null,
       outcome: "unanchored",
+      groundingProof: null,
     }, "manual", storage, now);
     if (!written.v2) {
       bestEffortRemove(storage, PLAN_ROUTE_DRAFT_KEY);
@@ -268,8 +269,8 @@ function dropRouteDraftAcceptance(
  *
  * Releasing a HOLD is not discarding a ROUTE. Every Stop the person generated
  * stays exactly where it is, Stop 1 included - that row simply becomes as
- * editable as the others - and the grounding proof it was generated with is
- * untouched, so a released night is still lockable.
+ * editable as the others. The anchored identity and its V2 grounding proof
+ * leave with the hold, so a saved Plan is not anchored.
  *
  * What goes is the acceptance itself, and it lives in three places at once:
  * the PlanningIntent, the Plan draft's accepted anchor and the route draft's

@@ -7,7 +7,7 @@ import {
   parsePlanningIntent,
   type PlanningIntentStorage,
 } from "@/lib/planningIntent";
-import { acceptTonightVenue } from "@/lib/tonightAcceptance";
+import { acceptTonightVenue, tonightRowAcceptanceError } from "@/lib/tonightAcceptance";
 
 // The Tonight acceptance seam is pure — inject storage + clock and read the
 // result. Source is fixed "tonight", evidence is "what's-on", browsing is never
@@ -133,5 +133,14 @@ describe("acceptTonightVenue", () => {
     expect(result.accepted).toBe(false);
     expect(result.href).not.toContain("accept=1");
     expect(result.telemetry).toBeNull();
+  });
+});
+
+describe("tonightRowAcceptanceError", () => {
+  it("answers only the row whose Keep failed", () => {
+    const error = { venueId: "venue-failed", message: "Couldn’t keep this pub on this device. Try again." };
+    expect(tonightRowAcceptanceError(error, "venue-failed")).toBe(error.message);
+    expect(tonightRowAcceptanceError(error, "venue-other")).toBeNull();
+    expect(tonightRowAcceptanceError(null, "venue-failed")).toBeNull();
   });
 });
