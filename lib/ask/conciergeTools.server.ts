@@ -14,6 +14,7 @@ import {
   findDeskEmptyLine,
   findDeskRowNote,
   isDeicticPlaceWord,
+  OCCUPANCY_LEVEL_LABELS,
   occupancyReportOutcome,
   occupancyStoreState,
   splitTonightRowsByNow,
@@ -494,24 +495,34 @@ export async function toolReportOccupancy(
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
     (namesArea ? null : matchVenue(venues, venueNameArg, "strict"));
 
+  const store = occupancyStoreState();
   const outcome = occupancyReportOutcome({
     venueId: venue?.id ?? "",
     venueName: venue?.name ?? "",
     level: args.level,
-    store: occupancyStoreState(),
+    store,
   });
 
-  // Nothing is written here in any branch. When the crowd store (R-011) lands,
-  // a `proposed` outcome becomes a confirm-gated proposal; until then the
-  // reader is told plainly that the report has nowhere to go, rather than
-  // handed a button that would look like it logged something.
+  // Nothing is written here. A `proposed` outcome becomes a confirm-gated
+  // proposal; the client POSTs `/api/venues/[id]/occupancy` on confirm.
   return {
     ok: outcome.status === "store-unbuilt" || outcome.status === "proposed",
     tool: "report_occupancy",
-    data: { outcome, store: occupancyStoreState() },
+    data: { outcome, store },
     provenance: venue ? [DIRECTORY] : [],
     cards: [],
-    proposals: [],
+    proposals:
+      outcome.status === "proposed"
+        ? [
+            {
+              id: `occupancy:${outcome.venueId}:${outcome.level}`.slice(0, 80),
+              kind: "report_occupancy" as const,
+              label: `Log ${outcome.venueName} as ${OCCUPANCY_LEVEL_LABELS[outcome.level].toLowerCase()}`,
+              venueId: outcome.venueId,
+              level: outcome.level,
+            },
+          ]
+        : [],
     answerHint: outcome.line,
   };
 }

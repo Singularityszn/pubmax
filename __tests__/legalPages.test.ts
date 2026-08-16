@@ -346,6 +346,12 @@ describe("legal content pages", () => {
     }
   });
 
+  it("discloses crowd occupancy reports as account-linked and deletable", () => {
+    expect(privacy).toMatch(/Crowd occupancy reports/);
+    expect(privacy).toMatch(/linked to your signed-in account/);
+    expect(privacy).toMatch(/deleted with the account/);
+  });
+
   it("discloses community venue reports and their contributor count", () => {
     expect(privacy).toMatch(/Community venue reports/);
     expect(privacy).toMatch(/rough or\s+posh/);

@@ -7,6 +7,8 @@
 import { useCallback, useRef, useState } from "react";
 import { MessageCircleQuestion, MapPin, Sparkles, X } from "lucide-react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
+import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import {
   createAskSession,
@@ -14,6 +16,7 @@ import {
   type AskCard,
 } from "@/lib/conciergeAskClient";
 import type { AskProposal } from "@/lib/ask/types";
+import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 
@@ -47,6 +50,8 @@ export default function MapConciergeAsk({
   onSelectVenue,
   onFlyTo,
 }: MapConciergeAskProps) {
+  const { user, session } = useAuth();
+  const auth = captureAccountAuth(user?.id ?? null, session);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [state, setState] = useState<AskState>({ status: "idle" });
@@ -128,9 +133,24 @@ export default function MapConciergeAsk({
           createdAt: new Date().toISOString(),
         });
         window.location.assign("/plan");
+        return;
+      }
+      if (proposal.kind === "report_occupancy") {
+        void (async () => {
+          const result = await confirmOccupancyProposal(
+            { venueId: proposal.venueId, level: proposal.level },
+            auth,
+            "pal",
+          );
+          if (!result.ok && result.needsSignIn) {
+            window.location.assign("/login?mode=signin&from=/map");
+            return;
+          }
+          dismissProposal(proposal.id);
+        })();
       }
     },
-    [dismissProposal, onFlyTo, onSelectVenue],
+    [auth, dismissProposal, onFlyTo, onSelectVenue],
   );
 
   if (!open) {

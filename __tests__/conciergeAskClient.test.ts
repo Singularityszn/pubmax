@@ -271,6 +271,37 @@ describe("answerFromBody", () => {
     }
   });
 
+  it("keeps a crowd occupancy proposal intact for confirm", () => {
+    const result = answerFromBody({
+      answer: "Log The Lamb as full?",
+      cards: [],
+      proposals: [
+        {
+          id: "occupancy:venue-1:full",
+          kind: "report_occupancy",
+          label: "Log The Lamb as full",
+          venueId: "venue-1",
+          level: "full",
+        },
+      ],
+      sources: [],
+      status: "ready",
+      toolsUsed: ["report_occupancy"],
+    });
+    expect(result.status).toBe("answered");
+    if (result.status === "answered") {
+      expect(result.proposals).toEqual([
+        {
+          id: "occupancy:venue-1:full",
+          kind: "report_occupancy",
+          label: "Log The Lamb as full",
+          venueId: "venue-1",
+          level: "full",
+        },
+      ]);
+    }
+  });
+
   it("listings without a venueId produce non-tappable (empty venueId) cards", () => {
     const result = answerFromBody({
       mode: "whats-on",

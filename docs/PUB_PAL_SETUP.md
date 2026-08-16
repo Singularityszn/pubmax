@@ -113,10 +113,10 @@ nothing yet:
 - **`find_desk`** answers only from cafe, co-working and library rows. The
   London pack carries none of those today, so it says "No seat data yet" rather
   than offering a pub as a desk.
-- **`report_occupancy`** takes a crowd report, repeats it back, and says plainly
-  that it has nowhere to land. The crowd store is master plan R-011 and is not
-  built. Nothing is written, and no confirm button is offered for a write that
-  cannot happen.
+- **`report_occupancy`** proposes a crowd report (empty / some seats / full)
+  and writes nothing until the reader confirms. Confirm POSTs
+  `/api/venues/[id]/occupancy`. `occupancyStoreState()` is the one switch
+  that can roll that confirm back to unbuilt.
 
 ---
 

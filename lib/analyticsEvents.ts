@@ -225,6 +225,10 @@ export const ANALYTICS_EVENTS = {
   add_link_viewed: ["surface"],
   add_link_signup_started: ["surface", "outcome"],
   add_link_added: ["surface", "outcome"],
+  // Crowd occupancy (R-011). Level and surface only - never a venue id,
+  // handle, or coordinate. `state` is the derived now-read, not a stored trust.
+  occupancy_reported: ["level", "surface"],
+  occupancy_read: ["state"],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;
@@ -429,6 +433,9 @@ const SAFE_STRING_VALUES = new Set([
   "curated", "uk_base", "pending",
   // Share-link add funnel: the one surface, the two doors, the three outcomes.
   "add-link", "signin", "added", "failed", "unavailable",
+  // Crowd occupancy: the three buttons, the four now-read states, the two
+  // surfaces that may report. `degraded` and `pal` already sit above.
+  "empty", "some-seats", "full", "fresh", "stale", "none", "venue-sheet",
   // Community-price funnel vocabulary: the drink taxonomy and the three
   // failure buckets.
   ...PRICE_SUBMIT_CATEGORIES,

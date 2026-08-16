@@ -294,6 +294,13 @@ export default function PrivacyPage() {
           that attribution and can remain visible.
         </p>
 
+        <h3 className="legalH3">Crowd occupancy reports</h3>
+        <p className="legalBody">
+          A crowd occupancy report is linked to your signed-in account. We
+          store the pub, the level you tapped, the time, and your account id.
+          It is deleted with the account.
+        </p>
+
         <h3 className="legalH3">Community price submissions</h3>
         <p className="legalBody">
           Logging tonight&rsquo;s price needs a signed-in account, a claimed
@@ -736,6 +743,10 @@ export default function PrivacyPage() {
             that Plan is deleted. Private write receipts stay for safe retries
             and audit until the actor&rsquo;s account deletion request is carried
             out, unless a legal or security hold applies.
+          </li>
+          <li>
+            <strong>Crowd occupancy reports:</strong>{" "}linked to your account
+            and deleted with it.
           </li>
           <li>
             <strong>Community prices and venue reports:</strong>{" "}the report
