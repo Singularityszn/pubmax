@@ -9,7 +9,7 @@ import {
 } from "@/lib/cityVenueIds";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { matchVenuePermalinkSlug } from "@/lib/venuePermalinkSlug";
-import type { Venue, VenueKind } from "@/lib/venues";
+import { isVenueKind, type Venue, type VenueKind } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 // Server-only venue-name resolution (PRD §9). Social content stores raw venue
@@ -76,16 +76,10 @@ export function buildVenueIndex(venues: Venue[]): Map<string, VenueRef> {
 
 function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, IndexedVenue> {
   const index = new Map<string, IndexedVenue>();
-  const kinds = new Set<VenueKind>(["pub", "bar", "club", "food", "restaurant"]);
   for (const row of rows) {
     if (typeof row.id !== "string" || !row.id) continue;
     if (typeof row.name !== "string" || !row.name) continue;
-    if (
-      row.kind !== undefined &&
-      (typeof row.kind !== "string" || !kinds.has(row.kind as VenueKind))
-    ) {
-      continue;
-    }
+    if (row.kind !== undefined && !isVenueKind(row.kind)) continue;
     const lat = typeof row.lat === "number" ? row.lat : Number(row.lat);
     const lng = typeof row.lng === "number" ? row.lng : Number(row.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;

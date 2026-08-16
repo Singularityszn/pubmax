@@ -316,7 +316,17 @@ describe("a serve 404 says which gate refused", () => {
   // are three different operator problems wearing one status code.
   it.each([
     ["moderation_not_approved", { avatarModerationState: "hidden" as const }],
-    ["image_absent", { avatarObjectKey: undefined }],
+    // An absent image is all THREE fields absent. Clearing the key alone leaves
+    // a row that names a generation and a moderation state with nothing to
+    // serve, which is `object_key_unexpected` - a different operator problem.
+    [
+      "image_absent",
+      {
+        avatarObjectKey: undefined,
+        avatarGeneration: undefined,
+        avatarModerationState: undefined,
+      },
+    ],
     ["profile_unclaimed", { userId: undefined }],
     ["generation_mismatch", { avatarGeneration: "44444444-4444-4444-8444-444444444444" }],
     ["object_key_unexpected", { avatarObjectKey: "avatars/somebody-else/image.jpg" }],

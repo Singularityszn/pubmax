@@ -538,15 +538,35 @@ describe("Tavily pub enrichment governance", () => {
     const fetchImpl = vi.fn<typeof fetch>();
     await expect(
       runCityEnrichment({
-        city: "london",
+        city: "cardiff",
         pubs: [independentPub],
         apiKey: "test-key",
         maxQueries: 1,
         observedAt: OBSERVED_AT,
         fetchImpl,
       }),
-    ).rejects.toThrow('Unsupported enrichment city "london"');
+    ).rejects.toThrow('Unsupported enrichment city "cardiff"');
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  // London was the one city this rotation never held, so no London pub had ever
+  // reached the enrichment seam while the site's whole price story is a London
+  // one. Its bbox is Greater London and it only SELECTS candidates; it makes no
+  // claim about which borough a pub is in.
+  it("holds London, and puts a pub the curated layer already owns behind one nobody has looked at", () => {
+    const london = (over: Record<string, unknown>) => ({
+      ...independentPub,
+      lat: 51.51,
+      lng: -0.12,
+      ...over,
+    });
+    expect(
+      selectCityPubs("london", [
+        london({ osmId: "node/2", name: "Covered", curatedRef: { source: "curated-london-slim", id: "venue-1" } }),
+        london({ osmId: "node/1", name: "Uncovered" }),
+        london({ osmId: "node/3", name: "Manchester", lat: 53.48, lng: -2.24 }),
+      ]).map((pub) => pub.osmId),
+    ).toEqual(["node/1", "node/2"]);
   });
 
   it("selects bbox pubs in deterministic website-first order", () => {

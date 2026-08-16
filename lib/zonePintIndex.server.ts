@@ -8,6 +8,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { isVenueKind } from "@/lib/venues";
 import { computeZonePintIndex, type ZonePintIndex } from "@/lib/zones";
 
 type SlimRow = { zone?: unknown; cheapestPrice?: unknown; kind?: unknown };
@@ -26,10 +27,7 @@ export async function loadZonePintIndex(): Promise<ZonePintIndex> {
       list.map((row) => ({
         zone: toFinite(row.zone),
         cheapestPrice: toFinite(row.cheapestPrice),
-        kind:
-          typeof row.kind === "string"
-            ? (row.kind as "pub" | "bar" | "club" | "food" | "restaurant")
-            : undefined,
+        kind: isVenueKind(row.kind) ? row.kind : undefined,
       })),
     );
   } catch {

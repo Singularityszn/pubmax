@@ -8,6 +8,8 @@ export type OsmPub = {
   website?: string | null;
   operator?: string | null;
   brewery?: string | null;
+  /** Set by the UK OSM pack when this pub already exists in curated data. */
+  curatedRef?: { source: string; id: string } | null;
 };
 
 export type TavilyPrice = {

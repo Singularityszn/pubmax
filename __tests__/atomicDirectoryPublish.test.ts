@@ -141,6 +141,56 @@ describe("publishStagedDirectory", () => {
     await expect(fs.access(staged)).rejects.toThrow();
   });
 
+  // The publisher used to hardcode /data/uk_base/, so a second sharded layer
+  // could only publish through it by forking it or by lying about where its own
+  // files live. The prefix is a parameter; its default is the pub layer's.
+  it("publishes a second layer under its own URL prefix", async () => {
+    const { target, staged } = await fixture();
+    await fs.writeFile(
+      path.join(staged, "manifest.json"),
+      JSON.stringify({
+        version: 1,
+        urlPrefix: "/data/london_venues/",
+        shards: [{ id: "cell", core: false, count: 1, bbox: [-1, 53, 0, 54] }],
+      }),
+    );
+    await fs.writeFile(path.join(staged, "cell.json"), "new cell");
+
+    await publishStagedDirectory({
+      stagedDir: staged,
+      targetDir: target,
+      requiredFiles: ["manifest.json"],
+      urlPrefix: "/data/london_venues/",
+    });
+
+    const manifest = JSON.parse(
+      await fs.readFile(path.join(target, "manifest.json"), "utf8"),
+    ) as { urlPrefix: string };
+    expect(manifest.urlPrefix).toMatch(/^\/data\/london_venues\/packs\/[a-f0-9]{16}\/$/);
+  });
+
+  it("refuses a staged manifest claiming a prefix the caller did not name", async () => {
+    const { target, staged } = await fixture();
+    await fs.writeFile(
+      path.join(staged, "manifest.json"),
+      JSON.stringify({
+        version: 1,
+        urlPrefix: "/data/uk_base/",
+        shards: [{ id: "cell", core: false, count: 1, bbox: [-1, 53, 0, 54] }],
+      }),
+    );
+    await fs.writeFile(path.join(staged, "cell.json"), "new cell");
+
+    await expect(
+      publishStagedDirectory({
+        stagedDir: staged,
+        targetDir: target,
+        requiredFiles: ["manifest.json"],
+        urlPrefix: "/data/london_venues/",
+      }),
+    ).rejects.toThrow(/Invalid staged shard URL prefix/);
+  });
+
   it("leaves the current pack untouched when the staged pack is incomplete", async () => {
     const { target, staged } = await fixture();
 
