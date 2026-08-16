@@ -5,34 +5,37 @@ import PricedLandingRows, {
   formatPricedLandingCollectedDate,
 } from "@/components/drinks/PricedLandingRows";
 import type { DrinkBrandLanding } from "@/lib/drinkBrandLanding";
-import { pricedLandingCountLabel } from "@/lib/pricedLanding";
+import {
+  pricedLandingCountLabel,
+  pricedLandingMapArrivalRow,
+  pricedLandingMapHref,
+  type MapSelectableVenueIds,
+} from "@/lib/pricedLanding";
 import { formatPrice } from "@/lib/venues";
-
-// `?brand=` alone. Beer is the lane the map RESTS in, so `?drink=beer` would
-// select a beer LENS and swap the pint bands for corroborated category prices;
-// a matched brand already implies its category (docs/MAP_URL_PARAMS.md).
-function mapHref(landing: DrinkBrandLanding): string {
-  return `/map?brand=${encodeURIComponent(landing.slug)}`;
-}
-
-// `log=1` arms the composer for the RESOLVED venue, so it needs a `sel`. The
-// cheapest row is the one the page opens with.
-function contributionHref(landing: DrinkBrandLanding): string {
-  const params = new URLSearchParams({
-    sel: landing.rows[0].venueId,
-    brand: landing.slug,
-    log: "1",
-  });
-  return `/map?${params.toString()}`;
-}
 
 export default function DrinkBrandLandingContent({
   landing,
+  mapSelectableVenueIds,
 }: {
   landing: DrinkBrandLanding;
+  mapSelectableVenueIds: MapSelectableVenueIds;
 }) {
   const firstRow = landing.rows[0];
   const lowestPrice = formatPrice(firstRow.priceGbp);
+  // `log=1` arms the composer for the RESOLVED venue, so the pub it names must
+  // be one the map can open: the cheapest row inside the eager slim shard,
+  // which is not always rank 1. With none, the link carries the brand alone and
+  // the map offers its own picker rather than dropping a pub we named.
+  const contributionRow = pricedLandingMapArrivalRow(
+    landing.rows,
+    mapSelectableVenueIds,
+  );
+  const mapHref = pricedLandingMapHref({ brandSlug: landing.slug });
+  const contributionHref = pricedLandingMapHref({
+    brandSlug: landing.slug,
+    venueId: contributionRow?.venueId,
+    log: true,
+  });
 
   return (
     <div className="drinkBrandDirectory">
@@ -58,12 +61,12 @@ export default function DrinkBrandLandingContent({
           className="drinkBrandDirectory__actions"
           aria-label={`${landing.brandLabel} pint actions`}
         >
-          <Link className="drinkBrandDirectory__primary" href={mapHref(landing)}>
+          <Link className="drinkBrandDirectory__primary" href={mapHref}>
             Find {landing.brandLabel} on the map
           </Link>
           <Link
             className="drinkBrandDirectory__secondary"
-            href={contributionHref(landing)}
+            href={contributionHref}
           >
             Log a {landing.brandLabel} pint price
           </Link>

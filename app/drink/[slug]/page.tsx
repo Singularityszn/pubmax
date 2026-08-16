@@ -10,6 +10,7 @@ import {
   loadDrinkBrandLanding,
   loadDrinkBrandLandings,
 } from "@/lib/drinkBrandLanding.server";
+import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import { formatPricedLandingPublisherStatus } from "@/lib/pricedLanding";
 import { formatPrice } from "@/lib/venues";
 
@@ -68,13 +69,19 @@ export default async function DrinkBrandLandingPage({ params }: PageProps) {
   const landing = await loadDrinkBrandLanding(slug);
   if (!landing) notFound();
 
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const [nonce, mapSelectableVenueIds] = await Promise.all([
+    headers().then((store) => store.get("x-nonce") ?? undefined),
+    loadMapSelectableVenueIds(),
+  ]);
 
   return (
     <main id="main" className="drinkBrandLanding">
       <JsonLd data={drinkBrandLandingJsonLd(landing)} nonce={nonce} />
       <SiteNav />
-      <DrinkBrandLandingContent landing={landing} />
+      <DrinkBrandLandingContent
+        landing={landing}
+        mapSelectableVenueIds={mapSelectableVenueIds}
+      />
     </main>
   );
 }

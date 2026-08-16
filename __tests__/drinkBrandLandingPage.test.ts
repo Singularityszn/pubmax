@@ -49,6 +49,7 @@ import {
   drinkBrandLandingJsonLd,
   loadDrinkBrandLanding,
 } from "@/lib/drinkBrandLanding.server";
+import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import type { DrinkBrandLanding } from "@/lib/drinkBrandLanding";
 import * as drinkBrandLandingPageModule from "@/app/drink/[slug]/page";
 
@@ -84,9 +85,15 @@ describe("governed drink brand landing page", () => {
     // ?brand= alone: beer is the resting lane, so ?drink=beer would select a
     // lens. The log destination names the venue the composer opens for.
     expect(html).toContain('href="/map?brand=guinness"');
-    expect(html).toMatch(
-      /href="\/map\?sel=[^"]+&amp;brand=guinness&amp;log=1"/,
+    const logHref = html.match(
+      /href="\/map\?sel=([^"&]+)&amp;brand=guinness&amp;log=1"/,
     );
+    expect(logHref).not.toBeNull();
+    // The composer can only arm for a pub the map RESOLVES, and the map only
+    // resolves what its eager shard carries: the cheapest Guinness pint in
+    // London sits in a lazy borough shard, so rank 1 is not that pub.
+    const selectable = await loadMapSelectableVenueIds();
+    expect(selectable?.has(decodeURIComponent(logHref![1]))).toBe(true);
     expect(html).not.toContain("drink=beer");
     expect(html.match(/Collected 3 July 2026\./g)).toHaveLength(1);
     expect(html.match(/<ol class="drinkBrandDirectory__list" role="list"/g)).toHaveLength(1);
@@ -125,7 +132,10 @@ describe("governed drink brand landing page", () => {
     };
 
     const html = renderToStaticMarkup(
-      createElement(DrinkBrandLandingContent, { landing: model }),
+      createElement(DrinkBrandLandingContent, {
+        landing: model,
+        mapSelectableVenueIds: new Set(["venue-1"]),
+      }),
     );
 
     expect(html.match(/Publisher not recorded/g)).toHaveLength(2);
@@ -156,7 +166,10 @@ describe("governed drink brand landing page", () => {
     };
 
     const html = renderToStaticMarkup(
-      createElement(DrinkBrandLandingContent, { landing: model }),
+      createElement(DrinkBrandLandingContent, {
+        landing: model,
+        mapSelectableVenueIds: new Set(["venue-1"]),
+      }),
     );
 
     expect(html).toContain("From £3.09");
@@ -170,6 +183,64 @@ describe("governed drink brand landing page", () => {
     expect(html).toMatch(
       /class="[^"]*\bdrinkBrandDirectory__publisher\b[^"]*"><span>Publisher: <\/span><a href="https:\/\/publisher\.example\/price-1"[^>]*>Exact Publisher<\/a>/,
     );
+  });
+
+  it("arms the composer for a pub the map can open, and names none when it cannot", () => {
+    const model: DrinkBrandLanding = {
+      slug: "guinness",
+      brandLabel: "Guinness",
+      collectedAt: "2026-07-03T12:00:00.000Z",
+      totalPricedVenues: 20,
+      rows: [
+        {
+          rank: 1,
+          venueId: "venue-outer",
+          venueName: "Outer pub",
+          borough: "Brent",
+          pintName: "Guinness",
+          priceGbp: 3.09,
+          publisher: null,
+        },
+        {
+          rank: 2,
+          venueId: "venue-core",
+          venueName: "Core pub",
+          borough: "Camden",
+          pintName: "Guinness",
+          priceGbp: 3.5,
+          publisher: null,
+        },
+      ],
+    };
+
+    const withCore = renderToStaticMarkup(
+      createElement(DrinkBrandLandingContent, {
+        landing: model,
+        mapSelectableVenueIds: new Set(["venue-core"]),
+      }),
+    );
+    expect(withCore).toContain(
+      'href="/map?sel=venue-core&amp;brand=guinness&amp;log=1"',
+    );
+    // The ranked list itself never moves for the CTA's sake.
+    expect(withCore.indexOf("Outer pub")).toBeLessThan(withCore.indexOf("Core pub"));
+
+    const withNothingSelectable = renderToStaticMarkup(
+      createElement(DrinkBrandLandingContent, {
+        landing: model,
+        mapSelectableVenueIds: new Set<string>(),
+      }),
+    );
+    expect(withNothingSelectable).toContain('href="/map?brand=guinness&amp;log=1"');
+    expect(withNothingSelectable).not.toContain("sel=");
+
+    const withFailedRead = renderToStaticMarkup(
+      createElement(DrinkBrandLandingContent, {
+        landing: model,
+        mapSelectableVenueIds: null,
+      }),
+    );
+    expect(withFailedRead).not.toContain("sel=");
   });
 
   it("binds metadata to the canonical route and leaves unknown brands noindex", async () => {

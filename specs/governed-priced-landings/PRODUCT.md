@@ -46,13 +46,20 @@ brand-by-area page's parent crumb is the brand's own London page.
 - `/drink/{brand}` primary: `/map?brand={brand}`. Beer is the lane the map rests
   in, so `?drink=beer` would select a lens and swap the pint bands; a matched
   brand already implies its category.
-- `/drink/{brand}` secondary: the cheapest row's own
-  `/map?sel={venueId}&brand={brand}&log=1`, because `log=1` arms the composer
-  for a RESOLVED venue and has nothing to open without one.
+- `/drink/{brand}` secondary: `/map?sel={venueId}&brand={brand}&log=1`, because
+  `log=1` arms the composer for a RESOLVED venue and has nothing to open without
+  one.
 - `/area/{area}/drink/{brand}` primary: `/map?sel={cheapest venueId}&brand={brand}`.
   Never `?q={area name}`: `q` is a free-text venue filter, so an area name
   narrows the map to whatever pubs happen to carry those words, and
   "Piccadilly & Soho" matches none.
+- A `sel` names only a pub the MAP can open. The slim index is sharded and the
+  map loads the eager core shard first, so the London brand page's log arrival
+  takes the cheapest row inside that shard, which is not always rank 1, and the
+  brand-by-area page's arrivals keep their own row or drop `sel`. With no such
+  pub, and with an eligibility read that could not answer, the link carries the
+  brand alone rather than naming a pub the map would discard. The ranked list
+  itself never moves for a link.
 - Each row: its own `/ledger/{venueId}`, and on the brand-by-area page its own
   `Log this price` arrival.
 

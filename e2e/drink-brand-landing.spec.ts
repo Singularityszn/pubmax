@@ -302,13 +302,25 @@ test.describe("Guinness landing cross-surface journey", () => {
       page.getByRole("heading", { level: 1, name: `Cheapest ${BRAND} pints in London`, exact: true }),
     ).toBeVisible();
 
-    await page.getByRole("link", { name: `Log a ${BRAND} pint price`, exact: true }).click();
+    const logLink = page.getByRole("link", {
+      name: `Log a ${BRAND} pint price`,
+      exact: true,
+    });
+    const logHref = await logLink.getAttribute("href");
+    const namedVenueId = new URL(logHref ?? "", page.url()).searchParams.get("sel");
+    // The page names a pub only when the map's eager shard carries it, so this
+    // arrival RESOLVES: the pub's own sheet opens with the composer armed.
+    expect(namedVenueId).not.toBeNull();
+
+    await logLink.click();
     await expect(page).toHaveURL(/\/map\?sel=[^&]+&brand=guinness&log=1$/);
-    const picker = page.locator('.mobileSheetPortal[data-sheet-kind="moment"]:visible');
-    await expect(picker).toBeVisible({ timeout: 45_000 });
-    await expect(picker.locator(".logIntentFallback")).toContainText("Pick a pub to log a Pint Drop");
-    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue"]')).toHaveCount(0);
-    expect(new URL(page.url()).searchParams.get("sel")).toBeNull();
+    const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    await expect(venueSheet.locator(".mobileSharedSheet")).toHaveClass(/open/, {
+      timeout: 45_000,
+    });
+    await expect(page.locator("form.dropComposer")).toBeVisible({ timeout: 45_000 });
+    await expect(page.locator(".logIntentFallback")).toHaveCount(0);
+    expect(new URL(page.url()).searchParams.get("sel")).toBe(namedVenueId);
 
     expect(errors, "journey should not emit page or console errors").toEqual([]);
   });

@@ -46,8 +46,23 @@ every URL it dropped.
 
 `RUNTIME_DATA_PACKS` declares the seam (`pint-price-landing-dataset`), and
 `APP_ENTRY_NAMES` carries `sitemap` so `/sitemap.xml` derives its own include
-key. `__tests__/venueIndexTracing.test.ts` fails if a reader route stops
-carrying the dataset.
+key from its own route segments. `__tests__/venueIndexTracing.test.ts` fails if
+a reader route stops carrying the dataset.
+
+## Map arrival eligibility
+
+`lib/mapEagerVenueIndex.server.ts` reads the map's EAGER slim shard
+(`public/data/venues_slim.core.json`, path owned by
+`lib/mapEagerVenueIndexFile.mjs`) and answers which venue ids a `?sel=` arrival
+can resolve. The map pulls a borough shard only when the viewport or a
+geolocation fix asks for it, so a `sel` outside core selects nothing and a log
+intent falls through to the generic picker.
+
+The answer is TRI-STATE by way of `null`: a read that could not run says neither
+selectable nor unselectable, and `pricedLandingMapArrivalRow` then names no pub.
+`pricedLandingMapHref` is the ONE href builder and omits `sel` whenever there is
+no such pub. It is declared as its own runtime data pack
+(`map-eager-venue-index`), so both landing routes ship the shard they open.
 
 ## Routes
 

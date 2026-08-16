@@ -5,30 +5,33 @@ import PricedLandingRows, {
   formatPricedLandingCollectedDate,
 } from "@/components/drinks/PricedLandingRows";
 import type { DrinkBrandAreaLanding } from "@/lib/drinkBrandAreaLanding";
-import { pricedLandingCountLabel, type PricedLandingRow } from "@/lib/pricedLanding";
+import {
+  pricedLandingCountLabel,
+  pricedLandingMapArrivalRow,
+  pricedLandingMapHref,
+  type MapSelectableVenueIds,
+  type PricedLandingRow,
+} from "@/lib/pricedLanding";
 import { formatPrice } from "@/lib/venues";
 
 // The map opens on a PUB, never on `?q=<area name>`: `q` is a free-text venue
 // filter (lib/venues.ts matchesVenueQuery), so an area name matches whatever
-// pubs happen to carry it and "Piccadilly & Soho" matches none. The cheapest
-// row is the pub this page is about, so it is the arrival.
-function mapHref(landing: DrinkBrandAreaLanding, row: PricedLandingRow): string {
-  return `/map?sel=${encodeURIComponent(row.venueId)}&brand=${encodeURIComponent(landing.brandSlug)}`;
-}
-
-function contributionHref(
-  landing: DrinkBrandAreaLanding,
-  row: PricedLandingRow,
-): string {
-  return `${mapHref(landing, row)}&log=1`;
-}
-
+// pubs happen to carry it and "Piccadilly & Soho" matches none. A pub is named
+// only while the map can resolve it, through the same seam the London brand
+// page uses.
 export default function DrinkBrandAreaLandingContent({
   landing,
+  mapSelectableVenueIds,
 }: {
   landing: DrinkBrandAreaLanding;
+  mapSelectableVenueIds: MapSelectableVenueIds;
 }) {
   const firstRow = landing.rows[0];
+  // The heading names the CHEAPEST pint here, so the arrival is that row or no
+  // row at all: a different pub would make the label untrue, and a `sel` the
+  // map cannot open would make it unreachable.
+  const selectableVenueId = (row: PricedLandingRow): string | undefined =>
+    pricedLandingMapArrivalRow([row], mapSelectableVenueIds)?.venueId;
 
   return (
     <div className="drinkBrandDirectory">
@@ -58,7 +61,10 @@ export default function DrinkBrandAreaLandingContent({
         <div className="drinkBrandDirectory__actions">
           <Link
             className="drinkBrandDirectory__primary"
-            href={mapHref(landing, firstRow)}
+            href={pricedLandingMapHref({
+              brandSlug: landing.brandSlug,
+              venueId: selectableVenueId(firstRow),
+            })}
           >
             Open the cheapest {landing.areaName} pint on the map
           </Link>
@@ -78,7 +84,11 @@ export default function DrinkBrandAreaLandingContent({
         <PricedLandingRows
           rows={landing.rows}
           rowAction={(row) => ({
-            href: contributionHref(landing, row),
+            href: pricedLandingMapHref({
+              brandSlug: landing.brandSlug,
+              venueId: selectableVenueId(row),
+              log: true,
+            }),
             label: "Log this price",
           })}
         />

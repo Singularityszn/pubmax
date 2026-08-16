@@ -38,6 +38,7 @@ import {
 } from "@/lib/venueIndexTracing.mjs";
 import { PINT_INDEX_SNAPSHOT_TRACING_INCLUDE } from "@/lib/pintIndexSnapshotFile.mjs";
 import { CITY_VENUE_PACKS } from "@/lib/cityVenuePacks.mjs";
+import { MAP_EAGER_VENUE_INDEX_TRACING_INCLUDE } from "@/lib/mapEagerVenueIndexFile.mjs";
 import { VENUE_IMAGE_HOST_TRACING_INCLUDES } from "@/lib/venueImageHostFiles.mjs";
 
 const root = join(__dirname, "..");
@@ -188,6 +189,24 @@ describe("runtime data-pack tracing", () => {
     const includes = tracingIncludes();
     for (const route of routes) {
       expect(includes[route]).toContain("./public/data/pint_prices_app_dataset.json");
+    }
+  });
+
+  it("ships the map's eager shard to the pages that link a pub into the map", () => {
+    const routes = discoverRuntimeReaderRouteGlobs(
+      root,
+      "lib/mapEagerVenueIndex.server.ts",
+    );
+    expect(routes).toEqual(
+      expect.arrayContaining([
+        "/drink/\\[slug\\]",
+        "/area/\\[slug\\]/drink/\\[brand\\]",
+      ]),
+    );
+
+    const includes = tracingIncludes();
+    for (const route of routes) {
+      expect(includes[route]).toContain(MAP_EAGER_VENUE_INDEX_TRACING_INCLUDE);
     }
   });
 

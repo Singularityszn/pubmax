@@ -154,12 +154,62 @@ describe("governed drink brand by Night Area landing page", () => {
     };
 
     const html = renderToStaticMarkup(
-      createElement(DrinkBrandAreaLandingContent, { landing }),
+      createElement(DrinkBrandAreaLandingContent, {
+        landing,
+        mapSelectableVenueIds: new Set(["venue-1"]),
+      }),
     );
 
     expect(html.match(/Publisher not recorded/g)).toHaveLength(2);
     expect(html).not.toContain('target="_blank"');
     expect(html).not.toContain('href="http');
+  });
+
+  it("drops a sel the map cannot resolve from the arrival and the row action", () => {
+    const landing: DrinkBrandAreaLanding = {
+      areaSlug: "clapham" as const,
+      areaName: "Clapham",
+      brandSlug: "guinness",
+      brandLabel: "Guinness",
+      collectedAt: "2026-07-03T12:00:00.000Z",
+      totalPricedVenues: 10,
+      rows: [
+        {
+          rank: 1,
+          venueId: "venue-outer",
+          venueName: "Outer pub",
+          borough: "Lambeth",
+          pintName: "Guinness Draught",
+          priceGbp: 4.5,
+          publisher: null,
+        },
+        {
+          rank: 2,
+          venueId: "venue-core",
+          venueName: "Core pub",
+          borough: "Lambeth",
+          pintName: "Guinness Draught",
+          priceGbp: 4.6,
+          publisher: null,
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(DrinkBrandAreaLandingContent, {
+        landing,
+        mapSelectableVenueIds: new Set(["venue-core"]),
+      }),
+    );
+
+    // The heading names the cheapest pint here, so the arrival is that pub or
+    // no pub: it never silently becomes a different one.
+    expect(html).toContain('href="/map?brand=guinness"');
+    expect(html).toContain('href="/map?brand=guinness&amp;log=1"');
+    expect(html).toContain(
+      'href="/map?sel=venue-core&amp;brand=guinness&amp;log=1"',
+    );
+    expect(html).not.toContain("sel=venue-outer");
   });
 
   it("shows the full eligible pub count when the printed rows are capped", () => {
@@ -183,7 +233,10 @@ describe("governed drink brand by Night Area landing page", () => {
     };
 
     const html = renderToStaticMarkup(
-      createElement(DrinkBrandAreaLandingContent, { landing }),
+      createElement(DrinkBrandAreaLandingContent, {
+        landing,
+        mapSelectableVenueIds: new Set(rows.map((row) => row.venueId)),
+      }),
     );
 
     expect(html).toContain("Showing 20 of 21 pubs");

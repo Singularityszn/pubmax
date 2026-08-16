@@ -91,6 +91,49 @@ export function publishablePricedRows(
   };
 }
 
+/**
+ * The venue ids a `?sel=` arrival can resolve, or null when nobody could tell.
+ *
+ * The map loads the eager slim shard first and a borough shard only when it is
+ * asked for, so a `sel` outside that shard opens no pub. `null` is a read that
+ * could not answer, and it may never read as "nothing is selectable": both lead
+ * to the same safe link, but only one of them is a fact about the map.
+ * `lib/mapEagerVenueIndex.server.ts` is the one reader behind it.
+ */
+export type MapSelectableVenueIds = ReadonlySet<string> | null;
+
+/**
+ * The cheapest listed row the map can actually OPEN, or null when it can open
+ * none of them. Rows arrive cheapest-first, so the first selectable row is the
+ * cheapest selectable row; the ranked list itself never moves.
+ */
+export function pricedLandingMapArrivalRow(
+  rows: readonly PricedLandingRow[],
+  selectable: MapSelectableVenueIds,
+): PricedLandingRow | null {
+  if (!selectable) return null;
+  return rows.find((row) => selectable.has(row.venueId)) ?? null;
+}
+
+/**
+ * The ONE map destination a priced landing page may link to. A pub is named
+ * only when the map can resolve it; otherwise the link carries the brand alone,
+ * because a `sel` the map drops is a promise the arrival cannot keep. No
+ * `?drink=beer`: beer is the lane the map rests in, and a matched brand already
+ * implies its category (docs/MAP_URL_PARAMS.md).
+ */
+export function pricedLandingMapHref(input: {
+  brandSlug: string;
+  venueId?: string | null;
+  log?: boolean;
+}): string {
+  const params = new URLSearchParams();
+  if (input.venueId) params.set("sel", input.venueId);
+  params.set("brand", input.brandSlug);
+  if (input.log) params.set("log", "1");
+  return `/map?${params.toString()}`;
+}
+
 /** Publisher disclosure copy. `docs/VOICE.md` governs both sentences. */
 export function formatPricedLandingPublisherStatus(
   publisher: PricedLandingPublisher | null,

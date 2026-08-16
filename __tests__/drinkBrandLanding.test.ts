@@ -14,8 +14,14 @@ import {
 import {
   PRICED_LANDING_ROW_LIMIT,
   formatPricedLandingPublisherStatus,
+  pricedLandingMapArrivalRow,
+  pricedLandingMapHref,
   type PricedLandingRow,
 } from "@/lib/pricedLanding";
+import {
+  loadMapSelectableVenueIds,
+  resetMapEagerVenueIndexForTests,
+} from "@/lib/mapEagerVenueIndex.server";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { DRINK_BRANDS } from "@/lib/drinkBrands";
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
@@ -269,23 +275,35 @@ describe("governed drink brand landings", () => {
     );
   });
 
-  it("lists current eligible beer brands in catalogue order with real dataset counts", async () => {
+  // Derived from the loader rather than pinned to today's dataset: a refresh,
+  // or one new brand below the floor, is a legitimate change in the numbers and
+  // may not fail this contract.
+  it("publishes beer brands over the floor, in catalogue order", async () => {
     const raw = JSON.parse(await readFile(DATASET_FILE, "utf8")) as VenuePrice[];
-    const landings = listDrinkBrandLandings(groupVenuePrices(raw));
+    const venues = groupVenuePrices(raw);
+    const landings = listDrinkBrandLandings(venues);
 
+    expect(landings.length).toBeGreaterThan(0);
+
+    const catalogueOrder = DRINK_BRANDS.beer.map((brand) => brand.id);
     expect(landings.map((landing) => landing.slug)).toEqual(
-      DRINK_BRANDS.beer.map((brand) => brand.id),
+      catalogueOrder.filter((id) =>
+        landings.some((landing) => landing.slug === id),
+      ),
     );
-    expect(landings.map((landing) => landing.totalPricedVenues)).toEqual([
-      347,
-      148,
-      114,
-      121,
-      210,
-      82,
-      30,
-      95,
-    ]);
+
+    for (const landing of landings) {
+      expect(landing.totalPricedVenues).toBeGreaterThanOrEqual(
+        DRINK_BRAND_LANDING_PUBLICATION_FLOOR,
+      );
+    }
+
+    // A brand the loader withheld is one the dataset cannot carry, never one
+    // the catalogue forgot.
+    for (const brand of DRINK_BRANDS.beer) {
+      if (landings.some((landing) => landing.slug === brand.id)) continue;
+      expect(buildDrinkBrandLanding(brand.id, venues)).toBeNull();
+    }
   });
 
   it("loads a non-empty grouped Pint Price dataset through the shared reader", async () => {
@@ -293,5 +311,79 @@ describe("governed drink brand landings", () => {
 
     expect(venues.length).toBeGreaterThan(0);
     expect(venues.every((item) => item.prices.length > 0)).toBe(true);
+  });
+});
+
+describe("priced landing map arrivals", () => {
+  function row(venueId: string, rank: number, priceGbp: number): PricedLandingRow {
+    return {
+      rank,
+      venueId,
+      venueName: `Pub ${rank}`,
+      borough: "Camden",
+      pintName: "Guinness",
+      priceGbp,
+      publisher: null,
+    };
+  }
+
+  const rows = [row("outer-1", 1, 3.09), row("core-1", 2, 3.5), row("core-2", 3, 4)];
+
+  it("takes the cheapest row the map can open, not always rank 1", () => {
+    expect(
+      pricedLandingMapArrivalRow(rows, new Set(["core-1", "core-2"]))?.venueId,
+    ).toBe("core-1");
+  });
+
+  it("names no pub when the map can open none of them", () => {
+    expect(pricedLandingMapArrivalRow(rows, new Set(["elsewhere"]))).toBeNull();
+  });
+
+  it("names no pub when the eligibility read could not answer", () => {
+    // Null is "we could not tell", never "nothing is selectable".
+    expect(pricedLandingMapArrivalRow(rows, null)).toBeNull();
+  });
+
+  it("carries a named pub, the brand and the log intent in that order", () => {
+    expect(
+      pricedLandingMapHref({ brandSlug: "guinness", venueId: "core-1", log: true }),
+    ).toBe("/map?sel=core-1&brand=guinness&log=1");
+    expect(pricedLandingMapHref({ brandSlug: "guinness", venueId: "core-1" })).toBe(
+      "/map?sel=core-1&brand=guinness",
+    );
+  });
+
+  it("drops sel rather than naming a pub the map would discard", () => {
+    expect(pricedLandingMapHref({ brandSlug: "guinness", log: true })).toBe(
+      "/map?brand=guinness&log=1",
+    );
+    expect(
+      pricedLandingMapHref({ brandSlug: "guinness", venueId: null, log: true }),
+    ).not.toContain("sel=");
+  });
+
+  it("escapes a brand slug and a venue id that carry URL syntax", () => {
+    expect(
+      pricedLandingMapHref({ brandSlug: "a&b", venueId: "venue x", log: true }),
+    ).toBe("/map?sel=venue+x&brand=a%26b&log=1");
+  });
+
+  it("reads the map's eager shard so eligibility is never a hardcoded list", async () => {
+    resetMapEagerVenueIndexForTests();
+    const selectable = await loadMapSelectableVenueIds();
+
+    expect(selectable).not.toBeNull();
+    expect(selectable!.size).toBeGreaterThan(0);
+
+    const landing = buildDrinkBrandLanding(
+      "guinness",
+      groupVenuePrices(
+        JSON.parse(await readFile(DATASET_FILE, "utf8")) as VenuePrice[],
+      ),
+    );
+    const arrival = pricedLandingMapArrivalRow(landing!.rows, selectable);
+
+    expect(arrival).not.toBeNull();
+    expect(selectable!.has(arrival!.venueId)).toBe(true);
   });
 });
