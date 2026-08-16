@@ -512,8 +512,10 @@ export const PLAN_INTAKE_CONFLICT_SERVER =
   "Plan intake skipped steps conflict with supplied answers.";
 export const PLAN_INTAKE_CONFLICT_READER =
   "The earlier route is still here - start again or keep it";
-export const RELEASED_ACCEPTANCE_STATUS =
-  "You released this pub. Every stop stays. Stop 1 is yours to change.";
+export function releasedAcceptanceStatus(venueName: string | null): string {
+  const pub = venueName?.trim() || "this pub";
+  return `Released ${pub} - the plan is no longer anchored.`;
+}
 
 export function errorMessageFromBody(body: unknown, fallback: string): string {
   // Concierge / plan generate scarcity must stay the server's sentence. Never
@@ -576,7 +578,8 @@ export function planGenerationFailureStatus(
 export function acceptedPlanAreaLabel(area: Exclude<PlanningIntentArea, null>): string {
   if (area.kind === "borough") return area.name;
   const slug = nightAreaForPlanIntakePatch(area.id);
-  return slug ? getNightArea(slug).name : area.id;
+  if (slug) return getNightArea(slug).name;
+  return resolveNightPatch(area.id)?.label ?? area.id;
 }
 
 export function acceptedStop1SwapLabel(venueName: string): string {
@@ -588,11 +591,11 @@ export function acceptedStop1RemoveLabel(venueName: string): string {
 }
 
 export function planComposerShowsDescribeFirst(input: {
-  heldVenueId: string | null;
+  composerVisible: boolean;
   completed: boolean;
   entryMode: "describe" | "wizard";
 }): boolean {
-  return !input.heldVenueId && !input.completed && input.entryMode === "describe";
+  return !input.composerVisible && !input.completed && input.entryMode === "describe";
 }
 
 export function planComposerShowsIntake(input: {
@@ -601,7 +604,7 @@ export function planComposerShowsIntake(input: {
   entryMode: "describe" | "wizard";
 }): boolean {
   if (input.heldVenueId && !input.completed) return false;
-  return !planComposerShowsDescribeFirst(input);
+  return input.completed || input.entryMode === "wizard";
 }
 
 export function focusPlanRouteStatus(root: ParentNode | Document = document): void {
@@ -1336,7 +1339,8 @@ function PlanComposerForm({
     setPlanAnchor(null);
     setGroundingProof(null);
     setAcceptanceReleased(true);
-    setRouteStatus(RELEASED_ACCEPTANCE_STATUS);
+    setRouteStale(false);
+    setRouteStatus(releasedAcceptanceStatus(acceptedVenueName));
   }
 
   function chooseVenue(key: number, venueName: string) {
@@ -1602,7 +1606,7 @@ function PlanComposerForm({
         />
       )}
       {planComposerShowsDescribeFirst({
-        heldVenueId,
+        composerVisible,
         completed: planIntake.completed,
         entryMode,
       }) ? (

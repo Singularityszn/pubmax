@@ -48,7 +48,11 @@ import {
   walkLabel,
   walkMinutes,
 } from "@/lib/tonight";
-import { acceptTonightVenue, tonightRowAcceptanceError } from "@/lib/tonightAcceptance";
+import {
+  acceptTonightVenue,
+  type TonightAcceptanceError,
+} from "@/lib/tonightAcceptance";
+import { TonightRowAccept } from "@/app/tonight/TonightRowAccept";
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { VibeChipButton, VibeChipLink, VibeChips } from "@/components/vibe/VibeChips";
@@ -167,7 +171,7 @@ export default function TonightClient({
   // browser-only and the first paint must match SSR.
   const [remembered, setRemembered] = useState<RememberedArea | null>(null);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
-  const [acceptanceError, setAcceptanceError] = useState<{ venueId: string; message: string } | null>(null);
+  const [acceptanceError, setAcceptanceError] = useState<TonightAcceptanceError | null>(null);
   // The location card is a quiet, collapsed row until tapped — it must not be
   // the first thing on the page. Once a position is shared it stays open so the
   // last-train strip has somewhere to live.
@@ -610,21 +614,14 @@ export default function TonightClient({
                   )}
                   {/* Explicit acceptance stays distinct from the browse tap. */}
                   {typeof row.venueId === "string" && row.venueId.length > 0 ? (
-                    <>
-                    <button
-                      type="button"
-                      className="tonightRowAccept pressable"
-                      aria-label={`Keep ${row.placeName} for tonight`}
-                      onClick={() => acceptVenue(row.venueId as string)}
-                    >
-                      Keep this venue
-                    </button>
-                    {tonightRowAcceptanceError(acceptanceError, row.venueId) ? (
-                      <p className="tonightAcceptanceError" role="alert">
-                        {tonightRowAcceptanceError(acceptanceError, row.venueId)}
-                      </p>
-                    ) : null}
-                    </>
+                    <TonightRowAccept
+                      venueId={row.venueId}
+                      placeName={row.placeName}
+                      className="tonightRowAccept"
+                      label="Keep this venue"
+                      acceptanceError={acceptanceError}
+                      onAccept={acceptVenue}
+                    />
                   ) : null}
                   {group.venueCount > 1 ? (
                     <details className="tonightRowMore">
@@ -681,21 +678,14 @@ export default function TonightClient({
                                 </span>
                               )}
                               {typeof alt.venueId === "string" && alt.venueId.length > 0 ? (
-                                <>
-                                <button
-                                  type="button"
-                                  className="tonightRowMoreAccept pressable"
-                                  aria-label={`Keep ${alt.placeName} for tonight`}
-                                  onClick={() => acceptVenue(alt.venueId as string)}
-                                >
-                                  Keep
-                                </button>
-                                {tonightRowAcceptanceError(acceptanceError, alt.venueId) ? (
-                                  <p className="tonightAcceptanceError" role="alert">
-                                    {tonightRowAcceptanceError(acceptanceError, alt.venueId)}
-                                  </p>
-                                ) : null}
-                                </>
+                                <TonightRowAccept
+                                  venueId={alt.venueId}
+                                  placeName={alt.placeName}
+                                  className="tonightRowMoreAccept"
+                                  label="Keep"
+                                  acceptanceError={acceptanceError}
+                                  onAccept={acceptVenue}
+                                />
                               ) : null}
                             </li>
                           );

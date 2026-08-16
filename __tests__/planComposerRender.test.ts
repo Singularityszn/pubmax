@@ -12,6 +12,7 @@ import {
   acceptedStop1SwapLabel,
   planComposerShowsDescribeFirst,
   planComposerShowsIntake,
+  releasedAcceptanceStatus,
 } from "@/components/plan/PlanComposer";
 import {
   readPlanDraftEnvelope,
@@ -159,6 +160,9 @@ describe("PlanComposer rendered UI", () => {
     expect(acceptedPlanAreaLabel({ kind: "night-patch", id: "clapham" })).toBe("Clapham");
     expect(acceptedPlanAreaLabel({ kind: "night-patch", id: "soho" })).toBe("Piccadilly & Soho");
     expect(acceptedPlanAreaLabel({ kind: "borough", name: "Camden" })).toBe("Camden");
+    // Hackney has no generator area on purpose, so its own patch label answers
+    // rather than the raw slug.
+    expect(acceptedPlanAreaLabel({ kind: "night-patch", id: "hackney" })).toBe("Hackney");
 
     const clapham = resolveComposerHydration({
       planDraft: null, routeDraft: null, intakeDraft: null,
@@ -188,9 +192,9 @@ describe("PlanComposer rendered UI", () => {
       .not.toBe(acceptedStop1RemoveLabel("The Coach & Horses"));
   });
 
-  it("hides describe-first when a held pub already shows the composer", () => {
+  it("hides describe-first whenever the full composer is on the page", () => {
     expect(planComposerShowsDescribeFirst({
-      heldVenueId: "venue-kept",
+      composerVisible: true,
       completed: false,
       entryMode: "describe",
     })).toBe(false);
@@ -200,9 +204,45 @@ describe("PlanComposer rendered UI", () => {
       entryMode: "describe",
     })).toBe(false);
     expect(planComposerShowsDescribeFirst({
-      heldVenueId: null,
+      composerVisible: false,
       completed: false,
       entryMode: "describe",
     })).toBe(true);
+  });
+
+  it("still hides describe-first after the held pub is released", () => {
+    expect(planComposerShowsDescribeFirst({
+      composerVisible: true,
+      completed: false,
+      entryMode: "describe",
+    })).toBe(false);
+    expect(planComposerShowsIntake({
+      heldVenueId: null,
+      completed: false,
+      entryMode: "describe",
+    })).toBe(false);
+  });
+
+  it("keeps the unfinished wizard for a returning visitor", () => {
+    expect(planComposerShowsIntake({
+      heldVenueId: null,
+      completed: false,
+      entryMode: "wizard",
+    })).toBe(true);
+    expect(planComposerShowsIntake({
+      heldVenueId: null,
+      completed: true,
+      entryMode: "describe",
+    })).toBe(true);
+  });
+
+  it("states the release in one sentence and names the pub", () => {
+    expect(releasedAcceptanceStatus("The Coach & Horses")).toBe(
+      "Released The Coach & Horses - the plan is no longer anchored.",
+    );
+    expect(releasedAcceptanceStatus(null)).toBe(
+      "Released this pub - the plan is no longer anchored.",
+    );
+    expect(releasedAcceptanceStatus("The Coach & Horses")).not.toMatch(/refresh/i);
   });
 });

@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -932,23 +930,3 @@ describe("what the composer holds as Stop 1", () => {
   });
 });
 
-describe("PlanComposer held-acceptance source fences", () => {
-  const source = readFileSync(join(process.cwd(), "components/plan/PlanComposer.tsx"), "utf8");
-
-  it("creates with the accepted city that survives release", () => {
-    expect(source).toContain("cityId: acceptedCityId");
-    expect(source).toContain("hydratedHandoff ? composerLockErrorFromResponse");
-  });
-
-  it("drops the held anchor and writes a route-status line on release", () => {
-    expect(source).toContain("setPlanAnchor(null)");
-    expect(source).toContain("setGroundingProof(null)");
-    expect(source).toContain("RELEASED_ACCEPTANCE_STATUS");
-    expect(source).toContain("focusPlanRouteStatus");
-  });
-
-  it("does not mount describe-first beside a held composer", () => {
-    expect(source).toContain("planComposerShowsDescribeFirst");
-    expect(source).toContain("planComposerShowsIntake");
-  });
-});

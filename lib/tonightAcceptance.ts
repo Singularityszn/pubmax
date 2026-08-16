@@ -58,8 +58,10 @@ export type TonightAcceptanceInput = {
   fallbackCityId: CityId;
 };
 
+export type TonightAcceptanceError = { venueId: string; message: string };
+
 export function tonightRowAcceptanceError(
-  error: { venueId: string; message: string } | null,
+  error: TonightAcceptanceError | null,
   venueId: string,
 ): string | null {
   return error && error.venueId === venueId ? error.message : null;

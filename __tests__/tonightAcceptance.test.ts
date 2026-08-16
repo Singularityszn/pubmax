@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
@@ -8,6 +12,7 @@ import {
   type PlanningIntentStorage,
 } from "@/lib/planningIntent";
 import { acceptTonightVenue, tonightRowAcceptanceError } from "@/lib/tonightAcceptance";
+import { TonightRowAccept } from "@/app/tonight/TonightRowAccept";
 
 // The Tonight acceptance seam is pure — inject storage + clock and read the
 // result. Source is fixed "tonight", evidence is "what's-on", browsing is never
@@ -142,5 +147,37 @@ describe("tonightRowAcceptanceError", () => {
     expect(tonightRowAcceptanceError(error, "venue-failed")).toBe(error.message);
     expect(tonightRowAcceptanceError(error, "venue-other")).toBeNull();
     expect(tonightRowAcceptanceError(null, "venue-failed")).toBeNull();
+  });
+});
+
+describe("TonightRowAccept", () => {
+  const failure = {
+    venueId: "venue-failed",
+    message: "Couldn’t keep this pub on this device. Try again.",
+  };
+
+  function render(venueId: string) {
+    return renderToStaticMarkup(createElement(TonightRowAccept, {
+      venueId,
+      placeName: "The Dove",
+      className: "tonightRowAccept",
+      label: "Keep this venue",
+      acceptanceError: failure,
+      onAccept: () => {},
+    }));
+  }
+
+  it("renders the failure alert beside the Keep button of the row that failed", () => {
+    const html = render("venue-failed");
+    expect(html).toContain('aria-label="Keep The Dove for tonight"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Couldn’t keep this pub on this device.");
+    expect(html.indexOf('role="alert"')).toBeGreaterThan(html.indexOf("</button>"));
+  });
+
+  it("says nothing in a row that did not fail", () => {
+    const html = render("venue-other");
+    expect(html).toContain('aria-label="Keep The Dove for tonight"');
+    expect(html).not.toContain('role="alert"');
   });
 });

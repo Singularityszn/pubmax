@@ -76,8 +76,11 @@ test("held pub shows one describe box, names the area, and release un-anchors wh
   await expect(page.getByRole("button", { name: "Make a plan" })).toHaveCount(1);
 
   await page.getByRole("button", { name: "Release this pub" }).click();
-  await expect(page.locator("#plan-route-status")).toContainText("You released this pub");
+  await expect(page.locator("#plan-route-status")).toHaveText(
+    "Released The Coach & Horses - the plan is no longer anchored.",
+  );
   await expect(page.locator("#plan-route-status")).toBeFocused();
+  await expect(page.getByRole("textbox", { name: "Describe the outing" })).toHaveCount(1);
 
   await expect.poll(async () => {
     const raw = await page.evaluate((routeKey) => localStorage.getItem(routeKey), ROUTE_DRAFT_KEY);
@@ -116,6 +119,9 @@ test("Keep on Near then Make it Stop 1 shows one describe box and names the area
   await expect(page.getByRole("button", { name: "Make a plan" })).toHaveCount(1);
 
   await page.getByRole("button", { name: "Release this pub" }).click();
-  await expect(page.locator("#plan-route-status")).toContainText("You released this pub");
+  await expect(page.locator("#plan-route-status")).toContainText(
+    "the plan is no longer anchored.",
+  );
   await expect(page.locator("#plan-route-status")).toBeFocused();
+  await expect(page.getByRole("textbox", { name: "Describe the outing" })).toHaveCount(1);
 });
