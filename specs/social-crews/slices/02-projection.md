@@ -4,13 +4,17 @@
 
 Crew list and Crew Page reads expose only current authority. Private denial is
 `404`. A Mutual may receive a narrow friends preview and Join Request state.
+A signed-in non-mutual can receive a narrow open preview if the plan is `open`.
 Only an active member who remains a current Mutual with owner receives full Plan
-state. Crew list is member-only; friend preview stays detail-only because it has
-no Crew identifier.
+state. Crew list is member-only; friend and open previews stay detail-only
+because they have no Crew identifier.
 
 Title, start time, nullable Night Area, and phase are projected from the Planned
 Night. Full detail also carries Plan `routeRevision` and Crew
 `authorityRevision`; collection deliberately omits both revisions.
+
+For open previews, host handle, member count, and stop-1 venue/place name are
+projected for public list rendering.
 
 ## Seam
 
@@ -33,8 +37,8 @@ signing-key failure receives `503`; invalid cursor receives `422`.
 
 ## RED cases
 
-- Preview excludes route, exact Venue, identities, counts, chat, protected IDs,
-  Check-ins, and Safe Home.
+- Preview excludes route, exact Venue, identities, chat, protected IDs, Check-ins,
+  and Safe Home.
 - Current membership without owner friendship gets `404`.
 - A block clears protected DTOs on next refetch.
 - Dependency failure returns `503`, not empty or `404`.
@@ -45,9 +49,10 @@ signing-key failure receives `503`; invalid cursor receives `422`.
 
 ## Playable checkpoint
 
-Owner sees full page. Uninvited Mutual sees preview. Pending requester sees the
-same preview plus pending state. Stranger, blocked member, and private denial see
-the same not-found surface.
+Owner sees full page. Uninvited Mutual sees friends preview. Pending requester
+sees the same preview plus pending state. A signed-in non-mutual sees open
+preview only when allowed. Stranger, blocked member, and private denial see the
+same not-found surface.
 
 ## Verification
 

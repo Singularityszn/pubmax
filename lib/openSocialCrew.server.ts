@@ -123,7 +123,8 @@ export async function attachOpenPlanMeetingPoints(
       if (resolution.reason === "unavailable") degraded = true;
       continue;
     }
-    const { cityId: _cityId, ...meetingPoint } = resolution.meetingPoint;
+    const { cityId, ...meetingPoint } = resolution.meetingPoint;
+    void cityId;
     plans.push({ ...row, meetingPoint });
   }
   return { status: degraded ? "degraded" : "ready", plans };
