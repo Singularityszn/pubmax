@@ -416,8 +416,8 @@ const ACCEPTED_ARRIVAL_EVENTS = [
 ] as const;
 
 function subscribeAcceptedArrival(input: AcceptedArrivalInput, onStoreChange: () => void): () => void {
-  let cancelExpiry = () => undefined;
-  let scheduleExpiry = () => undefined;
+  let cancelExpiry: () => void = () => {};
+  let scheduleExpiry: () => void = () => {};
   const notify = () => {
     invalidateAcceptedArrivalSource();
     onStoreChange();
