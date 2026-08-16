@@ -33,8 +33,17 @@ function outWindowToApiDay(window: OutDayWindow): OutDay {
 
 export default function OutClient({ day }: { day: OutDayWindow }) {
   const apiDay = outWindowToApiDay(day);
-  const [body, setBody] = useState<OutResponse | null>(null);
-  const [failed, setFailed] = useState(false);
+  // An answer is held WITH the day it is about. The chip moves the instant it
+  // is pressed, so a body that belongs to another day is not this day's answer
+  // and must not render under it - last night's listings reading as this
+  // weekend's, with nothing on screen saying otherwise.
+  const [answer, setAnswer] = useState<{ day: OutDay; body: OutResponse | null; failed: boolean }>({
+    day: apiDay,
+    body: null,
+    failed: false,
+  });
+  const body = answer.day === apiDay ? answer.body : null;
+  const failed = answer.day === apiDay && answer.failed;
 
   useEffect(() => {
     trackEvent("out_screen_view");
@@ -51,20 +60,17 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
         }
         if (!res.ok) {
           discardBody(res);
-          setFailed(true);
-          setBody(null);
+          setAnswer({ day: apiDay, body: null, failed: true });
           return;
         }
         const json = (await res.json()) as OutResponse;
         if (cancelled) return;
-        setFailed(false);
-        setBody(json);
+        setAnswer({ day: apiDay, body: json, failed: false });
       } catch {
         // Offline, DNS, abort: the reader is owed the same honest line as a
         // refused read, never day chips over an empty page with no status.
         if (cancelled) return;
-        setFailed(true);
-        setBody(null);
+        setAnswer({ day: apiDay, body: null, failed: true });
       }
     })();
     return () => {

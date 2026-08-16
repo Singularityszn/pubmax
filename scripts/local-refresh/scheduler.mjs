@@ -75,19 +75,44 @@ export function redactSecrets(text, values) {
   return redacted;
 }
 
-export function keyReadinessError(mode, keys) {
+/**
+ * Which lanes of a mode can run with the keys on this machine.
+ *
+ * Readiness is per LANE, not per mode. The Common reader needs no provider key
+ * at all, so a machine with neither TICKETMASTER_API_KEY nor SKIDDLE_API_KEY
+ * must still run it - gating the whole events mode on a provider key meant the
+ * keyless lane could never seed itself, which is the same coupling the
+ * independent-lane loop below exists to remove. A skipped lane is REPORTED,
+ * never silent.
+ */
+export function laneReadiness(mode, keys, dryRun = false) {
+  const runnable = [];
+  const skipped = [];
+  for (const command of commandsForMode(mode, dryRun)) {
+    const needs = command.requiresAnyKey ?? [];
+    if (needs.length === 0 || needs.some((key) => keys[key])) {
+      runnable.push(command);
+      continue;
+    }
+    skipped.push({
+      command,
+      reason: `${command.args[0]} needs one of ${needs.join(" or ")} in the protected key file`,
+    });
+  }
+  return { runnable, skipped };
+}
+
+export function keyReadinessError(mode, keys, dryRun = false) {
   if (mode === "prices") {
     const missing = PRICE_PROVIDER_KEYS.filter((key) => !keys[key]);
     return missing.length
       ? `prices refresh requires EXA_API_KEY, BROWSERBASE_API_KEY, and TAVILY_API_KEY in the protected key file; missing ${missing.join(", ")}`
       : null;
   }
-  if (mode === "events") {
-    return EVENT_PROVIDER_KEYS.some((key) => keys[key])
-      ? null
-      : "events refresh requires TICKETMASTER_API_KEY or an approved SKIDDLE_API_KEY in the protected key file";
-  }
-  throw new Error(`Unknown refresh mode: ${mode}`);
+  if (mode !== "events") throw new Error(`Unknown refresh mode: ${mode}`);
+  const { runnable, skipped } = laneReadiness(mode, keys, dryRun);
+  if (runnable.length > 0) return null;
+  return `events refresh has no runnable lane: ${skipped.map((entry) => entry.reason).join("; ")}`;
 }
 
 export function providerSafeEnvironment(environment) {
@@ -214,6 +239,7 @@ export function commandsForMode(mode, dryRun) {
         executable: process.execPath,
         args: ["scripts/whatson/eventsRefresh.mjs"],
         independent: true,
+        requiresAnyKey: EVENT_PROVIDER_KEYS,
       },
       {
         executable: process.execPath,
@@ -671,7 +697,7 @@ export async function runScheduledRefresh({
   try {
     const keys = loadKeyFile(keysFile);
     secretValues.push(...Object.values(keys));
-    const readinessError = keyReadinessError(mode, keys);
+    const readinessError = keyReadinessError(mode, keys, dryRun);
     if (readinessError) {
       log(`MISSING KEY: ${readinessError}.`);
       return { status: "missing-key", reason: readinessError, logPath };
@@ -700,7 +726,8 @@ export async function runScheduledRefresh({
     log(`Prepared disposable worktree from ${baseRef}.`);
 
     const before = captureRefreshSnapshot(worktree);
-    const commands = commandsForMode(mode, dryRun);
+    const { runnable: commands, skipped: skippedLanes } = laneReadiness(mode, keys, dryRun);
+    for (const entry of skippedLanes) log(`SKIPPED LANE: ${entry.reason}.`);
     let independentRun = 0;
     let independentFailed = 0;
     for (const command of commands) {

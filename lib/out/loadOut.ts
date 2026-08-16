@@ -81,6 +81,10 @@ export function loadBundledOutEvents(city: OutCity): WhatsOnRow[] {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+// A service day opens at 16:00 and closes at 04:00, so a probe four hours in
+// lands at 20:00 - far enough from either boundary that a DST shift cannot push
+// it into the neighbouring day.
+const EVENING_PROBE_MS = 4 * 60 * 60 * 1000;
 
 // Which weekday the SERVICE day belongs to. Reading the weekday off `now`
 // instead mixes two day origins: at Sunday 02:00 London the service day is
@@ -115,8 +119,14 @@ export function outDayWindow(day: OutDay, now: number): { startMs: number; endMs
   // forward to the next Friday.
   const daysUntilFriday =
     current === 5 ? 0 : current === 6 ? -1 : current === 0 ? -2 : (5 - current + 7) % 7;
-  const fridayStart = today.startMs + daysUntilFriday * DAY_MS;
-  return { startMs: fridayStart, endMs: fridayStart + 3 * DAY_MS };
+  // The two ends are resolved as SERVICE DAYS, not by adding raw days: Sunday's
+  // evening closes at Monday 04:00, so a fixed three-day span leaves twelve
+  // hours of Monday daytime under a chip that means Friday, Saturday and Sunday
+  // nights - and a BST/GMT transition inside the span drifts a raw day by an
+  // hour.
+  const friday = tonightServiceWindow(today.startMs + daysUntilFriday * DAY_MS + EVENING_PROBE_MS);
+  const sunday = tonightServiceWindow(friday.startMs + 2 * DAY_MS + EVENING_PROBE_MS);
+  return { startMs: friday.startMs, endMs: sunday.endMs };
 }
 
 function rowOverlapsWindow(row: WhatsOnRow, window: { startMs: number; endMs: number }): boolean {

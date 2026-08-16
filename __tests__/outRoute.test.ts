@@ -9,6 +9,7 @@ import {
   parseOutQuery,
 } from "@/lib/out/loadOut";
 import { outStatusLines } from "@/lib/out/outStatus";
+import { londonServiceDayBounds } from "@/lib/whatsOn";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const FIXTURE_NOW = new Date("2026-08-16T17:00:00.000Z");
@@ -176,6 +177,31 @@ describe("buildOutResponse", () => {
     );
     const tomorrow = outDayWindow("tomorrow", FIXTURE_NOW.getTime());
     expect(asked).toEqual([{ city: "london", window: tomorrow }]);
+  });
+
+  it("closes the weekend at Sunday's own service end, not at Monday daytime", () => {
+    // Friday 20:00 London.
+    const friday = Date.parse("2026-08-14T19:00:00.000Z");
+    const weekend = outDayWindow("weekend", friday);
+    const sundayEvening = Date.parse("2026-08-16T20:00:00.000Z");
+    const mondayMatinee = Date.parse("2026-08-17T13:00:00.000Z"); // Mon 14:00 BST
+    expect(sundayEvening).toBeLessThan(weekend.endMs);
+    // Sunday's evening closes at Monday 04:00; a Monday matinee is not a
+    // weekend night and must fall outside the chip's window.
+    expect(mondayMatinee).toBeGreaterThanOrEqual(weekend.endMs);
+    expect(weekend.endMs).toBe(Date.parse(londonServiceDayBounds(sundayEvening).end));
+  });
+
+  it("keeps the weekend span honest across a BST/GMT transition", () => {
+    // The clocks go back on Sunday 25 October 2026, inside this span.
+    const friday = Date.parse("2026-10-23T19:00:00.000Z");
+    const weekend = outDayWindow("weekend", friday);
+    const sundayEvening = Date.parse("2026-10-25T20:00:00.000Z");
+    expect(sundayEvening).toBeGreaterThanOrEqual(weekend.startMs);
+    expect(sundayEvening).toBeLessThan(weekend.endMs);
+    expect(weekend.endMs).toBe(Date.parse(londonServiceDayBounds(sundayEvening).end));
+    // A raw three-day span would be an hour short of the real service window.
+    expect(weekend.endMs - weekend.startMs).toBeGreaterThan(3 * 24 * 60 * 60 * 1000 - 12 * 60 * 60 * 1000);
   });
 
   it("keeps Sunday night inside the weekend window in the small hours", () => {

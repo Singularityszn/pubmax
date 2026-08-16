@@ -43,6 +43,19 @@ export type WhatsOnEventRow = {
 export type MapEventOpts = {
   observedAt: string;
   venueIndex?: VenueResolverIndex | null;
+  /** Injected by the CLI. Absent means no venue matching happens at all. */
+  resolveVenue?:
+    | ((
+        match: {
+          name: string;
+          address?: string;
+          postcode?: string;
+          lat?: number | null;
+          lng?: number | null;
+        },
+        index: VenueResolverIndex,
+      ) => string | null)
+    | null;
 };
 
 export type EventDropCounts = {

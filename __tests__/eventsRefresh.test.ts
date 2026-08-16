@@ -1,4 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { DATE_ONLY_TIME_EVIDENCE } from "@/lib/whatson/eventNormalise.mjs";
 import {
@@ -11,10 +15,16 @@ import {
   normaliseSkiddleEvents,
   normaliseTicketmasterEvents,
   providerLaneStatus,
+  runEventsRefresh,
   summariseEventDrops,
 } from "../scripts/whatson/eventsRefresh.mjs";
 import { commandsForMode } from "../scripts/local-refresh/scheduler.mjs";
 import { isValidWhatsOnRow } from "@/lib/whatsOn";
+
+const temporaryDirs: string[] = [];
+afterAll(() => {
+  for (const dir of temporaryDirs) rmSync(dir, { recursive: true, force: true });
+});
 
 const observedAt = "2026-08-16T09:00:00.000Z";
 const now = Date.parse(observedAt);
@@ -260,5 +270,150 @@ describe("local scheduler events mode", () => {
     // its deliberate "0 mappable rows, refusing to clobber" refusal). Common
     // depends on Ticketmaster for nothing, so it must still run.
     expect(commands.every((command) => command.independent === true)).toBe(true);
+    // And the Common lane declares no key requirement, so a keyless machine
+    // still runs it.
+    expect(commands[1].requiresAnyKey).toBeUndefined();
+  });
+});
+
+describe("runEventsRefresh end to end", () => {
+  const NOW_MS = Date.parse("2026-08-16T09:00:00.000Z");
+
+  function temporaryOutPath() {
+    const dir = mkdtempSync(join(tmpdir(), "events-refresh-"));
+    temporaryDirs.push(dir);
+    return join(dir, "events_london.json");
+  }
+
+  function ticketmasterResponse() {
+    return new Response(JSON.stringify({ _embedded: { events: [tmTheatre] } }), { status: 200 });
+  }
+
+  it("writes the file with both source descriptors on a keyed run", async () => {
+    const outPath = temporaryOutPath();
+    const commonCalls: unknown[] = [];
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs"],
+      env: { TICKETMASTER_API_KEY: "test-key" },
+      nowMs: NOW_MS,
+      fetchImpl: (async () => ticketmasterResponse()) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      runCommonLane: async (options) => {
+        commonCalls.push(options);
+        return { rows: [] };
+      },
+      log: () => {},
+      logError: () => {},
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.provider.status).toBe("wrote");
+    const written = JSON.parse(readFileSync(outPath, "utf8"));
+    // payload.sources is where the two source constants are read. A binding
+    // that only re-exported them made this line a ReferenceError, and nothing
+    // was ever written.
+    expect(written.sources.map((source: { label: string }) => source.label)).toEqual([
+      "Ticketmaster",
+      "Skiddle",
+    ]);
+    expect(written.generatedAt).toBe(new Date(NOW_MS).toISOString());
+    expect(written.rows).toHaveLength(1);
+    expect(commonCalls).toHaveLength(1);
+  });
+
+  it("runs the keyless Common lane even when the Ticketmaster lane fails", async () => {
+    const outPath = temporaryOutPath();
+    let commonRan = false;
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs"],
+      env: { TICKETMASTER_API_KEY: "test-key" },
+      nowMs: NOW_MS,
+      fetchImpl: (async () => new Response("upstream down", { status: 503 })) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      runCommonLane: async () => {
+        commonRan = true;
+        return { rows: [] };
+      },
+      log: () => {},
+      logError: () => {},
+    });
+
+    expect(result.provider.status).toBe("failed");
+    expect(commonRan).toBe(true);
+    expect(result.common.status).toBe("ran");
+    // The exit code stays honest about the lane that failed.
+    expect(result.ok).toBe(false);
+  });
+
+  it("runs the Common lane through the zero-rows no-clobber refusal", async () => {
+    const outPath = temporaryOutPath();
+    let commonRan = false;
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs"],
+      env: { TICKETMASTER_API_KEY: "test-key" },
+      nowMs: NOW_MS,
+      fetchImpl: (async () =>
+        new Response(JSON.stringify({ _embedded: { events: [] } }), { status: 200 })) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      runCommonLane: async () => {
+        commonRan = true;
+        return { rows: [] };
+      },
+      log: () => {},
+      logError: () => {},
+    });
+
+    expect(result.provider.status).toBe("refused");
+    expect(existsSync(outPath)).toBe(false);
+    expect(commonRan).toBe(true);
+  });
+
+  it("runs the Common lane with no provider key at all, spending no upstream call", async () => {
+    const outPath = temporaryOutPath();
+    let fetched = 0;
+    let commonRan = false;
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs"],
+      env: {},
+      nowMs: NOW_MS,
+      fetchImpl: (async () => {
+        fetched += 1;
+        return ticketmasterResponse();
+      }) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      runCommonLane: async () => {
+        commonRan = true;
+        return { rows: [] };
+      },
+      log: () => {},
+      logError: () => {},
+    });
+
+    expect(fetched).toBe(0);
+    expect(result.provider.status).toBe("not-configured");
+    expect(commonRan).toBe(true);
+    expect(result.ok).toBe(true);
+  });
+
+  it("resolves a venueId only when the CLI injects a venue index", async () => {
+    const outPath = temporaryOutPath();
+    await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs"],
+      env: { TICKETMASTER_API_KEY: "test-key" },
+      nowMs: NOW_MS,
+      fetchImpl: (async () => ticketmasterResponse()) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      runCommonLane: async () => ({ rows: [] }),
+      log: () => {},
+      logError: () => {},
+    });
+    const written = JSON.parse(readFileSync(outPath, "utf8"));
+    expect(written.rows[0].venueId).toBeUndefined();
+    expect(written.rows[0].placeName).toEqual(expect.any(String));
   });
 });

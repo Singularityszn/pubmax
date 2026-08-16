@@ -48,6 +48,8 @@ import { fileURLToPath } from "node:url";
 import {
   EVENT_REFRESH_CITIES,
   SKIDDLE_EVENTCODE_KIND,
+  SKIDDLE_SOURCE,
+  TICKETMASTER_SOURCE,
   cityGeo,
   dedupeEventRowsBySourceId,
   emptyEventDrops,
@@ -55,7 +57,7 @@ import {
   normaliseTicketmasterEvents,
   summariseEventDrops,
 } from "../../lib/whatson/eventNormalise.mjs";
-import { loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
+import { loadCanonicalVenueIndex, resolveVenueId } from "./resolveVenueId.mjs";
 
 export {
   EMPTY_EVENT_DROPS,
@@ -104,10 +106,10 @@ export function eventsOutputPath(city = "london") {
 
 
 // ---------------------------------------------------------------------------
-// Fetchers (impure — only run from main(), never imported by tests)
+// Fetchers (impure — network only; fetchImpl is injectable for tests)
 // ---------------------------------------------------------------------------
 
-async function fetchTicketmaster(apiKey, { nowMs, city = "london" }) {
+async function fetchTicketmaster(apiKey, { nowMs, city = "london", fetchImpl = fetch }) {
   const geo = cityGeo(city);
   const url = new URL("https://app.ticketmaster.com/discovery/v2/events.json");
   url.search = new URLSearchParams({
@@ -121,7 +123,7 @@ async function fetchTicketmaster(apiKey, { nowMs, city = "london" }) {
     size: "100",
     sort: "date,asc",
   }).toString();
-  const res = await fetch(url, { headers: { accept: "application/json", "user-agent": "PUBMAXX-events/1" } });
+  const res = await fetchImpl(url, { headers: { accept: "application/json", "user-agent": "PUBMAXX-events/1" } });
   if (!res.ok) {
     await res.arrayBuffer();
     throw new Error(`Ticketmaster Discovery API returned ${res.status}`);
@@ -131,7 +133,7 @@ async function fetchTicketmaster(apiKey, { nowMs, city = "london" }) {
 
 const SKIDDLE_FETCH_CODES = Object.keys(SKIDDLE_EVENTCODE_KIND).join(",");
 
-async function fetchSkiddle(apiKey, { nowMs, city = "london" }) {
+async function fetchSkiddle(apiKey, { nowMs, city = "london", fetchImpl = fetch }) {
   const geo = cityGeo(city);
   const url = new URL("https://www.skiddle.com/api/v1/events/search/");
   const fmt = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -147,7 +149,7 @@ async function fetchSkiddle(apiKey, { nowMs, city = "london" }) {
     limit: "100",
     description: "1",
   }).toString();
-  const res = await fetch(url, { headers: { accept: "application/json", "user-agent": "PUBMAXX-events/1" } });
+  const res = await fetchImpl(url, { headers: { accept: "application/json", "user-agent": "PUBMAXX-events/1" } });
   if (!res.ok) {
     await res.arrayBuffer();
     throw new Error(`Skiddle Events API returned ${res.status}`);
@@ -184,87 +186,85 @@ function serialiseFile(payload) {
   return payload.rows.length ? `${meta},\n  "rows": [\n${rowLines}\n  ]\n}\n` : `${meta},\n  "rows": []\n}\n`;
 }
 
-async function main() {
-  const nowMs = Date.now();
-  const observedAt = new Date(nowMs).toISOString();
-  const city = parseEventsCityArg(process.argv);
-  if (!city) {
-    console.error(
-      `eventsRefresh: unknown city. Use one of ${EVENT_REFRESH_CITIES.join(", ")}.`,
-    );
-    process.exitCode = 1;
-    return;
-  }
-  const outPath = eventsOutputPath(city);
-  const lanes = providerLaneStatus();
-  console.log(
-    `eventsRefresh: city=${city} ticketmaster=${lanes.ticketmaster} skiddle=${lanes.skiddle}`,
-  );
-
-  const tmKey = process.env.TICKETMASTER_API_KEY;
-  const skKey = process.env.SKIDDLE_API_KEY;
+// The provider lane: fetch every CONFIGURED provider, normalise, and write the
+// city file. It answers one of four outcomes and never throws, so the caller
+// can run the keyless lanes whatever happened here.
+async function runProviderLane({
+  city,
+  outPath,
+  nowMs,
+  observedAt,
+  argv,
+  env,
+  fetchImpl,
+  loadVenueIndex,
+  log,
+  logError,
+}) {
+  const tmKey = env.TICKETMASTER_API_KEY;
+  const skKey = env.SKIDDLE_API_KEY;
+  const lanes = providerLaneStatus(env);
+  log(`eventsRefresh: city=${city} ticketmaster=${lanes.ticketmaster} skiddle=${lanes.skiddle}`);
 
   if (!nonEmptyString(tmKey) && !nonEmptyString(skKey)) {
-    console.log(
+    log(
       "eventsRefresh: no provider keys present (TICKETMASTER_API_KEY / SKIDDLE_API_KEY). " +
         "Lanes stay not-configured. Leaving the events file untouched.",
     );
-    return;
+    return { status: "not-configured", wrote: false };
   }
 
-  const venueIndex = loadCanonicalVenueIndex();
+  const venueIndex = loadVenueIndex();
   const allRows = [];
   const providersRun = [];
   const dropped = emptyEventDrops();
+  const opts = { observedAt, venueIndex, resolveVenue: resolveVenueId };
+
+  const addDrops = (from) => {
+    dropped.noKind += from.noKind;
+    dropped.noPlace += from.noPlace;
+    dropped.noStart += from.noStart;
+    dropped.noUrl += from.noUrl;
+    dropped.noTitle += from.noTitle;
+    dropped.total += from.total;
+  };
 
   if (nonEmptyString(tmKey)) {
     try {
-      const payload = await fetchTicketmaster(tmKey, { nowMs, city });
-      const result = normaliseTicketmasterEvents(payload, { observedAt, venueIndex });
+      const payload = await fetchTicketmaster(tmKey, { nowMs, city, fetchImpl });
+      const result = normaliseTicketmasterEvents(payload, opts);
       allRows.push(...result.rows);
-      dropped.noKind += result.dropped.noKind;
-      dropped.noPlace += result.dropped.noPlace;
-      dropped.noStart += result.dropped.noStart;
-      dropped.noUrl += result.dropped.noUrl;
-      dropped.noTitle += result.dropped.noTitle;
-      dropped.total += result.dropped.total;
+      addDrops(result.dropped);
       providersRun.push({ provider: "ticketmaster", rows: result.rows.length });
-      console.log(
+      log(
         `eventsRefresh: Ticketmaster -> ${result.rows.length} rows, ${summariseEventDrops(result.dropped)}`,
       );
     } catch (err) {
-      console.error(
+      logError(
         `eventsRefresh: Ticketmaster fetch failed (${err.message}) - skipping provider, not clobbering file.`,
       );
-      process.exitCode = 1;
-      return;
+      return { status: "failed", wrote: false, reason: `ticketmaster: ${err.message}` };
     }
   }
 
   if (nonEmptyString(skKey)) {
     try {
-      const payload = await fetchSkiddle(skKey, { nowMs, city });
-      const result = normaliseSkiddleEvents(payload, { observedAt, venueIndex });
+      const payload = await fetchSkiddle(skKey, { nowMs, city, fetchImpl });
+      const result = normaliseSkiddleEvents(payload, opts);
       allRows.push(...result.rows);
-      dropped.noKind += result.dropped.noKind;
-      dropped.noPlace += result.dropped.noPlace;
-      dropped.noStart += result.dropped.noStart;
-      dropped.noUrl += result.dropped.noUrl;
-      dropped.noTitle += result.dropped.noTitle;
-      dropped.total += result.dropped.total;
+      addDrops(result.dropped);
       providersRun.push({ provider: "skiddle", rows: result.rows.length });
-      console.log(
+      log(
         `eventsRefresh: Skiddle -> ${result.rows.length} rows, ${summariseEventDrops(result.dropped)}`,
       );
     } catch (err) {
-      console.error(
+      logError(
         `eventsRefresh: Skiddle fetch failed (${err.message}) - skipping provider, not clobbering file.`,
       );
-      process.exitCode = 1;
-      return;
+      return { status: "failed", wrote: false, reason: `skiddle: ${err.message}` };
     }
   } else {
-    console.log("eventsRefresh: Skiddle lane not-configured (no SKIDDLE_API_KEY).");
+    log("eventsRefresh: Skiddle lane not-configured (no SKIDDLE_API_KEY).");
   }
 
   const commonRows = city === "london" ? readExistingCommonRows(outPath) : [];
@@ -273,14 +273,12 @@ async function main() {
   // Fail closed: a successful run that yields zero rows across every enabled
   // provider is more likely an upstream hiccup than a genuinely empty city -
   // refuse to clobber a good file unless --allow-empty is passed.
-  const allowEmpty = process.argv.includes("--allow-empty");
-  if (allRows.length === 0 && !allowEmpty) {
-    console.error(
+  if (allRows.length === 0 && !argv.includes("--allow-empty")) {
+    logError(
       `eventsRefresh: aborting - enabled provider(s) returned 0 mappable rows. ` +
         `Refusing to overwrite ${outPath}. Pass --allow-empty to override.`,
     );
-    process.exitCode = 1;
-    return;
+    return { status: "refused", wrote: false, reason: "0 mappable rows" };
   }
 
   const deduped = dedupeEventRowsBySourceId(allRows);
@@ -324,20 +322,91 @@ async function main() {
 
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, serialiseFile(payload));
-  console.log(
+  log(
     `eventsRefresh: wrote ${deduped.length} event rows -> ${outPath} ` +
       `(${providersRun.map((p) => `${p.provider}:${p.rows}`).join(", ") || "none"}; ` +
       `common kept ${commonRows.length}; ${summariseEventDrops(dropped)})`,
   );
+  return { status: "wrote", wrote: true, rows: deduped.length };
+}
 
-  if (process.argv.includes("--open-pr") && city === "london") {
-    const { refreshCommonEvents } = await import("./commonRefresh.mjs");
-    await refreshCommonEvents();
+async function defaultRunCommonLane(options) {
+  const { refreshCommonEvents } = await import("./commonRefresh.mjs");
+  return refreshCommonEvents(options);
+}
+
+/**
+ * One refresh run: the provider lane, then the KEYLESS Common lane, then the
+ * review PR.
+ *
+ * The two supply lanes are independent. The Common reader needs no provider key
+ * and depends on Ticketmaster for nothing, so a quiet upstream window - or the
+ * deliberate "0 mappable rows, refusing to clobber" refusal - must not stop it
+ * running. On a first run the file ships with zero rows, so keeping Common
+ * behind that refusal meant it could never seed itself at all.
+ *
+ * Every dependency is injectable so the run can be executed end to end in a
+ * test: this whole path used to be reachable only by spawning the CLI, which is
+ * why a module-level binding error in it went uncaught.
+ */
+export async function runEventsRefresh({
+  argv = process.argv,
+  env = process.env,
+  nowMs = Date.now(),
+  fetchImpl = fetch,
+  outPath: outPathOverride,
+  loadVenueIndex = loadCanonicalVenueIndex,
+  runCommonLane = defaultRunCommonLane,
+  openPr = defaultOpenPr,
+  log = console.log,
+  logError = console.error,
+} = {}) {
+  const observedAt = new Date(nowMs).toISOString();
+  const city = parseEventsCityArg(argv);
+  if (!city) {
+    logError(`eventsRefresh: unknown city. Use one of ${EVENT_REFRESH_CITIES.join(", ")}.`);
+    return { ok: false, city: null, provider: { status: "skipped" }, common: { status: "skipped" } };
+  }
+  const outPath = outPathOverride ?? eventsOutputPath(city);
+
+  const provider = await runProviderLane({
+    city,
+    outPath,
+    nowMs,
+    observedAt,
+    argv,
+    env,
+    fetchImpl,
+    loadVenueIndex,
+    log,
+    logError,
+  });
+
+  let common = { status: "skipped" };
+  if (city === "london") {
+    try {
+      const report = await runCommonLane({ nowMs, outPath });
+      common = { status: "ran", rows: report?.rows?.length ?? 0 };
+    } catch (err) {
+      logError(`eventsRefresh: Common lane failed (${err.message}).`);
+      common = { status: "failed", reason: err.message };
+    }
   }
 
-  if (!process.argv.includes("--open-pr")) return;
+  const laneFailed = provider.status === "failed" || provider.status === "refused";
+  const commonFailed = common.status === "failed";
+  const wrote = provider.wrote === true || common.status === "ran";
+
+  if (argv.includes("--open-pr") && wrote) {
+    await openPr({ outPath, observedAt, nowMs, env, log });
+  }
+
+  return { ok: !laneFailed && !commonFailed, city, provider, common };
+}
+
+function defaultOpenPr({ outPath, observedAt, nowMs, env }) {
   const stamp = observedAt.slice(0, 10).replaceAll("-", "");
-  const branch = `whats-on-events/${stamp}-${process.env.GITHUB_RUN_ID?.replace(/\D/g, "") || nowMs}`;
+  const branch = `whats-on-events/${stamp}-${env.GITHUB_RUN_ID?.replace(/\D/g, "") || nowMs}`;
   execFileSync("git", ["checkout", "-b", branch], { cwd: ROOT, stdio: "inherit" });
   execFileSync("git", ["add", outPath], { cwd: ROOT, stdio: "inherit" });
   execFileSync("git", ["commit", "-m", `chore(whats-on): refresh events ${stamp}`], { cwd: ROOT, stdio: "inherit" });
@@ -347,6 +416,11 @@ async function main() {
     ["pr", "create", "--title", `What's-On events ${stamp}`, "--body", "Scheduled official-API (Ticketmaster/Skiddle) events refresh for the Tonight page. Provenance links back to each source per its terms."],
     { cwd: ROOT, stdio: "inherit" },
   );
+}
+
+async function main() {
+  const result = await runEventsRefresh();
+  if (!result.ok) process.exitCode = 1;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) await main();

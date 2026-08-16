@@ -9,7 +9,7 @@ import {
   TICKETMASTER_SOURCE,
   toIsoInstant,
 } from "../scripts/whatson/eventsRefresh.mjs";
-import { buildVenueResolverIndex } from "../scripts/whatson/resolveVenueId.mjs";
+import { buildVenueResolverIndex, resolveVenueId } from "../scripts/whatson/resolveVenueId.mjs";
 import { isValidWhatsOnRow } from "@/lib/whatsOn";
 
 const observedAt = "2026-07-18T09:00:00.000Z";
@@ -58,7 +58,7 @@ const tmSportsUnmatchedVenue = {
 
 describe("mapTicketmasterEvent", () => {
   it("maps a Music event at a known pub to a valid music row with provenance, price, and a resolved venueId", () => {
-    const row = mapTicketmasterEvent(tmMusicAtKnownPub, { observedAt, venueIndex });
+    const row = mapTicketmasterEvent(tmMusicAtKnownPub, { observedAt, venueIndex, resolveVenue: resolveVenueId });
     expect(row).not.toBeNull();
     expect(row).toMatchObject({
       kind: "music",
@@ -75,7 +75,7 @@ describe("mapTicketmasterEvent", () => {
   });
 
   it("maps a Sports event and still lists it when the venue is unmatched (no venueId, but valid row)", () => {
-    const row = mapTicketmasterEvent(tmSportsUnmatchedVenue, { observedAt, venueIndex });
+    const row = mapTicketmasterEvent(tmSportsUnmatchedVenue, { observedAt, venueIndex, resolveVenue: resolveVenueId });
     expect(row).not.toBeNull();
     expect(row!.kind).toBe("sport");
     expect(row!.placeName).toBe("Copper Box Arena");
@@ -86,7 +86,7 @@ describe("mapTicketmasterEvent", () => {
   it("maps Arts & Theatre onto kind event instead of dropping it", () => {
     const row = mapTicketmasterEvent(
       { ...tmMusicAtKnownPub, classifications: [{ segment: { name: "Arts & Theatre" } }] },
-      { observedAt, venueIndex },
+      { observedAt, venueIndex, resolveVenue: resolveVenueId },
     );
     expect(row).not.toBeNull();
     expect(row!.kind).toBe("event");
@@ -112,7 +112,7 @@ describe("mapTicketmasterEvent", () => {
           ],
         },
       },
-      { observedAt, venueIndex },
+      { observedAt, venueIndex, resolveVenue: resolveVenueId },
     );
     expect(rows).toHaveLength(2);
     expect(dropped.noKind).toBe(1);
@@ -151,7 +151,7 @@ const skClubDropped = {
 
 describe("mapSkiddleEvent", () => {
   it("maps a LIVE event at a known pub to a valid music row with a London-local start, endsAt, price, and resolved venueId", () => {
-    const row = mapSkiddleEvent(skLiveAtKnownPub, { observedAt, venueIndex });
+    const row = mapSkiddleEvent(skLiveAtKnownPub, { observedAt, venueIndex, resolveVenue: resolveVenueId });
     expect(row).not.toBeNull();
     expect(row).toMatchObject({
       kind: "music",
@@ -170,7 +170,7 @@ describe("mapSkiddleEvent", () => {
   });
 
   it("maps CLUB onto kind event instead of dropping it", () => {
-    const row = mapSkiddleEvent(skClubDropped, { observedAt, venueIndex });
+    const row = mapSkiddleEvent(skClubDropped, { observedAt, venueIndex, resolveVenue: resolveVenueId });
     expect(row).not.toBeNull();
     expect(row!.kind).toBe("event");
     expect(isValidWhatsOnRow(row as unknown, now)).toBe(true);
@@ -185,7 +185,7 @@ describe("mapSkiddleEvent", () => {
   it("normalises a full payload", () => {
     const { rows } = normaliseSkiddleEvents(
       { results: [skLiveAtKnownPub, skClubDropped] },
-      { observedAt, venueIndex },
+      { observedAt, venueIndex, resolveVenue: resolveVenueId },
     );
     expect(rows).toHaveLength(2);
     expect(rows[0].source).toEqual({ ...SKIDDLE_SOURCE, url: "https://www.skiddle.com/whats-on/e/900" });

@@ -42,3 +42,35 @@ export declare function readExistingCommonRows(
   filePath: string,
 ): import("../../lib/whatson/eventNormalise.d.mts").WhatsOnEventRow[];
 export declare function parseEventsCityArg(argv?: string[]): string | null;
+
+export type EventsLaneReport = {
+  status: "wrote" | "refused" | "failed" | "not-configured" | "skipped" | "ran";
+  wrote?: boolean;
+  rows?: number;
+  reason?: string;
+};
+
+/** One refresh run with every dependency injectable, so the whole path can be
+ *  executed in a test rather than only by spawning the CLI. */
+export declare function runEventsRefresh(opts?: {
+  argv?: string[];
+  env?: Record<string, string | undefined>;
+  nowMs?: number;
+  fetchImpl?: typeof fetch;
+  outPath?: string;
+  loadVenueIndex?: () => unknown;
+  runCommonLane?: (options: { nowMs: number; outPath: string }) => Promise<unknown>;
+  openPr?: (input: {
+    outPath: string;
+    observedAt: string;
+    nowMs: number;
+    env: Record<string, string | undefined>;
+  }) => void | Promise<void>;
+  log?: (message: string) => void;
+  logError?: (message: string) => void;
+}): Promise<{
+  ok: boolean;
+  city: string | null;
+  provider: EventsLaneReport;
+  common: EventsLaneReport;
+}>;

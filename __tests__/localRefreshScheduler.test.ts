@@ -9,6 +9,7 @@ import {
   commandsForMode,
   captureRefreshSnapshot,
   keyReadinessError,
+  laneReadiness,
   defaultMaxLoad,
   loadKeyFile,
   parseFreeMemoryPercent,
@@ -139,9 +140,9 @@ describe("local refresh key loading", () => {
     expect(keyReadinessError("prices", {})).toBe(
       "prices refresh requires EXA_API_KEY, BROWSERBASE_API_KEY, and TAVILY_API_KEY in the protected key file; missing EXA_API_KEY, BROWSERBASE_API_KEY, TAVILY_API_KEY",
     );
-    expect(keyReadinessError("events", {})).toBe(
-      "events refresh requires TICKETMASTER_API_KEY or an approved SKIDDLE_API_KEY in the protected key file",
-    );
+    // Events readiness is per LANE: the Common reader needs no provider key, so
+    // a keyless machine still has a runnable lane and the mode is not blocked.
+    expect(keyReadinessError("events", {})).toBeNull();
     expect(
       keyReadinessError("prices", {
         EXA_API_KEY: "present",
@@ -150,6 +151,28 @@ describe("local refresh key loading", () => {
       }),
     ).toBeNull();
     expect(keyReadinessError("events", { TICKETMASTER_API_KEY: "present" })).toBeNull();
+  });
+
+  it("skips only the provider lane when no provider key is present, and reports it", () => {
+    const keyless = laneReadiness("events", {});
+    expect(keyless.runnable.map((command) => command.args)).toEqual([
+      ["scripts/whatson/commonRefresh.mjs"],
+    ]);
+    expect(keyless.skipped).toHaveLength(1);
+    expect(keyless.skipped[0].reason).toContain("scripts/whatson/eventsRefresh.mjs");
+    expect(keyless.skipped[0].reason).toContain("TICKETMASTER_API_KEY");
+
+    const keyed = laneReadiness("events", { TICKETMASTER_API_KEY: "present" });
+    expect(keyed.runnable.map((command) => command.args)).toEqual([
+      ["scripts/whatson/eventsRefresh.mjs"],
+      ["scripts/whatson/commonRefresh.mjs"],
+    ]);
+    expect(keyed.skipped).toEqual([]);
+  });
+
+  it("still refuses a keyless prices run, whose lanes all need the same keys", () => {
+    expect(laneReadiness("prices", {}).skipped).toEqual([]);
+    expect(keyReadinessError("prices", {})).toContain("missing");
   });
 });
 
@@ -245,6 +268,7 @@ describe("local refresh scraper sequence", () => {
         executable: process.execPath,
         args: ["scripts/whatson/eventsRefresh.mjs"],
         independent: true,
+        requiresAnyKey: ["TICKETMASTER_API_KEY", "SKIDDLE_API_KEY"],
       },
       {
         executable: process.execPath,

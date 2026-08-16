@@ -21,19 +21,33 @@ export function parseFreeMemoryPercent(output: string): number;
 export function defaultMaxLoad(logicalCpuCount: number): number;
 export function loadKeyFile(path: string): Record<string, string>;
 export function redactSecrets(text: string, values: string[]): string;
-export function keyReadinessError(mode: "prices" | "events", keys: Record<string, string>): string | null;
+export function keyReadinessError(
+  mode: "prices" | "events",
+  keys: Record<string, string | undefined>,
+  dryRun?: boolean,
+): string | null;
 export function providerSafeEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
 export function captureRefreshSnapshot(root: string): RefreshSnapshot;
 export function baseRefForRun(dryRun: boolean): "HEAD" | "origin/main";
-export function commandsForMode(
-  mode: "prices" | "events",
-  dryRun: boolean,
-): Array<{
+export type RefreshCommand = {
   executable: string;
   args: string[];
   /** A lane whose non-zero exit must not stop the others. */
   independent?: boolean;
-}>;
+  /** Provider keys this lane needs; absent means the lane is keyless. */
+  requiresAnyKey?: string[];
+};
+
+export function commandsForMode(
+  mode: "prices" | "events",
+  dryRun: boolean,
+): RefreshCommand[];
+
+export function laneReadiness(
+  mode: "prices" | "events",
+  keys: Record<string, string | undefined>,
+  dryRun?: boolean,
+): { runnable: RefreshCommand[]; skipped: { command: RefreshCommand; reason: string }[] };
 
 export function resourceRefusal(input: {
   load1: number;
