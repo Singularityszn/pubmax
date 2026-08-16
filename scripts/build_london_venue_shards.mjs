@@ -88,6 +88,18 @@ export function inGreaterLondon(lat, lng) {
   return lat >= south && lat <= north && lng >= west && lng <= east;
 }
 
+/**
+ * The layer's own bbox in the order the manifest speaks: GeoJSON
+ * [minLng, minLat, maxLng, maxLat], the same order every `shards[].bbox` in the
+ * document carries. `GREATER_LONDON_BBOX` is lat-first and stays that way for
+ * `inGreaterLondon`; a document that mixed the two orders would have a reader
+ * intersect 51.28 as a longitude and match no shard at all.
+ */
+export function londonLayerBbox() {
+  const [south, west, north, east] = GREATER_LONDON_BBOX;
+  return [west, south, east, north];
+}
+
 function isRenderable(venue) {
   return Boolean(
     typeof venue?.name === "string" &&
@@ -216,7 +228,7 @@ async function main() {
       version: LONDON_VENUE_SHARD_VERSION,
       urlPrefix: `/data/${LONDON_VENUE_DIR_NAME}/`,
       grid: LONDON_VENUE_GRID,
-      bbox: GREATER_LONDON_BBOX,
+      bbox: londonLayerBbox(),
       source: "OpenStreetMap Overpass",
       license: "ODbL",
       attribution: "© OpenStreetMap contributors",

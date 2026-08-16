@@ -2,6 +2,9 @@
 // pub system: a cafe on this layer may never wear a pub's id, a pub's price
 // lane or a pub's label.
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { UK_BASE_ID_PREFIX } from "@/lib/ukBasePubs";
@@ -109,6 +112,68 @@ describe("London venue manifest", () => {
     expect(
       parseLondonVenueManifest({ ...manifest, shards: [{ ...manifest.shards[0], id: "../secret" }] }),
     ).toBeNull();
+  });
+});
+
+describe("the published manifest speaks one bbox order", () => {
+  // The manifest is generated public output, so it is read here as the contract
+  // it is. Its top-level bbox is the LAYER's window and every shards[].bbox is a
+  // cell inside it, both in GeoJSON [minLng, minLat, maxLng, maxLat]: a document
+  // that mixed lat-first and lng-first would have a reader intersecting the
+  // layer window before loading shards match nothing at all.
+  const manifestPath = path.join(
+    __dirname,
+    "..",
+    "public",
+    "data",
+    "london_venues",
+    "manifest.json",
+  );
+
+  it("holds every shard cell inside the layer bbox, read lng-first", () => {
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      bbox: number[];
+      shards: { id: string; bbox: number[] }[];
+    };
+    const [minLng, minLat, maxLng, maxLat] = manifest.bbox;
+    expect(minLng).toBeLessThan(maxLng);
+    expect(minLat).toBeLessThan(maxLat);
+    expect(manifest.shards.length).toBeGreaterThan(0);
+
+    for (const shardEntry of manifest.shards) {
+      const [cellMinLng, cellMinLat, cellMaxLng, cellMaxLat] = shardEntry.bbox;
+      expect(cellMaxLng).toBeGreaterThan(minLng);
+      expect(cellMinLng).toBeLessThan(maxLng);
+      expect(cellMaxLat).toBeGreaterThan(minLat);
+      expect(cellMinLat).toBeLessThan(maxLat);
+    }
+  });
+
+  it("carries every shard's own venues inside that shard's bbox", () => {
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      urlPrefix: string;
+      shards: { id: string; bbox: number[] }[];
+    };
+    const publicRoot = path.join(__dirname, "..", "public");
+    const sample = manifest.shards.slice(0, 12);
+    for (const shardEntry of sample) {
+      const [cellMinLng, cellMinLat, cellMaxLng, cellMaxLat] = shardEntry.bbox;
+      const rows = parseLondonVenueShard(
+        JSON.parse(
+          readFileSync(
+            path.join(publicRoot, `${manifest.urlPrefix}${shardEntry.id}.json`.slice(1)),
+            "utf8",
+          ),
+        ),
+      );
+      expect(rows.length).toBeGreaterThan(0);
+      for (const venue of rows) {
+        expect(venue.lng).toBeGreaterThanOrEqual(cellMinLng);
+        expect(venue.lng).toBeLessThanOrEqual(cellMaxLng);
+        expect(venue.lat).toBeGreaterThanOrEqual(cellMinLat);
+        expect(venue.lat).toBeLessThanOrEqual(cellMaxLat);
+      }
+    }
   });
 });
 

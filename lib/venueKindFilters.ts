@@ -33,7 +33,8 @@ export function hasSavedPubVenue(
  * The word a surface prints for a kind. Every kind names itself: falling
  * through to "Pub" would print the wrong noun over a library the moment the
  * vocabulary widened, and a wrong noun beside a figure is exactly what
- * `docs/VOICE.md` forbids.
+ * `docs/VOICE.md` forbids. A kind this build does not hold lands on the NEUTRAL
+ * entry rather than on nothing: a heading that reads "undefined" is not copy.
  */
 const KIND_LABELS: Record<VenueKind, string> = {
   pub: "Pub",
@@ -62,11 +63,13 @@ const KIND_NOUNS: Record<VenueKind, string> = {
 };
 
 export function venueKindLabel(kind: VenueKind | undefined): string {
-  return kind === undefined ? KIND_LABELS.pub : KIND_LABELS[kind];
+  if (kind === undefined) return KIND_LABELS.pub;
+  return KIND_LABELS[kind] ?? KIND_LABELS.other;
 }
 
 export function venueKindNoun(kind: VenueKind | undefined): string {
-  return kind === undefined ? KIND_NOUNS.pub : KIND_NOUNS[kind];
+  if (kind === undefined) return KIND_NOUNS.pub;
+  return KIND_NOUNS[kind] ?? KIND_NOUNS.other;
 }
 
 /**

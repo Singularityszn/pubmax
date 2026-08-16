@@ -28,7 +28,10 @@
 // The raw responses are gitignored: the pub-only pull was 13 MB and this one is
 // several times that, which is a working file rather than a data drop. The
 // normalized per-group packs are what a reader consumes, and the run REFUSES to
-// pretend a partial pull is a whole one - a missing chunk leaves the packs alone.
+// pretend a partial pull is a whole one - a missing chunk leaves the packs alone,
+// and a `--scope` retry writes ITS lane's pack alone. See `runArtifactPlan`: an
+// artifact describes a complete run of its own scope or it is not rewritten,
+// which is what keeps the documented lane retry from zeroing the other two packs.
 //
 // OSM data is © OpenStreetMap contributors, ODbL 1.0.
 
@@ -65,6 +68,7 @@ import {
   buildUkVenueQuery,
   countVenues,
   normalizeVenueElements,
+  taxonomyForScope,
 } from "./lib/ukOsmVenueSeed.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -82,6 +86,33 @@ export const GREATER_LONDON_BBOX = [51.28, -0.53, 51.7, 0.34];
 
 export function venuePackPath(group) {
   return path.join(UK_DIR, `uk_osm_venues_${group}.json`);
+}
+
+/** The chunk manifest a run of this scope owns. A lane retry keeps its own
+ * record rather than overwriting the whole-taxonomy run's. */
+export function manifestPathFor(scope) {
+  return scope === "all" ? MANIFEST_PATH : path.join(UK_DIR, `venue_chunks_${scope}.json`);
+}
+
+/**
+ * Which artifacts a run may rewrite. An artifact describes a COMPLETE run of
+ * its OWN scope, so:
+ *   - a lane retry (`--scope=work`) rewrites that lane's pack alone, and leaves
+ *     the two packs it never fetched exactly as they are on disk;
+ *   - the counts file and the report that cites it are whole-taxonomy figures,
+ *     so a lane retry leaves them alone rather than writing a partial total;
+ *   - a run that did not read every grid chunk (`--chunk`, or a pull that lost
+ *     chunks to failures) rewrites nothing at all.
+ */
+export function runArtifactPlan(scope, { missingChunks = 0 } = {}) {
+  const complete = missingChunks === 0;
+  const packGroups = !complete ? [] : scope === "all" ? [...UK_VENUE_GROUPS] : [scope];
+  return {
+    complete,
+    packGroups,
+    manifestPath: complete ? manifestPathFor(scope) : null,
+    countsPath: complete && scope === "all" ? COUNTS_PATH : null,
+  };
 }
 
 export function inGreaterLondon(venue) {
@@ -255,34 +286,38 @@ async function main() {
   console.log(`=== UK venue pull, scope=${options.scope}, ${targets.length} chunk(s) ===`);
   const result = await collect(options.scope, grid, targets, options);
 
-  await writePretty(MANIFEST_PATH, {
-    source: "OpenStreetMap Overpass",
-    license: "ODbL",
-    attribution: "© OpenStreetMap contributors",
-    generatedAt: runStartedAt,
-    completedAt: new Date().toISOString(),
-    scope: options.scope,
-    bbox: UK_BBOX,
-    latStep: DEFAULT_LAT_STEP,
-    lonStep: DEFAULT_LON_STEP,
-    areaFilter: "OSM relation 62149 (United Kingdom)",
-    taxonomy: UK_VENUE_TAXONOMY.map(({ key, kind, group, selectors, note }) => ({
-      key,
-      kind,
-      group,
-      selectors,
-      note,
-    })),
-    chunks: grid.length,
-    chunksRead: result.chunkStats.length,
-    chunksWithData: result.chunkStats.filter((stats) => stats.elements > 0).length,
-    elements: result.chunkStats.reduce((sum, stats) => sum + stats.elements, 0),
-    unclassifiedElements: result.unclassified,
-    unnamedElements: result.unnamed,
-    missingChunks: result.missing.map((chunk) => chunk.id),
-    failures: result.failures,
-    chunkStats: result.chunkStats,
-  });
+  const plan = runArtifactPlan(options.scope, { missingChunks: result.missing.length });
+
+  if (plan.manifestPath) {
+    await writePretty(plan.manifestPath, {
+      source: "OpenStreetMap Overpass",
+      license: "ODbL",
+      attribution: "© OpenStreetMap contributors",
+      generatedAt: runStartedAt,
+      completedAt: new Date().toISOString(),
+      scope: options.scope,
+      bbox: UK_BBOX,
+      latStep: DEFAULT_LAT_STEP,
+      lonStep: DEFAULT_LON_STEP,
+      areaFilter: "OSM relation 62149 (United Kingdom)",
+      taxonomy: taxonomyForScope(options.scope).map(({ key, kind, group, selectors, note }) => ({
+        key,
+        kind,
+        group,
+        selectors,
+        note,
+      })),
+      chunks: grid.length,
+      chunksRead: result.chunkStats.length,
+      chunksWithData: result.chunkStats.filter((stats) => stats.elements > 0).length,
+      elements: result.chunkStats.reduce((sum, stats) => sum + stats.elements, 0),
+      unclassifiedElements: result.unclassified,
+      unnamedElements: result.unnamed,
+      missingChunks: result.missing.map((chunk) => chunk.id),
+      failures: result.failures,
+      chunkStats: result.chunkStats,
+    });
+  }
 
   if (options.chunk) {
     console.log(`chunk ${options.chunk} done - rerun without --chunk (or with --from-raw) to rebuild the packs`);
@@ -290,7 +325,7 @@ async function main() {
     return;
   }
 
-  if (result.missing.length > 0) {
+  if (!plan.complete) {
     console.error(`\n${result.missing.length} of ${grid.length} chunk(s) missing - packs NOT rewritten.`);
     for (const failure of result.failures) console.error(`  ${failure.id}: ${failure.error}`);
     console.error("Rerun `npm run fetch:uk-venues` to resume.");
@@ -308,7 +343,7 @@ async function main() {
     for (const [key, n] of Object.entries(from)) into[key] = (into[key] ?? 0) + n;
   };
 
-  for (const group of UK_VENUE_GROUPS) {
+  for (const group of plan.packGroups) {
     const venues = [...(result.byGroup.get(group)?.values() ?? [])];
     const counts = countVenues(venues);
     const london = venues.filter(inGreaterLondon);
@@ -345,24 +380,35 @@ async function main() {
     );
   }
 
-  await writePretty(COUNTS_PATH, {
-    generatedAt: runStartedAt,
-    source: "OpenStreetMap Overpass",
-    license: "ODbL",
-    attribution: "© OpenStreetMap contributors",
-    note:
-      "London is a bounding box over Greater London, used only to split a count. " +
-      "It is never a claim that a venue is inside a borough.",
-    greaterLondonBbox: GREATER_LONDON_BBOX,
-    kinds: UK_VENUE_KINDS,
-    uk: { total: totalVenues, byKind: totals.byKind, byTaxonomyKey: totals.byTaxonomyKey },
-    london: { total: londonVenues, byKind: londonTotals.byKind, byTaxonomyKey: londonTotals.byTaxonomyKey },
-    groups: summaries,
-  });
+  if (plan.countsPath) {
+    await writePretty(plan.countsPath, {
+      generatedAt: runStartedAt,
+      source: "OpenStreetMap Overpass",
+      license: "ODbL",
+      attribution: "© OpenStreetMap contributors",
+      note:
+        "London is a bounding box over Greater London, used only to split a count. " +
+        "It is never a claim that a venue is inside a borough.",
+      greaterLondonBbox: GREATER_LONDON_BBOX,
+      kinds: UK_VENUE_KINDS,
+      uk: { total: totalVenues, byKind: totals.byKind, byTaxonomyKey: totals.byTaxonomyKey },
+      london: { total: londonVenues, byKind: londonTotals.byKind, byTaxonomyKey: londonTotals.byTaxonomyKey },
+      groups: summaries,
+    });
+  } else {
+    console.log(
+      `\n${path.relative(ROOT, COUNTS_PATH)} left alone: it carries whole-taxonomy figures, and this ` +
+        `run covered the ${options.scope} lane only. Rerun without --scope to refresh it and the report.`,
+    );
+  }
 
-  const packBytes = summaries.reduce((sum, summary) => sum + summary.bytes, 0);
+  let packBytes = 0;
+  for (const group of UK_VENUE_GROUPS) {
+    const packPath = venuePackPath(group);
+    if (await fileExists(packPath)) packBytes += (await stat(packPath)).size;
+  }
   const rawBytes = (await fileExists(RAW_ROOT)) ? await dirSizeBytes(RAW_ROOT) : 0;
-  console.log(`\nUK venues: ${totalVenues} (London ${londonVenues})`);
+  console.log(`\nUK venues (scope=${options.scope}): ${totalVenues} (London ${londonVenues})`);
   for (const [kind, n] of Object.entries(totals.byKind).sort()) {
     console.log(`  ${kind}: ${n} (London ${londonTotals.byKind[kind] ?? 0})`);
   }

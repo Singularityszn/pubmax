@@ -6,8 +6,11 @@
 // venue, so both are taken only where a tag says otherwise; nothing is inferred
 // from a name, a chain or a postcode.
 
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
+import { runArtifactPlan, venuePackPath } from "../scripts/fetch_uk_osm_venues.mjs";
 import {
   normalizeOsmVenueElement,
   normalizeOsmPubElement,
@@ -216,6 +219,47 @@ describe("the widened venue vocabulary", () => {
     const kinds: readonly VenueKind[] = VENUE_KINDS;
     expect(new Set(kinds).size).toBe(kinds.length);
     expect(kinds.slice(0, 5)).toEqual(["pub", "bar", "club", "food", "restaurant"]);
+  });
+});
+
+describe("what a run of the venue fetcher may rewrite", () => {
+  it("rewrites every pack, the manifest and the counts after a whole-taxonomy pull", () => {
+    const plan = runArtifactPlan("all", { missingChunks: 0 });
+    expect(plan.complete).toBe(true);
+    expect(plan.packGroups).toEqual([...UK_VENUE_GROUPS]);
+    expect(path.basename(plan.manifestPath!)).toBe("venue_chunks.json");
+    expect(path.basename(plan.countsPath!)).toBe("venue_counts.json");
+  });
+
+  it("keeps a --scope lane retry to its OWN pack, and off the whole-taxonomy figures", () => {
+    // The documented recovery command is `npm run fetch:uk-venues -- --scope=work`.
+    // It fetches one lane, so it may rewrite one lane: the drink and food packs
+    // it never asked Overpass about must stay on disk untouched rather than be
+    // written empty, and the counts file it cannot honestly restate is left alone.
+    for (const group of UK_VENUE_GROUPS) {
+      const plan = runArtifactPlan(group, { missingChunks: 0 });
+      expect(plan.packGroups).toEqual([group]);
+      expect(plan.countsPath).toBeNull();
+      expect(path.basename(plan.manifestPath!)).toBe(`venue_chunks_${group}.json`);
+      expect(plan.manifestPath).not.toBe(runArtifactPlan("all", {}).manifestPath);
+      for (const other of UK_VENUE_GROUPS.filter((row: string) => row !== group)) {
+        expect(plan.packGroups).not.toContain(other);
+      }
+    }
+  });
+
+  it("rewrites nothing at all when the run did not read every chunk", () => {
+    const plan = runArtifactPlan("all", { missingChunks: 1 });
+    expect(plan.complete).toBe(false);
+    expect(plan.packGroups).toEqual([]);
+    expect(plan.manifestPath).toBeNull();
+    expect(plan.countsPath).toBeNull();
+  });
+
+  it("names each pack after its own group", () => {
+    for (const group of UK_VENUE_GROUPS) {
+      expect(path.basename(venuePackPath(group))).toBe(`uk_osm_venues_${group}.json`);
+    }
   });
 });
 

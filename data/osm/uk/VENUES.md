@@ -19,6 +19,11 @@ raw_venues/                # raw Overpass responses, GITIGNORED
 Refresh: `npm run fetch:uk-venues` (resumes by default; `--from-raw` rebuilds the
 packs with no network; `--scope=work` retries one lane; `--list` prints the grid).
 
+An artifact describes a complete run of its own scope: a `--scope` retry writes
+that lane's pack and its own `venue_chunks_<scope>.json`, and leaves the other
+packs, `venue_counts.json` and the extract report untouched. Rerun without
+`--scope` to refresh those.
+
 ## What earns a row
 
 `scripts/lib/ukOsmVenueSeed.mjs` is the taxonomy and the only place it is
